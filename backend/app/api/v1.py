@@ -6,6 +6,7 @@ from fastapi import APIRouter
 
 from app.api.routers import auth as auth_router
 from app.api.routers import jobs as jobs_router
+from app.api.routers import learning as learning_router
 from app.api.routers import recipes as recipes_router
 from app.api.routers import simulations as simulations_router
 from app.api.routers import swarms as swarms_router
@@ -14,6 +15,7 @@ from app.api.routers import workflows as workflows_router
 
 api_v1 = APIRouter()
 api_v1.include_router(auth_router.router, prefix="/auth")
+api_v1.include_router(learning_router.router, prefix="/learning")
 api_v1.include_router(workflows_router.router, prefix="/workflows")
 api_v1.include_router(swarms_router.router, prefix="/swarms")
 api_v1.include_router(tasks_router.router, prefix="/tasks")
