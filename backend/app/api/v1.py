@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from app.api.routers import agents as agents_router
 from app.api.routers import auth as auth_router
 from app.api.routers import jobs as jobs_router
 from app.api.routers import learning as learning_router
@@ -15,6 +16,7 @@ from app.api.routers import workflows as workflows_router
 
 api_v1 = APIRouter()
 api_v1.include_router(auth_router.router, prefix="/auth")
+api_v1.include_router(agents_router.router, prefix="/agents")
 api_v1.include_router(learning_router.router, prefix="/learning")
 api_v1.include_router(workflows_router.router, prefix="/workflows")
 api_v1.include_router(swarms_router.router, prefix="/swarms")

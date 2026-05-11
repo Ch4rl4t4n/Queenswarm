@@ -1,0 +1,31 @@
+:root {
+  --bg: #050510;
+  --pollen: #ffb800;
+  --cyan: #00ffff;
+}
+
+.hive-body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--pollen);
+  font-family: system-ui, sans-serif;
+}
+
+.hive-main {
+  padding: 3rem;
+  max-width: 42rem;
+}
+
+.hive-title {
+  font-weight: 700;
+  font-size: 2rem;
+}
+
+.hive-sub {
+  color: var(--cyan);
+  margin-top: 1rem;
+}
+
+.hive-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}

@@ -4,21 +4,34 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import JSONResponse
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.api.deps import DbSession, JwtSubject
 from app.core.config import settings
+from app.models.enums import SwarmPurpose
 from app.schemas.sub_swarm import (
     GlobalHiveSyncAck,
     RunWorkflowOnSwarmQueuedResponse,
     RunWorkflowOnSwarmRequest,
     RunWorkflowOnSwarmResponse,
 )
+from app.schemas.swarm_catalog import (
+    SubSwarmCreateRequest,
+    SubSwarmPatchRequest,
+    SubSwarmSnapshot,
+)
 from app.services.hive_async_workflow_run_ledger import enqueue_hive_async_workflow_run
 from app.services.hive_sync import mark_sub_swarm_globally_synced
 from app.services.sub_swarm.runner import run_sub_swarm_workflow_cycle
+from app.services.sub_swarm_catalog import (
+    SubSwarmCatalogError,
+    apply_sub_swarm_updates,
+    create_sub_swarm,
+    fetch_sub_swarm,
+    list_sub_swarms,
+)
 
 router = APIRouter(tags=["Swarms"])
 
@@ -34,6 +47,167 @@ _ERROR_HTTP_MAP: dict[str, int] = {
     "budget_exceeded": status.HTTP_429_TOO_MANY_REQUESTS,
     "step_timeout": status.HTTP_504_GATEWAY_TIMEOUT,
 }
+
+
+@router.get(
+    "",
+    response_model=list[SubSwarmSnapshot],
+    summary="List sub-swarm colonies",
+)
+async def list_sub_swarm_colonies(
+    db: DbSession,
+    _subject: JwtSubject,
+    purpose: SwarmPurpose | None = Query(default=None),
+    is_active: bool | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=200),
+):
+    """Return decentralized hive partitions for dashboards."""
+
+    try:
+        return await list_sub_swarms(
+            db,
+            purpose=purpose,
+            is_active=is_active,
+            limit=limit,
+        )
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected sub-swarm listing.",
+        )
+
+
+@router.post(
+    "",
+    response_model=SubSwarmSnapshot,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a sub-swarm colony",
+)
+async def create_sub_swarm_colony(
+    body: SubSwarmCreateRequest,
+    db: DbSession,
+    _subject: JwtSubject,
+):
+    """Stand up local hive memory prior to attaching worker bees."""
+
+    try:
+        row = await create_sub_swarm(
+            db,
+            name=body.name,
+            purpose=body.purpose,
+            local_memory=dict(body.local_memory),
+            queen_agent_id=body.queen_agent_id,
+            is_active=body.is_active,
+        )
+        await db.commit()
+        await db.refresh(row)
+    except SubSwarmCatalogError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Sub-swarm name is already taken.",
+        )
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected sub-swarm insert.",
+        )
+    return row
+
+
+@router.get(
+    "/{swarm_id}",
+    response_model=SubSwarmSnapshot,
+    summary="Fetch sub-swarm colony metadata",
+)
+async def get_sub_swarm_colony(
+    swarm_id: uuid.UUID,
+    db: DbSession,
+    _subject: JwtSubject,
+):
+    """Return a single colony row including sync telemetry."""
+
+    try:
+        row = await fetch_sub_swarm(db, swarm_id)
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected sub-swarm lookup.",
+        )
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sub-swarm not found.")
+    return row
+
+
+@router.patch(
+    "/{swarm_id}",
+    response_model=SubSwarmSnapshot,
+    summary="Patch sub-swarm colony metadata",
+)
+async def patch_sub_swarm_colony(
+    swarm_id: uuid.UUID,
+    body: SubSwarmPatchRequest,
+    db: DbSession,
+    _subject: JwtSubject,
+):
+    """Update naming, queen linkage, or pollen totals."""
+
+    if body.clear_queen and body.queen_agent_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Use clear_queen or queen_agent_id, not both.",
+        )
+
+    if (
+        body.name is None
+        and body.local_memory is None
+        and body.queen_agent_id is None
+        and not body.clear_queen
+        and body.is_active is None
+        and body.total_pollen is None
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Provide at least one mutable field.",
+        )
+
+    row = await fetch_sub_swarm(db, swarm_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sub-swarm not found.")
+
+    try:
+        await apply_sub_swarm_updates(
+            db,
+            row,
+            name=body.name,
+            local_memory=body.local_memory,
+            queen_agent_id=body.queen_agent_id,
+            clear_queen=body.clear_queen,
+            is_active=body.is_active,
+            total_pollen=body.total_pollen,
+        )
+        await db.commit()
+        await db.refresh(row)
+    except SubSwarmCatalogError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Sub-swarm name is already taken.",
+        )
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected sub-swarm update.",
+        )
+    return row
 
 
 @router.post(
