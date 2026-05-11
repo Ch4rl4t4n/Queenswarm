@@ -1,4 +1,4 @@
-"""Factory mapping SQL ``Agent`` identities to runnable bee classes."""
+"""Factory mapping SQL ``Agent`` identities to runnable bee classes (Phase D registry)."""
 
 from __future__ import annotations
 
@@ -6,23 +6,48 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.base_agent import BaseAgent
 from app.agents.bees.generic import GenericBee
+from app.agents.bees.role_bees import (
+    BlogWriterBee,
+    EvaluatorBee,
+    LearnerBee,
+    MarketerBee,
+    RecipeKeeperBee,
+    ReporterBee,
+    ScraperBee,
+    SimulatorBee,
+    SocialPosterBee,
+    TraderBee,
+)
 from app.agents.cost_governor import CostGovernor
 from app.models.agent import Agent
 from app.models.enums import AgentRole
 
 _REGISTRY: dict[AgentRole, type[BaseAgent]] = {}
 
+_DEFAULT_SPECIALISTS: dict[AgentRole, type[BaseAgent]] = {
+    AgentRole.SCRAPER: ScraperBee,
+    AgentRole.EVALUATOR: EvaluatorBee,
+    AgentRole.SIMULATOR: SimulatorBee,
+    AgentRole.REPORTER: ReporterBee,
+    AgentRole.TRADER: TraderBee,
+    AgentRole.MARKETER: MarketerBee,
+    AgentRole.BLOG_WRITER: BlogWriterBee,
+    AgentRole.SOCIAL_POSTER: SocialPosterBee,
+    AgentRole.LEARNER: LearnerBee,
+    AgentRole.RECIPE_KEEPER: RecipeKeeperBee,
+}
+
 _DEFAULT_INITIALIZED = False
 
 
 def _prime_defaults() -> None:
-    """Register ``GenericBee`` for every enumerated role lazily."""
+    """Register role specialists lazily while allowing ``register_specialist`` overrides."""
 
     global _DEFAULT_INITIALIZED  # noqa: PLW0603 — module singleton initializer
     if _DEFAULT_INITIALIZED:
         return
-    for role in AgentRole:
-        _REGISTRY.setdefault(role, GenericBee)
+    for role, impl in _DEFAULT_SPECIALISTS.items():
+        _REGISTRY.setdefault(role, impl)
     _DEFAULT_INITIALIZED = True
 
 
@@ -52,7 +77,7 @@ def instantiate_agent(
         cost_governor: Optional mocked governor during simulations.
 
     Returns:
-        Specialized :class:`BaseAgent` derivative (defaults to ``GenericBee``).
+        Specialized :class:`BaseAgent` derivative (Phase D defaults per ``AgentRole``).
     """
 
     _prime_defaults()

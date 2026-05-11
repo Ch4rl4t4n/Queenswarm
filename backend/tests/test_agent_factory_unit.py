@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.agents.base_agent import BaseAgent
-from app.agents.bees.generic import GenericBee
+from app.agents.bees.role_bees import EvaluatorBee, LearnerBee
 from app.agents.cost_governor import BudgetExceededError, CostGovernor
 from app.agents.decorators import with_rapid_loop
 from app.agents.factory import instantiate_agent, register_specialist
@@ -48,14 +48,14 @@ def hive_agent_stub() -> MagicMock:
 
 
 @pytest.mark.asyncio
-async def test_instantiate_agent_defaults_to_generic_bee(
+async def test_instantiate_agent_resolves_learner_bee_by_default(
     mock_session: MagicMock,
     hive_agent_stub: MagicMock,
 ) -> None:
-    """Hive rows without specialization should instantiate ``GenericBee``."""
+    """Hive rows with LEARNER role instantiate the Phase D ``LearnerBee``."""
 
     bee = instantiate_agent(db=mock_session, agent_row=hive_agent_stub)
-    assert isinstance(bee, GenericBee)
+    assert isinstance(bee, LearnerBee)
     assert bee.agent_id == hive_agent_stub.id
 
 
@@ -75,7 +75,7 @@ async def test_register_specialist_overrides_placeholder(
         outcome = await bee.execute(payload=payload)
         assert outcome["handled_by"] == "_EchoBee"
     finally:
-        register_specialist(AgentRole.EVALUATOR, GenericBee)
+        register_specialist(AgentRole.EVALUATOR, EvaluatorBee)
 
 
 def test_cost_governor_daily_limit_blocks_runaway_spend(monkeypatch: pytest.MonkeyPatch) -> None:

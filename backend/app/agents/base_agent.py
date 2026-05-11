@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import uuid
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
@@ -47,6 +49,21 @@ class BaseAgent(ABC):
         """Return a developer-friendly surrogate for swarm telemetry."""
 
         return f"{self.__class__.__name__}(agent_id={self.agent_id!s}, role={self._agent.role.value!r})"
+
+    def waggle_cue(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Construct a compact waggle-dance cue for hive coordination (Redis / dance feed).
+
+        Subclasses may extend with role-specific fingerprints; keep payloads small.
+        """
+
+        canonical = json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
+        digest = hashlib.sha256(canonical).hexdigest()[:16]
+        return {
+            "bee_class": self.__class__.__name__,
+            "role": self._agent.role.value,
+            "payload_digest": digest,
+            "swarm_id": str(self.swarm_id) if self.swarm_id else None,
+        }
 
     @property
     def agent_id(self) -> uuid.UUID:
