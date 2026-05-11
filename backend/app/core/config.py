@@ -308,6 +308,14 @@ class Settings(BaseSettings):
     )
     workflow_breaker_max_output_tokens: int = 4096
     workflow_breaker_temperature: float = 0.15
+    ballroom_guest_ws: bool = Field(
+        default=False,
+        description="Allow ballroom transcript sockets without JWT (demo kiosks only).",
+    )
+    hive_dashboard_guest_ws: bool = Field(
+        default=False,
+        description="Allow /api/v1/ws/live dashboard sockets without JWT (read-only snapshots).",
+    )
 
     @model_validator(mode="after")
     def hive_machine_token_pair_consistency(self) -> Self:

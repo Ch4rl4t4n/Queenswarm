@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.metrics import BUDGET_BLOCK_TOTAL
 from app.models.cost import CostRecord
 
 logger = get_logger(__name__)
@@ -66,6 +67,7 @@ class CostGovernor:
                 utilization_ratio=round(utilization, 3),
             )
         if self._daily_limit > 0 and projected > self._daily_limit:
+            BUDGET_BLOCK_TOTAL.inc()
             msg = (
                 f"Daily budget {self._daily_limit:.2f} USD would be exceeded "
                 f"(spent {spent:.2f} + delta {delta_usd:.2f})."

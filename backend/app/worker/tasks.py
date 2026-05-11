@@ -8,12 +8,52 @@ import uuid
 from typing import Any
 
 from app.core.database import async_session
+from app.core.metrics import observe_hourly_roll_tick
 from app.services.hive_async_workflow_run_ledger import (
     finalize_failed_hive_async_workflow_run,
     finalize_successful_hive_async_workflow_run,
 )
 from app.services.sub_swarm.runner import run_sub_swarm_workflow_cycle
 from app.worker.celery_app import celery_app
+
+
+@celery_app.task(name="hive.hourly_youtube_crypto_roll")
+def hourly_youtube_crypto_roll_task() -> dict[str, str]:
+    """Queue a deterministic mock scrape backlog row for crypto YouTube ingest."""
+
+    async def _queue() -> str:
+        async with async_session() as session:
+            from sqlalchemy import select
+
+            from app.models.enums import TaskType
+            from app.models.swarm import SubSwarm
+            from app.models.task import Task
+            from app.services.task_ledger import create_task_record
+
+            scout = await session.scalar(select(SubSwarm).where(SubSwarm.name == "colony-scout"))
+            if scout is None:
+                return "no_scout_swarm_seed_first"
+            title = "Hourly YouTube crypto pulse (Celery)"
+            exists = await session.scalar(select(Task).where(Task.title == title))
+            if exists:
+                await session.commit()
+                observe_hourly_roll_tick()
+                return "task_exists"
+            await create_task_record(
+                session,
+                title=title,
+                task_type_value=TaskType.SCRAPE,
+                priority=2,
+                payload={"source": "youtube", "topic": "crypto", "producer": "celery_hourly_stub"},
+                swarm_id=scout.id,
+                workflow_id=None,
+                parent_task_id=None,
+            )
+            await session.commit()
+            observe_hourly_roll_tick()
+            return "queued"
+
+    return {"status": asyncio.run(_queue())}
 
 
 @celery_app.task(name="hive.echo_pulse")
@@ -105,4 +145,8 @@ def run_sub_swarm_workflow_cycle_task(
     return snapshot
 
 
-__all__ = ["echo_hive_pulse", "run_sub_swarm_workflow_cycle_task"]
+__all__ = [
+    "echo_hive_pulse",
+    "hourly_youtube_crypto_roll_task",
+    "run_sub_swarm_workflow_cycle_task",
+]

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from celery import Celery
+from celery.schedules import crontab
 
 from app.core.config import settings
 
@@ -35,6 +36,13 @@ def create_celery_app() -> Celery:
         worker_prefetch_multiplier=1,
         worker_max_tasks_per_child=500,
     )
+    celery.conf.beat_schedule = {
+        "hive-hourly-youtube-crypto-roll": {
+            "task": "hive.hourly_youtube_crypto_roll",
+            "schedule": crontab(minute=0),
+            "options": {"queue": "hive"},
+        },
+    }
     return celery
 
 
