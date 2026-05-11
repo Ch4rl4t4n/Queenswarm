@@ -176,8 +176,12 @@ async def _record_llm_spend(
             cost_usd=max(cost_value, 0.0),
         )
         db.add(entry)
-    except (TypeError, ValueError, AttributeError, litellm.NotFoundError):
-        logger.warning("workflow_breaker.cost.unavailable", model=model_name)
+    except Exception as exc:
+        logger.warning(
+            "workflow_breaker.cost.unavailable",
+            model=model_name,
+            error=str(exc),
+        )
 
 
 class WorkflowBreakerService:
@@ -217,7 +221,11 @@ class WorkflowBreakerService:
 
             recipe_hints: list[str] = []
             if enrich_from_chroma_recipes:
-                chroma_hit = await find_similar_recipes(task_text)
+                try:
+                    chroma_hit = await find_similar_recipes(task_text)
+                except (ConnectionError, OSError, TimeoutError, ValueError, RuntimeError) as exc:
+                    logger.warning("workflow_breaker.chroma_unavailable", error=str(exc))
+                    chroma_hit = None
                 if chroma_hit is not None:
                     recipe_hints.append(chroma_hit.model_dump_json())
 
