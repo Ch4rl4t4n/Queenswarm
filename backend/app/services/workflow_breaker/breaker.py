@@ -8,7 +8,7 @@ import uuid
 from typing import Any
 
 import litellm
-from litellm import acompletion
+from litellm import AuthenticationError, acompletion
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -126,7 +126,7 @@ async def _invoke_breaker_llm(
             content = response.choices[0].message.content or ""
             logger.info("workflow_breaker.llm.completed", model=model_name)
             return response, content, model_name
-        except litellm.exceptions.AuthenticationError:
+        except AuthenticationError:
             logger.error("workflow_breaker.llm.auth_failed", model=model_name)
             raise
         except Exception as exc:  # noqa: BLE001 — provider-specific stack
