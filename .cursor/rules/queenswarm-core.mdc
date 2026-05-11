@@ -1,0 +1,37 @@
+---
+description: Queenswarm hive philosophy, architecture constraints, and universal NEVER/ALWAYS for queenswarm.love
+alwaysApply: true
+---
+
+# Queenswarm — Core Agent Swarm Rules
+
+Queenswarm is a bee-hive inspired AI agent swarm for **queenswarm.love**. Apply this philosophy to **every** architectural and workflow decision.
+
+## Philosophy
+
+- **One agent = one bee**: a single, sharp responsibility executed extremely well.
+- **Decompose work**: break large tasks into the smallest meaningful sub-workflows.
+- **Local sub-swarms**: decentralized groups of roughly 5–10 agents with local “hive mind” coordination.
+- **Global sync**: sync to the global hive mind about every **5 minutes** — avoid a central bottleneck.
+- **Reward learning**: **pollen points** for verified outcomes; use an **Imitation Engine** so agents copy top performers.
+- **Recipe Library**: persist every **verified** workflow automatically as a reusable recipe.
+- **Rapid Learning Loop**: a full loop should finish in **under 60 seconds** when feasible.
+
+## NEVER
+
+- Monolithic agents that try to do many unrelated jobs.
+- Central single-point-of-failure components (control plane, queue, or “one true” coordinator).
+- Reporting results to the user **without** running applicable **simulation** / verification first.
+- Hardcoded secrets — use environment variables or a secret manager, never literals in code.
+- Blocking I/O or synchronous patterns where an async option exists for that stack.
+
+## ALWAYS (cross-cutting)
+
+- Prefer small, composable units over “god” services or mega-prompts.
+- Design for **decentralization** and periodic global sync, not permanent central choke points.
+- After tasks complete, **award pollen** for verified outcomes and **save** proven flows to the **Recipe Library** when implementing that system.
+- Use **structured logging** in code: include `agent_id`, `swarm_id`, and `task_id` where those concepts exist.
+
+## Python specifics
+
+When editing Python, also follow `.cursor/rules/queenswarm-python.mdc` (`**/*.py`).

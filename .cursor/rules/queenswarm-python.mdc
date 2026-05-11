@@ -1,0 +1,36 @@
+---
+description: Python standards for Queenswarm — async, typing, Pydantic v2, logging, errors
+globs: **/*.py
+alwaysApply: false
+---
+
+# Queenswarm — Python Standards
+
+## Style and APIs
+
+- Use **async/await** throughout; avoid blocking calls in async contexts.
+- Every public function: **type hints**, **Pydantic v2** models where data crosses boundaries, and a concise **docstring** (purpose, args, returns, raises when non-obvious).
+- Prefer explicit exception types; **do not** swallow errors silently.
+
+## Logging
+
+Use **structured** logging (e.g. key-value context) and include when available:
+
+- `agent_id`
+- `swarm_id`
+- `task_id`
+
+Example shape:
+
+```python
+logger.info(
+    "task.completed",
+    extra={"agent_id": agent_id, "swarm_id": swarm_id, "task_id": task_id},
+)
+```
+
+Adjust to your project’s logging library (`structlog`, `logging` adapters, etc.) but keep the same fields.
+
+## Integration with swarm behavior
+
+- After successful verified work, hook into **pollen** awards and **recipe** persistence per product rules — do not skip these integration points when implementing task completion paths.

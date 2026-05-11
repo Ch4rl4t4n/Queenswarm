@@ -1,0 +1,79 @@
+You are building Queenswarm — a bee-hive inspired AI Agent Swarm system for queenswarm.love.
+
+# BEE-HIVE PHILOSOPHY (core principles)
+- Each agent = one bee with ONE clear job done extremely well
+- Auto Workflow Breaker decomposes tasks into atomic sub-workflows (3-7 steps)
+- Decentralized sub-swarms (5-10 bees) with local hive minds
+- Sub-swarms sync to global hive mind every 5 minutes (no central bottleneck)
+- Reward-driven learning (Maynard-Cross): pollen points for verified outcomes
+- Imitation Engine: agents copy top-performing neighbors
+- Recipe Library: every verified workflow auto-saves as reusable recipe
+- Rapid Learning Loop: scrape → reflect → simulate → reward → update under 60s
+- Only verified (simulated) results reach the user — never raw outputs
+
+# TECH STACK
+- Backend: Python 3.12, FastAPI, LangGraph, Celery, Redis
+- Databases: PostgreSQL, ChromaDB, Neo4j
+- LLM: LiteLLM router (Grok primary, Claude fallback, GPT-4o-mini cheap)
+- Frontend: Next.js 15 (App Router), Tailwind CSS v4, shadcn/ui (heavy customization)
+- Deployment: Docker Compose → Kubernetes ready
+- Domain: queenswarm.love
+
+# CODE RULES — PYTHON BACKEND
+- Always use async/await for I/O
+- Always type hints on every function (Python 3.12 syntax: int | None, list[str])
+- Always pydantic v2 models with model_config
+- Always structured logging with structlog (include: agent_id, swarm_id, task_id)
+- Always specific exception types, never bare except
+- Always docstrings (Google style)
+- Never hardcode secrets — only env vars via Pydantic Settings
+- Use SQLAlchemy 2.0 async ORM
+- Use pathlib.Path, never os.path
+- Use f-strings, never .format() or %
+- All agents inherit from BaseAgent and emit pollen rewards after task completion
+- Every workflow step has explicit guardrails dict + evaluation_criteria
+
+# CODE RULES — FRONTEND  
+- Next.js 15 App Router only (NEVER pages router)
+- TypeScript strict mode, no implicit any
+- React Server Components by default, "use client" only when needed
+- Tailwind v4 utility classes, no inline styles
+- shadcn/ui as base, customize heavily for bee-hive theme
+- Mobile-first responsive design
+- Loading skeletons for every data fetch
+- Error boundaries on all routes
+
+# DESIGN SYSTEM — BEE-HIVE NEON-DARK
+- Background: #050510 (deep space)
+- Pollen amber: #FFB800 (rewards, success glow)
+- Cyan data: #00FFFF (active data flow)
+- Magenta alert: #FF00AA (warnings)
+- Green success: #00FF88 (verified)
+- Red error: #FF3366 (blocked)
+- Headings font: "Space Grotesk" weights 500/700
+- Data/code font: "JetBrains Mono"
+- Hexagonal card shapes (clip-path)
+- Glow proportional to value (box-shadow intensity)
+- Confetti on simulation success (canvas-confetti)
+
+# SECURITY (non-negotiable)
+- ALL secrets via env vars
+- JWT auth on every endpoint except /health, /metrics, /docs
+- Rate limiting via Redis sliding window
+- Docker sandbox for ALL code execution (network: none, 256MB, 0.5 CPU, 30s timeout)
+- Audit logging for admin actions
+- Input validation with Pydantic on every endpoint
+
+# TESTING
+- pytest-asyncio for backend, Vitest for frontend
+- Mock external services (LLM, scraping, Slack)
+- Coverage target: 80% backend
+- Always test error paths
+
+# COMMIT CONVENTIONS
+- feat: new feature
+- fix: bug fix
+- bee: bee-hive specific (new agent, recipe, swarm logic)
+- docs: documentation
+- refactor: code refactor
+- test: tests
