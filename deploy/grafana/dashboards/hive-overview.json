@@ -1,0 +1,54 @@
+{
+  "title": "Queenswarm Hive",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "API Target Up",
+      "gridPos": { "x": 0, "y": 0, "w": 8, "h": 5 },
+      "id": 1,
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "up{job=\"queenswarm-backend\"}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "queenswarm_prom"
+          }
+        }
+      ],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "queenswarm_prom"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP Request Ratio (FastAPI instrumentation)",
+      "gridPos": { "x": 8, "y": 0, "w": 16, "h": 8 },
+      "id": 2,
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(http_requests_total[5m])",
+          "legendFormat": "{{handler}}"
+        }
+      ]
+    }
+  ]
+}

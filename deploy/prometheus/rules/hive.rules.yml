@@ -1,0 +1,38 @@
+groups:
+  - name: queenswarm-health
+    rules:
+      - alert: BackendMetricsMissing
+        expr: absent(up{job="queenswarm-backend"} == 1)
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Prometheus cannot scrape FastAPI metrics from the Queenswarm API.
+
+      - alert: HighHttp5xxBurst
+        expr: sum(increase(http_requests_total{status=~"5.."}[1m])) > 10
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: More than ten HTTP 5xx responses in one minute across instrumented handlers.
+
+      - alert: HiveBudgetExceeded
+        expr: increase(queenswarm_budget_blocks_total[10m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: >
+            Daily LLM budget cap blocked at least one spend event in the CostGovernor
+            (hive burn would exceed configured daily_budget_usd).
+
+      - alert: HiveHourlyIngestStale
+        expr: (time() - queenswarm_hourly_roll_last_unixtime) > 7200
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: >
+            The Celery hourly YouTube ingest tick has not updated its heartbeat gauge in over two hours.
+            Check celery-beat, worker queue `hive`, and database connectivity after running hive_seed.
