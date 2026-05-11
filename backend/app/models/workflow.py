@@ -11,8 +11,9 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base, TimestampMixin
+from app.models.enums import AgentRole, StepStatus, WorkflowStatus
 
-class Workflow(Base, TimestampMixin):
+
     """Breaker output: ordered steps, parallel groups, recipe recall metadata."""
 
     __tablename__ = "workflows"

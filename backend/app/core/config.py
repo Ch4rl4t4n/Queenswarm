@@ -110,11 +110,14 @@ class Settings(BaseSettings):
     monthly_budget_usd: float = 200.0
     cost_warning_threshold: float = Field(default=0.8, ge=0.0, le=1.0)
 
-    @field_validator("cors_origins", mode="before")
+    # --- Auto Workflow Breaker (LiteLLM decomposition router)
+    workflow_breaker_primary_model: str = "xai/grok-2-latest"
+    workflow_breaker_fallback_model: str = "anthropic/claude-3-5-sonnet-latest"
+    workflow_breaker_max_output_tokens: int = 4096
+    workflow_breaker_temperature: float = 0.15
     @classmethod
     def split_cors_origins(cls, value: list[str] | str) -> list[str]:
-        """Allow comma-separated environment strings for `CORS_ORIGINS`."""
-        """Normalize CORS origins from a comma-separated string or explicit list."""
+        """Normalize ``CORS_ORIGINS`` from CSV strings or typed lists."""
 
         if isinstance(value, str):
             return [part.strip() for part in value.split(",") if part.strip()]
