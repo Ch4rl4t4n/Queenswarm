@@ -1,8 +1,10 @@
-"""ORM registry exports for PostgreSQL-backed Global Hive Mind tables."""
+"""ORM aggregate exports with lazy lookups plus an explicit mapper bootstrap."""
 
-from app.models.agent import Agent
-from app.models.base import Base, SoftDeleteMixin, TimestampMixin, UUIDMixin
-from app.models.cost import Budget, CostRecord
+from __future__ import annotations
+
+import importlib
+from typing import Any
+
 from app.models.enums import (
     AgentRole,
     AgentStatus,
@@ -14,13 +16,65 @@ from app.models.enums import (
     TaskType,
     WorkflowStatus,
 )
-from app.models.knowledge import KnowledgeItem, LearningLog
-from app.models.recipe import Recipe
-from app.models.reward import ImitationEvent, PollenReward
-from app.models.simulation import Simulation
-from app.models.swarm import SubSwarm
-from app.models.task import Task
-from app.models.workflow import Workflow, WorkflowStep
+
+_EXPORTABLE: dict[str, tuple[str, str]] = {
+    "Agent": ("app.models.agent", "Agent"),
+    "Budget": ("app.models.cost", "Budget"),
+    "CostRecord": ("app.models.cost", "CostRecord"),
+    "ImitationEvent": ("app.models.reward", "ImitationEvent"),
+    "KnowledgeItem": ("app.models.knowledge", "KnowledgeItem"),
+    "LearningLog": ("app.models.knowledge", "LearningLog"),
+    "PollenReward": ("app.models.reward", "PollenReward"),
+    "Recipe": ("app.models.recipe", "Recipe"),
+    "Simulation": ("app.models.simulation", "Simulation"),
+    "SubSwarm": ("app.models.swarm", "SubSwarm"),
+    "Task": ("app.models.task", "Task"),
+    "Workflow": ("app.models.workflow", "Workflow"),
+    "WorkflowStep": ("app.models.workflow", "WorkflowStep"),
+    "SoftDeleteMixin": ("app.models.base", "SoftDeleteMixin"),
+    "TimestampMixin": ("app.models.base", "TimestampMixin"),
+    "UUIDMixin": ("app.models.base", "UUIDMixin"),
+    "Base": ("app.core.database", "Base"),
+}
+
+_MODEL_PACKAGES: tuple[str, ...] = (
+    "app.models.swarm",
+    "app.models.agent",
+    "app.models.recipe",
+    "app.models.workflow",
+    "app.models.task",
+    "app.models.reward",
+    "app.models.knowledge",
+    "app.models.simulation",
+    "app.models.cost",
+)
+
+_MODELS_INITIALIZED = False
+
+
+def load_all_models() -> None:
+    """Import mapper modules exactly once so SQLAlchemy metadata is complete."""
+
+    global _MODELS_INITIALIZED
+    if _MODELS_INITIALIZED:
+        return
+    for pkg in _MODEL_PACKAGES:
+        importlib.import_module(pkg)
+    _MODELS_INITIALIZED = True
+
+
+def __getattr__(name: str) -> Any:
+    """Lazily resolve heavy ORM classes without pulling Settings during tests."""
+
+    if name in _EXPORTABLE:
+        module_path, attr = _EXPORTABLE[name]
+        module = importlib.import_module(module_path)
+        value = getattr(module, attr)
+        globals()[name] = value
+        return value
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)
+
 
 __all__ = [
     "Agent",
@@ -49,4 +103,5 @@ __all__ = [
     "Workflow",
     "WorkflowStatus",
     "WorkflowStep",
+    "load_all_models",
 ]
