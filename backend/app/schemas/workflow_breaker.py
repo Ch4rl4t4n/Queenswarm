@@ -17,10 +17,28 @@ class DecomposeWorkflowRequest(BaseModel):
 
     task_text: Annotated[str, Field(min_length=8, max_length=50_000)]
     matching_recipe_id: uuid.UUID | None = None
+    prefer_recipe: uuid.UUID | None = Field(
+        default=None,
+        description="Alias for ``matching_recipe_id`` (Phase C ergonomic name).",
+    )
+    max_steps: int = Field(
+        default=7,
+        ge=3,
+        le=7,
+        description="Breaker emits 3-7 steps; this caps the upper bound for prompts.",
+    )
     enrich_from_chroma_recipes: bool = Field(
         default=False,
         description="When True, cosine-match the Recipe Library and inject context.",
     )
+
+    @model_validator(mode="after")
+    def prefer_alias(self) -> Self:
+        """Let ``prefer_recipe`` populate ``matching_recipe_id`` when the latter is absent."""
+
+        if self.matching_recipe_id is None and self.prefer_recipe is not None:
+            object.__setattr__(self, "matching_recipe_id", self.prefer_recipe)
+        return self
 
 
 class WorkflowStepBrief(BaseModel):

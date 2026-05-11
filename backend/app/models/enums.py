@@ -96,10 +96,19 @@ class BudgetPeriod(str, Enum):
     MONTHLY = "monthly"
 
 
+class HiveAsyncRunLifecycle(str, Enum):
+    """Postgres audit states for deferred LangGraph runs."""
+
+    QUEUED = "queued"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+
+
 __all__ = [
     "AgentRole",
     "AgentStatus",
     "BudgetPeriod",
+    "HiveAsyncRunLifecycle",
     "SimulationResult",
     "StepStatus",
     "SwarmPurpose",

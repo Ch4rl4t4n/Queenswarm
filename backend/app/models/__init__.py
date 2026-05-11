@@ -1,40 +1,39 @@
-"""ORM aggregate exports with lazy lookups plus an explicit mapper bootstrap."""
+"""ORM aggregate exports — lazy heavyweight imports keep enum-only paths lightweight."""
 
 from __future__ import annotations
 
 import importlib
 from typing import Any
 
-from app.models.enums import (
-    AgentRole,
-    AgentStatus,
-    BudgetPeriod,
-    SimulationResult,
-    StepStatus,
-    SwarmPurpose,
-    TaskStatus,
-    TaskType,
-    WorkflowStatus,
-)
-
 _EXPORTABLE: dict[str, tuple[str, str]] = {
     "Agent": ("app.models.agent", "Agent"),
+    "AgentRole": ("app.models.enums", "AgentRole"),
+    "AgentStatus": ("app.models.enums", "AgentStatus"),
+    "Base": ("app.core.database", "Base"),
     "Budget": ("app.models.cost", "Budget"),
+    "BudgetPeriod": ("app.models.enums", "BudgetPeriod"),
     "CostRecord": ("app.models.cost", "CostRecord"),
+    "HiveAsyncRunLifecycle": ("app.models.enums", "HiveAsyncRunLifecycle"),
+    "HiveAsyncWorkflowRun": ("app.models.hive_async_workflow_run", "HiveAsyncWorkflowRun"),
     "ImitationEvent": ("app.models.reward", "ImitationEvent"),
     "KnowledgeItem": ("app.models.knowledge", "KnowledgeItem"),
     "LearningLog": ("app.models.knowledge", "LearningLog"),
     "PollenReward": ("app.models.reward", "PollenReward"),
     "Recipe": ("app.models.recipe", "Recipe"),
     "Simulation": ("app.models.simulation", "Simulation"),
-    "SubSwarm": ("app.models.swarm", "SubSwarm"),
-    "Task": ("app.models.task", "Task"),
-    "Workflow": ("app.models.workflow", "Workflow"),
-    "WorkflowStep": ("app.models.workflow", "WorkflowStep"),
+    "SimulationResult": ("app.models.enums", "SimulationResult"),
     "SoftDeleteMixin": ("app.models.base", "SoftDeleteMixin"),
+    "StepStatus": ("app.models.enums", "StepStatus"),
+    "SubSwarm": ("app.models.swarm", "SubSwarm"),
+    "SwarmPurpose": ("app.models.enums", "SwarmPurpose"),
+    "Task": ("app.models.task", "Task"),
+    "TaskStatus": ("app.models.enums", "TaskStatus"),
+    "TaskType": ("app.models.enums", "TaskType"),
     "TimestampMixin": ("app.models.base", "TimestampMixin"),
     "UUIDMixin": ("app.models.base", "UUIDMixin"),
-    "Base": ("app.core.database", "Base"),
+    "Workflow": ("app.models.workflow", "Workflow"),
+    "WorkflowStatus": ("app.models.enums", "WorkflowStatus"),
+    "WorkflowStep": ("app.models.workflow", "WorkflowStep"),
 }
 
 _MODEL_PACKAGES: tuple[str, ...] = (
@@ -47,61 +46,36 @@ _MODEL_PACKAGES: tuple[str, ...] = (
     "app.models.knowledge",
     "app.models.simulation",
     "app.models.cost",
+    "app.models.hive_async_workflow_run",
 )
 
-_MODELS_INITIALIZED = False
+_BOOTSTRAPPED = False
 
 
 def load_all_models() -> None:
-    """Import mapper modules exactly once so SQLAlchemy metadata is complete."""
+    """Import mapper modules exactly once so SQLAlchemy metadata is fully populated."""
 
-    global _MODELS_INITIALIZED
-    if _MODELS_INITIALIZED:
+    global _BOOTSTRAPPED
+    if _BOOTSTRAPPED:
         return
     for pkg in _MODEL_PACKAGES:
         importlib.import_module(pkg)
-    _MODELS_INITIALIZED = True
+    _BOOTSTRAPPED = True
 
 
 def __getattr__(name: str) -> Any:
-    """Lazily resolve heavy ORM classes without pulling Settings during tests."""
+    """Expose ORM helpers lazily without forcing Settings resolution."""
 
-    if name in _EXPORTABLE:
-        module_path, attr = _EXPORTABLE[name]
-        module = importlib.import_module(module_path)
-        value = getattr(module, attr)
-        globals()[name] = value
-        return value
-    msg = f"module {__name__!r} has no attribute {name!r}"
-    raise AttributeError(msg)
+    target = _EXPORTABLE.get(name)
+    if target is None:
+        msg = f"module {__name__!r} has no attribute {name!r}"
+        raise AttributeError(msg)
+
+    module_path, attr = target
+    module = importlib.import_module(module_path)
+    value = getattr(module, attr)
+    globals()[name] = value
+    return value
 
 
-__all__ = [
-    "Agent",
-    "AgentRole",
-    "AgentStatus",
-    "Budget",
-    "BudgetPeriod",
-    "Base",
-    "CostRecord",
-    "ImitationEvent",
-    "KnowledgeItem",
-    "LearningLog",
-    "PollenReward",
-    "Recipe",
-    "Simulation",
-    "SimulationResult",
-    "SoftDeleteMixin",
-    "StepStatus",
-    "SubSwarm",
-    "SwarmPurpose",
-    "Task",
-    "TaskStatus",
-    "TaskType",
-    "TimestampMixin",
-    "UUIDMixin",
-    "Workflow",
-    "WorkflowStatus",
-    "WorkflowStep",
-    "load_all_models",
-]
+__all__ = sorted(_EXPORTABLE.keys()) + ["load_all_models"]

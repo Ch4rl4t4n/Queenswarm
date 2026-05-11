@@ -16,8 +16,9 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.core.config import settings
 from app.core.database import Base
+from app.models import load_all_models
 
-import app.models  # noqa: F401
+load_all_models()
 
 config = context.config
 

@@ -14,6 +14,7 @@ from app.core.database import Base, TimestampMixin
 from app.models.enums import AgentRole, StepStatus, WorkflowStatus
 
 
+class Workflow(Base, TimestampMixin):
     """Breaker output: ordered steps, parallel groups, recipe recall metadata."""
 
     __tablename__ = "workflows"
@@ -55,6 +56,10 @@ from app.models.enums import AgentRole, StepStatus, WorkflowStatus
         foreign_keys=[matching_recipe_id],
     )
     tasks: Mapped[list["Task"]] = relationship("Task", back_populates="workflow")
+    async_workflow_runs: Mapped[list["HiveAsyncWorkflowRun"]] = relationship(
+        "HiveAsyncWorkflowRun",
+        back_populates="workflow",
+    )
 
     def __repr__(self) -> str:
         """Return a concise debug representation of the workflow."""

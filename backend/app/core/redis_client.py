@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import math
+import time
+import uuid
 from collections.abc import AsyncGenerator, AsyncIterator
 from typing import Any
 
@@ -10,6 +13,22 @@ import redis.asyncio as aioredis
 from redis.asyncio import Redis
 
 from app.core.config import settings
+
+_SLIDING_RESERVE_LUA = """
+local maximum = tonumber(ARGV[1])
+local now = tonumber(ARGV[2])
+local cutoff = tonumber(ARGV[3])
+local member = ARGV[4]
+local ttl_seconds = tonumber(ARGV[5])
+redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', cutoff)
+local current = redis.call('ZCARD', KEYS[1])
+if current >= maximum then
+  return 0
+end
+redis.call('ZADD', KEYS[1], now, member)
+redis.call('EXPIRE', KEYS[1], ttl_seconds)
+return 1
+"""
 
 CHANNEL_SWARM_EVENTS = "swarm_events"
 CHANNEL_POLLEN_REWARDS = "pollen_rewards"
@@ -33,6 +52,66 @@ async def _connection_pool() -> aioredis.ConnectionPool:
             socket_keepalive=True,
         )
     return _redis_pool
+
+
+async def sliding_window_reserve(bucket_key: str, *, limit: int, window_sec: float) -> bool:
+    """Atomically record one hit if the rolling window is under ``limit`` events.
+
+    Uses a Redis sorted set scored by Unix time and a short Lua script so checks stay
+    race-safe under concurrent API instances.
+
+    Args:
+        bucket_key: Redis key (namespace with product prefix externally).
+        limit: Maximum events allowed inside the window.
+        window_sec: Sliding window width in seconds (fractional allowed).
+
+    Returns:
+        ``True`` when the caller may proceed, ``False`` when throttled.
+
+    Raises:
+        ValueError: Invalid limit or window sizing.
+        RedisError: When the backing Redis server rejects the script.
+    """
+
+    if limit < 1:
+        msg = "limit must be at least 1 for sliding window accounting."
+        raise ValueError(msg)
+    if window_sec <= 0:
+        msg = "window_sec must be positive."
+        raise ValueError(msg)
+
+    now = time.time()
+    cutoff = now - window_sec
+    member = f"{now}:{uuid.uuid4().hex}"
+    ttl = int(math.ceil(window_sec)) + 2
+
+    pool = await _connection_pool()
+    client = Redis(connection_pool=pool)
+    try:
+        raw = await client.eval(
+            _SLIDING_RESERVE_LUA,
+            1,
+            bucket_key,
+            str(limit),
+            f"{now}",
+            f"{cutoff}",
+            member,
+            str(ttl),
+        )
+    finally:
+        await client.aclose()
+    return int(raw) == 1
+
+
+async def ping_redis() -> None:
+    """Issue ``PING`` against the shared pool (readiness probes, smoke tests)."""
+
+    pool = await _connection_pool()
+    client = Redis(connection_pool=pool)
+    try:
+        await client.ping()
+    finally:
+        await client.aclose()
 
 
 async def close_redis() -> None:

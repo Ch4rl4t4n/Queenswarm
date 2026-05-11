@@ -59,6 +59,10 @@ class SubSwarm(Base, TimestampMixin):
         uselist=False,
     )
     tasks: Mapped[list["Task"]] = relationship("Task", back_populates="swarm")
+    async_workflow_runs: Mapped[list["HiveAsyncWorkflowRun"]] = relationship(
+        "HiveAsyncWorkflowRun",
+        back_populates="swarm",
+    )
 
     @property
     def needs_sync(self) -> bool:

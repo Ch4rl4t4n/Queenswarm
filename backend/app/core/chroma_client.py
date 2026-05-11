@@ -17,6 +17,9 @@ _COLLECTION_KNOWLEDGE = "knowledge"
 _COLLECTION_RECIPES = "recipes"
 _COLLECTION_AGENT_MEMORIES = "agent_memories"
 
+# Public alias matching ``_COLLECTION_RECIPES`` for routers and services outside this module.
+RECIPE_LIBRARY_COLLECTION = _COLLECTION_RECIPES
+
 _chroma_lock = asyncio.Lock()
 _chroma_client: AsyncClientAPI | None = None
 
@@ -151,14 +154,21 @@ async def semantic_search(
 
 async def find_similar_recipes(
     task_text: str,
-    threshold: float = 0.85,
+    threshold: float | None = None,
 ) -> Recipe | None:
     """Return the strongest verified recipe candidate above the cosine cutoff.
 
     Chroma cosine ``distance`` is translated to ``similarity = 1 - distance`` assuming
     the server uses cosine space for the Recipe Library collection (hive default).
+
+    Args:
+        task_text: User or breaker task narration used as the retrieval query.
+        threshold: Explicit cutoff; defaults to ``settings.recipe_library_match_threshold``.
     """
 
+    cutoff = (
+        threshold if threshold is not None else settings.recipe_library_match_threshold
+    )
     hits = await semantic_search(task_text, _COLLECTION_RECIPES, n_results=1)
     if not hits:
         return None
@@ -167,7 +177,7 @@ async def find_similar_recipes(
     if distance is None:
         return None
     similarity = max(0.0, min(1.0, 1.0 - float(distance)))
-    if similarity < threshold:
+    if similarity < cutoff:
         return None
     metadata = dict(top.get("metadata") or {})
     doc = top.get("document") or ""

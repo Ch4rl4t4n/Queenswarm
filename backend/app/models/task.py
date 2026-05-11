@@ -89,6 +89,10 @@ class Task(Base, TimestampMixin):
         "Recipe",
         foreign_keys=[recipe_used_id],
     )
+    async_workflow_runs: Mapped[list["HiveAsyncWorkflowRun"]] = relationship(
+        "HiveAsyncWorkflowRun",
+        back_populates="hive_task",
+    )
 
     def __repr__(self) -> str:
         """Return a concise debug representation of the task."""

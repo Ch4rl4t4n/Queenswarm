@@ -9,7 +9,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.schemas.workflow_breaker import BreakerDecomposition, BreakerStepDraft
-from app.services.workflow_breaker import breaker as breaker_module
+from app.services.workflow_breaker import parsing as parsing_module
 
 
 def test_extract_json_object_strips_fenced_payload() -> None:
@@ -71,7 +71,7 @@ def test_extract_json_object_strips_fenced_payload() -> None:
         ],
     }
     raw = f"```json\n{json.dumps(inner)}\n```"
-    blob = breaker_module._extract_json_object(raw)
+    blob = parsing_module.extract_breaker_json(raw)
     parsed = BreakerDecomposition.model_validate(blob)
     assert parsed.parallelizable_groups == [[2, 3]]
 
@@ -206,7 +206,7 @@ def test_json_snippet_embedded_in_prose() -> None:
         )
         + "\nHope this helps."
     )
-    blob = breaker_module._extract_json_object(chatter)
+    blob = parsing_module.extract_breaker_json(chatter)
     model = BreakerDecomposition.model_validate(blob)
     assert model.estimated_duration_sec == 120
 
@@ -224,6 +224,50 @@ def test_step_description_requires_multiple_tokens() -> None:
             guardrails={"risks": [], "mitigations": [], "stop_conditions": []},
             evaluation_criteria={"must_satisfy": [], "measurable_signals": {}},
         )
+
+
+def test_workflow_validator_rejects_vague_verbs() -> None:
+    """Blacklist should catch analyse/process phrasing before strict Pydantic."""
+
+    from app.workflows.validators import WorkflowValidator
+
+    payload = {
+        "rationale": "long enough rationale text",
+        "parallelizable_groups": [],
+        "estimated_duration_sec": 120,
+        "steps": [
+            {
+                "order": 1,
+                "description": "Analyze the market carefully",
+                "agent_role": "scraper",
+                "input_schema": {},
+                "output_schema": {},
+                "guardrails": {"risks": [], "mitigations": [], "stop_conditions": []},
+                "evaluation_criteria": {"must_satisfy": [], "measurable_signals": {}},
+            },
+            {
+                "order": 2,
+                "description": "Second valid step description",
+                "agent_role": "evaluator",
+                "input_schema": {},
+                "output_schema": {},
+                "guardrails": {"risks": [], "mitigations": [], "stop_conditions": []},
+                "evaluation_criteria": {"must_satisfy": [], "measurable_signals": {}},
+            },
+            {
+                "order": 3,
+                "description": "Third valid step description",
+                "agent_role": "simulator",
+                "input_schema": {},
+                "output_schema": {},
+                "guardrails": {"risks": [], "mitigations": [], "stop_conditions": []},
+                "evaluation_criteria": {"must_satisfy": [], "measurable_signals": {}},
+            },
+        ],
+    }
+    ok, errs = WorkflowValidator.validate_decomposition(payload)
+    assert ok is False
+    assert any("vague" in e.lower() for e in errs)
 
 
 def test_decompose_request_accepts_uuid_strings() -> None:

@@ -70,8 +70,9 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def init_db() -> None:
     """Create declared ORM tables in PostgreSQL (idempotent bootstrap)."""
 
-    import app.models  # noqa: F401
+    from app.models import load_all_models
 
+    load_all_models()
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
