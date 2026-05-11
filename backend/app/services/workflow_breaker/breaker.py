@@ -211,15 +211,23 @@ class WorkflowBreakerService:
             enrich_recipe_chroma=enrich_from_chroma_recipes,
         )
         try:
+            recipe_hints: list[str] = []
             if matching_recipe_id is not None:
-                exists = await db.scalar(
-                    select(RecipeRow.id).where(RecipeRow.id == matching_recipe_id),
-                )
-                if exists is None:
+                recipe_row = await db.get(RecipeRow, matching_recipe_id)
+                if recipe_row is None:
                     msg = "matching_recipe_id does not reference a persisted recipe."
                     raise ValueError(msg)
+                recipe_hints.append(
+                    json.dumps(
+                        {
+                            "recipe_name": recipe_row.name,
+                            "topic_tags": recipe_row.topic_tags,
+                            "template": recipe_row.workflow_template,
+                        },
+                        default=str,
+                    ),
+                )
 
-            recipe_hints: list[str] = []
             if enrich_from_chroma_recipes:
                 try:
                     chroma_hit = await find_similar_recipes(task_text)
@@ -228,20 +236,6 @@ class WorkflowBreakerService:
                     chroma_hit = None
                 if chroma_hit is not None:
                     recipe_hints.append(chroma_hit.model_dump_json())
-
-            if matching_recipe_id is not None:
-                recipe_row = await db.get(RecipeRow, matching_recipe_id)
-                if recipe_row is not None:
-                    recipe_hints.append(
-                        json.dumps(
-                            {
-                                "recipe_name": recipe_row.name,
-                                "topic_tags": recipe_row.topic_tags,
-                                "template": recipe_row.workflow_template,
-                            },
-                            default=str,
-                        ),
-                    )
 
             user_payload = {
                 "task": task_text,
