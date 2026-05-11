@@ -15,6 +15,7 @@ from app.core.config import settings
 from app.core.database import close_db, init_db
 from app.core.logging import configure_logging
 from app.core.neo4j_client import close_neo4j
+from app.api.routers import workflows as workflows_router
 from app.core.redis_client import close_redis
 
 
@@ -41,6 +42,8 @@ app = FastAPI(
 )
 
 Instrumentator().instrument(app).expose(app)
+
+app.include_router(workflows_router.router, prefix="/api/v1/workflows")
 
 app.add_middleware(
     CORSMiddleware,

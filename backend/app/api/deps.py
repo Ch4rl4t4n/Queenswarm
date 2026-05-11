@@ -12,20 +12,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_db
 
-_bearer_scheme = HTTPBearer(auto_error=False)
+_bearer_scheme = HTTPBearer()
 
 
 async def require_subject(
-    creds: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+    creds: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
 ) -> str:
     """Validate Bearer tokens issued with ``settings.secret_key``."""
 
-    if creds is None or creds.scheme.lower() != "bearer":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing bearer credentials.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
     try:
         payload = jwt.decode(
             creds.credentials,

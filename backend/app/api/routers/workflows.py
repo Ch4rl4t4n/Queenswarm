@@ -27,7 +27,7 @@ async def decompose_workflow(
     db: DbSession,
     _subject: JwtSubject,
 ) -> DecomposeWorkflowResponse:
-    """Kick off GPT-style decomposition persisted for LangGraph supervisors."""
+    """Kick off LLM decomposition persisted for LangGraph supervisors."""
 
     service = WorkflowBreakerService()
     try:
@@ -37,27 +37,29 @@ async def decompose_workflow(
             matching_recipe_id=body.matching_recipe_id,
             enrich_from_chroma_recipes=body.enrich_from_chroma_recipes,
         )
+        await db.commit()
+        return result
     except ValidationError as exc:
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=exc.errors(),
         )
     except ValueError as exc:
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),
         )
-    except SQLAlchemyError as exc:
+    except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Persistence layer rejected workflow insert.",
-        ) from exc
+        )
     except RuntimeError as exc:
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(exc),
         )
-
-    await db.commit()
-    return result
