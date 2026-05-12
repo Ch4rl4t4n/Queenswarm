@@ -46,6 +46,13 @@ class Settings(BaseSettings):
         default=None,
         description="Celery result backend override; defaults to redis_url when unset.",
     )
+    queenswarm_celery_worker: bool = Field(
+        default=False,
+        description=(
+            "Set true in Celery worker/beat images. Uses per-checkout DB connections so "
+            "tasks that call asyncio.run() do not reuse asyncpg connections bound to dead event loops."
+        ),
+    )
 
     # --- Neo4j (knowledge graph, imitation chains, decay)
     neo4j_uri: str

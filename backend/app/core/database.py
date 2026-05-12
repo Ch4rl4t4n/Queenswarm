@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import AsyncGenerator
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import DateTime, func
 from sqlalchemy.ext.asyncio import (
@@ -14,15 +15,22 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
 
 
+def build_async_engine_kwargs(*, celery_worker: bool) -> dict[str, Any]:
+    """Return ``create_async_engine`` kwargs for API (pooled) vs Celery (null pool)."""
+
+    if celery_worker:
+        return {"echo": False, "poolclass": NullPool}
+    return {"echo": False, "pool_size": 20, "max_overflow": 10}
+
+
 async_engine: AsyncEngine = create_async_engine(
     settings.postgres_url,
-    echo=False,
-    pool_size=20,
-    max_overflow=10,
+    **build_async_engine_kwargs(celery_worker=settings.queenswarm_celery_worker),
 )
 
 async_session = async_sessionmaker(
