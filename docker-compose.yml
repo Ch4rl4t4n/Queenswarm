@@ -203,8 +203,9 @@ services:
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=7d"
     volumes:
-      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./deploy/prometheus/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
     ports:
@@ -212,6 +213,7 @@ services:
     depends_on:
       backend:
         condition: service_started
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9090/-/ready >/dev/null 2>&1 || exit 1"]
       interval: 20s
@@ -227,7 +229,8 @@ services:
   grafana:
     image: grafana/grafana:11.3.2
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-hiveadminchangeme}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-${GRAFANA_ADMIN_PASSWORD:-hiveadminchangeme}}
+      GF_USERS_ALLOW_SIGN_UP: "false"
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
       GF_SERVER_DOMAIN: ${DOMAIN:-queenswarm.love}
       GF_SERVER_ROOT_URL: "https://${DOMAIN:-queenswarm.love}/grafana/"
@@ -241,6 +244,7 @@ services:
     depends_on:
       prometheus:
         condition: service_healthy
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health >/dev/null 2>&1 || exit 1"]
       interval: 20s
