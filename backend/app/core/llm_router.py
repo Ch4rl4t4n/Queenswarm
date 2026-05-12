@@ -34,6 +34,24 @@ def model_api_key(model: str) -> str:
     raise ValueError(msg)
 
 
+def model_slug_has_configured_credentials(model_name: str) -> bool:
+    """Return ``True`` when ``model_name`` can be routed without empty API keys."""
+
+    lowered = model_name.lower()
+    if lowered.startswith("xai/") or "grok" in lowered:
+        return bool((settings.grok_api_key or "").strip())
+    if lowered.startswith("anthropic/") or lowered.startswith("claude") or "claude-" in lowered:
+        return bool((settings.anthropic_api_key or "").strip())
+    if lowered.startswith("openai/") or "gpt-" in lowered or "/gpt" in lowered:
+        oai = settings.openai_api_key
+        return bool(oai is not None and str(oai).strip())
+    try:
+        key = model_api_key(model_name)
+    except (ValueError, RuntimeError):
+        return False
+    return bool(str(key).strip())
+
+
 async def record_llm_cost(
     session: AsyncSession,
     *,
@@ -91,15 +109,24 @@ class LiteLLMRouter:
         self._governor = CostGovernor()
 
     def _decomposition_chain(self) -> list[str]:
-        """Ordered list of model slugs for Auto Workflow Breaker decomposition."""
+        """Ordered list of model slugs that have usable credentials."""
 
-        models: list[str] = [
+        ordered: list[str] = [
             settings.workflow_breaker_primary_model,
             settings.workflow_breaker_fallback_model,
+            settings.workflow_breaker_tertiary_model,
         ]
-        if settings.openai_api_key:
-            models.append(settings.workflow_breaker_tertiary_model)
-        return models
+        seen: set[str] = set()
+        usable: list[str] = []
+        for name in ordered:
+            if name in seen:
+                continue
+            seen.add(name)
+            if not model_slug_has_configured_credentials(name):
+                logger.info("llm_router.decompose.skip_missing_credentials", model=name)
+                continue
+            usable.append(name)
+        return usable
 
     async def _assert_budget(self, session: AsyncSession) -> None:
         """Block work when the daily envelope is already exceeded."""
@@ -184,7 +211,13 @@ class LiteLLMRouter:
             "task_id": task_id or "",
             "workflow_id": workflow_id or "",
         }
-        for model_name in self._decomposition_chain():
+        hops = self._decomposition_chain()
+        if not hops:
+            raise RuntimeError(
+                "LiteLLM router has no credentials for configured models "
+                "(set GROK_API_KEY, ANTHROPIC_API_KEY, and/or OPENAI_API_KEY).",
+            )
+        for model_name in hops:
             try:
                 await self._assert_budget(session)
                 _response, content, used = await self._acompletion_with_model(
@@ -321,5 +354,6 @@ class LiteLLMRouter:
 __all__ = [
     "LiteLLMRouter",
     "model_api_key",
+    "model_slug_has_configured_credentials",
     "record_llm_cost",
 ]

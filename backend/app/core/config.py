@@ -346,6 +346,24 @@ class Settings(BaseSettings):
                 raise ValueError(msg)
         return self
 
+    @model_validator(mode="after")
+    def propagate_llm_env_aliases_for_litellm(self) -> Self:
+        """Expose provider secrets under env names LiteLLM providers often expect."""
+
+        import os
+
+        grok = (self.grok_api_key or "").strip()
+        if grok:
+            os.environ.setdefault("XAI_API_KEY", grok)
+        anth = (self.anthropic_api_key or "").strip()
+        if anth:
+            os.environ.setdefault("ANTHROPIC_API_KEY", anth)
+        oai_raw = self.openai_api_key
+        oai = (str(oai_raw).strip()) if oai_raw is not None else ""
+        if oai:
+            os.environ.setdefault("OPENAI_API_KEY", oai)
+        return self
+
 
 @lru_cache
 def get_settings() -> Settings:
