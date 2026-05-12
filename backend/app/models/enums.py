@@ -25,6 +25,7 @@ class AgentStatus(str, Enum):
 
     IDLE = "idle"
     RUNNING = "running"
+    PAUSED = "paused"
     ERROR = "error"
     OFFLINE = "offline"
 
@@ -58,6 +59,7 @@ class TaskType(str, Enum):
     TRADE_ANALYSIS = "trade_analysis"
     SOCIAL_POST = "social_post"
     BLOG_POST = "blog_post"
+    AGENT_RUN = "agent_run"
 
 
 class WorkflowStatus(str, Enum):

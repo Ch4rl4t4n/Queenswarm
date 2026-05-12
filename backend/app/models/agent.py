@@ -14,6 +14,7 @@ from app.core.database import Base, TimestampMixin
 from app.models.enums import AgentRole, AgentStatus
 
 if TYPE_CHECKING:
+    from app.models.agent_config import AgentConfig
     from app.models.reward import PollenReward
     from app.models.swarm import SubSwarm
     from app.models.task import Task
@@ -72,6 +73,11 @@ class Agent(Base, TimestampMixin):
         foreign_keys=[swarm_id],
     )
     tasks: Mapped[list["Task"]] = relationship("Task", back_populates="agent")
+    agent_config_row: Mapped["AgentConfig | None"] = relationship(
+        "AgentConfig",
+        back_populates="agent",
+        uselist=False,
+    )
     pollen_rewards: Mapped[list["PollenReward"]] = relationship(
         "PollenReward",
         back_populates="agent",

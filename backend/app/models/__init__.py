@@ -7,11 +7,14 @@ from typing import Any
 
 _EXPORTABLE: dict[str, tuple[str, str]] = {
     "Agent": ("app.models.agent", "Agent"),
+    "AgentConfig": ("app.models.agent_config", "AgentConfig"),
     "AgentRole": ("app.models.enums", "AgentRole"),
     "AgentStatus": ("app.models.enums", "AgentStatus"),
     "Base": ("app.core.database", "Base"),
     "Budget": ("app.models.cost", "Budget"),
     "BudgetPeriod": ("app.models.enums", "BudgetPeriod"),
+    "DashboardUser": ("app.models.dashboard_user", "DashboardUser"),
+    "DashboardApiKey": ("app.models.dashboard_api_key", "DashboardApiKey"),
     "CostRecord": ("app.models.cost", "CostRecord"),
     "HiveAsyncRunLifecycle": ("app.models.enums", "HiveAsyncRunLifecycle"),
     "HiveAsyncWorkflowRun": ("app.models.hive_async_workflow_run", "HiveAsyncWorkflowRun"),
@@ -39,6 +42,7 @@ _EXPORTABLE: dict[str, tuple[str, str]] = {
 _MODEL_PACKAGES: tuple[str, ...] = (
     "app.models.swarm",
     "app.models.agent",
+    "app.models.agent_config",
     "app.models.recipe",
     "app.models.workflow",
     "app.models.task",
@@ -47,6 +51,8 @@ _MODEL_PACKAGES: tuple[str, ...] = (
     "app.models.simulation",
     "app.models.cost",
     "app.models.hive_async_workflow_run",
+    "app.models.dashboard_user",
+    "app.models.dashboard_api_key",
 )
 
 _BOOTSTRAPPED = False
