@@ -34,6 +34,20 @@ def model_api_key(model: str) -> str:
     raise ValueError(msg)
 
 
+def _openai_key_looks_configured(raw: str | None) -> bool:
+    """Return False for empty or obvious template `.env` placeholders."""
+
+    if raw is None:
+        return False
+    token = str(raw).strip()
+    if len(token) < 20:
+        return False
+    lower = token.lower()
+    if lower.startswith("your_") or lower.startswith("sk-placeholder") or "changeme" in lower:
+        return False
+    return True
+
+
 def model_slug_has_configured_credentials(model_name: str) -> bool:
     """Return ``True`` when ``model_name`` can be routed without empty API keys."""
 
@@ -43,8 +57,7 @@ def model_slug_has_configured_credentials(model_name: str) -> bool:
     if lowered.startswith("anthropic/") or lowered.startswith("claude") or "claude-" in lowered:
         return bool((settings.anthropic_api_key or "").strip())
     if lowered.startswith("openai/") or "gpt-" in lowered or "/gpt" in lowered:
-        oai = settings.openai_api_key
-        return bool(oai is not None and str(oai).strip())
+        return _openai_key_looks_configured(settings.openai_api_key)
     try:
         key = model_api_key(model_name)
     except (ValueError, RuntimeError):
