@@ -25,7 +25,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings as hive_settings
 from app.core.llm_router import LiteLLMRouter
 from app.core.logging import get_logger
-from app.models.enums import TaskStatus
+from app.core.database import async_session
+from app.models.enums import TaskStatus, TaskType
 from app.models.task import Task
 
 logger = get_logger(__name__)
@@ -48,18 +49,43 @@ def markdown_no_llm_fallback(
 ) -> str:
     """Human-readable report when LiteLLM cannot run (missing keys)."""
 
+    lines: list[str] = [
+        f"# {agent_name} — Data Report",
+        "*Generated without LLM API keys — deterministic tool payloads only.*",
+        "",
+        "## Operator Prompt",
+        user_prompt.strip() or "(empty)",
+        "",
+    ]
     if tool_results:
-        body = json.dumps(tool_results, indent=2, ensure_ascii=False)
+        for tool_name, tool_data in tool_results.items():
+            title = tool_name.replace("_", " ").title()
+            lines.append(f"## {title}")
+            lines.append(str(tool_data)[:4000])
+            lines.append("")
     else:
-        body = "(No tools executed — enable tools above if you expected scraped data.)"
-    return (
-        f"# Hive report · {agent_name}\n\n"
-        "*No LLM API keys are configured — this run only serializes deterministic tool rails.*\n\n"
-        f"## Operator prompt\n{user_prompt}\n\n"
-        f"## Tool payload\n```json\n{body}\n```\n\n"
-        "### Upgrade to full cognition\n"
-        "Set `GROK_API_KEY` and/or `ANTHROPIC_API_KEY` in `.env`, then recreate the Celery worker."
+        lines.extend(
+            [
+                "## Tools",
+                "(No tools executed — enable tools if you expected scraped data.)",
+                "",
+            ]
+        )
+
+    bundled = json.dumps(tool_results or {}, indent=2, ensure_ascii=False)[:8000]
+    lines.extend(
+        [
+            "---",
+            "### Raw tool JSON",
+            "```json",
+            bundled,
+            "```",
+            "",
+            "### Full cognition",
+            "Set `GROK_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` in `.env`, then recreate Celery.",
+        ]
     )
+    return "\n".join(lines).strip()
 
 
 def _output_dir() -> Path:
@@ -597,6 +623,40 @@ async def execute_universal_agent(
     }
 
 
+async def execute_agent(agent_config: dict[str, Any], run_label: str) -> dict[str, Any]:
+    """Persist an ``agent_run`` task row then run :func:`execute_universal_agent`.
+
+    Args:
+        agent_config: Keys accepted by ``execute_universal_agent`` (UUID ``agent_id`` may be text).
+        run_label: Human-readable slug stored in Task.title for tracing.
+
+    Returns:
+        Executor result dict mirroring universal agent delivery.
+    """
+
+    raw_agent = agent_config.get("agent_id")
+    agent_uuid: uuid.UUID | None = None
+    if raw_agent is not None:
+        agent_uuid = uuid.UUID(str(raw_agent)) if not isinstance(raw_agent, uuid.UUID) else raw_agent
+
+    async with async_session() as session:
+        task_row = Task(
+            title=f"run:{run_label}",
+            task_type=TaskType.AGENT_RUN,
+            status=TaskStatus.PENDING,
+            agent_id=agent_uuid,
+            payload={"runner": "execute_agent", "label": run_label},
+        )
+        session.add(task_row)
+        await session.flush()
+
+        return await execute_universal_agent(
+            session,
+            agent_config=agent_config,
+            task_id=task_row.id,
+        )
+
+
 async def mark_task_failed(session: AsyncSession, task_id: uuid.UUID, message: str) -> None:
     """Surface hard failures on the backlog row."""
 
@@ -609,4 +669,10 @@ async def mark_task_failed(session: AsyncSession, task_id: uuid.UUID, message: s
     await session.flush()
 
 
-__all__ = ["execute_universal_agent", "mark_task_failed"]
+__all__ = [
+    "execute_agent",
+    "execute_universal_agent",
+    "hive_llm_credentials_ready",
+    "markdown_no_llm_fallback",
+    "mark_task_failed",
+]
