@@ -37,6 +37,15 @@ CHANNEL_WAGGLE_DANCE = "waggle_dance"
 CHANNEL_RAPID_LOOP = "rapid_loop"
 CHANNEL_IMITATION_EVENTS = "imitation_events"
 
+_REFRESH_PREFIX = "dash_refresh:v1:"
+
+
+def _refresh_key(token: str) -> str:
+    """Return a namespaced Redis key for opaque dashboard refresh blobs."""
+
+    return f"{_REFRESH_PREFIX}{token}"
+
+
 _redis_pool: aioredis.ConnectionPool | None = None
 
 
@@ -207,4 +216,39 @@ async def subscribe_channel(channel: str) -> AsyncIterator[dict[str, Any]]:
     finally:
         await pubsub.unsubscribe(channel)
         await pubsub.aclose()
+        await client.aclose()
+async def store_dashboard_refresh(token: str, user_id_text: str, ttl_sec: int) -> None:
+    """Persist a refresh token fingerprint → dashboard user UUID mapping."""
+
+    key = _refresh_key(token)
+    pool = await _connection_pool()
+    client = Redis(connection_pool=pool)
+    try:
+        await client.set(key, user_id_text, ex=ttl_sec)
+    finally:
+        await client.aclose()
+
+
+async def fetch_dashboard_refresh_user(token: str) -> str | None:
+    """Return the dashboard user UUID string for a refresh token, if still valid."""
+
+    key = _refresh_key(token)
+    pool = await _connection_pool()
+    client = Redis(connection_pool=pool)
+    try:
+        raw = await client.get(key)
+    finally:
+        await client.aclose()
+    return raw
+
+
+async def revoke_dashboard_refresh(token: str) -> None:
+    """Delete a dashboard refresh credential (logout / rotation)."""
+
+    key = _refresh_key(token)
+    pool = await _connection_pool()
+    client = Redis(connection_pool=pool)
+    try:
+        await client.delete(key)
+    finally:
         await client.aclose()

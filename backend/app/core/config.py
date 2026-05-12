@@ -198,6 +198,12 @@ class Settings(BaseSettings):
     secret_key: str = Field(..., min_length=32, description="HS256 signing secret from env.")
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = Field(
+        default=7,
+        ge=1,
+        le=60,
+        description="Opaque Redis refresh TTL for dashboard operator sessions.",
+    )
     hive_token_client_id: str | None = Field(
         default=None,
         description="HTTP Basic user for POST /api/v1/auth/token (pair with secret).",

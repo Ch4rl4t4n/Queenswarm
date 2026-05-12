@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.jwt_tokens import decode_jwt_optional_typ, parse_dashboard_user_subject
 
 _bearer_scheme = HTTPBearer()
 
@@ -114,6 +115,71 @@ async def require_recipe_catalog_mutation(
     return trimmed
 
 
+
+async def require_dashboard_session(
+    creds: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
+) -> dict[str, Any]:
+    """Validate dashboard access JWTs minted via ``dashboard_session`` routers."""
+
+    try:
+        payload = decode_jwt_optional_typ(creds.credentials)
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid bearer token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token_typ = payload.get("typ") or ""
+    if token_typ and token_typ != "dashboard_access":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Operator access token required.",
+        )
+
+    subject = payload.get("sub")
+    if not isinstance(subject, str) or not subject.strip():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Token missing dashboard subject.",
+        )
+    if parse_dashboard_user_subject(subject.strip()) is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Malformed dashboard identity.",
+        )
+
+    return payload
+
+
+
+async def dashboard_admin_wall(
+    sess: dict[str, Any] = Depends(require_dashboard_session),
+    db: AsyncSession = Depends(get_db),
+) -> bool:
+    """Block non-admin dashboards from hitting privileged onboarding routes."""
+
+    from app.models.dashboard_user import DashboardUser
+
+    raw_sub = sess.get("sub")
+    if not isinstance(raw_sub, str):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Dashboard credential missing stable subject.",
+        )
+    resolved = parse_dashboard_user_subject(raw_sub.strip())
+    if resolved is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Malformed dashboard subject.")
+
+    principal = await db.get(DashboardUser, resolved)
+    if principal is None or not principal.is_active or not principal.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin scopes required.")
+
+    return True
+
+
+DashboardSession = Annotated[dict[str, Any], Depends(require_dashboard_session)]
+DashboardAdmin = Annotated[bool, Depends(dashboard_admin_wall)]
 JwtSubject = Annotated[str, Depends(require_subject)]
 RecipeMutationSubject = Annotated[str, Depends(require_recipe_catalog_mutation)]
 DbSession = Annotated[AsyncSession, Depends(get_db)]
