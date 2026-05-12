@@ -1,0 +1,203 @@
+{
+  "uid": "queenswarm-main",
+  "title": "Queenswarm Hive",
+  "tags": ["queenswarm", "hive", "agents"],
+  "timezone": "UTC",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-3h", "to": "now" },
+  "timepicker": {},
+  "editable": true,
+  "graphTooltip": 1,
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Active Agents (idle + running)",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "queenswarm_agents_active",
+          "legendFormat": "Active Bees",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" }
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "#FFB800", "mode": "fixed" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "#FFB800", "value": null }, { "color": "#FFB800", "value": 0 }]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Tasks Total (counter)",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(queenswarm_tasks_total)",
+          "legendFormat": "Total Tasks",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" }
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "#00FFFF", "mode": "fixed" },
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "LLM Cost (USD)",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(queenswarm_llm_cost_usd_total)",
+          "legendFormat": "Total Cost",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" }
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "color": { "fixedColor": "#FF00AA", "mode": "fixed" }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Tasks Failed",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(queenswarm_tasks_total{status=\"failed\"}) or vector(0)",
+          "legendFormat": "Failed",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" }
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "#FF3366", "mode": "fixed" },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Task Rate (per minute, 5m rate)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(queenswarm_tasks_total{status=\"completed\"}[5m])) * 60",
+          "legendFormat": "completed/min",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+          "editorMode": "code",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(queenswarm_tasks_total{status=\"failed\"}[5m])) * 60",
+          "legendFormat": "failed/min",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+          "editorMode": "code",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "lineWidth": 1,
+            "showPoints": "never"
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "failed/min" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#FF3366", "mode": "fixed" } }]
+          }
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Task Duration (p95)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, task_type) (rate(queenswarm_task_duration_seconds_bucket[5m])))",
+          "legendFormat": "p95 {{task_type}}",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+          "editorMode": "code",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "lineWidth": 1,
+            "showPoints": "never"
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      }
+    }
+  ]
+}
