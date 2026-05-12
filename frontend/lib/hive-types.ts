@@ -33,6 +33,8 @@ export interface AgentRow {
   pollen_points: number;
   performance_score?: number;
   swarm_id?: string | null;
+  current_task_id?: string | null;
+  current_task_title?: string | null;
 }
 
 export interface SubSwarmRow {
@@ -52,7 +54,11 @@ export interface TaskRow {
   priority: number;
   task_type: string;
   swarm_id?: string | null;
+  agent_id?: string | null;
+  payload?: Record<string, unknown>;
+  result?: Record<string, unknown> | null;
   created_at?: string | null;
+  updated_at?: string | null;
 }
 
 export interface RecipeRow {
@@ -78,4 +84,10 @@ export interface SimulationRow {
   confidence_pct?: number;
   task_id?: string | null;
   created_at?: string | null;
+}
+
+/** `/operator/costs/summary` aggregate for dashboard spend tiles. */
+export interface OperatorCostSummary {
+  window_days: number;
+  series: { day: string; model: string; spend_usd: number }[];
 }
