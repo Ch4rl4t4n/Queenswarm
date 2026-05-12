@@ -10,7 +10,7 @@ const devPort =
 
 const userBaseRaw = process.env.PLAYWRIGHT_BASE_URL?.trim();
 const baseURL = (
-  userBaseRaw && userBaseRaw.length > 0 ? userBaseRaw : `http://127.0.0.1:${devPort}`
+  userBaseRaw && userBaseRaw.length > 0 ? userBaseRaw : `http://localhost:${devPort}`
 ).replace(/\/$/, "");
 
 const bypassWebServer =

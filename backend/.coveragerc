@@ -35,8 +35,6 @@ omit =
     app/api/routers/dashboard_session.py
     app/services/dashboard_crypto.py
     app/services/dashboard_api_keys.py
-    app/services/plugin_hub.py
-    app/services/agent_task_hints.py
     app/services/agent_universal.py
     app/models/dashboard_user.py
     app/models/dashboard_api_key.py
@@ -44,6 +42,6 @@ omit =
 [report]
 # Gate is tuned to the omission-heavy CI slice;raising this requires expanding integration tests beyond HTTP routers.
 # Post–dashboard merge (2026-05): executor + task surfaces are integration-tested on host; raise toward 80% with focused suites.
-fail_under = 70
+fail_under = 71
 show_missing = true
 skip_covered = false
