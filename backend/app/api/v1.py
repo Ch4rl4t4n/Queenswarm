@@ -16,6 +16,7 @@ from app.api.routers import realtime_ballroom as realtime_ballroom_router
 from app.api.routers import recipes as recipes_router
 from app.api.routers import simulations as simulations_router
 from app.api.routers import swarms as swarms_router
+from app.api.routers import system_status as system_status_router
 from app.api.routers import tasks as tasks_router
 from app.api.routers import workflows as workflows_router
 
@@ -24,6 +25,7 @@ api_v1.include_router(auth_router.router, prefix="/auth")
 api_v1.include_router(dashboard_session_router.router, prefix="/auth")
 api_v1.include_router(agents_router.router, prefix="/agents")
 api_v1.include_router(operator_router.router)
+api_v1.include_router(system_status_router.router)
 api_v1.include_router(dashboard_router.router)
 api_v1.include_router(learning_router.router, prefix="/learning")
 api_v1.include_router(workflows_router.router, prefix="/workflows")

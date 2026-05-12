@@ -19,8 +19,8 @@ class Settings(BaseSettings):
     )
 
     # --- LLM Routing (LiteLLM: Grok primary → Claude fallback → optional OpenAI)
-    grok_api_key: str = Field(..., description="Primary LLM routing key (Grok / xAI).")
-    anthropic_api_key: str = Field(..., description="Fallback Claude key via LiteLLM.")
+    grok_api_key: str = Field(default="", description="Primary LLM routing key (Grok / xAI); empty skips paid calls.")
+    anthropic_api_key: str = Field(default="", description="Fallback Claude key via LiteLLM; empty skips that route.")
     openai_api_key: str | None = Field(default=None, description="Optional cheap-route key.")
 
     # --- Global Hive Mind (PostgreSQL primary store)

@@ -163,7 +163,7 @@ async def _mark_universal_failure(task_id_str: str, message: str) -> None:
         await session.commit()
 
 
-@celery_app.task(name="agent.execute_universal", bind=True, max_retries=3)
+@celery_app.task(name="agent.execute_universal", bind=True, max_retries=3, queue="hive")
 def execute_universal_agent_task(self, task_id_str: str) -> dict[str, Any]:
     """Load ``Task.payload`` JSON and feed the universal executor."""
 
@@ -215,7 +215,7 @@ def execute_universal_agent_task(self, task_id_str: str) -> dict[str, Any]:
         raise self.retry(exc=exc, countdown=60 * (retries + 1))
 
 
-@celery_app.task(name="hive.dynamic_agent_schedule_tick")
+@celery_app.task(name="hive.dynamic_agent_schedule_tick", queue="hive")
 def dynamic_agent_schedule_tick_task() -> dict[str, Any]:
     """Scan ``AgentConfig`` rows and enqueue due universal runs."""
 

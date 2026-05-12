@@ -139,7 +139,8 @@ services:
 
   celery-worker:
     <<: [*backend-build, *backend-env-files]
-    command: ["celery", "-A", "app.worker.celery_app", "worker", "-l", "info", "-Q", "hive", "-n", "worker@%h"]
+    command:
+      ["celery", "-A", "app.worker.celery_app", "worker", "-l", "info", "-Q", "hive", "-c", "4", "-n", "worker@%h"]
     environment:
       POSTGRES_URL: postgresql+asyncpg://${POSTGRES_USER:-queenswarm}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-queenswarm}
       REDIS_URL: redis://redis:6379/0
@@ -160,6 +161,7 @@ services:
         condition: service_healthy
       backend:
         condition: service_healthy
+    restart: unless-stopped
     logging:
       driver: json-file
       options:
@@ -187,6 +189,7 @@ services:
         condition: service_healthy
       backend:
         condition: service_healthy
+    restart: unless-stopped
     logging:
       driver: json-file
       options:

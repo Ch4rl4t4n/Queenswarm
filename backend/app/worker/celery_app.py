@@ -55,6 +55,8 @@ def create_celery_app() -> Celery:
 
 celery_app = create_celery_app()
 
+from app.worker import pool_reset as _pool_reset  # noqa: E402, F401 — fork hook side-effect
+
 from app.worker import tasks as _hive_tasks  # noqa: E402, F401 — register @celery_app.task
 
 __all__ = ["celery_app", "create_celery_app"]

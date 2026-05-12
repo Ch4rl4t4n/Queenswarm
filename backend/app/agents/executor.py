@@ -22,12 +22,44 @@ import httpx
 from html.parser import HTMLParser
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings as hive_settings
 from app.core.llm_router import LiteLLMRouter
 from app.core.logging import get_logger
 from app.models.enums import TaskStatus
 from app.models.task import Task
 
 logger = get_logger(__name__)
+
+
+def hive_llm_credentials_ready() -> bool:
+    """Return ``True`` when at least one LiteLLM-backed provider secret is configured."""
+
+    grok = (hive_settings.grok_api_key or "").strip()
+    claude = (hive_settings.anthropic_api_key or "").strip()
+    openai = (hive_settings.openai_api_key or "").strip()
+    return bool(grok) or bool(claude) or bool(openai)
+
+
+def markdown_no_llm_fallback(
+    *,
+    agent_name: str,
+    user_prompt: str,
+    tool_results: dict[str, Any],
+) -> str:
+    """Human-readable report when LiteLLM cannot run (missing keys)."""
+
+    if tool_results:
+        body = json.dumps(tool_results, indent=2, ensure_ascii=False)
+    else:
+        body = "(No tools executed — enable tools above if you expected scraped data.)"
+    return (
+        f"# Hive report · {agent_name}\n\n"
+        "*No LLM API keys are configured — this run only serializes deterministic tool rails.*\n\n"
+        f"## Operator prompt\n{user_prompt}\n\n"
+        f"## Tool payload\n```json\n{body}\n```\n\n"
+        "### Upgrade to full cognition\n"
+        "Set `GROK_API_KEY` and/or `ANTHROPIC_API_KEY` in `.env`, then recreate the Celery worker."
+    )
 
 
 def _output_dir() -> Path:
@@ -487,21 +519,35 @@ async def execute_universal_agent(
 {format_instructions.get(output_format, "Respond with plain text.")}"""
 
     llm_output = ""
-    router = LiteLLMRouter()
-    try:
-        llm_output = await router.decompose(
-            session,
-            system_prompt=system_prompt,
-            user_payload=full_user_prompt,
-            swarm_id=str(agent_config.get("agent_id") or ""),
+    if not hive_llm_credentials_ready():
+        logger.warning(
+            "executor.llm_skipped_no_provider_keys",
+            agent_name=agent_name,
             task_id=str(task_id),
         )
-        llm_output = (llm_output or "").strip()
+        llm_output = markdown_no_llm_fallback(
+            agent_name=agent_name,
+            user_prompt=user_prompt,
+            tool_results=tool_results,
+        ).strip()
         if output_format == "json":
-            llm_output = re.sub(r"```json|```", "", llm_output, flags=re.IGNORECASE).strip()
-    except Exception as exc:  # noqa: BLE001
-        logger.error("executor.llm_failed", error=str(exc), task_id=str(task_id))
-        llm_output = f"LLM error: {exc}\n\nTool results:\n{json.dumps(tool_results, indent=2)}"
+            llm_output = json.dumps({"summary": llm_output, "tools": tool_results}, indent=2)
+    else:
+        router = LiteLLMRouter()
+        try:
+            llm_output = await router.decompose(
+                session,
+                system_prompt=system_prompt,
+                user_payload=full_user_prompt,
+                swarm_id=str(agent_config.get("agent_id") or ""),
+                task_id=str(task_id),
+            )
+            llm_output = (llm_output or "").strip()
+            if output_format == "json":
+                llm_output = re.sub(r"```json|```", "", llm_output, flags=re.IGNORECASE).strip()
+        except Exception as exc:  # noqa: BLE001
+            logger.error("executor.llm_failed", error=str(exc), task_id=str(task_id))
+            llm_output = f"LLM error: {exc}\n\nTool results:\n{json.dumps(tool_results, indent=2)}"
 
     formatter = OUTPUT_FORMATTERS.get(output_format, format_as_text)
     try:
