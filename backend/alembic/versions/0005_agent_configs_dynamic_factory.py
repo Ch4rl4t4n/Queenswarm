@@ -6,7 +6,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql as pg
 
-revision = "0005_agent_configs_dynamic_factory"
+revision = "0005_agent_configs"
 down_revision = "0004_dashboard_prefs_api_keys"
 branch_labels = None
 depends_on = None
