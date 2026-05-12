@@ -54,7 +54,7 @@ export function hiveMobileRouteMeta(pathname: string): MobileRouteMeta {
   }
   /* Dashboard root */
   if (pathname === "/") {
-    return { kicker: "Dashboard", staticSubtitle: "Decentralized swarms · verified loop" };
+    return { kicker: "Hive", staticSubtitle: "Decentralized swarms · verified loop" };
   }
   return { kicker: "QueenSwarm", staticSubtitle: "Hive cockpit" };
 }

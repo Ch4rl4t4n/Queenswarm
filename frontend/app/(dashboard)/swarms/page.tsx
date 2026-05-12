@@ -51,16 +51,31 @@ function relativeSync(iso: string | null | undefined): string {
 export default async function SwarmsPage() {
   const colonies = await hiveServerRawJson<SubSwarmRow[]>("/swarms?limit=50");
   const summary = await hiveServerRawJson<DashboardSummary>("/dashboard/summary");
+  const dances = summary?.waggle_dances ?? [];
 
   if (!colonies) {
     return (
-      <p className="font-[family-name:var(--font-jetbrains-mono)] text-sm text-danger">
-        Colony catalog unreachable — inspect backend bearer token routing.
-      </p>
+      <div className="space-y-8">
+        <HivePageHeader
+          title="Sub-Swarms"
+          subtitle="Four decentralized roves with local memory. Global sync every 5 min."
+        />
+        <article className="rounded-3xl border border-danger/35 bg-danger/10 p-6 backdrop-blur-sm">
+          <p className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-danger">
+            Colony catalog unavailable
+          </p>
+          <p className="mt-3 max-w-2xl font-[family-name:var(--font-inter)] text-sm leading-relaxed text-zinc-300">
+            The server render could not fetch <code className="font-mono text-xs text-data">GET /api/v1/swarms</code>. Sign
+            in again, or ensure the frontend stack can reach the hive API (HttpOnly session cookie for RSC, or{" "}
+            <code className="font-mono text-xs text-data">HIVE_PROXY_JWT</code> in Compose when no session is present).
+          </p>
+          <p className="mt-4 font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-400">
+            INTERNAL_BACKEND_ORIGIN must point at the FastAPI container from the Next.js service.
+          </p>
+        </article>
+      </div>
     );
   }
-
-  const dances = summary?.waggle_dances ?? [];
 
   return (
     <div className="space-y-10">
@@ -70,6 +85,11 @@ export default async function SwarmsPage() {
       />
 
       <div className="grid gap-5 md:grid-cols-2">
+        {colonies.length === 0 ? (
+          <p className="md:col-span-2 rounded-2xl border border-cyan/15 bg-black/40 p-8 text-center font-[family-name:var(--font-inter)] text-sm text-zinc-400">
+            No colonies yet — seed scout swarms via the API or wait for the default migration.
+          </p>
+        ) : null}
         {colonies.map((swarm, idx) => {
           const pal = purposePalette(swarm.purpose);
           const perf = Math.min(99, 62 + (swarm.member_count % 37));

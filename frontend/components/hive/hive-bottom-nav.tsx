@@ -46,7 +46,7 @@ interface HiveBottomNavProps {
 }
 
 const PRIMARY: readonly { href: string; label: string; Icon: typeof LayoutGridIcon }[] = [
-  { href: "/", label: "Dashboard", Icon: LayoutGridIcon },
+  { href: "/", label: "Hive", Icon: LayoutGridIcon },
   { href: "/swarms", label: "Swarms", Icon: HexagonIcon },
   { href: "/tasks", label: "Tasks", Icon: ListTodoIcon },
   { href: "/ballroom", label: "Ballroom", Icon: MicIcon },

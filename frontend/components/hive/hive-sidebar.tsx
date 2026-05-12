@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { AuthHexLogo } from "@/components/auth/auth-hex-logo";
 import { StatusIndicator } from "@/components/ui/status-indicator";
 import type { DashboardSummary } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
@@ -28,9 +29,9 @@ interface NavItem {
   Icon: typeof LayoutDashboardIcon;
 }
 
-/** QueenSwarm nav — aligns with cockpit mock IA. */
+/** Primary hive routes · icon + label always visible on desktop (220px rail). */
 export const HIVE_NAV_PRIMARY: NavItem[] = [
-  { href: "/", label: "Dashboard", Icon: LayoutDashboardIcon },
+  { href: "/", label: "Hive", Icon: LayoutDashboardIcon },
   { href: "/agents", label: "Agents", Icon: BotIcon },
   { href: "/swarms", label: "Swarms", Icon: HexagonIcon },
   { href: "/tasks", label: "Tasks", Icon: ListTodoIcon },
@@ -73,7 +74,7 @@ interface HiveSidebarProps {
   pathname: string;
 }
 
-/** Left rail · honey active chip · cyan hive vitality bar — Figma-aligned. */
+/** Fixed-width 220px left rail · labels always readable (Lucide glyphs, no collapsing to icons-only). */
 export function HiveSidebar({ pathname }: HiveSidebarProps) {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
 
@@ -104,57 +105,50 @@ export function HiveSidebar({ pathname }: HiveSidebarProps) {
   function linkClass(href: string): string {
     const active = routeActive(pathname, href);
     return cn(
-      "flex items-center justify-center gap-0 rounded-xl py-2.5 transition group-hover:justify-start group-hover:gap-3 group-hover:px-3",
+      "flex items-center gap-3 rounded-xl px-3 py-2.5 transition",
       active
         ? "bg-[rgb(61_53_38/0.92)] text-pollen shadow-[inset_0_0_0_1px_rgb(255_184_0/0.35)]"
-        : "border border-transparent px-2 text-zinc-400 hover:border-cyan/20 hover:bg-white/[0.03] hover:text-pollen",
+        : "border border-transparent text-zinc-400 hover:border-cyan/20 hover:bg-white/[0.03] hover:text-pollen",
     );
   }
 
   return (
-    <aside className="group sticky top-0 z-30 hidden h-screen w-16 shrink-0 flex-col overflow-hidden border-r border-[#1a1a3e]/90 bg-[#0d0d2b]/95 py-6 transition-[width] duration-300 ease-in-out hover:w-56 lg:flex">
-      <div className="mb-6 flex h-14 shrink-0 items-center overflow-hidden border-b border-[#1a1a3e] px-3">
-        <Link href="/" className="flex min-w-0 items-center" prefetch>
-        <svg viewBox="0 0 32 32" className="h-8 w-8 shrink-0" aria-hidden="true">
-          <polygon points="16,1 30,9 30,23 16,31 2,23 2,9" fill="#0d0d2b" stroke="#FFB800" strokeWidth="1.5" />
-          <text x="16" y="21" textAnchor="middle" fontSize="11">
-            🐝
-          </text>
-        </svg>
-        <span
-          className="ml-2 whitespace-nowrap font-[family-name:var(--font-space-grotesk)] text-sm font-bold text-[#FFB800] opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-        >
-          Queenswarm
-        </span>
+    <aside className="sticky top-0 z-30 hidden h-screen w-[220px] min-w-[220px] shrink-0 flex-col overflow-y-auto border-r border-[#1a1a3e]/90 bg-[#0d0d2b]/95 py-6 hive-scrollbar lg:flex">
+      <div className="mb-6 flex h-14 shrink-0 items-center gap-3 border-b border-[#1a1a3e]/90 px-4">
+        <Link href="/" className="flex min-w-0 flex-1 items-center gap-2.5" prefetch>
+          <div className="h-9 w-9 shrink-0">
+            <AuthHexLogo className="h-9 w-9" aria-hidden />
+          </div>
+          <span className="truncate font-[family-name:var(--font-space-grotesk)] text-[15px] font-bold tracking-tight text-[#FFB800]">
+            Queenswarm
+          </span>
         </Link>
       </div>
 
-      <nav aria-label="Hive navigation" className="flex flex-1 flex-col gap-0.5 overflow-y-auto hive-scrollbar px-1">
+      <nav aria-label="Hive navigation" className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2">
         {HIVE_NAV_PRIMARY.map(({ href, label, Icon }) => {
           const active = routeActive(pathname, href);
           return (
             <Link key={href} href={href} prefetch className={linkClass(href)}>
-              <Icon className={cn("h-4 w-4 shrink-0", active ? "text-pollen" : "text-zinc-500")} aria-hidden />
-              <span className="opacity-0 transition-opacity duration-200 group-hover:opacity-100 whitespace-nowrap font-[family-name:var(--font-inter)] text-sm font-medium">
-                {label}
-              </span>
+              <Icon className={cn("h-[18px] w-[18px] shrink-0", active ? "text-pollen" : "text-zinc-500")} aria-hidden />
+              <span className="whitespace-nowrap font-[family-name:var(--font-inter)] text-[13px] font-medium">{label}</span>
             </Link>
           );
         })}
-        <p className="mt-5 truncate px-2 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.22em] text-cyan/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-hover:px-3">
+        <p className="mt-5 truncate px-3 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.22em] text-cyan/40">
           Labs
         </p>
         {HIVE_NAV_LABS.map(({ href, label, Icon }) => (
           <Link key={href} href={href} prefetch className={linkClass(href)}>
-            <Icon className="h-4 w-4 shrink-0 text-cyan/45" aria-hidden />
-            <span className="opacity-0 transition-opacity duration-200 group-hover:opacity-100 whitespace-nowrap font-[family-name:var(--font-inter)] text-sm font-medium">
+            <Icon className="h-[18px] w-[18px] shrink-0 text-cyan/45" aria-hidden />
+            <span className="whitespace-nowrap font-[family-name:var(--font-inter)] text-[13px] font-medium">
               <span className={routeActive(pathname, href) ? "" : "text-zinc-500"}>{label}</span>
             </span>
           </Link>
         ))}
       </nav>
 
-      <div className="mt-auto rounded-xl border border-cyan/15 bg-black/35 px-3 py-3">
+      <div className="mt-auto rounded-xl border border-cyan/15 bg-black/35 px-4 py-3">
         <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
           Hive status
         </p>

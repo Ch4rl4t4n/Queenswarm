@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { AuthHexBackground } from "@/components/auth/auth-hex-background";
 
 /**
- * Auth route group — full-bleed hive void with no dashboard nav, sidebar, or HiveNav top bar.
+ * Auth route group — full-bleed hive void with no dashboard chrome.
  */
 
 export default function AuthLayout({ children }: { children: ReactNode }) {

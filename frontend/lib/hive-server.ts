@@ -1,17 +1,45 @@
+import { cookies } from "next/headers";
+
+import { QS_ACCESS } from "@/lib/auth-cookies";
+
 const API_PREFIX = "/api/v1";
 
-async function hiveServerFetch(path: string, init?: RequestInit): Promise<Response> {
-  const origin = process.env.INTERNAL_BACKEND_ORIGIN;
-  const token = process.env.HIVE_PROXY_JWT;
-  if (!origin || !token || token === "unset") {
-    throw new Error(
-      "Missing INTERNAL_BACKEND_ORIGIN or HIVE_PROXY_JWT (set DASHBOARD_JWT in Compose for the dashboard token).",
-    );
+/**
+ * Prefer the Compose-injected hive proxy JWT, then fall back to the operator HttpOnly session
+ * cookie so RSC dashboards load after login without requiring ``HIVE_PROXY_JWT``.
+ */
+async function resolveHiveBearerToken(): Promise<string | null> {
+  const proxyJwt = process.env.HIVE_PROXY_JWT?.trim();
+  if (proxyJwt && proxyJwt !== "unset") {
+    return proxyJwt;
   }
+  try {
+    const jar = await cookies();
+    const sessionAt = jar.get(QS_ACCESS)?.value?.trim();
+    if (sessionAt) {
+      return sessionAt;
+    }
+  } catch {
+    /* ``cookies()`` is only valid in a React Server Component / Route Handler request. */
+  }
+  return null;
+}
+
+async function hiveServerFetch(path: string, init?: RequestInit): Promise<Response> {
+  const origin = process.env.INTERNAL_BACKEND_ORIGIN?.trim();
+  if (!origin) {
+    throw new Error("INTERNAL_BACKEND_ORIGIN is not set.");
+  }
+
+  const bearer = await resolveHiveBearerToken();
+  if (!bearer) {
+    throw new Error("Hive bearer unavailable — configure HIVE_PROXY_JWT or ensure the dashboard session cookie is present.");
+  }
+
   const clean = path.startsWith("/") ? path : `/${path}`;
   const url = `${origin}${API_PREFIX}${clean}`;
   const headers = new Headers(init?.headers);
-  headers.set("Authorization", `Bearer ${token}`);
+  headers.set("Authorization", `Bearer ${bearer}`);
   return fetch(url, {
     ...init,
     headers,
