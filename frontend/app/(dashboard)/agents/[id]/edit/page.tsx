@@ -36,12 +36,6 @@ interface AgentRow {
   name: string;
 }
 
-interface DynamicCreateResponse {
-  agent_id: string;
-  agent_name: string;
-  config_id: string;
-}
-
 interface BeeConfigState {
   system_prompt: string;
   user_prompt_template: string;

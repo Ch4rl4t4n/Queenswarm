@@ -196,12 +196,7 @@ export default async function HiveHomeDashboard() {
           </div>
         </article>
 
-        <DanceStrip
-          dances={summary.waggle_dances}
-          title="Recent activity"
-          subtitle="Live relay across swarms · verified gossip only."
-          variant="panel"
-        />
+        <DanceStrip dances={summary.waggle_dances} />
       </section>
 
       <footer className="border-t border-white/[0.06] pt-6 text-center font-[family-name:var(--font-inter)] text-xs text-zinc-500">
