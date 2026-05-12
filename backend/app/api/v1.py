@@ -19,8 +19,23 @@ from app.api.routers import swarms as swarms_router
 from app.api.routers import system_status as system_status_router
 from app.api.routers import tasks as tasks_router
 from app.api.routers import workflows as workflows_router
+from app.core.config import settings
 
 api_v1 = APIRouter()
+
+
+@api_v1.get("/health", tags=["Health"], summary="Liveness under /api/v1 (edge proxies)")
+async def api_v1_health() -> dict[str, str]:
+    """Cheap heartbeat mirrored for operators probing ``/api/v1/health`` through Nginx."""
+
+    return {
+        "status": "healthy",
+        "service": "queenswarm-api",
+        "version": "2.0.0",
+        "domain": settings.domain,
+    }
+
+
 api_v1.include_router(auth_router.router, prefix="/auth")
 api_v1.include_router(dashboard_session_router.router, prefix="/auth")
 api_v1.include_router(agents_router.router, prefix="/agents")
