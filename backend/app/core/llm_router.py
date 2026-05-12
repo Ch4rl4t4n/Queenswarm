@@ -161,12 +161,21 @@ class LiteLLMRouter:
 
         await self._assert_budget(session)
         api_key = model_api_key(model_name)
+        lowered_m = model_name.lower()
+        completion_kwargs: dict[str, Any] = {
+            "model": model_name,
+            "messages": messages,
+            "temperature": temperature if temperature is not None else settings.workflow_breaker_temperature,
+            "max_tokens": max_tokens if max_tokens is not None else settings.workflow_breaker_max_output_tokens,
+            "api_key": api_key,
+        }
+        if lowered_m.startswith("xai/"):
+            # LiteLLM 1.49 treats ``xai/`` inconsistently — use xAI OpenAI-compat surface.
+            slug = model_name.split("/", 1)[1]
+            completion_kwargs["model"] = f"openai/{slug}"
+            completion_kwargs["api_base"] = str(settings.xai_openai_compatible_base).rstrip("/")
         response = await acompletion(
-            model=model_name,
-            messages=messages,
-            temperature=temperature if temperature is not None else settings.workflow_breaker_temperature,
-            max_tokens=max_tokens if max_tokens is not None else settings.workflow_breaker_max_output_tokens,
-            api_key=api_key,
+            **completion_kwargs,
         )
         content = response.choices[0].message.content or ""
         await record_llm_cost(

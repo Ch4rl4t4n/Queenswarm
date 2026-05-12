@@ -8,7 +8,7 @@ celery==5.4.0
 langgraph==0.2.34
 langchain==0.3.3
 langchain-core==0.3.12
-litellm==1.83.14
+litellm==1.49.6
 chromadb==0.5.13
 neo4j==5.25.0
 pydantic==2.9.2
