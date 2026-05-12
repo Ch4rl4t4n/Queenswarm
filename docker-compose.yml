@@ -125,6 +125,8 @@ services:
         condition: service_healthy
     ports:
       - "${BACKEND_PUBLISH_PORT:-8000}:8000"
+    volumes:
+      - ./backend/plugins/user:/app/plugins/user
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/health >/dev/null || exit 1"]
       interval: 20s
@@ -163,6 +165,8 @@ services:
       backend:
         condition: service_healthy
     restart: unless-stopped
+    volumes:
+      - ./backend/plugins/user:/app/plugins/user
     logging:
       driver: json-file
       options:
@@ -192,6 +196,8 @@ services:
       backend:
         condition: service_healthy
     restart: unless-stopped
+    volumes:
+      - ./backend/plugins/user:/app/plugins/user
     logging:
       driver: json-file
       options:

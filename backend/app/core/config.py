@@ -63,6 +63,11 @@ class Settings(BaseSettings):
     chroma_host: str = "chromadb"
     chroma_port: int = 8000
 
+    plugin_user_dir: str = Field(
+        default="/app/plugins/user",
+        description="Writable directory scanned for optional operator ``.py`` plugins.",
+    )
+
     # --- Bee-hive tuning (decentralized sub-swarms → global sync cadence)
     sub_swarm_size: int = Field(
         default=8,
