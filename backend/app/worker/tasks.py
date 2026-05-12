@@ -5,14 +5,24 @@ from __future__ import annotations
 import asyncio
 import traceback
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
+from sqlalchemy import select
+
+from app.agents.executor import execute_universal_agent, mark_task_failed
+from app.agents.scheduler import should_run_dynamic_agent
 from app.core.database import async_session
 from app.core.metrics import observe_hourly_roll_tick
+from app.services.agent_universal import enqueue_universal_agent_run
 from app.services.hive_async_workflow_run_ledger import (
     finalize_failed_hive_async_workflow_run,
     finalize_successful_hive_async_workflow_run,
 )
+from app.models.agent import Agent
+from app.models.agent_config import AgentConfig
+from app.models.enums import AgentStatus, TaskType
+from app.models.task import Task
 from app.services.sub_swarm.runner import run_sub_swarm_workflow_cycle
 from app.worker.celery_app import celery_app
 
@@ -145,8 +155,110 @@ def run_sub_swarm_workflow_cycle_task(
     return snapshot
 
 
+async def _mark_universal_failure(task_id_str: str, message: str) -> None:
+    """Persist terminal failure state for operator dashboards."""
+
+    async with async_session() as session:
+        await mark_task_failed(session, uuid.UUID(task_id_str), message)
+        await session.commit()
+
+
+@celery_app.task(name="agent.execute_universal", bind=True, max_retries=3)
+def execute_universal_agent_task(self, task_id_str: str) -> dict[str, Any]:
+    """Load ``Task.payload`` JSON and feed the universal executor."""
+
+    async def _run() -> dict[str, Any]:
+        task_uuid = uuid.UUID(task_id_str)
+        async with async_session() as session:
+            row = await session.get(Task, task_uuid)
+            if row is None:
+                msg = f"Missing task row {task_id_str}"
+                raise RuntimeError(msg)
+            if row.task_type != TaskType.AGENT_RUN:
+                msg = f"Task {task_id_str} is not agent_run"
+                raise RuntimeError(msg)
+            agent_payload = dict(row.payload or {})
+            if row.agent_id is not None:
+                agent_payload.setdefault("agent_id", str(row.agent_id))
+            snapshot = await execute_universal_agent(
+                session,
+                agent_config=agent_payload,
+                task_id=task_uuid,
+            )
+            agent_uuid = uuid.UUID(str(agent_payload.get("agent_id") or row.agent_id))
+            cfg_row = await session.scalar(select(AgentConfig).where(AgentConfig.agent_id == agent_uuid))
+            if cfg_row is not None:
+                cfg_row.last_run_at = datetime.now(tz=UTC)
+                cfg_row.run_count = int(cfg_row.run_count or 0) + 1
+                cfg_row.last_run_result = {
+                    "preview": snapshot.get("output_preview", ""),
+                    "status": "completed",
+                }
+            agent_row = await session.get(Agent, agent_uuid)
+            if agent_row is not None:
+                agent_row.pollen_points = float(agent_row.pollen_points or 0.0) + 10.0
+                agent_row.status = AgentStatus.IDLE
+            await session.commit()
+            return snapshot
+
+    try:
+        return asyncio.run(_run())
+    except Exception as exc:  # noqa: BLE001 — Celery coordinates retries
+        retries = int(getattr(self.request, "retries", 0) or 0)
+        max_r = 3
+        if retries >= max_r:
+            try:
+                asyncio.run(_mark_universal_failure(task_id_str, str(exc)))
+            except Exception:
+                pass
+            raise
+        raise self.retry(exc=exc, countdown=60 * (retries + 1))
+
+
+@celery_app.task(name="hive.dynamic_agent_schedule_tick")
+def dynamic_agent_schedule_tick_task() -> dict[str, Any]:
+    """Scan ``AgentConfig`` rows and enqueue due universal runs."""
+
+    async def _tick() -> dict[str, int]:
+        queued = 0
+        inspected = 0
+        skipped_dup = 0
+        async with async_session() as session:
+            result = await session.execute(select(AgentConfig).where(AgentConfig.is_active.is_(True)))
+            configs = list(result.scalars().all())
+            for cfg in configs:
+                inspected += 1
+                if not should_run_dynamic_agent(cfg):
+                    continue
+                agent = await session.get(Agent, cfg.agent_id)
+                if agent is None:
+                    continue
+                if agent.status == AgentStatus.PAUSED:
+                    continue
+                try:
+                    backlog = await enqueue_universal_agent_run(
+                        session,
+                        agent=agent,
+                        cfg=cfg,
+                        title=f"{agent.name} — scheduled hive pulse",
+                        priority=8,
+                        guard_duplicates=True,
+                    )
+                    await session.commit()
+                    execute_universal_agent_task.delay(str(backlog.id))
+                    queued += 1
+                except ValueError:
+                    await session.rollback()
+                    skipped_dup += 1
+        return {"queued": queued, "inspected": inspected, "skipped_duplicates": skipped_dup}
+
+    return asyncio.run(_tick())
+
+
 __all__ = [
+    "dynamic_agent_schedule_tick_task",
     "echo_hive_pulse",
+    "execute_universal_agent_task",
     "hourly_youtube_crypto_roll_task",
     "run_sub_swarm_workflow_cycle_task",
 ]

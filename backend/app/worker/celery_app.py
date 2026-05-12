@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from celery import Celery
 from celery.schedules import crontab
 
@@ -40,6 +42,11 @@ def create_celery_app() -> Celery:
         "hive-hourly-youtube-crypto-roll": {
             "task": "hive.hourly_youtube_crypto_roll",
             "schedule": crontab(minute=0),
+            "options": {"queue": "hive"},
+        },
+        "hive-dynamic-agent-scheduler": {
+            "task": "hive.dynamic_agent_schedule_tick",
+            "schedule": timedelta(seconds=60),
             "options": {"queue": "hive"},
         },
     }
