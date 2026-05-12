@@ -70,6 +70,7 @@ async def list_recent_tasks(
     _subject: JwtSubject,
     swarm_id: uuid.UUID | None = Query(default=None, description="Filter by sub-swarm anchor."),
     workflow_id: uuid.UUID | None = Query(default=None),
+    agent_id: uuid.UUID | None = Query(default=None, description="Filter rows assigned to a bee."),
     filter_status: TaskStatus | None = Query(default=None, alias="status"),
     limit: int = Query(default=50, ge=1, le=200),
 ) -> list[Task]:
@@ -80,6 +81,7 @@ async def list_recent_tasks(
             db,
             swarm_id=swarm_id,
             workflow_id=workflow_id,
+            agent_id=agent_id,
             status=filter_status,
             limit=limit,
         )

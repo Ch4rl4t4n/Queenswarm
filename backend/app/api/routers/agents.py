@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.api.deps import DbSession, JwtSubject
+from app.models.agent import Agent
 from app.models.enums import AgentRole, AgentStatus
 from app.schemas.agent import AgentCreateRequest, AgentPatchRequest, AgentSnapshot
 from app.services.agent_catalog import (
@@ -17,8 +18,23 @@ from app.services.agent_catalog import (
     fetch_agent,
     list_agents,
 )
+from app.services.agent_task_hints import latest_open_tasks_for_agents
 
 router = APIRouter(tags=["Agents"])
+
+
+async def _to_agent_snapshot(db: DbSession, row: Agent) -> AgentSnapshot:
+    """Attach the newest pending/running backlog row for dashboard context."""
+
+    hints = await latest_open_tasks_for_agents(db, [row.id])
+    linked = hints.get(row.id)
+    base = AgentSnapshot.model_validate(row)
+    return base.model_copy(
+        update={
+            "current_task_id": linked.id if linked else None,
+            "current_task_title": linked.title if linked else None,
+        },
+    )
 
 
 @router.post(
@@ -60,7 +76,7 @@ async def register_agent(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Persistence rejected agent insert.",
         )
-    return row
+    return await _to_agent_snapshot(db, row)
 
 
 @router.get(
@@ -91,7 +107,20 @@ async def list_agent_registry(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Persistence rejected agent listing.",
         )
-    return rows
+    hints = await latest_open_tasks_for_agents(db, [r.id for r in rows])
+    snapshots: list[AgentSnapshot] = []
+    for row in rows:
+        linked = hints.get(row.id)
+        base = AgentSnapshot.model_validate(row)
+        snapshots.append(
+            base.model_copy(
+                update={
+                    "current_task_id": linked.id if linked else None,
+                    "current_task_title": linked.title if linked else None,
+                },
+            ),
+        )
+    return snapshots
 
 
 @router.get(
@@ -115,7 +144,7 @@ async def get_agent(
         )
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found.")
-    return row
+    return await _to_agent_snapshot(db, row)
 
 
 @router.patch(
@@ -185,7 +214,79 @@ async def patch_agent(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Persistence rejected agent update.",
         )
-    return row
+    return await _to_agent_snapshot(db, row)
+
+
+@router.post(
+    "/{agent_id}/pause",
+    response_model=AgentSnapshot,
+    summary="Pause bee execution (marks worker as paused)",
+)
+async def pause_agent(agent_id: uuid.UUID, db: DbSession, _subject: JwtSubject) -> AgentSnapshot:
+    """Operator guardrail — pause busy workers without losing swarm membership."""
+
+    row = await fetch_agent(db, agent_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found.")
+    try:
+        await apply_agent_updates(
+            db,
+            row,
+            status=AgentStatus.PAUSED,
+            swarm_move=False,
+            new_swarm_id=row.swarm_id,
+            config=None,
+            performance_score=None,
+            pollen_points=None,
+        )
+        await db.commit()
+        await db.refresh(row)
+    except AgentCatalogError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected agent pause.",
+        )
+    return await _to_agent_snapshot(db, row)
+
+
+@router.post(
+    "/{agent_id}/resume",
+    response_model=AgentSnapshot,
+    summary="Resume paused bee",
+)
+async def resume_agent(agent_id: uuid.UUID, db: DbSession, _subject: JwtSubject) -> AgentSnapshot:
+    """Return paused agents to idle so LangGraph supervisors can dispatch again."""
+
+    row = await fetch_agent(db, agent_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found.")
+    try:
+        await apply_agent_updates(
+            db,
+            row,
+            status=AgentStatus.IDLE,
+            swarm_move=False,
+            new_swarm_id=row.swarm_id,
+            config=None,
+            performance_score=None,
+            pollen_points=None,
+        )
+        await db.commit()
+        await db.refresh(row)
+    except AgentCatalogError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected agent resume.",
+        )
+    return await _to_agent_snapshot(db, row)
 
 
 __all__ = ["router"]

@@ -120,6 +120,7 @@ async def create_recipe(
 async def list_recipes(
     db: DbSession,
     _subject: JwtSubject,
+    q: str | None = Query(default=None, description="Filter by name/description (ilike)."),
     verified_only: bool = Query(
         default=False,
         description="Limit to verified recipes (`verified_at` not null).",
@@ -137,6 +138,7 @@ async def list_recipes(
             db,
             verified_only=verified_only,
             include_deprecated=include_deprecated,
+            needle=q,
             limit=limit,
         )
     except SQLAlchemyError:

@@ -92,6 +92,7 @@ async def iter_recent_tasks(
     *,
     swarm_id: uuid.UUID | None = None,
     workflow_id: uuid.UUID | None = None,
+    agent_id: uuid.UUID | None = None,
     status: TaskStatus | None = None,
     limit: int = 50,
 ) -> list[Task]:
@@ -102,6 +103,8 @@ async def iter_recent_tasks(
         stmt = stmt.where(Task.swarm_id == swarm_id)
     if workflow_id is not None:
         stmt = stmt.where(Task.workflow_id == workflow_id)
+    if agent_id is not None:
+        stmt = stmt.where(Task.agent_id == agent_id)
     if status is not None:
         stmt = stmt.where(Task.status == status)
     stmt = stmt.limit(min(max(limit, 1), 200))

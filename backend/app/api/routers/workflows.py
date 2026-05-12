@@ -11,6 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import DbSession, JwtSubject
+from app.models.task import Task
 from app.models.workflow import Workflow
 from app.schemas.workflow_breaker import (
     DecomposeWorkflowRequest,
@@ -86,13 +87,17 @@ async def decompose_workflow(
 async def list_workflows(
     db: DbSession,
     _subject: JwtSubject,
+    task_id: uuid.UUID | None = Query(default=None, description="Filter workflows linked to a backlog row."),
     skip: int = Query(default=0, ge=0, le=50_000),
     limit: int = Query(default=20, ge=1, le=100),
 ) -> list[WorkflowResponse]:
     """Paginated workflow index for operator dashboards."""
 
     try:
-        stmt = select(Workflow).order_by(Workflow.created_at.desc()).offset(skip).limit(limit)
+        stmt = select(Workflow).order_by(Workflow.created_at.desc())
+        if task_id is not None:
+            stmt = stmt.join(Task, Task.workflow_id == Workflow.id).where(Task.id == task_id)
+        stmt = stmt.offset(skip).limit(limit)
         rows = (await db.scalars(stmt)).all()
     except SQLAlchemyError:
         raise HTTPException(

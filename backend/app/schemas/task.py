@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -52,6 +53,9 @@ class TaskSnapshot(BaseModel):
     parent_task_id: uuid.UUID | None = None
     pollen_awarded: float = 0.0
     error_msg: str | None = None
+    created_at: datetime
+    updated_at: datetime
+    completed_at: datetime | None = None
 
 
 __all__ = ["TaskCreateRequest", "TaskPatchRequest", "TaskSnapshot"]

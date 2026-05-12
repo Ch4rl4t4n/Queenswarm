@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import JSONResponse
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.api.deps import DbSession, JwtSubject
 from app.core.config import settings
-from app.models.enums import SwarmPurpose
+from app.models.agent import Agent
+from app.models.enums import AgentStatus, SwarmPurpose
 from app.schemas.sub_swarm import (
     GlobalHiveSyncAck,
     RunWorkflowOnSwarmQueuedResponse,
@@ -337,6 +340,33 @@ async def acknowledge_global_hive_sync(
         )
     sid, synced_at = stamped
     return GlobalHiveSyncAck(swarm_id=sid, last_global_sync_at=synced_at)
+
+
+@router.post(
+    "/{swarm_id}/wake",
+    summary="Wake paused/offline bees inside a colony",
+)
+async def wake_swarm_colony(swarm_id: uuid.UUID, db: DbSession, _subject: JwtSubject) -> dict[str, Any]:
+    """Flip idle-blocked agents back to IDLE so planners can resume dispatch."""
+
+    colony = await fetch_sub_swarm(db, swarm_id)
+    if colony is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sub-swarm not found.")
+    try:
+        bees = await db.scalars(select(Agent).where(Agent.swarm_id == swarm_id))
+        woke = 0
+        for bee in bees:
+            if bee.status in {AgentStatus.OFFLINE, AgentStatus.ERROR, AgentStatus.PAUSED}:
+                bee.status = AgentStatus.IDLE
+                woke += 1
+        await db.commit()
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected swarm wake.",
+        )
+    return {"ok": True, "swarm_id": str(swarm_id), "nudged_agents": woke}
 
 
 __all__ = ["router"]

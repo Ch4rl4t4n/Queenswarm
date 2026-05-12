@@ -115,9 +115,8 @@ def get_realtime_router() -> APIRouter:
     return _router
 
 
-@_bb_router.post("/session", status_code=status.HTTP_201_CREATED)
-async def start_ballroom_session(_subject: JwtSubject) -> dict[str, object]:
-    """Mint a ballroom capsule (stub until Pipecat + WebRTC infra keys are wired)."""
+async def _mint_ballroom_session_capsule() -> dict[str, object]:
+    """Create in-memory ballroom capsule id for transcript websockets."""
 
     session_id = uuid.uuid4()
     _SESSION_CHANNELS.setdefault(session_id, set())
@@ -127,6 +126,20 @@ async def start_ballroom_session(_subject: JwtSubject) -> dict[str, object]:
         "transcript_query": "?session_id=...&token=...",
         "webrtc": {"signaling": "mock"},
     }
+
+
+@_bb_router.post("/session", status_code=status.HTTP_201_CREATED)
+async def start_ballroom_session(_subject: JwtSubject) -> dict[str, object]:
+    """Mint a ballroom capsule (stub until Pipecat + WebRTC infra keys are wired)."""
+
+    return await _mint_ballroom_session_capsule()
+
+
+@_bb_router.post("/start", status_code=status.HTTP_201_CREATED)
+async def start_ballroom_session_alias(_subject: JwtSubject) -> dict[str, object]:
+    """Alias for POST /ballroom/session — Phase G ballroom CTA."""
+
+    return await _mint_ballroom_session_capsule()
 
 
 @_bb_router.websocket("/ws/stream")
