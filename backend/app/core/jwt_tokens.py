@@ -55,6 +55,9 @@ def dashboard_access_subject(user_id: uuid.UUID) -> str:
     return f"{_DASHBOARD_SUBJECT_PREFIX}{user_id}"
 
 
+dashboard_subject = dashboard_access_subject
+"""Backwards-compatible alias retained for hive services."""
+
 def parse_dashboard_user_subject(sub: str) -> uuid.UUID | None:
     """Parse ``dash:<uuid>`` (or legacy bare UUID strings) emitted by cockpit flows."""
 
@@ -127,6 +130,7 @@ __all__ = [
     "create_dashboard_access_token",
     "create_pre_2fa_token",
     "dashboard_access_subject",
+    "dashboard_subject",
     "decode_jwt_optional_typ",
     "parse_dashboard_user_subject",
 ]
