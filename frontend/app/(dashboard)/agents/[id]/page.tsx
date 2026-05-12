@@ -36,9 +36,18 @@ export default async function AgentDetailPage(props: AgentDetailPageProps) {
           </span>
         }
         actions={
-          <Link href="/agents" className="font-[family-name:var(--font-jetbrains-mono)] text-xs text-pollen hover:underline">
-            ← roster
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href={`/agents/${encodeURIComponent(agent.id)}/edit`}
+              className="rounded-lg border border-pollen/35 px-3 py-1.5 font-mono text-xs text-pollen hover:bg-pollen/10"
+              prefetch={false}
+            >
+              Edit config
+            </Link>
+            <Link href="/agents" className="font-[family-name:var(--font-jetbrains-mono)] text-xs text-pollen hover:underline">
+              ← roster
+            </Link>
+          </div>
         }
       />
 
