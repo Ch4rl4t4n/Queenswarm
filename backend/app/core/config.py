@@ -236,6 +236,20 @@ class Settings(BaseSettings):
     rate_limit_burst_window_sec: float = Field(default=1.0, gt=0)
     rate_limit_sustain_max: int = Field(default=100, ge=1, le=200_000)
     rate_limit_sustain_window_sec: float = Field(default=60.0, gt=0)
+    rate_limit_agent_run_max: int = Field(
+        default=10,
+        ge=1,
+        le=200_000,
+        description="Extra sliding window for POST …/agents/{id}/run (requests per peer IP).",
+    )
+    rate_limit_agent_run_window_sec: float = Field(default=60.0, gt=0)
+    rate_limit_task_create_max: int = Field(
+        default=30,
+        ge=1,
+        le=500_000,
+        description="Extra sliding window for POST /api/v1/tasks (requests per peer IP).",
+    )
+    rate_limit_task_create_window_sec: float = Field(default=60.0, gt=0)
     health_readiness_cache_sec: float = Field(
         default=3.0,
         ge=0,
@@ -296,6 +310,10 @@ class Settings(BaseSettings):
 
     # --- Notifications (Reporter bee → humans)
     slack_webhook_url: str | None = None
+    notify_email: str | None = Field(
+        default=None,
+        description="Default recipient for SMTP alerts when ``notify_email`` is not passed explicitly.",
+    )
     smtp_host: str | None = None
     smtp_port: int = 587
     smtp_user: str | None = None

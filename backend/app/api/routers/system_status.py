@@ -31,6 +31,13 @@ class SystemStatusPayload(BaseModel):
     llm_ok: bool = Field(description="At least one LiteLLM provider credential is non-empty.")
 
 
+class NotifyTestResponse(BaseModel):
+    """Results from the operator notification smoke ping."""
+
+    message: str = Field(description="Human readable summary for dashboards.")
+    results: dict[str, bool] = Field(description="Per-channel booleans keyed by slack/email.")
+
+
 def _llm_configured() -> bool:
     grok = (settings.grok_api_key or "").strip()
     claude = (settings.anthropic_api_key or "").strip()
@@ -95,4 +102,47 @@ async def read_system_status(_subject: JwtSubject) -> SystemStatusPayload:
     )
 
 
-__all__ = ["router", "SystemStatusPayload"]
+@router.post("/notify-test", summary="Smoke-test Slack + SMTP wiring", response_model=NotifyTestResponse)
+async def post_notify_test(_subject: JwtSubject) -> NotifyTestResponse:
+    """Trigger optional Slack/email notifications using ``settings``."""
+
+    from app.core.notifications import notify_email, notify_slack
+
+    results: dict[str, bool] = {
+        "slack": await notify_slack(
+            "🐝 Test notification from Queenswarm! Everything is working.",
+            color="#00FF88",
+            title="Test",
+        ),
+        "email": await notify_email(
+            subject="Test Notification",
+            body="🐝 Test notification from Queenswarm! Everything is working.",
+        ),
+    }
+    sent = [channel for channel, ok in results.items() if ok]
+    skipped = [channel for channel, ok in results.items() if not ok]
+
+    hint = ""
+    if not sent:
+        hint = (
+            "(configure SLACK_WEBHOOK_URL plus SMTP_* + NOTIFY_EMAIL in `.env`; then restart backend.)"
+            if skipped
+            else ""
+        )
+
+    summary = (
+        f"Channels delivered: {', '.join(sent) or 'none'}. "
+        f"Skipped: {', '.join(skipped) or 'none'}. "
+        f"{hint}"
+    ).strip()
+
+    logger.info(
+        "system.notify_test",
+        slack=results["slack"],
+        email=results["email"],
+    )
+
+    return NotifyTestResponse(message=summary, results=results)
+
+
+__all__ = ["NotifyTestResponse", "router", "SystemStatusPayload"]

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { HiveSwitch } from "@/components/ui/hive-switch";
-import { HiveApiError, hivePatchJson } from "@/lib/api";
+import { HiveApiError, hivePatchJson, hivePostJson } from "@/lib/api";
 import type { DashboardOperatorMe } from "@/lib/hive-dashboard-session";
 
 const ROWS: { id: string; label: string; defaultOn: boolean }[] = [
@@ -70,6 +70,22 @@ export function NotificationsSettingsClient({ initialMe }: NotificationsSettings
     );
   }
 
+  async function sendTestNotification(): Promise<void> {
+    try {
+      const data = await hivePostJson<{ message: string; results: Record<string, boolean> }>(
+        "system/notify-test",
+        {},
+      );
+      toast.success(data.message || "Test sent.");
+    } catch (e) {
+      if (e instanceof HiveApiError) {
+        toast.error(e.message);
+      } else {
+        toast.error("Test notification failed.");
+      }
+    }
+  }
+
   return (
     <article className="rounded-2xl border border-cyan/[0.12] bg-hive-card/90 p-6 md:p-8">
       <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-[#fafafa]">
@@ -89,6 +105,21 @@ export function NotificationsSettingsClient({ initialMe }: NotificationsSettings
           </li>
         ))}
       </ul>
+      <div className="mt-10 space-y-2 border-t border-cyan/[0.08] pt-8">
+        <p className="text-xs font-[family-name:var(--font-jetbrains-mono)] text-[#a1a1aa]">
+          Uses server env (<code className="text-cyan/[0.9]">SLACK_WEBHOOK_URL</code>, SMTP, optional{" "}
+          <code className="text-cyan/[0.9]">NOTIFY_EMAIL</code>).
+        </p>
+        <button
+          type="button"
+          className="rounded-lg border border-cyan/[0.3] px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-sm text-[#00FFFF] transition hover:bg-cyan/[0.08]"
+          onClick={() => {
+            void sendTestNotification();
+          }}
+        >
+          Send test notification
+        </button>
+      </div>
     </article>
   );
 }
