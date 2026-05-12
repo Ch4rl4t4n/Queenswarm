@@ -299,8 +299,8 @@ async def list_agent_registry(
     configured_ids: set[uuid.UUID] = set()
     if rows:
         cfg_stmt = select(AgentConfig.agent_id).where(AgentConfig.agent_id.in_([r.id for r in rows]))
-        cfg_rows = await db.execute(cfg_stmt)
-        configured_ids = {row[0] for row in cfg_rows.all()}
+        cfg_result = await db.execute(cfg_stmt)
+        configured_ids = set(cfg_result.scalars().all())
     snapshots: list[AgentSnapshot] = []
     for row in rows:
         linked = hints.get(row.id)

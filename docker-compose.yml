@@ -255,6 +255,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-https://queenswarm.love/api/v1}
+        NEXT_PUBLIC_HIVE_WS_GUEST: ${NEXT_PUBLIC_HIVE_WS_GUEST:-true}
+        NEXT_PUBLIC_BALLROOM_GUEST_WS: ${NEXT_PUBLIC_BALLROOM_GUEST_WS:-true}
     environment:
       NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-https://queenswarm.love/api/v1}
       NEXT_PUBLIC_HIVE_WS_GUEST: ${NEXT_PUBLIC_HIVE_WS_GUEST:-true}

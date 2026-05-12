@@ -6,7 +6,7 @@ import uuid
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -264,8 +264,15 @@ async def test_list_agents_returns_rows(restore_app_overrides: None, monkeypatch
 
     monkeypatch.setattr(agents_router, "list_agents", fake_list)
 
+    mock_cfg_result = MagicMock()
+    mock_scalar_rows = MagicMock()
+    mock_scalar_rows.all.return_value = []
+    mock_cfg_result.scalars.return_value = mock_scalar_rows
+
     async def mock_db() -> AsyncIterator[AsyncMock]:
-        yield AsyncMock()
+        session = AsyncMock()
+        session.execute = AsyncMock(return_value=mock_cfg_result)
+        yield session
 
     app.dependency_overrides[get_db] = mock_db
     token, _ = create_access_token(subject="pytest")

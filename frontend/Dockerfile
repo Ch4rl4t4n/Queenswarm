@@ -9,6 +9,15 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+# Inlined at ``next build`` time for browser bundles (runtime env is too late for standalone).
+ARG NEXT_PUBLIC_API_BASE=https://queenswarm.love/api/v1
+ARG NEXT_PUBLIC_HIVE_WS_GUEST=true
+ARG NEXT_PUBLIC_BALLROOM_GUEST_WS=true
+ENV NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE
+ENV NEXT_PUBLIC_HIVE_WS_GUEST=$NEXT_PUBLIC_HIVE_WS_GUEST
+ENV NEXT_PUBLIC_BALLROOM_GUEST_WS=$NEXT_PUBLIC_BALLROOM_GUEST_WS
+
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
