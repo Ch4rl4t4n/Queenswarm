@@ -42,6 +42,7 @@ omit =
 [report]
 # Gate is tuned to the omission-heavy CI slice;raising this requires expanding integration tests beyond HTTP routers.
 # Post–dashboard merge (2026-05): executor + task surfaces are integration-tested on host; raise toward 80% with focused suites.
-fail_under = 71
+# Coverage gate nudged upward as ``task_presenter`` + ``sub_swarm_catalog`` helpers gain unit tests.
+fail_under = 72
 show_missing = true
 skip_covered = false
