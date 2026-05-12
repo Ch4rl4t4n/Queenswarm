@@ -300,7 +300,8 @@ services:
       - "${HTTP_PORT:-80}:80"
       - "${HTTPS_PORT:-443}:443"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/docs >/dev/null 2>&1 || exit 1"]
+      test:
+        ["CMD-SHELL", "wget -qO- http://127.0.0.1:8089/nginx-health >/dev/null 2>&1 || exit 1"]
       interval: 15s
       timeout: 4s
       retries: 8
