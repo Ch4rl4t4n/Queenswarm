@@ -361,6 +361,7 @@ async def deliver_to_dashboard(
     content: str,
     task_id: uuid.UUID,
     fmt: str,
+    cost_usd: float | None = None,
 ) -> None:
     """Persist rich output on the backlog row for dashboard polling."""
 
@@ -368,7 +369,10 @@ async def deliver_to_dashboard(
     if task is None:
         logger.warning("executor.dashboard_missing_task", task_id=str(task_id))
         return
-    task.result = {"output": content, "format": fmt}
+    payload: dict[str, Any] = {"output": content, "format": fmt}
+    if cost_usd is not None and cost_usd > 0:
+        payload["cost_usd"] = round(float(cost_usd), 8)
+    task.result = payload
     task.status = TaskStatus.COMPLETED
     task.error_msg = None
     task.completed_at = datetime.now(tz=UTC)
@@ -548,6 +552,7 @@ async def execute_universal_agent(
 {format_instructions.get(output_format, "Respond with plain text.")}"""
 
     llm_output = ""
+    llm_cost_usd: float | None = None
     if not hive_llm_credentials_ready():
         logger.warning(
             "executor.llm_skipped_no_provider_keys",
@@ -564,7 +569,7 @@ async def execute_universal_agent(
     else:
         router = LiteLLMRouter()
         try:
-            llm_output = await router.decompose(
+            llm_output, llm_cost_usd = await router.decompose(
                 session,
                 system_prompt=system_prompt,
                 user_payload=full_user_prompt,
@@ -588,13 +593,31 @@ async def execute_universal_agent(
     dest = output_destination
     try:
         if dest == "dashboard" or dest.startswith("dashboard"):
-            await deliver_to_dashboard(session, content=llm_output, task_id=task_id, fmt=output_format)
+            await deliver_to_dashboard(
+                session,
+                content=llm_output,
+                task_id=task_id,
+                fmt=output_format,
+                cost_usd=llm_cost_usd,
+            )
         elif dest.startswith("email"):
             await deliver_to_email(formatted_bytes, output_config, output_format)
-            await deliver_to_dashboard(session, content=llm_output, task_id=task_id, fmt=output_format)
+            await deliver_to_dashboard(
+                session,
+                content=llm_output,
+                task_id=task_id,
+                fmt=output_format,
+                cost_usd=llm_cost_usd,
+            )
         elif dest.startswith("slack"):
             await deliver_to_slack(llm_output, output_config)
-            await deliver_to_dashboard(session, content=llm_output, task_id=task_id, fmt=output_format)
+            await deliver_to_dashboard(
+                session,
+                content=llm_output,
+                task_id=task_id,
+                fmt=output_format,
+                cost_usd=llm_cost_usd,
+            )
         elif dest == "file":
             saved = await deliver_to_file(formatted_bytes, output_config, output_format, agent_name)
             await deliver_to_dashboard(
@@ -602,9 +625,16 @@ async def execute_universal_agent(
                 content=f"File saved: {saved}\n\n{llm_output}",
                 task_id=task_id,
                 fmt=output_format,
+                cost_usd=llm_cost_usd,
             )
         else:
-            await deliver_to_dashboard(session, content=llm_output, task_id=task_id, fmt=output_format)
+            await deliver_to_dashboard(
+                session,
+                content=llm_output,
+                task_id=task_id,
+                fmt=output_format,
+                cost_usd=llm_cost_usd,
+            )
     except Exception as exc:  # noqa: BLE001
         logger.error("executor.delivery_failed", dest=dest, error=str(exc))
         await deliver_to_dashboard(
@@ -612,6 +642,7 @@ async def execute_universal_agent(
             content=f"Delivery error: {exc}\n\nOutput:\n{llm_output}",
             task_id=task_id,
             fmt=output_format,
+            cost_usd=llm_cost_usd,
         )
 
     preview = llm_output[:500]

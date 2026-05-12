@@ -175,7 +175,7 @@ class AutoWorkflowBreaker:
             }
             user_json = json.dumps(user_payload, default=str)
 
-            raw_content = await self._router.decompose(
+            raw_content, _decomposition_cost_usd = await self._router.decompose(
                 db,
                 system_prompt=DECOMPOSITION_SYSTEM_PROMPT,
                 user_payload=user_json,

@@ -156,8 +156,12 @@ class LiteLLMRouter:
         max_tokens: int | None = None,
         agent_id: object | None = None,
         task_id: object | None = None,
-    ) -> tuple[Any, str, str]:
-        """Invoke a single model and attach CostRecord rows when telemetry exists."""
+    ) -> tuple[Any, str, str, float]:
+        """Invoke a single model and attach CostRecord rows when telemetry exists.
+
+        Returns:
+            Tuple of LiteLLM response object, textual content, model slug used, and billed USD estimate.
+        """
 
         await self._assert_budget(session)
         api_key = model_api_key(model_name)
@@ -178,6 +182,7 @@ class LiteLLMRouter:
             **completion_kwargs,
         )
         content = response.choices[0].message.content or ""
+        hop_cost_usd = float(litellm.completion_cost(completion_response=response, model=model_name) or 0.0)
         await record_llm_cost(
             session,
             response=response,
@@ -190,8 +195,9 @@ class LiteLLMRouter:
             model=model_name,
             agent_id=str(agent_id) if agent_id else "",
             task_id=str(task_id) if task_id else "",
+            hop_cost_usd=hop_cost_usd,
         )
-        return response, content, model_name
+        return response, content, model_name, hop_cost_usd
 
     async def decompose(
         self,
@@ -202,7 +208,7 @@ class LiteLLMRouter:
         swarm_id: str = "",
         workflow_id: str | None = None,
         task_id: str | None = None,
-    ) -> str:
+    ) -> tuple[str, float]:
         """Run Grok → Claude → (optional) GPT-4o-mini until one provider succeeds.
 
         Args:
@@ -214,7 +220,7 @@ class LiteLLMRouter:
             task_id: Optional backlog link.
 
         Returns:
-            Raw textual model output (JSON or fenced).
+            Raw textual model output and estimated USD cost for the successful completion hop.
 
         Raises:
             AuthenticationError: When credentials are rejected by a provider.
@@ -242,7 +248,7 @@ class LiteLLMRouter:
         for model_name in hops:
             try:
                 await self._assert_budget(session)
-                _response, content, used = await self._acompletion_with_model(
+                _response, content, used, hop_cost_usd = await self._acompletion_with_model(
                     session,
                     model_name=model_name,
                     messages=messages,
@@ -251,8 +257,9 @@ class LiteLLMRouter:
                     "llm_router.decompose.completed",
                     model=used,
                     **bind,
+                    hop_cost_usd=hop_cost_usd,
                 )
-                return content
+                return content, hop_cost_usd
             except BudgetExceededError:
                 logger.error("llm_router.decompose.budget_blocked", model=model_name, **bind)
                 raise
@@ -305,7 +312,7 @@ class LiteLLMRouter:
             "workflow_id": workflow_id or "",
         }
         await self._assert_budget(session)
-        _response, content, model_used = await self._acompletion_with_model(
+        _response, content, model_used, _hop_cost = await self._acompletion_with_model(
             session,
             model_name=settings.workflow_breaker_evaluation_model,
             messages=messages,
@@ -354,7 +361,7 @@ class LiteLLMRouter:
             "workflow_id": workflow_id or "",
         }
         await self._assert_budget(session)
-        _response, content, model_used = await self._acompletion_with_model(
+        _response, content, model_used, _hop_cost = await self._acompletion_with_model(
             session,
             model_name=settings.workflow_breaker_simulation_model,
             messages=messages,
