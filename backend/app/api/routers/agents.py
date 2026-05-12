@@ -5,12 +5,21 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.api.deps import DbSession, JwtSubject
 from app.models.agent import Agent
+from app.models.agent_config import AgentConfig
 from app.models.enums import AgentRole, AgentStatus
 from app.schemas.agent import AgentCreateRequest, AgentPatchRequest, AgentSnapshot
+from app.schemas.agent_dynamic import (
+    AgentConfigSnapshot,
+    AgentConfigUpsert,
+    AgentDynamicCreate,
+    AgentDynamicCreateResponse,
+)
+from app.schemas.agent_factory_http import UniversalAgentRunQueued
 from app.services.agent_catalog import (
     AgentCatalogError,
     apply_agent_updates,
@@ -19,6 +28,8 @@ from app.services.agent_catalog import (
     list_agents,
 )
 from app.services.agent_task_hints import latest_open_tasks_for_agents
+from app.services.agent_universal import enqueue_universal_agent_run
+from app.worker.tasks import execute_universal_agent_task
 
 router = APIRouter(tags=["Agents"])
 
@@ -35,6 +46,179 @@ async def _to_agent_snapshot(db: DbSession, row: Agent) -> AgentSnapshot:
             "current_task_title": linked.title if linked else None,
         },
     )
+
+
+@router.post(
+    "/dynamic",
+    response_model=AgentDynamicCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create UI-defined bee + persisted universal executor config",
+)
+async def create_dynamic_agent(
+    body: AgentDynamicCreate,
+    db: DbSession,
+    _subject: JwtSubject,
+) -> AgentDynamicCreateResponse:
+    """Factory endpoint used by the dashboard — no Python class required."""
+
+    try:
+        agent = await create_agent_record(
+            db,
+            name=body.name,
+            role=AgentRole.LEARNER,
+            status=body.agent_status,
+            swarm_id=body.swarm_id,
+            config={"origin": "dynamic_factory"},
+        )
+        cfg = AgentConfig(
+            agent_id=agent.id,
+            system_prompt=body.system_prompt,
+            user_prompt_template=body.user_prompt_template,
+            tools=list(body.tools),
+            output_format=body.output_format,
+            output_destination=body.output_destination,
+            output_config=dict(body.output_config),
+            schedule_type=body.schedule_type,
+            schedule_value=body.schedule_value,
+            is_active=True,
+        )
+        db.add(cfg)
+        await db.commit()
+        await db.refresh(agent)
+        await db.refresh(cfg)
+    except AgentCatalogError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Agent name is already taken.",
+        )
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected dynamic agent insert.",
+        )
+    return AgentDynamicCreateResponse(
+        agent_id=agent.id,
+        agent_name=agent.name,
+        config_id=cfg.id,
+    )
+
+
+@router.get(
+    "/{agent_id}/config",
+    response_model=AgentConfigSnapshot,
+    summary="Fetch universal executor config for a bee",
+)
+async def get_agent_config_row(
+    agent_id: uuid.UUID,
+    db: DbSession,
+    _subject: JwtSubject,
+) -> AgentConfigSnapshot:
+    """Return prompt + tool JSON for the agent editor."""
+
+    agent = await fetch_agent(db, agent_id)
+    if agent is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found.")
+    cfg = await db.scalar(select(AgentConfig).where(AgentConfig.agent_id == agent_id))
+    if cfg is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent config not found.")
+    return AgentConfigSnapshot.model_validate(cfg)
+
+
+@router.put(
+    "/{agent_id}/config",
+    response_model=AgentConfigSnapshot,
+    summary="Upsert universal executor config",
+)
+async def upsert_agent_config_row(
+    agent_id: uuid.UUID,
+    body: AgentConfigUpsert,
+    db: DbSession,
+    _subject: JwtSubject,
+) -> AgentConfigSnapshot:
+    """Create or update prompt-driven configuration for an existing agent row."""
+
+    agent = await fetch_agent(db, agent_id)
+    if agent is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found.")
+    payload = body.model_dump(exclude_unset=True)
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Provide at least one field to upsert.",
+        )
+    try:
+        cfg = await db.scalar(select(AgentConfig).where(AgentConfig.agent_id == agent_id))
+        if cfg is None:
+            system_prompt = str(payload.get("system_prompt") or "You are a helpful AI agent.")
+            cfg = AgentConfig(
+                agent_id=agent_id,
+                system_prompt=system_prompt,
+                user_prompt_template=payload.get("user_prompt_template"),
+                tools=list(payload.get("tools") or []),
+                output_format=str(payload.get("output_format") or "text"),
+                output_destination=str(payload.get("output_destination") or "dashboard"),
+                output_config=dict(payload.get("output_config") or {}),
+                schedule_type=str(payload.get("schedule_type") or "on_demand"),
+                schedule_value=payload.get("schedule_value"),
+                is_active=bool(payload.get("is_active", True)),
+            )
+            db.add(cfg)
+        else:
+            for field, value in payload.items():
+                if value is None:
+                    continue
+                setattr(cfg, field, value)
+        await db.commit()
+        await db.refresh(cfg)
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected config upsert.",
+        )
+    return AgentConfigSnapshot.model_validate(cfg)
+
+
+@router.post(
+    "/{agent_id}/run",
+    response_model=UniversalAgentRunQueued,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Queue an immediate universal executor run",
+)
+async def run_agent_now(
+    agent_id: uuid.UUID,
+    db: DbSession,
+    _subject: JwtSubject,
+) -> UniversalAgentRunQueued:
+    """Enqueue :func:`execute_universal_agent_task` for operator-triggered runs."""
+
+    agent = await fetch_agent(db, agent_id)
+    if agent is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found.")
+    cfg = await db.scalar(select(AgentConfig).where(AgentConfig.agent_id == agent_id))
+    try:
+        backlog = await enqueue_universal_agent_run(
+            db,
+            agent=agent,
+            cfg=cfg,
+            title=f"{agent.name} — on-demand universal run",
+            priority=3,
+            guard_duplicates=False,
+        )
+        await db.commit()
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected task insert.",
+        )
+    execute_universal_agent_task.delay(str(backlog.id))
+    return UniversalAgentRunQueued(task_id=backlog.id, status="queued")
 
 
 @router.post(
