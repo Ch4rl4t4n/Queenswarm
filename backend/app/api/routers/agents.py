@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import uuid
 
+from typing import Any
+
 from fastapi import APIRouter, Body, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -48,6 +50,38 @@ async def _to_agent_snapshot(db: DbSession, row: Agent) -> AgentSnapshot:
             "has_universal_config": cfg_marker is not None,
         },
     )
+
+
+@router.post(
+    "/pause-all",
+    summary="Emergency pause for every idle or running bee",
+)
+async def pause_all_agents(db: DbSession, _subject: JwtSubject) -> dict[str, Any]:
+    """Mark ``idle`` / ``running`` bees as ``paused``."""
+
+    result = await db.execute(
+        select(Agent).where(Agent.status.in_((AgentStatus.IDLE, AgentStatus.RUNNING))),
+    )
+    rows = list(result.scalars().all())
+    for row in rows:
+        row.status = AgentStatus.PAUSED
+    await db.commit()
+    return {"paused": len(rows), "message": f"Paused {len(rows)} agents"}
+
+
+@router.post(
+    "/wake-all",
+    summary="Return every paused bee to idle",
+)
+async def wake_all_agents(db: DbSession, _subject: JwtSubject) -> dict[str, Any]:
+    """Operator reset — ``paused`` bees become ``idle``."""
+
+    result = await db.execute(select(Agent).where(Agent.status == AgentStatus.PAUSED))
+    rows = list(result.scalars().all())
+    for row in rows:
+        row.status = AgentStatus.IDLE
+    await db.commit()
+    return {"woken": len(rows), "message": f"Woke {len(rows)} agents"}
 
 
 @router.post(

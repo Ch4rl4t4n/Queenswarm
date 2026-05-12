@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { HumanOverrideStrip } from "@/components/hive/human-override-strip";
 import { SpendTrendChart } from "@/components/hive/spend-trend-chart";
 import { DashboardBeeHexGrid } from "@/components/hive/dashboard-bee-hex-grid";
 import { DanceStrip } from "@/components/hive/dance-strip";
@@ -161,6 +162,8 @@ export default async function HiveHomeDashboard() {
           </div>
         ))}
       </section>
+
+      <HumanOverrideStrip />
 
       <DashboardBeeHexGrid rosterTarget={total} />
 
