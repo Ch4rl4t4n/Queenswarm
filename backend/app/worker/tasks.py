@@ -215,6 +215,46 @@ def execute_universal_agent_task(self, task_id_str: str) -> dict[str, Any]:
         raise self.retry(exc=exc, countdown=60 * (retries + 1))
 
 
+@celery_app.task(name="agent.execute_agent", bind=True, max_retries=2, queue="hive")
+def execute_agent_task(
+    self,
+    agent_config: dict[str, Any],
+    task_id: str | None = None,
+    run_label: str | None = None,
+) -> dict[str, Any]:
+    """Run :func:`app.agents.executor.execute_agent` inside a worker (smoke + deferred UI runs).
+
+    Celery JSON body must include ``agent_context`` keys serializable types.
+    Prefer ``execute_universal_agent_task`` for backlog rows created via the API queue.
+
+    Args:
+        agent_config: Universal executor envelope (``agent_id`` may be textual UUID).
+        task_id: Optional correlator reused as the run title suffix when ``run_label`` omitted.
+        run_label: Stable slug embedded in Task.title (``run:{run_label}``).
+
+    Returns:
+        Executor preview dict surfaced to Celery results backend.
+
+    Raises:
+        Exception: Retries with backoff before exhausting.
+    """
+
+    from app.agents.executor import execute_agent
+
+    label = run_label or task_id or "celery-execute-agent"
+
+    async def _run() -> dict[str, Any]:
+        return await execute_agent(agent_config, label)
+
+    try:
+        return asyncio.run(_run())
+    except Exception as exc:  # noqa: BLE001 — Celery coordinates retries
+        retries = int(getattr(self.request, "retries", 0) or 0)
+        if retries >= 2:
+            raise
+        raise self.retry(exc=exc, countdown=30 * (retries + 1))
+
+
 @celery_app.task(name="hive.dynamic_agent_schedule_tick", queue="hive")
 def dynamic_agent_schedule_tick_task() -> dict[str, Any]:
     """Scan ``AgentConfig`` rows and enqueue due universal runs."""
@@ -258,6 +298,7 @@ def dynamic_agent_schedule_tick_task() -> dict[str, Any]:
 __all__ = [
     "dynamic_agent_schedule_tick_task",
     "echo_hive_pulse",
+    "execute_agent_task",
     "execute_universal_agent_task",
     "hourly_youtube_crypto_roll_task",
     "run_sub_swarm_workflow_cycle_task",
