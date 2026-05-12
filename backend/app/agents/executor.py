@@ -24,12 +24,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings as hive_settings
 from app.core.llm_router import LiteLLMRouter
-from app.core.logging import get_logger
 from app.core.database import async_session
+from app.core.logging import get_logger
+from app.models import load_all_models
 from app.models.enums import TaskStatus, TaskType
 from app.models.task import Task
 
 logger = get_logger(__name__)
+
+load_all_models()
 
 
 def hive_llm_credentials_ready() -> bool:
