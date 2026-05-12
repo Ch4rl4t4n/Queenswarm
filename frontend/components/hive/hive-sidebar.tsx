@@ -114,6 +114,7 @@ export function HiveSidebar({ pathname }: HiveSidebarProps) {
   return (
     <aside className="group sticky top-0 z-30 hidden h-screen w-16 shrink-0 flex-col overflow-hidden border-r border-[#1a1a3e]/90 bg-[#0d0d2b]/95 py-6 transition-[width] duration-300 ease-in-out hover:w-56 lg:flex">
       <div className="mb-6 flex h-14 shrink-0 items-center overflow-hidden border-b border-[#1a1a3e] px-3">
+        <Link href="/" className="flex min-w-0 items-center" prefetch>
         <svg viewBox="0 0 32 32" className="h-8 w-8 shrink-0" aria-hidden="true">
           <polygon points="16,1 30,9 30,23 16,31 2,23 2,9" fill="#0d0d2b" stroke="#FFB800" strokeWidth="1.5" />
           <text x="16" y="21" textAnchor="middle" fontSize="11">
@@ -125,6 +126,7 @@ export function HiveSidebar({ pathname }: HiveSidebarProps) {
         >
           Queenswarm
         </span>
+        </Link>
       </div>
 
       <nav aria-label="Hive navigation" className="flex flex-1 flex-col gap-0.5 overflow-y-auto hive-scrollbar px-1">
