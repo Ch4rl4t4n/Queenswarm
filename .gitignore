@@ -21,6 +21,11 @@ build/
 dist/
 *.tsbuildinfo
 
+# Playwright (frontend e2e smoke)
+frontend/playwright-report/
+frontend/test-results/
+frontend/blob-report/
+
 # Environment
 .env
 .env.local

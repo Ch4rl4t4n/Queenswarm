@@ -43,6 +43,9 @@ jobs:
       - name: npm ci
         run: npm ci
 
+      - name: Install Playwright chromium
+        run: npx playwright install chromium --with-deps
+
       - name: typecheck
         run: npm run typecheck
 
@@ -51,3 +54,8 @@ jobs:
 
       - name: test
         run: npm run test
+
+      - name: Smoke e2e (hive shell)
+        env:
+          CI: "true"
+        run: npm run test:e2e
