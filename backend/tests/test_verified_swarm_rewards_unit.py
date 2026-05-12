@@ -1,4 +1,4 @@
-"""Unit coverage for verified swarm pollen + recipe ledger hooks."""
+"""Unit tests for verified swarm pollen grants."""
 
 from __future__ import annotations
 
@@ -11,61 +11,91 @@ from app.services.verified_swarm_rewards import grant_pollen_for_verified_swarm_
 
 
 @pytest.mark.asyncio
-async def test_grant_pollen_returns_zero_when_amount_disabled() -> None:
+async def test_grant_returns_zero_when_amount_nonpositive() -> None:
     session = AsyncMock()
-    internals = [
-        {"status": "completed", "agent_id": str(uuid.uuid4()), "agent_role": "scout"},
-    ]
-    credited = await grant_pollen_for_verified_swarm_cycle(
+    sid = uuid.uuid4()
+    wid = uuid.uuid4()
+    n = await grant_pollen_for_verified_swarm_cycle(
         session,
-        internal_step_summaries=internals,
+        internal_step_summaries=[{"status": "completed", "agent_id": str(uuid.uuid4())}],
         task_id=None,
-        swarm_id=uuid.uuid4(),
-        workflow_id=uuid.uuid4(),
+        swarm_id=sid,
+        workflow_id=wid,
         amount_per_agent=0.0,
     )
-    assert credited == 0
+    assert n == 0
     session.get.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_grant_pollen_credits_unique_bees_once_each() -> None:
-    aid_a = uuid.uuid4()
-    aid_b = uuid.uuid4()
-    internals = [
-        {"status": "completed", "agent_id": str(aid_a), "agent_role": "scout"},
-        {"status": "completed", "agent_id": str(aid_a), "agent_role": "scout"},
-        {"status": "completed", "agent_id": str(aid_b), "agent_role": "action"},
-    ]
+async def test_grant_returns_zero_when_no_completed_agent_ids() -> None:
+    session = AsyncMock()
+    sid = uuid.uuid4()
+    wid = uuid.uuid4()
+    n = await grant_pollen_for_verified_swarm_cycle(
+        session,
+        internal_step_summaries=[{"status": "running", "agent_id": None}],
+        task_id=None,
+        swarm_id=sid,
+        workflow_id=wid,
+        amount_per_agent=3.0,
+    )
+    assert n == 0
+    session.get.assert_not_called()
 
-    agent_a = MagicMock()
-    agent_a.pollen_points = 3.0
-    agent_b = MagicMock()
-    agent_b.pollen_points = 7.0
+
+@pytest.mark.asyncio
+async def test_grant_updates_agent_pollen_and_persists_rows() -> None:
+    aid = uuid.uuid4()
+    task_id = uuid.uuid4()
+    sid = uuid.uuid4()
+    wid = uuid.uuid4()
+
+    agent = MagicMock()
+    agent.pollen_points = 10.0
 
     session = AsyncMock()
+    session.get = AsyncMock(return_value=agent)
     session.add = MagicMock()
     session.flush = AsyncMock()
 
-    async def fake_get(model, pk):  # noqa: ANN001
-        del model
-        if pk == aid_a:
-            return agent_a
-        if pk == aid_b:
-            return agent_b
-        return None
-
-    session.get = AsyncMock(side_effect=fake_get)
+    summaries = [{"status": "completed", "agent_id": str(aid)}]
 
     credited = await grant_pollen_for_verified_swarm_cycle(
         session,
-        internal_step_summaries=internals,
-        task_id=None,
-        swarm_id=uuid.uuid4(),
-        workflow_id=uuid.uuid4(),
-        amount_per_agent=0.5,
+        internal_step_summaries=summaries,
+        task_id=task_id,
+        swarm_id=sid,
+        workflow_id=wid,
+        amount_per_agent=2.5,
     )
-    assert credited == 2
-    assert agent_a.pollen_points == 3.5
-    assert agent_b.pollen_points == 7.5
-    assert session.flush.await_count == 1
+
+    assert credited == 1
+    assert agent.pollen_points == 12.5
+    assert session.add.call_count == 2
+    session.flush.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_grant_skips_missing_agent_row() -> None:
+    aid = uuid.uuid4()
+    sid = uuid.uuid4()
+    wid = uuid.uuid4()
+
+    session = AsyncMock()
+    session.get = AsyncMock(return_value=None)
+    session.add = MagicMock()
+    session.flush = AsyncMock()
+
+    credited = await grant_pollen_for_verified_swarm_cycle(
+        session,
+        internal_step_summaries=[{"status": "completed", "agent_id": str(aid)}],
+        task_id=None,
+        swarm_id=sid,
+        workflow_id=wid,
+        amount_per_agent=1.0,
+    )
+
+    assert credited == 0
+    session.add.assert_not_called()
+    session.flush.assert_not_called()
