@@ -234,9 +234,15 @@ class LiteLLMRouter:
             except BudgetExceededError:
                 logger.error("llm_router.decompose.budget_blocked", model=model_name, **bind)
                 raise
-            except AuthenticationError:
-                logger.error("llm_router.decompose.auth_failed", model=model_name, **bind)
-                raise
+            except AuthenticationError as exc:
+                errors.append(f"{model_name}: {exc}")
+                logger.warning(
+                    "llm_router.decompose.auth_failed_hop",
+                    model=model_name,
+                    error=str(exc),
+                    **bind,
+                )
+                continue
             except Exception as exc:  # noqa: BLE001 — hop-specific failures
                 errors.append(f"{model_name}: {exc}")
                 logger.warning(
