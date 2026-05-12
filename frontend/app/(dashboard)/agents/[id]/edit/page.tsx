@@ -414,13 +414,21 @@ export default function AgentEditPage() {
         <label className={labelCls}>Schedule</label>
         <input
           value={cfg.schedule_value}
-          onChange={(e) =>
+          onChange={(e) => {
+            const raw = e.target.value;
+            const trimmed = raw.trim();
+            const kind =
+              trimmed.length === 0
+                ? "on_demand"
+                : trimmed.split(/\s+/).length >= 5
+                  ? "cron"
+                  : "interval";
             setCfg((c) => ({
               ...c,
-              schedule_value: e.target.value,
-              schedule_type: e.target.value.length ? c.schedule_type : "on_demand",
-            }))
-          }
+              schedule_value: raw,
+              schedule_type: kind,
+            }));
+          }}
           className={inputCls}
           placeholder='e.g. "every 4 hours", "daily 08:00", or cron "0 */4 * * *"'
         />
