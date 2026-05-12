@@ -56,6 +56,24 @@ class TaskSnapshot(BaseModel):
     created_at: datetime
     updated_at: datetime
     completed_at: datetime | None = None
+    agent_name: str | None = Field(
+        default=None,
+        description="Resolved bee display name when agent_id links to roster.",
+    )
+    output_format: str | None = Field(
+        default=None,
+        description="Executor output discriminator mirrored from ``result.format``.",
+    )
+    confidence_score: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Normalized 0–1 confidence when executor embeds telemetry in result.",
+    )
+    cost_usd: float | None = Field(
+        default=None,
+        description="Optional spend estimate when executor records ``cost_usd`` in result JSON.",
+    )
 
 
 __all__ = ["TaskCreateRequest", "TaskPatchRequest", "TaskSnapshot"]

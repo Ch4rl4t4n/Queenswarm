@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Body, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
@@ -19,7 +19,7 @@ from app.schemas.agent_dynamic import (
     AgentDynamicCreate,
     AgentDynamicCreateResponse,
 )
-from app.schemas.agent_factory_http import UniversalAgentRunQueued
+from app.schemas.agent_factory_http import UniversalAgentRunOverlay, UniversalAgentRunQueued
 from app.services.agent_catalog import (
     AgentCatalogError,
     apply_agent_updates,
@@ -39,11 +39,13 @@ async def _to_agent_snapshot(db: DbSession, row: Agent) -> AgentSnapshot:
 
     hints = await latest_open_tasks_for_agents(db, [row.id])
     linked = hints.get(row.id)
+    cfg_marker = await db.scalar(select(AgentConfig.agent_id).where(AgentConfig.agent_id == row.id))
     base = AgentSnapshot.model_validate(row)
     return base.model_copy(
         update={
             "current_task_id": linked.id if linked else None,
             "current_task_title": linked.title if linked else None,
+            "has_universal_config": cfg_marker is not None,
         },
     )
 
@@ -194,6 +196,7 @@ async def run_agent_now(
     agent_id: uuid.UUID,
     db: DbSession,
     _subject: JwtSubject,
+    overlay: UniversalAgentRunOverlay | None = Body(default=None),
 ) -> UniversalAgentRunQueued:
     """Enqueue :func:`execute_universal_agent_task` for operator-triggered runs."""
 
@@ -209,6 +212,7 @@ async def run_agent_now(
             title=f"{agent.name} — on-demand universal run",
             priority=3,
             guard_duplicates=False,
+            overlay=overlay,
         )
         await db.commit()
     except SQLAlchemyError:
@@ -292,6 +296,11 @@ async def list_agent_registry(
             detail="Persistence rejected agent listing.",
         )
     hints = await latest_open_tasks_for_agents(db, [r.id for r in rows])
+    configured_ids: set[uuid.UUID] = set()
+    if rows:
+        cfg_stmt = select(AgentConfig.agent_id).where(AgentConfig.agent_id.in_([r.id for r in rows]))
+        cfg_rows = await db.execute(cfg_stmt)
+        configured_ids = {row[0] for row in cfg_rows.all()}
     snapshots: list[AgentSnapshot] = []
     for row in rows:
         linked = hints.get(row.id)
@@ -301,6 +310,7 @@ async def list_agent_registry(
                 update={
                     "current_task_id": linked.id if linked else None,
                     "current_task_title": linked.title if linked else None,
+                    "has_universal_config": row.id in configured_ids,
                 },
             ),
         )

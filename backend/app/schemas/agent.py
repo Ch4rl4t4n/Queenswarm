@@ -59,6 +59,15 @@ class AgentSnapshot(BaseModel):
     last_active_at: datetime | None
     created_at: datetime
     updated_at: datetime
+    current_task_id: uuid.UUID | None = None
+    current_task_title: str | None = Field(
+        default=None,
+        description="Most recent routed backlog hint for dashboards.",
+    )
+    has_universal_config: bool = Field(
+        default=False,
+        description="True when a persisted AgentConfig row exists for this bee.",
+    )
 
 
 __all__ = ["AgentCreateRequest", "AgentPatchRequest", "AgentSnapshot"]

@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
+import io
+import json
 import uuid
+from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.deps import DbSession, JwtSubject
 from app.models.enums import TaskStatus
 from app.models.task import Task
 from app.schemas.task import TaskCreateRequest, TaskPatchRequest, TaskSnapshot
+from app.core.logging import get_logger
+from app.services.task_presenter import attach_agent_labels, build_task_snapshot
 from app.services.task_ledger import (
     TaskUpsertViolationError,
     apply_task_updates,
@@ -18,6 +24,8 @@ from app.services.task_ledger import (
     fetch_task,
     iter_recent_tasks,
 )
+
+_logger = get_logger(__name__)
 
 router = APIRouter(tags=["Tasks"])
 
@@ -32,7 +40,7 @@ async def enqueue_task(
     body: TaskCreateRequest,
     db: DbSession,
     _subject: JwtSubject,
-) -> Task:
+) -> TaskSnapshot:
     """Create a pending task row anchored to optional swarm/workflow lineage."""
 
     try:
@@ -57,7 +65,8 @@ async def enqueue_task(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Persistence rejected task insert.",
         )
-    return entity
+    lbl = await attach_agent_labels(db, [entity])
+    return build_task_snapshot(entity, agent_label=lbl.get(entity.agent_id))
 
 
 @router.get(
@@ -73,7 +82,7 @@ async def list_recent_tasks(
     agent_id: uuid.UUID | None = Query(default=None, description="Filter rows assigned to a bee."),
     filter_status: TaskStatus | None = Query(default=None, alias="status"),
     limit: int = Query(default=50, ge=1, le=200),
-) -> list[Task]:
+) -> list[TaskSnapshot]:
     """Expose newest backlog rows tuned for dashboards and planner bees."""
 
     try:
@@ -90,7 +99,119 @@ async def list_recent_tasks(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Persistence rejected task listing.",
         )
-    return rows
+    labels = await attach_agent_labels(db, rows)
+    return [build_task_snapshot(row, agent_label=labels.get(row.agent_id)) for row in rows]
+
+
+def _task_output_text_and_format(task: Task) -> tuple[str, str]:
+    """Best-effort extraction of printable output for downloads."""
+
+    result = task.result
+    output_text = ""
+    output_format = "text"
+    if isinstance(result, dict):
+        output_format = str(result.get("format") or "text").lower()
+        raw_out = result.get("output") or result.get("content") or result.get("text")
+        if isinstance(raw_out, str):
+            output_text = raw_out
+        elif raw_out is not None:
+            output_text = json.dumps(raw_out, indent=2)
+        else:
+            output_text = json.dumps(result, indent=2)
+    elif isinstance(result, str):
+        output_text = result
+    return output_text, output_format
+
+
+@router.get(
+    "/{task_id}/download",
+    summary="Download formatted task output",
+)
+async def download_task_result(
+    task_id: uuid.UUID,
+    db: DbSession,
+    _subject: JwtSubject,
+) -> StreamingResponse:
+    """Stream CSV/JSON/Markdown/XLSX/text derived from the persisted task result."""
+
+    try:
+        row = await fetch_task(db, task_id)
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected lookup.",
+        )
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found.")
+
+    output_text, output_format = _task_output_text_and_format(row)
+    safe_name = quote(f"task_{task_id}", safe="")
+    _logger.info("task_download_ready", task_id=str(task_id), output_format=output_format)
+
+    if output_format == "excel":
+        try:
+            import openpyxl  # noqa: PLC0415
+
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Result"
+            try:
+                data = json.loads(output_text)
+                if isinstance(data, list) and data:
+                    first = data[0]
+                    if isinstance(first, dict):
+                        ws.append(list(first.keys()))
+                        for item in data:
+                            if isinstance(item, dict):
+                                ws.append([str(v) for v in item.values()])
+                elif isinstance(data, dict):
+                    for k, v in data.items():
+                        ws.append([str(k), str(v)])
+            except json.JSONDecodeError:
+                for line in output_text.split("\n"):
+                    ws.append(line.split(","))
+            buf = io.BytesIO()
+            wb.save(buf)
+            buf.seek(0)
+            return StreamingResponse(
+                buf,
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{safe_name}.xlsx"',
+                },
+            )
+        except ImportError:
+            output_format = "text"
+
+    if output_format == "csv":
+        body = io.BytesIO(output_text.encode("utf-8"))
+        return StreamingResponse(
+            body,
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{safe_name}.csv"'},
+        )
+    if output_format == "json":
+        body = io.BytesIO(output_text.encode("utf-8"))
+        return StreamingResponse(
+            body,
+            media_type="application/json; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{safe_name}.json"'},
+        )
+    if output_format == "html":
+        body = io.BytesIO(output_text.encode("utf-8"))
+        return StreamingResponse(
+            body,
+            media_type="text/html; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{safe_name}.html"'},
+        )
+
+    ext = "md" if output_format == "markdown" else "txt"
+    body = io.BytesIO(output_text.encode("utf-8"))
+    return StreamingResponse(
+        body,
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}.{ext}"'},
+    )
 
 
 @router.get(
@@ -102,8 +223,8 @@ async def get_task_snapshot(
     task_id: uuid.UUID,
     db: DbSession,
     _subject: JwtSubject,
-) -> Task:
-    """Return a backlog row verbatim for pollinator telemetry."""
+) -> TaskSnapshot:
+    """Return a backlog row with roster metadata for pollinator telemetry."""
 
     try:
         row = await fetch_task(db, task_id)
@@ -115,7 +236,8 @@ async def get_task_snapshot(
 
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found.")
-    return row
+    labels = await attach_agent_labels(db, [row])
+    return build_task_snapshot(row, agent_label=labels.get(row.agent_id))
 
 
 @router.patch(
@@ -128,7 +250,7 @@ async def patch_existing_task(
     body: TaskPatchRequest,
     db: DbSession,
     _subject: JwtSubject,
-) -> Task:
+) -> TaskSnapshot:
     """Update operator-visible fields emitted after LangGraph completions."""
 
     if body.status is None and body.result is None and body.error_msg is None:
@@ -157,7 +279,8 @@ async def patch_existing_task(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Persistence rejected task mutation.",
         )
-    return row
+    lbl = await attach_agent_labels(db, [row])
+    return build_task_snapshot(row, agent_label=lbl.get(row.agent_id))
 
 
 __all__ = ["router"]

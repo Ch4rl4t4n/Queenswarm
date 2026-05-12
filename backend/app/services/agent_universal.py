@@ -13,6 +13,7 @@ from app.models.agent import Agent
 from app.models.agent_config import AgentConfig
 from app.models.enums import TaskStatus, TaskType
 from app.models.task import Task
+from app.schemas.agent_factory_http import UniversalAgentRunOverlay
 from app.services.task_ledger import create_task_record
 
 
@@ -72,6 +73,7 @@ async def enqueue_universal_agent_run(
     title: str,
     priority: int = 6,
     guard_duplicates: bool = False,
+    overlay: UniversalAgentRunOverlay | None = None,
 ) -> Task:
     """Create a backlog row marked ``agent_run`` and return it after flush."""
 
@@ -81,6 +83,11 @@ async def enqueue_universal_agent_run(
 
     payload_snapshot = universal_execution_payload(agent, cfg)
     payload = dict(payload_snapshot)
+    if overlay is not None:
+        for field, val in overlay.model_dump(exclude_unset=True).items():
+            if val is None:
+                continue
+            payload[field] = val
 
     row = await create_task_record(
         session,
