@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from app import __version__
 from app.api.routers import agents as agents_router
 from app.api.routers import auth as auth_router
 from app.api.routers import dashboard_session as dashboard_session_router
@@ -31,7 +32,7 @@ async def api_v1_health() -> dict[str, str]:
     return {
         "status": "healthy",
         "service": "queenswarm-api",
-        "version": "2.0.0",
+        "version": __version__,
         "domain": settings.domain,
     }
 

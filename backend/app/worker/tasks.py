@@ -158,9 +158,18 @@ def run_sub_swarm_workflow_cycle_task(
 async def _mark_universal_failure(task_id_str: str, message: str) -> None:
     """Persist terminal failure state for operator dashboards."""
 
+    from app.core.notifications import notify_agent_error
+
+    tid = uuid.UUID(task_id_str)
+    agent_display = "agent"
     async with async_session() as session:
-        await mark_task_failed(session, uuid.UUID(task_id_str), message)
+        peek = await session.get(Task, tid)
+        payload = getattr(peek, "payload", None) if peek is not None else None
+        if isinstance(payload, dict):
+            agent_display = str(payload.get("name") or agent_display)
+        await mark_task_failed(session, tid, message)
         await session.commit()
+    await notify_agent_error(agent_name=agent_display, error=message)
 
 
 @celery_app.task(name="agent.execute_universal", bind=True, max_retries=3, queue="hive")

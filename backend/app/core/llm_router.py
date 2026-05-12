@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.cost_governor import BudgetExceededError, CostGovernor
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.metrics import observe_llm_cost_usd
 from app.models.cost import CostRecord
 
 logger = get_logger(__name__)
@@ -183,6 +184,7 @@ class LiteLLMRouter:
         )
         content = response.choices[0].message.content or ""
         hop_cost_usd = float(litellm.completion_cost(completion_response=response, model=model_name) or 0.0)
+        observe_llm_cost_usd(model_name=model_name, cost_usd=hop_cost_usd)
         await record_llm_cost(
             session,
             response=response,

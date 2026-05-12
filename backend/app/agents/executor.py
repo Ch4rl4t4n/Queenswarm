@@ -7,6 +7,7 @@ import io
 import json
 import os
 import re
+import time
 from datetime import UTC, datetime
 import smtplib
 import uuid
@@ -22,10 +23,12 @@ import httpx
 from html.parser import HTMLParser
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import metrics as hive_metrics
 from app.core.config import settings as hive_settings
 from app.core.llm_router import LiteLLMRouter
 from app.core.database import async_session
 from app.core.logging import get_logger
+from app.core.notifications import notify_task_complete
 from app.models import load_all_models
 from app.models.enums import TaskStatus, TaskType
 from app.models.task import Task
@@ -520,6 +523,7 @@ async def execute_universal_agent(
     task_row.status = TaskStatus.RUNNING
     task_row.started_at = datetime.now(tz=UTC)
     await session.flush()
+    exec_started = time.perf_counter()
 
     logger.info(
         "executor.start",
@@ -646,6 +650,23 @@ async def execute_universal_agent(
         )
 
     preview = llm_output[:500]
+    task_kind = (
+        task_row.task_type.value if isinstance(task_row.task_type, TaskType) else str(task_row.task_type)
+    )
+    elapsed_exec = max(time.perf_counter() - exec_started, 1e-6)
+    hive_metrics.TASKS_TOTAL.labels(task_type=task_kind, status="completed").inc()
+    hive_metrics.TASK_DURATION.labels(task_type=task_kind).observe(elapsed_exec)
+
+    try:
+        await notify_task_complete(
+            agent_name=agent_name,
+            task_title=task_row.title or "task",
+            output_preview=llm_output,
+            cost_usd=float(llm_cost_usd or 0.0),
+        )
+    except Exception:  # noqa: BLE001 — notifications never block hive execution
+        pass
+
     return {
         "agent_id": agent_config.get("agent_id"),
         "task_id": str(task_id),
@@ -697,6 +718,10 @@ async def mark_task_failed(session: AsyncSession, task_id: uuid.UUID, message: s
     task_row = await session.get(Task, task_id)
     if task_row is None:
         return
+    task_kind = (
+        task_row.task_type.value if isinstance(task_row.task_type, TaskType) else str(task_row.task_type)
+    )
+    hive_metrics.TASKS_TOTAL.labels(task_type=task_kind, status="failed").inc()
     task_row.status = TaskStatus.FAILED
     task_row.error_msg = message[:4000]
     task_row.completed_at = datetime.now(tz=UTC)
