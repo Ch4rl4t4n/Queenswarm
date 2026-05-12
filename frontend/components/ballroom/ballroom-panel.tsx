@@ -6,6 +6,20 @@ import { useCallback, useEffect, useState } from "react";
 import { NeonButton } from "@/components/ui/neon-button";
 import { buildHiveWebsocketHref } from "@/lib/public-ws";
 
+interface SessionCapsule {
+  session_id: string;
+  ws_url?: string;
+  ws_url_path?: string;
+}
+
+const SPEAKERS = ["Scout", "Eval", "Sim", "Action"] as const;
+
+const HEX_COLORS: Record<(typeof SPEAKERS)[number], string> = {
+  Scout: "#00FFFF",
+  Eval: "#00FF88",
+  Sim: "#FFB800",
+  Action: "#FF00AA",
+};
 interface TranscriptLine {
   agent?: string;
   text?: string;
@@ -39,28 +53,39 @@ export function BallroomPanel() {
   const [lines, setLines] = useState<TranscriptLine[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [muted, setMuted] = useState(false);
+  const [speaking, setSpeaking] = useState<string | null>(null);
 
   const appendLine = useCallback((line: TranscriptLine) => {
     setLines((prev) => [...prev.slice(-140), line]);
   }, []);
 
-  const wsUrlFromSession = useCallback((sessionId: string): string => {
+  const wsUrlFromSessionCapsule = useCallback((capsule: SessionCapsule): string => {
     if (typeof window === "undefined") {
       return "";
     }
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? `${window.location.origin}/api/v1`;
-    const built = buildHiveWebsocketHref(apiBase, "/ballroom/ws/stream");
-    const fallbackPath = "/api/v1/ballroom/ws/stream";
-    const base =
-      built ?? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}${fallbackPath}`;
-    const url = new URL(base);
-    url.searchParams.set("session_id", sessionId);
     const guestAllowed = process.env.NEXT_PUBLIC_BALLROOM_GUEST_WS === "true";
-    if (!guestAllowed) {
-      const tok = window.sessionStorage.getItem("hive_jwt_optional");
-      if (tok) {
-        url.searchParams.set("token", tok);
-      }
+    const token = guestAllowed ? null : window.sessionStorage.getItem("hive_jwt_optional");
+
+    const pathStyle =
+      typeof capsule.ws_url_path === "string" && capsule.ws_url_path.startsWith("/")
+        ? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}${capsule.ws_url_path}`
+        : "";
+
+    const streamStyle = (() => {
+      const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? `${window.location.origin}/api/v1`;
+      const built = buildHiveWebsocketHref(apiBase, "/ballroom/ws/stream");
+      const fallbackPath = "/api/v1/ballroom/ws/stream";
+      const base =
+        built ?? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}${fallbackPath}`;
+      const url = new URL(base);
+      url.searchParams.set("session_id", capsule.session_id);
+      return url.toString();
+    })();
+
+    const pick = pathStyle || streamStyle;
+    const url = new URL(pick);
+    if (token) {
+      url.searchParams.set("token", token);
     }
     return url.toString();
   }, []);
@@ -75,8 +100,8 @@ export function BallroomPanel() {
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }
-      const body = (await res.json()) as { session_id: string };
-      const wsUrl = wsUrlFromSession(body.session_id);
+      const body = (await res.json()) as SessionCapsule;
+      const wsUrl = wsUrlFromSessionCapsule(body);
       if (!wsUrl) {
         throw new Error("ws_url_unavailable");
       }
@@ -84,9 +109,32 @@ export function BallroomPanel() {
       ws.onopen = () => setConnected(true);
       ws.onmessage = (evt) => {
         try {
-          const row = JSON.parse(evt.data as string) as TranscriptLine;
-          if (row?.type?.startsWith("ballroom.") || row.text) {
-            appendLine(row);
+          const row = JSON.parse(evt.data as string) as Record<string, unknown>;
+          const t = typeof row.type === "string" ? row.type : "";
+          if (t === "history" && Array.isArray(row.messages)) {
+            for (const m of row.messages) {
+              const o = m as Record<string, unknown>;
+              appendLine({
+                type: String(o.type ?? "message"),
+                agent: typeof o.agent === "string" ? o.agent : undefined,
+                text: typeof o.text === "string" ? o.text : undefined,
+              });
+            }
+            return;
+          }
+          if (t === "ballroom.transcript" || t === "message") {
+            const agent = typeof row.agent === "string" ? row.agent : "bee";
+            const text = typeof row.text === "string" ? row.text : "";
+            appendLine({ type: t, agent, text });
+            const matchSpeaker = SPEAKERS.find((s) => agent.toLowerCase().includes(s.toLowerCase()));
+            if (matchSpeaker) {
+              setSpeaking(matchSpeaker);
+              window.setTimeout(() => setSpeaking(null), 2200);
+            }
+            return;
+          }
+          if (t.startsWith("ballroom.") || typeof row.text === "string") {
+            appendLine(row as TranscriptLine);
           }
         } catch {
           appendLine({ type: "parse_error", text: String(evt.data) });
@@ -99,7 +147,7 @@ export function BallroomPanel() {
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : "session_failed");
     }
-  }, [appendLine, wsUrlFromSession]);
+  }, [appendLine, wsUrlFromSessionCapsule]);
 
   useEffect(() => () => (window as Window & { __qs_ballroom_ws?: WebSocket }).__qs_ballroom_ws?.close?.(), []);
 
@@ -164,6 +212,38 @@ export function BallroomPanel() {
             </div>
           ))}
         </div>
+
+        {connected ? (
+          <div className="mb-10 flex flex-wrap justify-center gap-6">
+            {SPEAKERS.map((name) => {
+              const c = HEX_COLORS[name];
+              const active = speaking === name;
+              return (
+                <div key={name} className="flex flex-col items-center gap-1">
+                  <div
+                    className={`flex h-16 w-14 items-center justify-center transition-transform ${active ? "scale-110" : ""}`}
+                    style={{
+                      clipPath: "polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%)",
+                      background: "#0d0d2b",
+                      border: `2px solid ${c}`,
+                      boxShadow: active ? `0 0 20px ${c}66` : "none",
+                    }}
+                  >
+                    <span className="font-[family-name:var(--font-space-grotesk)] text-sm font-bold" style={{ color: c }}>
+                      {name.slice(0, 1)}
+                    </span>
+                  </div>
+                  <span
+                    className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.14em]"
+                    style={{ color: active ? c : "#52525b" }}
+                  >
+                    {name}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
 
         <div className="rounded-2xl border border-cyan/[0.1] bg-black/45 p-4">
           <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.28em] text-zinc-500">
