@@ -1,54 +1,258 @@
 {
-  "title": "Queenswarm Hive",
+  "uid": "qs-hive-overview",
+  "title": "Queenswarm — Hive observability",
+  "tags": ["queenswarm", "api", "hive"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
-  "refresh": "10s",
+  "version": 2,
+  "refresh": "15s",
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "editable": true,
+  "graphTooltip": 1,
+  "links": [
+    {
+      "title": "Prod health",
+      "url": "https://queenswarm.love/api/v1/health",
+      "type": "link",
+      "icon": "external link",
+      "tooltip": "FastAPI liveness"
+    }
+  ],
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
   "panels": [
     {
-      "type": "stat",
-      "title": "API Target Up",
-      "gridPos": { "x": 0, "y": 0, "w": 8, "h": 5 },
       "id": 1,
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "up{job=\"queenswarm-backend\"}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "queenswarm_prom"
-          }
-        }
-      ],
-      "datasource": {
-        "type": "prometheus",
-        "uid": "queenswarm_prom"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] }
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "HTTP Request Ratio (FastAPI instrumentation)",
-      "gridPos": { "x": 8, "y": 0, "w": 16, "h": 8 },
-      "id": 2,
+      "type": "stat",
+      "title": "Backend target (Prometheus up)",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 5 },
       "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
       "targets": [
         {
           "refId": "A",
-          "expr": "rate(http_requests_total[5m])",
-          "legendFormat": "{{handler}}"
+          "expr": "up{job=\"queenswarm-backend\"}",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" }
         }
-      ]
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Cost governor blocks (total)",
+      "description": "Koľkokrát CostGovernor odmietol LLM spend (prekročený denný rozpočet).",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "queenswarm_budget_blocks_total",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" }
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Sekúnd od posledného hourly roll ticku",
+      "description": "`queenswarm_hourly_roll_last_unixtime` zapisuje Celery ingest. Veľké číslo = dlho žiadny tick.",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "time() - queenswarm_hourly_roll_last_unixtime",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" }
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 7200 },
+              { "color": "red", "value": 86400 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "HTTP request rate (podľa handlera)",
+      "gridPos": { "x": 0, "y": 5, "w": 24, "h": 9 },
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (handler, method) (rate(http_requests_total[5m]))",
+          "legendFormat": "{{method}} {{handler}}",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+          "editorMode": "code",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "stacking": { "mode": "none", "group": "A" }
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "HTTP p95 latency (ak je histogram dostupný)",
+      "description": "`prometheus-fastapi-instrumentator` exponuje buckets len ak histogram zapnutý; inak prázdny panel.",
+      "gridPos": { "x": 0, "y": 14, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, handler) (rate(http_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "p95 {{handler}}",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+          "editorMode": "code",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "lineWidth": 1,
+            "showPoints": "never"
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "HTTP status kódy (5m rate)",
+      "gridPos": { "x": 12, "y": 14, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (status) (rate(http_requests_total[5m]))",
+          "legendFormat": "{{status}}",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+          "editorMode": "code",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineWidth": 1,
+            "stacking": { "mode": "normal", "group": "A" }
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Scrape backend • trvanie a počet vzoriek",
+      "description": "Interné Prometheus metriky pre job `queenswarm-backend`.",
+      "gridPos": { "x": 0, "y": 22, "w": 24, "h": 7 },
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "scrape_duration_seconds{job=\"queenswarm-backend\"}",
+          "legendFormat": "scrape_duration",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+          "editorMode": "code",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "expr": "scrape_samples_scraped{job=\"queenswarm-backend\"}",
+          "legendFormat": "samples_scraped",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+          "editorMode": "code",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "showPoints": "never"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byFrameRefID", "options": "A" },
+            "properties": [
+              { "id": "unit", "value": "s" },
+              { "id": "custom.axisPlacement", "value": "left" }
+            ]
+          },
+          {
+            "matcher": { "id": "byFrameRefID", "options": "B" },
+            "properties": [
+              { "id": "unit", "value": "short" },
+              { "id": "custom.axisPlacement", "value": "right" }
+            ]
+          }
+        ]
+      }
     }
   ]
 }
