@@ -1,5 +1,5 @@
 import { HivePageHeader } from "@/components/hive/hive-page-header";
-import { TasksKanbanBoard } from "@/components/hive/tasks-kanban-board";
+import { TasksPageClient } from "@/components/hive/tasks-page-client";
 import { deriveTaskCounts, TasksNewTaskActions, TasksQueueHeaderStats } from "@/components/hive/tasks-queue-section";
 import { hiveServerRawJson } from "@/lib/hive-server";
 import type { TaskRow } from "@/lib/hive-types";
@@ -26,7 +26,7 @@ export default async function TasksPage() {
         }
         actions={<TasksNewTaskActions />}
       />
-      <TasksKanbanBoard tasks={tasks} />
+      <TasksPageClient initialTasks={tasks} />
     </div>
   );
 }

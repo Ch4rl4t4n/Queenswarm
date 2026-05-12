@@ -134,6 +134,17 @@ export function hivePutJson<T>(
   });
 }
 
+/** Proxied GET for binary / streaming responses — caller checks ``Response.ok``. */
+export function hiveFetchRaw(subpath: string, init?: RequestInit): Promise<Response> {
+  const path = normalizeV1RelativePath(subpath);
+  const url = `${PROXY_PREFIX}/${path}`;
+  return fetch(url, {
+    credentials: "include",
+    cache: "no-store",
+    ...init,
+  });
+}
+
 export function hiveDelete<T>(subpath: string, init?: RequestInit): Promise<T> {
   return hiveFetch<T>(subpath, { ...init, method: "DELETE" });
 }

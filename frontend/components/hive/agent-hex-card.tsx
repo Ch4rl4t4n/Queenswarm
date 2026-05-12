@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { CSSProperties } from "react";
 
 import type { AgentRow } from "@/lib/hive-types";
@@ -20,14 +21,17 @@ interface AgentHexCardProps {
   agent: AgentRow;
 }
 
-export function AgentHexCard({ agent }: AgentHexCardProps) {
+export function AgentHexCard({ agent }: AgentHexCardProps): JSX.Element {
   const glowPx = Math.min(48, 10 + Number(agent.pollen_points) * 2.8);
-  const ring = STATUS_RING[agent.status] ?? STATUS_RING.IDLE;
+  const ring = STATUS_RING[agent.status.toUpperCase()] ?? STATUS_RING.IDLE;
+  const target = agent.has_universal_config ? `/agents/${agent.id}` : `/agents/${agent.id}/edit`;
 
   return (
-    <div
+    <Link
+      href={target}
+      prefetch={false}
       style={{ "--hive-glow": `${glowPx}px` } as CSSProperties}
-      className={`group relative flex flex-col gap-2 p-6 text-center hive-hex bg-[#090918] bg-gradient-to-br from-[#0d1028] via-[#080812] to-[#050510] ${ring}`}
+      className={`group relative flex cursor-pointer flex-col gap-2 p-6 text-center hive-hex bg-[#090918] bg-gradient-to-br from-[#0d1028] via-[#080812] to-[#050510] transition hover:border-pollen/30 ${ring}`}
     >
       <div
         className="pointer-events-none absolute inset-0 hive-hex opacity-80 blur-2xl duration-700 group-hover:opacity-100"
@@ -38,15 +42,20 @@ export function AgentHexCard({ agent }: AgentHexCardProps) {
       <p className="font-[family-name:var(--font-space-grotesk)] text-sm tracking-wide text-data">
         {statusLabel(agent.status)}
       </p>
-      <h3 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-pollen">
-        {agent.name}
-      </h3>
+      <h3 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-pollen">{agent.name}</h3>
       <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase text-muted-foreground">
         {agent.role.replaceAll("_", " ")}
       </p>
       <p className="font-[family-name:var(--font-jetbrains-mono)] text-sm text-[#00FF88]">
         pollen {Number(agent.pollen_points).toFixed(2)}
       </p>
-    </div>
+      <div className="mt-2 font-[family-name:var(--font-jetbrains-mono)] text-[8px] uppercase tracking-[0.2em]">
+        {agent.has_universal_config ? (
+          <span className="text-success">● configured</span>
+        ) : (
+          <span className="text-zinc-500">○ tap to add prompt</span>
+        )}
+      </div>
+    </Link>
   );
 }

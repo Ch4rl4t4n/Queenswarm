@@ -35,6 +35,7 @@ export interface AgentRow {
   swarm_id?: string | null;
   current_task_id?: string | null;
   current_task_title?: string | null;
+  has_universal_config?: boolean;
 }
 
 export interface SubSwarmRow {
@@ -55,10 +56,16 @@ export interface TaskRow {
   task_type: string;
   swarm_id?: string | null;
   agent_id?: string | null;
+  agent_name?: string | null;
   payload?: Record<string, unknown>;
   result?: Record<string, unknown> | null;
   created_at?: string | null;
   updated_at?: string | null;
+  completed_at?: string | null;
+  error_msg?: string | null;
+  confidence_score?: number | null;
+  cost_usd?: number | null;
+  output_format?: string | null;
 }
 
 export interface RecipeRow {

@@ -61,6 +61,8 @@ export default function AgentEditPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
+  const [testOutput, setTestOutput] = useState("");
+  const [testingPrompt, setTestingPrompt] = useState(false);
   const [agent, setAgent] = useState<AgentRow | null>(null);
   const [cfg, setCfg] = useState<BeeConfigState>({
     system_prompt: "",
@@ -138,7 +140,7 @@ export default function AgentEditPage() {
     }
   }
 
-  async function runNow() {
+  async function runNow(): Promise<void> {
     setRunning(true);
     try {
       const data = await hivePostJson<{ task_id: string }>(`agents/${encodeURIComponent(id)}/run`, {});
@@ -148,6 +150,57 @@ export default function AgentEditPage() {
       window.alert(msg);
     } finally {
       setRunning(false);
+    }
+  }
+
+  async function testPrompt(): Promise<void> {
+    setTestingPrompt(true);
+    setTestOutput("");
+    try {
+      const overlay: Record<string, unknown> = {
+        tools: cfg.tools,
+        output_format: cfg.output_format,
+        output_destination: cfg.output_destination,
+        output_config: cfg.output_config,
+      };
+      const sp = cfg.system_prompt.trim();
+      if (sp.length) {
+        overlay.system_prompt = cfg.system_prompt;
+      }
+      const up = cfg.user_prompt_template.trim();
+      if (up.length) {
+        overlay.user_prompt_template = cfg.user_prompt_template;
+      }
+      const payload = await hivePostJson<{ task_id: string }>(`agents/${encodeURIComponent(id)}/run`, overlay);
+      const taskId = String(payload.task_id);
+      for (let i = 0; i < 30; i += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 2000));
+        const ledger = await hiveGet<{
+          status: string;
+          result?: Record<string, unknown> | string | null;
+          error_msg?: string | null;
+        }>(`tasks/${encodeURIComponent(taskId)}`);
+        const st = (ledger.status ?? "").toLowerCase();
+        if (st === "completed" || st === "failed") {
+          const res = ledger.result;
+          const snippet =
+            typeof res === "string"
+              ? res
+              : res && typeof res === "object" && "output" in res && typeof res.output !== "undefined"
+                ? typeof res.output === "string"
+                  ? res.output
+                  : JSON.stringify(res.output, null, 2)
+                : JSON.stringify(res, null, 2);
+          setTestOutput(st === "failed" ? String(ledger.error_msg ?? snippet) : snippet);
+          break;
+        }
+        setTestOutput(`🐝 Running… (${String((i + 1) * 2)}s)`);
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : String(e);
+      setTestOutput(`Error: ${msg}`);
+    } finally {
+      setTestingPrompt(false);
     }
   }
 
@@ -430,6 +483,30 @@ export default function AgentEditPage() {
           Type <span className="text-cyan">on_demand</span> by clearing the field. Use interval/cron types from the API
           when automating with Beat.
         </p>
+      </div>
+
+      <div className={sectionCls}>
+        <div className="mb-3 flex items-center justify-between">
+          <label className={labelCls}>🧪 Test prompt</label>
+          <button
+            type="button"
+            onClick={() => void testPrompt()}
+            disabled={testingPrompt}
+            className="rounded-lg border border-data/35 bg-data/10 px-4 py-1.5 font-mono text-xs text-data transition hover:bg-data/18 disabled:opacity-50"
+          >
+            {testingPrompt ? "Running…" : "▶ Run test"}
+          </button>
+        </div>
+        {testOutput ? (
+          <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-xl border border-cyan/[0.12] bg-[#050510] p-4 font-mono text-xs text-zinc-200">
+            {testOutput}
+          </pre>
+        ) : (
+          <p className="text-xs text-zinc-600">
+            Run once with overlay prompts + tools above — persists only inside the backlog until you explicitly save agent
+            config.
+          </p>
+        )}
       </div>
 
       <div className="flex gap-3 pt-2">

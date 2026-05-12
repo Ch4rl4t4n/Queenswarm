@@ -1,15 +1,24 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { AgentDetailRunNow } from "@/components/hive/agent-detail-run-now";
 import { AgentRemoteControls } from "@/components/hive/agent-remote-controls";
 import { HivePageHeader } from "@/components/hive/hive-page-header";
-import { hiveServerRawJson } from "@/lib/hive-server";
+import { hiveServerJson, hiveServerRawJson } from "@/lib/hive-server";
 import type { AgentRow, TaskRow } from "@/lib/hive-types";
 
 export const dynamic = "force-dynamic";
 
 interface AgentDetailPageProps {
   params: Promise<{ id: string }>;
+}
+
+interface AgentConfigPreview {
+  schedule_value?: string | null;
+  is_active?: boolean;
+  last_run_result?: Record<string, unknown> | string | null;
+  last_run_at?: string | null;
+  run_count?: number;
 }
 
 export default async function AgentDetailPage(props: AgentDetailPageProps) {
@@ -19,11 +28,25 @@ export default async function AgentDetailPage(props: AgentDetailPageProps) {
     `/tasks?agent_id=${encodeURIComponent(id)}&limit=50`,
   );
 
+  let beeCfg: AgentConfigPreview | null = null;
+  try {
+    beeCfg = await hiveServerJson<AgentConfigPreview>(`/agents/${encodeURIComponent(id)}/config`);
+  } catch {
+    beeCfg = null;
+  }
+
   if (!agent) {
     notFound();
   }
 
   const tasks = recentTasks ?? [];
+  let lastSnippet = "";
+  if (beeCfg?.last_run_result) {
+    lastSnippet =
+      typeof beeCfg.last_run_result === "string"
+        ? beeCfg.last_run_result.slice(0, 680)
+        : JSON.stringify(beeCfg.last_run_result, null, 2).slice(0, 680);
+  }
 
   return (
     <div className="space-y-10">
@@ -37,6 +60,7 @@ export default async function AgentDetailPage(props: AgentDetailPageProps) {
         }
         actions={
           <div className="flex flex-wrap items-center gap-3">
+            <AgentDetailRunNow agentId={agent.id} />
             <Link
               href={`/agents/${encodeURIComponent(agent.id)}/edit`}
               className="rounded-lg border border-pollen/35 px-3 py-1.5 font-mono text-xs text-pollen hover:bg-pollen/10"
@@ -64,10 +88,42 @@ export default async function AgentDetailPage(props: AgentDetailPageProps) {
             <p className="font-[family-name:var(--font-inter)] text-sm text-muted-foreground">
               Status · <span className="text-[#fafafa]">{agent.status}</span>
             </p>
+            {beeCfg?.schedule_value ? (
+              <div className="flex flex-wrap items-center gap-2 font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-400">
+                <span className="text-data">⏰</span>
+                <span>{beeCfg.schedule_value}</span>
+                <span
+                  className={`rounded-full border px-2 py-0.5 text-[10px] ${
+                    beeCfg.is_active
+                      ? "border-success/40 bg-success/10 text-success"
+                      : "border-white/15 text-zinc-500"
+                  }`}
+                >
+                  {beeCfg.is_active ? "active" : "paused"}
+                </span>
+              </div>
+            ) : null}
             <AgentRemoteControls agentId={agent.id} />
           </div>
         </div>
       </section>
+
+      {beeCfg && lastSnippet ? (
+        <section className="rounded-3xl border border-cyan/[0.08] bg-black/35 p-6">
+          <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+            Last run result
+          </p>
+          <pre className="mt-3 line-clamp-6 overflow-hidden whitespace-pre-wrap font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-200">
+            {lastSnippet}
+          </pre>
+          {beeCfg.last_run_at ? (
+            <p className="mt-3 font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-500">
+              Last run · {new Date(beeCfg.last_run_at).toLocaleString()}
+              {typeof beeCfg.run_count === "number" ? ` · ${beeCfg.run_count} queued runs logged` : null}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
       <section>
         <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-[#fafafa]">

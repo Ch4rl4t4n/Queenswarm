@@ -1,40 +1,19 @@
 import Link from "next/link";
-import { ActivityIcon, BotIcon, CpuIcon, DollarSignIcon } from "lucide-react";
 
 import { SpendTrendChart } from "@/components/hive/spend-trend-chart";
 import { DashboardBeeHexGrid } from "@/components/hive/dashboard-bee-hex-grid";
 import { DanceStrip } from "@/components/hive/dance-strip";
-import { DataCard } from "@/components/hive/data-card";
 import { HivePageHeader } from "@/components/hive/hive-page-header";
 import { LiveSwarmToolbar } from "@/components/hive/live-swarm-toolbar";
 import { NeonButton } from "@/components/ui/neon-button";
 import { consolidateDailySpend } from "@/lib/cost-aggregates";
 import { hiveServerRawJson } from "@/lib/hive-server";
-import type { DashboardSummary, OperatorCostSummary } from "@/lib/hive-types";
+import type { AgentRow, DashboardSummary, OperatorCostSummary, TaskRow } from "@/lib/hive-types";
 
 export const dynamic = "force-dynamic";
 
-function latestDaySpendUsd(series: OperatorCostSummary["series"]): number {
-  if (!series.length) {
-    return 0;
-  }
-  const sorted = [...series].sort((a, b) => a.day.localeCompare(b.day));
-  const lastDay = sorted[sorted.length - 1]?.day;
-  if (!lastDay) {
-    return 0;
-  }
-  return sorted.filter((row) => row.day === lastDay).reduce((acc, row) => acc + row.spend_usd, 0);
-}
-
 function formatUsd(n: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(n);
-}
-
-function formatPollen(n: number): string {
-  if (n >= 1000) {
-    return `${(n / 1000).toFixed(1)}K`;
-  }
-  return n.toFixed(1);
 }
 
 function onlineAgents(byStatus: Record<string, number>): { online: number; total: number } {
@@ -85,13 +64,67 @@ export default async function HiveHomeDashboard() {
     );
   }
 
-  const spend = costs ? latestDaySpendUsd(costs.series) : 0;
   const trendSeries = costs ? consolidateDailySpend(costs.series).slice(-14) : [];
-  const { online, total } = onlineAgents(summary.agents.by_status);
+  const { total } = onlineAgents(summary.agents.by_status);
   const purposePairs = Object.entries(summary.swarms.by_purpose);
   const swarmDenom = purposePairs.reduce((acc, [, val]) => acc + Number(val), 0) || 1;
   const topPurposes = purposePairs.slice(0, 4);
 
+  const agentsLedger = (await hiveServerRawJson<AgentRow[]>("/agents?limit=400")) ?? [];
+  const tasksLedger = (await hiveServerRawJson<TaskRow[]>("/tasks?limit=500")) ?? [];
+
+  const activeAgents = agentsLedger.filter((a) => !["offline", "error"].includes(a.status.toLowerCase())).length;
+  const tasksToday = tasksLedger.filter((t) => {
+    if (!t.created_at) return false;
+    return new Date(t.created_at).toDateString() === new Date().toDateString();
+  }).length;
+  const todayKey = new Date().toDateString();
+  const simsPassed = tasksLedger.filter((t) => {
+    const st = (t.status ?? "").toLowerCase();
+    if (st !== "completed") return false;
+    let c = t.confidence_score;
+    const r = t.result;
+    if ((c === null || c === undefined || Number.isNaN(c)) && r && typeof r === "object" && "confidence_pct" in r) {
+      const pct = Number((r as { confidence_pct?: unknown }).confidence_pct);
+      c = Number.isNaN(pct) ? undefined : pct / 100;
+    }
+    const score = typeof c === "number" && !Number.isNaN(c) ? Math.max(0, Math.min(1, c)) : 0;
+    return score >= 0.8;
+  }).length;
+  const costToday = tasksLedger
+    .filter((t) => t.created_at && new Date(t.created_at).toDateString() === todayKey)
+    .reduce((sum, t) => sum + Number(t.cost_usd ?? 0), 0);
+
+  const liveStats = [
+    {
+      label: "Active Bees",
+      value: `${activeAgents} / ${agentsLedger.length}`,
+      icon: "🐝",
+      color: "#00FF88",
+      glow: "0 0 20px rgb(0 255 136 / 0.27)",
+    },
+    {
+      label: "Tasks Today",
+      value: tasksToday,
+      icon: "⚡",
+      color: "#FFB800",
+      glow: "0 0 20px rgb(255 184 0 / 0.27)",
+    },
+    {
+      label: "High Confidence",
+      value: simsPassed,
+      icon: "✅",
+      color: "#00FFFF",
+      glow: "0 0 20px rgb(0 255 255 / 0.27)",
+    },
+    {
+      label: "Cost Today",
+      value: formatUsd(costToday),
+      icon: "💰",
+      color: "#FF00AA",
+      glow: "0 0 20px rgb(255 0 170 / 0.27)",
+    },
+  ];
   return (
     <div className="space-y-10 pb-14">
       <HivePageHeader
@@ -109,25 +142,24 @@ export default async function HiveHomeDashboard() {
       />
 
       <section className="grid grid-cols-2 gap-3 lg:gap-4 xl:grid-cols-4">
-        <DataCard label="Total agents" value={`${total}`} icon={BotIcon} hint={`${online}/${total} online · hive roster`} />
-        <DataCard
-          label="Active queue"
-          value={String(summary.tasks.pending)}
-          icon={ActivityIcon}
-          hint="Rapid-loop tasks awaiting pickup"
-        />
-        <DataCard
-          label="Today's pollen"
-          value={`${formatPollen(summary.pollen.earned_last_24h)}`}
-          icon={CpuIcon}
-          hint={`rolling ${summary.pollen.window_hours}h window`}
-        />
-        <DataCard
-          label="Current spend"
-          value={costs ? formatUsd(spend) : "—"}
-          icon={DollarSignIcon}
-          hint="Operator LLM ledger (latest day)"
-        />
+        {liveStats.map((stat) => (
+          <div
+            key={stat.label}
+            className="flex flex-col gap-2 rounded-xl border border-cyan/[0.12] bg-[#0d0d2b] p-5"
+            style={{ boxShadow: stat.glow }}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">{stat.label}</span>
+              <span className="text-xl">{stat.icon}</span>
+            </div>
+            <div
+              className="text-3xl font-bold tabular-nums font-[family-name:var(--font-space-grotesk)]"
+              style={{ color: stat.color }}
+            >
+              {stat.value}
+            </div>
+          </div>
+        ))}
       </section>
 
       <DashboardBeeHexGrid rosterTarget={total} />
