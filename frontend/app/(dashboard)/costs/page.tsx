@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { DollarSignIcon, TargetIcon } from "lucide-react";
 
 import { HivePageHeader } from "@/components/hive/hive-page-header";
@@ -6,7 +7,7 @@ import { SystemStatusPanel } from "@/components/hive/system-status-panel";
 import { NeonButton } from "@/components/ui/neon-button";
 import { aggregateSpendByModel, consolidateDailySpend } from "@/lib/cost-aggregates";
 import { hiveServerRawJson } from "@/lib/hive-server";
-import type { AgentRow, OperatorCostSummary } from "@/lib/hive-types";
+import type { AgentRow, OperatorCostSummary, TaskRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +32,7 @@ function barColor(idx: number): string {
 export default async function CostsPage() {
   const summary = await hiveServerRawJson<OperatorCostSummary>("/operator/costs/summary?days=35");
   const agents = await hiveServerRawJson<AgentRow[]>("/agents?limit=60");
+  const tasks = await hiveServerRawJson<TaskRow[]>("/tasks?limit=800");
 
   if (!summary) {
     return (
@@ -41,6 +43,12 @@ export default async function CostsPage() {
   }
 
   const byDayFull = consolidateDailySpend(summary.series);
+  const todayKey = new Date().toDateString();
+  const taskLedgerUsdToday =
+    (tasks ?? [])
+      .filter((t) => t.created_at && new Date(t.created_at).toDateString() === todayKey)
+      .reduce((acc, t) => acc + Number(t.cost_usd ?? 0), 0);
+
   const providers = aggregateSpendByModel(summary.series).sort((a, b) => b.spend_usd - a.spend_usd);
   const totalWindow = summary.series.reduce((a, row) => a + row.spend_usd, 0);
   const today = summarizeWindow(summary.series, 1);
@@ -82,14 +90,19 @@ export default async function CostsPage() {
         </aside>
       </section>
 
+      <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs text-alert">
+        Task ledger Σ cost_usd (UTC midnight window):{" "}
+        <span className="text-pollen tabular-nums">{formatUsd(taskLedgerUsdToday)}</span>
+      </p>
+
       <section className="grid gap-6 xl:grid-cols-5">
         <div className="space-y-3 xl:col-span-3">
           <div className="flex flex-wrap justify-between gap-2">
             <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg text-[#fafafa]">
               Spend trend · {Math.min(summary.window_days, byDayFull.length)}d
             </h2>
-            <NeonButton type="button" variant="ghost" className="text-[10px] uppercase">
-              Open Grafana
+            <NeonButton asChild variant="ghost" className="text-[10px] uppercase">
+              <Link href="/grafana/">Open Grafana</Link>
             </NeonButton>
           </div>
           <SpendTrendChart data={byDayFull.slice(-Math.min(summary.window_days, byDayFull.length))} />
