@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 
 import { QS_ACCESS } from "@/lib/auth-cookies";
 
+/** Paths that bypass auth gates; gated routes rely on HttpOnly ``qs_dashboard_at`` cookie (see ``attachDashboardTokenCookies``). */
+
 const PUBLIC_PREFIXES = ["/login", "/verify-2fa"];
 
 export function middleware(request: NextRequest) {
