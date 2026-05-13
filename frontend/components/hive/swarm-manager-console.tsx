@@ -228,6 +228,15 @@ export function SwarmManagerConsole() {
 
   const unassigned = agents.filter((a) => !a.swarm_id);
 
+  function assignableToSwarm(swarmId: string): AgentApi[] {
+    return agents.filter((a) => a.swarm_id !== swarmId);
+  }
+
+  function swarmLabelById(swarmId: string | null | undefined): string | null {
+    if (!swarmId) return null;
+    return swarms.find((s) => s.id === swarmId)?.name ?? "other swarm";
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -467,33 +476,44 @@ export function SwarmManagerConsole() {
                   </div>
                 ) : null}
 
-                {assigningTo === swarm.id && unassigned.length > 0 ? (
+                {assigningTo === swarm.id && assignableToSwarm(swarm.id).length > 0 ? (
                   <div className="mt-4 border-t border-white/[0.06] pt-4">
                     <p className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-500">
-                      UNASSIGNED — tap to attach to {swarm.name}
+                      AVAILABLE BEES — attach to {swarm.name}{" "}
+                      <span className="normal-case text-zinc-600">
+                        (unassigned or from another swarm — click to move)
+                      </span>
                     </p>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {unassigned.map((agent) => (
-                        <button
-                          key={agent.id}
-                          type="button"
-                          onClick={() => void assignAgent(agent.id, swarm.id)}
-                          className="rounded-xl border px-3 py-1.5 font-[family-name:var(--font-jetbrains-mono)] text-[11px]"
-                          style={{
-                            borderColor: `${color}55`,
-                            backgroundColor: `${color}12`,
-                            color,
-                          }}
-                        >
-                          + {agent.name}
-                        </button>
-                      ))}
+                      {assignableToSwarm(swarm.id).map((agent) => {
+                        const fromName = swarmLabelById(agent.swarm_id);
+                        return (
+                          <button
+                            key={agent.id}
+                            type="button"
+                            onClick={() => void assignAgent(agent.id, swarm.id)}
+                            className="flex max-w-full flex-wrap items-center gap-x-1 rounded-xl border px-3 py-1.5 text-left font-[family-name:var(--font-jetbrains-mono)] text-[11px]"
+                            style={{
+                              borderColor: `${color}55`,
+                              backgroundColor: `${color}12`,
+                              color,
+                            }}
+                          >
+                            <span>+ {agent.name}</span>
+                            {agent.swarm_id && agent.swarm_id !== swarm.id ? (
+                              <span className="truncate text-[10px] normal-case text-zinc-500">
+                                (from {fromName ?? "other"})
+                              </span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 ) : null}
-                {assigningTo === swarm.id && unassigned.length === 0 ? (
+                {assigningTo === swarm.id && assignableToSwarm(swarm.id).length === 0 ? (
                   <div className="mt-4 border-t border-white/[0.06] pt-3 text-sm text-zinc-500">
-                    All agents assigned. Tune membership on `/agents`.
+                    All agents are already in this swarm.
                   </div>
                 ) : null}
               </div>
