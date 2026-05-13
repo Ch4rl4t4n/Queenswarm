@@ -21,7 +21,11 @@ interface BallroomBubble {
   variant: "agent" | "user" | "system";
 }
 
-const PARTICIPANTS = ["Orchestrator", "Scout", "Eval", "Sim", "Action"] as const;
+interface SessionAgentRow {
+  id?: string;
+  name: string;
+  role?: string;
+}
 
 const AGENT_ACCENTS: Record<string, string> = {
   Orchestrator: "#FFB800",
@@ -32,6 +36,17 @@ const AGENT_ACCENTS: Record<string, string> = {
   Queen: "#FFB800",
   System: "#5a5a7a",
 };
+
+function accentForName(name: string): string {
+  const n = name.trim();
+  const direct = AGENT_ACCENTS[n];
+  if (direct) {
+    return direct;
+  }
+  const token = n.split(/\s+/)[0];
+  const first = token && AGENT_ACCENTS[token] ? AGENT_ACCENTS[token] : undefined;
+  return first ?? "#9898b8";
+}
 
 export function BallroomPanel() {
   const [connected, setConnected] = useState(false);
@@ -46,10 +61,53 @@ export function BallroomPanel() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const sessionIdRef = useRef<string | null>(null);
   const [sessionLabel, setSessionLabel] = useState<string | null>(null);
+  const [sessionAgents, setSessionAgents] = useState<SessionAgentRow[]>([]);
+  const sessionAgentsRef = useRef<SessionAgentRow[]>([]);
 
   useEffect(() => {
     mutedRef.current = muted;
   }, [muted]);
+
+  useEffect(() => {
+    sessionAgentsRef.current = sessionAgents;
+  }, [sessionAgents]);
+
+  useEffect(() => {
+    void fetch("/api/proxy/agents", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: unknown) => {
+        if (!d) {
+          return;
+        }
+        const raw = d as Record<string, unknown>;
+        const all = (
+          Array.isArray(d)
+            ? d
+            : (Array.isArray(raw.agents)
+                ? raw.agents
+                : Array.isArray(raw.items)
+                  ? raw.items
+                  : [])
+        ) as Record<string, unknown>[];
+        const normalized: SessionAgentRow[] = all.map((a) => ({
+          id: typeof a.id === "string" ? a.id : a.id !== undefined && a.id !== null ? String(a.id) : undefined,
+          name: typeof a.name === "string" ? a.name : "Agent",
+          role: typeof a.role === "string" ? a.role : undefined,
+        }));
+        const managers = normalized.filter((a) => {
+          const nl = a.name.toLowerCase();
+          const rl = (a.role ?? "").toLowerCase();
+          return (
+            nl.includes("manager") ||
+            nl.includes("orchestrator") ||
+            rl.includes("manager") ||
+            rl.includes("orchestrator")
+          );
+        });
+        setSessionAgents(managers.length > 0 ? managers.slice(0, 10) : normalized.slice(0, 10));
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -145,7 +203,13 @@ export function BallroomPanel() {
               window.speechSynthesis.cancel();
               const u = new SpeechSynthesisUtterance(voiceScript.slice(0, 2500));
               u.lang = "sk-SK";
-              setSpeaking("Orchestrator");
+              const voiceLabel =
+                sessionAgentsRef.current.find(
+                  (a) =>
+                    /orchestrator|queen|manager/i.test(a.name) ||
+                    /orchestrator|manager/i.test(a.role ?? ""),
+                )?.name ?? agent;
+              setSpeaking(voiceLabel);
               u.onend = () => setSpeaking(null);
               window.speechSynthesis.speak(u);
             }
@@ -160,11 +224,21 @@ export function BallroomPanel() {
               timestamp: new Date().toISOString(),
               variant: "agent",
             });
-            const matchSpeaker = PARTICIPANTS.find((s) => {
-              const al = agent.toLowerCase();
-              if (s === "Orchestrator") return al.includes("queen") || al.includes("orchestrator");
-              return al.includes(s.toLowerCase());
-            });
+            const al = agent.toLowerCase();
+            const rows = sessionAgentsRef.current;
+            const matchSpeaker =
+              rows.find((row) => {
+                const nl = row.name.toLowerCase();
+                const rl = (row.role ?? "").toLowerCase();
+                if (!nl) {
+                  return false;
+                }
+                return (
+                  al.includes(nl) ||
+                  nl.split(/\s+/).some((p) => p.length > 2 && al.includes(p)) ||
+                  (!!rl && al.includes(rl))
+                );
+              })?.name ?? null;
             if (matchSpeaker) {
               setSpeaking(matchSpeaker);
               window.setTimeout(() => setSpeaking(null), 2200);
@@ -305,7 +379,7 @@ export function BallroomPanel() {
     <div className="flex min-h-[calc(100dvh-7rem)] flex-col gap-[var(--qs-gap)] pb-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-[family-name:var(--font-space-grotesk)] text-[22px] font-bold text-[var(--qs-text)]">Ballroom</h1>
+          <h1 className="font-[family-name:var(--font-poppins)] text-[22px] font-bold text-[var(--qs-text)]">Ballroom</h1>
           <p className="mt-0.5 text-[13px] text-[var(--qs-text-3)]">Voice + text session with the swarm</p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
@@ -337,7 +411,7 @@ export function BallroomPanel() {
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-[var(--qs-gap)] lg:grid-cols-[1fr_320px]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 items-start gap-[var(--qs-gap)] lg:grid-cols-[1fr_280px]">
         <section className="qs-card flex min-h-[420px] flex-col overflow-hidden rounded-[var(--qs-radius-lg)] p-0 lg:min-h-[560px]">
           <div className="hive-scrollbar flex flex-1 flex-col gap-3 overflow-y-auto p-[var(--qs-pad)]">
             {messages.length === 0 ? (
@@ -352,7 +426,7 @@ export function BallroomPanel() {
                     ? "#FFB800"
                     : msg.variant === "system"
                       ? "#5a5a7a"
-                      : (AGENT_ACCENTS[msg.agent] ?? "#9898b8");
+                      : accentForName(msg.agent);
                 const isUser = msg.variant === "user";
                 return (
                   <div key={msg.id} className={cn("flex gap-2.5", isUser && "flex-row-reverse")}>
@@ -407,15 +481,21 @@ export function BallroomPanel() {
           </footer>
         </section>
 
-        <aside className="qs-card flex flex-col gap-3 rounded-[var(--qs-radius-lg)]">
+        <aside className="qs-card flex h-fit flex-col gap-3 self-start rounded-[var(--qs-radius-lg)]">
           <p className="text-[11px] uppercase tracking-[0.1em] text-[var(--qs-text-3)]">Participants</p>
           <ul className="flex flex-col gap-2.5">
-            {PARTICIPANTS.map((name) => {
-              const color = AGENT_ACCENTS[name] ?? "#FFB800";
-              const isSpeaking = speaking === name;
-              return (
-                <li
-                  key={name}
+            {sessionAgents.length === 0 ? (
+              <li className="rounded-[10px] border border-dashed border-[var(--qs-border)] px-3 py-3 text-center font-mono text-[11px] text-[var(--qs-text-3)]">
+                Loading agents from hive…
+              </li>
+            ) : (
+              sessionAgents.map((row) => {
+                const name = row.name;
+                const color = accentForName(name);
+                const isSpeaking = speaking === name;
+                return (
+                  <li
+                    key={row.id ?? name}
                   className={cn(
                     "flex items-center gap-3 rounded-[10px] border px-3 py-2.5 transition",
                     isSpeaking ? "border-transparent" : "border-[var(--qs-border)] bg-transparent",
@@ -456,8 +536,9 @@ export function BallroomPanel() {
                     </div>
                   ) : null}
                 </li>
-              );
-            })}
+                );
+              })
+            )}
           </ul>
           {!connected ? (
             <p className="mt-auto text-center text-[11px] text-[var(--qs-text-3)]">Start a session to activate agents</p>
