@@ -412,31 +412,52 @@ export function NewTaskConsole() {
           </p>
         </div>
         {previewError ? (
-          <div className="mt-3 space-y-3 rounded-xl border border-pollen/25 bg-pollen/[0.06] p-4 md:p-5">
-            <div className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-pollen">
-              LLM preview unavailable
+          <div className="mt-4 rounded-xl border border-pollen/20 bg-[#0f0f1a] p-4 md:p-[18px]">
+            <div className="mb-2.5 flex items-center gap-2.5">
+              <span className="text-xl" aria-hidden>
+                ⚠️
+              </span>
+              <div className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-pollen">LLM Preview Unavailable</div>
             </div>
-            <p className="font-[family-name:var(--font-inter)] text-xs leading-relaxed text-zinc-400">
-              {previewError.includes("403") || previewError.toLowerCase().includes("credit")
-                ? "Grok may be out of credits — the intake path will still try Claude and the cheap hop when you submit."
+            <div className="mb-3 font-[family-name:var(--font-inter)] text-[13px] leading-relaxed text-[#9898b8]">
+              {previewError.includes("403") ||
+              previewError.toLowerCase().includes("credit") ||
+              previewError.toLowerCase().includes("license")
+                ? "Grok API has no credits. Using Claude as fallback — task will still work."
                 : previewError.includes("404") || previewError.toLowerCase().includes("not found")
-                  ? "A model slug may be outdated. Open Settings → LLM keys and refresh Anthropic / Grok configuration."
-                  : `Preview failed: ${previewError.slice(0, 180)}${previewError.length > 180 ? "…" : ""}`}
-            </p>
-            <p className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-600">
-              You can still submit — the swarm will build a workflow from the task text.
-            </p>
+                  ? "Check Settings → LLM keys and update the model name."
+                  : "Preview failed. The task will still be processed when submitted."}
+            </div>
+            <div className="flex flex-wrap gap-2.5">
+              {(previewError.includes("403") || previewError.toLowerCase().includes("credit")) && (
+                <a
+                  href="https://console.x.ai"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-lg border border-pollen/30 px-[14px] py-[7px] font-mono text-xs text-pollen underline-offset-2 hover:opacity-90"
+                  style={{ textDecoration: "none" }}
+                >
+                  Add Grok credits →
+                </a>
+              )}
+              <Link
+                href="/settings/llm-keys"
+                className="rounded-lg border border-[#1e1e35] px-[14px] py-[7px] font-mono text-xs text-[#9898b8] hover:border-cyan/30 hover:text-cyan"
+                style={{ textDecoration: "none" }}
+              >
+                Settings → LLM keys
+              </Link>
+            </div>
+            <p className="mt-2.5 font-mono text-[11px] text-[#5a5a7a]">You can still submit the task — Claude fallback will handle it.</p>
             {previewError.includes("LiteLLM router exhausted") ||
             previewError.includes("credentials for configured models") ||
             previewError.includes("OPENAI_API_KEY") ? (
-              <p className="font-[family-name:var(--font-inter)] text-xs text-zinc-400">
-                <Link
-                  href="/settings/llm-keys"
-                  className="font-semibold text-cyan underline decoration-cyan/40 underline-offset-2 hover:text-pollen hover:decoration-pollen/60"
-                >
-                  Settings → LLM keys
+              <p className="mt-3 font-[family-name:var(--font-inter)] text-xs text-zinc-500">
+                If every provider failed, inspect{" "}
+                <Link href="/settings/llm-keys" className="font-semibold text-cyan underline-offset-2 hover:text-pollen">
+                  LLM keys
                 </Link>{" "}
-                (Grok / Anthropic / OpenAI) or adjust WORKFLOW_BREAKER_* in the backend environment.
+                or WORKFLOW_BREAKER_* in the backend environment.
               </p>
             ) : null}
           </div>
