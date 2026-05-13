@@ -1,3 +1,10 @@
+export interface WaggleDanceSummaryRow {
+  ts: string;
+  from_swarm: string;
+  signal: string;
+  topic: string;
+}
+
 export interface DashboardSummary {
   generated_at: string;
   agents: {
@@ -8,6 +15,7 @@ export interface DashboardSummary {
   tasks: {
     pending: number;
   };
+  waggle_dances?: WaggleDanceSummaryRow[];
 }
 
 export interface AgentRow {
