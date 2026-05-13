@@ -67,7 +67,7 @@ function OTPInput({ onComplete }: OTPInputProps): JSX.Element {
       width: 50,
       height: 60,
       background: "#0a0a0f",
-      border: `2px solid ${filled ? "#FFB800" : "#1e1e35"}`,
+      border: `var(--qs-bubble-border-width) solid ${filled ? "#FFB800" : "#1e1e35"}`,
       borderRadius: 12,
       color: "#e8e8f0",
       fontSize: 26,
@@ -322,7 +322,7 @@ function LoginFormInner(): JSX.Element {
     width: "100%",
     padding: "12px 14px",
     background: "#0a0a0f",
-    border: "1px solid #1e1e35",
+    border: "var(--qs-bubble-border-width) solid #1e1e35",
     borderRadius: 10,
     color: "#e8e8f0",
     fontSize: 14,
@@ -381,7 +381,7 @@ function LoginFormInner(): JSX.Element {
           width: "100%",
           maxWidth: 420,
           background: "rgba(13,13,35,0.92)",
-          border: "1px solid rgba(255,184,0,0.18)",
+          border: "var(--qs-bubble-border-width) solid rgba(255,184,0,0.28)",
           borderRadius: 20,
           padding: "40px 36px",
           boxShadow: "0 24px 64px rgba(0,0,0,0.6)",
@@ -545,7 +545,7 @@ function LoginFormInner(): JSX.Element {
         )}
 
         {step === "otp" && (
-          <div style={{ textAlign: "center" }}>
+          <div className="flex w-full flex-col">
             <button
               type="button"
               onClick={() => {
@@ -557,23 +557,12 @@ function LoginFormInner(): JSX.Element {
                   window.sessionStorage.removeItem("qs_pre_auth_token");
                 }
               }}
-              style={{
-                background: "none",
-                border: "none",
-                color: "#5a5a7a",
-                fontSize: 12,
-                cursor: "pointer",
-                marginBottom: 20,
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                margin: "0 auto 20px",
-                fontFamily: "var(--font-hive-mono), ui-monospace, monospace",
-              }}
+              className={cn("qs-btn qs-btn--ghost qs-btn--sm mb-5 self-start")}
             >
               ← Back
             </button>
 
+            <div className="text-center">
             <div
               style={{
                 fontSize: 17,
@@ -620,6 +609,7 @@ function LoginFormInner(): JSX.Element {
                 Verifying...
               </div>
             ) : null}
+            </div>
           </div>
         )}
 

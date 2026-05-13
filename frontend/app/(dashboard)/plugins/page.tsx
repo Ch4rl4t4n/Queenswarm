@@ -47,7 +47,7 @@ export default async function PluginsPhasePage() {
             {pack.installed.map((plug) => (
               <article
                 key={plug.id}
-                className="rounded-3xl border border-white/[0.08] bg-black/40 p-5 neon-border-pg shadow-[0_0_32px_rgba(0,255,255,0.08)]"
+                className="rounded-3xl qs-rim bg-black/40 p-5 shadow-[0_0_32px_rgba(0,255,255,0.08)]"
               >
                 <p className="font-[family-name:var(--font-poppins)] text-xl font-semibold text-pollen">
                   {plug.title ?? plug.id}
@@ -66,7 +66,7 @@ export default async function PluginsPhasePage() {
             ))}
           </div>
           <PluginsUserUploader />
-          <div className="rounded-3xl border border-white/[0.08] bg-black/35 p-5 font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-500">
+          <div className="rounded-3xl qs-rim bg-black/35 p-5 font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-500">
             <p className="text-xs font-semibold text-pollen">User rows</p>
             <ul className="mt-3 space-y-2">
               {(pack.user ?? []).length === 0 ? <li>No user plugins scanned yet.</li> : null}

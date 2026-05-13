@@ -41,6 +41,8 @@
     --qs-surface-3: #1a1a2e;
     --qs-border: #1e1e35;
     --qs-border-2: #2a2a45;
+    /* Unified “bubble” / panel rim — match hex SVG stroke perceptually (screens ref). */
+    --qs-bubble-border-width: 3px;
     --qs-amber: #ffb800;
     --qs-cyan: #00e5ff;
     --qs-green: #00ff88;
@@ -94,6 +96,16 @@
 }
 
 @layer utilities {
+  /** Rim thickness + color aligned with `--qs-bubble-border-width` — pair with rounding/bg Tailwind utilities. */
+  .qs-rim {
+    border: var(--qs-bubble-border-width) solid var(--qs-border);
+  }
+
+  /** Cyan-accent rim (dash search + stat chrome) — same width as `.qs-rim`. */
+  .qs-rim-cyan-soft {
+    border: var(--qs-bubble-border-width) solid color-mix(in srgb, var(--qs-cyan) 22%, var(--qs-border));
+  }
+
   /**
    * Hex silhouette: SVG masks (data URLs) — survives builds where clip-path polygons were ignored.
    * Applies to backgrounds, borders, and box-shadow consistently.
@@ -202,9 +214,22 @@
   /* ── qs card surfaces ── */
   .qs-card {
     background: var(--qs-surface);
-    border: 1px solid var(--qs-border);
+    border: var(--qs-bubble-border-width) solid var(--qs-border);
     border-radius: var(--qs-radius);
     padding: var(--qs-pad);
+  }
+
+  /** Large dashboards / login-adjacent panels — same rim as qs-card */
+  .qs-panel {
+    background: var(--qs-surface-2);
+    border: var(--qs-bubble-border-width) solid var(--qs-border);
+    border-radius: var(--qs-radius-lg);
+  }
+
+  /** Nav / settings chrome slabs */
+  .qs-chrome-strip {
+    border: var(--qs-bubble-border-width) solid color-mix(in srgb, var(--qs-cyan) 18%, var(--qs-border));
+    border-radius: var(--qs-radius-lg);
   }
 
   .qs-card + .qs-card {
@@ -342,7 +367,7 @@
 
   .qs-settings-card {
     background: var(--qs-surface-2);
-    border: 1px solid var(--qs-border);
+    border: var(--qs-bubble-border-width) solid var(--qs-border);
     border-radius: var(--qs-radius);
     padding: var(--qs-pad);
     margin-bottom: var(--qs-gap);
@@ -378,7 +403,7 @@
     width: 100%;
     padding: 10px 12px;
     background: var(--qs-bg);
-    border: 1px solid var(--qs-border);
+    border: var(--qs-bubble-border-width) solid var(--qs-border);
     border-radius: var(--qs-radius-sm);
     color: var(--qs-text);
     font-size: 13px;
@@ -462,7 +487,7 @@
   .qs-btn--secondary {
     background: #1a1a2e;
     color: #e8e8f0;
-    border: 1px solid #2a2a45;
+    border: var(--qs-bubble-border-width) solid #2a2a45;
   }
 
   .qs-btn--secondary:hover:not(:disabled) {
@@ -473,7 +498,7 @@
   .qs-btn--ghost {
     background: transparent;
     color: #9898b8;
-    border: 1px solid #2a2a45;
+    border: var(--qs-bubble-border-width) solid #2a2a45;
   }
 
   .qs-btn--ghost:hover:not(:disabled) {
@@ -485,7 +510,7 @@
   .qs-btn--danger {
     background: transparent;
     color: #ff3366;
-    border: 1px solid rgba(255, 51, 102, 0.35);
+    border: var(--qs-bubble-border-width) solid rgba(255, 51, 102, 0.35);
   }
 
   .qs-btn--danger:hover:not(:disabled) {
@@ -498,7 +523,7 @@
   .qs-btn--test {
     background: transparent;
     color: #00e5ff;
-    border: 1px solid rgba(0, 229, 255, 0.35);
+    border: var(--qs-bubble-border-width) solid rgba(0, 229, 255, 0.35);
   }
 
   .qs-btn--cyan:hover:not(:disabled),
@@ -510,7 +535,7 @@
   .qs-btn--green {
     background: transparent;
     color: #00ff88;
-    border: 1px solid rgba(0, 255, 136, 0.35);
+    border: var(--qs-bubble-border-width) solid rgba(0, 255, 136, 0.35);
   }
 
   .qs-btn--green:hover:not(:disabled) {
@@ -551,7 +576,7 @@
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
-    border: 1px solid #2a2a45;
+    border: var(--qs-bubble-border-width) solid #2a2a45;
     background: transparent;
     color: #9898b8;
     transition: all 0.15s;
@@ -614,31 +639,31 @@
   .qs-badge--amber {
     background: rgb(255 184 0 / 0.12);
     color: var(--qs-amber);
-    border: 1px solid rgb(255 184 0 / 0.25);
+    border: var(--qs-bubble-border-width) solid rgb(255 184 0 / 0.28);
   }
 
   .qs-badge--cyan {
     background: rgb(0 229 255 / 0.1);
     color: var(--qs-cyan);
-    border: 1px solid rgb(0 229 255 / 0.2);
+    border: var(--qs-bubble-border-width) solid rgb(0 229 255 / 0.25);
   }
 
   .qs-badge--green {
     background: rgb(0 255 136 / 0.1);
     color: var(--qs-green);
-    border: 1px solid rgb(0 255 136 / 0.2);
+    border: var(--qs-bubble-border-width) solid rgb(0 255 136 / 0.25);
   }
 
   .qs-badge--magenta {
     background: rgb(255 0 170 / 0.1);
     color: var(--qs-magenta);
-    border: 1px solid rgb(255 0 170 / 0.2);
+    border: var(--qs-bubble-border-width) solid rgb(255 0 170 / 0.25);
   }
 
   .qs-badge--red {
     background: rgb(255 51 102 / 0.1);
     color: var(--qs-red);
-    border: 1px solid rgb(255 51 102 / 0.2);
+    border: var(--qs-bubble-border-width) solid rgb(255 51 102 / 0.28);
   }
 
   .qs-mini-hex {

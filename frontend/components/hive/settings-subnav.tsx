@@ -18,7 +18,7 @@ export function SettingsSubnav() {
     <nav
       aria-label="Settings sections"
       className={cn(
-        "hive-scrollbar flex shrink-0 gap-2 overflow-x-auto whitespace-nowrap rounded-2xl border border-cyan/[0.12] bg-hive-card/80 p-2",
+        "hive-scrollbar qs-chrome-strip flex shrink-0 gap-2 overflow-x-auto whitespace-nowrap bg-hive-card/80 p-2",
         "lg:w-[220px] lg:flex-col lg:gap-1 lg:overflow-visible lg:whitespace-normal",
       )}
     >

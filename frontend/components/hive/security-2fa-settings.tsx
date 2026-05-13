@@ -229,7 +229,7 @@ export function Security2FASettings() {
     <div className="flex flex-col gap-6">
       {profileUnavailable ? (
         <div
-          className="rounded-2xl border border-danger/30 bg-danger/[0.06] p-4 font-[family-name:var(--font-inter)] text-sm text-danger"
+          className="rounded-2xl border-[length:var(--qs-bubble-border-width)] border-solid border-danger/30 bg-danger/[0.06] p-4 font-[family-name:var(--font-inter)] text-sm text-danger"
           role="alert"
         >
           <p className="font-medium">Nepodarilo sa načítať stav účtu ({err}).</p>
@@ -246,7 +246,7 @@ export function Security2FASettings() {
           </button>
         </div>
       ) : null}
-      <section className="rounded-3xl border border-cyan/[0.12] bg-[#0c0c14]/95 p-6 md:p-7">
+      <section className="rounded-3xl qs-rim-cyan-soft bg-[#0c0c14]/95 p-6 md:p-7">
         <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">Hive password</h2>
         <p className="mt-2 font-[family-name:var(--font-inter)] text-sm text-zinc-400">
           Operator passwords are provisioned through the bootstrap / admin flows on the API today. Use the same password you authenticate with at login; self-service rotation ships in a
@@ -257,7 +257,7 @@ export function Security2FASettings() {
         </p>
       </section>
       {twofaPending ? (
-        <div className="rounded-2xl border border-pollen/35 bg-pollen/[0.06] px-4 py-3 font-[family-name:var(--font-inter)] text-sm text-zinc-200">
+        <div className="rounded-2xl border-[length:var(--qs-bubble-border-width)] border-solid border-pollen/35 bg-pollen/[0.06] px-4 py-3 font-[family-name:var(--font-inter)] text-sm text-zinc-200">
           Dokonči nastavenie 2FA — otvor sprievodcu, znova zadaj heslo a najprv naskenuj QR kód v aplikácii Authenticator,
           potom zadáš šesťmiestny kód nižšie v tom istom okne.
           <button type="button" className="ml-3 font-semibold text-pollen underline decoration-dotted" onClick={openEnrollFromUi}>
@@ -266,7 +266,7 @@ export function Security2FASettings() {
         </div>
       ) : null}
 
-      <section className="rounded-3xl border border-white/[0.08] bg-[#0c0c14]/95 p-6 md:p-7">
+      <section className="rounded-3xl qs-rim bg-[#0c0c14]/95 p-6 md:p-7">
         <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">
           Aplikácia Google Authenticator
         </h2>
@@ -307,7 +307,7 @@ export function Security2FASettings() {
         </ul>
       </section>
 
-      <section className="rounded-3xl border border-white/[0.08] bg-[#0c0c14]/95 p-6 md:p-7">
+      <section className="rounded-3xl qs-rim bg-[#0c0c14]/95 p-6 md:p-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">
@@ -349,9 +349,9 @@ export function Security2FASettings() {
         ) : null}
 
         {twofaComplete ? (
-          <div className="mt-6 rounded-2xl border border-white/[0.07] bg-black/40 p-5">
+          <div className="mt-6 rounded-2xl qs-rim bg-black/40 p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-black/40">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl qs-rim bg-black/40">
                 <Grid2x2 className="h-6 w-6 text-zinc-300" aria-hidden />
               </div>
               <div className="min-w-0 flex-1">
@@ -370,7 +370,7 @@ export function Security2FASettings() {
                       setRegenPassword("");
                       setRegenOpen(true);
                     }}
-                    className="rounded-full border border-white/20 bg-black/50 px-4 py-2 font-[family-name:var(--font-inter)] text-xs font-semibold text-zinc-200 transition hover:border-pollen/40 hover:text-pollen disabled:opacity-40"
+                    className="qs-btn qs-btn--ghost qs-btn--sm disabled:opacity-40"
                   >
                     Regenerate
                   </button>
@@ -378,7 +378,7 @@ export function Security2FASettings() {
                     type="button"
                     disabled={busy || backupRemaining < 1}
                     onClick={() => toast.message("Stiahni nové kódy po „Regenerate“ — plaintext sa ukáže raz.")}
-                    className="rounded-full border border-white/20 bg-black/50 px-4 py-2 font-[family-name:var(--font-inter)] text-xs font-semibold text-zinc-200 transition hover:border-pollen/40 hover:text-pollen disabled:opacity-40"
+                    className="qs-btn qs-btn--ghost qs-btn--sm disabled:opacity-40"
                   >
                     Download
                   </button>
@@ -391,7 +391,7 @@ export function Security2FASettings() {
 
       {enrollOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal>
-          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl border border-white/10 bg-[#0a0a12] p-6 shadow-[0_0_48px_rgb(255_184_0/0.12)]">
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl qs-rim bg-[#0a0a12] p-6 shadow-[0_0_48px_rgb(255_184_0/0.12)]">
             <h3 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">
               {enrollPhase === "password" ? "Potvrď heslo" : "Naskenuj QR a over Authenticator"}
             </h3>
@@ -409,7 +409,7 @@ export function Security2FASettings() {
                   type="password"
                   value={enrollPassword}
                   onChange={(e) => setEnrollPassword(e.target.value)}
-                  className="mt-4 w-full rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-pollen/40"
+                  className="qs-input mt-4"
                   autoComplete="current-password"
                 />
                 <div className="mt-4 flex justify-end gap-2">
@@ -471,7 +471,7 @@ export function Security2FASettings() {
                       const raw = e.currentTarget.value.replace(/\D/g, "").slice(0, 6);
                       if (raw.length >= 6) void submitConfirmTotp(raw);
                     }}
-                    className="mt-2 w-full max-w-[200px] rounded-xl border border-white/15 bg-black/50 py-3 text-center font-[family-name:var(--font-jetbrains-mono)] text-xl tracking-[0.35em] text-[#fafafa] outline-none focus:border-pollen/50"
+                    className="qs-input mt-2 w-full max-w-[200px] py-3 text-center font-[family-name:var(--font-jetbrains-mono)] text-xl tracking-[0.35em]"
                   />
                 </label>
                 <div className="mt-4 flex flex-wrap justify-end gap-2">
@@ -506,14 +506,14 @@ export function Security2FASettings() {
 
       {disableOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#0a0a12] p-6">
+          <div className="w-full max-w-sm rounded-3xl qs-rim bg-[#0a0a12] p-6">
             <h3 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">Vypnúť 2FA</h3>
             <p className="mt-2 text-sm text-zinc-500">Zadaj heslo na odstránenie TOTP.</p>
             <input
               type="password"
               value={disablePassword}
               onChange={(e) => setDisablePassword(e.target.value)}
-              className="mt-4 w-full rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 text-sm outline-none"
+              className="qs-input mt-4"
             />
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => setDisableOpen(false)}>
@@ -534,14 +534,14 @@ export function Security2FASettings() {
 
       {regenOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#0a0a12] p-6">
+          <div className="w-full max-w-sm rounded-3xl qs-rim bg-[#0a0a12] p-6">
             <h3 className="font-[family-name:var(--font-poppins)] text-lg font-semibold">Regenerovať kódy</h3>
             <p className="mt-2 text-sm text-zinc-500">Staré záložné kódy prestanú platiť.</p>
             <input
               type="password"
               value={regenPassword}
               onChange={(e) => setRegenPassword(e.target.value)}
-              className="mt-4 w-full rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 text-sm outline-none"
+              className="qs-input mt-4"
             />
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => setRegenOpen(false)}>
@@ -562,7 +562,7 @@ export function Security2FASettings() {
 
       {freshCodes?.length ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4">
-          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl border border-pollen/30 bg-[#0a0a12] p-6">
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl border-[length:var(--qs-bubble-border-width)] border-solid border-pollen/30 bg-[#0a0a12] p-6">
             <h3 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-pollen">Ulož si kódy</h3>
             <p className="mt-2 text-sm text-zinc-400">Zobrazia sa len teraz. Každý kód je jednorazový pri prihlásení.</p>
             <ul className="mt-4 space-y-1 font-[family-name:var(--font-jetbrains-mono)] text-sm text-[#fafafa]">

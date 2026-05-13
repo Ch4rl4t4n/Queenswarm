@@ -430,7 +430,7 @@ export function AgentsLiveSection({
             return (
               <li
                 key={agent.id}
-                className="flex overflow-hidden rounded-2xl border border-white/[0.07] bg-black/40"
+                className="flex overflow-hidden rounded-2xl qs-rim bg-black/40"
               >
                 <div className={cn("w-1 shrink-0", theme.listBar)} aria-hidden />
                 <button

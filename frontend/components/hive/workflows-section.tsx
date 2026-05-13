@@ -130,7 +130,7 @@ function FeaturedCard({
   const steps = featured.steps ?? [];
 
   return (
-    <article className="rounded-3xl border border-white/[0.08] bg-[#0a0a14]/95 p-5 md:p-7">
+    <article className="rounded-3xl qs-rim bg-[#0a0a14]/95 p-5 md:p-7">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h3 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa] md:text-xl">{featured.title}</h3>
@@ -199,7 +199,7 @@ function ListRow({
   const fill = st === "completed" ? "bg-pollen" : accent;
 
   return (
-    <li className="relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[#0c0c12]/95 pl-1.5 pr-4 py-4 sm:pr-5">
+    <li className="relative overflow-hidden rounded-2xl qs-rim bg-[#0c0c12]/95 pl-1.5 pr-4 py-4 sm:pr-5">
       <div className={cn("absolute bottom-0 left-0 top-0 w-1 rounded-l-2xl", accent)} aria-hidden />
       <div className="flex flex-col gap-4 pl-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 flex-1">

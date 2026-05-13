@@ -169,7 +169,7 @@ export default function AgentDetailPage(): JSX.Element {
       <button
         type="button"
         onClick={() => router.back()}
-        className="mb-2 flex cursor-pointer items-center gap-1.5 border-0 bg-transparent font-mono text-[13px] text-[var(--qs-text-3)] hover:text-[var(--qs-text)]"
+        className="qs-btn qs-btn--ghost qs-btn--sm mb-2 self-start"
       >
         ← Back
       </button>

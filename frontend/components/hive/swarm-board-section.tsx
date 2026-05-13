@@ -109,7 +109,7 @@ function SwarmMetricHex({ n, className }: { n: number; className: string }) {
 function SwarmBoardCardView({ card }: { card: SwarmBoardCard }) {
   const theme = laneCardTheme(card.lane);
   return (
-    <article className="flex flex-col rounded-2xl border border-white/[0.08] bg-[#0c0c14]/95 p-5 shadow-[inset_0_0_0_1px_rgb(255_255_255/0.04)]">
+    <article className="flex flex-col rounded-2xl qs-rim bg-[#0c0c14]/95 p-5 shadow-[inset_0_0_0_1px_rgb(255_255_255/0.04)]">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 gap-3">
           <SwarmMetricHex n={card.member_count} className={theme.hex} />
@@ -304,7 +304,7 @@ export function SwarmBoardSection() {
             Zatiaľ žiadne cross-swarm handoffy — vytvor úlohy alebo spusti workflow.
           </p>
         ) : (
-          <ul className="mt-4 rounded-2xl border border-white/[0.06] bg-black/35 px-4 md:px-6">
+          <ul className="mt-4 rounded-2xl qs-rim bg-black/35 px-4 md:px-6">
             {data.waggle_feed.map((item) => (
               <WaggleRow key={item.id} item={item} />
             ))}

@@ -43,7 +43,7 @@ export function SystemStatusPanel(): JSX.Element {
   ];
 
   return (
-    <section className="mt-10 rounded-[22px] border border-white/[0.08] bg-hive-card/95 p-6 shadow-[inset_0_0_0_1px_rgb(255_184_0/0.08)]">
+    <section className="mt-10 rounded-[22px] qs-rim bg-hive-card/95 p-6 shadow-[inset_0_0_0_1px_rgb(255_184_0/0.08)]">
       <h3 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-pollen">
         🔧 System status
       </h3>

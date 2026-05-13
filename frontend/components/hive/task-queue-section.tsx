@@ -252,7 +252,7 @@ export function TaskQueueSection() {
             return (
               <li
                 key={task.id}
-                className="relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[#0c0c12]/95 pl-1.5 pr-4 py-4 sm:pl-2 sm:pr-5"
+                className="relative overflow-hidden rounded-2xl qs-rim bg-[#0c0c12]/95 pl-1.5 pr-4 py-4 sm:pl-2 sm:pr-5"
               >
                 <div className={cn("absolute bottom-0 left-0 top-0 w-1 rounded-l-2xl", accent)} aria-hidden />
                 <div className="pl-3 sm:flex sm:items-stretch sm:justify-between sm:gap-6">

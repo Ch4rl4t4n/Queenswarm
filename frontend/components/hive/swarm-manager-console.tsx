@@ -385,7 +385,7 @@ export function SwarmManagerConsole() {
             return (
               <div
                 key={swarm.id}
-                className="rounded-3xl border border-white/[0.08] bg-[#0f0f16]/95 p-5 shadow-[0_0_32px_rgb(0_0_0/0.25)] md:p-6"
+                className="rounded-3xl qs-rim bg-[#0f0f16]/95 p-5 shadow-[0_0_32px_rgb(0_0_0/0.25)] md:p-6"
                 style={{
                   borderLeftWidth: "3px",
                   borderLeftColor: color,
@@ -509,7 +509,7 @@ export function SwarmManagerConsole() {
       )}
 
       {unassigned.length > 0 ? (
-        <div className="rounded-3xl border border-white/[0.06] bg-black/35 p-5">
+        <div className="rounded-3xl qs-rim bg-black/35 p-5">
           <p className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-zinc-300">
             Unassigned agents ({unassigned.length})
           </p>

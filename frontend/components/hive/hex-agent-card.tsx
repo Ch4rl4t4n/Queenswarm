@@ -17,7 +17,7 @@ const SWARM_STROKE: Record<"scout" | "eval" | "sim" | "action", string> = {
 const AMBER_STROKE = "#FFB800";
 
 const HEX_FILL = "#141424";
-/** Phase R — visible border via SVG stroke (~3px); glow via SVG filter only. */
+/** Aligned with ``--qs-bubble-border-width``; SVG path uses ``vectorEffect="nonScalingStroke"`` so rim stays uniform when ``tilePx`` changes. */
 const DEFAULT_STROKE_WIDTH = 3;
 
 const STATUS_COLORS: Record<"live" | "idle" | "paused" | "error", string> = {
@@ -170,7 +170,14 @@ function RoundedHex({
       style={svgFilter}
       aria-hidden
     >
-      <path d={d} fill={fill} stroke={strokeColor} strokeWidth={strokeWidth} strokeLinejoin="round" />
+      <path
+        d={d}
+        fill={fill}
+        stroke={strokeColor}
+        strokeWidth={strokeWidth}
+        strokeLinejoin="round"
+        vectorEffect="nonScalingStroke"
+      />
     </svg>
   );
 }

@@ -228,7 +228,7 @@ function NewAgentWizardInner() {
       <button
         type="button"
         onClick={() => (step === "configure" ? setStep("template") : router.back())}
-        className="flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-300"
+        className="qs-btn qs-btn--ghost qs-btn--sm self-start"
       >
         ← {step === "configure" ? "Back to templates" : "Back"}
       </button>
@@ -248,10 +248,10 @@ function NewAgentWizardInner() {
               type="button"
               onClick={() => pickTemplate(tmpl)}
               className={cn(
-                "w-full rounded-3xl border bg-black/35 p-4 text-left transition hover:border-pollen/35",
+                "w-full rounded-3xl bg-black/35 p-4 text-left transition",
                 tmpl.id === "custom"
-                  ? "border-white/[0.08]"
-                  : "border-cyan/[0.12] hover:shadow-[0_0_20px_rgb(255_184_0/0.15)]",
+                  ? "qs-rim hover:border-[color:rgb(255_184_0_/_0.35)]"
+                  : "qs-rim-cyan-soft hover:border-[color:rgb(255_184_0_/_0.35)] hover:shadow-[0_0_20px_rgb(255_184_0/0.15)]",
               )}
             >
               <div className="flex items-center gap-3">
@@ -276,7 +276,7 @@ function NewAgentWizardInner() {
         </div>
       ) : (
         <>
-          <section className="rounded-3xl border border-white/[0.08] bg-[#0f0f16]/95 p-5">
+          <section className="rounded-3xl qs-rim bg-[#0f0f16]/95 p-5">
             <label className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
               Bee name
             </label>
@@ -287,7 +287,7 @@ function NewAgentWizardInner() {
             />
           </section>
 
-          <section className="rounded-3xl border border-white/[0.08] bg-[#0f0f16]/95 p-5">
+          <section className="rounded-3xl qs-rim bg-[#0f0f16]/95 p-5">
             <label className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
               Manager / Swarm
             </label>
@@ -363,7 +363,7 @@ function NewAgentWizardInner() {
             </div>
           </section>
 
-          <section className="rounded-3xl border border-white/[0.08] bg-[#0f0f16]/95 p-5">
+          <section className="rounded-3xl qs-rim bg-[#0f0f16]/95 p-5">
             <label className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
               System prompt
             </label>
@@ -384,7 +384,7 @@ function NewAgentWizardInner() {
             />
           </section>
 
-          <section className="rounded-3xl border border-white/[0.08] bg-[#0f0f16]/95 p-5">
+          <section className="rounded-3xl qs-rim bg-[#0f0f16]/95 p-5">
             <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
               Tools
             </p>
@@ -414,7 +414,7 @@ function NewAgentWizardInner() {
           </section>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <section className="rounded-3xl border border-white/[0.08] bg-[#0f0f16]/95 p-5">
+            <section className="rounded-3xl qs-rim bg-[#0f0f16]/95 p-5">
               <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
                 Output
               </p>
@@ -435,7 +435,7 @@ function NewAgentWizardInner() {
                 ))}
               </div>
             </section>
-            <section className="rounded-3xl border border-white/[0.08] bg-[#0f0f16]/95 p-5">
+            <section className="rounded-3xl qs-rim bg-[#0f0f16]/95 p-5">
               <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
                 Schedule
               </p>

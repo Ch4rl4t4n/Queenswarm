@@ -17,9 +17,8 @@ interface SwarmBrief {
 }
 
 const GAP_HEX = 18;
-const TILE_QUEEN = 160;
-const TILE_MANAGER = 130;
-const TILE_WORKER = 100;
+/** Same footprint as Agents grid `HexAgentCard` default — keeps hex stroke + layout identical to roster. */
+const TILE_HEX = 140;
 const WORKERS_PER_ROW = 4;
 
 function coerceAgent(raw: Record<string, unknown>): AgentRow {
@@ -239,19 +238,19 @@ export function HierarchyPageConsole(): JSX.Element {
 
   const amber = "#FFB800";
   const managerBridgeWidth =
-    tree.managers.length > 1 ? (tree.managers.length - 1) * (TILE_MANAGER + GAP_HEX) : 0;
+    tree.managers.length > 1 ? (tree.managers.length - 1) * (TILE_HEX + GAP_HEX) : 0;
 
   return (
     <div className="space-y-8">
       <HivePageHeader
         title="Hierarchia úľa"
-        subtitle="Queen riadi manažérov · každý manažér má farebne odlíšený rám (rovnaké hex dlaždice ako na Agents)."
+        subtitle="Queen riadi manažérov · rovnaké hex dlaždice (140 px) ako na Agents · queen zlatý rám + koruna."
       />
 
       <div className={cn("flex flex-col items-center pb-14")}>
         {tree.queen ? (
           <>
-            <HexAgentCard agent={tree.queen} href={`/agents/${tree.queen.id}`} isQueen tilePx={TILE_QUEEN} />
+            <HexAgentCard agent={tree.queen} href={`/agents/${tree.queen.id}`} isQueen tilePx={TILE_HEX} />
             {(tree.managers.length > 0 || tree.ungrouped.length > 0) && <VLine color={amber} h={44} />}
           </>
         ) : agents.length === 0 ? (
@@ -286,12 +285,11 @@ export function HierarchyPageConsole(): JSX.Element {
                 const accent = mgrSwarm ? displaySwarmColor(mgrSwarm) : amber;
                 const team = tree.teamByManager.get(mgr.id) ?? [];
                 const workerRowSpan = Math.min(team.length, WORKERS_PER_ROW);
-                const workerHWidth =
-                  team.length > 1 ? (workerRowSpan - 1) * (TILE_WORKER + GAP_HEX) : 0;
+                const workerHWidth = team.length > 1 ? (workerRowSpan - 1) * (TILE_HEX + GAP_HEX) : 0;
 
                 return (
                   <div key={mgr.id} className="flex flex-col items-center">
-                    <HexAgentCard agent={mgr} href={`/agents/${mgr.id}`} tilePx={TILE_MANAGER} />
+                    <HexAgentCard agent={mgr} href={`/agents/${mgr.id}`} tilePx={TILE_HEX} />
                     {team.length > 0 ? (
                       <>
                         <VLine color={accent} h={32} />
@@ -300,7 +298,7 @@ export function HierarchyPageConsole(): JSX.Element {
                           {chunkRows(team, WORKERS_PER_ROW).map((row) => (
                             <div key={row.map((x) => x.id).join("-")} className="flex flex-wrap justify-center gap-[18px]">
                               {row.map((w) => (
-                                <HexAgentCard key={w.id} agent={w} href={`/agents/${w.id}`} tilePx={TILE_WORKER} />
+                                <HexAgentCard key={w.id} agent={w} href={`/agents/${w.id}`} tilePx={TILE_HEX} />
                               ))}
                             </div>
                           ))}
@@ -321,7 +319,7 @@ export function HierarchyPageConsole(): JSX.Element {
             </p>
             <div className="flex flex-wrap justify-center gap-[18px]">
               {tree.ungrouped.map((w) => (
-                <HexAgentCard key={w.id} agent={w} href={`/agents/${w.id}`} tilePx={TILE_WORKER} />
+                <HexAgentCard key={w.id} agent={w} href={`/agents/${w.id}`} tilePx={TILE_HEX} />
               ))}
             </div>
           </div>

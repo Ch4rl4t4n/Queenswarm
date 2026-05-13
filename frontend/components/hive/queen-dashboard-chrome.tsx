@@ -140,7 +140,7 @@ export function QueenDashboardChrome({
           value={filterQuery}
           onChange={(e) => onFilterChange(e.target.value)}
           placeholder="Hľadať agentov, úroveň, meno…"
-          className="w-full rounded-2xl border-[2px] border-cyan/20 bg-black/55 py-3.5 pl-11 pr-4 font-[family-name:var(--font-inter)] text-sm text-[#fafafa] outline-none ring-pollen/20 placeholder:text-zinc-600 focus:border-pollen/40 focus:ring-2"
+          className="w-full rounded-2xl qs-rim-cyan-soft bg-black/55 py-3.5 pl-11 pr-4 font-[family-name:var(--font-inter)] text-sm text-[#fafafa] outline-none ring-pollen/20 placeholder:text-zinc-600 focus:border-pollen/40 focus:ring-2"
           aria-label="Filter agentov"
         />
       </div>
@@ -149,7 +149,7 @@ export function QueenDashboardChrome({
         {showKpiPulse ? (
           <>
             {[0, 1, 2, 3].map((i) => (
-              <div key={String(i)} className="animate-pulse rounded-2xl border border-cyan/10 bg-[#0d0d18]/95 p-5">
+              <div key={String(i)} className="animate-pulse rounded-2xl qs-rim-cyan-soft bg-[#0d0d18]/95 p-5">
                 <div className="h-7 w-2/5 rounded-lg bg-white/10" />
                 <div className="mt-4 h-8 w-1/2 rounded-lg bg-white/10" />
                 <div className="mt-3 h-3 w-3/5 rounded bg-white/5" />
@@ -158,7 +158,7 @@ export function QueenDashboardChrome({
           </>
         ) : (
           <>
-            <article className="rounded-2xl border-[2px] border-cyan/20 bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
+            <article className="rounded-2xl qs-rim-cyan-soft bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
               <div className="flex items-start justify-between gap-2">
                 <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
                   Total agents
@@ -168,7 +168,7 @@ export function QueenDashboardChrome({
               <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl font-bold text-[#fafafa]">{totalAgentsListed}</p>
               <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-success">Active {activeAgents}</p>
             </article>
-            <article className="rounded-2xl border-[2px] border-cyan/20 bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
+            <article className="rounded-2xl qs-rim-cyan-soft bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
               <div className="flex items-start justify-between gap-2">
                 <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
                   Running tasks
@@ -178,7 +178,7 @@ export function QueenDashboardChrome({
               <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl font-bold text-data">{runningTasks}</p>
               <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-zinc-500">From system pulse</p>
             </article>
-            <article className="rounded-2xl border-[2px] border-cyan/20 bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
+            <article className="rounded-2xl qs-rim-cyan-soft bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
               <div className="flex items-start justify-between gap-2">
                 <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
                   Queued tasks
@@ -188,7 +188,7 @@ export function QueenDashboardChrome({
               <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl font-bold text-pollen">{queuedTasks}</p>
               <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-zinc-500">Pending lane</p>
             </article>
-            <article className="rounded-2xl border-[2px] border-cyan/20 bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
+            <article className="rounded-2xl qs-rim-cyan-soft bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
               <div className="flex items-start justify-between gap-2">
                 <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
                   LLM status
@@ -216,7 +216,7 @@ export function QueenDashboardChrome({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <article className="rounded-2xl border-[2px] border-white/[0.06] bg-[#0a0a12]/90 p-5 sm:col-span-2 xl:col-span-2">
+        <article className="rounded-2xl qs-rim bg-[#0a0a12]/90 p-5 sm:col-span-2 xl:col-span-2">
           <div className="flex items-start justify-between gap-2">
             <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
               Pollen (roster)
@@ -225,7 +225,7 @@ export function QueenDashboardChrome({
           </div>
           <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl font-bold text-pollen">{formatPollen(pollenTotal)}</p>
         </article>
-        <article className="rounded-2xl border-[2px] border-white/[0.06] bg-[#0a0a12]/90 p-5 sm:col-span-2 xl:col-span-2">
+        <article className="rounded-2xl qs-rim bg-[#0a0a12]/90 p-5 sm:col-span-2 xl:col-span-2">
           <div className="flex items-start justify-between gap-2">
             <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
               Náklady (30 dní)
@@ -268,7 +268,7 @@ export function QueenDashboardChrome({
       <TaskQueueSection />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-3xl border-[2px] border-cyan/15 bg-[#0a0a14]/90 p-6">
+        <section className="rounded-3xl qs-rim-cyan-soft bg-[#0a0a14]/90 p-6">
           <h3 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">Výkon podľa tieru</h3>
           <p className="mt-1 text-xs text-zinc-500">Podiel agentov v úli (z API summary)</p>
           <ul className="mt-5 space-y-4">
@@ -288,7 +288,7 @@ export function QueenDashboardChrome({
             ))}
           </ul>
         </section>
-        <section className="rounded-3xl border-[2px] border-cyan/15 bg-[#0a0a14]/90 p-6">
+        <section className="rounded-3xl qs-rim-cyan-soft bg-[#0a0a14]/90 p-6">
           <h3 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">Recent tasks</h3>
           <p className="mt-1 text-xs text-zinc-500">Latest {Math.min(8, recentTasks.length)} rows from /api/v1/tasks</p>
           <ul className="mt-5 divide-y divide-cyan/10">

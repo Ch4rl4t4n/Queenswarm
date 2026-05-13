@@ -109,7 +109,7 @@ function HexStepIcon({ n, className }: { n: number; className: string }) {
   return (
     <div
       className={cn(
-        "hive-hex-clip-flat flex h-11 w-10 shrink-0 items-center justify-center border-[6px] font-[family-name:var(--font-poppins)] text-sm font-bold tabular-nums",
+        "hive-hex-clip-flat flex h-11 w-10 shrink-0 items-center justify-center border-solid border-[length:var(--qs-bubble-border-width)] font-[family-name:var(--font-poppins)] text-sm font-bold tabular-nums",
         className,
       )}
     >
@@ -308,7 +308,7 @@ export function NewTaskConsole() {
   return (
     <div className="mx-auto w-full max-w-3xl pb-24">
       <div className="mb-8 flex flex-col gap-4">
-        <Link href="/" className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5 px-4">
+        <Link href="/" className="qs-btn qs-btn--ghost qs-btn--sm w-fit self-start gap-1.5 px-4">
           <ChevronLeftIcon className="h-4 w-4" aria-hidden />
           Späť
         </Link>
@@ -320,13 +320,13 @@ export function NewTaskConsole() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-white/[0.08] bg-[#0f0f16]/95 p-6 shadow-[0_0_40px_rgb(0_0_0/0.35)] md:p-8">
+      <div className="qs-panel p-6 shadow-[0_0_40px_rgb(0_0_0/0.35)] md:p-8">
         <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">Popis úlohy</p>
         <textarea
           value={taskText}
           onChange={(e) => setTaskText(e.target.value)}
           rows={6}
-          className="mt-3 w-full resize-y rounded-xl border-[2px] border-cyan/20 bg-black/55 px-4 py-3 font-[family-name:var(--font-inter)] text-sm text-[#fafafa] outline-none focus:border-pollen/40"
+          className="mt-3 w-full resize-y rounded-xl qs-rim-cyan-soft bg-black/55 px-4 py-3 font-[family-name:var(--font-inter)] text-sm text-[#fafafa] outline-none focus:border-pollen/40"
           placeholder="Čo má úľ vykonať?"
         />
 
@@ -400,7 +400,7 @@ export function NewTaskConsole() {
         </div>
       </div>
 
-      <div className="mt-8 rounded-2xl border border-white/[0.08] bg-[#0c0c14]/95 p-6 shadow-[0_0_36px_rgb(0_255_255/0.06)] md:p-8">
+      <div className="qs-panel mt-8 p-6 shadow-[0_0_36px_rgb(0_255_255/0.06)] md:p-8">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">Náhľad dekompozície</h2>
           <p className="font-[family-name:var(--font-inter)] text-xs text-zinc-500">
@@ -409,7 +409,7 @@ export function NewTaskConsole() {
           </p>
         </div>
         {previewError ? (
-          <div className="mt-4 rounded-xl border border-pollen/20 bg-[#0f0f1a] p-4 md:p-[18px]">
+          <div className="qs-rim mt-4 rounded-xl bg-[#0f0f1a] p-4 md:p-[18px]">
             <div className="mb-2.5 flex items-center gap-2.5">
               <span className="text-xl" aria-hidden>
                 ⚠️
@@ -466,7 +466,7 @@ export function NewTaskConsole() {
             return (
               <li
                 key={`${step.step_order}-${step.description.slice(0, 24)}`}
-                className="flex gap-4 rounded-xl border border-white/[0.06] bg-black/35 px-3 py-3 md:px-4"
+                className="qs-rim flex gap-4 rounded-xl bg-black/35 px-3 py-3 md:px-4"
               >
                 <HexStepIcon n={step.step_order} className={ui.hexClass} />
                 <div className="min-w-0 flex-1">
