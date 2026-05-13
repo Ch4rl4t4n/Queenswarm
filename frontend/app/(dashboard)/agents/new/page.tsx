@@ -1,63 +1,101 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
-import { hivePostJson } from "@/lib/api";
+import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
-const TEMPLATES = [
+const AGENT_TEMPLATES = [
   {
-    name: "Crypto Scout",
+    id: "crypto_scout",
+    label: "Crypto Scout",
+    emoji: "📊",
+    color: "#00E5FF",
     system_prompt:
-      "You are a crypto market analyst. Monitor token prices, sentiment, and news. Provide clear buy/hold/sell signals with confidence scores.",
-    user_prompt_template:
-      "Analyze current market conditions for the configured coin. Provide: 1) Current price & 24h change 2) Market sentiment 3) Key signals 4) Recommendation with confidence %",
-    tools: ["coingecko", "youtube", "web_search"],
+      "You are a crypto market intelligence agent. Monitor token prices, sentiment, news, and on-chain signals. Provide data-backed analysis with explicit confidence scores.",
+    user_prompt:
+      "Analyze current market conditions. Provide: 1) Price & 24h change 2) Sentiment (bull/bear/neutral with %) 3) Top 3 signals 4) Recommendation with reasoning.",
+    tools: ["web_search", "coingecko"],
     output_format: "markdown",
-    output_destination: "dashboard",
-    schedule_value: "every 4 hours",
   },
   {
-    name: "Blog Writer",
+    id: "blog_writer",
+    label: "Blog Writer",
+    emoji: "✍️",
+    color: "#00FF88",
     system_prompt:
-      "You are an SEO content writer for an e-commerce brand. Write engaging, optimized blog posts that drive organic traffic.",
-    user_prompt_template:
-      "Write a 400-word SEO blog post about the topic. Include title, meta description, subheadings, CTA. Use markdown.",
+      "You are an SEO content writer. Produce engaging, optimized posts with meta description, headings, and CTA.",
+    user_prompt:
+      "Write a ~500-word SEO blog on the topic. Include title, meta description, 3 H2 sections, conclusion, and CTA.",
     tools: ["web_search", "wikipedia"],
     output_format: "markdown",
-    output_destination: "dashboard",
-    schedule_value: "",
   },
   {
-    name: "Instagram Manager",
-    system_prompt:
-      "You are a social media manager specializing in Instagram. Create captions and hashtags that maximize reach.",
-    user_prompt_template:
-      "Create 3 Instagram variations for the product/topic with caption (max 150 chars), hashtags, CTA.",
+    id: "instagram_manager",
+    label: "Instagram Manager",
+    emoji: "📸",
+    color: "#FF00AA",
+    system_prompt: "You are a social strategist for Instagram. Produce scroll-stopping captions and hashtag sets.",
+    user_prompt:
+      "Create 3 post variations: caption (≤150 chars), 10 hashtags, emojis, CTA.",
     tools: ["web_search"],
     output_format: "text",
-    output_destination: "dashboard",
-    schedule_value: "",
   },
   {
-    name: "News Digest",
-    system_prompt: "You are a news curator. Summarize RSS headlines into a concise briefing.",
-    user_prompt_template: "Summarize the top five stories from the RSS feed as bullet points.",
-    tools: ["rss"],
+    id: "news_digest",
+    label: "News Digest",
+    emoji: "📰",
+    color: "#FFB800",
+    system_prompt: "You curate news into concise, cited briefings.",
+    user_prompt:
+      "Summarize the top five signals from configured feeds — headline, 2-sentence summary, why it matters, impact score 1–10.",
+    tools: ["rss", "web_search"],
     output_format: "markdown",
-    output_destination: "dashboard",
-    schedule_value: "daily 08:00",
   },
   {
-    name: "Custom Agent",
+    id: "custom",
+    label: "Custom Agent",
+    emoji: "🐝",
+    color: "#FFB800",
     system_prompt: "",
-    user_prompt_template: "",
-    tools: [] as string[],
+    user_prompt: "",
+    tools: [],
     output_format: "text",
-    output_destination: "dashboard",
-    schedule_value: "",
   },
 ] as const;
+
+const ALL_TOOLS = [
+  { id: "web_search", label: "Web Search", desc: "Search index (DuckDuckGo-style)" },
+  { id: "youtube", label: "YouTube", desc: "Requires API credentials when enabled" },
+  { id: "coingecko", label: "CoinGecko", desc: "Pricing feeds" },
+  { id: "rss", label: "RSS", desc: "Feeds" },
+  { id: "scrape_url", label: "Scrape URL", desc: "Fetched pages" },
+  { id: "wikipedia", label: "Wikipedia", desc: "Article summaries" },
+] as const;
+
+const OUTPUT_FORMATS = [
+  { id: "text", label: "Plain text" },
+  { id: "markdown", label: "Markdown" },
+  { id: "json", label: "JSON" },
+  { id: "excel", label: "Excel (.xlsx)" },
+  { id: "csv", label: "CSV" },
+] as const;
+
+const SCHEDULE_PRESETS = [
+  { label: "On demand", value: "" },
+  { label: "Every hour", value: "every 1 hours" },
+  { label: "Every 4 hours", value: "every 4 hours" },
+  { label: "Every 12 hours", value: "every 12 hours" },
+  { label: "Daily 08:00", value: "daily 08:00" },
+  { label: "Daily 20:00", value: "daily 20:00" },
+] as const;
+
+interface SwarmLite {
+  id: string;
+  name: string;
+  is_active?: boolean;
+}
 
 interface DynamicCreateResponse {
   agent_id: string;
@@ -65,119 +103,296 @@ interface DynamicCreateResponse {
   config_id: string;
 }
 
-export default function NewAgentPage() {
+function NewAgentWizardInner() {
   const router = useRouter();
-  const [selected, setSelected] = useState<number | null>(null);
-  const [name, setName] = useState("");
-  const [creating, setCreating] = useState(false);
+  const searchParams = useSearchParams();
+  const [step, setStep] = useState<"template" | "configure">("template");
+  const [selectedTemplate, setSelectedTemplate] = useState<(typeof AGENT_TEMPLATES)[number] | null>(null);
+  const [swarms, setSwarms] = useState<SwarmLite[]>([]);
+  const [saving, setSaving] = useState(false);
 
-  async function create() {
-    if (!name.trim()) {
-      window.alert("Give your bee a name.");
+  const swarmParam = searchParams.get("swarm_id") ?? "";
+
+  const [config, setConfig] = useState({
+    name: "",
+    swarm_id: swarmParam,
+    system_prompt: "",
+    user_prompt: "",
+    tools: [] as string[],
+    output_format: "text",
+    output_destination: "dashboard",
+    schedule_value: "",
+    output_config: {} as Record<string, string>,
+  });
+
+  useEffect(() => {
+    if (swarmParam) {
+      setConfig((c) => ({ ...c, swarm_id: swarmParam }));
+    }
+  }, [swarmParam]);
+
+  useEffect(() => {
+    void hiveGet<unknown>("swarms?limit=200")
+      .then((d) => {
+        const rows = Array.isArray(d)
+          ? d
+          : Array.isArray((d as { items?: unknown }).items)
+            ? (d as { items: unknown[] }).items
+            : Array.isArray((d as { swarms?: unknown }).swarms)
+              ? (d as { swarms: unknown[] }).swarms
+              : [];
+        setSwarms(
+          rows.filter((r): r is SwarmLite => typeof r === "object" && r !== null && "id" in r && "name" in r) as SwarmLite[],
+        );
+      })
+      .catch(() => {});
+  }, []);
+
+  function pickTemplate(tmpl: (typeof AGENT_TEMPLATES)[number]) {
+    setSelectedTemplate(tmpl);
+    setConfig((c) => ({
+      ...c,
+      system_prompt: tmpl.system_prompt,
+      user_prompt: tmpl.user_prompt,
+      tools: [...tmpl.tools],
+      output_format: tmpl.output_format,
+      name: tmpl.id === "custom" ? "" : tmpl.label,
+    }));
+    setStep("configure");
+  }
+
+  async function save() {
+    if (!config.name.trim()) {
+      window.alert("Give your bee a name");
       return;
     }
-    if (selected === null) {
-      window.alert("Pick a template.");
-      return;
-    }
-    setCreating(true);
-    const tmpl = TEMPLATES[selected];
+    setSaving(true);
     try {
+      const sid = config.swarm_id?.trim();
       const data = await hivePostJson<DynamicCreateResponse>("agents/dynamic", {
-        name,
-        system_prompt: tmpl.system_prompt || "You are a helpful AI agent.",
-        user_prompt_template: tmpl.user_prompt_template || null,
-        tools: [...tmpl.tools],
-        output_format: tmpl.output_format,
-        output_destination: tmpl.output_destination,
-        output_config: {},
-        schedule_type: tmpl.schedule_value ? "interval" : "on_demand",
-        schedule_value: tmpl.schedule_value || null,
+        name: config.name.trim(),
+        hive_tier: "worker",
+        swarm_id: sid ? sid : null,
+        system_prompt: config.system_prompt.trim() || "You are a helpful AI agent executing Queenswarm missions.",
+        user_prompt_template: config.user_prompt.trim() || null,
+        tools: config.tools,
+        output_format: config.output_format,
+        output_destination: config.output_destination,
+        output_config: { ...config.output_config, spawned_from_template: selectedTemplate?.id ?? "custom" },
+        schedule_type: config.schedule_value ? "interval" : "on_demand",
+        schedule_value: config.schedule_value || null,
+        agent_status: "idle",
       });
-      router.push(`/agents/${encodeURIComponent(data.agent_id)}/edit`);
+      router.push(`/agents/${encodeURIComponent(data.agent_id)}`);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to create bee";
-      window.alert(msg);
+      window.alert(`Failed: ${e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : String(e)}`);
     } finally {
-      setCreating(false);
+      setSaving(false);
     }
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 p-6">
-      <div>
-        <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-bold text-[#fafafa]">
-          Create new bee
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Templates seed the universal executor; refine everything on the editor screen.
-        </p>
-      </div>
+    <div className="mx-auto max-w-2xl space-y-6 pb-24">
+      <button
+        type="button"
+        onClick={() => (step === "configure" ? setStep("template") : router.back())}
+        className="flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-300"
+      >
+        ← {step === "configure" ? "Back to templates" : "Back"}
+      </button>
 
-      <div className="space-y-3">
-        {TEMPLATES.map((t, i) => (
-          <button
-            type="button"
-            key={t.name}
-            onClick={() => {
-              setSelected(i);
-              if (!name && t.name !== "Custom Agent") {
-                setName(t.name);
-              }
-            }}
-            className={`w-full rounded-xl border p-4 text-left transition-colors ${
-              selected === i
-                ? "border-pollen/[0.45] bg-pollen/[0.08]"
-                : "border-[#1a1a3e] bg-hive-card/80 hover:border-gray-600"
-            }`}
-          >
-            <div className={`text-sm font-semibold ${selected === i ? "text-pollen" : "text-[#fafafa]"}`}>{t.name}</div>
-            <p className="mt-1 line-clamp-2 text-xs text-zinc-500">
-              {t.system_prompt || "Blank canvas — define everything in the editor."}
+      <header>
+        <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-bold text-[#fafafa]">Spawn agent</h1>
+        <p className="mt-2 font-[family-name:var(--font-inter)] text-sm text-muted-foreground">
+          {step === "template" ? "Choose a hive template." : "Wire prompts, tools, and rhythm."}
+        </p>
+      </header>
+
+      {step === "template" ? (
+        <div className="flex flex-col gap-3">
+          {AGENT_TEMPLATES.map((tmpl) => (
+            <button
+              key={tmpl.id}
+              type="button"
+              onClick={() => pickTemplate(tmpl)}
+              className={cn(
+                "w-full rounded-3xl border bg-black/35 p-4 text-left transition hover:border-pollen/35",
+                tmpl.id === "custom"
+                  ? "border-white/[0.08]"
+                  : "border-cyan/[0.12] hover:shadow-[0_0_20px_rgb(255_184_0/0.15)]",
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{tmpl.emoji}</span>
+                <div className="min-w-0 flex-1 text-left">
+                  <div className="font-semibold text-[#fafafa]">{tmpl.label}</div>
+                  <div className="mt-1 line-clamp-2 text-xs text-zinc-500">{tmpl.system_prompt || "Blank canvas"}</div>
+                  {tmpl.tools.length ? (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {tmpl.tools.map((t) => (
+                        <span key={t} className="rounded bg-black/40 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+                <span className="text-zinc-500">→</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <>
+          <section className="rounded-3xl border border-white/[0.08] bg-[#0f0f16]/95 p-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+                  Bee name
+                </label>
+                <input
+                  value={config.name}
+                  onChange={(e) => setConfig((c) => ({ ...c, name: e.target.value }))}
+                  className="mt-2 w-full rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-pollen/40"
+                />
+              </div>
+              <div>
+                <label className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+                  Assign swarm
+                </label>
+                <select
+                  value={config.swarm_id}
+                  onChange={(e) => setConfig((c) => ({ ...c, swarm_id: e.target.value }))}
+                  className="mt-2 w-full rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-pollen/40"
+                >
+                  <option value="">— Unassigned —</option>
+                  {swarms
+                    .filter((s) => s.is_active !== false && !String(s.name).includes("__inactive_"))
+                    .map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-white/[0.08] bg-[#0f0f16]/95 p-5">
+            <label className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+              System prompt
+            </label>
+            <textarea
+              rows={5}
+              value={config.system_prompt}
+              onChange={(e) => setConfig((c) => ({ ...c, system_prompt: e.target.value }))}
+              className="mt-2 w-full resize-y rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-cyan/30"
+            />
+            <label className="mt-4 block font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+              Task template
+            </label>
+            <textarea
+              rows={3}
+              value={config.user_prompt}
+              onChange={(e) => setConfig((c) => ({ ...c, user_prompt: e.target.value }))}
+              className="mt-2 w-full resize-y rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-cyan/30"
+            />
+          </section>
+
+          <section className="rounded-3xl border border-white/[0.08] bg-[#0f0f16]/95 p-5">
+            <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+              Tools
             </p>
-            {t.tools.length ? (
-              <div className="mt-2 flex flex-wrap gap-1">
-                {t.tools.map((tool) => (
-                  <span key={tool} className="rounded bg-black/45 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400">
-                    {tool}
-                  </span>
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              {ALL_TOOLS.map((tool) => {
+                const on = config.tools.includes(tool.id);
+                return (
+                  <button
+                    key={tool.id}
+                    type="button"
+                    onClick={() =>
+                      setConfig((c) => ({
+                        ...c,
+                        tools: on ? c.tools.filter((t) => t !== tool.id) : [...c.tools, tool.id],
+                      }))
+                    }
+                    className={`rounded-xl border px-3 py-2 text-left text-xs transition ${
+                      on ? "border-pollen/50 bg-pollen/[0.08] text-pollen" : "border-white/10 bg-black/40 text-zinc-400 hover:border-white/20"
+                    }`}
+                  >
+                    <div className="font-semibold">{tool.label}</div>
+                    <div className="mt-1 text-[10px] text-zinc-500">{tool.desc}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <section className="rounded-3xl border border-white/[0.08] bg-[#0f0f16]/95 p-5">
+              <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+                Output
+              </p>
+              <div className="mt-3 flex flex-col gap-2">
+                {OUTPUT_FORMATS.map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setConfig((c) => ({ ...c, output_format: f.id }))}
+                    className={`rounded-xl border px-3 py-2 text-left text-sm ${
+                      config.output_format === f.id
+                        ? "border-success/50 bg-success/[0.08] text-success"
+                        : "border-white/10 bg-transparent text-zinc-400 hover:border-success/40"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
                 ))}
               </div>
-            ) : null}
+            </section>
+            <section className="rounded-3xl border border-white/[0.08] bg-[#0f0f16]/95 p-5">
+              <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+                Schedule
+              </p>
+              <div className="mt-3 flex flex-col gap-2">
+                {SCHEDULE_PRESETS.map((s) => (
+                  <button
+                    key={s.label}
+                    type="button"
+                    onClick={() => setConfig((c) => ({ ...c, schedule_value: s.value }))}
+                    className={`rounded-xl border px-3 py-2 text-left text-sm ${
+                      config.schedule_value === s.value
+                        ? "border-cyan/50 bg-cyan/[0.08] text-cyan"
+                        : "border-white/10 bg-transparent text-zinc-400 hover:border-cyan/40"
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          <button
+            type="button"
+            disabled={saving || !config.name.trim()}
+            onClick={() => void save()}
+            className="w-full rounded-xl border-2 border-pollen bg-pollen py-4 font-[family-name:var(--font-space-grotesk)] text-sm font-bold text-black shadow-[0_0_32px_rgb(255_184_0/0.35)] disabled:opacity-45"
+          >
+            {saving ? "Spawning…" : "Spawn agent"}
           </button>
-        ))}
-      </div>
-
-      {selected !== null ? (
-        <div className="rounded-xl border border-[#1a1a3e] bg-hive-card/70 p-4">
-          <label className="mb-2 block text-xs uppercase tracking-wider text-zinc-500">Bee name</label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-lg border border-[#1a1a3e] bg-[#050510] p-3 font-mono text-sm text-white focus:border-[#FFB800] focus:outline-none"
-            placeholder="My ACKIE Scout"
-            autoFocus
-          />
-        </div>
-      ) : null}
-
-      <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="rounded-xl border border-[#1a1a3e] px-6 py-3 text-sm text-gray-400 hover:border-gray-600"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={() => void create()}
-          disabled={creating || selected === null}
-          className="flex-1 rounded-xl bg-pollen py-3 font-[family-name:var(--font-space-grotesk)] font-bold text-black shadow-[0_0_20px_#FFB80044] disabled:opacity-40"
-        >
-          {creating ? "Creating…" : "Create bee → edit"}
-        </button>
-      </div>
+        </>
+      )}
     </div>
+  );
+}
+
+export default function NewAgentPage() {
+  return (
+    <Suspense
+      fallback={<div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">Loading…</div>}
+    >
+      <NewAgentWizardInner />
+    </Suspense>
   );
 }
