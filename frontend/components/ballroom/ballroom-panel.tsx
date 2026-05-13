@@ -2,8 +2,9 @@
 
 import { MicIcon, MicOffIcon } from "lucide-react";
 import type { CSSProperties } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { HiveApiError, hivePostJson } from "@/lib/api";
 import { buildHiveWebsocketHref } from "@/lib/public-ws";
 import { cn } from "@/lib/utils";
 
@@ -87,7 +88,10 @@ function accentForName(name: string): string {
 }
 
 export function BallroomPanel() {
+  /** WebSocket OPEN — transcripts stream live. */
   const [connected, setConnected] = useState(false);
+  /** Session id minted / known — REST chat works immediately even before WS opens. */
+  const [sessionBound, setSessionBound] = useState(false);
   const [starting, setStarting] = useState(false);
   const [messages, setMessages] = useState<BallroomBubble[]>([]);
   const [input, setInput] = useState("");
@@ -199,9 +203,11 @@ export function BallroomPanel() {
       setError(null);
       sessionIdRef.current = capsule.session_id;
       setSessionLabel(capsule.session_id);
+      setSessionBound(true);
 
       const wsUrl = wsUrlFromSessionCapsule(capsule);
       if (!wsUrl) {
+        setSessionBound(false);
         setError("ws_url_unavailable");
         return;
       }
@@ -209,6 +215,7 @@ export function BallroomPanel() {
       wsRef.current?.close();
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
+      setConnected(false);
 
       ws.onopen = () => setConnected(true);
 
@@ -321,8 +328,7 @@ export function BallroomPanel() {
 
       ws.onclose = () => {
         setConnected(false);
-        setSessionLabel(null);
-        sessionIdRef.current = null;
+        /* Keep session id so REST `/ballroom/message` still works and user can reconnect the stream. */
       };
 
       (window as Window & { __qs_ballroom_ws?: WebSocket }).__qs_ballroom_ws?.close?.();
@@ -331,38 +337,50 @@ export function BallroomPanel() {
     [appendBubble, wsUrlFromSessionCapsule],
   );
 
-  const startSession = useCallback(async () => {
-    setStarting(true);
-    setError(null);
-    try {
-      let res = await fetch("/api/proxy/ballroom/start", { method: "POST", credentials: "include" });
-      if (!res.ok) {
-        res = await fetch("/api/proxy/ballroom/session", { method: "POST", credentials: "include" });
+  const startSession = useCallback(
+    async (opts?: { quiet?: boolean }) => {
+      setStarting(true);
+      setError(null);
+      try {
+        let res = await fetch("/api/proxy/ballroom/start", { method: "POST", credentials: "include" });
+        if (!res.ok) {
+          res = await fetch("/api/proxy/ballroom/session", { method: "POST", credentials: "include" });
+        }
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const body = (await res.json()) as SessionCapsule;
+        setMessages([]);
+        bindWebSocketToCapsule(body);
+        if (typeof window !== "undefined") {
+          const next = new URL(window.location.href);
+          if (!next.searchParams.get("session")) {
+            next.searchParams.set("session", body.session_id);
+            window.history.replaceState({}, "", `${next.pathname}${next.search}${next.hash}`);
+          }
+        }
+        if (!opts?.quiet) {
+          appendBubble({
+            agent: "System",
+            text: "Hive ballroom channel opening…",
+            timestamp: new Date().toISOString(),
+            variant: "system",
+          });
+        }
+      } catch (exc) {
+        setError(exc instanceof Error ? exc.message : "session_failed");
+        appendBubble({
+          agent: "System",
+          text: `Failed to start session (${exc instanceof Error ? exc.message : "unknown"})`,
+          timestamp: new Date().toISOString(),
+          variant: "system",
+        });
+      } finally {
+        setStarting(false);
       }
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      const body = (await res.json()) as SessionCapsule;
-      setMessages([]);
-      bindWebSocketToCapsule(body);
-      appendBubble({
-        agent: "System",
-        text: "Hive ballroom channel opening…",
-        timestamp: new Date().toISOString(),
-        variant: "system",
-      });
-    } catch (exc) {
-      setError(exc instanceof Error ? exc.message : "session_failed");
-      appendBubble({
-        agent: "System",
-        text: `Failed to start session (${exc instanceof Error ? exc.message : "unknown"})`,
-        timestamp: new Date().toISOString(),
-        variant: "system",
-      });
-    } finally {
-      setStarting(false);
-    }
-  }, [appendBubble, bindWebSocketToCapsule]);
+    },
+    [appendBubble, bindWebSocketToCapsule],
+  );
 
   const endSession = useCallback(() => {
     wsRef.current?.close();
@@ -370,13 +388,31 @@ export function BallroomPanel() {
     setConnected(false);
     sessionIdRef.current = null;
     setSessionLabel(null);
+    setSessionBound(false);
     appendBubble({
       agent: "System",
       text: "Session ended.",
       timestamp: new Date().toISOString(),
       variant: "system",
     });
+    if (typeof window !== "undefined") {
+      const u = new URL(window.location.href);
+      if (u.searchParams.has("session")) {
+        u.searchParams.delete("session");
+        window.history.replaceState({}, "", `${u.pathname}${u.search}${u.hash}`);
+      }
+    }
   }, [appendBubble]);
+
+  const reconnectStream = useCallback(() => {
+    const sid = sessionIdRef.current;
+    if (!sid) {
+      return;
+    }
+    bindWebSocketToCapsule({
+      session_id: sid,
+    });
+  }, [bindWebSocketToCapsule]);
 
   async function sendChat(): Promise<void> {
     const text = input.trim();
@@ -394,24 +430,15 @@ export function BallroomPanel() {
     appendBubble({ agent: "You", text, timestamp: new Date().toISOString(), variant: "user" });
     setInput("");
     try {
-      const res = await fetch("/api/proxy/ballroom/message", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: sid, text }),
-      });
-      if (!res.ok) {
-        appendBubble({
-          agent: "System",
-          text: `Message could not reach the swarm (HTTP ${res.status}).`,
-          timestamp: new Date().toISOString(),
-          variant: "system",
-        });
-      }
-    } catch {
+      await hivePostJson<{ ok?: boolean; session_id?: string }>("ballroom/message", { session_id: sid, text });
+    } catch (exc) {
+      const detail =
+        exc instanceof HiveApiError
+          ? `Message could not reach the swarm (HTTP ${exc.status}${exc.message ? `: ${exc.message}` : ""}).`
+          : "Network error sending to ballroom — try again.";
       appendBubble({
         agent: "System",
-        text: "Network error sending to ballroom — try again.",
+        text: detail,
         timestamp: new Date().toISOString(),
         variant: "system",
       });
@@ -420,14 +447,16 @@ export function BallroomPanel() {
 
   useEffect(() => {
     if (typeof window === "undefined") {
-      return;
+      return undefined;
     }
     const sid = new URLSearchParams(window.location.search).get("session");
     if (sid) {
       bindWebSocketToCapsule({ session_id: sid });
+    } else {
+      void startSession({ quiet: true });
     }
     return () => (window as Window & { __qs_ballroom_ws?: WebSocket }).__qs_ballroom_ws?.close?.();
-  }, [bindWebSocketToCapsule]);
+  }, [bindWebSocketToCapsule, startSession]);
 
   function timeStr(ts: string): string {
     try {
@@ -436,6 +465,16 @@ export function BallroomPanel() {
       return "";
     }
   }
+
+  const emptyLaneHint = useMemo(() => {
+    if (!sessionBound && starting) {
+      return "Opening ballroom channel…";
+    }
+    if (!sessionBound) {
+      return "Use Start session to open the ballroom.";
+    }
+    return "Messages and agent replies appear here — say hello below.";
+  }, [sessionBound, starting]);
 
   return (
     <div className="flex min-h-[calc(100dvh-7rem)] flex-col gap-[var(--qs-gap)] pb-6">
@@ -463,7 +502,12 @@ export function BallroomPanel() {
               </>
             )}
           </button>
-          {!connected ? (
+          {sessionBound && !connected ? (
+            <button type="button" className="qs-btn qs-btn--secondary shrink-0" onClick={() => reconnectStream()}>
+              Reconnect stream
+            </button>
+          ) : null}
+          {!sessionBound ? (
             <button type="button" className="qs-btn qs-btn--primary" disabled={starting} onClick={() => void startSession()}>
               {starting ? "Connecting…" : "Start session"}
             </button>
@@ -481,7 +525,7 @@ export function BallroomPanel() {
             {messages.length === 0 ? (
               <div className="flex flex-1 flex-col items-center justify-center py-16 text-center text-[var(--qs-text-3)]">
                 <div className="mb-3 text-5xl opacity-80">🎙</div>
-                <p className="text-sm">Start a session to talk with your swarm</p>
+                <p className="text-sm">{emptyLaneHint}</p>
               </div>
             ) : (
               messages.map((msg) => {
@@ -528,7 +572,7 @@ export function BallroomPanel() {
           <footer className="flex gap-2.5 border-t border-[var(--qs-border)] px-3 py-3 sm:px-[var(--qs-pad)]">
             <input
               value={input}
-              disabled={!connected}
+              disabled={!sessionBound || starting}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
@@ -536,10 +580,19 @@ export function BallroomPanel() {
                   void sendChat();
                 }
               }}
-              placeholder={connected ? "Send message to the swarm…" : "Start a session first…"}
+              placeholder={
+                starting ? "Opening channel…"
+                : sessionBound ? "Send message to the swarm…"
+                : "Waiting for ballroom…"
+              }
               className="qs-input flex-1 rounded-[var(--qs-radius-sm)]"
             />
-            <button type="button" className="qs-btn qs-btn--primary shrink-0 px-4 disabled:opacity-40" disabled={!connected || !input.trim()} onClick={() => void sendChat()}>
+            <button
+              type="button"
+              className="qs-btn qs-btn--primary shrink-0 px-4 disabled:opacity-40"
+              disabled={!sessionBound || starting || !input.trim()}
+              onClick={() => void sendChat()}
+            >
               Send →
             </button>
           </footer>
@@ -581,7 +634,7 @@ export function BallroomPanel() {
                       {name}
                     </p>
                     <p className="font-mono text-[10px] text-[var(--qs-text-3)]">
-                      {isSpeaking ? "speaking…" : connected ? "listening" : "offline"}
+                      {isSpeaking ? "speaking…" : connected ? "listening" : sessionBound ? "stream reconnecting…" : "offline"}
                     </p>
                   </div>
                   {isSpeaking ? (
@@ -604,11 +657,18 @@ export function BallroomPanel() {
               })
             )}
           </ul>
-          {!connected ? (
-            <p className="mt-auto text-center text-[11px] text-[var(--qs-text-3)]">Start a session to activate agents</p>
+          {!sessionBound ? (
+            <p className="mt-auto text-center text-[11px] text-[var(--qs-text-3)]">Ballroom spins up automatically…</p>
           ) : (
-            <div className="mt-auto rounded-lg border border-[#00FF88]/20 bg-[#00FF88]/[0.06] px-3 py-2 text-center">
-              <p className="font-mono text-[10px] text-[#00FF88]">● SESSION ACTIVE</p>
+            <div
+              className={cn(
+                "mt-auto rounded-lg border px-3 py-2 text-center",
+                connected ? "border-[#00FF88]/20 bg-[#00FF88]/[0.06]" : "border-[var(--qs-border)] bg-[var(--qs-surface-2)]",
+              )}
+            >
+              <p className={cn("font-mono text-[10px]", connected ? "text-[#00FF88]" : "text-[var(--qs-text-3)]")}>
+                {connected ? "● LIVE STREAM" : "○ CHAT READY · STREAM CONNECTING"}
+              </p>
               {sessionLabel ? (
                 <p className="mt-1 truncate font-mono text-[9px] text-[#3a3a5a]">{sessionLabel}</p>
               ) : null}

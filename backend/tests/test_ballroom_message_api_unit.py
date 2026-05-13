@@ -23,16 +23,20 @@ def ballroom_auth_fixture() -> None:
 
 
 @pytest.mark.asyncio
-async def test_ballroom_message_returns_404_for_unknown_session(ballroom_auth_fixture: None) -> None:
-    """Stale or forged session ids must not create silent capsules."""
+async def test_ballroom_message_creates_capsule_when_session_only_known_from_url(
+    ballroom_auth_fixture: None,
+) -> None:
+    """Operator chat succeeds before the websocket handshake finishes (matches /ws lax capsule policy)."""
 
+    sid = uuid.uuid4()
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         resp = await client.post(
             "/api/v1/ballroom/message",
-            json={"session_id": str(uuid.uuid4()), "text": "hello swarm"},
+            json={"session_id": str(sid), "text": "hello swarm"},
         )
-    assert resp.status_code == 404
+    assert resp.status_code == 202
+    assert sid in rb._CAPSULES
 
 
 @pytest.mark.asyncio

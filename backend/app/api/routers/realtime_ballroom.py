@@ -543,8 +543,10 @@ async def start_ballroom_session_alias(_subject: JwtSubject) -> dict[str, object
 async def ballroom_post_chat(body: BallroomChatMessageBody, subject: JwtSubject) -> dict[str, object]:
     """Queue user text; responses stream as ballroom.transcript on the websocket."""
 
-    if body.session_id not in _CAPSULES:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session_not_found")
+    # Match websocket handshake: transcripts use in-memory capsules. Creating here avoids a race
+    # where the client POSTs before /ws/stream runs _ensure_capsule, which previously surfaced as 404.
+    _SESSION_CHANNELS.setdefault(body.session_id, set())
+    _ensure_capsule(body.session_id)
     logger.info(
         "ballroom.message_accepted",
         actor=subject,
