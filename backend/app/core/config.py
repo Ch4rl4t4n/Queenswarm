@@ -267,6 +267,12 @@ class Settings(BaseSettings):
 
     # --- Domain & CORS (Bee-Hive Dashboard origin)
     domain: str = "queenswarm.love"
+    dashboard_totpissuer: str = Field(
+        default="Queenswarm",
+        min_length=1,
+        max_length=80,
+        description="Issuer embedded in otpauth:// URIs for dashboard TOTP (Authenticator label).",
+    )
     cors_origins: list[str] | str = Field(
         default_factory=lambda: [
             "https://queenswarm.love",
