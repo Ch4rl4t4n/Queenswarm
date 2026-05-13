@@ -257,7 +257,7 @@ export function SwarmManagerConsole() {
         <button
           type="button"
           onClick={() => setCreating(true)}
-          className="rounded-xl border-2 border-pollen bg-pollen px-4 py-2 font-[family-name:var(--font-poppins)] text-xs font-bold text-black shadow-[0_0_24px_rgb(255_184_0/0.35)]"
+          className="qs-btn qs-btn--primary qs-btn--sm whitespace-nowrap"
         >
           + New swarm
         </button>
@@ -349,18 +349,10 @@ export function SwarmManagerConsole() {
               className="mt-2 w-full resize-y rounded-xl border border-white/15 bg-black/55 px-3 py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-xs text-[#fafafa] outline-none focus:border-cyan/40"
             />
             <div className="mt-6 flex gap-3">
-              <button
-                type="button"
-                onClick={() => setCreating(false)}
-                className="flex-1 rounded-xl border border-white/15 px-4 py-2.5 font-[family-name:var(--font-inter)] text-sm font-semibold text-zinc-400"
-              >
+              <button type="button" onClick={() => setCreating(false)} className="qs-btn qs-btn--secondary qs-btn--full flex-1">
                 Cancel
               </button>
-              <button
-                type="button"
-                onClick={() => void createSwarm()}
-                className="flex-[2] rounded-xl bg-pollen py-2.5 font-[family-name:var(--font-poppins)] text-sm font-bold text-black shadow-[0_0_26px_rgb(255_184_0/0.35)]"
-              >
+              <button type="button" onClick={() => void createSwarm()} className="qs-btn qs-btn--primary qs-btn--full flex-[2]">
                 Create
               </button>
             </div>
@@ -379,11 +371,7 @@ export function SwarmManagerConsole() {
             No swarms yet
           </p>
           <p className="mt-2 text-sm text-zinc-500">Create one, then attach bees.</p>
-          <button
-            type="button"
-            onClick={() => setCreating(true)}
-            className="mt-6 rounded-xl bg-pollen px-5 py-2.5 font-[family-name:var(--font-poppins)] text-sm font-bold text-black"
-          >
+          <button type="button" onClick={() => setCreating(true)} className="qs-btn qs-btn--primary mt-6">
             Create first swarm
           </button>
         </div>
@@ -424,31 +412,22 @@ export function SwarmManagerConsole() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={() => void wakeSwarm(swarm.id)}
-                      className="rounded-xl border px-3 py-1.5 font-[family-name:var(--font-jetbrains-mono)] text-[11px] font-semibold"
-                      style={{
-                        borderColor: `${color}55`,
-                        backgroundColor: `${color}14`,
-                        color,
-                      }}
+                      className="qs-btn qs-btn--green qs-btn--sm"
                     >
-                      Wake
+                      ▶ Wake
                     </button>
                     <button
                       type="button"
                       onClick={() => setAssigningTo((x) => (x === swarm.id ? null : swarm.id))}
-                      className="rounded-xl border border-white/15 bg-transparent px-3 py-1.5 font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-300 hover:border-pollen/30"
+                      className="qs-btn qs-btn--ghost qs-btn--sm"
                     >
                       + Assign bees
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => void deleteSwarm(swarm.id)}
-                      className="rounded-xl border border-danger/35 bg-transparent px-3 py-1.5 font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-danger"
-                    >
+                    <button type="button" onClick={() => void deleteSwarm(swarm.id)} className="qs-btn qs-btn--danger qs-btn--sm">
                       Delete
                     </button>
                   </div>

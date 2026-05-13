@@ -430,8 +430,10 @@ export function BallroomPanel() {
         <div className="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
-            className="qs-btn qs-btn--ghost qs-btn--sm border border-[color:var(--qs-border)] bg-transparent"
-            style={{ borderColor: muted ? "var(--qs-red)" : "var(--qs-border)" }}
+            className={cn(
+              "qs-btn qs-btn--ghost qs-btn--sm",
+              muted && "!border-[var(--qs-red)] !text-[var(--qs-red)]",
+            )}
             onClick={() => setMuted((v) => !v)}
           >
             {muted ? (

@@ -196,10 +196,7 @@ export function TaskQueueSection() {
             {data.running_count} beží · {data.pending_count} čaká · {data.completed_today_count} dokončených dnes
           </p>
         </div>
-        <Link
-          href="/tasks/new"
-          className="inline-flex items-center justify-center gap-2 rounded-2xl border-[2px] border-pollen bg-pollen px-5 py-3 font-[family-name:var(--font-poppins)] text-sm font-bold text-black shadow-[0_0_28px_rgb(255_184_0/0.42)] transition hover:bg-[#ffc933]"
-        >
+        <Link href="/tasks/new" className="qs-btn qs-btn--primary gap-2">
           <Plus className="h-4 w-4" aria-hidden />
           Nová úloha
         </Link>
@@ -221,12 +218,7 @@ export function TaskQueueSection() {
                 key={key}
                 type="button"
                 onClick={() => setTab(key)}
-                className={cn(
-                  "rounded-full border px-3 py-1.5 font-[family-name:var(--font-inter)] text-xs font-semibold transition",
-                  active
-                    ? "border-white/15 bg-white/10 text-pollen"
-                    : "border-transparent bg-black/40 text-zinc-500 hover:border-cyan/20 hover:text-zinc-300",
-                )}
+                className={cn("qs-pill", active && "qs-pill--active-amber")}
               >
                 {label}
               </button>

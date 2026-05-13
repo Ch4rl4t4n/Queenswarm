@@ -179,7 +179,7 @@ export function SettingsLlmKeysPanel() {
                     type="button"
                     disabled={busy}
                     onClick={() => void testProvider(provider)}
-                    className="qs-btn qs-btn--test qs-btn--sm"
+                    className="qs-btn qs-btn--cyan qs-btn--sm"
                   >
                     Test
                   </button>

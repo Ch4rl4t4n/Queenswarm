@@ -89,6 +89,22 @@ function laneUi(lane: TargetLane): { label: string; badgeClass: string } {
   return all[lane];
 }
 
+function lanePillActive(lane: TargetLane): string {
+  const map: Record<TargetLane, string> = {
+    scout: "qs-pill--active-cyan",
+    eval: "qs-pill--active-amber",
+    sim: "qs-pill--active-magenta",
+    action: "qs-pill--active-green",
+  };
+  return map[lane];
+}
+
+function priorityPillActive(p: PriorityLevel): string {
+  if (p === "low") return "qs-pill--active-cyan";
+  if (p === "normal") return "qs-pill--active-green";
+  return "qs-pill--active-amber";
+}
+
 function HexStepIcon({ n, className }: { n: number; className: string }) {
   return (
     <div
@@ -292,10 +308,7 @@ export function NewTaskConsole() {
   return (
     <div className="mx-auto w-full max-w-3xl pb-24">
       <div className="mb-8 flex flex-col gap-4">
-        <Link
-          href="/"
-          className="inline-flex w-fit items-center gap-1 rounded-xl border border-white/10 bg-black/40 px-3 py-2 font-[family-name:var(--font-inter)] text-xs font-semibold text-zinc-400 transition hover:border-cyan/25 hover:text-pollen"
-        >
+        <Link href="/" className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5 px-4">
           <ChevronLeftIcon className="h-4 w-4" aria-hidden />
           Späť
         </Link>
@@ -322,20 +335,14 @@ export function NewTaskConsole() {
             <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">Cieľový swarm</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {TARGET_LANES.map((lane) => {
-                const { label, badgeClass } = laneUi(lane);
+                const { label } = laneUi(lane);
                 const active = targetLane === lane;
                 return (
                   <button
                     key={lane}
                     type="button"
                     onClick={() => setTargetLane(lane)}
-                    className={cn(
-                      "rounded-full border px-3 py-1.5 font-[family-name:var(--font-jetbrains-mono)] text-[11px] font-semibold uppercase tracking-wide transition",
-                      badgeClass,
-                      active
-                        ? "bg-white/[0.06] shadow-[0_0_18px_rgb(255_184_0/0.18)] ring-2 ring-pollen/35"
-                        : "bg-transparent opacity-80 hover:opacity-100",
-                    )}
+                    className={cn("qs-pill uppercase tracking-wide", active && lanePillActive(lane))}
                   >
                     {label}
                   </button>
@@ -357,17 +364,7 @@ export function NewTaskConsole() {
                 ).map(([key, label]) => {
                   const active = priority === key;
                   return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setPriority(key)}
-                      className={cn(
-                        "rounded-full border border-white/15 px-3 py-1.5 font-[family-name:var(--font-inter)] text-xs font-medium transition",
-                        active
-                          ? "border-pollen/60 text-pollen shadow-[0_0_22px_rgb(255_184_0/0.35)]"
-                          : "text-zinc-500 hover:border-cyan/25 hover:text-zinc-300",
-                      )}
-                    >
+                    <button key={key} type="button" onClick={() => setPriority(key)} className={cn("qs-pill", active && priorityPillActive(key))}>
                       {label}
                     </button>
                   );
@@ -375,15 +372,15 @@ export function NewTaskConsole() {
               </div>
             </div>
 
-            <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-success/30 bg-success/[0.04] px-3 py-2 sm:mt-6">
-              <input
-                type="checkbox"
-                checked={enrichRecipes}
-                onChange={(e) => setEnrichRecipes(e.target.checked)}
-                className="h-4 w-4 rounded border-cyan/40 bg-black/60 text-pollen focus:ring-pollen/40"
-              />
-              <span className="font-[family-name:var(--font-inter)] text-xs text-zinc-400">Chroma · knižnica receptov</span>
-            </label>
+            <div className="flex flex-col gap-2 sm:mt-auto sm:items-end">
+              <button
+                type="button"
+                onClick={() => setEnrichRecipes((v) => !v)}
+                className={cn("qs-pill", enrichRecipes && "qs-pill--active-cyan")}
+              >
+                {enrichRecipes ? "✓ " : ""}Chroma · knižnica receptov
+              </button>
+            </div>
           </div>
 
           {recipeMatch ? (
@@ -430,21 +427,11 @@ export function NewTaskConsole() {
             </div>
             <div className="flex flex-wrap gap-2.5">
               {(previewError.includes("403") || previewError.toLowerCase().includes("credit")) && (
-                <a
-                  href="https://console.x.ai"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-lg border border-pollen/30 px-[14px] py-[7px] font-mono text-xs text-pollen underline-offset-2 hover:opacity-90"
-                  style={{ textDecoration: "none" }}
-                >
+                <a href="https://console.x.ai" target="_blank" rel="noreferrer" className="qs-btn qs-btn--primary qs-btn--sm">
                   Add Grok credits →
                 </a>
               )}
-              <Link
-                href="/settings/llm-keys"
-                className="rounded-lg border border-[#1e1e35] px-[14px] py-[7px] font-mono text-xs text-[#9898b8] hover:border-cyan/30 hover:text-cyan"
-                style={{ textDecoration: "none" }}
-              >
+              <Link href="/settings/llm-keys" className="qs-btn qs-btn--ghost qs-btn--sm">
                 Settings → LLM keys
               </Link>
             </div>
@@ -509,7 +496,7 @@ export function NewTaskConsole() {
               type="button"
               disabled={saveBusy || displaySteps.length < 3}
               onClick={() => void onSaveRecipe()}
-              className="rounded-xl border border-white/15 bg-black/45 px-4 py-2.5 font-[family-name:var(--font-inter)] text-sm font-semibold text-zinc-200 transition hover:border-pollen/30 hover:text-pollen disabled:opacity-40"
+              className="qs-btn qs-btn--secondary disabled:opacity-40"
             >
               {saveBusy ? "Ukladám…" : "Uložiť ako recept"}
             </button>
@@ -517,10 +504,10 @@ export function NewTaskConsole() {
               type="button"
               disabled={submitBusy || taskText.trim().length < 8}
               onClick={() => void onSubmit()}
-              className="inline-flex items-center gap-2 rounded-xl border-[2px] border-pollen bg-pollen px-5 py-2.5 font-[family-name:var(--font-poppins)] text-sm font-black text-black shadow-[0_0_32px_rgb(255_184_0/0.38)] transition hover:bg-[#ffc933] disabled:opacity-45"
+              className="qs-btn qs-btn--primary gap-2 disabled:opacity-40"
             >
               <PlayIcon className="h-4 w-4" aria-hidden />
-              {submitBusy ? "Odosielam…" : "Odoslať"}
+              {submitBusy ? "Odosielam…" : "▶ Odoslať"}
             </button>
           </div>
         </div>

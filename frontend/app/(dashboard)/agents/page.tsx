@@ -26,7 +26,7 @@ export default async function AgentsPage() {
             </span>
             <Link
               href="/agents/new"
-              className="rounded-lg bg-pollen px-4 py-2 text-xs font-semibold uppercase tracking-wide text-black hover:opacity-95"
+              className="qs-btn qs-btn--ghost qs-btn--sm whitespace-nowrap"
               prefetch={false}
             >
               + Spawn agent

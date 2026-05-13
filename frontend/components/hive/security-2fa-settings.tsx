@@ -382,17 +382,13 @@ export function Security2FASettings() {
                   autoComplete="current-password"
                 />
                 <div className="mt-4 flex justify-end gap-2">
-                  <button
-                    type="button"
-                    className="rounded-xl px-4 py-2 text-sm text-zinc-400 hover:text-[#fafafa]"
-                    onClick={() => setEnrollOpen(false)}
-                  >
+                  <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => setEnrollOpen(false)}>
                     Zrušiť
                   </button>
                   <button
                     type="button"
                     disabled={busy}
-                    className="rounded-xl border border-pollen bg-pollen px-4 py-2 text-sm font-bold text-black disabled:opacity-40"
+                    className="qs-btn qs-btn--primary qs-btn--sm disabled:opacity-40"
                     onClick={() => void submitEnrollPassword()}
                   >
                     Ďalej
@@ -417,7 +413,7 @@ export function Security2FASettings() {
                 </p>
                 <button
                   type="button"
-                  className="mt-4 w-full rounded-xl border border-cyan/30 py-2 text-sm text-cyan"
+                  className="mt-4 qs-btn qs-btn--cyan qs-btn--full"
                   onClick={() => setEnrollPhase("confirm")}
                 >
                   Mám naskenované — zadať kód
@@ -439,13 +435,13 @@ export function Security2FASettings() {
                   className="mt-4 w-full rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-pollen/40"
                 />
                 <div className="mt-4 flex justify-end gap-2">
-                  <button type="button" className="rounded-xl px-4 py-2 text-sm text-zinc-400" onClick={() => setEnrollOpen(false)}>
+                  <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => setEnrollOpen(false)}>
                     Zrušiť
                   </button>
                   <button
                     type="button"
                     disabled={busy}
-                    className="rounded-xl border border-pollen bg-pollen px-4 py-2 text-sm font-bold text-black disabled:opacity-40"
+                    className="qs-btn qs-btn--primary qs-btn--sm disabled:opacity-40"
                     onClick={() => void submitConfirmTotp()}
                   >
                     Overiť
@@ -469,13 +465,13 @@ export function Security2FASettings() {
               className="mt-4 w-full rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 text-sm outline-none"
             />
             <div className="mt-4 flex justify-end gap-2">
-              <button type="button" className="rounded-xl px-3 py-2 text-sm text-zinc-400" onClick={() => setDisableOpen(false)}>
+              <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => setDisableOpen(false)}>
                 Zrušiť
               </button>
               <button
                 type="button"
                 disabled={busy}
-                className="rounded-xl bg-danger/80 px-3 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                className="qs-btn qs-btn--danger qs-btn--sm disabled:opacity-40"
                 onClick={() => void submitDisable()}
               >
                 Vypnúť
@@ -497,13 +493,13 @@ export function Security2FASettings() {
               className="mt-4 w-full rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 text-sm outline-none"
             />
             <div className="mt-4 flex justify-end gap-2">
-              <button type="button" className="rounded-xl px-3 py-2 text-sm text-zinc-400" onClick={() => setRegenOpen(false)}>
+              <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => setRegenOpen(false)}>
                 Zrušiť
               </button>
               <button
                 type="button"
                 disabled={busy}
-                className="rounded-xl border border-pollen bg-pollen/90 px-3 py-2 text-sm font-bold text-black disabled:opacity-40"
+                className="qs-btn qs-btn--primary qs-btn--sm disabled:opacity-40"
                 onClick={() => void submitRegenerate()}
               >
                 Vygenerovať
@@ -524,18 +520,10 @@ export function Security2FASettings() {
               ))}
             </ul>
             <div className="mt-6 flex flex-wrap gap-2">
-              <button
-                type="button"
-                className="rounded-xl border border-white/20 px-4 py-2 text-sm text-zinc-200"
-                onClick={() => downloadBackupCodes(freshCodes)}
-              >
+              <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => downloadBackupCodes(freshCodes)}>
                 Stiahnuť .txt
               </button>
-              <button
-                type="button"
-                className="rounded-xl bg-pollen px-4 py-2 text-sm font-bold text-black"
-                onClick={() => setFreshCodes(null)}
-              >
+              <button type="button" className="qs-btn qs-btn--primary qs-btn--sm" onClick={() => setFreshCodes(null)}>
                 Rozumiem
               </button>
             </div>

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import { NeonButton } from "@/components/ui/neon-button";
 import type { TaskRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
@@ -179,8 +178,8 @@ export function TasksQueueSection({ tasks }: TasksQueueSectionProps) {
 
 export function TasksNewTaskActions() {
   return (
-    <NeonButton asChild variant="primary" className="uppercase tracking-[0.12em]">
-      <Link href="/tasks/new">+ New task</Link>
-    </NeonButton>
+    <Link href="/tasks/new" className="qs-btn qs-btn--primary">
+      + New task
+    </Link>
   );
 }

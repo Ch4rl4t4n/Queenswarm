@@ -330,7 +330,7 @@ export function SettingsApiKeysPanel() {
               {minted.plaintext}
             </pre>
             <div className="mt-6 flex gap-3">
-              <button type="button" className="qs-btn qs-btn--test qs-btn--sm px-4" onClick={() => copyPlaintext()}>
+              <button type="button" className="qs-btn qs-btn--cyan qs-btn--sm px-4" onClick={() => copyPlaintext()}>
                 Copy
               </button>
               <button type="button" className="qs-btn qs-btn--primary qs-btn--sm px-4" onClick={() => setMinted(null)}>

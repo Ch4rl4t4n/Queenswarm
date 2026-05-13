@@ -407,15 +407,31 @@
     font-family: var(--font-poppins), system-ui, sans-serif;
   }
 
+  /* ── BUTTON SYSTEM — Poppins 13px / semibold ── */
   .qs-btn {
-    padding: 8px 16px;
-    border-radius: var(--qs-radius-sm);
-    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-family: "Poppins", var(--font-poppins), system-ui, sans-serif;
+    font-size: 13px;
     font-weight: 600;
+    line-height: 1;
     cursor: pointer;
     border: none;
-    font-family: var(--font-poppins), system-ui, sans-serif;
-    transition: opacity 0.15s, transform 0.1s;
+    white-space: nowrap;
+    transition:
+      opacity 0.15s ease,
+      transform 0.1s ease,
+      box-shadow 0.15s ease;
+    text-decoration: none;
+    box-sizing: border-box;
+  }
+
+  a.qs-btn {
+    display: inline-flex;
   }
 
   .qs-btn:hover:not(:disabled) {
@@ -426,37 +442,162 @@
     transform: scale(0.97);
   }
 
+  .qs-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* PRIMARY — amber CTA */
   .qs-btn--primary {
-    background: var(--qs-amber);
-    color: #000;
+    background: #ffb800;
+    color: #000000;
+    box-shadow: 0 0 20px rgba(255, 184, 0, 0.2);
+  }
+
+  .qs-btn--primary:hover:not(:disabled) {
+    box-shadow: 0 0 28px rgba(255, 184, 0, 0.35);
+  }
+
+  .qs-btn--secondary {
+    background: #1a1a2e;
+    color: #e8e8f0;
+    border: 1px solid #2a2a45;
+  }
+
+  .qs-btn--secondary:hover:not(:disabled) {
+    background: #22223a;
+    border-color: #3a3a5a;
   }
 
   .qs-btn--ghost {
     background: transparent;
-    border: 1px solid var(--qs-border);
-    color: var(--qs-text-2);
+    color: #9898b8;
+    border: 1px solid #2a2a45;
+  }
+
+  .qs-btn--ghost:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: #4a4a6a;
+    color: #e8e8f0;
   }
 
   .qs-btn--danger {
     background: transparent;
-    border: 1px solid rgb(255 51 102 / 0.4);
-    color: var(--qs-red);
+    color: #ff3366;
+    border: 1px solid rgba(255, 51, 102, 0.35);
   }
 
+  .qs-btn--danger:hover:not(:disabled) {
+    background: rgba(255, 51, 102, 0.08);
+    border-color: rgba(255, 51, 102, 0.6);
+  }
+
+  /* aliased legacy name */
+  .qs-btn--cyan,
   .qs-btn--test {
     background: transparent;
-    border: 1px solid rgb(0 229 255 / 0.4);
-    color: var(--qs-cyan);
+    color: #00e5ff;
+    border: 1px solid rgba(0, 229, 255, 0.35);
+  }
+
+  .qs-btn--cyan:hover:not(:disabled),
+  .qs-btn--test:hover:not(:disabled) {
+    background: rgba(0, 229, 255, 0.08);
+    border-color: rgba(0, 229, 255, 0.6);
+  }
+
+  .qs-btn--green {
+    background: transparent;
+    color: #00ff88;
+    border: 1px solid rgba(0, 255, 136, 0.35);
+  }
+
+  .qs-btn--green:hover:not(:disabled) {
+    background: rgba(0, 255, 136, 0.08);
+    border-color: rgba(0, 255, 136, 0.6);
   }
 
   .qs-btn--sm {
-    padding: 5px 10px;
+    padding: 5px 12px;
     font-size: 11px;
+    border-radius: 6px;
+    gap: 4px;
   }
 
-  .qs-btn:disabled {
+  .qs-btn--lg {
+    padding: 12px 28px;
+    font-size: 14px;
+    border-radius: 10px;
+  }
+
+  .qs-btn--xl {
+    padding: 14px 32px;
+    font-size: 15px;
+    border-radius: 12px;
+  }
+
+  .qs-btn--full {
+    width: 100%;
+  }
+
+  .qs-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 14px;
+    border-radius: 999px;
+    font-family: "Poppins", var(--font-poppins), system-ui, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid #2a2a45;
+    background: transparent;
+    color: #9898b8;
+    transition: all 0.15s;
+    white-space: nowrap;
+    line-height: 1;
+    box-sizing: border-box;
+  }
+
+  .qs-pill:hover:not(:disabled) {
+    border-color: #4a4a6a;
+    color: #e8e8f0;
+  }
+
+  .qs-pill:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+  }
+
+  .qs-pill--active-amber {
+    background: rgba(255, 184, 0, 0.12);
+    color: #ffb800;
+    border-color: rgba(255, 184, 0, 0.4);
+  }
+
+  .qs-pill--active-cyan {
+    background: rgba(0, 229, 255, 0.1);
+    color: #00e5ff;
+    border-color: rgba(0, 229, 255, 0.4);
+  }
+
+  .qs-pill--active-green {
+    background: rgba(0, 255, 136, 0.1);
+    color: #00ff88;
+    border-color: rgba(0, 255, 136, 0.4);
+  }
+
+  .qs-pill--active-magenta {
+    background: rgba(255, 0, 170, 0.1);
+    color: #ff00aa;
+    border-color: rgba(255, 0, 170, 0.4);
+  }
+
+  .qs-pill--active-red {
+    background: rgba(255, 51, 102, 0.1);
+    color: #ff3366;
+    border-color: rgba(255, 51, 102, 0.4);
   }
 
   .qs-badge {

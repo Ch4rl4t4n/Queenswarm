@@ -377,7 +377,7 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
         </div>
         {!loading && task?.agent_id ? (
           <footer className="flex justify-end gap-2 border-t border-[var(--qs-border)] bg-[var(--qs-surface-2)] p-4">
-            <button type="button" className="qs-btn qs-btn--test qs-btn--sm" onClick={() => void handleRerunAgent()}>
+            <button type="button" className="qs-btn qs-btn--cyan qs-btn--sm" onClick={() => void handleRerunAgent()}>
               Re-run agent
             </button>
           </footer>

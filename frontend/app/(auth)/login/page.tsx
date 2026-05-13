@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { QueenHoneycombLogo } from "@/components/auth/queen-honeycomb-logo";
+import { cn } from "@/lib/utils";
 
 type LoginStep = "credentials" | "otp";
 
@@ -536,21 +537,7 @@ function LoginFormInner(): JSX.Element {
               type="button"
               onClick={() => void handleLogin()}
               disabled={loading}
-              style={{
-                width: "100%",
-                padding: "14px",
-                borderRadius: 12,
-                border: "none",
-                background: loading ? "#cc9400" : "#FFB800",
-                color: "#000",
-                fontWeight: 700,
-                fontSize: 14,
-                letterSpacing: "0.06em",
-                cursor: loading ? "not-allowed" : "pointer",
-                fontFamily: "'Poppins', sans-serif",
-                boxShadow: loading ? "none" : "0 0 28px rgba(255,184,0,0.28)",
-                transition: "all 0.15s",
-              }}
+              className={cn("qs-btn qs-btn--primary qs-btn--xl qs-btn--full")}
             >
               {loading ? "Entering hive..." : "CONTINUE →"}
             </button>

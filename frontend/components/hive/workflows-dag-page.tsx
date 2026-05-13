@@ -9,6 +9,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { cn } from "@/lib/utils";
+
 interface WorkflowStep {
   id: string;
   name: string;
@@ -516,52 +518,30 @@ export default function WorkflowsDagPage(): JSX.Element {
 
   return (
     <div className="space-y-6">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, flexWrap: "wrap", gap: 16 }}>
+      <div className="mb-2 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="font-[family-name:var(--font-poppins)] text-2xl font-bold text-[#e8e8f0]">Workflows</h1>
-          <p style={{ color: "#5a5a7a", fontSize: 13, marginTop: 4 }}>DAG executions · auto-decomposed from tasks</p>
+          <p className="mt-1 text-[13px] text-[#5a5a7a]">DAG executions · auto-decomposed from tasks</p>
         </div>
-        <Link href="/tasks/new">
-          <button
-            type="button"
-            style={{
-              padding: "9px 18px",
-              borderRadius: 9,
-              background: "#FFB800",
-              color: "#000",
-              fontWeight: 700,
-              fontSize: 13,
-              border: "none",
-              cursor: "pointer",
-            }}
-          >
-            + New task
-          </button>
+        <Link href="/tasks/new" className="qs-btn qs-btn--primary">
+          + New task
         </Link>
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+      <div className="mb-3 flex flex-wrap gap-2">
         {(["all", "running", "completed", "failed"] as const).map((f) => {
           const active = filter === f;
-          const col = f === "running" ? "#00E5FF" : f === "completed" ? "#00FF88" : f === "failed" ? "#FF3366" : "#FFB800";
+          const activeClass =
+            f === "all"
+              ? "qs-pill--active-amber"
+              : f === "running"
+                ? "qs-pill--active-cyan"
+                : f === "completed"
+                  ? "qs-pill--active-green"
+                  : "qs-pill--active-red";
           return (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setFilter(f)}
-              style={{
-                padding: "5px 14px",
-                borderRadius: 999,
-                fontSize: 12,
-                background: active ? `${col}18` : "transparent",
-                border: `1px solid ${active ? `${col}55` : "#1e1e35"}`,
-                color: active ? col : "#5a5a7a",
-                cursor: "pointer",
-                fontFamily: "var(--font-hive-mono)",
-                fontWeight: 600,
-              }}
-            >
-              {f.charAt(0).toUpperCase() + f.slice(1)} · {counts[f]}
+            <button key={f} type="button" onClick={() => setFilter(f)} className={cn("qs-pill capitalize", active && activeClass)}>
+              {f} · {counts[f]}
             </button>
           );
         })}
@@ -586,22 +566,8 @@ export default function WorkflowsDagPage(): JSX.Element {
           <div style={{ color: "#5a5a7a", fontSize: 13, marginBottom: 16 }}>
             Create a task and the Auto-Workflow Breaker will decompose it into steps
           </div>
-          <Link href="/tasks/new">
-            <button
-              type="button"
-              style={{
-                padding: "8px 20px",
-                borderRadius: 8,
-                background: "#FFB800",
-                color: "#000",
-                fontWeight: 700,
-                fontSize: 13,
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
-              Create first task →
-            </button>
+          <Link href="/tasks/new" className="qs-btn qs-btn--primary">
+            Create first task →
           </Link>
         </div>
       ) : (

@@ -95,6 +95,25 @@ function laneTabLabel(key: Exclude<AgentsSwarmFilter, "all">): string {
   return labels[key];
 }
 
+function rosterFilterActiveClass(key: AgentsSwarmFilter): string {
+  switch (key) {
+    case "all":
+      return "qs-pill--active-amber";
+    case "unassigned":
+      return "qs-pill--active-red";
+    case "scout":
+      return "qs-pill--active-cyan";
+    case "eval":
+      return "qs-pill--active-amber";
+    case "sim":
+      return "qs-pill--active-magenta";
+    case "action":
+      return "qs-pill--active-green";
+    default:
+      return "qs-pill--active-amber";
+  }
+}
+
 function formatPollen(n: number): string {
   if (n >= 1_000_000) {
     return `${(n / 1_000_000).toFixed(1)}M`;
@@ -336,10 +355,7 @@ export function AgentsLiveSection({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Link
-            href={spawnHref}
-            className="inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-black/50 px-4 py-2.5 font-[family-name:var(--font-inter)] text-sm font-semibold text-[#fafafa] transition hover:border-cyan/35 hover:text-pollen"
-          >
+          <Link href={spawnHref} className="qs-btn qs-btn--ghost gap-2">
             <Plus className="h-4 w-4" aria-hidden />
             Pridať agenta
           </Link>
@@ -347,7 +363,7 @@ export function AgentsLiveSection({
             type="button"
             disabled={rebalanceBusy}
             onClick={() => void onRebalanceHive()}
-            className="inline-flex items-center gap-2 rounded-2xl border-[2px] border-pollen bg-pollen px-4 py-2.5 font-[family-name:var(--font-poppins)] text-sm font-bold text-black shadow-[0_0_28px_rgb(255_184_0/0.42)] transition hover:bg-[#ffc933] disabled:opacity-45"
+            className="qs-btn qs-btn--primary gap-2 disabled:opacity-40"
           >
             <Play className="h-4 w-4" aria-hidden />
             {rebalanceBusy ? "Prebieha…" : "Vyrovnať úľ"}
@@ -364,12 +380,7 @@ export function AgentsLiveSection({
                 key={key}
                 type="button"
                 onClick={() => setSwarmFilter(key)}
-                className={cn(
-                  "rounded-full border px-3 py-1.5 font-[family-name:var(--font-inter)] text-xs font-semibold transition",
-                  active
-                    ? "border-pollen/70 bg-pollen/10 text-pollen shadow-[0_0_18px_rgb(255_184_0/0.22)]"
-                    : "border-white/10 bg-black/40 text-zinc-500 hover:border-cyan/25 hover:text-zinc-300",
-                )}
+                className={cn("qs-pill", active && rosterFilterActiveClass(key))}
               >
                 {key === "all"
                   ? `Všetko · ${String(count)}`
@@ -378,18 +389,11 @@ export function AgentsLiveSection({
             );
           })}
         </div>
-        <div
-          role="group"
-          aria-label="Zobrazenie"
-          className="flex rounded-xl border border-white/10 bg-black/45 p-1"
-        >
+        <div role="group" aria-label="Zobrazenie" className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => setViewMode("grid")}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-[family-name:var(--font-inter)] text-xs font-semibold transition",
-              viewMode === "grid" ? "bg-white/10 text-pollen" : "text-zinc-500 hover:text-zinc-300",
-            )}
+            className={cn("qs-pill gap-1.5", viewMode === "grid" && "qs-pill--active-amber")}
           >
             <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
             Mriežka
@@ -397,10 +401,7 @@ export function AgentsLiveSection({
           <button
             type="button"
             onClick={() => setViewMode("list")}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-[family-name:var(--font-inter)] text-xs font-semibold transition",
-              viewMode === "list" ? "bg-white/10 text-pollen" : "text-zinc-500 hover:text-zinc-300",
-            )}
+            className={cn("qs-pill gap-1.5", viewMode === "list" && "qs-pill--active-amber")}
           >
             <List className="h-3.5 w-3.5" aria-hidden />
             Zoznam

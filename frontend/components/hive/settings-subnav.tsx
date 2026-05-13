@@ -29,8 +29,8 @@ export function SettingsSubnav() {
             key={href}
             href={href}
             className={cn(
-              "shrink-0 rounded-xl px-3 py-2.5 font-[family-name:var(--font-inter)] text-sm transition lg:block",
-              active ? "bg-[rgb(61_53_38/0.92)] text-pollen shadow-[inset_0_0_0_1px_rgb(255_184_0/0.3)]" : "text-zinc-400 hover:bg-white/[0.04] hover:text-pollen",
+              "qs-pill shrink-0 px-4 py-3 text-center transition lg:block lg:w-full",
+              active && "qs-pill--active-amber",
             )}
           >
             {label}

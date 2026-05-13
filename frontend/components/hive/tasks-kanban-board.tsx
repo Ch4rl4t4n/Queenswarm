@@ -220,14 +220,7 @@ function ConfidenceHint({ result }: { result?: TaskRow["result"] }): JSX.Element
 
 function NeonTasksNew(): JSX.Element {
   return (
-    <Link
-      href="/tasks/new"
-      className={cn(
-        "inline-flex items-center justify-center rounded-full border border-pollen bg-pollen px-4 py-2",
-        "font-[family-name:var(--font-poppins)] text-xs font-semibold uppercase tracking-[0.16em] text-black",
-        "glow-amber transition hover:bg-[#ffc933]",
-      )}
-    >
+    <Link href="/tasks/new" className={cn("qs-btn qs-btn--primary qs-btn--sm")}>
       + New Task
     </Link>
   );

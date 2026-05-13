@@ -86,10 +86,7 @@ export function TasksListPanel({ tasks, onOpenTask }: TasksListPanelProps): JSX.
   const filtered = useMemo(() => tasks.filter((t) => matchesTab(t.status, tab)), [tasks, tab]);
 
   function tabBtn(active: boolean): string {
-    return cn(
-      "rounded-full border px-3 py-1.5 font-[family-name:var(--font-inter)] text-xs font-semibold transition",
-      active ? "border-pollen/50 bg-pollen/10 text-pollen" : "border-transparent bg-black/45 text-zinc-500 hover:border-cyan/20 hover:text-zinc-300",
-    );
+    return cn("qs-pill", active && "qs-pill--active-amber");
   }
 
   return (
@@ -109,10 +106,7 @@ export function TasksListPanel({ tasks, onOpenTask }: TasksListPanelProps): JSX.
             </button>
           ))}
         </div>
-        <Link
-          href="/tasks/new"
-          className="inline-flex items-center justify-center gap-2 rounded-2xl border-[2px] border-pollen bg-pollen px-5 py-2.5 font-[family-name:var(--font-poppins)] text-sm font-bold text-black shadow-[0_0_24px_rgb(255_184_0/0.35)] hover:bg-[#ffc933]"
-        >
+        <Link href="/tasks/new" className="qs-btn qs-btn--primary gap-2">
           <Plus className="h-4 w-4" aria-hidden />+ New task
         </Link>
       </div>

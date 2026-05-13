@@ -346,7 +346,7 @@ export function SettingsNotificationsPanel() {
                 <button type="button" disabled={busy} onClick={() => void saveChannel(slug)} className="qs-btn qs-btn--primary qs-btn--sm">
                   Save channel
                 </button>
-                <button type="button" disabled={busy} onClick={() => void sendTest(slug)} className="qs-btn qs-btn--test qs-btn--sm">
+                <button type="button" disabled={busy} onClick={() => void sendTest(slug)} className="qs-btn qs-btn--cyan qs-btn--sm">
                   Send test
                 </button>
                 <button type="button" disabled={busy} onClick={() => void clearChannel(slug)} className="qs-btn qs-btn--danger qs-btn--sm">

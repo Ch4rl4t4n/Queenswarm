@@ -224,7 +224,7 @@ export default function AgentDetailPage(): JSX.Element {
             <button
               type="button"
               onClick={() => router.push(`/agents/${encodeURIComponent(id)}/edit`)}
-              className="qs-btn qs-btn--test qs-btn--sm"
+              className="qs-btn qs-btn--cyan qs-btn--sm"
             >
               Full editor →
             </button>

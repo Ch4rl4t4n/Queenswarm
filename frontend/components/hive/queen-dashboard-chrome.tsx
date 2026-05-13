@@ -123,19 +123,11 @@ export function QueenDashboardChrome({
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-3">
-          <Link
-            href="/#hive-task"
-            className={cn(
-              "inline-flex items-center gap-2 rounded-2xl border-[3px] border-pollen bg-pollen px-5 py-3 font-[family-name:var(--font-poppins)] text-sm font-bold text-black shadow-[0_0_28px_rgb(255_184_0/0.45)] transition hover:bg-[#ffc933]",
-            )}
-          >
+          <Link href="/tasks/new" className="qs-btn qs-btn--primary gap-2 px-6 py-3">
             <Plus className="h-4 w-4" aria-hidden />
             Nová úloha
           </Link>
-          <Link
-            href="/ballroom"
-            className="inline-flex items-center gap-2 rounded-2xl border-[2px] border-cyan/35 bg-black/50 px-4 py-3 text-sm font-semibold text-cyan hover:border-pollen/40 hover:text-pollen"
-          >
+          <Link href="/ballroom" className="qs-btn qs-btn--secondary px-6 py-3">
             Ballroom
           </Link>
         </div>
