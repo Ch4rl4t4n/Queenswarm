@@ -44,6 +44,7 @@ function downloadBackupCodes(codes: string[]): void {
 export function Security2FASettings() {
   const [me, setMe] = useState<DashboardOperatorMe | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
   const [enrollOpen, setEnrollOpen] = useState(false);
@@ -63,6 +64,7 @@ export function Security2FASettings() {
   const [qrBusy, setQrBusy] = useState(false);
 
   const loadMe = useCallback(async () => {
+    setProfileLoading(true);
     try {
       const row = await hiveGet<DashboardOperatorMe>("auth/me");
       setMe(row);
@@ -71,6 +73,8 @@ export function Security2FASettings() {
       const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Profil nedostupný";
       setErr(msg);
       setMe(null);
+    } finally {
+      setProfileLoading(false);
     }
   }, []);
 
@@ -82,6 +86,7 @@ export function Security2FASettings() {
   const twofaPending = Boolean(me?.totp_has_secret && !me?.totp_verified_at);
 
   const backupRemaining = me?.totp_backup_codes_remaining ?? 0;
+  const profileUnavailable = Boolean(err) && me === null && !profileLoading;
 
   function openEnrollFromUi(): void {
     setEnrollPassword("");
@@ -219,20 +224,27 @@ export function Security2FASettings() {
     : null;
   const qrDisplaySrc = qrDataUrl ?? qrFallbackRemote;
 
-  if (err && !me) {
-    return (
-      <div className="rounded-3xl border border-danger/30 bg-danger/[0.06] p-6 text-sm text-danger">
-        Nepodarilo sa načítať nastavenia: {err}
-      </div>
-    );
-  }
-
-  if (!me) {
-    return <div className="h-48 animate-pulse rounded-3xl bg-white/[0.04]" />;
-  }
-
   return (
     <div className="flex flex-col gap-6">
+      {profileUnavailable ? (
+        <div
+          className="rounded-2xl border border-danger/30 bg-danger/[0.06] p-4 font-[family-name:var(--font-inter)] text-sm text-danger"
+          role="alert"
+        >
+          <p className="font-medium">Nepodarilo sa načítať stav účtu ({err}).</p>
+          <p className="mt-1 text-xs text-danger/80">
+            Nižšie stále nájdeš návod a rozhranie pre 2FA; po opätovnom načítaní profilu sa zobrazí aktuálny stav.
+          </p>
+          <button
+            type="button"
+            className="qs-btn qs-btn--secondary qs-btn--sm mt-3"
+            disabled={profileLoading}
+            onClick={() => void loadMe()}
+          >
+            Skúsiť znova
+          </button>
+        </div>
+      ) : null}
       <section className="rounded-3xl border border-cyan/[0.12] bg-[#0c0c14]/95 p-6 md:p-7">
         <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">Hive password</h2>
         <p className="mt-2 font-[family-name:var(--font-inter)] text-sm text-zinc-400">
@@ -306,6 +318,9 @@ export function Security2FASettings() {
             <p className="mt-1 font-[family-name:var(--font-inter)] text-sm text-zinc-500">
               TOTP (časové kódy cez aplikáciu typu Authenticator alebo ekvivalent).
             </p>
+            {profileLoading ? (
+              <p className="mt-2 font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-500">Načítavam stav účtu…</p>
+            ) : null}
           </div>
           <Toggle
             checked={twofaComplete}
@@ -319,10 +334,21 @@ export function Security2FASettings() {
                 setDisableOpen(true);
               }
             }}
-            disabled={busy}
+            disabled={busy || profileLoading}
             aria-label="Zapnúť alebo vypnúť 2FA"
           />
         </div>
+
+        {!twofaComplete && !profileLoading ? (
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <button type="button" className="qs-btn qs-btn--primary qs-btn--sm" disabled={busy} onClick={() => openEnrollFromUi()}>
+              Nastaviť 2FA
+            </button>
+            <span className="font-[family-name:var(--font-inter)] text-xs text-zinc-500">
+              Alebo zapni prepínač vpravo — otvorí rovnaký sprievodca (heslo → QR → overenie kódom).
+            </span>
+          </div>
+        ) : null}
 
         {twofaComplete ? (
           <div className="mt-6 rounded-2xl border border-white/[0.07] bg-black/40 p-5">
@@ -336,7 +362,7 @@ export function Security2FASettings() {
                 </h3>
                 <p className="mt-1 font-[family-name:var(--font-inter)] text-sm text-zinc-500">
                   {backupRemaining} kódov zostáva · naposledy použité{" "}
-                  {formatBackupLastUsed(me.totp_backup_last_used_at)}
+                  {formatBackupLastUsed(me?.totp_backup_last_used_at)}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button
