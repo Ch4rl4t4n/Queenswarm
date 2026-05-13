@@ -1,5 +1,19 @@
 # Queenswarm Changelog
 
+## Phase R — 2026-05-13 (pre-v1.0.0 ship hardening)
+
+- Dynamic agent swarm (29 bees / 4 swarms) cockpit refinements  
+- Hex agent cards: pointy-top **SVG stroke** borders (~3px), amber `#FFB800` when undifferentiated swarm color, swarm hue when anchored (`swarm_id` / `sub_swarm_id`), running glow via `drop-shadow`
+- Agents roster filter: **Nezaradení** keyed off **`sub_swarm_id` absent**; lane tabs count only bees with real sub-swarm placement + semantic hints
+- LLM router: mapper configure fix (`Task` registered before vault refresh); Grok-first → Claude Haiku fallback in prod smoke
+- Workflows page: client **DAG** board (`/workflows`), 8s refresh, expand-to-fetch steps, progress bar, pause/cancel via operator proxy
+- Ballroom: WebSocket voice + text session cockpit (prior releases)
+- Agent detail: config, task history, run/pause (prior)
+- Task result drawer: polling / re-run (prior)
+- Mobile-responsive cockpit shell
+
+Git: release pointer tag `v1.0.0-phase-r` marks this drop (tag `v1.0.0` may already exist on an earlier commit).
+
 ## v1.0.0 (2026-05-12)
 
 ### Production release highlights
