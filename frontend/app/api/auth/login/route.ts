@@ -14,8 +14,13 @@ interface LoginJson {
 }
 
 interface LoginUpstream {
-  requires_totp: boolean;
+  requires_totp?: boolean;
+  requires_2fa?: boolean;
+  mfa_required?: boolean;
   pre_auth_token?: string | null;
+  mfa_token?: string | null;
+  temp_token?: string | null;
+  message?: string | null;
   tokens?: {
     access_token: string;
     refresh_token: string;
@@ -55,10 +60,22 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  if (payload.requires_totp) {
+  const requiresOtpStep = Boolean(
+    payload.requires_totp || payload.requires_2fa || payload.mfa_required,
+  );
+  const preRaw =
+    (typeof payload.pre_auth_token === "string" ? payload.pre_auth_token : "") ||
+    (typeof payload.mfa_token === "string" ? payload.mfa_token : "") ||
+    (typeof payload.temp_token === "string" ? payload.temp_token : "");
+  const preAuth = preRaw.trim().length ? preRaw.trim() : null;
+
+  if (requiresOtpStep) {
     return NextResponse.json({
       requires_totp: true,
-      pre_auth_token: payload.pre_auth_token ?? null,
+      requires_2fa: true,
+      mfa_required: true,
+      pre_auth_token: preAuth,
+      message: typeof payload.message === "string" ? payload.message : "Enter your 2FA code",
     });
   }
 

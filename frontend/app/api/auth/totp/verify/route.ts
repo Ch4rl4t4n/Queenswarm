@@ -11,7 +11,10 @@ import {
 interface BodyShape {
   email?: string;
   code?: string;
-  pre_auth_token: string;
+  totp_code?: string;
+  pre_auth_token?: string;
+  mfa_token?: string;
+  temp_token?: string;
 }
 
 interface TokenUpstream {
@@ -30,10 +33,17 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ detail: "Invalid JSON payload." }, { status: 400 });
   }
 
-  const codeRaw = typeof body.code === "string" ? body.code.trim() : "";
-  const tokenRaw = typeof body.pre_auth_token === "string" ? body.pre_auth_token.trim() : "";
-  if (!tokenRaw || !codeRaw) {
-    return NextResponse.json({ detail: "pre_auth_token and code are required." }, { status: 400 });
+  const codeRaw =
+    (typeof body.totp_code === "string" && body.totp_code.trim() ? body.totp_code.trim() : "") ||
+    (typeof body.code === "string" && body.code.trim() ? body.code.trim() : "");
+  const tokenRaw =
+    (typeof body.pre_auth_token === "string" ? body.pre_auth_token.trim() : "") ||
+    (typeof body.mfa_token === "string" ? body.mfa_token.trim() : "") ||
+    (typeof body.temp_token === "string" ? body.temp_token.trim() : "");
+
+
+  if (!tokenRaw || !codeRaw || codeRaw.length < 6) {
+    return NextResponse.json({ detail: "pre_auth_token and a 6+ digit code are required." }, { status: 400 });
   }
 
 

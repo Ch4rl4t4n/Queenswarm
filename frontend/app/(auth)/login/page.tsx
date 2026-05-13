@@ -63,13 +63,13 @@ function OTPInput({ onComplete }: OTPInputProps): JSX.Element {
 
   function boxStyle(filled: boolean): CSSProperties {
     return {
-      width: 46,
-      height: 56,
+      width: 48,
+      height: 58,
       background: "#0a0a0f",
-      border: `1px solid ${filled ? "#FFB800" : "#1e1e35"}`,
+      border: `1.5px solid ${filled ? "#FFB800" : "#1e1e35"}`,
       borderRadius: 10,
       color: "#e8e8f0",
-      fontSize: 22,
+      fontSize: 24,
       fontWeight: 700,
       fontFamily: "var(--font-hive-mono), ui-monospace, monospace",
       textAlign: "center",
@@ -80,7 +80,7 @@ function OTPInput({ onComplete }: OTPInputProps): JSX.Element {
   }
 
   return (
-    <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+    <div style={{ display: "flex", gap: 8, justifyContent: "center", margin: "24px 0" }}>
       {digits.map((d, i) => (
         <input
           key={i}
@@ -107,10 +107,14 @@ interface LoginUpstreamResponse {
   ok?: boolean;
   requires_totp?: boolean;
   requires_2fa?: boolean;
+  mfa_required?: boolean;
   pre_auth_token?: string | null;
+  mfa_token?: string | null;
+  temp_token?: string | null;
   detail?: string;
   message?: string;
   access_token?: string;
+  token?: string;
   expires_in?: number;
 }
 
@@ -185,26 +189,46 @@ function LoginFormInner(): JSX.Element {
       });
       const data = (await r.json()) as LoginUpstreamResponse;
 
+      const errMsg =
+        typeof data.detail === "string"
+          ? data.detail
+          : typeof data.message === "string"
+            ? data.message
+            : "Invalid credentials";
+
       if (!r.ok) {
-        setError(typeof data.detail === "string" ? data.detail : "Invalid credentials");
+        setError(errMsg);
         setLoading(false);
         return;
       }
 
-      const needsOtp = Boolean(data.requires_totp || data.requires_2fa);
-      if (needsOtp && typeof data.pre_auth_token === "string" && data.pre_auth_token.trim()) {
-        const pre = data.pre_auth_token.trim();
-        setPreAuthToken(pre);
+      const needsOtp = Boolean(data.requires_totp || data.requires_2fa || data.mfa_required);
+      const preRaw =
+        (typeof data.pre_auth_token === "string" ? data.pre_auth_token.trim() : "") ||
+        (typeof data.mfa_token === "string" ? data.mfa_token.trim() : "") ||
+        (typeof data.temp_token === "string" ? data.temp_token.trim() : "") ||
+        "";
+
+      if (needsOtp) {
+        if (!preRaw) {
+          setError("Two-factor is required — no pre-auth token. Try again or contact an administrator.");
+          setLoading(false);
+          return;
+        }
+        setPreAuthToken(preRaw);
         if (typeof window !== "undefined") {
-          window.sessionStorage.setItem("qs_pre_auth", pre);
+          window.sessionStorage.setItem("qs_pre_auth_token", preRaw);
+          window.sessionStorage.setItem("qs_pre_auth", preRaw);
         }
         setStep("otp");
         setLoading(false);
-        toast.message("Two-factor verification", { description: "Enter the code from your authenticator app." });
+        toast.message("Two-factor verification", {
+          description: typeof data.message === "string" ? data.message : "Enter the code from your authenticator app.",
+        });
         return;
       }
 
-      const token = data.access_token;
+      const token = data.access_token || data.token;
       if (token) {
         const maxAgeRaw = typeof data.expires_in === "number" ? data.expires_in : 1800;
         const maxAge = Math.max(120, maxAgeRaw);
@@ -230,7 +254,10 @@ function LoginFormInner(): JSX.Element {
     }
     const pre =
       preAuthToken ??
-      (typeof window !== "undefined" ? window.sessionStorage.getItem("qs_pre_auth") : null);
+      (typeof window !== "undefined"
+        ? window.sessionStorage.getItem("qs_pre_auth_token") ??
+          window.sessionStorage.getItem("qs_pre_auth")
+        : null);
     if (!pre) {
       setError("Session expired — sign in again.");
       setStep("credentials");
@@ -243,7 +270,12 @@ function LoginFormInner(): JSX.Element {
       const r = await fetch("/api/auth/totp/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code, pre_auth_token: pre }),
+        body: JSON.stringify({
+          email,
+          code,
+          totp_code: code,
+          pre_auth_token: pre,
+        }),
         credentials: "include",
       });
       const data = (await r.json()) as LoginUpstreamResponse & { access_token?: string; expires_in?: number };
@@ -253,7 +285,7 @@ function LoginFormInner(): JSX.Element {
         return;
       }
 
-      const token = data.access_token;
+      const token = data.access_token || data.token;
       if (token && typeof window !== "undefined") {
         localStorage.setItem("qs_token", token.trim());
         const maxAgeRaw = typeof data.expires_in === "number" ? data.expires_in : 1800;
@@ -263,6 +295,7 @@ function LoginFormInner(): JSX.Element {
       }
       if (typeof window !== "undefined") {
         window.sessionStorage.removeItem("qs_pre_auth");
+        window.sessionStorage.removeItem("qs_pre_auth_token");
       }
       toast.success("Verified");
       router.replace(nextPath);
@@ -514,24 +547,49 @@ function LoginFormInner(): JSX.Element {
         )}
 
         {step === "otp" && (
-          <>
-            <div style={{ marginBottom: 28, textAlign: "center" }}>
-              <div
-                style={{
-                  fontSize: 18,
-                  fontWeight: 600,
-                  color: "#e8e8f0",
-                  marginBottom: 6,
-                  fontFamily: "'Space Grotesk', sans-serif",
-                }}
-              >
-                Two-factor verification
-              </div>
-              <div style={{ fontSize: 13, color: "#5a5a7a", lineHeight: 1.6 }}>
-                Enter the 6-digit code from your
-                <br />
-                Google Authenticator app
-              </div>
+          <div style={{ textAlign: "center" }}>
+            <button
+              type="button"
+              onClick={() => {
+                setStep("credentials");
+                setError("");
+                setPreAuthToken(null);
+                if (typeof window !== "undefined") {
+                  window.sessionStorage.removeItem("qs_pre_auth");
+                  window.sessionStorage.removeItem("qs_pre_auth_token");
+                }
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#5a5a7a",
+                fontSize: 12,
+                cursor: "pointer",
+                marginBottom: 20,
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                margin: "0 auto 20px",
+                fontFamily: "var(--font-hive-mono), ui-monospace, monospace",
+              }}
+            >
+              ← Back
+            </button>
+
+            <div
+              style={{
+                fontSize: 17,
+                fontWeight: 700,
+                color: "#e8e8f0",
+                marginBottom: 6,
+                fontFamily: "'Space Grotesk', sans-serif",
+              }}
+            >
+              Two-factor verification
+            </div>
+            <div style={{ fontSize: 13, color: "#5a5a7a", lineHeight: 1.6, marginBottom: 4 }}>Open Google Authenticator</div>
+            <div style={{ fontSize: 12, color: "#3a3a5a", marginBottom: 8 }}>
+              Enter the 6-digit code for <strong style={{ color: "#9898b8" }}>Queenswarm</strong>
             </div>
 
             <OTPInput onComplete={(code) => void handleOTP(code)} />
@@ -539,15 +597,14 @@ function LoginFormInner(): JSX.Element {
             {error ? (
               <div
                 style={{
-                  marginTop: 16,
                   padding: "10px 14px",
+                  borderRadius: 8,
+                  marginTop: 8,
                   background: "rgba(255,51,102,0.08)",
                   border: "1px solid rgba(255,51,102,0.3)",
-                  borderRadius: 8,
                   color: "#FF3366",
                   fontSize: 13,
                   fontFamily: "var(--font-hive-mono), ui-monospace, monospace",
-                  textAlign: "center",
                 }}
               >
                 {error}
@@ -555,32 +612,11 @@ function LoginFormInner(): JSX.Element {
             ) : null}
 
             {loading ? (
-              <div style={{ textAlign: "center", marginTop: 16, color: "#FFB800", fontSize: 13, fontFamily: "var(--font-hive-mono), monospace" }}>
+              <div style={{ color: "#FFB800", fontSize: 13, fontFamily: "var(--font-hive-mono), monospace", marginTop: 12 }}>
                 Verifying...
               </div>
             ) : null}
-
-            <button
-              type="button"
-              onClick={() => {
-                setStep("credentials");
-                setError("");
-                setPreAuthToken(null);
-              }}
-              style={{
-                display: "block",
-                margin: "20px auto 0",
-                background: "transparent",
-                border: "none",
-                color: "#5a5a7a",
-                fontSize: 12,
-                cursor: "pointer",
-                fontFamily: "var(--font-hive-mono), monospace",
-              }}
-            >
-              ← Back to login
-            </button>
-          </>
+          </div>
         )}
 
         <p style={{ textAlign: "center", color: "#3a3a5a", fontSize: 11, marginTop: 24, marginBottom: 0 }}>
