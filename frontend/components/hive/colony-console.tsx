@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import { HexAgentCard } from "@/components/hive/hex-agent-card";
 import { QueenDashboardChrome } from "@/components/hive/queen-dashboard-chrome";
 import { hiveDelete, hiveFetch, hiveGet, hivePatchJson, hivePostJson, hivePutJson } from "@/lib/api";
 import type { AgentRow, DashboardSummary, SystemStatusPayload, TaskRow } from "@/lib/hive-types";
@@ -67,64 +68,6 @@ function swarmRowRole(sw: Pick<SwarmRowLite, "local_memory" | "purpose">): strin
   const label = (hi.swarm_role_label as string) || (lm.swarm_role_label as string);
   if (label?.trim()) return label;
   return String(sw.purpose ?? "colony").replace(/_/g, " ");
-}
-
-function statusClass(status: string): string {
-  const u = status.toUpperCase();
-  if (u === "RUNNING") return "border-cyan/40 text-cyan shadow-[0_0_12px_rgb(0_255_255/0.2)]";
-  if (u === "IDLE") return "border-success/35 text-success";
-  if (u === "PAUSED") return "border-alert/40 text-alert";
-  if (u === "OFFLINE" || u === "ERROR") return "border-danger/40 text-danger";
-  return "border-zinc-600 text-zinc-400";
-}
-
-const MANAGER_HEX_STYLES = [
-  "border-[7px] border-cyan/80 bg-[#0a1218]/95 shadow-[0_0_32px_rgb(0_255_255/0.32)]",
-  "border-[7px] border-emerald-400/75 bg-[#0a1412]/95 shadow-[0_0_32px_rgb(52_211_153/0.28)]",
-  "border-[7px] border-sky-400/80 bg-[#0a1018]/95 shadow-[0_0_32px_rgb(56_189_248/0.28)]",
-];
-
-function HexFrame({
-  children,
-  className,
-  variant,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  variant: "queen" | "worker";
-}) {
-  const variantCls =
-    variant === "queen"
-      ? "border-[7px] border-pollen/90 bg-[#141008]/95 shadow-[0_0_40px_rgb(255_184_0/0.45)]"
-      : "border-[7px] border-[#ff00aa]/70 bg-[#140a12]/95 shadow-[0_0_28px_rgb(255_0_170/0.28)]";
-  return (
-    <div
-      className={cn(
-        "hive-hex-clip-flat",
-        variantCls,
-        "px-4 py-4 sm:px-5 sm:py-5",
-        className,
-      )}
-    >
-      {children}
-    </div>
-  );
-}
-
-function HexFrameManager({ children, styleIndex, className }: { children: ReactNode; styleIndex: number; className?: string }) {
-  const cls = MANAGER_HEX_STYLES[styleIndex % MANAGER_HEX_STYLES.length];
-  return (
-    <div
-      className={cn(
-        "hive-hex-clip-flat",
-        cls,
-        "px-4 py-4 sm:px-5 sm:py-5",
-        className,
-      )}
-    >
-      {children}
-    </div>
-  );
 }
 
 export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
@@ -494,47 +437,6 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
     }
   }
 
-  function workerHex(agent: AgentRow, options: { configurable: boolean; allowDelete: boolean }): ReactNode {
-    const tier = agent.hive_tier ?? "unknown";
-    return (
-      <HexFrame key={agent.id} variant="worker">
-        <button
-          type="button"
-          disabled={!options.configurable}
-          onClick={() => void openConfigModal(agent)}
-          className={cn(
-            "w-full text-left outline-none",
-            options.configurable && "cursor-pointer hover:opacity-95 focus-visible:ring-2 focus-visible:ring-pollen/50",
-            !options.configurable && "cursor-default",
-          )}
-        >
-          <p className="truncate font-[family-name:var(--font-poppins)] text-sm font-semibold text-pollen">{agent.name}</p>
-          <p className="mt-0.5 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.14em] text-cyan/55">
-            {tierLabel(tier)}
-          </p>
-          <p
-            className={cn(
-              "mt-2 inline-flex rounded-full border px-2 py-0.5 font-[family-name:var(--font-jetbrains-mono)] text-[9px] font-semibold uppercase tracking-wider",
-              statusClass(agent.status),
-            )}
-          >
-            {agent.status}
-          </p>
-        </button>
-        {options.allowDelete ? (
-          <button
-            type="button"
-            disabled={busyId === agent.id}
-            className="mt-3 w-full rounded-lg border border-danger/40 py-1 text-[11px] font-semibold text-danger hover:bg-danger/10 disabled:opacity-40"
-            onClick={() => void removeBee(agent)}
-          >
-            Zmazať
-          </button>
-        ) : null}
-      </HexFrame>
-    );
-  }
-
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 pb-24">
       <QueenDashboardChrome
@@ -638,35 +540,21 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
         </button>
       </section>
 
-      {/* 3 — Hierarchia Queen → manažéri → tímy */}
-      <section id="hive-hierarchy" className="scroll-mt-28 relative w-full overflow-x-auto rounded-3xl border-[3px] border-white/10 bg-[#06060c]/90 px-4 py-8 md:px-8 md:py-10">
+      {/* 3 — Hierarchia Queen → manažéri → tímy (rovnaké hex dlaždice ako Živá sieť / Hierarchia) */}
+      <section id="hive-hierarchy" className="scroll-mt-28 relative w-full overflow-x-auto rounded-3xl qs-rim bg-[#06060c]/90 px-4 py-8 md:px-8 md:py-10">
         <h2 className="mb-2 text-center font-[family-name:var(--font-poppins)] text-xs font-bold uppercase tracking-[0.28em] text-pollen/90">
           Hierarchia úľa
         </h2>
         <p className="mx-auto mb-10 max-w-2xl text-center font-[family-name:var(--font-inter)] text-sm text-zinc-500">
-          Queen riadi manažérov; každý manažér má farebne odlíšený rám a vlastný tím robotníkov (rovnaký swarm).
+          Queen riadi manažérov · rovnaké SVG hex dlaždice ako v zozname agentov vyššie; swarm farba rámu podľa lane.
         </p>
 
         {hierarchy.queen ? (
           <div className="flex flex-col items-center">
-            <HexFrame variant="queen" className="w-full max-w-sm">
-              <div className="text-center">
-                <p className="font-[family-name:var(--font-poppins)] text-lg font-bold text-pollen">Queen</p>
-                {hierarchy.queen.name.toLowerCase() !== "queen" ? (
-                  <p className="mt-1 font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-500">{hierarchy.queen.name}</p>
-                ) : null}
-                <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-cyan/45">Hlava úľa</p>
-                <p
-                  className={cn(
-                    "mt-3 inline-flex rounded-full border px-2.5 py-0.5 font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase",
-                    statusClass(hierarchy.queen.status),
-                  )}
-                >
-                  {hierarchy.queen.status}
-                </p>
-                <p className="mt-4 text-[11px] leading-relaxed text-zinc-500">Fixná hlava úľa — bez úprav konfigurácie.</p>
-              </div>
-            </HexFrame>
+            <HexAgentCard agent={hierarchy.queen} isQueen renderAsDiv />
+            <p className="mt-3 max-w-[260px] text-center text-[11px] leading-relaxed text-zinc-500">
+              Fixná hlava úľa — bez úprav konfigurácie.
+            </p>
 
             {/* Konektor: z Queen do hornej čiary */}
             <div className="flex flex-col items-center" aria-hidden>
@@ -697,37 +585,16 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
                         className={cn("mb-2 h-8 w-[4px] rounded-full bg-gradient-to-b", lineClass)}
                         aria-hidden
                       />
-                      <HexFrameManager styleIndex={mi} className="w-full max-w-sm">
-                        <button
-                          type="button"
-                          onClick={() => void openConfigModal(mgr)}
-                          className="w-full text-left outline-none hover:opacity-95 focus-visible:ring-2 focus-visible:ring-pollen/50"
-                        >
-                          <p className="truncate font-[family-name:var(--font-poppins)] text-base font-semibold text-pollen">
-                            {mgr.name}
-                          </p>
-                          <p className="mt-1 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.16em] text-cyan/65">
-                            {tierLabel(mgr.hive_tier ?? "manager")}
-                          </p>
-                          <p
-                            className={cn(
-                              "mt-2 inline-flex rounded-full border px-2 py-0.5 font-[family-name:var(--font-jetbrains-mono)] text-[9px] font-semibold uppercase",
-                              statusClass(mgr.status),
-                            )}
-                          >
-                            {mgr.status}
-                          </p>
-                          <p className="mt-3 text-[11px] text-zinc-500">Klikni pre prompt, popis a tagy.</p>
-                        </button>
-                        <button
-                          type="button"
-                          disabled={busyId === mgr.id}
-                          className="mt-3 w-full rounded-lg border border-danger/40 py-1.5 text-[11px] font-semibold text-danger hover:bg-danger/10 disabled:opacity-40"
-                          onClick={() => void removeBee(mgr)}
-                        >
-                          Zmazať
-                        </button>
-                      </HexFrameManager>
+                      <HexAgentCard agent={mgr} onClick={() => void openConfigModal(mgr)} />
+                      <p className="mt-2 max-w-[180px] text-center text-[11px] text-zinc-500">Klikni pre prompt, popis a tagy.</p>
+                      <button
+                        type="button"
+                        disabled={busyId === mgr.id}
+                        className="qs-btn qs-btn--danger qs-btn--sm mt-3"
+                        onClick={() => void removeBee(mgr)}
+                      >
+                        Zmazať
+                      </button>
 
                       <div className={cn("my-4 h-6 w-[4px] rounded-full bg-gradient-to-b", lineClass)} aria-hidden />
 
@@ -739,10 +606,18 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
                           Rovnaký swarm_id ako tento manažér pripojí robotníkov sem.
                         </p>
                       ) : (
-                        <div className="flex w-full flex-col items-stretch gap-3 sm:items-center">
+                        <div className="flex w-full flex-col items-center gap-4">
                           {team.map((w) => (
-                            <div key={w.id} className="w-full max-w-[16rem]">
-                              {workerHex(w, { configurable: true, allowDelete: true })}
+                            <div key={w.id} className="flex flex-col items-center gap-1">
+                              <HexAgentCard agent={w} onClick={() => void openConfigModal(w)} />
+                              <button
+                                type="button"
+                                disabled={busyId === w.id}
+                                className="qs-btn qs-btn--danger qs-btn--sm mt-3"
+                                onClick={() => void removeBee(w)}
+                              >
+                                Zmazať
+                              </button>
                             </div>
                           ))}
                         </div>
@@ -765,10 +640,18 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
             <p className="mx-auto mb-6 max-w-xl text-center text-xs text-zinc-600">
               Priraď ich k manažérovi zdieľaným <span className="text-cyan/70">swarm_id</span> (napr. v API alebo DB), potom sa zobrazia pod príslušným stĺpcom.
             </p>
-            <div className="flex flex-wrap justify-center gap-4">
+            <div className="flex flex-wrap justify-center gap-6">
               {hierarchy.ungrouped.map((a) => (
-                <div key={a.id} className="w-[16rem]">
-                  {workerHex(a, { configurable: true, allowDelete: true })}
+                <div key={a.id} className="flex flex-col items-center gap-1">
+                  <HexAgentCard agent={a} onClick={() => void openConfigModal(a)} />
+                  <button
+                    type="button"
+                    disabled={busyId === a.id}
+                    className="qs-btn qs-btn--danger qs-btn--sm mt-3"
+                    onClick={() => void removeBee(a)}
+                  >
+                    Zmazať
+                  </button>
                 </div>
               ))}
             </div>
