@@ -2,18 +2,21 @@
 
 from __future__ import annotations
 
+import secrets
 import uuid
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import JSONResponse
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.api.deps import DbSession, JwtSubject
 from app.core.config import settings
 from app.models.agent import Agent
+from app.models.hive_async_workflow_run import HiveAsyncWorkflowRun
 from app.models.enums import AgentStatus, SwarmPurpose
+from app.models.task import Task
 from app.schemas.sub_swarm import (
     GlobalHiveSyncAck,
     RunWorkflowOnSwarmQueuedResponse,
@@ -27,6 +30,7 @@ from app.schemas.swarm_catalog import (
 )
 from app.services.hive_async_workflow_run_ledger import enqueue_hive_async_workflow_run
 from app.services.hive_sync import mark_sub_swarm_globally_synced
+from app.services.agent_catalog import apply_agent_updates
 from app.services.sub_swarm.runner import run_sub_swarm_workflow_cycle
 from app.services.sub_swarm_catalog import (
     SubSwarmCatalogError,
@@ -211,6 +215,100 @@ async def patch_sub_swarm_colony(
             detail="Persistence rejected sub-swarm update.",
         )
     return row
+
+
+@router.delete(
+    "/{swarm_id}",
+    status_code=status.HTTP_200_OK,
+    summary="Remove or archive a sub-swarm colony",
+)
+async def delete_sub_swarm_colony(
+    swarm_id: uuid.UUID,
+    db: DbSession,
+    _subject: JwtSubject,
+) -> dict[str, Any]:
+    """Detach every bee, detach tasks; hard-delete when Celery ledger does not anchor the swarm.
+
+    Rows in ``hive_async_workflow_runs`` reference ``RESTRICT``, so colonies with ledger history stay
+    on disk inactive while agents are freed.
+    """
+
+    row = await fetch_sub_swarm(db, swarm_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sub-swarm not found.")
+    ledger_n_raw = await db.scalar(
+        select(func.count()).select_from(HiveAsyncWorkflowRun).where(HiveAsyncWorkflowRun.swarm_id == swarm_id),
+    )
+    ledger_n = int(ledger_n_raw or 0)
+
+    bees_result = await db.execute(select(Agent).where(Agent.swarm_id == swarm_id))
+    bees = list(bees_result.scalars().all())
+
+    row.queen_agent_id = None
+    await db.flush()
+
+    for bee in bees:
+        await apply_agent_updates(
+            db,
+            bee,
+            status=None,
+            swarm_move=True,
+            new_swarm_id=None,
+            config=None,
+            performance_score=None,
+            pollen_points=None,
+        )
+
+    await db.execute(update(Task).where(Task.swarm_id == swarm_id).values(swarm_id=None))
+
+    if ledger_n > 0:
+        row.is_active = False
+        row.member_count = 0
+        suffix = secrets.token_hex(3)
+        row.name = f"{row.name}__inactive_{suffix}"[:99]
+        mem = dict(row.local_memory or {})
+        mem.setdefault("hive_ui", {})
+        mem["hive_ui"]["archived_at_hint"] = "ledger_present"
+        row.local_memory = mem
+        try:
+            await db.commit()
+            await db.refresh(row)
+        except SQLAlchemyError:
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Persistence rejected swarm archive.",
+            )
+        return {
+            "ok": True,
+            "mode": "archived",
+            "swarm_id": str(swarm_id),
+            "reason": "hive_async_workflow_runs_anchor",
+            "agents_unassigned": len(bees),
+        }
+
+    try:
+        await db.delete(row)
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Sub-swarm is still referenced; archive via PATCH instead.",
+        )
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected sub-swarm delete.",
+        )
+
+    return {
+        "ok": True,
+        "mode": "deleted",
+        "swarm_id": str(swarm_id),
+        "agents_unassigned": len(bees),
+    }
 
 
 @router.post(
