@@ -49,7 +49,7 @@ export default async function PluginsPhasePage() {
                 key={plug.id}
                 className="rounded-3xl border border-white/[0.08] bg-black/40 p-5 neon-border-pg shadow-[0_0_32px_rgba(0,255,255,0.08)]"
               >
-                <p className="font-[family-name:var(--font-space-grotesk)] text-xl font-semibold text-pollen">
+                <p className="font-[family-name:var(--font-poppins)] text-xl font-semibold text-pollen">
                   {plug.title ?? plug.id}
                 </p>
                 <p className="mt-3 font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-400">

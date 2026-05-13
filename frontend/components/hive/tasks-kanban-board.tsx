@@ -138,7 +138,7 @@ export function TasksKanbanBoard({ tasks, onOpenTask }: TasksKanbanBoardProps): 
               <header className="mb-3 flex shrink-0 items-center gap-2 border-b border-white/[0.06] pb-2">
                 <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", col.dot)} />
                 <span
-                  className="font-[family-name:var(--font-space-grotesk)] text-sm font-semibold"
+                  className="font-[family-name:var(--font-poppins)] text-sm font-semibold"
                   style={{ color: col.headerColor }}
                 >
                   {col.label}
@@ -224,7 +224,7 @@ function NeonTasksNew(): JSX.Element {
       href="/tasks/new"
       className={cn(
         "inline-flex items-center justify-center rounded-full border border-pollen bg-pollen px-4 py-2",
-        "font-[family-name:var(--font-space-grotesk)] text-xs font-semibold uppercase tracking-[0.16em] text-black",
+        "font-[family-name:var(--font-poppins)] text-xs font-semibold uppercase tracking-[0.16em] text-black",
         "glow-amber transition hover:bg-[#ffc933]",
       )}
     >

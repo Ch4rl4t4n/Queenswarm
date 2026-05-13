@@ -61,7 +61,7 @@ export function HexagonalAgentCard({ agent, className }: HexagonalAgentCardProps
         </div>
       </div>
       <div className="space-y-1">
-        <h3 className="font-[family-name:var(--font-space-grotesk)] text-sm font-semibold text-pollen sm:text-base">{agent.name}</h3>
+        <h3 className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-pollen sm:text-base">{agent.name}</h3>
         <p className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] uppercase tracking-wide text-cyan/75">
           {roleLabel}
         </p>

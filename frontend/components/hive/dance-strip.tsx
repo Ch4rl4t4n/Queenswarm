@@ -13,7 +13,7 @@ export function DanceStrip({ dances }: DanceStripProps) {
   return (
     <section className="rounded-2xl border border-magenta/30 bg-black/35 p-5 shadow-[0_0_32px_rgba(255,0,170,0.18)]">
       <header className="mb-4 flex flex-col gap-1">
-        <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-magenta">
+        <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-magenta">
           recent waggle dances
         </h2>
         <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs text-cyan/70">

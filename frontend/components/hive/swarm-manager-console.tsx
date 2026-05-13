@@ -241,7 +241,7 @@ export function SwarmManagerConsole() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="font-[family-name:var(--font-space-grotesk)] text-xl font-bold text-[#fafafa]">
+          <h2 className="font-[family-name:var(--font-poppins)] text-xl font-bold text-[#fafafa]">
             Swarm cockpit
           </h2>
           <p className="mt-1 font-[family-name:var(--font-inter)] text-sm text-zinc-500">
@@ -251,7 +251,7 @@ export function SwarmManagerConsole() {
         <button
           type="button"
           onClick={() => setCreating(true)}
-          className="rounded-xl border-2 border-pollen bg-pollen px-4 py-2 font-[family-name:var(--font-space-grotesk)] text-xs font-bold text-black shadow-[0_0_24px_rgb(255_184_0/0.35)]"
+          className="rounded-xl border-2 border-pollen bg-pollen px-4 py-2 font-[family-name:var(--font-poppins)] text-xs font-bold text-black shadow-[0_0_24px_rgb(255_184_0/0.35)]"
         >
           + New swarm
         </button>
@@ -269,7 +269,7 @@ export function SwarmManagerConsole() {
             className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-pollen/30 bg-[#0f0f1a] p-6 shadow-[0_0_48px_rgb(255_184_0/0.15)]"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="font-[family-name:var(--font-space-grotesk)] text-lg font-bold text-[#fafafa]">
+            <h3 className="font-[family-name:var(--font-poppins)] text-lg font-bold text-[#fafafa]">
               Create new swarm
             </h3>
             <label className="mt-6 block font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-bold uppercase tracking-widest text-zinc-500">
@@ -353,7 +353,7 @@ export function SwarmManagerConsole() {
               <button
                 type="button"
                 onClick={() => void createSwarm()}
-                className="flex-[2] rounded-xl bg-pollen py-2.5 font-[family-name:var(--font-space-grotesk)] text-sm font-bold text-black shadow-[0_0_26px_rgb(255_184_0/0.35)]"
+                className="flex-[2] rounded-xl bg-pollen py-2.5 font-[family-name:var(--font-poppins)] text-sm font-bold text-black shadow-[0_0_26px_rgb(255_184_0/0.35)]"
               >
                 Create
               </button>
@@ -369,14 +369,14 @@ export function SwarmManagerConsole() {
           <div className="text-4xl opacity-70" aria-hidden>
             🔗
           </div>
-          <p className="mt-4 font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-[#fafafa]">
+          <p className="mt-4 font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">
             No swarms yet
           </p>
           <p className="mt-2 text-sm text-zinc-500">Create one, then attach bees.</p>
           <button
             type="button"
             onClick={() => setCreating(true)}
-            className="mt-6 rounded-xl bg-pollen px-5 py-2.5 font-[family-name:var(--font-space-grotesk)] text-sm font-bold text-black"
+            className="mt-6 rounded-xl bg-pollen px-5 py-2.5 font-[family-name:var(--font-poppins)] text-sm font-bold text-black"
           >
             Create first swarm
           </button>
@@ -410,7 +410,7 @@ export function SwarmManagerConsole() {
                       🔗
                     </div>
                     <div className="min-w-0">
-                      <div className="font-[family-name:var(--font-space-grotesk)] font-bold text-[#fafafa]">
+                      <div className="font-[family-name:var(--font-poppins)] font-bold text-[#fafafa]">
                         {swarm.name}
                       </div>
                       <div className="mt-1 font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-500">
@@ -524,7 +524,7 @@ export function SwarmManagerConsole() {
 
       {unassigned.length > 0 ? (
         <div className="rounded-3xl border border-white/[0.06] bg-black/35 p-5">
-          <p className="font-[family-name:var(--font-space-grotesk)] text-sm font-semibold text-zinc-300">
+          <p className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-zinc-300">
             Unassigned agents ({unassigned.length})
           </p>
           <div className="mt-3 flex flex-wrap gap-2">

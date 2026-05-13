@@ -10,7 +10,7 @@ export default async function HiveHomeDashboard() {
   if (!agents) {
     return (
       <div className="rounded-3xl border border-alert/35 bg-black/60 p-8 text-alert">
-        <p className="font-[family-name:var(--font-space-grotesk)] text-xl font-semibold text-pollen">
+        <p className="font-[family-name:var(--font-poppins)] text-xl font-semibold text-pollen">
           Nie je dostupný zoznam agentov
         </p>
         <p className="mt-4 max-w-xl font-[family-name:var(--font-inter)] text-sm leading-relaxed text-zinc-400">

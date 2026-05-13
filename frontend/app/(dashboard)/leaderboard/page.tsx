@@ -52,7 +52,7 @@ export default async function LeaderboardPage() {
       <div className="grid gap-6 xl:grid-cols-5">
         <section className="rounded-3xl border border-cyan/[0.1] bg-hive-card/95 p-6 xl:col-span-2">
           <div className="flex justify-between gap-4 border-b border-cyan/[0.08] pb-4 font-[family-name:var(--font-inter)]">
-            <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg text-[#fafafa]">Top bees · this week</h2>
+            <h2 className="font-[family-name:var(--font-poppins)] text-lg text-[#fafafa]">Top bees · this week</h2>
             <span className="text-xs text-muted-foreground">By pollen earned</span>
           </div>
           <ol className="mt-6 space-y-4 font-[family-name:var(--font-inter)]">
@@ -81,7 +81,7 @@ export default async function LeaderboardPage() {
 
         <section className="rounded-3xl border border-cyan/[0.1] bg-hive-card/95 p-6 xl:col-span-3">
           <div className="flex justify-between gap-4 border-b border-cyan/[0.08] pb-4 font-[family-name:var(--font-inter)]">
-            <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg text-[#fafafa]">Imitation network</h2>
+            <h2 className="font-[family-name:var(--font-poppins)] text-lg text-[#fafafa]">Imitation network</h2>
             <span className="text-xs text-muted-foreground">Who copies whom</span>
           </div>
           <div className="mt-8 flex flex-col items-center gap-10 py-4">

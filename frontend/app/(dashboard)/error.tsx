@@ -17,7 +17,7 @@ export default function DashboardError({
   return (
     <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 px-6 text-center">
       <div
-        className="font-space-grotesk text-xl font-semibold uppercase tracking-[0.12em]"
+        className="font-poppins text-xl font-semibold uppercase tracking-[0.12em]"
         style={{ color: "#FF3366", textShadow: "0 0 18px rgba(255, 51, 102, 0.45)" }}
       >
         Hive link severed

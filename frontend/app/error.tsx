@@ -9,7 +9,7 @@ export default function GlobalErrorBoundary({
 }) {
   return (
     <div className="mx-auto mt-24 max-w-xl rounded-3xl border border-danger bg-black/55 p-8 text-danger shadow-[0_0_42px_rgba(255,51,102,0.35)]">
-      <p className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold tracking-tight text-pollen">
+      <p className="font-[family-name:var(--font-poppins)] text-2xl font-semibold tracking-tight text-pollen">
         hive anomaly
       </p>
       <p className="mt-4 font-[family-name:var(--font-jetbrains-mono)] text-sm text-danger">{error.message}</p>

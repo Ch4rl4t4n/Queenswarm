@@ -49,7 +49,7 @@ export function DataCard({ label, value, icon: Icon, trendPercent, hint, classNa
           <p className="font-[family-name:var(--font-inter)] text-xs font-medium uppercase tracking-[0.14em] text-cyan/75">
             {label}
           </p>
-          <p className="font-[family-name:var(--font-space-grotesk)] text-3xl font-semibold tracking-tight text-pollen shadow-[0_0_28px_rgba(255,184,0,0.38)]">
+          <p className="font-[family-name:var(--font-poppins)] text-3xl font-semibold tracking-tight text-pollen shadow-[0_0_28px_rgba(255,184,0,0.38)]">
             {value}
           </p>
           {hint ? (

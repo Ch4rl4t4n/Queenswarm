@@ -106,7 +106,7 @@ export function HiveTopBar({ email, displayName }: HiveTopBarProps) {
     <header className="sticky top-0 z-40 hidden min-h-16 shrink-0 items-center gap-4 border-b border-cyan/[0.12] bg-[#050510]/95 px-6 py-2.5 backdrop-blur-md lg:flex">
       <Link href="/" className="flex items-center gap-2 pr-4" prefetch>
         <HexagonIcon className="h-6 w-6 text-pollen drop-shadow-[0_0_10px_rgb(255_184_0/0.55)]" aria-hidden />
-        <span className="font-[family-name:var(--font-space-grotesk)] text-sm font-semibold text-[#fafafa]">QueenSwarm</span>
+        <span className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-[#fafafa]">QueenSwarm</span>
       </Link>
 
       <form onSubmit={onSearch} className="mx-auto min-w-0 max-w-xl flex-1">

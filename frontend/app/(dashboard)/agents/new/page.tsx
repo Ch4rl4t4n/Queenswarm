@@ -234,7 +234,7 @@ function NewAgentWizardInner() {
       </button>
 
       <header>
-        <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-bold text-[#fafafa]">Spawn agent</h1>
+        <h1 className="font-[family-name:var(--font-poppins)] text-2xl font-bold text-[#fafafa]">Spawn agent</h1>
         <p className="mt-2 font-[family-name:var(--font-inter)] text-sm text-muted-foreground">
           {step === "template" ? "Choose a hive template." : "Wire prompts, tools, and rhythm."}
         </p>
@@ -462,7 +462,7 @@ function NewAgentWizardInner() {
             type="button"
             disabled={saving || !config.name.trim()}
             onClick={() => void save()}
-            className="w-full rounded-xl border-2 border-pollen bg-pollen py-4 font-[family-name:var(--font-space-grotesk)] text-sm font-bold text-black shadow-[0_0_32px_rgb(255_184_0/0.35)] disabled:opacity-45"
+            className="w-full rounded-xl border-2 border-pollen bg-pollen py-4 font-[family-name:var(--font-poppins)] text-sm font-bold text-black shadow-[0_0_32px_rgb(255_184_0/0.35)] disabled:opacity-45"
           >
             {saving ? "Spawning…" : "Spawn agent"}
           </button>

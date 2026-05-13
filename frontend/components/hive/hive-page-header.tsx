@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 interface HivePageHeaderProps {
-  /** Main page title — Space Grotesk. */
+  /** Main page title — Poppins. */
   title: string;
   /** Muted subtitle under the title. */
   subtitle?: ReactNode;
@@ -17,7 +17,7 @@ export function HivePageHeader({ title, subtitle, actions, className }: HivePage
   return (
     <header className={cn("flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between", className)}>
       <div className="space-y-2">
-        <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold tracking-tight text-[#fafafa] sm:text-3xl md:text-4xl">
+        <h1 className="font-[family-name:var(--font-poppins)] text-2xl font-semibold tracking-tight text-[#fafafa] sm:text-3xl md:text-4xl">
           {title}
         </h1>
         {subtitle ? (

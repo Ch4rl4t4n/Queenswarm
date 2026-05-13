@@ -117,7 +117,7 @@ export function DashboardBeeHexGrid({ rosterTarget }: DashboardBeeHexGridProps) 
     <section className="mt-8 rounded-[22px] border border-[#1a1a3e]/80 bg-[#0d0d2b]/40 p-6 neon-border-pg">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2
-          className="text-[#FFB800] font-semibold text-lg font-[family-name:var(--font-space-grotesk)]"
+          className="text-[#FFB800] font-semibold text-lg font-[family-name:var(--font-poppins)]"
         >
           🐝 Active Bees
           <span className="ml-2 font-normal font-[family-name:var(--font-jetbrains-mono)] text-sm text-gray-400">

@@ -36,7 +36,7 @@ export function PluginsUserUploader() {
     <div className="rounded-2xl border border-dashed border-pollen/40 bg-black/30 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="font-[family-name:var(--font-space-grotesk)] text-sm font-semibold text-pollen">
+          <p className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-pollen">
             Drop-in Python plugins
           </p>
           <p className="mt-2 font-[family-name:var(--font-inter)] text-xs text-zinc-500">

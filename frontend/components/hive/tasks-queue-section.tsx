@@ -141,7 +141,7 @@ export function TasksQueueSection({ tasks }: TasksQueueSectionProps) {
             >
               <span aria-hidden className={cn("absolute inset-y-0 left-0 w-1 rounded-l-2xl", strip)} />
               <div className="min-w-0 pt-1 pl-3">
-                <p className="font-[family-name:var(--font-space-grotesk)] font-semibold tracking-tight text-[#fafafa]">
+                <p className="font-[family-name:var(--font-poppins)] font-semibold tracking-tight text-[#fafafa]">
                   {t.title}{" "}
                   <span className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] font-normal lowercase text-zinc-500">
                     {t.id}
@@ -160,7 +160,7 @@ export function TasksQueueSection({ tasks }: TasksQueueSectionProps) {
                 <span className="font-[family-name:var(--font-inter)] text-[10px] uppercase tracking-[0.22em] text-zinc-500">
                   Progress
                 </span>
-                <p className={cn("font-[family-name:var(--font-space-grotesk)] text-2xl tabular-nums", progressHueClass(t.task_type, t.swarm_id, b))}>{pct}%</p>
+                <p className={cn("font-[family-name:var(--font-poppins)] text-2xl tabular-nums", progressHueClass(t.task_type, t.swarm_id, b))}>{pct}%</p>
                 <div className="h-2 w-full max-w-[200px] rounded-full bg-black/50">
                   <div className={cn("h-full rounded-full opacity-90", strip)} style={{ width: `${pct}%` }} />
                 </div>

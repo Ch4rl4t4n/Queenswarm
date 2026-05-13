@@ -80,7 +80,7 @@ export function LivePulse() {
       <div className="mb-2 flex items-center gap-3">
         <ActivityIcon aria-hidden className="h-5 w-5 text-[#FFB800]" />
         <div>
-          <p className="font-[family-name:var(--font-space-grotesk)] text-sm font-semibold text-pollen">
+          <p className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-pollen">
             live hive pulse
           </p>
           <p className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-cyan/70">

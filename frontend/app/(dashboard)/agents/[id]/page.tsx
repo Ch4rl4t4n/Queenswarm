@@ -190,7 +190,7 @@ export default function AgentDetailPage(): JSX.Element {
 
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex flex-wrap items-center gap-3">
-            <h1 className="font-[family-name:var(--font-space-grotesk)] text-[22px] font-bold text-[var(--qs-text)]">
+            <h1 className="font-[family-name:var(--font-poppins)] text-[22px] font-bold text-[var(--qs-text)]">
               {agent.name}
             </h1>
             <span
@@ -258,7 +258,7 @@ export default function AgentDetailPage(): JSX.Element {
             type="button"
             onClick={() => setTab(t)}
             className={cn(
-              "border-b-2 px-4 py-2 font-[family-name:var(--font-space-grotesk)] text-[13px] transition-colors",
+              "border-b-2 px-4 py-2 font-[family-name:var(--font-poppins)] text-[13px] transition-colors",
               tab === t ? "border-[var(--qs-amber)] font-semibold text-[var(--qs-amber)]" : "border-transparent text-[var(--qs-text-3)]",
             )}
           >
@@ -292,7 +292,7 @@ export default function AgentDetailPage(): JSX.Element {
         (config ? (
           <div className="qs-card rounded-[var(--qs-radius)]">
             <div className="mb-5 flex items-center justify-between gap-4">
-              <span className="font-[family-name:var(--font-space-grotesk)] text-[15px] font-semibold text-[var(--qs-text)]">
+              <span className="font-[family-name:var(--font-poppins)] text-[15px] font-semibold text-[var(--qs-text)]">
                 Agent configuration
               </span>
               <button
@@ -371,7 +371,7 @@ export default function AgentDetailPage(): JSX.Element {
 
       {tab === "tasks" && (
         <div className="qs-card rounded-[var(--qs-radius)]">
-          <p className="mb-4 font-[family-name:var(--font-space-grotesk)] text-[15px] font-semibold text-[var(--qs-text)]">
+          <p className="mb-4 font-[family-name:var(--font-poppins)] text-[15px] font-semibold text-[var(--qs-text)]">
             Task history
           </p>
           {tasks.length === 0 ? (

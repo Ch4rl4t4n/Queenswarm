@@ -268,7 +268,7 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
                 </span>
               ) : null}
             </div>
-            <h2 className="truncate font-[family-name:var(--font-space-grotesk)] text-base font-semibold text-[#fafafa]">
+            <h2 className="truncate font-[family-name:var(--font-poppins)] text-base font-semibold text-[#fafafa]">
               {task?.title ?? "Loading..."}
             </h2>
             {task?.created_at ? (

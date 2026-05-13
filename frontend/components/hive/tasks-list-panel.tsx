@@ -111,7 +111,7 @@ export function TasksListPanel({ tasks, onOpenTask }: TasksListPanelProps): JSX.
         </div>
         <Link
           href="/tasks/new"
-          className="inline-flex items-center justify-center gap-2 rounded-2xl border-[2px] border-pollen bg-pollen px-5 py-2.5 font-[family-name:var(--font-space-grotesk)] text-sm font-bold text-black shadow-[0_0_24px_rgb(255_184_0/0.35)] hover:bg-[#ffc933]"
+          className="inline-flex items-center justify-center gap-2 rounded-2xl border-[2px] border-pollen bg-pollen px-5 py-2.5 font-[family-name:var(--font-poppins)] text-sm font-bold text-black shadow-[0_0_24px_rgb(255_184_0/0.35)] hover:bg-[#ffc933]"
         >
           <Plus className="h-4 w-4" aria-hidden />+ New task
         </Link>

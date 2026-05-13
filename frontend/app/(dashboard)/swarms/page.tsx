@@ -29,7 +29,7 @@ export default async function SwarmsPage() {
 
       <section className="rounded-3xl border border-cyan/[0.1] bg-hive-card/90 p-6">
         <div className="flex flex-wrap justify-between gap-4 border-b border-cyan/[0.08] pb-4">
-          <h3 className="font-[family-name:var(--font-space-grotesk)] text-lg text-[#fafafa]">Waggle Dance Feed</h3>
+          <h3 className="font-[family-name:var(--font-poppins)] text-lg text-[#fafafa]">Waggle Dance Feed</h3>
           <p className="font-[family-name:var(--font-inter)] text-sm text-muted-foreground">Cross swarm signal exchange</p>
         </div>
         <ul className="hive-scrollbar mt-4 max-h-[320px] divide-y divide-cyan/[0.06] overflow-y-auto font-[family-name:var(--font-inter)]">

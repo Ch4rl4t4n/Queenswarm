@@ -115,7 +115,7 @@ export function QueenDashboardChrome({
       {/* Hero + search (desktop feel) */}
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
-          <h1 className="font-[family-name:var(--font-space-grotesk)] text-3xl font-bold tracking-tight text-[#fafafa] md:text-4xl">
+          <h1 className="font-[family-name:var(--font-poppins)] text-3xl font-bold tracking-tight text-[#fafafa] md:text-4xl">
             Queen Swarm Dashboard
           </h1>
           <p className="mt-2 max-w-2xl font-[family-name:var(--font-inter)] text-sm text-zinc-400">
@@ -126,7 +126,7 @@ export function QueenDashboardChrome({
           <Link
             href="/#hive-task"
             className={cn(
-              "inline-flex items-center gap-2 rounded-2xl border-[3px] border-pollen bg-pollen px-5 py-3 font-[family-name:var(--font-space-grotesk)] text-sm font-bold text-black shadow-[0_0_28px_rgb(255_184_0/0.45)] transition hover:bg-[#ffc933]",
+              "inline-flex items-center gap-2 rounded-2xl border-[3px] border-pollen bg-pollen px-5 py-3 font-[family-name:var(--font-poppins)] text-sm font-bold text-black shadow-[0_0_28px_rgb(255_184_0/0.45)] transition hover:bg-[#ffc933]",
             )}
           >
             <Plus className="h-4 w-4" aria-hidden />
@@ -173,7 +173,7 @@ export function QueenDashboardChrome({
                 </p>
                 <Users className="h-5 w-5 text-cyan/60" aria-hidden />
               </div>
-              <p className="mt-3 font-[family-name:var(--font-space-grotesk)] text-3xl font-bold text-[#fafafa]">{totalAgentsListed}</p>
+              <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl font-bold text-[#fafafa]">{totalAgentsListed}</p>
               <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-success">Active {activeAgents}</p>
             </article>
             <article className="rounded-2xl border-[2px] border-cyan/20 bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
@@ -183,7 +183,7 @@ export function QueenDashboardChrome({
                 </p>
                 <Zap className="h-5 w-5 text-data/80" aria-hidden />
               </div>
-              <p className="mt-3 font-[family-name:var(--font-space-grotesk)] text-3xl font-bold text-data">{runningTasks}</p>
+              <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl font-bold text-data">{runningTasks}</p>
               <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-zinc-500">From system pulse</p>
             </article>
             <article className="rounded-2xl border-[2px] border-cyan/20 bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
@@ -193,7 +193,7 @@ export function QueenDashboardChrome({
                 </p>
                 <ListTodo className="h-5 w-5 text-pollen/70" aria-hidden />
               </div>
-              <p className="mt-3 font-[family-name:var(--font-space-grotesk)] text-3xl font-bold text-pollen">{queuedTasks}</p>
+              <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl font-bold text-pollen">{queuedTasks}</p>
               <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-zinc-500">Pending lane</p>
             </article>
             <article className="rounded-2xl border-[2px] border-cyan/20 bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
@@ -211,7 +211,7 @@ export function QueenDashboardChrome({
                   )}
                   aria-hidden
                 />
-                <p className="font-[family-name:var(--font-space-grotesk)] text-lg font-bold text-[#fafafa]">
+                <p className="font-[family-name:var(--font-poppins)] text-lg font-bold text-[#fafafa]">
                   {llmOk ? "Routed" : "Degraded"}
                 </p>
               </div>
@@ -231,7 +231,7 @@ export function QueenDashboardChrome({
             </p>
             <Activity className="h-5 w-5 text-success/80" aria-hidden />
           </div>
-          <p className="mt-3 font-[family-name:var(--font-space-grotesk)] text-3xl font-bold text-pollen">{formatPollen(pollenTotal)}</p>
+          <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl font-bold text-pollen">{formatPollen(pollenTotal)}</p>
         </article>
         <article className="rounded-2xl border-[2px] border-white/[0.06] bg-[#0a0a12]/90 p-5 sm:col-span-2 xl:col-span-2">
           <div className="flex items-start justify-between gap-2">
@@ -240,7 +240,7 @@ export function QueenDashboardChrome({
             </p>
             <Coins className="h-5 w-5 text-pollen/70" aria-hidden />
           </div>
-          <p className="mt-3 font-[family-name:var(--font-space-grotesk)] text-3xl font-bold text-[#fafafa]">{formatUsd(costWindowUsd)}</p>
+          <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl font-bold text-[#fafafa]">{formatUsd(costWindowUsd)}</p>
         </article>
       </div>
 
@@ -277,7 +277,7 @@ export function QueenDashboardChrome({
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-3xl border-[2px] border-cyan/15 bg-[#0a0a14]/90 p-6">
-          <h3 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-[#fafafa]">Výkon podľa tieru</h3>
+          <h3 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">Výkon podľa tieru</h3>
           <p className="mt-1 text-xs text-zinc-500">Podiel agentov v úli (z API summary)</p>
           <ul className="mt-5 space-y-4">
             {tierBars.map((row) => (
@@ -297,7 +297,7 @@ export function QueenDashboardChrome({
           </ul>
         </section>
         <section className="rounded-3xl border-[2px] border-cyan/15 bg-[#0a0a14]/90 p-6">
-          <h3 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-[#fafafa]">Recent tasks</h3>
+          <h3 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">Recent tasks</h3>
           <p className="mt-1 text-xs text-zinc-500">Latest {Math.min(8, recentTasks.length)} rows from /api/v1/tasks</p>
           <ul className="mt-5 divide-y divide-cyan/10">
             {recentTasks.length === 0 ? (

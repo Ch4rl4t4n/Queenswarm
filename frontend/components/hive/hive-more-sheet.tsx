@@ -69,7 +69,7 @@ export function HiveMoreSheet({ open, onClose }: HiveMoreSheetProps) {
           </button>
         </div>
 
-        <h2 id="hive-more-sheet-title" className="px-6 pb-3 pt-1 font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-[#fafafa]">
+        <h2 id="hive-more-sheet-title" className="px-6 pb-3 pt-1 font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">
           Účet
         </h2>
 

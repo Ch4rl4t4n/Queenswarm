@@ -189,7 +189,7 @@ export function TaskQueueSection() {
     <section id="hive-task" className="scroll-mt-24 flex flex-col gap-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h2 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-bold text-[#fafafa] md:text-3xl">
+          <h2 className="font-[family-name:var(--font-poppins)] text-2xl font-bold text-[#fafafa] md:text-3xl">
             Task Queue
           </h2>
           <p className="mt-2 font-[family-name:var(--font-inter)] text-sm text-zinc-500">
@@ -198,7 +198,7 @@ export function TaskQueueSection() {
         </div>
         <Link
           href="/tasks/new"
-          className="inline-flex items-center justify-center gap-2 rounded-2xl border-[2px] border-pollen bg-pollen px-5 py-3 font-[family-name:var(--font-space-grotesk)] text-sm font-bold text-black shadow-[0_0_28px_rgb(255_184_0/0.42)] transition hover:bg-[#ffc933]"
+          className="inline-flex items-center justify-center gap-2 rounded-2xl border-[2px] border-pollen bg-pollen px-5 py-3 font-[family-name:var(--font-poppins)] text-sm font-bold text-black shadow-[0_0_28px_rgb(255_184_0/0.42)] transition hover:bg-[#ffc933]"
         >
           <Plus className="h-4 w-4" aria-hidden />
           Nová úloha
@@ -266,7 +266,7 @@ export function TaskQueueSection() {
                 <div className="pl-3 sm:flex sm:items-stretch sm:justify-between sm:gap-6">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                      <h3 className="font-[family-name:var(--font-space-grotesk)] text-base font-semibold text-[#fafafa]">
+                      <h3 className="font-[family-name:var(--font-poppins)] text-base font-semibold text-[#fafafa]">
                         {task.title}
                       </h3>
                       <span className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-500">

@@ -518,7 +518,7 @@ export default function WorkflowsDagPage(): JSX.Element {
     <div className="space-y-6">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, flexWrap: "wrap", gap: 16 }}>
         <div>
-          <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-bold text-[#e8e8f0]">Workflows</h1>
+          <h1 className="font-[family-name:var(--font-poppins)] text-2xl font-bold text-[#e8e8f0]">Workflows</h1>
           <p style={{ color: "#5a5a7a", fontSize: 13, marginTop: 4 }}>DAG executions · auto-decomposed from tasks</p>
         </div>
         <Link href="/tasks/new">

@@ -55,7 +55,7 @@ function connectorClass(prevTone: WorkflowDagStep["hex_tone"], dashedTail: boole
 
 function DagNode({ step }: { step: WorkflowDagStep }) {
   const base =
-    "hive-hex-clip-flat relative flex h-14 w-12 shrink-0 items-center justify-center border-[6px] font-[family-name:var(--font-space-grotesk)] text-[11px] font-bold tabular-nums transition";
+    "hive-hex-clip-flat relative flex h-14 w-12 shrink-0 items-center justify-center border-[6px] font-[family-name:var(--font-poppins)] text-[11px] font-bold tabular-nums transition";
 
   const toneOutline: Record<WorkflowDagStep["hex_tone"], string> = {
     cyan: "border-cyan/85 bg-transparent text-cyan shadow-[0_0_12px_rgb(0_255_255/0.25)]",
@@ -133,7 +133,7 @@ function FeaturedCard({
     <article className="rounded-3xl border border-white/[0.08] bg-[#0a0a14]/95 p-5 md:p-7">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h3 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-[#fafafa] md:text-xl">{featured.title}</h3>
+          <h3 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa] md:text-xl">{featured.title}</h3>
           <p className="mt-1 font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-500">
             {featured.short_id}
             {featured.tags.length > 0 ? ` · ${featured.tags.join(" · ")}` : ""}
@@ -214,7 +214,7 @@ function ListRow({
       <div className="flex flex-col gap-4 pl-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <p className="font-[family-name:var(--font-space-grotesk)] text-sm font-semibold text-[#fafafa]">{row.title}</p>
+            <p className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-[#fafafa]">{row.title}</p>
             <span className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-500">{row.short_id}</span>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -347,7 +347,7 @@ export function WorkflowsSection() {
   return (
     <section id="hive-workflows" className="scroll-mt-24 flex flex-col gap-8">
       <div>
-        <h2 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-bold text-[#fafafa] md:text-3xl">Workflows</h2>
+        <h2 className="font-[family-name:var(--font-poppins)] text-2xl font-bold text-[#fafafa] md:text-3xl">Workflows</h2>
         <p className="mt-2 font-[family-name:var(--font-inter)] text-sm text-zinc-500">
           DAG executions · auto-decomposed from tasks
         </p>
@@ -365,7 +365,7 @@ export function WorkflowsSection() {
       )}
 
       <div>
-        <h3 className="font-[family-name:var(--font-space-grotesk)] text-sm font-semibold text-zinc-400">Recent</h3>
+        <h3 className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-zinc-400">Recent</h3>
         <ul className="mt-4 flex flex-col gap-3">
           {listRows.length === 0 ? (
             <li className="rounded-2xl border border-dashed border-white/10 py-10 text-center text-sm text-zinc-600">Žiadne položky.</li>

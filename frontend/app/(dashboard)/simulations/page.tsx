@@ -19,7 +19,7 @@ export default async function SimulationsPage() {
     <div className="space-y-8">
       <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="font-[family-name:var(--font-space-grotesk)] text-3xl font-semibold text-pollen">
+          <h1 className="font-[family-name:var(--font-poppins)] text-3xl font-semibold text-pollen">
             verified simulation vault
           </h1>
           <p className="mt-2 max-w-2xl font-[family-name:var(--font-jetbrains-mono)] text-sm text-cyan">

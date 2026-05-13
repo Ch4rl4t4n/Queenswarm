@@ -97,7 +97,7 @@ function SwarmMetricHex({ n, className }: { n: number; className: string }) {
   return (
     <div
       className={cn(
-        "hive-hex-clip-flat flex h-11 w-10 shrink-0 items-center justify-center border-[6px] font-[family-name:var(--font-space-grotesk)] text-sm font-bold tabular-nums",
+        "hive-hex-clip-flat flex h-11 w-10 shrink-0 items-center justify-center border-[6px] font-[family-name:var(--font-poppins)] text-sm font-bold tabular-nums",
         className,
       )}
     >
@@ -114,7 +114,7 @@ function SwarmBoardCardView({ card }: { card: SwarmBoardCard }) {
         <div className="flex min-w-0 flex-1 gap-3">
           <SwarmMetricHex n={card.member_count} className={theme.hex} />
           <div className="min-w-0">
-            <h3 className={cn("font-[family-name:var(--font-space-grotesk)] text-lg font-bold", theme.title)}>
+            <h3 className={cn("font-[family-name:var(--font-poppins)] text-lg font-bold", theme.title)}>
               {card.display_name}
             </h3>
             <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-zinc-500">{card.description}</p>
@@ -273,7 +273,7 @@ export function SwarmBoardSection() {
       <section>
         <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
           <div>
-            <h2 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-bold text-[#fafafa]">Sub-Swarms</h2>
+            <h2 className="font-[family-name:var(--font-poppins)] text-2xl font-bold text-[#fafafa]">Sub-Swarms</h2>
             <p className="mt-2 max-w-2xl font-[family-name:var(--font-inter)] text-sm text-zinc-500">
               Štyri decentralizované roje s lokálnou pamäťou. Globálna synchronizácia približne každých {syncMin} min.
             </p>
@@ -294,7 +294,7 @@ export function SwarmBoardSection() {
 
       <section className="rounded-3xl border-[2px] border-magenta/20 bg-[#08080f]/95 p-6 shadow-[0_0_40px_rgb(255_0_170/0.08)] md:p-8">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="font-[family-name:var(--font-space-grotesk)] text-xl font-semibold text-[#fafafa]">
+          <h2 className="font-[family-name:var(--font-poppins)] text-xl font-semibold text-[#fafafa]">
             Waggle Dance Feed
           </h2>
           <p className="font-[family-name:var(--font-inter)] text-xs text-zinc-500">Signály medzi swarmami · z úloh v úli</p>

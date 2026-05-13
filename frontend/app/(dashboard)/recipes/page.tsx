@@ -68,7 +68,7 @@ export default async function RecipesPage() {
                 </span>
               </div>
               <div>
-                <h2 className="font-[family-name:var(--font-space-grotesk)] text-xl font-semibold text-[#fafafa]">{recipe.name}</h2>
+                <h2 className="font-[family-name:var(--font-poppins)] text-xl font-semibold text-[#fafafa]">{recipe.name}</h2>
                 {(recipe.topic_tags ?? []).length ? (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {(recipe.topic_tags ?? []).slice(0, 4).map((t) => (

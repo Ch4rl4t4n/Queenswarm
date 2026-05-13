@@ -324,7 +324,7 @@ export function AgentsLiveSection({
     <section id="hive-live-swarm" className="scroll-mt-24 rounded-3xl border-[3px] border-white/10 bg-[#07070f]/95 p-6 md:p-8">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h2 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-bold text-[#fafafa] md:text-3xl">Agenti</h2>
+          <h2 className="font-[family-name:var(--font-poppins)] text-2xl font-bold text-[#fafafa] md:text-3xl">Agenti</h2>
           <p className="mt-2 font-[family-name:var(--font-inter)] text-sm text-zinc-500">
             {counts.all} včiel · {assignedWorkerCount} zaradených do swarmov · {counts.unassigned} nezaradených ·{" "}
             {swarmCountDistinct} swarmov s aspoň jednou včelou · {roleTypeCount} typov rolí
@@ -347,7 +347,7 @@ export function AgentsLiveSection({
             type="button"
             disabled={rebalanceBusy}
             onClick={() => void onRebalanceHive()}
-            className="inline-flex items-center gap-2 rounded-2xl border-[2px] border-pollen bg-pollen px-4 py-2.5 font-[family-name:var(--font-space-grotesk)] text-sm font-bold text-black shadow-[0_0_28px_rgb(255_184_0/0.42)] transition hover:bg-[#ffc933] disabled:opacity-45"
+            className="inline-flex items-center gap-2 rounded-2xl border-[2px] border-pollen bg-pollen px-4 py-2.5 font-[family-name:var(--font-poppins)] text-sm font-bold text-black shadow-[0_0_28px_rgb(255_184_0/0.42)] transition hover:bg-[#ffc933] disabled:opacity-45"
           >
             <Play className="h-4 w-4" aria-hidden />
             {rebalanceBusy ? "Prebieha…" : "Vyrovnať úľ"}
@@ -440,7 +440,7 @@ export function AgentsLiveSection({
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={cn("h-2 w-2 shrink-0 rounded-full", statusDotClass(agent.status))} aria-hidden />
-                      <span className="font-[family-name:var(--font-space-grotesk)] text-sm font-bold text-[#fafafa]">
+                      <span className="font-[family-name:var(--font-poppins)] text-sm font-bold text-[#fafafa]">
                         {agent.name}
                       </span>
                       <span className="font-[family-name:var(--font-inter)] text-xs text-zinc-500">

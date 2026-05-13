@@ -93,7 +93,7 @@ function HexStepIcon({ n, className }: { n: number; className: string }) {
   return (
     <div
       className={cn(
-        "hive-hex-clip-flat flex h-11 w-10 shrink-0 items-center justify-center border-[6px] font-[family-name:var(--font-space-grotesk)] text-sm font-bold tabular-nums",
+        "hive-hex-clip-flat flex h-11 w-10 shrink-0 items-center justify-center border-[6px] font-[family-name:var(--font-poppins)] text-sm font-bold tabular-nums",
         className,
       )}
     >
@@ -300,7 +300,7 @@ export function NewTaskConsole() {
           Späť
         </Link>
         <div>
-          <h1 className="font-[family-name:var(--font-space-grotesk)] text-3xl font-bold tracking-tight text-[#fafafa]">Nový task</h1>
+          <h1 className="font-[family-name:var(--font-poppins)] text-3xl font-bold tracking-tight text-[#fafafa]">Nový task</h1>
           <p className="mt-2 max-w-xl font-[family-name:var(--font-inter)] text-sm text-zinc-500">
             Popíš, čo potrebuješ. Auto-workflow breaker rozloží zadanie na atomické kroky.
           </p>
@@ -405,7 +405,7 @@ export function NewTaskConsole() {
 
       <div className="mt-8 rounded-2xl border border-white/[0.08] bg-[#0c0c14]/95 p-6 shadow-[0_0_36px_rgb(0_255_255/0.06)] md:p-8">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-[#fafafa]">Náhľad dekompozície</h2>
+          <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">Náhľad dekompozície</h2>
           <p className="font-[family-name:var(--font-inter)] text-xs text-zinc-500">
             {previewLoading ? "LLM pracuje…" : "LLM"}
             {displaySteps.length > 0 ? ` · ${displaySteps.length} krokov` : previewError ? " · chyba" : ""}
@@ -413,7 +413,7 @@ export function NewTaskConsole() {
         </div>
         {previewError ? (
           <div className="mt-3 space-y-3 rounded-xl border border-pollen/25 bg-pollen/[0.06] p-4 md:p-5">
-            <div className="font-[family-name:var(--font-space-grotesk)] text-sm font-semibold text-pollen">
+            <div className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-pollen">
               LLM preview unavailable
             </div>
             <p className="font-[family-name:var(--font-inter)] text-xs leading-relaxed text-zinc-400">
@@ -462,7 +462,7 @@ export function NewTaskConsole() {
               >
                 <HexStepIcon n={step.step_order} className={ui.hexClass} />
                 <div className="min-w-0 flex-1">
-                  <p className="font-[family-name:var(--font-space-grotesk)] text-sm font-semibold text-[#fafafa]">{step.description}</p>
+                  <p className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-[#fafafa]">{step.description}</p>
                   <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-zinc-500">{step.guardrail_summary}</p>
                 </div>
                 <span
@@ -496,7 +496,7 @@ export function NewTaskConsole() {
               type="button"
               disabled={submitBusy || taskText.trim().length < 8}
               onClick={() => void onSubmit()}
-              className="inline-flex items-center gap-2 rounded-xl border-[2px] border-pollen bg-pollen px-5 py-2.5 font-[family-name:var(--font-space-grotesk)] text-sm font-black text-black shadow-[0_0_32px_rgb(255_184_0/0.38)] transition hover:bg-[#ffc933] disabled:opacity-45"
+              className="inline-flex items-center gap-2 rounded-xl border-[2px] border-pollen bg-pollen px-5 py-2.5 font-[family-name:var(--font-poppins)] text-sm font-black text-black shadow-[0_0_32px_rgb(255_184_0/0.38)] transition hover:bg-[#ffc933] disabled:opacity-45"
             >
               <PlayIcon className="h-4 w-4" aria-hidden />
               {submitBusy ? "Odosielam…" : "Odoslať"}

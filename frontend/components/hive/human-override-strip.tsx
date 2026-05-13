@@ -20,7 +20,7 @@ export function HumanOverrideStrip() {
     <div className="rounded-xl border border-danger/35 bg-[#0d0d2b] p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="font-[family-name:var(--font-space-grotesk)] text-sm font-semibold text-[#fafafa]">
+          <h3 className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-[#fafafa]">
             Human override
           </h3>
           <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-zinc-500">

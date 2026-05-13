@@ -56,7 +56,7 @@ export function HiveMobileHeader({ pathname, summary, className }: HiveMobileHea
           <span className="text-xs font-black text-black">Q</span>
         </span>
         <span className="min-w-0">
-          <p className="font-[family-name:var(--font-space-grotesk)] text-[11px] font-semibold uppercase tracking-[0.18em] text-pollen">{meta.kicker}</p>
+          <p className="font-[family-name:var(--font-poppins)] text-[11px] font-semibold uppercase tracking-[0.18em] text-pollen">{meta.kicker}</p>
           <p className="line-clamp-2 font-[family-name:var(--font-inter)] text-xs text-muted-foreground">{contextualLine}</p>
         </span>
       </Link>

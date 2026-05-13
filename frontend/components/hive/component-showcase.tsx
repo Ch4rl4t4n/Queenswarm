@@ -28,7 +28,7 @@ export function ComponentShowcase() {
         <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.28em] text-cyan/70">
           queenswarm · neon-dark kit
         </p>
-        <h1 className="font-[family-name:var(--font-space-grotesk)] text-3xl font-semibold text-pollen">
+        <h1 className="font-[family-name:var(--font-poppins)] text-3xl font-semibold text-pollen">
           Component showcase
         </h1>
         <p className="max-w-2xl font-[family-name:var(--font-inter)] text-sm text-muted-foreground">
@@ -37,7 +37,7 @@ export function ComponentShowcase() {
       </header>
 
       <section className="space-y-4 rounded-2xl border border-cyan/15 bg-black/35 p-6">
-        <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg text-data">StatusIndicator</h2>
+        <h2 className="font-[family-name:var(--font-poppins)] text-lg text-data">StatusIndicator</h2>
         <div className="flex flex-wrap gap-6">
           <StatusIndicator tone="online" label="Online" />
           <StatusIndicator tone="idle" label="Idle" pulse={false} />
@@ -47,7 +47,7 @@ export function ComponentShowcase() {
       </section>
 
       <section className="space-y-4 rounded-2xl border border-cyan/15 bg-black/35 p-6">
-        <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg text-data">NeonButton</h2>
+        <h2 className="font-[family-name:var(--font-poppins)] text-lg text-data">NeonButton</h2>
         <div className="flex flex-wrap gap-3">
           <NeonButton variant="primary">Primary</NeonButton>
           <NeonButton variant="secondary">Secondary</NeonButton>
@@ -57,7 +57,7 @@ export function ComponentShowcase() {
       </section>
 
       <section className="space-y-4 rounded-2xl border border-cyan/15 bg-black/35 p-6">
-        <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg text-data">ProgressBar</h2>
+        <h2 className="font-[family-name:var(--font-poppins)] text-lg text-data">ProgressBar</h2>
         <div className="grid gap-6 md:grid-cols-2">
           <ProgressBar variant="pollen" value={72} label="Pollen lane" />
           <ProgressBar variant="data" value={54} label="Data throughput" />
@@ -67,7 +67,7 @@ export function ComponentShowcase() {
       </section>
 
       <section className="space-y-4 rounded-2xl border border-cyan/15 bg-black/35 p-6">
-        <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg text-data">DataCard</h2>
+        <h2 className="font-[family-name:var(--font-poppins)] text-lg text-data">DataCard</h2>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <DataCard label="Total agents" value="128" icon={BotIcon} trendPercent={12} />
           <DataCard label="Active tasks" value="47" icon={ZapIcon} trendPercent={8} />
@@ -77,7 +77,7 @@ export function ComponentShowcase() {
       </section>
 
       <section className="space-y-4 rounded-2xl border border-cyan/15 bg-black/35 p-6">
-        <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg text-data">HexagonalAgentCard + AgentGrid</h2>
+        <h2 className="font-[family-name:var(--font-poppins)] text-lg text-data">HexagonalAgentCard + AgentGrid</h2>
         <AgentGrid>
           <HexagonalAgentCard agent={DEMO_AGENT} />
           <HexagonalAgentCard agent={{ ...DEMO_AGENT, id: "2", name: "Eval-01", role: "EVALUATOR", status: "IDLE" }} />

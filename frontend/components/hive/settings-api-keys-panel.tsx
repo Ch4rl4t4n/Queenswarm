@@ -231,7 +231,7 @@ export function SettingsApiKeysPanel() {
         </div>
 
         <div className="mt-8 space-y-3">
-          <h3 className="font-[family-name:var(--font-space-grotesk)] text-sm font-semibold text-[var(--qs-text)]">Stored bundles</h3>
+          <h3 className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-[var(--qs-text)]">Stored bundles</h3>
           {apis.length === 0 ? (
             <p className="text-sm text-[var(--qs-text-3)]">Nothing persisted yet.</p>
           ) : (

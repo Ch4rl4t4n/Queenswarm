@@ -85,7 +85,7 @@ export default async function CostsPage() {
             <p className="font-[family-name:var(--font-inter)] text-xs uppercase tracking-[0.14em] text-muted-foreground">Cap</p>
             <TargetIcon className="h-5 w-5 text-alert" aria-hidden />
           </div>
-          <p className="mt-3 font-[family-name:var(--font-space-grotesk)] text-3xl text-pollen">{formatUsd(capUsd)}</p>
+          <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl text-pollen">{formatUsd(capUsd)}</p>
           <p className="mt-2 font-[family-name:var(--font-inter)] text-xs text-muted-foreground">Auto-pause at 100%</p>
         </aside>
       </section>
@@ -98,7 +98,7 @@ export default async function CostsPage() {
       <section className="grid gap-6 xl:grid-cols-5">
         <div className="space-y-3 xl:col-span-3">
           <div className="flex flex-wrap justify-between gap-2">
-            <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg text-[#fafafa]">
+            <h2 className="font-[family-name:var(--font-poppins)] text-lg text-[#fafafa]">
               Spend trend · {Math.min(summary.window_days, byDayFull.length)}d
             </h2>
             <NeonButton asChild variant="ghost" className="text-[10px] uppercase">
@@ -113,7 +113,7 @@ export default async function CostsPage() {
         </div>
 
         <div className="space-y-3 xl:col-span-2">
-          <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg text-[#fafafa]">By LLM provider</h2>
+          <h2 className="font-[family-name:var(--font-poppins)] text-lg text-[#fafafa]">By LLM provider</h2>
           <div className="space-y-4 rounded-2xl border border-cyan/[0.1] bg-hive-card/90 p-5">
             {providers.length === 0 ? (
               <p className="font-[family-name:var(--font-inter)] text-sm text-zinc-500">Žiadny spend v tomto okne.</p>
@@ -143,7 +143,7 @@ export default async function CostsPage() {
       <SystemStatusPanel />
 
       <section className="rounded-3xl border border-cyan/[0.1] bg-hive-card/90 p-6">
-        <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg text-[#fafafa]">Pollen intensity · top bees</h2>
+        <h2 className="font-[family-name:var(--font-poppins)] text-lg text-[#fafafa]">Pollen intensity · top bees</h2>
         <p className="mt-1 font-[family-name:var(--font-inter)] text-sm text-muted-foreground">
           Relatívne oproti max v rožku — per-agent LiteLLM cost join ešte pribudne.
         </p>
@@ -190,7 +190,7 @@ function KpiChip({
         <p className="font-[family-name:var(--font-inter)] text-xs uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
         <DollarSignIcon className="h-6 w-6 text-pollen" aria-hidden />
       </div>
-      <p className="mt-3 font-[family-name:var(--font-space-grotesk)] text-3xl text-[#fafafa]">{value}</p>
+      <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl text-[#fafafa]">{value}</p>
       {typeof delta === "number" && delta !== 0 ? (
         <p className={cn("mt-2 font-[family-name:var(--font-jetbrains-mono)] text-xs", delta > 0 ? "text-success" : "text-danger")}>
           {delta > 0 ? "+" : ""}

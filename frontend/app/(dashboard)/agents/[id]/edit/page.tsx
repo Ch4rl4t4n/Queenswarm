@@ -219,7 +219,7 @@ export default function AgentEditPage() {
     <div className="mx-auto max-w-3xl space-y-6 p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-bold text-[#fafafa]">
+          <h1 className="font-[family-name:var(--font-poppins)] text-2xl font-bold text-[#fafafa]">
             🐝 {agent?.name ?? id}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -520,7 +520,7 @@ export default function AgentEditPage() {
           type="button"
           onClick={() => void save()}
           disabled={saving}
-          className="flex-1 rounded-xl bg-pollen py-3 font-[family-name:var(--font-space-grotesk)] font-bold text-black shadow-[0_0_20px_#FFB80044] hover:opacity-95 disabled:opacity-50"
+          className="flex-1 rounded-xl bg-pollen py-3 font-[family-name:var(--font-poppins)] font-bold text-black shadow-[0_0_20px_#FFB80044] hover:opacity-95 disabled:opacity-50"
         >
           {saving ? "Saving…" : "Save agent config"}
         </button>

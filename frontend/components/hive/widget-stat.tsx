@@ -17,7 +17,7 @@ export function WidgetStat({ label, value, caption, icon: Icon }: WidgetStatProp
           <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.2em] text-cyan/80">
             {label}
           </p>
-          <p className="font-[family-name:var(--font-space-grotesk)] text-3xl font-semibold tracking-tight text-pollen shadow-[0_0_35px_rgba(255,184,0,0.42)]">
+          <p className="font-[family-name:var(--font-poppins)] text-3xl font-semibold tracking-tight text-pollen shadow-[0_0_35px_rgba(255,184,0,0.42)]">
             {value}
           </p>
           {caption ? (

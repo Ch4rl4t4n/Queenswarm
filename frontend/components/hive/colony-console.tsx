@@ -508,7 +508,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
             !options.configurable && "cursor-default",
           )}
         >
-          <p className="truncate font-[family-name:var(--font-space-grotesk)] text-sm font-semibold text-pollen">{agent.name}</p>
+          <p className="truncate font-[family-name:var(--font-poppins)] text-sm font-semibold text-pollen">{agent.name}</p>
           <p className="mt-0.5 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.14em] text-cyan/55">
             {tierLabel(tier)}
           </p>
@@ -558,7 +558,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
 
       {/* 1 — Úloha */}
       <section id="hive-task" className="scroll-mt-28 mx-auto w-full max-w-3xl rounded-2xl border-[3px] border-pollen/35 bg-gradient-to-br from-[#14101a] to-[#08080f] p-6 shadow-[0_0_40px_rgb(255_184_0/0.12)] md:p-8">
-        <h2 className="text-center font-[family-name:var(--font-space-grotesk)] text-xl font-bold text-pollen md:text-left">
+        <h2 className="text-center font-[family-name:var(--font-poppins)] text-xl font-bold text-pollen md:text-left">
           Úloha pre Queen
         </h2>
         <p className="mt-2 text-center font-[family-name:var(--font-inter)] text-sm text-zinc-400 md:text-left">
@@ -592,7 +592,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
 
       {/* 2 — Tvorba agentov (pod úlohou) */}
       <section id="hive-create" className="scroll-mt-28 mx-auto w-full max-w-3xl rounded-2xl border-[3px] border-cyan/30 bg-[#0a0a14]/95 p-6 shadow-[0_0_28px_rgb(0_255_255/0.08)] md:p-8">
-        <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-[#fafafa]">Nový manažér / robotník</h2>
+        <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">Nový manažér / robotník</h2>
         <p className="mt-2 font-[family-name:var(--font-inter)] text-sm text-zinc-500">
           Pridaj včelu do úľa. Queen ostáva jedna; robotníci pod manažérom sa zobrazia v stromčeku, ak majú rovnaké{" "}
           <span className="font-[family-name:var(--font-jetbrains-mono)] text-cyan/70">swarm_id</span> ako manažér.
@@ -640,7 +640,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
 
       {/* 3 — Hierarchia Queen → manažéri → tímy */}
       <section id="hive-hierarchy" className="scroll-mt-28 relative w-full overflow-x-auto rounded-3xl border-[3px] border-white/10 bg-[#06060c]/90 px-4 py-8 md:px-8 md:py-10">
-        <h2 className="mb-2 text-center font-[family-name:var(--font-space-grotesk)] text-xs font-bold uppercase tracking-[0.28em] text-pollen/90">
+        <h2 className="mb-2 text-center font-[family-name:var(--font-poppins)] text-xs font-bold uppercase tracking-[0.28em] text-pollen/90">
           Hierarchia úľa
         </h2>
         <p className="mx-auto mb-10 max-w-2xl text-center font-[family-name:var(--font-inter)] text-sm text-zinc-500">
@@ -651,7 +651,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
           <div className="flex flex-col items-center">
             <HexFrame variant="queen" className="w-full max-w-sm">
               <div className="text-center">
-                <p className="font-[family-name:var(--font-space-grotesk)] text-lg font-bold text-pollen">Queen</p>
+                <p className="font-[family-name:var(--font-poppins)] text-lg font-bold text-pollen">Queen</p>
                 {hierarchy.queen.name.toLowerCase() !== "queen" ? (
                   <p className="mt-1 font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-500">{hierarchy.queen.name}</p>
                 ) : null}
@@ -703,7 +703,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
                           onClick={() => void openConfigModal(mgr)}
                           className="w-full text-left outline-none hover:opacity-95 focus-visible:ring-2 focus-visible:ring-pollen/50"
                         >
-                          <p className="truncate font-[family-name:var(--font-space-grotesk)] text-base font-semibold text-pollen">
+                          <p className="truncate font-[family-name:var(--font-poppins)] text-base font-semibold text-pollen">
                             {mgr.name}
                           </p>
                           <p className="mt-1 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.16em] text-cyan/65">
@@ -759,7 +759,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
 
         {hierarchy.ungrouped.length > 0 ? (
           <div className="mx-auto mt-12 max-w-5xl border-t border-white/10 pt-8">
-            <h3 className="mb-4 text-center font-[family-name:var(--font-space-grotesk)] text-sm font-semibold text-zinc-300">
+            <h3 className="mb-4 text-center font-[family-name:var(--font-poppins)] text-sm font-semibold text-zinc-300">
               Robotníci mimo tímov <span className="text-zinc-500">({hierarchy.ungrouped.length})</span>
             </h3>
             <p className="mx-auto mb-6 max-w-xl text-center text-xs text-zinc-600">
@@ -791,7 +791,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
           aria-labelledby="agent-config-title"
         >
           <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border-[3px] border-cyan/30 bg-[#0a0a14] p-6 shadow-[0_0_48px_rgb(0_255_255/0.12)]">
-            <h3 id="agent-config-title" className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-pollen">
+            <h3 id="agent-config-title" className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-pollen">
               {modalAgent.name}
             </h3>
             <p className="mt-1 font-[family-name:var(--font-jetbrains-mono)] text-[11px] uppercase text-zinc-500">

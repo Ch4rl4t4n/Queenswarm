@@ -85,7 +85,7 @@ export function WorkflowDagHero({ workflow }: WorkflowDagHeroProps) {
             </span>
             <span className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-500">{workflow.id}</span>
           </div>
-          <h2 className="mt-4 font-[family-name:var(--font-space-grotesk)] text-xl font-semibold text-[#fafafa] md:text-2xl">
+          <h2 className="mt-4 font-[family-name:var(--font-poppins)] text-xl font-semibold text-[#fafafa] md:text-2xl">
             {workflow.original_task_text.slice(0, 120)}
             {workflow.original_task_text.length > 120 ? "…" : ""}
           </h2>
