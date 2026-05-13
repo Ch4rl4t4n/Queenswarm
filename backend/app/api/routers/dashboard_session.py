@@ -196,7 +196,10 @@ async def dashboard_login(body: LoginRequest, db: DbSession) -> LoginResponse:
         )
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials.")
 
-    if user.totp_required and user.totp_secret:
+    # Challenge TOTP only when enrollment is finished (Authenticator confirmed once).
+    # Pending rows (`totp_secret` set, `totp_verified_at` null) must still reach the dashboard
+    # to scan the QR — password-only gate here; legacy `totp_required` alone must not trap users on OTP UX.
+    if user.totp_secret is not None and user.totp_verified_at is not None:
         pre, _ttl = create_pre_2fa_token(user_id=user.id, email=user.email)
         return LoginResponse(
             requires_totp=True,

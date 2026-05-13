@@ -586,9 +586,15 @@ function LoginFormInner(): JSX.Element {
               Two-factor verification
             </div>
             <div style={{ fontSize: 13, color: "#5a5a7a", lineHeight: 1.6, marginBottom: 4 }}>Open Google Authenticator</div>
-            <div style={{ fontSize: 12, color: "#3a3a5a", marginBottom: 8 }}>
+            <div style={{ fontSize: 12, color: "#5a5a7a", lineHeight: 1.55, marginBottom: 12 }}>
               Enter the 6-digit code for <strong style={{ color: "#9898b8" }}>Queenswarm</strong>
             </div>
+            <p style={{ fontSize: 11, color: "#4a4a6a", lineHeight: 1.55, marginBottom: 14, maxWidth: 360, marginInline: "auto" }}>
+              Zobrazí sa len vtedy, keď už máš 2FA aktivovaný. Nie je spárovaný telefón? Skús{" "}
+              <strong style={{ color: "#6a6a8a" }}>záložný kód</strong> alebo obráť sa na administrátora. Ak 2FA ešte nemáš
+              nastavený, choď ← Späť a po prihlásení ho dokončíš v časti{" "}
+              <strong style={{ color: "#6a6a8a" }}>Nastavenia → Security</strong>.
+            </p>
 
             <OTPInput onComplete={(code) => void handleOTP(code)} />
 
