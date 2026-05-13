@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { AuthHexLogo } from "@/components/auth/auth-hex-logo";
+import { QueenHoneycombLogo } from "@/components/auth/queen-honeycomb-logo";
 import { StatusIndicator } from "@/components/ui/status-indicator";
 import type { DashboardSummary } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
@@ -98,8 +98,8 @@ export function HiveSidebar({ pathname }: HiveSidebarProps) {
     <aside className="sticky top-0 z-30 hidden h-screen w-[220px] min-w-[220px] shrink-0 flex-col overflow-y-auto border-r border-[#1a1a3e]/90 bg-[#0d0d2b]/95 py-6 hive-scrollbar lg:flex">
       <div className="mb-6 flex h-14 shrink-0 items-center gap-3 border-b border-[#1a1a3e]/90 px-4">
         <Link href="/" className="flex min-w-0 flex-1 items-center gap-2.5" prefetch>
-          <div className="h-9 w-9 shrink-0">
-            <AuthHexLogo className="h-9 w-9" aria-hidden />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center">
+            <QueenHoneycombLogo size={36} aria-hidden />
           </div>
           <span className="truncate font-[family-name:var(--font-space-grotesk)] text-[15px] font-bold tracking-tight text-[#FFB800]">
             Queenswarm

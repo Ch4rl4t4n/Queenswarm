@@ -238,6 +238,13 @@ async def dashboard_verify_totp(body: Verify2FARequest, db: DbSession) -> _Token
     return _TokenBundle.model_validate(bundle)
 
 
+@router.post("/totp/verify", summary="Alias for POST /auth/verify-2fa (TOTP or backup code)")
+async def dashboard_totp_verify_alias(body: Verify2FARequest, db: DbSession) -> _TokenBundle:
+    """Finalize login after ``requires_totp`` — same validation as ``/verify-2fa``."""
+
+    return await dashboard_verify_totp(body, db)
+
+
 @router.post("/refresh", summary="Rotate access token using opaque refresh credential")
 async def dashboard_refresh(body: RefreshRequest, db: DbSession) -> _TokenBundle:
     cleaned = body.refresh_token.strip()

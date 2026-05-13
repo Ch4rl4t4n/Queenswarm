@@ -1,69 +1,154 @@
 "use client";
 
-import { ArrowRightIcon } from "lucide-react";
-import type { FormEvent } from "react";
-import { Suspense, useEffect, useState } from "react";
+import type { ClipboardEvent, CSSProperties, KeyboardEvent } from "react";
+import { Suspense, useCallback, useEffect, useId, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
-import { AuthHexLogo } from "@/components/auth/auth-hex-logo";
-import { cn } from "@/lib/utils";
+import { QueenHoneycombLogo } from "@/components/auth/queen-honeycomb-logo";
 
-const SHOW_LOGIN_SSO = process.env.NEXT_PUBLIC_LOGIN_SSO_ENABLED === "true";
+type LoginStep = "credentials" | "otp";
+
+interface OTPInputProps {
+  onComplete: (code: string) => void;
+}
+
+function OTPInput({ onComplete }: OTPInputProps): JSX.Element {
+  const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
+  const refs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const setRef = useCallback((idx: number, el: HTMLInputElement | null) => {
+    refs.current[idx] = el;
+  }, []);
+
+  function handleChange(index: number, value: string): void {
+    const clean = value.replace(/\D/g, "").slice(-1);
+    const next = [...digits];
+    next[index] = clean;
+    setDigits(next);
+    if (clean && index < 5) {
+      refs.current[index + 1]?.focus();
+    }
+    if (next.every((d) => d !== "")) {
+      onComplete(next.join(""));
+    }
+  }
+
+  function handleKeyDown(index: number, ev: KeyboardEvent<HTMLInputElement>): void {
+    if (ev.key === "Backspace" && !digits[index] && index > 0) {
+      refs.current[index - 1]?.focus();
+    }
+    if (ev.key === "ArrowLeft" && index > 0) {
+      refs.current[index - 1]?.focus();
+    }
+    if (ev.key === "ArrowRight" && index < 5) {
+      refs.current[index + 1]?.focus();
+    }
+  }
+
+  function handlePaste(ev: ClipboardEvent<HTMLInputElement>): void {
+    ev.preventDefault();
+    const text = ev.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (!text) {
+      return;
+    }
+    const next = Array.from({ length: 6 }, (_, i) => text[i] ?? "");
+    setDigits(next);
+    const focusIdx = Math.min(text.length, 5);
+    refs.current[focusIdx]?.focus();
+    if (next.every((d) => d !== "")) {
+      onComplete(next.join(""));
+    }
+  }
+
+  function boxStyle(filled: boolean): CSSProperties {
+    return {
+      width: 46,
+      height: 56,
+      background: "#0a0a0f",
+      border: `1px solid ${filled ? "#FFB800" : "#1e1e35"}`,
+      borderRadius: 10,
+      color: "#e8e8f0",
+      fontSize: 22,
+      fontWeight: 700,
+      fontFamily: "var(--font-hive-mono), ui-monospace, monospace",
+      textAlign: "center",
+      outline: "none",
+      caretColor: "#FFB800",
+      transition: "border-color 0.15s",
+    };
+  }
+
+  return (
+    <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+      {digits.map((d, i) => (
+        <input
+          key={i}
+          ref={(el) => setRef(i, el)}
+          type="text"
+          inputMode="numeric"
+          maxLength={1}
+          value={d}
+          autoComplete={i === 0 ? "one-time-code" : "off"}
+          onChange={(e) => handleChange(i, e.target.value)}
+          onKeyDown={(e) => handleKeyDown(i, e)}
+          onPaste={handlePaste}
+          onFocus={(e) => e.target.select()}
+          style={boxStyle(d !== "")}
+          autoFocus={i === 0}
+          aria-label={`Digit ${String(i + 1)}`}
+        />
+      ))}
+    </div>
+  );
+}
 
 interface LoginUpstreamResponse {
   ok?: boolean;
   requires_totp?: boolean;
+  requires_2fa?: boolean;
   pre_auth_token?: string | null;
   detail?: string;
+  message?: string;
   access_token?: string;
   expires_in?: number;
 }
 
-function RememberToggle({
-  checked,
-  onChange,
-  id,
-}: {
-  checked: boolean;
-  onChange: (value: boolean) => void;
-  id: string;
-}) {
-  return (
-    <button
-      type="button"
-      id={id}
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={cn(
-        "relative h-6 w-10 shrink-0 rounded-full border transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pollen/50",
-        checked ? "border-pollen bg-pollen" : "border-[#2a2a5e] bg-[#1a1a3e]",
-      )}
-    >
-      <span
-        className={cn(
-          "absolute top-0.5 h-5 w-5 rounded-full shadow-sm transition-all duration-200",
-          checked ? "left-[calc(100%-1.375rem)] bg-black" : "left-0.5 bg-[#4a4a7e]",
-        )}
-        aria-hidden
-      />
-    </button>
-  );
-}
-
-function LoginForm() {
+function LoginFormInner(): JSX.Element {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath =
     searchParams.get("next") && searchParams.get("next")!.startsWith("/") ? searchParams.get("next")! : "/";
 
+  const [step, setStep] = useState<LoginStep>("credentials");
   const [email, setEmail] = useState("queen@queenswarm.love");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(true);
-  const [hiveOnline, setHiveOnline] = useState<boolean | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [preAuthToken, setPreAuthToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [hiveOnline, setHiveOnline] = useState<boolean | null>(null);
+  const bgPatternId = useId();
+  const hexPatA = `login-hx-${bgPatternId}`;
+  const hexPatB = `login-hx2-${bgPatternId}`;
+  const otpSubmitLock = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/auth/bearer", { credentials: "include" });
+        if (cancelled || !res.ok) {
+          return;
+        }
+        router.replace(nextPath);
+      } catch {
+        /* stay on login */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [router, nextPath]);
 
   useEffect(() => {
     let alive = true;
@@ -84,243 +169,453 @@ function LoginForm() {
     };
   }, []);
 
-  async function submit(ev: FormEvent<HTMLFormElement>): Promise<void> {
-    ev.preventDefault();
-    setError("");
-    if (!password.trim()) {
-      setError("Enter your password.");
+  async function handleLogin(): Promise<void> {
+    if (!password) {
+      setError("Enter your password");
       return;
     }
-    setBusy(true);
+    setLoading(true);
+    setError("");
     try {
-      const res = await fetch("/api/auth/login", {
+      const r = await fetch("/api/auth/login", {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
+        credentials: "include",
       });
-      const data = (await res.json()) as LoginUpstreamResponse;
-      if (!res.ok) {
-        const msg =
-          res.status === 401
-            ? "Invalid credentials"
-            : typeof data.detail === "string"
-              ? data.detail
-              : "Prihlásenie zlyhalo.";
-        setError(msg);
-        toast.error(msg);
+      const data = (await r.json()) as LoginUpstreamResponse;
+
+      if (!r.ok) {
+        setError(typeof data.detail === "string" ? data.detail : "Invalid credentials");
+        setLoading(false);
         return;
       }
-      if (data.requires_totp) {
-        if (typeof window !== "undefined" && typeof data.pre_auth_token === "string") {
-          window.sessionStorage.setItem("qs_pre_auth", data.pre_auth_token);
+
+      const needsOtp = Boolean(data.requires_totp || data.requires_2fa);
+      if (needsOtp && typeof data.pre_auth_token === "string" && data.pre_auth_token.trim()) {
+        const pre = data.pre_auth_token.trim();
+        setPreAuthToken(pre);
+        if (typeof window !== "undefined") {
+          window.sessionStorage.setItem("qs_pre_auth", pre);
         }
-        toast.message("Dvojstupňové overenie", { description: "Zadaj TOTP z aplikácie." });
-        router.push(`/verify-2fa?next=${encodeURIComponent(nextPath)}`);
-        router.refresh();
+        setStep("otp");
+        setLoading(false);
+        toast.message("Two-factor verification", { description: "Enter the code from your authenticator app." });
         return;
       }
-      if (rememberMe) {
-        localStorage.setItem("qs_login_remember", "1");
-      } else {
-        localStorage.removeItem("qs_login_remember");
-      }
-      if (typeof window !== "undefined" && typeof data.access_token === "string" && data.access_token.trim()) {
-        const tok = data.access_token.trim();
-        localStorage.setItem("qs_token", tok);
-        const maxAgeRaw = typeof (data as { expires_in?: unknown }).expires_in === "number" ? (data as { expires_in: number }).expires_in : 1800;
+
+      const token = data.access_token;
+      if (token) {
+        const maxAgeRaw = typeof data.expires_in === "number" ? data.expires_in : 1800;
         const maxAge = Math.max(120, maxAgeRaw);
-        const secure = window.location.protocol === "https:" ? "; Secure" : "";
-        document.cookie = `qs_token=${encodeURIComponent(tok)}; Path=/; Max-Age=${String(maxAge)}; SameSite=Lax${secure}`;
+        if (typeof window !== "undefined") {
+          localStorage.setItem("qs_token", token.trim());
+          const secure = window.location.protocol === "https:" ? "; Secure" : "";
+          document.cookie = `qs_token=${encodeURIComponent(token.trim())}; Path=/; Max-Age=${String(maxAge)}; SameSite=Lax${secure}`;
+        }
       }
       toast.success("Hive open");
-      router.push(nextPath);
+      router.replace(nextPath);
       router.refresh();
     } catch {
-      const msg = "Connection error — check server.";
-      setError(msg);
-      toast.error(msg);
+      setError("Connection error — server unreachable");
     } finally {
-      setBusy(false);
+      setLoading(false);
     }
   }
 
-  function hintSso(which: string): void {
-    toast.message("Čoskoro", { description: `${which} SSO ešte pripojíme.` });
+  async function handleOTP(code: string): Promise<void> {
+    if (otpSubmitLock.current) {
+      return;
+    }
+    const pre =
+      preAuthToken ??
+      (typeof window !== "undefined" ? window.sessionStorage.getItem("qs_pre_auth") : null);
+    if (!pre) {
+      setError("Session expired — sign in again.");
+      setStep("credentials");
+      return;
+    }
+    otpSubmitLock.current = true;
+    setLoading(true);
+    setError("");
+    try {
+      const r = await fetch("/api/auth/totp/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code, pre_auth_token: pre }),
+        credentials: "include",
+      });
+      const data = (await r.json()) as LoginUpstreamResponse & { access_token?: string; expires_in?: number };
+
+      if (!r.ok) {
+        setError(typeof data.detail === "string" ? data.detail : "Invalid code — try again");
+        return;
+      }
+
+      const token = data.access_token;
+      if (token && typeof window !== "undefined") {
+        localStorage.setItem("qs_token", token.trim());
+        const maxAgeRaw = typeof data.expires_in === "number" ? data.expires_in : 1800;
+        const maxAge = Math.max(120, maxAgeRaw);
+        const secure = window.location.protocol === "https:" ? "; Secure" : "";
+        document.cookie = `qs_token=${encodeURIComponent(token.trim())}; Path=/; Max-Age=${String(maxAge)}; SameSite=Lax${secure}`;
+      }
+      if (typeof window !== "undefined") {
+        window.sessionStorage.removeItem("qs_pre_auth");
+      }
+      toast.success("Verified");
+      router.replace(nextPath);
+      router.refresh();
+    } catch {
+      setError("Verification failed — try again");
+    } finally {
+      setLoading(false);
+      otpSubmitLock.current = false;
+    }
   }
 
+  const inputStyle: CSSProperties = {
+    width: "100%",
+    padding: "12px 14px",
+    background: "#0a0a0f",
+    border: "1px solid #1e1e35",
+    borderRadius: 10,
+    color: "#e8e8f0",
+    fontSize: 14,
+    fontFamily: "var(--font-hive-mono), ui-monospace, monospace",
+    outline: "none",
+    transition: "border-color 0.15s",
+    boxSizing: "border-box",
+  };
+
   return (
-    <div className="relative mx-auto w-full max-w-[440px] rounded-2xl border border-pollen/20 bg-[#0d0d2b]/85 p-8 shadow-[0_0_60px_rgb(255_184_0/0.06),0_25px_50px_rgba(0,0,0,0.5)] backdrop-blur-xl">
-      <div aria-hidden className="pointer-events-none absolute -right-16 -top-12 h-36 w-36 rounded-full bg-pollen/10 blur-3xl" />
+    <div
+      className="fixed inset-0 z-[20] overflow-y-auto"
+      style={{
+        minHeight: "100vh",
+        background: "#09090f",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+      }}
+    >
+      <svg
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.04, pointerEvents: "none" }}
+        aria-hidden
+      >
+        <defs>
+          <pattern id={hexPatA} x="0" y="0" width="60" height="69" patternUnits="userSpaceOnUse">
+            <polygon points="30,0 60,17 60,52 30,69 0,52 0,17" fill="none" stroke="#FFB800" strokeWidth="1" />
+          </pattern>
+          <pattern id={hexPatB} x="30" y="34.5" width="60" height="69" patternUnits="userSpaceOnUse">
+            <polygon points="30,0 60,17 60,52 30,69 0,52 0,17" fill="none" stroke="#FFB800" strokeWidth="1" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill={`url(#${hexPatA})`} />
+        <rect width="100%" height="100%" fill={`url(#${hexPatB})`} />
+      </svg>
 
-      <div className="mb-8 flex flex-col items-center text-center">
-        <div className="mb-4 h-16 w-16 drop-shadow-[0_0_24px_rgba(255,184,0,0.35)]">
-          <AuthHexLogo />
-        </div>
-        <p className="font-[family-name:var(--font-space-grotesk)] text-2xl font-bold tracking-tight text-[#fafafa]">
-          Queenswarm
-        </p>
-        <p className="mt-1 font-[family-name:var(--font-inter)] text-sm text-zinc-500">
-          100+ autonomous agents · 24/7
-        </p>
-      </div>
+      <div
+        style={{
+          position: "absolute",
+          top: "20%",
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: 500,
+          height: 500,
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(255,184,0,0.05) 0%, transparent 70%)",
+          pointerEvents: "none",
+        }}
+      />
 
-      <div className="mb-6">
-        <h1 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-[#fafafa]">
-          Welcome back
-        </h1>
-        <p className="mt-1 font-[family-name:var(--font-inter)] text-sm text-zinc-500">
-          Enter your hive credentials
-        </p>
-      </div>
-
-      {SHOW_LOGIN_SSO ? (
-        <>
-          <button
-            type="button"
-            onClick={() => hintSso("Google")}
-            className="mb-3 flex w-full items-center justify-center gap-3 rounded-xl border border-cyan/20 bg-black/35 py-3 font-[family-name:var(--font-inter)] text-sm text-[#fafafa] transition hover:border-pollen/30"
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          width: "100%",
+          maxWidth: 420,
+          background: "rgba(13,13,35,0.92)",
+          border: "1px solid rgba(255,184,0,0.18)",
+          borderRadius: 20,
+          padding: "40px 36px",
+          boxShadow: "0 24px 64px rgba(0,0,0,0.6)",
+          backdropFilter: "blur(20px)",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 32 }}>
+          <QueenHoneycombLogo size={80} />
+          <div
+            style={{
+              marginTop: 14,
+              fontSize: 22,
+              fontWeight: 700,
+              color: "#e8e8f0",
+              fontFamily: "'Space Grotesk', sans-serif",
+              letterSpacing: "-0.3px",
+            }}
           >
-            <span className="font-semibold tracking-tight">G</span> Continue with Google
-          </button>
-          <button
-            type="button"
-            onClick={() => hintSso("Discord")}
-            className="mb-6 flex w-full items-center justify-center gap-3 rounded-xl border border-cyan/20 bg-black/35 py-3 font-[family-name:var(--font-inter)] text-sm text-[#fafafa] transition hover:border-pollen/35"
-          >
-            <span className="rounded bg-[#5865f2]/90 px-1.5 py-0.5 text-[10px] font-bold text-white">D</span>
-            Continue with Discord
-          </button>
-          <div className="mb-6 flex items-center gap-3 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.28em] text-zinc-500">
-            <span className="h-px flex-1 bg-cyan/15" aria-hidden /> or hive id{" "}
-            <span className="h-px flex-1 bg-cyan/15" aria-hidden />
+            Queenswarm
           </div>
-        </>
-      ) : null}
+        </div>
 
-      <form onSubmit={(ev) => void submit(ev)} className="space-y-5">
-        <label className="block space-y-2" htmlFor="login-email">
-          <span className="font-[family-name:var(--font-inter)] text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">
-            Email
-          </span>
-          <input
-            id="login-email"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-xl border border-[#1a1a3e] bg-[#080818] px-4 py-3 font-[family-name:var(--font-inter)] text-sm text-[#fafafa] outline-none ring-0 transition placeholder:text-zinc-600 focus:border-pollen focus:shadow-[0_0_22px_rgb(255_184_0/0.22)] focus:outline-none focus:ring-2 focus:ring-pollen/25"
-            placeholder="queen@queenswarm.love"
-          />
-        </label>
+        {step === "credentials" && (
+          <>
+            <div style={{ marginBottom: 24 }}>
+              <div
+                style={{
+                  fontSize: 18,
+                  fontWeight: 600,
+                  color: "#e8e8f0",
+                  marginBottom: 4,
+                  fontFamily: "'Space Grotesk', sans-serif",
+                }}
+              >
+                Welcome back
+              </div>
+              <div style={{ fontSize: 13, color: "#5a5a7a" }}>Enter your hive credentials</div>
+            </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <label
-              htmlFor="login-password"
-              className="font-[family-name:var(--font-inter)] text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500"
-            >
-              Password
-            </label>
+            <div style={{ marginBottom: 14 }}>
+              <label
+                htmlFor="qs-login-email"
+                style={{
+                  display: "block",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.1em",
+                  color: "#5a5a7a",
+                  marginBottom: 6,
+                }}
+              >
+                Email
+              </label>
+              <input
+                id="qs-login-email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && void handleLogin()}
+                style={inputStyle}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "#FFB800";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "#1e1e35";
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <label
+                  htmlFor="qs-login-password"
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.1em",
+                    color: "#5a5a7a",
+                  }}
+                >
+                  Password
+                </label>
+                <button
+                  type="button"
+                  style={{ fontSize: 12, color: "#FFB800", textDecoration: "none", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                  onClick={() =>
+                    toast.message("Reset password", {
+                      description: "Use the security settings in the hive or contact an administrator.",
+                    })
+                  }
+                >
+                  Forgot?
+                </button>
+              </div>
+              <input
+                id="qs-login-password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && void handleLogin()}
+                placeholder="••••••••••••"
+                style={inputStyle}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "#FFB800";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "#1e1e35";
+                }}
+              />
+            </div>
+
+            {error ? (
+              <div
+                style={{
+                  marginBottom: 14,
+                  padding: "10px 14px",
+                  background: "rgba(255,51,102,0.08)",
+                  border: "1px solid rgba(255,51,102,0.3)",
+                  borderRadius: 8,
+                  color: "#FF3366",
+                  fontSize: 13,
+                  fontFamily: "var(--font-hive-mono), ui-monospace, monospace",
+                }}
+              >
+                {error}
+              </div>
+            ) : null}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 18 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontFamily: "var(--font-hive-mono), monospace", color: "#00FF88" }}>
+                <span
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: "50%",
+                    background: hiveOnline === false ? "#FF3366" : "#00FF88",
+                    boxShadow: hiveOnline === false ? "none" : "0 0 6px #00FF88",
+                    animation: hiveOnline === true ? "qs-pulse 2s ease-in-out infinite" : "none",
+                    display: "inline-block",
+                  }}
+                />
+                {hiveOnline === null ? "Hive check…" : hiveOnline === false ? "HIVE OFFLINE" : "HIVE ONLINE"}
+              </span>
+            </div>
+
             <button
               type="button"
-              className="font-[family-name:var(--font-inter)] text-xs font-medium text-pollen hover:underline"
-              onClick={() =>
-                toast.message("Reset password", {
-                  description: "Spustíme hive reset flow čoskoro — použite admin konzolu alebo support.",
-                })
-              }
+              onClick={() => void handleLogin()}
+              disabled={loading}
+              style={{
+                width: "100%",
+                padding: "14px",
+                borderRadius: 12,
+                border: "none",
+                background: loading ? "#cc9400" : "#FFB800",
+                color: "#000",
+                fontWeight: 700,
+                fontSize: 14,
+                letterSpacing: "0.06em",
+                cursor: loading ? "not-allowed" : "pointer",
+                fontFamily: "'Space Grotesk', sans-serif",
+                boxShadow: loading ? "none" : "0 0 28px rgba(255,184,0,0.28)",
+                transition: "all 0.15s",
+              }}
             >
-              Forgot?
+              {loading ? "Entering hive..." : "CONTINUE →"}
             </button>
-          </div>
-          <input
-            id="login-password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-xl border border-[#1a1a3e] bg-[#080818] px-4 py-3 font-[family-name:var(--font-inter)] text-sm text-[#fafafa] outline-none transition placeholder:text-zinc-600 focus:border-pollen focus:shadow-[0_0_22px_rgb(255_184_0/0.22)] focus:outline-none focus:ring-2 focus:ring-pollen/25"
-            placeholder="••••••••"
-          />
-        </div>
+          </>
+        )}
 
-        {error ? (
-          <div
-            role="alert"
-            className="rounded-lg border border-danger/40 bg-danger/10 px-4 py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-sm text-danger"
+        {step === "otp" && (
+          <>
+            <div style={{ marginBottom: 28, textAlign: "center" }}>
+              <div
+                style={{
+                  fontSize: 18,
+                  fontWeight: 600,
+                  color: "#e8e8f0",
+                  marginBottom: 6,
+                  fontFamily: "'Space Grotesk', sans-serif",
+                }}
+              >
+                Two-factor verification
+              </div>
+              <div style={{ fontSize: 13, color: "#5a5a7a", lineHeight: 1.6 }}>
+                Enter the 6-digit code from your
+                <br />
+                Google Authenticator app
+              </div>
+            </div>
+
+            <OTPInput onComplete={(code) => void handleOTP(code)} />
+
+            {error ? (
+              <div
+                style={{
+                  marginTop: 16,
+                  padding: "10px 14px",
+                  background: "rgba(255,51,102,0.08)",
+                  border: "1px solid rgba(255,51,102,0.3)",
+                  borderRadius: 8,
+                  color: "#FF3366",
+                  fontSize: 13,
+                  fontFamily: "var(--font-hive-mono), ui-monospace, monospace",
+                  textAlign: "center",
+                }}
+              >
+                {error}
+              </div>
+            ) : null}
+
+            {loading ? (
+              <div style={{ textAlign: "center", marginTop: 16, color: "#FFB800", fontSize: 13, fontFamily: "var(--font-hive-mono), monospace" }}>
+                Verifying...
+              </div>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => {
+                setStep("credentials");
+                setError("");
+                setPreAuthToken(null);
+              }}
+              style={{
+                display: "block",
+                margin: "20px auto 0",
+                background: "transparent",
+                border: "none",
+                color: "#5a5a7a",
+                fontSize: 12,
+                cursor: "pointer",
+                fontFamily: "var(--font-hive-mono), monospace",
+              }}
+            >
+              ← Back to login
+            </button>
+          </>
+        )}
+
+        <p style={{ textAlign: "center", color: "#3a3a5a", fontSize: 11, marginTop: 24, marginBottom: 0 }}>
+          By continuing you agree to our{" "}
+          <button
+            type="button"
+            style={{ color: "#5a5a7a", textDecoration: "none", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+            onClick={() => toast.message("Terms", { description: "Legal copy ships with GA — placeholder control." })}
           >
-            {error}
-          </div>
-        ) : null}
-
-        <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
-          <div className="flex items-center gap-2.5">
-            <RememberToggle checked={rememberMe} onChange={setRememberMe} id="remember-toggle" />
-            <label htmlFor="remember-toggle" className="cursor-pointer select-none text-sm text-zinc-400">
-              Remember me
-            </label>
-          </div>
-          <span className="inline-flex items-center gap-2 rounded-full border border-success/35 bg-black/35 px-2.5 py-1 font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.14em] text-success">
-            <span
-              className={cn(
-                "h-2 w-2 shrink-0 rounded-full",
-                hiveOnline === true && "animate-pulse shadow-[0_0_6px_#00FF88]",
-                hiveOnline === true && "bg-success",
-                hiveOnline === false && "bg-alert",
-                hiveOnline === null && "bg-zinc-500",
-              )}
-              aria-hidden
-            />
-            {hiveOnline === null ? "Hive check…" : hiveOnline === false ? "Hive offline" : "HIVE ONLINE"}
-          </span>
-        </div>
-
-        <button
-          type="submit"
-          disabled={busy}
-          className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-pollen bg-pollen py-3.5 font-[family-name:var(--font-space-grotesk)] text-sm font-bold uppercase tracking-[0.06em] text-black shadow-[0_0_30px_rgb(255_184_0/0.33)] transition hover:bg-[#ffc933] disabled:cursor-not-allowed disabled:border-pollen/70 disabled:bg-pollen/80 disabled:shadow-none"
-        >
-          {busy ? (
-            <>Entering hive…</>
-          ) : (
-            <>
-              CONTINUE <ArrowRightIcon className="h-5 w-5" aria-hidden />
-            </>
-          )}
-        </button>
-      </form>
-
-      <p className="mt-6 text-center font-[family-name:var(--font-inter)] text-xs leading-relaxed text-zinc-600">
-        By continuing you agree to our{" "}
-        <button type="button" className="text-zinc-500 underline-offset-4 hover:text-zinc-300 hover:underline" onClick={() => hintSso("Terms")}>
-          Terms
-        </button>{" "}
-        ·{" "}
-        <button
-          type="button"
-          className="text-zinc-500 underline-offset-4 hover:text-zinc-300 hover:underline"
-          onClick={() => hintSso("Privacy")}
-        >
-          Privacy Policy
-        </button>
-      </p>
+            Terms
+          </button>
+          {" · "}
+          <button
+            type="button"
+            style={{ color: "#5a5a7a", textDecoration: "none", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+            onClick={() => toast.message("Privacy", { description: "Placeholder — link site policy when published." })}
+          >
+            Privacy Policy
+          </button>
+        </p>
+      </div>
     </div>
   );
 }
 
-export default function LoginPage() {
+export default function LoginPage(): JSX.Element {
   return (
     <Suspense
       fallback={
-        <div className="mx-auto flex min-h-[360px] w-full max-w-md items-center justify-center rounded-2xl border border-pollen/15 bg-[#0d0d2b]/60 text-zinc-500 backdrop-blur">
+        <div className="flex min-h-[40vh] w-full items-center justify-center font-[family-name:var(--font-jetbrains-mono)] text-sm text-zinc-500">
           Loading hive gate…
         </div>
       }
     >
-      <LoginForm />
+      <LoginFormInner />
     </Suspense>
   );
 }
