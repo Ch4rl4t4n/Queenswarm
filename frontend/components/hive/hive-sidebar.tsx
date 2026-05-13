@@ -28,7 +28,7 @@ export const HIVE_NAV_PRIMARY: NavItem[] = [
   { href: "/tasks/new", label: "Nový task", Icon: ClipboardList },
   { href: "/#hive-live-swarm", label: "Živá sieť", Icon: Hexagon },
   { href: "/swarms", label: "Swarmy", Icon: Share2 },
-  { href: "/#hive-hierarchy", label: "Hierarchia", Icon: GitBranch },
+  { href: "/hierarchy", label: "Hierarchia", Icon: GitBranch },
   { href: "/ballroom", label: "Ballroom", Icon: MicIcon },
   { href: "/settings/security", label: "Nastavenia", Icon: Settings },
 ];
