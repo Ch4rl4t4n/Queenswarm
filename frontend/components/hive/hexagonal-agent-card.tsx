@@ -51,7 +51,7 @@ export function HexagonalAgentCard({ agent, className }: HexagonalAgentCardProps
       >
       <div className="flex items-start justify-between gap-2">
         <div
-          className="relative flex h-12 w-12 shrink-0 items-center justify-center hive-hex bg-[#0a0c1c] ring-2 ring-data/25 md:h-14 md:w-14"
+          className="hive-hex relative flex h-12 w-12 shrink-0 items-center justify-center border-[6px] border-data/35 bg-[#0a0c1c] ring-[4px] ring-data/30 md:h-14 md:w-14"
           aria-hidden
         >
           <BotIcon className="h-6 w-6 text-data md:h-7 md:w-7" />

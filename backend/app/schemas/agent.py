@@ -8,7 +8,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.enums import AgentRole, AgentStatus
+from app.models.enums import AgentRole, AgentStatus, SwarmPurpose
 
 
 class AgentCreateRequest(BaseModel):
@@ -52,6 +52,14 @@ class AgentSnapshot(BaseModel):
     role: AgentRole
     status: AgentStatus
     swarm_id: uuid.UUID | None
+    swarm_name: str | None = Field(
+        default=None,
+        description="Owning sub-swarm display name after join (omit when unassigned).",
+    )
+    swarm_purpose: SwarmPurpose | None = Field(
+        default=None,
+        description="Colony lane discriminator when swarm_id anchors a SubSwarm row.",
+    )
     config: dict[str, Any]
     pollen_points: float
     performance_score: float
@@ -67,6 +75,10 @@ class AgentSnapshot(BaseModel):
     has_universal_config: bool = Field(
         default=False,
         description="True when a persisted AgentConfig row exists for this bee.",
+    )
+    hive_tier: str | None = Field(
+        default=None,
+        description="orchestrator | manager | worker | None for legacy rows without ``output_config.hive_tier``.",
     )
 
 

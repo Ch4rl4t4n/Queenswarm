@@ -31,7 +31,7 @@ export function AgentHexCard({ agent }: AgentHexCardProps): JSX.Element {
       href={target}
       prefetch={false}
       style={{ "--hive-glow": `${glowPx}px` } as CSSProperties}
-      className={`group relative flex cursor-pointer flex-col gap-2 p-6 text-center hive-hex bg-[#090918] bg-gradient-to-br from-[#0d1028] via-[#080812] to-[#050510] transition hover:border-pollen/30 ${ring}`}
+      className={`group hive-hex relative flex cursor-pointer flex-col gap-2 border-[8px] border-white/[0.08] bg-[#090918] bg-gradient-to-br from-[#0d1028] via-[#080812] to-[#050510] p-6 text-center transition hover:border-pollen/45 ${ring}`}
     >
       <div
         className="pointer-events-none absolute inset-0 hive-hex opacity-80 blur-2xl duration-700 group-hover:opacity-100"

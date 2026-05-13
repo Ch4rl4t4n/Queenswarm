@@ -15,6 +15,7 @@ import type { AgentRow } from "@/lib/hive-types";
 const REFRESH_MS = 5000;
 
 const swarmEmoji: Record<string, string> = {
+  unassigned: "⬢",
   scout: "🔍",
   eval: "🧠",
   sim: "🎲",
@@ -22,36 +23,46 @@ const swarmEmoji: Record<string, string> = {
 };
 
 const swarmGlow: Record<string, GlowColor> = {
+  unassigned: "cyan",
   scout: "cyan",
   eval: "green",
   sim: "amber",
   action: "magenta",
 };
 
-function inferSwarmKey(agent: AgentRow): string {
-  const role = (agent.role ?? "").toLowerCase();
-  const name = (agent.name ?? "").toLowerCase();
-  if (role.includes("scrap") || name.includes("scout")) {
+function inferSwarmKey(agent: AgentRow): keyof typeof swarmEmoji {
+  const sid = agent.swarm_id;
+  const anchored = sid !== undefined && sid !== null && String(sid).trim().length > 0;
+  if (!anchored) {
+    return "unassigned";
+  }
+  const raw = (agent.swarm_purpose ?? "").toLowerCase();
+  if (raw === "scout") {
     return "scout";
   }
-  if (role.includes("eval")) {
+  if (raw === "eval") {
     return "eval";
   }
-  if (role.includes("sim")) {
+  if (raw === "simulation") {
     return "sim";
   }
-  if (
-    role.includes("report") ||
-    role.includes("trade") ||
-    role.includes("market") ||
-    role.includes("blog") ||
-    role.includes("social") ||
-    role.includes("learn") ||
-    role.includes("recipe")
-  ) {
+  if (raw === "action") {
     return "action";
   }
-  return "scout";
+  const label = (agent.swarm_name ?? "").toLowerCase();
+  if (label.includes("scout")) {
+    return "scout";
+  }
+  if (label.includes("eval")) {
+    return "eval";
+  }
+  if (label.includes("sim")) {
+    return "sim";
+  }
+  if (label.includes("action")) {
+    return "action";
+  }
+  return "unassigned";
 }
 
 function mapHiveStatus(raw: string): "active" | "idle" | "error" | "paused" {
@@ -134,7 +145,7 @@ export function DashboardBeeHexGrid({ rosterTarget }: DashboardBeeHexGridProps) 
             })
             .map((agent: AgentRow) => {
               const key = inferSwarmKey(agent);
-              const glow = swarmGlow[key] ?? "amber";
+              const glow = swarmGlow[key] ?? "cyan";
               const dot = mapHiveStatus(agent.status ?? "idle");
 
               return (

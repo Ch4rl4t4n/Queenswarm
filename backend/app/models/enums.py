@@ -68,8 +68,10 @@ class WorkflowStatus(str, Enum):
     PENDING = "pending"
     DECOMPOSING = "decomposing"
     EXECUTING = "executing"
+    PAUSED = "paused"
     COMPLETED = "completed"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class StepStatus(str, Enum):

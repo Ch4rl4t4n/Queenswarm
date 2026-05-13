@@ -6,6 +6,7 @@ from collections.abc import Sequence
 
 from app.models.agent import Agent
 from app.models.enums import AgentRole
+from app.services.hive_tier import is_fixed_orchestrator_agent
 
 
 def pick_agent_for_step(
@@ -27,6 +28,9 @@ def pick_agent_for_step(
     Raises:
         ValueError: If the colony has no runnable members.
     """
+
+    members = tuple(b for b in members if not is_fixed_orchestrator_agent(b))
+    queen = queen if queen is None or not is_fixed_orchestrator_agent(queen) else None
 
     for bee in members:
         if bee.role == preferred_role:

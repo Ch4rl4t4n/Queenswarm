@@ -22,10 +22,15 @@ async def test_elect_queen_for_swarm_sets_queen_agent_id() -> None:
     swarm.id = swarm_id
     chosen = MagicMock()
     chosen.id = queen_id
+    chosen.name = "Ranker-01"
+    chosen.config = {}
+
+    scalar_result = MagicMock()
+    scalar_result.all = MagicMock(return_value=[chosen])
 
     session = AsyncMock()
     session.get = AsyncMock(return_value=swarm)
-    session.scalar = AsyncMock(return_value=chosen)
+    session.scalars = AsyncMock(return_value=scalar_result)
     session.flush = AsyncMock()
 
     result = await elect_queen_for_swarm(session, swarm_id)

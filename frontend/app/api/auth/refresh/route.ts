@@ -3,7 +3,12 @@ import { NextResponse } from "next/server";
 
 import { QS_REFRESH } from "@/lib/auth-cookies";
 import { attachDashboardTokenCookies } from "@/lib/auth-token-response";
-import { backendHiveUrl } from "@/lib/backend-origin";
+import {
+  hiveRelayNetworkErrorResponse,
+  hiveRelayPost,
+  hiveRelayReadJson,
+  hiveRelayTargetUrl,
+} from "@/lib/backend-relay";
 
 interface TokenUpstream {
   access_token: string;
@@ -19,31 +24,34 @@ export async function POST(): Promise<NextResponse> {
     return NextResponse.json({ detail: "Missing refresh session." }, { status: 401 });
   }
 
+  const path = "/auth/refresh";
+  const targetUrl = hiveRelayTargetUrl(path);
+
+  let upstream: Response;
   try {
-    const upstream = await fetch(backendHiveUrl("/auth/refresh"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refresh }),
-      cache: "no-store",
-    });
-
-    const payload = (await upstream.json()) as TokenUpstream & { detail?: unknown };
-
-    if (!upstream.ok) {
-      return NextResponse.json(
-        { detail: typeof payload.detail === "string" ? payload.detail : "Refresh rejected." },
-        { status: upstream.status },
-      );
-    }
-
-    if (!payload.access_token || !payload.refresh_token) {
-      return NextResponse.json({ detail: "Malformed token bundle." }, { status: 502 });
-    }
-
-    const res = NextResponse.json({ ok: true });
-    attachDashboardTokenCookies(res, payload);
-    return res;
-  } catch {
-    return NextResponse.json({ detail: "Auth relay unavailable." }, { status: 503 });
+    upstream = await hiveRelayPost(path, { refresh_token: refresh });
+  } catch (err) {
+    return hiveRelayNetworkErrorResponse(err, targetUrl);
   }
+
+  const parsed = await hiveRelayReadJson<TokenUpstream & { detail?: unknown }>(upstream, targetUrl);
+  if (!parsed.ok) {
+    return parsed.response;
+  }
+  const payload = parsed.data;
+
+  if (!upstream.ok) {
+    return NextResponse.json(
+      { detail: typeof payload.detail === "string" ? payload.detail : "Refresh rejected." },
+      { status: upstream.status },
+    );
+  }
+
+  if (!payload.access_token || !payload.refresh_token) {
+    return NextResponse.json({ detail: "Malformed token bundle." }, { status: 502 });
+  }
+
+  const res = NextResponse.json({ ok: true });
+  attachDashboardTokenCookies(res, payload);
+  return res;
 }

@@ -90,6 +90,19 @@ async def prepare_sub_swarm_context(
             **_append_trace("prepare.failed: sub_swarm_has_zero_members"),
         }
 
+    if workflow.status is WorkflowStatus.PAUSED:
+        return {
+            "error": "workflow_paused",
+            "error_detail": str(workflow_uuid),
+            **_append_trace("prepare.blocked: workflow_paused"),
+        }
+    if workflow.status is WorkflowStatus.CANCELLED:
+        return {
+            "error": "workflow_cancelled",
+            "error_detail": str(workflow_uuid),
+            **_append_trace("prepare.blocked: workflow_cancelled"),
+        }
+
     task_uuid_raw = state.get("task_uuid")
     if task_uuid_raw:
         task_pk = uuid.UUID(str(task_uuid_raw))
@@ -239,7 +252,7 @@ async def execute_workflow_steps_on_swarm(
 
             step.status = StepStatus.RUNNING
             await sess.flush()
-            bee = instantiate_agent(db=sess, agent_row=agent_row)
+            bee = instantiate_agent(db=sess, agent_row=agent_row, disallow_fixed_orchestrator=True)
             step_payload = {
                 **base_payload,
                 "step_order": step.step_order,

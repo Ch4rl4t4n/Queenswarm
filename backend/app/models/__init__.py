@@ -15,9 +15,11 @@ _EXPORTABLE: dict[str, tuple[str, str]] = {
     "BudgetPeriod": ("app.models.enums", "BudgetPeriod"),
     "DashboardUser": ("app.models.dashboard_user", "DashboardUser"),
     "DashboardApiKey": ("app.models.dashboard_api_key", "DashboardApiKey"),
+    "OperatorExternalApi": ("app.models.operator_external_api", "OperatorExternalApi"),
     "CostRecord": ("app.models.cost", "CostRecord"),
     "HiveAsyncRunLifecycle": ("app.models.enums", "HiveAsyncRunLifecycle"),
     "HiveAsyncWorkflowRun": ("app.models.hive_async_workflow_run", "HiveAsyncWorkflowRun"),
+    "HiveLlmSecret": ("app.models.hive_llm_secret", "HiveLlmSecret"),
     "ImitationEvent": ("app.models.reward", "ImitationEvent"),
     "KnowledgeItem": ("app.models.knowledge", "KnowledgeItem"),
     "LearningLog": ("app.models.knowledge", "LearningLog"),
@@ -51,8 +53,10 @@ _MODEL_PACKAGES: tuple[str, ...] = (
     "app.models.simulation",
     "app.models.cost",
     "app.models.hive_async_workflow_run",
+    "app.models.hive_llm_secret",
     "app.models.dashboard_user",
     "app.models.dashboard_api_key",
+    "app.models.operator_external_api",
 )
 
 _BOOTSTRAPPED = False

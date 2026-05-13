@@ -21,8 +21,11 @@ from app.agents.bees.role_bees import (
 from app.agents.cost_governor import CostGovernor
 from app.models.agent import Agent
 from app.models.enums import AgentRole
+from app.services.hive_tier import FIXED_ORCHESTRATOR_AGENT_NAME, is_fixed_orchestrator_agent
 
 _REGISTRY: dict[AgentRole, type[BaseAgent]] = {}
+
+_ORCHESTRATOR_SINGLETON_NAME = FIXED_ORCHESTRATOR_AGENT_NAME.lower()
 
 _DEFAULT_SPECIALISTS: dict[AgentRole, type[BaseAgent]] = {
     AgentRole.SCRAPER: ScraperBee,
@@ -68,6 +71,7 @@ def instantiate_agent(
     db: AsyncSession,
     agent_row: Agent,
     cost_governor: CostGovernor | None = None,
+    disallow_fixed_orchestrator: bool = False,
 ) -> BaseAgent:
     """Hydrate runtime bees honoring stored ``Agent.role`` assignments.
 
@@ -75,10 +79,18 @@ def instantiate_agent(
         db: Async SQL session shared with callers orchestrating pollen writes.
         agent_row: ORM skeleton containing hive membership + pollen totals.
         cost_governor: Optional mocked governor during simulations.
+        disallow_fixed_orchestrator: When True, raises if the row is the seeded Orchestrator (sub-swarm graphs only).
 
     Returns:
         Specialized :class:`BaseAgent` derivative (Phase D defaults per ``AgentRole``).
     """
+
+    if disallow_fixed_orchestrator and is_fixed_orchestrator_agent(agent_row):
+        msg = (
+            f"Agent {agent_row.name!r} ({_ORCHESTRATOR_SINGLETON_NAME}) is reserved for the hive mission pipeline — "
+            "not for LangGraph step specialists."
+        )
+        raise ValueError(msg)
 
     _prime_defaults()
     impl = _REGISTRY.get(agent_row.role, GenericBee)

@@ -56,9 +56,8 @@ export function HexCard({
       }
       tabIndex={onClick ? 0 : undefined}
       className={cn(
-        "relative flex flex-col items-center justify-center bg-[#0d0d2b] border",
-        "transition-all duration-300 hover:scale-105 cursor-pointer select-none",
-        "[clip-path:polygon(50%_0%,100%_25%,100%_75%,50%_100%,0%_75%,0%_25%)]",
+        "hive-hex-clip-pointy relative flex flex-col items-center justify-center border-[7px] bg-[#0d0d2b]",
+        "cursor-pointer transition-all duration-300 select-none hover:scale-105",
         glow[glowColor],
         sizes[size],
         className,

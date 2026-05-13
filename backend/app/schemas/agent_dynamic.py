@@ -5,9 +5,13 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.enums import AgentStatus
+
+HiveDynamicTier = Literal["manager", "worker"]
 
 
 class AgentDynamicCreate(BaseModel):
@@ -16,6 +20,10 @@ class AgentDynamicCreate(BaseModel):
     model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
 
     name: str = Field(..., min_length=2, max_length=100)
+    hive_tier: HiveDynamicTier = Field(
+        ...,
+        description="Hive hierarchy: managers coordinate; workers execute tasks.",
+    )
     swarm_id: uuid.UUID | None = None
     system_prompt: str = Field(default="You are a helpful AI agent.", min_length=1)
     user_prompt_template: str | None = Field(default=None, max_length=20_000)
@@ -82,4 +90,5 @@ __all__ = [
     "AgentConfigUpsert",
     "AgentDynamicCreate",
     "AgentDynamicCreateResponse",
+    "HiveDynamicTier",
 ]

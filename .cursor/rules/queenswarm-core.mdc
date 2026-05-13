@@ -24,9 +24,11 @@ Queenswarm is a bee-hive inspired AI agent swarm for **queenswarm.love**. Apply 
 - Reporting results to the user **without** running applicable **simulation** / verification first.
 - Hardcoded secrets — use environment variables or a secret manager, never literals in code.
 - Blocking I/O or synchronous patterns where an async option exists for that stack.
+- Passing routine setup to the user (commands, env keys, restarts) when you can safely run or encode it in-repo yourself.
 
 ## ALWAYS (cross-cutting)
 
+- **Do the work here**: If the task can be finished in this environment (code edits, `.env` / config that is not secret-bearing, `docker compose`, tests, curls, restarts), **do it yourself**. Do not end with “you should run X” or offload setup to the operator unless something is **impossible without** their credentials, host-only access, or a secret you must not write to disk.
 - Prefer small, composable units over “god” services or mega-prompts.
 - Design for **decentralization** and periodic global sync, not permanent central choke points.
 - After tasks complete, **award pollen** for verified outcomes and **save** proven flows to the **Recipe Library** when implementing that system.

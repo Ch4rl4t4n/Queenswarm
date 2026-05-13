@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import re
 import secrets
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.jwt_tokens import dashboard_subject
@@ -19,6 +20,37 @@ from app.services.dashboard_crypto import hash_dashboard_password, verify_dashbo
 logger = get_logger(__name__)
 
 API_KEY_PREFIX = "qs_kw_"
+_MAX_ACTIVE_API_KEYS_PER_OPERATOR = 50
+_SOURCE_SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:[_-][a-z0-9]+)*$")
+
+
+def normalize_api_key_source_name(raw: str) -> str:
+    """Normalize user input into ``a-z0-9`` segments separated by ``_`` or ``-``.
+
+    Raises:
+        ValueError: When the slug is missing, too long, or uses invalid characters.
+
+    Returns:
+        Lowercase ASCII slug suitable for dashboards and structured logs.
+    """
+
+    lower = raw.strip().lower()
+    # Collapse separators (spaces, `/`, stray punctuation) without letting `_`/`-` balloon.
+    cleaned = re.sub(r"[^a-z0-9_-]+", "_", lower)
+    cleaned = re.sub(r"_+", "_", cleaned).strip("_")
+    if len(cleaned) < 2:
+        msg = "source_name must be at least 2 printable characters."
+        raise ValueError(msg)
+    if len(cleaned) > 64:
+        msg = "source_name supports at most 64 characters."
+        raise ValueError(msg)
+    if not _SOURCE_SLUG_PATTERN.fullmatch(cleaned):
+        msg = (
+            "source_name must contain only lowercase letters, digits, single underscores or hyphens "
+            "(e.g. ci_staging, vscode-extension)."
+        )
+        raise ValueError(msg)
+    return cleaned
 
 
 class DashboardApiKeyError(Exception):
@@ -72,27 +104,83 @@ async def resolve_api_key_principal(db: AsyncSession, bearer: str) -> str | None
         return None
     if not verify_dashboard_password(bearer.strip(), row.secret_hash):
         return None
+    row.last_used_at = datetime.now(tz=UTC)
+    try:
+        await db.flush()
+    except SQLAlchemyError:
+        logger.warning(
+            "dashboard_api_key.touch_last_used_failed",
+            agent_id=str(key_uuid),
+            swarm_id="",
+            task_id="",
+        )
     user = await db.get(DashboardUser, row.user_id)
     if user is None or not user.is_active:
         return None
+    logger.info(
+        "dashboard_api_key.used",
+        agent_id=str(key_uuid),
+        swarm_id=str(row.user_id),
+        task_id="",
+        source_name=row.source_name or "",
+    )
     return dashboard_subject(user.id)
+
+
+async def count_active_dashboard_api_keys(db: AsyncSession, *, user_id: uuid.UUID) -> int:
+    """Return how many non-revoked API keys the operator owns."""
+
+    stmt = select(func.count()).select_from(DashboardApiKey).where(
+        DashboardApiKey.user_id == user_id,
+        DashboardApiKey.revoked_at.is_(None),
+    )
+    n = await db.scalar(stmt)
+    return int(n or 0)
 
 
 async def create_dashboard_api_key(
     db: AsyncSession,
     *,
     user_id: uuid.UUID,
+    source_name: str,
     label: str | None,
 ) -> tuple[DashboardApiKey, str]:
     """Persist a bcrypt-hashed credential and return the row plus plaintext once."""
 
+    active_n = await count_active_dashboard_api_keys(db, user_id=user_id)
+    if active_n >= _MAX_ACTIVE_API_KEYS_PER_OPERATOR:
+        raise DashboardApiKeyError(
+            f"Maximum {_MAX_ACTIVE_API_KEYS_PER_OPERATOR} active API keys per operator — revoke one first.",
+        )
+
+    dup_stmt = (
+        select(DashboardApiKey.id)
+        .where(
+            DashboardApiKey.user_id == user_id,
+            DashboardApiKey.source_name == source_name,
+            DashboardApiKey.revoked_at.is_(None),
+        )
+        .limit(1)
+    )
+    if await db.scalar(dup_stmt) is not None:
+        raise DashboardApiKeyError(f"Active API key for source {source_name!r} already exists.")
+
     key_id = uuid.uuid4()
     plaintext = build_plaintext_api_key(key_id)
     hashed = hash_dashboard_password(plaintext)
-    row = DashboardApiKey(id=key_id, user_id=user_id, label=(label.strip()[:160] if label else None), secret_hash=hashed)
+    row = DashboardApiKey(
+        id=key_id,
+        user_id=user_id,
+        source_name=source_name,
+        label=(label.strip()[:160] if label else None),
+        secret_hash=hashed,
+    )
     db.add(row)
     try:
         await db.flush()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise DashboardApiKeyError(f"Active API key for source {source_name!r} already exists.") from exc
     except SQLAlchemyError as exc:
         await db.rollback()
         logger.exception(

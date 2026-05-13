@@ -41,8 +41,61 @@
 }
 
 @layer utilities {
+  /**
+   * Hex silhouette: SVG masks (data URLs) — survives builds where clip-path polygons were ignored.
+   * Applies to backgrounds, borders, and box-shadow consistently.
+   */
+  .hive-hex-clip-flat {
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpolygon fill='%23fff' points='12,6 88,6 100,50 88,94 12,94 0,50'/%3E%3C/svg%3E");
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpolygon fill='%23fff' points='12,6 88,6 100,50 88,94 12,94 0,50'/%3E%3C/svg%3E");
+    mask-size: 100% 100%;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    -webkit-mask-size: 100% 100%;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    clip-path: none;
+    -webkit-clip-path: none;
+  }
+
+  .hive-hex-clip-pointy {
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpolygon fill='%23fff' points='50,0 100,25 100,75 50,100 0,75 0,25'/%3E%3C/svg%3E");
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpolygon fill='%23fff' points='50,0 100,25 100,75 50,100 0,75 0,25'/%3E%3C/svg%3E");
+    mask-size: 100% 100%;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    -webkit-mask-size: 100% 100%;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    clip-path: none;
+    -webkit-clip-path: none;
+  }
+
   .hive-hex {
-    clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%);
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpolygon fill='%23fff' points='25,6 75,6 100,50 75,94 25,94 0,50'/%3E%3C/svg%3E");
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpolygon fill='%23fff' points='25,6 75,6 100,50 75,94 25,94 0,50'/%3E%3C/svg%3E");
+    mask-size: 100% 100%;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    -webkit-mask-size: 100% 100%;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    clip-path: none;
+    -webkit-clip-path: none;
+  }
+
+  .hive-hex-clip-flat,
+  .hive-hex-clip-pointy,
+  .hive-hex {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+
+  /** Flat-top regular hex height = width * (√3/2) — keeps agent tiles visually hex, not “squareish”. */
+  .hive-hex-flat-tile {
+    width: 152px;
+    height: calc(152px * 0.86602540378);
+    box-sizing: border-box;
   }
 
   /** Subtle large hex tiling — QueenSwarm dashboard backgrounds. */

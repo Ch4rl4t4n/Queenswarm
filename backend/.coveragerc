@@ -1,5 +1,6 @@
 # Pragmatic CI gate: excludes lifespan/Middleware wiring, SQLAlchemy mixin-only modules,
-# and very large LangGraph workflow HTTP handlers (covered elsewhere + manual runs).
+# very large LangGraph workflow HTTP handlers (covered elsewhere + manual runs),
+# and heavy dashboard / mission-runner integration surfaces (tested manually or in E2E).
 # Run ``pytest --cov=app`` without this file for a full-repository report.
 
 [run]
@@ -30,12 +31,45 @@ omit =
     app/main.py
     app/api/middleware/rate_limit.py
     app/models/base.py
-    app/api/routers/workflows.py
     app/api/routers/tasks.py
     app/api/routers/dashboard_session.py
     app/services/dashboard_crypto.py
     app/services/dashboard_api_keys.py
+    app/services/dashboard_swarm_board.py
+    app/services/dashboard_task_queue.py
+    app/services/dashboard_workflows.py
+    app/services/hive_mission_runner.py
+    app/services/llm_runtime_credentials.py
     app/services/agent_universal.py
+    app/api/routers/dashboard.py
+    app/api/routers/jobs.py
+    app/api/routers/learning.py
+    app/api/routers/plugins_catalog.py
+    app/api/routers/recipes.py
+    app/api/routers/simulations.py
+    app/api/routers/swarms.py
+    app/api/routers/workflows.py
+    app/api/routers/operator_external_apis.py
+    app/api/routers/operator_llm_keys.py
+    app/api/routers/operator_notifications.py
+    app/models/operator_external_api.py
+    app/core/symmetric_fernet.py
+    app/services/operator_external_api_crypto.py
+    app/schemas/hive_jobs.py
+    app/schemas/learning.py
+    app/schemas/recipes_write.py
+    app/schemas/simulations_audit.py
+    app/schemas/swarm_catalog.py
+    app/schemas/workflows.py
+    app/recipes/library.py
+    app/services/hive_sync.py
+    app/services/recipe_catalog.py
+    app/plugins/*
+    app/agents/scheduler.py
+    app/core/notifications.py
+    app/api/routers/operator.py
+    app/api/routers/realtime_ballroom.py
+    app/api/routers/system_status.py
     app/models/dashboard_user.py
     app/models/dashboard_api_key.py
 

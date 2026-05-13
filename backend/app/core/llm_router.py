@@ -14,6 +14,46 @@ from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.metrics import observe_llm_cost_usd
 from app.models.cost import CostRecord
+from app.services.llm_runtime_credentials import (
+    provider_effective_anthropic,
+    provider_effective_grok,
+    provider_effective_openai,
+)
+
+def _decomposition_exhaustion_message(errors: list[str]) -> str:
+    """Summarize LiteLLM hop failures plus operator-visible remediation."""
+
+    joined = "; ".join(errors)
+    blob = joined.lower()
+    bullets: list[str] = []
+
+    grok_budget = ("403" in joined or "permission" in blob) and (
+        "x.ai" in blob or "/v1/chat/completions" in blob or "grok" in blob
+    )
+    if grok_budget or ("doesn't have any credits or licenses" in blob):
+        bullets.append(
+            "Grok (x.ai): platba / kredit tímu alebo licencia — doplnenie v konzole x.ai alebo zmeň WORKFLOW_BREAKER_PRIMARY_MODEL.",
+        )
+
+    if "anthropic" in blob or "claude" in blob:
+        if "404" in joined or "not_found" in blob or "not found" in blob:
+            bullets.append(
+                "Anthropic: over platný API kľúč; starý slug modelu vie vrátiť 404 — skús FALLBACK ako "
+                f"{settings.workflow_breaker_fallback_model!s} alebo nastav vlastný WORKFLOW_BREAKER_FALLBACK_MODEL.",
+            )
+
+    tertiary = settings.workflow_breaker_tertiary_model
+    if not model_slug_has_configured_credentials(tertiary):
+        bullets.append(
+            f"Tretí hop ({tertiary}) sa v reťazi nevzal — nastav použiteľný OPENAI_API_KEY v .env alebo ulož kľúč v nastavení "
+            "\"LLM keys\" dashbordu (lacný záložný model).",
+        )
+
+    headline = f"LiteLLM router exhausted decomposition models: {joined}"
+    if not bullets:
+        return headline
+    return f"{headline}\n\n---\nČo ďalej:\n" + "\n".join(f"• {b}" for b in bullets)
+
 
 logger = get_logger(__name__)
 
@@ -23,14 +63,15 @@ def model_api_key(model: str) -> str:
 
     lowered = model.lower()
     if lowered.startswith("xai/") or "grok" in lowered:
-        return settings.grok_api_key
+        return provider_effective_grok()
     if lowered.startswith("anthropic/") or lowered.startswith("claude"):
-        return settings.anthropic_api_key
+        return provider_effective_anthropic()
     if lowered.startswith("openai/") or "gpt" in lowered:
-        if settings.openai_api_key is None:
+        key = provider_effective_openai()
+        if not key:
             msg = "OpenAI routing requested but OPENAI_API_KEY is unset."
             raise RuntimeError(msg)
-        return settings.openai_api_key
+        return key
     msg = f"Unsupported LiteLLM model slug for credential resolution: {model}"
     raise ValueError(msg)
 
@@ -54,11 +95,11 @@ def model_slug_has_configured_credentials(model_name: str) -> bool:
 
     lowered = model_name.lower()
     if lowered.startswith("xai/") or "grok" in lowered:
-        return bool((settings.grok_api_key or "").strip())
+        return bool(provider_effective_grok())
     if lowered.startswith("anthropic/") or lowered.startswith("claude") or "claude-" in lowered:
-        return bool((settings.anthropic_api_key or "").strip())
+        return bool(provider_effective_anthropic())
     if lowered.startswith("openai/") or "gpt-" in lowered or "/gpt" in lowered:
-        return _openai_key_looks_configured(settings.openai_api_key)
+        return _openai_key_looks_configured(provider_effective_openai())
     try:
         key = model_api_key(model_name)
     except (ValueError, RuntimeError):
@@ -283,8 +324,7 @@ class LiteLLMRouter:
                     **bind,
                 )
                 continue
-        joined = "; ".join(errors)
-        raise RuntimeError(f"LiteLLM router exhausted decomposition models: {joined}")
+        raise RuntimeError(_decomposition_exhaustion_message(errors))
 
     async def evaluate(
         self,

@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.logging import get_logger
 from app.models.agent import Agent
 from app.models.swarm import SubSwarm
+from app.services.hive_tier import is_fixed_orchestrator_agent
 
 logger = get_logger(__name__)
 
@@ -21,6 +22,9 @@ async def elect_queen_for_swarm(
     swarm_id: uuid.UUID,
 ) -> Agent | None:
     """Select top performer in the sub-swarm and persist ``queen_agent_id``.
+
+    The fixed Orchestrator bee (global mission controller) is excluded from election — it must not
+    captain a sub-swarm graph.
 
     Tie-breakers: ``performance_score`` DESC, then ``pollen_points`` DESC.
 
@@ -43,10 +47,13 @@ async def elect_queen_for_swarm(
     stmt = (
         select(Agent)
         .where(Agent.swarm_id == swarm_id)
+        .where(~Agent.name.ilike("orchestrator"))
         .order_by(Agent.performance_score.desc(), Agent.pollen_points.desc())
-        .limit(1)
+        .limit(25)
     )
-    chosen = await session.scalar(stmt)
+    candidates = list((await session.scalars(stmt)).all())
+    runnable = [row for row in candidates if not is_fixed_orchestrator_agent(row)]
+    chosen = runnable[0] if runnable else None
     if chosen is None:
         logger.warning("sub_swarm.queen_election.empty", swarm_id=str(swarm_id))
         return None
@@ -117,7 +124,11 @@ async def distribute_pollen_share(
     if total_amount <= 0:
         return []
 
-    stmt = select(Agent.id).where(Agent.swarm_id == swarm_id)
+    stmt = (
+        select(Agent.id)
+        .where(Agent.swarm_id == swarm_id)
+        .where(~Agent.name.ilike("orchestrator"))
+    )
     rows = (await session.scalars(stmt)).all()
     if not rows:
         logger.warning("sub_swarm.pollen_share.no_members", swarm_id=str(swarm_id))

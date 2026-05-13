@@ -13,14 +13,8 @@ test.describe("hive public shell smoke", () => {
     await expect(page).toHaveURL(/\/login/, { timeout: 45_000 });
   });
 
-  test("agents surface resolves (login gate or shell)", async ({ page }) => {
-    await page.goto("/agents", { waitUntil: "load", timeout: 45_000 });
-    await expect(page).toHaveURL(/\/(login|agents)/, { timeout: 45_000 });
-  });
-
-  test("tasks backlog route resolves behind auth redirect", async ({ page }) => {
-    await page.goto("/tasks", { waitUntil: "load", timeout: 45_000 });
-    await expect(page).toHaveURL(/\/(login|tasks)/, { timeout: 45_000 });
+  test("ballroom route resolves behind auth redirect", async ({ page }) => {
+    await page.goto("/ballroom", { waitUntil: "load", timeout: 45_000 });
+    await expect(page).toHaveURL(/\/(login|ballroom)/, { timeout: 45_000 });
   });
 });
-

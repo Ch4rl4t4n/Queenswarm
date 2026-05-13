@@ -33,6 +33,10 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
     configure_logging(level="INFO")
     await init_db()
+    async with async_session() as session:
+        from app.services.llm_runtime_credentials import refresh_llm_secret_cache
+
+        await refresh_llm_secret_cache(session)
     await ensure_collections()
     relay_task: asyncio.Task[None] | None = None
     if settings.hive_waggle_relay_enabled:

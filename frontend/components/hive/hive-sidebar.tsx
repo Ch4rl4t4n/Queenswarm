@@ -2,19 +2,13 @@
 
 import Link from "next/link";
 import {
-  BookOpenIcon,
-  BotIcon,
-  FlaskConicalIcon,
-  GitBranchIcon,
-  HexagonIcon,
+  ClipboardList,
+  GitBranch,
+  Hexagon,
   LayoutDashboardIcon,
-  LineChartIcon,
-  ListTodoIcon,
   MicIcon,
-  PaletteIcon,
-  PuzzleIcon,
-  SettingsIcon,
-  TrophyIcon,
+  Settings,
+  type LucideIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -26,27 +20,17 @@ import { cn } from "@/lib/utils";
 interface NavItem {
   href: string;
   label: string;
-  Icon: typeof LayoutDashboardIcon;
+  Icon: LucideIcon;
 }
 
-/** Primary hive routes · icon + label always visible on desktop (220px rail). */
+/** Primary cockpit routes + in-page anchors (mockup-style IA). */
 export const HIVE_NAV_PRIMARY: NavItem[] = [
-  { href: "/", label: "Hive", Icon: LayoutDashboardIcon },
-  { href: "/agents", label: "Agents", Icon: BotIcon },
-  { href: "/swarms", label: "Swarms", Icon: HexagonIcon },
-  { href: "/tasks", label: "Tasks", Icon: ListTodoIcon },
-  { href: "/workflows", label: "Workflows", Icon: GitBranchIcon },
-  { href: "/recipes", label: "Recipes", Icon: BookOpenIcon },
-  { href: "/leaderboard", label: "Leaderboard", Icon: TrophyIcon },
+  { href: "/", label: "Dashboard", Icon: LayoutDashboardIcon },
+  { href: "/tasks/new", label: "Nový task", Icon: ClipboardList },
+  { href: "/#hive-live-swarm", label: "Živá sieť", Icon: Hexagon },
+  { href: "/#hive-hierarchy", label: "Hierarchia", Icon: GitBranch },
   { href: "/ballroom", label: "Ballroom", Icon: MicIcon },
-  { href: "/costs", label: "Costs", Icon: LineChartIcon },
-  { href: "/settings", label: "Settings", Icon: SettingsIcon },
-];
-
-export const HIVE_NAV_LABS: NavItem[] = [
-  { href: "/simulations", label: "Simulations", Icon: FlaskConicalIcon },
-  { href: "/plugins", label: "Plugins", Icon: PuzzleIcon },
-  { href: "/design-system", label: "Design system", Icon: PaletteIcon },
+  { href: "/settings/security", label: "Nastavenia", Icon: Settings },
 ];
 
 function hiveOnlineTotals(byStatus: Record<string, number> | undefined): { online: number; total: number } {
@@ -65,16 +49,14 @@ function hiveOnlineTotals(byStatus: Record<string, number> | undefined): { onlin
 }
 
 function routeActive(pathname: string, href: string): boolean {
-  return href === "/settings"
-    ? pathname.startsWith("/settings")
-    : pathname === href || (href !== "/" && pathname.startsWith(href));
+  return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
 
 interface HiveSidebarProps {
   pathname: string;
 }
 
-/** Fixed-width 220px left rail · labels always readable (Lucide glyphs, no collapsing to icons-only). */
+/** Fixed-width 220px left rail. */
 export function HiveSidebar({ pathname }: HiveSidebarProps) {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
 
@@ -135,17 +117,6 @@ export function HiveSidebar({ pathname }: HiveSidebarProps) {
             </Link>
           );
         })}
-        <p className="mt-5 truncate px-3 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.22em] text-cyan/40">
-          Labs
-        </p>
-        {HIVE_NAV_LABS.map(({ href, label, Icon }) => (
-          <Link key={href} href={href} prefetch className={linkClass(href)}>
-            <Icon className="h-[18px] w-[18px] shrink-0 text-cyan/45" aria-hidden />
-            <span className="whitespace-nowrap font-[family-name:var(--font-inter)] text-[13px] font-medium">
-              <span className={routeActive(pathname, href) ? "" : "text-zinc-500"}>{label}</span>
-            </span>
-          </Link>
-        ))}
       </nav>
 
       <div className="mt-auto rounded-xl border border-cyan/15 bg-black/35 px-4 py-3">

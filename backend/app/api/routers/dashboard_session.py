@@ -2,20 +2,22 @@
 
 from __future__ import annotations
 
+import re
 import secrets
 import uuid
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, status
 from jose import JWTError
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, RootModel
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.responses import Response
 
 from app.api.deps import DashboardAdmin, DashboardSession, DbSession, JwtSubject
 from app.core.config import settings
+from app.core.llm_router import _openai_key_looks_configured
 from app.core.jwt_tokens import (
     create_dashboard_access_token,
     create_pre_2fa_token,
@@ -31,14 +33,26 @@ from app.services.dashboard_api_keys import (
     DashboardApiKeyError,
     create_dashboard_api_key,
     list_dashboard_api_keys,
+    normalize_api_key_source_name,
     revoke_dashboard_api_key,
 )
 from app.services.dashboard_crypto import (
+    backup_codes_hashed,
+    consume_matching_backup_code,
     hash_dashboard_password,
+    mint_plain_backup_codes,
     mint_totp_secret,
     totp_uri_for_email,
     totp_verify,
     verify_dashboard_password,
+)
+from app.services.llm_runtime_credentials import (
+    delete_llm_provider_secret,
+    get_cached_llm_key,
+    persist_llm_provider_secret,
+    provider_effective_anthropic,
+    provider_effective_grok,
+    provider_effective_openai,
 )
 
 logger = get_logger(__name__)
@@ -69,7 +83,7 @@ class Verify2FARequest(BaseModel):
     model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
 
     pre_auth_token: str
-    totp_code: str = Field(min_length=6, max_length=8)
+    totp_code: str = Field(min_length=6, max_length=16)
 
 
 class RefreshRequest(BaseModel):
@@ -194,8 +208,17 @@ async def dashboard_verify_totp(body: Verify2FARequest, db: DbSession) -> _Token
     if user is None or not user.is_active or user.totp_secret is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authenticator not provisioned.")
 
-    if not totp_verify(user.totp_secret, body.totp_code):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid OTP.")
+    totp_ok = totp_verify(user.totp_secret, body.totp_code)
+    if not totp_ok:
+        prefs = dict(user.notification_prefs or {})
+        raw_hashes = prefs.get("totp_backup_code_hashes")
+        hashes = [str(h) for h in raw_hashes] if isinstance(raw_hashes, list) else []
+        new_hashes = consume_matching_backup_code(hashes, body.totp_code)
+        if new_hashes is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid OTP.")
+        prefs["totp_backup_code_hashes"] = new_hashes
+        prefs["totp_backup_last_used_at"] = datetime.now(tz=UTC).isoformat()
+        user.notification_prefs = prefs
 
     user.totp_verified_at = datetime.now(tz=UTC)
     try:
@@ -260,6 +283,9 @@ class MeDetailResponse(BaseModel):
     totp_required: bool
     totp_has_secret: bool
     totp_verified_at: datetime | None
+    totp_backup_codes_remaining: int = 0
+    totp_backup_last_used_at: datetime | None = None
+    audit_log_enabled: bool = True
 
 
 async def _current_dashboard_user(sess: dict[str, Any], db: DbSession) -> DashboardUser:
@@ -277,9 +303,31 @@ async def _current_dashboard_user(sess: dict[str, Any], db: DbSession) -> Dashbo
     return row
 
 
+def _backup_prefs_snapshot(row: DashboardUser) -> tuple[int, datetime | None]:
+    """Return remaining backup codes count and last-consumed timestamp."""
+
+    prefs = dict(row.notification_prefs or {})
+    raw = prefs.get("totp_backup_code_hashes")
+    n = len(raw) if isinstance(raw, list) else 0
+    ts_raw = prefs.get("totp_backup_last_used_at")
+    ts: datetime | None = None
+    if isinstance(ts_raw, str):
+        try:
+            ts = datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
+        except ValueError:
+            ts = None
+    return n, ts
+
+
+def _audit_log_pref(row: DashboardUser) -> bool:
+    prefs = dict(row.notification_prefs or {})
+    return bool(prefs.get("audit_log_enabled", True))
+
+
 def _serialize_me(row: DashboardUser) -> MeDetailResponse:
     """Map ORM rows to public profile envelope."""
 
+    remaining, backup_last = _backup_prefs_snapshot(row)
     return MeDetailResponse(
         email=row.email,
         display_name=row.display_name,
@@ -290,6 +338,9 @@ def _serialize_me(row: DashboardUser) -> MeDetailResponse:
         totp_required=bool(row.totp_required),
         totp_has_secret=row.totp_secret is not None,
         totp_verified_at=row.totp_verified_at,
+        totp_backup_codes_remaining=remaining,
+        totp_backup_last_used_at=backup_last,
+        audit_log_enabled=_audit_log_pref(row),
     )
 
 
@@ -342,19 +393,141 @@ async def dashboard_patch_profile(
     return _serialize_me(user)
 
 
-class NotificationPrefsPatch(RootModel[dict[str, bool]]):
-    """Flattened boolean map merged into ``dashboard_users.notification_prefs``."""
+_CHANNEL_PHONE_RE = re.compile(r"^\+?[0-9][0-9\s\-]{5,21}$")
 
 
-@router.patch("/me/notifications", summary="Merge notification booleans for the cockpit")
+class EmailChannelConfig(BaseModel):
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+
+    enabled: bool = False
+    label: str | None = Field(default=None, max_length=120)
+    address: str | None = Field(default=None, max_length=254)
+
+    @field_validator("address", mode="before")
+    @classmethod
+    def strip_addr(cls, value: object) -> str | None:
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise TypeError("address must be a string")
+        s = value.strip()
+        return s or None
+
+
+class SmsChannelConfig(BaseModel):
+    model_config = ConfigDict(extra="allow", str_strip_whitespace=True)
+
+    enabled: bool = False
+    label: str | None = Field(default=None, max_length=120)
+    phone_e164: str | None = Field(default=None, max_length=32)
+
+    @field_validator("phone_e164", mode="before")
+    @classmethod
+    def strip_phone(cls, value: object) -> str | None:
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise TypeError("phone_e164 must be a string")
+        s = value.strip()
+        if not s:
+            return None
+        if not _CHANNEL_PHONE_RE.match(s):
+            raise ValueError("phone_e164 looks invalid (use E.164-style, e.g. +421901234567)")
+        return s
+
+
+class DiscordChannelConfig(BaseModel):
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+
+    enabled: bool = False
+    label: str | None = Field(default=None, max_length=120)
+    webhook_url: str | None = Field(default=None, max_length=2048)
+
+    @field_validator("webhook_url", mode="before")
+    @classmethod
+    def validate_webhook(cls, value: object) -> str | None:
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise TypeError("webhook_url must be a string")
+        s = value.strip()
+        if not s:
+            return None
+        if not (
+            s.startswith("https://discord.com/api/webhooks/")
+            or s.startswith("https://discordapp.com/api/webhooks/")
+        ):
+            raise ValueError("Discord webhook must be an https URL under discord.com/api/webhooks/")
+        return s
+
+
+class TelegramChannelConfig(BaseModel):
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+
+    enabled: bool = False
+    label: str | None = Field(default=None, max_length=120)
+    bot_token: str | None = Field(default=None, max_length=256)
+    chat_id: str | None = Field(default=None, max_length=64)
+
+    @field_validator("bot_token", "chat_id", mode="before")
+    @classmethod
+    def strip_opt(cls, value: object) -> str | None:
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise TypeError("value must be a string")
+        s = value.strip()
+        return s or None
+
+
+class DeliveryChannelsMerge(BaseModel):
+    """Partial update for ``notification_prefs['delivery_channels']``."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    email: EmailChannelConfig | None = None
+    sms: SmsChannelConfig | None = None
+    discord: DiscordChannelConfig | None = None
+    telegram: TelegramChannelConfig | None = None
+
+
+class NotificationPrefsMergeBody(BaseModel):
+    """Merge JSON for ``dashboard_users.notification_prefs`` (channels + legacy keys)."""
+
+    model_config = ConfigDict(extra="allow")
+
+    delivery_channels: DeliveryChannelsMerge | None = None
+
+
+def _merge_delivery_buckets(existing: Any, merge: DeliveryChannelsMerge) -> dict[str, Any]:
+    base: dict[str, Any] = dict(existing) if isinstance(existing, dict) else {}
+    dumped = merge.model_dump(exclude_unset=True)
+    for ch_name in ("email", "sms", "discord", "telegram"):
+        ch_patch = dumped.get(ch_name)
+        if ch_patch is None:
+            continue
+        prev_raw = base.get(ch_name)
+        prev: dict[str, Any] = dict(prev_raw) if isinstance(prev_raw, dict) else {}
+        prev.update(ch_patch)
+        base[ch_name] = prev
+    return base
+
+
+@router.patch("/me/notifications", summary="Merge notification preferences (channels + legacy flags)")
 async def dashboard_patch_notifications(
-    body: NotificationPrefsPatch,
+    body: NotificationPrefsMergeBody,
     sess: DashboardSession,
     db: DbSession,
 ) -> MeDetailResponse:
     user = await _current_dashboard_user(sess, db)
-    merged = dict(user.notification_prefs or {})
-    merged.update(body.root)
+    merged: dict[str, Any] = dict(user.notification_prefs or {})
+    raw_dump = body.model_dump(exclude_unset=True)
+    dc_raw = raw_dump.pop("delivery_channels", None)
+    if dc_raw is not None:
+        dm = DeliveryChannelsMerge.model_validate(dc_raw)
+        merged["delivery_channels"] = _merge_delivery_buckets(merged.get("delivery_channels"), dm)
+    for key, val in raw_dump.items():
+        merged[key] = val
     user.notification_prefs = merged
     try:
         await db.commit()
@@ -375,22 +548,103 @@ class LLMProvidersStatus(BaseModel):
     grok_configured: bool
     anthropic_configured: bool
     openai_configured: bool
+    grok_from_vault: bool = False
+    anthropic_from_vault: bool = False
+    openai_from_vault: bool = False
 
 
 @router.get(
     "/integrations/llm-providers",
-    summary="Reveal which LiteLLM env keys exist (never return secret payloads)",
+    summary="Reveal which LiteLLM routes are live (env + optional dashboard vault)",
 )
 async def integrations_llm_status(_subject: JwtSubject) -> LLMProvidersStatus:
-    def _truthy(value: str | None) -> bool:
-        return bool(value and value.strip())
-
-    ok_openai = _truthy(settings.openai_api_key)
+    grok_eff = provider_effective_grok()
+    anth_eff = provider_effective_anthropic()
+    open_eff = provider_effective_openai()
     return LLMProvidersStatus(
-        grok_configured=_truthy(settings.grok_api_key),
-        anthropic_configured=_truthy(settings.anthropic_api_key),
-        openai_configured=ok_openai,
+        grok_configured=bool(grok_eff),
+        anthropic_configured=bool(anth_eff),
+        openai_configured=_openai_key_looks_configured(open_eff),
+        grok_from_vault=bool(get_cached_llm_key("grok")),
+        anthropic_from_vault=bool(get_cached_llm_key("anthropic")),
+        openai_from_vault=bool(get_cached_llm_key("openai")),
     )
+
+
+class LlmVaultRotateBody(BaseModel):
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+
+    api_key: str = Field(..., min_length=12, max_length=2048)
+
+
+@router.post(
+    "/integrations/llm-providers/{provider}/secret",
+    summary="Store encrypted LLM secret (Grok: any operator; Claude/OpenAI: admin only)",
+)
+async def vault_set_llm_provider_secret(
+    provider: Literal["grok", "anthropic", "openai"],
+    body: LlmVaultRotateBody,
+    sess: DashboardSession,
+    db: DbSession,
+) -> dict[str, bool]:
+    user = await _current_dashboard_user(sess, db)
+    if provider != "grok" and not user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required.")
+    try:
+        await persist_llm_provider_secret(db, provider=provider, plaintext=body.api_key)
+        await db.commit()
+    except ValueError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Could not persist LLM secret.",
+        ) from None
+    logger.info(
+        "dashboard_auth.llm_vault_rotated",
+        agent_id="operator_hub",
+        swarm_id="",
+        task_id="",
+        provider=provider,
+    )
+    return {"ok": True}
+
+
+@router.delete(
+    "/integrations/llm-providers/{provider}/secret",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove vault LLM secret (Grok: any operator; others: admin only)",
+)
+async def vault_clear_llm_provider_secret(
+    provider: Literal["grok", "anthropic", "openai"],
+    sess: DashboardSession,
+    db: DbSession,
+) -> Response:
+    user = await _current_dashboard_user(sess, db)
+    if provider != "grok" and not user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required.")
+    try:
+        await delete_llm_provider_secret(db, provider=provider)
+        await db.commit()
+    except ValueError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Could not clear LLM secret.",
+        ) from None
+    logger.info(
+        "dashboard_auth.llm_vault_cleared",
+        agent_id="operator_hub",
+        swarm_id="",
+        task_id="",
+        provider=provider,
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 class PasswordConfirmBody(BaseModel):
@@ -434,6 +688,10 @@ async def profile_totp_provision(
     user.totp_secret = mint_totp_secret()
     user.totp_verified_at = None
     user.totp_required = True
+    prefs = dict(user.notification_prefs or {})
+    prefs.pop("totp_backup_code_hashes", None)
+    prefs.pop("totp_backup_last_used_at", None)
+    user.notification_prefs = prefs
     try:
         await db.commit()
         await db.refresh(user)
@@ -446,22 +704,79 @@ async def profile_totp_provision(
     return _provision_response(user)
 
 
-@router.post("/profile/totp/confirm", summary="Finalize authenticator enrollment with a numeric OTP")
-async def profile_totp_confirm(body: TotpCodeBody, sess: DashboardSession, db: DbSession) -> dict[str, bool]:
+class TotpConfirmResponse(BaseModel):
+    """Result of completing authenticator enrollment."""
+
+    verified: bool = True
+    backup_codes: list[str] | None = None
+
+
+@router.post(
+    "/profile/totp/confirm",
+    summary="Finalize authenticator enrollment with a numeric OTP",
+    response_model=TotpConfirmResponse,
+)
+async def profile_totp_confirm(body: TotpCodeBody, sess: DashboardSession, db: DbSession) -> TotpConfirmResponse:
     user = await _current_dashboard_user(sess, db)
     if user.totp_secret is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="TOTP provisioning has not started.")
     if not totp_verify(user.totp_secret, body.code):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid OTP.")
+    was_new = user.totp_verified_at is None
     user.totp_verified_at = datetime.now(tz=UTC)
     user.totp_required = True
+    backup_codes: list[str] | None = None
+    if was_new:
+        prefs = dict(user.notification_prefs or {})
+        existing = prefs.get("totp_backup_code_hashes")
+        if not isinstance(existing, list) or len(existing) == 0:
+            plain = mint_plain_backup_codes()
+            prefs["totp_backup_code_hashes"] = backup_codes_hashed(plain)
+            user.notification_prefs = prefs
+            backup_codes = plain
     try:
         await db.commit()
         await db.refresh(user)
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Persist failure.") from None
-    return {"verified": True}
+    return TotpConfirmResponse(verified=True, backup_codes=backup_codes)
+
+
+@router.post(
+    "/profile/totp/backup-codes/regenerate",
+    summary="Replace backup codes after password confirmation (plaintext returned once)",
+)
+async def profile_totp_backup_regenerate(
+    body: PasswordConfirmBody,
+    sess: DashboardSession,
+    db: DbSession,
+) -> dict[str, list[str]]:
+    user = await _current_dashboard_user(sess, db)
+    if not verify_dashboard_password(body.password, user.password_hash):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password.")
+    if user.totp_secret is None or user.totp_verified_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Complete TOTP enrollment before managing backup codes.",
+        )
+    plain = mint_plain_backup_codes()
+    prefs = dict(user.notification_prefs or {})
+    prefs["totp_backup_code_hashes"] = backup_codes_hashed(plain)
+    user.notification_prefs = prefs
+    try:
+        await db.commit()
+        await db.refresh(user)
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Persist failure.") from None
+    logger.info(
+        "dashboard_auth.totp_backup_regenerated",
+        agent_id=str(user.id),
+        swarm_id="",
+        task_id="",
+    )
+    return {"codes": plain}
 
 
 @router.post("/profile/totp/disable", summary="Strip authenticator enrollment after verifying password")
@@ -472,6 +787,10 @@ async def profile_totp_disable(body: PasswordConfirmBody, sess: DashboardSession
     user.totp_required = False
     user.totp_verified_at = None
     user.totp_secret = None
+    prefs = dict(user.notification_prefs or {})
+    prefs.pop("totp_backup_code_hashes", None)
+    prefs.pop("totp_backup_last_used_at", None)
+    user.notification_prefs = prefs
     try:
         await db.commit()
         await db.refresh(user)
@@ -490,14 +809,22 @@ async def profile_totp_disable(body: PasswordConfirmBody, sess: DashboardSession
 class ApiKeyCreateBody(BaseModel):
     model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
 
+    source_name: str = Field(..., min_length=2, max_length=80)
     label: str | None = Field(default=None, max_length=160)
+
+    @field_validator("source_name")
+    @classmethod
+    def _slugify_source_name(cls, value: str) -> str:
+        return normalize_api_key_source_name(value)
 
 
 class ApiKeySummary(BaseModel):
     id: uuid.UUID
+    source_name: str | None
     label: str | None
     masked_prefix: str
     created_at: datetime
+    last_used_at: datetime | None = None
     revoked_at: datetime | None
 
 
@@ -507,14 +834,23 @@ class ApiKeyMinted(ApiKeySummary):
 
 def _mask_key_row(row: DashboardApiKey) -> ApiKeySummary:
     masked = f"{API_KEY_PREFIX}{row.id.hex[:10]}•••"
-    return ApiKeySummary(id=row.id, label=row.label, masked_prefix=masked, created_at=row.created_at, revoked_at=row.revoked_at)
+    return ApiKeySummary(
+        id=row.id,
+        source_name=row.source_name,
+        label=row.label,
+        masked_prefix=masked,
+        created_at=row.created_at,
+        last_used_at=row.last_used_at,
+        revoked_at=row.revoked_at,
+    )
 
 
 @router.get("/api-keys", summary="List bcrypt-protected scripted credentials tied to this operator")
 async def list_dashboard_api_credentials(sess: DashboardSession, db: DbSession) -> list[ApiKeySummary]:
     user = await _current_dashboard_user(sess, db)
     rows = await list_dashboard_api_keys(db, user_id=user.id)
-    return [_mask_key_row(row) for row in rows]
+    active = [r for r in rows if r.revoked_at is None]
+    return [_mask_key_row(row) for row in active]
 
 
 @router.post("/api-keys", summary="Create a scripted credential returned once")
@@ -525,12 +861,23 @@ async def create_dashboard_api_credential_route(
 ) -> ApiKeyMinted:
     user = await _current_dashboard_user(sess, db)
     try:
-        row, plaintext = await create_dashboard_api_key(db, user_id=user.id, label=body.label)
+        row, plaintext = await create_dashboard_api_key(
+            db,
+            user_id=user.id,
+            source_name=body.source_name,
+            label=body.label,
+        )
         await db.commit()
         await db.refresh(row)
     except DashboardApiKeyError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+        detail = str(exc)
+        lowered = detail.lower()
+        if "already exists" in lowered:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail) from exc
+        if "maximum" in lowered and "api keys" in lowered:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=detail) from exc
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=detail) from exc
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Persist failure.") from None

@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export default function BallroomRoute() {
   return (
     <div className="space-y-8">
-      <HivePageHeader title="Ballroom • Voice Sessions" subtitle="Multi-agent voice rooms · WebRTC · live transcript lane" />
+      <HivePageHeader title="Ballroom" subtitle="Live transcript a hlas po misii z dashboardu." />
       <BallroomPanel />
     </div>
   );

@@ -23,6 +23,8 @@ from app.models.agent import Agent
 from app.models.agent_config import AgentConfig
 from app.models.enums import AgentStatus, TaskType
 from app.models.task import Task
+from app.services.hive_mission_runner import MISSION_CORR_KEY, WORKER_LANE_KEY
+from app.services.hive_tier import resolve_hive_tier
 from app.services.sub_swarm.runner import run_sub_swarm_workflow_cycle
 from app.worker.celery_app import celery_app
 
@@ -189,6 +191,21 @@ def execute_universal_agent_task(self, task_id_str: str) -> dict[str, Any]:
             agent_payload = dict(row.payload or {})
             if row.agent_id is not None:
                 agent_payload.setdefault("agent_id", str(row.agent_id))
+
+            resolved_uuid = uuid.UUID(str(agent_payload.get("agent_id") or row.agent_id))
+            cfg_gate = await session.scalar(select(AgentConfig).where(AgentConfig.agent_id == resolved_uuid))
+            agent_gate = await session.get(Agent, resolved_uuid)
+            if agent_gate is None:
+                msg = f"Resolved agent missing for task {task_id_str}"
+                raise RuntimeError(msg)
+            tier_gate = resolve_hive_tier(agent=agent_gate, agent_config=cfg_gate)
+            if agent_payload.get(WORKER_LANE_KEY) and tier_gate != "worker":
+                msg = "hive_mission_worker_lane tasks must target worker-tier agents only."
+                raise RuntimeError(msg)
+            if agent_payload.get(MISSION_CORR_KEY) and tier_gate == "orchestrator":
+                msg = "Orchestrator must not consume mission worker Celery payloads."
+                raise RuntimeError(msg)
+
             snapshot = await execute_universal_agent(
                 session,
                 agent_config=agent_payload,

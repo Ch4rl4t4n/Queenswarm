@@ -7,12 +7,19 @@ from typing import Any
 
 from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import text
+from sqlalchemy import func, select, text
 
 from app.api.deps import JwtSubject
-from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.readiness import collect_readiness_uncached
+from app.models.agent import Agent
+from app.models.enums import AgentStatus, TaskStatus
+from app.models.task import Task
+from app.services.llm_runtime_credentials import (
+    provider_effective_anthropic,
+    provider_effective_grok,
+    provider_effective_openai,
+)
 from app.worker.celery_app import celery_app
 
 logger = get_logger(__name__)
@@ -21,7 +28,7 @@ router = APIRouter(prefix="/system", tags=["System"])
 
 
 class SystemStatusPayload(BaseModel):
-    """High-signal dependency flags for /costs dashboards."""
+    """High-signal dependency flags + coarse hive gauges for dashboards."""
 
     model_config = ConfigDict(extra="ignore")
 
@@ -29,6 +36,12 @@ class SystemStatusPayload(BaseModel):
     celery_ok: bool = Field(description="At least one Celery consumer answered a control ping.")
     db_ok: bool = Field(description="Postgres accepted a trivial ``SELECT 1`` probe.")
     llm_ok: bool = Field(description="At least one LiteLLM provider credential is non-empty.")
+    llm_grok: bool = Field(default=False, description="Grok credential present.")
+    llm_anthropic: bool = Field(default=False, description="Anthropic credential present.")
+    agents_total: int = Field(default=0, ge=0)
+    agents_running: int = Field(default=0, ge=0)
+    tasks_running: int = Field(default=0, ge=0)
+    tasks_pending: int = Field(default=0, ge=0)
 
 
 class NotifyTestResponse(BaseModel):
@@ -38,11 +51,14 @@ class NotifyTestResponse(BaseModel):
     results: dict[str, bool] = Field(description="Per-channel booleans keyed by slack/email.")
 
 
-def _llm_configured() -> bool:
-    grok = (settings.grok_api_key or "").strip()
-    claude = (settings.anthropic_api_key or "").strip()
-    openai = (settings.openai_api_key or "").strip()
-    return bool(grok or claude or openai)
+def _llm_flags() -> tuple[bool, bool, bool]:
+    """Return aggregate flag plus per-provider booleans."""
+
+    grok_ok = bool(provider_effective_grok())
+    anth_ok = bool(provider_effective_anthropic())
+    open_ok = bool(provider_effective_openai())
+    llm_ok = bool(grok_ok or anth_ok or open_ok)
+    return llm_ok, grok_ok, anth_ok
 
 
 async def _postgres_singleton_select() -> None:
@@ -52,6 +68,40 @@ async def _postgres_singleton_select() -> None:
 
     async with async_session() as session:
         await session.execute(text("SELECT 1"))
+
+
+async def _hive_gauges() -> tuple[int, int, int, int]:
+    """Count agents/tasks for Neon KPI tiles."""
+
+    from app.core.database import async_session
+
+    async with async_session() as session:
+        agents_total = int((await session.execute(select(func.count()).select_from(Agent))).scalar() or 0)
+        agents_running = int(
+            (
+                await session.execute(
+                    select(func.count()).select_from(Agent).where(Agent.status == AgentStatus.RUNNING),
+                )
+            ).scalar()
+            or 0,
+        )
+        tasks_running = int(
+            (
+                await session.execute(
+                    select(func.count()).select_from(Task).where(Task.status == TaskStatus.RUNNING),
+                )
+            ).scalar()
+            or 0,
+        )
+        tasks_pending = int(
+            (
+                await session.execute(
+                    select(func.count()).select_from(Task).where(Task.status == TaskStatus.PENDING),
+                )
+            ).scalar()
+            or 0,
+        )
+        return agents_total, agents_running, tasks_running, tasks_pending
 
 
 def _celery_workers_respond() -> bool:
@@ -92,13 +142,26 @@ async def read_system_status(_subject: JwtSubject) -> SystemStatusPayload:
             logger.warning("system.status.db_direct_failed", error=str(exc))
 
     celery_ok = await asyncio.to_thread(_celery_workers_respond)
-    llm_ok = _llm_configured()
+    llm_ok, grok_ok, anth_ok = _llm_flags()
+
+    agents_total = agents_running = tasks_running = tasks_pending = 0
+    if db_second_opinion:
+        try:
+            agents_total, agents_running, tasks_running, tasks_pending = await _hive_gauges()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("system.status.hive_gauges_failed", error=str(exc))
 
     return SystemStatusPayload(
         redis_ok=redis_ok,
         celery_ok=celery_ok,
         db_ok=db_second_opinion,
         llm_ok=llm_ok,
+        llm_grok=grok_ok,
+        llm_anthropic=anth_ok,
+        agents_total=agents_total,
+        agents_running=agents_running,
+        tasks_running=tasks_running,
+        tasks_pending=tasks_pending,
     )
 
 

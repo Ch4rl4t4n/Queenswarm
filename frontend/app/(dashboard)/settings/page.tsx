@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function SettingsIndexPage(): never {
-  redirect("/settings/profile");
+export default function SettingsIndexPage() {
+  redirect("/settings/security");
 }

@@ -26,10 +26,7 @@ async function resolveHiveBearerToken(): Promise<string | null> {
 }
 
 async function hiveServerFetch(path: string, init?: RequestInit): Promise<Response> {
-  const origin = process.env.INTERNAL_BACKEND_ORIGIN?.trim();
-  if (!origin) {
-    throw new Error("INTERNAL_BACKEND_ORIGIN is not set.");
-  }
+  const origin = process.env.INTERNAL_BACKEND_ORIGIN?.trim() || "http://backend:8000";
 
   const bearer = await resolveHiveBearerToken();
   if (!bearer) {

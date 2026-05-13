@@ -10,17 +10,26 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import selectinload
 
-from app.api.deps import DbSession, JwtSubject
+from app.api.deps import DashboardRecipeWriter, DbSession, JwtSubject
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.models.agent import Agent
 from app.models.cost import CostRecord
-from app.models.enums import AgentStatus, StepStatus, TaskType
+from app.models.enums import AgentRole, AgentStatus, StepStatus, TaskStatus, TaskType, WorkflowStatus
 from app.models.swarm import SubSwarm
-from app.models.workflow import WorkflowStep
+from app.models.task import Task
+from app.models.workflow import Workflow, WorkflowStep
+from app.schemas.recipes_write import RecipeCreateBody
+from app.schemas.workflow_breaker import PreviewDecompositionResponse
 from app.services.hive_async_workflow_run_ledger import enqueue_hive_async_workflow_run
 from app.services.plugin_hub import bump_plugin_generation, plugin_manifest
+from app.services.recipe_write import (
+    RecipeWriteConflictError,
+    RecipeWritePayloadTooLargeError,
+    create_recipe_entry,
+)
 from app.services.sub_swarm.runner import run_sub_swarm_workflow_cycle
 from app.services.task_ledger import TaskUpsertViolationError, create_task_record
 from app.services.workflow_breaker.breaker import WorkflowBreakerService
@@ -53,6 +62,10 @@ class OperatorIntakeRequest(BaseModel):
     task_type: TaskType = TaskType.SCRAPE
     priority: int = Field(default=5, ge=1, le=99)
     swarm_id: uuid.UUID | None = None
+    target_lane: Literal["scout", "eval", "sim", "action"] | None = Field(
+        default=None,
+        description="When ``swarm_id`` is omitted, select ``colony-{lane}``.",
+    )
     matching_recipe_id: uuid.UUID | None = None
     enrich_from_chroma_recipes: bool = False
     max_steps: int = Field(default=7, ge=3, le=7)
@@ -80,12 +93,69 @@ class SwarmRestartAck(BaseModel):
     reset_agents: int
 
 
-async def _resolve_target_swarm_id(db: DbSession, explicit: uuid.UUID | None) -> uuid.UUID:
+_TARGET_LANE_COLONY: dict[Literal["scout", "eval", "sim", "action"], str] = {
+    "scout": "colony-scout",
+    "eval": "colony-eval",
+    "sim": "colony-sim",
+    "action": "colony-action",
+}
+
+
+class OperatorPreviewDecompositionRequest(BaseModel):
+    """Ephemeral breaker preview — no Workflow rows."""
+
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+
+    task_text: str = Field(..., min_length=8, max_length=50_000)
+    matching_recipe_id: uuid.UUID | None = None
+    enrich_from_chroma_recipes: bool = Field(
+        default=True,
+        description="Cosine-match the Recipe Library for hints + match badge.",
+    )
+    max_steps: int = Field(default=7, ge=3, le=7)
+
+
+class OperatorRecipeStepBody(BaseModel):
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+
+    step_order: int = Field(ge=1, le=32)
+    description: str = Field(..., min_length=8, max_length=4000)
+    agent_role: AgentRole
+    guardrails: dict[str, Any] = Field(default_factory=dict)
+    evaluation_criteria: dict[str, Any] = Field(default_factory=dict)
+
+
+class OperatorSaveRecipeRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+
+    name: str = Field(..., min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=4000)
+    topic_tags: list[str] = Field(default_factory=list)
+    task_text: str = Field(..., min_length=8, max_length=50_000)
+    steps: list[OperatorRecipeStepBody] = Field(min_length=3, max_length=7)
+    mark_verified: bool = False
+
+
+class OperatorSaveRecipeResponse(BaseModel):
+    recipe_id: uuid.UUID
+
+
+async def _resolve_target_swarm_id(
+    db: DbSession,
+    explicit: uuid.UUID | None,
+    target_lane: Literal["scout", "eval", "sim", "action"] | None = None,
+) -> uuid.UUID:
     if explicit is not None:
         row = await db.get(SubSwarm, explicit)
         if row is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown swarm_id.")
         return explicit
+    if target_lane is not None:
+        colony = _TARGET_LANE_COLONY.get(target_lane)
+        if colony is not None:
+            lane_row = await db.scalar(select(SubSwarm).where(SubSwarm.name == colony))
+            if lane_row is not None:
+                return lane_row.id
     scout = await db.scalar(select(SubSwarm).where(SubSwarm.name == "colony-scout"))
     if scout is not None:
         return scout.id
@@ -105,7 +175,7 @@ async def _resolve_target_swarm_id(db: DbSession, explicit: uuid.UUID | None) ->
     summary="Run Auto Workflow Breaker, enqueue task, optionally execute",
 )
 async def operator_intake_task(body: OperatorIntakeRequest, db: DbSession, _subject: JwtSubject) -> OperatorIntakeResponse:
-    swarm_id = await _resolve_target_swarm_id(db, body.swarm_id)
+    swarm_id = await _resolve_target_swarm_id(db, body.swarm_id, body.target_lane)
     breaker = WorkflowBreakerService()
     try:
         plan = await breaker.build_workflow_plan(
@@ -143,6 +213,7 @@ async def operator_intake_task(body: OperatorIntakeRequest, db: DbSession, _subj
             payload={
                 "dashboard_intake": True,
                 "breaker_task_text": body.task_text,
+                "target_lane": body.target_lane,
             },
             swarm_id=swarm_id,
             workflow_id=plan.workflow_id,
@@ -257,6 +328,107 @@ async def operator_intake_task(body: OperatorIntakeRequest, db: DbSession, _subj
 
 
 @router.post(
+    "/preview-decomposition",
+    response_model=PreviewDecompositionResponse,
+    summary="LLM decomposition preview (no Workflow persistence)",
+)
+async def operator_preview_decomposition(
+    body: OperatorPreviewDecompositionRequest,
+    db: DbSession,
+    _subject: JwtSubject,
+) -> PreviewDecompositionResponse:
+    breaker = WorkflowBreakerService()
+    try:
+        out = await breaker.preview_workflow_plan(
+            db,
+            task_text=body.task_text,
+            matching_recipe_id=body.matching_recipe_id,
+            enrich_from_chroma_recipes=body.enrich_from_chroma_recipes,
+            max_steps=body.max_steps,
+            swarm_id="operator_preview",
+            agent_task_id=None,
+        )
+        await db.commit()
+        return out
+    except ValidationError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors())
+    except ValueError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Preview persistence error.",
+        )
+    except RuntimeError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        )
+
+
+@router.post(
+    "/recipes/draft",
+    response_model=OperatorSaveRecipeResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Persist a Recipe Library template from the operator console",
+)
+async def operator_save_recipe_draft(
+    body: OperatorSaveRecipeRequest,
+    db: DbSession,
+    _writer: DashboardRecipeWriter,
+) -> OperatorSaveRecipeResponse:
+    ordered = sorted(body.steps, key=lambda step: step.step_order)
+    template: dict[str, Any] = {
+        "version": 1,
+        "source": "dashboard_operator_draft",
+        "task_text": body.task_text,
+        "steps": [step.model_dump(mode="json") for step in ordered],
+    }
+    recipe_body = RecipeCreateBody(
+        name=body.name.strip(),
+        description=body.description,
+        topic_tags=body.topic_tags,
+        workflow_template=template,
+        mark_verified=body.mark_verified,
+    )
+    try:
+        recipe = await create_recipe_entry(
+            db,
+            recipe_body,
+            swarm_id="operator_recipe",
+            task_id="draft",
+        )
+        await db.commit()
+    except RecipeWriteConflictError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    except RecipeWritePayloadTooLargeError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=str(exc),
+        )
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to persist recipe draft.",
+        )
+    logger.info(
+        "operator.recipe_draft_saved",
+        agent_id="operator_hub",
+        swarm_id="",
+        task_id="",
+        recipe_id=str(recipe.id),
+    )
+    return OperatorSaveRecipeResponse(recipe_id=recipe.id)
+
+
+@router.post(
     "/swarms/{swarm_id}/restart-failed",
     response_model=SwarmRestartAck,
     summary="Reset bees stuck in ERROR back to IDLE",
@@ -332,6 +504,97 @@ async def human_approve_workflow_step(
         reviewer_sub=_subject,
     )
     return {"ok": True, "step_id": str(step.id), "status": step.status.value}
+
+
+@router.post(
+    "/workflows/{workflow_id}/pause",
+    summary="Pause swarm execution for a workflow (blocks new graph runs).",
+)
+async def pause_operator_workflow(
+    workflow_id: uuid.UUID,
+    db: DbSession,
+    _subject: JwtSubject,
+) -> dict[str, Any]:
+    """Set workflow to ``paused`` so :func:`prepare_sub_swarm_context` stops before stepping."""
+
+    stmt = select(Workflow).where(Workflow.id == workflow_id).options(selectinload(Workflow.steps))
+    wf = (await db.execute(stmt)).scalar_one_or_none()
+    if wf is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found.")
+    if wf.status in (
+        WorkflowStatus.COMPLETED,
+        WorkflowStatus.FAILED,
+        WorkflowStatus.CANCELLED,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Workflow is already finished.",
+        )
+    try:
+        wf.status = WorkflowStatus.PAUSED
+        await db.commit()
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Could not persist workflow pause.",
+        )
+    logger.info(
+        "operator.workflow_paused",
+        agent_id="operator_hub",
+        swarm_id="",
+        task_id="",
+        workflow_id=str(workflow_id),
+        subject=_subject,
+    )
+    return {"ok": True, "workflow_id": str(workflow_id), "status": WorkflowStatus.PAUSED.value}
+
+
+@router.post(
+    "/workflows/{workflow_id}/cancel",
+    summary="Cancel workflow and skip open steps; cancels linked hive tasks.",
+)
+async def cancel_operator_workflow(
+    workflow_id: uuid.UUID,
+    db: DbSession,
+    _subject: JwtSubject,
+) -> dict[str, Any]:
+    """Mark workflow cancelled, skip pending/running steps, and cancel bound tasks."""
+
+    stmt = select(Workflow).where(Workflow.id == workflow_id).options(selectinload(Workflow.steps))
+    wf = (await db.execute(stmt)).scalar_one_or_none()
+    if wf is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found.")
+    if wf.status in (WorkflowStatus.COMPLETED, WorkflowStatus.CANCELLED):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Workflow is already terminal.",
+        )
+    try:
+        wf.status = WorkflowStatus.CANCELLED
+        for step in wf.steps:
+            if step.status in (StepStatus.PENDING, StepStatus.RUNNING):
+                step.status = StepStatus.SKIPPED
+        task_rows = (await db.scalars(select(Task).where(Task.workflow_id == workflow_id))).all()
+        for task_row in task_rows:
+            if task_row.status in (TaskStatus.PENDING, TaskStatus.RUNNING):
+                task_row.status = TaskStatus.CANCELLED
+        await db.commit()
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Could not persist workflow cancellation.",
+        )
+    logger.info(
+        "operator.workflow_cancelled",
+        agent_id="operator_hub",
+        swarm_id="",
+        task_id="",
+        workflow_id=str(workflow_id),
+        subject=_subject,
+    )
+    return {"ok": True, "workflow_id": str(workflow_id), "status": WorkflowStatus.CANCELLED.value}
 
 
 @router.get("/plugins", summary="List hive plugin modules exposed to Neon UI")

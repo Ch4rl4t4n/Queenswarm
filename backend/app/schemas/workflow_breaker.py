@@ -65,6 +65,42 @@ class DecomposeWorkflowResponse(BaseModel):
     decomposition_rationale: str | None = None
 
 
+class RecipeMatchBrief(BaseModel):
+    """Semantic or explicit Recipe Library hint for operator dashboards."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    name: str
+    similarity: float = Field(ge=0.0, le=1.0)
+    postgres_recipe_id: uuid.UUID | None = None
+
+
+class PreviewWorkflowStep(BaseModel):
+    """Single breaker step projected for live decomposition preview (no persistence)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    step_order: int
+    description: str
+    agent_role: AgentRole
+    guardrail_summary: str
+    guardrails: dict[str, Any] = Field(default_factory=dict)
+    evaluation_criteria: dict[str, Any] = Field(default_factory=dict)
+
+
+class PreviewDecompositionResponse(BaseModel):
+    """LLM decomposition preview without creating Workflow rows."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    steps: list[PreviewWorkflowStep]
+    decomposition_rationale: str
+    parallel_groups: list[list[int]]
+    estimated_duration_sec: int | None = None
+    decomposition_cost_usd: float = Field(ge=0.0)
+    recipe_match: RecipeMatchBrief | None = None
+
+
 class BreakerStepDraft(BaseModel):
     """Single decomposition row produced by the LLM."""
 

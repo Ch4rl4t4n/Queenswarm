@@ -58,7 +58,7 @@ function DagHex({ label, state, accent }: HexVisualProps) {
     <div className="flex flex-col items-center gap-3">
       <div
         className={cn(
-          "hive-hex flex h-14 w-14 shrink-0 items-center justify-center text-[11px] font-[family-name:var(--font-jetbrains-mono)] font-semibold uppercase tracking-tighter md:h-16 md:w-16",
+          "hive-hex flex h-14 w-14 shrink-0 items-center justify-center border-[6px] text-[11px] font-[family-name:var(--font-jetbrains-mono)] font-semibold uppercase tracking-tighter md:h-16 md:w-16",
           cls,
           !cls && "border-cyan/[0.2] bg-black/40 text-zinc-500",
         )}

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import secrets
+
 import pyotp
 from passlib.context import CryptContext
 
@@ -39,3 +41,31 @@ def totp_uri_for_email(*, issuer: str, email: str, secret: str) -> str:
     """Return ``otpauth://`` URI consumed by QR encoders."""
 
     return pyotp.totp.TOTP(secret).provisioning_uri(name=email, issuer_name=issuer)
+
+
+def mint_plain_backup_codes(*, count: int = 8) -> list[str]:
+    """Return human-readable one-time backup codes (uppercase, unambiguous alphabet)."""
+
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    return ["".join(secrets.choice(alphabet) for _ in range(8)) for _ in range(count)]
+
+
+def backup_codes_hashed(plain: list[str]) -> list[str]:
+    """Hash backup codes for JSON storage (bcrypt via existing dashboard context)."""
+
+    return [hash_dashboard_password(c.strip().upper()) for c in plain if c.strip()]
+
+
+def consume_matching_backup_code(hashes: list[str], code: str) -> list[str] | None:
+    """Remove the first matching backup hash; return updated list or None if no match."""
+
+    normalized = code.strip().upper().replace(" ", "")
+    if not normalized:
+        return None
+    for i, h in enumerate(hashes):
+        try:
+            if verify_dashboard_password(normalized, h):
+                return hashes[:i] + hashes[i + 1 :]
+        except ValueError:
+            continue
+    return None

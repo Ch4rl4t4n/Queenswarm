@@ -65,7 +65,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
         </main>
 
         <footer className="hidden border-t border-cyan/10 py-6 text-center font-[family-name:var(--font-jetbrains-mono)] text-[10px] text-cyan/45 lg:block">
-          QueenSwarm · verified simulations · global sync · rapid loop
+          QueenSwarm · cockpit + ballroom
         </footer>
 
         <HiveBottomNav onMore={() => setMoreOpen(true)} />

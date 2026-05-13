@@ -12,6 +12,8 @@ from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconn
 from jose import JWTError, jwt
 from sqlalchemy import func, select
 
+from pydantic import BaseModel, ConfigDict, Field
+
 from app.api.deps import JwtSubject
 from app.core.config import settings
 from app.core.database import async_session
@@ -21,12 +23,24 @@ from app.models.agent import Agent
 from app.models.enums import AgentStatus, TaskStatus
 from app.models.task import Task
 
+from app.services.hive_mission_runner import run_seven_step_mission
+
 _router = APIRouter(prefix="/ws", tags=["Realtime"])
 _bb_router = APIRouter(prefix="/ballroom", tags=["Ballroom"])
 
 logger = get_logger(__name__)
 
 _WS_IDLE_SEC: Final[float] = 6.0
+
+
+class BallroomMissionBody(BaseModel):
+    """POST /ballroom/mission — user brief for the fixed Orchestrator-led chain."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    user_brief: str = Field(..., min_length=3, max_length=30_000)
+    session_id: uuid.UUID | None = None
+
 
 _SESSION_CHANNELS: dict[uuid.UUID, set[WebSocket]] = {}
 _CAPSULES: dict[uuid.UUID, dict[str, Any]] = {}
@@ -52,9 +66,15 @@ def _decode_sub(token: str | None) -> str | None:
 def _llm_credentials_configured() -> bool:
     """Return True when at least one LiteLLM provider key is present."""
 
-    grok = (settings.grok_api_key or "").strip()
-    claude = (settings.anthropic_api_key or "").strip()
-    openai = str(settings.openai_api_key or "").strip()
+    from app.services.llm_runtime_credentials import (
+        provider_effective_anthropic,
+        provider_effective_grok,
+        provider_effective_openai,
+    )
+
+    grok = provider_effective_grok()
+    claude = provider_effective_anthropic()
+    openai = provider_effective_openai()
     return bool(grok or claude or len(openai) >= 20)
 
 
@@ -320,6 +340,31 @@ async def _mint_ballroom_session_capsule() -> dict[str, object]:
         "ws_url_path": f"/api/v1/ballroom/ws/{sid}",
         "webrtc": {"signaling": "pending_pipecat"},
     }
+
+
+@_bb_router.post("/mission", status_code=status.HTTP_200_OK, summary="Seven-step Orchestrator ballroom mission")
+async def ballroom_run_seven_step_mission(body: BallroomMissionBody, subject: JwtSubject) -> dict[str, object]:
+    """Run Orchestrator → Managers → Workers → Managers → Orchestrator (text + voice payloads)."""
+
+    capsule_id = body.session_id or uuid.uuid4()
+    _SESSION_CHANNELS.setdefault(capsule_id, set())
+    _ensure_capsule(capsule_id)
+    logger.info("ballroom.mission_started", actor=subject, session_id=str(capsule_id))
+    try:
+        async with async_session() as session:
+            payload = await run_seven_step_mission(
+                session,
+                user_brief=body.user_brief,
+                session_id=capsule_id,
+                hive_subject=subject,
+            )
+            await session.commit()
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+
+    return payload
 
 
 @_bb_router.post("/session", status_code=status.HTTP_201_CREATED)

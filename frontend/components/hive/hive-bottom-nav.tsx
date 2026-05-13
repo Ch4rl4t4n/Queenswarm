@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  EllipsisVerticalIcon,
-  HexagonIcon,
-  LayoutGridIcon,
-  ListTodoIcon,
-  MicIcon,
-} from "lucide-react";
+import { EllipsisVerticalIcon, LayoutGridIcon, MicIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -47,24 +41,12 @@ interface HiveBottomNavProps {
 
 const PRIMARY: readonly { href: string; label: string; Icon: typeof LayoutGridIcon }[] = [
   { href: "/", label: "Hive", Icon: LayoutGridIcon },
-  { href: "/swarms", label: "Swarms", Icon: HexagonIcon },
-  { href: "/tasks", label: "Tasks", Icon: ListTodoIcon },
   { href: "/ballroom", label: "Ballroom", Icon: MicIcon },
 ];
 
-/** Thumb navigation — aligns with QueenSwarm mobile IA. */
+/** Mobile thumb nav — hive + ballroom. */
 export function HiveBottomNav({ onMore }: HiveBottomNavProps) {
   const pathname = usePathname();
-  const moreActive =
-    pathname.startsWith("/agents") ||
-    pathname.startsWith("/workflows") ||
-    pathname.startsWith("/recipes") ||
-    pathname.startsWith("/leaderboard") ||
-    pathname.startsWith("/costs") ||
-    pathname.startsWith("/simulations") ||
-    pathname.startsWith("/plugins") ||
-    pathname.startsWith("/settings") ||
-    pathname.startsWith("/design-system");
 
   return (
     <nav
@@ -84,13 +66,8 @@ export function HiveBottomNav({ onMore }: HiveBottomNavProps) {
             </Link>
           );
         })}
-        <button
-          type="button"
-          className="flex min-w-0 flex-1 justify-center touch-manipulation"
-          onClick={onMore}
-          aria-haspopup="dialog"
-        >
-          <NavGlyph label="More" Icon={EllipsisVerticalIcon} active={moreActive} />
+        <button type="button" className="flex min-w-0 flex-1 justify-center touch-manipulation" onClick={onMore} aria-haspopup="dialog">
+          <NavGlyph label="Menu" Icon={EllipsisVerticalIcon} active={false} />
         </button>
       </div>
     </nav>

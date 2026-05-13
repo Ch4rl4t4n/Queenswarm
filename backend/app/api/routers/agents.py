@@ -6,14 +6,15 @@ import uuid
 
 from typing import Any
 
-from fastapi import APIRouter, Body, HTTPException, Query, status
+from fastapi import APIRouter, Body, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.api.deps import DbSession, JwtSubject
 from app.models.agent import Agent
 from app.models.agent_config import AgentConfig
-from app.models.enums import AgentRole, AgentStatus
+from app.models.enums import AgentRole, AgentStatus, SwarmPurpose
+from app.models.swarm import SubSwarm
 from app.schemas.agent import AgentCreateRequest, AgentPatchRequest, AgentSnapshot
 from app.schemas.agent_dynamic import (
     AgentConfigSnapshot,
@@ -31,23 +32,46 @@ from app.services.agent_catalog import (
 )
 from app.services.agent_task_hints import latest_open_tasks_for_agents
 from app.services.agent_universal import enqueue_universal_agent_run
+from app.services.hive_tier import is_fixed_orchestrator_agent, resolve_hive_tier
 from app.worker.tasks import execute_universal_agent_task
 
 router = APIRouter(tags=["Agents"])
 
 
+async def _swarm_fields_for_agents(db: DbSession, rows: list[Agent]) -> dict[uuid.UUID, tuple[str, SwarmPurpose]]:
+    """Map ``swarm_id`` to ``(swarm.name, swarm.purpose)`` for hydrated snapshots."""
+
+    ids = {r.swarm_id for r in rows if r.swarm_id is not None}
+    if not ids:
+        return {}
+    stmt = select(SubSwarm).where(SubSwarm.id.in_(ids))
+    found = await db.scalars(stmt)
+    out: dict[uuid.UUID, tuple[str, SwarmPurpose]] = {}
+    for swarm in found:
+        out[swarm.id] = (swarm.name, swarm.purpose)
+    return out
+
+
 async def _to_agent_snapshot(db: DbSession, row: Agent) -> AgentSnapshot:
     """Attach the newest pending/running backlog row for dashboard context."""
 
+    meta = await _swarm_fields_for_agents(db, [row])
     hints = await latest_open_tasks_for_agents(db, [row.id])
     linked = hints.get(row.id)
-    cfg_marker = await db.scalar(select(AgentConfig.agent_id).where(AgentConfig.agent_id == row.id))
+    cfg_row = await db.scalar(select(AgentConfig).where(AgentConfig.agent_id == row.id))
     base = AgentSnapshot.model_validate(row)
+    tier = resolve_hive_tier(agent=row, agent_config=cfg_row)
+    pair = meta.get(row.swarm_id) if row.swarm_id is not None else None
+    swarm_name = pair[0] if pair else None
+    swarm_purpose = pair[1] if pair else None
     return base.model_copy(
         update={
             "current_task_id": linked.id if linked else None,
             "current_task_title": linked.title if linked else None,
-            "has_universal_config": cfg_marker is not None,
+            "has_universal_config": cfg_row is not None,
+            "hive_tier": tier,
+            "swarm_name": swarm_name,
+            "swarm_purpose": swarm_purpose,
         },
     )
 
@@ -95,7 +119,17 @@ async def create_dynamic_agent(
     db: DbSession,
     _subject: JwtSubject,
 ) -> AgentDynamicCreateResponse:
-    """Factory endpoint used by the dashboard — no Python class required."""
+    """Factory endpoint used by the dashboard — managers and workers only."""
+
+    normalized = body.name.strip().lower()
+    if normalized == "orchestrator":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Orchestrator is fixed — use PATCH on its persisted config.",
+        )
+
+    oc = dict(body.output_config)
+    oc["hive_tier"] = body.hive_tier
 
     try:
         agent = await create_agent_record(
@@ -104,7 +138,7 @@ async def create_dynamic_agent(
             role=AgentRole.LEARNER,
             status=body.agent_status,
             swarm_id=body.swarm_id,
-            config={"origin": "dynamic_factory"},
+            config={"origin": "dynamic_factory", "hive_tier": body.hive_tier},
         )
         cfg = AgentConfig(
             agent_id=agent.id,
@@ -113,7 +147,7 @@ async def create_dynamic_agent(
             tools=list(body.tools),
             output_format=body.output_format,
             output_destination=body.output_destination,
-            output_config=dict(body.output_config),
+            output_config=oc,
             schedule_type=body.schedule_type,
             schedule_value=body.schedule_value,
             is_active=True,
@@ -187,6 +221,13 @@ async def upsert_agent_config_row(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Provide at least one field to upsert.",
         )
+
+    if is_fixed_orchestrator_agent(agent):
+        if payload.get("output_config") is not None:
+            merged_oc = dict(payload["output_config"])
+            merged_oc["hive_tier"] = "orchestrator"
+            payload["output_config"] = merged_oc
+
     try:
         cfg = await db.scalar(select(AgentConfig).where(AgentConfig.agent_id == agent_id))
         if cfg is None:
@@ -208,7 +249,12 @@ async def upsert_agent_config_row(
             for field, value in payload.items():
                 if value is None:
                     continue
-                setattr(cfg, field, value)
+                if field == "output_config" and isinstance(value, dict):
+                    merged_oc = dict(cfg.output_config or {})
+                    merged_oc.update(value)
+                    setattr(cfg, field, merged_oc)
+                else:
+                    setattr(cfg, field, value)
         await db.commit()
         await db.refresh(cfg)
     except SQLAlchemyError:
@@ -270,35 +316,13 @@ async def register_agent(
     db: DbSession,
     _subject: JwtSubject,
 ):
-    """Create an agent row and optionally attach it to an existing sub-swarm."""
+    """Hard-disabled — callers must POST ``/agents/dynamic`` with a hive tier."""
 
-    try:
-        row = await create_agent_record(
-            db,
-            name=body.name,
-            role=body.role,
-            status=body.status,
-            swarm_id=body.swarm_id,
-            config=dict(body.config),
-        )
-        await db.commit()
-        await db.refresh(row)
-    except AgentCatalogError as exc:
-        await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
-    except IntegrityError:
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Agent name is already taken.",
-        )
-    except SQLAlchemyError:
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Persistence rejected agent insert.",
-        )
-    return await _to_agent_snapshot(db, row)
+    del body, db, _subject  # arity preserved for FastAPI OpenAPI stubs
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail="POST /agents is retired — use POST /agents/dynamic (manager/worker tiers).",
+    )
 
 
 @router.get(
@@ -330,25 +354,60 @@ async def list_agent_registry(
             detail="Persistence rejected agent listing.",
         )
     hints = await latest_open_tasks_for_agents(db, [r.id for r in rows])
-    configured_ids: set[uuid.UUID] = set()
+    swarm_meta = await _swarm_fields_for_agents(db, rows)
+    cfg_by_id: dict[uuid.UUID, AgentConfig] = {}
     if rows:
-        cfg_stmt = select(AgentConfig.agent_id).where(AgentConfig.agent_id.in_([r.id for r in rows]))
-        cfg_result = await db.execute(cfg_stmt)
-        configured_ids = set(cfg_result.scalars().all())
+        cfg_stmt = select(AgentConfig).where(AgentConfig.agent_id.in_([r.id for r in rows]))
+        cfg_rows = (await db.scalars(cfg_stmt)).all()
+        cfg_by_id = {c.agent_id: c for c in cfg_rows}
     snapshots: list[AgentSnapshot] = []
     for row in rows:
         linked = hints.get(row.id)
+        cfg_row = cfg_by_id.get(row.id)
         base = AgentSnapshot.model_validate(row)
+        tier = resolve_hive_tier(agent=row, agent_config=cfg_row)
+        pair = swarm_meta.get(row.swarm_id) if row.swarm_id is not None else None
         snapshots.append(
             base.model_copy(
                 update={
                     "current_task_id": linked.id if linked else None,
                     "current_task_title": linked.title if linked else None,
-                    "has_universal_config": row.id in configured_ids,
+                    "has_universal_config": cfg_row is not None,
+                    "hive_tier": tier,
+                    "swarm_name": pair[0] if pair else None,
+                    "swarm_purpose": pair[1] if pair else None,
                 },
             ),
         )
     return snapshots
+
+
+@router.delete(
+    "/{agent_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove a manager or worker bee",
+)
+async def delete_agent(agent_id: uuid.UUID, db: DbSession, _subject: JwtSubject) -> Response:
+    """Orchestrator is immutable; cascades AgentConfig."""
+
+    row = await fetch_agent(db, agent_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found.")
+    if is_fixed_orchestrator_agent(row):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Orchestrator cannot be deleted.",
+        )
+    try:
+        db.delete(row)
+        await db.commit()
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected agent deletion.",
+        )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get(

@@ -1,20 +1,6 @@
 "use client";
 
-import {
-  BadgeDollarSignIcon,
-  BookOpenIcon,
-  BotIcon,
-  FlaskConicalIcon,
-  GitBranchIcon,
-  LockIcon,
-  LogOutIcon,
-  PaletteIcon,
-  PuzzleIcon,
-  SettingsIcon,
-  TrophyIcon,
-  XIcon,
-} from "lucide-react";
-import Link from "next/link";
+import { LockIcon, LogOutIcon, XIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { toast } from "sonner";
@@ -24,16 +10,7 @@ interface HiveMoreSheetProps {
   onClose: () => void;
 }
 
-const LINKS = [
-  { href: "/agents", label: "Agents", Icon: BotIcon },
-  { href: "/workflows", label: "Workflows", Icon: GitBranchIcon },
-  { href: "/recipes", label: "Recipes", Icon: BookOpenIcon },
-  { href: "/leaderboard", label: "Leaderboard", Icon: TrophyIcon },
-  { href: "/costs", label: "Costs", Icon: BadgeDollarSignIcon },
-  { href: "/settings/profile", label: "Settings", Icon: SettingsIcon },
-] as const;
-
-/** Bottom sheet with secondary IA + labs — blurred scrim per mobile mock. */
+/** Session actions only — routes trimmed to cockpit + ballroom. */
 export function HiveMoreSheet({ open, onClose }: HiveMoreSheetProps) {
   const router = useRouter();
 
@@ -61,7 +38,7 @@ export function HiveMoreSheet({ open, onClose }: HiveMoreSheetProps) {
     } catch {
       /* ignore */
     }
-    toast.success("Session cleared");
+    toast.success("Odhlásenie");
     onClose();
     router.push("/login");
     router.refresh();
@@ -73,7 +50,7 @@ export function HiveMoreSheet({ open, onClose }: HiveMoreSheetProps) {
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col justify-end lg:hidden">
-      <button type="button" className="absolute inset-0 bg-black/72 backdrop-blur-sm" aria-label="Close menu" onClick={onClose} />
+      <button type="button" className="absolute inset-0 bg-black/72 backdrop-blur-sm" aria-label="Zavrieť menu" onClick={onClose} />
       <div
         role="dialog"
         aria-modal="true"
@@ -93,61 +70,10 @@ export function HiveMoreSheet({ open, onClose }: HiveMoreSheetProps) {
         </div>
 
         <h2 id="hive-more-sheet-title" className="px-6 pb-3 pt-1 font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-[#fafafa]">
-          All screens
+          Účet
         </h2>
 
-        <ul className="max-h-[60vh] space-y-0.5 overflow-y-auto px-3 hive-scrollbar pb-2">
-          {LINKS.map(({ href, label, Icon }) => (
-            <li key={href}>
-              <Link
-                href={href}
-                prefetch
-                onClick={onClose}
-                className="flex items-center gap-4 rounded-2xl px-4 py-3.5 font-[family-name:var(--font-inter)] text-[15px] text-[#fafafa] transition hover:bg-white/[0.05]"
-              >
-                <Icon className="h-5 w-5 shrink-0 text-pollen/90" aria-hidden />
-                {label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-
-        <div className="mx-4 my-2 h-px bg-cyan/[0.08]" />
-
         <ul className="space-y-0.5 px-3 pb-4">
-          <li>
-            <Link
-              href="/simulations"
-              prefetch
-              onClick={onClose}
-              className="flex items-center gap-4 rounded-2xl px-4 py-3.5 font-[family-name:var(--font-inter)] text-sm text-zinc-400 transition hover:bg-white/[0.04]"
-            >
-              <FlaskConicalIcon className="h-5 w-5 shrink-0 text-data" aria-hidden />
-              Simulations
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/design-system"
-              prefetch
-              onClick={onClose}
-              className="flex items-center gap-4 rounded-2xl px-4 py-3.5 font-[family-name:var(--font-inter)] text-sm text-zinc-400 transition hover:bg-white/[0.04]"
-            >
-              <PaletteIcon className="h-5 w-5 shrink-0 text-pollen/90" aria-hidden />
-              Design system
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/plugins"
-              prefetch
-              onClick={onClose}
-              className="flex items-center gap-4 rounded-2xl px-4 py-3.5 font-[family-name:var(--font-inter)] text-sm text-zinc-400 transition hover:bg-white/[0.04]"
-            >
-              <PuzzleIcon className="h-5 w-5 shrink-0 text-cyan" aria-hidden />
-              Plugins
-            </Link>
-          </li>
           <li>
             <button
               type="button"
@@ -158,7 +84,7 @@ export function HiveMoreSheet({ open, onClose }: HiveMoreSheetProps) {
               }}
             >
               <LockIcon className="h-5 w-5 shrink-0 text-pollen" aria-hidden />
-              Show login screen
+              Login obrazovka
             </button>
           </li>
           <li>
@@ -168,7 +94,7 @@ export function HiveMoreSheet({ open, onClose }: HiveMoreSheetProps) {
               onClick={() => void logout()}
             >
               <LogOutIcon className="h-5 w-5 shrink-0" aria-hidden />
-              Log out
+              Odhlásiť
             </button>
           </li>
         </ul>

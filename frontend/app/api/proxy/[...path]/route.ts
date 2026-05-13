@@ -1,79 +1,114 @@
+import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
-const METHODS_WITH_BODY = new Set(["POST", "PATCH", "PUT"]);
+import { QS_ACCESS } from "@/lib/auth-cookies";
 
-function forbidSegments(segments: string[]): boolean {
-  return segments.some((s) => s.includes("..") || s.includes("\\"));
+/** Node runtime: cookie bridge + private Docker DNS (`backend`) do not run on Edge. */
+export const runtime = "nodejs";
+
+/**
+ * Explicit fetch relay to FastAPI (rewrite() to external origins is unreliable for POST bodies).
+ * Injects Bearer from HttpOnly session cookie or HIVE_PROXY_JWT when the browser sends no Authorization.
+ */
+function backendOrigin(): string {
+  const raw = process.env.INTERNAL_BACKEND_ORIGIN?.trim() || "http://backend:8000";
+  return raw.replace(/\/$/, "");
 }
 
-async function relay(
-  request: NextRequest,
-  segments: string[],
-  method: string,
-): Promise<NextResponse> {
-  const origin = process.env.INTERNAL_BACKEND_ORIGIN;
-  const token = process.env.HIVE_PROXY_JWT;
-  if (!origin || !token || token === "unset") {
-    return NextResponse.json({ detail: "Hive proxy JWT is not configured." }, { status: 503 });
+function buildTarget(request: NextRequest): string {
+  const url = request.nextUrl;
+  return `${backendOrigin()}${url.pathname.replace("/api/proxy", "/api/v1")}${url.search}`;
+}
+
+async function resolveAuthHeader(request: NextRequest): Promise<string | null> {
+  const direct = request.headers.get("authorization");
+  if (direct?.trim()) {
+    return direct.trim();
   }
-  if (forbidSegments(segments)) {
-    return NextResponse.json({ detail: "Unsafe path segments." }, { status: 400 });
+  try {
+    const jar = await cookies();
+    const at = jar.get(QS_ACCESS)?.value?.trim();
+    if (at) {
+      return `Bearer ${at}`;
+    }
+  } catch {
+    /* cookies() only valid in App Router request context */
+  }
+  const proxyJwt = process.env.HIVE_PROXY_JWT?.trim();
+  if (proxyJwt && proxyJwt !== "unset") {
+    return `Bearer ${proxyJwt}`;
+  }
+  return null;
+}
+
+async function proxyRequest(request: NextRequest, method: string): Promise<NextResponse> {
+  const targetUrl = buildTarget(request);
+  const headers = new Headers();
+
+  const auth = await resolveAuthHeader(request);
+  if (auth) {
+    headers.set("Authorization", auth);
   }
 
-  const path = segments.join("/");
-  const target = new URL(`${origin}/api/v1/${path}`);
-  target.search = request.nextUrl.search;
+  const contentType = request.headers.get("content-type");
+  if (contentType) {
+    headers.set("Content-Type", contentType);
+  }
+  const accept = request.headers.get("accept");
+  if (accept) {
+    headers.set("Accept", accept);
+  }
 
-  const hdrs: Record<string, string> = { Authorization: `Bearer ${token}` };
-  const payload = METHODS_WITH_BODY.has(method) ? await request.arrayBuffer() : undefined;
-  if (payload !== undefined && payload.byteLength > 0) {
-    const ct = request.headers.get("content-type");
-    if (ct) {
-      hdrs["Content-Type"] = ct;
+  const init: RequestInit = {
+    method,
+    headers,
+  };
+
+  if (method !== "GET" && method !== "HEAD") {
+    const body = await request.arrayBuffer();
+    if (body.byteLength > 0) {
+      init.body = body;
     }
   }
 
-  const res = await fetch(target, {
-    method,
-    headers: hdrs,
-    ...(payload !== undefined && payload.byteLength > 0 ? { body: payload } : {}),
-    cache: "no-store",
+  let upstream: Response;
+  try {
+    upstream = await fetch(targetUrl, init);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ detail: `proxy_upstream_unreachable: ${msg}` }, { status: 502 });
+  }
+
+  const outHeaders = new Headers();
+  const uct = upstream.headers.get("content-type");
+  if (uct) {
+    outHeaders.set("Content-Type", uct);
+  }
+
+  const payload = upstream.status === 204 ? null : await upstream.arrayBuffer();
+  return new NextResponse(payload, {
+    status: upstream.status,
+    statusText: upstream.statusText,
+    headers: outHeaders,
   });
-
-  const resBody = Buffer.from(await res.arrayBuffer());
-  const contentType = res.headers.get("content-type") ?? "application/octet-stream";
-  return new NextResponse(resBody, {
-    status: res.status,
-    headers: { "Content-Type": contentType },
-  });
 }
 
-type Params = Promise<{ path: string[] | undefined }>;
-
-export async function GET(request: NextRequest, ctx: { params: Params }): Promise<NextResponse> {
-  const path = ((await ctx.params).path ?? []).filter(Boolean);
-  return relay(request, path, "GET");
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  return proxyRequest(request, "GET");
 }
 
-export async function POST(request: NextRequest, ctx: { params: Params }): Promise<NextResponse> {
-  const path = ((await ctx.params).path ?? []).filter(Boolean);
-  return relay(request, path, "POST");
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  return proxyRequest(request, "POST");
 }
 
-export async function PATCH(request: NextRequest, ctx: { params: Params }): Promise<NextResponse> {
-  const path = ((await ctx.params).path ?? []).filter(Boolean);
-  return relay(request, path, "PATCH");
+export async function PATCH(request: NextRequest): Promise<NextResponse> {
+  return proxyRequest(request, "PATCH");
 }
 
-export async function PUT(request: NextRequest, ctx: { params: Params }): Promise<NextResponse> {
-  const path = ((await ctx.params).path ?? []).filter(Boolean);
-  return relay(request, path, "PUT");
+export async function PUT(request: NextRequest): Promise<NextResponse> {
+  return proxyRequest(request, "PUT");
 }
 
-export async function DELETE(
-  request: NextRequest,
-  ctx: { params: Params },
-): Promise<NextResponse> {
-  const path = ((await ctx.params).path ?? []).filter(Boolean);
-  return relay(request, path, "DELETE");
+export async function DELETE(request: NextRequest): Promise<NextResponse> {
+  return proxyRequest(request, "DELETE");
 }

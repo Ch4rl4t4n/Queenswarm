@@ -47,6 +47,21 @@ def hive_agent_stub() -> MagicMock:
     return record
 
 
+def test_instantiate_agent_raises_when_fixed_orchestrator_disallowed(mock_session: MagicMock) -> None:
+    """Sub-swarm / graph loaders must not hydrate the seeded Orchestrator as a LangGraph step bee."""
+
+    reserved = MagicMock()
+    reserved.id = uuid.uuid4()
+    reserved.role = AgentRole.LEARNER
+    reserved.swarm_id = uuid.uuid4()
+    reserved.pollen_points = 0.0
+    reserved.name = "Orchestrator"
+    reserved.config = {}
+
+    with pytest.raises(ValueError, match="reserved"):
+        instantiate_agent(db=mock_session, agent_row=reserved, disallow_fixed_orchestrator=True)
+
+
 @pytest.mark.asyncio
 async def test_instantiate_agent_resolves_learner_bee_by_default(
     mock_session: MagicMock,

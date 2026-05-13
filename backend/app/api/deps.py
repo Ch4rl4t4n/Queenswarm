@@ -152,6 +152,25 @@ async def require_dashboard_session(
     return payload
 
 
+async def require_dashboard_recipe_write(
+    sess: dict[str, Any] = Depends(require_dashboard_session),
+) -> dict[str, Any]:
+    """Require admin dashboard tokens that include the Recipe Library write scope."""
+
+    raw_scope = sess.get("scope")
+    if isinstance(raw_scope, str):
+        parts = {p for p in raw_scope.split() if p}
+    elif isinstance(raw_scope, list):
+        parts = {str(p).strip() for p in raw_scope if str(p).strip()}
+    else:
+        parts = set()
+    if "dash:recipe_write" not in parts:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin scope dash:recipe_write required to save recipes.",
+        )
+    return sess
+
 
 async def dashboard_admin_wall(
     sess: dict[str, Any] = Depends(require_dashboard_session),
@@ -180,6 +199,7 @@ async def dashboard_admin_wall(
 
 DashboardSession = Annotated[dict[str, Any], Depends(require_dashboard_session)]
 DashboardAdmin = Annotated[bool, Depends(dashboard_admin_wall)]
+DashboardRecipeWriter = Annotated[dict[str, Any], Depends(require_dashboard_recipe_write)]
 JwtSubject = Annotated[str, Depends(require_subject)]
 RecipeMutationSubject = Annotated[str, Depends(require_recipe_catalog_mutation)]
 DbSession = Annotated[AsyncSession, Depends(get_db)]

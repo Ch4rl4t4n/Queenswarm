@@ -39,6 +39,7 @@ class DashboardApiKey(Base):
         index=True,
     )
     label: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    source_name: Mapped[str | None] = mapped_column(String(80), nullable=True)
     secret_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -47,5 +48,6 @@ class DashboardApiKey(Base):
         """Return a developer-safe summary."""
 
         return (
-            f"DashboardApiKey(id={self.id!s}, user_id={self.user_id!s}, revoked={self.revoked_at is not None})"
+            f"DashboardApiKey(id={self.id!s}, user_id={self.user_id!s}, "
+            f"source={self.source_name!r}, revoked={self.revoked_at is not None})"
         )
