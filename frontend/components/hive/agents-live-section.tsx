@@ -341,8 +341,8 @@ export function AgentsLiveSection({
 
   return (
     <section id="hive-live-swarm" className="scroll-mt-24 rounded-3xl border-[3px] border-white/10 bg-[#07070f]/95 p-6 md:p-8">
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-        <div>
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <div className="min-w-0 flex-1">
           <h2 className="font-[family-name:var(--font-poppins)] text-2xl font-bold text-[#fafafa] md:text-3xl">Agenti</h2>
           <p className="mt-2 font-[family-name:var(--font-inter)] text-sm text-zinc-500">
             {counts.all} včiel · {assignedWorkerCount} zaradených do swarmov · {counts.unassigned} nezaradených ·{" "}
@@ -354,18 +354,21 @@ export function AgentsLiveSection({
             (nie automatické priradenie podľa mena agenta).
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Link href={spawnHref} className="qs-btn qs-btn--ghost gap-2">
-            <Plus className="h-4 w-4" aria-hidden />
+        <div className="flex w-full shrink-0 flex-col gap-3 sm:ml-auto sm:w-[min(100%,17rem)]">
+          <Link
+            href={spawnHref}
+            className="qs-btn qs-btn--ghost flex !w-full h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap"
+          >
+            <Plus className="h-4 w-4 shrink-0" aria-hidden />
             Pridať agenta
           </Link>
           <button
             type="button"
             disabled={rebalanceBusy}
             onClick={() => void onRebalanceHive()}
-            className="qs-btn qs-btn--primary gap-2 disabled:opacity-40"
+            className="qs-btn qs-btn--primary flex !w-full h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap disabled:opacity-40"
           >
-            <Play className="h-4 w-4" aria-hidden />
+            <Play className="h-4 w-4 shrink-0" aria-hidden />
             {rebalanceBusy ? "Prebieha…" : "Vyrovnať úľ"}
           </button>
         </div>
