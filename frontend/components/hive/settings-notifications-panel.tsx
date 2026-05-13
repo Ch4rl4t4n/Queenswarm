@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { HiveApiError, hiveDelete, hiveGet, hivePostJson } from "@/lib/api";
+import { Toggle } from "@/components/ui/toggle";
 import type { NotificationChannelListRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
@@ -221,21 +222,20 @@ export function SettingsNotificationsPanel() {
 
               {configured ? <span className="qs-badge qs-badge--green mb-3">configured</span> : null}
 
-              <label className="mb-3 flex cursor-pointer items-center gap-2 text-[13px] text-[var(--qs-text)]">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 shrink-0 rounded border-[var(--qs-border)] accent-[var(--qs-amber)]"
+              <div className="mb-3 flex items-center justify-between gap-3 text-[13px] text-[var(--qs-text)]">
+                <span>Enabled</span>
+                <Toggle
                   checked={blob.enabled}
                   disabled={busy}
-                  onChange={(e) =>
+                  onChange={(next) =>
                     setDrafts((d) => ({
                       ...d,
-                      [slug]: { ...d[slug], enabled: e.target.checked },
+                      [slug]: { ...d[slug], enabled: next },
                     }))
                   }
+                  aria-label={`${title} channel enabled`}
                 />
-                Enabled
-              </label>
+              </div>
 
               {slug === "email" ? (
                 <div className="mb-3">

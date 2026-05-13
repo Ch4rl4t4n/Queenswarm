@@ -4,7 +4,7 @@ import { ExternalLink, Grid2x2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { HiveSwitch } from "@/components/ui/hive-switch";
+import { Toggle } from "@/components/ui/toggle";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import type {
   BackupCodesRegenerateResponse,
@@ -307,9 +307,9 @@ export function Security2FASettings() {
               TOTP (časové kódy cez aplikáciu typu Authenticator alebo ekvivalent).
             </p>
           </div>
-          <HiveSwitch
+          <Toggle
             checked={twofaComplete}
-            onCheckedChange={(next) => {
+            onChange={(next) => {
               if (next) {
                 if (!twofaComplete) {
                   openEnrollFromUi();
