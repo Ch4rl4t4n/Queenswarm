@@ -92,6 +92,24 @@ export function SettingsNotificationsPanel() {
 
   async function saveChannel(slug: ChannelSlug): Promise<void> {
     const blob = drafts[slug];
+    if (slug === "email" && blob.enabled && !String(blob.settings.address ?? "").trim()) {
+      toast.error("Email address required when channel is enabled.");
+      return;
+    }
+    if (slug === "sms" && blob.enabled && !String(blob.settings.phone_e164 ?? "").trim()) {
+      toast.error("E.164 phone required for SMS.");
+      return;
+    }
+    if (slug === "discord" && blob.enabled && !String(blob.settings.webhook_url ?? "").trim()) {
+      toast.error("Discord webhook required when enabled.");
+      return;
+    }
+    if (slug === "telegram" && blob.enabled) {
+      if (!String(blob.settings.bot_token ?? "").trim() || !String(blob.settings.chat_id ?? "").trim()) {
+        toast.error("Telegram bot token + chat id required when enabled.");
+        return;
+      }
+    }
     setBusy(true);
     try {
       await hivePostJson("notifications/", {
