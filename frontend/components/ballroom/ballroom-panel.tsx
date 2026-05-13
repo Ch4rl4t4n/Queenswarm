@@ -25,6 +25,7 @@ interface SessionAgentRow {
   id?: string;
   name: string;
   role?: string;
+  hive_tier?: string | null;
 }
 
 const AGENT_ACCENTS: Record<string, string> = {
@@ -36,6 +37,43 @@ const AGENT_ACCENTS: Record<string, string> = {
   Queen: "#FFB800",
   System: "#5a5a7a",
 };
+
+function isOrchestratorLike(a: SessionAgentRow): boolean {
+  const tier = (a.hive_tier ?? "").toLowerCase();
+  if (tier === "orchestrator") {
+    return true;
+  }
+  const nl = a.name.toLowerCase();
+  const rl = (a.role ?? "").toLowerCase();
+  return nl.includes("orchestrat") || rl.includes("orchestrat") || rl.includes("queen");
+}
+
+function isManagerLike(a: SessionAgentRow): boolean {
+  const tier = (a.hive_tier ?? "").toLowerCase();
+  if (tier === "manager") {
+    return true;
+  }
+  const nl = a.name.toLowerCase();
+  const rl = (a.role ?? "").toLowerCase();
+  return nl.includes("manager") || rl.includes("manager");
+}
+
+/** Orchestrator first, then managers, then alphabetical — no fixed participant list. */
+function sortSessionParticipants(agents: SessionAgentRow[]): SessionAgentRow[] {
+  return [...agents].sort((a, b) => {
+    const aLead = isOrchestratorLike(a);
+    const bLead = isOrchestratorLike(b);
+    if (aLead && !bLead) return -1;
+    if (!aLead && bLead) return 1;
+
+    const aMgr = isManagerLike(a);
+    const bMgr = isManagerLike(b);
+    if (aMgr && !bMgr) return -1;
+    if (!aMgr && bMgr) return 1;
+
+    return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+  });
+}
 
 function accentForName(name: string): string {
   const n = name.trim();
@@ -93,18 +131,25 @@ export function BallroomPanel() {
           id: typeof a.id === "string" ? a.id : a.id !== undefined && a.id !== null ? String(a.id) : undefined,
           name: typeof a.name === "string" ? a.name : "Agent",
           role: typeof a.role === "string" ? a.role : undefined,
+          hive_tier: typeof (a as { hive_tier?: unknown }).hive_tier === "string"
+            ? ((a as { hive_tier: string }).hive_tier)
+            : null,
         }));
         const managers = normalized.filter((a) => {
           const nl = a.name.toLowerCase();
           const rl = (a.role ?? "").toLowerCase();
+          const tier = (a.hive_tier ?? "").toLowerCase();
           return (
+            tier === "manager" ||
+            tier === "orchestrator" ||
             nl.includes("manager") ||
             nl.includes("orchestrator") ||
             rl.includes("manager") ||
             rl.includes("orchestrator")
           );
         });
-        setSessionAgents(managers.length > 0 ? managers.slice(0, 10) : normalized.slice(0, 10));
+        const pool = managers.length > 0 ? managers : normalized;
+        setSessionAgents(sortSessionParticipants(pool).slice(0, 10));
       })
       .catch(() => {});
   }, []);
