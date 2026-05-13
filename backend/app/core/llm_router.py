@@ -473,6 +473,7 @@ async def llm_complete(
     """Run the Grok-first fallback chain outside workflow breaker callers (tests, tooling)."""
 
     from app.core.database import async_session
+    from app.models import load_all_models
     from app.services.llm_runtime_credentials import refresh_llm_secret_cache
 
     messages: list[dict[str, str]] = []
@@ -480,6 +481,7 @@ async def llm_complete(
         messages.append({"role": "system", "content": system})
     messages.append({"role": "user", "content": prompt})
 
+    load_all_models()
     async with async_session() as session:
         if reload_vault_first:
             await refresh_llm_secret_cache(session)
@@ -503,9 +505,11 @@ def load_keys_from_vault() -> None:
     import asyncio
 
     from app.core.database import async_session
+    from app.models import load_all_models
     from app.services.llm_runtime_credentials import refresh_llm_secret_cache
 
     async def _go() -> None:
+        load_all_models()
         async with async_session() as session:
             await refresh_llm_secret_cache(session)
             await session.commit()
