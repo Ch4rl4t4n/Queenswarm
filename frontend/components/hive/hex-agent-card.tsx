@@ -69,7 +69,7 @@ function hexSwarmLaneKey(agent: AgentRow): keyof typeof SWARM_STROKE | null {
 
 function statusVisual(status: string): { tone: keyof typeof STATUS_COLORS; pulse: boolean } {
   const u = status.toUpperCase();
-  if (u === "RUNNING" || u === "BUSY") {
+  if (u === "RUNNING" || u === "BUSY" || u === "ACTIVE") {
     return { tone: "live", pulse: true };
   }
   if (u === "PAUSED") {
