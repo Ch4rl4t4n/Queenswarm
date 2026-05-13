@@ -504,7 +504,7 @@ def load_keys_from_vault() -> None:
 
     import asyncio
 
-    from app.core.database import async_session
+    from app.core.database import async_engine, async_session
     from app.models import load_all_models
     from app.services.llm_runtime_credentials import refresh_llm_secret_cache
 
@@ -513,6 +513,7 @@ def load_keys_from_vault() -> None:
         async with async_session() as session:
             await refresh_llm_secret_cache(session)
             await session.commit()
+        await async_engine.dispose()
 
     try:
         asyncio.get_running_loop()
