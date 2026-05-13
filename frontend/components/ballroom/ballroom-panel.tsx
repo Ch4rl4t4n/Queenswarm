@@ -1,9 +1,9 @@
 "use client";
 
 import { MicIcon, MicOffIcon } from "lucide-react";
+import type { CSSProperties } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { NeonButton } from "@/components/ui/neon-button";
 import { buildHiveWebsocketHref } from "@/lib/public-ws";
 import { cn } from "@/lib/utils";
 
@@ -13,37 +13,51 @@ interface SessionCapsule {
   ws_url_path?: string;
 }
 
-const SPEAKERS = ["Queen", "Scout", "Eval", "Sim", "Action"] as const;
-
-const HEX_COLORS: Record<(typeof SPEAKERS)[number], string> = {
-  Queen: "#FFB800",
-  Scout: "#00FFFF",
-  Eval: "#00FF88",
-  Sim: "#C084FC",
-  Action: "#FF00AA",
-};
-
-interface TranscriptLine {
-  agent?: string;
-  text?: string;
-  type?: string;
+interface BallroomBubble {
+  id: string;
+  agent: string;
+  text: string;
+  timestamp: string;
+  variant: "agent" | "user" | "system";
 }
+
+const PARTICIPANTS = ["Orchestrator", "Scout", "Eval", "Sim", "Action"] as const;
+
+const AGENT_ACCENTS: Record<string, string> = {
+  Orchestrator: "#FFB800",
+  Scout: "#00E5FF",
+  Eval: "#FFB800",
+  Sim: "#FF00AA",
+  Action: "#00FF88",
+  Queen: "#FFB800",
+  System: "#5a5a7a",
+};
 
 export function BallroomPanel() {
   const [connected, setConnected] = useState(false);
-  const [sessionLabel, setSessionLabel] = useState<string | null>(null);
-  const [lines, setLines] = useState<TranscriptLine[]>([]);
+  const [starting, setStarting] = useState(false);
+  const [messages, setMessages] = useState<BallroomBubble[]>([]);
+  const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [muted, setMuted] = useState(false);
   const mutedRef = useRef(false);
   const [speaking, setSpeaking] = useState<string | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const sessionIdRef = useRef<string | null>(null);
+  const [sessionLabel, setSessionLabel] = useState<string | null>(null);
 
   useEffect(() => {
     mutedRef.current = muted;
   }, [muted]);
 
-  const appendLine = useCallback((line: TranscriptLine) => {
-    setLines((prev) => [...prev.slice(-200), line]);
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const appendBubble = useCallback((patch: Omit<BallroomBubble, "id">) => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    setMessages((prev) => [...prev.slice(-240), { ...patch, id }]);
   }, []);
 
   const wsUrlFromSessionCapsule = useCallback((capsule: SessionCapsule): string => {
@@ -80,41 +94,58 @@ export function BallroomPanel() {
   const bindWebSocketToCapsule = useCallback(
     (capsule: SessionCapsule) => {
       setError(null);
+      sessionIdRef.current = capsule.session_id;
       setSessionLabel(capsule.session_id);
+
       const wsUrl = wsUrlFromSessionCapsule(capsule);
       if (!wsUrl) {
         setError("ws_url_unavailable");
         return;
       }
+
+      wsRef.current?.close();
       const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
       ws.onopen = () => setConnected(true);
+
       ws.onmessage = (evt) => {
         try {
           const row = JSON.parse(evt.data as string) as Record<string, unknown>;
           const t = typeof row.type === "string" ? row.type : "";
           if (t === "history" && Array.isArray(row.messages)) {
-            for (const m of row.messages) {
-              const o = m as Record<string, unknown>;
-              appendLine({
-                type: String(o.type ?? "message"),
-                agent: typeof o.agent === "string" ? o.agent : undefined,
-                text: typeof o.text === "string" ? o.text : undefined,
+            const mapped: BallroomBubble[] = [];
+            for (let i = 0; i < row.messages.length; i += 1) {
+              const m = row.messages[i] as Record<string, unknown>;
+              const agentRaw = typeof m.agent === "string" ? m.agent : "Agent";
+              const textRaw = typeof m.text === "string" ? m.text : "";
+              mapped.push({
+                id: `hist-${i}`,
+                agent: agentRaw,
+                text: textRaw || String(m.type ?? ""),
+                timestamp: typeof m.timestamp === "string" ? (m.timestamp as string) : new Date().toISOString(),
+                variant: "agent",
               });
             }
+            setMessages(mapped);
             return;
           }
           if (t === "ballroom.orchestrator_out") {
-            const agent = typeof row.agent === "string" ? row.agent : "Queen";
+            const agent = typeof row.agent === "string" ? row.agent : "Orchestrator";
             const report = typeof row.text === "string" ? row.text : "";
             const voiceScript =
               typeof row.voice_script === "string" && row.voice_script.trim() ? String(row.voice_script) : report;
-            appendLine({ type: t, agent, text: report });
+            appendBubble({
+              agent,
+              text: report,
+              timestamp: new Date().toISOString(),
+              variant: "agent",
+            });
             if (typeof window !== "undefined" && "speechSynthesis" in window && !mutedRef.current) {
               window.speechSynthesis.cancel();
               const u = new SpeechSynthesisUtterance(voiceScript.slice(0, 2500));
               u.lang = "sk-SK";
-              u.rate = 1;
-              setSpeaking("Queen");
+              setSpeaking("Orchestrator");
               u.onend = () => setSpeaking(null);
               window.speechSynthesis.speak(u);
             }
@@ -123,10 +154,15 @@ export function BallroomPanel() {
           if (t === "ballroom.transcript" || t === "message") {
             const agent = typeof row.agent === "string" ? row.agent : "bee";
             const text = typeof row.text === "string" ? row.text : "";
-            appendLine({ type: t, agent, text });
-            const matchSpeaker = SPEAKERS.find((s) => {
+            appendBubble({
+              agent,
+              text,
+              timestamp: new Date().toISOString(),
+              variant: "agent",
+            });
+            const matchSpeaker = PARTICIPANTS.find((s) => {
               const al = agent.toLowerCase();
-              if (s === "Queen") return al.includes("queen") || al.includes("orchestrator");
+              if (s === "Orchestrator") return al.includes("queen") || al.includes("orchestrator");
               return al.includes(s.toLowerCase());
             });
             if (matchSpeaker) {
@@ -136,21 +172,47 @@ export function BallroomPanel() {
             return;
           }
           if (t.startsWith("ballroom.") || typeof row.text === "string") {
-            appendLine(row as TranscriptLine);
+            appendBubble({
+              agent: typeof row.agent === "string" ? String(row.agent) : "System",
+              text: typeof row.text === "string" ? String(row.text) : JSON.stringify(row),
+              timestamp: new Date().toISOString(),
+              variant: row.type === "ballroom.error" ? "system" : "agent",
+            });
+          }
+          if (t === "ballroom.ready") {
+            appendBubble({
+              agent: "System",
+              text: typeof row.text === "string" ? String(row.text) : "Ballroom ready.",
+              timestamp: new Date().toISOString(),
+              variant: "system",
+            });
           }
         } catch {
-          appendLine({ type: "parse_error", text: String(evt.data) });
+          appendBubble({
+            agent: "System",
+            text: String(evt.data),
+            timestamp: new Date().toISOString(),
+            variant: "system",
+          });
         }
       };
+
       ws.onerror = () => setError("Ballroom websocket error");
-      ws.onclose = () => setConnected(false);
+
+      ws.onclose = () => {
+        setConnected(false);
+        setSessionLabel(null);
+        sessionIdRef.current = null;
+      };
+
       (window as Window & { __qs_ballroom_ws?: WebSocket }).__qs_ballroom_ws?.close?.();
       (window as Window & { __qs_ballroom_ws?: WebSocket }).__qs_ballroom_ws = ws;
     },
-    [appendLine, wsUrlFromSessionCapsule],
+    [appendBubble, wsUrlFromSessionCapsule],
   );
 
   const startSession = useCallback(async () => {
+    setStarting(true);
     setError(null);
     try {
       let res = await fetch("/api/proxy/ballroom/start", { method: "POST", credentials: "include" });
@@ -161,12 +223,64 @@ export function BallroomPanel() {
         throw new Error(`HTTP ${res.status}`);
       }
       const body = (await res.json()) as SessionCapsule;
+      setMessages([]);
       bindWebSocketToCapsule(body);
-      setLines([]);
+      appendBubble({
+        agent: "System",
+        text: "Hive ballroom channel opening…",
+        timestamp: new Date().toISOString(),
+        variant: "system",
+      });
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : "session_failed");
+      appendBubble({
+        agent: "System",
+        text: `Failed to start session (${exc instanceof Error ? exc.message : "unknown"})`,
+        timestamp: new Date().toISOString(),
+        variant: "system",
+      });
+    } finally {
+      setStarting(false);
     }
-  }, [bindWebSocketToCapsule]);
+  }, [appendBubble, bindWebSocketToCapsule]);
+
+  const endSession = useCallback(() => {
+    wsRef.current?.close();
+    wsRef.current = null;
+    setConnected(false);
+    sessionIdRef.current = null;
+    setSessionLabel(null);
+    appendBubble({
+      agent: "System",
+      text: "Session ended.",
+      timestamp: new Date().toISOString(),
+      variant: "system",
+    });
+  }, [appendBubble]);
+
+  async function sendChat(): Promise<void> {
+    const text = input.trim();
+    if (!text) return;
+    appendBubble({ agent: "You", text, timestamp: new Date().toISOString(), variant: "user" });
+    setInput("");
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      try {
+        wsRef.current.send(JSON.stringify({ type: "user_message", text, session_id: sessionIdRef.current }));
+      } catch {
+        /* server may ignore inbound text */
+      }
+    }
+    try {
+      await fetch("/api/proxy/ballroom/message", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionIdRef.current, text }),
+      });
+    } catch {
+      /* optional route */
+    }
+  }
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -176,103 +290,188 @@ export function BallroomPanel() {
     if (sid) {
       bindWebSocketToCapsule({ session_id: sid });
     }
+    return () => (window as Window & { __qs_ballroom_ws?: WebSocket }).__qs_ballroom_ws?.close?.();
   }, [bindWebSocketToCapsule]);
 
-  useEffect(() => () => (window as Window & { __qs_ballroom_ws?: WebSocket }).__qs_ballroom_ws?.close?.(), []);
+  function timeStr(ts: string): string {
+    try {
+      return new Date(ts).toLocaleTimeString("sk-SK", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    } catch {
+      return "";
+    }
+  }
 
   return (
-    <div className="space-y-8">
-      <section className="rounded-3xl border border-cyan/20 bg-hive-card/95 p-6 shadow-[0_0_40px_rgb(255_184_0/0.08)] md:p-8">
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-cyan/10 pb-5">
-          <div>
-            <p className="font-[family-name:var(--font-space-grotesk)] text-xs font-semibold uppercase tracking-[0.2em] text-cyan/80">
-              Ballroom · live transcript
-            </p>
-            <h2 className="mt-1 font-[family-name:var(--font-space-grotesk)] text-xl font-semibold text-[#fafafa]">
-              {sessionLabel ? `Session ${sessionLabel.slice(0, 8)}…` : "Pripoj sa na stream"}
-            </h2>
-            <p className="mt-2 font-[family-name:var(--font-inter)] text-sm text-zinc-500">
-              Queen posiela finálny text a hlas po dokončení úlohy. Transcript sa doplňuje počas behu misie.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <NeonButton variant="ghost" type="button" className="text-xs uppercase" onClick={() => setMuted((v) => !v)}>
-              {muted ? (
-                <>
-                  <MicOffIcon className="h-4 w-4" /> Zvuk zap.
-                </>
-              ) : (
-                <>
-                  <MicIcon className="h-4 w-4" /> Zvuk vyp.
-                </>
-              )}
-            </NeonButton>
-          </div>
+    <div className="flex min-h-[calc(100dvh-7rem)] flex-col gap-[var(--qs-gap)] pb-6">
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-[family-name:var(--font-space-grotesk)] text-[22px] font-bold text-[var(--qs-text)]">Ballroom</h1>
+          <p className="mt-0.5 text-[13px] text-[var(--qs-text-3)]">Voice + text session with the swarm</p>
         </div>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            className="qs-btn qs-btn--ghost qs-btn--sm border border-[color:var(--qs-border)] bg-transparent"
+            style={{ borderColor: muted ? "var(--qs-red)" : "var(--qs-border)" }}
+            onClick={() => setMuted((v) => !v)}
+          >
+            {muted ? (
+              <>
+                <MicOffIcon className="mr-1 inline h-3.5 w-3.5" /> Muted
+              </>
+            ) : (
+              <>
+                <MicIcon className="mr-1 inline h-3.5 w-3.5" /> Sound
+              </>
+            )}
+          </button>
+          {!connected ? (
+            <button type="button" className="qs-btn qs-btn--primary" disabled={starting} onClick={() => void startSession()}>
+              {starting ? "Connecting…" : "Start session"}
+            </button>
+          ) : (
+            <button type="button" className="qs-btn qs-btn--danger" onClick={endSession}>
+              End session
+            </button>
+          )}
+        </div>
+      </header>
 
-        {connected ? (
-          <div className="my-8 flex flex-wrap justify-center gap-6">
-            {SPEAKERS.map((name) => {
-              const c = HEX_COLORS[name];
-              const active = speaking === name;
-              return (
-                <div key={name} className="flex flex-col items-center gap-1">
-                  <div
-                    className={cn(
-                      "hive-hex-clip-pointy flex h-16 w-14 items-center justify-center border-[6px] bg-[#0d0d2b] transition-transform",
-                      active && "scale-110",
-                    )}
-                    style={{
-                      borderColor: c,
-                      boxShadow: active ? `0 0 20px ${c}66` : undefined,
-                    }}
-                  >
-                    <span className="font-[family-name:var(--font-space-grotesk)] text-sm font-bold" style={{ color: c }}>
-                      {name.slice(0, 1)}
-                    </span>
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-[var(--qs-gap)] lg:grid-cols-[1fr_320px]">
+        <section className="qs-card flex min-h-[420px] flex-col overflow-hidden rounded-[var(--qs-radius-lg)] p-0 lg:min-h-[560px]">
+          <div className="hive-scrollbar flex flex-1 flex-col gap-3 overflow-y-auto p-[var(--qs-pad)]">
+            {messages.length === 0 ? (
+              <div className="flex flex-1 flex-col items-center justify-center py-16 text-center text-[var(--qs-text-3)]">
+                <div className="mb-3 text-5xl opacity-80">🎙</div>
+                <p className="text-sm">Start a session to talk with your swarm</p>
+              </div>
+            ) : (
+              messages.map((msg) => {
+                const accent =
+                  msg.variant === "user"
+                    ? "#FFB800"
+                    : msg.variant === "system"
+                      ? "#5a5a7a"
+                      : (AGENT_ACCENTS[msg.agent] ?? "#9898b8");
+                const isUser = msg.variant === "user";
+                return (
+                  <div key={msg.id} className={cn("flex gap-2.5", isUser && "flex-row-reverse")}>
+                    <div
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[13px]"
+                      style={{
+                        background: `${accent}22`,
+                        border: `1px solid ${accent}44`,
+                      }}
+                    >
+                      {isUser ? "👤" : msg.variant === "system" ? "⚙️" : "🐝"}
+                    </div>
+                    <div className="min-w-0 max-w-[78%]">
+                      <div className={cn("mb-1 flex items-baseline gap-1.5 text-[10px] font-mono", isUser && "flex-row-reverse")}>
+                        <span className="font-bold" style={{ color: accent }}>
+                          {msg.agent}
+                        </span>
+                        <span className="text-[#3a3a5a]">{timeStr(msg.timestamp)}</span>
+                      </div>
+                      <div
+                        className={cn(
+                          "rounded-xl border px-3 py-2 text-[13px] leading-snug text-[#cccce0]",
+                          isUser ? "rounded-br-sm border-[#FFB800]/30 bg-[#FFB800]/[0.06]" : "rounded-bl-sm border-[var(--qs-border)] bg-[var(--qs-surface-2)]",
+                        )}
+                      >
+                        <span className="whitespace-pre-wrap">{msg.text}</span>
+                      </div>
+                    </div>
                   </div>
-                  <span
-                    className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.14em]"
-                    style={{ color: active ? c : "#52525b" }}
-                  >
-                    {name}
-                  </span>
-                </div>
+                );
+              })
+            )}
+            <div ref={bottomRef} />
+          </div>
+          <footer className="flex gap-2.5 border-t border-[var(--qs-border)] px-3 py-3 sm:px-[var(--qs-pad)]">
+            <input
+              value={input}
+              disabled={!connected}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void sendChat();
+                }
+              }}
+              placeholder={connected ? "Send message to the swarm…" : "Start a session first…"}
+              className="qs-input flex-1 rounded-[var(--qs-radius-sm)]"
+            />
+            <button type="button" className="qs-btn qs-btn--primary shrink-0 px-4 disabled:opacity-40" disabled={!connected || !input.trim()} onClick={() => void sendChat()}>
+              Send →
+            </button>
+          </footer>
+        </section>
+
+        <aside className="qs-card flex flex-col gap-3 rounded-[var(--qs-radius-lg)]">
+          <p className="text-[11px] uppercase tracking-[0.1em] text-[var(--qs-text-3)]">Participants</p>
+          <ul className="flex flex-col gap-2.5">
+            {PARTICIPANTS.map((name) => {
+              const color = AGENT_ACCENTS[name] ?? "#FFB800";
+              const isSpeaking = speaking === name;
+              return (
+                <li
+                  key={name}
+                  className={cn(
+                    "flex items-center gap-3 rounded-[10px] border px-3 py-2.5 transition",
+                    isSpeaking ? "border-transparent" : "border-[var(--qs-border)] bg-transparent",
+                  )}
+                  style={
+                    isSpeaking
+                      ? ({
+                          borderColor: `${color}66`,
+                          background: `${color}12`,
+                        } satisfies CSSProperties)
+                      : undefined
+                  }
+                >
+                  <div className="qs-mini-hex" style={{ background: `${color}24`, outline: isSpeaking ? `1px solid ${color}80` : "none", outlineOffset: "-1px" }}>
+                    🐝
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-semibold" style={{ color: isSpeaking ? color : "var(--qs-text)" }}>
+                      {name}
+                    </p>
+                    <p className="font-mono text-[10px] text-[var(--qs-text-3)]">
+                      {isSpeaking ? "speaking…" : connected ? "listening" : "offline"}
+                    </p>
+                  </div>
+                  {isSpeaking ? (
+                    <div className="flex items-end gap-0.5">
+                      {[2, 5, 8, 6, 4].map((h, i) => (
+                        <span
+                          key={i}
+                          className="qs-pulse w-[3px] rounded-sm"
+                          style={{
+                            background: color,
+                            height: `${h}px`,
+                            animationDelay: `${i * 0.08}s`,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+                </li>
               );
             })}
-          </div>
-        ) : null}
-
-        <div className="rounded-2xl border border-cyan/15 bg-black/45 p-4">
-          <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.24em] text-zinc-500">
-            Live transcript
-          </p>
-          <ul className="mt-4 max-h-[50vh] overflow-y-auto divide-y divide-cyan/[0.06] font-[family-name:var(--font-inter)] text-sm">
-            {lines.length === 0 ? (
-              <li className="py-6 text-center text-zinc-500">
-                Zatiaľ žiadne riadky. Spusti úlohu z dashboardu alebo pripoj novú session.
-              </li>
-            ) : (
-              lines.map((ln, idx) => (
-                <li key={`${String(idx)}-${ln.type ?? ln.agent ?? ""}`} className="py-3">
-                  {ln.agent ? <span className="font-semibold text-pollen">{ln.agent}</span> : null}{" "}
-                  <span className="whitespace-pre-wrap text-[#e4e4e7]">{ln.text ?? ln.type ?? "…"}</span>
-                </li>
-              ))
-            )}
           </ul>
-        </div>
-
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 font-[family-name:var(--font-jetbrains-mono)] text-xs">
-          <span className={connected ? "text-success" : "text-zinc-500"}>
-            WebSocket: {connected ? "pripojené" : "odpojené"}
-          </span>
-          {error ? <span className="text-danger">{error}</span> : null}
-          <NeonButton type="button" variant="primary" className="text-[10px] uppercase" onClick={() => void startSession()}>
-            <MicIcon className="h-4 w-4" /> Nová session
-          </NeonButton>
-        </div>
-      </section>
+          {!connected ? (
+            <p className="mt-auto text-center text-[11px] text-[var(--qs-text-3)]">Start a session to activate agents</p>
+          ) : (
+            <div className="mt-auto rounded-lg border border-[#00FF88]/20 bg-[#00FF88]/[0.06] px-3 py-2 text-center">
+              <p className="font-mono text-[10px] text-[#00FF88]">● SESSION ACTIVE</p>
+              {sessionLabel ? (
+                <p className="mt-1 truncate font-mono text-[9px] text-[#3a3a5a]">{sessionLabel}</p>
+              ) : null}
+            </div>
+          )}
+          {error ? <p className="text-center font-mono text-xs text-[var(--qs-red)]">{error}</p> : null}
+        </aside>
+      </div>
     </div>
   );
 }
