@@ -91,3 +91,7 @@ class Agent(Base, TimestampMixin):
             f"Agent(id={self.id!s}, name={self.name!r}, role={self.role.value!r}, "
             f"pollen={self.pollen_points})"
         )
+
+
+# Ensure Task is imported after Agent so relationship("Task") resolves during mapper configure.
+from app.models.task import Task as _EnsureTaskRegistry  # noqa: E402, F401
