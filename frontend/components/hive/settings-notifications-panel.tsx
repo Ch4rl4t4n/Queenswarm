@@ -65,7 +65,14 @@ export function SettingsNotificationsPanel() {
         next[slug] = {
           enabled: row.is_active,
           label: row.label,
-          settings: slug === "email" ? { address: "" } : slug === "sms" ? { phone_e164: "" } : slug === "discord" ? { webhook_url: "" } : { bot_token: "", chat_id: "" },
+          settings:
+            slug === "email"
+              ? { address: "" }
+              : slug === "sms"
+                ? { phone_e164: "" }
+                : slug === "discord"
+                  ? { webhook_url: "" }
+                  : { bot_token: "", chat_id: "" },
         };
       }
       return next;
@@ -177,58 +184,47 @@ export function SettingsNotificationsPanel() {
 
   if (err && channels.length === 0) {
     return (
-      <div className="rounded-3xl border border-danger/30 bg-danger/[0.06] p-6 text-sm text-danger">
+      <div className="qs-settings-card border-[var(--qs-red)]/30 bg-[var(--qs-red)]/[0.06] text-[var(--qs-red)]">
         Notifications: {err}
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <p className="font-[family-name:var(--font-inter)] text-sm text-zinc-500">
-        Delivery buckets sync to <span className="font-mono text-xs text-data">notification_prefs.delivery_channels</span> via{" "}
-        <span className="font-mono text-xs text-data">/api/v1/notifications</span>.
+    <div className="flex flex-col gap-[var(--qs-gap)]">
+      <p className="font-[family-name:var(--font-inter)] text-sm text-[var(--qs-text-3)]">
+        Delivery buckets sync to{" "}
+        <span className="font-mono text-xs text-[var(--qs-cyan)]">notification_prefs.delivery_channels</span> via{" "}
+        <span className="font-mono text-xs text-[var(--qs-cyan)]">/api/v1/notifications</span>.
       </p>
 
-      <div className="grid gap-5">
+      <div className="flex flex-col gap-0">
         {(["email", "sms", "discord", "telegram"] as ChannelSlug[]).map((slug) => {
           const { Icon, title } = META[slug];
           const blob = drafts[slug];
+          const row = channels.find((c) => c.channel_type === slug || c.id === slug);
+          const configured = row?.is_active;
+
           return (
-            <section key={slug} className="rounded-3xl border border-white/[0.08] bg-[#0c0c14]/95 p-6">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan/20 bg-black/40 text-pollen">
+            <article key={slug} className="qs-settings-card">
+              <header className="qs-settings-card__header !mb-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--qs-border)] bg-[var(--qs-bg)] text-[var(--qs-amber)]">
                     <Icon className="h-5 w-5" aria-hidden />
                   </div>
-                  <div>
-                    <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-[#fafafa]">{title}</h2>
-                    <p className="font-[family-name:var(--font-inter)] text-xs text-zinc-500">{EVENTS[slug]}</p>
+                  <div className="min-w-0">
+                    <div className="qs-settings-card__title">{title}</div>
+                    <div className="qs-settings-card__subtitle">{EVENTS[slug]}</div>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void sendTest(slug)}
-                    className="rounded-full border border-data/35 px-4 py-2 text-xs font-semibold text-data hover:bg-data/10 disabled:opacity-40"
-                  >
-                    Send test
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void clearChannel(slug)}
-                    className="rounded-full border border-danger/35 px-4 py-2 text-xs font-semibold text-danger hover:bg-danger/10 disabled:opacity-40"
-                  >
-                    Clear
-                  </button>
-                </div>
-              </div>
+              </header>
 
-              <label className="mt-4 flex items-center gap-2 font-[family-name:var(--font-inter)] text-sm text-zinc-300">
+              {configured ? <span className="qs-badge qs-badge--green mb-3">configured</span> : null}
+
+              <label className="mb-3 flex cursor-pointer items-center gap-2 text-[13px] text-[var(--qs-text)]">
                 <input
                   type="checkbox"
+                  className="h-4 w-4 shrink-0 rounded border-[var(--qs-border)] accent-[var(--qs-amber)]"
                   checked={blob.enabled}
                   disabled={busy}
                   onChange={(e) =>
@@ -242,9 +238,12 @@ export function SettingsNotificationsPanel() {
               </label>
 
               {slug === "email" ? (
-                <label className="mt-3 block text-xs uppercase tracking-[0.12em] text-zinc-500">
-                  Address
+                <div className="mb-3">
+                  <label className="qs-label" htmlFor={`notif-email-${slug}`}>
+                    Address
+                  </label>
                   <input
+                    id={`notif-email-${slug}`}
                     type="email"
                     disabled={busy}
                     value={String(blob.settings.address ?? "")}
@@ -254,15 +253,18 @@ export function SettingsNotificationsPanel() {
                         [slug]: { ...d[slug], settings: { ...d[slug].settings, address: e.target.value } },
                       }))
                     }
-                    className="mt-2 w-full rounded-xl border border-white/15 bg-black/55 px-3 py-2.5 text-sm text-[#fafafa]"
+                    className="qs-input"
                   />
-                </label>
+                </div>
               ) : null}
 
               {slug === "sms" ? (
-                <label className="mt-3 block text-xs uppercase tracking-[0.12em] text-zinc-500">
-                  Phone (E.164)
+                <div className="mb-3">
+                  <label className="qs-label" htmlFor={`notif-sms-${slug}`}>
+                    Phone (E.164)
+                  </label>
                   <input
+                    id={`notif-sms-${slug}`}
                     type="tel"
                     disabled={busy}
                     value={String(blob.settings.phone_e164 ?? "")}
@@ -273,15 +275,18 @@ export function SettingsNotificationsPanel() {
                       }))
                     }
                     placeholder="+4219…"
-                    className="mt-2 w-full rounded-xl border border-white/15 bg-black/55 px-3 py-2.5 text-sm text-[#fafafa]"
+                    className="qs-input"
                   />
-                </label>
+                </div>
               ) : null}
 
               {slug === "discord" ? (
-                <label className="mt-3 block text-xs uppercase tracking-[0.12em] text-zinc-500">
-                  Webhook URL
+                <div className="mb-3">
+                  <label className="qs-label" htmlFor={`notif-discord-${slug}`}>
+                    Webhook URL
+                  </label>
                   <input
+                    id={`notif-discord-${slug}`}
                     type="password"
                     disabled={busy}
                     value={String(blob.settings.webhook_url ?? "")}
@@ -291,16 +296,19 @@ export function SettingsNotificationsPanel() {
                         [slug]: { ...d[slug], settings: { ...d[slug].settings, webhook_url: e.target.value } },
                       }))
                     }
-                    className="mt-2 w-full rounded-xl border border-white/15 bg-black/55 px-3 py-2.5 font-mono text-sm text-[#fafafa]"
+                    className="qs-input"
                   />
-                </label>
+                </div>
               ) : null}
 
               {slug === "telegram" ? (
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <label className="block text-xs uppercase tracking-[0.12em] text-zinc-500">
-                    Bot token
+                <div className="mb-3 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="qs-label" htmlFor={`tg-token-${slug}`}>
+                      Bot token
+                    </label>
                     <input
+                      id={`tg-token-${slug}`}
                       type="password"
                       disabled={busy}
                       value={String(blob.settings.bot_token ?? "")}
@@ -310,12 +318,15 @@ export function SettingsNotificationsPanel() {
                           [slug]: { ...d[slug], settings: { ...d[slug].settings, bot_token: e.target.value } },
                         }))
                       }
-                      className="mt-2 w-full rounded-xl border border-white/15 bg-black/55 px-3 py-2.5 font-mono text-sm text-[#fafafa]"
+                      className="qs-input"
                     />
-                  </label>
-                  <label className="block text-xs uppercase tracking-[0.12em] text-zinc-500">
-                    Chat ID
+                  </div>
+                  <div>
+                    <label className="qs-label" htmlFor={`tg-chat-${slug}`}>
+                      Chat ID
+                    </label>
                     <input
+                      id={`tg-chat-${slug}`}
                       type="text"
                       disabled={busy}
                       value={String(blob.settings.chat_id ?? "")}
@@ -325,26 +336,35 @@ export function SettingsNotificationsPanel() {
                           [slug]: { ...d[slug], settings: { ...d[slug].settings, chat_id: e.target.value } },
                         }))
                       }
-                      className="mt-2 w-full rounded-xl border border-white/15 bg-black/55 px-3 py-2.5 font-mono text-sm text-[#fafafa]"
+                      className="qs-input"
                     />
-                  </label>
+                  </div>
                 </div>
               ) : null}
 
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void saveChannel(slug)}
-                className="mt-4 rounded-full border border-pollen bg-pollen px-5 py-2.5 text-xs font-bold text-black shadow-[0_0_18px_rgb(255_184_0/0.25)] hover:bg-[#ffc933] disabled:opacity-40"
-              >
-                Save channel
-              </button>
+              <div className="mt-1 flex flex-wrap gap-2">
+                <button type="button" disabled={busy} onClick={() => void saveChannel(slug)} className="qs-btn qs-btn--primary qs-btn--sm">
+                  Save channel
+                </button>
+                <button type="button" disabled={busy} onClick={() => void sendTest(slug)} className="qs-btn qs-btn--test qs-btn--sm">
+                  Send test
+                </button>
+                <button type="button" disabled={busy} onClick={() => void clearChannel(slug)} className="qs-btn qs-btn--danger qs-btn--sm">
+                  Clear
+                </button>
+              </div>
+
               {testHints[slug] ? (
-                <p className={cn("mt-3 font-[family-name:var(--font-jetbrains-mono)] text-xs", testHints[slug]?.startsWith("✅") ? "text-success" : "text-danger")}>
+                <p
+                  className={cn(
+                    "font-mono text-[11px]",
+                    testHints[slug]?.startsWith("✅") ? "text-[var(--qs-green)]" : "text-[var(--qs-red)]",
+                  )}
+                >
                   {testHints[slug]}
                 </p>
               ) : null}
-            </section>
+            </article>
           );
         })}
       </div>

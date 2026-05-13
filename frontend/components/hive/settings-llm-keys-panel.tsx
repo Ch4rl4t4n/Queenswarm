@@ -13,6 +13,30 @@ const PROVIDERS: { id: "grok" | "anthropic" | "openai"; title: string; hint: str
   { id: "openai", title: "OpenAI · GPT‑4o mini", hint: "Cheap simulations / parity checks." },
 ];
 
+const PROVIDER_SKINS: Record<
+  "grok" | "anthropic" | "openai",
+  { logo: string; bgColor: string; borderColor: string; textColor: string }
+> = {
+  grok: {
+    logo: "xAI",
+    bgColor: "#0a0a12",
+    borderColor: "rgb(0 229 255 / 0.35)",
+    textColor: "#e8e8f0",
+  },
+  anthropic: {
+    logo: "Cl",
+    bgColor: "#1a1420",
+    borderColor: "rgb(255 184 0 / 0.28)",
+    textColor: "#FFB800",
+  },
+  openai: {
+    logo: "GPT",
+    bgColor: "#0f1a14",
+    borderColor: "rgb(0 255 136 / 0.28)",
+    textColor: "#00FF88",
+  },
+};
+
 export function SettingsLlmKeysPanel() {
   const [keys, setKeys] = useState<LlmKeyMaskRow[]>([]);
   const [busy, setBusy] = useState(false);
@@ -113,36 +137,49 @@ export function SettingsLlmKeysPanel() {
 
   if (err && keys.length === 0) {
     return (
-      <div className="rounded-3xl border border-danger/30 bg-danger/[0.06] p-6 text-sm text-danger">
+      <div className="qs-settings-card border-[var(--qs-red)]/30 bg-[var(--qs-red)]/[0.06] text-[var(--qs-red)]">
         LLM keys: {err}
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <p className="font-[family-name:var(--font-inter)] text-sm text-zinc-500">
-        Credentials call <span className="font-mono text-xs text-data">POST /api/v1/llm-keys</span> through the hive proxy · masked values never round-trip plaintext.
+    <div className="flex flex-col gap-[var(--qs-gap)]">
+      <p className="font-[family-name:var(--font-inter)] text-sm text-[var(--qs-text-3)]">
+        Credentials call{" "}
+        <span className="font-mono text-xs text-[var(--qs-cyan)]">POST /api/v1/llm-keys</span> through the hive proxy · masked
+        values never round-trip plaintext.
       </p>
-      <div className="grid gap-6">
+
+      <div className="flex flex-col gap-0">
         {PROVIDERS.map(({ id: provider, title, hint }) => {
           const masked = rowFor(provider);
+          const skin = PROVIDER_SKINS[provider];
           return (
-            <section
-              key={provider}
-              className="rounded-3xl border border-white/[0.08] bg-[#0c0c14]/95 p-6 md:p-7"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-[#fafafa]">{title}</h2>
-                  <p className="mt-1 font-[family-name:var(--font-inter)] text-sm text-zinc-500">{hint}</p>
+            <article key={provider} className="qs-settings-card">
+              <header className="qs-settings-card__header">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--qs-radius-sm)] text-[11px] font-bold"
+                    style={{
+                      background: skin.bgColor,
+                      border: `1px solid ${skin.borderColor}`,
+                      color: skin.textColor,
+                    }}
+                  >
+                    {skin.logo}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="qs-settings-card__title">{title}</div>
+                    <div className="qs-settings-card__subtitle">{hint}</div>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     disabled={busy}
                     onClick={() => void testProvider(provider)}
-                    className="rounded-full border border-cyan/35 px-4 py-2 text-xs font-semibold text-data hover:bg-cyan/10 disabled:opacity-40"
+                    className="qs-btn qs-btn--test qs-btn--sm"
                   >
                     Test
                   </button>
@@ -150,33 +187,36 @@ export function SettingsLlmKeysPanel() {
                     type="button"
                     disabled={busy || !masked}
                     onClick={() => void clearProvider(provider)}
-                    className="rounded-full border border-danger/35 px-4 py-2 text-xs font-semibold text-danger hover:bg-danger/10 disabled:opacity-40"
+                    className="qs-btn qs-btn--danger qs-btn--sm"
                   >
                     Remove
                   </button>
                 </div>
-              </div>
+              </header>
 
-              <label className="mt-5 block font-[family-name:var(--font-inter)] text-xs uppercase tracking-[0.12em] text-zinc-500">
-                Friendly label
+              <div className="mb-3">
+                <label className="qs-label" htmlFor={`llm-label-${provider}`}>
+                  Friendly label
+                </label>
                 <input
+                  id={`llm-label-${provider}`}
                   type="text"
                   value={labels[provider] ?? ""}
                   disabled={busy}
                   onChange={(e) => setLabels((prev) => ({ ...prev, [provider]: e.target.value }))}
-                  className="mt-2 w-full rounded-xl border border-white/15 bg-black/55 px-3 py-2.5 font-[family-name:var(--font-inter)] text-sm text-[#fafafa]"
+                  className="qs-input"
                 />
-              </label>
+              </div>
 
               {masked?.api_key_masked ? (
-                <p className="mt-4 font-[family-name:var(--font-jetbrains-mono)] text-sm text-success">
-                  Saved secret {masked.api_key_masked}
-                </p>
+                <p className="mb-3 font-mono text-[12px] text-[var(--qs-amber)]">Saved secret {masked.api_key_masked}</p>
               ) : (
-                <p className="mt-4 font-[family-name:var(--font-inter)] text-xs text-zinc-500">No credential stored for this shard.</p>
+                <p className="mb-3 font-mono text-[11px] text-[var(--qs-text-3)]">No credential stored for this shard.</p>
               )}
 
-              <label htmlFor={`llm-secret-${provider}`} className="sr-only">{title} secret</label>
+              <label className="qs-label" htmlFor={`llm-secret-${provider}`}>
+                Paste new API secret
+              </label>
               <input
                 id={`llm-secret-${provider}`}
                 type="password"
@@ -190,22 +230,24 @@ export function SettingsLlmKeysPanel() {
                   }))
                 }
                 placeholder="Paste new API secret"
-                className="mt-3 w-full rounded-xl border border-white/15 bg-black/55 px-3 py-3 font-[family-name:var(--font-jetbrains-mono)] text-sm text-[#fafafa] outline-none focus:border-pollen/45 disabled:opacity-40"
+                className="qs-input"
               />
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void save(provider)}
-                className="mt-4 rounded-full border border-pollen bg-pollen px-5 py-2.5 text-xs font-bold text-black shadow-[0_0_18px_rgb(255_184_0/0.28)] hover:bg-[#ffc933] disabled:opacity-40"
-              >
+
+              <button type="button" disabled={busy} onClick={() => void save(provider)} className="qs-btn qs-btn--primary qs-btn--sm mt-3">
                 Save key
               </button>
+
               {testMsg[provider] ? (
-                <p className={cn("mt-3 font-[family-name:var(--font-jetbrains-mono)] text-xs", testMsg[provider].startsWith("✅") ? "text-success" : "text-danger")}>
+                <p
+                  className={cn(
+                    "mt-2 font-mono text-[11px]",
+                    testMsg[provider].startsWith("✅") ? "text-[var(--qs-green)]" : "text-[var(--qs-red)]",
+                  )}
+                >
                   {testMsg[provider]}
                 </p>
               ) : null}
-            </section>
+            </article>
           );
         })}
       </div>

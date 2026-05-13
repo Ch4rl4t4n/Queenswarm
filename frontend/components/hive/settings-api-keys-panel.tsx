@@ -163,90 +163,89 @@ export function SettingsApiKeysPanel() {
   }
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-[var(--qs-gap)]">
       {err ? (
-        <p className="rounded-2xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">{err}</p>
+        <p className="qs-settings-card border-[var(--qs-red)]/30 bg-[var(--qs-red)]/10 py-3 text-sm text-[var(--qs-red)]">{err}</p>
       ) : null}
 
-      <section className="rounded-3xl border border-white/[0.08] bg-[#0c0c14]/95 p-6 md:p-7">
-        <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-[#fafafa]">External data APIs</h2>
-        <p className="mt-1 font-[family-name:var(--font-inter)] text-sm text-zinc-500">
-          Encrypt JSON credential bundles per provider (Alpaca, Twitter/X, Yahoo, …). Keys never round-trip plaintext after save.
-        </p>
+      <section className="qs-settings-card mb-0">
+        <div className="qs-settings-card__header !items-start">
+          <div className="min-w-0">
+            <div className="qs-settings-card__title">External data APIs</div>
+            <div className="qs-settings-card__subtitle">
+              Encrypt JSON credential bundles per provider (Alpaca, Twitter/X, Yahoo, …). Keys never round-trip plaintext after save.
+            </div>
+          </div>
+        </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-[var(--qs-gap)] sm:grid-cols-2 xl:grid-cols-3">
           {providers.map((p) => (
             <button
               key={p.id}
               type="button"
               onClick={() => setSelectedProvider(p.id)}
-              className={`rounded-2xl border px-4 py-4 text-left transition ${
-                selectedProvider === p.id ? "border-pollen bg-pollen/[0.08]" : "border-white/10 bg-black/35 hover:border-cyan/30"
+              className={`w-full rounded-[var(--qs-radius)] border px-4 py-4 text-left transition ${
+                selectedProvider === p.id ? "border-[var(--qs-amber)] bg-[color:rgb(255_184_0/0.08)]" : "border-[var(--qs-border)] bg-[var(--qs-bg)] hover:border-[var(--qs-cyan)]/35"
               }`}
             >
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan/20 bg-black/55 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold text-pollen">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--qs-radius-sm)] border border-[var(--qs-border)] bg-[var(--qs-surface-2)] font-mono text-xs font-bold text-[var(--qs-amber)]">
                   {providerGlyph(p.id)}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate font-semibold text-[#fafafa]">{p.label}</p>
-                  <p className="truncate font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase text-zinc-500">{p.id}</p>
+                  <p className="truncate font-semibold text-[var(--qs-text)]">{p.label}</p>
+                  <p className="truncate font-mono text-[10px] uppercase text-[var(--qs-text-3)]">{p.id}</p>
                 </div>
               </div>
-              {selectedProvider === p.id ? <span className="mt-3 inline-block font-mono text-[10px] text-data">selected</span> : null}
+              {selectedProvider === p.id ? <span className="qs-badge qs-badge--amber mt-3 inline-block font-mono">selected</span> : null}
             </button>
           ))}
         </div>
 
-        <div className="mt-6 rounded-2xl border border-cyan/[0.12] bg-black/35 p-4">
-          <label className="block text-xs uppercase tracking-[0.12em] text-zinc-500">
+        <div className="mt-6 rounded-[var(--qs-radius-sm)] border border-[var(--qs-border)] bg-[var(--qs-bg)] p-4">
+          <label htmlFor="ext-cred-label" className="qs-label">
             Label for this credential
-            <input
-              value={credLabel}
-              disabled={busy}
-              onChange={(e) => setCredLabel(e.target.value)}
-              className="mt-2 w-full rounded-xl border border-white/15 bg-black/55 px-3 py-2.5 text-sm text-[#fafafa]"
-              placeholder={`${selectedProvider.toUpperCase()} trading desk`}
-            />
           </label>
-          <label className="mt-4 block text-xs uppercase tracking-[0.12em] text-zinc-500">
-            Credentials JSON (`key_id`, `secret`, `bearer_token`, …)
-            <textarea
-              value={credJson}
-              disabled={busy}
-              onChange={(e) => setCredJson(e.target.value)}
-              rows={5}
-              className="mt-2 w-full rounded-xl border border-white/15 bg-black/55 px-3 py-2.5 font-mono text-xs text-[#fafafa]"
-            />
-          </label>
-          <button
-            type="button"
+          <input
+            id="ext-cred-label"
+            value={credLabel}
             disabled={busy}
-            onClick={() => void addExternalCred()}
-            className="mt-4 rounded-full border border-pollen bg-pollen px-5 py-2.5 text-xs font-bold text-black hover:bg-[#ffc933]"
-          >
+            onChange={(e) => setCredLabel(e.target.value)}
+            className="qs-input"
+            placeholder={`${selectedProvider.toUpperCase()} trading desk`}
+          />
+          <label htmlFor="ext-cred-json" className="qs-label mt-4">
+            Credentials JSON (`key_id`, `secret`, `bearer_token`, …)
+          </label>
+          <textarea
+            id="ext-cred-json"
+            value={credJson}
+            disabled={busy}
+            onChange={(e) => setCredJson(e.target.value)}
+            rows={5}
+            className="qs-input min-h-[120px] resize-y text-xs"
+          />
+          <button type="button" disabled={busy} onClick={() => void addExternalCred()} className="qs-btn qs-btn--primary qs-btn--sm mt-4">
             Add encrypted key
           </button>
         </div>
 
         <div className="mt-8 space-y-3">
-          <h3 className="font-[family-name:var(--font-space-grotesk)] text-sm font-semibold text-zinc-300">Stored bundles</h3>
+          <h3 className="font-[family-name:var(--font-space-grotesk)] text-sm font-semibold text-[var(--qs-text)]">Stored bundles</h3>
           {apis.length === 0 ? (
-            <p className="text-sm text-zinc-600">Nothing persisted yet.</p>
+            <p className="text-sm text-[var(--qs-text-3)]">Nothing persisted yet.</p>
           ) : (
             apis.map((row) => (
-              <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/[0.07] bg-black/35 px-4 py-3">
+              <div
+                key={row.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--qs-radius-sm)] border border-[var(--qs-border)] bg-[var(--qs-bg)] px-4 py-3"
+              >
                 <div>
-                  <p className="font-semibold text-[#fafafa]">{row.label}</p>
-                  <p className="font-mono text-xs text-data">{row.provider}</p>
-                  <pre className="mt-2 max-h-24 overflow-auto text-[10px] text-zinc-500">{JSON.stringify(row.credentials_masked, null, 2)}</pre>
+                  <p className="font-semibold text-[var(--qs-text)]">{row.label}</p>
+                  <p className="font-mono text-xs text-[var(--qs-cyan)]">{row.provider}</p>
+                  <pre className="mt-2 max-h-24 overflow-auto text-[10px] text-[var(--qs-text-3)]">{JSON.stringify(row.credentials_masked, null, 2)}</pre>
                 </div>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void removeExternal(row.id)}
-                  className="rounded-full border border-danger/40 px-4 py-1.5 text-xs font-semibold text-danger hover:bg-danger/10 disabled:opacity-40"
-                >
+                <button type="button" disabled={busy} onClick={() => void removeExternal(row.id)} className="qs-btn qs-btn--danger qs-btn--sm shrink-0">
                   Remove
                 </button>
               </div>
@@ -255,23 +254,27 @@ export function SettingsApiKeysPanel() {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-white/[0.08] bg-[#0c0c14]/95 p-6 md:p-7">
-        <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-[#fafafa]">Hive script bearer keys</h2>
-        <p className="mt-1 font-[family-name:var(--font-inter)] text-sm text-zinc-500">
-          Mint dashboard-scoped bearer tokens for automation ({MAX_SCRIPT_KEYS} concurrent slots).
-        </p>
+      <section className="qs-settings-card mb-0">
+        <div className="qs-settings-card__header !items-start">
+          <div className="min-w-0">
+            <div className="qs-settings-card__title">Hive script bearer keys</div>
+            <div className="qs-settings-card__subtitle">
+              Mint dashboard-scoped bearer tokens for automation ({MAX_SCRIPT_KEYS} concurrent slots).
+            </div>
+          </div>
+        </div>
 
         {!rows ? (
-          <div className="mt-6 h-32 animate-pulse rounded-2xl bg-white/[0.04]" />
+          <div className="mt-2 h-32 animate-pulse rounded-[var(--qs-radius-sm)] bg-[var(--qs-surface-3)]/40" />
         ) : (
-          <ul className="mt-6 divide-y divide-white/[0.06] border-t border-white/[0.06]">
+          <ul className="divide-y divide-[var(--qs-border)] border-t border-[var(--qs-border)]">
             {rows.map((row) => (
               <li key={row.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="font-mono text-sm text-cyan">{row.source_name}</p>
-                  <p className="text-xs text-zinc-500">{row.masked_prefix}</p>
+                  <p className="font-mono text-sm text-[var(--qs-cyan)]">{row.source_name}</p>
+                  <p className="text-xs text-[var(--qs-text-3)]">{row.masked_prefix}</p>
                 </div>
-                <button type="button" disabled={busy} onClick={() => void revokeScriptKey(row.id)} className="rounded-full border px-4 py-1.5 text-xs text-danger">
+                <button type="button" disabled={busy} onClick={() => void revokeScriptKey(row.id)} className="qs-btn qs-btn--danger qs-btn--sm shrink-0">
                   Revoke
                 </button>
               </li>
@@ -283,7 +286,7 @@ export function SettingsApiKeysPanel() {
           type="button"
           disabled={busy || (rows?.length ?? 0) >= MAX_SCRIPT_KEYS}
           onClick={() => setCreateOpen(true)}
-          className="mt-6 rounded-2xl border border-pollen/60 bg-pollen px-6 py-3 text-xs font-black text-black hover:bg-[#ffc933]"
+          className="qs-btn qs-btn--primary mt-6"
         >
           Mint script key
         </button>
@@ -291,27 +294,27 @@ export function SettingsApiKeysPanel() {
 
       {createOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4" role="dialog" aria-modal>
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0a0a12] p-6">
-            <h3 className="text-lg font-semibold text-[#fafafa]">New script slug</h3>
+          <div className="qs-settings-card mb-0 w-full max-w-md border-[var(--qs-border)] bg-[var(--qs-surface)] p-[var(--qs-pad)] shadow-lg">
+            <h3 className="qs-settings-card__title mb-4">New script slug</h3>
             <input
               placeholder="slug e.g. ci_main"
               value={newSourceName}
               disabled={busy}
               onChange={(e) => setNewSourceName(e.target.value)}
-              className="mt-4 w-full rounded-xl border border-white/15 bg-black/55 px-3 py-2.5 font-mono text-sm"
+              className="qs-input font-mono text-sm"
             />
             <input
               placeholder="optional note"
               value={newLabel}
               disabled={busy}
               onChange={(e) => setNewLabel(e.target.value)}
-              className="mt-3 w-full rounded-xl border border-white/15 bg-black/55 px-3 py-2.5 text-sm"
+              className="qs-input mt-3 text-sm"
             />
             <div className="mt-6 flex justify-end gap-3">
-              <button type="button" className="text-sm text-zinc-400" onClick={() => setCreateOpen(false)}>
+              <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm text-[var(--qs-text-2)]" onClick={() => setCreateOpen(false)}>
                 Cancel
               </button>
-              <button type="button" disabled={busy} onClick={() => void createScriptKey()} className="rounded-xl bg-pollen px-4 py-2 text-sm font-bold text-black">
+              <button type="button" disabled={busy} onClick={() => void createScriptKey()} className="qs-btn qs-btn--primary qs-btn--sm">
                 Mint
               </button>
             </div>
@@ -321,14 +324,16 @@ export function SettingsApiKeysPanel() {
 
       {minted ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4" role="dialog" aria-modal>
-          <div className="w-full max-w-lg rounded-3xl border border-pollen/35 bg-[#0a0a12] p-6">
-            <h3 className="text-lg font-semibold text-pollen">Save this token once</h3>
-            <pre className="mt-4 max-h-40 overflow-auto break-all rounded-xl border border-white/10 bg-black/55 p-3 font-mono text-xs">{minted.plaintext}</pre>
+          <div className="qs-settings-card mb-0 w-full max-w-lg border-[var(--qs-amber)]/35 bg-[var(--qs-surface)] p-[var(--qs-pad)] shadow-lg">
+            <h3 className="qs-settings-card__title text-[var(--qs-amber)]">Save this token once</h3>
+            <pre className="mt-4 max-h-40 overflow-auto break-all rounded-[var(--qs-radius-sm)] border border-[var(--qs-border)] bg-[var(--qs-bg)] p-3 font-mono text-xs text-[var(--qs-text)]">
+              {minted.plaintext}
+            </pre>
             <div className="mt-6 flex gap-3">
-              <button type="button" className="rounded-xl border border-cyan px-4 py-2 text-sm text-cyan" onClick={() => copyPlaintext()}>
+              <button type="button" className="qs-btn qs-btn--test qs-btn--sm px-4" onClick={() => copyPlaintext()}>
                 Copy
               </button>
-              <button type="button" className="rounded-xl bg-pollen px-4 py-2 text-sm font-bold text-black" onClick={() => setMinted(null)}>
+              <button type="button" className="qs-btn qs-btn--primary qs-btn--sm px-4" onClick={() => setMinted(null)}>
                 Stored safely
               </button>
             </div>
