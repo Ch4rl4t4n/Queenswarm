@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Hexagon, LayoutGrid, List, Play, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { HexAgentCard } from "@/components/hive/hex-agent-card";
 import type { AgentRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
@@ -403,61 +404,16 @@ export function AgentsLiveSection({
       </div>
 
       {viewMode === "grid" ? (
-        <ul className="agents-mobile-gap mx-auto mt-10 grid max-w-[1200px] grid-cols-3 justify-items-center gap-x-3 gap-y-8 sm:grid-cols-3 md:grid-cols-4 md:gap-y-10 lg:grid-cols-5">
-          {filtered.map((agent, i) => {
-            const lane = agentLane(agent);
-            const theme = laneTheme(lane === "queen" ? "queen" : lane, agent);
-            const idle = agent.status.toUpperCase() === "IDLE";
-            const err = agent.status.toUpperCase() === "ERROR";
-            const scoreP = pctScore(agent.performance_score);
-            return (
-              <li
-                key={agent.id}
-                className={cn("flex justify-center", i % 2 === 1 && "sm:mt-6 md:mt-10", i % 2 === 0 && "md:mt-2")}
-              >
-                <div
-                  className={cn(
-                    "hive-hex-clip-flat hive-hex-flat-tile",
-                    "flex flex-col justify-center border-[9px] bg-[#0a0a12]/95 px-2.5 py-2 transition hover:brightness-110",
-                    theme.hexBorder,
-                    theme.glow,
-                    idle && "opacity-75 brightness-[0.92]",
-                  )}
-                >
-                  <button
-                    type="button"
-                    className="flex w-full flex-col items-center text-center outline-none focus-visible:ring-2 focus-visible:ring-pollen/50"
-                    onClick={() => onAgentActivate(agent)}
-                  >
-                    <span className={cn("mb-2 h-2 w-2 rounded-full", statusDotClass(agent.status))} aria-hidden />
-                    <p className="w-full truncate font-[family-name:var(--font-space-grotesk)] text-sm font-bold text-[#fafafa]">
-                      {agent.name}
-                    </p>
-                    <p className="mt-0.5 w-full truncate font-[family-name:var(--font-inter)] text-[10px] text-zinc-500">
-                      {roleDisplayName(agent.role)}
-                    </p>
-                    <p className="mt-2 font-[family-name:var(--font-jetbrains-mono)] text-[10px] text-zinc-300">
-                      Pollen {formatPollen(agent.pollen_points ?? 0)}
-                    </p>
-                    <p
-                      className={cn(
-                        "font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold",
-                        err ? "text-danger" : theme.scoreText,
-                      )}
-                    >
-                      Skóre {pctScoreDisplay(agent.performance_score)}
-                    </p>
-                    {scoreP > 0 && !err ? (
-                      <div className="mt-1 h-1 w-full max-w-[5.5rem] overflow-hidden rounded-full bg-black/60">
-                        <div className={cn("h-full rounded-full", theme.barBg)} style={{ width: `${scoreP}%` }} />
-                      </div>
-                    ) : null}
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="qs-hex-grid mx-auto mt-10 max-w-[1200px]">
+          {filtered.map((agent) => (
+            <HexAgentCard
+              key={agent.id}
+              agent={agent}
+              showPerformance
+              onClick={() => onAgentActivate(agent)}
+            />
+          ))}
+        </div>
       ) : (
         <ul className="mt-8 space-y-3">
           {filtered.map((agent) => {

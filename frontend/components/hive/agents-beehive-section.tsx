@@ -66,7 +66,7 @@ export function AgentsBeehiveSection({ agents }: AgentsBeehiveSectionProps) {
         </div>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="qs-hex-grid justify-center">
         {rows.map((agent) => (
           <AgentHexCard key={agent.id} agent={agent} />
         ))}
