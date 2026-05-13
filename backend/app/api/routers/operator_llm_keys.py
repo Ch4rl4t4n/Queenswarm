@@ -227,8 +227,8 @@ async def test_llm_operator_key(
     _, model_hint = _provider_label_model(user, provider)
     defaults: dict[ProviderLiteral, str] = {
         "grok": "xai/grok-3-mini",
-        "anthropic": "claude-3-5-haiku-20241022",
-        "openai": "gpt-4o-mini",
+        "anthropic": "anthropic/claude-haiku-4-5-20251001",
+        "openai": "openai/gpt-4o-mini",
     }
     model = (model_hint or defaults[provider]).strip()
 

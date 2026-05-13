@@ -242,6 +242,80 @@ class LiteLLMRouter:
         )
         return response, content, model_name, hop_cost_usd
 
+    async def complete_with_fallback_messages(
+        self,
+        session: AsyncSession,
+        *,
+        messages: list[dict[str, str]],
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        swarm_id: str = "",
+        workflow_id: str | None = None,
+        task_id: str | None = None,
+    ) -> tuple[str, float]:
+        """Try Grok → Claude → optional GPT using the configured decomposition chain.
+
+        Returns:
+            Model text and billed USD estimate for the successful hop.
+        """
+
+        errors: list[str] = []
+        bind = {
+            "agent_id": None,
+            "swarm_id": swarm_id,
+            "task_id": task_id or "",
+            "workflow_id": workflow_id or "",
+        }
+        hops = self._decomposition_chain()
+        if not hops:
+            raise RuntimeError(
+                "LiteLLM router has no credentials for configured models "
+                "(set GROK_API_KEY, ANTHROPIC_API_KEY, and/or OPENAI_API_KEY).",
+            )
+        for model_name in hops:
+            try:
+                await self._assert_budget(session)
+                _response, content, used, hop_cost_usd = await self._acompletion_with_model(
+                    session,
+                    model_name=model_name,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                )
+                logger.info(
+                    "llm_router.completion_chain.ok",
+                    model=used,
+                    **bind,
+                    hop_cost_usd=hop_cost_usd,
+                )
+                return content, hop_cost_usd
+            except BudgetExceededError:
+                logger.error(
+                    "llm_router.completion_chain.budget_blocked",
+                    model=model_name,
+                    **bind,
+                )
+                raise
+            except AuthenticationError as exc:
+                errors.append(f"{model_name}: {exc}")
+                logger.warning(
+                    "llm_router.completion_chain.auth_failed_hop",
+                    model=model_name,
+                    error=str(exc),
+                    **bind,
+                )
+                continue
+            except Exception as exc:  # noqa: BLE001 — hop-specific failures
+                errors.append(f"{model_name}: {exc}")
+                logger.warning(
+                    "llm_router.completion_chain.hop_failed",
+                    model=model_name,
+                    error=str(exc),
+                    **bind,
+                )
+                continue
+        raise RuntimeError(_decomposition_exhaustion_message(errors))
+
     async def decompose(
         self,
         session: AsyncSession,
@@ -275,56 +349,13 @@ class LiteLLMRouter:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_payload},
         ]
-        errors: list[str] = []
-        bind = {
-            "agent_id": None,
-            "swarm_id": swarm_id,
-            "task_id": task_id or "",
-            "workflow_id": workflow_id or "",
-        }
-        hops = self._decomposition_chain()
-        if not hops:
-            raise RuntimeError(
-                "LiteLLM router has no credentials for configured models "
-                "(set GROK_API_KEY, ANTHROPIC_API_KEY, and/or OPENAI_API_KEY).",
-            )
-        for model_name in hops:
-            try:
-                await self._assert_budget(session)
-                _response, content, used, hop_cost_usd = await self._acompletion_with_model(
-                    session,
-                    model_name=model_name,
-                    messages=messages,
-                )
-                logger.info(
-                    "llm_router.decompose.completed",
-                    model=used,
-                    **bind,
-                    hop_cost_usd=hop_cost_usd,
-                )
-                return content, hop_cost_usd
-            except BudgetExceededError:
-                logger.error("llm_router.decompose.budget_blocked", model=model_name, **bind)
-                raise
-            except AuthenticationError as exc:
-                errors.append(f"{model_name}: {exc}")
-                logger.warning(
-                    "llm_router.decompose.auth_failed_hop",
-                    model=model_name,
-                    error=str(exc),
-                    **bind,
-                )
-                continue
-            except Exception as exc:  # noqa: BLE001 — hop-specific failures
-                errors.append(f"{model_name}: {exc}")
-                logger.warning(
-                    "llm_router.decompose.hop_failed",
-                    model=model_name,
-                    error=str(exc),
-                    **bind,
-                )
-                continue
-        raise RuntimeError(_decomposition_exhaustion_message(errors))
+        return await self.complete_with_fallback_messages(
+            session,
+            messages=messages,
+            swarm_id=swarm_id,
+            workflow_id=workflow_id,
+            task_id=task_id,
+        )
 
     async def evaluate(
         self,
@@ -428,8 +459,72 @@ class LiteLLMRouter:
         return {"result": {}, "confidence_pct": 0.0, "raw": parsed, "raw_model": model_used}
 
 
+async def llm_complete(
+    prompt: str,
+    system: str | None = None,
+    *,
+    max_tokens: int = 1000,
+    temperature: float = 0.3,
+    reload_vault_first: bool = False,
+    swarm_id: str = "",
+    workflow_id: str | None = None,
+    task_id: str | None = None,
+) -> str:
+    """Run the Grok-first fallback chain outside workflow breaker callers (tests, tooling)."""
+
+    from app.core.database import async_session
+    from app.services.llm_runtime_credentials import refresh_llm_secret_cache
+
+    messages: list[dict[str, str]] = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
+
+    async with async_session() as session:
+        if reload_vault_first:
+            await refresh_llm_secret_cache(session)
+        router = LiteLLMRouter()
+        text, _cost = await router.complete_with_fallback_messages(
+            session,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            swarm_id=swarm_id,
+            workflow_id=workflow_id,
+            task_id=task_id,
+        )
+        await session.commit()
+        return (text or "").strip()
+
+
+def load_keys_from_vault() -> None:
+    """Decrypt vault secrets and mirror keys into ``os.environ`` (sync CLI helper)."""
+
+    import asyncio
+
+    from app.core.database import async_session
+    from app.services.llm_runtime_credentials import refresh_llm_secret_cache
+
+    async def _go() -> None:
+        async with async_session() as session:
+            await refresh_llm_secret_cache(session)
+            await session.commit()
+
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        asyncio.run(_go())
+    else:
+        logger.warning(
+            "load_keys_from_vault_skipped_running_loop",
+            message="use refresh_llm_secret_cache(session) inside async lifespan",
+        )
+
+
 __all__ = [
     "LiteLLMRouter",
+    "llm_complete",
+    "load_keys_from_vault",
     "model_api_key",
     "model_slug_has_configured_credentials",
     "record_llm_cost",

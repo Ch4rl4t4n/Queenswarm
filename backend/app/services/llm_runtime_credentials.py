@@ -38,10 +38,13 @@ def apply_llm_cache_to_environ() -> None:
     g_e = (settings.grok_api_key or "").strip()
     if g_v:
         os.environ["XAI_API_KEY"] = g_v
+        os.environ["GROK_API_KEY"] = g_v
     elif g_e:
         os.environ["XAI_API_KEY"] = g_e
+        os.environ.setdefault("GROK_API_KEY", g_e)
     else:
         os.environ.pop("XAI_API_KEY", None)
+        os.environ.pop("GROK_API_KEY", None)
 
     a_v = get_cached_llm_key("anthropic")
     a_e = (settings.anthropic_api_key or "").strip()

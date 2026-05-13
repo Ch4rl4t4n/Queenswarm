@@ -337,16 +337,16 @@ class Settings(BaseSettings):
         description="LiteLLM slug for primary decomposition (xAI Grok).",
     )
     workflow_breaker_fallback_model: str = Field(
-        default="anthropic/claude-3-5-haiku-20241022",
-        description="Claude fallback when primary provider errors.",
+        default="anthropic/claude-haiku-4-5-20251001",
+        description="Claude Haiku 4.5 fallback when Grok primary errors (403, auth, etc.).",
     )
     workflow_breaker_tertiary_model: str = Field(
         default="openai/gpt-4o-mini",
         description="Cheap OpenAI route when Grok+Claude fail (requires OPENAI_API_KEY).",
     )
     workflow_breaker_evaluation_model: str = Field(
-        default="anthropic/claude-3-5-haiku-20241022",
-        description="Evaluator pass — stronger reasoning than primary decomposition models.",
+        default="anthropic/claude-haiku-4-5-20251001",
+        description="Evaluator pass — aligned with Claude fallback stack.",
     )
     workflow_breaker_simulation_model: str = Field(
         default="openai/gpt-4o-mini",
@@ -395,6 +395,7 @@ class Settings(BaseSettings):
         grok = (self.grok_api_key or "").strip()
         if grok:
             os.environ.setdefault("XAI_API_KEY", grok)
+            os.environ.setdefault("GROK_API_KEY", grok)
         anth = (self.anthropic_api_key or "").strip()
         if anth:
             os.environ.setdefault("ANTHROPIC_API_KEY", anth)
