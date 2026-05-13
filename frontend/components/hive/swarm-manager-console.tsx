@@ -38,10 +38,16 @@ interface AgentApi {
   id: string;
   name: string;
   swarm_id?: string | null;
+  sub_swarm_id?: string | null;
   status: string;
 }
 
-function purposeForPreset(presetId: string, customRole: string): PurposeApi {
+function agentSwarmPlacement(a: AgentApi): string | null {
+  const sid = a.swarm_id ?? a.sub_swarm_id;
+  return sid !== undefined && sid !== null && String(sid).trim() ? String(sid) : null;
+}
+
+function purposeForPreset(presetId: string): PurposeApi {
   if (presetId === "scout") return "scout";
   if (presetId === "eval") return "eval";
   if (presetId === "sim") return "simulation";
@@ -138,7 +144,7 @@ export function SwarmManagerConsole() {
     const systemPrompt =
       form.system_prompt.trim() || defaultPrompt || "You coordinate assigned agents efficiently for operator tasks.";
 
-    const purpose = purposeForPreset(form.role, form.custom_role);
+    const purpose = purposeForPreset(form.role);
 
     const local_memory = {
       swarm_role_label: roleLabel,
@@ -226,10 +232,10 @@ export function SwarmManagerConsole() {
     await loadAll();
   }
 
-  const unassigned = agents.filter((a) => !a.swarm_id);
+  const unassigned = agents.filter((a) => !agentSwarmPlacement(a));
 
   function assignableToSwarm(swarmId: string): AgentApi[] {
-    return agents.filter((a) => a.swarm_id !== swarmId);
+    return agents.filter((a) => agentSwarmPlacement(a) !== swarmId);
   }
 
   function swarmLabelById(swarmId: string | null | undefined): string | null {
@@ -386,7 +392,7 @@ export function SwarmManagerConsole() {
           {swarms.map((swarm) => {
             const color = displayColor(swarm);
             const role = displayRole(swarm);
-            const members = agents.filter((a) => a.swarm_id === swarm.id);
+            const members = agents.filter((a) => agentSwarmPlacement(a) === swarm.id);
             const active = members.filter((a) => a.status === "active" || a.status === "running").length;
             return (
               <div
@@ -486,7 +492,8 @@ export function SwarmManagerConsole() {
                     </p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {assignableToSwarm(swarm.id).map((agent) => {
-                        const fromName = swarmLabelById(agent.swarm_id);
+                        const placed = agentSwarmPlacement(agent);
+                        const fromName = swarmLabelById(placed);
                         return (
                           <button
                             key={agent.id}
@@ -500,7 +507,7 @@ export function SwarmManagerConsole() {
                             }}
                           >
                             <span>+ {agent.name}</span>
-                            {agent.swarm_id && agent.swarm_id !== swarm.id ? (
+                            {placed && placed !== swarm.id ? (
                               <span className="truncate text-[10px] normal-case text-zinc-500">
                                 (from {fromName ?? "other"})
                               </span>

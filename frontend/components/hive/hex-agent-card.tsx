@@ -182,6 +182,10 @@ interface HexAgentCardProps {
   showPerformance?: boolean;
   renderAsDiv?: boolean;
   className?: string;
+  /** Larger / smaller tile than default 140×140 (Phase W hierarchy). */
+  tilePx?: number;
+  /** Queen / orchestrator affordance — amber stroke + crown. */
+  isQueen?: boolean;
 }
 
 /**
@@ -194,16 +198,18 @@ export function HexAgentCard({
   showPerformance = false,
   renderAsDiv = false,
   className,
+  tilePx,
+  isQueen = false,
 }: HexAgentCardProps): JSX.Element {
   const sk = swarmKeyFromAgent(agent);
-  const borderColor = sk === "unassigned" ? AMBER_STROKE : SWARM_STROKE[sk];
+  const borderColor = isQueen ? AMBER_STROKE : sk === "unassigned" ? AMBER_STROKE : SWARM_STROKE[sk];
   const pollenAccent = borderColor;
 
   const sv = statusVisual(agent.status ?? "");
   const statusColor = STATUS_COLORS[sv.tone];
   const pollenVal = pollenDisplay(agent.pollen_points ?? 0);
   const scoreP = pctScore(agent.performance_score);
-  const idle = agent.status.toUpperCase() === "IDLE";
+  const idle = (agent.status ?? "").toUpperCase() === "IDLE";
   /** Running / busy — Phase R “active” glow matches border hue. */
   const glowHue = sv.pulse ? borderColor : undefined;
 
@@ -211,6 +217,11 @@ export function HexAgentCard({
     <>
       <RoundedHex strokeColor={borderColor} strokeWidth={DEFAULT_STROKE_WIDTH} fill={HEX_FILL} glowColor={glowHue} />
       <div className="qs-hex__inner">
+        {isQueen ? (
+          <span className="-mb-0.5 text-sm leading-none" aria-hidden>
+            👑
+          </span>
+        ) : null}
         <div
           className={cn("qs-hex__dot", sv.pulse && "qs-pulse")}
           style={{
@@ -232,13 +243,30 @@ export function HexAgentCard({
     </>
   );
 
-  const fixedTile: CSSProperties = {
-    width: 140,
-    height: 140,
-    flexShrink: 0,
-  };
+  const px = tilePx ?? 140;
+  const scalable = px !== 140;
+  const fixedTile: CSSProperties & { "--qs-hex-scaled"?: string } = scalable
+    ? {
+        width: px,
+        height: px,
+        minWidth: px,
+        minHeight: px,
+        maxWidth: px,
+        maxHeight: px,
+        flexShrink: 0,
+        "--qs-hex-scaled": `${px}px`,
+      }
+    : {
+        width: 140,
+        height: 140,
+        minWidth: 140,
+        minHeight: 140,
+        maxWidth: 140,
+        maxHeight: 140,
+        flexShrink: 0,
+      };
 
-  const rootClass = cn("qs-hex group relative", idle && "opacity-[0.97]", className);
+  const rootClass = cn("qs-hex group relative", scalable && "qs-hex--scalable", idle && "opacity-[0.97]", className);
 
   if (href) {
     return (
