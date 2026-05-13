@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 
 import { QueenHoneycombLogo } from "@/components/auth/queen-honeycomb-logo";
 import { StatusIndicator } from "@/components/ui/status-indicator";
+import { QS_ACCESS, QS_REFRESH } from "@/lib/auth-cookies";
 import type { DashboardSummary } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
@@ -48,6 +49,20 @@ function hiveOnlineTotals(byStatus: Record<string, number> | undefined): { onlin
     }
   }
   return { online: Math.max(0, total - offlineOrError), total };
+}
+
+function clearClientSessionArtifacts(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  localStorage.removeItem("qs_token");
+  localStorage.removeItem("qs_dashboard_at");
+  sessionStorage.removeItem("qs_pre_auth_token");
+  sessionStorage.removeItem("qs_pre_auth");
+  const base = "path=/; max-age=0; SameSite=Strict";
+  document.cookie = `qs_token=; ${base}`;
+  document.cookie = `${QS_ACCESS}=; ${base}`;
+  document.cookie = `${QS_REFRESH}=; ${base}`;
 }
 
 function routeActive(pathname: string, href: string): boolean {
@@ -96,6 +111,16 @@ export function HiveSidebar({ pathname }: HiveSidebarProps) {
     );
   }
 
+  async function handleLogout(): Promise<void> {
+    try {
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    } catch {
+      /* still clear mirrored client stores */
+    }
+    clearClientSessionArtifacts();
+    window.location.assign("/login");
+  }
+
   return (
     <aside className="sticky top-0 z-30 hidden h-screen w-[220px] min-w-[220px] shrink-0 flex-col overflow-y-auto border-r border-[#1a1a3e]/90 bg-[#0d0d2b]/95 py-6 hive-scrollbar lg:flex">
       <div className="mb-6 flex h-14 shrink-0 items-center gap-3 border-b border-[#1a1a3e]/90 px-4">
@@ -109,7 +134,7 @@ export function HiveSidebar({ pathname }: HiveSidebarProps) {
         </Link>
       </div>
 
-      <nav aria-label="Hive navigation" className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2">
+      <nav aria-label="Hive navigation" className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2">
         {HIVE_NAV_PRIMARY.map(({ href, label, Icon }) => {
           const active = routeActive(pathname, href);
           return (
@@ -121,25 +146,53 @@ export function HiveSidebar({ pathname }: HiveSidebarProps) {
         })}
       </nav>
 
-      <div className="mt-auto rounded-xl border border-cyan/15 bg-black/35 px-4 py-3">
-        <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-          Hive status
-        </p>
-        <div className="mt-3 flex items-center justify-between gap-2">
-          <span className="font-[family-name:var(--font-space-grotesk)] text-sm font-semibold text-[#fafafa]">
-            {total > 0 ? `${online}/${total}` : "—"}
-          </span>
-          <StatusIndicator
-            tone={total > 0 && online === total ? "online" : online > 0 ? "idle" : "offline"}
-            label="Online"
-            pulse={online > 0 && online === total}
-          />
+      <div className="mt-auto shrink-0 space-y-3 px-2 pt-2">
+        <div className="rounded-xl border border-cyan/15 bg-black/35 px-4 py-3">
+          <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+            Hive status
+          </p>
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <span className="font-[family-name:var(--font-space-grotesk)] text-sm font-semibold text-[#fafafa]">
+              {total > 0 ? `${online}/${total}` : "—"}
+            </span>
+            <StatusIndicator
+              tone={total > 0 && online === total ? "online" : online > 0 ? "idle" : "offline"}
+              label="Online"
+              pulse={online > 0 && online === total}
+            />
+          </div>
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-black/60">
+            <div
+              className="h-full rounded-full bg-data shadow-[0_0_12px_rgb(0_255_255/0.45)] transition-[width]"
+              style={{ width: `${vitality}%` }}
+            />
+          </div>
         </div>
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-black/60">
-          <div
-            className="h-full rounded-full bg-data shadow-[0_0_12px_rgb(0_255_255/0.45)] transition-[width]"
-            style={{ width: `${vitality}%` }}
-          />
+
+        <div className="border-t border-[#1e1e35] px-0 pb-1 pt-2">
+          <button
+            type="button"
+            onClick={() => void handleLogout()}
+            className="group flex w-full items-center gap-2.5 rounded-lg border border-transparent px-3 py-[9px] text-left font-[family-name:var(--font-space-grotesk)] text-[13px] text-[#5a5a7a] transition-all duration-150 hover:border-[rgba(255,51,102,0.2)] hover:bg-[rgba(255,51,102,0.08)] hover:text-[#FF3366]"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="shrink-0"
+              aria-hidden
+            >
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            <span>Odhlásiť sa</span>
+          </button>
         </div>
       </div>
     </aside>
