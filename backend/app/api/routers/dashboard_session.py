@@ -10,7 +10,7 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, status
 from jose import JWTError
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field, computed_field, field_validator
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.responses import Response
@@ -77,13 +77,39 @@ class LoginResponse(BaseModel):
     requires_totp: bool
     pre_auth_token: str | None = None
     tokens: _TokenBundle | None = None
+    message: str | None = Field(
+        default=None,
+        description="Optional UX hint after password succeeds but TOTP is still required.",
+    )
+
+    @computed_field
+    @property
+    def requires_2fa(self) -> bool:
+        """Alias for dashboards that probe ``requires_2fa`` instead of ``requires_totp``."""
+
+        return self.requires_totp
+
+    @computed_field
+    @property
+    def mfa_required(self) -> bool:
+        """Alias for OTP-gated dashboards that probe ``mfa_required``."""
+
+        return self.requires_totp
 
 
 class Verify2FARequest(BaseModel):
     model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
 
-    pre_auth_token: str
-    totp_code: str = Field(min_length=6, max_length=16)
+    pre_auth_token: str = Field(
+        ...,
+        validation_alias=AliasChoices("pre_auth_token", "mfa_token", "temp_token"),
+    )
+    totp_code: str = Field(
+        ...,
+        min_length=6,
+        max_length=16,
+        validation_alias=AliasChoices("totp_code", "code"),
+    )
 
 
 class RefreshRequest(BaseModel):
@@ -172,7 +198,12 @@ async def dashboard_login(body: LoginRequest, db: DbSession) -> LoginResponse:
 
     if user.totp_required and user.totp_secret:
         pre, _ttl = create_pre_2fa_token(user_id=user.id, email=user.email)
-        return LoginResponse(requires_totp=True, pre_auth_token=pre, tokens=None)
+        return LoginResponse(
+            requires_totp=True,
+            pre_auth_token=pre,
+            tokens=None,
+            message="Enter your 2FA code",
+        )
 
     bundle_dict = await _issue_pair(user)
     return LoginResponse(requires_totp=False, tokens=_TokenBundle.model_validate(bundle_dict))
