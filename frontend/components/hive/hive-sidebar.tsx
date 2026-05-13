@@ -11,12 +11,9 @@ import {
   Share2,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
 
 import { QueenHoneycombLogo } from "@/components/auth/queen-honeycomb-logo";
-import { StatusIndicator } from "@/components/ui/status-indicator";
 import { QS_ACCESS, QS_REFRESH } from "@/lib/auth-cookies";
-import type { DashboardSummary } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -35,21 +32,6 @@ export const HIVE_NAV_PRIMARY: NavItem[] = [
   { href: "/ballroom", label: "Ballroom", Icon: MicIcon },
   { href: "/settings/security", label: "Nastavenia", Icon: Settings },
 ];
-
-function hiveOnlineTotals(byStatus: Record<string, number> | undefined): { online: number; total: number } {
-  if (!byStatus) {
-    return { online: 0, total: 0 };
-  }
-  const total = Object.values(byStatus).reduce((a, b) => a + b, 0);
-  let offlineOrError = 0;
-  for (const [k, v] of Object.entries(byStatus)) {
-    const key = k.toUpperCase();
-    if (key === "OFFLINE" || key === "ERROR") {
-      offlineOrError += v;
-    }
-  }
-  return { online: Math.max(0, total - offlineOrError), total };
-}
 
 function clearClientSessionArtifacts(): void {
   if (typeof window === "undefined") {
@@ -75,32 +57,6 @@ interface HiveSidebarProps {
 
 /** Fixed-width 220px left rail. */
 export function HiveSidebar({ pathname }: HiveSidebarProps) {
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    void (async () => {
-      try {
-        const res = await fetch("/api/proxy/dashboard/summary", { credentials: "include" });
-        if (!res.ok) {
-          return;
-        }
-        const body = (await res.json()) as DashboardSummary;
-        if (alive) {
-          setSummary(body);
-        }
-      } catch {
-        /* offline */
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const { online, total } = hiveOnlineTotals(summary?.agents.by_status);
-  const vitality = total > 0 ? Math.min(100, Math.round((online / total) * 100)) : 0;
-
   function linkClass(href: string): string {
     const active = routeActive(pathname, href);
     return cn(
@@ -125,10 +81,10 @@ export function HiveSidebar({ pathname }: HiveSidebarProps) {
     <aside className="sticky top-0 z-30 hidden h-screen w-[220px] min-w-[220px] shrink-0 flex-col overflow-y-auto border-r border-[#1a1a3e]/90 bg-[#0d0d2b]/95 py-6 hive-scrollbar lg:flex">
       <div className="mb-6 flex h-14 shrink-0 items-center gap-3 border-b border-[#1a1a3e]/90 px-4">
         <Link href="/" className="flex min-w-0 flex-1 items-center gap-2.5" prefetch>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-visible">
             <QueenHoneycombLogo size={36} aria-hidden />
           </div>
-          <span className="truncate font-[family-name:var(--font-space-grotesk)] text-[15px] font-bold tracking-tight text-[#FFB800]">
+          <span className="truncate font-[family-name:var(--font-poppins)] text-[15px] font-bold tracking-tight text-[#FFB800]">
             Queenswarm
           </span>
         </Link>
@@ -140,60 +96,36 @@ export function HiveSidebar({ pathname }: HiveSidebarProps) {
           return (
             <Link key={href} href={href} prefetch className={linkClass(href)}>
               <Icon className={cn("h-[18px] w-[18px] shrink-0", active ? "text-pollen" : "text-zinc-500")} aria-hidden />
-              <span className="whitespace-nowrap font-[family-name:var(--font-inter)] text-[13px] font-medium">{label}</span>
+              <span className="whitespace-nowrap font-[family-name:var(--font-poppins)] text-[13px] font-medium">{label}</span>
             </Link>
           );
         })}
       </nav>
 
-      <div className="mt-auto shrink-0 space-y-3 px-2 pt-2">
-        <div className="rounded-xl border border-cyan/15 bg-black/35 px-4 py-3">
-          <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-            Hive status
-          </p>
-          <div className="mt-3 flex items-center justify-between gap-2">
-            <span className="font-[family-name:var(--font-space-grotesk)] text-sm font-semibold text-[#fafafa]">
-              {total > 0 ? `${online}/${total}` : "—"}
-            </span>
-            <StatusIndicator
-              tone={total > 0 && online === total ? "online" : online > 0 ? "idle" : "offline"}
-              label="Online"
-              pulse={online > 0 && online === total}
-            />
-          </div>
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-black/60">
-            <div
-              className="h-full rounded-full bg-data shadow-[0_0_12px_rgb(0_255_255/0.45)] transition-[width]"
-              style={{ width: `${vitality}%` }}
-            />
-          </div>
-        </div>
-
-        <div className="border-t border-[#1e1e35] px-0 pb-1 pt-2">
-          <button
-            type="button"
-            onClick={() => void handleLogout()}
-            className="group flex w-full items-center gap-2.5 rounded-lg border border-transparent px-3 py-[9px] text-left font-[family-name:var(--font-space-grotesk)] text-[13px] text-[#5a5a7a] transition-all duration-150 hover:border-[rgba(255,51,102,0.2)] hover:bg-[rgba(255,51,102,0.08)] hover:text-[#FF3366]"
+      <div className="mt-auto shrink-0 border-t border-[#1e1e35] px-2 pb-6 pt-3">
+        <button
+          type="button"
+          onClick={() => void handleLogout()}
+          className="group flex w-full items-center gap-2.5 rounded-lg border border-transparent px-3 py-[9px] text-left font-[family-name:var(--font-poppins)] text-[13px] text-[#5a5a7a] transition-all duration-150 hover:border-[rgba(255,51,102,0.2)] hover:bg-[rgba(255,51,102,0.08)] hover:text-[#FF3366]"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="shrink-0"
+            aria-hidden
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="shrink-0"
-              aria-hidden
-            >
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
-            <span>Odhlásiť sa</span>
-          </button>
-        </div>
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          <span>Odhlásiť sa</span>
+        </button>
       </div>
     </aside>
   );
