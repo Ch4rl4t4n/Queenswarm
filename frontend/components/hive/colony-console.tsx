@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { QueenDashboardChrome } from "@/components/hive/queen-dashboard-chrome";
-import { hiveDelete, hiveFetch, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
+import { hiveDelete, hiveFetch, hiveGet, hivePatchJson, hivePostJson, hivePutJson } from "@/lib/api";
 import type { AgentRow, DashboardSummary, SystemStatusPayload, TaskRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
@@ -18,12 +18,22 @@ interface ConfigDraft {
   description: string;
   tagsStr: string;
   output_config: Record<string, unknown>;
+  swarm_id: string | null;
 }
 
 interface AgentConfigPayload {
   system_prompt: string;
   user_prompt_template: string | null;
   output_config: Record<string, unknown>;
+}
+
+interface SwarmRowLite {
+  id: string;
+  name: string;
+  purpose?: string;
+  member_count?: number;
+  local_memory?: Record<string, unknown> | null;
+  is_active?: boolean;
 }
 
 /** UI-only label: orchestrator tier is always „Queen“. */
@@ -49,6 +59,14 @@ function tagsStrFromOutputConfig(oc: Record<string, unknown>): string {
     return raw;
   }
   return "";
+}
+
+function swarmRowRole(sw: Pick<SwarmRowLite, "local_memory" | "purpose">): string {
+  const lm = sw.local_memory ?? {};
+  const hi = (lm.hive_ui as Record<string, unknown> | undefined) ?? {};
+  const label = (hi.swarm_role_label as string) || (lm.swarm_role_label as string);
+  if (label?.trim()) return label;
+  return String(sw.purpose ?? "colony").replace(/_/g, " ");
 }
 
 function statusClass(status: string): string {
@@ -114,6 +132,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [draftById, setDraftById] = useState<Record<string, ConfigDraft>>({});
   const [modalAgentId, setModalAgentId] = useState<string | null>(null);
+  const [subSwarms, setSubSwarms] = useState<SwarmRowLite[]>([]);
 
   const [newName, setNewName] = useState("");
   const [newTier, setNewTier] = useState<"manager" | "worker">("worker");
@@ -267,6 +286,31 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
     }
   }
 
+  useEffect(() => {
+    void hiveGet<unknown>("swarms?limit=200")
+      .then((d) => {
+        const rows = Array.isArray(d)
+          ? d
+          : Array.isArray((d as { items?: unknown }).items)
+            ? (d as { items: unknown[] }).items
+            : Array.isArray((d as { swarms?: unknown }).swarms)
+              ? (d as { swarms: unknown[] }).swarms
+              : [];
+        setSubSwarms(
+          rows.filter(
+            (r): r is SwarmRowLite =>
+              typeof r === "object" &&
+              r !== null &&
+              "id" in r &&
+              "name" in r &&
+              typeof (r as SwarmRowLite).id === "string" &&
+              typeof (r as SwarmRowLite).name === "string",
+          ),
+        );
+      })
+      .catch(() => {});
+  }, []);
+
   async function runMission(): Promise<void> {
     if (!missionBrief.trim()) {
       window.alert("Zadaj zadanie.");
@@ -313,6 +357,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
           description: "",
           tagsStr: "",
           output_config: agent.hive_tier ? { hive_tier: agent.hive_tier } : {},
+          swarm_id: agent.swarm_id ?? null,
         },
       }));
       return;
@@ -328,6 +373,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
           description: descriptionFromOutputConfig(oc),
           tagsStr: tagsStrFromOutputConfig(oc),
           output_config: oc,
+          swarm_id: agent.swarm_id ?? null,
         },
       }));
     } catch {
@@ -339,6 +385,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
           description: "",
           tagsStr: "",
           output_config: agent.hive_tier ? { hive_tier: agent.hive_tier } : {},
+          swarm_id: agent.swarm_id ?? null,
         },
       }));
     }
@@ -372,6 +419,17 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
         user_prompt_template: modalDraft.user_prompt_template ?? null,
         output_config: oc,
       });
+      const swarmPick = modalDraft.swarm_id?.trim();
+      if (swarmPick) {
+        await hivePatchJson(`agents/${modalAgentId}`, {
+          detach_from_swarm: false,
+          swarm_id: swarmPick,
+        });
+      } else {
+        await hivePatchJson(`agents/${modalAgentId}`, {
+          detach_from_swarm: true,
+        });
+      }
       setDraftById((d) => {
         const next = { ...d };
         delete next[modalAgentId];
@@ -739,6 +797,37 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
             <p className="mt-1 font-[family-name:var(--font-jetbrains-mono)] text-[11px] uppercase text-zinc-500">
               {tierLabel(modalAgent.hive_tier ?? "")}
             </p>
+
+            <label className="mt-5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+              Manažér / swarm
+              <select
+                value={modalDraft.swarm_id ?? ""}
+                onChange={(ev) => {
+                  const raw = ev.target.value;
+                  setDraftById((d) => {
+                    const cur = modalAgentId ? d[modalAgentId] : undefined;
+                    if (!cur || !modalAgentId) return d;
+                    return {
+                      ...d,
+                      [modalAgentId]: {
+                        ...cur,
+                        swarm_id: raw ? raw : null,
+                      },
+                    };
+                  });
+                }}
+                className="mt-2 w-full rounded-xl border-[2px] border-cyan/25 bg-black/55 px-3 py-2 font-[family-name:var(--font-jetbrains-mono)] text-sm text-[#fafafa] outline-none focus:border-pollen/50"
+              >
+                <option value="">— Bez swarmu —</option>
+                {subSwarms
+                  .filter((s) => s.is_active !== false && !String(s.name).includes("__inactive_"))
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({swarmRowRole(s)})
+                    </option>
+                  ))}
+              </select>
+            </label>
 
             <label className="mt-5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
               Prompt

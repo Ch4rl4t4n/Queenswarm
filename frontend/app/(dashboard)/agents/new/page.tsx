@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
@@ -94,13 +95,36 @@ const SCHEDULE_PRESETS = [
 interface SwarmLite {
   id: string;
   name: string;
+  purpose?: string;
+  member_count?: number;
   is_active?: boolean;
+  local_memory?: Record<string, unknown> | null;
 }
 
 interface DynamicCreateResponse {
   agent_id: string;
   agent_name: string;
   config_id: string;
+}
+
+function swarmDisplayRole(sw: Pick<SwarmLite, "local_memory" | "purpose">): string {
+  const lm = sw.local_memory ?? {};
+  const hi = (lm.hive_ui as Record<string, unknown> | undefined) ?? {};
+  const label = (hi.swarm_role_label as string) || (lm.swarm_role_label as string);
+  if (label?.trim()) return label;
+  return String(sw.purpose ?? "colony").replace(/_/g, " ");
+}
+
+function swarmAccentHex(sw: Pick<SwarmLite, "local_memory" | "purpose">): string {
+  const lm = sw.local_memory ?? {};
+  const hi = (lm.hive_ui as Record<string, unknown> | undefined) ?? {};
+  const hex = (hi.swarm_color_hex as string) || (lm.swarm_color_hex as string);
+  if (hex?.startsWith("#")) return hex;
+  const p = String(sw.purpose ?? "").toLowerCase();
+  if (p.includes("scout")) return "#00E5FF";
+  if (p.includes("eval")) return "#FFB800";
+  if (p.includes("sim")) return "#FF00AA";
+  return "#00FF88";
 }
 
 function NewAgentWizardInner() {
@@ -142,7 +166,15 @@ function NewAgentWizardInner() {
               ? (d as { swarms: unknown[] }).swarms
               : [];
         setSwarms(
-          rows.filter((r): r is SwarmLite => typeof r === "object" && r !== null && "id" in r && "name" in r) as SwarmLite[],
+          rows
+            .filter((r): r is SwarmLite => typeof r === "object" && r !== null && "id" in r && "name" in r)
+            .map((r) => ({
+              ...r,
+              local_memory:
+                r.local_memory && typeof r.local_memory === "object"
+                  ? (r.local_memory as Record<string, unknown>)
+                  : undefined,
+            })),
         );
       })
       .catch(() => {});
@@ -245,36 +277,89 @@ function NewAgentWizardInner() {
       ) : (
         <>
           <section className="rounded-3xl border border-white/[0.08] bg-[#0f0f16]/95 p-5">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-                  Bee name
-                </label>
-                <input
-                  value={config.name}
-                  onChange={(e) => setConfig((c) => ({ ...c, name: e.target.value }))}
-                  className="mt-2 w-full rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-pollen/40"
-                />
-              </div>
-              <div>
-                <label className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-                  Assign swarm
-                </label>
-                <select
-                  value={config.swarm_id}
-                  onChange={(e) => setConfig((c) => ({ ...c, swarm_id: e.target.value }))}
-                  className="mt-2 w-full rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-pollen/40"
-                >
-                  <option value="">— Unassigned —</option>
-                  {swarms
-                    .filter((s) => s.is_active !== false && !String(s.name).includes("__inactive_"))
-                    .map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                </select>
-              </div>
+            <label className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+              Bee name
+            </label>
+            <input
+              value={config.name}
+              onChange={(e) => setConfig((c) => ({ ...c, name: e.target.value }))}
+              className="mt-2 w-full rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-pollen/40"
+            />
+          </section>
+
+          <section className="rounded-3xl border border-white/[0.08] bg-[#0f0f16]/95 p-5">
+            <label className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+              Manager / Swarm
+            </label>
+            <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-zinc-600">
+              Anchor this bee under a colony, or leave unassigned.
+            </p>
+            <div className="mt-4 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => setConfig((c) => ({ ...c, swarm_id: "" }))}
+                className={cn(
+                  "flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition",
+                  !config.swarm_id
+                    ? "border-pollen/50 bg-pollen/[0.08] text-pollen"
+                    : "border-white/10 bg-[#141424] text-zinc-400 hover:border-white/18",
+                )}
+              >
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-zinc-600" aria-hidden />
+                <span>No manager — unassigned</span>
+              </button>
+
+              {swarms
+                .filter((s) => s.is_active !== false && !String(s.name).includes("__inactive_"))
+                .map((s) => {
+                  const accent = swarmAccentHex(s);
+                  const sel = config.swarm_id === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setConfig((c) => ({ ...c, swarm_id: s.id }))}
+                      className={cn(
+                        "flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition",
+                        sel
+                          ? "bg-black/55"
+                          : "border-white/10 bg-[#141424] text-zinc-400 hover:border-white/18",
+                      )}
+                      style={
+                        sel
+                          ? {
+                              borderColor: `${accent}77`,
+                              backgroundColor: `${accent}14`,
+                              color: accent,
+                            }
+                          : { borderColor: "rgb(255 255 255 / 0.1)" }
+                      }
+                    >
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-full shadow-[0_0_10px_rgb(255_184_0/0.35)]"
+                        style={{ backgroundColor: accent }}
+                        aria-hidden
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className={cn("font-semibold text-[#fafafa]", sel && "text-inherit")}>{s.name}</div>
+                        <div className="text-[11px] text-zinc-500">
+                          {swarmDisplayRole(s)} · {s.member_count ?? 0} bees
+                        </div>
+                      </div>
+                      {sel ? <span className="font-mono text-xs">✓</span> : null}
+                    </button>
+                  );
+                })}
+
+              {swarms.filter((s) => s.is_active !== false && !String(s.name).includes("__inactive_")).length === 0 ? (
+                <div className="rounded-xl px-3 py-2 font-[family-name:var(--font-inter)] text-xs text-zinc-500">
+                  No swarms yet —{" "}
+                  <Link href="/swarms" className="font-semibold text-pollen underline-offset-2 hover:underline">
+                    create one first
+                  </Link>
+                  .
+                </div>
+              ) : null}
             </div>
           </section>
 
