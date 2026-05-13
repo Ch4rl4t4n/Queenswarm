@@ -78,6 +78,12 @@ export interface AgentRow {
   pollen_points: number;
   performance_score?: number;
   swarm_id?: string | null;
+  /** Sub-swarm row id when API exposes placement (Phase R filter / hex stroke). */
+  sub_swarm_id?: string | null;
+  /** Optional swarm kind label from API joins. */
+  swarm_type?: string | null;
+  /** Nested swarm payload when hydration includes it. */
+  swarm?: { name?: string } | null;
   /** Sub-swarm display name once the bee joins a colony (omit when ``swarm_id`` is unset). */
   swarm_name?: string | null;
   /** Backend ``SwarmPurpose`` string: scout | eval | simulation | action */

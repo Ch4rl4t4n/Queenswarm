@@ -4,7 +4,6 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 import { useMemo } from "react";
 
-import { agentHiveLane, type AgentHiveLane } from "@/lib/agent-hive-lane";
 import type { AgentRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
@@ -17,10 +16,9 @@ const SWARM_STROKE: Record<"scout" | "eval" | "sim" | "action", string> = {
 
 const AMBER_STROKE = "#FFB800";
 
-const DEFAULT_STROKE_WIDTH = 10;
-const FILL_HEX = "#141424";
-/** Geometry in SVG user space — card scales via ``viewBox`` to match ``.qs-hex``. */
-const VIEWBOX_SIZE = 140;
+const HEX_FILL = "#141424";
+/** Phase R — visible border via SVG stroke (~3px); glow via SVG filter only. */
+const DEFAULT_STROKE_WIDTH = 3;
 
 const STATUS_COLORS: Record<"live" | "idle" | "paused" | "error", string> = {
   live: "#00FF88",
@@ -29,13 +27,44 @@ const STATUS_COLORS: Record<"live" | "idle" | "paused" | "error", string> = {
   error: "#FF3366",
 };
 
-/** Public helper — ``unassigned`` when not in a hydrated swarm column. */
 export function swarmKeyFromAgent(agent: AgentRow): keyof typeof SWARM_STROKE | "unassigned" {
-  const lane = agentHiveLane(agent);
-  if (lane === "unassigned" || lane === "queen") {
-    return "unassigned";
+  return hexSwarmLaneKey(agent) ?? "unassigned";
+}
+
+function filledHiveId(value: unknown): boolean {
+  return value !== undefined && value !== null && String(value).trim() !== "";
+}
+
+/** Swarm-linked for stroke color: ``sub_swarm_id`` OR ``swarm_id`` (Phase R). */
+function hiveAnchored(agent: AgentRow): boolean {
+  const sub = (agent as AgentRow & { sub_swarm_id?: string | null }).sub_swarm_id;
+  return filledHiveId(sub) || filledHiveId(agent.swarm_id);
+}
+
+function rawSwarmKeywordBlob(agent: AgentRow): string {
+  const extended = agent as AgentRow & {
+    swarm_type?: string | null;
+    swarm?: { name?: string } | null;
+  };
+  const parts = [
+    extended.swarm_type,
+    extended.swarm?.name,
+    agent.swarm_name,
+    agent.swarm_purpose,
+  ].filter(Boolean);
+  return parts.join(" ").toLowerCase();
+}
+
+function hexSwarmLaneKey(agent: AgentRow): keyof typeof SWARM_STROKE | null {
+  if (!hiveAnchored(agent)) {
+    return null;
   }
-  return lane;
+  const raw = rawSwarmKeywordBlob(agent);
+  if (raw.includes("scout")) return "scout";
+  if (raw.includes("eval")) return "eval";
+  if (raw.includes("sim")) return "sim";
+  if (raw.includes("action")) return "action";
+  return null;
 }
 
 function statusVisual(status: string): { tone: keyof typeof STATUS_COLORS; pulse: boolean } {
@@ -57,7 +86,7 @@ function formatRole(role: string): string {
   if (!cleaned) {
     return "WorkerBee";
   }
-  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+  return `${cleaned.charAt(0).toUpperCase()}${cleaned.slice(1)}`;
 }
 
 function pctScore(s: number | undefined): number {
@@ -75,56 +104,75 @@ function pollenDisplay(points: number): string {
   return n.toFixed(n >= 100 ? 0 : 1);
 }
 
-function flatTopHexVertices(cx: number, cy: number, radius: number): [number, number][] {
-  const pts: [number, number][] = [];
-  for (let i = 0; i < 6; i += 1) {
-    const angle = (Math.PI / 3) * i - Math.PI / 6;
-    pts.push([cx + radius * Math.cos(angle), cy + radius * Math.sin(angle)]);
-  }
-  return pts;
-}
-
-function roundedHexPath(pts: [number, number][], cornerR: number): string {
-  const n = pts.length;
-  let d = "";
-  for (let i = 0; i < n; i += 1) {
-    const prev = pts[(i - 1 + n) % n]!;
-    const curr = pts[i]!;
-    const next = pts[(i + 1) % n]!;
-    const dx1 = prev[0] - curr[0];
-    const dy1 = prev[1] - curr[1];
-    const dx2 = next[0] - curr[0];
-    const dy2 = next[1] - curr[1];
-    const len1 = Math.hypot(dx1, dy1);
-    const len2 = Math.hypot(dx2, dy2);
-    const r1 = Math.min(cornerR, len1 / 2 - 0.02);
-    const r2 = Math.min(cornerR, len2 / 2 - 0.02);
-    const p1: [number, number] = [curr[0] + (dx1 / len1) * r1, curr[1] + (dy1 / len1) * r1];
-    const p2: [number, number] = [curr[0] + (dx2 / len2) * r2, curr[1] + (dy2 / len2) * r2];
-    if (i === 0) {
-      d += `M ${p1[0].toFixed(3)} ${p1[1].toFixed(3)} `;
-    } else {
-      d += `L ${p1[0].toFixed(3)} ${p1[1].toFixed(3)} `;
+/**
+ * Pointy-top rounded hex (~14% corner smoothing). Path in 140×140 user units; SVG scales to parent tile.
+ *
+ * Args:
+ *     strokeColor: SVG stroke (lane color).
+ *     strokeWidth: Stroke thickness in user units.
+ *     fill: Interior fill.
+ *     glowColor: Optional glow via ``drop-shadow`` (running bees).
+ */
+function RoundedHex({
+  strokeColor,
+  strokeWidth = DEFAULT_STROKE_WIDTH,
+  fill = HEX_FILL,
+  glowColor,
+}: {
+  strokeColor: string;
+  strokeWidth?: number;
+  fill?: string;
+  glowColor?: string | undefined;
+}): JSX.Element {
+  const vb = 140;
+  const d = useMemo(() => {
+    const cx = vb / 2;
+    const cy = vb / 2;
+    const r = vb / 2 - strokeWidth - 3;
+    const pts: [number, number][] = Array.from({ length: 6 }, (_, i) => {
+      const a = (Math.PI / 3) * i - Math.PI / 6;
+      return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+    });
+    const cr = r * 0.14;
+    const n = pts.length;
+    let path = "";
+    for (let i = 0; i < n; i += 1) {
+      const prev = pts[(i - 1 + n) % n]!;
+      const curr = pts[i]!;
+      const next = pts[(i + 1) % n]!;
+      const dx1 = prev[0] - curr[0];
+      const dy1 = prev[1] - curr[1];
+      const dx2 = next[0] - curr[0];
+      const dy2 = next[1] - curr[1];
+      const len1 = Math.hypot(dx1, dy1);
+      const len2 = Math.hypot(dx2, dy2);
+      const rr = Math.min(cr, len1 / 2, len2 / 2);
+      const u1 = len1 === 0 ? 0 : rr / len1;
+      const u2 = len2 === 0 ? 0 : rr / len2;
+      const p1: [number, number] = [curr[0] + dx1 * u1, curr[1] + dy1 * u1];
+      const p2: [number, number] = [curr[0] + dx2 * u2, curr[1] + dy2 * u2];
+      path +=
+        i === 0 ? `M${p1[0].toFixed(2)},${p1[1].toFixed(2)}` : `L${p1[0].toFixed(2)},${p1[1].toFixed(2)}`;
+      path += ` Q${curr[0].toFixed(2)},${curr[1].toFixed(2)} ${p2[0].toFixed(2)},${p2[1].toFixed(2)} `;
     }
-    d += `Q ${curr[0].toFixed(3)} ${curr[1].toFixed(3)} ${p2[0].toFixed(3)} ${p2[1].toFixed(3)} `;
-  }
-  return `${d}Z`;
-}
+    path += "Z";
+    return path;
+  }, [strokeWidth]);
 
-function buildHexPathD(size: number, strokeWidth: number): string {
-  const cx = size / 2;
-  const cy = size / 2;
-  const r = Math.max(size / 2 - strokeWidth / 2 - 2, 8);
-  const cornerR = Math.min(r * 0.07, r * 0.18);
-  const pts = flatTopHexVertices(cx, cy, r);
-  return roundedHexPath(pts, cornerR);
-}
+  const svgFilter: CSSProperties | undefined =
+    glowColor !== undefined ? { filter: `drop-shadow(0 0 8px ${glowColor}66)` } : undefined;
 
-function laneToStroke(lane: AgentHiveLane): string {
-  if (lane === "unassigned" || lane === "queen") {
-    return AMBER_STROKE;
-  }
-  return SWARM_STROKE[lane];
+  return (
+    <svg
+      className="pointer-events-none absolute inset-0 z-0 h-full w-full"
+      viewBox={`0 0 ${vb} ${vb}`}
+      preserveAspectRatio="xMidYMid meet"
+      style={svgFilter}
+      aria-hidden
+    >
+      <path d={d} fill={fill} stroke={strokeColor} strokeWidth={strokeWidth} strokeLinejoin="round" />
+    </svg>
+  );
 }
 
 interface HexAgentCardProps {
@@ -139,7 +187,7 @@ interface HexAgentCardProps {
 }
 
 /**
- * Agent roster hex — SVG rounded stroke (~7% corner radius), pollen accent by lane.
+ * Agent roster hex — rounded pointy-top hex via SVG stroke; amber when not swarm-colored.
  */
 export function HexAgentCard({
   agent,
@@ -150,40 +198,21 @@ export function HexAgentCard({
   className,
   size,
 }: HexAgentCardProps): JSX.Element {
-  const strokeW = DEFAULT_STROKE_WIDTH;
-  const pathD = useMemo(() => buildHexPathD(VIEWBOX_SIZE, strokeW), [strokeW]);
-
-  const lane = agentHiveLane(agent);
-  const borderColor = laneToStroke(lane);
   const sk = swarmKeyFromAgent(agent);
-  const pollenAccent = sk === "unassigned" ? AMBER_STROKE : SWARM_STROKE[sk];
+  const borderColor = sk === "unassigned" ? AMBER_STROKE : SWARM_STROKE[sk];
+  const pollenAccent = borderColor;
 
   const sv = statusVisual(agent.status ?? "");
   const statusColor = STATUS_COLORS[sv.tone];
   const pollenVal = pollenDisplay(agent.pollen_points ?? 0);
   const scoreP = pctScore(agent.performance_score);
   const idle = agent.status.toUpperCase() === "IDLE";
-
-  const glowStyle = sv.pulse ? { filter: `drop-shadow(0 0 14px ${borderColor}66)` } : undefined;
+  /** Running / busy — Phase R “active” glow matches border hue. */
+  const glowHue = sv.pulse ? borderColor : undefined;
 
   const inner = (
     <>
-      <svg
-        className="pointer-events-none absolute inset-0 h-full w-full"
-        viewBox={`0 0 ${VIEWBOX_SIZE} ${VIEWBOX_SIZE}`}
-        preserveAspectRatio="xMidYMid meet"
-        style={glowStyle}
-        aria-hidden
-      >
-        <path
-          d={pathD}
-          fill={FILL_HEX}
-          stroke={borderColor}
-          strokeWidth={strokeW}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-      </svg>
+      <RoundedHex strokeColor={borderColor} strokeWidth={DEFAULT_STROKE_WIDTH} fill={HEX_FILL} glowColor={glowHue} />
       <div className="qs-hex__inner">
         <div
           className={cn("qs-hex__dot", sv.pulse && "qs-pulse")}
@@ -206,7 +235,12 @@ export function HexAgentCard({
     </>
   );
 
-  const rootClass = cn("qs-hex group", idle && "opacity-[0.97]", className);
+  const rootClass = cn(
+    "qs-hex group relative",
+    idle && "opacity-[0.97]",
+    size === undefined ? "h-[106px] w-[106px] sm:h-[140px] sm:w-[140px]" : "",
+    className,
+  );
   const rootStyle: CSSProperties | undefined =
     size !== undefined ? { width: size, height: size } : undefined;
 

@@ -186,12 +186,10 @@
     margin-top: var(--qs-gap);
   }
 
-  /* ── qs hex agent tile (SVG border in HexAgentCard; CSS is layout-only) ── */
+  /* ── qs hex agent tile (SVG border in HexAgentCard; CSS is layout shell only — no clip-path) ── */
   .qs-hex {
-    width: 140px;
-    height: 140px;
     position: relative;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
@@ -204,6 +202,7 @@
     padding: 0;
     -webkit-appearance: none;
     appearance: none;
+    box-sizing: border-box;
   }
 
   a.qs-hex {
@@ -275,7 +274,7 @@
   .qs-hex-grid {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 10px;
     padding: 4px 0;
     justify-content: center;
   }
@@ -467,11 +466,6 @@
   }
 
   @media (max-width: 768px) {
-    .qs-hex {
-      width: 106px;
-      height: 106px;
-    }
-
     .qs-hex__name {
       font-size: 9px;
       max-width: 80px;
