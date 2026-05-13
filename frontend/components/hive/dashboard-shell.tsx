@@ -60,7 +60,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
 
         <HiveMobileHeader pathname={pathname} summary={summary} />
 
-        <main className="relative mx-auto w-full max-w-[1400px] flex-1 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-6 md:pb-20 lg:px-8 lg:pb-16">
+        <main className="relative mx-auto w-full max-w-[1400px] flex-1 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-8 md:pb-20 lg:px-9 lg:pb-16">
           {children}
         </main>
 
