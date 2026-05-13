@@ -5,18 +5,63 @@ import { Hexagon, LayoutGrid, List, Play, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { HexAgentCard } from "@/components/hive/hex-agent-card";
-import {
-  agentHiveLane,
-  type AgentsSwarmFilter,
-  type AgentHiveLane,
-  isQueenAgent,
-} from "@/lib/agent-hive-lane";
+import type { AgentsSwarmFilter, AgentHiveLane } from "@/lib/agent-hive-lane";
+import { isQueenAgent } from "@/lib/agent-hive-lane";
 import type { AgentRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
 export type { AgentsSwarmFilter, AgentHiveLane } from "@/lib/agent-hive-lane";
 
 type ViewMode = "grid" | "list";
+
+function filledHiveId(value: unknown): boolean {
+  return value !== undefined && value !== null && String(value).trim() !== "";
+}
+
+function hasSubSwarmId(agent: AgentRow): boolean {
+  return filledHiveId(agent.sub_swarm_id);
+}
+
+function rawSwarmHints(agent: AgentRow): string {
+  const parts = [agent.swarm_type, agent.swarm?.name, agent.swarm_name, agent.swarm_purpose].filter(Boolean);
+  return parts.join(" ").toLowerCase();
+}
+
+/**
+ * Roster grouping for pills (workers only). ``unassigned`` when ``sub_swarm_id`` absent or swarm kind unknown.
+ *
+ * Phase R: never infer assignment from ``swarm_id`` alone — only ``sub_swarm_id`` marks placement.
+ */
+function workerSwarmPillBucket(agent: AgentRow): Exclude<AgentsSwarmFilter, "all"> {
+  if (!hasSubSwarmId(agent)) {
+    return "unassigned";
+  }
+  const raw = rawSwarmHints(agent);
+  if (raw.includes("scout")) {
+    return "scout";
+  }
+  if (raw.includes("eval")) {
+    return "eval";
+  }
+  if (raw.includes("sim")) {
+    return "sim";
+  }
+  if (raw.includes("action")) {
+    return "action";
+  }
+  return "unassigned";
+}
+
+function agentListLane(agent: AgentRow): AgentHiveLane {
+  if (isQueenAgent(agent)) {
+    return "queen";
+  }
+  const b = workerSwarmPillBucket(agent);
+  if (b === "unassigned") {
+    return "unassigned";
+  }
+  return b;
+}
 
 function roleDisplayName(role: string): string {
   const r = role.toLowerCase();
@@ -221,7 +266,7 @@ export function AgentsLiveSection({
       if (isQueenAgent(a)) {
         continue;
       }
-      const L = agentHiveLane(a);
+      const L = workerSwarmPillBucket(a);
       if (L === "scout") {
         scout += 1;
       } else if (L === "eval") {
@@ -245,19 +290,17 @@ export function AgentsLiveSection({
       if (isQueenAgent(a)) {
         continue;
       }
-      if (agentHiveLane(a) === "unassigned") {
+      if (!hasSubSwarmId(a)) {
         continue;
       }
-      if (a.swarm_id) {
-        ids.add(String(a.swarm_id));
-      }
+      ids.add(String(a.sub_swarm_id));
     }
     return ids.size;
   }, [agents]);
 
   const assignedWorkerCount = useMemo(
     () =>
-      agents.filter((a) => !isQueenAgent(a) && agentHiveLane(a) !== "unassigned").length,
+      agents.filter((a) => !isQueenAgent(a) && workerSwarmPillBucket(a) !== "unassigned").length,
     [agents],
   );
 
@@ -265,7 +308,7 @@ export function AgentsLiveSection({
     if (swarmFilter === "all") {
       return agents;
     }
-    return agents.filter((a) => agentHiveLane(a) === swarmFilter);
+    return agents.filter((a) => !isQueenAgent(a) && workerSwarmPillBucket(a) === swarmFilter);
   }, [agents, swarmFilter]);
 
   const pills: { key: AgentsSwarmFilter; count: number }[] = [
@@ -288,7 +331,8 @@ export function AgentsLiveSection({
           </p>
           <p className="mt-2 max-w-3xl font-[family-name:var(--font-inter)] text-xs leading-relaxed text-zinc-600">
             Žiadne pevné kvóty scout/eval/sim pri štarte — priradenie swarmu, manažment a zobrazenie naučeného obsahu sa
-            doladia neskôr; zoznam používa výhradne <span className="text-zinc-500">swarm_id</span> zo servera (nie hádanie podľa mena).
+            doladia neskôr; stĺpce filtra sa viažu na <span className="text-zinc-500">sub_swarm_id</span> a typ úlohy z metadát
+            (nie automatické priradenie podľa mena agenta).
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -378,7 +422,7 @@ export function AgentsLiveSection({
       ) : (
         <ul className="mt-8 space-y-3">
           {filtered.map((agent) => {
-            const lane = agentHiveLane(agent);
+            const lane = agentListLane(agent);
             const theme = laneTheme(lane === "queen" ? "queen" : lane, agent);
             const err = agent.status.toUpperCase() === "ERROR";
             const scoreP = pctScore(agent.performance_score);
