@@ -583,7 +583,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
         <button
           type="button"
           disabled={missionBusy}
-          className="mt-6 w-full rounded-2xl border-[3px] border-pollen bg-pollen py-3.5 text-center text-lg font-black tracking-tight text-black shadow-[0_0_48px_rgb(255_184_0/0.4)] hover:bg-[#ffc933] disabled:opacity-45 md:py-4 md:text-xl"
+          className="qs-btn qs-btn--primary qs-btn--xl qs-btn--full mt-6 disabled:opacity-45"
           onClick={() => void runMission()}
         >
           {missionBusy ? "Spracúvam…" : "Spusti úlohu"}
