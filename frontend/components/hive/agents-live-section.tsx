@@ -5,69 +5,18 @@ import { Hexagon, LayoutGrid, List, Play, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { HexAgentCard } from "@/components/hive/hex-agent-card";
+import {
+  agentHiveLane,
+  type AgentsSwarmFilter,
+  type AgentHiveLane,
+  isQueenAgent,
+} from "@/lib/agent-hive-lane";
 import type { AgentRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
-/** Tab filter for the live roster (no ``queen`` lane — Queen rides only under ``all``). */
-export type AgentsSwarmFilter = "all" | "unassigned" | "scout" | "eval" | "sim" | "action";
-
-/** Placement derived from DB (``swarm_id`` + hydrated ``swarm_purpose``), plus ``queen`` tier. */
-export type AgentHiveLane = "queen" | "unassigned" | "scout" | "eval" | "sim" | "action";
+export type { AgentsSwarmFilter, AgentHiveLane } from "@/lib/agent-hive-lane";
 
 type ViewMode = "grid" | "list";
-
-function isQueenAgent(agent: AgentRow): boolean {
-  const tier = (agent.hive_tier ?? "").toLowerCase();
-  return tier === "orchestrator" || agent.name.toLowerCase() === "orchestrator";
-}
-
-/** Map API ``SwarmPurpose`` (and legacy name hints) to dashboard lanes. */
-function purposeToLane(purpose: string | null | undefined): "scout" | "eval" | "sim" | "action" | null {
-  const u = (purpose ?? "").toLowerCase();
-  if (u === "scout") {
-    return "scout";
-  }
-  if (u === "eval") {
-    return "eval";
-  }
-  if (u === "simulation") {
-    return "sim";
-  }
-  if (u === "action") {
-    return "action";
-  }
-  return null;
-}
-
-function agentLane(agent: AgentRow): AgentHiveLane {
-  if (isQueenAgent(agent)) {
-    return "queen";
-  }
-  const sid = agent.swarm_id;
-  const anchored = sid !== undefined && sid !== null && String(sid).trim().length > 0;
-  if (!anchored) {
-    return "unassigned";
-  }
-  const lane = purposeToLane(agent.swarm_purpose);
-  if (lane) {
-    return lane;
-  }
-  const label = (agent.swarm_name ?? "").toLowerCase();
-  if (label.includes("scout")) {
-    return "scout";
-  }
-  if (label.includes("eval")) {
-    return "eval";
-  }
-  if (label.includes("sim")) {
-    return "sim";
-  }
-  if (label.includes("action")) {
-    return "action";
-  }
-  /** FK without join metadata — safest neutral bucket until enrichment lands. */
-  return "unassigned";
-}
 
 function roleDisplayName(role: string): string {
   const r = role.toLowerCase();
@@ -147,12 +96,12 @@ function laneTheme(lane: AgentHiveLane, agent: AgentRow): LaneTheme {
   }
   if (lane === "unassigned") {
     return {
-      hexBorder: "border-zinc-400/70",
-      barBg: "bg-zinc-400",
-      glow: "shadow-[0_0_18px_rgb(161_161_170/0.28)]",
-      listBar: "bg-zinc-500",
-      scoreText: "text-zinc-300",
-      pillClass: "border-zinc-500/50 text-zinc-400",
+      hexBorder: "border-pollen/65",
+      barBg: "bg-pollen/85",
+      glow: "shadow-[0_0_22px_rgb(255_184_0/0.33)]",
+      listBar: "bg-pollen/80",
+      scoreText: "text-pollen/90",
+      pillClass: "border-pollen/35 text-pollen/90",
     };
   }
   const n = agent.name.toLowerCase();
@@ -272,7 +221,7 @@ export function AgentsLiveSection({
       if (isQueenAgent(a)) {
         continue;
       }
-      const L = agentLane(a);
+      const L = agentHiveLane(a);
       if (L === "scout") {
         scout += 1;
       } else if (L === "eval") {
@@ -290,13 +239,25 @@ export function AgentsLiveSection({
 
   const roleTypeCount = useMemo(() => new Set(agents.map((a) => a.role.toLowerCase())).size, [agents]);
 
-  const swarmCountDistinct = useMemo(
-    () => new Set(agents.map((a) => a.swarm_id).filter(Boolean)).size,
-    [agents],
-  );
+  const swarmCountDistinct = useMemo(() => {
+    const ids = new Set<string>();
+    for (const a of agents) {
+      if (isQueenAgent(a)) {
+        continue;
+      }
+      if (agentHiveLane(a) === "unassigned") {
+        continue;
+      }
+      if (a.swarm_id) {
+        ids.add(String(a.swarm_id));
+      }
+    }
+    return ids.size;
+  }, [agents]);
 
   const assignedWorkerCount = useMemo(
-    () => agents.filter((a) => !isQueenAgent(a) && Boolean(a.swarm_id)).length,
+    () =>
+      agents.filter((a) => !isQueenAgent(a) && agentHiveLane(a) !== "unassigned").length,
     [agents],
   );
 
@@ -304,7 +265,7 @@ export function AgentsLiveSection({
     if (swarmFilter === "all") {
       return agents;
     }
-    return agents.filter((a) => agentLane(a) === swarmFilter);
+    return agents.filter((a) => agentHiveLane(a) === swarmFilter);
   }, [agents, swarmFilter]);
 
   const pills: { key: AgentsSwarmFilter; count: number }[] = [
@@ -417,7 +378,7 @@ export function AgentsLiveSection({
       ) : (
         <ul className="mt-8 space-y-3">
           {filtered.map((agent) => {
-            const lane = agentLane(agent);
+            const lane = agentHiveLane(agent);
             const theme = laneTheme(lane === "queen" ? "queen" : lane, agent);
             const err = agent.status.toUpperCase() === "ERROR";
             const scoreP = pctScore(agent.performance_score);
