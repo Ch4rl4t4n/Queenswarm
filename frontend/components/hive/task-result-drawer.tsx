@@ -1,7 +1,8 @@
 "use client";
 
-import { HiveApiError, hiveFetchRaw, hiveGet } from "@/lib/api";
+import { HiveApiError, hiveFetchRaw, hiveGet, hivePostJson } from "@/lib/api";
 import type { TaskRow } from "@/lib/hive-types";
+import { cn } from "@/lib/utils";
 import { useCallback, useEffect, useState } from "react";
 
 interface TaskDrawerDetail extends TaskRow {
@@ -76,12 +77,12 @@ function LiveStatusPoller({
       void (async (): Promise<void> => {
         try {
           const data = await hiveGet<TaskDrawerDetail>(`tasks/${encodeURIComponent(taskId)}`);
+          onRefresh(data);
           const st = (data.status ?? "").toLowerCase();
           if (st === "completed" || st === "failed") {
             window.clearInterval(poll);
             window.clearInterval(dotInterval);
             window.clearInterval(eta);
-            onRefresh(data);
           }
         } catch {
           /* ignore transient poll failures */
@@ -114,19 +115,23 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
   const [task, setTask] = useState<TaskDrawerDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [drawerError, setDrawerError] = useState<string | null>(null);
+  const [slideIn, setSlideIn] = useState(false);
   const pollComplete = useCallback((next: TaskDrawerDetail) => setTask(next), []);
 
   useEffect(() => {
     if (!taskId) {
       setTask(null);
+      setSlideIn(false);
       return;
     }
+    setSlideIn(false);
     setDrawerError(null);
     setLoading(true);
     hiveGet<TaskDrawerDetail>(`tasks/${encodeURIComponent(taskId)}`)
       .then((d) => {
         setTask(d);
         setLoading(false);
+        requestAnimationFrame(() => setSlideIn(true));
       })
       .catch((e: unknown) => {
         setLoading(false);
@@ -208,6 +213,22 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
     }
   }
 
+  async function handleRerunAgent(): Promise<void> {
+    const aid = task?.agent_id;
+    if (!aid) {
+      return;
+    }
+    try {
+      await hivePostJson<{ task_id?: string }>(`agents/${encodeURIComponent(aid)}/run`, {});
+      if (taskId) {
+        const next = await hiveGet<TaskDrawerDetail>(`tasks/${encodeURIComponent(taskId)}`);
+        setTask(next);
+      }
+    } catch (e) {
+      window.alert(e instanceof HiveApiError ? e.message : "Re-run failed");
+    }
+  }
+
   const badgeStatus = displayStatus(task?.status);
   const statusColor: Record<string, string> = {
     queued: "text-pollen border-pollen/30 bg-pollen/10",
@@ -227,7 +248,12 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
         onClick={onClose}
       />
 
-      <div className="fixed right-0 top-0 z-50 flex h-full w-full max-w-2xl flex-col border-l border-cyan/[0.12] bg-[#0a0a1f] shadow-2xl">
+      <div
+        className={cn(
+          "fixed right-0 top-0 z-50 flex h-full w-full max-w-2xl flex-col border-l border-[var(--qs-border)] bg-[var(--qs-surface)] shadow-2xl transition-transform duration-300 ease-out",
+          slideIn ? "translate-x-0" : "translate-x-full",
+        )}
+      >
         <div className="flex items-start justify-between border-b border-cyan/[0.12] p-5">
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex flex-wrap items-center gap-2">
@@ -349,6 +375,13 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
             </div>
           ) : null}
         </div>
+        {!loading && task?.agent_id ? (
+          <footer className="flex justify-end gap-2 border-t border-[var(--qs-border)] bg-[var(--qs-surface-2)] p-4">
+            <button type="button" className="qs-btn qs-btn--test qs-btn--sm" onClick={() => void handleRerunAgent()}>
+              Re-run agent
+            </button>
+          </footer>
+        ) : null}
       </div>
     </>
   );
