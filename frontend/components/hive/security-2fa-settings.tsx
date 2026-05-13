@@ -48,7 +48,8 @@ export function Security2FASettings() {
   const [busy, setBusy] = useState(false);
 
   const [enrollOpen, setEnrollOpen] = useState(false);
-  const [enrollPhase, setEnrollPhase] = useState<"password" | "qr" | "confirm">("password");
+  /** password → hive password + provision · scan → QR + manual secret + 6-digit verify (never code-only). */
+  const [enrollPhase, setEnrollPhase] = useState<"password" | "scan">("password");
   const [enrollPassword, setEnrollPassword] = useState("");
   const [provision, setProvision] = useState<TotpProvisionResponse | null>(null);
   const [confirmCode, setConfirmCode] = useState("");
@@ -93,11 +94,7 @@ export function Security2FASettings() {
     setConfirmCode("");
     setProvision(null);
     setQrDataUrl(null);
-    if (twofaPending) {
-      setEnrollPhase("confirm");
-    } else {
-      setEnrollPhase("password");
-    }
+    setEnrollPhase("password");
     setEnrollOpen(true);
   }
 
@@ -112,7 +109,7 @@ export function Security2FASettings() {
         password: enrollPassword,
       });
       setProvision(prov);
-      setEnrollPhase("qr");
+      setEnrollPhase("scan");
       toast.success("Naskenuj QR kód alebo zadaj kľúč ručne.");
     } catch (e) {
       const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Provision zlyhal";
@@ -122,8 +119,8 @@ export function Security2FASettings() {
     }
   }
 
-  async function submitConfirmTotp(): Promise<void> {
-    const c = confirmCode.trim();
+  async function submitConfirmTotp(rawCode?: string): Promise<void> {
+    const c = (rawCode ?? confirmCode).trim();
     if (c.length < 6) {
       toast.error("Zadaj 6-miestny TOTP kód.");
       return;
@@ -133,6 +130,10 @@ export function Security2FASettings() {
       const res = await hivePostJson<TotpConfirmResponse>("auth/profile/totp/confirm", { code: c });
       await loadMe();
       setEnrollOpen(false);
+      setEnrollPhase("password");
+      setProvision(null);
+      setConfirmCode("");
+      setQrDataUrl(null);
       if (res.backup_codes?.length) {
         setFreshCodes(res.backup_codes);
         toast.success("2FA je aktívne. Ulož si záložné kódy.");
@@ -194,7 +195,7 @@ export function Security2FASettings() {
 
   useEffect(() => {
     const uri = provision?.otpauth_uri?.trim();
-    if (!uri || enrollPhase !== "qr") {
+    if (!uri || enrollPhase !== "scan") {
       return;
     }
     let cancelled = false;
@@ -257,12 +258,9 @@ export function Security2FASettings() {
       </section>
       {twofaPending ? (
         <div className="rounded-2xl border border-pollen/35 bg-pollen/[0.06] px-4 py-3 font-[family-name:var(--font-inter)] text-sm text-zinc-200">
-          Dokonči nastavenie 2FA — zadaj kód z aplikácie (Google Authenticator alebo kompatibilná).
-          <button
-            type="button"
-            className="ml-3 font-semibold text-pollen underline decoration-dotted"
-            onClick={openEnrollFromUi}
-          >
+          Dokonči nastavenie 2FA — otvor sprievodcu, znova zadaj heslo a najprv naskenuj QR kód v aplikácii Authenticator,
+          potom zadáš šesťmiestny kód nižšie v tom istom okne.
+          <button type="button" className="ml-3 font-semibold text-pollen underline decoration-dotted" onClick={openEnrollFromUi}>
             Pokračovať
           </button>
         </div>
@@ -345,7 +343,7 @@ export function Security2FASettings() {
               Nastaviť 2FA
             </button>
             <span className="font-[family-name:var(--font-inter)] text-xs text-zinc-500">
-              Alebo zapni prepínač vpravo — otvorí rovnaký sprievodca (heslo → QR → overenie kódom).
+              Alebo zapni prepínač vpravo — otvorí sprievodca: heslo → QR kód a až potom zadanie 6-miestneho kódu.
             </span>
           </div>
         ) : null}
@@ -395,11 +393,18 @@ export function Security2FASettings() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal>
           <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl border border-white/10 bg-[#0a0a12] p-6 shadow-[0_0_48px_rgb(255_184_0/0.12)]">
             <h3 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">
-              {enrollPhase === "password" ? "Potvrď heslo" : enrollPhase === "qr" ? "Naskenuj QR" : "Potvrď TOTP"}
+              {enrollPhase === "password" ? "Potvrď heslo" : "Naskenuj QR a over Authenticator"}
             </h3>
             {enrollPhase === "password" ? (
               <>
-                <p className="mt-2 text-sm text-zinc-500">Na vygenerovanie nového TOTP kľúča zadaj svoje heslo.</p>
+                <p className="mt-2 text-sm text-zinc-500">
+                  Na vygenerovanie TOTP kľúča a zobrazenie QR kódu zadaj svoje prihlasovacie heslo.
+                  {twofaPending ? (
+                    <span className="mt-1 block text-xs text-zinc-500">
+                      Rozpracované nastavenie sa dokončí novým sekretom (po kontrole hesla).
+                    </span>
+                  ) : null}
+                </p>
                 <input
                   type="password"
                   value={enrollPassword}
@@ -422,58 +427,78 @@ export function Security2FASettings() {
                 </div>
               </>
             ) : null}
-            {enrollPhase === "qr" && provision ? (
+            {enrollPhase === "scan" && provision ? (
               <>
-                <div className="mt-4 flex justify-center">
-                  {qrBusy ? (
-                    <span className="text-xs text-zinc-500">Generating QR…</span>
-                  ) : qrDisplaySrc ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- data URLs ok here.
-                    <img src={qrDisplaySrc} alt="QR pre TOTP" className="h-40 w-40 rounded-xl border border-white/10" width={160} height={160} />
-                  ) : (
-                    <span className="text-xs text-zinc-600">QR nedostupný — použij sekret nižšie.</span>
-                  )}
-                </div>
-                <p className="mt-3 font-[family-name:var(--font-jetbrains-mono)] text-[11px] break-all text-zinc-400">
-                  {provision.secret_base32}
+                <p className="mt-3 text-sm leading-relaxed text-zinc-400">
+                  Otvor <strong className="text-[#fafafa]">Google Authenticator</strong>, klepni{" "}
+                  <strong className="text-[#fafafa]">+</strong> → <strong className="text-[#fafafa]">Scan QR code</strong>{" "}
+                  a namierte na QR. Až po naskenovaní zadaj šesťmiestny kód dolu — ten istý pohľad, žiadny skrytý krok bez QR.
                 </p>
-                <button
-                  type="button"
-                  className="mt-4 qs-btn qs-btn--cyan qs-btn--full"
-                  onClick={() => setEnrollPhase("confirm")}
-                >
-                  Mám naskenované — zadať kód
-                </button>
-              </>
-            ) : null}
-            {enrollPhase === "confirm" ? (
-              <>
-                {!provision && twofaPending ? (
-                  <p className="mt-2 text-sm text-zinc-500">Zadaj 6-miestny kód z aplikácie na dokončenie.</p>
-                ) : null}
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  value={confirmCode}
-                  onChange={(e) => setConfirmCode(e.target.value)}
-                  placeholder="123456"
-                  className="mt-4 w-full rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-pollen/40"
-                />
-                <div className="mt-4 flex justify-end gap-2">
-                  <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => setEnrollOpen(false)}>
+
+                <div className="mt-5 flex flex-wrap items-start gap-5">
+                  <div className="shrink-0 rounded-xl bg-white p-3 shadow-[inset_0_0_0_1px_rgba(30,30,53,1)]">
+                    {qrBusy ? (
+                      <div className="flex h-[200px] w-[200px] items-center justify-center text-xs text-zinc-600">Generujem QR…</div>
+                    ) : qrDisplaySrc ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- data URLs ok here.
+                      <img src={qrDisplaySrc} alt="QR pre TOTP" width={200} height={200} className="block h-[200px] w-[200px]" />
+                    ) : (
+                      <div className="flex h-[200px] w-[196px] items-center px-3 text-center text-[11px] text-zinc-600">
+                        QR nedostupný — zadaj kľúč ručne pozri pod QR oblasťou.
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-[180px] max-w-full flex-1">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">Manuálny kľúč (záloha)</p>
+                    <p className="mt-2 break-all font-[family-name:var(--font-jetbrains-mono)] text-xs leading-relaxed text-pollen">
+                      {provision.secret_base32}
+                    </p>
+                  </div>
+                </div>
+
+                <label className="mt-6 block">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-zinc-500">Kód z Authenticator (6 číslic)</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={confirmCode}
+                    maxLength={6}
+                    placeholder="••••••"
+                    onChange={(e) => setConfirmCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    onKeyDown={(e) => {
+                      if (e.key !== "Enter" || busy) return;
+                      const raw = e.currentTarget.value.replace(/\D/g, "").slice(0, 6);
+                      if (raw.length >= 6) void submitConfirmTotp(raw);
+                    }}
+                    className="mt-2 w-full max-w-[200px] rounded-xl border border-white/15 bg-black/50 py-3 text-center font-[family-name:var(--font-jetbrains-mono)] text-xl tracking-[0.35em] text-[#fafafa] outline-none focus:border-pollen/50"
+                  />
+                </label>
+                <div className="mt-4 flex flex-wrap justify-end gap-2">
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--ghost qs-btn--sm"
+                    onClick={() => {
+                      setEnrollOpen(false);
+                      setProvision(null);
+                      setConfirmCode("");
+                      setEnrollPhase("password");
+                    }}
+                  >
                     Zrušiť
                   </button>
                   <button
                     type="button"
-                    disabled={busy}
+                    disabled={busy || confirmCode.length < 6}
                     className="qs-btn qs-btn--primary qs-btn--sm disabled:opacity-40"
                     onClick={() => void submitConfirmTotp()}
                   >
-                    Overiť
+                    Overiť a zapnúť 2FA
                   </button>
                 </div>
               </>
+            ) : enrollPhase === "scan" && !provision ? (
+              <p className="mt-4 text-sm text-zinc-500">Žiadne dáta na zobrazenie QR — začni od hesla („Potvrď heslo“).</p>
             ) : null}
           </div>
         </div>
