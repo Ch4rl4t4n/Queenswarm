@@ -307,12 +307,15 @@ export function NewTaskConsole() {
 
   return (
     <div className="mx-auto w-full max-w-3xl pb-24">
-      <div className="mb-8 flex flex-col gap-4">
-        <Link href="/" className="qs-btn qs-btn--ghost qs-btn--sm w-fit self-start gap-1.5 px-4">
-          <ChevronLeftIcon className="h-4 w-4" aria-hidden />
+      <div className="mb-8 flex flex-col items-start gap-4">
+        <Link
+          href="/"
+          className="qs-btn qs-btn--ghost qs-btn--sm inline-flex w-auto max-w-full shrink-0 gap-1.5 px-4"
+        >
+          <ChevronLeftIcon className="h-4 w-4 shrink-0" aria-hidden />
           Späť
         </Link>
-        <div>
+        <div className="w-full min-w-0">
           <h1 className="font-[family-name:var(--font-poppins)] text-3xl font-bold tracking-tight text-[#fafafa]">Nový task</h1>
           <p className="mt-2 max-w-xl font-[family-name:var(--font-inter)] text-sm text-zinc-500">
             Popíš, čo potrebuješ. Auto-workflow breaker rozloží zadanie na atomické kroky.

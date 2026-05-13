@@ -457,6 +457,14 @@
 
   a.qs-btn {
     display: inline-flex;
+    /* Flex column parents default align-items: stretch — avoid full-width ghost links ("Späť"). */
+    width: fit-content;
+    max-width: 100%;
+  }
+
+  a.qs-btn.qs-btn--full {
+    width: 100%;
+    max-width: none;
   }
 
   .qs-btn:hover:not(:disabled) {
