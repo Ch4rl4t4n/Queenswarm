@@ -1,6 +1,8 @@
+import Link from "next/link";
+
 import { HivePageHeader } from "@/components/hive/hive-page-header";
 import { hiveServerRawJson } from "@/lib/hive-server";
-import type { DashboardSummary, SubSwarmRow, WaggleDanceSummaryRow } from "@/lib/hive-types";
+import type { AgentRow, DashboardSummary, SubSwarmRow, WaggleDanceSummaryRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -9,10 +11,10 @@ function purposePalette(purpose: string): { border: string; hex: string; glow: s
   const p = purpose.toUpperCase();
   if (p.includes("SCOUT")) {
     return {
-      border: "border-data/35",
-      hex: "from-data/90 to-cyan-600",
-      glow: "shadow-[0_0_24px_rgb(0_255_255/0.25)]",
-      bar: "bg-data",
+      border: "border-[#00E5FF]/35",
+      hex: "from-[#00E5FF]/90 to-cyan-700",
+      glow: "shadow-[0_0_24px_rgb(0_229_255/0.25)]",
+      bar: "bg-[#00E5FF]",
     };
   }
   if (p.includes("EVAL")) {
@@ -48,33 +50,49 @@ function relativeSync(iso: string | null | undefined): string {
   return `${Math.floor(sec / 3600)}h ago`;
 }
 
-export default async function SwarmsPage() {
-  const colonies = await hiveServerRawJson<SubSwarmRow[]>("/swarms?limit=50");
-  const summary = await hiveServerRawJson<DashboardSummary>("/dashboard/summary");
-  const dances = summary?.waggle_dances ?? [];
+function matchPurpose(agent: AgentRow, needle: string): boolean {
+  const p = (agent.swarm_purpose ?? "").toLowerCase();
+  if (p.includes(needle)) {
+    return true;
+  }
+  const name = (agent.swarm_name ?? "").toLowerCase();
+  return name.includes(needle);
+}
 
-  if (!colonies) {
-    return (
-      <div className="space-y-8">
-        <HivePageHeader
-          title="Sub-Swarms"
-          subtitle="Four decentralized roves with local memory. Global sync every 5 min."
-        />
-        <article className="rounded-3xl border border-danger/35 bg-danger/10 p-6 backdrop-blur-sm">
-          <p className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-danger">
-            Colony catalog unavailable
-          </p>
-          <p className="mt-3 max-w-2xl font-[family-name:var(--font-inter)] text-sm leading-relaxed text-zinc-300">
-            The server render could not fetch <code className="font-mono text-xs text-data">GET /api/v1/swarms</code>. Sign
-            in again, or ensure the frontend stack can reach the hive API (HttpOnly session cookie for RSC, or{" "}
-            <code className="font-mono text-xs text-data">HIVE_PROXY_JWT</code> in Compose when no session is present).
-          </p>
-          <p className="mt-4 font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-400">
-            INTERNAL_BACKEND_ORIGIN must point at the FastAPI container from the Next.js service.
-          </p>
-        </article>
-      </div>
-    );
+function fallbackSwarms(agents: AgentRow[] | null): SubSwarmRow[] {
+  const templates: { purpose: string; name: string; needle: string }[] = [
+    { purpose: "scout", name: "Scout Swarm", needle: "scout" },
+    { purpose: "eval", name: "Eval Swarm", needle: "eval" },
+    { purpose: "simulation", name: "Sim Swarm", needle: "sim" },
+    { purpose: "action", name: "Action Swarm", needle: "action" },
+  ];
+
+  const pool = agents ?? [];
+  return templates.map((t, idx) => ({
+    id: `synthetic-swarm-${idx}`,
+    name: t.name,
+    purpose: t.purpose,
+    member_count: pool.filter((a) => matchPurpose(a, t.needle)).length,
+    total_pollen: Math.round(pool.filter((a) => matchPurpose(a, t.needle)).reduce((s, a) => s + Number(a.pollen_points ?? 0), 0)),
+    is_active: true,
+    last_global_sync_at: null,
+  }));
+}
+
+export default async function SwarmsPage() {
+  const coloniesRaw = await hiveServerRawJson<SubSwarmRow[]>("/swarms?limit=50");
+  const summary = await hiveServerRawJson<DashboardSummary>("/dashboard/summary");
+  const dances: WaggleDanceSummaryRow[] = summary?.waggle_dances ?? [];
+
+  let colonies: SubSwarmRow[];
+  let usedFallback = false;
+
+  if (coloniesRaw && coloniesRaw.length > 0) {
+    colonies = coloniesRaw;
+  } else {
+    const agentsSeed = await hiveServerRawJson<AgentRow[]>("/agents?limit=200");
+    colonies = fallbackSwarms(agentsSeed);
+    usedFallback = true;
   }
 
   return (
@@ -84,10 +102,18 @@ export default async function SwarmsPage() {
         subtitle="Four decentralized roves with local memory. Global sync every 5 min."
       />
 
+      {usedFallback ? (
+        <article className="rounded-3xl border border-pollen/30 bg-black/35 px-4 py-3 font-[family-name:var(--font-inter)] text-sm text-zinc-300">
+          Live <code className="font-mono text-xs text-data">GET /api/v1/swarms</code> payload was empty or unreachable — showing static quorum cards seeded with counts from{" "}
+          <code className="font-mono text-xs text-data">/agents</code>. Sign in via the cockpit if SSR cannot read your session cookie, or configure{" "}
+          <code className="font-mono text-xs text-data">HIVE_PROXY_JWT</code> for unattended renders.
+        </article>
+      ) : null}
+
       <div className="grid gap-5 md:grid-cols-2">
         {colonies.length === 0 ? (
           <p className="md:col-span-2 rounded-2xl border border-cyan/15 bg-black/40 p-8 text-center font-[family-name:var(--font-inter)] text-sm text-zinc-400">
-            No colonies yet — seed scout swarms via the API or wait for the default migration.
+            No swarm rows materialized yet.
           </p>
         ) : null}
         {colonies.map((swarm, idx) => {
@@ -120,7 +146,7 @@ export default async function SwarmsPage() {
                       {swarm.name}
                     </h2>
                     <p className="mt-1 font-[family-name:var(--font-inter)] text-sm text-muted-foreground">
-                      Local shard · scout/eval/sim lane mirroring ingestion mix.
+                      Queen node mirror · pollen-weighted imitation lane.
                     </p>
                   </div>
                 </div>
@@ -138,8 +164,8 @@ export default async function SwarmsPage() {
                   <dd className="mt-1">Q-{String(swarm.name).slice(0, 7)}-{idx + 1}</dd>
                 </div>
                 <div>
-                  <dt className="font-[family-name:var(--font-inter)] text-[10px] uppercase tracking-[0.18em] text-zinc-500">Pollen</dt>
-                  <dd className="mt-1 text-pollen tabular-nums">{Number(swarm.total_pollen).toLocaleString("sk-SK", { minimumFractionDigits: 0 })}</dd>
+                  <dt className="font-[family-name:var(--font-inter)] text-[10px] uppercase tracking-[0.18em] text-zinc-500">Members</dt>
+                  <dd className="mt-1 text-data tabular-nums">{swarm.member_count}</dd>
                 </div>
                 <div>
                   <dt className="font-[family-name:var(--font-inter)] text-[10px] uppercase tracking-[0.18em] text-zinc-500">Perf</dt>
@@ -153,9 +179,9 @@ export default async function SwarmsPage() {
                 <span className="font-[family-name:var(--font-inter)] text-xs text-zinc-500">
                   Last sync · {relativeSync(swarm.last_global_sync_at)}
                 </span>
-                <button type="button" className="font-[family-name:var(--font-inter)] text-sm font-medium text-data hover:text-pollen">
+                <Link href="/agents" className="font-[family-name:var(--font-inter)] text-sm font-medium text-data hover:text-pollen">
                   Open swarm →
-                </button>
+                </Link>
               </div>
             </article>
           );
@@ -176,13 +202,15 @@ export default async function SwarmsPage() {
               <span aria-hidden className="text-muted-foreground">
                 →
               </span>
-              <span className="text-[#fafafa]">{row.signal}: {row.topic}</span>
+              <span className="text-[#fafafa]">
+                {row.signal}: {row.topic}
+              </span>
               <span className="ml-auto font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-500">{relativeSync(row.ts)}</span>
             </li>
           ))}
           {dances.length === 0 ? (
             <li className="py-10 text-center text-sm text-muted-foreground">
-              Beacon quiet — ingest /tasks to prime cross-swarm payloads.
+              Beacon quiet — enqueue /tasks to prime cross-swarm payloads.
             </li>
           ) : null}
         </ul>

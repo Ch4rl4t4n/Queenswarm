@@ -148,3 +148,14 @@ export function hiveFetchRaw(subpath: string, init?: RequestInit): Promise<Respo
 export function hiveDelete<T>(subpath: string, init?: RequestInit): Promise<T> {
   return hiveFetch<T>(subpath, { ...init, method: "DELETE" });
 }
+
+/** Convenience object for callers that prefer a grouped API surface. */
+export const hiveApi = {
+  get: hiveGet,
+  post: hivePostJson,
+  patch: hivePatchJson,
+  put: hivePutJson,
+  delete: hiveDelete,
+  fetch: hiveFetch,
+  fetchRaw: hiveFetchRaw,
+} as const;

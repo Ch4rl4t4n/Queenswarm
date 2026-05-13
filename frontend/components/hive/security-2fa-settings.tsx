@@ -204,6 +204,16 @@ export function Security2FASettings() {
 
   return (
     <div className="flex flex-col gap-6">
+      <section className="rounded-3xl border border-cyan/[0.12] bg-[#0c0c14]/95 p-6 md:p-7">
+        <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-[#fafafa]">Hive password</h2>
+        <p className="mt-2 font-[family-name:var(--font-inter)] text-sm text-zinc-400">
+          Operator passwords are provisioned through the bootstrap / admin flows on the API today. Use the same password you authenticate with at login; self-service rotation ships in a
+          follow-on release.
+        </p>
+        <p className="mt-3 font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-500">
+          Need a reset? Re-seed the queen account via infrastructure playbooks or contact the hive admin.
+        </p>
+      </section>
       {twofaPending ? (
         <div className="rounded-2xl border border-pollen/35 bg-pollen/[0.06] px-4 py-3 font-[family-name:var(--font-inter)] text-sm text-zinc-200">
           Dokonči nastavenie 2FA — zadaj kód z aplikácie (Google Authenticator alebo kompatibilná).

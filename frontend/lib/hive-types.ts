@@ -5,6 +5,58 @@ export interface WaggleDanceSummaryRow {
   topic: string;
 }
 
+/** JWT-guarded ``GET /api/v1/system/status`` gauges for KPI tiles. */
+export interface SystemStatusPayload {
+  redis_ok: boolean;
+  celery_ok: boolean;
+  db_ok: boolean;
+  llm_ok: boolean;
+  llm_grok: boolean;
+  llm_anthropic: boolean;
+  agents_total: number;
+  agents_running: number;
+  tasks_running: number;
+  tasks_pending: number;
+}
+
+/** Masked row from ``GET /api/v1/llm-keys``. */
+export interface LlmKeyMaskRow {
+  id: string;
+  provider: "grok" | "anthropic" | "openai";
+  label: string;
+  api_key_masked: string;
+  model_default: string | null;
+  is_active?: boolean;
+  is_primary?: boolean;
+  from_vault?: boolean;
+}
+
+/** Operator notification channel row from ``GET /api/v1/notifications``. */
+export interface NotificationChannelListRow {
+  id: string;
+  channel_type: "email" | "sms" | "discord" | "telegram";
+  label: string;
+  config_masked: Record<string, unknown>;
+  is_active: boolean;
+}
+
+/** Static catalog entry from ``GET /api/v1/external-apis/providers``. */
+export interface ExternalProviderMeta {
+  id: string;
+  label: string;
+  base_url?: string | null;
+}
+
+/** Persisted credential row from ``GET /api/v1/external-apis``. */
+export interface ExternalApiStoredRow {
+  id: string;
+  provider: string;
+  label: string;
+  is_active: boolean;
+  base_url: string | null;
+  credentials_masked: Record<string, unknown>;
+}
+
 export interface DashboardSummary {
   generated_at: string;
   agents: {

@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { QueenDashboardChrome } from "@/components/hive/queen-dashboard-chrome";
-import { hiveDelete, hiveFetch, hivePostJson, hivePutJson } from "@/lib/api";
-import type { AgentRow, DashboardSummary } from "@/lib/hive-types";
+import { hiveDelete, hiveFetch, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
+import type { AgentRow, DashboardSummary, SystemStatusPayload, TaskRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
 interface ColonyConsoleProps {
@@ -127,6 +127,9 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [costWindowUsd, setCostWindowUsd] = useState<number | null>(null);
   const [filterQuery, setFilterQuery] = useState("");
+  const [systemPulse, setSystemPulse] = useState<SystemStatusPayload | null>(null);
+  const [recentTasks, setRecentTasks] = useState<TaskRow[]>([]);
+  const [telemetryBusy, setTelemetryBusy] = useState(true);
 
   useEffect(() => {
     let alive = true;
@@ -152,6 +155,37 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
     })();
     return () => {
       alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function pollTelemetry(): Promise<void> {
+      try {
+        const [nextAgents, taskSlice, pulse] = await Promise.all([
+          hiveFetch<AgentRow[]>("agents?limit=200"),
+          hiveGet<TaskRow[]>("tasks?limit=10"),
+          hiveGet<SystemStatusPayload>("system/status"),
+        ]);
+        if (cancelled) {
+          return;
+        }
+        setAgents(nextAgents);
+        setRecentTasks(taskSlice);
+        setSystemPulse(pulse);
+      } catch {
+        /* keep last good snapshot */
+      } finally {
+        if (!cancelled) {
+          setTelemetryBusy(false);
+        }
+      }
+    }
+    void pollTelemetry();
+    const handle = window.setInterval(() => void pollTelemetry(), 8000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(handle);
     };
   }, []);
 
@@ -459,6 +493,9 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
         }}
         onAgentsReload={() => void reloadAgents()}
         swarmLabelCount={swarmLabelCount}
+        systemStatus={systemPulse}
+        recentTasks={recentTasks}
+        telemetryLoading={telemetryBusy && !systemPulse}
       />
 
       {/* 1 — Úloha */}

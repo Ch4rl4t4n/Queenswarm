@@ -9,7 +9,8 @@ const PUBLIC_PREFIXES = ["/login", "/verify-2fa"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const access = request.cookies.get(QS_ACCESS)?.value;
+  /** HttpOnly dashboard cookie preferred; legacy ``qs_token`` mirrors Bearer for some clients. */
+  const access = request.cookies.get(QS_ACCESS)?.value ?? request.cookies.get("qs_token")?.value;
 
   if (access && (pathname.startsWith("/login") || pathname.startsWith("/verify-2fa"))) {
     return NextResponse.redirect(new URL("/", request.url));

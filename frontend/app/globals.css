@@ -91,11 +91,21 @@
     transform: translateZ(0);
   }
 
-  /** Flat-top regular hex height = width * (√3/2) — keeps agent tiles visually hex, not “squareish”. */
+  /** Flat-top regular hex height = width * (√3/2) — compact on phones (3-across cockpit). */
   .hive-hex-flat-tile {
     width: 152px;
     height: calc(152px * 0.86602540378);
     box-sizing: border-box;
+  }
+
+  @media (max-width: 768px) {
+    .hive-hex-flat-tile {
+      width: 108px;
+      height: calc(108px * 0.86602540378);
+    }
+    .agents-mobile-gap > li {
+      margin-top: 0.5rem !important;
+    }
   }
 
   /** Subtle large hex tiling — QueenSwarm dashboard backgrounds. */

@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { Activity, Coins, ListTodo, Plus, Search, Users } from "lucide-react";
+import { Activity, Coins, Cpu, ListTodo, Plus, Search, Users, Zap } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -10,7 +10,7 @@ import { SwarmBoardSection } from "@/components/hive/swarm-board-section";
 import { TaskQueueSection } from "@/components/hive/task-queue-section";
 import { WorkflowsSection } from "@/components/hive/workflows-section";
 import { HiveApiError, hivePostJson } from "@/lib/api";
-import type { AgentRow, DashboardSummary } from "@/lib/hive-types";
+import type { AgentRow, DashboardSummary, SystemStatusPayload, TaskRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
 function formatPollen(n: number): string {
@@ -27,11 +27,17 @@ function formatUsd(n: number | null): string {
 
 function statusDotClass(status: string): string {
   const u = status.toUpperCase();
-  if (u === "RUNNING") return "bg-cyan shadow-[0_0_8px_rgb(0_255_255/0.8)]";
+  if (u.includes("RUN")) return "bg-cyan shadow-[0_0_8px_rgb(0_255_255/0.8)]";
+  if (u.includes("PEND") || u.includes("QUEUE")) return "bg-pollen shadow-[0_0_8px_rgb(255_184_0/0.45)]";
+  if (u.includes("COMP")) return "bg-success";
   if (u === "IDLE") return "bg-success";
   if (u === "PAUSED") return "bg-alert";
-  if (u === "OFFLINE" || u === "ERROR") return "bg-danger";
+  if (u === "OFFLINE" || u === "ERROR" || u.includes("FAIL")) return "bg-danger";
   return "bg-zinc-500";
+}
+
+function taskStatusBrief(statusRaw: string): string {
+  return statusRaw.replaceAll("_", " ");
 }
 
 interface QueenDashboardChromeProps {
@@ -43,6 +49,9 @@ interface QueenDashboardChromeProps {
   onHoneycombAgent: (agent: AgentRow) => void;
   onAgentsReload: () => void | Promise<void>;
   swarmLabelCount: number;
+  systemStatus?: SystemStatusPayload | null;
+  recentTasks?: TaskRow[];
+  telemetryLoading?: boolean;
 }
 
 export function QueenDashboardChrome({
@@ -54,12 +63,22 @@ export function QueenDashboardChrome({
   onHoneycombAgent,
   onAgentsReload,
   swarmLabelCount,
+  systemStatus = null,
+  recentTasks = [],
+  telemetryLoading = false,
 }: QueenDashboardChromeProps) {
   const [rebalanceBusy, setRebalanceBusy] = useState(false);
   const pollenTotal = agents.reduce((s, a) => s + (a.pollen_points ?? 0), 0);
-  const pending = summary?.tasks.pending ?? 0;
-  const totalAgents = summary?.agents.total ?? agents.length;
-  const running = agents.filter((a) => a.status?.toUpperCase() === "RUNNING").length;
+  const pendingFallback = summary?.tasks.pending ?? 0;
+  const totalAgentsListed = agents.length;
+  const totalAgentsGauge = Math.max(totalAgentsListed, systemStatus?.agents_total ?? 0);
+  const activeAgents = agents.filter((a) => ["RUNNING", "IDLE", "BUSY"].includes(String(a.status).toUpperCase())).length;
+
+  const runningTasks = systemStatus?.tasks_running ?? 0;
+  const queuedTasks = systemStatus?.tasks_pending ?? pendingFallback;
+  const llmOk = Boolean(systemStatus?.llm_grok || systemStatus?.llm_anthropic);
+
+  const showKpiPulse = telemetryLoading && !systemStatus;
 
   const tierBars = (() => {
     const m = summary?.agents.by_hive_tier ?? {};
@@ -76,10 +95,6 @@ export function QueenDashboardChrome({
       count: m[r.key] ?? 0,
     }));
   })();
-
-  const recent = [...agents]
-    .filter((a) => (a.current_task_title ?? "").trim().length > 0)
-    .slice(0, 6);
 
   async function rebalanceHive(): Promise<void> {
     setRebalanceBusy(true);
@@ -104,7 +119,7 @@ export function QueenDashboardChrome({
             Queen Swarm Dashboard
           </h1>
           <p className="mt-2 max-w-2xl font-[family-name:var(--font-inter)] text-sm text-zinc-400">
-            {totalAgents} agentov v sieti · {swarmLabelCount} swarm uzlov · synchronizácia úľa približne každých 5 min
+            {totalAgentsGauge} agentov v sieti · {swarmLabelCount} swarm uzlov · synchronizácia úľa približne každých 5 min
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-3">
@@ -139,37 +154,86 @@ export function QueenDashboardChrome({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <article className="rounded-2xl border-[2px] border-cyan/20 bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
+        {showKpiPulse ? (
+          <>
+            {[0, 1, 2, 3].map((i) => (
+              <div key={String(i)} className="animate-pulse rounded-2xl border border-cyan/10 bg-[#0d0d18]/95 p-5">
+                <div className="h-7 w-2/5 rounded-lg bg-white/10" />
+                <div className="mt-4 h-8 w-1/2 rounded-lg bg-white/10" />
+                <div className="mt-3 h-3 w-3/5 rounded bg-white/5" />
+              </div>
+            ))}
+          </>
+        ) : (
+          <>
+            <article className="rounded-2xl border-[2px] border-cyan/20 bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
+              <div className="flex items-start justify-between gap-2">
+                <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                  Total agents
+                </p>
+                <Users className="h-5 w-5 text-cyan/60" aria-hidden />
+              </div>
+              <p className="mt-3 font-[family-name:var(--font-space-grotesk)] text-3xl font-bold text-[#fafafa]">{totalAgentsListed}</p>
+              <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-success">Active {activeAgents}</p>
+            </article>
+            <article className="rounded-2xl border-[2px] border-cyan/20 bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
+              <div className="flex items-start justify-between gap-2">
+                <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                  Running tasks
+                </p>
+                <Zap className="h-5 w-5 text-data/80" aria-hidden />
+              </div>
+              <p className="mt-3 font-[family-name:var(--font-space-grotesk)] text-3xl font-bold text-data">{runningTasks}</p>
+              <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-zinc-500">From system pulse</p>
+            </article>
+            <article className="rounded-2xl border-[2px] border-cyan/20 bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
+              <div className="flex items-start justify-between gap-2">
+                <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                  Queued tasks
+                </p>
+                <ListTodo className="h-5 w-5 text-pollen/70" aria-hidden />
+              </div>
+              <p className="mt-3 font-[family-name:var(--font-space-grotesk)] text-3xl font-bold text-pollen">{queuedTasks}</p>
+              <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-zinc-500">Pending lane</p>
+            </article>
+            <article className="rounded-2xl border-[2px] border-cyan/20 bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
+              <div className="flex items-start justify-between gap-2">
+                <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                  LLM status
+                </p>
+                <Cpu className="h-5 w-5 text-pollen/70" aria-hidden />
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <span
+                  className={cn(
+                    "h-3 w-3 rounded-full",
+                    llmOk ? "bg-success shadow-[0_0_10px_rgb(0_255_136/0.8)]" : "bg-danger shadow-[0_0_10px_rgb(255_51_102/0.55)]",
+                  )}
+                  aria-hidden
+                />
+                <p className="font-[family-name:var(--font-space-grotesk)] text-lg font-bold text-[#fafafa]">
+                  {llmOk ? "Routed" : "Degraded"}
+                </p>
+              </div>
+              <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-zinc-500">
+                Grok {systemStatus?.llm_grok ? "✓" : "—"} · Claude {systemStatus?.llm_anthropic ? "✓" : "—"}
+              </p>
+            </article>
+          </>
+        )}
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <article className="rounded-2xl border-[2px] border-white/[0.06] bg-[#0a0a12]/90 p-5 sm:col-span-2 xl:col-span-2">
           <div className="flex items-start justify-between gap-2">
             <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-              Agenti celkom
-            </p>
-            <Users className="h-5 w-5 text-cyan/60" aria-hidden />
-          </div>
-          <p className="mt-3 font-[family-name:var(--font-space-grotesk)] text-3xl font-bold text-[#fafafa]">{totalAgents}</p>
-          <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-success">{running > 0 ? `${String(running)} beh` : "Stabilné"}</p>
-        </article>
-        <article className="rounded-2xl border-[2px] border-cyan/20 bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
-          <div className="flex items-start justify-between gap-2">
-            <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-              Úlohy v rade
-            </p>
-            <ListTodo className="h-5 w-5 text-pollen/70" aria-hidden />
-          </div>
-          <p className="mt-3 font-[family-name:var(--font-space-grotesk)] text-3xl font-bold text-[#fafafa]">{pending}</p>
-          <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-zinc-500">Pending backlog</p>
-        </article>
-        <article className="rounded-2xl border-[2px] border-cyan/20 bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
-          <div className="flex items-start justify-between gap-2">
-            <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-              Pollen
+              Pollen (roster)
             </p>
             <Activity className="h-5 w-5 text-success/80" aria-hidden />
           </div>
           <p className="mt-3 font-[family-name:var(--font-space-grotesk)] text-3xl font-bold text-pollen">{formatPollen(pollenTotal)}</p>
-          <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-zinc-500">Súčet z registra</p>
         </article>
-        <article className="rounded-2xl border-[2px] border-cyan/20 bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
+        <article className="rounded-2xl border-[2px] border-white/[0.06] bg-[#0a0a12]/90 p-5 sm:col-span-2 xl:col-span-2">
           <div className="flex items-start justify-between gap-2">
             <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
               Náklady (30 dní)
@@ -177,9 +241,17 @@ export function QueenDashboardChrome({
             <Coins className="h-5 w-5 text-pollen/70" aria-hidden />
           </div>
           <p className="mt-3 font-[family-name:var(--font-space-grotesk)] text-3xl font-bold text-[#fafafa]">{formatUsd(costWindowUsd)}</p>
-          <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-zinc-500">LLM ledger</p>
         </article>
       </div>
+
+      {agents.length === 0 ? (
+        <div className="rounded-2xl border border-pollen/30 bg-black/35 px-5 py-4 text-center font-[family-name:var(--font-inter)] text-sm text-zinc-300">
+          No agents in the hive yet —{" "}
+          <Link href="/agents/new" className="font-semibold text-pollen underline-offset-4 hover:underline">
+            Spawn first agent
+          </Link>
+        </div>
+      ) : null}
 
       <AgentsLiveSection
         agents={agents}
@@ -225,18 +297,20 @@ export function QueenDashboardChrome({
           </ul>
         </section>
         <section className="rounded-3xl border-[2px] border-cyan/15 bg-[#0a0a14]/90 p-6">
-          <h3 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-[#fafafa]">Nedávna aktivita</h3>
-          <p className="mt-1 text-xs text-zinc-500">Úlohy naviazané na agentov</p>
+          <h3 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-[#fafafa]">Recent tasks</h3>
+          <p className="mt-1 text-xs text-zinc-500">Latest {Math.min(8, recentTasks.length)} rows from /api/v1/tasks</p>
           <ul className="mt-5 divide-y divide-cyan/10">
-            {recent.length === 0 ? (
-              <li className="py-6 text-center text-sm text-zinc-600">Zatiaľ bez otvorených úloh v dashboarde.</li>
+            {recentTasks.length === 0 ? (
+              <li className="py-6 text-center text-sm text-zinc-600">No tasks synced yet.</li>
             ) : (
-              recent.map((a) => (
-                <li key={a.id} className="flex gap-3 py-3">
-                  <span className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", statusDotClass(a.status))} aria-hidden />
-                  <div className="min-w-0">
-                    <p className="truncate font-[family-name:var(--font-inter)] text-sm text-[#fafafa]">{a.current_task_title}</p>
-                    <p className="mt-0.5 truncate font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-500">{a.name}</p>
+              recentTasks.slice(0, 8).map((t) => (
+                <li key={t.id} className="flex gap-3 py-3">
+                  <span className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", statusDotClass(t.status))} aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <Link href="/tasks" className="truncate font-[family-name:var(--font-inter)] text-sm text-[#fafafa] hover:text-pollen">
+                      {t.title}
+                    </Link>
+                    <p className="mt-0.5 truncate font-[family-name:var(--font-jetbrains-mono)] text-[11px] uppercase text-zinc-500">{taskStatusBrief(t.status)}</p>
                   </div>
                 </li>
               ))

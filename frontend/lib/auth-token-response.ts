@@ -34,4 +34,6 @@ export function clearDashboardAuthCookies(res: NextResponse): void {
   const secure = process.env.NODE_ENV === "production";
   res.cookies.set(QS_ACCESS, "", { httpOnly: true, secure, sameSite: "lax", path: "/", maxAge: 0 });
   res.cookies.set(QS_REFRESH, "", { httpOnly: true, secure, sameSite: "lax", path: "/", maxAge: 0 });
+  /** Legacy mirror cleared for middleware symmetry. */
+  res.cookies.set("qs_token", "", { httpOnly: false, secure, sameSite: "lax", path: "/", maxAge: 0 });
 }

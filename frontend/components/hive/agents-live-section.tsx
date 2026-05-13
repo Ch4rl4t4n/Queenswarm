@@ -158,12 +158,12 @@ function laneTheme(lane: AgentHiveLane, agent: AgentRow): LaneTheme {
   const orangeAction = lane === "action" && n.includes("action") && (agent.id.charCodeAt(0) ?? 0) % 2 === 1;
   if (lane === "scout") {
     return {
-      hexBorder: "border-cyan/85",
-      barBg: "bg-cyan",
-      glow: "shadow-[0_0_24px_rgb(0_255_255/0.32)]",
-      listBar: "bg-cyan",
-      scoreText: "text-cyan",
-      pillClass: "border-cyan/45 text-cyan",
+      hexBorder: "border-[#00E5FF]/85",
+      barBg: "bg-[#00E5FF]",
+      glow: "shadow-[0_0_24px_rgb(0_229_255/0.32)]",
+      listBar: "bg-[#00E5FF]",
+      scoreText: "text-[#00E5FF]",
+      pillClass: "border-[#00E5FF]/45 text-[#00E5FF]",
     };
   }
   if (lane === "eval") {
@@ -246,6 +246,8 @@ interface AgentsLiveSectionProps {
   onAgentActivate: (agent: AgentRow) => void;
   onRebalanceHive: () => Promise<void>;
   rebalanceBusy: boolean;
+  /** Primary CTA for spawning — dashboard defaults to cockpit anchor. */
+  spawnAgentHref?: string;
 }
 
 export function AgentsLiveSection({
@@ -253,9 +255,11 @@ export function AgentsLiveSection({
   onAgentActivate,
   onRebalanceHive,
   rebalanceBusy,
+  spawnAgentHref,
 }: AgentsLiveSectionProps) {
   const [swarmFilter, setSwarmFilter] = useState<AgentsSwarmFilter>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const spawnHref = spawnAgentHref ?? "/#hive-create";
 
   const counts = useMemo(() => {
     let scout = 0;
@@ -327,7 +331,7 @@ export function AgentsLiveSection({
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Link
-            href="/#hive-create"
+            href={spawnHref}
             className="inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-black/50 px-4 py-2.5 font-[family-name:var(--font-inter)] text-sm font-semibold text-[#fafafa] transition hover:border-cyan/35 hover:text-pollen"
           >
             <Plus className="h-4 w-4" aria-hidden />
@@ -399,7 +403,7 @@ export function AgentsLiveSection({
       </div>
 
       {viewMode === "grid" ? (
-        <ul className="mx-auto mt-10 grid max-w-[1200px] grid-cols-2 justify-items-center gap-x-3 gap-y-10 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+        <ul className="agents-mobile-gap mx-auto mt-10 grid max-w-[1200px] grid-cols-3 justify-items-center gap-x-3 gap-y-8 sm:grid-cols-3 md:grid-cols-4 md:gap-y-10 lg:grid-cols-5">
           {filtered.map((agent, i) => {
             const lane = agentLane(agent);
             const theme = laneTheme(lane === "queen" ? "queen" : lane, agent);

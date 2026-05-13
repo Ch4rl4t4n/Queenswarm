@@ -1,315 +1,335 @@
 "use client";
 
-import { ChevronDown, ChevronRight } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Mail, MessageSquare, Send } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { HiveApiError, hiveGet, hivePatchJson } from "@/lib/api";
-import type { DashboardOperatorMe, DeliveryChannelsPrefs } from "@/lib/hive-dashboard-session";
+import { HiveApiError, hiveDelete, hiveGet, hivePostJson } from "@/lib/api";
+import type { NotificationChannelListRow } from "@/lib/hive-types";
+import { cn } from "@/lib/utils";
 
-type ChannelKey = "email" | "sms" | "discord" | "telegram";
+type ChannelSlug = "email" | "sms" | "discord" | "telegram";
 
-const CHANNEL_META: { key: ChannelKey; title: string; blurb: string }[] = [
-  {
-    key: "email",
-    title: "E-mail",
-    blurb: "Notifikácie na adresu ktorú nastavíš (worker musí mať SMTP v prostredí).",
-  },
-  {
-    key: "sms",
-    title: "SMS",
-    blurb: "Telefón v tvare +421… (odosielanie závisí od Twilio / SMS provider v stacku).",
-  },
-  {
-    key: "discord",
-    title: "Discord",
-    blurb: "Incoming webhook zo serverového Discord kanála.",
-  },
-  {
-    key: "telegram",
-    title: "Telegram",
-    blurb: "Bot token + chat ID (uložené v tvojich preferenciách pre ďalšie odosielanie).",
-  },
-];
+const EVENTS: Record<ChannelSlug, string> = {
+  email: "task_complete · agent_error_digest · weekly_summary",
+  sms: "severity_p0_only",
+  discord: "waggle_hints · Ballroom transcripts",
+  telegram: "task_complete · ballroom_ping",
+};
 
-function readChannel(prefs: Record<string, unknown> | undefined, key: ChannelKey): Record<string, unknown> {
-  const dc = prefs?.delivery_channels;
-  if (!dc || typeof dc !== "object" || Array.isArray(dc)) {
-    return {};
+const META: Record<ChannelSlug, { title: string; Icon: typeof Mail }> = {
+  email: { title: "Email", Icon: Mail },
+  sms: { title: "SMS", Icon: Send },
+  discord: { title: "Discord", Icon: MessageSquare },
+  telegram: { title: "Telegram", Icon: Send },
+};
+
+function channelDraftDefaults(slug: ChannelSlug): Record<string, unknown> {
+  switch (slug) {
+    case "email":
+      return { address: "", enabled: true };
+    case "sms":
+      return { phone_e164: "", enabled: false };
+    case "discord":
+      return { webhook_url: "", enabled: false };
+    case "telegram":
+      return { bot_token: "", chat_id: "", enabled: false };
+    default:
+      return {};
   }
-  const ch = (dc as Record<string, unknown>)[key];
-  if (!ch || typeof ch !== "object" || Array.isArray(ch)) {
-    return {};
-  }
-  return ch as Record<string, unknown>;
 }
 
 export function SettingsNotificationsPanel() {
-  const [me, setMe] = useState<DashboardOperatorMe | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const [channels, setChannels] = useState<NotificationChannelListRow[]>([]);
   const [busy, setBusy] = useState(false);
-  const [open, setOpen] = useState<ChannelKey | null>("email");
+  const [err, setErr] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<
+    Record<ChannelSlug, { enabled: boolean; settings: Record<string, unknown>; label?: string }>
+  >({
+    email: { enabled: true, settings: channelDraftDefaults("email") },
+    sms: { enabled: false, settings: channelDraftDefaults("sms") },
+    discord: { enabled: false, settings: channelDraftDefaults("discord") },
+    telegram: { enabled: false, settings: channelDraftDefaults("telegram") },
+  });
+  const [testHints, setTestHints] = useState<Partial<Record<ChannelSlug, string>>>({});
 
-  const [emailEn, setEmailEn] = useState(false);
-  const [emailAddr, setEmailAddr] = useState("");
-  const [smsEn, setSmsEn] = useState(false);
-  const [smsPhone, setSmsPhone] = useState("");
-  const [discordEn, setDiscordEn] = useState(false);
-  const [discordUrl, setDiscordUrl] = useState("");
-  const [tgEn, setTgEn] = useState(false);
-  const [tgToken, setTgToken] = useState("");
-  const [tgChat, setTgChat] = useState("");
+  const hydrateDraftsFromApi = useCallback((rows: NotificationChannelListRow[]) => {
+    setDrafts((prev) => {
+      const next = { ...prev };
+      for (const slug of ["email", "sms", "discord", "telegram"] as ChannelSlug[]) {
+        const row = rows.find((r) => r.channel_type === slug || r.id === slug);
+        if (!row) {
+          continue;
+        }
+        /** Masked payloads are display-only — editing requires pasting fresh secrets. */
+        next[slug] = {
+          enabled: row.is_active,
+          label: row.label,
+          settings: slug === "email" ? { address: "" } : slug === "sms" ? { phone_e164: "" } : slug === "discord" ? { webhook_url: "" } : { bot_token: "", chat_id: "" },
+        };
+      }
+      return next;
+    });
+  }, []);
 
   const load = useCallback(async () => {
     try {
-      const m = await hiveGet<DashboardOperatorMe>("auth/me");
-      setMe(m);
+      const bundle = await hiveGet<{ channels: NotificationChannelListRow[] }>("notifications");
+      const list = bundle.channels ?? [];
+      setChannels(list);
+      hydrateDraftsFromApi(list);
       setErr(null);
-      const np = m.notification_prefs as DeliveryChannelsPrefs | Record<string, unknown>;
-      const e = readChannel(np, "email");
-      const s = readChannel(np, "sms");
-      const d = readChannel(np, "discord");
-      const t = readChannel(np, "telegram");
-      setEmailEn(Boolean(e.enabled));
-      setEmailAddr(typeof e.address === "string" ? e.address : "");
-      setSmsEn(Boolean(s.enabled));
-      setSmsPhone(typeof s.phone_e164 === "string" ? s.phone_e164 : "");
-      setDiscordEn(Boolean(d.enabled));
-      setDiscordUrl(typeof d.webhook_url === "string" ? d.webhook_url : "");
-      setTgEn(Boolean(t.enabled));
-      setTgToken(typeof t.bot_token === "string" ? t.bot_token : "");
-      setTgChat(typeof t.chat_id === "string" ? t.chat_id : "");
     } catch (e) {
-      const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Načítanie zlyhalo";
+      const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Load failed";
       setErr(msg);
-      setMe(null);
+      setChannels([]);
     }
-  }, []);
+  }, [hydrateDraftsFromApi]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const summaryByChannel = useMemo(() => {
-    if (!me) {
-      return {} as Record<ChannelKey, string>;
-    }
-    const np = me.notification_prefs as Record<string, unknown>;
-    return {
-      email: readChannel(np, "email").enabled ? "zapnuté" : "vypnuté",
-      sms: readChannel(np, "sms").enabled ? "zapnuté" : "vypnuté",
-      discord: readChannel(np, "discord").enabled ? "zapnuté" : "vypnuté",
-      telegram: readChannel(np, "telegram").enabled ? "zapnuté" : "vypnuté",
-    } as Record<ChannelKey, string>;
-  }, [me]);
-
-  async function saveChannel(key: ChannelKey): Promise<void> {
-    let payload: Record<string, Record<string, unknown>> = {};
-    if (key === "email") {
-      payload = { email: { enabled: emailEn, address: emailAddr.trim() || null } };
-    } else if (key === "sms") {
-      payload = { sms: { enabled: smsEn, phone_e164: smsPhone.trim() || null } };
-    } else if (key === "discord") {
-      payload = { discord: { enabled: discordEn, webhook_url: discordUrl.trim() || null } };
-    } else {
-      payload = {
-        telegram: {
-          enabled: tgEn,
-          bot_token: tgToken.trim() || null,
-          chat_id: tgChat.trim() || null,
-        },
-      };
-    }
-
+  async function saveChannel(slug: ChannelSlug): Promise<void> {
+    const blob = drafts[slug];
     setBusy(true);
     try {
-      await hivePatchJson<DashboardOperatorMe>("auth/me/notifications", {
-        delivery_channels: payload,
+      await hivePostJson("notifications/", {
+        channel_type: slug,
+        enabled: blob.enabled,
+        label: blob.label ?? META[slug].title,
+        settings: blob.settings,
       });
-      await load();
-      toast.success("Preferencie kanála uložené.");
+      setTestHints((h) => ({ ...h, [slug]: undefined }));
+      toast.success(`${META[slug].title} merged`);
+      const bundle = await hiveGet<{ channels: NotificationChannelListRow[] }>("notifications");
+      const list = bundle.channels ?? [];
+      setChannels(list);
+      hydrateDraftsFromApi(list);
     } catch (e) {
-      const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Uloženie zlyhalo";
+      const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Save failed";
       toast.error(msg);
     } finally {
       setBusy(false);
     }
   }
 
-  if (err && !me) {
+  async function clearChannel(slug: ChannelSlug): Promise<void> {
+    if (!window.confirm(`Disconnect ${META[slug].title}?`)) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await hiveDelete(`notifications/${slug}`);
+      toast.success("Channel cleared");
+      await load();
+    } catch (e) {
+      const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Delete failed";
+      toast.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendTest(slug: ChannelSlug): Promise<void> {
+    setBusy(true);
+    try {
+      const res = await hivePostJson<{ status?: string; detail?: string }>(`notifications/test/${slug}`, {});
+      const ok = res.status === "ok";
+      setTestHints((h) => ({
+        ...h,
+        [slug]: ok ? "✅ Delivery accepted" : `❌ ${res.detail ?? "Failed"}`,
+      }));
+      if (!ok) {
+        toast.error(res.detail ?? "Test failed");
+      }
+    } catch (e) {
+      const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Test failed";
+      if (e instanceof HiveApiError && e.status === 501 && slug === "email") {
+        setTestHints((h) => ({ ...h, email: "ℹ️ Email smoke uses global SMTP + /system notify-test." }));
+        toast.message("Email test not wired for channel ping");
+      } else {
+        setTestHints((h) => ({ ...h, [slug]: `❌ ${msg}` }));
+        toast.error(msg);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (err && channels.length === 0) {
     return (
       <div className="rounded-3xl border border-danger/30 bg-danger/[0.06] p-6 text-sm text-danger">
-        Notifikácie: {err}
+        Notifications: {err}
       </div>
     );
   }
 
-  if (!me) {
-    return <div className="h-64 animate-pulse rounded-3xl bg-white/[0.04]" />;
-  }
-
   return (
     <div className="flex flex-col gap-6">
-      <section className="rounded-3xl border border-white/[0.08] bg-[#0c0c14]/95 p-6 md:p-7">
-        <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-[#fafafa]">
-          Notifikácie
-        </h2>
-        <p className="mt-1 font-[family-name:var(--font-inter)] text-sm text-zinc-500">
-          Vyber kanály a rozklikni riadok, aby si doplnil prepojenie. Backend ukladá konfiguráciu do{' '}
-          <span className="font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-400">
-            notification_prefs.delivery_channels
-          </span>
-          — worker a integrácie ju môžu čítať pri odosielaní správ.
-        </p>
+      <p className="font-[family-name:var(--font-inter)] text-sm text-zinc-500">
+        Delivery buckets sync to <span className="font-mono text-xs text-data">notification_prefs.delivery_channels</span> via{" "}
+        <span className="font-mono text-xs text-data">/api/v1/notifications</span>.
+      </p>
 
-        <ul className="mt-6 divide-y divide-white/[0.06] border-t border-white/[0.06]">
-          {CHANNEL_META.map(({ key, title, blurb }) => {
-            const expanded = open === key;
-            return (
-              <li key={key} className="py-2">
-                <button
-                  type="button"
+      <div className="grid gap-5">
+        {(["email", "sms", "discord", "telegram"] as ChannelSlug[]).map((slug) => {
+          const { Icon, title } = META[slug];
+          const blob = drafts[slug];
+          return (
+            <section key={slug} className="rounded-3xl border border-white/[0.08] bg-[#0c0c14]/95 p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan/20 bg-black/40 text-pollen">
+                    <Icon className="h-5 w-5" aria-hidden />
+                  </div>
+                  <div>
+                    <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold text-[#fafafa]">{title}</h2>
+                    <p className="font-[family-name:var(--font-inter)] text-xs text-zinc-500">{EVENTS[slug]}</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void sendTest(slug)}
+                    className="rounded-full border border-data/35 px-4 py-2 text-xs font-semibold text-data hover:bg-data/10 disabled:opacity-40"
+                  >
+                    Send test
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void clearChannel(slug)}
+                    className="rounded-full border border-danger/35 px-4 py-2 text-xs font-semibold text-danger hover:bg-danger/10 disabled:opacity-40"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              <label className="mt-4 flex items-center gap-2 font-[family-name:var(--font-inter)] text-sm text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={blob.enabled}
                   disabled={busy}
-                  onClick={() => setOpen((o) => (o === key ? null : key))}
-                  className="flex w-full items-center justify-between gap-3 rounded-xl px-2 py-3 text-left transition hover:bg-white/[0.03]"
-                >
-                  <div className="min-w-0">
-                    <span className="font-[family-name:var(--font-inter)] text-sm font-semibold text-[#fafafa]">
-                      {title}
-                    </span>
-                    <span className="ml-2 font-[family-name:var(--font-inter)] text-xs text-zinc-500">
-                      · aktuálne {summaryByChannel[key]}
-                    </span>
-                    <p className="mt-0.5 font-[family-name:var(--font-inter)] text-xs text-zinc-600">{blurb}</p>
-                  </div>
-                  {expanded ? (
-                    <ChevronDown className="h-4 w-4 shrink-0 text-pollen" aria-hidden />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 shrink-0 text-zinc-500" aria-hidden />
-                  )}
-                </button>
+                  onChange={(e) =>
+                    setDrafts((d) => ({
+                      ...d,
+                      [slug]: { ...d[slug], enabled: e.target.checked },
+                    }))
+                  }
+                />
+                Enabled
+              </label>
 
-                {expanded ? (
-                  <div className="rounded-xl border border-white/[0.07] bg-black/35 p-4">
-                    {key === "email" ? (
-                      <div className="space-y-3">
-                        <label className="flex items-center gap-2 font-[family-name:var(--font-inter)] text-sm text-zinc-300">
-                          <input
-                            type="checkbox"
-                            checked={emailEn}
-                            onChange={(e) => setEmailEn(e.target.checked)}
-                            className="rounded border-white/20"
-                          />
-                          Posielať e-mailové výstrahy
-                        </label>
-                        <label className="block font-[family-name:var(--font-inter)] text-xs uppercase text-zinc-500">
-                          E-mail
-                          <input
-                            type="email"
-                            value={emailAddr}
-                            onChange={(e) => setEmailAddr(e.target.value)}
-                            placeholder="bee@firma.sk"
-                            className="mt-1 w-full rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-pollen/40"
-                          />
-                        </label>
-                      </div>
-                    ) : null}
-                    {key === "sms" ? (
-                      <div className="space-y-3">
-                        <label className="flex items-center gap-2 font-[family-name:var(--font-inter)] text-sm text-zinc-300">
-                          <input
-                            type="checkbox"
-                            checked={smsEn}
-                            onChange={(e) => setSmsEn(e.target.checked)}
-                            className="rounded border-white/20"
-                          />
-                          SMS výstrahy
-                        </label>
-                        <label className="block font-[family-name:var(--font-inter)] text-xs uppercase text-zinc-500">
-                          Telefón (E.164)
-                          <input
-                            type="tel"
-                            value={smsPhone}
-                            onChange={(e) => setSmsPhone(e.target.value)}
-                            placeholder="+421912345678"
-                            className="mt-1 w-full rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-sm text-[#fafafa] outline-none focus:border-pollen/40"
-                          />
-                        </label>
-                      </div>
-                    ) : null}
-                    {key === "discord" ? (
-                      <div className="space-y-3">
-                        <label className="flex items-center gap-2 font-[family-name:var(--font-inter)] text-sm text-zinc-300">
-                          <input
-                            type="checkbox"
-                            checked={discordEn}
-                            onChange={(e) => setDiscordEn(e.target.checked)}
-                            className="rounded border-white/20"
-                          />
-                          Discord webhook
-                        </label>
-                        <label className="block font-[family-name:var(--font-inter)] text-xs uppercase text-zinc-500">
-                          Webhook URL
-                          <input
-                            type="url"
-                            value={discordUrl}
-                            onChange={(e) => setDiscordUrl(e.target.value)}
-                            placeholder="https://discord.com/api/webhooks/…"
-                            className="mt-1 w-full rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-[#fafafa] outline-none focus:border-pollen/40"
-                          />
-                        </label>
-                      </div>
-                    ) : null}
-                    {key === "telegram" ? (
-                      <div className="space-y-3">
-                        <label className="flex items-center gap-2 font-[family-name:var(--font-inter)] text-sm text-zinc-300">
-                          <input
-                            type="checkbox"
-                            checked={tgEn}
-                            onChange={(e) => setTgEn(e.target.checked)}
-                            className="rounded border-white/20"
-                          />
-                          Telegram Bot
-                        </label>
-                        <label className="block font-[family-name:var(--font-inter)] text-xs uppercase text-zinc-500">
-                          Bot token
-                          <input
-                            type="password"
-                            value={tgToken}
-                            onChange={(e) => setTgToken(e.target.value)}
-                            autoComplete="off"
-                            placeholder="token od @BotFather"
-                            className="mt-1 w-full rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-xs text-[#fafafa] outline-none focus:border-pollen/40"
-                          />
-                        </label>
-                        <label className="block font-[family-name:var(--font-inter)] text-xs uppercase text-zinc-500">
-                          Chat ID
-                          <input
-                            type="text"
-                            value={tgChat}
-                            onChange={(e) => setTgChat(e.target.value)}
-                            placeholder="numerický alebo @channel_username"
-                            className="mt-1 w-full rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-sm text-[#fafafa] outline-none focus:border-pollen/40"
-                          />
-                        </label>
-                      </div>
-                    ) : null}
+              {slug === "email" ? (
+                <label className="mt-3 block text-xs uppercase tracking-[0.12em] text-zinc-500">
+                  Address
+                  <input
+                    type="email"
+                    disabled={busy}
+                    value={String(blob.settings.address ?? "")}
+                    onChange={(e) =>
+                      setDrafts((d) => ({
+                        ...d,
+                        [slug]: { ...d[slug], settings: { ...d[slug].settings, address: e.target.value } },
+                      }))
+                    }
+                    className="mt-2 w-full rounded-xl border border-white/15 bg-black/55 px-3 py-2.5 text-sm text-[#fafafa]"
+                  />
+                </label>
+              ) : null}
 
-                    <button
-                      type="button"
+              {slug === "sms" ? (
+                <label className="mt-3 block text-xs uppercase tracking-[0.12em] text-zinc-500">
+                  Phone (E.164)
+                  <input
+                    type="tel"
+                    disabled={busy}
+                    value={String(blob.settings.phone_e164 ?? "")}
+                    onChange={(e) =>
+                      setDrafts((d) => ({
+                        ...d,
+                        [slug]: { ...d[slug], settings: { ...d[slug].settings, phone_e164: e.target.value } },
+                      }))
+                    }
+                    placeholder="+4219…"
+                    className="mt-2 w-full rounded-xl border border-white/15 bg-black/55 px-3 py-2.5 text-sm text-[#fafafa]"
+                  />
+                </label>
+              ) : null}
+
+              {slug === "discord" ? (
+                <label className="mt-3 block text-xs uppercase tracking-[0.12em] text-zinc-500">
+                  Webhook URL
+                  <input
+                    type="password"
+                    disabled={busy}
+                    value={String(blob.settings.webhook_url ?? "")}
+                    onChange={(e) =>
+                      setDrafts((d) => ({
+                        ...d,
+                        [slug]: { ...d[slug], settings: { ...d[slug].settings, webhook_url: e.target.value } },
+                      }))
+                    }
+                    className="mt-2 w-full rounded-xl border border-white/15 bg-black/55 px-3 py-2.5 font-mono text-sm text-[#fafafa]"
+                  />
+                </label>
+              ) : null}
+
+              {slug === "telegram" ? (
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <label className="block text-xs uppercase tracking-[0.12em] text-zinc-500">
+                    Bot token
+                    <input
+                      type="password"
                       disabled={busy}
-                      onClick={() => void saveChannel(key)}
-                      className="mt-4 rounded-full border border-pollen bg-pollen px-5 py-2 font-[family-name:var(--font-inter)] text-xs font-bold text-black shadow-[0_0_18px_rgb(255_184_0/0.25)] disabled:opacity-40"
-                    >
-                      Uložiť {title}
-                    </button>
-                  </div>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
-      </section>
+                      value={String(blob.settings.bot_token ?? "")}
+                      onChange={(e) =>
+                        setDrafts((d) => ({
+                          ...d,
+                          [slug]: { ...d[slug], settings: { ...d[slug].settings, bot_token: e.target.value } },
+                        }))
+                      }
+                      className="mt-2 w-full rounded-xl border border-white/15 bg-black/55 px-3 py-2.5 font-mono text-sm text-[#fafafa]"
+                    />
+                  </label>
+                  <label className="block text-xs uppercase tracking-[0.12em] text-zinc-500">
+                    Chat ID
+                    <input
+                      type="text"
+                      disabled={busy}
+                      value={String(blob.settings.chat_id ?? "")}
+                      onChange={(e) =>
+                        setDrafts((d) => ({
+                          ...d,
+                          [slug]: { ...d[slug], settings: { ...d[slug].settings, chat_id: e.target.value } },
+                        }))
+                      }
+                      className="mt-2 w-full rounded-xl border border-white/15 bg-black/55 px-3 py-2.5 font-mono text-sm text-[#fafafa]"
+                    />
+                  </label>
+                </div>
+              ) : null}
+
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void saveChannel(slug)}
+                className="mt-4 rounded-full border border-pollen bg-pollen px-5 py-2.5 text-xs font-bold text-black shadow-[0_0_18px_rgb(255_184_0/0.25)] hover:bg-[#ffc933] disabled:opacity-40"
+              >
+                Save channel
+              </button>
+              {testHints[slug] ? (
+                <p className={cn("mt-3 font-[family-name:var(--font-jetbrains-mono)] text-xs", testHints[slug]?.startsWith("✅") ? "text-success" : "text-danger")}>
+                  {testHints[slug]}
+                </p>
+              ) : null}
+            </section>
+          );
+        })}
+      </div>
     </div>
   );
 }

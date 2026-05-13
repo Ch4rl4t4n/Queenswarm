@@ -17,6 +17,7 @@ interface LoginUpstreamResponse {
   pre_auth_token?: string | null;
   detail?: string;
   access_token?: string;
+  expires_in?: number;
 }
 
 function RememberToggle({
@@ -100,7 +101,12 @@ function LoginForm() {
       });
       const data = (await res.json()) as LoginUpstreamResponse;
       if (!res.ok) {
-        const msg = typeof data.detail === "string" ? data.detail : "Prihlásenie zlyhalo.";
+        const msg =
+          res.status === 401
+            ? "Invalid credentials"
+            : typeof data.detail === "string"
+              ? data.detail
+              : "Prihlásenie zlyhalo.";
         setError(msg);
         toast.error(msg);
         return;
@@ -120,7 +126,12 @@ function LoginForm() {
         localStorage.removeItem("qs_login_remember");
       }
       if (typeof window !== "undefined" && typeof data.access_token === "string" && data.access_token.trim()) {
-        localStorage.setItem("qs_token", data.access_token.trim());
+        const tok = data.access_token.trim();
+        localStorage.setItem("qs_token", tok);
+        const maxAgeRaw = typeof (data as { expires_in?: unknown }).expires_in === "number" ? (data as { expires_in: number }).expires_in : 1800;
+        const maxAge = Math.max(120, maxAgeRaw);
+        const secure = window.location.protocol === "https:" ? "; Secure" : "";
+        document.cookie = `qs_token=${encodeURIComponent(tok)}; Path=/; Max-Age=${String(maxAge)}; SameSite=Lax${secure}`;
       }
       toast.success("Hive open");
       router.push(nextPath);
@@ -252,17 +263,18 @@ function LoginForm() {
               Remember me
             </label>
           </div>
-          <span className="inline-flex items-center gap-2 font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-success">
+          <span className="inline-flex items-center gap-2 rounded-full border border-success/35 bg-black/35 px-2.5 py-1 font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.14em] text-success">
             <span
               className={cn(
-                "h-2 w-2 rounded-full",
+                "h-2 w-2 shrink-0 rounded-full",
                 hiveOnline === true && "animate-pulse shadow-[0_0_6px_#00FF88]",
                 hiveOnline === true && "bg-success",
                 hiveOnline === false && "bg-alert",
                 hiveOnline === null && "bg-zinc-500",
               )}
+              aria-hidden
             />
-            {hiveOnline === null ? "Checking…" : hiveOnline === false ? "Hive offline" : "Hive online"}
+            {hiveOnline === null ? "Hive check…" : hiveOnline === false ? "Hive offline" : "HIVE ONLINE"}
           </span>
         </div>
 
@@ -275,7 +287,7 @@ function LoginForm() {
             <>Entering hive…</>
           ) : (
             <>
-              Continue <ArrowRightIcon className="h-5 w-5" aria-hidden />
+              CONTINUE <ArrowRightIcon className="h-5 w-5" aria-hidden />
             </>
           )}
         </button>

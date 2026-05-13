@@ -7,9 +7,9 @@ import { cn } from "@/lib/utils";
 
 const SECTIONS: { href: string; label: string }[] = [
   { href: "/settings/security", label: "Security · 2FA" },
-  { href: "/settings/api-keys", label: "API keys" },
   { href: "/settings/llm-keys", label: "LLM keys" },
   { href: "/settings/notifications", label: "Notifications" },
+  { href: "/settings/api-keys", label: "API keys · external" },
 ];
 
 export function SettingsSubnav() {

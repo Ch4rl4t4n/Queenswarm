@@ -12,7 +12,7 @@ export default function SettingsLayout({ children }: SettingsLayoutProps) {
       <header className="mb-8">
         <h1 className="font-[family-name:var(--font-space-grotesk)] text-3xl font-bold text-[#fafafa]">Nastavenia</h1>
         <p className="mt-2 font-[family-name:var(--font-inter)] text-sm text-zinc-500">
-          2FA, API kľúče (externé zdroje), LLM (Grok), notifikácie · 4 sekcie
+          Security · LLM vault · Notifications · External API keys — four operator surfaces.
         </p>
       </header>
       <div className="flex flex-col gap-8 lg:flex-row lg:items-start">

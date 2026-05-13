@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { AgentsBeehiveSection } from "@/components/hive/agents-beehive-section";
+
+import { AgentsPageRoster } from "@/components/hive/agents-page-roster";
 import { HivePageHeader } from "@/components/hive/hive-page-header";
 import { hiveServerRawJson } from "@/lib/hive-server";
 import type { AgentRow } from "@/lib/hive-types";
@@ -28,12 +29,12 @@ export default async function AgentsPage() {
               className="rounded-lg bg-pollen px-4 py-2 text-xs font-semibold uppercase tracking-wide text-black hover:opacity-95"
               prefetch={false}
             >
-              New bee
+              + Spawn agent
             </Link>
           </div>
         }
       />
-      <AgentsBeehiveSection agents={rows} />
+      <AgentsPageRoster initialAgents={rows} />
       {rows.length === 0 ? (
         <p className="text-sm font-[family-name:var(--font-jetbrains-mono)] text-muted-foreground">
           No bees yet — bootstrap through backend/scripts/hive_seed.py.

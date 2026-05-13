@@ -1,6 +1,6 @@
 "use client";
 
-import { TasksKanbanBoard } from "@/components/hive/tasks-kanban-board";
+import { TasksListPanel } from "@/components/hive/tasks-list-panel";
 import { TaskResultDrawer } from "@/components/hive/task-result-drawer";
 import { hiveGet } from "@/lib/api";
 import type { TaskRow } from "@/lib/hive-types";
@@ -23,7 +23,7 @@ export function TasksPageClient({ initialTasks }: TasksPageClientProps): JSX.Ele
 
   return (
     <>
-      <TasksKanbanBoard onOpenTask={(id) => setSelectedTaskId(id)} tasks={data} />
+      <TasksListPanel onOpenTask={(id) => setSelectedTaskId(id)} tasks={data} />
       <TaskResultDrawer onClose={() => setSelectedTaskId(null)} taskId={selectedTaskId} />
     </>
   );
