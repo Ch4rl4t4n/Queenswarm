@@ -63,13 +63,13 @@ function OTPInput({ onComplete }: OTPInputProps): JSX.Element {
 
   function boxStyle(filled: boolean): CSSProperties {
     return {
-      width: 48,
-      height: 58,
+      width: 50,
+      height: 60,
       background: "#0a0a0f",
-      border: `1.5px solid ${filled ? "#FFB800" : "#1e1e35"}`,
-      borderRadius: 10,
+      border: `2px solid ${filled ? "#FFB800" : "#1e1e35"}`,
+      borderRadius: 12,
       color: "#e8e8f0",
-      fontSize: 24,
+      fontSize: 26,
       fontWeight: 700,
       fontFamily: "var(--font-hive-mono), ui-monospace, monospace",
       textAlign: "center",
@@ -123,6 +123,7 @@ function LoginFormInner(): JSX.Element {
   const searchParams = useSearchParams();
   const nextPath =
     searchParams.get("next") && searchParams.get("next")!.startsWith("/") ? searchParams.get("next")! : "/";
+  const forceOTPTest = searchParams.get("test_2fa") === "1";
 
   const [step, setStep] = useState<LoginStep>("credentials");
   const [email, setEmail] = useState("queen@queenswarm.love");
@@ -202,23 +203,31 @@ function LoginFormInner(): JSX.Element {
         return;
       }
 
-      const needsOtp = Boolean(data.requires_totp || data.requires_2fa || data.mfa_required);
+      if (forceOTPTest) {
+        setStep("otp");
+        setLoading(false);
+        return;
+      }
       const preRaw =
         (typeof data.pre_auth_token === "string" ? data.pre_auth_token.trim() : "") ||
         (typeof data.mfa_token === "string" ? data.mfa_token.trim() : "") ||
         (typeof data.temp_token === "string" ? data.temp_token.trim() : "") ||
         "";
 
+      const needsOtp = Boolean(data.requires_totp || data.requires_2fa || data.mfa_required);
+
       if (needsOtp) {
-        if (!preRaw) {
+        if (preRaw) {
+          setPreAuthToken(preRaw);
+          if (typeof window !== "undefined") {
+            window.sessionStorage.setItem("qs_pre_auth_token", preRaw);
+            window.sessionStorage.setItem("qs_pre_auth", preRaw);
+          }
+        }
+        if (!preRaw && !forceOTPTest) {
           setError("Two-factor is required — no pre-auth token. Try again or contact an administrator.");
           setLoading(false);
           return;
-        }
-        setPreAuthToken(preRaw);
-        if (typeof window !== "undefined") {
-          window.sessionStorage.setItem("qs_pre_auth_token", preRaw);
-          window.sessionStorage.setItem("qs_pre_auth", preRaw);
         }
         setStep("otp");
         setLoading(false);
@@ -379,14 +388,16 @@ function LoginFormInner(): JSX.Element {
         }}
       >
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 32 }}>
-          <QueenHoneycombLogo size={80} />
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 20, overflow: "visible" }}>
+            <QueenHoneycombLogo size={80} />
+          </div>
           <div
             style={{
               marginTop: 14,
               fontSize: 22,
               fontWeight: 700,
               color: "#e8e8f0",
-              fontFamily: "'Space Grotesk', sans-serif",
+              fontFamily: "'Poppins', sans-serif",
               letterSpacing: "-0.3px",
             }}
           >
@@ -403,7 +414,7 @@ function LoginFormInner(): JSX.Element {
                   fontWeight: 600,
                   color: "#e8e8f0",
                   marginBottom: 4,
-                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontFamily: "'Poppins', sans-serif",
                 }}
               >
                 Welcome back
@@ -536,7 +547,7 @@ function LoginFormInner(): JSX.Element {
                 fontSize: 14,
                 letterSpacing: "0.06em",
                 cursor: loading ? "not-allowed" : "pointer",
-                fontFamily: "'Space Grotesk', sans-serif",
+                fontFamily: "'Poppins', sans-serif",
                 boxShadow: loading ? "none" : "0 0 28px rgba(255,184,0,0.28)",
                 transition: "all 0.15s",
               }}
@@ -582,7 +593,7 @@ function LoginFormInner(): JSX.Element {
                 fontWeight: 700,
                 color: "#e8e8f0",
                 marginBottom: 6,
-                fontFamily: "'Space Grotesk', sans-serif",
+                fontFamily: "'Poppins', sans-serif",
               }}
             >
               Two-factor verification
