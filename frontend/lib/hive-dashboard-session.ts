@@ -28,6 +28,8 @@ export interface DashboardOperatorMe {
   totp_backup_codes_remaining?: number;
   totp_backup_last_used_at?: string | null;
   audit_log_enabled?: boolean;
+  /** Computed server-side — secret persisted and verifier completed successfully. */
+  totp_enabled?: boolean;
 }
 
 export interface LlmProvidersStatus {

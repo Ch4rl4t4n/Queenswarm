@@ -324,6 +324,9 @@ class MeDetailResponse(BaseModel):
     totp_backup_codes_remaining: int = 0
     totp_backup_last_used_at: datetime | None = None
     audit_log_enabled: bool = True
+    totp_enabled: bool = Field(
+        description="True when TOTP enrollment exists and operator completed verification.",
+    )
 
 
 async def _current_dashboard_user(sess: dict[str, Any], db: DbSession) -> DashboardUser:
@@ -376,6 +379,7 @@ def _serialize_me(row: DashboardUser) -> MeDetailResponse:
         totp_required=bool(row.totp_required),
         totp_has_secret=row.totp_secret is not None,
         totp_verified_at=row.totp_verified_at,
+        totp_enabled=bool(row.totp_secret is not None and row.totp_verified_at is not None),
         totp_backup_codes_remaining=remaining,
         totp_backup_last_used_at=backup_last,
         audit_log_enabled=_audit_log_pref(row),
