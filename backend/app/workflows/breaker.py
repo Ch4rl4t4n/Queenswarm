@@ -13,14 +13,16 @@ from sqlalchemy.orm import selectinload
 from structlog.contextvars import bind_contextvars, clear_contextvars
 
 from app.core.chroma_client import find_similar_recipes
+from app.agents.cost_governor import BudgetExceededError
 from app.core.llm_router import LiteLLMRouter
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.models.enums import StepStatus, WorkflowStatus
+from app.models.enums import AgentRole, StepStatus, WorkflowStatus
 from app.models.recipe import Recipe as RecipeRow
 from app.models.workflow import Workflow, WorkflowStep
 from app.schemas.workflow_breaker import (
     BreakerDecomposition,
+    BreakerStepDraft,
     DecomposeWorkflowResponse,
     PreviewDecompositionResponse,
     PreviewWorkflowStep,
@@ -32,6 +34,59 @@ from app.workflows.prompts import DECOMPOSITION_SYSTEM_PROMPT
 from app.workflows.validators import WorkflowValidator
 
 logger = get_logger(__name__)
+
+
+def _breaker_static_fallback(task_text: str) -> BreakerDecomposition:
+    """Return a compliant 3-step scaffold when LLM output is unusable.
+
+    Args:
+        task_text: Operator narrative.
+
+    Returns:
+        Valid :class:`BreakerDecomposition` respecting min step count and rationale length.
+    """
+
+    safe_task = task_text.strip().replace("\n", " ")
+    if len(safe_task) < 4:
+        safe_task = "Expand the operator task narrative with explicit deliverables."
+    chunk = safe_task[:880]
+    rationale = (
+        f"LLM decomposition failed or was invalid — scout→eval→report fallback for: {chunk}"
+    )
+    if len(rationale) < 16:
+        rationale = f"{rationale} (auto-extended for validator)."
+
+    guards: dict[str, object] = {"pii": "Strip secrets before outbound tools.", "budget": "Honor Cost Governor ceilings."}
+    rubric: dict[str, object] = {
+        "verification": "Simulator or human confirms output matches task intent.",
+        "quality": "Evidence-backed, no fabricated URLs.",
+    }
+
+    steps: list[BreakerStepDraft] = [
+        BreakerStepDraft(
+            order=1,
+            description=f"Scout gather factual inputs, sources, and constraints for: {chunk}",
+            agent_role=AgentRole.SCRAPER,
+            guardrails=guards,
+            evaluation_criteria=rubric,
+        ),
+        BreakerStepDraft(
+            order=2,
+            description="Evaluator cross-check scout material, score confidence, flag gaps before delivery.",
+            agent_role=AgentRole.EVALUATOR,
+            guardrails=guards,
+            evaluation_criteria=rubric,
+        ),
+        BreakerStepDraft(
+            order=3,
+            description=f"Reporter synthesize verified findings into the requested deliverable aligned with: {chunk}",
+            agent_role=AgentRole.REPORTER,
+            guardrails=guards,
+            evaluation_criteria=rubric,
+        ),
+    ]
+
+    return BreakerDecomposition(rationale=rationale, parallelizable_groups=[], estimated_duration_sec=600, steps=steps)
 
 
 def _guardrail_summary(guards: dict[str, Any]) -> str:
@@ -183,21 +238,46 @@ class AutoWorkflowBreaker:
         }
         user_json = json.dumps(user_payload, default=str)
 
-        raw_content, decomposition_cost_usd = await self._router.decompose(
-            db,
-            system_prompt=DECOMPOSITION_SYSTEM_PROMPT,
-            user_payload=user_json,
-            swarm_id=swarm_id,
-            task_id=agent_task_id,
-        )
+        try:
+            raw_content, decomposition_cost_usd = await self._router.decompose(
+                db,
+                system_prompt=DECOMPOSITION_SYSTEM_PROMPT,
+                user_payload=user_json,
+                swarm_id=swarm_id,
+                task_id=agent_task_id,
+            )
 
-        blob = extract_breaker_json(raw_content)
-        ok, reasons = WorkflowValidator.validate_decomposition(blob)
-        if not ok:
-            logger.warning("auto_workflow_breaker.preflight_failed", reasons=reasons)
-            raise ValueError(f"Invalid decomposition: {'; '.join(reasons)}")
+            try:
+                blob = extract_breaker_json(raw_content)
+                ok, reasons = WorkflowValidator.validate_decomposition(blob)
+                if not ok:
+                    logger.warning("auto_workflow_breaker.preflight_failed", reasons=reasons)
+                    raise ValueError(f"Invalid decomposition: {'; '.join(reasons)}")
 
-        draft = BreakerDecomposition.model_validate(blob)
+                draft = BreakerDecomposition.model_validate(blob)
+            except (
+                ValidationError,
+                ValueError,
+                json.JSONDecodeError,
+                RuntimeError,
+            ) as exc:
+                logger.warning(
+                    "auto_workflow_breaker.fallback_scaffold",
+                    error_type=type(exc).__name__,
+                    error=str(exc)[:280],
+                    swarm_id=swarm_id,
+                )
+                draft = _breaker_static_fallback(task_text)
+                decomposition_cost_usd = 0.0
+        except (RuntimeError, BudgetExceededError) as exc:
+            logger.warning(
+                "auto_workflow_breaker.fallback_scaffold",
+                error_type=type(exc).__name__,
+                error=str(exc)[:280],
+                swarm_id=swarm_id,
+            )
+            draft = _breaker_static_fallback(task_text)
+            decomposition_cost_usd = 0.0
         matched_id = await self._resolve_matching_recipe(
             db,
             task_text=task_text,

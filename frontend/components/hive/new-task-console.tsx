@@ -412,10 +412,20 @@ export function NewTaskConsole() {
           </p>
         </div>
         {previewError ? (
-          <div className="mt-3 space-y-3 rounded-xl border border-danger/35 bg-danger/[0.06] p-3 md:p-4">
-            <pre className="max-h-[28rem] overflow-y-auto whitespace-pre-wrap break-words font-[family-name:var(--font-jetbrains-mono)] text-[11px] leading-relaxed text-danger">
-              {previewError}
-            </pre>
+          <div className="mt-3 space-y-3 rounded-xl border border-pollen/25 bg-pollen/[0.06] p-4 md:p-5">
+            <div className="font-[family-name:var(--font-space-grotesk)] text-sm font-semibold text-pollen">
+              LLM preview unavailable
+            </div>
+            <p className="font-[family-name:var(--font-inter)] text-xs leading-relaxed text-zinc-400">
+              {previewError.includes("403") || previewError.toLowerCase().includes("credit")
+                ? "Grok may be out of credits — the intake path will still try Claude and the cheap hop when you submit."
+                : previewError.includes("404") || previewError.toLowerCase().includes("not found")
+                  ? "A model slug may be outdated. Open Settings → LLM keys and refresh Anthropic / Grok configuration."
+                  : `Preview failed: ${previewError.slice(0, 180)}${previewError.length > 180 ? "…" : ""}`}
+            </p>
+            <p className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-600">
+              You can still submit — the swarm will build a workflow from the task text.
+            </p>
             {previewError.includes("LiteLLM router exhausted") ||
             previewError.includes("credentials for configured models") ||
             previewError.includes("OPENAI_API_KEY") ? (
@@ -424,9 +434,9 @@ export function NewTaskConsole() {
                   href="/settings/llm-keys"
                   className="font-semibold text-cyan underline decoration-cyan/40 underline-offset-2 hover:text-pollen hover:decoration-pollen/60"
                 >
-                  Nastavenia → LLM kľúče
+                  Settings → LLM keys
                 </Link>{" "}
-                (GROK / Anthropic / OpenAI) alebo uprav WORKFLOW_BREAKER_* v prostredí backendu podľa návodov v hláške.
+                (Grok / Anthropic / OpenAI) or adjust WORKFLOW_BREAKER_* in the backend environment.
               </p>
             ) : null}
           </div>
