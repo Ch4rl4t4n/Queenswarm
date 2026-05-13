@@ -8,6 +8,13 @@ interface QueenHoneycombLogoProps {
   "aria-hidden"?: boolean;
 }
 
+const VIEWBOX = 220;
+const CX = 110;
+const CY = 110;
+const INNER_R = 38;
+const OUTER_R = 38;
+const OUTER_DIST = 66;
+
 function hexPts(px: number, py: number, r: number): string {
   return Array.from({ length: 6 }, (_, i) => {
     const a = (Math.PI / 3) * i - Math.PI / 6;
@@ -16,12 +23,11 @@ function hexPts(px: number, py: number, r: number): string {
 }
 
 export function QueenHoneycombLogo({ size = 72, className, "aria-hidden": ariaHidden }: QueenHoneycombLogoProps): JSX.Element {
-  const s = size / 200;
-  const cx = size / 2;
-  const cy = size / 2;
-  const inner = 38 * s;
-  const outer = 38 * s;
-  const dist = 66 * s;
+  const cx = CX;
+  const cy = CY;
+  const inner = INNER_R;
+  const outer = OUTER_R;
+  const dist = OUTER_DIST;
 
   const outerCenters = Array.from({ length: 6 }, (_, i) => {
     const a = (Math.PI / 3) * i - Math.PI / 2;
@@ -41,17 +47,19 @@ export function QueenHoneycombLogo({ size = 72, className, "aria-hidden": ariaHi
   ].join(" ");
   const baseH = cr * 0.14;
   const baseY = cy + cr * 0.22;
+  const strokeW = 3.5;
 
   return (
     <svg
       width={size}
       height={size}
-      viewBox={`0 0 ${size} ${size}`}
+      viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`}
+      overflow="visible"
       className={className}
       role={ariaHidden ? "presentation" : "img"}
       aria-label={ariaHidden ? undefined : "Queenswarm logo"}
       aria-hidden={ariaHidden ?? undefined}
-      style={{ display: "block" }}
+      style={{ display: "block", overflow: "visible" }}
     >
       <polygon points={hexPts(cx, cy, inner)} fill="#FFB800" />
       <path d={crownPath} fill="#0a0a0f" />
@@ -69,7 +77,7 @@ export function QueenHoneycombLogo({ size = 72, className, "aria-hidden": ariaHi
           points={hexPts(c.x, c.y, outer)}
           fill="none"
           stroke="#FFB800"
-          strokeWidth={Number((3.5 * s).toFixed(1))}
+          strokeWidth={strokeW}
           strokeLinejoin="round"
         />
       ))}
