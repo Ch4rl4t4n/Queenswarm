@@ -182,8 +182,6 @@ interface HexAgentCardProps {
   showPerformance?: boolean;
   renderAsDiv?: boolean;
   className?: string;
-  /** Optional square pixel size override. */
-  size?: number;
 }
 
 /**
@@ -196,7 +194,6 @@ export function HexAgentCard({
   showPerformance = false,
   renderAsDiv = false,
   className,
-  size,
 }: HexAgentCardProps): JSX.Element {
   const sk = swarmKeyFromAgent(agent);
   const borderColor = sk === "unassigned" ? AMBER_STROKE : SWARM_STROKE[sk];
@@ -235,18 +232,17 @@ export function HexAgentCard({
     </>
   );
 
-  const rootClass = cn(
-    "qs-hex group relative",
-    idle && "opacity-[0.97]",
-    size === undefined ? "h-[106px] w-[106px] sm:h-[140px] sm:w-[140px]" : "",
-    className,
-  );
-  const rootStyle: CSSProperties | undefined =
-    size !== undefined ? { width: size, height: size } : undefined;
+  const fixedTile: CSSProperties = {
+    width: 140,
+    height: 140,
+    flexShrink: 0,
+  };
+
+  const rootClass = cn("qs-hex group relative", idle && "opacity-[0.97]", className);
 
   if (href) {
     return (
-      <Link href={href} prefetch={false} className={rootClass} style={rootStyle}>
+      <Link href={href} prefetch={false} className={rootClass} style={fixedTile}>
         {inner}
       </Link>
     );
@@ -254,14 +250,14 @@ export function HexAgentCard({
 
   if (renderAsDiv) {
     return (
-      <div className={rootClass} style={rootStyle}>
+      <div className={rootClass} style={fixedTile}>
         {inner}
       </div>
     );
   }
 
   return (
-    <button type="button" className={rootClass} style={rootStyle} onClick={onClick}>
+    <button type="button" className={rootClass} style={fixedTile} onClick={onClick}>
       {inner}
     </button>
   );
