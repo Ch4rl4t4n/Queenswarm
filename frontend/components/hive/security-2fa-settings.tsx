@@ -1,7 +1,7 @@
 "use client";
 
 import { ExternalLink, Grid2x2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { HiveSwitch } from "@/components/ui/hive-switch";
@@ -59,6 +59,9 @@ export function Security2FASettings() {
   const [regenPassword, setRegenPassword] = useState("");
   const [freshCodes, setFreshCodes] = useState<string[] | null>(null);
 
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [qrBusy, setQrBusy] = useState(false);
+
   const loadMe = useCallback(async () => {
     try {
       const row = await hiveGet<DashboardOperatorMe>("auth/me");
@@ -84,6 +87,7 @@ export function Security2FASettings() {
     setEnrollPassword("");
     setConfirmCode("");
     setProvision(null);
+    setQrDataUrl(null);
     if (twofaPending) {
       setEnrollPhase("confirm");
     } else {
@@ -183,12 +187,37 @@ export function Security2FASettings() {
     }
   }
 
-  const qrSrc = useMemo(() => {
-    if (!provision?.otpauth_uri) {
-      return null;
+  useEffect(() => {
+    const uri = provision?.otpauth_uri?.trim();
+    if (!uri || enrollPhase !== "qr") {
+      return;
     }
-    return `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(provision.otpauth_uri)}`;
-  }, [provision?.otpauth_uri]);
+    let cancelled = false;
+    setQrBusy(true);
+    void (async () => {
+      try {
+        const QR = await import("qrcode");
+        const dataUrl = await QR.toDataURL(uri, {
+          width: 200,
+          margin: 1,
+          color: { dark: "#050510FF", light: "#FFFFFFFF" },
+        });
+        if (!cancelled) setQrDataUrl(dataUrl);
+      } catch {
+        if (!cancelled) setQrDataUrl(null);
+      } finally {
+        if (!cancelled) setQrBusy(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [provision?.otpauth_uri, enrollPhase]);
+
+  const qrFallbackRemote = provision?.otpauth_uri
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(provision.otpauth_uri)}`
+    : null;
+  const qrDisplaySrc = qrDataUrl ?? qrFallbackRemote;
 
   if (err && !me) {
     return (
@@ -374,10 +403,14 @@ export function Security2FASettings() {
             {enrollPhase === "qr" && provision ? (
               <>
                 <div className="mt-4 flex justify-center">
-                  {qrSrc ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- third-party QR API has dynamic data URL
-                    <img src={qrSrc} alt="QR pre TOTP" className="h-40 w-40 rounded-xl border border-white/10" width={160} height={160} />
-                  ) : null}
+                  {qrBusy ? (
+                    <span className="text-xs text-zinc-500">Generating QR…</span>
+                  ) : qrDisplaySrc ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- data URLs ok here.
+                    <img src={qrDisplaySrc} alt="QR pre TOTP" className="h-40 w-40 rounded-xl border border-white/10" width={160} height={160} />
+                  ) : (
+                    <span className="text-xs text-zinc-600">QR nedostupný — použij sekret nižšie.</span>
+                  )}
                 </div>
                 <p className="mt-3 font-[family-name:var(--font-jetbrains-mono)] text-[11px] break-all text-zinc-400">
                   {provision.secret_base32}
