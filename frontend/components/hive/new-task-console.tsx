@@ -296,31 +296,13 @@ export function NewTaskConsole() {
     }
   }
 
-  const estUsd = preview?.decomposition_cost_usd;
-  const estSec = preview?.estimated_duration_sec;
-  const estMin =
-    estSec != null && estSec > 0
-      ? Math.max(1, Math.round(estSec / 60))
-      : displaySteps.length > 0
-        ? Math.max(1, Math.round(displaySteps.length * 0.65))
-        : null;
-
   return (
     <div className="mx-auto w-full max-w-3xl pb-24">
-      <div className="mb-8 flex flex-col items-start gap-4">
-        <Link
-          href="/"
-          className="qs-btn qs-btn--ghost qs-btn--sm inline-flex w-auto max-w-full shrink-0 gap-1.5 px-4"
-        >
-          <ChevronLeftIcon className="h-4 w-4 shrink-0" aria-hidden />
-          Späť
-        </Link>
-        <div className="w-full min-w-0">
-          <h1 className="font-[family-name:var(--font-poppins)] text-3xl font-bold tracking-tight text-[#fafafa]">Nový task</h1>
-          <p className="mt-2 max-w-xl font-[family-name:var(--font-inter)] text-sm text-zinc-500">
-            Popíš, čo potrebuješ. Auto-workflow breaker rozloží zadanie na atomické kroky.
-          </p>
-        </div>
+      <div className="mb-8 w-full min-w-0">
+        <h1 className="font-[family-name:var(--font-poppins)] text-3xl font-bold tracking-tight text-[#fafafa]">Nový task</h1>
+        <p className="mt-2 max-w-xl font-[family-name:var(--font-inter)] text-sm text-zinc-500">
+          Popíš, čo potrebuješ. Auto-workflow breaker rozloží zadanie na atomické kroky.
+        </p>
       </div>
 
       <div className="qs-panel p-6 shadow-[0_0_40px_rgb(0_0_0/0.35)] md:p-8">
@@ -489,12 +471,12 @@ export function NewTaskConsole() {
           })}
         </ul>
 
-        <div className="mt-8 flex flex-col gap-4 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="font-[family-name:var(--font-inter)] text-xs text-zinc-500">
-            Odhadované náklady · {estUsd != null ? `$${estUsd.toFixed(2)}` : "—"}
-            {estMin != null ? ` · ~${estMin} min` : ""}
-          </p>
-          <div className="flex flex-wrap gap-3">
+        <div className="mt-8 flex flex-col items-start gap-4 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <Link href="/" className="qs-btn qs-btn--ghost shrink-0 gap-1.5">
+            <ChevronLeftIcon className="h-4 w-4 shrink-0" aria-hidden />
+            Späť
+          </Link>
+          <div className="flex w-full flex-wrap gap-3 sm:w-auto sm:justify-end">
             <button
               type="button"
               disabled={saveBusy || displaySteps.length < 3}
