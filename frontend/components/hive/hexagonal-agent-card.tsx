@@ -62,11 +62,11 @@ export function HexagonalAgentCard({ agent, className }: HexagonalAgentCardProps
       </div>
       <div className="space-y-1">
         <h3 className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-pollen sm:text-base">{agent.name}</h3>
-        <p className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] uppercase tracking-wide text-cyan/75">
+        <p className="font-[family-name:var(--font-poppins)] text-[11px] uppercase tracking-wide text-cyan/75">
           {roleLabel}
         </p>
       </div>
-      <dl className="grid grid-cols-2 gap-2 font-[family-name:var(--font-jetbrains-mono)] text-xs">
+      <dl className="grid grid-cols-2 gap-2 font-[family-name:var(--font-poppins)] text-xs">
         <div>
           <dt className="text-muted-foreground">pollen</dt>
           <dd className="text-pollen">{Number(agent.pollen_points).toFixed(2)}</dd>

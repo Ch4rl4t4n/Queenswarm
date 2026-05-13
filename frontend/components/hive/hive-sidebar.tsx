@@ -3,7 +3,6 @@
 import Link from "next/link";
 import {
   ClipboardList,
-  GitBranch,
   Hexagon,
   LayoutDashboardIcon,
   MicIcon,
@@ -25,12 +24,11 @@ interface NavItem {
 /** Primary cockpit routes + in-page anchors (mockup-style IA). */
 export const HIVE_NAV_PRIMARY: NavItem[] = [
   { href: "/", label: "Dashboard", Icon: LayoutDashboardIcon },
-  { href: "/tasks/new", label: "Nový task", Icon: ClipboardList },
-  { href: "/#hive-live-swarm", label: "Živá sieť", Icon: Hexagon },
-  { href: "/swarms", label: "Swarmy", Icon: Share2 },
-  { href: "/hierarchy", label: "Hierarchia", Icon: GitBranch },
+  { href: "/tasks/new", label: "New task", Icon: ClipboardList },
+  { href: "/#hive-live-swarm", label: "Live network", Icon: Hexagon },
+  { href: "/swarms", label: "Swarms", Icon: Share2 },
   { href: "/ballroom", label: "Ballroom", Icon: MicIcon },
-  { href: "/settings/security", label: "Nastavenia", Icon: Settings },
+  { href: "/settings/security", label: "Settings", Icon: Settings },
 ];
 
 function clearClientSessionArtifacts(): void {
@@ -124,7 +122,7 @@ export function HiveSidebar({ pathname }: HiveSidebarProps) {
             <polyline points="16 17 21 12 16 7" />
             <line x1="21" y1="12" x2="9" y2="12" />
           </svg>
-          <span>Odhlásiť sa</span>
+          <span>Log out</span>
         </button>
       </div>
     </aside>

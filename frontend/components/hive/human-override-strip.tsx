@@ -23,7 +23,7 @@ export function HumanOverrideStrip() {
           <h3 className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-[#fafafa]">
             Human override
           </h3>
-          <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-zinc-500">
+          <p className="mt-1 font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
             Emergency pause or wake the full roster (JWT-proxied to FastAPI).
           </p>
         </div>
@@ -44,7 +44,7 @@ export function HumanOverrideStrip() {
                 setBusy(null);
               }
             }}
-            className="rounded-lg border border-danger/40 px-3 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs text-danger transition hover:bg-danger/10"
+            className="rounded-lg border border-danger/40 px-3 py-2 font-[family-name:var(--font-poppins)] text-xs text-danger transition hover:bg-danger/10"
           >
             ⏸ Pause all
           </button>
@@ -63,16 +63,16 @@ export function HumanOverrideStrip() {
                 setBusy(null);
               }
             }}
-            className="rounded-lg border border-success/40 px-3 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs text-success transition hover:bg-success/10"
+            className="rounded-lg border border-success/40 px-3 py-2 font-[family-name:var(--font-poppins)] text-xs text-success transition hover:bg-success/10"
           >
             ▶ Wake all
           </button>
         </div>
       </div>
       {busy ? (
-        <p className="mt-3 font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-pollen">Working… {busy}</p>
+        <p className="mt-3 font-[family-name:var(--font-poppins)] text-[11px] text-pollen">Working… {busy}</p>
       ) : null}
-      {error ? <p className="mt-2 font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-danger">{error}</p> : null}
+      {error ? <p className="mt-2 font-[family-name:var(--font-poppins)] text-[11px] text-danger">{error}</p> : null}
     </div>
   );
 }

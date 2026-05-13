@@ -33,7 +33,7 @@ export function ProgressBar({
   return (
     <div className={cn("w-full space-y-1", className)}>
       {label ? (
-        <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.18em] text-cyan/75">
+        <p className="font-[family-name:var(--font-poppins)] text-[10px] uppercase tracking-[0.18em] text-cyan/75">
           {label}
         </p>
       ) : null}

@@ -76,7 +76,7 @@ interface TasksQueueHeaderStatsProps {
 
 export function TasksQueueHeaderStats({ counts }: TasksQueueHeaderStatsProps) {
   return (
-    <span className="font-[family-name:var(--font-inter)] text-sm text-muted-foreground">
+    <span className="font-[family-name:var(--font-poppins)] text-sm text-muted-foreground">
       <span className="text-[#fafafa]/90">{counts.running + counts.pending}</span> active · {counts.pending} pending ·{" "}
       <span>{counts.completed}</span> completed today
     </span>
@@ -102,7 +102,7 @@ export function TasksQueueSection({ tasks }: TasksQueueSectionProps) {
       type="button"
       onClick={() => setBucket(id)}
       className={cn(
-        "shrink-0 rounded-full px-3 py-1.5 font-[family-name:var(--font-inter)] text-xs font-medium transition whitespace-nowrap",
+        "shrink-0 rounded-full px-3 py-1.5 font-[family-name:var(--font-poppins)] text-xs font-medium transition whitespace-nowrap",
         bucket === id ? "border border-transparent bg-black/65 text-[#fafafa]" : "border border-transparent text-zinc-500 hover:text-pollen",
       )}
     >
@@ -124,7 +124,7 @@ export function TasksQueueSection({ tasks }: TasksQueueSectionProps) {
           value={needle}
           onChange={(e) => setNeedle(e.target.value)}
           placeholder="Filter tasks…"
-          className="w-full min-w-0 max-w-full rounded-xl border border-cyan/[0.15] bg-black/45 px-4 py-2 font-[family-name:var(--font-inter)] text-sm text-[#fafafa] placeholder:text-zinc-500 focus:border-pollen/35 focus:outline-none sm:max-w-[320px] sm:flex-none"
+          className="w-full min-w-0 max-w-full rounded-xl border border-cyan/[0.15] bg-black/45 px-4 py-2 font-[family-name:var(--font-poppins)] text-sm text-[#fafafa] placeholder:text-zinc-500 focus:border-pollen/35 focus:outline-none sm:max-w-[320px] sm:flex-none"
         />
       </div>
 
@@ -142,12 +142,12 @@ export function TasksQueueSection({ tasks }: TasksQueueSectionProps) {
               <div className="min-w-0 pt-1 pl-3">
                 <p className="font-[family-name:var(--font-poppins)] font-semibold tracking-tight text-[#fafafa]">
                   {t.title}{" "}
-                  <span className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] font-normal lowercase text-zinc-500">
+                  <span className="font-[family-name:var(--font-poppins)] text-[11px] font-normal lowercase text-zinc-500">
                     {t.id}
                   </span>
                 </p>
-                <div className="mt-2 flex flex-wrap items-center gap-2 font-[family-name:var(--font-inter)] text-[11px] text-zinc-500">
-                  <span className="rounded-full border border-cyan/[0.12] px-2 py-0.5 font-[family-name:var(--font-jetbrains-mono)] uppercase tracking-[0.08em]">
+                <div className="mt-2 flex flex-wrap items-center gap-2 font-[family-name:var(--font-poppins)] text-[11px] text-zinc-500">
+                  <span className="rounded-full border border-cyan/[0.12] px-2 py-0.5 font-[family-name:var(--font-poppins)] uppercase tracking-[0.08em]">
                     swarm · {t.task_type}
                   </span>
                   <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5", statusBadge(b))}>
@@ -156,7 +156,7 @@ export function TasksQueueSection({ tasks }: TasksQueueSectionProps) {
                 </div>
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1 pl-3 sm:w-[210px]">
-                <span className="font-[family-name:var(--font-inter)] text-[10px] uppercase tracking-[0.22em] text-zinc-500">
+                <span className="font-[family-name:var(--font-poppins)] text-[10px] uppercase tracking-[0.22em] text-zinc-500">
                   Progress
                 </span>
                 <p className={cn("font-[family-name:var(--font-poppins)] text-2xl tabular-nums", progressHueClass(t.task_type, t.swarm_id, b))}>{pct}%</p>
@@ -170,7 +170,7 @@ export function TasksQueueSection({ tasks }: TasksQueueSectionProps) {
       </div>
 
       {filtered.length === 0 ? (
-        <p className="text-center font-[family-name:var(--font-jetbrains-mono)] text-sm text-zinc-500">Žiadne úlohy v tomto filtri.</p>
+        <p className="text-center font-[family-name:var(--font-poppins)] text-sm text-zinc-500">No tasks in this filter.</p>
       ) : null}
     </div>
   );

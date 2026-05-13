@@ -29,7 +29,7 @@ export function Providers({ children }: ProvidersProps) {
         theme="dark"
         position="top-right"
         toastOptions={{
-          className: "font-[family-name:var(--font-jetbrains-mono)] text-sm",
+          className: "font-[family-name:var(--font-poppins)] text-sm",
           style: {
             background: "#050510",
             border: "1px solid rgba(0,255,255,0.25)",

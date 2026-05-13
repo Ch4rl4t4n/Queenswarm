@@ -15,7 +15,7 @@ export function hiveMobileRouteMeta(pathname: string): MobileRouteMeta {
     };
   }
   if (pathname === "/") {
-    return { kicker: "Queen Swarm", staticSubtitle: "Dashboard · živá sieť · hierarchia" };
+    return { kicker: "Queen Swarm", staticSubtitle: "Dashboard · live swarm roster" };
   }
   return { kicker: "QueenSwarm", staticSubtitle: "Hive cockpit" };
 }

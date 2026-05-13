@@ -26,7 +26,7 @@ function onlineLine(summary: DashboardSummary | null): string {
     if (u === "OFFLINE" || u === "ERROR") offlineErr += v;
   }
   const online = Math.max(0, total - offlineErr);
-  return total ? `${online} agentov online` : "hive warming…";
+  return total ? `${online} agents online` : "hive warming…";
 }
 
 /** Mobile-first sticky strip. */
@@ -57,14 +57,14 @@ export function HiveMobileHeader({ pathname, summary, className }: HiveMobileHea
         </span>
         <span className="min-w-0">
           <p className="font-[family-name:var(--font-poppins)] text-[11px] font-semibold uppercase tracking-[0.18em] text-pollen">{meta.kicker}</p>
-          <p className="line-clamp-2 font-[family-name:var(--font-inter)] text-xs text-muted-foreground">{contextualLine}</p>
+          <p className="line-clamp-2 font-[family-name:var(--font-poppins)] text-xs text-muted-foreground">{contextualLine}</p>
         </span>
       </Link>
       <button
         type="button"
         aria-label="Notifications"
         className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan/[0.18] bg-black/55 text-zinc-300 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.05)] hover:border-pollen/35 hover:text-pollen"
-        onClick={() => toast.message("Hive alerts", { description: "Žiadne neprečítané." })}
+        onClick={() => toast.message("Hive alerts", { description: "Nothing unread." })}
       >
         <BellIcon className="h-[18px] w-[18px]" aria-hidden />
       </button>

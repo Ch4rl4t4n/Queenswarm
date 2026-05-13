@@ -579,10 +579,10 @@ function LoginFormInner(): JSX.Element {
               Enter the 6-digit code for <strong style={{ color: "#9898b8" }}>Queenswarm</strong>
             </div>
             <p style={{ fontSize: 11, color: "#4a4a6a", lineHeight: 1.55, marginBottom: 14, maxWidth: 360, marginInline: "auto" }}>
-              Zobrazí sa len vtedy, keď už máš 2FA aktivovaný. Nie je spárovaný telefón? Skús{" "}
-              <strong style={{ color: "#6a6a8a" }}>záložný kód</strong> alebo obráť sa na administrátora. Ak 2FA ešte nemáš
-              nastavený, choď ← Späť a po prihlásení ho dokončíš v časti{" "}
-              <strong style={{ color: "#6a6a8a" }}>Nastavenia → Security</strong>.
+              Only shown when 2FA is already enabled on your account. Phone not paired? Try a{" "}
+              <strong style={{ color: "#6a6a8a" }}>backup code</strong> or contact an admin. If you have not finished 2FA
+              setup, go ← Back and after sign-in finish it under{" "}
+              <strong style={{ color: "#6a6a8a" }}>Settings → Security</strong>.
             </p>
 
             <OTPInput onComplete={(code) => void handleOTP(code)} />
@@ -640,7 +640,7 @@ export default function LoginPage(): JSX.Element {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-[40vh] w-full items-center justify-center font-[family-name:var(--font-jetbrains-mono)] text-sm text-zinc-500">
+        <div className="flex min-h-[40vh] w-full items-center justify-center font-[family-name:var(--font-poppins)] text-sm text-zinc-500">
           Loading hive gate…
         </div>
       }

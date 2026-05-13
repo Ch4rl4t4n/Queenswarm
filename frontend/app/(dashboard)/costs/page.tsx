@@ -36,8 +36,8 @@ export default async function CostsPage() {
 
   if (!summary) {
     return (
-      <p className="font-[family-name:var(--font-jetbrains-mono)] text-sm text-danger">
-        Operator ledger nedostupný · skús INTERNAL_BACKEND_ORIGIN / proxy JWT.
+      <p className="font-[family-name:var(--font-poppins)] text-sm text-danger">
+        Operator ledger unavailable · try INTERNAL_BACKEND_ORIGIN / proxy JWT.
       </p>
     );
   }
@@ -82,15 +82,15 @@ export default async function CostsPage() {
         <KpiChip label={`Window (${summary.window_days}d)`} value={formatUsd(totalWindow)} sub="Rolling LiteLLM burn" />
         <aside className="rounded-2xl border border-alert/25 bg-hive-card/90 p-5 shadow-[inset_0_0_0_1px_rgb(255_0_170/0.12)]">
           <div className="flex justify-between gap-2">
-            <p className="font-[family-name:var(--font-inter)] text-xs uppercase tracking-[0.14em] text-muted-foreground">Cap</p>
+            <p className="font-[family-name:var(--font-poppins)] text-xs uppercase tracking-[0.14em] text-muted-foreground">Cap</p>
             <TargetIcon className="h-5 w-5 text-alert" aria-hidden />
           </div>
           <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl text-pollen">{formatUsd(capUsd)}</p>
-          <p className="mt-2 font-[family-name:var(--font-inter)] text-xs text-muted-foreground">Auto-pause at 100%</p>
+          <p className="mt-2 font-[family-name:var(--font-poppins)] text-xs text-muted-foreground">Auto-pause at 100%</p>
         </aside>
       </section>
 
-      <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs text-alert">
+      <p className="font-[family-name:var(--font-poppins)] text-xs text-alert">
         Task ledger Σ cost_usd (UTC midnight window):{" "}
         <span className="text-pollen tabular-nums">{formatUsd(taskLedgerUsdToday)}</span>
       </p>
@@ -106,7 +106,7 @@ export default async function CostsPage() {
             </NeonButton>
           </div>
           <SpendTrendChart data={byDayFull.slice(-Math.min(summary.window_days, byDayFull.length))} />
-          <div className="flex flex-wrap justify-between gap-2 px-2 font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-500">
+          <div className="flex flex-wrap justify-between gap-2 px-2 font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
             <span>Avg ${avgDay.toFixed(2)} / day</span>
             <span>Proj. ${Math.round(projectedMonth)} / month</span>
           </div>
@@ -116,17 +116,17 @@ export default async function CostsPage() {
           <h2 className="font-[family-name:var(--font-poppins)] text-lg text-[#fafafa]">By LLM provider</h2>
           <div className="space-y-4 rounded-2xl border border-cyan/[0.1] bg-hive-card/90 p-5">
             {providers.length === 0 ? (
-              <p className="font-[family-name:var(--font-inter)] text-sm text-zinc-500">Žiadny spend v tomto okne.</p>
+              <p className="font-[family-name:var(--font-poppins)] text-sm text-zinc-500">No spend in this window.</p>
             ) : (
               providers.map((p, idx) => {
                 const pct = Math.round(((p.spend_usd ?? 0) / (providers.reduce((a, x) => a + x.spend_usd, 0) || 1)) * 100);
                 return (
                   <div key={p.model}>
-                    <div className="flex justify-between font-[family-name:var(--font-inter)] text-sm text-[#fafafa]">
+                    <div className="flex justify-between font-[family-name:var(--font-poppins)] text-sm text-[#fafafa]">
                       <span>{p.model}</span>
                       <span>
                         {formatUsd(p.spend_usd)}{" "}
-                        <span className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-500">· {pct}%</span>
+                        <span className="font-[family-name:var(--font-poppins)] text-[11px] text-zinc-500">· {pct}%</span>
                       </span>
                     </div>
                     <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/50">
@@ -144,20 +144,20 @@ export default async function CostsPage() {
 
       <section className="rounded-3xl border border-cyan/[0.1] bg-hive-card/90 p-6">
         <h2 className="font-[family-name:var(--font-poppins)] text-lg text-[#fafafa]">Pollen intensity · top bees</h2>
-        <p className="mt-1 font-[family-name:var(--font-inter)] text-sm text-muted-foreground">
-          Relatívne oproti max v rožku — per-agent LiteLLM cost join ešte pribudne.
+        <p className="mt-1 font-[family-name:var(--font-poppins)] text-sm text-muted-foreground">
+          Relative to max in the hive — per-agent LiteLLM cost join still to come.
         </p>
         <ul className="mt-8 space-y-5">
           {spenders.map((bee, idx) => {
             const w = Math.max(6, Math.round((bee.pollen_points / maxPollen) * 100));
             return (
               <li key={bee.id}>
-                <div className="flex justify-between gap-3 font-[family-name:var(--font-inter)] text-sm">
+                <div className="flex justify-between gap-3 font-[family-name:var(--font-poppins)] text-sm">
                   <span className="text-[#fafafa]">
                     {bee.name}{" "}
-                    <span className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-500">· {bee.role}</span>
+                    <span className="font-[family-name:var(--font-poppins)] text-[11px] text-zinc-500">· {bee.role}</span>
                   </span>
-                  <span className="font-[family-name:var(--font-jetbrains-mono)] text-pollen tabular-nums">
+                  <span className="font-[family-name:var(--font-poppins)] text-pollen tabular-nums">
                     {Number(bee.pollen_points).toFixed(2)}
                   </span>
                 </div>
@@ -187,17 +187,17 @@ function KpiChip({
   return (
     <article className="rounded-2xl border border-cyan/[0.1] bg-hive-card/90 p-5">
       <div className="flex items-start justify-between gap-3">
-        <p className="font-[family-name:var(--font-inter)] text-xs uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+        <p className="font-[family-name:var(--font-poppins)] text-xs uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
         <DollarSignIcon className="h-6 w-6 text-pollen" aria-hidden />
       </div>
       <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl text-[#fafafa]">{value}</p>
       {typeof delta === "number" && delta !== 0 ? (
-        <p className={cn("mt-2 font-[family-name:var(--font-jetbrains-mono)] text-xs", delta > 0 ? "text-success" : "text-danger")}>
+        <p className={cn("mt-2 font-[family-name:var(--font-poppins)] text-xs", delta > 0 ? "text-success" : "text-danger")}>
           {delta > 0 ? "+" : ""}
           {delta}%
         </p>
       ) : null}
-      {sub ? <p className="mt-2 font-[family-name:var(--font-inter)] text-[11px] text-zinc-500">{sub}</p> : null}
+      {sub ? <p className="mt-2 font-[family-name:var(--font-poppins)] text-[11px] text-zinc-500">{sub}</p> : null}
     </article>
   );
 }

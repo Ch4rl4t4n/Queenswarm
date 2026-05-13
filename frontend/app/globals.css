@@ -407,7 +407,7 @@
     border-radius: var(--qs-radius-sm);
     color: var(--qs-text);
     font-size: 13px;
-    font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+    font-family: var(--font-poppins), system-ui, sans-serif;
     outline: none;
     transition: border-color 0.15s;
   }
@@ -423,13 +423,31 @@
 
   .qs-label {
     display: block;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
     color: var(--qs-text-3);
     margin-bottom: 6px;
     font-family: var(--font-poppins), system-ui, sans-serif;
+  }
+
+  /** Section / KPI captions — single Poppins size across dashboards (avoid JetBrains on chrome). */
+  .qs-meta-label {
+    font-family: var(--font-poppins), system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.25;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  /** Pills, lane badges, status chips — same face + size as meta labels unless inside ``<pre>``. */
+  .qs-chip {
+    font-family: var(--font-poppins), system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.2;
   }
 
   /* ── BUTTON SYSTEM — Poppins 13px / semibold ── */
@@ -438,7 +456,8 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 8px 18px;
+    padding: 10px 22px;
+    min-height: 40px;
     border-radius: 8px;
     font-family: "Poppins", var(--font-poppins), system-ui, sans-serif;
     font-size: 13px;
@@ -457,7 +476,7 @@
 
   a.qs-btn {
     display: inline-flex;
-    /* Flex column parents default align-items: stretch — avoid full-width ghost links ("Späť"). */
+    /* Flex column parents default align-items: stretch — avoid full-width ghost links ("Back"). */
     width: fit-content;
     max-width: 100%;
   }
@@ -552,20 +571,23 @@
   }
 
   .qs-btn--sm {
-    padding: 5px 12px;
+    padding: 7px 16px;
+    min-height: 32px;
     font-size: 11px;
     border-radius: 6px;
     gap: 4px;
   }
 
   .qs-btn--lg {
-    padding: 12px 28px;
+    padding: 13px 30px;
+    min-height: 44px;
     font-size: 14px;
     border-radius: 10px;
   }
 
   .qs-btn--xl {
-    padding: 14px 32px;
+    padding: 14px 34px;
+    min-height: 48px;
     font-size: 15px;
     border-radius: 12px;
   }
@@ -578,7 +600,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 5px 14px;
+    padding: 6px 16px;
     border-radius: 999px;
     font-family: "Poppins", var(--font-poppins), system-ui, sans-serif;
     font-size: 12px;

@@ -145,7 +145,7 @@ export function SettingsLlmKeysPanel() {
 
   return (
     <div className="flex flex-col gap-[var(--qs-gap)]">
-      <p className="font-[family-name:var(--font-inter)] text-sm text-[var(--qs-text-3)]">
+      <p className="font-[family-name:var(--font-poppins)] text-sm text-[var(--qs-text-3)]">
         Credentials call{" "}
         <span className="font-mono text-xs text-[var(--qs-cyan)]">POST /api/v1/llm-keys</span> through the hive proxy · masked
         values never round-trip plaintext.

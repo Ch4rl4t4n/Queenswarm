@@ -14,14 +14,14 @@ export function WidgetStat({ label, value, caption, icon: Icon }: WidgetStatProp
       <div className="relative flex items-start gap-4">
         <Icon className="mt-1 h-8 w-8 text-[#FFB800]" aria-hidden />
         <div className="space-y-1">
-          <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.2em] text-cyan/80">
+          <p className="font-[family-name:var(--font-poppins)] text-xs uppercase tracking-[0.2em] text-cyan/80">
             {label}
           </p>
           <p className="font-[family-name:var(--font-poppins)] text-3xl font-semibold tracking-tight text-pollen shadow-[0_0_35px_rgba(255,184,0,0.42)]">
             {value}
           </p>
           {caption ? (
-            <p className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-[#00FF88]/80">
+            <p className="font-[family-name:var(--font-poppins)] text-[11px] text-[#00FF88]/80">
               {caption}
             </p>
           ) : null}

@@ -120,7 +120,7 @@ export function DashboardBeeHexGrid({ rosterTarget }: DashboardBeeHexGridProps) 
           className="text-[#FFB800] font-semibold text-lg font-[family-name:var(--font-poppins)]"
         >
           🐝 Active Bees
-          <span className="ml-2 font-normal font-[family-name:var(--font-jetbrains-mono)] text-sm text-gray-400">
+          <span className="ml-2 font-normal font-[family-name:var(--font-poppins)] text-sm text-gray-400">
             {agents.length} / {targetDisplay}
           </span>
         </h2>
@@ -157,7 +157,7 @@ export function DashboardBeeHexGrid({ rosterTarget }: DashboardBeeHexGridProps) 
                 >
                   <div className="flex flex-col items-center gap-1.5 px-3 text-center">
                     <span className="text-xl leading-none">{swarmEmoji[key] ?? "🐝"}</span>
-                    <span className="max-w-[100px] truncate font-[family-name:var(--font-jetbrains-mono)] text-[10px] leading-tight text-white">
+                    <span className="max-w-[100px] truncate font-[family-name:var(--font-poppins)] text-[10px] leading-tight text-white">
                       {agent.name}
                     </span>
                     <StatusDot status={dot} size="sm" />

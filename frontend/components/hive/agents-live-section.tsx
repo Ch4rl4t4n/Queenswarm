@@ -86,7 +86,7 @@ function roleDisplayName(role: string): string {
 
 function laneTabLabel(key: Exclude<AgentsSwarmFilter, "all">): string {
   const labels: Record<Exclude<AgentsSwarmFilter, "all">, string> = {
-    unassigned: "Nezaradení",
+    unassigned: "Unassigned",
     scout: "Scout Swarm",
     eval: "Eval Swarm",
     sim: "Sim Swarm",
@@ -226,12 +226,15 @@ function statusDotClass(status: string): string {
     return "bg-cyan shadow-[0_0_8px_rgb(0_255_255/0.75)]";
   }
   if (u === "IDLE") {
-    return "bg-zinc-500";
+    return "bg-zinc-400";
   }
   if (u === "PAUSED") {
     return "bg-alert";
   }
-  if (u === "OFFLINE" || u === "ERROR") {
+  if (u === "OFFLINE") {
+    return "bg-zinc-500 ring-1 ring-zinc-400/35";
+  }
+  if (u === "ERROR") {
     return "bg-danger";
   }
   return "bg-zinc-600";
@@ -244,15 +247,18 @@ function agentStatusLine(agent: AgentRow): string {
   }
   const u = agent.status.toUpperCase();
   if (u === "RUNNING") {
-    return "Spracúvam úlohu…";
+    return "Working on task…";
   }
   if (u === "ERROR") {
-    return "Chyba — vyžaduje pozornosť";
+    return "Error — needs attention";
   }
   if (u === "PAUSED") {
-    return "Pozastavené";
+    return "Paused";
   }
-  return "Čakám na handoff";
+  if (u === "OFFLINE") {
+    return "Inactive (offline)";
+  }
+  return "Waiting for handoff";
 }
 
 interface AgentsLiveSectionProps {
@@ -341,35 +347,35 @@ export function AgentsLiveSection({
 
   return (
     <section id="hive-live-swarm" className="scroll-mt-24 rounded-3xl border-[3px] border-white/10 bg-[#07070f]/95 p-6 md:p-8">
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        <div className="min-w-0 flex-1">
-          <h2 className="font-[family-name:var(--font-poppins)] text-2xl font-bold text-[#fafafa] md:text-3xl">Agenti</h2>
-          <p className="mt-2 font-[family-name:var(--font-inter)] text-sm text-zinc-500">
-            {counts.all} včiel · {assignedWorkerCount} zaradených do swarmov · {counts.unassigned} nezaradených ·{" "}
-            {swarmCountDistinct} swarmov s aspoň jednou včelou · {roleTypeCount} typov rolí
+      <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0 flex-1 md:max-w-[min(100%,48rem)]">
+          <h2 className="font-[family-name:var(--font-poppins)] text-2xl font-bold text-[#fafafa] md:text-3xl">Agents</h2>
+          <p className="mt-2 font-[family-name:var(--font-poppins)] text-sm text-zinc-500">
+            {counts.all} bees · {assignedWorkerCount} assigned to swarms · {counts.unassigned} unassigned ·{" "}
+            {swarmCountDistinct} swarms with at least one bee · {roleTypeCount} role types
           </p>
-          <p className="mt-2 max-w-3xl font-[family-name:var(--font-inter)] text-xs leading-relaxed text-zinc-600">
-            Žiadne pevné kvóty scout/eval/sim pri štarte — priradenie swarmu, manažment a zobrazenie naučeného obsahu sa
-            doladia neskôr; stĺpce filtra sa viažu na <span className="text-zinc-500">sub_swarm_id</span> a typ úlohy z metadát
-            (nie automatické priradenie podľa mena agenta).
+          <p className="mt-2 max-w-3xl font-[family-name:var(--font-poppins)] text-xs leading-relaxed text-zinc-600">
+            No fixed scout/eval/sim quotas at boot — swarm assignment, management, and displaying learned material will be
+            tuned later; filter lanes bind to <span className="text-zinc-500">sub_swarm_id</span> and task type from metadata
+            (not automatic assignment from agent name).
           </p>
         </div>
-        <div className="flex w-full shrink-0 flex-col gap-3 sm:ml-auto sm:w-[min(100%,17rem)]">
+        <div className="flex w-full shrink-0 flex-row flex-wrap items-stretch justify-end gap-3 md:ml-auto md:w-auto md:flex-nowrap md:items-start md:justify-end">
           <Link
             href={spawnHref}
-            className="qs-btn qs-btn--ghost flex !w-full h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap"
+            className="qs-btn qs-btn--ghost inline-flex min-w-[10rem] flex-1 items-center justify-center gap-2 whitespace-nowrap sm:flex-initial"
           >
             <Plus className="h-4 w-4 shrink-0" aria-hidden />
-            Pridať agenta
+            Add agent
           </Link>
           <button
             type="button"
             disabled={rebalanceBusy}
             onClick={() => void onRebalanceHive()}
-            className="qs-btn qs-btn--primary flex !w-full h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap disabled:opacity-40"
+            className="qs-btn qs-btn--primary inline-flex min-w-[10rem] flex-1 items-center justify-center gap-2 whitespace-nowrap sm:flex-initial disabled:opacity-40"
           >
             <Play className="h-4 w-4 shrink-0" aria-hidden />
-            {rebalanceBusy ? "Prebieha…" : "Vyrovnať úľ"}
+            {rebalanceBusy ? "Working…" : "Balance hive"}
           </button>
         </div>
       </div>
@@ -386,20 +392,20 @@ export function AgentsLiveSection({
                 className={cn("qs-pill", active && rosterFilterActiveClass(key))}
               >
                 {key === "all"
-                  ? `Všetko · ${String(count)}`
+                  ? `All · ${String(count)}`
                   : `${laneTabLabel(key as Exclude<AgentsSwarmFilter, "all">)} · ${String(count)}`}
               </button>
             );
           })}
         </div>
-        <div role="group" aria-label="Zobrazenie" className="flex flex-wrap gap-2">
+        <div role="group" aria-label="View" className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => setViewMode("grid")}
             className={cn("qs-pill gap-1.5", viewMode === "grid" && "qs-pill--active-amber")}
           >
             <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
-            Mriežka
+            Grid
           </button>
           <button
             type="button"
@@ -407,7 +413,7 @@ export function AgentsLiveSection({
             className={cn("qs-pill gap-1.5", viewMode === "list" && "qs-pill--active-amber")}
           >
             <List className="h-3.5 w-3.5" aria-hidden />
-            Zoznam
+            List
           </button>
         </div>
       </div>
@@ -429,13 +435,17 @@ export function AgentsLiveSection({
             const lane = agentListLane(agent);
             const theme = laneTheme(lane === "queen" ? "queen" : lane, agent);
             const err = agent.status.toUpperCase() === "ERROR";
+            const offline = agent.status.toUpperCase() === "OFFLINE";
             const scoreP = pctScore(agent.performance_score);
             return (
               <li
                 key={agent.id}
-                className="flex overflow-hidden rounded-2xl qs-rim bg-black/40"
+                className={cn(
+                  "flex overflow-hidden rounded-2xl qs-rim bg-black/40",
+                  offline && "opacity-[0.78] saturate-[0.42]",
+                )}
               >
-                <div className={cn("w-1 shrink-0", theme.listBar)} aria-hidden />
+                <div className={cn("w-1 shrink-0", offline ? "bg-zinc-600/85" : theme.listBar)} aria-hidden />
                 <button
                   type="button"
                   onClick={() => onAgentActivate(agent)}
@@ -447,26 +457,26 @@ export function AgentsLiveSection({
                       <span className="font-[family-name:var(--font-poppins)] text-sm font-bold text-[#fafafa]">
                         {agent.name}
                       </span>
-                      <span className="font-[family-name:var(--font-inter)] text-xs text-zinc-500">
+                      <span className="font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
                         {roleDisplayName(agent.role)}
                       </span>
                       <span
                         className={cn(
-                          "rounded-full border px-2 py-0.5 font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase",
+                          "rounded-full border px-2 py-0.5 qs-chip uppercase",
                           theme.pillClass,
                         )}
                       >
                         {lane === "queen" ? "Queen" : laneTabLabel(lane as Exclude<AgentsSwarmFilter, "all">)}
                       </span>
                     </div>
-                    <p className="mt-1.5 font-[family-name:var(--font-inter)] text-xs text-zinc-500">
+                    <p className="mt-1.5 font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
                       {agentStatusLine(agent)}
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-col gap-2 sm:w-40">
                     <div>
-                      <div className="flex items-center justify-between text-[10px] font-[family-name:var(--font-jetbrains-mono)] uppercase tracking-wide text-zinc-500">
-                        <span>Skóre</span>
+                      <div className="flex items-center justify-between qs-meta-label text-zinc-500">
+                        <span>Score</span>
                         <span className={cn(err ? "text-danger" : theme.scoreText)}>
                           {pctScoreDisplay(agent.performance_score)}
                         </span>
@@ -475,7 +485,7 @@ export function AgentsLiveSection({
                         <div className={cn("h-full rounded-full", theme.barBg)} style={{ width: `${scoreP}%` }} />
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 font-[family-name:var(--font-jetbrains-mono)] text-xs text-pollen">
+                    <div className="flex items-center gap-1.5 font-[family-name:var(--font-poppins)] text-xs tabular-nums text-pollen">
                       <Hexagon className="h-3.5 w-3.5 text-pollen/90" aria-hidden />
                       {formatPollen(agent.pollen_points ?? 0)}
                     </div>
@@ -488,8 +498,8 @@ export function AgentsLiveSection({
       )}
 
       {filtered.length === 0 ? (
-        <p className="mt-10 text-center font-[family-name:var(--font-inter)] text-sm text-zinc-500">
-          Žiadni agenti v tomto filtri.
+        <p className="mt-10 text-center font-[family-name:var(--font-poppins)] text-sm text-zinc-500">
+          No agents match this filter.
         </p>
       ) : null}
     </section>

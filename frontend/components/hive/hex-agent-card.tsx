@@ -2,10 +2,15 @@
 
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { useMemo } from "react";
 
 import type { AgentRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
+
+import {
+  AGENT_HEX_FILL as HEX_FILL,
+  DEFAULT_AGENT_HEX_STROKE_PX as DEFAULT_STROKE_WIDTH,
+  RoundedHex,
+} from "@/components/hive/hex-metric-tile";
 
 const SWARM_STROKE: Record<"scout" | "eval" | "sim" | "action", string> = {
   scout: "#00E5FF",
@@ -16,15 +21,12 @@ const SWARM_STROKE: Record<"scout" | "eval" | "sim" | "action", string> = {
 
 const AMBER_STROKE = "#FFB800";
 
-const HEX_FILL = "#141424";
-/** Aligned with ``--qs-bubble-border-width``; SVG path uses ``vectorEffect="nonScalingStroke"`` so rim stays uniform when ``tilePx`` changes. */
-const DEFAULT_STROKE_WIDTH = 3;
-
-const STATUS_COLORS: Record<"live" | "idle" | "paused" | "error", string> = {
+const STATUS_COLORS: Record<"live" | "idle" | "paused" | "error" | "muted", string> = {
   live: "#00FF88",
   idle: "#FFB800",
   paused: "#FF3366",
   error: "#FF3366",
+  muted: "#7e8194",
 };
 
 export function swarmKeyFromAgent(agent: AgentRow): keyof typeof SWARM_STROKE | "unassigned" {
@@ -75,7 +77,10 @@ function statusVisual(status: string): { tone: keyof typeof STATUS_COLORS; pulse
   if (u === "PAUSED") {
     return { tone: "paused", pulse: false };
   }
-  if (u === "ERROR" || u === "OFFLINE") {
+  if (u === "OFFLINE") {
+    return { tone: "muted", pulse: false };
+  }
+  if (u === "ERROR") {
     return { tone: "error", pulse: false };
   }
   return { tone: "idle", pulse: false };
@@ -102,84 +107,6 @@ function pollenDisplay(points: number): string {
     return `${(n / 1000).toFixed(1)}k`;
   }
   return n.toFixed(n >= 100 ? 0 : 1);
-}
-
-/**
- * Pointy-top rounded hex (~14% corner smoothing). Path in 140×140 user units; SVG scales to parent tile.
- *
- * Args:
- *     strokeColor: SVG stroke (lane color).
- *     strokeWidth: Stroke thickness in user units.
- *     fill: Interior fill.
- *     glowColor: Optional glow via ``drop-shadow`` (running bees).
- */
-function RoundedHex({
-  strokeColor,
-  strokeWidth = DEFAULT_STROKE_WIDTH,
-  fill = HEX_FILL,
-  glowColor,
-}: {
-  strokeColor: string;
-  strokeWidth?: number;
-  fill?: string;
-  glowColor?: string | undefined;
-}): JSX.Element {
-  const vb = 140;
-  const d = useMemo(() => {
-    const cx = vb / 2;
-    const cy = vb / 2;
-    const r = vb / 2 - strokeWidth - 3;
-    const pts: [number, number][] = Array.from({ length: 6 }, (_, i) => {
-      const a = (Math.PI / 3) * i - Math.PI / 6;
-      return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
-    });
-    const cr = r * 0.14;
-    const n = pts.length;
-    let path = "";
-    for (let i = 0; i < n; i += 1) {
-      const prev = pts[(i - 1 + n) % n]!;
-      const curr = pts[i]!;
-      const next = pts[(i + 1) % n]!;
-      const dx1 = prev[0] - curr[0];
-      const dy1 = prev[1] - curr[1];
-      const dx2 = next[0] - curr[0];
-      const dy2 = next[1] - curr[1];
-      const len1 = Math.hypot(dx1, dy1);
-      const len2 = Math.hypot(dx2, dy2);
-      const rr = Math.min(cr, len1 / 2, len2 / 2);
-      const u1 = len1 === 0 ? 0 : rr / len1;
-      const u2 = len2 === 0 ? 0 : rr / len2;
-      const p1: [number, number] = [curr[0] + dx1 * u1, curr[1] + dy1 * u1];
-      const p2: [number, number] = [curr[0] + dx2 * u2, curr[1] + dy2 * u2];
-      path +=
-        i === 0 ? `M${p1[0].toFixed(2)},${p1[1].toFixed(2)}` : `L${p1[0].toFixed(2)},${p1[1].toFixed(2)}`;
-      path += ` Q${curr[0].toFixed(2)},${curr[1].toFixed(2)} ${p2[0].toFixed(2)},${p2[1].toFixed(2)} `;
-    }
-    path += "Z";
-    return path;
-  }, [strokeWidth]);
-
-  const svgFilter: CSSProperties | undefined =
-    glowColor !== undefined ? { filter: `drop-shadow(0 0 8px ${glowColor}66)` } : undefined;
-
-  return (
-    <svg
-      className="pointer-events-none absolute inset-0 z-0 h-full w-full"
-      viewBox={`0 0 ${vb} ${vb}`}
-      preserveAspectRatio="xMidYMid meet"
-      style={svgFilter}
-      aria-hidden
-    >
-      <path
-        d={d}
-        fill={fill}
-        stroke={strokeColor}
-        strokeWidth={strokeWidth}
-        strokeLinejoin="round"
-        vectorEffect="nonScalingStroke"
-      />
-    </svg>
-  );
 }
 
 interface HexAgentCardProps {
@@ -209,10 +136,17 @@ export function HexAgentCard({
   isQueen = false,
 }: HexAgentCardProps): JSX.Element {
   const sk = swarmKeyFromAgent(agent);
-  const borderColor = isQueen ? AMBER_STROKE : sk === "unassigned" ? AMBER_STROKE : SWARM_STROKE[sk];
-  const pollenAccent = borderColor;
-
   const sv = statusVisual(agent.status ?? "");
+  const muted = sv.tone === "muted";
+  const borderColor = muted
+    ? "#5c6074"
+    : isQueen
+      ? AMBER_STROKE
+      : sk === "unassigned"
+        ? AMBER_STROKE
+        : SWARM_STROKE[sk];
+  const pollenAccent = muted ? "#6c7088" : borderColor;
+
   const statusColor = STATUS_COLORS[sv.tone];
   const pollenVal = pollenDisplay(agent.pollen_points ?? 0);
   const scoreP = pctScore(agent.performance_score);
@@ -222,7 +156,12 @@ export function HexAgentCard({
 
   const inner = (
     <>
-      <RoundedHex strokeColor={borderColor} strokeWidth={DEFAULT_STROKE_WIDTH} fill={HEX_FILL} glowColor={glowHue} />
+      <RoundedHex
+        strokeColor={borderColor}
+        strokeWidth={DEFAULT_STROKE_WIDTH}
+        fill={muted ? "#101018" : HEX_FILL}
+        glowColor={glowHue}
+      />
       <div className="qs-hex__inner">
         {isQueen ? (
           <span className="-mb-0.5 text-sm leading-none" aria-hidden>
@@ -273,7 +212,13 @@ export function HexAgentCard({
         flexShrink: 0,
       };
 
-  const rootClass = cn("qs-hex group relative", scalable && "qs-hex--scalable", idle && "opacity-[0.97]", className);
+  const rootClass = cn(
+    "qs-hex group relative",
+    scalable && "qs-hex--scalable",
+    idle && !muted && "opacity-[0.97]",
+    muted && "opacity-[0.92] saturate-[0.42]",
+    className,
+  );
 
   if (href) {
     return (

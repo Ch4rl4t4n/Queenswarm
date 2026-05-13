@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 import { QS_ACCESS } from "@/lib/auth-cookies";
+import { resolveInternalBackendOrigin } from "@/lib/backend-origin";
 
 /** Node runtime: cookie bridge + private Docker DNS (`backend`) do not run on Edge. */
 export const runtime = "nodejs";
@@ -11,8 +12,7 @@ export const runtime = "nodejs";
  * Injects Bearer from HttpOnly session cookie or HIVE_PROXY_JWT when the browser sends no Authorization.
  */
 function backendOrigin(): string {
-  const raw = process.env.INTERNAL_BACKEND_ORIGIN?.trim() || "http://backend:8000";
-  return raw.replace(/\/$/, "");
+  return resolveInternalBackendOrigin();
 }
 
 function buildTarget(request: NextRequest): string {

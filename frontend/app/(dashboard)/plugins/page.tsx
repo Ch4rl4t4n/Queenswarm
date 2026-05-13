@@ -31,14 +31,14 @@ export default async function PluginsPhasePage() {
         title="Plugin lattice"
         subtitle="Built-in hive modules + proxied uploads of operator ``.py`` drop-ins (`/api/v1/plugins`)."
         actions={
-          <span className="flex items-center gap-2 font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-500">
+          <span className="flex items-center gap-2 font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
             <PuzzleIcon className="h-4 w-4 text-pollen" />
             gen {pack?.reload_generation ?? "—"}
           </span>
         }
       />
       {!pack ? (
-        <p className="font-[family-name:var(--font-jetbrains-mono)] text-sm text-danger">
+        <p className="font-[family-name:var(--font-poppins)] text-sm text-danger">
           Plugin relay offline — confirm session + proxy.
         </p>
       ) : (
@@ -52,21 +52,21 @@ export default async function PluginsPhasePage() {
                 <p className="font-[family-name:var(--font-poppins)] text-xl font-semibold text-pollen">
                   {plug.title ?? plug.id}
                 </p>
-                <p className="mt-3 font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-400">
+                <p className="mt-3 font-[family-name:var(--font-poppins)] text-xs text-zinc-400">
                   v{plug.version ?? "?"} ·{" "}
                   <span className={plug.status === "active" ? "text-success" : "text-zinc-500"}>{plug.status ?? "n/a"}</span>
                 </p>
-                <p className="mt-4 font-[family-name:var(--font-inter)] text-sm text-muted-foreground">
+                <p className="mt-4 font-[family-name:var(--font-poppins)] text-sm text-muted-foreground">
                   {plug.description ?? "Awaiting operator notes."}
                 </p>
-                <p className="mt-4 font-[family-name:var(--font-jetbrains-mono)] text-[11px] uppercase tracking-[0.2em] text-zinc-600">
+                <p className="mt-4 font-[family-name:var(--font-poppins)] text-[11px] uppercase tracking-[0.2em] text-zinc-600">
                   PATCH /plugins/{plug.id} wired for future hot toggles
                 </p>
               </article>
             ))}
           </div>
           <PluginsUserUploader />
-          <div className="rounded-3xl qs-rim bg-black/35 p-5 font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-500">
+          <div className="rounded-3xl qs-rim bg-black/35 p-5 font-[family-name:var(--font-poppins)] text-[11px] text-zinc-500">
             <p className="text-xs font-semibold text-pollen">User rows</p>
             <ul className="mt-3 space-y-2">
               {(pack.user ?? []).length === 0 ? <li>No user plugins scanned yet.</li> : null}
@@ -79,7 +79,7 @@ export default async function PluginsPhasePage() {
           </div>
         </>
       )}
-      <div className="rounded-2xl border border-dashed border-pollen/35 bg-black/30 p-6 text-center font-[family-name:var(--font-inter)] text-sm text-zinc-400">
+      <div className="rounded-2xl border border-dashed border-pollen/35 bg-black/30 p-6 text-center font-[family-name:var(--font-poppins)] text-sm text-zinc-400">
         PATCH toggles bump reload generation · DELETE removes user ``.py`` only.
       </div>
     </div>

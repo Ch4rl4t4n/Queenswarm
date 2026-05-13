@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 
+import { resolveInternalBackendOrigin } from "@/lib/backend-origin";
 import { QS_ACCESS } from "@/lib/auth-cookies";
 
 const API_PREFIX = "/api/v1";
@@ -26,7 +27,7 @@ async function resolveHiveBearerToken(): Promise<string | null> {
 }
 
 async function hiveServerFetch(path: string, init?: RequestInit): Promise<Response> {
-  const origin = process.env.INTERNAL_BACKEND_ORIGIN?.trim() || "http://backend:8000";
+  const origin = resolveInternalBackendOrigin();
 
   const bearer = await resolveHiveBearerToken();
   if (!bearer) {

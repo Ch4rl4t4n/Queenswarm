@@ -33,7 +33,7 @@ export function AgentDetailRunNow({ agentId }: AgentDetailRunNowProps): JSX.Elem
       type="button"
       disabled={busy}
       onClick={() => void run()}
-      className="rounded-lg bg-data/10 px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-sm text-data transition hover:bg-data/20 disabled:opacity-45 border border-data/35"
+      className="rounded-lg bg-data/10 px-4 py-2 font-[family-name:var(--font-poppins)] text-sm text-data transition hover:bg-data/20 disabled:opacity-45 border border-data/35"
     >
       {busy ? "Queuing…" : "▶ Run now"}
     </button>

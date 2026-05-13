@@ -23,7 +23,7 @@ export default async function RecipesPage() {
 
   if (!catalog) {
     return (
-      <p className="font-[family-name:var(--font-jetbrains-mono)] text-sm text-danger">
+      <p className="font-[family-name:var(--font-poppins)] text-sm text-danger">
         Recipe Library offline — Postgres + Chrom required.
       </p>
     );
@@ -41,7 +41,7 @@ export default async function RecipesPage() {
         <input
           type="search"
           placeholder="Search semantic threshold 0.85…"
-          className="w-full flex-1 rounded-xl border border-cyan/[0.14] bg-hive-card/90 px-4 py-2.5 font-[family-name:var(--font-inter)] text-sm text-[#fafafa] placeholder:text-zinc-500 focus:border-pollen/35 focus:outline-none"
+          className="w-full flex-1 rounded-xl border border-cyan/[0.14] bg-hive-card/90 px-4 py-2.5 font-[family-name:var(--font-poppins)] text-sm text-[#fafafa] placeholder:text-zinc-500 focus:border-pollen/35 focus:outline-none"
         />
         <NeonButton type="button" variant="ghost" className="whitespace-nowrap uppercase">
           All tags
@@ -60,10 +60,10 @@ export default async function RecipesPage() {
               )}
             >
               <div className="flex items-start justify-between gap-3">
-                <span className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.15em] text-zinc-500">
+                <span className="font-[family-name:var(--font-poppins)] text-[10px] uppercase tracking-[0.15em] text-zinc-500">
                   @{tag.replace(/\s+/g, "_")}
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-pollen/55 px-2 py-1 font-[family-name:var(--font-inter)] text-[11px] text-pollen">
+                <span className="inline-flex items-center gap-1 rounded-full border border-pollen/55 px-2 py-1 font-[family-name:var(--font-poppins)] text-[11px] text-pollen">
                   ★ Battle-tested
                 </span>
               </div>
@@ -72,32 +72,32 @@ export default async function RecipesPage() {
                 {(recipe.topic_tags ?? []).length ? (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {(recipe.topic_tags ?? []).slice(0, 4).map((t) => (
-                      <span key={t} className="rounded-full bg-black/40 px-2 py-0.5 font-[family-name:var(--font-jetbrains-mono)] text-[10px] text-zinc-500">
+                      <span key={t} className="rounded-full bg-black/40 px-2 py-0.5 font-[family-name:var(--font-poppins)] text-[10px] text-zinc-500">
                         #{t}
                       </span>
                     ))}
                   </div>
                 ) : null}
               </div>
-              <dl className="grid grid-cols-3 gap-2 font-[family-name:var(--font-jetbrains-mono)] text-sm">
+              <dl className="grid grid-cols-3 gap-2 font-[family-name:var(--font-poppins)] text-sm">
                 <div>
-                  <dt className="font-[family-name:var(--font-inter)] text-[10px] uppercase tracking-[0.16em] text-zinc-500">Steps</dt>
+                  <dt className="font-[family-name:var(--font-poppins)] text-[10px] uppercase tracking-[0.16em] text-zinc-500">Steps</dt>
                   <dd className="mt-1 text-[#fafafa] tabular-nums">{m.steps}</dd>
                 </div>
                 <div>
-                  <dt className="font-[family-name:var(--font-inter)] text-[10px] uppercase tracking-[0.16em] text-zinc-500">Uses</dt>
+                  <dt className="font-[family-name:var(--font-poppins)] text-[10px] uppercase tracking-[0.16em] text-zinc-500">Uses</dt>
                   <dd className="mt-1 text-data tabular-nums">{m.uses}</dd>
                 </div>
                 <div>
-                  <dt className="font-[family-name:var(--font-inter)] text-[10px] uppercase tracking-[0.16em] text-zinc-500">Rate</dt>
+                  <dt className="font-[family-name:var(--font-poppins)] text-[10px] uppercase tracking-[0.16em] text-zinc-500">Rate</dt>
                   <dd className="mt-1 text-success tabular-nums">{m.rate}%</dd>
                 </div>
               </dl>
               <div className="mt-auto flex items-center justify-between border-t border-cyan/[0.06] pt-4">
-                <span className="rounded-full border border-pollen/35 bg-pollen/[0.08] px-3 py-1 font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-pollen">
+                <span className="rounded-full border border-pollen/35 bg-pollen/[0.08] px-3 py-1 font-[family-name:var(--font-poppins)] text-[11px] text-pollen">
                   {Math.round(m.avg).toLocaleString("sk-SK")} avg
                 </span>
-                <button type="button" className="font-[family-name:var(--font-inter)] text-sm font-semibold text-data hover:text-pollen">
+                <button type="button" className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-data hover:text-pollen">
                   Run →
                 </button>
               </div>
@@ -107,7 +107,7 @@ export default async function RecipesPage() {
       </div>
 
       {catalog.length === 0 ? (
-        <p className="text-center font-[family-name:var(--font-inter)] text-sm text-muted-foreground">
+        <p className="text-center font-[family-name:var(--font-poppins)] text-sm text-muted-foreground">
           Empty codex · verify LangGraph executions to seed imitation templates.
         </p>
       ) : null}

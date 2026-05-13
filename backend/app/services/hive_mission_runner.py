@@ -60,7 +60,8 @@ def _fanout_transcript(session_id: uuid.UUID, agent: str, text: str) -> None:
 
     clipped = text.strip()[:12_000]
     payload = rb._append_transcript(session_id, agent, clipped)
-    rb._broadcast_session_sync(session_id, payload)
+    if payload is not None:
+        rb._broadcast_session_sync(session_id, payload)
 
 
 def _fanout_orchestrator_delivery(

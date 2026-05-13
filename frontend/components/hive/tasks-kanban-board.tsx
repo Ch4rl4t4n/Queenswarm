@@ -100,7 +100,7 @@ export function TasksKanbanBoard({ tasks, onOpenTask }: TasksKanbanBoardProps): 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap gap-2 font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-500">
+        <div className="flex flex-wrap gap-2 font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
           <span className="rounded-full border border-cyan/[0.12] px-3 py-1">
             Hive Kanban · {filtered.length}/{tasks.length} visible
           </span>
@@ -111,13 +111,13 @@ export function TasksKanbanBoard({ tasks, onOpenTask }: TasksKanbanBoardProps): 
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search title / type / bee…"
-            className="min-w-0 flex-1 rounded-xl border border-cyan/[0.15] bg-black/45 px-4 py-2 font-[family-name:var(--font-inter)] text-sm text-[#fafafa] placeholder:text-zinc-500 focus:border-pollen/35 focus:outline-none"
+            className="min-w-0 flex-1 rounded-xl border border-cyan/[0.15] bg-black/45 px-4 py-2 font-[family-name:var(--font-poppins)] text-sm text-[#fafafa] placeholder:text-zinc-500 focus:border-pollen/35 focus:outline-none"
           />
           <input
             value={swarmNeedle}
             onChange={(e) => setSwarmNeedle(e.target.value)}
             placeholder="Filter swarm UUID fragment…"
-            className="min-w-[200px] rounded-xl border border-cyan/[0.15] bg-black/45 px-4 py-2 font-[family-name:var(--font-inter)] text-sm text-[#fafafa] placeholder:text-zinc-500 focus:border-pollen/35 focus:outline-none"
+            className="min-w-[200px] rounded-xl border border-cyan/[0.15] bg-black/45 px-4 py-2 font-[family-name:var(--font-poppins)] text-sm text-[#fafafa] placeholder:text-zinc-500 focus:border-pollen/35 focus:outline-none"
           />
         </div>
         <NeonTasksNew />
@@ -143,7 +143,7 @@ export function TasksKanbanBoard({ tasks, onOpenTask }: TasksKanbanBoardProps): 
                 >
                   {col.label}
                 </span>
-                <span className="ml-auto font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-500">
+                <span className="ml-auto font-[family-name:var(--font-poppins)] text-[11px] text-zinc-500">
                   {columnTasks.length}
                 </span>
               </header>
@@ -161,16 +161,16 @@ export function TasksKanbanBoard({ tasks, onOpenTask }: TasksKanbanBoardProps): 
                           onOpenTask ? "cursor-pointer" : "opacity-95",
                         )}
                       >
-                        <p className="font-[family-name:var(--font-inter)] text-sm font-medium text-[#fafafa]">{t.title}</p>
+                        <p className="font-[family-name:var(--font-poppins)] text-sm font-medium text-[#fafafa]">{t.title}</p>
                         <div className="mt-2 flex items-center justify-between gap-2">
-                          <span className="truncate font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase text-zinc-500">
+                          <span className="truncate font-[family-name:var(--font-poppins)] text-[10px] uppercase text-zinc-500">
                             {t.agent_name ?? (t.agent_id ? `${String(t.agent_id).slice(0, 8)}…` : "—")}
                           </span>
-                          <span className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] text-zinc-600">
+                          <span className="font-[family-name:var(--font-poppins)] text-[10px] text-zinc-600">
                             {timeAgo(t.created_at)}
                           </span>
                         </div>
-                        <div className="mt-2 flex flex-wrap gap-2 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.14em] text-zinc-500">
+                        <div className="mt-2 flex flex-wrap gap-2 font-[family-name:var(--font-poppins)] text-[10px] uppercase tracking-[0.14em] text-zinc-500">
                           <span>{t.task_type}</span>
                           <span>p{t.priority}</span>
                         </div>
@@ -182,7 +182,7 @@ export function TasksKanbanBoard({ tasks, onOpenTask }: TasksKanbanBoardProps): 
                                 style={{ width: `${Math.round(conf * 100)}%` }}
                               />
                             </div>
-                            <span className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] text-zinc-600">
+                            <span className="font-[family-name:var(--font-poppins)] text-[10px] text-zinc-600">
                               {Math.round(conf * 100)}%
                             </span>
                           </div>
@@ -212,7 +212,7 @@ function ConfidenceHint({ result }: { result?: TaskRow["result"] }): JSX.Element
     return null;
   }
   return (
-    <p className="mt-2 font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-data">
+    <p className="mt-2 font-[family-name:var(--font-poppins)] text-[11px] text-data">
       confidence {pct.toFixed(1)}%
     </p>
   );

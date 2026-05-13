@@ -83,18 +83,18 @@ export function LivePulse() {
           <p className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-pollen">
             live hive pulse
           </p>
-          <p className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-cyan/70">
+          <p className="font-[family-name:var(--font-poppins)] text-[11px] text-cyan/70">
             WebSocket `/api/v1/ws/live` fan-out snapshots
           </p>
         </div>
       </div>
       {error ? (
-        <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs text-alert">
+        <p className="font-[family-name:var(--font-poppins)] text-xs text-alert">
           realtime degraded · {error}
         </p>
       ) : null}
       {payload?.type === "hive.snapshot" ? (
-        <dl className="mt-4 grid gap-4 font-[family-name:var(--font-jetbrains-mono)] text-sm text-[#CCFFFF] sm:grid-cols-3">
+        <dl className="mt-4 grid gap-4 font-[family-name:var(--font-poppins)] text-sm text-[#CCFFFF] sm:grid-cols-3">
           <div>
             <dt className="text-xs uppercase tracking-wide text-[#FFB800]/80">agents</dt>
             <dd>{payload.agents ?? "—"}</dd>
@@ -109,7 +109,7 @@ export function LivePulse() {
           </div>
         </dl>
       ) : (
-        <p className="mt-4 font-[family-name:var(--font-jetbrains-mono)] text-xs text-cyan/60">
+        <p className="mt-4 font-[family-name:var(--font-poppins)] text-xs text-cyan/60">
           awaiting swarm snapshot telemetry…
         </p>
       )}

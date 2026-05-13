@@ -235,7 +235,7 @@ function NewAgentWizardInner() {
 
       <header>
         <h1 className="font-[family-name:var(--font-poppins)] text-2xl font-bold text-[#fafafa]">Spawn agent</h1>
-        <p className="mt-2 font-[family-name:var(--font-inter)] text-sm text-muted-foreground">
+        <p className="mt-2 font-[family-name:var(--font-poppins)] text-sm text-muted-foreground">
           {step === "template" ? "Choose a hive template." : "Wire prompts, tools, and rhythm."}
         </p>
       </header>
@@ -277,7 +277,7 @@ function NewAgentWizardInner() {
       ) : (
         <>
           <section className="rounded-3xl qs-rim bg-[#0f0f16]/95 p-5">
-            <label className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+            <label className="qs-label">
               Bee name
             </label>
             <input
@@ -288,10 +288,10 @@ function NewAgentWizardInner() {
           </section>
 
           <section className="rounded-3xl qs-rim bg-[#0f0f16]/95 p-5">
-            <label className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+            <label className="qs-label">
               Manager / Swarm
             </label>
-            <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-zinc-600">
+            <p className="mt-1 font-[family-name:var(--font-poppins)] text-xs text-zinc-600">
               Anchor this bee under a colony, or leave unassigned.
             </p>
             <div className="mt-4 flex flex-col gap-2">
@@ -352,7 +352,7 @@ function NewAgentWizardInner() {
                 })}
 
               {swarms.filter((s) => s.is_active !== false && !String(s.name).includes("__inactive_")).length === 0 ? (
-                <div className="rounded-xl px-3 py-2 font-[family-name:var(--font-inter)] text-xs text-zinc-500">
+                <div className="rounded-xl px-3 py-2 font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
                   No swarms yet —{" "}
                   <Link href="/swarms" className="font-semibold text-pollen underline-offset-2 hover:underline">
                     create one first
@@ -364,7 +364,7 @@ function NewAgentWizardInner() {
           </section>
 
           <section className="rounded-3xl qs-rim bg-[#0f0f16]/95 p-5">
-            <label className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+            <label className="qs-label">
               System prompt
             </label>
             <textarea
@@ -373,7 +373,7 @@ function NewAgentWizardInner() {
               onChange={(e) => setConfig((c) => ({ ...c, system_prompt: e.target.value }))}
               className="mt-2 w-full resize-y rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-cyan/30"
             />
-            <label className="mt-4 block font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+            <label className="mt-4 qs-label">
               Task template
             </label>
             <textarea
@@ -385,9 +385,7 @@ function NewAgentWizardInner() {
           </section>
 
           <section className="rounded-3xl qs-rim bg-[#0f0f16]/95 p-5">
-            <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-              Tools
-            </p>
+            <p className="qs-label">Tools</p>
             <div className="mt-3 grid gap-2 sm:grid-cols-3">
               {ALL_TOOLS.map((tool) => {
                 const on = config.tools.includes(tool.id);
@@ -415,9 +413,7 @@ function NewAgentWizardInner() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <section className="rounded-3xl qs-rim bg-[#0f0f16]/95 p-5">
-              <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-                Output
-              </p>
+              <p className="qs-label">Output</p>
               <div className="mt-3 flex flex-col gap-2">
                 {OUTPUT_FORMATS.map((f) => (
                   <button
@@ -436,9 +432,7 @@ function NewAgentWizardInner() {
               </div>
             </section>
             <section className="rounded-3xl qs-rim bg-[#0f0f16]/95 p-5">
-              <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-                Schedule
-              </p>
+              <p className="qs-label">Schedule</p>
               <div className="mt-3 flex flex-col gap-2">
                 {SCHEDULE_PRESETS.map((s) => (
                   <button

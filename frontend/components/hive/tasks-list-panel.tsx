@@ -114,7 +114,7 @@ export function TasksListPanel({ tasks, onOpenTask }: TasksListPanelProps): JSX.
       <div className="overflow-x-auto rounded-2xl border border-cyan/[0.08] bg-[#07070f]/90">
         <table className="w-full min-w-[320px] border-collapse text-left text-sm">
           <thead>
-            <tr className="border-b border-cyan/[0.08] font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.16em] text-zinc-500">
+            <tr className="border-b border-cyan/[0.08] font-[family-name:var(--font-poppins)] text-[10px] uppercase tracking-[0.16em] text-zinc-500">
               <th className="px-4 py-3">Task</th>
               <th className="hidden px-4 py-3 sm:table-cell">Swarm</th>
               <th className="px-4 py-3">Status</th>
@@ -122,7 +122,7 @@ export function TasksListPanel({ tasks, onOpenTask }: TasksListPanelProps): JSX.
               <th className="hidden px-4 py-3 md:table-cell">Updated</th>
             </tr>
           </thead>
-          <tbody className="font-[family-name:var(--font-inter)]">
+          <tbody className="font-[family-name:var(--font-poppins)]">
             {filtered.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-4 py-10 text-center text-zinc-500">
@@ -144,12 +144,12 @@ export function TasksListPanel({ tasks, onOpenTask }: TasksListPanelProps): JSX.
                       >
                         {t.title}
                       </button>
-                      <span className="mt-1 block font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase text-zinc-600">{t.task_type}</span>
+                      <span className="mt-1 block font-[family-name:var(--font-poppins)] text-[10px] uppercase text-zinc-600">{t.task_type}</span>
                     </td>
                     <td className="hidden px-4 py-3 sm:table-cell">
                       <span
                         className={cn(
-                          "inline-flex rounded-full border px-2 py-0.5 font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase",
+                          "inline-flex rounded-full border px-2 py-0.5 font-[family-name:var(--font-poppins)] text-[10px] font-semibold uppercase",
                           swarmBadgeClass(lane),
                         )}
                       >
@@ -157,7 +157,7 @@ export function TasksListPanel({ tasks, onOpenTask }: TasksListPanelProps): JSX.
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={cn("inline-flex rounded-full border px-2 py-0.5 font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase", statusBadgeClass(t.status))}>
+                      <span className={cn("inline-flex rounded-full border px-2 py-0.5 font-[family-name:var(--font-poppins)] text-[10px] font-semibold uppercase", statusBadgeClass(t.status))}>
                         {t.status.replaceAll("_", " ")}
                       </span>
                     </td>
@@ -166,12 +166,12 @@ export function TasksListPanel({ tasks, onOpenTask }: TasksListPanelProps): JSX.
                         <div className="h-2 w-24 overflow-hidden rounded-full bg-black/60">
                           <div className="h-full rounded-full bg-gradient-to-r from-data to-pollen shadow-[0_0_12px_rgb(0_255_255/0.25)]" style={{ width: `${pct}%` }} />
                         </div>
-                        <span className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] text-zinc-500">
+                        <span className="font-[family-name:var(--font-poppins)] text-[10px] text-zinc-500">
                           {done}/{total}
                         </span>
                       </div>
                     </td>
-                    <td className="hidden whitespace-nowrap px-4 py-3 font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-500 md:table-cell">{timeAgo(t.updated_at)}</td>
+                    <td className="hidden whitespace-nowrap px-4 py-3 font-[family-name:var(--font-poppins)] text-xs text-zinc-500 md:table-cell">{timeAgo(t.updated_at)}</td>
                   </tr>
                 );
               })

@@ -38,7 +38,7 @@ export function HiveMoreSheet({ open, onClose }: HiveMoreSheetProps) {
     } catch {
       /* ignore */
     }
-    toast.success("Odhlásenie");
+    toast.success("Logged out");
     onClose();
     router.push("/login");
     router.refresh();
@@ -50,7 +50,7 @@ export function HiveMoreSheet({ open, onClose }: HiveMoreSheetProps) {
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col justify-end lg:hidden">
-      <button type="button" className="absolute inset-0 bg-black/72 backdrop-blur-sm" aria-label="Zavrieť menu" onClick={onClose} />
+      <button type="button" className="absolute inset-0 bg-black/72 backdrop-blur-sm" aria-label="Close menu" onClick={onClose} />
       <div
         role="dialog"
         aria-modal="true"
@@ -61,7 +61,7 @@ export function HiveMoreSheet({ open, onClose }: HiveMoreSheetProps) {
           <span className="mb-2 h-1 w-14 rounded-full bg-zinc-600" aria-hidden />
           <button
             type="button"
-            aria-label="Zavrieť ponuku"
+            aria-label="Close sheet"
             className="absolute right-3 top-2 rounded-lg border border-cyan/[0.15] p-2 text-zinc-400 hover:text-pollen"
             onClick={onClose}
           >
@@ -70,31 +70,31 @@ export function HiveMoreSheet({ open, onClose }: HiveMoreSheetProps) {
         </div>
 
         <h2 id="hive-more-sheet-title" className="px-6 pb-3 pt-1 font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">
-          Účet
+          Account
         </h2>
 
         <ul className="space-y-0.5 px-3 pb-4">
           <li>
             <button
               type="button"
-              className="flex w-full items-center gap-4 rounded-2xl px-4 py-3.5 text-left font-[family-name:var(--font-inter)] text-sm text-zinc-300 transition hover:bg-white/[0.04]"
+              className="flex w-full items-center gap-4 rounded-2xl px-4 py-3.5 text-left font-[family-name:var(--font-poppins)] text-sm text-zinc-300 transition hover:bg-white/[0.04]"
               onClick={() => {
                 onClose();
                 router.push("/login");
               }}
             >
               <LockIcon className="h-5 w-5 shrink-0 text-pollen" aria-hidden />
-              Login obrazovka
+              Login screen
             </button>
           </li>
           <li>
             <button
               type="button"
-              className="flex w-full items-center gap-4 rounded-2xl px-4 py-3.5 text-left font-[family-name:var(--font-inter)] text-sm text-danger transition hover:bg-danger/[0.08]"
+              className="flex w-full items-center gap-4 rounded-2xl px-4 py-3.5 text-left font-[family-name:var(--font-poppins)] text-sm text-danger transition hover:bg-danger/[0.08]"
               onClick={() => void logout()}
             >
               <LogOutIcon className="h-5 w-5 shrink-0" aria-hidden />
-              Odhlásiť
+              Log out
             </button>
           </li>
         </ul>

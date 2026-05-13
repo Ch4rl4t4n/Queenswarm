@@ -13,6 +13,7 @@ import type {
   PreviewWorkflowStep,
   RecipeMatchBrief,
 } from "@/lib/hive-types";
+import { HexNumberBadge, LANE_HEX_STROKE } from "@/components/hive/hex-metric-tile";
 import { cn } from "@/lib/utils";
 
 const TARGET_LANES = ["scout", "eval", "sim", "action"] as const;
@@ -49,32 +50,32 @@ function laneTaskType(lane: TargetLane): string {
   return m[lane];
 }
 
-function roleUi(agentRole: string): { label: string; hexClass: string; badgeClass: string } {
+function roleUi(agentRole: string): { label: string; badgeStroke: string; badgeClass: string } {
   const r = agentRole.toLowerCase();
   if (r === "scraper") {
     return {
       label: "Scout",
-      hexClass: "border-cyan/70 bg-cyan/[0.08] text-cyan shadow-[0_0_14px_rgb(0_255_255/0.25)]",
+      badgeStroke: LANE_HEX_STROKE.scout,
       badgeClass: "border-cyan/45 text-cyan",
     };
   }
   if (r === "evaluator") {
     return {
       label: "Eval",
-      hexClass: "border-pollen/75 bg-pollen/[0.06] text-pollen shadow-[0_0_14px_rgb(255_184_0/0.22)]",
+      badgeStroke: LANE_HEX_STROKE.eval,
       badgeClass: "border-pollen/50 text-pollen",
     };
   }
   if (r === "simulator") {
     return {
       label: "Sim",
-      hexClass: "border-alert/65 bg-alert/[0.06] text-alert shadow-[0_0_14px_rgb(255_0_170/0.22)]",
+      badgeStroke: LANE_HEX_STROKE.sim,
       badgeClass: "border-alert/50 text-alert",
     };
   }
   return {
     label: "Action",
-    hexClass: "border-success/65 bg-success/[0.06] text-success shadow-[0_0_14px_rgb(0_255_136/0.2)]",
+    badgeStroke: LANE_HEX_STROKE.action,
     badgeClass: "border-success/50 text-success",
   };
 }
@@ -105,19 +106,6 @@ function priorityPillActive(p: PriorityLevel): string {
   return "qs-pill--active-amber";
 }
 
-function HexStepIcon({ n, className }: { n: number; className: string }) {
-  return (
-    <div
-      className={cn(
-        "hive-hex-clip-flat flex h-11 w-10 shrink-0 items-center justify-center border-solid border-[length:var(--qs-bubble-border-width)] font-[family-name:var(--font-poppins)] text-sm font-bold tabular-nums",
-        className,
-      )}
-    >
-      {n}
-    </div>
-  );
-}
-
 function previewConnectorFromRole(prevRole: string, dashedTail: boolean): string {
   if (dashedTail) {
     return "mx-0.5 h-px min-w-[1.25rem] shrink-0 border-t border-dotted border-zinc-600 opacity-80";
@@ -141,9 +129,7 @@ function PreviewDagStrip({ steps }: { steps: PreviewWorkflowStep[] }) {
   }
   return (
     <div className="mt-6 overflow-x-auto pb-1">
-      <p className="font-[family-name:var(--font-jetbrains-mono)] text-[9px] font-semibold uppercase tracking-[0.16em] text-zinc-600">
-        DAG · náhľad krokov
-      </p>
+      <p className="qs-meta-label text-zinc-600">DAG · step preview</p>
       <div className="mt-3 flex min-w-min items-center px-0.5">
         {steps.map((step, i) => {
           const ui = roleUi(step.agent_role);
@@ -153,8 +139,13 @@ function PreviewDagStrip({ steps }: { steps: PreviewWorkflowStep[] }) {
             <Fragment key={`${step.step_order}-${step.agent_role}`}>
               {prev ? <div className={previewConnectorFromRole(prev.agent_role, dashedTail)} aria-hidden /> : null}
               <div className="flex flex-col items-center gap-1.5 px-0.5">
-                <HexStepIcon n={step.step_order} className={ui.hexClass} />
-                <span className="max-w-[4rem] text-center font-[family-name:var(--font-jetbrains-mono)] text-[9px] font-semibold uppercase tracking-wide text-zinc-500">
+                <HexNumberBadge
+                  value={step.step_order}
+                  strokeColor={ui.badgeStroke}
+                  glowColor={ui.badgeStroke}
+                  sizePx={48}
+                />
+                <span className="qs-chip max-w-[4rem] text-center uppercase text-zinc-500">
                   {ui.label}
                 </span>
               </div>
@@ -199,7 +190,7 @@ export function NewTaskConsole() {
       });
       setPreview(body);
     } catch (e) {
-      const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Náhľad zlyhal";
+      const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Preview failed";
       setPreviewError(msg);
       setPreview(null);
     } finally {
@@ -226,7 +217,7 @@ export function NewTaskConsole() {
   async function onSubmit(): Promise<void> {
     const text = taskText.trim();
     if (text.length < 8) {
-      toast.error("Popis úlohy musí mať aspoň 8 znakov.");
+      toast.error("Task description must be at least 8 characters.");
       return;
     }
     setSubmitBusy(true);
@@ -245,10 +236,10 @@ export function NewTaskConsole() {
         defer_to_worker: true,
         execution_payload: {},
       });
-      toast.success(`Úloha zaradená (${res.execution}).`);
+      toast.success(`Task queued (${res.execution}).`);
       router.push("/");
     } catch (e) {
-      const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Odoslanie zlyhalo";
+      const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Submit failed";
       toast.error(msg);
     } finally {
       setSubmitBusy(false);
@@ -257,7 +248,7 @@ export function NewTaskConsole() {
 
   async function onSaveRecipe(): Promise<void> {
     if (!preview || displaySteps.length < 3) {
-      toast.error("Najprv vygeneruj náhľad krokov (aspoň 3).");
+      toast.error("Generate a step preview first (at least 3 steps).");
       return;
     }
     const text = taskText.trim();
@@ -283,12 +274,12 @@ export function NewTaskConsole() {
         })),
         mark_verified: false,
       });
-      toast.success("Recept uložený do katalógu.");
+      toast.success("Recipe saved to catalog.");
     } catch (e) {
       if (e instanceof HiveApiError && e.status === 403) {
-        toast.error("Ukladanie receptov je len pre administrátora (scope dash:recipe_write).");
+        toast.error("Saving recipes requires admin scope (dash:recipe_write).");
       } else {
-        const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Uloženie zlyhalo";
+        const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Save failed";
         toast.error(msg);
       }
     } finally {
@@ -299,25 +290,25 @@ export function NewTaskConsole() {
   return (
     <div className="mx-auto w-full max-w-3xl pb-24">
       <div className="mb-8 w-full min-w-0">
-        <h1 className="font-[family-name:var(--font-poppins)] text-3xl font-bold tracking-tight text-[#fafafa]">Nový task</h1>
-        <p className="mt-2 max-w-xl font-[family-name:var(--font-inter)] text-sm text-zinc-500">
-          Popíš, čo potrebuješ. Auto-workflow breaker rozloží zadanie na atomické kroky.
+        <h1 className="font-[family-name:var(--font-poppins)] text-3xl font-bold tracking-tight text-[#fafafa]">New task</h1>
+        <p className="mt-2 max-w-xl font-[family-name:var(--font-poppins)] text-sm text-zinc-500">
+          Describe what you need. The auto workflow breaker splits the brief into atomic steps.
         </p>
       </div>
 
       <div className="qs-panel p-6 shadow-[0_0_40px_rgb(0_0_0/0.35)] md:p-8">
-        <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">Popis úlohy</p>
+        <p className="qs-meta-label text-zinc-500">Task description</p>
         <textarea
           value={taskText}
           onChange={(e) => setTaskText(e.target.value)}
           rows={6}
-          className="mt-3 w-full resize-y rounded-xl qs-rim-cyan-soft bg-black/55 px-4 py-3 font-[family-name:var(--font-inter)] text-sm text-[#fafafa] outline-none focus:border-pollen/40"
-          placeholder="Čo má úľ vykonať?"
+          className="mt-3 w-full resize-y rounded-xl qs-rim-cyan-soft bg-black/55 px-4 py-3 font-[family-name:var(--font-poppins)] text-sm text-[#fafafa] outline-none focus:border-pollen/40"
+          placeholder="What should the hive run?"
         />
 
         <div className="mt-5 flex flex-col gap-5 border-t border-white/10 pt-5">
           <div>
-            <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">Cieľový swarm</p>
+            <p className="qs-meta-label text-zinc-500">Target swarm lane</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {TARGET_LANES.map((lane) => {
                 const { label } = laneUi(lane);
@@ -338,13 +329,13 @@ export function NewTaskConsole() {
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">Priorita</p>
+              <p className="qs-meta-label text-zinc-500">Priority</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {(
                   [
-                    ["low", "nízka"],
-                    ["normal", "normálna"],
-                    ["high", "vysoká"],
+                    ["low", "Low"],
+                    ["normal", "Normal"],
+                    ["high", "High"],
                   ] as const
                 ).map(([key, label]) => {
                   const active = priority === key;
@@ -363,7 +354,7 @@ export function NewTaskConsole() {
                 onClick={() => setEnrichRecipes((v) => !v)}
                 className={cn("qs-pill", enrichRecipes && "qs-pill--active-cyan")}
               >
-                {enrichRecipes ? "✓ " : ""}Chroma · knižnica receptov
+                {enrichRecipes ? "✓ " : ""}Chroma · recipe library
               </button>
             </div>
           </div>
@@ -373,24 +364,24 @@ export function NewTaskConsole() {
               <span className="text-success" aria-hidden>
                 ✓
               </span>
-              <span className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-300">
+              <span className="font-[family-name:var(--font-poppins)] text-[11px] text-zinc-300">
                 {recipeMatch.name} · {recipeMatch.similarity.toFixed(2)}
               </span>
             </div>
           ) : previewLoading ? (
-            <p className="font-[family-name:var(--font-inter)] text-xs text-zinc-600">Hľadám zhodu receptu…</p>
+            <p className="font-[family-name:var(--font-poppins)] text-xs text-zinc-600">Matching recipe…</p>
           ) : enrichRecipes ? (
-            <p className="font-[family-name:var(--font-inter)] text-xs text-zinc-600">Žiadna zhoda nad prahom knižnice.</p>
+            <p className="font-[family-name:var(--font-poppins)] text-xs text-zinc-600">No recipe match above library threshold.</p>
           ) : null}
         </div>
       </div>
 
       <div className="qs-panel mt-8 p-6 shadow-[0_0_36px_rgb(0_255_255/0.06)] md:p-8">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">Náhľad dekompozície</h2>
-          <p className="font-[family-name:var(--font-inter)] text-xs text-zinc-500">
-            {previewLoading ? "LLM pracuje…" : "LLM"}
-            {displaySteps.length > 0 ? ` · ${displaySteps.length} krokov` : previewError ? " · chyba" : ""}
+          <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">Decomposition preview</h2>
+          <p className="font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
+            {previewLoading ? "LLM working…" : "LLM"}
+            {displaySteps.length > 0 ? ` · ${displaySteps.length} steps` : previewError ? " · error" : ""}
           </p>
         </div>
         {previewError ? (
@@ -401,7 +392,7 @@ export function NewTaskConsole() {
               </span>
               <div className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-pollen">LLM Preview Unavailable</div>
             </div>
-            <div className="mb-3 font-[family-name:var(--font-inter)] text-[13px] leading-relaxed text-[#9898b8]">
+            <div className="mb-3 font-[family-name:var(--font-poppins)] text-[13px] leading-relaxed text-[#9898b8]">
               {previewError.includes("403") ||
               previewError.toLowerCase().includes("credit") ||
               previewError.toLowerCase().includes("license")
@@ -424,7 +415,7 @@ export function NewTaskConsole() {
             {previewError.includes("LiteLLM router exhausted") ||
             previewError.includes("credentials for configured models") ||
             previewError.includes("OPENAI_API_KEY") ? (
-              <p className="mt-3 font-[family-name:var(--font-inter)] text-xs text-zinc-500">
+              <p className="mt-3 font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
                 If every provider failed, inspect{" "}
                 <Link href="/settings/llm-keys" className="font-semibold text-cyan underline-offset-2 hover:text-pollen">
                   LLM keys
@@ -440,11 +431,11 @@ export function NewTaskConsole() {
         <ul className="mt-6 space-y-4">
           {displaySteps.length === 0 && !previewLoading ? (
             <li className="rounded-xl border border-dashed border-white/10 px-4 py-8 text-center text-sm text-zinc-600">
-              Zadaj aspoň 8 znakov — náhľad sa dobije automaticky.
+              Enter at least 8 characters — the preview refreshes automatically.
             </li>
           ) : null}
           {previewLoading && displaySteps.length === 0 ? (
-            <li className="rounded-xl border border-cyan/15 bg-black/30 px-4 py-8 text-center text-sm text-zinc-500">Načítavam kroky…</li>
+            <li className="rounded-xl border border-cyan/15 bg-black/30 px-4 py-8 text-center text-sm text-zinc-500">Loading steps…</li>
           ) : null}
           {displaySteps.map((step) => {
             const ui = roleUi(step.agent_role);
@@ -453,14 +444,19 @@ export function NewTaskConsole() {
                 key={`${step.step_order}-${step.description.slice(0, 24)}`}
                 className="qs-rim flex gap-4 rounded-xl bg-black/35 px-3 py-3 md:px-4"
               >
-                <HexStepIcon n={step.step_order} className={ui.hexClass} />
+                <HexNumberBadge
+                  value={step.step_order}
+                  strokeColor={ui.badgeStroke}
+                  glowColor={ui.badgeStroke}
+                  sizePx={48}
+                />
                 <div className="min-w-0 flex-1">
                   <p className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-[#fafafa]">{step.description}</p>
-                  <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-zinc-500">{step.guardrail_summary}</p>
+                  <p className="mt-1 font-[family-name:var(--font-poppins)] text-xs text-zinc-500">{step.guardrail_summary}</p>
                 </div>
                 <span
                   className={cn(
-                    "hidden h-fit shrink-0 rounded-full border px-2 py-0.5 font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-wide sm:inline-flex",
+                    "hidden h-fit shrink-0 rounded-full qs-chip uppercase tracking-wide border px-2 py-0.5 sm:inline-flex",
                     ui.badgeClass,
                   )}
                 >
@@ -474,7 +470,7 @@ export function NewTaskConsole() {
         <div className="mt-8 flex flex-col items-start gap-4 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
           <Link href="/" className="qs-btn qs-btn--ghost shrink-0 gap-1.5">
             <ChevronLeftIcon className="h-4 w-4 shrink-0" aria-hidden />
-            Späť
+            Back
           </Link>
           <div className="flex w-full flex-wrap gap-3 sm:w-auto sm:justify-end">
             <button
@@ -483,7 +479,7 @@ export function NewTaskConsole() {
               onClick={() => void onSaveRecipe()}
               className="qs-btn qs-btn--secondary disabled:opacity-40"
             >
-              {saveBusy ? "Ukladám…" : "Uložiť ako recept"}
+              {saveBusy ? "Saving…" : "Save as recipe"}
             </button>
             <button
               type="button"
@@ -492,7 +488,7 @@ export function NewTaskConsole() {
               className="qs-btn qs-btn--primary gap-2 disabled:opacity-40"
             >
               <PlayIcon className="h-4 w-4" aria-hidden />
-              {submitBusy ? "Odosielam…" : "▶ Odoslať"}
+              {submitBusy ? "Submitting…" : "▶ Submit"}
             </button>
           </div>
         </div>

@@ -192,13 +192,13 @@ export function TaskQueueSection() {
           <h2 className="font-[family-name:var(--font-poppins)] text-2xl font-bold text-[#fafafa] md:text-3xl">
             Task Queue
           </h2>
-          <p className="mt-2 font-[family-name:var(--font-inter)] text-sm text-zinc-500">
-            {data.running_count} beží · {data.pending_count} čaká · {data.completed_today_count} dokončených dnes
+          <p className="mt-2 font-[family-name:var(--font-poppins)] text-sm text-zinc-500">
+            {data.running_count} running · {data.pending_count} queued · {data.completed_today_count} completed today
           </p>
         </div>
         <Link href="/tasks/new" className="qs-btn qs-btn--primary gap-2">
           <Plus className="h-4 w-4" aria-hidden />
-          Nová úloha
+          New task
         </Link>
       </div>
 
@@ -206,10 +206,10 @@ export function TaskQueueSection() {
         <div className="flex flex-wrap gap-2">
           {(
             [
-              ["all", "Všetko"],
-              ["running", "Beží"],
-              ["pending", "Čaká"],
-              ["completed", "Hotovo"],
+              ["all", "All"],
+              ["running", "Running"],
+              ["pending", "Queued"],
+              ["completed", "Done"],
             ] as const
           ).map(([key, label]) => {
             const active = tab === key;
@@ -231,17 +231,17 @@ export function TaskQueueSection() {
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Filtrovať úlohy…"
-            className="w-full rounded-xl border border-white/10 bg-black/50 py-2.5 pl-10 pr-3 font-[family-name:var(--font-inter)] text-sm text-[#fafafa] outline-none placeholder:text-zinc-600 focus:border-pollen/35"
-            aria-label="Filtrovať úlohy"
+            placeholder="Filter tasks…"
+            className="w-full rounded-xl border border-white/10 bg-black/50 py-2.5 pl-10 pr-3 font-[family-name:var(--font-poppins)] text-sm text-[#fafafa] outline-none placeholder:text-zinc-600 focus:border-pollen/35"
+            aria-label="Filter tasks"
           />
         </div>
       </div>
 
       <ul className="flex flex-col gap-3">
         {filtered.length === 0 ? (
-          <li className="rounded-2xl border border-dashed border-white/10 py-12 text-center font-[family-name:var(--font-inter)] text-sm text-zinc-500">
-            Žiadne úlohy pre tento filter.
+          <li className="rounded-2xl border border-dashed border-white/10 py-12 text-center font-[family-name:var(--font-poppins)] text-sm text-zinc-500">
+            No tasks match this filter.
           </li>
         ) : (
           filtered.map((task) => {
@@ -261,40 +261,40 @@ export function TaskQueueSection() {
                       <h3 className="font-[family-name:var(--font-poppins)] text-base font-semibold text-[#fafafa]">
                         {task.title}
                       </h3>
-                      <span className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-500">
+                      <span className="font-[family-name:var(--font-poppins)] text-[11px] tracking-tight text-zinc-500">
                         {task.short_id}
                       </span>
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <span
                         className={cn(
-                          "rounded-full border px-2 py-0.5 font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-wide",
+                          "rounded-full border px-2 py-0.5 qs-chip uppercase tracking-wide",
                           swarmPillClass(task.lane),
                         )}
                       >
                         {task.swarm_label}
                       </span>
-                      <span className="inline-flex items-center gap-1.5 font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-400">
+                      <span className="inline-flex items-center gap-1.5 font-[family-name:var(--font-poppins)] text-[11px] text-zinc-400">
                         <span className={cn("h-1.5 w-1.5 rounded-full", dot)} aria-hidden />
                         {stLabel}
                       </span>
-                      <span className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-500">
+                      <span className="font-[family-name:var(--font-poppins)] text-[11px] tabular-nums text-zinc-500">
                         {task.steps_done}/{task.steps_total} krokov
                       </span>
                     </div>
                   </div>
                   <div className="mt-4 flex shrink-0 flex-col items-stretch sm:mt-0 sm:w-52 sm:items-end">
-                    <p className="font-[family-name:var(--font-jetbrains-mono)] text-[9px] font-semibold uppercase tracking-[0.14em] text-zinc-500 sm:text-right">
+                    <p className="qs-meta-label text-zinc-500 sm:text-right">
                       Progress
                     </p>
                     <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-black/60 sm:max-w-[13rem]">
                       <div className={cn("h-full rounded-full transition-all", fill)} style={{ width: `${task.progress_pct}%` }} />
                     </div>
                     <div className="mt-2 flex w-full items-center justify-between gap-3 sm:max-w-[13rem] sm:justify-end">
-                      <span className={cn("font-[family-name:var(--font-jetbrains-mono)] text-sm font-bold", pctText)}>
+                      <span className={cn("font-[family-name:var(--font-poppins)] text-sm font-bold tabular-nums", pctText)}>
                         {task.progress_pct}%
                       </span>
-                      <span className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-500">
+                      <span className="font-[family-name:var(--font-poppins)] text-[11px] text-zinc-500">
                         pred {formatQueueAgo(task.seconds_ago)}
                       </span>
                     </div>

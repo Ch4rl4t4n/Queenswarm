@@ -30,12 +30,12 @@ export default async function SwarmsPage() {
       <section className="rounded-3xl border border-cyan/[0.1] bg-hive-card/90 p-6">
         <div className="flex flex-wrap justify-between gap-4 border-b border-cyan/[0.08] pb-4">
           <h3 className="font-[family-name:var(--font-poppins)] text-lg text-[#fafafa]">Waggle Dance Feed</h3>
-          <p className="font-[family-name:var(--font-inter)] text-sm text-muted-foreground">Cross swarm signal exchange</p>
+          <p className="font-[family-name:var(--font-poppins)] text-sm text-muted-foreground">Cross swarm signal exchange</p>
         </div>
-        <ul className="hive-scrollbar mt-4 max-h-[320px] divide-y divide-cyan/[0.06] overflow-y-auto font-[family-name:var(--font-inter)]">
+        <ul className="hive-scrollbar mt-4 max-h-[320px] divide-y divide-cyan/[0.06] overflow-y-auto font-[family-name:var(--font-poppins)]">
           {dances.slice(0, 12).map((row: WaggleDanceSummaryRow) => (
             <li key={`${row.ts}-${row.from_swarm}-${row.signal}`} className="flex flex-wrap items-center gap-4 py-3 text-sm">
-              <span className="rounded-full border border-data/30 bg-black/35 px-2 py-1 font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-data">
+              <span className="rounded-full border border-data/30 bg-black/35 px-2 py-1 font-[family-name:var(--font-poppins)] text-[11px] text-data">
                 [{row.from_swarm}]
               </span>
               <span aria-hidden className="text-muted-foreground">
@@ -44,7 +44,7 @@ export default async function SwarmsPage() {
               <span className="text-[#fafafa]">
                 {row.signal}: {row.topic}
               </span>
-              <span className="ml-auto font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-500">{relativeSync(row.ts)}</span>
+              <span className="ml-auto font-[family-name:var(--font-poppins)] text-xs text-zinc-500">{relativeSync(row.ts)}</span>
             </li>
           ))}
           {dances.length === 0 ? (

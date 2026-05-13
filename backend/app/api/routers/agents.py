@@ -216,6 +216,8 @@ async def upsert_agent_config_row(
     if agent is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found.")
     payload = body.model_dump(exclude_unset=True)
+    if payload.get("system_prompt") is not None:
+        payload["system_prompt"] = str(payload["system_prompt"]).strip()
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -231,7 +233,14 @@ async def upsert_agent_config_row(
     try:
         cfg = await db.scalar(select(AgentConfig).where(AgentConfig.agent_id == agent_id))
         if cfg is None:
-            system_prompt = str(payload.get("system_prompt") or "You are a helpful AI agent.")
+            ia = payload.get("is_active")
+            active_default = True if ia is None else bool(ia)
+            if "system_prompt" in payload and payload["system_prompt"] is not None:
+                system_prompt = str(payload["system_prompt"]).strip()
+            elif not active_default:
+                system_prompt = ""
+            else:
+                system_prompt = "You are a helpful AI agent."
             cfg = AgentConfig(
                 agent_id=agent_id,
                 system_prompt=system_prompt,

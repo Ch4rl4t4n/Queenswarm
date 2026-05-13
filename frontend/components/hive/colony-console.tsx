@@ -3,11 +3,9 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-import { HexAgentCard } from "@/components/hive/hex-agent-card";
 import { QueenDashboardChrome } from "@/components/hive/queen-dashboard-chrome";
-import { hiveDelete, hiveFetch, hiveGet, hivePatchJson, hivePostJson, hivePutJson } from "@/lib/api";
+import { hiveFetch, hiveGet, hivePatchJson, hivePostJson, hivePutJson } from "@/lib/api";
 import type { AgentRow, DashboardSummary, SystemStatusPayload, TaskRow } from "@/lib/hive-types";
-import { cn } from "@/lib/utils";
 
 interface ColonyConsoleProps {
   initialAgents: AgentRow[];
@@ -20,12 +18,15 @@ interface ConfigDraft {
   tagsStr: string;
   output_config: Record<string, unknown>;
   swarm_id: string | null;
+  /** True → status offline + config is_active false. */
+  inactive: boolean;
 }
 
 interface AgentConfigPayload {
   system_prompt: string;
   user_prompt_template: string | null;
   output_config: Record<string, unknown>;
+  is_active?: boolean;
 }
 
 interface SwarmRowLite {
@@ -37,13 +38,13 @@ interface SwarmRowLite {
   is_active?: boolean;
 }
 
-/** UI-only label: orchestrator tier is always „Queen“. */
+/** UI-only label: orchestrator tier is always "Queen". */
 function tierLabel(t: string): string {
   const u = t.toLowerCase();
   if (u === "orchestrator") return "Queen";
-  if (u === "manager") return "Manažér";
-  if (u === "worker") return "Robotník";
-  return "Nezaradené";
+  if (u === "manager") return "Manager";
+  if (u === "worker") return "Worker";
+  return "Unassigned";
 }
 
 function descriptionFromOutputConfig(oc: Record<string, unknown>): string {
@@ -68,6 +69,13 @@ function swarmRowRole(sw: Pick<SwarmRowLite, "local_memory" | "purpose">): strin
   const label = (hi.swarm_role_label as string) || (lm.swarm_role_label as string);
   if (label?.trim()) return label;
   return String(sw.purpose ?? "colony").replace(/_/g, " ");
+}
+
+function deriveInactive(agent: AgentRow, cfg?: AgentConfigPayload | null): boolean {
+  if ((agent.status ?? "").toLowerCase() === "offline") {
+    return true;
+  }
+  return cfg?.is_active === false;
 }
 
 export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
@@ -185,40 +193,11 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
     return Math.max(1, n + swarms);
   }, [agents, grouped]);
 
-  const hierarchy = useMemo(() => {
-    const { orchestrator, managers, workers, unknown } = grouped;
-    const pool = [...workers, ...unknown];
-    const teamByManager = new Map<string, AgentRow[]>();
-    for (const m of managers) {
-      teamByManager.set(m.id, []);
-    }
-    const ungrouped: AgentRow[] = [];
-    for (const w of pool) {
-      const sid = w.swarm_id;
-      let assigned = false;
-      if (sid) {
-        for (const m of managers) {
-          if (m.swarm_id && m.swarm_id === sid) {
-            teamByManager.get(m.id)!.push(w);
-            assigned = true;
-            break;
-          }
-        }
-      }
-      if (!assigned) {
-        ungrouped.push(w);
-      }
-    }
-    return {
-      queen: orchestrator[0] ?? null,
-      managers,
-      teamByManager,
-      ungrouped,
-    };
-  }, [grouped]);
-
   const modalAgent = modalAgentId ? agents.find((a) => a.id === modalAgentId) : undefined;
   const modalDraft = modalAgentId ? draftById[modalAgentId] : undefined;
+  const modalSwarmChosenId = modalDraft?.swarm_id?.trim() ?? "";
+  const modalPromptOptional =
+    modalDraft !== undefined && (modalDraft.inactive || modalSwarmChosenId === "");
 
   async function reloadAgents(): Promise<void> {
     try {
@@ -256,7 +235,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
 
   async function runMission(): Promise<void> {
     if (!missionBrief.trim()) {
-      window.alert("Zadaj zadanie.");
+      window.alert("Enter a brief.");
       return;
     }
     setMissionErr(null);
@@ -265,7 +244,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
       const cap = await hivePostJson<{ session_id?: string }>("ballroom/session", {});
       const sid = cap.session_id;
       if (!sid) {
-        throw new Error("Chýba session_id z ballroom.");
+        throw new Error("Missing session_id from ballroom.");
       }
       await hivePostJson("ballroom/mission", {
         user_brief: missionBrief.trim(),
@@ -273,7 +252,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
       });
       window.location.assign(`/ballroom?session=${encodeURIComponent(sid)}`);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Misia zlyhala";
+      const msg = e instanceof Error ? e.message : "Mission failed";
       setMissionErr(msg);
       window.alert(msg);
     } finally {
@@ -301,6 +280,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
           tagsStr: "",
           output_config: agent.hive_tier ? { hive_tier: agent.hive_tier } : {},
           swarm_id: agent.swarm_id ?? null,
+          inactive: deriveInactive(agent, null),
         },
       }));
       return;
@@ -317,6 +297,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
           tagsStr: tagsStrFromOutputConfig(oc),
           output_config: oc,
           swarm_id: agent.swarm_id ?? null,
+          inactive: deriveInactive(agent, cfg),
         },
       }));
     } catch {
@@ -329,6 +310,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
           tagsStr: "",
           output_config: agent.hive_tier ? { hive_tier: agent.hive_tier } : {},
           swarm_id: agent.swarm_id ?? null,
+          inactive: deriveInactive(agent, null),
         },
       }));
     }
@@ -342,8 +324,10 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
     if (!modalAgentId || !modalDraft) {
       return;
     }
-    if (!modalDraft.system_prompt.trim()) {
-      window.alert("Prompt je povinný.");
+    const swarmChosen = modalDraft.swarm_id?.trim() ?? "";
+    const promptSkippable = modalDraft.inactive || !swarmChosen;
+    if (!promptSkippable && !modalDraft.system_prompt.trim()) {
+      window.alert("Prompt is required when the agent is active and has a swarm.");
       return;
     }
     setBusyId(modalAgentId);
@@ -358,21 +342,25 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
         tags: tagList,
       };
       await hivePutJson(`agents/${modalAgentId}/config`, {
-        system_prompt: modalDraft.system_prompt,
+        system_prompt: modalDraft.system_prompt.trim(),
         user_prompt_template: modalDraft.user_prompt_template ?? null,
         output_config: oc,
+        is_active: !modalDraft.inactive,
       });
-      const swarmPick = modalDraft.swarm_id?.trim();
-      if (swarmPick) {
-        await hivePatchJson(`agents/${modalAgentId}`, {
-          detach_from_swarm: false,
-          swarm_id: swarmPick,
-        });
-      } else {
-        await hivePatchJson(`agents/${modalAgentId}`, {
-          detach_from_swarm: true,
-        });
+
+      const patchBody: {
+        detach_from_swarm?: boolean;
+        swarm_id?: string;
+        status?: string;
+      } = swarmChosen
+        ? { detach_from_swarm: false, swarm_id: swarmChosen }
+        : { detach_from_swarm: true };
+      if (modalDraft.inactive) {
+        patchBody.status = "offline";
+      } else if (modalAgent && (modalAgent.status ?? "").toLowerCase() === "offline") {
+        patchBody.status = "idle";
       }
+      await hivePatchJson(`agents/${modalAgentId}`, patchBody);
       setDraftById((d) => {
         const next = { ...d };
         delete next[modalAgentId];
@@ -387,31 +375,9 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
     }
   }
 
-  async function removeBee(agent: AgentRow): Promise<void> {
-    if (isQueenAgent(agent)) {
-      window.alert("Queen je fixná.");
-      return;
-    }
-    if (!window.confirm(`Odstrániť ${agent.name}?`)) {
-      return;
-    }
-    setBusyId(agent.id);
-    try {
-      await hiveDelete(`agents/${agent.id}`);
-      await reloadAgents();
-      if (modalAgentId === agent.id) {
-        closeModal();
-      }
-    } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Delete failed");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
   async function createBee(): Promise<void> {
     if (!newName.trim()) {
-      window.alert("Zadaj meno.");
+      window.alert("Enter a name.");
       return;
     }
     setCreating(true);
@@ -458,27 +424,27 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
         telemetryLoading={telemetryBusy && !systemPulse}
       />
 
-      {/* 1 — Úloha */}
+      {/* 1 — Queen mission */}
       <section id="hive-task" className="scroll-mt-28 mx-auto w-full max-w-3xl rounded-2xl border-[3px] border-pollen/35 bg-gradient-to-br from-[#14101a] to-[#08080f] p-6 shadow-[0_0_40px_rgb(255_184_0/0.12)] md:p-8">
         <h2 className="text-center font-[family-name:var(--font-poppins)] text-xl font-bold text-pollen md:text-left">
-          Úloha pre Queen
+          Queen mission
         </h2>
-        <p className="mt-2 text-center font-[family-name:var(--font-inter)] text-sm text-zinc-400 md:text-left">
-          Po odoslaní beží 7-krokový tok; Ballroom otvorí live prepis a hlas.
+        <p className="mt-2 text-center font-[family-name:var(--font-poppins)] text-sm text-zinc-400 md:text-left">
+          After submit, the 7-step flow runs; Ballroom opens live transcript and voice.
         </p>
-        <label className="mt-5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-          Zadanie
+        <label className="mt-5 block qs-label">
+          Brief
           <textarea
             value={missionBrief}
             onChange={(e) => setMissionBrief(e.target.value)}
             rows={6}
             className="mt-2 w-full rounded-xl border-[2px] border-cyan/25 bg-black/60 px-4 py-3 text-sm text-[#fafafa] outline-none focus:border-pollen/50"
-            placeholder="Čo má úľ urobiť?"
+            placeholder="What should the hive do?"
           />
         </label>
-        <p className="mt-3 text-center font-[family-name:var(--font-inter)] text-xs text-zinc-500 md:text-left">
+        <p className="mt-3 text-center font-[family-name:var(--font-poppins)] text-xs text-zinc-500 md:text-left">
           <Link href="/tasks/new" className="text-cyan/80 underline decoration-cyan/40 underline-offset-4 hover:text-pollen">
-            Otvoriť celú obrazovku Nový task (náhľad krokov, recept, odoslanie)
+            Open full New task screen (step preview, recipe, submit)
           </Link>
         </p>
         {missionErr ? <p className="mt-2 text-sm text-danger">{missionErr}</p> : null}
@@ -488,41 +454,45 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
           className="qs-btn qs-btn--primary qs-btn--xl qs-btn--full mt-6 disabled:opacity-45"
           onClick={() => void runMission()}
         >
-          {missionBusy ? "Spracúvam…" : "Spusti úlohu"}
+          {missionBusy ? "Processing…" : "Run task"}
         </button>
       </section>
 
-      {/* 2 — Tvorba agentov (pod úlohou) */}
+      {/* 2 — Agent creation */}
       <section id="hive-create" className="scroll-mt-28 mx-auto w-full max-w-3xl rounded-2xl border-[3px] border-cyan/30 bg-[#0a0a14]/95 p-6 shadow-[0_0_28px_rgb(0_255_255/0.08)] md:p-8">
-        <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">Nový manažér / robotník</h2>
-        <p className="mt-2 font-[family-name:var(--font-inter)] text-sm text-zinc-500">
-          Pridaj včelu do úľa. Queen ostáva jedna; robotníci pod manažérom sa zobrazia v stromčeku, ak majú rovnaké{" "}
-          <span className="font-[family-name:var(--font-jetbrains-mono)] text-cyan/70">swarm_id</span> ako manažér.
+        <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">New manager / worker</h2>
+        <p className="mt-2 font-[family-name:var(--font-poppins)] text-sm text-zinc-500">
+          Add a bee to the hive. There is only one Queen. Use the swarm selector after spawn to tuck workers under managers;
+          everyone appears together in{" "}
+          <Link href="/#hive-live-swarm" className="font-semibold text-cyan/90 underline underline-offset-4 hover:text-pollen">
+            Live network
+          </Link>
+          .
         </p>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <label className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-            Meno
+          <label className="block qs-label">
+            Name
             <input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               className="mt-2 w-full rounded-xl border-[2px] border-cyan/25 bg-black/55 px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-pollen/45"
-              placeholder="Napr. Research Manager"
+              placeholder="e.g. Research Manager"
             />
           </label>
-          <label className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-            Úroveň
+          <label className="block qs-label">
+            Tier
             <select
               value={newTier}
               onChange={(e) => setNewTier(e.target.value as "manager" | "worker")}
               className="mt-2 w-full rounded-xl border-[2px] border-cyan/25 bg-black/55 px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-pollen/45"
             >
-              <option value="manager">Manažér</option>
-              <option value="worker">Robotník</option>
+              <option value="manager">Manager</option>
+              <option value="worker">Worker</option>
             </select>
           </label>
         </div>
-        <label className="mt-4 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-          Začiatočný prompt
+        <label className="mt-4 block qs-label">
+          Starting prompt
           <textarea
             value={newPrompt}
             onChange={(e) => setNewPrompt(e.target.value)}
@@ -533,134 +503,15 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
         <button
           type="button"
           disabled={creating}
-          className="mt-5 rounded-xl border-[3px] border-pollen/50 bg-pollen/15 px-5 py-3 font-semibold text-pollen disabled:opacity-40"
+          className="mt-5 rounded-xl border-[3px] border-pollen/50 bg-pollen/15 px-6 py-3 font-semibold text-pollen disabled:opacity-40"
           onClick={() => void createBee()}
         >
-          {creating ? "Pridávam…" : "Pridať agenta"}
+          {creating ? "Adding…" : "Add agent"}
         </button>
       </section>
 
-      {/* 3 — Hierarchia Queen → manažéri → tímy (rovnaké hex dlaždice ako Živá sieť / Hierarchia) */}
-      <section id="hive-hierarchy" className="scroll-mt-28 relative w-full overflow-x-auto rounded-3xl qs-rim bg-[#06060c]/90 px-4 py-8 md:px-8 md:py-10">
-        <h2 className="mb-2 text-center font-[family-name:var(--font-poppins)] text-xs font-bold uppercase tracking-[0.28em] text-pollen/90">
-          Hierarchia úľa
-        </h2>
-        <p className="mx-auto mb-10 max-w-2xl text-center font-[family-name:var(--font-inter)] text-sm text-zinc-500">
-          Queen riadi manažérov · rovnaké SVG hex dlaždice ako v zozname agentov vyššie; swarm farba rámu podľa lane.
-        </p>
-
-        {hierarchy.queen ? (
-          <div className="flex flex-col items-center">
-            <HexAgentCard agent={hierarchy.queen} isQueen renderAsDiv />
-            <p className="mt-3 max-w-[260px] text-center text-[11px] leading-relaxed text-zinc-500">
-              Fixná hlava úľa — bez úprav konfigurácie.
-            </p>
-
-            {/* Konektor: z Queen do hornej čiary */}
-            <div className="flex flex-col items-center" aria-hidden>
-              <div className="h-10 w-[4px] rounded-full bg-gradient-to-b from-pollen via-pollen/60 to-cyan/50" />
-              <div
-                className={cn(
-                  "h-[4px] w-[min(92vw,56rem)] max-w-full rounded-full bg-gradient-to-r from-transparent via-cyan/45 to-transparent",
-                  hierarchy.managers.length === 0 && "opacity-40",
-                )}
-              />
-            </div>
-
-            {hierarchy.managers.length === 0 ? (
-              <p className="mt-6 text-center text-sm text-zinc-500">Žiadni manažéri — pridaj manažéra vyššie v formulári.</p>
-            ) : (
-              <div className="mt-0 grid w-full max-w-6xl grid-cols-1 gap-10 md:grid-cols-2 xl:grid-cols-3">
-                {hierarchy.managers.map((mgr, mi) => {
-                  const team = hierarchy.teamByManager.get(mgr.id) ?? [];
-                  const lineClass =
-                    mi % 3 === 0
-                      ? "from-cyan/70 to-cyan/20"
-                      : mi % 3 === 1
-                        ? "from-emerald-400/70 to-emerald-400/15"
-                        : "from-sky-400/70 to-sky-400/15";
-                  return (
-                    <div key={mgr.id} className="flex flex-col items-center">
-                      <div
-                        className={cn("mb-2 h-8 w-[4px] rounded-full bg-gradient-to-b", lineClass)}
-                        aria-hidden
-                      />
-                      <HexAgentCard agent={mgr} onClick={() => void openConfigModal(mgr)} />
-                      <p className="mt-2 max-w-[180px] text-center text-[11px] text-zinc-500">Klikni pre prompt, popis a tagy.</p>
-                      <button
-                        type="button"
-                        disabled={busyId === mgr.id}
-                        className="qs-btn qs-btn--danger qs-btn--sm mt-3"
-                        onClick={() => void removeBee(mgr)}
-                      >
-                        Zmazať
-                      </button>
-
-                      <div className={cn("my-4 h-6 w-[4px] rounded-full bg-gradient-to-b", lineClass)} aria-hidden />
-
-                      <p className="mb-3 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.2em] text-alert/80">
-                        Tím ({team.length})
-                      </p>
-                      {team.length === 0 ? (
-                        <p className="max-w-[14rem] text-center text-[11px] text-zinc-600">
-                          Rovnaký swarm_id ako tento manažér pripojí robotníkov sem.
-                        </p>
-                      ) : (
-                        <div className="flex w-full flex-col items-center gap-4">
-                          {team.map((w) => (
-                            <div key={w.id} className="flex flex-col items-center gap-1">
-                              <HexAgentCard agent={w} onClick={() => void openConfigModal(w)} />
-                              <button
-                                type="button"
-                                disabled={busyId === w.id}
-                                className="qs-btn qs-btn--danger qs-btn--sm mt-3"
-                                onClick={() => void removeBee(w)}
-                              >
-                                Zmazať
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        ) : (
-          <p className="text-center text-sm text-alert">Chýba Queen (orchestrator) v registri agentov.</p>
-        )}
-
-        {hierarchy.ungrouped.length > 0 ? (
-          <div className="mx-auto mt-12 max-w-5xl border-t border-white/10 pt-8">
-            <h3 className="mb-4 text-center font-[family-name:var(--font-poppins)] text-sm font-semibold text-zinc-300">
-              Robotníci mimo tímov <span className="text-zinc-500">({hierarchy.ungrouped.length})</span>
-            </h3>
-            <p className="mx-auto mb-6 max-w-xl text-center text-xs text-zinc-600">
-              Priraď ich k manažérovi zdieľaným <span className="text-cyan/70">swarm_id</span> (napr. v API alebo DB), potom sa zobrazia pod príslušným stĺpcom.
-            </p>
-            <div className="flex flex-wrap justify-center gap-6">
-              {hierarchy.ungrouped.map((a) => (
-                <div key={a.id} className="flex flex-col items-center gap-1">
-                  <HexAgentCard agent={a} onClick={() => void openConfigModal(a)} />
-                  <button
-                    type="button"
-                    disabled={busyId === a.id}
-                    className="qs-btn qs-btn--danger qs-btn--sm mt-3"
-                    onClick={() => void removeBee(a)}
-                  >
-                    Zmazať
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-      </section>
-
-      <p className="text-center font-[family-name:var(--font-inter)] text-sm text-zinc-400">
-        Live miestnosť:{" "}
+      <p className="text-center font-[family-name:var(--font-poppins)] text-sm text-zinc-400">
+        Live room:{" "}
         <Link href="/ballroom" className="font-semibold text-data underline-offset-4 hover:text-pollen hover:underline">
           Ballroom
         </Link>
@@ -677,12 +528,12 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
             <h3 id="agent-config-title" className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-pollen">
               {modalAgent.name}
             </h3>
-            <p className="mt-1 font-[family-name:var(--font-jetbrains-mono)] text-[11px] uppercase text-zinc-500">
+            <p className="qs-meta-label mt-1 normal-case tracking-normal text-zinc-500">
               {tierLabel(modalAgent.hive_tier ?? "")}
             </p>
 
-            <label className="mt-5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-              Manažér / swarm
+            <label className="mt-5 block qs-label">
+              Manager / swarm
               <select
                 value={modalDraft.swarm_id ?? ""}
                 onChange={(ev) => {
@@ -699,9 +550,9 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
                     };
                   });
                 }}
-                className="mt-2 w-full rounded-xl border-[2px] border-cyan/25 bg-black/55 px-3 py-2 font-[family-name:var(--font-jetbrains-mono)] text-sm text-[#fafafa] outline-none focus:border-pollen/50"
+                className="mt-2 w-full rounded-xl border-[2px] border-cyan/25 bg-black/55 px-3 py-2 font-[family-name:var(--font-poppins)] text-sm text-[#fafafa] outline-none focus:border-pollen/50"
               >
-                <option value="">— Bez swarmu —</option>
+                <option value="">— No swarm —</option>
                 {subSwarms
                   .filter((s) => s.is_active !== false && !String(s.name).includes("__inactive_"))
                   .map((s) => (
@@ -712,8 +563,42 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
               </select>
             </label>
 
-            <label className="mt-5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-              Prompt
+            <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border-[2px] border-white/10 bg-black/35 px-3 py-3">
+              <input
+                type="checkbox"
+                checked={modalDraft.inactive}
+                className="mt-1 h-4 w-4 shrink-0 accent-pollen"
+                aria-describedby="inactive-agent-hint"
+                onChange={(ev) =>
+                  setDraftById((d) => {
+                    const cur = modalAgentId ? d[modalAgentId] : undefined;
+                    if (!cur || !modalAgentId) return d;
+                    return {
+                      ...d,
+                      [modalAgentId]: { ...cur, inactive: ev.target.checked },
+                    };
+                  })
+                }
+              />
+              <span className="min-w-0">
+                <span className="block font-[family-name:var(--font-poppins)] text-sm font-semibold text-zinc-200">
+                  Inactive / offline
+                </span>
+                <span id="inactive-agent-hint" className="mt-1 block font-[family-name:var(--font-poppins)] text-xs leading-relaxed text-zinc-500">
+                  Grid and list views stay muted. You can skip the prompt when offline or without a swarm.
+                </span>
+              </span>
+            </label>
+
+            <label className="mt-5 block qs-label">
+              <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                Prompt
+                {modalPromptOptional ? (
+                  <span className="font-[family-name:var(--font-poppins)] text-[10px] font-normal normal-case tracking-normal text-zinc-600">
+                    (optional — only needed for an active agent with a swarm)
+                  </span>
+                ) : null}
+              </span>
               <textarea
                 value={modalDraft.system_prompt}
                 onChange={(ev) =>
@@ -727,8 +612,8 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
               />
             </label>
 
-            <label className="mt-4 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-              Popis
+            <label className="mt-4 block qs-label">
+              Description
               <textarea
                 value={modalDraft.description}
                 onChange={(ev) =>
@@ -742,8 +627,8 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
               />
             </label>
 
-            <label className="mt-4 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-              Tagy (čiarkou oddelené)
+            <label className="mt-4 block qs-label">
+              Tags (comma-separated)
               <input
                 value={modalDraft.tagsStr}
                 onChange={(ev) =>
@@ -757,21 +642,17 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
               />
             </label>
 
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button
-                type="button"
-                disabled={busyId === modalAgentId}
-                className="flex-1 rounded-xl border-[3px] border-pollen/50 bg-pollen/20 py-2.5 text-sm font-semibold text-pollen disabled:opacity-40"
-                onClick={() => void saveModalConfig()}
-              >
-                Uložiť
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button type="button" className="qs-btn qs-btn--ghost min-w-[9rem]" onClick={closeModal}>
+                Close
               </button>
               <button
                 type="button"
-                className="rounded-xl border-[2px] border-zinc-600 px-4 py-2.5 text-sm text-zinc-300"
-                onClick={closeModal}
+                disabled={busyId === modalAgentId}
+                className="qs-btn qs-btn--primary min-w-[9rem] disabled:opacity-40"
+                onClick={() => void saveModalConfig()}
               >
-                Zavrieť
+                Save
               </button>
             </div>
           </div>

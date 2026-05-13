@@ -42,6 +42,15 @@ class BallroomMissionBody(BaseModel):
     session_id: uuid.UUID | None = None
 
 
+class BallroomChatMessageBody(BaseModel):
+    """POST /ballroom/message — inbound operator text for multi-agent Ballroom replies."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    session_id: uuid.UUID
+    text: str = Field(..., min_length=1, max_length=30_000)
+
+
 _SESSION_CHANNELS: dict[uuid.UUID, set[WebSocket]] = {}
 _CAPSULES: dict[uuid.UUID, dict[str, Any]] = {}
 
@@ -131,8 +140,8 @@ def _ensure_capsule(session_id: uuid.UUID) -> dict[str, Any]:
     return _CAPSULES[session_id]
 
 
-def _append_transcript(session_id: uuid.UUID, agent: str, text: str) -> dict[str, object]:
-    """Record a line and return the websocket payload."""
+def _append_transcript(session_id: uuid.UUID, agent: str, text: str, *, broadcast: bool = True) -> dict[str, object] | None:
+    """Record a transcript line; optionally return the websocket payload for fan-out."""
 
     cap = _ensure_capsule(session_id)
     msg: dict[str, object] = {
@@ -142,7 +151,7 @@ def _append_transcript(session_id: uuid.UUID, agent: str, text: str) -> dict[str
         "timestamp": datetime.now(tz=UTC).isoformat(),
     }
     cap["transcript"].append(msg)
-    return msg
+    return msg if broadcast else None
 
 
 async def _emit_placeholder_lines(session_id: uuid.UUID, lines: list[tuple[str, str]]) -> None:
@@ -151,7 +160,8 @@ async def _emit_placeholder_lines(session_id: uuid.UUID, lines: list[tuple[str, 
     for agent, text in lines:
         await asyncio.sleep(0.65)
         payload = _append_transcript(session_id, agent, text)
-        _broadcast_session_sync(session_id, payload)
+        if payload is not None:
+            _broadcast_session_sync(session_id, payload)
 
 
 async def _run_ballroom_llm_discussion(session_id: uuid.UUID) -> None:
@@ -291,6 +301,152 @@ def _schedule_discussion(session_id: uuid.UUID) -> None:
     asyncio.create_task(_runner())
 
 
+def _fallback_chat_lines(agent_names: list[str], user_text: str) -> list[tuple[str, str]]:
+    """Short canned replies tied to persisted agent names."""
+
+    clipped = user_text.strip()
+    preview = clipped if len(clipped) <= 120 else f"{clipped[:117]}..."
+    orch = agent_names[0] if agent_names else "Orchestrator"
+    second = agent_names[1] if len(agent_names) > 1 else "Scout"
+    third = agent_names[2] if len(agent_names) > 2 else "Queen"
+    return [
+        (orch, f"We're here — noting your message. For heavy work, launch a mission from the hive dashboard."),
+        (second, f"Echo locked in: «{preview}»"),
+        (third, "Transcript updated; imitate top performers once the next task pollen lands."),
+    ]
+
+
+async def _run_ballroom_user_chat_reply(session_id: uuid.UUID, user_text: str) -> None:
+    """React to Ballroom operator text over wired agents (+ LLM when keys exist)."""
+
+    if session_id not in _CAPSULES:
+        return
+
+    clipped = user_text.strip()[:12_000]
+    if not clipped:
+        return
+
+    try:
+        async with async_session() as session:
+            agent_rows = list(
+                (
+                    await session.execute(
+                        select(Agent)
+                        .where(Agent.status.in_((AgentStatus.IDLE, AgentStatus.RUNNING)))
+                        .order_by(Agent.name)
+                        .limit(8),
+                    )
+                )
+                .scalars()
+                .all(),
+            )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "ballroom.chat_agents_failed",
+            session_id=str(session_id),
+            task_id=f"ballroom-chat-{session_id}",
+            error=str(exc),
+        )
+        await _emit_placeholder_lines(session_id, [("System", f"Hive lookup hiccup — try again shortly. ({type(exc).__name__})")])
+        return
+
+    agent_names = [a.name for a in agent_rows]
+
+    if not _llm_credentials_configured():
+        await _emit_placeholder_lines(session_id, _fallback_chat_lines(agent_names or ["Orchestrator", "Queen"], clipped))
+        return
+
+    router = LiteLLMRouter()
+    roster = ", ".join((agent_names or ["Orchestrator", "Scout"])[:7])
+    prompt = "\n".join(
+        [
+            f"Agents participating: {roster}",
+            "The human ballroom operator says:",
+            f"\"{clipped}\"",
+            "",
+            "Reply with EXACTLY 3–5 lines only, each line formatted as:",
+            "AGENT_NAME: short reaction (≤120 chars; stay in-character; hive/bee metaphors ok).",
+            "Use ONLY agent names from the participating list.",
+        ],
+    )
+
+    try:
+        async with async_session() as session:
+            raw_text, _cost = await router.decompose(
+                session,
+                system_prompt=(
+                    "You simulate a live ballroom swarm answering a human chat message. "
+                    "Be terse, helpful, upbeat. Plain text only — no Markdown fences."
+                ),
+                user_payload=prompt,
+                swarm_id=str(session_id),
+                task_id=f"ballroom-chat-{session_id}",
+            )
+        lines_out: list[tuple[str, str]] = []
+        for ln in raw_text.splitlines():
+            chunk = ln.strip()
+            if ":" not in chunk or len(chunk) < 6:
+                continue
+            speaker, utter = chunk.split(":", 1)
+            lines_out.append((speaker.strip(), utter.strip()))
+
+        if not lines_out:
+            raise RuntimeError("model returned no NAME: utterance pairs")
+
+        await _emit_placeholder_lines(session_id, lines_out[:6])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "ballroom.chat_llm_failed",
+            session_id=str(session_id),
+            task_id=f"ballroom-chat-{session_id}",
+            error=str(exc),
+        )
+        await _emit_placeholder_lines(
+            session_id,
+            _fallback_chat_lines(agent_names or ["Orchestrator", "Queen"], clipped),
+        )
+
+
+async def _handle_user_chat_message(session_id: uuid.UUID, text: str) -> None:
+    """Persist user line server-side (no broadcast) then fan out agent chatter."""
+
+    if session_id not in _CAPSULES:
+        return
+
+    clipped = text.strip()
+    if not clipped:
+        return
+
+    logger.info(
+        "ballroom.user_message",
+        session_id=str(session_id),
+        swarm_id=str(session_id),
+        task_id=f"ballroom-chat-{session_id}",
+        text_chars=len(clipped),
+    )
+
+    _append_transcript(session_id, "You", clipped, broadcast=False)
+    await _run_ballroom_user_chat_reply(session_id, clipped)
+
+
+def _spawn_user_chat_task(session_id: uuid.UUID, text: str) -> None:
+    """Fire-and-forget user chat pipeline so HTTP/WS handlers return quickly."""
+
+    async def _runner() -> None:
+        try:
+            await _handle_user_chat_message(session_id, text)
+        except Exception as exc:  # noqa: BLE001 — keep ballroom warm on chat errors
+            logger.warning(
+                "ballroom.user_chat_runner_failed",
+                session_id=str(session_id),
+                swarm_id=str(session_id),
+                task_id=f"ballroom-chat-{session_id}",
+                error=str(exc),
+            )
+
+    asyncio.create_task(_runner())
+
+
 @_router.websocket("/live")
 async def hive_live_channel(websocket: WebSocket, token: str | None = Query(default=None)) -> None:
     """Hive dashboard stream emitting periodic swarm snapshots."""
@@ -383,6 +539,23 @@ async def start_ballroom_session_alias(_subject: JwtSubject) -> dict[str, object
     return await _mint_ballroom_session_capsule()
 
 
+@_bb_router.post("/message", status_code=status.HTTP_202_ACCEPTED, summary="Send Ballroom chat — agents reply asynchronously")
+async def ballroom_post_chat(body: BallroomChatMessageBody, subject: JwtSubject) -> dict[str, object]:
+    """Queue user text; responses stream as ballroom.transcript on the websocket."""
+
+    if body.session_id not in _CAPSULES:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session_not_found")
+    logger.info(
+        "ballroom.message_accepted",
+        actor=subject,
+        session_id=str(body.session_id),
+        swarm_id=str(body.session_id),
+        task_id=f"ballroom-chat-{body.session_id}",
+    )
+    _spawn_user_chat_task(body.session_id, body.text)
+    return {"ok": True, "session_id": str(body.session_id)}
+
+
 @_bb_router.get("/session/{session_id}")
 async def get_ballroom_session(session_id: uuid.UUID, _subject: JwtSubject) -> dict[str, object]:
     """Return transcript capsule (in-memory operator view)."""
@@ -452,7 +625,24 @@ async def _ballroom_socket_loop(
 
     try:
         while True:
-            await websocket.receive_text()
+            raw = await websocket.receive_text()
+            try:
+                inbound = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(inbound, dict) or inbound.get("type") != "user_message":
+                continue
+            text_val = inbound.get("text")
+            if not isinstance(text_val, str) or not text_val.strip():
+                continue
+            sid_raw = inbound.get("session_id")
+            if sid_raw not in (None, ""):
+                try:
+                    if uuid.UUID(str(sid_raw)) != session_id:
+                        continue
+                except ValueError:
+                    continue
+            _spawn_user_chat_task(session_id, text_val)
     except WebSocketDisconnect:
         pass
     finally:

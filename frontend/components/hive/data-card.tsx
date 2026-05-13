@@ -46,14 +46,14 @@ export function DataCard({ label, value, icon: Icon, trendPercent, hint, classNa
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(125deg,rgba(0,255,255,0.07),transparent_55%)]" />
       <div className="relative flex items-start justify-between gap-3">
         <div className="space-y-2">
-          <p className="font-[family-name:var(--font-inter)] text-xs font-medium uppercase tracking-[0.14em] text-cyan/75">
+          <p className="font-[family-name:var(--font-poppins)] text-xs font-medium uppercase tracking-[0.14em] text-cyan/75">
             {label}
           </p>
           <p className="font-[family-name:var(--font-poppins)] text-3xl font-semibold tracking-tight text-pollen shadow-[0_0_28px_rgba(255,184,0,0.38)]">
             {value}
           </p>
           {hint ? (
-            <p className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-muted-foreground">{hint}</p>
+            <p className="font-[family-name:var(--font-poppins)] text-[11px] text-muted-foreground">{hint}</p>
           ) : null}
         </div>
         <div
@@ -64,7 +64,7 @@ export function DataCard({ label, value, icon: Icon, trendPercent, hint, classNa
         </div>
       </div>
       {meta ? (
-        <div className={cn("relative mt-4 flex items-center gap-1 font-[family-name:var(--font-jetbrains-mono)] text-xs", meta.className)}>
+        <div className={cn("relative mt-4 flex items-center gap-1 font-[family-name:var(--font-poppins)] text-xs", meta.className)}>
           <meta.Icon className="h-3.5 w-3.5" aria-hidden />
           <span>{meta.text}</span>
           <span className="sr-only"> versus prior window</span>

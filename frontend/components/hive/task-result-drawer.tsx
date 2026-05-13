@@ -99,8 +99,8 @@ function LiveStatusPoller({
   return (
     <div className="flex flex-col items-center justify-center gap-4 py-16">
       <div className="text-4xl">🐝</div>
-      <div className="font-[family-name:var(--font-jetbrains-mono)] text-sm text-pollen">Bee is working{dots}</div>
-      <div className="font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-600">{elapsed}s elapsed</div>
+      <div className="font-[family-name:var(--font-poppins)] text-sm text-pollen">Bee is working{dots}</div>
+      <div className="font-[family-name:var(--font-poppins)] text-[11px] text-zinc-600">{elapsed}s elapsed</div>
         <div className="h-1 w-48 overflow-hidden rounded-full bg-[#1a1a3e]">
         <div className="h-full w-3/5 animate-pulse rounded-full bg-gradient-to-r from-pollen to-alert" />
       </div>
@@ -258,12 +258,12 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex flex-wrap items-center gap-2">
               <span
-                className={`rounded-full border px-2 py-0.5 font-[family-name:var(--font-jetbrains-mono)] text-xs ${statusCls}`}
+                className={`rounded-full border px-2 py-0.5 qs-chip capitalize ${statusCls}`}
               >
                 {badgeStatus}
               </span>
               {outputFmt && outputFmt !== "text" ? (
-                <span className="rounded-full border border-data/35 bg-data/10 px-2 py-0.5 font-[family-name:var(--font-jetbrains-mono)] text-xs text-data">
+                <span className="rounded-full border border-data/35 bg-data/10 px-2 py-0.5 qs-chip uppercase text-data">
                   {outputFmt.toUpperCase()}
                 </span>
               ) : null}
@@ -272,7 +272,7 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
               {task?.title ?? "Loading..."}
             </h2>
             {task?.created_at ? (
-              <p className="mt-0.5 font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-600">
+              <p className="mt-0.5 font-[family-name:var(--font-poppins)] text-[11px] text-zinc-600">
                 {new Date(task.created_at).toLocaleString()}
               </p>
             ) : null}
@@ -282,7 +282,7 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
               <button
                 type="button"
                 onClick={() => void handleDownload()}
-                className="rounded-lg border border-success/35 px-3 py-1.5 font-[family-name:var(--font-jetbrains-mono)] text-xs text-success transition hover:bg-success/10"
+                className="rounded-lg border border-success/35 px-3 py-1.5 font-[family-name:var(--font-poppins)] text-xs font-semibold text-success transition hover:bg-success/10"
               >
                 ⬇ Download
               </button>
@@ -299,13 +299,13 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
 
         <div className="flex-1 overflow-y-auto p-5 hive-scrollbar">
           {loading ? (
-            <p className="animate-pulse font-[family-name:var(--font-jetbrains-mono)] text-sm text-pollen">
+            <p className="animate-pulse font-[family-name:var(--font-poppins)] text-sm text-pollen">
               Loading result…
             </p>
           ) : null}
 
           {!loading && drawerError ? (
-            <p className="font-[family-name:var(--font-jetbrains-mono)] text-sm text-danger">{drawerError}</p>
+            <p className="font-[family-name:var(--font-poppins)] text-sm text-danger">{drawerError}</p>
           ) : null}
 
           {!loading && task && isWorking ? (
@@ -323,12 +323,12 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
                       : [];
                   return keys.length > 0 ? (
                     <div className="mb-4">
-                      <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Tools used</p>
+                      <p className="qs-meta-label mb-2 text-zinc-500">Tools used</p>
                       <div className="flex flex-wrap gap-2">
                         {keys.map((tool) => (
                           <span
                             key={tool}
-                            className="rounded-full bg-black/55 px-2 py-0.5 font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-400"
+                            className="rounded-full bg-black/55 px-2 py-0.5 font-[family-name:var(--font-poppins)] text-[11px] text-zinc-400"
                           >
                             ✓ {tool}
                           </span>
@@ -338,7 +338,7 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
                   ) : null;
                 })()
               ) : null}
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Output</p>
+              <p className="qs-meta-label mb-2 text-zinc-500">Output</p>
               {outputFmt === "markdown" ? (
                 <MarkdownPreview content={outputText} />
               ) : outputFmt === "json" ? (
@@ -356,7 +356,7 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
                 </pre>
               )}
               {(outputFmt === "excel" || outputFmt === "csv") ? (
-                <div className="mt-3 rounded-lg border border-success/25 bg-success/10 p-3 font-[family-name:var(--font-jetbrains-mono)] text-xs text-success">
+                <div className="mt-3 rounded-lg border border-success/25 bg-success/10 p-3 font-[family-name:var(--font-poppins)] text-xs leading-relaxed text-success">
                   📊{" "}
                   {outputFmt === "excel"
                     ? "Excel document — tap Download above for the generated sheet."
@@ -368,7 +368,7 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
 
           {!loading && task?.status?.toLowerCase() === "failed" ? (
             <div className="rounded-xl border border-danger/30 bg-danger/10 p-4">
-              <p className="font-[family-name:var(--font-jetbrains-mono)] text-sm text-danger">Task failed</p>
+              <p className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-danger">Task failed</p>
               <pre className="mt-2 whitespace-pre-wrap font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-400">
                 {typeof showErr === "string" ? showErr : outputText ?? "No error detail returned."}
               </pre>

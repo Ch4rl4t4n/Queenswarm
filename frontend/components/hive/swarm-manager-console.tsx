@@ -250,7 +250,7 @@ export function SwarmManagerConsole() {
           <h2 className="font-[family-name:var(--font-poppins)] text-xl font-bold text-[#fafafa]">
             Swarm cockpit
           </h2>
-          <p className="mt-1 font-[family-name:var(--font-inter)] text-sm text-zinc-500">
+          <p className="mt-1 font-[family-name:var(--font-poppins)] text-sm text-zinc-500">
             {swarms.length} swarms · {agents.length - unassigned.length} assigned · {unassigned.length} unassigned
           </p>
         </div>
@@ -278,16 +278,16 @@ export function SwarmManagerConsole() {
             <h3 className="font-[family-name:var(--font-poppins)] text-lg font-bold text-[#fafafa]">
               Create new swarm
             </h3>
-            <label className="mt-6 block font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+            <label className="mt-6 block qs-label">
               Swarm name
             </label>
             <input
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               placeholder="e.g. Crypto Scout"
-              className="mt-2 w-full rounded-xl border border-white/15 bg-black/55 px-3 py-2.5 font-[family-name:var(--font-inter)] text-sm text-[#fafafa] outline-none focus:border-pollen/50"
+              className="mt-2 w-full rounded-xl border border-white/15 bg-black/55 px-3 py-2.5 font-[family-name:var(--font-poppins)] text-sm text-[#fafafa] outline-none focus:border-pollen/50"
             />
-            <label className="mt-5 block font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+            <label className="mt-5 block qs-label">
               Role lane
             </label>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -303,14 +303,14 @@ export function SwarmManagerConsole() {
                       : "border-white/10 bg-black/35 text-zinc-400 hover:border-white/20",
                   )}
                 >
-                  <div className="font-[family-name:var(--font-inter)] text-sm font-semibold">{p.label}</div>
-                  <div className="mt-1 font-[family-name:var(--font-inter)] text-[11px] text-zinc-500">{p.desc}</div>
+                  <div className="font-[family-name:var(--font-poppins)] text-sm font-semibold">{p.label}</div>
+                  <div className="mt-1 font-[family-name:var(--font-poppins)] text-[11px] text-zinc-500">{p.desc}</div>
                 </button>
               ))}
             </div>
             {form.role === "custom" ? (
               <>
-                <label className="mt-5 block font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                <label className="mt-5 block qs-label">
                   Custom role name
                 </label>
                 <input
@@ -321,7 +321,7 @@ export function SwarmManagerConsole() {
                 />
               </>
             ) : null}
-            <label className="mt-5 block font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+            <label className="mt-5 block qs-label">
               Accent color
             </label>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -339,14 +339,14 @@ export function SwarmManagerConsole() {
                 />
               ))}
             </div>
-            <label className="mt-5 block font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+            <label className="mt-5 block qs-label">
               Manager prompt (optional)
             </label>
             <textarea
               value={form.system_prompt}
               onChange={(e) => setForm((f) => ({ ...f, system_prompt: e.target.value }))}
               rows={4}
-              className="mt-2 w-full resize-y rounded-xl border border-white/15 bg-black/55 px-3 py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-xs text-[#fafafa] outline-none focus:border-cyan/40"
+              className="mt-2 w-full resize-y rounded-xl border border-white/15 bg-black/55 px-3 py-2.5 font-[family-name:var(--font-poppins)] text-xs text-[#fafafa] outline-none focus:border-cyan/40"
             />
             <div className="mt-6 flex gap-3">
               <button type="button" onClick={() => setCreating(false)} className="qs-btn qs-btn--secondary qs-btn--full flex-1">
@@ -407,7 +407,7 @@ export function SwarmManagerConsole() {
                       <div className="font-[family-name:var(--font-poppins)] font-bold text-[#fafafa]">
                         {swarm.name}
                       </div>
-                      <div className="mt-1 font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-500">
+                      <div className="mt-1 font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
                         {role} · {members.length} agents · {active} active/run
                       </div>
                     </div>
@@ -438,7 +438,7 @@ export function SwarmManagerConsole() {
                     {members.map((agent) => (
                       <div
                         key={agent.id}
-                        className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/40 px-3 py-1 font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-300"
+                        className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/40 px-3 py-1 font-[family-name:var(--font-poppins)] text-[11px] text-zinc-300"
                       >
                         <span
                           className="h-1.5 w-1.5 rounded-full"
@@ -463,7 +463,7 @@ export function SwarmManagerConsole() {
 
                 {assigningTo === swarm.id && assignableToSwarm(swarm.id).length > 0 ? (
                   <div className="mt-4 border-t border-white/[0.06] pt-4">
-                    <p className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-500">
+                    <p className="font-[family-name:var(--font-poppins)] text-[11px] text-zinc-500">
                       AVAILABLE BEES — attach to {swarm.name}{" "}
                       <span className="normal-case text-zinc-600">
                         (unassigned or from another swarm — click to move)
@@ -478,7 +478,7 @@ export function SwarmManagerConsole() {
                             key={agent.id}
                             type="button"
                             onClick={() => void assignAgent(agent.id, swarm.id)}
-                            className="flex max-w-full flex-wrap items-center gap-x-1 rounded-xl border px-3 py-1.5 text-left font-[family-name:var(--font-jetbrains-mono)] text-[11px]"
+                            className="flex max-w-full flex-wrap items-center gap-x-1 rounded-xl border px-3 py-1.5 text-left font-[family-name:var(--font-poppins)] text-[11px]"
                             style={{
                               borderColor: `${color}55`,
                               backgroundColor: `${color}12`,
@@ -517,7 +517,7 @@ export function SwarmManagerConsole() {
             {unassigned.map((a) => (
               <span
                 key={a.id}
-                className="rounded-lg border border-white/10 px-3 py-1 font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-500"
+                className="rounded-lg border border-white/10 px-3 py-1 font-[family-name:var(--font-poppins)] text-[11px] text-zinc-500"
               >
                 {a.name}
               </span>

@@ -10,7 +10,7 @@ export default async function TasksPage() {
   const tasks = await hiveServerRawJson<TaskRow[]>("/tasks?limit=100");
 
   if (!tasks) {
-    return <p className="font-[family-name:var(--font-jetbrains-mono)] text-sm text-danger">Task ledger unavailable.</p>;
+    return <p className="font-[family-name:var(--font-poppins)] text-sm text-danger">Task ledger unavailable.</p>;
   }
 
   const counts = deriveTaskCounts(tasks);

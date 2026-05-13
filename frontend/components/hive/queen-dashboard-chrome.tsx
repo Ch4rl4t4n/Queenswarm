@@ -85,9 +85,9 @@ export function QueenDashboardChrome({
     const tot = Math.max(1, Object.values(m).reduce((a, b) => a + b, 0));
     const rows = [
       { key: "orchestrator", label: "Queen", bar: "bg-gradient-to-r from-pollen to-amber-600" },
-      { key: "manager", label: "Manažéri", bar: "bg-gradient-to-r from-cyan to-teal-500" },
-      { key: "worker", label: "Robotníci", bar: "bg-gradient-to-r from-alert to-fuchsia-600" },
-      { key: "unknown", label: "Nezaradené", bar: "bg-gradient-to-r from-zinc-500 to-zinc-700" },
+      { key: "manager", label: "Managers", bar: "bg-gradient-to-r from-cyan to-teal-500" },
+      { key: "worker", label: "Workers", bar: "bg-gradient-to-r from-alert to-fuchsia-600" },
+      { key: "unknown", label: "Unassigned", bar: "bg-gradient-to-r from-zinc-500 to-zinc-700" },
     ];
     return rows.map((r) => ({
       ...r,
@@ -100,10 +100,10 @@ export function QueenDashboardChrome({
     setRebalanceBusy(true);
     try {
       const res = await hivePostJson<{ woken?: number; message?: string }>("agents/wake-all", {});
-      toast.success(res.message ?? "Pozastavené včely sú späť v idle.");
+      toast.success(res.message ?? "Paused bees are back to idle.");
       await Promise.resolve(onAgentsReload());
     } catch (e) {
-      const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Vyrovnanie zlyhalo";
+      const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Rebalance failed";
       toast.error(msg);
     } finally {
       setRebalanceBusy(false);
@@ -118,16 +118,16 @@ export function QueenDashboardChrome({
           <h1 className="font-[family-name:var(--font-poppins)] text-3xl font-bold tracking-tight text-[#fafafa] md:text-4xl">
             Queen Swarm Dashboard
           </h1>
-          <p className="mt-2 max-w-2xl font-[family-name:var(--font-inter)] text-sm text-zinc-400">
-            {totalAgentsGauge} agentov v sieti · {swarmLabelCount} swarm uzlov · synchronizácia úľa približne každých 5 min
+          <p className="mt-2 max-w-2xl font-[family-name:var(--font-poppins)] text-sm text-zinc-400">
+            {totalAgentsGauge} agents in the network · {swarmLabelCount} swarm nodes · hive sync roughly every 5 min
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-3">
-          <Link href="/tasks/new" className="qs-btn qs-btn--primary gap-2 px-6 py-3">
+          <Link href="/tasks/new" className="qs-btn qs-btn--primary gap-2">
             <Plus className="h-4 w-4" aria-hidden />
-            Nová úloha
+            New task
           </Link>
-          <Link href="/ballroom" className="qs-btn qs-btn--secondary px-6 py-3">
+          <Link href="/ballroom" className="qs-btn qs-btn--secondary">
             Ballroom
           </Link>
         </div>
@@ -139,9 +139,9 @@ export function QueenDashboardChrome({
           type="search"
           value={filterQuery}
           onChange={(e) => onFilterChange(e.target.value)}
-          placeholder="Hľadať agentov, úroveň, meno…"
-          className="w-full rounded-2xl qs-rim-cyan-soft bg-black/55 py-3.5 pl-11 pr-4 font-[family-name:var(--font-inter)] text-sm text-[#fafafa] outline-none ring-pollen/20 placeholder:text-zinc-600 focus:border-pollen/40 focus:ring-2"
-          aria-label="Filter agentov"
+          placeholder="Search agents, tier, name…"
+          className="w-full rounded-2xl qs-rim-cyan-soft bg-black/55 py-3.5 pl-11 pr-4 font-[family-name:var(--font-poppins)] text-sm text-[#fafafa] outline-none ring-pollen/20 placeholder:text-zinc-600 focus:border-pollen/40 focus:ring-2"
+          aria-label="Filter agents"
         />
       </div>
 
@@ -160,37 +160,37 @@ export function QueenDashboardChrome({
           <>
             <article className="rounded-2xl qs-rim-cyan-soft bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
               <div className="flex items-start justify-between gap-2">
-                <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                <p className="qs-meta-label text-zinc-500">
                   Total agents
                 </p>
                 <Users className="h-5 w-5 text-cyan/60" aria-hidden />
               </div>
               <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl font-bold text-[#fafafa]">{totalAgentsListed}</p>
-              <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-success">Active {activeAgents}</p>
+              <p className="mt-1 font-[family-name:var(--font-poppins)] text-xs text-success">Active {activeAgents}</p>
             </article>
             <article className="rounded-2xl qs-rim-cyan-soft bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
               <div className="flex items-start justify-between gap-2">
-                <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                <p className="qs-meta-label text-zinc-500">
                   Running tasks
                 </p>
                 <Zap className="h-5 w-5 text-data/80" aria-hidden />
               </div>
               <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl font-bold text-data">{runningTasks}</p>
-              <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-zinc-500">From system pulse</p>
+              <p className="mt-1 font-[family-name:var(--font-poppins)] text-xs text-zinc-500">From system pulse</p>
             </article>
             <article className="rounded-2xl qs-rim-cyan-soft bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
               <div className="flex items-start justify-between gap-2">
-                <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                <p className="qs-meta-label text-zinc-500">
                   Queued tasks
                 </p>
                 <ListTodo className="h-5 w-5 text-pollen/70" aria-hidden />
               </div>
               <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl font-bold text-pollen">{queuedTasks}</p>
-              <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-zinc-500">Pending lane</p>
+              <p className="mt-1 font-[family-name:var(--font-poppins)] text-xs text-zinc-500">Pending lane</p>
             </article>
             <article className="rounded-2xl qs-rim-cyan-soft bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
               <div className="flex items-start justify-between gap-2">
-                <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                <p className="qs-meta-label text-zinc-500">
                   LLM status
                 </p>
                 <Cpu className="h-5 w-5 text-pollen/70" aria-hidden />
@@ -207,7 +207,7 @@ export function QueenDashboardChrome({
                   {llmOk ? "Routed" : "Degraded"}
                 </p>
               </div>
-              <p className="mt-1 font-[family-name:var(--font-inter)] text-xs text-zinc-500">
+              <p className="mt-1 font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
                 Grok {systemStatus?.llm_grok ? "✓" : "—"} · Claude {systemStatus?.llm_anthropic ? "✓" : "—"}
               </p>
             </article>
@@ -218,7 +218,7 @@ export function QueenDashboardChrome({
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <article className="rounded-2xl qs-rim bg-[#0a0a12]/90 p-5 sm:col-span-2 xl:col-span-2">
           <div className="flex items-start justify-between gap-2">
-            <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+            <p className="qs-meta-label text-zinc-500">
               Pollen (roster)
             </p>
             <Activity className="h-5 w-5 text-success/80" aria-hidden />
@@ -227,17 +227,21 @@ export function QueenDashboardChrome({
         </article>
         <article className="rounded-2xl qs-rim bg-[#0a0a12]/90 p-5 sm:col-span-2 xl:col-span-2">
           <div className="flex items-start justify-between gap-2">
-            <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-              Náklady (30 dní)
+            <p className="qs-meta-label text-zinc-500">
+              Costs (30d)
             </p>
             <Coins className="h-5 w-5 text-pollen/70" aria-hidden />
           </div>
           <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl font-bold text-[#fafafa]">{formatUsd(costWindowUsd)}</p>
+          <p className="mt-2 font-[family-name:var(--font-poppins)] text-[11px] leading-snug text-zinc-600">
+            Sums routed LLM spend (CostGovernor ledger): tasks, Ballroom chat, workflows, LLM previews — not only queued
+            runs.
+          </p>
         </article>
       </div>
 
       {agents.length === 0 ? (
-        <div className="rounded-2xl border border-pollen/30 bg-black/35 px-5 py-4 text-center font-[family-name:var(--font-inter)] text-sm text-zinc-300">
+        <div className="rounded-2xl border border-pollen/30 bg-black/35 px-5 py-4 text-center font-[family-name:var(--font-poppins)] text-sm text-zinc-300">
           No agents in the hive yet —{" "}
           <Link href="/agents/new" className="font-semibold text-pollen underline-offset-4 hover:underline">
             Spawn first agent
@@ -269,14 +273,14 @@ export function QueenDashboardChrome({
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-3xl qs-rim-cyan-soft bg-[#0a0a14]/90 p-6">
-          <h3 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">Výkon podľa tieru</h3>
-          <p className="mt-1 text-xs text-zinc-500">Podiel agentov v úli (z API summary)</p>
+          <h3 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">Performance by tier</h3>
+          <p className="mt-1 text-xs text-zinc-500">Share of agents in the hive (API summary)</p>
           <ul className="mt-5 space-y-4">
             {tierBars.map((row) => (
               <li key={row.key}>
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-medium text-zinc-300">{row.label}</span>
-                  <span className="font-[family-name:var(--font-jetbrains-mono)] text-cyan/70">{row.pct}% · {row.count}</span>
+                  <span className="qs-chip tracking-tight text-cyan/80">{row.pct}% · {row.count}</span>
                 </div>
                 <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-black/60">
                   <div
@@ -299,10 +303,10 @@ export function QueenDashboardChrome({
                 <li key={t.id} className="flex gap-3 py-3">
                   <span className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", statusDotClass(t.status))} aria-hidden />
                   <div className="min-w-0 flex-1">
-                    <Link href="/tasks" className="truncate font-[family-name:var(--font-inter)] text-sm text-[#fafafa] hover:text-pollen">
+                    <Link href="/tasks" className="truncate font-[family-name:var(--font-poppins)] text-sm text-[#fafafa] hover:text-pollen">
                       {t.title}
                     </Link>
-                    <p className="mt-0.5 truncate font-[family-name:var(--font-jetbrains-mono)] text-[11px] uppercase text-zinc-500">{taskStatusBrief(t.status)}</p>
+                    <p className="qs-meta-label mt-0.5 truncate normal-case tracking-normal text-[11px] text-zinc-500">{taskStatusBrief(t.status)}</p>
                   </div>
                 </li>
               ))

@@ -39,7 +39,7 @@ export function PluginsUserUploader() {
           <p className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-pollen">
             Drop-in Python plugins
           </p>
-          <p className="mt-2 font-[family-name:var(--font-inter)] text-xs text-zinc-500">
+          <p className="mt-2 font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
             Mount path <code className="font-mono text-data">backend/plugins/user</code> maps into all API workers.
           </p>
         </div>
@@ -60,7 +60,7 @@ export function PluginsUserUploader() {
           onChange={(e) => void onPick(e.target.files)}
         />
       </div>
-      {hint ? <p className="mt-4 font-[family-name:var(--font-jetbrains-mono)] text-xs text-muted-foreground">{hint}</p> : null}
+      {hint ? <p className="mt-4 font-[family-name:var(--font-poppins)] text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }

@@ -23,7 +23,7 @@ function VerifyInner() {
       typeof window !== "undefined" ? window.sessionStorage.getItem("qs_pre_auth") : null;
 
     if (!pre) {
-      toast.error("Žiadny pre-token. Začni znova prihlásením.");
+      toast.error("No pre-token. Start over from login.");
       router.push(`/login?next=${encodeURIComponent(nextPath)}`);
       return;
     }
@@ -37,7 +37,7 @@ function VerifyInner() {
       });
       const data = (await res.json()) as { detail?: string; ok?: boolean; access_token?: string };
       if (!res.ok) {
-        toast.error(typeof data.detail === "string" ? data.detail : "Kód zamietnutý.");
+        toast.error(typeof data.detail === "string" ? data.detail : "Code rejected.");
         return;
       }
       if (typeof window !== "undefined" && typeof data.access_token === "string" && data.access_token.trim()) {
@@ -46,7 +46,7 @@ function VerifyInner() {
       if (typeof window !== "undefined") {
         window.sessionStorage.removeItem("qs_pre_auth");
       }
-      toast.success("Overené");
+      toast.success("Verified");
       router.push(nextPath);
       router.refresh();
     } finally {
@@ -67,7 +67,7 @@ function VerifyInner() {
     return (
       <div
         key={`totp-slot-${String(i)}`}
-        className={`flex aspect-square w-full max-w-[44px] items-center justify-center rounded-lg border font-[family-name:var(--font-jetbrains-mono)] text-lg text-[#fafafa] ${
+        className={`flex aspect-square w-full max-w-[44px] items-center justify-center rounded-lg border font-[family-name:var(--font-poppins)] text-lg text-[#fafafa] ${
           digit || focusNext ? "border-pollen/55 shadow-[0_0_10px_rgb(255_184_0/0.2)]" : "border-cyan/15 bg-black/40"
         }`}
       >
@@ -81,10 +81,10 @@ function VerifyInner() {
       <div className="flex flex-col items-center gap-8 text-center">
         <HexagonIcon className="h-14 w-14 text-pollen drop-shadow-[0_0_28px_rgb(255_184_0/0.75)]" strokeWidth={1.35} />
         <div>
-          <p className="font-[family-name:var(--font-inter)] text-xl font-semibold text-[#fafafa]">
+          <p className="font-[family-name:var(--font-poppins)] text-xl font-semibold text-[#fafafa]">
             Hive security checkpoint
           </p>
-          <p className="mt-3 max-w-sm font-[family-name:var(--font-inter)] text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-3 max-w-sm font-[family-name:var(--font-poppins)] text-sm leading-relaxed text-muted-foreground">
             Enter authenticator digits or backup code issued when TOTP enrolment finalized.
           </p>
           <NeonButton
@@ -113,7 +113,7 @@ function VerifyInner() {
             value={code}
             onPaste={onPaste}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
-            className="w-full rounded-xl border border-cyan/[0.15] bg-black/45 px-4 py-3 text-center font-[family-name:var(--font-jetbrains-mono)] text-lg tracking-[0.85em] text-[#fafafa] focus:border-pollen/45 focus:outline-none focus:ring-2 focus:ring-pollen/25"
+            className="w-full rounded-xl border border-cyan/[0.15] bg-black/45 px-4 py-3 text-center font-[family-name:var(--font-poppins)] text-lg tracking-[0.85em] text-[#fafafa] focus:border-pollen/45 focus:outline-none focus:ring-2 focus:ring-pollen/25"
           />
         </div>
 
@@ -134,7 +134,7 @@ function VerifyInner() {
 export default function Verify2faPage() {
   return (
     <Suspense
-      fallback={<div className="text-center font-[family-name:var(--font-jetbrains-mono)] text-sm text-data">Hive gate…</div>}
+      fallback={<div className="text-center font-[family-name:var(--font-poppins)] text-sm text-data">Hive gate…</div>}
     >
       <VerifyInner />
     </Suspense>

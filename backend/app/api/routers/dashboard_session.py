@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import re
 import secrets
 import uuid
 from datetime import UTC, datetime
 from typing import Any, Literal
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, HTTPException, status
 from jose import JWTError
@@ -441,6 +443,45 @@ async def dashboard_patch_profile(
 _CHANNEL_PHONE_RE = re.compile(r"^\+?[0-9][0-9\s\-]{5,21}$")
 
 
+def normalize_delivery_channels_blob(existing: Any) -> dict[str, Any]:
+    """Coerce nullable or JSON-string legacy ``delivery_channels`` into a plain dict."""
+
+    if isinstance(existing, dict):
+        return dict(existing)
+    if isinstance(existing, str) and existing.strip():
+        try:
+            parsed = json.loads(existing)
+        except ValueError:
+            return {}
+        if isinstance(parsed, dict):
+            return dict(parsed)
+        return {}
+    return {}
+
+
+_DISCORD_WEBHOOK_HOSTS: frozenset[str] = frozenset(
+    {
+        "discord.com",
+        "discordapp.com",
+        "ptb.discord.com",
+        "canary.discord.com",
+    },
+)
+
+
+def discord_webhook_url_ok(url: str) -> bool:
+    """True for official Discord webhook HTTPS URLs only (no ``*-discord.com`` typosquats)."""
+
+    parsed = urlparse(url)
+    if parsed.scheme != "https":
+        return False
+    host = (parsed.hostname or "").lower()
+    path = parsed.path or ""
+    if host not in _DISCORD_WEBHOOK_HOSTS:
+        return False
+    return path.startswith("/api/webhooks/")
+
+
 class EmailChannelConfig(BaseModel):
     model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
 
@@ -498,11 +539,10 @@ class DiscordChannelConfig(BaseModel):
         s = value.strip()
         if not s:
             return None
-        if not (
-            s.startswith("https://discord.com/api/webhooks/")
-            or s.startswith("https://discordapp.com/api/webhooks/")
-        ):
-            raise ValueError("Discord webhook must be an https URL under discord.com/api/webhooks/")
+        if not discord_webhook_url_ok(s):
+            raise ValueError(
+                "Discord webhook must be an https URL under discord.com (or discordapp.com) /api/webhooks/",
+            )
         return s
 
 
@@ -545,7 +585,7 @@ class NotificationPrefsMergeBody(BaseModel):
 
 
 def _merge_delivery_buckets(existing: Any, merge: DeliveryChannelsMerge) -> dict[str, Any]:
-    base: dict[str, Any] = dict(existing) if isinstance(existing, dict) else {}
+    base: dict[str, Any] = normalize_delivery_channels_blob(existing)
     dumped = merge.model_dump(exclude_unset=True)
     for ch_name in ("email", "sms", "discord", "telegram"):
         ch_patch = dumped.get(ch_name)

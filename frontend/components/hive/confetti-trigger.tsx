@@ -16,7 +16,7 @@ export function ConfettiTrigger() {
           colors: ["#FFB800", "#00FFFF", "#00FF88", "#FF00AA"],
         })
       }
-      className="inline-flex items-center gap-2 rounded-full border border-success/70 bg-black/35 px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.3em] text-success shadow-[0_0_32px_rgba(0,255,136,0.35)]"
+      className="inline-flex items-center gap-2 rounded-full border border-success/70 bg-black/35 px-4 py-2 font-[family-name:var(--font-poppins)] text-xs uppercase tracking-[0.3em] text-success shadow-[0_0_32px_rgba(0,255,136,0.35)]"
     >
       <PartyPopperIcon className="h-4 w-4" aria-hidden /> celebrate verified simulation
     </button>

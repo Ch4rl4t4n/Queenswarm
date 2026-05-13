@@ -40,6 +40,17 @@ function channelDraftDefaults(slug: ChannelSlug): Record<string, unknown> {
   }
 }
 
+function isProxyUnreachableMessage(msg: string): boolean {
+  return msg.toLowerCase().includes("proxy_upstream_unreachable");
+}
+
+function hintProxyFailure(msg: string): string {
+  if (!isProxyUnreachableMessage(msg)) {
+    return msg;
+  }
+  return `${msg} Ensure the API is running and Next has INTERNAL_BACKEND_ORIGIN (e.g. http://127.0.0.1:8000 for local dev).`;
+}
+
 export function SettingsNotificationsPanel() {
   const [channels, setChannels] = useState<NotificationChannelListRow[]>([]);
   const [busy, setBusy] = useState(false);
@@ -134,7 +145,7 @@ export function SettingsNotificationsPanel() {
       hydrateDraftsFromApi(list);
     } catch (e) {
       const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Save failed";
-      toast.error(msg);
+      toast.error(hintProxyFailure(msg));
     } finally {
       setBusy(false);
     }
@@ -151,13 +162,21 @@ export function SettingsNotificationsPanel() {
       await load();
     } catch (e) {
       const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Delete failed";
-      toast.error(msg);
+      toast.error(hintProxyFailure(msg));
     } finally {
       setBusy(false);
     }
   }
 
   async function sendTest(slug: ChannelSlug): Promise<void> {
+    const savedRow = channels.find((c) => c.channel_type === slug || c.id === slug);
+    if (!savedRow) {
+      const hint = "Save the channel first so the hive can store webhook or address settings.";
+      toast.error(hint);
+      setTestHints((h) => ({ ...h, [slug]: `❌ ${hint}` }));
+      return;
+    }
+
     setBusy(true);
     try {
       const res = await hivePostJson<{ status?: string; detail?: string }>(`notifications/test/${slug}`, {});
@@ -175,8 +194,9 @@ export function SettingsNotificationsPanel() {
         setTestHints((h) => ({ ...h, email: "ℹ️ Email smoke uses global SMTP + /system notify-test." }));
         toast.message("Email test not wired for channel ping");
       } else {
-        setTestHints((h) => ({ ...h, [slug]: `❌ ${msg}` }));
-        toast.error(msg);
+        const shown = hintProxyFailure(msg);
+        setTestHints((h) => ({ ...h, [slug]: `❌ ${shown}` }));
+        toast.error(shown);
       }
     } finally {
       setBusy(false);
@@ -193,7 +213,7 @@ export function SettingsNotificationsPanel() {
 
   return (
     <div className="flex flex-col gap-[var(--qs-gap)]">
-      <p className="font-[family-name:var(--font-inter)] text-sm text-[var(--qs-text-3)]">
+      <p className="font-[family-name:var(--font-poppins)] text-sm text-[var(--qs-text-3)]">
         Delivery buckets sync to{" "}
         <span className="font-mono text-xs text-[var(--qs-cyan)]">notification_prefs.delivery_channels</span> via{" "}
         <span className="font-mono text-xs text-[var(--qs-cyan)]">/api/v1/notifications</span>.

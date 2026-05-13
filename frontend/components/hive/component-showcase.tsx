@@ -25,13 +25,13 @@ export function ComponentShowcase() {
   return (
     <div className="space-y-12 pb-16">
       <header className="space-y-2">
-        <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.28em] text-cyan/70">
+        <p className="font-[family-name:var(--font-poppins)] text-[10px] uppercase tracking-[0.28em] text-cyan/70">
           queenswarm · neon-dark kit
         </p>
         <h1 className="font-[family-name:var(--font-poppins)] text-3xl font-semibold text-pollen">
           Component showcase
         </h1>
-        <p className="max-w-2xl font-[family-name:var(--font-inter)] text-sm text-muted-foreground">
+        <p className="max-w-2xl font-[family-name:var(--font-poppins)] text-sm text-muted-foreground">
           Mirrors the Figma manual: status lamps, neon CTAs, shimmer progress, metric tiles, and hive agent tiles.
         </p>
       </header>

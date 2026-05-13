@@ -61,9 +61,7 @@ def _delivery_template(channel: ChannelSlug, raw: dict[str, Any], enabled: bool)
 
 
 def _flatten_channels(prefs: dict[str, Any]) -> list[dict[str, Any]]:
-    dc = prefs.get("delivery_channels")
-    if not isinstance(dc, dict):
-        return []
+    dc = dashboard_session_router.normalize_delivery_channels_blob(prefs.get("delivery_channels"))
     titles = {
         "email": "Email",
         "sms": "SMS",
@@ -188,13 +186,15 @@ async def post_notification_test(
     if user is None or not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive operator.")
 
-    dc = (user.notification_prefs or {}).get("delivery_channels")
-    if not isinstance(dc, dict):
+    dc = dashboard_session_router.normalize_delivery_channels_blob(
+        (user.notification_prefs or {}).get("delivery_channels"),
+    )
+    if not dc:
         return {"status": "error", "detail": "delivery_channels not configured"}
 
     cfg_raw = dc.get(channel_id)
     if not isinstance(cfg_raw, dict):
-        return {"status": "error", "detail": "Unknown channel bucket"}
+        return {"status": "error", "detail": f"{channel_id} channel not saved — use Save channel before testing."}
 
     msg = "✅ Queenswarm notification test — delivery channel is reachable."
 

@@ -19,7 +19,7 @@ export function HivePageHeader({ title, subtitle, actions, className }: HivePage
       <div className="space-y-2">
         <h1>{title}</h1>
         {subtitle ? (
-          <div className="description max-w-2xl font-[family-name:var(--font-inter)] text-sm leading-relaxed text-muted-foreground">
+          <div className="description max-w-2xl font-[family-name:var(--font-poppins)] text-sm leading-relaxed text-muted-foreground">
             {subtitle}
           </div>
         ) : null}

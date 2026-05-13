@@ -12,11 +12,11 @@ export default function GlobalErrorBoundary({
       <p className="font-[family-name:var(--font-poppins)] text-2xl font-semibold tracking-tight text-pollen">
         hive anomaly
       </p>
-      <p className="mt-4 font-[family-name:var(--font-jetbrains-mono)] text-sm text-danger">{error.message}</p>
+      <p className="mt-4 font-[family-name:var(--font-poppins)] text-sm text-danger">{error.message}</p>
       <button
         type="button"
         onClick={() => reset()}
-        className="mt-6 rounded-full border border-pollen px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.3em] text-pollen"
+        className="mt-6 rounded-full border border-pollen px-4 py-2 font-[family-name:var(--font-poppins)] text-xs uppercase tracking-[0.3em] text-pollen"
       >
         reset comb
       </button>

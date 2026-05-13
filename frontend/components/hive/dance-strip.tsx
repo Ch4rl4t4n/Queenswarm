@@ -16,18 +16,18 @@ export function DanceStrip({ dances }: DanceStripProps) {
         <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-magenta">
           recent waggle dances
         </h2>
-        <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs text-cyan/70">
+        <p className="font-[family-name:var(--font-poppins)] text-xs text-cyan/70">
           live hive relay · gossip decays after global sync pulses
         </p>
       </header>
       <ul className="space-y-3">
         {dances.map((d) => (
           <li key={d.ts + d.signal} className="border-l-2 border-pollen/60 pl-3">
-            <p className="font-[family-name:var(--font-jetbrains-mono)] text-sm text-[#FFB800]">
+            <p className="font-[family-name:var(--font-poppins)] text-sm text-[#FFB800]">
               {d.from_swarm} · {d.signal}
             </p>
             <p className="text-sm text-[#CCFFFF]">{d.topic}</p>
-            <p className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-cyan/50">
+            <p className="font-[family-name:var(--font-poppins)] text-[11px] text-cyan/50">
               {new Date(d.ts).toISOString()}
             </p>
           </li>

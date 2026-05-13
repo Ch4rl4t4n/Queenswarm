@@ -222,12 +222,13 @@ export function BallroomPanel() {
               const m = row.messages[i] as Record<string, unknown>;
               const agentRaw = typeof m.agent === "string" ? m.agent : "Agent";
               const textRaw = typeof m.text === "string" ? m.text : "";
+              const isYou = agentRaw.trim().toLowerCase() === "you";
               mapped.push({
                 id: `hist-${i}`,
                 agent: agentRaw,
                 text: textRaw || String(m.type ?? ""),
                 timestamp: typeof m.timestamp === "string" ? (m.timestamp as string) : new Date().toISOString(),
-                variant: "agent",
+                variant: isYou ? "user" : "agent",
               });
             }
             setMessages(mapped);
@@ -380,24 +381,40 @@ export function BallroomPanel() {
   async function sendChat(): Promise<void> {
     const text = input.trim();
     if (!text) return;
+    const sid = sessionIdRef.current;
+    if (!sid) {
+      appendBubble({
+        agent: "System",
+        text: "Session id missing — start the ballroom again.",
+        timestamp: new Date().toISOString(),
+        variant: "system",
+      });
+      return;
+    }
     appendBubble({ agent: "You", text, timestamp: new Date().toISOString(), variant: "user" });
     setInput("");
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      try {
-        wsRef.current.send(JSON.stringify({ type: "user_message", text, session_id: sessionIdRef.current }));
-      } catch {
-        /* server may ignore inbound text */
-      }
-    }
     try {
-      await fetch("/api/proxy/ballroom/message", {
+      const res = await fetch("/api/proxy/ballroom/message", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: sessionIdRef.current, text }),
+        body: JSON.stringify({ session_id: sid, text }),
       });
+      if (!res.ok) {
+        appendBubble({
+          agent: "System",
+          text: `Message could not reach the swarm (HTTP ${res.status}).`,
+          timestamp: new Date().toISOString(),
+          variant: "system",
+        });
+      }
     } catch {
-      /* optional route */
+      appendBubble({
+        agent: "System",
+        text: "Network error sending to ballroom — try again.",
+        timestamp: new Date().toISOString(),
+        variant: "system",
+      });
     }
   }
 

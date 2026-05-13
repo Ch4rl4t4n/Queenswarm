@@ -20,7 +20,7 @@ export function SystemStatusPanel(): JSX.Element {
   if (error) {
     return (
       <section className="mt-8 rounded-2xl border border-danger/35 bg-black/40 p-5">
-        <p className="font-[family-name:var(--font-jetbrains-mono)] text-sm text-danger">
+        <p className="font-[family-name:var(--font-poppins)] text-sm text-danger">
           System probe failed — retry after logging into the hive proxy.
         </p>
       </section>
@@ -30,7 +30,7 @@ export function SystemStatusPanel(): JSX.Element {
   if (!data) {
     return (
       <section className="mt-8 animate-pulse rounded-2xl border border-cyan/[0.08] bg-hive-card/80 p-5">
-        <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs text-muted-foreground">Fetching swarm diagnostics…</p>
+        <p className="font-[family-name:var(--font-poppins)] text-xs text-muted-foreground">Fetching swarm diagnostics…</p>
       </section>
     );
   }
@@ -47,7 +47,7 @@ export function SystemStatusPanel(): JSX.Element {
       <h3 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-pollen">
         🔧 System status
       </h3>
-      <p className="mt-1 font-[family-name:var(--font-inter)] text-sm text-muted-foreground">
+      <p className="mt-1 font-[family-name:var(--font-poppins)] text-sm text-muted-foreground">
         Live infra snapshot for swarm operators — polled every twelve seconds via cookie JWT.
       </p>
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -57,10 +57,10 @@ export function SystemStatusPanel(): JSX.Element {
               className={`h-2.5 w-2.5 shrink-0 rounded-full ${row.ok ? "bg-success shadow-[0_0_12px_rgb(0_255_136/0.65)]" : "animate-pulse bg-danger"}`}
             />
             <div className="flex flex-col">
-              <span className={`text-sm ${row.ok ? "text-[#fafafa]" : "text-danger"} font-[family-name:var(--font-inter)]`}>
+              <span className={`text-sm ${row.ok ? "text-[#fafafa]" : "text-danger"} font-[family-name:var(--font-poppins)]`}>
                 {row.label}
               </span>
-              <span className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-500">
+              <span className="font-[family-name:var(--font-poppins)] text-[11px] text-zinc-500">
                 {row.ok ? "nominal · rapid loop draining" : "check docker logs / celery queue"}
               </span>
             </div>
@@ -68,14 +68,14 @@ export function SystemStatusPanel(): JSX.Element {
         ))}
       </div>
       {!data.llm_ok ? (
-        <div className="mt-5 rounded-xl border border-danger/25 bg-danger/10 p-4 font-[family-name:var(--font-jetbrains-mono)] text-xs text-danger">
+        <div className="mt-5 rounded-xl border border-danger/25 bg-danger/10 p-4 font-[family-name:var(--font-poppins)] text-xs text-danger">
           LLM routing disabled · add{" "}
           <code className="text-[11px] text-data">GROK_API_KEY</code>,{" "}
           <code className="text-[11px] text-data">ANTHROPIC_API_KEY</code>, or{" "}
           <code className="text-[11px] text-data">OPENAI_API_KEY</code>{" "}
           to <span className="text-pollen">.env</span> and recycle <span className="text-pollen">celery-worker</span>. Bees still serialize tool
           rails without paid inference.
-          <span className="mt-3 block font-[family-name:var(--font-inter)] text-[11px] text-muted-foreground">
+          <span className="mt-3 block font-[family-name:var(--font-poppins)] text-[11px] text-muted-foreground">
             Console:{" "}
             <a href="https://console.x.ai" target="_blank" rel="noopener noreferrer" className="text-data underline-offset-4 hover:underline">
               https://console.x.ai

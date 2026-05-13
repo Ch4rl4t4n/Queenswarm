@@ -39,9 +39,13 @@ class AgentDynamicCreate(BaseModel):
 class AgentConfigUpsert(BaseModel):
     """Partial or full update of persisted AgentConfig."""
 
-    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=False)
 
-    system_prompt: str | None = Field(default=None, min_length=1)
+    system_prompt: str | None = Field(
+        default=None,
+        description="Allowed empty when agent is dormant (no swarm) or inactive in UI.",
+        max_length=120_000,
+    )
     user_prompt_template: str | None = Field(default=None, max_length=20_000)
     tools: list[Any] | None = None
     output_format: str | None = Field(default=None, max_length=50)

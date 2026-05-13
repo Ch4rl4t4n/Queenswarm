@@ -5,7 +5,8 @@ import { hiveMobileRouteMeta } from "./hive-mobile-meta";
 describe("hiveMobileRouteMeta", () => {
   it("returns dashboard meta for root", () => {
     const m = hiveMobileRouteMeta("/");
-    expect(m.kicker).toBe("Hive");
+    expect(m.kicker).toBe("Queen Swarm");
+    expect(m.staticSubtitle).toContain("roster");
   });
 
   it("returns ballroom meta with pageTitleSuffix", () => {

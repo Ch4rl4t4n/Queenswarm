@@ -232,7 +232,7 @@ export function HierarchyPageConsole(): JSX.Element {
 
   if (loading) {
     return (
-      <div className="py-16 text-center font-mono text-sm text-[var(--qs-text-3)]">Načítavam hierarchiu…</div>
+      <div className="py-16 text-center font-mono text-sm text-[var(--qs-text-3)]">Loading hierarchy…</div>
     );
   }
 
@@ -243,8 +243,8 @@ export function HierarchyPageConsole(): JSX.Element {
   return (
     <div className="space-y-8">
       <HivePageHeader
-        title="Hierarchia úľa"
-        subtitle="Queen riadi manažérov · rovnaké hex dlaždice (140 px) ako na Agents · queen zlatý rám + koruna."
+        title="Hive hierarchy"
+        subtitle="Queen leads managers · same 140 px hex tiles as Agents · queen gets gold frame + crown."
       />
 
       <div className={cn("flex flex-col items-center pb-14")}>
@@ -257,16 +257,16 @@ export function HierarchyPageConsole(): JSX.Element {
           <div className="px-6 py-14 text-center">
             <div className="mb-3 text-5xl">🐝</div>
             <p className="text-sm text-[var(--qs-text-3)]">
-              Zatiaľ žiadni agenti —{" "}
+              No agents yet —{" "}
               <Link href="/agents/new" className="font-semibold text-[var(--qs-amber)] underline-offset-2 hover:underline">
-                spawn prvého agenta
+                spawn the first agent
               </Link>
               .
             </p>
           </div>
         ) : (
           <p className="text-center font-mono text-sm text-[var(--qs-text-3)]">
-            Žiadny orchestrátor v dátach — označ Hive tier alebo spawn „Queen“ cez Agents.
+            No orchestrator in the data — set Hive tier or spawn a Queen from Agents.
           </p>
         )}
 
@@ -315,7 +315,7 @@ export function HierarchyPageConsole(): JSX.Element {
         {tree.ungrouped.length > 0 ? (
           <div className="mt-12 w-full max-w-[1200px] px-2">
             <p className="mb-5 text-center font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--qs-text-3)]">
-              Robotníci mimo tímov ({tree.ungrouped.length})
+              Workers outside teams ({tree.ungrouped.length})
             </p>
             <div className="flex flex-wrap justify-center gap-[18px]">
               {tree.ungrouped.map((w) => (

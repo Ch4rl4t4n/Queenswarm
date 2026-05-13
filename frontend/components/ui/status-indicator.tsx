@@ -58,7 +58,7 @@ export function StatusIndicator({ tone, label, className, pulse = true, ...rest 
         aria-hidden
       />
       {label ? (
-        <span className={cn("font-[family-name:var(--font-inter)] text-xs font-medium", styles.label)}>
+        <span className={cn("font-[family-name:var(--font-poppins)] text-xs font-medium", styles.label)}>
           {label}
         </span>
       ) : null}

@@ -32,7 +32,7 @@ export function AgentsBeehiveSection({ agents }: AgentsBeehiveSectionProps) {
 
   function tabClass(active: boolean): string {
     return cn(
-      "shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 font-[family-name:var(--font-inter)] text-xs font-semibold uppercase tracking-[0.12em]",
+      "shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 font-[family-name:var(--font-poppins)] text-xs font-semibold uppercase tracking-[0.12em]",
       active
         ? "bg-pollen text-black shadow-[0_0_18px_rgb(255_184_0/0.35)]"
         : "border border-cyan/[0.15] text-zinc-400 hover:border-pollen/30 hover:text-pollen",
@@ -72,7 +72,7 @@ export function AgentsBeehiveSection({ agents }: AgentsBeehiveSectionProps) {
         ))}
       </div>
       {rows.length === 0 ? (
-        <p className="font-[family-name:var(--font-jetbrains-mono)] text-sm text-zinc-500">No bees in this shard.</p>
+        <p className="font-[family-name:var(--font-poppins)] text-sm text-zinc-500">No bees in this shard.</p>
       ) : null}
     </div>
   );

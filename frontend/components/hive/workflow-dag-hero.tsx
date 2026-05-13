@@ -1,6 +1,7 @@
 "use client";
 
 import type { WorkflowRow } from "@/lib/hive-types";
+import { HexNumberBadge } from "@/components/hive/hex-metric-tile";
 import { NeonButton } from "@/components/ui/neon-button";
 import { cn } from "@/lib/utils";
 
@@ -22,50 +23,28 @@ interface HexVisualProps {
   accent: (typeof STEP_META)[number]["accent"];
 }
 
-const ACCENTS: Record<HexVisualProps["accent"], { fill?: string; line?: string; glow?: string }> = {
-  data: {
-    fill: "border-data bg-data text-black shadow-[0_0_20px_rgb(0_255_255/0.5)]",
-    line: "border-data text-data shadow-[inset_0_0_0_1px_rgb(0_255_255/0.4)] bg-black/55",
-    glow: "border-data shadow-[0_0_26px_rgb(0_255_255/0.35)] bg-black/30 text-data",
-  },
-  pollen: {
-    fill: "border-pollen bg-pollen text-black shadow-[0_0_20px_rgb(255_184_0/0.48)]",
-    line: "border-pollen text-pollen bg-black/55",
-    glow: "border-pollen shadow-[0_0_24px_rgb(255_184_0/0.35)] bg-black/30 text-pollen",
-  },
-  alert: {
-    fill: "border-alert bg-[rgb(255_0_170/0.18)] text-alert shadow-[0_0_24px_rgb(255_0_170/0.45)] font-bold",
-    line: "border-alert text-alert bg-transparent shadow-[inset_0_0_0_2px_rgb(255_0_170/0.45)]",
-    glow: "border-alert shadow-[0_0_28px_rgb(255_0_170/0.45)] bg-black/35 text-alert",
-  },
-  success: {
-    fill: "",
-    line: "border-success text-success bg-transparent opacity-95",
-    glow: "border-success shadow-[0_0_22px_rgb(0_255_136/0.35)] bg-black/35 text-success",
-  },
+const ACCENT_HEX: Record<HexVisualProps["accent"], string> = {
+  data: "#00E5FF",
+  pollen: "#FFB800",
+  alert: "#FF00AA",
+  success: "#00FF88",
 };
 
 function DagHex({ label, state, accent }: HexVisualProps) {
-  const a = ACCENTS[accent];
-  const cls =
-    state === "done"
-      ? a.fill
-      : state === "active"
-        ? a.glow ?? a.line ?? ""
-        : `${a.line} opacity-65`;
-
+  const stroke = ACCENT_HEX[accent];
   return (
     <div className="flex flex-col items-center gap-3">
-      <div
-        className={cn(
-          "hive-hex flex h-14 w-14 shrink-0 items-center justify-center border-[6px] text-[11px] font-[family-name:var(--font-jetbrains-mono)] font-semibold uppercase tracking-tighter md:h-16 md:w-16",
-          cls,
-          !cls && "border-cyan/[0.2] bg-black/40 text-zinc-500",
-        )}
-      >
-        {label.slice(0, 5)}
+      <div className={cn(state === "todo" && "opacity-[0.72] saturate-[0.75]")}>
+        <HexNumberBadge
+          value={label.slice(0, 5)}
+          monoLabel
+          strokeColor={stroke}
+          glowColor={state === "active" || state === "done" ? stroke : undefined}
+          variant={state === "done" ? "solid" : "default"}
+          sizePx={state === "active" ? 60 : 56}
+        />
       </div>
-      <span className="hidden text-center font-[family-name:var(--font-inter)] text-[11px] text-zinc-500 md:block">{label}</span>
+      <span className="hidden text-center font-[family-name:var(--font-poppins)] text-[11px] text-zinc-500 md:block">{label}</span>
     </div>
   );
 }
@@ -80,16 +59,16 @@ export function WorkflowDagHero({ workflow }: WorkflowDagHeroProps) {
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-cyan/[0.08] pb-5">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full border border-success/35 bg-success/[0.1] px-2 py-0.5 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.12em] text-success">
+            <span className="inline-flex items-center gap-1 rounded-full border border-success/35 bg-success/[0.1] px-2 py-0.5 qs-chip uppercase tracking-[0.06em] text-success">
               ● Running
             </span>
-            <span className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] text-zinc-500">{workflow.id}</span>
+            <span className="font-[family-name:var(--font-poppins)] text-[11px] text-zinc-500">{workflow.id}</span>
           </div>
           <h2 className="mt-4 font-[family-name:var(--font-poppins)] text-xl font-semibold text-[#fafafa] md:text-2xl">
             {workflow.original_task_text.slice(0, 120)}
             {workflow.original_task_text.length > 120 ? "…" : ""}
           </h2>
-          <p className="mt-2 font-[family-name:var(--font-inter)] text-sm text-muted-foreground">
+          <p className="mt-2 font-[family-name:var(--font-poppins)] text-sm text-muted-foreground">
             Step {Math.min(workflow.completed_steps + 1, total)} of {total} · Sim-01 sandboxing trade scenarios.
           </p>
         </div>
