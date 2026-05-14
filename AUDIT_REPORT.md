@@ -53,7 +53,7 @@ Legend: **Proxy** = browser calls `/api/proxy/<path>` → Next relay → `INTERN
 | `/plugins` | catalog + upload | `/api/v1/plugins/*` | Multipart via `/api/proxy/plugins/upload` |
 | `/connectors`, `/external-projects` | Phase 3 | `/api/v1/connectors/*`, external routers | OAuth via `/api/auth/connect/*` |
 | `/costs` | colony / costs | `GET /api/v1/operator/costs/summary` | Copy warns if proxy/JWT missing |
-| `/leaderboard` | leaderboard | varies | Confirm against router in follow-up |
+| `/leaderboard` | leaderboard tabs | `GET /api/v1/agents`, `/api/v1/swarms`, `/api/v1/recipes` (query params) | Client-side pollen / success sorts via `hiveGet` |
 | `/settings/*` | LLM keys, notifications, security | `/api/v1/llm-keys`, `/api/v1/notifications`, auth | |
 | `/hierarchy` | hierarchy console | agents + swarms proxy | **Not** on primary nav — reachable by URL only |
 
