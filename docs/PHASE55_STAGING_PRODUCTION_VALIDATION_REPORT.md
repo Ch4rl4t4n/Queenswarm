@@ -19,7 +19,7 @@ Operator sign-off that **both** environments meet SLOs: TLS, auth, proxy, vector
 | Area | Artifact |
 |------|----------|
 | **Import layout** | No remaining `app.api.*` — API lives under **`app.presentation.api.*`** (verified in repo; see `AUDIT_REPORT.md` inventory). |
-| **Rate limits** | **`app.api.middleware.rate_limit`** — **`peer_ip_for_rate_limit()`** + exempt rules (see `AUDIT_REPORT.md`). |
+| **Rate limits** | **`app.presentation.api.middleware.rate_limit`** — **`peer_ip_for_rate_limit()`** + exempt rules (see `AUDIT_REPORT.md`). |
 | **Dashboard proxy** | **`frontend/app/api/proxy/[...path]/route.ts`** forwards **`X-Forwarded-*`** / **`X-Real-IP`** / **`Host`** to FastAPI for correct IP + URL semantics. |
 | **Compose / nginx** | **`QS_NGINX_SITE_CONF`**, **`QS_ENV_FILE_STG`**, **`QS_ENV_FILE_PROD`**, staging guard files — see `docker-compose.*.yml` + `scripts/deploy-*.sh`. |
 

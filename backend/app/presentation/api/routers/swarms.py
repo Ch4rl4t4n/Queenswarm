@@ -11,28 +11,28 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from app.api.deps import DbSession, JwtSubject
+from app.presentation.api.deps import DbSession, JwtSubject
 from app.core.config import settings
-from app.models.agent import Agent
-from app.models.hive_async_workflow_run import HiveAsyncWorkflowRun
-from app.models.enums import AgentStatus, SwarmPurpose
-from app.models.task import Task
-from app.schemas.sub_swarm import (
+from app.infrastructure.persistence.models.agent import Agent
+from app.infrastructure.persistence.models.hive_async_workflow_run import HiveAsyncWorkflowRun
+from app.infrastructure.persistence.models.enums import AgentStatus, SwarmPurpose
+from app.infrastructure.persistence.models.task import Task
+from app.common.schemas.sub_swarm import (
     GlobalHiveSyncAck,
     RunWorkflowOnSwarmQueuedResponse,
     RunWorkflowOnSwarmRequest,
     RunWorkflowOnSwarmResponse,
 )
-from app.schemas.swarm_catalog import (
+from app.common.schemas.swarm_catalog import (
     SubSwarmCreateRequest,
     SubSwarmPatchRequest,
     SubSwarmSnapshot,
 )
-from app.services.hive_async_workflow_run_ledger import enqueue_hive_async_workflow_run
-from app.services.hive_sync import mark_sub_swarm_globally_synced
-from app.services.agent_catalog import apply_agent_updates
-from app.services.sub_swarm.runner import run_sub_swarm_workflow_cycle
-from app.services.sub_swarm_catalog import (
+from app.application.services.hive_async_workflow_run_ledger import enqueue_hive_async_workflow_run
+from app.application.services.hive_sync import mark_sub_swarm_globally_synced
+from app.application.services.agent_catalog import apply_agent_updates
+from app.application.services.sub_swarm.runner import run_sub_swarm_workflow_cycle
+from app.application.services.sub_swarm_catalog import (
     SubSwarmCatalogError,
     apply_sub_swarm_updates,
     create_sub_swarm,

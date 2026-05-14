@@ -8,15 +8,15 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 
-from app.api.deps import DbSession, JwtSubject
-from app.models.agent import Agent
-from app.models.agent_config import AgentConfig
-from app.models.enums import TaskStatus
-from app.models.task import Task
-from app.services.dashboard_swarm_board import build_swarm_board_payload
-from app.services.dashboard_task_queue import build_task_queue_payload
-from app.services.dashboard_workflows import build_workflows_dashboard_payload
-from app.services.hive_tier import resolve_hive_tier
+from app.presentation.api.deps import DbSession, JwtSubject
+from app.infrastructure.persistence.models.agent import Agent
+from app.infrastructure.persistence.models.agent_config import AgentConfig
+from app.infrastructure.persistence.models.enums import TaskStatus
+from app.infrastructure.persistence.models.task import Task
+from app.application.services.dashboard_swarm_board import build_swarm_board_payload
+from app.application.services.dashboard_task_queue import build_task_queue_payload
+from app.application.services.dashboard_workflows import build_workflows_dashboard_payload
+from app.application.services.hive_tier import resolve_hive_tier
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 

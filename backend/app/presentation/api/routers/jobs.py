@@ -5,11 +5,11 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api.deps import DbSession, JwtSubject
+from app.presentation.api.deps import DbSession, JwtSubject
 from app.core.logging import get_logger
-from app.models.hive_async_workflow_run import HiveAsyncWorkflowRun
-from app.schemas.hive_jobs import HiveAsyncJobStatusResponse, HivePostgresLedgerBrief
-from app.services.hive_async_workflow_run_ledger import fetch_hive_async_workflow_run
+from app.infrastructure.persistence.models.hive_async_workflow_run import HiveAsyncWorkflowRun
+from app.common.schemas.hive_jobs import HiveAsyncJobStatusResponse, HivePostgresLedgerBrief
+from app.application.services.hive_async_workflow_run_ledger import fetch_hive_async_workflow_run
 from app.worker.celery_app import celery_app
 
 router = APIRouter(tags=["Hive jobs"])

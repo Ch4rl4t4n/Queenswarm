@@ -7,15 +7,15 @@ import uuid
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api.deps import DbSession, JwtSubject, RecipeMutationSubject
+from app.presentation.api.deps import DbSession, JwtSubject, RecipeMutationSubject
 from app.core.logging import get_logger
-from app.models.recipe import Recipe
-from app.schemas.recipes_catalog import RecipeCatalogItem
-from app.schemas.recipes_search import RecipeSemanticHit
-from app.schemas.recipes_write import RecipeCreateBody, RecipePatchBody
-from app.services.recipe_catalog import list_recipe_catalog_rows
-from app.services.recipe_chroma_bridge import search_recipes_semantic
-from app.services.recipe_write import (
+from app.infrastructure.persistence.models.recipe import Recipe
+from app.common.schemas.recipes_catalog import RecipeCatalogItem
+from app.common.schemas.recipes_search import RecipeSemanticHit
+from app.common.schemas.recipes_write import RecipeCreateBody, RecipePatchBody
+from app.application.services.recipe_catalog import list_recipe_catalog_rows
+from app.application.services.recipe_chroma_bridge import search_recipes_semantic
+from app.application.services.recipe_write import (
     RecipeWriteConflictError,
     RecipeWriteEmptyPatchError,
     RecipeWriteNotFoundError,

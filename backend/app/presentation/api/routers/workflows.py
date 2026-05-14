@@ -10,21 +10,21 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import DbSession, JwtSubject
-from app.models.task import Task
-from app.models.workflow import Workflow
-from app.schemas.workflow_breaker import (
+from app.presentation.api.deps import DbSession, JwtSubject
+from app.infrastructure.persistence.models.task import Task
+from app.infrastructure.persistence.models.workflow import Workflow
+from app.common.schemas.workflow_breaker import (
     DecomposeWorkflowRequest,
     DecomposeWorkflowResponse,
 )
-from app.schemas.workflows import (
+from app.common.schemas.workflows import (
     ExecutionResultResponse,
     WorkflowDetailResponse,
     WorkflowResponse,
     WorkflowStepResponse,
 )
-from app.services.workflow_breaker.breaker import WorkflowBreakerService
-from app.workflows.executor import WorkflowExecutionFailedError, WorkflowExecutor
+from app.application.services.workflow_breaker.breaker import WorkflowBreakerService
+from app.domain.workflows.executor import WorkflowExecutionFailedError, WorkflowExecutor
 
 router = APIRouter()
 

@@ -9,11 +9,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.api.deps import DbSession
+from app.presentation.api.deps import DbSession
 from app.core.jwt_tokens import parse_dashboard_user_subject
 from app.core.logging import get_logger
-from app.services.dashboard_api_keys import resolve_api_key_principal
-from app.services.external_output_feed import (
+from app.domain.external.gateway import integration_router
+from app.application.services.dashboard_api_keys import resolve_api_key_principal
+from app.application.services.external_output_feed import (
     list_external_results,
     normalize_tag_filter,
     parse_since_iso,
@@ -21,6 +22,8 @@ from app.services.external_output_feed import (
 
 router = APIRouter(prefix="/external", tags=["External"])
 logger = get_logger(__name__)
+
+router.include_router(integration_router)
 
 
 class ExternalResultItem(BaseModel):

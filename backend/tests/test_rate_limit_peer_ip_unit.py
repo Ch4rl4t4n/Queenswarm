@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from starlette.requests import Request
 
-from app.api.middleware.rate_limit import peer_ip_for_rate_limit
+from app.presentation.api.middleware.rate_limit import peer_ip_for_rate_limit
 
 
 def _request(

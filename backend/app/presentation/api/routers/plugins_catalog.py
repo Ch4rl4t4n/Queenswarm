@@ -9,15 +9,15 @@ from typing import Any
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 
-from app.api.deps import JwtSubject
+from app.presentation.api.deps import JwtSubject
 from app.core.logging import get_logger
-from app.plugins.manager import (
+from app.infrastructure.plugins.manager import (
     PLUGIN_DIR,
     discover_plugins,
     load_plugin,
     unload_plugin,
 )
-from app.services.plugin_hub import bump_plugin_generation, plugin_manifest
+from app.application.services.plugin_hub import bump_plugin_generation, plugin_manifest
 
 router = APIRouter(tags=["Plugins"])
 logger = get_logger(__name__)

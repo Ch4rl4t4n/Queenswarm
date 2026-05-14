@@ -178,7 +178,7 @@ async def dashboard_admin_wall(
 ) -> bool:
     """Block non-admin dashboards from hitting privileged onboarding routes."""
 
-    from app.models.dashboard_user import DashboardUser
+    from app.infrastructure.persistence.models.dashboard_user import DashboardUser
 
     raw_sub = sess.get("sub")
     if not isinstance(raw_sub, str):

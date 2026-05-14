@@ -7,19 +7,19 @@ import uuid
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api.deps import DbSession, JwtSubject, RecipeMutationSubject
-from app.learning.imitation_engine import record_imitation_event, select_top_k_exemplars
-from app.learning.reflection_loop import persist_task_reflection, run_post_task_reflection
-from app.learning.reward_tracker import (
+from app.presentation.api.deps import DbSession, JwtSubject, RecipeMutationSubject
+from app.domain.learning.imitation_engine import record_imitation_event, select_top_k_exemplars
+from app.domain.learning.reflection_loop import persist_task_reflection, run_post_task_reflection
+from app.domain.learning.reward_tracker import (
     allocate_pollen_pool,
     grant_weighted_pollen,
     maynard_cross_weights,
     merge_confidence_with_performance,
 )
-from app.models.agent import Agent
-from app.models.enums import AgentRole
-from app.recipes.library import autosave_verified_workflow, semantic_search_catalog
-from app.schemas.learning import (
+from app.infrastructure.persistence.models.agent import Agent
+from app.infrastructure.persistence.models.enums import AgentRole
+from app.domain.recipes.library import autosave_verified_workflow, semantic_search_catalog
+from app.common.schemas.learning import (
     ExemplarBrief,
     ImitationCopyRequest,
     PollenAllocateRequest,
@@ -28,8 +28,8 @@ from app.schemas.learning import (
     ReflectionCreate,
     TaskReflectionRequest,
 )
-from app.schemas.recipes_write import RecipeCreateBody
-from app.services.recipe_write import RecipeWriteConflictError, RecipeWritePayloadTooLargeError
+from app.common.schemas.recipes_write import RecipeCreateBody
+from app.application.services.recipe_write import RecipeWriteConflictError, RecipeWritePayloadTooLargeError
 
 router = APIRouter(tags=["Learning"])
 

@@ -9,13 +9,13 @@ from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select, text
 
-from app.api.deps import JwtSubject
+from app.presentation.api.deps import JwtSubject
 from app.core.logging import get_logger
 from app.core.readiness import collect_readiness_uncached
-from app.models.agent import Agent
-from app.models.enums import AgentStatus, TaskStatus
-from app.models.task import Task
-from app.services.llm_runtime_credentials import (
+from app.infrastructure.persistence.models.agent import Agent
+from app.infrastructure.persistence.models.enums import AgentStatus, TaskStatus
+from app.infrastructure.persistence.models.task import Task
+from app.application.services.llm_runtime_credentials import (
     provider_effective_anthropic,
     provider_effective_grok,
     provider_effective_openai,

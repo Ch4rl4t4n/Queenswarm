@@ -1,7 +1,7 @@
 # Queenswarm — Production Readiness Audit (**Phase 5.5**)
 
 **Date:** 2026-05-14  
-**Scope:** **Perfect-environments + final BE–FE integration (repo Lane A)** — **`app/main.py` repaired** to import **`app.api.*`** (matches the **tracked** API tree on `main`); staging compose parity (**Celery + env files**); **safe nginx default** when `QS_NGINX_SITE_CONF` is missing; **postgres** healthcheck with explicit DB; **smoke-edge** `GET /`; **pgvector** env examples; nginx **conf.d ↔ prod vhost** integrity; **`RateLimitMiddleware`** uses **`X-Forwarded-For` / `X-Real-IP`** (`backend/app/api/middleware/rate_limit.py`); **Next `/api/proxy`** forwards **`X-Forwarded-*`** to FastAPI; presentation-layer **rename** documented as **deferred** until merged wholesale; final checklist **[`docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md`](./docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md)**.
+**Scope:** **Perfect-environments + final BE–FE integration (repo Lane A)** — **HTTP API canonical under `app.presentation.api.*`** (legacy `app.api` tree removed); **`app/main.py`** wires **`RateLimitMiddleware`**, **`health`**, **`api_v1`** from presentation; staging compose parity (**Celery + env files**); **safe nginx default** when `QS_NGINX_SITE_CONF` is missing; **postgres** healthcheck with explicit DB; **smoke-edge** `GET /`; **pgvector** env examples; nginx **conf.d ↔ prod vhost** integrity; **`RateLimitMiddleware`** uses **`X-Forwarded-For` / `X-Real-IP`** (`backend/app/presentation/api/middleware/rate_limit.py`); **Next `/api/proxy`** forwards **`X-Forwarded-*`** to FastAPI; final checklist **[`docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md`](./docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md)**.
 
 ---
 
@@ -25,12 +25,12 @@
 
 | Component | Max | This drop (evidence) |
 |-----------|-----|----------------------|
-| **Core repo readiness** | **100 %** | **100 %** — **`app/main.py` boot fix** (`app.api.*` only on `main`) **plus** prior 5.5 items; **`peer_ip_for_rate_limit`** + proxy header relay + **`/api/docs`** / **`/api/openapi`** rate-limit bypass + trailing-slash exempt normalization. |
-| **Automation bonus** | **+25 %** | **+18 %** — `docker compose … config` (stg + prod); `bash -n` on deploy/smoke; **`pytest tests/test_vectorstore_factory_unit.py --no-cov`** (3 passed); **`pytest tests/test_rate_limit_peer_ip_unit.py --no-cov`** (4 passed). *Full `pytest --cov` / Playwright not run as a single gate here.* |
+| **Core repo readiness** | **100 %** | **100 %** — **`app.api` → `app.presentation.api` migration merged** on `main`; **`peer_ip_for_rate_limit`** + proxy header relay + **`/api/docs`** / **`/api/openapi`** rate-limit bypass + trailing-slash exempt normalization; prior Phase 5.5 compose/nginx/smoke items. |
+| **Automation bonus** | **+25 %** | **+19 %** — `docker compose … config` (stg + prod); `bash -n` on deploy/smoke; **`pytest`** spot-check: **`test_rate_limit_peer_ip_unit`**, **`test_api_v1_health_unit`**, **`test_auth_token_api`** (**9 passed**, `--no-cov`). *Full `pytest --cov` / Playwright not run as a single gate here.* |
 | **Live smoke bonus** | **+25 %** | **+0 %** — not run against public DNS in this session (no falsified green). |
-| **Composite (capped 150 %)** | **150 %** | **118 %** = `min(150, 100 + 18 + 0)` |
+| **Composite (capped 150 %)** | **150 %** | **119 %** = `min(150, 100 + 19 + 0)` |
 
-**Interpretation:** **118 %** = Lane A **100 %** + stronger automation evidence for **BE–FE edge correctness**. Reserve **+32 %** for Lane B: successful **`smoke-edge`** on **both** origins + completed **PHASE55** matrix (optionally raise headline to **125–150 %** with pasted evidence per internal checklist rules).
+**Interpretation:** **119 %** = Lane A **100 %** + stronger automation evidence (**import migration + BE–FE**). Reserve **+31 %** for Lane B: successful **`smoke-edge`** on **both** origins + completed **PHASE55** matrix (optionally raise headline to **125–150 %** with pasted evidence per internal checklist rules).
 
 ---
 
@@ -51,23 +51,21 @@
 | 11 | **Examples still said Qdrant** after Compose removal | **pgvector** defaults + comments | `.env.stg.example`, `.env.prod.example`, **`.env.production.example`** |
 | 12 | **No smoke for HTML edge** | **`GET /`** in **`smoke-edge.sh`** | `scripts/smoke-edge.sh` |
 | 13 | **conf.d prod nginx corrupted / drift** | Restored **80** server block + **sync** comments | `deploy/nginx/conf.d/queenswarm.love.conf`, `deploy/nginx/queenswarm.love.conf` |
-| 14 | **429 / flaky API** — all users shared one rate-limit bucket behind nginx / Next BFF | **`peer_ip_for_rate_limit()`** prefers **`X-Forwarded-For`** then **`X-Real-IP`** then TCP peer | **`backend/app/api/middleware/rate_limit.py`** |
+| 14 | **429 / flaky API** — all users shared one rate-limit bucket behind nginx / Next BFF | **`peer_ip_for_rate_limit()`** prefers **`X-Forwarded-For`** then **`X-Real-IP`** then TCP peer | **`backend/app/presentation/api/middleware/rate_limit.py`** |
 | 15 | Backend never saw browser IP through **`/api/proxy`** | Forward **`X-Forwarded-For`**, **`X-Real-IP`**, **`X-Forwarded-Proto`**, **`X-Forwarded-Host`** on upstream **fetch** | `frontend/app/api/proxy/[...path]/route.ts` |
-| 16 | **Health/docs paths** + trailing slashes tripped limiter | Exempt **normalized** paths + **`/api/docs`** + **`/api/openapi`** prefixes | **`backend/app/api/middleware/rate_limit.py`** |
-| 17 | **`app/main.py` imported missing `app.presentation.*`** (package not on `main`) | **Restore `app.api.*` imports** to match tracked tree | `backend/app/main.py` |
-| 18 | **`app.api` → `app.presentation.api` migration** | **Deferred** on `main` — ship as one coherent PR when the presentation package is added | future PR |
+| 16 | **Health/docs paths** + trailing slashes tripped limiter | Exempt **normalized** paths + **`/api/docs`** + **`/api/openapi`** prefixes | **`backend/app/presentation/api/middleware/rate_limit.py`** |
+| 17 | **Split HTTP surface** (`app.api` vs `app.presentation`) | **`git mv`-style migration:** **`backend/app/api/*` → `backend/app/presentation/api/*`**; **`app/main.py`** imports **`app.presentation.api.*`** | `backend/app/presentation/`, `backend/app/main.py` |
+| 18 | Legacy **`app.api`** imports in tests / docs | **Tests** import **`peer_ip_for_rate_limit`** from presentation; docs updated | `backend/tests/test_rate_limit_peer_ip_unit.py`, `AUDIT_REPORT.md`, … |
 
 **Not fixable from git alone:** live **403/500** on individual cockpit pages until secrets, migrations, Neo4j, and LLM keys exist on the host — triage with **`docker compose logs`** after deploy.
 
 ---
 
-## Import audit (``app.api`` vs ``app.presentation.api``)
+## Import audit (``app.api`` → ``app.presentation.api``)
 
-**On `main` today:** the **tracked** HTTP surface lives under **`app.api.*`** (routers, deps, middleware, **`api_v1`**). A prior commit pointed **`app/main.py`** at **`app.presentation.*`** without adding that package — **import-time failure**. Phase 5.5 **restores `app/main.py` to `app.api.*`**.
+**Canonical on `main`:** FastAPI routers, deps, middleware, and **`api_v1`** live under **`app.presentation.api.*`**. The old **`app.api`** package directory is **removed** to prevent drift.
 
-**Future:** when moving to **`app.presentation.api.*`**, merge **all** modules + tests in one branch so imports never reference a non-existent package.
-
-**Sanity check:** `git grep 'from app\\.presentation' HEAD -- '*.py'` → **no matches** after this commit (entrypoints aligned with **`app.api.*`**).
+**Sanity check:** `git grep 'from app\\.api' HEAD -- 'backend/**/*.py'` → **no matches** (Python sources use **`app.presentation.api`**).
 
 ## Lane A — BE ↔ FE matrix (summary)
 
@@ -75,7 +73,7 @@
 |------|-----------|
 | Dashboard API | Browser → **`/api/proxy/...`** → **`INTERNAL_BACKEND_ORIGIN`** + **`/api/v1/...`**; Bearer from **`qs_dashboard_at`** or **`HIVE_PROXY_JWT`**. |
 | Auth | **`/api/auth/*`** bypass in **`frontend/middleware.ts`**. |
-| Rate limits | **`RateLimitMiddleware`** — per-IP Redis windows using **forwarded client IP**; exempts health/metrics/static + **`/api/docs`**/**`/api/openapi`** prefixes + trailing-slash aliases of exact exempt paths. |
+| Rate limits | **`RateLimitMiddleware`** in **`app.presentation.api.middleware.rate_limit`** — forwarded client IP + doc path exemptions. |
 | Vectors | **`VECTOR_STORE_BACKEND=pgvector`** (table **`hive_vector_documents`**); deprecated **`qdrant`** string **coerced** in **`Settings`** (`backend/app/core/config.py`). |
 | Graph | Neo4j — readiness flags in settings. |
 | Monitoring | **`GET /api/v1/operator/monitoring/snapshot`**. |
@@ -126,4 +124,4 @@ Operator runbook: **[`docs/TLS_STG_AND_PROD.md`](./docs/TLS_STG_AND_PROD.md)**.
 
 ## One-line summary
 
-**Phase 5.5** delivers Lane A **100 %** readiness (compose, nginx, env templates, smoke, import hygiene, **BE–FE proxy + rate-limit IP correctness**); composite **118 %** until you attach live Lane B evidence in **PHASE55**.
+**Phase 5.5** delivers Lane A **100 %** readiness (compose, nginx, env templates, smoke, **`app.presentation.api`** HTTP layer, **BE–FE proxy + rate-limit IP correctness**); composite **119 %** until you attach live Lane B evidence in **PHASE55**.

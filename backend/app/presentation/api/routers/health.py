@@ -28,10 +28,10 @@ async def liveness() -> dict[str, str]:
 
 @router.get(
     "/ready",
-    summary="Readiness — Postgres + Redis; optional Neo4j + Chroma when strict flags enabled",
+    summary="Readiness — Postgres + Redis; optional Neo4j + vector store when strict flags enabled",
 )
 async def readiness() -> JSONResponse:
-    """Probe Postgres + Redis; optionally gate on Neo4j/Chroma via settings."""
+    """Probe Postgres + Redis; optionally gate on Neo4j or the vector tier (pgvector/Chroma)."""
 
     payload, critical_ok = await get_readiness_snapshot()
     status_code = 200 if critical_ok else 503

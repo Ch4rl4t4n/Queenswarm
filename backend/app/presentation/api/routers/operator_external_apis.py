@@ -11,12 +11,12 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from app.api.deps import DashboardSession, DbSession
+from app.presentation.api.deps import DashboardSession, DbSession
 from app.core.jwt_tokens import parse_dashboard_user_subject
 from app.core.logging import get_logger
-from app.models.dashboard_user import DashboardUser
-from app.models.operator_external_api import OperatorExternalApi
-from app.services.operator_external_api_crypto import decrypt_credentials_blob, encrypt_credentials_blob
+from app.infrastructure.persistence.models.dashboard_user import DashboardUser
+from app.infrastructure.persistence.models.operator_external_api import OperatorExternalApi
+from app.application.services.operator_external_api_crypto import decrypt_credentials_blob, encrypt_credentials_blob
 
 logger = get_logger(__name__)
 

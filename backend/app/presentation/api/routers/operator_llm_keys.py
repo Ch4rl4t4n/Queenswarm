@@ -9,11 +9,11 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api.deps import DashboardSession, DbSession
+from app.presentation.api.deps import DashboardSession, DbSession
 from app.core.jwt_tokens import parse_dashboard_user_subject
 from app.core.logging import get_logger
-from app.models.dashboard_user import DashboardUser
-from app.services.llm_runtime_credentials import (
+from app.infrastructure.persistence.models.dashboard_user import DashboardUser
+from app.application.services.llm_runtime_credentials import (
     delete_llm_provider_secret,
     get_cached_llm_key,
     persist_llm_provider_secret,

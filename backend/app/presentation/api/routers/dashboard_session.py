@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.responses import Response
 
-from app.api.deps import DashboardAdmin, DashboardSession, DbSession, JwtSubject
+from app.presentation.api.deps import DashboardAdmin, DashboardSession, DbSession, JwtSubject
 from app.core.config import settings
 from app.core.llm_router import _openai_key_looks_configured
 from app.core.jwt_tokens import (
@@ -28,9 +28,9 @@ from app.core.jwt_tokens import (
 )
 from app.core.logging import get_logger
 from app.core.redis_client import fetch_dashboard_refresh_user, revoke_dashboard_refresh, store_dashboard_refresh
-from app.models.dashboard_api_key import DashboardApiKey
-from app.models.dashboard_user import DashboardUser
-from app.services.dashboard_api_keys import (
+from app.infrastructure.persistence.models.dashboard_api_key import DashboardApiKey
+from app.infrastructure.persistence.models.dashboard_user import DashboardUser
+from app.application.services.dashboard_api_keys import (
     API_KEY_PREFIX,
     DashboardApiKeyError,
     create_dashboard_api_key,
@@ -38,7 +38,7 @@ from app.services.dashboard_api_keys import (
     normalize_api_key_source_name,
     revoke_dashboard_api_key,
 )
-from app.services.dashboard_crypto import (
+from app.application.services.dashboard_crypto import (
     backup_codes_hashed,
     consume_matching_backup_code,
     hash_dashboard_password,
@@ -48,7 +48,7 @@ from app.services.dashboard_crypto import (
     totp_verify,
     verify_dashboard_password,
 )
-from app.services.llm_runtime_credentials import (
+from app.application.services.llm_runtime_credentials import (
     delete_llm_provider_secret,
     get_cached_llm_key,
     persist_llm_provider_secret,

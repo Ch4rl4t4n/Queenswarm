@@ -11,13 +11,13 @@ from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api.deps import DbSession, JwtSubject
-from app.models.enums import TaskStatus
-from app.models.task import Task
-from app.schemas.task import TaskCreateRequest, TaskPatchRequest, TaskSnapshot
+from app.presentation.api.deps import DbSession, JwtSubject
+from app.infrastructure.persistence.models.enums import TaskStatus
+from app.infrastructure.persistence.models.task import Task
+from app.common.schemas.task import TaskCreateRequest, TaskPatchRequest, TaskSnapshot
 from app.core.logging import get_logger
-from app.services.task_presenter import attach_agent_labels, build_task_snapshot
-from app.services.task_ledger import (
+from app.application.services.task_presenter import attach_agent_labels, build_task_snapshot
+from app.application.services.task_ledger import (
     TaskUpsertViolationError,
     apply_task_updates,
     create_task_record,

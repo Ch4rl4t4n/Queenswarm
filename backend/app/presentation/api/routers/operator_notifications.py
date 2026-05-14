@@ -10,11 +10,11 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api.deps import DashboardSession, DbSession
-from app.api.routers import dashboard_session as dashboard_session_router
+from app.presentation.api.deps import DashboardSession, DbSession
+from app.presentation.api.routers import dashboard_session as dashboard_session_router
 from app.core.jwt_tokens import parse_dashboard_user_subject
 from app.core.logging import get_logger
-from app.models.dashboard_user import DashboardUser
+from app.infrastructure.persistence.models.dashboard_user import DashboardUser
 
 logger = get_logger(__name__)
 

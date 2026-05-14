@@ -20,9 +20,9 @@ from app.core.logging import configure_logging, get_logger
 from app.core.metrics import refresh_operative_agent_gauges
 from app.core.neo4j_client import close_neo4j
 from app.core.redis_client import close_redis
-from app.api.middleware.rate_limit import RateLimitMiddleware
-from app.api.routers import health as health_router
-from app.api.v1 import api_v1
+from app.presentation.api.middleware.rate_limit import RateLimitMiddleware
+from app.presentation.api.routers import health as health_router
+from app.presentation.api.v1 import api_v1
 
 
 @asynccontextmanager

@@ -12,27 +12,27 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import DashboardRecipeWriter, DbSession, JwtSubject
+from app.presentation.api.deps import DashboardRecipeWriter, DbSession, JwtSubject
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.models.agent import Agent
-from app.models.cost import CostRecord
-from app.models.enums import AgentRole, AgentStatus, StepStatus, TaskStatus, TaskType, WorkflowStatus
-from app.models.swarm import SubSwarm
-from app.models.task import Task
-from app.models.workflow import Workflow, WorkflowStep
-from app.schemas.recipes_write import RecipeCreateBody
-from app.schemas.workflow_breaker import PreviewDecompositionResponse
-from app.services.hive_async_workflow_run_ledger import enqueue_hive_async_workflow_run
-from app.services.plugin_hub import bump_plugin_generation, plugin_manifest
-from app.services.recipe_write import (
+from app.infrastructure.persistence.models.agent import Agent
+from app.infrastructure.persistence.models.cost import CostRecord
+from app.infrastructure.persistence.models.enums import AgentRole, AgentStatus, StepStatus, TaskStatus, TaskType, WorkflowStatus
+from app.infrastructure.persistence.models.swarm import SubSwarm
+from app.infrastructure.persistence.models.task import Task
+from app.infrastructure.persistence.models.workflow import Workflow, WorkflowStep
+from app.common.schemas.recipes_write import RecipeCreateBody
+from app.common.schemas.workflow_breaker import PreviewDecompositionResponse
+from app.application.services.hive_async_workflow_run_ledger import enqueue_hive_async_workflow_run
+from app.application.services.plugin_hub import bump_plugin_generation, plugin_manifest
+from app.application.services.recipe_write import (
     RecipeWriteConflictError,
     RecipeWritePayloadTooLargeError,
     create_recipe_entry,
 )
-from app.services.sub_swarm.runner import run_sub_swarm_workflow_cycle
-from app.services.task_ledger import TaskUpsertViolationError, create_task_record
-from app.services.workflow_breaker.breaker import WorkflowBreakerService
+from app.application.services.sub_swarm.runner import run_sub_swarm_workflow_cycle
+from app.application.services.task_ledger import TaskUpsertViolationError, create_task_record
+from app.application.services.workflow_breaker.breaker import WorkflowBreakerService
 from app.worker.tasks import run_sub_swarm_workflow_cycle_task
 
 logger = get_logger(__name__)

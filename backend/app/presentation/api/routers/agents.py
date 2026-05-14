@@ -10,29 +10,29 @@ from fastapi import APIRouter, Body, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from app.api.deps import DbSession, JwtSubject
-from app.models.agent import Agent
-from app.models.agent_config import AgentConfig
-from app.models.enums import AgentRole, AgentStatus, SwarmPurpose
-from app.models.swarm import SubSwarm
-from app.schemas.agent import AgentCreateRequest, AgentPatchRequest, AgentSnapshot
-from app.schemas.agent_dynamic import (
+from app.presentation.api.deps import DbSession, JwtSubject
+from app.infrastructure.persistence.models.agent import Agent
+from app.infrastructure.persistence.models.agent_config import AgentConfig
+from app.infrastructure.persistence.models.enums import AgentRole, AgentStatus, SwarmPurpose
+from app.infrastructure.persistence.models.swarm import SubSwarm
+from app.common.schemas.agent import AgentCreateRequest, AgentPatchRequest, AgentSnapshot
+from app.common.schemas.agent_dynamic import (
     AgentConfigSnapshot,
     AgentConfigUpsert,
     AgentDynamicCreate,
     AgentDynamicCreateResponse,
 )
-from app.schemas.agent_factory_http import UniversalAgentRunOverlay, UniversalAgentRunQueued
-from app.services.agent_catalog import (
+from app.common.schemas.agent_factory_http import UniversalAgentRunOverlay, UniversalAgentRunQueued
+from app.application.services.agent_catalog import (
     AgentCatalogError,
     apply_agent_updates,
     create_agent_record,
     fetch_agent,
     list_agents,
 )
-from app.services.agent_task_hints import latest_open_tasks_for_agents
-from app.services.agent_universal import enqueue_universal_agent_run
-from app.services.hive_tier import is_fixed_orchestrator_agent, resolve_hive_tier
+from app.application.services.agent_task_hints import latest_open_tasks_for_agents
+from app.application.services.agent_universal import enqueue_universal_agent_run
+from app.application.services.hive_tier import is_fixed_orchestrator_agent, resolve_hive_tier
 from app.worker.tasks import execute_universal_agent_task
 
 router = APIRouter(tags=["Agents"])

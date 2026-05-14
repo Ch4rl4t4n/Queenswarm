@@ -12,7 +12,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from app.core.config import settings
 from app.core.jwt_tokens import create_access_token
 from app.core.logging import get_logger
-from app.schemas.auth import TokenIssued, TokenMintRequest
+from app.common.schemas.auth import TokenIssued, TokenMintRequest
 
 logger = get_logger(__name__)
 router = APIRouter(tags=["Auth"])

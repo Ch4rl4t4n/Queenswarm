@@ -7,14 +7,14 @@ import uuid
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api.deps import DbSession, JwtSubject
-from app.models.enums import SimulationResult
-from app.schemas.simulations_audit import (
+from app.presentation.api.deps import DbSession, JwtSubject
+from app.infrastructure.persistence.models.enums import SimulationResult
+from app.common.schemas.simulations_audit import (
     SimulationAuditItem,
     SimulationCreateRequest,
     SimulationDetailItem,
 )
-from app.services.simulation_audit import (
+from app.application.services.simulation_audit import (
     SimulationAuditError,
     create_simulation_record,
     fetch_simulation_audit,

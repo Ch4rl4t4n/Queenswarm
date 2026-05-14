@@ -10,20 +10,19 @@ from typing import Any, Final
 
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from jose import JWTError, jwt
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 
-from pydantic import BaseModel, ConfigDict, Field
-
-from app.api.deps import JwtSubject
+from app.presentation.api.deps import JwtSubject
 from app.core.config import settings
 from app.core.database import async_session
 from app.core.llm_router import LiteLLMRouter
 from app.core.logging import get_logger
-from app.models.agent import Agent
-from app.models.enums import AgentStatus, TaskStatus
-from app.models.task import Task
-
-from app.services.hive_mission_runner import run_seven_step_mission
+from app.infrastructure.persistence.models.agent import Agent
+from app.infrastructure.persistence.models.enums import AgentStatus, TaskStatus
+from app.infrastructure.persistence.models.task import Task
+from app.application.services import ballroom_store as ballroom_redis
+from app.application.services.hive_mission_runner import run_seven_step_mission
 
 _router = APIRouter(prefix="/ws", tags=["Realtime"])
 _bb_router = APIRouter(prefix="/ballroom", tags=["Ballroom"])
@@ -31,6 +30,9 @@ _bb_router = APIRouter(prefix="/ballroom", tags=["Ballroom"])
 logger = get_logger(__name__)
 
 _WS_IDLE_SEC: Final[float] = 6.0
+
+_SESSION_CHANNELS: dict[uuid.UUID, set[WebSocket]] = {}
+_FANOUT_TASKS: dict[uuid.UUID, asyncio.Task[Any]] = {}
 
 
 class BallroomMissionBody(BaseModel):
@@ -49,10 +51,6 @@ class BallroomChatMessageBody(BaseModel):
 
     session_id: uuid.UUID
     text: str = Field(..., min_length=1, max_length=30_000)
-
-
-_SESSION_CHANNELS: dict[uuid.UUID, set[WebSocket]] = {}
-_CAPSULES: dict[uuid.UUID, dict[str, Any]] = {}
 
 
 def _decode_sub(token: str | None) -> str | None:
@@ -75,7 +73,7 @@ def _decode_sub(token: str | None) -> str | None:
 def _llm_credentials_configured() -> bool:
     """Return True when at least one LiteLLM provider key is present."""
 
-    from app.services.llm_runtime_credentials import (
+    from app.application.services.llm_runtime_credentials import (
         provider_effective_anthropic,
         provider_effective_grok,
         provider_effective_openai,
@@ -85,6 +83,111 @@ def _llm_credentials_configured() -> bool:
     claude = provider_effective_anthropic()
     openai = provider_effective_openai()
     return bool(grok or claude or len(openai) >= 20)
+
+
+async def _deliver_ballroom_ws_local(session_id: uuid.UUID, payload: dict[str, Any]) -> None:
+    """Push JSON payload to sockets attached on this worker."""
+
+    sockets = _SESSION_CHANNELS.get(session_id)
+    if not sockets:
+        return
+    stale: list[WebSocket] = []
+    for chan in list(sockets):
+        try:
+            await chan.send_json(payload)
+        except Exception:
+            stale.append(chan)
+    for dead in stale:
+        sockets.discard(dead)
+
+
+async def _fanout_worker_loop(session_id: uuid.UUID) -> None:
+    """Subscribe for cross-worker Ballroom Pub/Sub (Redis backend only)."""
+
+    try:
+        async for envelope in ballroom_redis.ballroom_iter_fanout_messages(session_id):
+            await _deliver_ballroom_ws_local(session_id, envelope)
+    except asyncio.CancelledError:
+        raise
+
+
+def _maybe_start_fanout_worker(session_id: uuid.UUID) -> None:
+    """Ensure a single listener task runs per Ballroom session."""
+
+    if settings.ballroom_capsule_backend == "memory":
+        return
+    probe = _FANOUT_TASKS.get(session_id)
+    if probe is not None and not probe.done():
+        return
+    _FANOUT_TASKS[session_id] = asyncio.create_task(
+        _fanout_worker_loop(session_id),
+        name=f"qs-ballroom-fanout-{session_id}",
+    )
+
+
+def _cancel_fanout_worker(session_id: uuid.UUID) -> None:
+    task = _FANOUT_TASKS.pop(session_id, None)
+    if task is not None:
+        task.cancel()
+
+
+async def ballroom_dispatch_fanout(session_id: uuid.UUID, payload: dict[str, Any]) -> None:
+    """Deliver ballroom payload locally (tests) or via Redis Pub/Sub + subscriber loop."""
+
+    if settings.ballroom_capsule_backend == "memory":
+        await _deliver_ballroom_ws_local(session_id, payload)
+        return
+
+    _maybe_start_fanout_worker(session_id)
+    await ballroom_redis.ballroom_publish_fanout(session_id, payload)
+
+
+async def append_ballroom_transcript_line_public(
+    session_id: uuid.UUID,
+    agent: str,
+    text: str,
+    *,
+    broadcast: bool = True,
+) -> dict[str, object] | None:
+    """Append a Ballroom transcript chunk and optionally fan-out (mission runner API)."""
+
+    cap = await ballroom_redis.ballroom_ensure_capsule(session_id)
+    msg: dict[str, Any] = {
+        "type": "ballroom.transcript",
+        "agent": agent,
+        "text": text,
+        "timestamp": datetime.now(tz=UTC).isoformat(),
+    }
+    hist = cap.setdefault("transcript", [])
+    hist.append(msg)
+    await ballroom_redis.ballroom_save_capsule(session_id, cap)
+    if broadcast:
+        await ballroom_dispatch_fanout(session_id, msg)
+    return msg if broadcast else None
+
+
+async def append_ballroom_orchestrator_out_public(session_id: uuid.UUID, orchestrator_payload: dict[str, Any]) -> None:
+    """Persist orchestrator stream rows for mission-seven summaries."""
+
+    cap = await ballroom_redis.ballroom_ensure_capsule(session_id)
+    hist = cap.setdefault("transcript", [])
+    hist.append(orchestrator_payload)
+    await ballroom_redis.ballroom_save_capsule(session_id, cap)
+    await ballroom_dispatch_fanout(session_id, orchestrator_payload)
+
+
+async def append_silent_chat_line_public(session_id: uuid.UUID, agent: str, text: str) -> None:
+    """Append operator text without websocket fan-out."""
+
+    cap = await ballroom_redis.ballroom_ensure_capsule(session_id)
+    msg: dict[str, Any] = {
+        "type": "ballroom.transcript",
+        "agent": agent,
+        "text": text,
+        "timestamp": datetime.now(tz=UTC).isoformat(),
+    }
+    cap.setdefault("transcript", []).append(msg)
+    await ballroom_redis.ballroom_save_capsule(session_id, cap)
 
 
 async def _build_pulse_payload() -> dict[str, object]:
@@ -104,71 +207,20 @@ async def _build_pulse_payload() -> dict[str, object]:
     }
 
 
-def _broadcast_session_sync(session_id: uuid.UUID, message: dict[str, object]) -> None:
-    """Schedule JSON broadcast tasks for each ballroom websocket."""
-
-    sockets = _SESSION_CHANNELS.get(session_id)
-    if not sockets:
-        return
-
-    async def _emit_all() -> None:
-        stale: list[WebSocket] = []
-        copy = list(sockets)
-        for chan in copy:
-            try:
-                await chan.send_json(message)
-            except Exception:
-                stale.append(chan)
-        for dead in stale:
-            sockets.discard(dead)
-
-    asyncio.create_task(_emit_all())
-
-
-def _ensure_capsule(session_id: uuid.UUID) -> dict[str, Any]:
-    """Allocate transcript storage for a ballroom capsule."""
-
-    if session_id not in _CAPSULES:
-        _CAPSULES[session_id] = {
-            "id": str(session_id),
-            "started_at": datetime.now(tz=UTC).isoformat(),
-            "transcript": [],
-            "participants": [],
-            "status": "active",
-            "discussion_scheduled": False,
-        }
-    return _CAPSULES[session_id]
-
-
-def _append_transcript(session_id: uuid.UUID, agent: str, text: str, *, broadcast: bool = True) -> dict[str, object] | None:
-    """Record a transcript line; optionally return the websocket payload for fan-out."""
-
-    cap = _ensure_capsule(session_id)
-    msg: dict[str, object] = {
-        "type": "ballroom.transcript",
-        "agent": agent,
-        "text": text,
-        "timestamp": datetime.now(tz=UTC).isoformat(),
-    }
-    cap["transcript"].append(msg)
-    return msg if broadcast else None
-
-
 async def _emit_placeholder_lines(session_id: uuid.UUID, lines: list[tuple[str, str]]) -> None:
     """Push deterministic dialogue when LLM is unavailable."""
 
     for agent, text in lines:
         await asyncio.sleep(0.65)
-        payload = _append_transcript(session_id, agent, text)
-        if payload is not None:
-            _broadcast_session_sync(session_id, payload)
+        payload = await append_ballroom_transcript_line_public(session_id, agent, text, broadcast=True)
+        if payload is None:
+            continue
 
 
 async def _run_ballroom_llm_discussion(session_id: uuid.UUID) -> None:
     """Generate short multi-agent banter from recent completed tasks."""
 
-    cap = _CAPSULES.get(session_id)
-    if cap is None:
+    if not await ballroom_redis.ballroom_has_capsule(session_id):
         return
 
     fallback: list[tuple[str, str]] = [
@@ -277,28 +329,25 @@ async def _run_ballroom_llm_discussion(session_id: uuid.UUID) -> None:
         logger.warning("ballroom.llm_failed", session_id=str(session_id), error=str(exc))
         await _emit_placeholder_lines(
             session_id,
-            fallback
-            + [
-                ("System", "LLM narration fell back — swarm remains operational."),
-            ],
+            fallback + [("System", "LLM narration fell back — swarm remains operational.")],
         )
 
 
 def _schedule_discussion(session_id: uuid.UUID) -> None:
     """Run discussion once per capsule."""
 
-    cap = _ensure_capsule(session_id)
-    if cap.get("discussion_scheduled"):
-        return
-    cap["discussion_scheduled"] = True
-
-    async def _runner() -> None:
+    async def _runner_prep() -> None:
+        cap = await ballroom_redis.ballroom_ensure_capsule(session_id)
+        if cap.get("discussion_scheduled"):
+            return
+        cap["discussion_scheduled"] = True
+        await ballroom_redis.ballroom_save_capsule(session_id, cap)
         try:
             await _run_ballroom_llm_discussion(session_id)
         except Exception as exc:  # noqa: BLE001
             logger.warning("ballroom.runner_failed", session_id=str(session_id), error=str(exc))
 
-    asyncio.create_task(_runner())
+    asyncio.create_task(_runner_prep())
 
 
 def _fallback_chat_lines(agent_names: list[str], user_text: str) -> list[tuple[str, str]]:
@@ -310,7 +359,7 @@ def _fallback_chat_lines(agent_names: list[str], user_text: str) -> list[tuple[s
     second = agent_names[1] if len(agent_names) > 1 else "Scout"
     third = agent_names[2] if len(agent_names) > 2 else "Queen"
     return [
-        (orch, f"We're here — noting your message. For heavy work, launch a mission from the hive dashboard."),
+        (orch, "We're here — noting your message. For heavy work, launch a mission from the hive dashboard."),
         (second, f"Echo locked in: «{preview}»"),
         (third, "Transcript updated; imitate top performers once the next task pollen lands."),
     ]
@@ -319,7 +368,7 @@ def _fallback_chat_lines(agent_names: list[str], user_text: str) -> list[tuple[s
 async def _run_ballroom_user_chat_reply(session_id: uuid.UUID, user_text: str) -> None:
     """React to Ballroom operator text over wired agents (+ LLM when keys exist)."""
 
-    if session_id not in _CAPSULES:
+    if not await ballroom_redis.ballroom_has_capsule(session_id):
         return
 
     clipped = user_text.strip()[:12_000]
@@ -401,16 +450,13 @@ async def _run_ballroom_user_chat_reply(session_id: uuid.UUID, user_text: str) -
             task_id=f"ballroom-chat-{session_id}",
             error=str(exc),
         )
-        await _emit_placeholder_lines(
-            session_id,
-            _fallback_chat_lines(agent_names or ["Orchestrator", "Queen"], clipped),
-        )
+        await _emit_placeholder_lines(session_id, _fallback_chat_lines(agent_names or ["Orchestrator", "Queen"], clipped))
 
 
 async def _handle_user_chat_message(session_id: uuid.UUID, text: str) -> None:
     """Persist user line server-side (no broadcast) then fan out agent chatter."""
 
-    if session_id not in _CAPSULES:
+    if not await ballroom_redis.ballroom_has_capsule(session_id):
         return
 
     clipped = text.strip()
@@ -425,7 +471,7 @@ async def _handle_user_chat_message(session_id: uuid.UUID, text: str) -> None:
         text_chars=len(clipped),
     )
 
-    _append_transcript(session_id, "You", clipped, broadcast=False)
+    await append_silent_chat_line_public(session_id, "You", clipped)
     await _run_ballroom_user_chat_reply(session_id, clipped)
 
 
@@ -486,7 +532,7 @@ async def _mint_ballroom_session_capsule() -> dict[str, object]:
 
     session_id = uuid.uuid4()
     _SESSION_CHANNELS.setdefault(session_id, set())
-    _ensure_capsule(session_id)
+    await ballroom_redis.ballroom_ensure_capsule(session_id)
     sid = str(session_id)
     return {
         "session_id": sid,
@@ -504,7 +550,7 @@ async def ballroom_run_seven_step_mission(body: BallroomMissionBody, subject: Jw
 
     capsule_id = body.session_id or uuid.uuid4()
     _SESSION_CHANNELS.setdefault(capsule_id, set())
-    _ensure_capsule(capsule_id)
+    await ballroom_redis.ballroom_ensure_capsule(capsule_id)
     logger.info("ballroom.mission_started", actor=subject, session_id=str(capsule_id))
     try:
         async with async_session() as session:
@@ -543,10 +589,8 @@ async def start_ballroom_session_alias(_subject: JwtSubject) -> dict[str, object
 async def ballroom_post_chat(body: BallroomChatMessageBody, subject: JwtSubject) -> dict[str, object]:
     """Queue user text; responses stream as ballroom.transcript on the websocket."""
 
-    # Match websocket handshake: transcripts use in-memory capsules. Creating here avoids a race
-    # where the client POSTs before /ws/stream runs _ensure_capsule, which previously surfaced as 404.
     _SESSION_CHANNELS.setdefault(body.session_id, set())
-    _ensure_capsule(body.session_id)
+    await ballroom_redis.ballroom_ensure_capsule(body.session_id)
     logger.info(
         "ballroom.message_accepted",
         actor=subject,
@@ -560,20 +604,25 @@ async def ballroom_post_chat(body: BallroomChatMessageBody, subject: JwtSubject)
 
 @_bb_router.get("/session/{session_id}")
 async def get_ballroom_session(session_id: uuid.UUID, _subject: JwtSubject) -> dict[str, object]:
-    """Return transcript capsule (in-memory operator view)."""
+    """Return transcript capsule (Redis-backed operator view)."""
 
-    cap = _CAPSULES.get(session_id)
-    if cap is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session_not_found")
+    try:
+        cap = await ballroom_redis.ballroom_load_capsule(session_id)
+    except RuntimeError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session_not_found") from None
     return dict(cap)
 
 
 @_bb_router.get("/sessions")
 async def list_ballroom_sessions(_subject: JwtSubject) -> dict[str, object]:
-    """Lightweight ballroom registry."""
+    """Lightweight ballroom registry from Redis SCAN (bounded)."""
 
-    rows = []
-    for sid, cap in _CAPSULES.items():
+    rows: list[dict[str, object]] = []
+    for sid in await ballroom_redis.ballroom_scan_recent_session_ids(limit=settings.ballroom_sessions_list_limit):
+        try:
+            cap = await ballroom_redis.ballroom_load_capsule(sid)
+        except RuntimeError:
+            continue
         rows.append(
             {
                 "session_id": str(sid),
@@ -601,7 +650,8 @@ async def _ballroom_socket_loop(
         await websocket.close(code=1008, reason="auth")
         return
 
-    cap = _ensure_capsule(session_id)
+    cap = await ballroom_redis.ballroom_ensure_capsule(session_id)
+    _maybe_start_fanout_worker(session_id)
     sockets = _SESSION_CHANNELS.setdefault(session_id, set())
     sockets.add(websocket)
 
@@ -609,6 +659,7 @@ async def _ballroom_socket_loop(
     caps = cap.setdefault("participants", [])
     if isinstance(caps, list) and participant not in caps:
         caps.append(participant)
+    await ballroom_redis.ballroom_save_capsule(session_id, cap)
 
     hist = {"type": "history", "messages": list(cap.get("transcript", []))}
     await websocket.send_json(hist)
@@ -649,11 +700,18 @@ async def _ballroom_socket_loop(
         pass
     finally:
         sockets.discard(websocket)
-        plist = cap.get("participants")
-        if isinstance(plist, list) and participant in plist:
-            plist.remove(participant)
+        try:
+            refreshed = await ballroom_redis.ballroom_load_capsule(session_id)
+            plist = refreshed.get("participants")
+            if isinstance(plist, list) and participant in plist:
+                plist.remove(participant)
+            await ballroom_redis.ballroom_save_capsule(session_id, refreshed)
+        except RuntimeError:
+            pass
+
         if not sockets:
             _SESSION_CHANNELS.pop(session_id, None)
+            _cancel_fanout_worker(session_id)
 
 
 @_bb_router.websocket("/ws/stream")
@@ -678,5 +736,5 @@ async def ballroom_stream_path_param(
     await _ballroom_socket_loop(websocket, session_id, token)
 
 
-__all__ = ["ballroom_router", "get_realtime_router"]
+__all__ = ["append_ballroom_orchestrator_out_public", "append_ballroom_transcript_line_public", "ballroom_router", "get_realtime_router"]
 ballroom_router = _bb_router
