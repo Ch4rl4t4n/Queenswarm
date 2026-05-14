@@ -48,7 +48,7 @@
 | 8 | **Celery on staging used wrong env** (root `.env` only) | **`env_file: ${QS_ENV_FILE_STG:-.env.stg}`** on **celery-worker** + **celery-beat** | `docker-compose.stg.yml` |
 | 9 | **Backend/frontend** ignored `ENV_FILE` path when not `.env.stg` | **`QS_ENV_FILE_STG`** interpolation for **backend** + **frontend** | `docker-compose.stg.yml` |
 | 10 | **Omitted `QS_NGINX_SITE_CONF`** still possible on ad-hoc compose | **Default export** in **`deploy-stg.sh`** | `scripts/deploy-stg.sh` |
-| 11 | **Examples still said Qdrant** after Compose removal | **pgvector** defaults + comments | `.env.stg.example`, `.env.prod.example` |
+| 11 | **Examples still said Qdrant** after Compose removal | **pgvector** defaults + comments | `.env.stg.example`, `.env.prod.example`, **`.env.production.example`** |
 | 12 | **No smoke for HTML edge** | **`GET /`** in **`smoke-edge.sh`** | `scripts/smoke-edge.sh` |
 | 13 | **conf.d prod nginx corrupted / drift** | Restored **80** server block + **sync** comments | `deploy/nginx/conf.d/queenswarm.love.conf`, `deploy/nginx/queenswarm.love.conf` |
 
