@@ -95,6 +95,49 @@ export interface AgentRow {
   hive_tier?: string | null;
 }
 
+export interface SubAgentSessionRow {
+  id: string;
+  role: string;
+  status: string;
+  runtime_mode: string;
+  toolset: string[];
+  short_memory: Record<string, unknown>;
+  spawn_order: number;
+  started_at: string | null;
+  completed_at: string | null;
+  last_output: string | null;
+  error_text: string | null;
+}
+
+export interface SupervisorSessionRow {
+  id: string;
+  goal: string;
+  status: string;
+  runtime_mode: string;
+  created_by_subject: string | null;
+  context_summary: Record<string, unknown>;
+  swarm_id: string | null;
+  task_id: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  error_text: string | null;
+  created_at: string;
+  updated_at: string;
+  sub_agents: SubAgentSessionRow[];
+}
+
+export interface SupervisorSessionEventRow {
+  id: string;
+  supervisor_session_id: string;
+  sub_agent_session_id: string | null;
+  event_type: string;
+  level: string;
+  message: string;
+  payload: Record<string, unknown>;
+  occurred_at: string;
+  created_at: string;
+}
+
 export interface SubSwarmRow {
   id: string;
   name: string;
@@ -125,12 +168,47 @@ export interface TaskRow {
   output_format?: string | null;
 }
 
+/** Celery / Postgres mirrored async workflow poll (`GET /jobs/{id}`). */
+export interface HiveAsyncJobStatusPayload {
+  celery_task_id: string;
+  state: string;
+  ready: boolean;
+  successful: boolean | null;
+  workflow_result?: Record<string, unknown> | null;
+  error?: string | null;
+  postgres_ledger?: {
+    id: string;
+    swarm_id: string;
+    workflow_id: string;
+    hive_task_id?: string | null;
+    lifecycle: string;
+    created_at: string;
+    updated_at: string;
+    finished_at?: string | null;
+    error_preview?: string | null;
+  } | null;
+}
+
 export interface RecipeRow {
   id: string;
   name: string;
   description: string | null;
   verified_at?: string | null;
   topic_tags: string[];
+  success_count?: number;
+  fail_count?: number;
+  avg_pollen_earned?: number;
+}
+
+/** Semantic recipe hit (`GET /recipes/search`). */
+export interface RecipeSemanticHit {
+  chroma_document_id: string;
+  similarity: number;
+  distance?: number | null;
+  document_preview: string;
+  metadata: Record<string, unknown>;
+  postgres_recipe_id?: string | null;
+  postgres_row?: RecipeRow | null;
 }
 
 export interface WorkflowRow {
@@ -301,4 +379,33 @@ export interface WorkflowsDashboardResponse {
   generated_at: string;
   featured: WorkflowFeatured | null;
   workflows: WorkflowListItem[];
+}
+
+/** JWT list row from ``GET /api/v1/outputs`` (Phase 0.51 archive). */
+export interface FinalDeliverableSummaryRow {
+  id: string;
+  lineage_id: string;
+  version: number;
+  title: string;
+  slug: string;
+  created_at: string;
+  tags: string[];
+  preview: string;
+}
+
+/** Full deliverable envelope including canonical Markdown — ``GET .../outputs/{id}``. */
+export interface FinalDeliverableDetailRow extends FinalDeliverableSummaryRow {
+  markdown_body: string;
+  structured_json: Record<string, unknown>;
+  voice_script: string | null;
+  archive_relpath: string | null;
+  chroma_embedding_id: string | null;
+  ballroom_session_id: string | null;
+  mission_id: string | null;
+}
+
+/** Semantic Chroma narrowed response — ``GET .../outputs/search``. */
+export interface OutputsSearchResponse {
+  items: FinalDeliverableSummaryRow[];
+  query: string;
 }
