@@ -109,16 +109,7 @@ if [[ "$TARGET" == "stg" || "$TARGET" == "both" ]]; then
   [[ -f "$STG_ENV_FILE" ]] || { echo "Missing ${STG_ENV_FILE}"; exit 1; }
   stg_domain="$(load_kv "$STG_ENV_FILE" DOMAIN || true)"
   [[ -n "${stg_domain:-}" ]] || { echo "DOMAIN missing in ${STG_ENV_FILE}"; exit 1; }
-  stg_edge_mode="$(load_kv "$STG_ENV_FILE" STAGING_EDGE_MODE || true)"
-  if [[ -z "${stg_edge_mode// }" ]]; then
-    stg_edge_mode="shared"
-  fi
-  if [[ "$stg_edge_mode" == "shared" ]]; then
-    [[ -f "$PRD_ENV_FILE" ]] || { echo "Missing ${PRD_ENV_FILE} (required in shared-edge mode)."; exit 1; }
-    ensure_nginx_running "queenswarm_prod" "$PRD_ENV_FILE"
-  else
-    ensure_nginx_running "queenswarm_stg" "$STG_ENV_FILE"
-  fi
+  ensure_nginx_running "queenswarm_stg" "$STG_ENV_FILE"
   echo "Issuing/renewing LE cert for staging: ${stg_domain}"
   issue_cert "$stg_domain" "$stg_domain"
 fi

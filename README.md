@@ -34,13 +34,6 @@ Vitest unit tests: `npm run test`.
 - **BE–FE edge:** `RateLimitMiddleware` keys off **`X-Forwarded-For` / `X-Real-IP`** (not only the Docker peer); **`/api/proxy`** forwards those headers to FastAPI — avoids **cluster-wide false 429s**.  
 - **Imports / layout:** HTTP API is canonical under **`app.presentation.api.*`**; legacy **`app.api`** package removed from `main` (see `AUDIT_REPORT.md` import audit).
 
-## Environment Modes (dev / stg / prod)
-
-- **dev:** local compose (`docker-compose.yml`) + `.env` for interactive development.
-- **stg:** `ENV_FILE=.env.stg ./scripts/deploy-stg.sh` (defaults `STAGING_EDGE_MODE=shared` so staging app runs on `:3001/:8001` on the same host).
-- **prod:** `ENV_FILE=.env.prod ./scripts/deploy-prod.sh` (production nginx serves `queenswarm.love` and, in shared mode, also proxies `stg.queenswarm.love`).
-- **TLS:** issue/renew with `EMAIL=admin@example.com TARGET=both ./scripts/issue-letsencrypt.sh` after nginx is up and DNS points to the host.
-
 ## Phase 5.4 — Staging & production readiness (superseded by 5.5 for scorecard)
 
 - Same deploy/TLS flow as 5.5; 5.5 adds Celery env parity, nginx default export, pgvector examples, and smoke `GET /`.

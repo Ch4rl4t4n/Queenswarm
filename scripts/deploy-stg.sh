@@ -204,22 +204,16 @@ fi
 
 export QS_ENV_FILE_STG="$ENV_FILE"
 
-COMPOSE_PROFILE_ARGS=()
-if [[ "$STAGING_EDGE_MODE" == "dedicated" ]]; then
-  COMPOSE_PROFILE_ARGS+=(--profile edge)
-fi
-
 docker compose -p queenswarm_stg \
   -f docker-compose.base.yml \
   -f docker-compose.stg.yml \
   --env-file "$ENV_FILE" \
-  "${COMPOSE_PROFILE_ARGS[@]}" \
   up -d --build
 
 verify_staging_edge() {
   local domain nginx_id state health https_code https_health_code http_health_code i
   domain="$(load_kv DOMAIN || echo 'stg.queenswarm.love')"
-  nginx_id="$(docker compose -p queenswarm_stg -f docker-compose.base.yml -f docker-compose.stg.yml --env-file "$ENV_FILE" "${COMPOSE_PROFILE_ARGS[@]}" ps -q nginx)"
+  nginx_id="$(docker compose -p queenswarm_stg -f docker-compose.base.yml -f docker-compose.stg.yml --env-file "$ENV_FILE" ps -q nginx)"
   if [[ -z "${nginx_id// }" ]]; then
     echo "nginx container not found in compose project queenswarm_stg."
     exit 1
@@ -236,7 +230,7 @@ verify_staging_edge() {
 
   if [[ "$state" != "running" ]]; then
     echo "nginx failed to stay running (state=${state}, health=${health})."
-    docker compose -p queenswarm_stg -f docker-compose.base.yml -f docker-compose.stg.yml --env-file "$ENV_FILE" "${COMPOSE_PROFILE_ARGS[@]}" logs --tail=120 nginx || true
+    docker compose -p queenswarm_stg -f docker-compose.base.yml -f docker-compose.stg.yml --env-file "$ENV_FILE" logs --tail=120 nginx || true
     exit 1
   fi
 
@@ -248,14 +242,14 @@ verify_staging_edge() {
     200|301|302|401|403) ;;
     *)
       echo "nginx local HTTPS probe failed (code=${https_code})."
-      docker compose -p queenswarm_stg -f docker-compose.base.yml -f docker-compose.stg.yml --env-file "$ENV_FILE" "${COMPOSE_PROFILE_ARGS[@]}" logs --tail=120 nginx || true
+      docker compose -p queenswarm_stg -f docker-compose.base.yml -f docker-compose.stg.yml --env-file "$ENV_FILE" logs --tail=120 nginx || true
       exit 1
       ;;
   esac
 
   if [[ "$https_health_code" != "200" && "$https_health_code" != "503" ]]; then
     echo "nginx /health probe via local HTTPS failed (code=${https_health_code})."
-    docker compose -p queenswarm_stg -f docker-compose.base.yml -f docker-compose.stg.yml --env-file "$ENV_FILE" "${COMPOSE_PROFILE_ARGS[@]}" logs --tail=120 nginx || true
+    docker compose -p queenswarm_stg -f docker-compose.base.yml -f docker-compose.stg.yml --env-file "$ENV_FILE" logs --tail=120 nginx || true
     exit 1
   fi
 
@@ -263,7 +257,7 @@ verify_staging_edge() {
     200|301|302|303|307|308) ;;
     *)
       echo "nginx /health probe via :80 failed (code=${http_health_code})."
-      docker compose -p queenswarm_stg -f docker-compose.base.yml -f docker-compose.stg.yml --env-file "$ENV_FILE" "${COMPOSE_PROFILE_ARGS[@]}" logs --tail=120 nginx || true
+      docker compose -p queenswarm_stg -f docker-compose.base.yml -f docker-compose.stg.yml --env-file "$ENV_FILE" logs --tail=120 nginx || true
       exit 1
       ;;
   esac
@@ -280,7 +274,7 @@ else
   echo "Edge mode shared: app published on ports frontend=${STG_FRONTEND_PUBLISH_PORT}, backend=${STG_BACKEND_PUBLISH_PORT}; expected public edge host is served by production nginx."
 fi
 
-docker compose -p queenswarm_stg -f docker-compose.base.yml -f docker-compose.stg.yml --env-file "$ENV_FILE" "${COMPOSE_PROFILE_ARGS[@]}" ps
+docker compose -p queenswarm_stg -f docker-compose.base.yml -f docker-compose.stg.yml --env-file "$ENV_FILE" ps
 
 if [[ "$POST_DEPLOY_SMOKE" == "1" ]]; then
   echo "Running smoke-edge (TARGET=stg) …"
