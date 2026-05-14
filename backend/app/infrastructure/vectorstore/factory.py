@@ -7,8 +7,6 @@ from typing import Literal
 
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.infrastructure.vectorstore.chroma_backend import ChromaVectorBackend
-from app.infrastructure.vectorstore.pgvector_backend import PgvectorVectorBackend
 from app.infrastructure.vectorstore.protocol import VectorStoreBackend
 
 logger = get_logger(__name__)
@@ -36,6 +34,8 @@ async def get_vector_backend() -> VectorStoreBackend:
         if _backend is None:
             kind = _backend_kind()
             if kind == "chroma":
+                from app.infrastructure.vectorstore.chroma_backend import ChromaVectorBackend
+
                 _backend = ChromaVectorBackend()
                 logger.info(
                     "vectorstore.backend_selected",
@@ -45,6 +45,8 @@ async def get_vector_backend() -> VectorStoreBackend:
                     backend="chroma",
                 )
             else:
+                from app.infrastructure.vectorstore.pgvector_backend import PgvectorVectorBackend
+
                 _backend = PgvectorVectorBackend()
                 logger.info(
                     "vectorstore.backend_selected",

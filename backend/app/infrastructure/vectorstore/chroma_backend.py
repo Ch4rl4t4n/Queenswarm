@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from typing import Any
-
-import chromadb
-from chromadb.api.async_api import AsyncClientAPI
+from typing import TYPE_CHECKING, Any
 
 from app.core.config import settings
+
+if TYPE_CHECKING:
+    from chromadb.api.async_api import AsyncClientAPI
 from app.infrastructure.vectorstore.metadata import flatten_vector_metadata
 
 _COLLECTION_KNOWLEDGE = "knowledge"
@@ -24,6 +24,8 @@ _chroma_client: AsyncClientAPI | None = None
 
 async def _get_client() -> AsyncClientAPI:
     """Yield a warmed Async HTTP client targeting the Chroma daemon."""
+
+    import chromadb
 
     global _chroma_client
     async with _chroma_lock:
