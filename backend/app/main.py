@@ -12,9 +12,7 @@ from fastapi.responses import PlainTextResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from app import __version__
-from app.api.middleware.rate_limit import RateLimitMiddleware
-from app.api.routers import health as health_router
-from app.api.v1 import api_v1
+from app.application.services.hive_waggle_relay import run_hive_waggle_relay_loop
 from app.core.chroma_client import ensure_collections
 from app.core.config import settings
 from app.core.database import async_session, close_db, init_db
@@ -22,7 +20,9 @@ from app.core.logging import configure_logging, get_logger
 from app.core.metrics import refresh_operative_agent_gauges
 from app.core.neo4j_client import close_neo4j
 from app.core.redis_client import close_redis
-from app.services.hive_waggle_relay import run_hive_waggle_relay_loop
+from app.presentation.api.middleware.rate_limit import RateLimitMiddleware
+from app.presentation.api.routers import health as health_router
+from app.presentation.api.v1 import api_v1
 
 
 @asynccontextmanager
@@ -34,7 +34,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     configure_logging(level="INFO")
     await init_db()
     async with async_session() as session:
-        from app.services.llm_runtime_credentials import refresh_llm_secret_cache
+        from app.application.services.llm_runtime_credentials import refresh_llm_secret_cache
 
         await refresh_llm_secret_cache(session)
     await ensure_collections()
