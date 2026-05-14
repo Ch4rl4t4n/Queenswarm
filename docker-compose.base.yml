@@ -1,7 +1,7 @@
-# Queenswarm stack — databases, API, Celery, monitoring, Grafana, edge Nginx.
+# Queenswarm stack — canonical multi-env base (see docker-compose.stg.yml / docker-compose.prod.yml).
+# Local single-file dev: keep using docker-compose.yml (same shape as this base).
 #
-# Phase 3.6 (~16 GB RAM): default caps target a single-host cockpit + hive API (see service mem_limit).
-# Frontend polling backoff for weak laptops: build with NEXT_PUBLIC_QS_POLL_PROFILE=low_ram.
+# Phase 5.0: docker compose -f docker-compose.base.yml -f docker-compose.stg.yml --env-file .env.stg up -d
 
 x-backend-env-files: &backend-env-files
   env_file:
