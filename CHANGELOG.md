@@ -3,14 +3,17 @@
 ## Phase 5.5 — perfect environments (repo Lane A) (2026-05-14)
 
 - **refactor (HTTP layer):** migrate **`backend/app/api/*` → `backend/app/presentation/api/*`**; remove legacy **`app.api`** package; **`app/main.py`** imports **`app.presentation.api.*`**.  
+- **fix (ORM single metadata):** **`app.models`** lazy exports + per-file shims delegate to **`app.infrastructure.persistence.models`** (no duplicate table registration vs presentation routers).  
+- **fix:** **`redis_delete`** in **`app.core.redis_client`** (OAuth consent state cleanup); **`ballroom_capsule_backend`** / **`ballroom_capsule_ttl_sec`** in **`Settings`** + test env defaults; **`backend/.env.example`** documents capsule vars.  
+- **test:** ballroom REST tests use **`ballroom_store`** APIs instead of removed **`realtime_ballroom._CAPSULES`**; remaining **`app.api`** imports in tests / **`hive_mission_runner`** → **`app.presentation.api.*`**.  
 - **Compose (`docker-compose.stg.yml`):** `backend` / `frontend` / `celery-worker` / `celery-beat` use **`${QS_ENV_FILE_STG:-.env.stg}`** (pairs with `deploy-stg.sh` `QS_ENV_FILE_STG`); **postgres** healthcheck uses **`pg_isready -U … -d ${POSTGRES_DB}`**; **frontend** waits for **healthy** backend.  
 - **Deploy:** `scripts/deploy-stg.sh` exports default **`QS_NGINX_SITE_CONF=./deploy/nginx/stg.queenswarm.love.conf`** when missing from the env file.  
 - **Smoke:** `scripts/smoke-edge.sh` — **`GET /`** (2xx/3xx) after `/health`.  
 - **Env examples:** `.env.stg.example` / `.env.prod.example` / **`.env.production.example`** — **`VECTOR_STORE_BACKEND=pgvector`** (Qdrant removed from baseline stacks; `qdrant` still coerced in Settings).  
 - **Nginx:** restored **`deploy/nginx/conf.d/queenswarm.love.conf`** HTTP server block; sync comments with **`deploy/nginx/queenswarm.love.conf`**.  
-- **BE–FE:** `RateLimitMiddleware` uses **`X-Forwarded-For` / `X-Real-IP`** in **`backend/app/presentation/api/middleware/rate_limit.py`**; Next **`/api/proxy`** forwards **`X-Forwarded-*`** / **`X-Real-IP`**; **`backend/app/main.py`** imports **`app.presentation.api.*`**; **`app.api`** tree removed (**migration**); **`tests/test_rate_limit_peer_ip_unit.py`** (4 tests) + spot pytest (**9 passed**).  
-- **Docs / audit:** [`docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md`](./docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md) expanded to **final** cockpit matrix + OAuth; **`AUDIT_REPORT.md`** composite **119 %** (Lane B still operator-owned).  
-- **README:** Phase 5.5 scorecard **119 %**; presentation import audit bullets.
+- **BE–FE:** `RateLimitMiddleware` uses **`X-Forwarded-For` / `X-Real-IP`** in **`backend/app/presentation/api/middleware/rate_limit.py`**; Next **`/api/proxy`** forwards **`X-Forwarded-*`** / **`X-Real-IP`**; **`backend/app/main.py`** imports **`app.presentation.api.*`**; **`app.api`** tree removed (**migration**); **`tests/test_rate_limit_peer_ip_unit.py`** (4 tests) + expanded pytest gate (**32 passed**, `--no-cov`).  
+- **Docs / audit:** [`docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md`](./docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md) expanded to **final** cockpit matrix + OAuth; **`AUDIT_REPORT.md`** composite **121 %** (Lane B still operator-owned).  
+- **README:** Phase 5.5 scorecard **121 %**; presentation import audit bullets.
 
 ## Phase 5.4 — staging + production readiness package (2026-05-14)
 

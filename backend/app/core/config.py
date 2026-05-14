@@ -385,6 +385,15 @@ class Settings(BaseSettings):
         default=False,
         description="Allow ballroom transcript sockets without JWT (demo kiosks only).",
     )
+    ballroom_capsule_backend: Literal["redis", "memory"] = Field(
+        default="redis",
+        description="Persist ballroom session capsules in Redis (multi-worker) or in-process memory (tests).",
+    )
+    ballroom_capsule_ttl_sec: int = Field(
+        default=86_400,
+        ge=60,
+        description="TTL for ballroom capsule JSON in Redis (seconds); ignored for memory backend.",
+    )
     hive_dashboard_guest_ws: bool = Field(
         default=False,
         description="Allow /api/v1/ws/live dashboard sockets without JWT (read-only snapshots).",

@@ -19,6 +19,8 @@ _TEST_ENV: dict[str, str] = {
     "HIVE_WAGGLE_RELAY_ENABLED": "false",
     "RATE_LIMIT_ENABLED": "false",
     "RECIPE_CATALOG_MUTATIONS_ENABLED": "true",
+    "BALLROOM_CAPSULE_BACKEND": "memory",
+    "BALLROOM_CAPSULE_TTL_SEC": "86400",
 }
 for _key, _value in _TEST_ENV.items():
     os.environ.setdefault(_key, _value)

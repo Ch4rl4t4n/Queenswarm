@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.api.deps import get_db, require_subject
+from app.presentation.api.deps import get_db, require_subject
 from app.core.jwt_tokens import create_access_token
 from app.main import app
 

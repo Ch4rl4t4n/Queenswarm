@@ -8,9 +8,9 @@ import uuid
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.api.deps import require_subject
-from app.api.routers import realtime_ballroom as rb
+from app.application.services import ballroom_store
 from app.main import app
+from app.presentation.api.deps import require_subject
 
 
 @pytest.fixture
@@ -36,7 +36,7 @@ async def test_ballroom_message_creates_capsule_when_session_only_known_from_url
             json={"session_id": str(sid), "text": "hello swarm"},
         )
     assert resp.status_code == 202
-    assert sid in rb._CAPSULES
+    assert await ballroom_store.ballroom_has_capsule(sid)
 
 
 @pytest.mark.asyncio
@@ -61,7 +61,10 @@ async def test_ballroom_message_accepts_text_for_known_session(ballroom_auth_fix
     sid_uuid = uuid.UUID(str(sid_raw))
     persisted = False
     for _ in range(80):
-        cap = rb._CAPSULES.get(sid_uuid)
+        if not await ballroom_store.ballroom_has_capsule(sid_uuid):
+            await asyncio.sleep(0.025)
+            continue
+        cap = await ballroom_store.ballroom_load_capsule(sid_uuid)
         transcripts = cap.get("transcript", []) if isinstance(cap, dict) else []
         if any(isinstance(row, dict) and row.get("agent") == "You" for row in transcripts):
             persisted = True

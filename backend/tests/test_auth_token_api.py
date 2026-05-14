@@ -6,7 +6,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from jose import jwt as jose_jwt
 
-from app.api.routers.auth import HiveTokenExchangeConfig, hive_token_exchange_config
+from app.presentation.api.routers.auth import HiveTokenExchangeConfig, hive_token_exchange_config
 from app.core.config import settings
 from app.main import app
 

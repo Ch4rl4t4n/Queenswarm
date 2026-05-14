@@ -56,7 +56,7 @@ def _first_json_object(raw: str) -> dict[str, Any]:
 def _fanout_transcript(session_id: uuid.UUID, agent: str, text: str) -> None:
     """Push a ballroom.transcript line (lazy import avoids router cycles)."""
 
-    from app.api.routers import realtime_ballroom as rb
+    from app.presentation.api.routers import realtime_ballroom as rb
 
     clipped = text.strip()[:12_000]
     payload = rb._append_transcript(session_id, agent, clipped)
@@ -73,7 +73,7 @@ def _fanout_orchestrator_delivery(
 ) -> None:
     """Deliver final ballroom payload (text + voice script channel)."""
 
-    from app.api.routers import realtime_ballroom as rb
+    from app.presentation.api.routers import realtime_ballroom as rb
 
     msg: dict[str, object] = {
         "type": "ballroom.orchestrator_out",

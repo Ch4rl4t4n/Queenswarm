@@ -1,4 +1,9 @@
-"""ORM aggregate exports — lazy heavyweight imports keep enum-only paths lightweight."""
+"""ORM aggregate exports — facade over ``app.infrastructure.persistence.models``.
+
+``app.models.*`` legacy modules remain on disk for gradual migration, but lazy
+exports and ``load_all_models()`` resolve to the canonical infrastructure ORM
+so SQLAlchemy ``Base.metadata`` is registered exactly once (matches Alembic).
+"""
 
 from __future__ import annotations
 
@@ -6,57 +11,97 @@ import importlib
 from typing import Any
 
 _EXPORTABLE: dict[str, tuple[str, str]] = {
-    "Agent": ("app.models.agent", "Agent"),
-    "AgentConfig": ("app.models.agent_config", "AgentConfig"),
-    "AgentRole": ("app.models.enums", "AgentRole"),
-    "AgentStatus": ("app.models.enums", "AgentStatus"),
+    "Agent": ("app.infrastructure.persistence.models.agent", "Agent"),
+    "AgentConfig": ("app.infrastructure.persistence.models.agent_config", "AgentConfig"),
+    "AgentRole": ("app.infrastructure.persistence.models.enums", "AgentRole"),
+    "AgentStatus": ("app.infrastructure.persistence.models.enums", "AgentStatus"),
     "Base": ("app.core.database", "Base"),
-    "Budget": ("app.models.cost", "Budget"),
-    "BudgetPeriod": ("app.models.enums", "BudgetPeriod"),
-    "DashboardUser": ("app.models.dashboard_user", "DashboardUser"),
-    "DashboardApiKey": ("app.models.dashboard_api_key", "DashboardApiKey"),
-    "OperatorExternalApi": ("app.models.operator_external_api", "OperatorExternalApi"),
-    "CostRecord": ("app.models.cost", "CostRecord"),
-    "HiveAsyncRunLifecycle": ("app.models.enums", "HiveAsyncRunLifecycle"),
-    "HiveAsyncWorkflowRun": ("app.models.hive_async_workflow_run", "HiveAsyncWorkflowRun"),
-    "HiveLlmSecret": ("app.models.hive_llm_secret", "HiveLlmSecret"),
-    "ImitationEvent": ("app.models.reward", "ImitationEvent"),
-    "KnowledgeItem": ("app.models.knowledge", "KnowledgeItem"),
-    "LearningLog": ("app.models.knowledge", "LearningLog"),
-    "PollenReward": ("app.models.reward", "PollenReward"),
-    "Recipe": ("app.models.recipe", "Recipe"),
-    "Simulation": ("app.models.simulation", "Simulation"),
-    "SimulationResult": ("app.models.enums", "SimulationResult"),
-    "SoftDeleteMixin": ("app.models.base", "SoftDeleteMixin"),
-    "StepStatus": ("app.models.enums", "StepStatus"),
-    "SubSwarm": ("app.models.swarm", "SubSwarm"),
-    "SwarmPurpose": ("app.models.enums", "SwarmPurpose"),
-    "Task": ("app.models.task", "Task"),
-    "TaskStatus": ("app.models.enums", "TaskStatus"),
-    "TaskType": ("app.models.enums", "TaskType"),
-    "TimestampMixin": ("app.models.base", "TimestampMixin"),
-    "UUIDMixin": ("app.models.base", "UUIDMixin"),
-    "Workflow": ("app.models.workflow", "Workflow"),
-    "WorkflowStatus": ("app.models.enums", "WorkflowStatus"),
-    "WorkflowStep": ("app.models.workflow", "WorkflowStep"),
+    "Budget": ("app.infrastructure.persistence.models.cost", "Budget"),
+    "BudgetPeriod": ("app.infrastructure.persistence.models.enums", "BudgetPeriod"),
+    "ConnectorVaultEntry": (
+        "app.infrastructure.persistence.models.connector_vault_entry",
+        "ConnectorVaultEntry",
+    ),
+    "CostRecord": ("app.infrastructure.persistence.models.cost", "CostRecord"),
+    "DashboardApiKey": (
+        "app.infrastructure.persistence.models.dashboard_api_key",
+        "DashboardApiKey",
+    ),
+    "DashboardUser": ("app.infrastructure.persistence.models.dashboard_user", "DashboardUser"),
+    "DynamicConnector": (
+        "app.infrastructure.persistence.models.dynamic_connector",
+        "DynamicConnector",
+    ),
+    "ExternalProject": (
+        "app.infrastructure.persistence.models.external_project",
+        "ExternalProject",
+    ),
+    "ExternalProjectApiKey": (
+        "app.infrastructure.persistence.models.external_project",
+        "ExternalProjectApiKey",
+    ),
+    "ExternalProjectRunAudit": (
+        "app.infrastructure.persistence.models.external_project",
+        "ExternalProjectRunAudit",
+    ),
+    "HiveAsyncRunLifecycle": (
+        "app.infrastructure.persistence.models.enums",
+        "HiveAsyncRunLifecycle",
+    ),
+    "HiveAsyncWorkflowRun": (
+        "app.infrastructure.persistence.models.hive_async_workflow_run",
+        "HiveAsyncWorkflowRun",
+    ),
+    "HiveLlmSecret": ("app.infrastructure.persistence.models.hive_llm_secret", "HiveLlmSecret"),
+    "ImitationEvent": ("app.infrastructure.persistence.models.reward", "ImitationEvent"),
+    "KnowledgeItem": ("app.infrastructure.persistence.models.knowledge", "KnowledgeItem"),
+    "LearningLog": ("app.infrastructure.persistence.models.knowledge", "LearningLog"),
+    "OperatorExternalApi": (
+        "app.infrastructure.persistence.models.operator_external_api",
+        "OperatorExternalApi",
+    ),
+    "PollenReward": ("app.infrastructure.persistence.models.reward", "PollenReward"),
+    "Recipe": ("app.infrastructure.persistence.models.recipe", "Recipe"),
+    "Simulation": ("app.infrastructure.persistence.models.simulation", "Simulation"),
+    "SimulationResult": ("app.infrastructure.persistence.models.enums", "SimulationResult"),
+    "SoftDeleteMixin": ("app.infrastructure.persistence.models.base", "SoftDeleteMixin"),
+    "StepStatus": ("app.infrastructure.persistence.models.enums", "StepStatus"),
+    "SubSwarm": ("app.infrastructure.persistence.models.swarm", "SubSwarm"),
+    "SwarmPurpose": ("app.infrastructure.persistence.models.enums", "SwarmPurpose"),
+    "Task": ("app.infrastructure.persistence.models.task", "Task"),
+    "TaskFinalDeliverable": (
+        "app.infrastructure.persistence.models.task_final_deliverable",
+        "TaskFinalDeliverable",
+    ),
+    "TaskStatus": ("app.infrastructure.persistence.models.enums", "TaskStatus"),
+    "TaskType": ("app.infrastructure.persistence.models.enums", "TaskType"),
+    "TimestampMixin": ("app.infrastructure.persistence.models.base", "TimestampMixin"),
+    "UUIDMixin": ("app.infrastructure.persistence.models.base", "UUIDMixin"),
+    "Workflow": ("app.infrastructure.persistence.models.workflow", "Workflow"),
+    "WorkflowStatus": ("app.infrastructure.persistence.models.enums", "WorkflowStatus"),
+    "WorkflowStep": ("app.infrastructure.persistence.models.workflow", "WorkflowStep"),
 }
 
 _MODEL_PACKAGES: tuple[str, ...] = (
-    "app.models.swarm",
-    "app.models.agent",
-    "app.models.agent_config",
-    "app.models.recipe",
-    "app.models.workflow",
-    "app.models.task",
-    "app.models.reward",
-    "app.models.knowledge",
-    "app.models.simulation",
-    "app.models.cost",
-    "app.models.hive_async_workflow_run",
-    "app.models.hive_llm_secret",
-    "app.models.dashboard_user",
-    "app.models.dashboard_api_key",
-    "app.models.operator_external_api",
+    "app.infrastructure.persistence.models.swarm",
+    "app.infrastructure.persistence.models.agent",
+    "app.infrastructure.persistence.models.agent_config",
+    "app.infrastructure.persistence.models.recipe",
+    "app.infrastructure.persistence.models.workflow",
+    "app.infrastructure.persistence.models.task",
+    "app.infrastructure.persistence.models.task_final_deliverable",
+    "app.infrastructure.persistence.models.reward",
+    "app.infrastructure.persistence.models.knowledge",
+    "app.infrastructure.persistence.models.simulation",
+    "app.infrastructure.persistence.models.cost",
+    "app.infrastructure.persistence.models.hive_async_workflow_run",
+    "app.infrastructure.persistence.models.hive_llm_secret",
+    "app.infrastructure.persistence.models.dashboard_user",
+    "app.infrastructure.persistence.models.dashboard_api_key",
+    "app.infrastructure.persistence.models.operator_external_api",
+    "app.infrastructure.persistence.models.connector_vault_entry",
+    "app.infrastructure.persistence.models.dynamic_connector",
+    "app.infrastructure.persistence.models.external_project",
 )
 
 _BOOTSTRAPPED = False

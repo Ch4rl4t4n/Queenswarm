@@ -178,6 +178,17 @@ async def get_json(key: str) -> dict[str, Any] | None:
         raise ValueError(f"Malformed JSON cached at {key}.") from exc
 
 
+async def redis_delete(key: str) -> int:
+    """Remove a Redis key; returns count of keys removed (typically ``0`` or ``1``)."""
+
+    pool = await _connection_pool()
+    client = Redis(connection_pool=pool)
+    try:
+        return int(await client.delete(key))
+    finally:
+        await client.aclose()
+
+
 async def publish_event(channel: str, event: dict[str, Any]) -> None:
     """Fan out a swarm event payload to subscribed worker bees."""
 
@@ -217,6 +228,8 @@ async def subscribe_channel(channel: str) -> AsyncIterator[dict[str, Any]]:
         await pubsub.unsubscribe(channel)
         await pubsub.aclose()
         await client.aclose()
+
+
 async def store_dashboard_refresh(token: str, user_id_text: str, ttl_sec: int) -> None:
     """Persist a refresh token fingerprint → dashboard user UUID mapping."""
 

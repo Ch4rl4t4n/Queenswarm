@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.api.deps import get_db, require_subject
+from app.presentation.api.deps import get_db, require_subject
 from app.core.jwt_tokens import create_access_token
 from app.main import app
 from app.schemas.recipes_search import RecipeSemanticHit
@@ -117,7 +117,7 @@ async def test_recipes_search_returns_hits_through_bridge(
         return [sample]
 
     monkeypatch.setattr(
-        "app.api.routers.recipes.search_recipes_semantic",
+        "app.presentation.api.routers.recipes.search_recipes_semantic",
         fake_search,
     )
 

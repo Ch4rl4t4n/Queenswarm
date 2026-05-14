@@ -85,7 +85,8 @@ Source: `frontend/lib/hive-nav-primary.ts` — each row should load **without** 
 
 - API traffic from the cockpit uses **`/api/proxy/...`** → FastAPI **`/api/v1/...`** with **`Authorization: Bearer`** from **`qs_dashboard_at`** (or server **`HIVE_PROXY_JWT`**).  
 - Direct **`/api/v1/*`** from the browser is also proxied by nginx when configured.  
-- **429** on heavy pages was often **one shared rate-limit bucket** before Phase 5.5 forwarded client IP — retest after deploy.
+- **429** on heavy pages was often **one shared rate-limit bucket** before Phase 5.5 forwarded client IP — retest after deploy.  
+- **2026-05-14 follow-up (repo):** **`pytest`** gate expanded (**32 passed**, `--no-cov`) covering ballroom + catalog + tasks + agents + OAuth wiring after **`app.models` → infra shims** and **`redis_delete`**.
 
 ---
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.api.v1 import api_v1_health
+from app.presentation.api.v1 import api_v1_health
 
 
 @pytest.mark.asyncio

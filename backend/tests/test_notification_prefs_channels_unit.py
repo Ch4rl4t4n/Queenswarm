@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.api.routers.dashboard_session import discord_webhook_url_ok, normalize_delivery_channels_blob
+from app.presentation.api.routers.dashboard_session import discord_webhook_url_ok, normalize_delivery_channels_blob
 
 
 def test_normalize_delivery_channels_from_json_string_round_trip() -> None:

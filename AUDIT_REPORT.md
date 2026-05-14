@@ -26,11 +26,11 @@
 | Component | Max | This drop (evidence) |
 |-----------|-----|----------------------|
 | **Core repo readiness** | **100 %** | **100 %** — **`app.api` → `app.presentation.api` migration merged** on `main`; **`peer_ip_for_rate_limit`** + proxy header relay + **`/api/docs`** / **`/api/openapi`** rate-limit bypass + trailing-slash exempt normalization; prior Phase 5.5 compose/nginx/smoke items. |
-| **Automation bonus** | **+25 %** | **+19 %** — `docker compose … config` (stg + prod); `bash -n` on deploy/smoke; **`pytest`** spot-check: **`test_rate_limit_peer_ip_unit`**, **`test_api_v1_health_unit`**, **`test_auth_token_api`** (**9 passed**, `--no-cov`). *Full `pytest --cov` / Playwright not run as a single gate here.* |
+| **Automation bonus** | **+25 %** | **+21 %** — `docker compose … config` (stg + prod); `bash -n` on deploy/smoke; **`pytest`** gate: **`test_rate_limit_peer_ip_unit`**, **`test_api_v1_health_unit`**, **`test_auth_token_api`**, **`test_ballroom_message_api_unit`**, **`test_catalogs_api_auth_unit`**, **`test_hive_jobs_api_unit`**, **`test_notification_prefs_channels_unit`**, **`test_phase_f_routers_unit`**, **`test_tasks_api_auth_unit`** (**32 passed**, `--no-cov`). *Full `pytest --cov` / Playwright not run as a single gate here.* |
 | **Live smoke bonus** | **+25 %** | **+0 %** — not run against public DNS in this session (no falsified green). |
-| **Composite (capped 150 %)** | **150 %** | **119 %** = `min(150, 100 + 19 + 0)` |
+| **Composite (capped 150 %)** | **150 %** | **121 %** = `min(150, 100 + 21 + 0)` |
 
-**Interpretation:** **119 %** = Lane A **100 %** + stronger automation evidence (**import migration + BE–FE**). Reserve **+31 %** for Lane B: successful **`smoke-edge`** on **both** origins + completed **PHASE55** matrix (optionally raise headline to **125–150 %** with pasted evidence per internal checklist rules).
+**Interpretation:** **121 %** = Lane A **100 %** + stronger automation evidence (**ORM single-metadata + OAuth Redis + ballroom settings + import sweep**). Reserve **+29 %** for Lane B: successful **`smoke-edge`** on **both** origins + completed **PHASE55** matrix (optionally raise headline to **125–150 %** with pasted evidence per internal checklist rules).
 
 ---
 
@@ -55,7 +55,11 @@
 | 15 | Backend never saw browser IP through **`/api/proxy`** | Forward **`X-Forwarded-For`**, **`X-Real-IP`**, **`X-Forwarded-Proto`**, **`X-Forwarded-Host`** on upstream **fetch** | `frontend/app/api/proxy/[...path]/route.ts` |
 | 16 | **Health/docs paths** + trailing slashes tripped limiter | Exempt **normalized** paths + **`/api/docs`** + **`/api/openapi`** prefixes | **`backend/app/presentation/api/middleware/rate_limit.py`** |
 | 17 | **Split HTTP surface** (`app.api` vs `app.presentation`) | **`git mv`-style migration:** **`backend/app/api/*` → `backend/app/presentation/api/*`**; **`app/main.py`** imports **`app.presentation.api.*`** | `backend/app/presentation/`, `backend/app/main.py` |
-| 18 | Legacy **`app.api`** imports in tests / docs | **Tests** import **`peer_ip_for_rate_limit`** from presentation; docs updated | `backend/tests/test_rate_limit_peer_ip_unit.py`, `AUDIT_REPORT.md`, … |
+| 18 | Legacy **`app.api`** imports in tests / **`hive_mission_runner`** / mock paths | **`app.presentation.api.*`**; **`app.presentation.api.routers.*`** in patches | `backend/tests/test_*api*.py`, `backend/app/services/hive_mission_runner.py` |
+| 19 | **Duplicate SQLAlchemy tables** (`app.models.*` vs `app.infrastructure.persistence.models.*`) | **`app.models`**: lazy **`_EXPORTABLE`** targets infra; per-module **shims** re-export infra classes | `backend/app/models/__init__.py`, `backend/app/models/*.py` |
+| 20 | OAuth consent import crash (**`redis_delete`** missing) | **`async def redis_delete`** + newline fix before **`store_dashboard_refresh`** | `backend/app/core/redis_client.py` |
+| 21 | Ballroom capsule store vs **Settings** drift | **`ballroom_capsule_backend`**, **`ballroom_capsule_ttl_sec`**; tests default **`memory`** | `backend/app/core/config.py`, `backend/tests/conftest.py`, `backend/.env.example` |
+| 22 | Ballroom tests referenced removed **`_CAPSULES`** on router module | Assert via **`ballroom_store.ballroom_has_capsule` / `ballroom_load_capsule`** | `backend/tests/test_ballroom_message_api_unit.py` |
 
 **Not fixable from git alone:** live **403/500** on individual cockpit pages until secrets, migrations, Neo4j, and LLM keys exist on the host — triage with **`docker compose logs`** after deploy.
 

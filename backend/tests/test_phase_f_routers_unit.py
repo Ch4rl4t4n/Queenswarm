@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.api.deps import get_db
+from app.presentation.api.deps import get_db
 from app.core.jwt_tokens import create_access_token
 from app.main import app
 from app.models.enums import AgentRole, AgentStatus
@@ -61,7 +61,7 @@ async def test_register_agent_returns_410(restore_app_overrides: None) -> None:
 
 @pytest.mark.asyncio
 async def test_list_agents_returns_rows(restore_app_overrides: None, monkeypatch: pytest.MonkeyPatch) -> None:
-    from app.api.routers import agents as agents_router
+    from app.presentation.api.routers import agents as agents_router
 
     stub = SimpleNamespace(
         id=uuid.uuid4(),
@@ -109,7 +109,7 @@ async def test_list_agents_returns_rows(restore_app_overrides: None, monkeypatch
 
 @pytest.mark.asyncio
 async def test_get_agent_returns_200(restore_app_overrides: None, monkeypatch: pytest.MonkeyPatch) -> None:
-    from app.api.routers import agents as agents_router
+    from app.presentation.api.routers import agents as agents_router
 
     aid = uuid.uuid4()
     stub = SimpleNamespace(
@@ -155,7 +155,7 @@ async def test_get_agent_returns_200(restore_app_overrides: None, monkeypatch: p
 
 @pytest.mark.asyncio
 async def test_patch_agent_returns_200(restore_app_overrides: None, monkeypatch: pytest.MonkeyPatch) -> None:
-    from app.api.routers import agents as agents_router
+    from app.presentation.api.routers import agents as agents_router
 
     aid = uuid.uuid4()
     stub = SimpleNamespace(
