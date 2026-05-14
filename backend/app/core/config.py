@@ -398,6 +398,24 @@ class Settings(BaseSettings):
         default=False,
         description="Allow /api/v1/ws/live dashboard sockets without JWT (read-only snapshots).",
     )
+    supervisor_dynamic_subagents_enabled: bool = Field(
+        default=False,
+        description="Enable dynamic supervisor sessions + sub-agent orchestration APIs.",
+    )
+    supervisor_durable_mode_enabled: bool = Field(
+        default=False,
+        description="Allow durable Celery-backed execution mode for supervisor sub-agent runs.",
+    )
+    supervisor_default_runtime_mode: Literal["inprocess", "durable"] = Field(
+        default="inprocess",
+        description="Default runtime mode when API requests omit explicit supervisor mode.",
+    )
+    supervisor_event_log_limit: int = Field(
+        default=500,
+        ge=50,
+        le=5000,
+        description="Maximum events returned per supervisor session timeline request.",
+    )
 
     @model_validator(mode="after")
     def hive_machine_token_pair_consistency(self) -> Self:

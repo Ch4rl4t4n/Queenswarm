@@ -27,6 +27,9 @@ from app.services.hive_mission_runner import MISSION_CORR_KEY, WORKER_LANE_KEY
 from app.services.hive_tier import resolve_hive_tier
 from app.services.sub_swarm.runner import run_sub_swarm_workflow_cycle
 from app.worker.celery_app import celery_app
+from app.application.services.supervisor.runtime import append_event
+from app.application.services.supervisor.shared_context import SharedContextService
+from app.infrastructure.persistence.models.supervisor_session import SubAgentSession, SupervisorSession
 
 
 @celery_app.task(name="hive.hourly_youtube_crypto_roll")
@@ -321,11 +324,109 @@ def dynamic_agent_schedule_tick_task() -> dict[str, Any]:
     return asyncio.run(_tick())
 
 
+@celery_app.task(name="hive.supervisor_sub_agent_step", queue="hive")
+def run_supervisor_sub_agent_step_task(
+    *,
+    supervisor_session_id: str,
+    sub_agent_session_id: str,
+) -> dict[str, Any]:
+    """Execute one durable-mode supervisor sub-agent step."""
+
+    async def _run() -> dict[str, Any]:
+        sid = uuid.UUID(supervisor_session_id)
+        aid = uuid.UUID(sub_agent_session_id)
+        shared_context = SharedContextService()
+        async with async_session() as session:
+            sup = await session.get(SupervisorSession, sid)
+            sub = await session.get(SubAgentSession, aid)
+            if sup is None or sub is None:
+                return {"ok": False, "reason": "missing_session_or_sub_agent"}
+            if sup.status in {"stopped", "completed"}:
+                return {"ok": False, "reason": "session_closed"}
+            if sup.status == "paused":
+                await append_event(
+                    session,
+                    supervisor_session=sup,
+                    sub_agent=sub,
+                    event_type="sub_agent_skipped",
+                    message=f"{sub.role} skipped while session paused.",
+                    payload={"runtime_mode": "durable"},
+                )
+                await session.commit()
+                return {"ok": False, "reason": "session_paused"}
+
+            sub.status = "running"
+            sub.started_at = datetime.now(tz=UTC)
+            await append_event(
+                session,
+                supervisor_session=sup,
+                sub_agent=sub,
+                event_type="sub_agent_started",
+                message=f"{sub.role} started in durable runtime.",
+                payload={"runtime_mode": "durable"},
+            )
+
+            result_msg = (
+                f"{sub.role} durable step completed for goal: {sup.goal[:240]} "
+                "with shared context update."
+            )
+            memory_result = await shared_context.write_step_context(
+                supervisor_session_id=sup.id,
+                sub_agent_session_id=sub.id,
+                role=sub.role,
+                goal=sup.goal,
+                message=result_msg,
+                payload={"runtime_mode": "durable"},
+            )
+            sub.last_output = result_msg
+            sub.short_memory = {
+                **dict(sub.short_memory or {}),
+                "last_summary": result_msg,
+                "processed_at": datetime.now(tz=UTC).isoformat(),
+            }
+            sub.status = "completed"
+            sub.completed_at = datetime.now(tz=UTC)
+            await append_event(
+                session,
+                supervisor_session=sup,
+                sub_agent=sub,
+                event_type="sub_agent_completed",
+                message=f"{sub.role} finished durable step.",
+                payload={
+                    "runtime_mode": "durable",
+                    "vector_id": memory_result.vector_id,
+                    "graph_node_id": memory_result.graph_node_id,
+                },
+            )
+
+            remaining_stmt = select(SubAgentSession).where(
+                SubAgentSession.supervisor_session_id == sup.id,
+                SubAgentSession.status.in_(("pending", "queued", "running")),
+            )
+            remaining = list((await session.scalars(remaining_stmt)).all())
+            if not remaining:
+                sup.status = "completed"
+                sup.completed_at = datetime.now(tz=UTC)
+                await append_event(
+                    session,
+                    supervisor_session=sup,
+                    sub_agent=None,
+                    event_type="session_completed",
+                    message="Supervisor session completed in durable mode.",
+                    payload={"runtime_mode": "durable"},
+                )
+            await session.commit()
+            return {"ok": True, "sub_agent_session_id": str(sub.id)}
+
+    return asyncio.run(_run())
+
+
 __all__ = [
     "dynamic_agent_schedule_tick_task",
     "echo_hive_pulse",
     "execute_agent_task",
     "execute_universal_agent_task",
     "hourly_youtube_crypto_roll_task",
+    "run_supervisor_sub_agent_step_task",
     "run_sub_swarm_workflow_cycle_task",
 ]

@@ -6,6 +6,7 @@ from fastapi import APIRouter
 
 from app import __version__
 from app.presentation.api.routers import agents as agents_router
+from app.presentation.api.routers import agent_sessions as agent_sessions_router
 from app.presentation.api.routers import auth as auth_router
 from app.presentation.api.routers import connectors as connectors_router
 from app.presentation.api.routers import connectors_dynamic as connectors_dynamic_router
@@ -53,6 +54,7 @@ api_v1.include_router(connectors_router.router, prefix="/connectors")
 api_v1.include_router(oauth_consent_router.router)
 api_v1.include_router(connectors_dynamic_router.router)
 api_v1.include_router(agents_router.router, prefix="/agents")
+api_v1.include_router(agent_sessions_router.router, prefix="/agents")
 api_v1.include_router(operator_router.router)
 api_v1.include_router(operator_monitoring_router.router)
 api_v1.include_router(system_status_router.router)
