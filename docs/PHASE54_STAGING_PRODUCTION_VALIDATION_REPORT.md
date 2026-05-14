@@ -27,6 +27,7 @@ Operator sign-off that **both** environments meet SLOs: TLS, auth, proxy, vector
 
 ## Preconditions (both envs)
 
+- [ ] **TLS:** follow [`docs/TLS_STG_AND_PROD.md`](./TLS_STG_AND_PROD.md) until `openssl` SAN matches each public hostname.  
 - [ ] Host Let’s Encrypt (or other) PEMs exist at paths referenced in nginx configs. **Staging SAN must include `stg.queenswarm.love`.**  
 - [ ] `.env.stg` contains `QS_NGINX_SITE_CONF=./deploy/nginx/stg.queenswarm.love.conf` (or equivalent).  
 - [ ] `deploy/nginx/.generated/staging-guard.inc` and `stg.htpasswd` exist (`./scripts/deploy-stg.sh` or `PREPARE_ONLY=1`).  

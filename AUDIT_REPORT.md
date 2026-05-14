@@ -34,6 +34,37 @@
 
 ---
 
+## Fixes inventory (repo — Phase 5.4 + prior 5.3/5.2 carry-over)
+
+| # | Symptom / risk | Repo fix | Where |
+|---|----------------|----------|--------|
+| 1 | Staging used **prod** nginx `server_name` / wrong default vhost | **`QS_NGINX_SITE_CONF`** + `.env.stg.example` + stg guard mounts | `docker-compose.base.yml`, `docker-compose.stg.yml`, `.env.stg.example` |
+| 2 | `/health/ready` hit Next.js instead of FastAPI readiness | **`location /health`** prefix on stg vhost | `deploy/nginx/stg.queenswarm.love.conf` |
+| 3 | Smoke / CI fails TLS hostname during bring-up | **`SMOKE_INSECURE_TLS=1`** in `smoke-edge.sh`; forwarded from **`deploy-stg.sh`** / **`deploy-prod.sh`** | `scripts/smoke-edge.sh`, `scripts/deploy-stg.sh`, `scripts/deploy-prod.sh` |
+| 4 | Prod deploy script referenced removed Qdrant volume | Reminder text + optional **`POST_DEPLOY_SMOKE`** | `scripts/deploy-prod.sh` |
+| 5 | Operators unsure how to obtain **SAN** for stg | TLS + certbot notes + dedicated runbook | `.env.stg.example`, **`docs/TLS_STG_AND_PROD.md`** |
+| 6 | “Hive link severed” styling / lint | Tailwind-only error boundary title | `frontend/app/(dashboard)/error.tsx` (Phase 5.3) |
+| 7 | Dual-env validation checklist | **`PHASE54`** report | `docs/PHASE54_STAGING_PRODUCTION_VALIDATION_REPORT.md` |
+
+**Not fixable from git alone:** live **403/500** on specific cockpit pages until credentials, data, Neo4j, and LLM keys exist on the host — use `PHASE54` + logs after deploy.
+
+---
+
+## Lane A — BE ↔ FE matrix (summary)
+
+| Area | Mechanism |
+|------|-----------|
+| Dashboard API | Browser → **`/api/proxy/...`** (Next `route.ts`) → **`INTERNAL_BACKEND_ORIGIN`** + **`/api/v1/...`**; **`Authorization: Bearer`** from **`qs_dashboard_at`** cookie or `HIVE_PROXY_JWT`. |
+| Auth | **`/api/auth/*`** excluded from dashboard redirect in `frontend/middleware.ts`; login sets HttpOnly cookies. |
+| Rate limits | **`RateLimitMiddleware`** exempts `/health`, `/health/ready`, `/api/v1/health`, `/metrics`, `/docs`, … |
+| Vectors | Default **`VECTOR_STORE_BACKEND=pgvector`** (`hive_vector_documents`); Qdrant removed from baseline Compose. |
+| Graph | Neo4j for Hive Mind / readiness options per `settings`. |
+| Monitoring | **`GET /api/v1/operator/monitoring/snapshot`** (backend uses **`psutil`**). |
+
+Full route-by-route table lives in git history (Phase 5.3 audit) or cockpit source under `frontend/lib/hive-nav-primary.ts` + `app/(dashboard)/**`.
+
+---
+
 ## Critical fix shipped (Phase 5.4) — staging nginx compose
 
 **Bug:** `docker compose -f docker-compose.base.yml -f docker-compose.stg.yml` merged nginx **`default.conf`** from **`deploy/nginx/conf.d/queenswarm.love.conf`** (production `server_name`) while public hostname was staging — contributed to **wrong TLS identity / SAN confusion** and wrong routing labels.
@@ -55,7 +86,7 @@ Verified with: `docker compose -f docker-compose.base.yml -f docker-compose.stg.
 | `stg.queenswarm.love` | `/etc/letsencrypt/live/stg.queenswarm.love/` | Cert **SAN must list** `stg.queenswarm.love`. Do **not** serve prod-only cert. |
 | `queenswarm.love` | `/etc/letsencrypt/live/queenswarm.love/` | Include `www` if served. |
 
-Issuance is **host operator** work (certbot / DNS-01). Repo documents paths and examples in `.env.stg.example`.
+Issuance is **host operator** work — step-by-step: **[`docs/TLS_STG_AND_PROD.md`](./docs/TLS_STG_AND_PROD.md)** (openssl SAN check, certbot examples, reload/smoke).
 
 ---
 
@@ -67,12 +98,6 @@ Issuance is **host operator** work (certbot / DNS-01). Repo documents paths and 
 | **No SSH surgery** | Do not patch containers on the server for app logic. |
 | **Deploy** | Staging: `./scripts/deploy-stg.sh` · Production: `./scripts/deploy-prod.sh`. |
 | **Post-deploy** | `POST_DEPLOY_SMOKE=1` / `POST_DEPLOY_HEALTH=1` (optional); `SMOKE_INSECURE_TLS=1` only until TLS is valid. |
-
----
-
-## Lane A — BE ↔ FE matrix (unchanged contract)
-
-Cockpit routes proxy to `/api/v1/*` via Next `/api/proxy/*` with dashboard JWT cookie; vectors default **pgvector**; Neo4j required for Hive Mind graph depth. See Phase 5.3 matrix in git history if you need the full table — behavior is unchanged in 5.4.
 
 ---
 
@@ -88,4 +113,4 @@ Cockpit routes proxy to `/api/v1/*` via Next `/api/proxy/*` with dashboard JWT c
 
 ## One-line summary
 
-**Phase 5.4 eliminates the staging nginx compose misconfiguration (`QS_NGINX_SITE_CONF` + guard mounts), aligns prod deploy reminders/scripts with pgvector-era stacks, documents TLS for both domains, adds the dual-env validation report, and publishes an honest **110 %** composite until live Lane B evidence is attached.**
+**Phase 5.4 eliminates the staging nginx compose misconfiguration (`QS_NGINX_SITE_CONF` + guard mounts), aligns prod deploy scripts with pgvector-era stacks, documents TLS via `docs/TLS_STG_AND_PROD.md` + env examples, ships `PHASE54` dual-env validation, and holds an honest **110 %** composite until live Lane B evidence is attached.**

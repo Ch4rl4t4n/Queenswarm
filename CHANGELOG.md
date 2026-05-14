@@ -5,7 +5,7 @@
 - **Compose:** `docker-compose.base.yml` nginx `default.conf` now uses **`QS_NGINX_SITE_CONF`** (default production `conf.d/queenswarm.love.conf`); **`.env.stg.example`** sets **`QS_NGINX_SITE_CONF=./deploy/nginx/stg.queenswarm.love.conf`** so staging no longer mounts the prod vhost by mistake. **`docker-compose.stg.yml`** adds bind mounts for **`deploy/nginx/.generated/staging-guard.inc`** and **`stg.htpasswd`**.  
 - **Deploy:** `scripts/deploy-prod.sh` restores full bootstrap, removes obsolete **qdrant_data** reminder, adds optional **`POST_DEPLOY_SMOKE=1`** (`TARGET=prd`) + **`SMOKE_INSECURE_TLS`**.  
 - **Env examples:** `.env.stg.example` TLS + certbot hint block; `.env.prod.example` TLS note + optional `QS_NGINX_SITE_CONF` comment; removed qdrant from prod header comment.  
-- **Docs:** [`docs/PHASE54_STAGING_PRODUCTION_VALIDATION_REPORT.md`](./docs/PHASE54_STAGING_PRODUCTION_VALIDATION_REPORT.md); **`AUDIT_REPORT.md`** Phase 5.4 scorecard (**110 %** until live attestation).  
+- **Docs:** [`docs/PHASE54_STAGING_PRODUCTION_VALIDATION_REPORT.md`](./docs/PHASE54_STAGING_PRODUCTION_VALIDATION_REPORT.md); [`docs/TLS_STG_AND_PROD.md`](./docs/TLS_STG_AND_PROD.md); **`AUDIT_REPORT.md`** Phase 5.4 scorecard (**110 %** until live attestation) + fixes inventory + BE/FE matrix summary.  
 - **README:** Phase 5.4 section (current); Phase 5.3 marked superseded for scorecard.
 
 ## Phase 5.3 — pgvector single-store (2026-05-14)
@@ -18,7 +18,7 @@
 
 ### Phase 5.3 — staging audit & BE/FE integration (same release line)
 
-- **`AUDIT_REPORT.md`:** Phase 5.3 — **Lane B live curl** (TLS SAN mismatch documented), **`138 %`** composite; path to **150 %** = fix staging cert + full browser checklist.  
+- **`AUDIT_REPORT.md`:** Phase 5.3 live curl notes **superseded** by **Phase 5.4** headline scorecard (`AUDIT_REPORT.md` on `main`); historical **138 %** referred to pre-compose-fix evidence only.  
 - **`deploy/nginx/stg.queenswarm.love.conf`:** **`location /health`** prefix so **`/health/ready`** reaches FastAPI readiness (was only exact `/health`, so `/health/ready` fell through to Next.js `location /`).  
 - **`scripts/smoke-edge.sh`:** **`SMOKE_INSECURE_TLS=1`** → `curl -k` for broken edge certs during bring-up.  
 - **`docs/PHASE53_STAGING_VALIDATION_REPORT.md`:** TLS + readiness URL notes + insecure smoke example.  

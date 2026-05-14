@@ -30,7 +30,7 @@ Vitest unit tests: `npm run test`.
 - **Audit / scorecard:** [`AUDIT_REPORT.md`](./AUDIT_REPORT.md) — **110 %** composite (repo Lane A **100 %** + automation partial; **live Lane B** = you, after deploy). Target **125–150 %** with evidence from [`docs/PHASE54_STAGING_PRODUCTION_VALIDATION_REPORT.md`](./docs/PHASE54_STAGING_PRODUCTION_VALIDATION_REPORT.md).  
 - **Staging nginx:** `.env.stg` must set **`QS_NGINX_SITE_CONF=./deploy/nginx/stg.queenswarm.love.conf`** (in `.env.stg.example`) so compose does **not** mount the production vhost on staging.  
 - **Deploy:** `./scripts/deploy-stg.sh` · `./scripts/deploy-prod.sh` — optional `POST_DEPLOY_SMOKE=1` / `POST_DEPLOY_HEALTH=1` (prod smoke: `TARGET=prd`). **Git only** — no SSH app patches.  
-- **TLS:** issue certs whose **SAN** matches `DOMAIN` for each host (see env examples).  
+- **TLS:** issue certs whose **SAN** matches `DOMAIN` for each host — runbook: [`docs/TLS_STG_AND_PROD.md`](./docs/TLS_STG_AND_PROD.md) + `.env.*.example`.  
 - **Phase 5.3 carry-over:** [`docs/PHASE53_STAGING_VALIDATION_REPORT.md`](./docs/PHASE53_STAGING_VALIDATION_REPORT.md) (single-env checklist); smoke still supports **`SMOKE_INSECURE_TLS=1`**.
 
 ## Phase 5.3 — Staging audit & BE/FE matrix (superseded by 5.4 for scorecard)
