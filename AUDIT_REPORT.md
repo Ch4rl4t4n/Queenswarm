@@ -49,7 +49,7 @@ It is the **Next.js `app/(dashboard)/error.tsx` boundary** — any **uncaught re
 
 1. **502 `proxy_upstream_unreachable`** — `INTERNAL_BACKEND_ORIGIN` wrong inside `frontend`, backend down, or Docker DNS to `backend:8000` failing.  
 2. **401/403** on `/api/proxy/*` — missing or expired `qs_dashboard_at` / legacy `qs_token`.  
-3. **SSR / RCE exceptions** — bad props or env during render.
+3. **SSR / RSC exceptions** — bad props or env during render.
 
 **UI:** Headline uses Tailwind-only token styling (Phase 5.3).
 
