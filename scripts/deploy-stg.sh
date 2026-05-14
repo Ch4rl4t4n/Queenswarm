@@ -60,6 +60,24 @@ STAGING_BASIC_AUTH_USER="$(load_kv STAGING_BASIC_AUTH_USER || true)"
 STAGING_BASIC_AUTH_PASSWORD="$(load_kv STAGING_BASIC_AUTH_PASSWORD || true)"
 STAGING_IP_ALLOWLIST="$(load_kv STAGING_IP_ALLOWLIST || true)"
 
+declare -a STAGING_IP_ALLOWLIST_VALID=()
+if [[ -n "${STAGING_IP_ALLOWLIST// }" ]]; then
+  IFS=',' read -ra _raw_ips <<<"$STAGING_IP_ALLOWLIST"
+  for _raw in "${_raw_ips[@]}"; do
+    _ip="${_raw%%#*}"
+    _ip="${_ip//[[:space:]]/}"
+    [[ -n "$_ip" ]] || continue
+    if [[ "$_ip" == CHANGE_ME_TO_YOUR_IP* ]]; then
+      continue
+    fi
+    if [[ "$_ip" =~ ^[0-9A-Fa-f:/.]+$ ]]; then
+      STAGING_IP_ALLOWLIST_VALID+=("$_ip")
+      continue
+    fi
+    echo "Ignoring invalid STAGING_IP_ALLOWLIST token: ${_ip}" >&2
+  done
+fi
+
 if [[ -z "$STAGING_BASIC_AUTH_USER" || -z "$STAGING_BASIC_AUTH_PASSWORD" ]]; then
   echo "STAGING_BASIC_AUTH_USER and STAGING_BASIC_AUTH_PASSWORD must be set in ${ENV_FILE}."
   exit 1
@@ -74,13 +92,10 @@ HASH="$(printf '%s' "$STAGING_BASIC_AUTH_PASSWORD" | openssl passwd -apr1 -stdin
 printf '%s:%s\n' "$STAGING_BASIC_AUTH_USER" "$HASH" >"$HTPASS"
 chmod 600 "$HTPASS"
 
-if [[ -n "${STAGING_IP_ALLOWLIST// }" ]]; then
+if [[ "${#STAGING_IP_ALLOWLIST_VALID[@]}" -gt 0 ]]; then
   {
     echo "satisfy any;"
-    IFS=',' read -ra IPS <<<"$STAGING_IP_ALLOWLIST"
-    for raw in "${IPS[@]}"; do
-      ip="${raw//[[:space:]]/}"
-      [[ -n "$ip" ]] || continue
+    for ip in "${STAGING_IP_ALLOWLIST_VALID[@]}"; do
       echo "allow $ip;"
     done
     echo "deny all;"
