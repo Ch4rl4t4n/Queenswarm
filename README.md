@@ -27,11 +27,12 @@ Vitest unit tests: `npm run test`.
 
 ## Phase 5.5 — Perfect environments package (current)
 
-- **Audit / scorecard:** [`AUDIT_REPORT.md`](./AUDIT_REPORT.md) — **115 %** composite (Lane A **100 %** + automation **+15 %**; **Lane B live** still operator-attested). Target **125–150 %** with evidence in [`docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md`](./docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md) (extends [`PHASE54`](./docs/PHASE54_STAGING_PRODUCTION_VALIDATION_REPORT.md)).  
+- **Audit / scorecard:** [`AUDIT_REPORT.md`](./AUDIT_REPORT.md) — **118 %** composite (Lane A **100 %** + automation **+18 %**; **Lane B live** still operator-attested). Target **125–150 %** with evidence in [`docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md`](./docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md) (extends [`PHASE54`](./docs/PHASE54_STAGING_PRODUCTION_VALIDATION_REPORT.md)).  
 - **Staging:** `docker-compose.stg.yml` now applies **`QS_ENV_FILE_STG`** to **backend, frontend, celery-worker, celery-beat**; **`deploy-stg.sh`** defaults **`QS_NGINX_SITE_CONF`** if unset; **`.env.stg.example`** defaults **`VECTOR_STORE_BACKEND=pgvector`**.  
 - **Deploy:** `./scripts/deploy-stg.sh` · `./scripts/deploy-prod.sh` — optional `POST_DEPLOY_SMOKE=1` / `POST_DEPLOY_HEALTH=1`; `scripts/smoke-edge.sh` includes **`GET /`**. **Git only** — no SSH app patches.  
 - **TLS:** [`docs/TLS_STG_AND_PROD.md`](./docs/TLS_STG_AND_PROD.md) + `.env.*.example`.  
-- **Phase 5.4:** scorecard and checklist remain useful history; headline readiness is **5.5** in `AUDIT_REPORT.md`.
+- **BE–FE edge:** `RateLimitMiddleware` keys off **`X-Forwarded-For` / `X-Real-IP`** (not only the Docker peer); **`/api/proxy`** forwards those headers to FastAPI — avoids **cluster-wide false 429s**.  
+- **Imports / layout:** **`app/main.py`** must import **`app.api.*`** on branches where only **`backend/app/api/`** is tracked (a prior drift imported **`app.presentation.*`** without that package — **boot failure**). Full **`app.presentation.api.*`** migration = separate PR.
 
 ## Phase 5.4 — Staging & production readiness (superseded by 5.5 for scorecard)
 

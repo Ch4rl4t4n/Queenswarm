@@ -50,6 +50,23 @@ async function proxyRequest(request: NextRequest, method: string): Promise<NextR
     headers.set("Authorization", auth);
   }
 
+  const xff = request.headers.get("x-forwarded-for");
+  if (xff?.trim()) {
+    headers.set("X-Forwarded-For", xff.trim());
+  }
+  const xrip = request.headers.get("x-real-ip");
+  if (xrip?.trim()) {
+    headers.set("X-Real-IP", xrip.trim());
+  }
+  const xfProto = request.headers.get("x-forwarded-proto");
+  if (xfProto?.trim()) {
+    headers.set("X-Forwarded-Proto", xfProto.trim());
+  }
+  const xfHost = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  if (xfHost?.trim()) {
+    headers.set("X-Forwarded-Host", xfHost.trim());
+  }
+
   const contentType = request.headers.get("content-type");
   if (contentType) {
     headers.set("Content-Type", contentType);

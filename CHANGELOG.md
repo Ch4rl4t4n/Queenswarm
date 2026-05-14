@@ -7,8 +7,9 @@
 - **Smoke:** `scripts/smoke-edge.sh` — **`GET /`** (2xx/3xx) after `/health`.  
 - **Env examples:** `.env.stg.example` / `.env.prod.example` / **`.env.production.example`** — **`VECTOR_STORE_BACKEND=pgvector`** (Qdrant removed from baseline stacks; `qdrant` still coerced in Settings).  
 - **Nginx:** restored **`deploy/nginx/conf.d/queenswarm.love.conf`** HTTP server block; sync comments with **`deploy/nginx/queenswarm.love.conf`**.  
-- **Docs / audit:** [`docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md`](./docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md); **`AUDIT_REPORT.md`** Phase **5.5** composite **115 %** (Lane B still operator-owned).  
-- **README:** Phase 5.5 section (current).
+- **BE–FE:** `RateLimitMiddleware` uses **`X-Forwarded-For` / `X-Real-IP`** for client keys; Next **`/api/proxy`** forwards **`X-Forwarded-*`** / **`X-Real-IP`** to FastAPI; **`tests/test_rate_limit_peer_ip_unit.py`** (4 tests).  
+- **Docs / audit:** [`docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md`](./docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md) expanded to **final** cockpit matrix + OAuth; **`AUDIT_REPORT.md`** composite **118 %** (Lane B still operator-owned).  
+- **README:** Phase 5.5 scorecard **118 %**; BE–FE proxy + import audit bullets.
 
 ## Phase 5.4 — staging + production readiness package (2026-05-14)
 

@@ -18,6 +18,33 @@ logger = get_logger(__name__)
 _RATE_KEY_PREFIX = "queenswarm:rl"
 
 
+def peer_ip_for_rate_limit(request: Request) -> str:
+    """Resolve the logical client IP for rate-limit keys behind nginx / Next.js proxy.
+
+    Without ``X-Forwarded-For`` / ``X-Real-IP``, every browser session collapses to the
+    reverse-proxy container IP (single Redis bucket → false 429s for the whole hive).
+
+    Args:
+        request: Incoming ASGI request.
+
+    Returns:
+        Best-effort peer label (never empty; ``unknown`` if no socket client).
+    """
+
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        first = xff.split(",")[0].strip()
+        if first:
+            return first
+    xri = request.headers.get("x-real-ip")
+    if xri:
+        trimmed = xri.strip()
+        if trimmed:
+            return trimmed
+    client = request.client
+    return client.host if client else "unknown"
+
+
 def _is_agent_run_post(path: str, method: str) -> bool:
     """Return ``True`` for ``POST …/agents/{id}/run`` style routes."""
 
@@ -59,14 +86,20 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         path = request.url.path
-        if path in self.EXEMPT_PATHS or path.startswith("/static"):
+        norm = path.rstrip("/") or "/"
+        if (
+            path in self.EXEMPT_PATHS
+            or norm in self.EXEMPT_PATHS
+            or path.startswith("/static")
+            or path.startswith("/api/docs")
+            or path.startswith("/api/openapi")
+        ):
             return await call_next(request)
 
         if not settings.rate_limit_enabled:
             return await call_next(request)
 
-        client = request.client
-        ip_label = client.host if client else "unknown"
+        ip_label = peer_ip_for_rate_limit(request)
         rl_log = logger.bind(agent_id="rate_limit_gate", swarm_id="", task_id="")
 
         try:

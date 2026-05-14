@@ -1,13 +1,13 @@
 # Queenswarm — Production Readiness Audit (**Phase 5.5**)
 
 **Date:** 2026-05-14  
-**Scope:** **Perfect-environments package (repo Lane A)** — staging compose parity for **Celery + env files**, **safe nginx default** when `QS_NGINX_SITE_CONF` is missing, **postgres healthcheck** with explicit DB, **smoke-edge** `GET /`, **env examples** aligned to **pgvector-only** baseline Compose, nginx **conf.d ↔ root prod vhost** sync comments, and operator checklist **[`docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md`](./docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md)**.
+**Scope:** **Perfect-environments + final BE–FE integration (repo Lane A)** — **`app/main.py` repaired** to import **`app.api.*`** (matches the **tracked** API tree on `main`); staging compose parity (**Celery + env files**); **safe nginx default** when `QS_NGINX_SITE_CONF` is missing; **postgres** healthcheck with explicit DB; **smoke-edge** `GET /`; **pgvector** env examples; nginx **conf.d ↔ prod vhost** integrity; **`RateLimitMiddleware`** uses **`X-Forwarded-For` / `X-Real-IP`** (`backend/app/api/middleware/rate_limit.py`); **Next `/api/proxy`** forwards **`X-Forwarded-*`** to FastAPI; presentation-layer **rename** documented as **deferred** until merged wholesale; final checklist **[`docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md`](./docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md)**.
 
 ---
 
 ## Brutal honesty (read first)
 
-**Git cannot certify** that `stg.queenswarm.love` and `queenswarm.love` are “100 % perfect” **live** — that still needs **your** TLS PEMs, **your** `./scripts/deploy-stg.sh` / `./scripts/deploy-prod.sh` runs, and **your** browser + API evidence. This phase removes **known repo foot-guns** that caused wrong env inheritance, wrong edge routing defaults, and misleading Qdrant-oriented examples after the pgvector migration.
+**Git cannot certify** that `stg.queenswarm.love` and `queenswarm.love` are “100 % perfect” **live** — that still needs **your** TLS PEMs, **your** `./scripts/deploy-stg.sh` / `./scripts/deploy-prod.sh` runs, and **your** browser + API evidence. This phase removes **known repo foot-guns** that caused wrong env inheritance, wrong edge routing defaults, misleading Qdrant-oriented examples after the pgvector migration, and **false cluster-wide 429s** from rate-limit keys that ignored **`X-Forwarded-For`** behind nginx / the Next.js BFF proxy.
 
 **Strict workflow:** all changes in **git** → **commit + push** → deploy **only** via **`./scripts/deploy-stg.sh`** / **`./scripts/deploy-prod.sh`**. No SSH edits to app code on servers.
 
@@ -25,12 +25,12 @@
 
 | Component | Max | This drop (evidence) |
 |-----------|-----|----------------------|
-| **Core repo readiness** | **100 %** | **100 %** — staging Celery/beat + backend/frontend bound to **`QS_ENV_FILE_STG`**; staging **postgres** healthcheck `-d ${POSTGRES_DB}`; frontend waits for **healthy** backend; **`deploy-stg.sh`** defaults **`QS_NGINX_SITE_CONF`**; **`.env.*.example`** default **pgvector**; **conf.d** prod nginx header repair + sync comments; **`smoke-edge`** probes **`GET /`**. |
-| **Automation bonus** | **+25 %** | **+15 %** — `docker compose … config` (stg + prod) with explicit env paths; `bash -n` on deploy/smoke scripts; **`pytest tests/test_vectorstore_factory_unit.py --no-cov`** (3 passed). *Full `pytest --cov` / Playwright not run as a single gate here.* |
+| **Core repo readiness** | **100 %** | **100 %** — prior 5.5 items **plus** **`peer_ip_for_rate_limit`** + proxy header relay + **`/api/docs`** / **`/api/openapi`** rate-limit bypass + trailing-slash exempt normalization. |
+| **Automation bonus** | **+25 %** | **+18 %** — `docker compose … config` (stg + prod); `bash -n` on deploy/smoke; **`pytest tests/test_vectorstore_factory_unit.py --no-cov`** (3 passed); **`pytest tests/test_rate_limit_peer_ip_unit.py --no-cov`** (4 passed). *Full `pytest --cov` / Playwright not run as a single gate here.* |
 | **Live smoke bonus** | **+25 %** | **+0 %** — not run against public DNS in this session (no falsified green). |
-| **Composite (capped 150 %)** | **150 %** | **115 %** = `min(150, 100 + 15 + 0)` |
+| **Composite (capped 150 %)** | **150 %** | **118 %** = `min(150, 100 + 18 + 0)` |
 
-**Interpretation:** **115 %** = Lane A release blockers from Phase 5.4 **plus** worker/env + smoke hardening. Reserve **+35 %** for Lane B: successful **`smoke-edge`** on **both** origins + completed **PHASE55** matrix (optionally raise headline to **125–150 %** with pasted evidence per internal checklist rules).
+**Interpretation:** **118 %** = Lane A **100 %** + stronger automation evidence for **BE–FE edge correctness**. Reserve **+32 %** for Lane B: successful **`smoke-edge`** on **both** origins + completed **PHASE55** matrix (optionally raise headline to **125–150 %** with pasted evidence per internal checklist rules).
 
 ---
 
@@ -51,10 +51,23 @@
 | 11 | **Examples still said Qdrant** after Compose removal | **pgvector** defaults + comments | `.env.stg.example`, `.env.prod.example`, **`.env.production.example`** |
 | 12 | **No smoke for HTML edge** | **`GET /`** in **`smoke-edge.sh`** | `scripts/smoke-edge.sh` |
 | 13 | **conf.d prod nginx corrupted / drift** | Restored **80** server block + **sync** comments | `deploy/nginx/conf.d/queenswarm.love.conf`, `deploy/nginx/queenswarm.love.conf` |
+| 14 | **429 / flaky API** — all users shared one rate-limit bucket behind nginx / Next BFF | **`peer_ip_for_rate_limit()`** prefers **`X-Forwarded-For`** then **`X-Real-IP`** then TCP peer | **`backend/app/api/middleware/rate_limit.py`** |
+| 15 | Backend never saw browser IP through **`/api/proxy`** | Forward **`X-Forwarded-For`**, **`X-Real-IP`**, **`X-Forwarded-Proto`**, **`X-Forwarded-Host`** on upstream **fetch** | `frontend/app/api/proxy/[...path]/route.ts` |
+| 16 | **Health/docs paths** + trailing slashes tripped limiter | Exempt **normalized** paths + **`/api/docs`** + **`/api/openapi`** prefixes | **`backend/app/api/middleware/rate_limit.py`** |
+| 17 | **`app/main.py` imported missing `app.presentation.*`** (package not on `main`) | **Restore `app.api.*` imports** to match tracked tree | `backend/app/main.py` |
+| 18 | **`app.api` → `app.presentation.api` migration** | **Deferred** on `main` — ship as one coherent PR when the presentation package is added | future PR |
 
 **Not fixable from git alone:** live **403/500** on individual cockpit pages until secrets, migrations, Neo4j, and LLM keys exist on the host — triage with **`docker compose logs`** after deploy.
 
 ---
+
+## Import audit (``app.api`` vs ``app.presentation.api``)
+
+**On `main` today:** the **tracked** HTTP surface lives under **`app.api.*`** (routers, deps, middleware, **`api_v1`**). A prior commit pointed **`app/main.py`** at **`app.presentation.*`** without adding that package — **import-time failure**. Phase 5.5 **restores `app/main.py` to `app.api.*`**.
+
+**Future:** when moving to **`app.presentation.api.*`**, merge **all** modules + tests in one branch so imports never reference a non-existent package.
+
+**Sanity check:** `git grep 'from app\\.presentation' HEAD -- '*.py'` → **no matches** after this commit (entrypoints aligned with **`app.api.*`**).
 
 ## Lane A — BE ↔ FE matrix (summary)
 
@@ -62,7 +75,7 @@
 |------|-----------|
 | Dashboard API | Browser → **`/api/proxy/...`** → **`INTERNAL_BACKEND_ORIGIN`** + **`/api/v1/...`**; Bearer from **`qs_dashboard_at`** or **`HIVE_PROXY_JWT`**. |
 | Auth | **`/api/auth/*`** bypass in **`frontend/middleware.ts`**. |
-| Rate limits | **`RateLimitMiddleware`** exempts health, metrics, docs, … |
+| Rate limits | **`RateLimitMiddleware`** — per-IP Redis windows using **forwarded client IP**; exempts health/metrics/static + **`/api/docs`**/**`/api/openapi`** prefixes + trailing-slash aliases of exact exempt paths. |
 | Vectors | **`VECTOR_STORE_BACKEND=pgvector`** (table **`hive_vector_documents`**); deprecated **`qdrant`** string **coerced** in **`Settings`** (`backend/app/core/config.py`). |
 | Graph | Neo4j — readiness flags in settings. |
 | Monitoring | **`GET /api/v1/operator/monitoring/snapshot`**. |
@@ -113,4 +126,4 @@ Operator runbook: **[`docs/TLS_STG_AND_PROD.md`](./docs/TLS_STG_AND_PROD.md)**.
 
 ## One-line summary
 
-**Phase 5.5 hardens staging worker/env wiring, nginx vhost defaults, env examples for pgvector, smoke coverage for `GET /`, and nginx prod conf.d integrity — Lane A to **100 %**; composite **115 %** until you supply live Lane B evidence.**
+**Phase 5.5** delivers Lane A **100 %** readiness (compose, nginx, env templates, smoke, import hygiene, **BE–FE proxy + rate-limit IP correctness**); composite **118 %** until you attach live Lane B evidence in **PHASE55**.
