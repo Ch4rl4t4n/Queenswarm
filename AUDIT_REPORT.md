@@ -5,6 +5,17 @@
 
 ---
 
+## Delivery workflow (strict — Phase 5.3 onward)
+
+| Rule | Detail |
+|------|--------|
+| **Source of truth** | Všetky opravy BE/FE, nginx šablón a skriptov sú **iba v tomto git repozitári** (commit na `main` alebo merge cez PR). |
+| **Žiadne SSH úpravy aplikácie** | Nepatchuj staging/prod kontajnery ani kód na hostiteľovi cez SSH — zmeny sú neauditovateľné a mimo CI. |
+| **Nasadenie** | Staging: **`./scripts/deploy-stg.sh`** (Docker + `.env.stg` + checkout repa). Produkcia: **`./scripts/deploy-prod.sh`** s `.env.prod`. |
+| **Po deployi** | Voliteľné `POST_DEPLOY_SMOKE=1` / `POST_DEPLOY_HEALTH=1`. Ak ešte **nie je** platný TLS SAN pre `DOMAIN`, použi `SMOKE_INSECURE_TLS=1` — pri `POST_DEPLOY_SMOKE=1` ho **`deploy-stg.sh`** predáva do `smoke-edge.sh`. |
+
+---
+
 ## Executive verdict
 
 | Lane | Description | Status |

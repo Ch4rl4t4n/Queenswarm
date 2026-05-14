@@ -32,4 +32,6 @@ Vitest unit tests: `npm run test`.
 - **Smoke:** `TARGET=stg ./scripts/smoke-edge.sh` — if the edge cert does not yet include your staging hostname, use **`SMOKE_INSECURE_TLS=1`** (see script header).  
 - **Readiness URL:** **`/health/ready`** on the **origin** (not `/api/v1/health/ready`). Staging nginx must use prefix **`location /health`** so readiness reaches FastAPI (shipped in `deploy/nginx/stg.queenswarm.love.conf`).  
 - **Vectors:** default **pgvector** (`VECTOR_STORE_BACKEND`); Qdrant removed from baseline Compose.  
-- **Gotcha:** dashboard “Hive link severed” is the **route error boundary** — usually proxy/upstream or an uncaught client exception; see audit for the matrix of `/api/proxy/*` → `/api/v1/*`.
+- **Workflow (striktné):** zmeny **len v git repozitári**; nasadenie **iba** cez **`./scripts/deploy-stg.sh`** / **`./scripts/deploy-prod.sh`** — žiadne úpravy aplikácie na serveri cez SSH. Podrobnosti v [`AUDIT_REPORT.md`](./AUDIT_REPORT.md) sekcia *Delivery workflow*.  
+- **Po deployi:** `POST_DEPLOY_SMOKE=1 POST_DEPLOY_HEALTH=1` (voliteľné); pri zlom TLS certe dočasne `SMOKE_INSECURE_TLS=1` (predáva sa z `deploy-stg.sh` pri post-deploy smoke).  
+- **Gotcha:** „Hive link severed“ je **error boundary** dashboardu — typicky 502 z proxy alebo nechytená chyba v segmente; pozri maticu `/api/proxy/*` → `/api/v1/*` v audite.

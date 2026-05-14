@@ -15,7 +15,9 @@
 - **`scripts/smoke-edge.sh`:** **`SMOKE_INSECURE_TLS=1`** → `curl -k` for broken edge certs during bring-up.  
 - **`docs/PHASE53_STAGING_VALIDATION_REPORT.md`:** TLS + readiness URL notes + insecure smoke example.  
 - **`README.md`:** Phase 5.3 score + smoke flags + `/health/ready` clarification.  
-- **UI (earlier in Phase 5.3):** Dashboard `error.tsx` — Tailwind-only “Hive link severed” headline.
+- **UI (earlier in Phase 5.3):** Dashboard `error.tsx` — Tailwind-only “Hive link severed” headline.  
+- **`scripts/deploy-stg.sh`:** `POST_DEPLOY_SMOKE=1` forwards **`SMOKE_INSECURE_TLS`** to `smoke-edge.sh` (default `0`).  
+- **Workflow:** app changes **git-only**; promote via **`./scripts/deploy-stg.sh`** / **`./scripts/deploy-prod.sh`** — no SSH hot-patching of runtime code on servers.
 
 ## Phase R — 2026-05-13 (pre-v1.0.0 ship hardening)
 

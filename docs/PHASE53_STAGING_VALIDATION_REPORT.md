@@ -20,6 +20,7 @@ Executable checklist for **Lane B** after Phase 5.3: prove the cockpit and API a
 
 ## Preconditions
 
+- [ ] **Git-only rule:** žiadne manuálne úpravy kódu na staging/prod hostiteľovi cez SSH — všetko cez commit v repozitári a potom **`./scripts/deploy-stg.sh`** alebo **`./scripts/deploy-prod.sh`**.  
 - [ ] `docker compose … up` healthy: `backend`, `frontend`, `postgres`, `redis`, `neo4j`, `nginx` (staging stack).  
 - [ ] `INTERNAL_BACKEND_ORIGIN` inside `frontend` points at running API (typically `http://backend:8000`).  
 - [ ] Operator JWT cookies path: login via `/login` or `HIVE_PROXY_JWT` set for SSR/dev only — production cockpit should rely on **HttpOnly** cookies.  
