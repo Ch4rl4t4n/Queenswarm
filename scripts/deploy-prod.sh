@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Deploy Queenswarm production (docker compose project: queenswarm_prod).
-# Phase 5.4: backups + TLS reminders; optional post-deploy health-check and smoke.
+# Phase 5.5: backups + TLS reminders; optional post-deploy health-check and smoke.
 #
 # Env:
 #   ENV_FILE — default .env.prod

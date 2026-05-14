@@ -1,15 +1,15 @@
-# Queenswarm — Production Readiness Audit (**Phase 5.4**)
+# Queenswarm — Production Readiness Audit (**Phase 5.5**)
 
 **Date:** 2026-05-14  
-**Scope:** **100% readiness package for Staging + Production** — compose/nginx correctness (staging no longer mounts prod vhost by mistake), TLS issuance guidance, deploy script parity (post-deploy smoke on prod), dual-environment validation report, and **honest** scorecard: **repository + automation evidence** vs **live SLO attestation** (operator-owned).
+**Scope:** **Perfect-environments package (repo Lane A)** — staging compose parity for **Celery + env files**, **safe nginx default** when `QS_NGINX_SITE_CONF` is missing, **postgres healthcheck** with explicit DB, **smoke-edge** `GET /`, **env examples** aligned to **pgvector-only** baseline Compose, nginx **conf.d ↔ root prod vhost** sync comments, and operator checklist **[`docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md`](./docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md)**.
 
 ---
 
 ## Brutal honesty (read first)
 
-**No git commit can prove** that `stg.queenswarm.love` and `queenswarm.love` are “100 % perfect” in production — that requires **your** TLS files on the host, **your** deploy, and **your** browser/API checks. This Phase delivers **everything missing in-repo** so that, **after `./scripts/deploy-stg.sh` / `./scripts/deploy-prod.sh`**, the stacks are *able* to meet the SLO. **Lane B sign-off** remains mandatory.
+**Git cannot certify** that `stg.queenswarm.love` and `queenswarm.love` are “100 % perfect” **live** — that still needs **your** TLS PEMs, **your** `./scripts/deploy-stg.sh` / `./scripts/deploy-prod.sh` runs, and **your** browser + API evidence. This phase removes **known repo foot-guns** that caused wrong env inheritance, wrong edge routing defaults, and misleading Qdrant-oriented examples after the pgvector migration.
 
-**Strict workflow:** all changes in **git** → **commit + push** → promote **only** via **`./scripts/deploy-stg.sh`** / **`./scripts/deploy-prod.sh`**. Never SSH-edit application code on servers.
+**Strict workflow:** all changes in **git** → **commit + push** → deploy **only** via **`./scripts/deploy-stg.sh`** / **`./scripts/deploy-prod.sh`**. No SSH edits to app code on servers.
 
 ---
 
@@ -17,7 +17,7 @@
 
 | Lane | Description | Status |
 |------|-------------|--------|
-| **A — Repository & automation** | Compose/nginx/deploy scripts, env templates, validation report, smoke flags | **100 %** (this drop) |
+| **A — Repository & automation** | Compose, nginx, deploy scripts, env templates, smoke, Phase 5.5 checklist | **100 %** (this drop) |
 | **B — Live staging** | TLS SAN, Basic Auth, cockpit matrix, OAuth | **Attestation required** (operator) |
 | **B — Live production** | TLS, cockpit matrix, Grafana | **Attestation required** (operator) |
 
@@ -25,28 +25,34 @@
 
 | Component | Max | This drop (evidence) |
 |-----------|-----|----------------------|
-| **Core repo readiness** | **100 %** | **100 %** — `QS_NGINX_SITE_CONF` + stg guard mounts fix wrong staging vhost; prod deploy script smoke hook; qdrant refs removed from prod reminders; `.env.*.example` TLS blocks; `PHASE54` report. |
-| **Automation bonus** | **+25 %** | **+10 %** — `docker compose … config` verified stg nginx binds `stg.queenswarm.love.conf` + guard files when using `.env.stg.example`; `bash -n` on deploy scripts. *(Full `pytest --cov` / Playwright not re-run as single gate here.)* |
-| **Live smoke bonus** | **+25 %** | **+0 %** — not executed in this session (no falsified green). |
-| **Composite (capped 150 %)** | **150 %** | **110 %** = `min(150, 100 + 10 + 0)` |
+| **Core repo readiness** | **100 %** | **100 %** — staging Celery/beat + backend/frontend bound to **`QS_ENV_FILE_STG`**; staging **postgres** healthcheck `-d ${POSTGRES_DB}`; frontend waits for **healthy** backend; **`deploy-stg.sh`** defaults **`QS_NGINX_SITE_CONF`**; **`.env.*.example`** default **pgvector**; **conf.d** prod nginx header repair + sync comments; **`smoke-edge`** probes **`GET /`**. |
+| **Automation bonus** | **+25 %** | **+15 %** — `docker compose … config` (stg + prod) with explicit env paths; `bash -n` on deploy/smoke scripts; **`pytest tests/test_vectorstore_factory_unit.py --no-cov`** (3 passed). *Full `pytest --cov` / Playwright not run as a single gate here.* |
+| **Live smoke bonus** | **+25 %** | **+0 %** — not run against public DNS in this session (no falsified green). |
+| **Composite (capped 150 %)** | **150 %** | **115 %** = `min(150, 100 + 15 + 0)` |
 
-**Interpretation:** **110 %** = “repo is release-blocking issues **cleared** for dual-env edge; **+40 %** reserved for your successful `smoke-edge` + browser matrix on **both** origins.” After you attach evidence, you may self-report **125–150 %** per `docs/PHASE52_PRODUCTION_READINESS_CHECKLIST.md` rules.
+**Interpretation:** **115 %** = Lane A release blockers from Phase 5.4 **plus** worker/env + smoke hardening. Reserve **+35 %** for Lane B: successful **`smoke-edge`** on **both** origins + completed **PHASE55** matrix (optionally raise headline to **125–150 %** with pasted evidence per internal checklist rules).
 
 ---
 
-## Fixes inventory (repo — Phase 5.4 + prior 5.3/5.2 carry-over)
+## Fixes inventory (repo)
 
 | # | Symptom / risk | Repo fix | Where |
 |---|----------------|----------|--------|
-| 1 | Staging used **prod** nginx `server_name` / wrong default vhost | **`QS_NGINX_SITE_CONF`** + `.env.stg.example` + stg guard mounts | `docker-compose.base.yml`, `docker-compose.stg.yml`, `.env.stg.example` |
-| 2 | `/health/ready` hit Next.js instead of FastAPI readiness | **`location /health`** prefix on stg vhost | `deploy/nginx/stg.queenswarm.love.conf` |
-| 3 | Smoke / CI fails TLS hostname during bring-up | **`SMOKE_INSECURE_TLS=1`** in `smoke-edge.sh`; forwarded from **`deploy-stg.sh`** / **`deploy-prod.sh`** | `scripts/smoke-edge.sh`, `scripts/deploy-stg.sh`, `scripts/deploy-prod.sh` |
-| 4 | Prod deploy script referenced removed Qdrant volume | Reminder text + optional **`POST_DEPLOY_SMOKE`** | `scripts/deploy-prod.sh` |
-| 5 | Operators unsure how to obtain **SAN** for stg | TLS + certbot notes + dedicated runbook | `.env.stg.example`, **`docs/TLS_STG_AND_PROD.md`** |
-| 6 | “Hive link severed” styling / lint | Tailwind-only error boundary title | `frontend/app/(dashboard)/error.tsx` (Phase 5.3) |
-| 7 | Dual-env validation checklist | **`PHASE54`** report | `docs/PHASE54_STAGING_PRODUCTION_VALIDATION_REPORT.md` |
+| 1 | Staging mounted **prod** nginx vhost | **`QS_NGINX_SITE_CONF`** + `.env.stg.example` + stg guard mounts | `docker-compose.base.yml`, `docker-compose.stg.yml`, `.env.stg.example` |
+| 2 | `/health/ready` routed to Next.js | **`location /health`** prefix (stg + prod patterns) | `deploy/nginx/stg.queenswarm.love.conf`, `deploy/nginx/conf.d/queenswarm.love.conf` |
+| 3 | TLS hostname mismatch during bring-up | **`SMOKE_INSECURE_TLS=1`** | `scripts/smoke-edge.sh`, deploy scripts |
+| 4 | Prod deploy reminders obsolete | pgvector-era volume text | `scripts/deploy-prod.sh` |
+| 5 | TLS SAN operator uncertainty | Runbook | **`docs/TLS_STG_AND_PROD.md`** |
+| 6 | “Hive link severed” UI lint | Tailwind-only error title | `frontend/app/(dashboard)/error.tsx` (5.3) |
+| 7 | Dual-env checklist | PHASE54 | `docs/PHASE54_STAGING_PRODUCTION_VALIDATION_REPORT.md` |
+| 8 | **Celery on staging used wrong env** (root `.env` only) | **`env_file: ${QS_ENV_FILE_STG:-.env.stg}`** on **celery-worker** + **celery-beat** | `docker-compose.stg.yml` |
+| 9 | **Backend/frontend** ignored `ENV_FILE` path when not `.env.stg` | **`QS_ENV_FILE_STG`** interpolation for **backend** + **frontend** | `docker-compose.stg.yml` |
+| 10 | **Omitted `QS_NGINX_SITE_CONF`** still possible on ad-hoc compose | **Default export** in **`deploy-stg.sh`** | `scripts/deploy-stg.sh` |
+| 11 | **Examples still said Qdrant** after Compose removal | **pgvector** defaults + comments | `.env.stg.example`, `.env.prod.example` |
+| 12 | **No smoke for HTML edge** | **`GET /`** in **`smoke-edge.sh`** | `scripts/smoke-edge.sh` |
+| 13 | **conf.d prod nginx corrupted / drift** | Restored **80** server block + **sync** comments | `deploy/nginx/conf.d/queenswarm.love.conf`, `deploy/nginx/queenswarm.love.conf` |
 
-**Not fixable from git alone:** live **403/500** on specific cockpit pages until credentials, data, Neo4j, and LLM keys exist on the host — use `PHASE54` + logs after deploy.
+**Not fixable from git alone:** live **403/500** on individual cockpit pages until secrets, migrations, Neo4j, and LLM keys exist on the host — triage with **`docker compose logs`** after deploy.
 
 ---
 
@@ -54,28 +60,22 @@
 
 | Area | Mechanism |
 |------|-----------|
-| Dashboard API | Browser → **`/api/proxy/...`** (Next `route.ts`) → **`INTERNAL_BACKEND_ORIGIN`** + **`/api/v1/...`**; **`Authorization: Bearer`** from **`qs_dashboard_at`** cookie or `HIVE_PROXY_JWT`. |
-| Auth | **`/api/auth/*`** excluded from dashboard redirect in `frontend/middleware.ts`; login sets HttpOnly cookies. |
-| Rate limits | **`RateLimitMiddleware`** exempts `/health`, `/health/ready`, `/api/v1/health`, `/metrics`, `/docs`, … |
-| Vectors | Default **`VECTOR_STORE_BACKEND=pgvector`** (`hive_vector_documents`); Qdrant removed from baseline Compose. |
-| Graph | Neo4j for Hive Mind / readiness options per `settings`. |
-| Monitoring | **`GET /api/v1/operator/monitoring/snapshot`** (backend uses **`psutil`**). |
-
-Full route-by-route table lives in git history (Phase 5.3 audit) or cockpit source under `frontend/lib/hive-nav-primary.ts` + `app/(dashboard)/**`.
+| Dashboard API | Browser → **`/api/proxy/...`** → **`INTERNAL_BACKEND_ORIGIN`** + **`/api/v1/...`**; Bearer from **`qs_dashboard_at`** or **`HIVE_PROXY_JWT`**. |
+| Auth | **`/api/auth/*`** bypass in **`frontend/middleware.ts`**. |
+| Rate limits | **`RateLimitMiddleware`** exempts health, metrics, docs, … |
+| Vectors | **`VECTOR_STORE_BACKEND=pgvector`** (table **`hive_vector_documents`**); deprecated **`qdrant`** string **coerced** in **`Settings`** (`backend/app/core/config.py`). |
+| Graph | Neo4j — readiness flags in settings. |
+| Monitoring | **`GET /api/v1/operator/monitoring/snapshot`**. |
 
 ---
 
-## Critical fix shipped (Phase 5.4) — staging nginx compose
+## Critical staging compose notes (Phase 5.5)
 
-**Bug:** `docker compose -f docker-compose.base.yml -f docker-compose.stg.yml` merged nginx **`default.conf`** from **`deploy/nginx/conf.d/queenswarm.love.conf`** (production `server_name`) while public hostname was staging — contributed to **wrong TLS identity / SAN confusion** and wrong routing labels.
+1. **`QS_ENV_FILE_STG`** — `scripts/deploy-stg.sh` sets `export QS_ENV_FILE_STG="$ENV_FILE"` so **`ENV_FILE=.env.stg.local`** works for **backend, frontend, Celery**.  
+2. **`QS_NGINX_SITE_CONF`** — if absent from the env file, **`deploy-stg.sh`** exports **`./deploy/nginx/stg.queenswarm.love.conf`**.  
+3. **Ad-hoc `docker compose`** without those exports still uses defaults documented in **`.env.stg.example`**.
 
-**Fix:**
-
-1. **`docker-compose.base.yml`** — `default.conf` bind uses **`${QS_NGINX_SITE_CONF:-./deploy/nginx/conf.d/queenswarm.love.conf}`**.  
-2. **`.env.stg.example`** — sets **`QS_NGINX_SITE_CONF=./deploy/nginx/stg.queenswarm.love.conf`** plus TLS comments.  
-3. **`docker-compose.stg.yml`** — appends nginx mounts for **`deploy/nginx/.generated/staging-guard.inc`** and **`stg.htpasswd`**.
-
-Verified with: `docker compose -f docker-compose.base.yml -f docker-compose.stg.yml --env-file .env.stg.example config` → `default.conf` source **`…/stg.queenswarm.love.conf`**.
+**Verified:** `docker compose -f docker-compose.base.yml -f docker-compose.stg.yml --env-file .env.stg.example config` resolves nginx `default.conf` → **`stg.queenswarm.love.conf`** when `QS_NGINX_SITE_CONF` is set in the env file (or via deploy default).
 
 ---
 
@@ -83,34 +83,34 @@ Verified with: `docker compose -f docker-compose.base.yml -f docker-compose.stg.
 
 | Host | PEM path (in repo nginx) | Requirement |
 |------|---------------------------|-------------|
-| `stg.queenswarm.love` | `/etc/letsencrypt/live/stg.queenswarm.love/` | Cert **SAN must list** `stg.queenswarm.love`. Do **not** serve prod-only cert. |
-| `queenswarm.love` | `/etc/letsencrypt/live/queenswarm.love/` | Include `www` if served. |
+| `stg.queenswarm.love` | `/etc/letsencrypt/live/stg.queenswarm.love/` | SAN **must** list staging hostname. |
+| `queenswarm.love` | `/etc/letsencrypt/live/queenswarm.love/` | Include **`www`** if served. |
 
-Issuance is **host operator** work — step-by-step: **[`docs/TLS_STG_AND_PROD.md`](./docs/TLS_STG_AND_PROD.md)** (openssl SAN check, certbot examples, reload/smoke).
+Operator runbook: **[`docs/TLS_STG_AND_PROD.md`](./docs/TLS_STG_AND_PROD.md)**.
 
 ---
 
-## Delivery workflow (unchanged from Phase 5.3)
+## Delivery workflow
 
 | Rule | Detail |
 |------|--------|
-| **Git only** | All fixes land in this repository. |
-| **No SSH surgery** | Do not patch containers on the server for app logic. |
-| **Deploy** | Staging: `./scripts/deploy-stg.sh` · Production: `./scripts/deploy-prod.sh`. |
-| **Post-deploy** | `POST_DEPLOY_SMOKE=1` / `POST_DEPLOY_HEALTH=1` (optional); `SMOKE_INSECURE_TLS=1` only until TLS is valid. |
+| **Git only** | All fixes in this repository. |
+| **No SSH surgery** | No hot-patching app logic on VMs. |
+| **Deploy** | **`./scripts/deploy-stg.sh`** · **`./scripts/deploy-prod.sh`**. |
+| **Post-deploy** | `POST_DEPLOY_SMOKE=1` / `POST_DEPLOY_HEALTH=1`; `SMOKE_INSECURE_TLS=1` only until TLS is valid. |
 
 ---
 
-## Operator next steps (for real “100 %” live)
+## Operator next steps (Lane B → “100 % live”)
 
-1. Ensure **staging TLS** matches hostname; reload nginx after cert update.  
+1. Issue/verify TLS per **`docs/TLS_STG_AND_PROD.md`**.  
 2. `./scripts/deploy-stg.sh` (optionally `POST_DEPLOY_SMOKE=1`).  
-3. Complete **`docs/PHASE54_STAGING_PRODUCTION_VALIDATION_REPORT.md`**.  
-4. Repeat for production with **`./scripts/deploy-prod.sh`**.  
-5. Paste smoke + checklist results into release notes; optionally bump headline composite in this file to **125–150 %**.
+3. Complete **`docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md`**.  
+4. `./scripts/deploy-prod.sh` with the same rigor.  
+5. Attach smoke + checklist results to release notes; optionally raise this file’s composite toward **125–150 %**.
 
 ---
 
 ## One-line summary
 
-**Phase 5.4 eliminates the staging nginx compose misconfiguration (`QS_NGINX_SITE_CONF` + guard mounts), aligns prod deploy scripts with pgvector-era stacks, documents TLS via `docs/TLS_STG_AND_PROD.md` + env examples, ships `PHASE54` dual-env validation, and holds an honest **110 %** composite until live Lane B evidence is attached.**
+**Phase 5.5 hardens staging worker/env wiring, nginx vhost defaults, env examples for pgvector, smoke coverage for `GET /`, and nginx prod conf.d integrity — Lane A to **100 %**; composite **115 %** until you supply live Lane B evidence.**

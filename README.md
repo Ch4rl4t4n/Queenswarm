@@ -25,14 +25,18 @@ PLAYWRIGHT_BASE_URL=https://queenswarm.love PLAYWRIGHT_IGNORE_TLS_ERRORS=1 npm r
 
 Vitest unit tests: `npm run test`.
 
-## Phase 5.4 — Staging & production readiness (current)
+## Phase 5.5 — Perfect environments package (current)
 
-- **Audit / scorecard:** [`AUDIT_REPORT.md`](./AUDIT_REPORT.md) — **110 %** composite (repo Lane A **100 %** + automation partial; **live Lane B** = you, after deploy). Target **125–150 %** with evidence from [`docs/PHASE54_STAGING_PRODUCTION_VALIDATION_REPORT.md`](./docs/PHASE54_STAGING_PRODUCTION_VALIDATION_REPORT.md).  
-- **Staging nginx:** `.env.stg` must set **`QS_NGINX_SITE_CONF=./deploy/nginx/stg.queenswarm.love.conf`** (in `.env.stg.example`) so compose does **not** mount the production vhost on staging.  
-- **Deploy:** `./scripts/deploy-stg.sh` · `./scripts/deploy-prod.sh` — optional `POST_DEPLOY_SMOKE=1` / `POST_DEPLOY_HEALTH=1` (prod smoke: `TARGET=prd`). **Git only** — no SSH app patches.  
-- **TLS:** issue certs whose **SAN** matches `DOMAIN` for each host — runbook: [`docs/TLS_STG_AND_PROD.md`](./docs/TLS_STG_AND_PROD.md) + `.env.*.example`.  
-- **Phase 5.3 carry-over:** [`docs/PHASE53_STAGING_VALIDATION_REPORT.md`](./docs/PHASE53_STAGING_VALIDATION_REPORT.md) (single-env checklist); smoke still supports **`SMOKE_INSECURE_TLS=1`**.
+- **Audit / scorecard:** [`AUDIT_REPORT.md`](./AUDIT_REPORT.md) — **115 %** composite (Lane A **100 %** + automation **+15 %**; **Lane B live** still operator-attested). Target **125–150 %** with evidence in [`docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md`](./docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md) (extends [`PHASE54`](./docs/PHASE54_STAGING_PRODUCTION_VALIDATION_REPORT.md)).  
+- **Staging:** `docker-compose.stg.yml` now applies **`QS_ENV_FILE_STG`** to **backend, frontend, celery-worker, celery-beat**; **`deploy-stg.sh`** defaults **`QS_NGINX_SITE_CONF`** if unset; **`.env.stg.example`** defaults **`VECTOR_STORE_BACKEND=pgvector`**.  
+- **Deploy:** `./scripts/deploy-stg.sh` · `./scripts/deploy-prod.sh` — optional `POST_DEPLOY_SMOKE=1` / `POST_DEPLOY_HEALTH=1`; `scripts/smoke-edge.sh` includes **`GET /`**. **Git only** — no SSH app patches.  
+- **TLS:** [`docs/TLS_STG_AND_PROD.md`](./docs/TLS_STG_AND_PROD.md) + `.env.*.example`.  
+- **Phase 5.4:** scorecard and checklist remain useful history; headline readiness is **5.5** in `AUDIT_REPORT.md`.
 
-## Phase 5.3 — Staging audit & BE/FE matrix (superseded by 5.4 for scorecard)
+## Phase 5.4 — Staging & production readiness (superseded by 5.5 for scorecard)
+
+- Same deploy/TLS flow as 5.5; 5.5 adds Celery env parity, nginx default export, pgvector examples, and smoke `GET /`.
+
+## Phase 5.3 — Staging audit & BE/FE matrix (superseded by 5.4+ for scorecard)
 
 Details merged into **Phase 5.4** audit and **PHASE54** dual-env report; keep PHASE53 for focused staging-only checks.

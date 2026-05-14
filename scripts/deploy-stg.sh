@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Deploy Queenswarm staging (docker compose project: queenswarm_stg).
-# Phase 5.2: validates nginx guard artifacts, optional post-deploy smoke + health-check.
+# Phase 5.5: nginx vhost default if unset; celery/beat inherit staging env_file; optional post-deploy smoke + health-check.
 #
 # Env:
 #   ENV_FILE — default .env.stg
@@ -97,6 +97,15 @@ fi
 if [[ ! -s "$HTPASS" || ! -s "$GUARD" ]]; then
   echo "Failed to write nginx guard artifacts under ${GEN_DIR}."
   exit 1
+fi
+
+# Phase 5.5: default staging nginx vhost so compose never falls back to production default.conf.
+STG_NGINX_CONF="$(load_kv QS_NGINX_SITE_CONF || true)"
+if [[ -z "${STG_NGINX_CONF// }" ]]; then
+  echo "QS_NGINX_SITE_CONF not set in ${ENV_FILE}; using ./deploy/nginx/stg.queenswarm.love.conf"
+  export QS_NGINX_SITE_CONF="./deploy/nginx/stg.queenswarm.love.conf"
+else
+  export QS_NGINX_SITE_CONF="$STG_NGINX_CONF"
 fi
 
 if [[ "$PREPARE_ONLY" == "1" ]]; then

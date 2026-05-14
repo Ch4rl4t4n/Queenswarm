@@ -11,7 +11,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -43,7 +43,8 @@ services:
   backend:
     build: ./backend
     restart: unless-stopped
-    env_file: .env.stg
+    env_file:
+      - ${QS_ENV_FILE_STG:-.env.stg}
     depends_on:
       postgres:
         condition: service_healthy
@@ -64,13 +65,23 @@ services:
   frontend:
     build: ./frontend
     restart: unless-stopped
-    env_file: .env.stg
+    env_file:
+      - ${QS_ENV_FILE_STG:-.env.stg}
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
       - "3000:3000"
 
-  # Staging edge: Basic Auth fragments (written by ./scripts/deploy-stg.sh before ``up``).
+  celery-worker:
+    env_file:
+      - ${QS_ENV_FILE_STG:-.env.stg}
+
+  celery-beat:
+    env_file:
+      - ${QS_ENV_FILE_STG:-.env.stg}
+
+  # Staging edge: Basic Auth fragments (written by ./scripts/deploy-stg.sh before up).
   nginx:
     volumes:
       - ./deploy/nginx/.generated/staging-guard.inc:/etc/nginx/conf.d/staging-guard.inc:ro

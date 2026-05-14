@@ -1,5 +1,15 @@
 # Queenswarm Changelog
 
+## Phase 5.5 — perfect environments (repo Lane A) (2026-05-14)
+
+- **Compose (`docker-compose.stg.yml`):** `backend` / `frontend` / `celery-worker` / `celery-beat` use **`${QS_ENV_FILE_STG:-.env.stg}`** (pairs with `deploy-stg.sh` `QS_ENV_FILE_STG`); **postgres** healthcheck uses **`pg_isready -U … -d ${POSTGRES_DB}`**; **frontend** waits for **healthy** backend.  
+- **Deploy:** `scripts/deploy-stg.sh` exports default **`QS_NGINX_SITE_CONF=./deploy/nginx/stg.queenswarm.love.conf`** when missing from the env file.  
+- **Smoke:** `scripts/smoke-edge.sh` — **`GET /`** (2xx/3xx) after `/health`.  
+- **Env examples:** `.env.stg.example` / `.env.prod.example` / **`.env.production.example`** — **`VECTOR_STORE_BACKEND=pgvector`** (Qdrant removed from baseline stacks; `qdrant` still coerced in Settings).  
+- **Nginx:** restored **`deploy/nginx/conf.d/queenswarm.love.conf`** HTTP server block; sync comments with **`deploy/nginx/queenswarm.love.conf`**.  
+- **Docs / audit:** [`docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md`](./docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md); **`AUDIT_REPORT.md`** Phase **5.5** composite **115 %** (Lane B still operator-owned).  
+- **README:** Phase 5.5 section (current).
+
 ## Phase 5.4 — staging + production readiness package (2026-05-14)
 
 - **Compose:** `docker-compose.base.yml` nginx `default.conf` now uses **`QS_NGINX_SITE_CONF`** (default production `conf.d/queenswarm.love.conf`); **`.env.stg.example`** sets **`QS_NGINX_SITE_CONF=./deploy/nginx/stg.queenswarm.love.conf`** so staging no longer mounts the prod vhost by mistake. **`docker-compose.stg.yml`** adds bind mounts for **`deploy/nginx/.generated/staging-guard.inc`** and **`stg.htpasswd`**.  

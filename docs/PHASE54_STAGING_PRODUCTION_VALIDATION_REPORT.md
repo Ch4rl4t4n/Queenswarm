@@ -1,7 +1,8 @@
 # Phase 5.4 — Staging & Production Validation Report
 
 **Domains:** `https://stg.queenswarm.love` · `https://queenswarm.love`  
-**Companion audit:** [`/AUDIT_REPORT.md`](../AUDIT_REPORT.md) (Phase 5.4 scorecard)  
+**Companion audit:** [`/AUDIT_REPORT.md`](../AUDIT_REPORT.md) — **Phase 5.5** is the current headline scorecard; this document remains the detailed cockpit matrix.  
+**Phase 5.5 delta:** [`docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md`](./PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md)  
 **Date:** 2026-05-14
 
 ---

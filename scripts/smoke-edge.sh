@@ -84,6 +84,19 @@ echo "-- GET /health"
 curl_auth "${ORIGIN}/health" >/dev/null
 echo "OK"
 
+echo "-- GET / (expect 2xx/3xx; staging uses Basic Auth)"
+if [[ -n "$AUTH_USER" ]]; then
+  root_code="$(curl "${CURL_TLS[@]}" -sS -o /dev/null -w '%{http_code}' -u "${AUTH_USER}:${AUTH_PASS}" --max-time 25 "${ORIGIN}/" || true)"
+else
+  root_code="$(curl "${CURL_TLS[@]}" -sS -o /dev/null -w '%{http_code}' --max-time 25 "${ORIGIN}/" || true)"
+fi
+if [[ "$root_code" =~ ^(200|301|302|303|307|308)$ ]]; then
+  echo "OK (HTTP ${root_code})"
+else
+  echo "UNEXPECTED HTTP ${root_code} for GET /"
+  exit 1
+fi
+
 echo "-- GET /api/v1/health"
 curl_auth "${ORIGIN}/api/v1/health" >/dev/null
 echo "OK"
