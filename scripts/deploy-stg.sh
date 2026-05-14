@@ -160,6 +160,51 @@ docker compose -p queenswarm_stg \
   --env-file "$ENV_FILE" \
   up -d --build
 
+verify_staging_edge() {
+  local domain nginx_id state health https_code http_code i
+  domain="$(load_kv DOMAIN || echo 'stg.queenswarm.love')"
+  nginx_id="$(docker compose -p queenswarm_stg -f docker-compose.base.yml -f docker-compose.stg.yml --env-file "$ENV_FILE" ps -q nginx)"
+  if [[ -z "${nginx_id// }" ]]; then
+    echo "nginx container not found in compose project queenswarm_stg."
+    exit 1
+  fi
+
+  for i in {1..30}; do
+    state="$(docker inspect -f '{{.State.Status}}' "$nginx_id" 2>/dev/null || echo unknown)"
+    health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$nginx_id" 2>/dev/null || echo unknown)"
+    if [[ "$state" == "running" && ( "$health" == "healthy" || "$health" == "none" || "$health" == "starting" ) ]]; then
+      break
+    fi
+    sleep 2
+  done
+
+  if [[ "$state" != "running" ]]; then
+    echo "nginx failed to stay running (state=${state}, health=${health})."
+    docker compose -p queenswarm_stg -f docker-compose.base.yml -f docker-compose.stg.yml --env-file "$ENV_FILE" logs --tail=120 nginx || true
+    exit 1
+  fi
+
+  https_code="$(curl -k -sS -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time 10 "https://127.0.0.1/" -H "Host: ${domain}" || echo 000)"
+  http_code="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time 10 "http://127.0.0.1/health" -H "Host: ${domain}" || echo 000)"
+
+  case "$https_code" in
+    200|301|302|401|403) ;;
+    *)
+      echo "nginx local HTTPS probe failed (code=${https_code})."
+      docker compose -p queenswarm_stg -f docker-compose.base.yml -f docker-compose.stg.yml --env-file "$ENV_FILE" logs --tail=120 nginx || true
+      exit 1
+      ;;
+  esac
+
+  if [[ "$http_code" != "200" ]]; then
+    echo "nginx /health probe via :80 failed (code=${http_code})."
+    docker compose -p queenswarm_stg -f docker-compose.base.yml -f docker-compose.stg.yml --env-file "$ENV_FILE" logs --tail=120 nginx || true
+    exit 1
+  fi
+}
+
+verify_staging_edge
+
 echo "Staging stack up (project queenswarm_stg)."
 echo "Edge: https://$(load_kv DOMAIN || echo 'stg.queenswarm.love') — Basic Auth (+ optional IP bypass); /health is unauthenticated for probes."
 
