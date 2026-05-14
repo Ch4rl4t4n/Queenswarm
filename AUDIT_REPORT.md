@@ -25,7 +25,7 @@
 
 | Component | Max | This drop (evidence) |
 |-----------|-----|----------------------|
-| **Core repo readiness** | **100 %** | **100 %** — prior 5.5 items **plus** **`peer_ip_for_rate_limit`** + proxy header relay + **`/api/docs`** / **`/api/openapi`** rate-limit bypass + trailing-slash exempt normalization. |
+| **Core repo readiness** | **100 %** | **100 %** — **`app/main.py` boot fix** (`app.api.*` only on `main`) **plus** prior 5.5 items; **`peer_ip_for_rate_limit`** + proxy header relay + **`/api/docs`** / **`/api/openapi`** rate-limit bypass + trailing-slash exempt normalization. |
 | **Automation bonus** | **+25 %** | **+18 %** — `docker compose … config` (stg + prod); `bash -n` on deploy/smoke; **`pytest tests/test_vectorstore_factory_unit.py --no-cov`** (3 passed); **`pytest tests/test_rate_limit_peer_ip_unit.py --no-cov`** (4 passed). *Full `pytest --cov` / Playwright not run as a single gate here.* |
 | **Live smoke bonus** | **+25 %** | **+0 %** — not run against public DNS in this session (no falsified green). |
 | **Composite (capped 150 %)** | **150 %** | **118 %** = `min(150, 100 + 18 + 0)` |
