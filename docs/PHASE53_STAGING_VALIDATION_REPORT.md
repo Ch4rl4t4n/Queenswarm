@@ -10,6 +10,12 @@
 
 Executable checklist for **Lane B** after Phase 5.3: prove the cockpit and API are aligned end-to-end on **mobile and desktop**, including auth, proxy, and integration-heavy pages.
 
+### Live audit notes (2026-05-14)
+
+- **TLS:** If `openssl s_client -connect stg.queenswarm.love:443 -servername stg.queenswarm.love` shows a cert **without** `DNS:stg.queenswarm.love`, browsers and strict `curl` will fail hostname verification — renew/mount the correct Let’s Encrypt (or other) certificate before calling staging “green”.  
+- **Readiness:** Probe **`https://<host>/health/ready`** — not `/api/v1/health/ready` (404 by design). After pulling latest nginx config, confirm the JSON includes dependency `checks` (Postgres, Redis, …), not only the short liveness blob.  
+- **CLI smoke with bad cert:** `SMOKE_INSECURE_TLS=1 TARGET=stg ./scripts/smoke-edge.sh`
+
 ---
 
 ## Preconditions
@@ -26,6 +32,9 @@ Executable checklist for **Lane B** after Phase 5.3: prove the cockpit and API a
 ```bash
 # From repo root — staging Basic Auth for API paths per script
 TARGET=stg ./scripts/smoke-edge.sh
+
+# If TLS hostname does not match yet (wrong cert on edge):
+SMOKE_INSECURE_TLS=1 TARGET=stg ./scripts/smoke-edge.sh
 ```
 
 Record HTTP codes: _______________

@@ -27,8 +27,9 @@ Vitest unit tests: `npm run test`.
 
 ## Phase 5.3 — Staging audit & BE/FE matrix
 
-- **Audit / scorecard:** [`AUDIT_REPORT.md`](./AUDIT_REPORT.md) (Phase 5.3 — honest **127 %** composite until live staging checklist is executed).  
+- **Audit / scorecard:** [`AUDIT_REPORT.md`](./AUDIT_REPORT.md) (Phase 5.3 — **138 %** composite: live curl probes + nginx readiness fix; **150 %** after strict TLS + full browser checklist).  
 - **Operator checklist:** [`docs/PHASE53_STAGING_VALIDATION_REPORT.md`](./docs/PHASE53_STAGING_VALIDATION_REPORT.md) (Lane B — mobile + desktop walkthrough).  
-- **Smoke:** `TARGET=stg ./scripts/smoke-edge.sh` (requires network + staging secrets).  
+- **Smoke:** `TARGET=stg ./scripts/smoke-edge.sh` — if the edge cert does not yet include your staging hostname, use **`SMOKE_INSECURE_TLS=1`** (see script header).  
+- **Readiness URL:** **`/health/ready`** on the **origin** (not `/api/v1/health/ready`). Staging nginx must use prefix **`location /health`** so readiness reaches FastAPI (shipped in `deploy/nginx/stg.queenswarm.love.conf`).  
 - **Vectors:** default **pgvector** (`VECTOR_STORE_BACKEND`); Qdrant removed from baseline Compose.  
 - **Gotcha:** dashboard “Hive link severed” is the **route error boundary** — usually proxy/upstream or an uncaught client exception; see audit for the matrix of `/api/proxy/*` → `/api/v1/*`.

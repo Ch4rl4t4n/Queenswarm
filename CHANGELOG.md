@@ -10,10 +10,12 @@
 
 ### Phase 5.3 — staging audit & BE/FE integration (same release line)
 
-- **`AUDIT_REPORT.md`:** Phase 5.3 rewrite — full cockpit ↔ `/api/v1` matrix, auth/proxy notes, pgvector default, Neo4j caveats, **127 %** composite (Lane B not certified from CI sandbox).
-- **`docs/PHASE53_STAGING_VALIDATION_REPORT.md`:** operator-facing staging checklist (mobile + desktop).
-- **`README.md`:** Phase 5.3 quick links + “Hive link severed” troubleshooting pointer.
-- **UI:** Dashboard `error.tsx` — “Hive link severed” headline uses **Tailwind-only** styling (no inline `style` on title).
+- **`AUDIT_REPORT.md`:** Phase 5.3 — **Lane B live curl** (TLS SAN mismatch documented), **`138 %`** composite; path to **150 %** = fix staging cert + full browser checklist.  
+- **`deploy/nginx/stg.queenswarm.love.conf`:** **`location /health`** prefix so **`/health/ready`** reaches FastAPI readiness (was only exact `/health`, so `/health/ready` fell through to Next.js `location /`).  
+- **`scripts/smoke-edge.sh`:** **`SMOKE_INSECURE_TLS=1`** → `curl -k` for broken edge certs during bring-up.  
+- **`docs/PHASE53_STAGING_VALIDATION_REPORT.md`:** TLS + readiness URL notes + insecure smoke example.  
+- **`README.md`:** Phase 5.3 score + smoke flags + `/health/ready` clarification.  
+- **UI (earlier in Phase 5.3):** Dashboard `error.tsx` — Tailwind-only “Hive link severed” headline.
 
 ## Phase R — 2026-05-13 (pre-v1.0.0 ship hardening)
 
