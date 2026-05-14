@@ -19,7 +19,7 @@ def upgrade() -> None:
         sa.text(
             """
             CREATE TABLE IF NOT EXISTS hive_vector_documents (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
                 collection_name TEXT NOT NULL,
                 document TEXT NOT NULL,
                 metadata JSONB NOT NULL DEFAULT '{}'::jsonb,

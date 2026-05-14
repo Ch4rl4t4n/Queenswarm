@@ -1,5 +1,13 @@
 # Queenswarm Changelog
 
+## Phase 5.3 — pgvector single-store (2026-05-14)
+
+- **Vectors:** Default **`VECTOR_STORE_BACKEND=pgvector`** — `PgvectorVectorBackend` + Alembic table **`hive_vector_documents`** (384-d cosine, HNSW). Stable imports remain **`app.core.chroma_client`** (`embed_and_store`, `semantic_search`, `delete_documents_by_ids`, `ping_vector_store`). Legacy **`chroma`** rollback kept. Env **`VECTOR_STORE_BACKEND=qdrant`** coerces to pgvector.
+- **Postgres:** Image **`pgvector/pgvector:pg16`**; extension + table via **`0016_pgvector_hive_vectors`**.
+- **Compose:** Removed **Qdrant** service and **`qdrant_data`** volume from `docker-compose.base.yml`, `docker-compose.yml`, `docker-compose.stg.yml`; production overlay no longer references Qdrant.
+- **Scripts:** **`backend/scripts/migrate_vectors_to_pgvector.py`** (`--from-qdrant`, `--from-chroma`, `--dry-run`). Legacy **`migrate_chroma_to_qdrant.py`** retained for two-hop migrations.
+- **Docs:** `docs/PGVECTOR_MIGRATION_AUDIT.md`.
+
 ## Phase R — 2026-05-13 (pre-v1.0.0 ship hardening)
 
 - Dynamic agent swarm (29 bees / 4 swarms) cockpit refinements  

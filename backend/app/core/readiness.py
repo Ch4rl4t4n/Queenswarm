@@ -11,7 +11,7 @@ from redis.exceptions import RedisError
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.core.chroma_client import get_chroma_client
+from app.core.chroma_client import ping_vector_store
 from app.core.config import settings
 from app.core.database import async_session
 from app.core.logging import get_logger
@@ -68,18 +68,13 @@ async def _check_neo4j() -> CheckResult:
     return {"ok": True, "latency_ms": elapsed_ms}
 
 
-async def _check_chroma() -> CheckResult:
-    """Optional Recipe Library tier — vector daemon may lag without blocking API gate."""
+async def _check_vector_store() -> CheckResult:
+    """Optional vector tier (pgvector in Postgres or legacy Chroma) — failures degrade when not required."""
 
     started = time.perf_counter()
     try:
-        client = await get_chroma_client()
-        heartbeat = getattr(client, "heartbeat", None)
-        if callable(heartbeat):
-            await heartbeat()
-        else:
-            await client.list_collections()
-    except Exception as exc:  # noqa: BLE001 — chroma client emits heterogeneous transport faults
+        await ping_vector_store()
+    except Exception as exc:  # noqa: BLE001 — vector clients emit heterogeneous transport faults
         elapsed_ms = round((time.perf_counter() - started) * 1000, 3)
         return {"ok": False, "latency_ms": elapsed_ms, "error": str(exc)}
     elapsed_ms = round((time.perf_counter() - started) * 1000, 3)
@@ -93,25 +88,25 @@ async def collect_readiness_uncached() -> tuple[dict[str, Any], bool]:
         Tuple of ``(body, critical_ok)`` where ``critical_ok`` requires Postgres + Redis.
     """
 
-    pg, redis_check, neo, chroma = await asyncio.gather(
+    pg, redis_check, neo, vec = await asyncio.gather(
         _check_postgres(),
         _check_redis(),
         _check_neo4j(),
-        _check_chroma(),
+        _check_vector_store(),
     )
 
     checks: dict[str, CheckResult] = {
         "postgres": pg,
         "redis": redis_check,
         "neo4j": neo,
-        "chroma": chroma,
+        "chroma": vec,
     }
 
     critical_ok = bool(pg.get("ok") and redis_check.get("ok"))
     if settings.readiness_require_neo4j:
         critical_ok = critical_ok and bool(neo.get("ok"))
     if settings.readiness_require_chroma:
-        critical_ok = critical_ok and bool(chroma.get("ok"))
+        critical_ok = critical_ok and bool(vec.get("ok"))
     status = "ready" if critical_ok else "not_ready"
 
     optional_required: dict[str, bool] = {}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -59,9 +60,15 @@ class Settings(BaseSettings):
     neo4j_user: str
     neo4j_password: str
 
-    # --- ChromaDB (vectors, Recipe Library semantic recall)
+    # --- ChromaDB (legacy HTTP vectors only when ``VECTOR_STORE_BACKEND=chroma``)
     chroma_host: str = "chromadb"
     chroma_port: int = 8000
+
+    # --- Vector store (PostgreSQL + pgvector default; ``VECTOR_STORE_BACKEND=chroma`` rollback)
+    vector_store_backend: Literal["pgvector", "chroma"] = Field(
+        default="pgvector",
+        description="Hive vector tier: pgvector inside Postgres (default) or legacy Chroma HTTP.",
+    )
 
     plugin_user_dir: str = Field(
         default="/app/plugins/user",
@@ -262,7 +269,7 @@ class Settings(BaseSettings):
     )
     readiness_require_chroma: bool = Field(
         default=False,
-        description="When true, /health/ready returns 503 if ChromaDB heartbeat/list fails.",
+        description="When true, /health/ready returns 503 if the configured vector tier ping fails.",
     )
 
     # --- Domain & CORS (Bee-Hive Dashboard origin)
@@ -280,6 +287,20 @@ class Settings(BaseSettings):
             "http://localhost:3000",
         ]
     )
+
+    @field_validator("vector_store_backend", mode="before")
+    @classmethod
+    def coerce_vector_store_backend(cls, value: object) -> str:
+        """Map deprecated ``qdrant`` env values to pgvector."""
+
+        raw = str(value or "pgvector").strip().lower()
+        if raw in ("qdrant", "qdr", "postgres", "pg"):
+            return "pgvector"
+        if raw == "chroma":
+            return "chroma"
+        if raw == "pgvector":
+            return "pgvector"
+        return "pgvector"
 
     @field_validator("cors_origins", mode="before")
     @classmethod

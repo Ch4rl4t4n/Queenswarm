@@ -40,21 +40,6 @@ services:
       retries: 25
       start_period: 60s
 
-  qdrant:
-    image: qdrant/qdrant:v1.12.4
-    restart: unless-stopped
-    ports:
-      - "6333:6333"
-      - "6334:6334"
-    volumes:
-      - qdrant_data:/qdrant/storage
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
-      interval: 10s
-      timeout: 5s
-      retries: 40
-      start_period: 120s     # 2 minúty tolerancie pri prvom štarte
-
   backend:
     build: ./backend
     restart: unless-stopped
@@ -65,8 +50,6 @@ services:
       redis:
         condition: service_healthy
       neo4j:
-        condition: service_healthy
-      qdrant:
         condition: service_healthy
     ports:
       - "8000:8000"
@@ -84,4 +67,3 @@ services:
 volumes:
   postgres_data:
   neo4j_data:
-  qdrant_data:

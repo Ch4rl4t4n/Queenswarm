@@ -1,4 +1,4 @@
-"""Bee-hive FastAPI entrypoint tying PostgreSQL, ChromaDB, Neo4j, and Redis scaffolding."""
+"""Bee-hive FastAPI entrypoint tying PostgreSQL, pgvector embeddings, Neo4j, and Redis scaffolding."""
 
 from __future__ import annotations
 
