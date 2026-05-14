@@ -99,8 +99,8 @@ if [[ ! -s "$HTPASS" || ! -s "$GUARD" ]]; then
   exit 1
 fi
 
-# Bootstrap TLS files expected by ``deploy/nginx/stg.queenswarm.love.conf`` when host
-# ``/etc/letsencrypt`` has no staging cert yet (otherwise nginx exits and :80/:443 refuse).
+# Bootstrap TLS files for staging nginx (paths under ``/etc/nginx/ssl/staging/`` in the container;
+# must NOT use ``/etc/letsencrypt/...`` — that path is a read-only host bind and nested mounts fail).
 ensure_stg_selfsigned_tls() {
   local d="$ROOT/deploy/nginx/ssl/stg-queenswarm-selfsigned"
   mkdir -p "$d"

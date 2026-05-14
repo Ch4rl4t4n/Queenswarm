@@ -2,7 +2,7 @@
 
 ## Phase 5.5 — perfect environments (repo Lane A) (2026-05-14)
 
-- **fix:** staging **nginx :80/:443 connection refused** when host has no Let's Encrypt yet — **`deploy-stg.sh`** generates self-signed PEMs and **`docker-compose.stg.yml`** bind-mounts them over the paths in **`stg.queenswarm.love.conf`**; **`.env.stg.example`** documents the bootstrap.  
+- **fix:** staging nginx TLS bootstrap — **`deploy-stg.sh`** generates self-signed PEMs; Compose bind-mounts them to ``/etc/nginx/ssl/staging/`` (vhost + volumes), **not** under the read-only host ``/etc/letsencrypt`` bind (nested mounts there fail with “read-only file system”). **`.env.stg.example`** updated.  
 - **refactor (HTTP layer):** migrate **`backend/app/api/*` → `backend/app/presentation/api/*`**; remove legacy **`app.api`** package; **`app/main.py`** imports **`app.presentation.api.*`**.  
 - **fix (ORM single metadata):** **`app.models`** lazy exports + per-file shims delegate to **`app.infrastructure.persistence.models`** (no duplicate table registration vs presentation routers).  
 - **fix:** **`redis_delete`** in **`app.core.redis_client`** (OAuth consent state cleanup); **`ballroom_capsule_backend`** / **`ballroom_capsule_ttl_sec`** in **`Settings`** + test env defaults; **`backend/.env.example`** documents capsule vars.  
