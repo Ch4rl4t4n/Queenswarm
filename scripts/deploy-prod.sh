@@ -6,7 +6,7 @@
 #   ENV_FILE — default .env.prod
 #   AUTO_BOOTSTRAP_ENV=1 — when ENV_FILE is missing, create it from .env.prod.example
 #                          and overlay shared secrets from .env (default: 1)
-#   STOP_STG_ON_PORT_CONFLICT=1 — stop queenswarm_stg before prod deploy to free :80/:443 (default: 1)
+#   STOP_STG_ON_PORT_CONFLICT=1 — stop queenswarm_stg before prod deploy to free :80/:443 (default: 0)
 #   POST_DEPLOY_HEALTH=1 — run scripts/health-check.sh after compose
 #   POST_DEPLOY_SMOKE=1 — run scripts/smoke-edge.sh (TARGET=prd)
 #   SMOKE_INSECURE_TLS=1 — forwarded to smoke-edge when POST_DEPLOY_SMOKE=1 (temporary cert mismatch only)
@@ -17,7 +17,7 @@ cd "$ROOT"
 
 ENV_FILE="${ENV_FILE:-.env.prod}"
 AUTO_BOOTSTRAP_ENV="${AUTO_BOOTSTRAP_ENV:-1}"
-STOP_STG_ON_PORT_CONFLICT="${STOP_STG_ON_PORT_CONFLICT:-1}"
+STOP_STG_ON_PORT_CONFLICT="${STOP_STG_ON_PORT_CONFLICT:-0}"
 POST_DEPLOY_HEALTH="${POST_DEPLOY_HEALTH:-0}"
 POST_DEPLOY_SMOKE="${POST_DEPLOY_SMOKE:-0}"
 
@@ -101,6 +101,51 @@ fi
 
 echo "Reminder: snapshot Postgres and named volumes (neo4j_data, postgres_data, prometheus_data, grafana_data) before major upgrades."
 echo "Reminder: TLS files under /etc/letsencrypt/live/queenswarm.love/ must exist on the host."
+
+ensure_selfsigned_cert_if_missing() {
+  local domain="$1"
+  local cert_dir="/etc/letsencrypt/live/${domain}"
+  local cert_path="${cert_dir}/fullchain.pem"
+  local key_path="${cert_dir}/privkey.pem"
+  local cnf
+  if [[ -f "$cert_path" && -f "$key_path" ]]; then
+    return 0
+  fi
+  if ! command -v openssl >/dev/null 2>&1; then
+    echo "openssl missing and certificate for ${domain} not found at ${cert_path}."
+    exit 1
+  fi
+  echo "TLS for ${domain} missing; generating temporary self-signed certificate."
+  mkdir -p "$cert_dir"
+  cnf="$(mktemp)"
+  cat >"$cnf" <<EOF
+[req]
+distinguished_name = dn
+x509_extensions = v3_req
+prompt = no
+
+[dn]
+CN = ${domain}
+
+[v3_req]
+subjectAltName = DNS:${domain}
+keyUsage = digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+EOF
+  openssl req -x509 -nodes -days 30 -newkey rsa:2048 \
+    -keyout "$key_path" \
+    -out "$cert_path" \
+    -config "$cnf" \
+    -extensions v3_req >/dev/null 2>&1
+  rm -f "$cnf"
+  chmod 600 "$key_path"
+}
+
+prod_domain="$(load_kv "$ENV_FILE" DOMAIN || true)"
+if [[ -n "${prod_domain:-}" ]]; then
+  ensure_selfsigned_cert_if_missing "$prod_domain"
+fi
+ensure_selfsigned_cert_if_missing "stg.queenswarm.love"
 
 if [[ "$STOP_STG_ON_PORT_CONFLICT" == "1" ]]; then
   STG_ENV_FILE="${STG_ENV_FILE:-.env.stg}"

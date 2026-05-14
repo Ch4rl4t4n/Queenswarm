@@ -28,8 +28,9 @@ Operator sign-off that **both** environments meet SLOs: TLS, auth, proxy, vector
 ## Preconditions (both envs)
 
 - [ ] TLS SAN matches public hostname for each edge (`openssl s_client` per TLS doc).  
-- [ ] Staging: `QS_NGINX_SITE_CONF` set **or** rely on **`deploy-stg.sh`** default staging vhost.  
-- [ ] Staging: `deploy/nginx/.generated/staging-guard.inc` + `stg.htpasswd` exist (`./scripts/deploy-stg.sh` or `PREPARE_ONLY=1`).  
+- [ ] If both domains share one host/IP: run staging in **shared edge mode** (`STAGING_EDGE_MODE=shared`) so production nginx serves `stg.queenswarm.love` and proxies to staging app ports (`:3001/:8001`).  
+- [ ] Staging dedicated-edge only: `QS_NGINX_SITE_CONF` set **or** rely on **`deploy-stg.sh`** default staging vhost.  
+- [ ] Staging dedicated-edge only: `deploy/nginx/.generated/staging-guard.inc` + `stg.htpasswd` exist (`./scripts/deploy-stg.sh` or `PREPARE_ONLY=1`).  
 - [ ] **`VECTOR_STORE_BACKEND=pgvector`** (baseline Compose has no Qdrant).  
 - [ ] Neo4j up if Hive Mind / strict readiness is required.
 

@@ -4,6 +4,7 @@
 #
 # Env:
 #   ENV_FILE — default .env.stg
+#   STAGING_EDGE_MODE — shared|dedicated (default from env file, fallback shared)
 #   PREPARE_ONLY=1 — only write deploy/nginx/.generated/* (no compose)
 #   POST_DEPLOY_SMOKE=1 — run scripts/smoke-edge.sh after compose (needs reachable TLS + DOMAIN)
 #   POST_DEPLOY_HEALTH=1 — run scripts/health-check.sh (same credentials as smoke)
@@ -14,12 +15,14 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 ENV_FILE="${ENV_FILE:-.env.stg}"
+STAGING_EDGE_MODE="${STAGING_EDGE_MODE:-}"
 PREPARE_ONLY="${PREPARE_ONLY:-0}"
 POST_DEPLOY_SMOKE="${POST_DEPLOY_SMOKE:-0}"
 POST_DEPLOY_HEALTH="${POST_DEPLOY_HEALTH:-0}"
 
 usage() {
   echo "Usage: ENV_FILE=.env.stg $0"
+  echo "  STAGING_EDGE_MODE=shared|dedicated — shared: prod nginx serves stg host on alt ports"
   echo "  PREPARE_ONLY=1  — only write deploy/nginx/.generated/* (no compose)"
   echo "  POST_DEPLOY_SMOKE=1 — TARGET=stg ./scripts/smoke-edge.sh after up (optional SMOKE_INSECURE_TLS=1)"
   echo "  POST_DEPLOY_HEALTH=1 — ./scripts/health-check.sh after up"
@@ -59,6 +62,28 @@ load_kv() {
 STAGING_BASIC_AUTH_USER="$(load_kv STAGING_BASIC_AUTH_USER || true)"
 STAGING_BASIC_AUTH_PASSWORD="$(load_kv STAGING_BASIC_AUTH_PASSWORD || true)"
 STAGING_IP_ALLOWLIST="$(load_kv STAGING_IP_ALLOWLIST || true)"
+if [[ -z "${STAGING_EDGE_MODE// }" ]]; then
+  STAGING_EDGE_MODE="$(load_kv STAGING_EDGE_MODE || true)"
+fi
+if [[ -z "${STAGING_EDGE_MODE// }" ]]; then
+  STAGING_EDGE_MODE="shared"
+fi
+if [[ "$STAGING_EDGE_MODE" != "shared" && "$STAGING_EDGE_MODE" != "dedicated" ]]; then
+  echo "STAGING_EDGE_MODE must be shared or dedicated (got: ${STAGING_EDGE_MODE})."
+  exit 1
+fi
+
+if [[ "$STAGING_EDGE_MODE" == "shared" ]]; then
+  # Run staging app surfaces on non-conflicting host ports; prod edge nginx proxies stg host.
+  export STG_BACKEND_PUBLISH_PORT="${STG_BACKEND_PUBLISH_PORT:-8001}"
+  export STG_FRONTEND_PUBLISH_PORT="${STG_FRONTEND_PUBLISH_PORT:-3001}"
+  export POSTGRES_PUBLISH_PORT="${POSTGRES_PUBLISH_PORT:-55432}"
+  export REDIS_PUBLISH_PORT="${REDIS_PUBLISH_PORT:-16379}"
+  export NEO4J_HTTP_PORT="${NEO4J_HTTP_PORT:-17474}"
+  export NEO4J_BOLT_PORT="${NEO4J_BOLT_PORT:-17687}"
+  export PROMETHEUS_PUBLISH_PORT="${PROMETHEUS_PUBLISH_PORT:-19090}"
+  export GRAFANA_PUBLISH_PORT="${GRAFANA_PUBLISH_PORT:-3301}"
+fi
 
 declare -a STAGING_IP_ALLOWLIST_VALID=()
 if [[ -n "${STAGING_IP_ALLOWLIST// }" ]]; then
@@ -78,40 +103,42 @@ if [[ -n "${STAGING_IP_ALLOWLIST// }" ]]; then
   done
 fi
 
-if [[ -z "$STAGING_BASIC_AUTH_USER" || -z "$STAGING_BASIC_AUTH_PASSWORD" ]]; then
+if [[ "$STAGING_EDGE_MODE" == "dedicated" && ( -z "$STAGING_BASIC_AUTH_USER" || -z "$STAGING_BASIC_AUTH_PASSWORD" ) ]]; then
   echo "STAGING_BASIC_AUTH_USER and STAGING_BASIC_AUTH_PASSWORD must be set in ${ENV_FILE}."
   exit 1
 fi
 
-mkdir -p deploy/nginx/.generated
-GEN_DIR="$ROOT/deploy/nginx/.generated"
-HTPASS="$GEN_DIR/stg.htpasswd"
-GUARD="$GEN_DIR/staging-guard.inc"
+if [[ "$STAGING_EDGE_MODE" == "dedicated" ]]; then
+  mkdir -p deploy/nginx/.generated
+  GEN_DIR="$ROOT/deploy/nginx/.generated"
+  HTPASS="$GEN_DIR/stg.htpasswd"
+  GUARD="$GEN_DIR/staging-guard.inc"
 
-HASH="$(printf '%s' "$STAGING_BASIC_AUTH_PASSWORD" | openssl passwd -apr1 -stdin)"
-printf '%s:%s\n' "$STAGING_BASIC_AUTH_USER" "$HASH" >"$HTPASS"
-chmod 600 "$HTPASS"
+  HASH="$(printf '%s' "$STAGING_BASIC_AUTH_PASSWORD" | openssl passwd -apr1 -stdin)"
+  printf '%s:%s\n' "$STAGING_BASIC_AUTH_USER" "$HASH" >"$HTPASS"
+  chmod 600 "$HTPASS"
 
-if [[ "${#STAGING_IP_ALLOWLIST_VALID[@]}" -gt 0 ]]; then
-  {
-    echo "satisfy any;"
-    for ip in "${STAGING_IP_ALLOWLIST_VALID[@]}"; do
-      echo "allow $ip;"
-    done
-    echo "deny all;"
-    echo "auth_basic \"Queenswarm Staging\";"
-    echo "auth_basic_user_file /etc/nginx/.htpasswd;"
-  } >"$GUARD"
-else
-  cat >"$GUARD" <<'EOF'
+  if [[ "${#STAGING_IP_ALLOWLIST_VALID[@]}" -gt 0 ]]; then
+    {
+      echo "satisfy any;"
+      for ip in "${STAGING_IP_ALLOWLIST_VALID[@]}"; do
+        echo "allow $ip;"
+      done
+      echo "deny all;"
+      echo "auth_basic \"Queenswarm Staging\";"
+      echo "auth_basic_user_file /etc/nginx/.htpasswd;"
+    } >"$GUARD"
+  else
+    cat >"$GUARD" <<'EOF'
 auth_basic "Queenswarm Staging";
 auth_basic_user_file /etc/nginx/.htpasswd;
 EOF
-fi
+  fi
 
-if [[ ! -s "$HTPASS" || ! -s "$GUARD" ]]; then
-  echo "Failed to write nginx guard artifacts under ${GEN_DIR}."
-  exit 1
+  if [[ ! -s "$HTPASS" || ! -s "$GUARD" ]]; then
+    echo "Failed to write nginx guard artifacts under ${GEN_DIR}."
+    exit 1
+  fi
 fi
 
 # Bootstrap TLS files for staging nginx (paths under ``/etc/nginx/ssl/staging/`` in the container;
@@ -151,19 +178,27 @@ EOF
   chmod 600 "$d/privkey.pem"
 }
 
-ensure_stg_selfsigned_tls
+if [[ "$STAGING_EDGE_MODE" == "dedicated" ]]; then
+  ensure_stg_selfsigned_tls
+fi
 
 # Phase 5.5: default staging nginx vhost so compose never falls back to production default.conf.
-STG_NGINX_CONF="$(load_kv QS_NGINX_SITE_CONF || true)"
-if [[ -z "${STG_NGINX_CONF// }" ]]; then
-  echo "QS_NGINX_SITE_CONF not set in ${ENV_FILE}; using ./deploy/nginx/stg.queenswarm.love.conf"
-  export QS_NGINX_SITE_CONF="./deploy/nginx/stg.queenswarm.love.conf"
-else
-  export QS_NGINX_SITE_CONF="$STG_NGINX_CONF"
+if [[ "$STAGING_EDGE_MODE" == "dedicated" ]]; then
+  STG_NGINX_CONF="$(load_kv QS_NGINX_SITE_CONF || true)"
+  if [[ -z "${STG_NGINX_CONF// }" ]]; then
+    echo "QS_NGINX_SITE_CONF not set in ${ENV_FILE}; using ./deploy/nginx/stg.queenswarm.love.conf"
+    export QS_NGINX_SITE_CONF="./deploy/nginx/stg.queenswarm.love.conf"
+  else
+    export QS_NGINX_SITE_CONF="$STG_NGINX_CONF"
+  fi
 fi
 
 if [[ "$PREPARE_ONLY" == "1" ]]; then
-  echo "Prepared $HTPASS, $GUARD, and staging TLS bootstrap under deploy/nginx/ssl/stg-queenswarm-selfsigned/ (PREPARE_ONLY=1)."
+  if [[ "$STAGING_EDGE_MODE" == "dedicated" ]]; then
+    echo "Prepared $HTPASS, $GUARD, and staging TLS bootstrap under deploy/nginx/ssl/stg-queenswarm-selfsigned/ (PREPARE_ONLY=1)."
+  else
+    echo "STAGING_EDGE_MODE=shared: no dedicated staging nginx artifacts needed (PREPARE_ONLY=1)."
+  fi
   exit 0
 fi
 
@@ -228,10 +263,16 @@ verify_staging_edge() {
   esac
 }
 
-verify_staging_edge
+if [[ "$STAGING_EDGE_MODE" == "dedicated" ]]; then
+  verify_staging_edge
+fi
 
 echo "Staging stack up (project queenswarm_stg)."
-echo "Edge: https://$(load_kv DOMAIN || echo 'stg.queenswarm.love') — Basic Auth (+ optional IP bypass); /health is unauthenticated for probes."
+if [[ "$STAGING_EDGE_MODE" == "dedicated" ]]; then
+  echo "Edge: https://$(load_kv DOMAIN || echo 'stg.queenswarm.love') — Basic Auth (+ optional IP bypass); /health is unauthenticated for probes."
+else
+  echo "Edge mode shared: app published on ports frontend=${STG_FRONTEND_PUBLISH_PORT}, backend=${STG_BACKEND_PUBLISH_PORT}; expected public edge host is served by production nginx."
+fi
 
 docker compose -p queenswarm_stg -f docker-compose.base.yml -f docker-compose.stg.yml --env-file "$ENV_FILE" ps
 

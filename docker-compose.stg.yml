@@ -53,7 +53,7 @@ services:
       neo4j:
         condition: service_healthy
     ports:
-      - "8000:8000"
+      - "${STG_BACKEND_PUBLISH_PORT:-8001}:8000"
     mem_limit: 10g
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/health >/dev/null || exit 1"]
@@ -71,7 +71,7 @@ services:
       backend:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      - "${STG_FRONTEND_PUBLISH_PORT:-3001}:3000"
 
   celery-worker:
     env_file:
@@ -85,6 +85,7 @@ services:
   # Self-signed PEMs under /etc/nginx/ssl/staging/ (see stg vhost) — avoids mounting files under
   # the read-only host ``/etc/letsencrypt`` bind from docker-compose.base.yml.
   nginx:
+    profiles: ["edge"]
     volumes:
       - ./deploy/nginx/.generated/staging-guard.inc:/etc/nginx/conf.d/staging-guard.inc:ro
       - ./deploy/nginx/.generated/stg.htpasswd:/etc/nginx/.htpasswd:ro
