@@ -99,6 +99,45 @@ if [[ ! -s "$HTPASS" || ! -s "$GUARD" ]]; then
   exit 1
 fi
 
+# Bootstrap TLS files expected by ``deploy/nginx/stg.queenswarm.love.conf`` when host
+# ``/etc/letsencrypt`` has no staging cert yet (otherwise nginx exits and :80/:443 refuse).
+ensure_stg_selfsigned_tls() {
+  local d="$ROOT/deploy/nginx/ssl/stg-queenswarm-selfsigned"
+  mkdir -p "$d"
+  if [[ -f "$d/fullchain.pem" && -f "$d/privkey.pem" ]]; then
+    return 0
+  fi
+  if ! command -v openssl >/dev/null 2>&1; then
+    echo "openssl is required to generate staging self-signed TLS (install openssl and retry)."
+    exit 1
+  fi
+  echo "Generating self-signed TLS for stg.queenswarm.love (nginx can start; replace with Let's Encrypt on host when ready)."
+  local cnf="$d/openssl.cnf.tmp"
+  cat >"$cnf" <<'EOF'
+[req]
+distinguished_name = dn
+x509_extensions = v3_req
+prompt = no
+
+[dn]
+CN = stg.queenswarm.love
+
+[v3_req]
+subjectAltName = DNS:stg.queenswarm.love
+keyUsage = digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+EOF
+  openssl req -x509 -nodes -days 825 -newkey rsa:2048 \
+    -keyout "$d/privkey.pem" \
+    -out "$d/fullchain.pem" \
+    -config "$cnf" \
+    -extensions v3_req
+  rm -f "$cnf"
+  chmod 600 "$d/privkey.pem"
+}
+
+ensure_stg_selfsigned_tls
+
 # Phase 5.5: default staging nginx vhost so compose never falls back to production default.conf.
 STG_NGINX_CONF="$(load_kv QS_NGINX_SITE_CONF || true)"
 if [[ -z "${STG_NGINX_CONF// }" ]]; then
@@ -109,7 +148,7 @@ else
 fi
 
 if [[ "$PREPARE_ONLY" == "1" ]]; then
-  echo "Prepared $HTPASS and $GUARD (PREPARE_ONLY=1)."
+  echo "Prepared $HTPASS, $GUARD, and staging TLS bootstrap under deploy/nginx/ssl/stg-queenswarm-selfsigned/ (PREPARE_ONLY=1)."
   exit 0
 fi
 
