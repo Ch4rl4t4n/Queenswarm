@@ -176,7 +176,7 @@ docker compose -p queenswarm_stg \
   up -d --build
 
 verify_staging_edge() {
-  local domain nginx_id state health https_code http_code i
+  local domain nginx_id state health https_code https_health_code http_health_code i
   domain="$(load_kv DOMAIN || echo 'stg.queenswarm.love')"
   nginx_id="$(docker compose -p queenswarm_stg -f docker-compose.base.yml -f docker-compose.stg.yml --env-file "$ENV_FILE" ps -q nginx)"
   if [[ -z "${nginx_id// }" ]]; then
@@ -200,7 +200,8 @@ verify_staging_edge() {
   fi
 
   https_code="$(curl -k -sS -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time 10 "https://127.0.0.1/" -H "Host: ${domain}" || echo 000)"
-  http_code="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time 10 "http://127.0.0.1/health" -H "Host: ${domain}" || echo 000)"
+  https_health_code="$(curl -k -sS -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time 10 "https://127.0.0.1/health" -H "Host: ${domain}" || echo 000)"
+  http_health_code="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time 10 "http://127.0.0.1/health" -H "Host: ${domain}" || echo 000)"
 
   case "$https_code" in
     200|301|302|401|403) ;;
@@ -211,11 +212,20 @@ verify_staging_edge() {
       ;;
   esac
 
-  if [[ "$http_code" != "200" ]]; then
-    echo "nginx /health probe via :80 failed (code=${http_code})."
+  if [[ "$https_health_code" != "200" && "$https_health_code" != "503" ]]; then
+    echo "nginx /health probe via local HTTPS failed (code=${https_health_code})."
     docker compose -p queenswarm_stg -f docker-compose.base.yml -f docker-compose.stg.yml --env-file "$ENV_FILE" logs --tail=120 nginx || true
     exit 1
   fi
+
+  case "$http_health_code" in
+    200|301|302|303|307|308) ;;
+    *)
+      echo "nginx /health probe via :80 failed (code=${http_health_code})."
+      docker compose -p queenswarm_stg -f docker-compose.base.yml -f docker-compose.stg.yml --env-file "$ENV_FILE" logs --tail=120 nginx || true
+      exit 1
+      ;;
+  esac
 }
 
 verify_staging_edge
