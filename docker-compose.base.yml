@@ -297,6 +297,8 @@ services:
       - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       # Interpolated from --env-file (staging sets QS_NGINX_SITE_CONF to stg vhost).
       - ${QS_NGINX_SITE_CONF:-./deploy/nginx/conf.d/queenswarm.love.conf}:/etc/nginx/conf.d/default.conf:ro
+      # Webroot for ACME HTTP-01 challenge files (written by scripts/issue-letsencrypt.sh).
+      - ./deploy/nginx/.acme:/var/www/certbot:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       frontend:

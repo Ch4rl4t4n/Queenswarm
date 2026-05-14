@@ -41,12 +41,16 @@ Operator sign-off that **both** environments meet SLOs: TLS, auth, proxy, vector
 TARGET=stg ./scripts/smoke-edge.sh
 # TLS mismatch during bring-up:
 SMOKE_INSECURE_TLS=1 TARGET=stg ./scripts/smoke-edge.sh
+# Issue/renew Let's Encrypt (requires running nginx + DNS -> host):
+EMAIL=admin@example.com TARGET=stg ./scripts/issue-letsencrypt.sh
 ```
 
 ```bash
 TARGET=prd ./scripts/smoke-edge.sh
 # or:
 POST_DEPLOY_SMOKE=1 ./scripts/deploy-prod.sh
+# Issue/renew Let's Encrypt:
+EMAIL=admin@example.com TARGET=prd ./scripts/issue-letsencrypt.sh
 ```
 
 Record timestamps / HTTP summaries: _______________
