@@ -2,6 +2,7 @@
 
 ## Phase 5.5 — perfect environments (repo Lane A) (2026-05-14)
 
+- **fix:** `deploy-prod.sh` now auto-bootstraps missing `.env.prod` from `.env.prod.example` (optionally overlays shared secrets from `.env`), auto-stops running `queenswarm_stg` to free `:80/:443`, and performs nginx edge verification (`HTTPS /`, `HTTPS /health`, `HTTP /health`) before reporting success.
 - **feat:** add `scripts/issue-letsencrypt.sh` (webroot flow via Docker Certbot) and ACME webroot mount `deploy/nginx/.acme -> /var/www/certbot` in nginx compose; production/staging vhosts now keep `/.well-known/acme-challenge/` on port `80` without redirect/auth.
 - **fix:** `deploy-stg.sh` edge verification now accepts `HTTP /health -> 301` on port `80` (redirect to HTTPS) and explicitly checks `HTTPS /health` for `200/503`, preventing false deploy failures on healthy staging edge.
 - **fix:** staging nginx TLS bootstrap — **`deploy-stg.sh`** generates self-signed PEMs; Compose bind-mounts them to ``/etc/nginx/ssl/staging/`` (vhost + volumes), **not** under the read-only host ``/etc/letsencrypt`` bind (nested mounts there fail with “read-only file system”). **`.env.stg.example`** updated.  
