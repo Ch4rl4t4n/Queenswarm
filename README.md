@@ -25,13 +25,14 @@ PLAYWRIGHT_BASE_URL=https://queenswarm.love PLAYWRIGHT_IGNORE_TLS_ERRORS=1 npm r
 
 Vitest unit tests: `npm run test`.
 
-## Phase 5.3 — Staging audit & BE/FE matrix
+## Phase 5.4 — Staging & production readiness (current)
 
-- **Audit / scorecard:** [`AUDIT_REPORT.md`](./AUDIT_REPORT.md) (Phase 5.3 — **138 %** composite: live curl probes + nginx readiness fix; **150 %** after strict TLS + full browser checklist).  
-- **Operator checklist:** [`docs/PHASE53_STAGING_VALIDATION_REPORT.md`](./docs/PHASE53_STAGING_VALIDATION_REPORT.md) (Lane B — mobile + desktop walkthrough).  
-- **Smoke:** `TARGET=stg ./scripts/smoke-edge.sh` — if the edge cert does not yet include your staging hostname, use **`SMOKE_INSECURE_TLS=1`** (see script header).  
-- **Readiness URL:** **`/health/ready`** on the **origin** (not `/api/v1/health/ready`). Staging nginx must use prefix **`location /health`** so readiness reaches FastAPI (shipped in `deploy/nginx/stg.queenswarm.love.conf`).  
-- **Vectors:** default **pgvector** (`VECTOR_STORE_BACKEND`); Qdrant removed from baseline Compose.  
-- **Workflow (striktné):** zmeny **len v git repozitári**; nasadenie **iba** cez **`./scripts/deploy-stg.sh`** / **`./scripts/deploy-prod.sh`** — žiadne úpravy aplikácie na serveri cez SSH. Podrobnosti v [`AUDIT_REPORT.md`](./AUDIT_REPORT.md) sekcia *Delivery workflow*.  
-- **Po deployi:** `POST_DEPLOY_SMOKE=1 POST_DEPLOY_HEALTH=1` (voliteľné); pri zlom TLS certe dočasne `SMOKE_INSECURE_TLS=1` (predáva sa z `deploy-stg.sh` pri post-deploy smoke).  
-- **Gotcha:** „Hive link severed“ je **error boundary** dashboardu — typicky 502 z proxy alebo nechytená chyba v segmente; pozri maticu `/api/proxy/*` → `/api/v1/*` v audite.
+- **Audit / scorecard:** [`AUDIT_REPORT.md`](./AUDIT_REPORT.md) — **110 %** composite (repo Lane A **100 %** + automation partial; **live Lane B** = you, after deploy). Target **125–150 %** with evidence from [`docs/PHASE54_STAGING_PRODUCTION_VALIDATION_REPORT.md`](./docs/PHASE54_STAGING_PRODUCTION_VALIDATION_REPORT.md).  
+- **Staging nginx:** `.env.stg` must set **`QS_NGINX_SITE_CONF=./deploy/nginx/stg.queenswarm.love.conf`** (in `.env.stg.example`) so compose does **not** mount the production vhost on staging.  
+- **Deploy:** `./scripts/deploy-stg.sh` · `./scripts/deploy-prod.sh` — optional `POST_DEPLOY_SMOKE=1` / `POST_DEPLOY_HEALTH=1` (prod smoke: `TARGET=prd`). **Git only** — no SSH app patches.  
+- **TLS:** issue certs whose **SAN** matches `DOMAIN` for each host (see env examples).  
+- **Phase 5.3 carry-over:** [`docs/PHASE53_STAGING_VALIDATION_REPORT.md`](./docs/PHASE53_STAGING_VALIDATION_REPORT.md) (single-env checklist); smoke still supports **`SMOKE_INSECURE_TLS=1`**.
+
+## Phase 5.3 — Staging audit & BE/FE matrix (superseded by 5.4 for scorecard)
+
+Details merged into **Phase 5.4** audit and **PHASE54** dual-env report; keep PHASE53 for focused staging-only checks.

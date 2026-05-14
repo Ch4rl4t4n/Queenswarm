@@ -1,5 +1,13 @@
 # Queenswarm Changelog
 
+## Phase 5.4 — staging + production readiness package (2026-05-14)
+
+- **Compose:** `docker-compose.base.yml` nginx `default.conf` now uses **`QS_NGINX_SITE_CONF`** (default production `conf.d/queenswarm.love.conf`); **`.env.stg.example`** sets **`QS_NGINX_SITE_CONF=./deploy/nginx/stg.queenswarm.love.conf`** so staging no longer mounts the prod vhost by mistake. **`docker-compose.stg.yml`** adds bind mounts for **`deploy/nginx/.generated/staging-guard.inc`** and **`stg.htpasswd`**.  
+- **Deploy:** `scripts/deploy-prod.sh` restores full bootstrap, removes obsolete **qdrant_data** reminder, adds optional **`POST_DEPLOY_SMOKE=1`** (`TARGET=prd`) + **`SMOKE_INSECURE_TLS`**.  
+- **Env examples:** `.env.stg.example` TLS + certbot hint block; `.env.prod.example` TLS note + optional `QS_NGINX_SITE_CONF` comment; removed qdrant from prod header comment.  
+- **Docs:** [`docs/PHASE54_STAGING_PRODUCTION_VALIDATION_REPORT.md`](./docs/PHASE54_STAGING_PRODUCTION_VALIDATION_REPORT.md); **`AUDIT_REPORT.md`** Phase 5.4 scorecard (**110 %** until live attestation).  
+- **README:** Phase 5.4 section (current); Phase 5.3 marked superseded for scorecard.
+
 ## Phase 5.3 — pgvector single-store (2026-05-14)
 
 - **Vectors:** Default **`VECTOR_STORE_BACKEND=pgvector`** — `PgvectorVectorBackend` + Alembic table **`hive_vector_documents`** (384-d cosine, HNSW). Stable imports remain **`app.core.chroma_client`** (`embed_and_store`, `semantic_search`, `delete_documents_by_ids`, `ping_vector_store`). Legacy **`chroma`** rollback kept. Env **`VECTOR_STORE_BACKEND=qdrant`** coerces to pgvector.

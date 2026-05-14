@@ -70,6 +70,12 @@ services:
     ports:
       - "3000:3000"
 
+  # Staging edge: Basic Auth fragments (written by ./scripts/deploy-stg.sh before ``up``).
+  nginx:
+    volumes:
+      - ./deploy/nginx/.generated/staging-guard.inc:/etc/nginx/conf.d/staging-guard.inc:ro
+      - ./deploy/nginx/.generated/stg.htpasswd:/etc/nginx/.htpasswd:ro
+
 volumes:
   postgres_data:
   neo4j_data:
