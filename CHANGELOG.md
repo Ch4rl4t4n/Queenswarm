@@ -8,6 +8,13 @@
 - **Scripts:** **`backend/scripts/migrate_vectors_to_pgvector.py`** (`--from-qdrant`, `--from-chroma`, `--dry-run`). Legacy **`migrate_chroma_to_qdrant.py`** retained for two-hop migrations.
 - **Docs:** `docs/PGVECTOR_MIGRATION_AUDIT.md`.
 
+### Phase 5.3 — staging audit & BE/FE integration (same release line)
+
+- **`AUDIT_REPORT.md`:** Phase 5.3 rewrite — full cockpit ↔ `/api/v1` matrix, auth/proxy notes, pgvector default, Neo4j caveats, **127 %** composite (Lane B not certified from CI sandbox).
+- **`docs/PHASE53_STAGING_VALIDATION_REPORT.md`:** operator-facing staging checklist (mobile + desktop).
+- **`README.md`:** Phase 5.3 quick links + “Hive link severed” troubleshooting pointer.
+- **UI:** Dashboard `error.tsx` — “Hive link severed” headline uses **Tailwind-only** styling (no inline `style` on title).
+
 ## Phase R — 2026-05-13 (pre-v1.0.0 ship hardening)
 
 - Dynamic agent swarm (29 bees / 4 swarms) cockpit refinements  

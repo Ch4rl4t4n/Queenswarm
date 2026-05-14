@@ -16,10 +16,7 @@ export default function DashboardError({
 
   return (
     <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 px-6 text-center">
-      <div
-        className="font-poppins text-xl font-semibold uppercase tracking-[0.12em]"
-        style={{ color: "#FF3366", textShadow: "0 0 18px rgba(255, 51, 102, 0.45)" }}
-      >
+      <div className="font-poppins text-xl font-semibold uppercase tracking-[0.12em] text-[#FF3366] drop-shadow-[0_0_18px_rgba(255,51,102,0.45)]">
         Hive link severed
       </div>
       <p className="max-w-md text-sm text-zinc-400">
@@ -30,7 +27,7 @@ export default function DashboardError({
         <button
           type="button"
           onClick={() => reset()}
-          className="rounded-xl bg-[#FFB800] px-5 py-2 text-sm font-semibold uppercase tracking-[0.06em] text-[#050510] shadow-[0_0_22px_rgba(255,184,0,0.35)]"
+          className="rounded-xl bg-[#FFB800] px-5 py-2 text-sm font-semibold uppercase tracking-[0.06em] text-hive-bg shadow-[0_0_22px_rgba(255,184,0,0.35)]"
         >
           Retry
         </button>

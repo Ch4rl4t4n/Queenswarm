@@ -24,3 +24,11 @@ PLAYWRIGHT_BASE_URL=https://queenswarm.love PLAYWRIGHT_IGNORE_TLS_ERRORS=1 npm r
 ```
 
 Vitest unit tests: `npm run test`.
+
+## Phase 5.3 — Staging audit & BE/FE matrix
+
+- **Audit / scorecard:** [`AUDIT_REPORT.md`](./AUDIT_REPORT.md) (Phase 5.3 — honest **127 %** composite until live staging checklist is executed).  
+- **Operator checklist:** [`docs/PHASE53_STAGING_VALIDATION_REPORT.md`](./docs/PHASE53_STAGING_VALIDATION_REPORT.md) (Lane B — mobile + desktop walkthrough).  
+- **Smoke:** `TARGET=stg ./scripts/smoke-edge.sh` (requires network + staging secrets).  
+- **Vectors:** default **pgvector** (`VECTOR_STORE_BACKEND`); Qdrant removed from baseline Compose.  
+- **Gotcha:** dashboard “Hive link severed” is the **route error boundary** — usually proxy/upstream or an uncaught client exception; see audit for the matrix of `/api/proxy/*` → `/api/v1/*`.
