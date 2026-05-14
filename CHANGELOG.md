@@ -5,6 +5,8 @@
 - **feat:** dual-domain single-host mode — production nginx now serves both `queenswarm.love` and `stg.queenswarm.love`; staging routes proxy to `host.docker.internal:3001/8001` (prod compose adds `host-gateway` alias).
 - **fix:** staging compose supports shared-edge mode by default (`STAGING_EDGE_MODE=shared`): staging nginx is profile-gated (`edge`), app host ports moved to non-conflicting defaults (`3001/8001`, plus DB/redis/neo4j/prometheus/grafana alt ports).
 - **fix:** `deploy-stg.sh` now handles `STAGING_EDGE_MODE=shared|dedicated` and skips dedicated-edge artifacts/checks in shared mode.
+- **fix:** `deploy-stg.sh` now passes compose profile `edge` only in dedicated mode (so staging nginx starts when requested and stays disabled in shared mode).
+- **fix:** `issue-letsencrypt.sh` now issues staging certs against `queenswarm_prod` nginx when `STAGING_EDGE_MODE=shared`.
 - **fix:** `deploy-prod.sh` no longer force-stops staging by default (`STOP_STG_ON_PORT_CONFLICT=0`) to allow both URLs concurrently on one host.
 - **fix:** `deploy-prod.sh` now auto-bootstraps missing `.env.prod` from `.env.prod.example` (optionally overlays shared secrets from `.env`), auto-stops running `queenswarm_stg` to free `:80/:443`, and performs nginx edge verification (`HTTPS /`, `HTTPS /health`, `HTTP /health`) before reporting success.
 - **feat:** add `scripts/issue-letsencrypt.sh` (webroot flow via Docker Certbot) and ACME webroot mount `deploy/nginx/.acme -> /var/www/certbot` in nginx compose; production/staging vhosts now keep `/.well-known/acme-challenge/` on port `80` without redirect/auth.
