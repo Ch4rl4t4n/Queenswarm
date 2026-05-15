@@ -32,6 +32,14 @@ Vitest unit tests: `npm run test`.
 - **Advanced modules behind flags:** monitoring, simulations, leaderboard, recipes, advanced 2FA controls, and API key management are explicitly feature-flagged.
 - **Security hardening:** dedicated rate limits for `POST /api/v1/auth/login` and `POST /api/v1/auth/token`.
 
+### Phase 7 quality gate
+
+```bash
+./scripts/phase70-gates.sh
+# Optional nav smoke:
+E2E_PHASE70_NAV=1 ./scripts/phase70-gates.sh
+```
+
 ## Phase 6.2 — Supervisor observability strip (reference)
 
 - **Summary API:** `GET /api/v1/agents/sessions/summary` returns aggregate session/routine counters for control-plane visibility.

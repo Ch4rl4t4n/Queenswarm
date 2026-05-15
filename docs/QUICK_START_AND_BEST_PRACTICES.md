@@ -55,6 +55,13 @@ Frontend mirrors use `NEXT_PUBLIC_*` variants for visibility toggles.
   - `npm run lint`
   - optional: `E2E_PHASE70_NAV=1 npm run test:e2e:phase70`
 
+### One-command Phase 7 gate
+
+```bash
+./scripts/phase70-gates.sh
+E2E_PHASE70_NAV=1 ./scripts/phase70-gates.sh
+```
+
 ## Deployment Guardrails
 
 - No direct SSH hot-patching of application code.

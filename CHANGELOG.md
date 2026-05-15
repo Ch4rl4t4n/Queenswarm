@@ -1,5 +1,11 @@
 # Queenswarm Changelog
 
+## Phase 7.1 — consolidation hardening (2026-05-15)
+
+- **fix:** stabilize frontend feature-flag runtime resolution using explicit `NEXT_PUBLIC_*` accesses for reliable Next.js client/server behavior.
+- **feat:** add `scripts/phase70-gates.sh` targeted quality gate runner for phase 7 consolidation/security checks.
+- **docs:** extend operator runbook references for Phase 7 gate usage and rollout verification.
+
 ## Phase 7.0 — consolidation + UX polish (2026-05-15)
 
 - **feat:** add Phase 7 feature-flag control plane (`ADVANCED_MONITORING_ENABLED`, `SIMULATIONS_ENABLED`, `LEADERBOARD_ENABLED`, `RECIPES_ENABLED`, `SECURITY_2FA_ADVANCED_ENABLED`, `API_KEY_MANAGEMENT_ENABLED`, `PHASE70_CONSOLIDATED_NAV_ENABLED`).

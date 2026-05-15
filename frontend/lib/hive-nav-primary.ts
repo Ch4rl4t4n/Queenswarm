@@ -27,7 +27,7 @@ import {
   Trophy,
   Users,
 } from "lucide-react";
-import { isFeatureEnabled } from "@/lib/feature-flags";
+import { ADVANCED_MONITORING_ENABLED, LEADERBOARD_ENABLED, RECIPES_ENABLED, SIMULATIONS_ENABLED } from "@/lib/feature-flags";
 
 export interface HiveNavItem {
   href: string;
@@ -56,7 +56,7 @@ export const HIVE_NAV_GROUPS: { title: string; items: HiveNavItem[] }[] = [
     items: [
       { href: "/overview", label: "Overview hub", Icon: LayoutDashboardIcon, section: "overview" },
       { href: "/", label: "Dashboard", Icon: LayoutDashboardIcon, section: "overview" },
-      ...(isFeatureEnabled("NEXT_PUBLIC_ADVANCED_MONITORING_ENABLED", false)
+      ...(ADVANCED_MONITORING_ENABLED
         ? [{ href: "/monitoring", label: "Monitoring", Icon: Activity, section: "overview" as const }]
         : []),
       { href: "/costs", label: "Costs", Icon: Coins, section: "overview" },
@@ -80,7 +80,7 @@ export const HIVE_NAV_GROUPS: { title: string; items: HiveNavItem[] }[] = [
       { href: "/tasks", label: "Tasks", Icon: ListTodo, section: "execution" },
       { href: "/workflows", label: "Workflows", Icon: GitBranch, section: "execution" },
       { href: "/jobs", label: "Async jobs", Icon: Briefcase, section: "execution" },
-      ...(isFeatureEnabled("NEXT_PUBLIC_SIMULATIONS_ENABLED", false)
+      ...(SIMULATIONS_ENABLED
         ? [{ href: "/simulations", label: "Simulations", Icon: FlaskConical, section: "execution" as const }]
         : []),
     ],
@@ -92,10 +92,10 @@ export const HIVE_NAV_GROUPS: { title: string; items: HiveNavItem[] }[] = [
       { href: "/hive-mind", label: "HiveMind", Icon: Brain, section: "knowledge" },
       { href: "/outputs", label: "Outputs", Icon: FileText, section: "knowledge" },
       { href: "/learning", label: "Learning", Icon: Sparkles, section: "knowledge" },
-      ...(isFeatureEnabled("NEXT_PUBLIC_RECIPES_ENABLED", false)
+      ...(RECIPES_ENABLED
         ? [{ href: "/recipes", label: "Recipes", Icon: ScrollText, section: "knowledge" as const }]
         : []),
-      ...(isFeatureEnabled("NEXT_PUBLIC_LEADERBOARD_ENABLED", false)
+      ...(LEADERBOARD_ENABLED
         ? [{ href: "/leaderboard", label: "Leaderboard", Icon: Trophy, section: "knowledge" as const }]
         : []),
     ],

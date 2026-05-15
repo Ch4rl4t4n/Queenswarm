@@ -36,6 +36,15 @@ Date: 2026-05-15
   - `lib/hive-mobile-meta.test.ts`
   - `e2e/phase70-consolidated-navigation.spec.ts` (opt-in via `E2E_PHASE70_NAV=1`)
 
+## Phase 7.1 Hardening Addendum
+
+- Frontend feature flags were hardened to explicit `NEXT_PUBLIC_*` resolution to avoid dynamic env lookup pitfalls in browser bundles.
+- Added targeted gate runner `scripts/phase70-gates.sh` for repeatable verification of:
+  - backend Phase 7 API/security tests
+  - frontend nav/meta unit tests
+  - frontend lint
+  - optional Playwright consolidated-nav smoke (`E2E_PHASE70_NAV=1`)
+
 ### Backward compatibility
 
 - Existing route surface and BE/FE contracts remain additive.
