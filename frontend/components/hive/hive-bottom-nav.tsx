@@ -1,14 +1,15 @@
 "use client";
 
-import { EllipsisVerticalIcon, LayoutGridIcon, MicIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { EllipsisVerticalIcon } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 
+import { hiveBottomNavItems, isNavItemActive } from "@/lib/hive-nav-primary";
 import { cn } from "@/lib/utils";
 
 interface NavGlyphProps {
   label: string;
-  Icon: typeof LayoutGridIcon;
+  Icon: LucideIcon;
   active: boolean;
 }
 
@@ -16,37 +17,33 @@ function NavGlyph({ label, Icon, active }: NavGlyphProps) {
   return (
     <span
       className={cn(
-        "flex min-w-[56px] flex-col items-center gap-1 py-2 text-[10px] font-semibold tracking-tight sm:text-[11px]",
+        "flex min-w-[52px] flex-col items-center gap-1 py-2 text-[10px] font-semibold tracking-tight sm:text-[11px]",
         active ? "text-pollen" : "text-zinc-500",
       )}
     >
       <span
         className={cn(
-          "rounded-2xl p-2 transition-[box-shadow,transform,color]",
+          "rounded-2xl p-2 transition-[box-shadow,transform,color] touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center",
           active
             ? "-translate-y-0.5 bg-pollen/[0.12] text-pollen shadow-[0_0_24px_rgb(255_184_0/0.42)]"
-            : "text-zinc-500 hover:text-pollen",
+            : "text-zinc-500 hover:text-pollen active:scale-95",
         )}
       >
         <Icon aria-hidden className="h-[21px] w-[21px]" strokeWidth={active ? 2.35 : 1.9} />
       </span>
-      {label}
+      <span className="max-w-[68px] truncate text-center leading-tight">{label}</span>
     </span>
   );
 }
 
 interface HiveBottomNavProps {
   onMore: () => void;
+  pathname: string;
 }
 
-const PRIMARY: readonly { href: string; label: string; Icon: typeof LayoutGridIcon }[] = [
-  { href: "/", label: "Hive", Icon: LayoutGridIcon },
-  { href: "/ballroom", label: "Ballroom", Icon: MicIcon },
-];
-
-/** Mobile thumb nav — hive + ballroom. */
-export function HiveBottomNav({ onMore }: HiveBottomNavProps) {
-  const pathname = usePathname();
+/** Primary thumb targets — subset of nav + overflow sheet. */
+export function HiveBottomNav({ onMore, pathname }: HiveBottomNavProps) {
+  const items = hiveBottomNavItems();
 
   return (
     <nav
@@ -57,17 +54,29 @@ export function HiveBottomNav({ onMore }: HiveBottomNavProps) {
         "pb-[calc(0.35rem+env(safe-area-inset-bottom))] pt-1 shadow-[0_-18px_40px_rgb(0_0_0/0.45)]",
       )}
     >
-      <div className="mx-auto flex max-w-xl items-center justify-between gap-0 px-1">
-        {PRIMARY.map(({ href, label, Icon }) => {
-          const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+      <div className="mx-auto flex max-w-xl items-stretch justify-between gap-0 px-1">
+        {items.map((item) => {
+          const { href, label, Icon } = item;
+          const active = isNavItemActive(pathname, item);
           return (
-            <Link key={href} href={href} prefetch className="flex min-w-0 flex-1 justify-center touch-manipulation" aria-current={active ? "page" : undefined}>
+            <Link
+              key={href}
+              href={href}
+              prefetch
+              className="flex min-w-0 flex-1 justify-center touch-manipulation"
+              aria-current={active ? "page" : undefined}
+            >
               <NavGlyph label={label} Icon={Icon} active={active} />
             </Link>
           );
         })}
-        <button type="button" className="flex min-w-0 flex-1 justify-center touch-manipulation" onClick={onMore} aria-haspopup="dialog">
-          <NavGlyph label="Menu" Icon={EllipsisVerticalIcon} active={false} />
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 justify-center touch-manipulation"
+          onClick={onMore}
+          aria-haspopup="dialog"
+        >
+          <NavGlyph label="More" Icon={EllipsisVerticalIcon} active={false} />
         </button>
       </div>
     </nav>

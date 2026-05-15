@@ -6,13 +6,16 @@ import secrets
 from dataclasses import dataclass
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from redis.exceptions import RedisError
 
 from app.core.config import settings
 from app.core.jwt_tokens import create_access_token
 from app.core.logging import get_logger
+from app.core.redis_client import sliding_window_reserve
 from app.common.schemas.auth import TokenIssued, TokenMintRequest
+from app.presentation.api.middleware.rate_limit import peer_ip_for_rate_limit
 
 logger = get_logger(__name__)
 router = APIRouter(tags=["Auth"])
@@ -50,6 +53,7 @@ async def exchange_machine_token(
     body: TokenMintRequest,
     creds: Annotated[HTTPBasicCredentials | None, Depends(_optional_basic)],
     exchange: Annotated[HiveTokenExchangeConfig, Depends(hive_token_exchange_config)],
+    request: Request,
 ) -> TokenIssued:
     """Return a Bearer token when Basic auth aligns with configured client credentials."""
 
@@ -64,6 +68,27 @@ async def exchange_machine_token(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Hive machine token exchange is not configured.",
         )
+
+    if settings.rate_limit_enabled:
+        peer = peer_ip_for_rate_limit(request)
+        try:
+            token_ok = await sliding_window_reserve(
+                f"queenswarm:rl:token_exchange:{peer}",
+                limit=settings.rate_limit_token_exchange_max,
+                window_sec=settings.rate_limit_token_exchange_window_sec,
+            )
+        except RedisError as exc:
+            logger.warning(
+                "auth.token_exchange.ratelimit_redis_degraded",
+                agent_id="auth_router",
+                swarm_id="",
+                task_id="",
+                error=str(exc),
+                peer=peer,
+            )
+            token_ok = True
+        if not token_ok:
+            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Token exchange rate limit exceeded.")
 
     if creds is None:
         raise HTTPException(

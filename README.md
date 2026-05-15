@@ -25,7 +25,25 @@ PLAYWRIGHT_BASE_URL=https://queenswarm.love PLAYWRIGHT_IGNORE_TLS_ERRORS=1 npm r
 
 Vitest unit tests: `npm run test`.
 
-## Phase 6.1 — Lightweight supervisor upgrade (current)
+## Phase 7.0 — Consolidation & UX Polish (current)
+
+- **Consolidated IA:** top-level sections now center on `Overview`, `Agents`, `Execution`, `Knowledge`, `Integrations`, `Ballroom`, `Settings` with alias-first compatibility.
+- **New hub routes:** `/overview`, `/execution`, `/knowledge`, `/integrations` (existing pages remain reachable).
+- **Advanced modules behind flags:** monitoring, simulations, leaderboard, recipes, advanced 2FA controls, and API key management are explicitly feature-flagged.
+- **Security hardening:** dedicated rate limits for `POST /api/v1/auth/login` and `POST /api/v1/auth/token`.
+
+## Phase 6.2 — Supervisor observability strip (reference)
+
+- **Summary API:** `GET /api/v1/agents/sessions/summary` returns aggregate session/routine counters for control-plane visibility.
+- **Dashboard telemetry:** `/agents` now shows live counters (sessions total, running/needs-input, routines total, active/due).
+- **Prometheus:** added supervisor lifecycle counters (`queenswarm_supervisor_sessions_total`, `queenswarm_supervisor_routines_total`).
+
+## Phase 6.3 — Supervisor Grafana telemetry (current)
+
+- **Grafana:** `docker/grafana/dashboards/queenswarm.json` now includes a Supervisor Control Plane section for sessions/routines lifecycle metrics.
+- **Panels:** created sessions, durable queued sessions, triggered routines, failed routines, and 5m event-rate timeseries.
+
+## Phase 6.1 — Lightweight supervisor upgrade (reference)
 
 - **Report:** [`docs/PHASE61_LIGHTWEIGHT_UPGRADE_REPORT.md`](./docs/PHASE61_LIGHTWEIGHT_UPGRADE_REPORT.md)
 - **Skills:** Markdown skill packs in `backend/app/skills/*` loaded on-demand by supervisor/sub-agents.

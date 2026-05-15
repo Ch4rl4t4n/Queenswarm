@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.presentation.api.deps import DbSession, JwtSubject, RecipeMutationSubject
+from app.core.config import settings
 from app.domain.learning.imitation_engine import record_imitation_event, select_top_k_exemplars
 from app.domain.learning.reflection_loop import persist_task_reflection, run_post_task_reflection
 from app.domain.learning.reward_tracker import (
@@ -32,6 +33,22 @@ from app.common.schemas.recipes_write import RecipeCreateBody
 from app.application.services.recipe_write import RecipeWriteConflictError, RecipeWritePayloadTooLargeError
 
 router = APIRouter(tags=["Learning"])
+
+
+def _ensure_leaderboard_enabled() -> None:
+    if not settings.leaderboard_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Leaderboard module is disabled.",
+        )
+
+
+def _ensure_recipes_enabled() -> None:
+    if not settings.recipes_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Recipes module is disabled.",
+        )
 
 
 @router.post(
@@ -98,6 +115,7 @@ async def list_exemplars(
 ) -> list[ExemplarBrief]:
     """Return high-signal exemplars for imitation."""
 
+    _ensure_leaderboard_enabled()
     try:
         rows = await select_top_k_exemplars(
             db,
@@ -227,6 +245,7 @@ async def learning_recipe_search(
 ):
     """Proxy to Chroma + Postgres hydration for imitation dashboards."""
 
+    _ensure_recipes_enabled()
     try:
         return await semantic_search_catalog(
             db,
@@ -253,6 +272,7 @@ async def autosave_recipe(
 ) -> dict[str, str]:
     """Create catalog row + optional Chroma mirror when mutations are enabled."""
 
+    _ensure_recipes_enabled()
     payload = RecipeCreateBody(
         name=body.name,
         description=body.description,

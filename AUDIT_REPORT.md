@@ -1,3 +1,46 @@
+# Queenswarm — AUDIT_REPORT (Phase 7.0 addendum)
+
+## Phase 7.0 Addendum — Consolidation & UX Polish
+
+Date: 2026-05-15
+
+### Delivered
+
+- Consolidated information architecture with additive, alias-first navigation model:
+  - New hub routes: `/overview`, `/execution`, `/knowledge`, `/integrations`
+  - Existing operational routes preserved for backward compatibility
+- Advanced module control plane (feature flags) added in backend settings and frontend env interpretation:
+  - `ADVANCED_MONITORING_ENABLED`
+  - `SIMULATIONS_ENABLED`
+  - `LEADERBOARD_ENABLED`
+  - `RECIPES_ENABLED`
+  - `SECURITY_2FA_ADVANCED_ENABLED`
+  - `API_KEY_MANAGEMENT_ENABLED`
+  - `PHASE70_CONSOLIDATED_NAV_ENABLED`
+- Production auth hardening:
+  - Dedicated login throttle (`RATE_LIMIT_LOGIN_MAX`, `RATE_LIMIT_LOGIN_WINDOW_SEC`)
+  - Dedicated token-exchange throttle (`RATE_LIMIT_TOKEN_EXCHANGE_MAX`, `RATE_LIMIT_TOKEN_EXCHANGE_WINDOW_SEC`)
+- Advanced route gates are now explicit and fail-safe (`403`) when disabled:
+  - monitoring, simulations, recipes/leaderboard, advanced 2FA management, API key management
+
+### Verification evidence
+
+- Backend targeted suite:
+  - `tests/test_phase70_feature_flags_api.py`
+  - `tests/test_catalogs_api_auth_unit.py`
+  - `tests/test_auth_token_api.py`
+  - `tests/test_agent_sessions_api_unit.py`
+  - `tests/connectors/test_openapi_phase0_paths.py`
+- Frontend targeted suite:
+  - `lib/hive-nav-primary.test.ts`
+  - `lib/hive-mobile-meta.test.ts`
+  - `e2e/phase70-consolidated-navigation.spec.ts` (opt-in via `E2E_PHASE70_NAV=1`)
+
+### Backward compatibility
+
+- Existing route surface and BE/FE contracts remain additive.
+- Consolidated IA does not remove legacy pages; it adds curated section entrypoints and feature-flag visibility control.
+
 # Queenswarm — AUDIT_REPORT (Phase 6.1)
 
 **Date:** 2026-05-15  

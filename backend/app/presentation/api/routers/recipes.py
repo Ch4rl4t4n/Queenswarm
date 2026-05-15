@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.presentation.api.deps import DbSession, JwtSubject, RecipeMutationSubject
+from app.core.config import settings
 from app.core.logging import get_logger
 from app.infrastructure.persistence.models.recipe import Recipe
 from app.common.schemas.recipes_catalog import RecipeCatalogItem
@@ -31,6 +32,22 @@ logger = get_logger(__name__)
 router = APIRouter(tags=["Recipes"])
 
 
+def _ensure_recipes_enabled() -> None:
+    if not settings.recipes_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Recipes module is disabled.",
+        )
+
+
+def _ensure_leaderboard_enabled() -> None:
+    if not settings.leaderboard_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Leaderboard module is disabled.",
+        )
+
+
 @router.get(
     "/search",
     response_model=list[RecipeSemanticHit],
@@ -48,6 +65,7 @@ async def semantic_recipe_search(
 ):
     """Rank verified workflow embeddings via cosine similarity (optional Postgres join)."""
 
+    _ensure_recipes_enabled()
     try:
         return await search_recipes_semantic(db, query=q, limit=limit, task_id=_subject)
     except SQLAlchemyError:
@@ -71,6 +89,7 @@ async def create_recipe(
 ) -> RecipeCatalogItem:
     """Promote a workflow template into the imitation catalog (optional Chroma mirror)."""
 
+    _ensure_recipes_enabled()
     try:
         row = await create_recipe_entry(
             db,
@@ -133,6 +152,8 @@ async def list_recipes(
 ):
     """Return catalog metadata for imitation dashboards (no embedding payloads)."""
 
+    _ensure_recipes_enabled()
+    _ensure_leaderboard_enabled()
     try:
         rows = await list_recipe_catalog_rows(
             db,
@@ -161,6 +182,7 @@ async def get_recipe(
 ) -> RecipeCatalogItem:
     """Return a single leaderboard row."""
 
+    _ensure_recipes_enabled()
     try:
         row = await db.get(Recipe, recipe_id)
     except SQLAlchemyError:
@@ -192,6 +214,7 @@ async def patch_recipe(
 ) -> RecipeCatalogItem:
     """Patch metadata or template fields and refresh embeddings when enabled."""
 
+    _ensure_recipes_enabled()
     try:
         row = await update_recipe_entry(
             db,
@@ -260,6 +283,7 @@ async def delete_recipe(
 ) -> Response:
     """Hard-delete when no workflows/tasks reference the recipe (prefer deprecate otherwise)."""
 
+    _ensure_recipes_enabled()
     try:
         rid, name = await delete_recipe_entry(
             db,

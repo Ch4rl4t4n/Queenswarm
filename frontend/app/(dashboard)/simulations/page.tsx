@@ -1,10 +1,21 @@
 import { ConfettiTrigger } from "@/components/hive/confetti-trigger";
+import { SIMULATIONS_ENABLED } from "@/lib/feature-flags";
 import { hiveServerRawJson } from "@/lib/hive-server";
 import type { SimulationRow } from "@/lib/hive-types";
 
 export const dynamic = "force-dynamic";
 
 export default async function SimulationsPage() {
+  if (!SIMULATIONS_ENABLED) {
+    return (
+      <div className="rounded-2xl border border-cyan/20 bg-black/30 p-5">
+        <p className="font-[family-name:var(--font-poppins)] text-sm text-zinc-300">
+          Simulations module is disabled. Enable <code>NEXT_PUBLIC_SIMULATIONS_ENABLED=true</code> for this section.
+        </p>
+      </div>
+    );
+  }
+
   const audits = await hiveServerRawJson<SimulationRow[]>("/simulations?limit=50");
 
   if (!audits) {

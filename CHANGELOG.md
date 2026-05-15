@@ -1,5 +1,27 @@
 # Queenswarm Changelog
 
+## Phase 7.0 — consolidation + UX polish (2026-05-15)
+
+- **feat:** add Phase 7 feature-flag control plane (`ADVANCED_MONITORING_ENABLED`, `SIMULATIONS_ENABLED`, `LEADERBOARD_ENABLED`, `RECIPES_ENABLED`, `SECURITY_2FA_ADVANCED_ENABLED`, `API_KEY_MANAGEMENT_ENABLED`, `PHASE70_CONSOLIDATED_NAV_ENABLED`).
+- **feat:** gate advanced backend surfaces for monitoring/simulations/recipes/leaderboard/advanced 2FA/API key management.
+- **feat:** add dedicated auth anti-abuse windows for `POST /api/v1/auth/login` and `POST /api/v1/auth/token`.
+- **feat:** ship consolidated navigation IA and additive section hubs: `/overview`, `/execution`, `/knowledge`, `/integrations`.
+- **feat:** add frontend feature-flag helpers and route-level UX fallbacks when advanced modules are disabled.
+- **test:** add backend feature-flag API coverage and frontend nav/mobile meta regression updates.
+- **test:** add opt-in Playwright scaffold for consolidated navigation (`E2E_PHASE70_NAV=1`).
+
+## Phase 6.3 — supervisor Grafana telemetry (2026-05-15)
+
+- **feat:** extend `docker/grafana/dashboards/queenswarm.json` with Supervisor Control Plane panels (created/queued sessions, triggered/failed routines, event rate).
+- **test:** extend `backend/tests/test_observability_metrics.py` to assert supervisor session/routine Prometheus counters increment with expected labels.
+
+## Phase 6.2 — supervisor observability strip (2026-05-15)
+
+- **feat:** add aggregate control-plane endpoint `GET /api/v1/agents/sessions/summary` with sessions/routines counters and due-routine signal.
+- **feat:** `/agents` dashboard renders live summary telemetry cards above session controls.
+- **feat:** add Prometheus lifecycle counters for supervisor sessions/routines in `app.core.metrics`.
+- **test:** add API unit coverage for summary route and OpenAPI regression path assertion.
+
 ## Phase 6.1 — lightweight skills + retrieval + routines (2026-05-15)
 
 - **feat:** add lightweight Markdown skills system under `backend/app/skills/*` with on-demand `SkillLibrary` loader (`context`, `decide`, `tdd`, `diagnose`, `grill-me`).

@@ -273,6 +273,20 @@ class Settings(BaseSettings):
         description="Extra sliding window for POST /api/v1/tasks (requests per peer IP).",
     )
     rate_limit_task_create_window_sec: float = Field(default=60.0, gt=0)
+    rate_limit_login_max: int = Field(
+        default=20,
+        ge=1,
+        le=200_000,
+        description="Dedicated sliding window for POST /api/v1/auth/login per peer IP.",
+    )
+    rate_limit_login_window_sec: float = Field(default=300.0, gt=0)
+    rate_limit_token_exchange_max: int = Field(
+        default=30,
+        ge=1,
+        le=200_000,
+        description="Dedicated sliding window for POST /api/v1/auth/token per peer IP.",
+    )
+    rate_limit_token_exchange_window_sec: float = Field(default=300.0, gt=0)
     health_readiness_cache_sec: float = Field(
         default=3.0,
         ge=0,
@@ -413,6 +427,46 @@ class Settings(BaseSettings):
     hive_dashboard_guest_ws: bool = Field(
         default=False,
         description="Allow /api/v1/ws/live dashboard sockets without JWT (read-only snapshots).",
+    )
+    advanced_monitoring_enabled: bool = Field(
+        default=False,
+        description="Expose advanced monitoring snapshots/routes for operators.",
+    )
+    simulations_enabled: bool = Field(
+        default=False,
+        description="Expose simulations ledger routes in operator API.",
+    )
+    leaderboard_enabled: bool = Field(
+        default=False,
+        description="Expose leaderboard-style learning/ranking API surfaces.",
+    )
+    recipes_enabled: bool = Field(
+        default=False,
+        description="Expose recipe catalog/search/autosave routes.",
+    )
+    security_2fa_advanced_enabled: bool = Field(
+        default=False,
+        description="Enable advanced 2FA management endpoints beyond baseline login verification.",
+    )
+    api_key_management_enabled: bool = Field(
+        default=False,
+        description="Enable scripted dashboard API key management endpoints.",
+    )
+    phase70_consolidated_nav_enabled: bool = Field(
+        default=True,
+        description="Frontend/client hint for consolidated navigation rollout.",
+    )
+    oauth_callback_rate_per_ip: int = Field(
+        default=30,
+        ge=1,
+        le=10000,
+        description="Rate limit for OAuth callback completion attempts per IP.",
+    )
+    oauth_callback_rate_window_sec: float = Field(
+        default=60.0,
+        gt=0,
+        le=3600,
+        description="Window for OAuth callback per-IP limiter.",
     )
     supervisor_dynamic_subagents_enabled: bool = Field(
         default=False,

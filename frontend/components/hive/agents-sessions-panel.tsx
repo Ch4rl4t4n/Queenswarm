@@ -8,7 +8,12 @@ import { toast } from "sonner";
 
 import { AgentSessionDetailDrawer } from "@/components/hive/agent-session-detail-drawer";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
-import type { SupervisorRoutineRow, SupervisorSessionEventRow, SupervisorSessionRow } from "@/lib/hive-types";
+import type {
+  SupervisorControlSummaryRow,
+  SupervisorRoutineRow,
+  SupervisorSessionEventRow,
+  SupervisorSessionRow,
+} from "@/lib/hive-types";
 import { runtimeModeLabel, sessionStatusTone } from "@/lib/supervisor-session";
 
 interface CreateSessionPayload {
@@ -20,6 +25,7 @@ interface CreateSessionPayload {
 }
 
 const ROLE_OPTIONS = ["researcher", "coder", "browser_operator", "critic", "designer"] as const;
+type SessionStatusFilter = "all" | "running" | "needs_input" | "completed" | "failed" | "queued";
 
 export function AgentsSessionsPanel(): JSX.Element {
   const [goal, setGoal] = useState("");
@@ -31,6 +37,8 @@ export function AgentsSessionsPanel(): JSX.Element {
   const [routineGoal, setRoutineGoal] = useState("");
   const [routineInterval, setRoutineInterval] = useState(3600);
   const [routineBusy, setRoutineBusy] = useState(false);
+  const [sessionQuery, setSessionQuery] = useState("");
+  const [sessionStatusFilter, setSessionStatusFilter] = useState<SessionStatusFilter>("all");
 
   const {
     data: sessions = [],
@@ -48,11 +56,32 @@ export function AgentsSessionsPanel(): JSX.Element {
     () => hiveGet<SupervisorRoutineRow[]>("agents/routines?limit=40"),
     { refreshInterval: 10_000 },
   );
+  const { data: summary } = useSWR<SupervisorControlSummaryRow>(
+    "hive/agent-sessions-summary",
+    () => hiveGet<SupervisorControlSummaryRow>("agents/sessions/summary"),
+    { refreshInterval: 5000 },
+  );
 
   const selected = useMemo(
     () => sessions.find((session) => session.id === selectedSessionId) ?? null,
     [sessions, selectedSessionId],
   );
+  const filteredSessions = useMemo(() => {
+    const q = sessionQuery.trim().toLowerCase();
+    return sessions.filter((session) => {
+      if (sessionStatusFilter !== "all" && session.status !== sessionStatusFilter) {
+        return false;
+      }
+      if (!q) {
+        return true;
+      }
+      return (
+        session.goal.toLowerCase().includes(q) ||
+        session.status.toLowerCase().includes(q) ||
+        session.runtime_mode.toLowerCase().includes(q)
+      );
+    });
+  }, [sessions, sessionQuery, sessionStatusFilter]);
 
   const {
     data: events = [],
@@ -178,6 +207,29 @@ export function AgentsSessionsPanel(): JSX.Element {
         </div>
       </div>
 
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-xl border border-cyan/20 bg-black/25 p-3 text-xs text-zinc-300">
+          <p className="text-zinc-500">Sessions total</p>
+          <p className="mt-1 text-base font-semibold text-zinc-100">{summary?.sessions_total ?? 0}</p>
+        </div>
+        <div className="rounded-xl border border-cyan/20 bg-black/25 p-3 text-xs text-zinc-300">
+          <p className="text-zinc-500">Running / Needs input</p>
+          <p className="mt-1 text-base font-semibold text-zinc-100">
+            {summary?.running_sessions ?? 0} / {summary?.needs_input_sessions ?? 0}
+          </p>
+        </div>
+        <div className="rounded-xl border border-cyan/20 bg-black/25 p-3 text-xs text-zinc-300">
+          <p className="text-zinc-500">Routines total</p>
+          <p className="mt-1 text-base font-semibold text-zinc-100">{summary?.routines_total ?? 0}</p>
+        </div>
+        <div className="rounded-xl border border-cyan/20 bg-black/25 p-3 text-xs text-zinc-300">
+          <p className="text-zinc-500">Active / Due</p>
+          <p className="mt-1 text-base font-semibold text-zinc-100">
+            {summary?.active_routines ?? 0} / {summary?.due_routines ?? 0}
+          </p>
+        </div>
+      </div>
+
       <div className="mt-4 grid gap-3 rounded-2xl border border-cyan/20 bg-black/30 p-4 md:grid-cols-[1fr_auto_auto]">
         <input
           className="qs-input"
@@ -203,13 +255,34 @@ export function AgentsSessionsPanel(): JSX.Element {
         </button>
       </div>
 
+      <div className="mt-4 grid gap-2 rounded-2xl border border-zinc-800 bg-black/20 p-3 md:grid-cols-[1fr_180px]">
+        <input
+          className="qs-input"
+          placeholder="Filter sessions by goal/status/runtime..."
+          value={sessionQuery}
+          onChange={(event) => setSessionQuery(event.target.value)}
+        />
+        <select
+          className="qs-input"
+          value={sessionStatusFilter}
+          onChange={(event) => setSessionStatusFilter(event.target.value as SessionStatusFilter)}
+        >
+          <option value="all">all statuses</option>
+          <option value="running">running</option>
+          <option value="needs_input">needs_input</option>
+          <option value="queued">queued</option>
+          <option value="completed">completed</option>
+          <option value="failed">failed</option>
+        </select>
+      </div>
+
       <div className="mt-4 grid gap-3">
         {isLoading ? (
           <p className="text-sm text-zinc-500">Loading sessions...</p>
-        ) : sessions.length === 0 ? (
+        ) : filteredSessions.length === 0 ? (
           <p className="text-sm text-zinc-500">No sessions yet.</p>
         ) : (
-          sessions.map((session) => (
+          filteredSessions.map((session) => (
             <div key={session.id} className="rounded-2xl border border-zinc-800 bg-black/25 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">

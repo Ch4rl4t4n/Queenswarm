@@ -20,8 +20,17 @@ from app.application.services.simulation_audit import (
     fetch_simulation_audit,
     list_recent_simulation_audits,
 )
+from app.core.config import settings
 
 router = APIRouter(tags=["Simulations"])
+
+
+def _ensure_simulations_enabled() -> None:
+    if not settings.simulations_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Simulations mode is disabled.",
+        )
 
 
 @router.get(
@@ -38,6 +47,7 @@ async def list_simulation_audits(
 ):
     """Return Postgres ``simulations`` rows newest-first."""
 
+    _ensure_simulations_enabled()
     try:
         rows = await list_recent_simulation_audits(
             db,
@@ -65,6 +75,7 @@ async def get_simulation_audit(
 ):
     """Return stdout/stderr-capable detail for compliance review."""
 
+    _ensure_simulations_enabled()
     try:
         row = await fetch_simulation_audit(db, simulation_id)
     except SQLAlchemyError:
@@ -90,6 +101,7 @@ async def create_simulation_audit(
 ):
     """Create ledger metadata after Docker sandbox execution."""
 
+    _ensure_simulations_enabled()
     try:
         row = await create_simulation_record(
             db,

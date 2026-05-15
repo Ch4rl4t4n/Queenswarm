@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.core.config import settings
 from app.presentation.api.deps import get_db, require_subject
 from app.core.jwt_tokens import create_access_token
 from app.main import app
@@ -29,8 +30,12 @@ async def test_simulations_list_requires_bearer(restore_app_overrides: None) -> 
 
 
 @pytest.mark.asyncio
-async def test_simulations_returns_rows_from_mock_session(restore_app_overrides: None) -> None:
+async def test_simulations_returns_rows_from_mock_session(
+    restore_app_overrides: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     app.dependency_overrides[require_subject] = lambda: "pytest"
+    monkeypatch.setattr(settings, "simulations_enabled", True)
 
     async def mock_db() -> AsyncIterator[AsyncMock]:
         session = AsyncMock()
@@ -60,8 +65,13 @@ async def test_recipes_list_requires_bearer(restore_app_overrides: None) -> None
 
 
 @pytest.mark.asyncio
-async def test_recipes_list_empty_mock_db(restore_app_overrides: None) -> None:
+async def test_recipes_list_empty_mock_db(
+    restore_app_overrides: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     app.dependency_overrides[require_subject] = lambda: "pytest"
+    monkeypatch.setattr(settings, "recipes_enabled", True)
+    monkeypatch.setattr(settings, "leaderboard_enabled", True)
 
     async def mock_db() -> AsyncIterator[AsyncMock]:
         session = AsyncMock()
@@ -96,6 +106,7 @@ async def test_recipes_search_returns_hits_through_bridge(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     app.dependency_overrides[require_subject] = lambda: "pytest"
+    monkeypatch.setattr(settings, "recipes_enabled", True)
 
     async def mock_db() -> AsyncIterator[AsyncMock]:
         yield AsyncMock()

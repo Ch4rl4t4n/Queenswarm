@@ -10,11 +10,12 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from jose import JWTError
 from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field, computed_field, field_validator
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
+from redis.exceptions import RedisError
 from starlette.responses import Response
 
 from app.presentation.api.deps import DashboardAdmin, DashboardSession, DbSession, JwtSubject
@@ -28,6 +29,7 @@ from app.core.jwt_tokens import (
 )
 from app.core.logging import get_logger
 from app.core.redis_client import fetch_dashboard_refresh_user, revoke_dashboard_refresh, store_dashboard_refresh
+from app.core.redis_client import sliding_window_reserve
 from app.infrastructure.persistence.models.dashboard_api_key import DashboardApiKey
 from app.infrastructure.persistence.models.dashboard_user import DashboardUser
 from app.application.services.dashboard_api_keys import (
@@ -56,9 +58,26 @@ from app.application.services.llm_runtime_credentials import (
     provider_effective_grok,
     provider_effective_openai,
 )
+from app.presentation.api.middleware.rate_limit import peer_ip_for_rate_limit
 
 logger = get_logger(__name__)
 router = APIRouter(tags=["Auth"])
+
+
+def _ensure_2fa_advanced_enabled() -> None:
+    if not settings.security_2fa_advanced_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Advanced 2FA management is disabled.",
+        )
+
+
+def _ensure_api_key_management_enabled() -> None:
+    if not settings.api_key_management_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="API key management is disabled.",
+        )
 
 
 class _TokenBundle(BaseModel):
@@ -169,7 +188,31 @@ async def _issue_pair(db_user: DashboardUser) -> dict[str, Any]:
     "/login",
     summary="Authenticate with password (second factor may be required afterward)",
 )
-async def dashboard_login(body: LoginRequest, db: DbSession) -> LoginResponse:
+async def dashboard_login(body: LoginRequest, db: DbSession, request: Request) -> LoginResponse:
+    if settings.rate_limit_enabled:
+        peer = peer_ip_for_rate_limit(request)
+        try:
+            login_ok = await sliding_window_reserve(
+                f"queenswarm:rl:dashboard_login:{peer}",
+                limit=settings.rate_limit_login_max,
+                window_sec=settings.rate_limit_login_window_sec,
+            )
+        except RedisError as exc:
+            logger.warning(
+                "dashboard_auth.login.ratelimit_redis_degraded",
+                agent_id="dashboard_auth",
+                swarm_id="",
+                task_id="",
+                error=str(exc),
+                peer=peer,
+            )
+            login_ok = True
+        if not login_ok:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Login rate limit exceeded. Retry later.",
+            )
+
     stmt = select(DashboardUser).where(DashboardUser.email == body.email.strip().lower())
     try:
         user = await db.scalar(stmt)
@@ -402,6 +445,61 @@ class ProfilePatchBody(BaseModel):
 
     display_name: str | None = Field(default=None, max_length=160)
     timezone: str | None = Field(default=None, max_length=96)
+
+
+class ChangePasswordBody(BaseModel):
+    """Payload for self-service password rotation."""
+
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+
+    current_password: str = Field(..., min_length=8, max_length=256)
+    new_password: str = Field(..., min_length=8, max_length=256)
+
+
+class ChangePasswordResponse(BaseModel):
+    """Success envelope for password updates."""
+
+    ok: bool = True
+
+
+@router.post("/me/password", summary="Rotate the current operator password")
+async def dashboard_change_password(
+    body: ChangePasswordBody,
+    sess: DashboardSession,
+    db: DbSession,
+) -> ChangePasswordResponse:
+    """Update password hash after validating the current password."""
+
+    user = await _current_dashboard_user(sess, db)
+    if not verify_dashboard_password(body.current_password, user.password_hash):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid current password.")
+    if secrets.compare_digest(body.current_password, body.new_password):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="New password must differ from current password.",
+        )
+
+    user.password_hash = hash_dashboard_password(body.new_password)
+    try:
+        await db.commit()
+        await db.refresh(user)
+    except SQLAlchemyError:
+        await db.rollback()
+        logger.exception(
+            "dashboard_auth.change_password_failed",
+            agent_id=str(user.id),
+            swarm_id="",
+            task_id="",
+        )
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Persistence error.")
+
+    logger.info(
+        "dashboard_auth.password_changed",
+        agent_id=str(user.id),
+        swarm_id="",
+        task_id="",
+    )
+    return ChangePasswordResponse(ok=True)
 
 
 @router.patch("/me/profile", summary="Patch display labels or hive timezone identifiers")
@@ -767,6 +865,7 @@ async def profile_totp_provision(
     sess: DashboardSession,
     db: DbSession,
 ) -> TwoFAProvisionResponse:
+    _ensure_2fa_advanced_enabled()
     user = await _current_dashboard_user(sess, db)
     if not verify_dashboard_password(body.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password.")
@@ -802,6 +901,7 @@ class TotpConfirmResponse(BaseModel):
     response_model=TotpConfirmResponse,
 )
 async def profile_totp_confirm(body: TotpCodeBody, sess: DashboardSession, db: DbSession) -> TotpConfirmResponse:
+    _ensure_2fa_advanced_enabled()
     user = await _current_dashboard_user(sess, db)
     if user.totp_secret is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="TOTP provisioning has not started.")
@@ -837,6 +937,7 @@ async def profile_totp_backup_regenerate(
     sess: DashboardSession,
     db: DbSession,
 ) -> dict[str, list[str]]:
+    _ensure_2fa_advanced_enabled()
     user = await _current_dashboard_user(sess, db)
     if not verify_dashboard_password(body.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password.")
@@ -866,6 +967,7 @@ async def profile_totp_backup_regenerate(
 
 @router.post("/profile/totp/disable", summary="Strip authenticator enrollment after verifying password")
 async def profile_totp_disable(body: PasswordConfirmBody, sess: DashboardSession, db: DbSession) -> MeDetailResponse:
+    _ensure_2fa_advanced_enabled()
     user = await _current_dashboard_user(sess, db)
     if not verify_dashboard_password(body.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password.")
@@ -932,6 +1034,7 @@ def _mask_key_row(row: DashboardApiKey) -> ApiKeySummary:
 
 @router.get("/api-keys", summary="List bcrypt-protected scripted credentials tied to this operator")
 async def list_dashboard_api_credentials(sess: DashboardSession, db: DbSession) -> list[ApiKeySummary]:
+    _ensure_api_key_management_enabled()
     user = await _current_dashboard_user(sess, db)
     rows = await list_dashboard_api_keys(db, user_id=user.id)
     active = [r for r in rows if r.revoked_at is None]
@@ -944,6 +1047,7 @@ async def create_dashboard_api_credential_route(
     sess: DashboardSession,
     db: DbSession,
 ) -> ApiKeyMinted:
+    _ensure_api_key_management_enabled()
     user = await _current_dashboard_user(sess, db)
     try:
         row, plaintext = await create_dashboard_api_key(
@@ -980,6 +1084,7 @@ async def revoke_dashboard_api_credential_route(
     sess: DashboardSession,
     db: DbSession,
 ) -> Response:
+    _ensure_api_key_management_enabled()
     user = await _current_dashboard_user(sess, db)
     try:
         await revoke_dashboard_api_key(db, user_id=user.id, key_id=key_id)
@@ -1043,6 +1148,7 @@ async def admin_create_dashboard_user(body: DashboardUserCreate, db: DbSession, 
 
 @router.post("/2fa/setup", summary="Administrators regenerate TOTP material for their login")
 async def setup_totp(sess: DashboardSession, db: DbSession) -> TwoFAProvisionResponse:
+    _ensure_2fa_advanced_enabled()
     scopes_raw = str(sess.get("scope", ""))
     if "dash:admin" not in scopes_raw.split():
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Administrators only.")
