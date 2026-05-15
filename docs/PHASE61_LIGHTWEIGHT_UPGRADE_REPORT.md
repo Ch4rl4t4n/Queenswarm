@@ -86,3 +86,6 @@ Defaults are safe in config (`false`), with explicit opt-in in environment files
 - OpenAPI regression for new paths
 - Frontend unit test update for session status helper
 - Frontend lint/type/build check
+- Frontend Playwright scenario scaffold:
+  - `frontend/e2e/phase61-supervisor-control.spec.ts`
+  - opt-in gate: `E2E_PHASE61_SUPERVISOR=1` (intended for live env where `/agents` server-data fetches are available)
