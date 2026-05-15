@@ -17,6 +17,8 @@
   - `LIGHT_CONTROL_PLANE_ENABLED`
   - `ROUTINES_ENABLED`
 - **test:** add/extend unit+API+OpenAPI+frontend tests for new helper logic and routes.
+- **test:** harden routines scheduler reliability with dedicated unit coverage for `run_due_routines_tick` (disabled/success/failure branches).
+- **test:** add opt-in Playwright scaffold for `/agents` supervisor control-plane+routines flows (`E2E_PHASE61_SUPERVISOR=1`) and middleware-compatible JWT cookie seed fixture.
 
 ## Phase 5.5 — perfect environments (repo Lane A) (2026-05-14)
 

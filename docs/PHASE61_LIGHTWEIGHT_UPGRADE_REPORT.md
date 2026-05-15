@@ -89,3 +89,15 @@ Defaults are safe in config (`false`), with explicit opt-in in environment files
 - Frontend Playwright scenario scaffold:
   - `frontend/e2e/phase61-supervisor-control.spec.ts`
   - opt-in gate: `E2E_PHASE61_SUPERVISOR=1` (intended for live env where `/agents` server-data fetches are available)
+
+## Post-Implementation Hardening (Phase 6.1.x)
+
+- Added routines API regression expansion in `backend/tests/test_agent_sessions_api_unit.py`:
+  - create routine
+  - trigger routine
+- Added scheduler tick unit hardening in `backend/tests/test_supervisor_routine_service_unit.py`:
+  - disabled short-circuit path
+  - successful due-routine trigger path
+  - failure fallback path (`status=failed`, retry cursor update)
+- Added middleware-compatible JWT test stub for browser shell tests:
+  - `frontend/e2e/fixtures/dashboard-session.ts`
