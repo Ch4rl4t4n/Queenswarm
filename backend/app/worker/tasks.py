@@ -29,6 +29,8 @@ from app.services.sub_swarm.runner import run_sub_swarm_workflow_cycle
 from app.worker.celery_app import celery_app
 from app.application.services.supervisor.runtime import append_event
 from app.application.services.supervisor.shared_context import SharedContextService
+from app.application.services.supervisor.skills import SkillLibrary
+from app.application.services.supervisor.routine_service import run_due_routines_tick
 from app.infrastructure.persistence.models.supervisor_session import SubAgentSession, SupervisorSession
 
 
@@ -366,9 +368,24 @@ def run_supervisor_sub_agent_step_task(
                 payload={"runtime_mode": "durable"},
             )
 
+            skill_library = SkillLibrary()
+            selected_skills = [
+                str(item)
+                for item in (sub.short_memory or {}).get("skills", [])
+                if isinstance(item, str) and item.strip()
+            ]
+            retrieval_contract = str((sup.context_summary or {}).get("retrieval_contract") or "").strip()
+            retrieval_bundle = await shared_context.retrieve_context_bundle(
+                session,
+                supervisor_session_id=sup.id,
+                query=sup.goal,
+                contract=retrieval_contract,
+            )
+
             result_msg = (
                 f"{sub.role} durable step completed for goal: {sup.goal[:240]} "
-                "with shared context update."
+                "with shared context update. "
+                f"skills={len(selected_skills)} retrieval_sections={len(retrieval_bundle.matched_sections)}"
             )
             memory_result = await shared_context.write_step_context(
                 supervisor_session_id=sup.id,
@@ -376,13 +393,20 @@ def run_supervisor_sub_agent_step_task(
                 role=sub.role,
                 goal=sup.goal,
                 message=result_msg,
-                payload={"runtime_mode": "durable"},
+                payload={
+                    "runtime_mode": "durable",
+                    "skills": selected_skills,
+                    "retrieval_contract": retrieval_contract,
+                    "retrieval_sections": retrieval_bundle.matched_sections,
+                },
             )
             sub.last_output = result_msg
             sub.short_memory = {
                 **dict(sub.short_memory or {}),
                 "last_summary": result_msg,
                 "processed_at": datetime.now(tz=UTC).isoformat(),
+                "skills_prompt_block": skill_library.build_prompt_block(selected_skills)[:4000],
+                "retrieval_prompt_block": shared_context.render_bundle_for_prompt(retrieval_bundle)[:2500],
             }
             sub.status = "completed"
             sub.completed_at = datetime.now(tz=UTC)
@@ -421,6 +445,19 @@ def run_supervisor_sub_agent_step_task(
     return asyncio.run(_run())
 
 
+@celery_app.task(name="hive.supervisor_routines_tick", queue="hive")
+def run_supervisor_routines_tick_task() -> dict[str, int]:
+    """Evaluate and spawn due scheduled supervisor routines."""
+
+    async def _run() -> dict[str, int]:
+        async with async_session() as session:
+            result = await run_due_routines_tick(session)
+            await session.commit()
+            return result
+
+    return asyncio.run(_run())
+
+
 __all__ = [
     "dynamic_agent_schedule_tick_task",
     "echo_hive_pulse",
@@ -428,5 +465,6 @@ __all__ = [
     "execute_universal_agent_task",
     "hourly_youtube_crypto_roll_task",
     "run_supervisor_sub_agent_step_task",
+    "run_supervisor_routines_tick_task",
     "run_sub_swarm_workflow_cycle_task",
 ]

@@ -25,7 +25,16 @@ PLAYWRIGHT_BASE_URL=https://queenswarm.love PLAYWRIGHT_IGNORE_TLS_ERRORS=1 npm r
 
 Vitest unit tests: `npm run test`.
 
-## Phase 5.5 — Perfect environments package (current)
+## Phase 6.1 — Lightweight supervisor upgrade (current)
+
+- **Report:** [`docs/PHASE61_LIGHTWEIGHT_UPGRADE_REPORT.md`](./docs/PHASE61_LIGHTWEIGHT_UPGRADE_REPORT.md)
+- **Skills:** Markdown skill packs in `backend/app/skills/*` loaded on-demand by supervisor/sub-agents.
+- **Retrieval contract:** explicit context bundles (`customer_history + policy + last_3_tasks`) via shared context service.
+- **Light control plane:** session `approve/reject` and `needs_input` support on `/agents`.
+- **Routines:** recurring supervisor routines + Celery tick (`hive.supervisor_routines_tick`) under feature flag.
+- **Flags:** `SUPERVISOR_SKILLS_ENABLED`, `RETRIEVAL_CONTRACT_ENABLED`, `LIGHT_CONTROL_PLANE_ENABLED`, `ROUTINES_ENABLED`.
+
+## Phase 5.5 — Perfect environments package (reference)
 
 - **Audit / scorecard:** [`AUDIT_REPORT.md`](./AUDIT_REPORT.md) — **121 %** composite (Lane A **100 %** + automation **+21 %**; **Lane B live** still operator-attested). Target **125–150 %** with evidence in [`docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md`](./docs/PHASE55_STAGING_PRODUCTION_VALIDATION_REPORT.md) (extends [`PHASE54`](./docs/PHASE54_STAGING_PRODUCTION_VALIDATION_REPORT.md)).  
 - **Staging:** `docker-compose.stg.yml` now applies **`QS_ENV_FILE_STG`** to **backend, frontend, celery-worker, celery-beat**; supports **`STAGING_EDGE_MODE=shared`** (default) so staging runs on `:3001/:8001` while production nginx serves both hostnames; **`.env.stg.example`** defaults **`VECTOR_STORE_BACKEND=pgvector`**.  

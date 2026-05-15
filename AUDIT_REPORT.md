@@ -1,7 +1,30 @@
-# Queenswarm — AUDIT_REPORT (Phase 6.0)
+# Queenswarm — AUDIT_REPORT (Phase 6.1)
 
-**Date:** 2026-05-14  
-**Scope:** Dynamic sub-agents + shared context + `/agents` session dashboard, implemented as additive, backward-compatible changes.
+**Date:** 2026-05-15  
+**Scope:** Phase 6.0 baseline plus Phase 6.1 lightweight upgrade (skills + retrieval contract + light control plane + routines), implemented as additive backward-compatible changes.
+
+## Phase 6.1 Scorecard
+
+| Area | Status | Notes |
+|---|---|---|
+| Lightweight Skills System | ✅ implemented | Markdown assets + `SkillLibrary` + runtime injection |
+| Retrieval Contract | ✅ implemented | contract parser + bundle resolver (pgvector + Neo4j) |
+| Light Control Plane | ✅ implemented | session review endpoint + approve/reject + needs_input |
+| Routines & Scheduling | ✅ implemented | `supervisor_routines` + Celery tick + dashboard APIs |
+| Backward compatibility | ✅ preserved | additive schema/endpoints, no breaking route removals |
+| BE/FE contract | ✅ preserved | existing APIs intact; new optional routes additive |
+| Test coverage | ✅ expanded | unit/API/OpenAPI/frontend helper tests |
+
+## Phase 6.1 Compatibility Matrix
+
+| Surface | Change Type | Compatibility |
+|---|---|---|
+| Existing `/api/v1/agents/sessions*` endpoints | additive fields/actions | preserved |
+| Existing supervisor session DB tables | unchanged | preserved |
+| New routines DB table | additive migration `0018_supervisor_routines` | preserved |
+| Existing Celery tasks | unchanged behavior | preserved |
+| Existing `/agents` page route | enhanced only | preserved |
+| Existing auth/proxy stack | reused | preserved |
 
 ## Architecture Summary
 
@@ -20,6 +43,17 @@
   - `GET /api/v1/agents/sessions/{session_id}/events`
   - `POST /api/v1/agents/sessions/{session_id}/interact`
   - `POST /api/v1/agents/sessions/{session_id}/control`
+  - `POST /api/v1/agents/sessions/{session_id}/review`
+  - `POST /api/v1/agents/routines`
+  - `GET /api/v1/agents/routines`
+  - `POST /api/v1/agents/routines/{routine_id}/trigger`
+- Added lightweight skills and retrieval layers:
+  - `backend/app/skills/*.md` skill packs
+  - `SkillLibrary` on-demand loader
+  - retrieval contract bundles through `SharedContextService`
+- Added routine scheduling layer:
+  - `supervisor_routines` persistence
+  - `hive.supervisor_routines_tick` Celery task
 - Expanded existing `/agents` page (no URL migration) with:
   - sessions panel
   - session detail drawer
@@ -45,6 +79,10 @@
 | `SUPERVISOR_DURABLE_MODE_ENABLED` | `false` | allows durable runtime mode |
 | `SUPERVISOR_DEFAULT_RUNTIME_MODE` | `inprocess` | fallback runtime mode |
 | `SUPERVISOR_EVENT_LOG_LIMIT` | `500` | event pagination cap |
+| `SUPERVISOR_SKILLS_ENABLED` | `false` | enables Markdown skills prompt injection |
+| `RETRIEVAL_CONTRACT_ENABLED` | `false` | enables retrieval bundle contract execution |
+| `LIGHT_CONTROL_PLANE_ENABLED` | `false` | enables approval/reject session review API |
+| `ROUTINES_ENABLED` | `false` | enables scheduled routine APIs + Celery beat tick |
 
 ## Implemented Files (Phase 6.0)
 
@@ -56,9 +94,13 @@
   - `backend/app/application/services/supervisor/runtime.py`
   - `backend/app/application/services/supervisor/shared_context.py`
   - `backend/app/application/services/supervisor/spawner.py`
+  - `backend/app/application/services/supervisor/skills.py`
+  - `backend/app/application/services/supervisor/routine_service.py`
   - `backend/app/worker/tasks.py`
   - `backend/app/core/config.py`
   - `backend/app/presentation/api/routers/agent_sessions.py`
+  - `backend/app/infrastructure/persistence/models/supervisor_routine.py`
+  - `backend/alembic/versions/0018_supervisor_routines.py`
   - `backend/app/presentation/api/v1.py`
   - `backend/app/infrastructure/persistence/models/__init__.py`
   - `backend/app/models/__init__.py`
@@ -68,11 +110,12 @@
   - `frontend/components/hive/agent-session-detail-drawer.tsx`
   - `frontend/components/hive/agent-session-event-log.tsx`
   - `frontend/components/hive/agent-session-interact-form.tsx`
-  - `frontend/lib/hive-types.ts`
   - `frontend/lib/supervisor-session.ts`
+  - `frontend/lib/hive-types.ts`
 - Tests:
   - `backend/tests/test_supervisor_session_service_unit.py`
   - `backend/tests/test_agent_sessions_api_unit.py`
+  - `backend/tests/test_supervisor_phase61_unit.py`
   - `backend/tests/connectors/test_openapi_phase0_paths.py` (updated)
   - `frontend/lib/supervisor-session.test.ts`
 

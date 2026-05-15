@@ -50,6 +50,12 @@ def create_celery_app() -> Celery:
             "options": {"queue": "hive"},
         },
     }
+    if settings.routines_enabled:
+        celery.conf.beat_schedule["hive-supervisor-routines-tick"] = {
+            "task": "hive.supervisor_routines_tick",
+            "schedule": timedelta(seconds=60),
+            "options": {"queue": "hive"},
+        }
     return celery
 
 

@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.supervisor.shared_context import SharedContextService
+from app.application.services.supervisor.skills import SkillLibrary
 from app.infrastructure.persistence.models.supervisor_session import (
     SubAgentSession,
     SupervisorSession,
@@ -68,8 +69,25 @@ async def run_sub_agent_inprocess(
     supervisor_session: SupervisorSession,
     sub_agent: SubAgentSession,
     shared_context: SharedContextService,
+    skill_library: SkillLibrary | None = None,
 ) -> None:
     """Execute a lightweight in-process sub-agent cycle."""
+
+    loader = skill_library or SkillLibrary()
+    selected_skills = [
+        str(item)
+        for item in (sub_agent.short_memory or {}).get("skills", [])
+        if isinstance(item, str) and item.strip()
+    ]
+    skill_prompt = loader.build_prompt_block(selected_skills)
+    retrieval_contract = str((supervisor_session.context_summary or {}).get("retrieval_contract") or "").strip()
+    retrieval_bundle = await shared_context.retrieve_context_bundle(
+        db,
+        supervisor_session_id=supervisor_session.id,
+        query=supervisor_session.goal,
+        contract=retrieval_contract,
+    )
+    retrieval_prompt = shared_context.render_bundle_for_prompt(retrieval_bundle)
 
     now = datetime.now(tz=UTC)
     sub_agent.status = "running"
@@ -85,13 +103,16 @@ async def run_sub_agent_inprocess(
 
     result_msg = (
         f"{sub_agent.role} processed goal: {supervisor_session.goal[:240]} "
-        "and stored context for downstream agents."
+        "and stored context for downstream agents. "
+        f"skills={len(selected_skills)} retrieval_sections={len(retrieval_bundle.matched_sections)}"
     )
     sub_agent.last_output = result_msg
     sub_agent.short_memory = {
         **dict(sub_agent.short_memory or {}),
         "last_summary": result_msg,
         "processed_at": datetime.now(tz=UTC).isoformat(),
+        "skills_prompt_block": skill_prompt[:4000],
+        "retrieval_prompt_block": retrieval_prompt[:2500],
     }
     sub_agent.status = "completed"
     sub_agent.completed_at = datetime.now(tz=UTC)
@@ -102,7 +123,12 @@ async def run_sub_agent_inprocess(
         role=sub_agent.role,
         goal=supervisor_session.goal,
         message=result_msg,
-        payload={"runtime_mode": "inprocess"},
+        payload={
+            "runtime_mode": "inprocess",
+            "skills": selected_skills,
+            "retrieval_contract": retrieval_contract,
+            "retrieval_sections": retrieval_bundle.matched_sections,
+        },
     )
     await append_event(
         db,

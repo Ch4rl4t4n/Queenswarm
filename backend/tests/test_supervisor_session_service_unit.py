@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
+import pytest
+
 from app.application.services.supervisor.session_service import (
+    apply_session_review,
     coerce_runtime_mode,
     normalize_roles,
 )
@@ -34,4 +39,25 @@ def test_coerce_runtime_mode_when_durable_enabled_then_kept(monkeypatch) -> None
 
     monkeypatch.setattr(settings, "supervisor_durable_mode_enabled", True)
     assert coerce_runtime_mode("durable") == "durable"
+
+
+@pytest.mark.asyncio
+async def test_apply_session_review_when_reject_then_needs_input(monkeypatch) -> None:
+    """Reject decisions move sessions into ``needs_input`` and persist approval state."""
+
+    async def _append_event(*args, **kwargs):  # noqa: ANN002, ANN003
+        del args, kwargs
+        return None
+
+    db = SimpleNamespace(flush=lambda: None)
+
+    async def _flush() -> None:
+        return None
+
+    db.flush = _flush
+    row = SimpleNamespace(status="running", context_summary={})
+    monkeypatch.setattr("app.application.services.supervisor.session_service.append_event", _append_event)
+    await apply_session_review(db, session_row=row, decision="reject", note="Need operator input")
+    assert row.status == "needs_input"
+    assert row.context_summary["approval_state"] == "reject"
 

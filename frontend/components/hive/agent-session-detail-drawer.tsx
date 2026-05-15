@@ -15,6 +15,7 @@ interface AgentSessionDetailDrawerProps {
   events: SupervisorSessionEventRow[];
   eventsLoading: boolean;
   onClose: () => void;
+  onReview: (decision: "approve" | "reject") => Promise<void>;
   onInteractionAppended: (event: SupervisorSessionEventRow) => void;
 }
 
@@ -38,6 +39,7 @@ export function AgentSessionDetailDrawer({
   events,
   eventsLoading,
   onClose,
+  onReview,
   onInteractionAppended,
 }: AgentSessionDetailDrawerProps): JSX.Element {
   return (
@@ -53,6 +55,14 @@ export function AgentSessionDetailDrawer({
           </div>
           <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={onClose}>
             Close
+          </button>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" className="qs-btn qs-btn--green qs-btn--sm" onClick={() => void onReview("approve")}>
+            Approve
+          </button>
+          <button type="button" className="qs-btn qs-btn--danger qs-btn--sm" onClick={() => void onReview("reject")}>
+            Reject
           </button>
         </div>
 

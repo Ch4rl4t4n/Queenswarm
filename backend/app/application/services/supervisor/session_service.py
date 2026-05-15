@@ -16,6 +16,7 @@ from app.application.services.supervisor.runtime import (
     normalize_role,
     run_sub_agent_inprocess,
 )
+from app.application.services.supervisor.skills import SkillLibrary
 from app.application.services.supervisor.spawner import (
     infer_manager_slug_for_role,
     infer_specialist_roles_for_role,
@@ -75,12 +76,18 @@ async def create_supervisor_session(
     runtime_mode: str | None,
     roles: list[str] | None,
     shared_context: SharedContextService,
+    retrieval_contract: str | None = None,
+    skill_slugs: list[str] | None = None,
+    skill_library: SkillLibrary | None = None,
 ) -> SupervisorSession:
     """Create supervisor session, spawn sub-agents, execute based on runtime mode."""
 
     mode = coerce_runtime_mode(runtime_mode)
     norm_roles = normalize_roles(roles)
     now = datetime.now(tz=UTC)
+    loader = skill_library or SkillLibrary()
+    contract = retrieval_contract.strip() if isinstance(retrieval_contract, str) else ""
+    contract = contract if settings.retrieval_contract_enabled else ""
 
     session_row = SupervisorSession(
         goal=goal.strip(),
@@ -92,6 +99,8 @@ async def create_supervisor_session(
             "requested_roles": norm_roles,
             "hybrid_runtime": True,
             "manager_slugs": [infer_manager_slug_for_role(role) for role in norm_roles],
+            "retrieval_contract": contract,
+            "skills_enabled": settings.supervisor_skills_enabled,
         },
     )
     db.add(session_row)
@@ -108,6 +117,14 @@ async def create_supervisor_session(
             short_memory={},
             spawn_order=idx,
         )
+        resolved_skills = (
+            loader.resolve_slugs(role=role, requested=skill_slugs) if settings.supervisor_skills_enabled else []
+        )
+        sub.short_memory = {
+            **dict(sub.short_memory or {}),
+            "skills": resolved_skills,
+            "skills_prompt_block": loader.build_prompt_block(resolved_skills)[:4000] if resolved_skills else "",
+        }
         db.add(sub)
         await db.flush()
         sub_agents.append(sub)
@@ -122,6 +139,7 @@ async def create_supervisor_session(
                 "runtime_mode": mode,
                 "manager_slug": infer_manager_slug_for_role(role),
                 "specialist_roles": infer_specialist_roles_for_role(role),
+                "skills": resolved_skills,
             },
         )
 
@@ -141,6 +159,7 @@ async def create_supervisor_session(
                 supervisor_session=session_row,
                 sub_agent=sub,
                 shared_context=shared_context,
+                skill_library=loader,
             )
         session_row.status = "completed"
         session_row.completed_at = datetime.now(tz=UTC)
@@ -222,7 +241,7 @@ async def apply_session_control(
     db: AsyncSession,
     *,
     session_row: SupervisorSession,
-    action: Literal["pause", "resume", "stop"],
+    action: Literal["pause", "resume", "stop", "needs_input"],
 ) -> SupervisorSession:
     """Apply pause/resume/stop controls for a supervisor session."""
 
@@ -234,6 +253,8 @@ async def apply_session_control(
     elif action == "stop":
         session_row.status = "stopped"
         session_row.completed_at = datetime.now(tz=UTC)
+    elif action == "needs_input":
+        session_row.status = "needs_input"
 
     await append_event(
         db,
@@ -265,4 +286,36 @@ async def append_operator_interaction(
     )
     await db.flush()
     return event
+
+
+async def apply_session_review(
+    db: AsyncSession,
+    *,
+    session_row: SupervisorSession,
+    decision: Literal["approve", "reject"],
+    note: str | None = None,
+) -> SupervisorSession:
+    """Apply a lightweight human-in-the-loop decision to a supervisor session."""
+
+    summary = dict(session_row.context_summary or {})
+    summary["approval_state"] = decision
+    if note and note.strip():
+        summary["approval_note"] = note.strip()[:1000]
+    summary["approval_updated_at"] = datetime.now(tz=UTC).isoformat()
+    session_row.context_summary = summary
+    if decision == "reject":
+        session_row.status = "needs_input"
+    elif session_row.status in {"needs_input", "paused"}:
+        session_row.status = "running"
+
+    await append_event(
+        db,
+        supervisor_session=session_row,
+        sub_agent=None,
+        event_type="session_review",
+        message=f"Session {decision} by operator.",
+        payload={"decision": decision, "note": (note or "").strip()[:1000]},
+    )
+    await db.flush()
+    return session_row
 

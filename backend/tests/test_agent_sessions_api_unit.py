@@ -117,3 +117,100 @@ async def test_agent_sessions_roles_returns_defaults(restore_app_overrides: None
     assert res.status_code == 200
     assert "researcher" in res.json()
 
+
+@pytest.mark.asyncio
+async def test_agent_sessions_list_resolves_static_route_before_agent_id(
+    restore_app_overrides: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``/agents/sessions`` must resolve list route (not ``/agents/{agent_id}``)."""
+
+    fake_row = _mk_session()
+
+    async def mock_db() -> AsyncIterator[SimpleNamespace]:
+        async def _commit() -> None:
+            return None
+
+        yield SimpleNamespace(commit=_commit)
+
+    async def _fake_list(*args, **kwargs):  # noqa: ANN002, ANN003
+        del args, kwargs
+        return [fake_row]
+
+    async def _fake_get(*args, **kwargs):  # noqa: ANN002, ANN003
+        del args, kwargs
+        return fake_row
+
+    app.dependency_overrides[get_db] = mock_db
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:test"}
+    monkeypatch.setattr(agent_sessions_router, "list_supervisor_sessions", _fake_list)
+    monkeypatch.setattr(agent_sessions_router, "get_supervisor_session", _fake_get)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.get(
+            "/api/v1/agents/sessions?limit=40",
+            headers={"Authorization": "Bearer x"},
+        )
+
+    assert res.status_code == 200
+    payload = res.json()
+    assert isinstance(payload, list)
+    assert payload and payload[0]["id"] == str(fake_row.id)
+
+
+@pytest.mark.asyncio
+async def test_agent_sessions_review_when_enabled_returns_200(
+    restore_app_overrides: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Review endpoint should return updated session payload."""
+
+    fake_row = _mk_session()
+
+    async def mock_db() -> AsyncIterator[SimpleNamespace]:
+        async def _commit() -> None:
+            return None
+
+        yield SimpleNamespace(commit=_commit)
+
+    async def _fake_get(*args, **kwargs):  # noqa: ANN002, ANN003
+        del args, kwargs
+        return fake_row
+
+    async def _fake_review(*args, **kwargs):  # noqa: ANN002, ANN003
+        del args, kwargs
+        return fake_row
+
+    app.dependency_overrides[get_db] = mock_db
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:test"}
+    monkeypatch.setattr(settings, "light_control_plane_enabled", True)
+    monkeypatch.setattr(agent_sessions_router, "get_supervisor_session", _fake_get)
+    monkeypatch.setattr(agent_sessions_router, "apply_session_review", _fake_review)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.post(
+            f"/api/v1/agents/sessions/{fake_row.id}/review",
+            headers={"Authorization": "Bearer x"},
+            json={"decision": "approve"},
+        )
+    assert res.status_code == 200
+    assert res.json()["id"] == str(fake_row.id)
+
+
+@pytest.mark.asyncio
+async def test_agent_routines_list_when_disabled_returns_empty(
+    restore_app_overrides: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Routines list should be empty when feature flag is off."""
+
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:test"}
+    monkeypatch.setattr(settings, "routines_enabled", False)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.get("/api/v1/agents/routines", headers={"Authorization": "Bearer x"})
+    assert res.status_code == 200
+    assert res.json() == []
+

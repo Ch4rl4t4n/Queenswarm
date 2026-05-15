@@ -13,4 +13,7 @@ def test_openapi_includes_dashboard_me_and_connectors() -> None:
     assert "/api/v1/auth/me/password" in paths
     assert "/api/v1/agents/sessions" in paths
     assert "/api/v1/agents/sessions/{session_id}/events" in paths
+    assert "/api/v1/agents/sessions/{session_id}/review" in paths
+    assert "/api/v1/agents/routines" in paths
+    assert "/api/v1/agents/routines/{routine_id}/trigger" in paths
     assert "/api/v1/connectors/catalog" in paths

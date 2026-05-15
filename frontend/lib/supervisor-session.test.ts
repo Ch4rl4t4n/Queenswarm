@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isTerminalSessionStatus, runtimeModeLabel } from "./supervisor-session";
+import { isTerminalSessionStatus, runtimeModeLabel, sessionStatusTone } from "./supervisor-session";
 
 describe("supervisor-session helpers", () => {
   it("maps runtime mode labels", () => {
@@ -13,6 +13,12 @@ describe("supervisor-session helpers", () => {
     expect(isTerminalSessionStatus("completed")).toBe(true);
     expect(isTerminalSessionStatus("stopped")).toBe(true);
     expect(isTerminalSessionStatus("running")).toBe(false);
+  });
+
+  it("maps session status tones", () => {
+    expect(sessionStatusTone("running")).toBe("cyan");
+    expect(sessionStatusTone("needs_input")).toBe("magenta");
+    expect(sessionStatusTone("completed")).toBe("green");
   });
 });
 

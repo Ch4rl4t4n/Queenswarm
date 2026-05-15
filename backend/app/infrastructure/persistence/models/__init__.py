@@ -33,6 +33,7 @@ _EXPORTABLE: dict[str, tuple[str, str]] = {
     "Simulation": ("app.infrastructure.persistence.models.simulation", "Simulation"),
     "SimulationResult": ("app.infrastructure.persistence.models.enums", "SimulationResult"),
     "SubAgentSession": ("app.infrastructure.persistence.models.supervisor_session", "SubAgentSession"),
+    "SupervisorRoutine": ("app.infrastructure.persistence.models.supervisor_routine", "SupervisorRoutine"),
     "SupervisorSession": ("app.infrastructure.persistence.models.supervisor_session", "SupervisorSession"),
     "SupervisorSessionEvent": (
         "app.infrastructure.persistence.models.supervisor_session",
@@ -74,6 +75,7 @@ _MODEL_PACKAGES: tuple[str, ...] = (
     "app.infrastructure.persistence.models.dynamic_connector",
     "app.infrastructure.persistence.models.external_project",
     "app.infrastructure.persistence.models.supervisor_session",
+    "app.infrastructure.persistence.models.supervisor_routine",
 )
 
 _BOOTSTRAPPED = False

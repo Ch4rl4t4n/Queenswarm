@@ -126,6 +126,28 @@ export interface SupervisorSessionRow {
   sub_agents: SubAgentSessionRow[];
 }
 
+export interface SupervisorRoutineRow {
+  id: string;
+  name: string;
+  goal_template: string;
+  schedule_kind: string;
+  interval_seconds: number | null;
+  cron_expr: string | null;
+  runtime_mode: string;
+  roles: string[];
+  retrieval_contract: string | null;
+  skills: string[];
+  context_payload: Record<string, unknown>;
+  status: string;
+  is_active: boolean;
+  created_by_subject: string | null;
+  last_run_at: string | null;
+  next_run_at: string | null;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface SupervisorSessionEventRow {
   id: string;
   supervisor_session_id: string;

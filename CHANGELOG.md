@@ -1,5 +1,23 @@
 # Queenswarm Changelog
 
+## Phase 6.1 — lightweight skills + retrieval + routines (2026-05-15)
+
+- **feat:** add lightweight Markdown skills system under `backend/app/skills/*` with on-demand `SkillLibrary` loader (`context`, `decide`, `tdd`, `diagnose`, `grill-me`).
+- **feat:** extend `SharedContextService` with retrieval-contract bundle support (`customer_history`, `policy`, `last_3_tasks`, `recent_events`, `semantic_memory`, `graph_context`) to reduce prompt/token waste.
+- **feat:** add light control-plane review endpoint `POST /api/v1/agents/sessions/{session_id}/review` and `needs_input` lifecycle control.
+- **feat:** add recurring routines (`supervisor_routines` + Alembic `0018_supervisor_routines`) with APIs:
+  - `POST /api/v1/agents/routines`
+  - `GET /api/v1/agents/routines`
+  - `POST /api/v1/agents/routines/{routine_id}/trigger`
+- **feat:** add Celery routine scheduler tick task `hive.supervisor_routines_tick` (beat-enabled behind `ROUTINES_ENABLED`).
+- **feat:** frontend `/agents` panel now includes approve/reject controls and routines section (create + run-now).
+- **feat:** new Phase 6.1 feature flags:
+  - `SUPERVISOR_SKILLS_ENABLED`
+  - `RETRIEVAL_CONTRACT_ENABLED`
+  - `LIGHT_CONTROL_PLANE_ENABLED`
+  - `ROUTINES_ENABLED`
+- **test:** add/extend unit+API+OpenAPI+frontend tests for new helper logic and routes.
+
 ## Phase 5.5 — perfect environments (repo Lane A) (2026-05-14)
 
 - **feat:** dual-domain single-host mode — production nginx now serves both `queenswarm.love` and `stg.queenswarm.love`; staging routes proxy to `host.docker.internal:3001/8001` (prod compose adds `host-gateway` alias).

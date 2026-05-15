@@ -216,6 +216,22 @@ class Settings(BaseSettings):
         default=True,
         description="Listen for hive sync cues on Redis waggle and fan them into swarm_events.",
     )
+    hive_mind_enabled: bool = Field(
+        default=True,
+        description="Enable HiveMind recall pipeline for Ballroom and dashboard routes.",
+    )
+    hive_mind_max_graph_export_nodes: int = Field(
+        default=120,
+        ge=16,
+        le=500,
+        description="Upper bound for /api/v1/hive-mind/graph node snapshots.",
+    )
+    hive_mind_max_query_hits_vector: int = Field(
+        default=8,
+        ge=1,
+        le=64,
+        description="Maximum vector hits retrieved for HiveMind prompt/query assembly.",
+    )
 
     # --- Security (JWT gates all routes except exempt paths in routers)
     secret_key: str = Field(..., min_length=32, description="HS256 signing secret from env.")
@@ -415,6 +431,22 @@ class Settings(BaseSettings):
         ge=50,
         le=5000,
         description="Maximum events returned per supervisor session timeline request.",
+    )
+    supervisor_skills_enabled: bool = Field(
+        default=False,
+        description="Enable lightweight Markdown skills injection for supervisor/sub-agent prompts.",
+    )
+    retrieval_contract_enabled: bool = Field(
+        default=False,
+        description="Enable explicit retrieval contract bundles for shared context reads.",
+    )
+    light_control_plane_enabled: bool = Field(
+        default=False,
+        description="Enable lightweight approval/reject controls on supervisor sessions.",
+    )
+    routines_enabled: bool = Field(
+        default=False,
+        description="Enable recurring/scheduled supervisor routines and Celery tick execution.",
     )
 
     @model_validator(mode="after")
