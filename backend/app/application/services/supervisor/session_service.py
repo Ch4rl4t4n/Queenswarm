@@ -24,7 +24,9 @@ from app.application.services.supervisor.spawner import (
 )
 from app.application.services.supervisor.shared_context import SharedContextService
 from app.application.services.supervisor.autonomy import update_session_autonomy_state
+from app.application.services.curated_memory_service import CuratedMemoryService
 from app.core.config import settings
+from app.core.logging import get_logger
 from app.core.metrics import observe_supervisor_session_event
 from app.worker.celery_app import celery_app
 from app.infrastructure.persistence.models.supervisor_session import (
@@ -34,6 +36,7 @@ from app.infrastructure.persistence.models.supervisor_session import (
 )
 
 SupervisorRuntimeMode = Literal["inprocess", "durable"]
+logger = get_logger(__name__)
 
 SUPPORTED_SUB_AGENT_ROLES: tuple[str, ...] = (
     "researcher",
@@ -109,8 +112,21 @@ async def create_supervisor_session(
     norm_roles = normalize_roles(roles)
     now = datetime.now(tz=UTC)
     loader = skill_library or SkillLibrary()
+    goal_clean = goal.strip()
     contract = retrieval_contract.strip() if isinstance(retrieval_contract, str) else ""
     contract = contract if settings.retrieval_contract_enabled else ""
+    queen_prompt_prefix = ""
+    if tenant_id is not None:
+        curated_service = CuratedMemoryService(db=db)
+        queen_prompt_prefix = curated_service.render_prompt_prefix(await curated_service.get_bundle(tenant_id))
+        logger.debug(
+            "supervisor.curated_prefix.loaded",
+            agent_id="supervisor",
+            swarm_id="",
+            task_id="",
+            prefix_length=len(queen_prompt_prefix),
+        )
+    goal_for_prompt = f"{queen_prompt_prefix}\n\n{goal_clean}" if queen_prompt_prefix else goal_clean
 
     base_summary: dict[str, object] = {
         "requested_roles": norm_roles,
@@ -125,6 +141,8 @@ async def create_supervisor_session(
         "agent_initiative_enabled": settings.agent_initiative_enabled,
         "swarm_full_autonomy_enabled": settings.swarm_full_autonomy_enabled,
         "intelligence_layer_version": "phase9-v4",
+        "curated_prompt_prefix": queen_prompt_prefix,
+        "raw_goal": goal_clean,
     }
     if context_seed:
         base_summary.update(dict(context_seed))
@@ -137,7 +155,7 @@ async def create_supervisor_session(
         )
 
     session_row = SupervisorSession(
-        goal=goal.strip(),
+        goal=goal_for_prompt,
         status="running",
         runtime_mode=mode,
         tenant_id=tenant_id,

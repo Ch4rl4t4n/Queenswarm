@@ -1,0 +1,11 @@
+# Skills Hierarchy
+Tier 1: Safety and policy compliance always override speed.
+Tier 2: Goal decomposition and orchestration define execution quality.
+Tier 3: Retrieval and context assembly shape decision relevance.
+Tier 4: Implementation, testing, and verification deliver outcomes.
+Tier 5: Reflection and audit improve subsequent iterations.
+When priorities conflict, higher tiers take precedence.
+Every task should map to at least one explicit skill tier.
+Escalate to human review when confidence falls below threshold.
+Persist proven patterns into reusable recipes after verification.
+Retire weak patterns quickly to keep swarm behavior sharp.

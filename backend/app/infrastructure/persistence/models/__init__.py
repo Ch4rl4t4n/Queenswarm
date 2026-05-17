@@ -24,6 +24,7 @@ _EXPORTABLE: dict[str, tuple[str, str]] = {
     "ExternalProjectApiKey": ("app.infrastructure.persistence.models.external_project", "ExternalProjectApiKey"),
     "ExternalProjectRunAudit": ("app.infrastructure.persistence.models.external_project", "ExternalProjectRunAudit"),
     "DashboardApiKey": ("app.infrastructure.persistence.models.dashboard_api_key", "DashboardApiKey"),
+    "CuratedMemoryORM": ("app.infrastructure.persistence.models.curated_memory", "CuratedMemoryORM"),
     "DreamCycleORM": ("app.infrastructure.persistence.models.dream_cycle", "DreamCycleORM"),
     "DreamInsightORM": ("app.infrastructure.persistence.models.dream_cycle", "DreamInsightORM"),
     "DashboardUserTenantMembership": (
@@ -95,6 +96,7 @@ _MODEL_PACKAGES: tuple[str, ...] = (
     "app.infrastructure.persistence.models.dashboard_user",
     "app.infrastructure.persistence.models.tenant",
     "app.infrastructure.persistence.models.dashboard_api_key",
+    "app.infrastructure.persistence.models.curated_memory",
     "app.infrastructure.persistence.models.dream_cycle",
     "app.infrastructure.persistence.models.operator_external_api",
     "app.infrastructure.persistence.models.connector_vault_entry",
