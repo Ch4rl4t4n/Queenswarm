@@ -459,24 +459,51 @@ function WorkflowCard({
 export default function WorkflowsDagPage(): JSX.Element {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState<string | null>(null);
   const [filter, setFilter] = useState<UiWfFilter>("all");
 
   const loadWorkflows = useCallback(async () => {
     try {
       const res = await fetch("/api/proxy/workflows?limit=20", { credentials: "include" });
+      const rawText = await res.text();
       if (res.status === 404 || !res.ok) {
+        let detail = "";
+        try {
+          const parsed = JSON.parse(rawText) as { detail?: unknown };
+          if (typeof parsed.detail === "string") {
+            detail = parsed.detail;
+          } else if (parsed.detail !== undefined) {
+            detail = JSON.stringify(parsed.detail);
+          }
+        } catch {
+          detail = rawText.slice(0, 280);
+        }
         setWorkflows([]);
+        setListError(
+          res.status === 404
+            ? "Workflows endpoint returned 404 — proxy or backend route may be unavailable."
+            : `Could not load workflows (HTTP ${res.status})${detail ? `: ${detail}` : ""}`,
+        );
         return;
       }
-      const data: unknown = await res.json();
+      setListError(null);
+      let data: unknown;
+      try {
+        data = JSON.parse(rawText) as unknown;
+      } catch {
+        setWorkflows([]);
+        setListError("Workflows response was not valid JSON.");
+        return;
+      }
       const rawRows: ApiWorkflowBrief[] = Array.isArray(data)
         ? (data as ApiWorkflowBrief[])
         : ((data as { workflows?: ApiWorkflowBrief[] }).workflows ??
             (data as { items?: ApiWorkflowBrief[] }).items ??
             []);
       setWorkflows(rawRows.map(briefToWorkflow));
-    } catch {
+    } catch (e) {
       setWorkflows([]);
+      setListError(e instanceof Error ? e.message : "Network error loading workflows.");
     } finally {
       setLoading(false);
     }
@@ -528,6 +555,25 @@ export default function WorkflowsDagPage(): JSX.Element {
         </Link>
       </div>
 
+      {listError ? (
+        <div
+          className="mb-4 flex flex-col gap-3 rounded-2xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger sm:flex-row sm:items-center sm:justify-between"
+          role="alert"
+        >
+          <span className="font-[family-name:var(--font-poppins)]">{listError}</span>
+          <button
+            type="button"
+            onClick={() => {
+              setLoading(true);
+              void loadWorkflows();
+            }}
+            className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-xl border border-danger/50 px-4 py-2 text-xs font-semibold text-danger hover:bg-danger/15 touch-manipulation"
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
+
       <div className="mb-3 flex flex-wrap gap-2">
         {(["all", "running", "completed", "failed"] as const).map((f) => {
           const active = filter === f;
@@ -549,6 +595,29 @@ export default function WorkflowsDagPage(): JSX.Element {
 
       {loading ? (
         <div style={{ textAlign: "center", padding: 60, color: "#5a5a7a" }}>Loading workflows…</div>
+      ) : listError && workflows.length === 0 ? (
+        <div
+          style={{
+            textAlign: "center",
+            padding: 48,
+            background: "#140814",
+            border: "1px solid rgba(255,51,102,0.35)",
+            borderRadius: 14,
+          }}
+        >
+          <div style={{ color: "#ffb8c8", fontWeight: 600, marginBottom: 8 }}>Workflow list unavailable</div>
+          <div style={{ color: "#5a5a7a", fontSize: 13, marginBottom: 16 }}>{listError}</div>
+          <button
+            type="button"
+            onClick={() => {
+              setLoading(true);
+              void loadWorkflows();
+            }}
+            className="qs-btn qs-btn--primary"
+          >
+            Retry load
+          </button>
+        </div>
       ) : filtered.length === 0 ? (
         <div
           style={{

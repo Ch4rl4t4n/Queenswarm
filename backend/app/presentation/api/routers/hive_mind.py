@@ -3,21 +3,37 @@
 from __future__ import annotations
 
 import uuid
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import select
 
-from app.presentation.api.deps import DashboardSession, DbSession
+from app.presentation.api.deps import (
+    DashboardSession,
+    DbSession,
+    require_dashboard_user_with_tenant_role,
+    require_tenant_permission,
+)
 from app.core.chroma_client import HIVE_MIND_COLLECTION, semantic_search
 from app.core.config import Settings, get_settings
 from app.core.jwt_tokens import parse_dashboard_user_subject
+from app.core.logging import get_logger
+from app.core.redis_client import get_json, set_json
 from app.domain.hive_mind.graph import bounded_operator_graph_snapshot
 from app.domain.hive_mind.service import HiveMindService
 from app.domain.outputs.service import fetch_owned_deliverable
+from app.application.services.supervisor.memory_evolution import (
+    approve_memory_evolution_proposal,
+    list_memory_evolution_proposals,
+    reject_memory_evolution_proposal,
+    run_memory_evolution_for_tenant,
+)
+from app.infrastructure.persistence.models.memory_evolution import MemoryEvolutionProposal
 
 router = APIRouter(prefix="/hive-mind", tags=["hive-mind"])
+logger = get_logger(__name__)
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 
@@ -30,6 +46,51 @@ class HiveMindRecallBody(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     relevance_to_current_task: str = Field(min_length=3, max_length=8000)
+
+
+class MemoryEvolutionRunResponse(BaseModel):
+    """Summary returned after one memory evolution cycle."""
+
+    tenant_id: str
+    generated_lessons: int
+    pending_approval: int
+    auto_applied: int
+    swarm_learning_entries: int
+    history_consolidations: int
+
+
+class MemoryEvolutionProposalView(BaseModel):
+    """Public view of one memory evolution proposal."""
+
+    id: str
+    proposal_kind: str
+    title: str
+    summary: str
+    payload: dict[str, Any]
+    status: str
+    importance_score: float
+    requires_manual_approval: bool
+    proposed_by_user_id: str | None
+    approved_by_user_id: str | None
+    approved_at: str | None
+    created_at: str
+
+
+def _serialize_proposal(row: MemoryEvolutionProposal) -> MemoryEvolutionProposalView:
+    return MemoryEvolutionProposalView(
+        id=str(row.id),
+        proposal_kind=row.proposal_kind,
+        title=row.title,
+        summary=row.summary,
+        payload=dict(row.payload or {}),
+        status=row.status,
+        importance_score=float(row.importance_score),
+        requires_manual_approval=bool(row.requires_manual_approval),
+        proposed_by_user_id=str(row.proposed_by_user_id) if row.proposed_by_user_id else None,
+        approved_by_user_id=str(row.approved_by_user_id) if row.approved_by_user_id else None,
+        approved_at=row.approved_at.isoformat() if row.approved_at else None,
+        created_at=row.created_at.isoformat(),
+    )
 
 
 def _dashboard_principal(session_payload: DashboardSession) -> uuid.UUID:
@@ -52,10 +113,53 @@ async def hive_graph(
 
     pid = _dashboard_principal(sess)
     cap = min(limit_nodes, settings.hive_mind_max_graph_export_nodes)
-    return await bounded_operator_graph_snapshot(
-        dashboard_user_id=str(pid),
-        limit_nodes=cap,
-    )
+    cache_ttl = max(0, int(settings.hive_mind_graph_cache_ttl_sec))
+    cache_key = f"hive_mind:graph:{pid}:{cap}"
+    if cache_ttl > 0:
+        try:
+            cached = await get_json(cache_key)
+            if cached is not None:
+                return cached
+        except Exception:
+            pass
+    try:
+        payload = await bounded_operator_graph_snapshot(
+            dashboard_user_id=str(pid),
+            limit_nodes=cap,
+        )
+    except Exception as exc:  # noqa: BLE001 - route intentionally degrades to vector recall
+        logger.warning(
+            "hive_mind.graph.degraded_to_vector_fallback",
+            agent_id="hive_mind_graph",
+            swarm_id="dashboard",
+            task_id=f"hive_graph:{pid}",
+            error=str(exc),
+        )
+        fallback_hits = await semantic_search(
+            "hive mind",
+            HIVE_MIND_COLLECTION,
+            n_results=min(6, settings.hive_mind_max_query_hits_vector),
+        )
+        payload = {
+            "nodes": [],
+            "edges": [],
+            "degraded": True,
+            "fallback_backend": "vector_store",
+            "fallback_items": [
+                {
+                    "id": row.get("id"),
+                    "document": str(row.get("document") or "")[:320],
+                    "distance": row.get("distance"),
+                }
+                for row in fallback_hits
+            ],
+        }
+    if cache_ttl > 0:
+        try:
+            await set_json(cache_key, payload, ttl=cache_ttl)
+        except Exception:
+            pass
+    return payload
 
 
 @router.get("/search")
@@ -69,7 +173,16 @@ async def hive_search_semantic(
 
     del _sess  # dependency-only session — forces JWT validation gate
     clipped = q.strip()
-    capped = min(limit, settings.hive_mind_max_query_hits_vector + 6)
+    capped = min(limit, settings.hive_mind_max_query_hits_vector)
+    cache_ttl = max(0, int(settings.hive_mind_search_cache_ttl_sec))
+    cache_key = f"hive_mind:search:{capped}:{clipped.lower()}"
+    if cache_ttl > 0:
+        try:
+            cached = await get_json(cache_key)
+            if cached is not None:
+                return cached
+        except Exception:
+            pass
     hits = await semantic_search(clipped, HIVE_MIND_COLLECTION, n_results=capped)
     sanitized: list[dict[str, Any]] = []
     for row in hits:
@@ -84,7 +197,13 @@ async def hive_search_semantic(
                 "distance": row.get("distance"),
             },
         )
-    return {"items": sanitized, "query": clipped}
+    payload = {"items": sanitized, "query": clipped}
+    if cache_ttl > 0:
+        try:
+            await set_json(cache_key, payload, ttl=cache_ttl)
+        except Exception:
+            pass
+    return payload
 
 
 @router.post("/query")
@@ -149,3 +268,115 @@ async def hive_export_zip(
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{fname}"'},
     )
+
+
+@router.post(
+    "/memory-evolution/run",
+    response_model=MemoryEvolutionRunResponse,
+    summary="Run long-term memory consolidation + swarm learning cycle",
+)
+async def run_memory_evolution(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    _: bool = Depends(require_tenant_permission("team:manage")),
+) -> MemoryEvolutionRunResponse:
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    user_id = principal.get("user").id if principal.get("user") is not None else None
+    result = await run_memory_evolution_for_tenant(
+        db,
+        tenant_id=tenant_id,
+        proposed_by_user_id=user_id,
+    )
+    await db.commit()
+    return MemoryEvolutionRunResponse(
+        tenant_id=str(result.tenant_id),
+        generated_lessons=result.generated_lessons,
+        pending_approval=result.pending_approval,
+        auto_applied=result.auto_applied,
+        swarm_learning_entries=result.swarm_learning_entries,
+        history_consolidations=result.history_consolidations,
+    )
+
+
+@router.get(
+    "/memory-evolution/proposals",
+    response_model=list[MemoryEvolutionProposalView],
+    summary="List memory evolution proposals for active tenant",
+)
+async def list_memory_evolution_changes(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    _: bool = Depends(require_tenant_permission("team:manage")),
+    status_filter: str | None = Query(default=None, max_length=24),
+    limit: int = Query(default=60, ge=1, le=200),
+) -> list[MemoryEvolutionProposalView]:
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    rows = await list_memory_evolution_proposals(
+        db,
+        tenant_id=tenant_id,
+        status_filter=status_filter,
+        limit=limit,
+    )
+    return [_serialize_proposal(row) for row in rows]
+
+
+@router.post(
+    "/memory-evolution/proposals/{proposal_id}/approve",
+    response_model=MemoryEvolutionProposalView,
+    summary="Approve memory evolution proposal",
+)
+async def approve_memory_evolution_change(
+    proposal_id: uuid.UUID,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    _: bool = Depends(require_tenant_permission("team:manage")),
+) -> MemoryEvolutionProposalView:
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    proposal = await db.scalar(
+        select(MemoryEvolutionProposal).where(
+            MemoryEvolutionProposal.id == proposal_id,
+            MemoryEvolutionProposal.tenant_id == tenant_id,
+        ),
+    )
+    if proposal is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Proposal not found.")
+    await approve_memory_evolution_proposal(db, proposal=proposal, approver_user_id=user.id)
+    await db.commit()
+    await db.refresh(proposal)
+    return _serialize_proposal(proposal)
+
+
+@router.post(
+    "/memory-evolution/proposals/{proposal_id}/reject",
+    response_model=MemoryEvolutionProposalView,
+    summary="Reject memory evolution proposal",
+)
+async def reject_memory_evolution_change(
+    proposal_id: uuid.UUID,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    _: bool = Depends(require_tenant_permission("team:manage")),
+) -> MemoryEvolutionProposalView:
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    proposal = await db.scalar(
+        select(MemoryEvolutionProposal).where(
+            MemoryEvolutionProposal.id == proposal_id,
+            MemoryEvolutionProposal.tenant_id == tenant_id,
+        ),
+    )
+    if proposal is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Proposal not found.")
+    await reject_memory_evolution_proposal(db, proposal=proposal, approver_user_id=user.id)
+    await db.commit()
+    await db.refresh(proposal)
+    return _serialize_proposal(proposal)

@@ -17,4 +17,9 @@ test.describe("hive public shell smoke", () => {
     await page.goto("/ballroom", { waitUntil: "load", timeout: 45_000 });
     await expect(page).toHaveURL(/\/(login|ballroom)/, { timeout: 45_000 });
   });
+
+  test("connectors route resolves behind auth redirect", async ({ page }) => {
+    await page.goto("/connectors", { waitUntil: "load", timeout: 45_000 });
+    await expect(page).toHaveURL(/\/(login|connectors)/, { timeout: 45_000 });
+  });
 });

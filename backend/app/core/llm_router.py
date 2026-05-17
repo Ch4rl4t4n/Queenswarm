@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
@@ -13,6 +14,7 @@ from app.agents.cost_governor import BudgetExceededError, CostGovernor
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.metrics import observe_llm_cost_usd
+from app.core.retry_external import retry_async_call
 from app.models.cost import CostRecord
 from app.services.llm_runtime_credentials import (
     provider_effective_anthropic,
@@ -56,6 +58,57 @@ def _decomposition_exhaustion_message(errors: list[str]) -> str:
 
 
 logger = get_logger(__name__)
+
+
+class _ConcurrencyLimiter:
+    """Small async semaphore wrapper with in-flight visibility."""
+
+    def __init__(self, limit: int) -> None:
+        self._limit = max(1, int(limit))
+        self._sem = asyncio.Semaphore(self._limit)
+        self._in_flight = 0
+        self._lock = asyncio.Lock()
+
+    @property
+    def limit(self) -> int:
+        return self._limit
+
+    @property
+    def in_flight(self) -> int:
+        return self._in_flight
+
+    @property
+    def available(self) -> int:
+        return max(0, self._limit - self._in_flight)
+
+    async def __aenter__(self) -> "_ConcurrencyLimiter":
+        await self._sem.acquire()
+        async with self._lock:
+            self._in_flight += 1
+        return self
+
+    async def __aexit__(self, exc_type: object, exc: object, tb: object) -> None:
+        del exc_type, exc, tb
+        async with self._lock:
+            self._in_flight = max(0, self._in_flight - 1)
+        self._sem.release()
+
+
+_GLOBAL_LLM_LIMITER = _ConcurrencyLimiter(settings.llm_max_concurrency)
+_SIMULATION_LIMITER = _ConcurrencyLimiter(settings.simulation_max_parallel)
+
+
+def llm_concurrency_snapshot() -> dict[str, int]:
+    """Expose limiter state for operator diagnostics surfaces."""
+
+    return {
+        "llm_limit": _GLOBAL_LLM_LIMITER.limit,
+        "llm_in_flight": _GLOBAL_LLM_LIMITER.in_flight,
+        "llm_available": _GLOBAL_LLM_LIMITER.available,
+        "simulation_limit": _SIMULATION_LIMITER.limit,
+        "simulation_in_flight": _SIMULATION_LIMITER.in_flight,
+        "simulation_available": _SIMULATION_LIMITER.available,
+    }
 
 
 def model_api_key(model: str) -> str:
@@ -220,9 +273,16 @@ class LiteLLMRouter:
             slug = model_name.split("/", 1)[1]
             completion_kwargs["model"] = f"openai/{slug}"
             completion_kwargs["api_base"] = str(settings.xai_openai_compatible_base).rstrip("/")
-        response = await acompletion(
-            **completion_kwargs,
-        )
+        async def _call_llm() -> Any:
+            return await acompletion(**completion_kwargs)
+
+        async with _GLOBAL_LLM_LIMITER:
+            response = await retry_async_call(
+                _call_llm,
+                max_attempts=settings.llm_retry_max_attempts,
+                initial_wait_sec=settings.llm_retry_initial_wait_sec,
+                max_wait_sec=settings.llm_retry_max_wait_sec,
+            )
         content = response.choices[0].message.content or ""
         hop_cost_usd = float(litellm.completion_cost(completion_response=response, model=model_name) or 0.0)
         observe_llm_cost_usd(model_name=model_name, cost_usd=hop_cost_usd)
@@ -434,11 +494,12 @@ class LiteLLMRouter:
             "workflow_id": workflow_id or "",
         }
         await self._assert_budget(session)
-        _response, content, model_used, _hop_cost = await self._acompletion_with_model(
-            session,
-            model_name=settings.workflow_breaker_simulation_model,
-            messages=messages,
-        )
+        async with _SIMULATION_LIMITER:
+            _response, content, model_used, _hop_cost = await self._acompletion_with_model(
+                session,
+                model_name=settings.workflow_breaker_simulation_model,
+                messages=messages,
+            )
         try:
             parsed = json.loads(content)
         except json.JSONDecodeError:
@@ -530,6 +591,7 @@ __all__ = [
     "LiteLLMRouter",
     "llm_complete",
     "load_keys_from_vault",
+    "llm_concurrency_snapshot",
     "model_api_key",
     "model_slug_has_configured_credentials",
     "record_llm_cost",

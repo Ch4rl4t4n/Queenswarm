@@ -6,20 +6,23 @@ import asyncio
 from typing import Any
 
 from fastapi import APIRouter
+import psutil
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select, text
 
-from app.presentation.api.deps import JwtSubject
+from app.core.config import settings
+from app.core.llm_router import llm_concurrency_snapshot
 from app.core.logging import get_logger
 from app.core.readiness import collect_readiness_uncached
-from app.infrastructure.persistence.models.agent import Agent
-from app.infrastructure.persistence.models.enums import AgentStatus, TaskStatus
-from app.infrastructure.persistence.models.task import Task
+from app.presentation.api.deps import JwtSubject
 from app.application.services.llm_runtime_credentials import (
     provider_effective_anthropic,
     provider_effective_grok,
     provider_effective_openai,
 )
+from app.infrastructure.persistence.models.agent import Agent
+from app.infrastructure.persistence.models.enums import AgentStatus, TaskStatus, TaskType
+from app.infrastructure.persistence.models.task import Task
 from app.worker.celery_app import celery_app
 
 logger = get_logger(__name__)
@@ -42,6 +45,21 @@ class SystemStatusPayload(BaseModel):
     agents_running: int = Field(default=0, ge=0)
     tasks_running: int = Field(default=0, ge=0)
     tasks_pending: int = Field(default=0, ge=0)
+    host_cpu_percent: float = Field(default=0.0, ge=0.0, le=100.0)
+    host_memory_percent: float = Field(default=0.0, ge=0.0, le=100.0)
+    host_disk_percent: float = Field(default=0.0, ge=0.0, le=100.0)
+    llm_concurrency_limit: int = Field(default=1, ge=1)
+    llm_in_flight: int = Field(default=0, ge=0)
+    simulation_concurrency_limit: int = Field(default=1, ge=1)
+    simulation_in_flight: int = Field(default=0, ge=0)
+    simulation_enabled: bool = Field(default=False)
+    simulation_tasks_running: int = Field(default=0, ge=0)
+    simulation_tasks_pending: int = Field(default=0, ge=0)
+    resource_pressure: bool = Field(default=False, description="True when host load crosses warning thresholds.")
+    resource_pressure_reason: str = Field(default="")
+    instance_id: str = Field(default="")
+    opentelemetry_ready: bool = Field(default=False)
+    otlp_endpoint_configured: bool = Field(default=False)
 
 
 class NotifyTestResponse(BaseModel):
@@ -104,6 +122,57 @@ async def _hive_gauges() -> tuple[int, int, int, int]:
         return agents_total, agents_running, tasks_running, tasks_pending
 
 
+async def _simulation_task_counts() -> tuple[int, int]:
+    """Count queue pressure specifically for simulation task rows."""
+
+    from app.core.database import async_session
+
+    async with async_session() as session:
+        running = int(
+            (
+                await session.execute(
+                    select(func.count()).select_from(Task).where(
+                        Task.task_type == TaskType.SIMULATE,
+                        Task.status == TaskStatus.RUNNING,
+                    ),
+                )
+            ).scalar()
+            or 0,
+        )
+        pending = int(
+            (
+                await session.execute(
+                    select(func.count()).select_from(Task).where(
+                        Task.task_type == TaskType.SIMULATE,
+                        Task.status == TaskStatus.PENDING,
+                    ),
+                )
+            ).scalar()
+            or 0,
+        )
+        return running, pending
+
+
+def _host_pressure() -> tuple[float, float, float, bool, str]:
+    """Return host pressure metrics plus warning flag."""
+
+    cpu = float(psutil.cpu_percent(interval=0.05))
+    mem = float(psutil.virtual_memory().percent)
+    disk = float(psutil.disk_usage("/").percent)
+    reason = ""
+    pressure = False
+    if cpu >= 90.0:
+        pressure = True
+        reason = "cpu_high"
+    elif mem >= 90.0:
+        pressure = True
+        reason = "memory_high"
+    elif disk >= 92.0:
+        pressure = True
+        reason = "disk_high"
+    return cpu, mem, disk, pressure, reason
+
+
 def _celery_workers_respond() -> bool:
     """Return ``True`` when ``inspect.ping`` sees an active consumer."""
 
@@ -143,11 +212,15 @@ async def read_system_status(_subject: JwtSubject) -> SystemStatusPayload:
 
     celery_ok = await asyncio.to_thread(_celery_workers_respond)
     llm_ok, grok_ok, anth_ok = _llm_flags()
+    cpu_pct, mem_pct, disk_pct, pressure, pressure_reason = await asyncio.to_thread(_host_pressure)
+    limiter = llm_concurrency_snapshot()
 
     agents_total = agents_running = tasks_running = tasks_pending = 0
+    sim_running = sim_pending = 0
     if db_second_opinion:
         try:
             agents_total, agents_running, tasks_running, tasks_pending = await _hive_gauges()
+            sim_running, sim_pending = await _simulation_task_counts()
         except Exception as exc:  # noqa: BLE001
             logger.warning("system.status.hive_gauges_failed", error=str(exc))
 
@@ -162,6 +235,21 @@ async def read_system_status(_subject: JwtSubject) -> SystemStatusPayload:
         agents_running=agents_running,
         tasks_running=tasks_running,
         tasks_pending=tasks_pending,
+        host_cpu_percent=cpu_pct,
+        host_memory_percent=mem_pct,
+        host_disk_percent=disk_pct,
+        llm_concurrency_limit=int(limiter["llm_limit"]),
+        llm_in_flight=int(limiter["llm_in_flight"]),
+        simulation_concurrency_limit=int(limiter["simulation_limit"]),
+        simulation_in_flight=int(limiter["simulation_in_flight"]),
+        simulation_enabled=bool(settings.simulations_enabled),
+        simulation_tasks_running=sim_running,
+        simulation_tasks_pending=sim_pending,
+        resource_pressure=pressure,
+        resource_pressure_reason=pressure_reason,
+        instance_id=settings.instance_id,
+        opentelemetry_ready=bool(settings.opentelemetry_enabled),
+        otlp_endpoint_configured=bool((settings.opentelemetry_exporter_otlp_endpoint or "").strip()),
     )
 
 

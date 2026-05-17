@@ -6,7 +6,9 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { toast } from "sonner";
 
+import { useUiLanguage } from "@/components/hive/ui-language-provider";
 import { HIVE_NAV_GROUPS, isNavItemActive } from "@/lib/hive-nav-primary";
+import { localizeNavLabel, localizePhrase } from "@/lib/ui-copy";
 import { cn } from "@/lib/utils";
 
 interface HiveMoreSheetProps {
@@ -18,6 +20,7 @@ interface HiveMoreSheetProps {
 /** Full IA overflow — grouped routes + account actions (mobile / tablet). */
 export function HiveMoreSheet({ open, onClose, pathname }: HiveMoreSheetProps) {
   const router = useRouter();
+  const { language } = useUiLanguage();
 
   useEffect(() => {
     if (!open) {
@@ -43,7 +46,7 @@ export function HiveMoreSheet({ open, onClose, pathname }: HiveMoreSheetProps) {
     } catch {
       /* ignore */
     }
-    toast.success("Logged out");
+    toast.success(localizePhrase(language, { en: "Logged out", sk: "Odhlásené" }));
     onClose();
     router.push("/login");
     router.refresh();
@@ -55,7 +58,12 @@ export function HiveMoreSheet({ open, onClose, pathname }: HiveMoreSheetProps) {
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col justify-end lg:hidden">
-      <button type="button" className="absolute inset-0 bg-black/72 backdrop-blur-sm" aria-label="Close menu" onClick={onClose} />
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/72 backdrop-blur-sm"
+        aria-label={localizePhrase(language, { en: "Close menu", sk: "Zavrieť menu" })}
+        onClick={onClose}
+      />
       <div
         role="dialog"
         aria-modal="true"
@@ -66,7 +74,7 @@ export function HiveMoreSheet({ open, onClose, pathname }: HiveMoreSheetProps) {
           <span className="mb-2 h-1 w-14 rounded-full bg-zinc-600" aria-hidden />
           <button
             type="button"
-            aria-label="Close sheet"
+            aria-label={localizePhrase(language, { en: "Close sheet", sk: "Zavrieť panel" })}
             className="absolute right-3 top-2 rounded-lg border border-cyan/[0.15] p-2 text-zinc-400 hover:text-pollen touch-manipulation min-h-[44px] min-w-[44px]"
             onClick={onClose}
           >
@@ -75,13 +83,15 @@ export function HiveMoreSheet({ open, onClose, pathname }: HiveMoreSheetProps) {
         </div>
 
         <h2 id="hive-more-sheet-title" className="px-6 pb-2 pt-1 font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">
-          Hive navigation
+          {localizePhrase(language, { en: "Hive navigation", sk: "Hive navigácia" })}
         </h2>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-2 hive-scrollbar">
           {HIVE_NAV_GROUPS.map((group) => (
             <div key={group.title} className="mb-4">
-              <p className="px-3 pb-2 font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-600">{group.title}</p>
+              <p className="px-3 pb-2 font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-600">
+                {localizeNavLabel(group.title, language)}
+              </p>
               <ul className="space-y-1">
                 {group.items.map((item) => {
                   const { href, label, Icon } = item;
@@ -98,7 +108,7 @@ export function HiveMoreSheet({ open, onClose, pathname }: HiveMoreSheetProps) {
                         )}
                       >
                         <Icon className={cn("h-5 w-5 shrink-0", active ? "text-pollen" : "text-zinc-500")} aria-hidden />
-                        <span>{label}</span>
+                        <span>{localizeNavLabel(label, language)}</span>
                       </Link>
                     </li>
                   );
@@ -109,7 +119,9 @@ export function HiveMoreSheet({ open, onClose, pathname }: HiveMoreSheetProps) {
         </div>
 
         <div className="border-t border-[#1e2348] px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2">
-          <p className="px-3 pb-2 font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-600">Session</p>
+          <p className="px-3 pb-2 font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-600">
+            {localizePhrase(language, { en: "Session", sk: "Relácia" })}
+          </p>
           <ul className="space-y-1">
             <li>
               <button
@@ -121,7 +133,7 @@ export function HiveMoreSheet({ open, onClose, pathname }: HiveMoreSheetProps) {
                 }}
               >
                 <LockIcon className="h-5 w-5 shrink-0 text-pollen" aria-hidden />
-                Login screen
+                {localizePhrase(language, { en: "Login screen", sk: "Prihlasovacia obrazovka" })}
               </button>
             </li>
             <li>
@@ -131,7 +143,7 @@ export function HiveMoreSheet({ open, onClose, pathname }: HiveMoreSheetProps) {
                 onClick={() => void logout()}
               >
                 <LogOutIcon className="h-5 w-5 shrink-0" aria-hidden />
-                Log out
+                {localizePhrase(language, { en: "Log out", sk: "Odhlásiť" })}
               </button>
             </li>
           </ul>

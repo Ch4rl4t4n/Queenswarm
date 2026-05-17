@@ -6,10 +6,12 @@ import secrets
 from dataclasses import dataclass
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from redis.exceptions import RedisError
 
+from app.common.http.rate_limit import rate_limited_http_exception
+from app.common.http.security_headers import apply_no_store_cache_headers
 from app.core.config import settings
 from app.core.jwt_tokens import create_access_token
 from app.core.logging import get_logger
@@ -54,6 +56,7 @@ async def exchange_machine_token(
     creds: Annotated[HTTPBasicCredentials | None, Depends(_optional_basic)],
     exchange: Annotated[HiveTokenExchangeConfig, Depends(hive_token_exchange_config)],
     request: Request,
+    response: Response,
 ) -> TokenIssued:
     """Return a Bearer token when Basic auth aligns with configured client credentials."""
 
@@ -88,7 +91,10 @@ async def exchange_machine_token(
             )
             token_ok = True
         if not token_ok:
-            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Token exchange rate limit exceeded.")
+            raise rate_limited_http_exception(
+                "Token exchange rate limit exceeded.",
+                window_sec=settings.rate_limit_token_exchange_window_sec,
+            )
 
     if creds is None:
         raise HTTPException(
@@ -133,6 +139,7 @@ async def exchange_machine_token(
         expires_seconds=expires_in,
     )
 
+    apply_no_store_cache_headers(response)
     return TokenIssued(access_token=token, token_type="bearer", expires_in=expires_in)
 
 

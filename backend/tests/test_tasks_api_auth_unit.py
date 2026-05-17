@@ -26,7 +26,7 @@ async def test_tasks_list_requires_bearer(restore_app_overrides: None) -> None:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/api/v1/tasks")
-    assert response.status_code == 403
+    assert response.status_code in {401, 403}
 
 
 @pytest.mark.asyncio

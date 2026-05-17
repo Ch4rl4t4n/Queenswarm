@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.core.config import settings
 from app.core.database import Base
-from app.models import load_all_models
+from app.infrastructure.persistence.models import load_all_models
 
 load_all_models()
 

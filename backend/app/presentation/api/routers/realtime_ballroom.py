@@ -18,6 +18,11 @@ from app.core.config import settings
 from app.core.database import async_session
 from app.core.llm_router import LiteLLMRouter
 from app.core.logging import get_logger
+from app.application.services.voice_multimodal import (
+    VoiceServiceError,
+    synthesize_speech,
+    transcribe_audio,
+)
 from app.infrastructure.persistence.models.agent import Agent
 from app.infrastructure.persistence.models.enums import AgentStatus, TaskStatus
 from app.infrastructure.persistence.models.task import Task
@@ -51,6 +56,26 @@ class BallroomChatMessageBody(BaseModel):
 
     session_id: uuid.UUID
     text: str = Field(..., min_length=1, max_length=30_000)
+
+
+class BallroomVoiceTranscribeBody(BaseModel):
+    """POST /ballroom/voice/transcribe — STT chunk for live transcription."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    audio_base64: str = Field(..., min_length=20, max_length=8_000_000)
+    mime_type: str = Field(default="audio/webm", min_length=6, max_length=64)
+    language: str | None = Field(default="sk", max_length=12)
+    session_id: uuid.UUID | None = None
+    dispatch_to_agents: bool = False
+
+
+class BallroomVoiceSynthesizeBody(BaseModel):
+    """POST /ballroom/voice/synthesize — TTS for operator playback."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    text: str = Field(..., min_length=1, max_length=6_000)
 
 
 def _decode_sub(token: str | None) -> str | None:
@@ -600,6 +625,52 @@ async def ballroom_post_chat(body: BallroomChatMessageBody, subject: JwtSubject)
     )
     _spawn_user_chat_task(body.session_id, body.text)
     return {"ok": True, "session_id": str(body.session_id)}
+
+
+@_bb_router.post("/voice/transcribe", status_code=status.HTTP_200_OK, summary="Transcribe operator voice chunk (STT)")
+async def ballroom_transcribe_voice(body: BallroomVoiceTranscribeBody, subject: JwtSubject) -> dict[str, object]:
+    """Transcribe one voice chunk and optionally dispatch it as operator chat."""
+
+    logger.info("ballroom.voice_transcribe.request", actor=subject, session_id=str(body.session_id or "none"))
+    try:
+        out = await transcribe_audio(
+            audio_base64=body.audio_base64,
+            mime_type=body.mime_type,
+            language=body.language,
+        )
+    except VoiceServiceError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    result: dict[str, object] = {
+        "ok": True,
+        "text": out.text,
+        "provider": out.provider,
+        "language": out.language,
+    }
+    if body.session_id is not None:
+        _SESSION_CHANNELS.setdefault(body.session_id, set())
+        await ballroom_redis.ballroom_ensure_capsule(body.session_id)
+        await append_ballroom_transcript_line_public(body.session_id, "You", out.text, broadcast=True)
+        if body.dispatch_to_agents:
+            _spawn_user_chat_task(body.session_id, out.text)
+        result["session_id"] = str(body.session_id)
+    return result
+
+
+@_bb_router.post("/voice/synthesize", status_code=status.HTTP_200_OK, summary="Synthesize speech for ballroom reply (TTS)")
+async def ballroom_synthesize_voice(body: BallroomVoiceSynthesizeBody, subject: JwtSubject) -> dict[str, object]:
+    """Create TTS audio for one assistant/user-visible text."""
+
+    logger.info("ballroom.voice_synthesize.request", actor=subject)
+    try:
+        out = await synthesize_speech(text=body.text)
+    except VoiceServiceError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    return {
+        "ok": True,
+        "provider": out.provider,
+        "content_type": out.content_type,
+        "audio_base64": out.audio_base64,
+    }
 
 
 @_bb_router.get("/session/{session_id}")

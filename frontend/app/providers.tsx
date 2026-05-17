@@ -5,6 +5,9 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { Toaster } from "sonner";
 
+import { UiLanguageProvider } from "@/components/hive/ui-language-provider";
+import { UiRuntimeTranslator } from "@/components/hive/ui-runtime-translator";
+
 interface ProvidersProps {
   children: ReactNode;
 }
@@ -24,19 +27,22 @@ export function Providers({ children }: ProvidersProps) {
 
   return (
     <QueryClientProvider client={client}>
-      {children}
-      <Toaster
-        theme="dark"
-        position="top-right"
-        toastOptions={{
-          className: "font-[family-name:var(--font-poppins)] text-sm",
-          style: {
-            background: "#050510",
-            border: "1px solid rgba(0,255,255,0.25)",
-            color: "#FFB800",
-          },
-        }}
-      />
+      <UiLanguageProvider>
+        <UiRuntimeTranslator />
+        {children}
+        <Toaster
+          theme="dark"
+          position="top-right"
+          toastOptions={{
+            className: "font-[family-name:var(--font-poppins)] text-sm",
+            style: {
+              background: "#050510",
+              border: "1px solid rgba(0,255,255,0.25)",
+              color: "#FFB800",
+            },
+          }}
+        />
+      </UiLanguageProvider>
     </QueryClientProvider>
   );
 }

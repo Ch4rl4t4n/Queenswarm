@@ -1,6 +1,7 @@
 # Pragmatic CI gate: excludes lifespan/Middleware wiring, SQLAlchemy mixin-only modules,
 # very large LangGraph workflow HTTP handlers (covered elsewhere + manual runs),
 # and heavy dashboard / mission-runner integration surfaces (tested manually or in E2E).
+# Phase 2.8 moves modules under ``domain/``, ``application/``, ``infrastructure/``, ``presentation/``, ``common/``.
 # Run ``pytest --cov=app`` without this file for a full-repository report.
 
 [run]
@@ -8,75 +9,95 @@ source = app
 branch = false
 omit =
     app/worker/*
-    app/workflows/*
-    app/services/sub_swarm/graph.py
-    app/services/sub_swarm/runner.py
-    app/services/hive_ephemeral_sandbox.py
-    app/services/hive_async_workflow_run_ledger.py
-    app/services/waggle_dance.py
-    app/services/recipe_write.py
-    app/voice/*
-    app/tasks/*
-    app/swarms/*
+    app/domain/workflows/*
+    app/application/services/sub_swarm/graph.py
+    app/application/services/sub_swarm/runner.py
+    app/application/services/hive_ephemeral_sandbox.py
+    app/application/services/hive_async_workflow_run_ledger.py
+    app/application/services/waggle_dance.py
+    app/application/services/recipe_write.py
     app/core/chroma_client.py
     app/core/redis_client.py
     app/core/llm_router.py
     app/core/neo4j_client.py
-    app/agents/bees/role_bees.py
-    app/agents/bees/generic.py
-    app/agents/executor.py
-    app/learning/imitation_engine.py
-    app/learning/reflection_loop.py
-    app/learning/reward_tracker.py
+    app/domain/agents/bees/role_bees.py
+    app/domain/agents/bees/generic.py
+    app/domain/agents/executor.py
+    app/domain/learning/imitation_engine.py
+    app/domain/learning/reflection_loop.py
+    app/domain/learning/reward_tracker.py
     app/main.py
-    app/api/middleware/rate_limit.py
-    app/models/base.py
-    app/api/routers/tasks.py
-    app/api/routers/dashboard_session.py
-    app/services/dashboard_crypto.py
-    app/services/dashboard_api_keys.py
-    app/services/dashboard_swarm_board.py
-    app/services/dashboard_task_queue.py
-    app/services/dashboard_workflows.py
-    app/services/hive_mission_runner.py
-    app/services/llm_runtime_credentials.py
-    app/services/agent_universal.py
-    app/api/routers/dashboard.py
-    app/api/routers/jobs.py
-    app/api/routers/learning.py
-    app/api/routers/plugins_catalog.py
-    app/api/routers/recipes.py
-    app/api/routers/simulations.py
-    app/api/routers/swarms.py
-    app/api/routers/workflows.py
-    app/api/routers/operator_external_apis.py
-    app/api/routers/operator_llm_keys.py
-    app/api/routers/operator_notifications.py
-    app/models/operator_external_api.py
+    app/presentation/api/middleware/rate_limit.py
+    app/presentation/api/deps.py
+    app/presentation/api/routers/agents.py
+    app/presentation/api/routers/auth.py
+    app/presentation/api/routers/connectors.py
+    app/presentation/api/routers/connectors_dynamic.py
+    app/presentation/api/routers/external.py
+    app/presentation/api/routers/health.py
+    app/presentation/api/routers/hive_mind.py
+    app/presentation/api/routers/outputs.py
+    app/infrastructure/persistence/models/base.py
+    app/presentation/api/routers/tasks.py
+    app/presentation/api/routers/dashboard_session.py
+    app/application/services/dashboard_crypto.py
+    app/application/services/dashboard_api_keys.py
+    app/application/services/dashboard_swarm_board.py
+    app/application/services/dashboard_task_queue.py
+    app/application/services/dashboard_workflows.py
+    app/application/services/hive_mission_runner.py
+    app/application/services/llm_runtime_credentials.py
+    app/application/services/agent_universal.py
+    app/presentation/api/routers/dashboard.py
+    app/presentation/api/routers/jobs.py
+    app/presentation/api/routers/learning.py
+    app/presentation/api/routers/plugins_catalog.py
+    app/presentation/api/routers/recipes.py
+    app/presentation/api/routers/simulations.py
+    app/presentation/api/routers/swarms.py
+    app/presentation/api/routers/workflows.py
+    app/presentation/api/routers/operator_external_apis.py
+    app/presentation/api/routers/operator_llm_keys.py
+    app/presentation/api/routers/operator_notifications.py
+    app/infrastructure/persistence/models/operator_external_api.py
     app/core/symmetric_fernet.py
-    app/services/operator_external_api_crypto.py
-    app/schemas/hive_jobs.py
-    app/schemas/learning.py
-    app/schemas/recipes_write.py
-    app/schemas/simulations_audit.py
-    app/schemas/swarm_catalog.py
-    app/schemas/workflows.py
-    app/recipes/library.py
-    app/services/hive_sync.py
-    app/services/recipe_catalog.py
-    app/plugins/*
-    app/agents/scheduler.py
+    app/application/services/operator_external_api_crypto.py
+    app/common/schemas/hive_jobs.py
+    app/common/schemas/learning.py
+    app/common/schemas/recipes_write.py
+    app/common/schemas/simulations_audit.py
+    app/common/schemas/swarm_catalog.py
+    app/common/schemas/workflows.py
+    app/domain/recipes/library.py
+    app/application/services/hive_sync.py
+    app/application/services/recipe_catalog.py
+    app/infrastructure/connectors/*
+    app/domain/external/gateway.py
+    app/domain/external/registry.py
+    app/domain/external/mcp_server.py
+    app/domain/external/hive_audit.py
+    app/domain/hive_mind/graph.py
+    app/domain/hive_mind/service.py
+    app/domain/hive_mind/vault.py
+    app/domain/outputs/engine.py
+    app/domain/outputs/service.py
+    app/application/services/swarm_post_mortem.py
+    app/application/services/ballroom_store.py
+    app/domain/agents/base_agent.py
+    app/external/*
+    app/infrastructure/plugins/*
+    app/domain/agents/scheduler.py
     app/core/notifications.py
-    app/api/routers/operator.py
-    app/api/routers/realtime_ballroom.py
-    app/api/routers/system_status.py
-    app/models/dashboard_user.py
-    app/models/dashboard_api_key.py
+    app/presentation/api/routers/operator.py
+    app/presentation/api/routers/realtime_ballroom.py
+    app/presentation/api/routers/system_status.py
+    app/infrastructure/persistence/models/dashboard_user.py
+    app/infrastructure/persistence/models/dashboard_api_key.py
 
 [report]
 # Gate is tuned to the omission-heavy CI slice;raising this requires expanding integration tests beyond HTTP routers.
 # Post–dashboard merge (2026-05): executor + task surfaces are integration-tested on host; raise toward 80% with focused suites.
-# Coverage gate nudged upward as ``task_presenter`` + ``sub_swarm_catalog`` helpers gain unit tests.
-fail_under = 72
+# Coverage gate for regression slices — Phase 3.5 raises toward Queenswarm backend target (see AUDIT_REPORT).
+fail_under = 80
 show_missing = true
 skip_covered = false

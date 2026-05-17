@@ -1,36 +1,19 @@
 #!/usr/bin/env bash
-# Phase 5.2 — edge smoke tests against staging or production (curl-only; no secrets printed).
-#
-# Usage:
-#   TARGET=stg ./scripts/smoke-edge.sh    # uses .env.stg (Basic Auth for API paths)
-#   TARGET=prd ./scripts/smoke-edge.sh    # uses .env.prod
+# Edge smoke tests for production (curl-only; no secrets printed).
 #
 # Optional:
+#   ENV_FILE — default .env.prod
 #   OPERATOR_SMOKE_JWT — Bearer for /api/v1/operator/monitoring/snapshot
-#   SMOKE_SKIP_CONNECTORS=1 — skip optional /api/v1/connectors/catalog (requires JWT on private stacks)
-#   SMOKE_INSECURE_TLS=1 — pass curl -k (use when the edge cert SAN does not yet include DOMAIN, e.g. wrong cert mounted)
+#   SMOKE_SKIP_CONNECTORS=1 — skip optional /api/v1/connectors/catalog
+#   SMOKE_INSECURE_TLS=1 — pass curl -k (temporary TLS mismatch only)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-TARGET="${TARGET:-stg}"
-if [[ "$TARGET" != "stg" && "$TARGET" != "prd" ]]; then
-  echo "TARGET must be stg or prd (got: ${TARGET})"
-  exit 2
-fi
-
-ENV_FILE="${ENV_FILE:-}"
-if [[ -z "$ENV_FILE" ]]; then
-  if [[ "$TARGET" == "stg" ]]; then
-    ENV_FILE=".env.stg"
-  else
-    ENV_FILE=".env.prod"
-  fi
-fi
-
+ENV_FILE="${ENV_FILE:-.env.prod}"
 if [[ ! -f "$ENV_FILE" ]]; then
-  echo "Missing ${ENV_FILE}. Copy from .env.${TARGET}.example (prd uses .env.prod.example)."
+  echo "Missing ${ENV_FILE}. Copy .env.prod.example -> .env.prod and fill values."
   exit 1
 fi
 
@@ -57,39 +40,29 @@ DOMAIN="$(load_kv DOMAIN || true)"
 [[ -n "$DOMAIN" ]] || { echo "DOMAIN missing in ${ENV_FILE}"; exit 1; }
 ORIGIN="https://${DOMAIN}"
 
-AUTH_USER=""
-AUTH_PASS=""
-if [[ "$TARGET" == "stg" ]]; then
-  AUTH_USER="$(load_kv STAGING_BASIC_AUTH_USER || true)"
-  AUTH_PASS="$(load_kv STAGING_BASIC_AUTH_PASSWORD || true)"
-fi
-
 CURL_TLS=()
 if [[ "${SMOKE_INSECURE_TLS:-0}" == "1" ]]; then
   CURL_TLS=(-k)
 fi
 
-curl_auth() {
+curl_check() {
   local url="$1"
-  if [[ -n "$AUTH_USER" ]]; then
-    curl "${CURL_TLS[@]}" -fsS -u "${AUTH_USER}:${AUTH_PASS}" --max-time 25 "$url"
-  else
-    curl "${CURL_TLS[@]}" -fsS --max-time 25 "$url"
-  fi
+  curl "${CURL_TLS[@]}" -fsS --max-time 25 "$url"
 }
 
-echo "=== smoke-edge TARGET=${TARGET} DOMAIN=${DOMAIN} ==="
+curl_code() {
+  local url="$1"
+  curl "${CURL_TLS[@]}" -sS -o /dev/null -w '%{http_code}' --max-time 25 "$url" || true
+}
+
+echo "=== smoke-edge DOMAIN=${DOMAIN} ==="
 
 echo "-- GET /health"
-curl_auth "${ORIGIN}/health" >/dev/null
+curl_check "${ORIGIN}/health" >/dev/null
 echo "OK"
 
-echo "-- GET / (expect 2xx/3xx; staging uses Basic Auth)"
-if [[ -n "$AUTH_USER" ]]; then
-  root_code="$(curl "${CURL_TLS[@]}" -sS -o /dev/null -w '%{http_code}' -u "${AUTH_USER}:${AUTH_PASS}" --max-time 25 "${ORIGIN}/" || true)"
-else
-  root_code="$(curl "${CURL_TLS[@]}" -sS -o /dev/null -w '%{http_code}' --max-time 25 "${ORIGIN}/" || true)"
-fi
+echo "-- GET / (expect 2xx/3xx)"
+root_code="$(curl_code "${ORIGIN}/")"
 if [[ "$root_code" =~ ^(200|301|302|303|307|308)$ ]]; then
   echo "OK (HTTP ${root_code})"
 else
@@ -98,15 +71,11 @@ else
 fi
 
 echo "-- GET /api/v1/health"
-curl_auth "${ORIGIN}/api/v1/health" >/dev/null
+curl_check "${ORIGIN}/api/v1/health" >/dev/null
 echo "OK"
 
 echo "-- GET /health/ready (accepts 503 if strict deps fail)"
-if [[ -n "$AUTH_USER" ]]; then
-  code="$(curl "${CURL_TLS[@]}" -sS -o /dev/null -w '%{http_code}' -u "${AUTH_USER}:${AUTH_PASS}" --max-time 25 "${ORIGIN}/health/ready" || true)"
-else
-  code="$(curl "${CURL_TLS[@]}" -sS -o /dev/null -w '%{http_code}' --max-time 25 "${ORIGIN}/health/ready" || true)"
-fi
+code="$(curl_code "${ORIGIN}/health/ready")"
 if [[ "$code" == "200" || "$code" == "503" ]]; then
   echo "OK (HTTP ${code})"
 else

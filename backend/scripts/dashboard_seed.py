@@ -17,8 +17,8 @@ if str(ROOT) not in sys.path:
 
 from app.core.config import settings
 from app.core.database import async_session
-from app.models.dashboard_user import DashboardUser
-from app.services.dashboard_crypto import hash_dashboard_password
+from app.infrastructure.persistence.models.dashboard_user import DashboardUser
+from app.application.services.dashboard_crypto import hash_dashboard_password
 
 _ADMIN_EMAIL = "admin@queenswarm.love"
 

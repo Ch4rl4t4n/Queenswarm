@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 import { AgentsLiveSection } from "@/components/hive/agents-live-section";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
+import { COCKPIT_POLL_BOARD_MS } from "@/lib/cockpit-poll-profile";
 import type { AgentRow } from "@/lib/hive-types";
 
 interface AgentsPageRosterProps {
@@ -22,7 +23,7 @@ export function AgentsPageRoster({ initialAgents }: AgentsPageRosterProps): JSX.
   const { data = initialAgents } = useSWR<AgentRow[]>(
     "hive/agents-page-roster",
     () => hiveGet<AgentRow[]>("agents?limit=120"),
-    { fallbackData: initialAgents, refreshInterval: 8000 },
+    { fallbackData: initialAgents, refreshInterval: COCKPIT_POLL_BOARD_MS },
   );
 
   function goAgent(agent: AgentRow): void {

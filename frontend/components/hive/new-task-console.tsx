@@ -14,6 +14,7 @@ import type {
   RecipeMatchBrief,
 } from "@/lib/hive-types";
 import { HexNumberBadge, LANE_HEX_STROKE } from "@/components/hive/hex-metric-tile";
+import { InfoHint } from "@/components/hive/info-hint";
 import { cn } from "@/lib/utils";
 
 const TARGET_LANES = ["scout", "eval", "sim", "action"] as const;
@@ -290,14 +291,28 @@ export function NewTaskConsole() {
   return (
     <div className="mx-auto w-full max-w-3xl pb-24">
       <div className="mb-8 w-full min-w-0">
-        <h1 className="font-[family-name:var(--font-poppins)] text-3xl font-bold tracking-tight text-[#fafafa]">New task</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="font-[family-name:var(--font-poppins)] text-3xl font-bold tracking-tight text-[#fafafa]">New task</h1>
+          <InfoHint
+            title="New task"
+            description="Operator intake form: provide a brief and the hive decomposes it into executable lane steps."
+            options={["Auto decomposition preview", "Recipe matching", "Submit to execution queue"]}
+          />
+        </div>
         <p className="mt-2 max-w-xl font-[family-name:var(--font-poppins)] text-sm text-zinc-500">
           Describe what you need. The auto workflow breaker splits the brief into atomic steps.
         </p>
       </div>
 
       <div className="qs-panel p-6 shadow-[0_0_40px_rgb(0_0_0/0.35)] md:p-8">
-        <p className="qs-meta-label text-zinc-500">Task description</p>
+        <div className="flex items-center gap-2">
+          <p className="qs-meta-label text-zinc-500">Task description</p>
+          <InfoHint
+            title="Task description"
+            description="The more specific the brief, the better the decomposition and final outcome."
+            options={["Include goal + constraints", "Min 8 characters for preview", "Prefer measurable expected output"]}
+          />
+        </div>
         <textarea
           value={taskText}
           onChange={(e) => setTaskText(e.target.value)}
@@ -308,7 +323,14 @@ export function NewTaskConsole() {
 
         <div className="mt-5 flex flex-col gap-5 border-t border-white/10 pt-5">
           <div>
-            <p className="qs-meta-label text-zinc-500">Target swarm lane</p>
+            <div className="flex items-center gap-2">
+              <p className="qs-meta-label text-zinc-500">Target swarm lane</p>
+              <InfoHint
+                title="Target swarm lane"
+                description="Sets the primary execution lane that gets priority for processing."
+                options={["Scout=research", "Eval=analysis", "Sim=validation", "Action=final delivery"]}
+              />
+            </div>
             <div className="mt-2 flex flex-wrap gap-2">
               {TARGET_LANES.map((lane) => {
                 const { label } = laneUi(lane);
@@ -329,7 +351,14 @@ export function NewTaskConsole() {
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="qs-meta-label text-zinc-500">Priority</p>
+              <div className="flex items-center gap-2">
+                <p className="qs-meta-label text-zinc-500">Priority</p>
+                <InfoHint
+                  title="Priority"
+                  description="Maps to a numeric value used by scheduling queues and orchestration."
+                  options={["Low=3", "Normal=5", "High=8"]}
+                />
+              </div>
               <div className="mt-2 flex flex-wrap gap-2">
                 {(
                   [
@@ -356,6 +385,11 @@ export function NewTaskConsole() {
               >
                 {enrichRecipes ? "✓ " : ""}Chroma · recipe library
               </button>
+              <InfoHint
+                title="Recipe library enrichment"
+                description="Enables retrieval of similar verified recipe workflows from Chroma."
+                options={["Can improve consistency", "May increase planning latency", "Works best with detailed task text"]}
+              />
             </div>
           </div>
 
@@ -378,7 +412,14 @@ export function NewTaskConsole() {
 
       <div className="qs-panel mt-8 p-6 shadow-[0_0_36px_rgb(0_255_255/0.06)] md:p-8">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">Decomposition preview</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">Decomposition preview</h2>
+            <InfoHint
+              title="Decomposition preview"
+              description="Preview of workflow steps proposed by the breaker before submission."
+              options={["Validates guardrails", "Shows step count + roles", "Lets you save as recipe"]}
+            />
+          </div>
           <p className="font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
             {previewLoading ? "LLM working…" : "LLM"}
             {displaySteps.length > 0 ? ` · ${displaySteps.length} steps` : previewError ? " · error" : ""}
@@ -481,6 +522,11 @@ export function NewTaskConsole() {
             >
               {saveBusy ? "Saving…" : "Save as recipe"}
             </button>
+            <InfoHint
+              title="Save as recipe"
+              description="Saves the current decomposition draft into the recipe catalog for future matching."
+              options={["Requires preview with >=3 steps", "Saved as non-verified draft", "Reusable in future tasks"]}
+            />
             <button
               type="button"
               disabled={submitBusy || taskText.trim().length < 8}
@@ -490,6 +536,11 @@ export function NewTaskConsole() {
               <PlayIcon className="h-4 w-4" aria-hidden />
               {submitBusy ? "Submitting…" : "▶ Submit"}
             </button>
+            <InfoHint
+              title="Submit task"
+              description="Sends the task to intake pipeline, starts execution, and redirects back to dashboard."
+              options={["Queues orchestration", "Uses selected lane/priority", "Includes matched recipe id if available"]}
+            />
           </div>
         </div>
       </div>

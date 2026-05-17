@@ -32,7 +32,7 @@ function barColor(idx: number): string {
 export default async function CostsPage() {
   const summary = await hiveServerRawJson<OperatorCostSummary>("/operator/costs/summary?days=35");
   const agents = await hiveServerRawJson<AgentRow[]>("/agents?limit=60");
-  const tasks = await hiveServerRawJson<TaskRow[]>("/tasks?limit=800");
+  const tasks = await hiveServerRawJson<TaskRow[]>("/tasks?limit=200");
 
   if (!summary) {
     return (

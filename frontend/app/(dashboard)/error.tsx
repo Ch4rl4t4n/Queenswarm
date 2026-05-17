@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
 import Link from "next/link";
+import { useEffect } from "react";
 
-export default function DashboardError({
+export default function DashboardErrorBoundary({
   error,
   reset,
 }: {
@@ -11,36 +11,32 @@ export default function DashboardError({
   reset: () => void;
 }): JSX.Element {
   useEffect(() => {
-    console.error("[dashboard:error]", error);
+    console.error("[dashboard:error-boundary]", error);
   }, [error]);
 
   return (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 px-6 text-center">
-      <div className="font-poppins text-xl font-semibold uppercase tracking-[0.12em] text-[#FF3366] drop-shadow-[0_0_18px_rgba(255,51,102,0.45)]">
-        Hive link severed
-      </div>
-      <p className="max-w-md text-sm text-zinc-400">
-        {error.message.trim() ||
-          "Something failed while rendering this area of the cockpit. Retry or return home."}
+    <div className="mx-auto mt-16 max-w-2xl rounded-3xl border border-danger/40 bg-black/60 p-8 shadow-[0_0_42px_rgba(255,51,102,0.22)]">
+      <p className="font-[family-name:var(--font-poppins)] text-2xl font-semibold text-pollen">dashboard instability detected</p>
+      <p className="mt-3 font-[family-name:var(--font-poppins)] text-sm text-zinc-300">
+        A runtime error occurred in the cockpit UI. The hive keeps running; reload this section or switch to another panel.
       </p>
-      <div className="flex flex-wrap items-center justify-center gap-3">
+      <p className="mt-3 break-all font-mono text-xs text-danger/90">{error.message}</p>
+      <div className="mt-6 flex flex-wrap gap-3">
         <button
           type="button"
           onClick={() => reset()}
-          className="rounded-xl bg-[#FFB800] px-5 py-2 text-sm font-semibold uppercase tracking-[0.06em] text-hive-bg shadow-[0_0_22px_rgba(255,184,0,0.35)]"
+          className="rounded-xl border border-pollen/60 bg-pollen/10 px-4 py-2 font-[family-name:var(--font-poppins)] text-xs font-semibold text-pollen"
         >
-          Retry
+          Retry section
         </button>
         <Link
-          href="/"
-          className="rounded-xl border border-cyan-500/40 px-4 py-2 text-sm font-medium text-[#00FFFF]"
+          href="/dashboard"
+          className="rounded-xl border border-cyan/40 px-4 py-2 font-[family-name:var(--font-poppins)] text-xs font-semibold text-cyan"
         >
-          Dashboard
+          Go to dashboard hub
         </Link>
       </div>
-      {error.digest ? (
-        <p className="font-mono text-[10px] text-zinc-600">digest: {error.digest}</p>
-      ) : null}
+      {error.digest ? <p className="mt-4 font-mono text-[10px] text-zinc-600">digest: {error.digest}</p> : null}
     </div>
   );
 }

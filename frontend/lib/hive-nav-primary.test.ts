@@ -1,13 +1,19 @@
 import { describe, expect, it } from "vitest";
 
-import { HIVE_NAV_GROUPS, HIVE_NAV_PRIMARY, hiveBottomNavItems } from "./hive-nav-primary";
+import {
+  buildHiveNavGroups,
+  buildHiveNavPrimary,
+  HIVE_NAV_GROUPS,
+  HIVE_NAV_PRIMARY,
+  hiveBottomNavItems,
+} from "./hive-nav-primary";
 
 describe("hive-nav-primary", () => {
   it("lists consolidated primary section entries", () => {
     const hrefs = HIVE_NAV_PRIMARY.map((i) => i.href);
-    expect(hrefs).toContain("/overview");
+    expect(hrefs).toContain("/");
     expect(hrefs).toContain("/agents");
-    expect(hrefs).toContain("/execution");
+    expect(hrefs).toContain("/tasks");
     expect(hrefs).toContain("/knowledge");
     expect(hrefs).toContain("/integrations");
     expect(hrefs).toContain("/ballroom");
@@ -29,5 +35,21 @@ describe("hive-nav-primary", () => {
     const nav = hiveBottomNavItems();
     expect(nav.length).toBeGreaterThan(0);
     expect(nav.every((i) => i.bottomNav)).toBe(true);
+  });
+
+  it("buildHiveNavPrimary disables consolidated hubs when flag is false", () => {
+    const nav = buildHiveNavPrimary(false).map((item) => item.href);
+    expect(nav).toContain("/");
+    expect(nav).toContain("/tasks");
+    expect(nav).not.toContain("/dashboard");
+  });
+
+  it("buildHiveNavGroups omits hub links when consolidated mode is disabled", () => {
+    const groups = buildHiveNavGroups(false);
+    const hrefs = groups.flatMap((group) => group.items.map((item) => item.href));
+    expect(hrefs).not.toContain("/dashboard");
+    expect(hrefs).not.toContain("/knowledge");
+    expect(hrefs).toContain("/hive-mind");
+    expect(hrefs).toContain("/tasks");
   });
 });

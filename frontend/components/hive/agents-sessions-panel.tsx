@@ -2,11 +2,17 @@
 
 import type { JSX } from "react";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
 
+import { BrowserHarnessPanel } from "@/components/hive/browser-harness-panel";
+import { InfoHint } from "@/components/hive/info-hint";
+import { VoiceSessionControls } from "@/components/hive/voice-session-controls";
 import { AgentSessionDetailDrawer } from "@/components/hive/agent-session-detail-drawer";
+import { AgentSessionEventLog } from "@/components/hive/agent-session-event-log";
+import { AgentSessionInteractForm } from "@/components/hive/agent-session-interact-form";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import type {
   SupervisorControlSummaryRow,
@@ -82,6 +88,18 @@ export function AgentsSessionsPanel(): JSX.Element {
       );
     });
   }, [sessions, sessionQuery, sessionStatusFilter]);
+
+  useEffect(() => {
+    if (filteredSessions.length === 0) {
+      if (selectedSessionId !== null) {
+        setSelectedSessionId(null);
+      }
+      return;
+    }
+    if (!selectedSessionId || !filteredSessions.some((session) => session.id === selectedSessionId)) {
+      setSelectedSessionId(filteredSessions[0]?.id ?? null);
+    }
+  }, [filteredSessions, selectedSessionId]);
 
   const {
     data: events = [],
@@ -197,13 +215,28 @@ export function AgentsSessionsPanel(): JSX.Element {
   }
 
   return (
-    <section className="rounded-3xl qs-rim-cyan-soft bg-[#0a0f18]/80 p-5 md:p-6">
+    <section id="sessions" className="rounded-3xl qs-rim-cyan-soft bg-[#0a0f18]/80 p-5 md:p-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-zinc-100">Dynamic Supervisor Sessions</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-zinc-100">Dynamic Supervisor Sessions</h2>
+            <InfoHint
+              title="Dynamic Supervisor Sessions"
+              description="Control panel for Supervisor lifecycle, review decisions, and sub-agent orchestration."
+              options={["Create session", "Pause/Resume/Stop", "Approve/Reject", "Live event log"]}
+            />
+          </div>
           <p className="mt-1 text-xs text-zinc-400">
             Spawn sub-agents, track statuses, and interact through shared memory logs.
           </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/integrations#hub" className="qs-btn qs-btn--ghost qs-btn--sm">
+            Tool Hub
+          </Link>
+          <Link href="/ballroom" className="qs-btn qs-btn--ghost qs-btn--sm">
+            Open Ballroom
+          </Link>
         </div>
       </div>
 
@@ -230,50 +263,98 @@ export function AgentsSessionsPanel(): JSX.Element {
         </div>
       </div>
 
+      <div className="mt-4">
+        <BrowserHarnessPanel />
+      </div>
+
       <div className="mt-4 grid gap-3 rounded-2xl border border-cyan/20 bg-black/30 p-4 md:grid-cols-[1fr_auto_auto]">
-        <input
-          className="qs-input"
-          placeholder="Session goal (e.g. Investigate onboarding drop-off and propose implementation)"
-          value={goal}
-          onChange={(event) => setGoal(event.target.value)}
+        <div className="flex items-center gap-2">
+          <input
+            className="qs-input"
+            placeholder="Session goal (e.g. Investigate onboarding drop-off and propose implementation)"
+            value={goal}
+            onChange={(event) => setGoal(event.target.value)}
+          />
+          <InfoHint
+            title="Session goal"
+            description="Primary session objective. The more specific the goal, the better the output quality."
+            options={["One mission per session", "Include constraints", "Define expected outcome"]}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <select
+            className="qs-input"
+            value={runtimeMode}
+            onChange={(event) => setRuntimeMode(event.target.value as "inprocess" | "durable")}
+          >
+            <option value="inprocess">in-process</option>
+            <option value="durable">durable</option>
+          </select>
+          <InfoHint
+            title="Runtime mode"
+            description="Selects execution mode for the Supervisor session."
+            options={["in-process: faster flow", "durable: more robust long-running flow"]}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="qs-btn qs-btn--primary qs-btn--sm disabled:opacity-40"
+            disabled={busy}
+            onClick={() => void createSession()}
+          >
+            {busy ? "Creating..." : "Create session"}
+          </button>
+          <InfoHint
+            title="Create session"
+            description="Creates a new Supervisor session from the selected goal and runtime mode."
+            options={["Starts orchestration", "Session appears in list", "Can be reviewed via Approve/Reject"]}
+          />
+        </div>
+      </div>
+      <div className="mt-3">
+        <VoiceSessionControls
+          compact
+          label="Supervisor voice command"
+          onTranscript={(text) => {
+            setGoal((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text));
+          }}
         />
-        <select
-          className="qs-input"
-          value={runtimeMode}
-          onChange={(event) => setRuntimeMode(event.target.value as "inprocess" | "durable")}
-        >
-          <option value="inprocess">in-process</option>
-          <option value="durable">durable</option>
-        </select>
-        <button
-          type="button"
-          className="qs-btn qs-btn--primary qs-btn--sm disabled:opacity-40"
-          disabled={busy}
-          onClick={() => void createSession()}
-        >
-          {busy ? "Creating..." : "Create session"}
-        </button>
       </div>
 
       <div className="mt-4 grid gap-2 rounded-2xl border border-zinc-800 bg-black/20 p-3 md:grid-cols-[1fr_180px]">
-        <input
-          className="qs-input"
-          placeholder="Filter sessions by goal/status/runtime..."
-          value={sessionQuery}
-          onChange={(event) => setSessionQuery(event.target.value)}
-        />
-        <select
-          className="qs-input"
-          value={sessionStatusFilter}
-          onChange={(event) => setSessionStatusFilter(event.target.value as SessionStatusFilter)}
-        >
-          <option value="all">all statuses</option>
-          <option value="running">running</option>
-          <option value="needs_input">needs_input</option>
-          <option value="queued">queued</option>
-          <option value="completed">completed</option>
-          <option value="failed">failed</option>
-        </select>
+        <div className="flex items-center gap-2">
+          <input
+            className="qs-input"
+            placeholder="Filter sessions by goal/status/runtime..."
+            value={sessionQuery}
+            onChange={(event) => setSessionQuery(event.target.value)}
+          />
+          <InfoHint
+            title="Session filter"
+            description="Filters session list by text in goal, status, or runtime mode."
+            options={["Goal search", "Status search", "Runtime search"]}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <select
+            className="qs-input"
+            value={sessionStatusFilter}
+            onChange={(event) => setSessionStatusFilter(event.target.value as SessionStatusFilter)}
+          >
+            <option value="all">all statuses</option>
+            <option value="running">running</option>
+            <option value="needs_input">needs_input</option>
+            <option value="queued">queued</option>
+            <option value="completed">completed</option>
+            <option value="failed">failed</option>
+          </select>
+          <InfoHint
+            title="Status scope"
+            description="Quick scope selector for a specific session lifecycle status."
+            options={["running", "needs_input", "queued", "completed", "failed"]}
+          />
+        </div>
       </div>
 
       <div className="mt-4 grid gap-3">
@@ -293,6 +374,11 @@ export function AgentsSessionsPanel(): JSX.Element {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <span className={`qs-pill qs-pill--active-${sessionStatusTone(session.status)}`}>{session.status}</span>
+                  {session.status === "needs_input" ? (
+                    <span className="rounded-full border border-[#FFB800]/40 bg-[#FFB800]/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-[#FFB800]">
+                      needs input
+                    </span>
+                  ) : null}
                   <button
                     type="button"
                     className="qs-btn qs-btn--ghost qs-btn--sm"
@@ -300,6 +386,9 @@ export function AgentsSessionsPanel(): JSX.Element {
                   >
                     Open
                   </button>
+                  <Link href={`/ballroom?session=${encodeURIComponent(session.id)}`} className="qs-btn qs-btn--ghost qs-btn--sm">
+                    Ballroom
+                  </Link>
                   <button
                     type="button"
                     className="qs-btn qs-btn--ghost qs-btn--sm"
@@ -344,8 +433,57 @@ export function AgentsSessionsPanel(): JSX.Element {
         )}
       </div>
 
+      {selected ? (
+        <div className="mt-6 space-y-3 rounded-2xl border border-cyan/20 bg-black/25 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-cyan">Live event log</p>
+              <p className="mt-1 text-xs text-zinc-400">
+                {selected.goal} · {selected.status} · {runtimeModeLabel(selected.runtime_mode)}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link href={`/ballroom?session=${encodeURIComponent(selected.id)}`} className="qs-btn qs-btn--ghost qs-btn--sm">
+                Open in Ballroom
+              </Link>
+              <button
+                type="button"
+                className="qs-btn qs-btn--green qs-btn--sm"
+                disabled={reviewBusy === selected.id}
+                onClick={() => void reviewSession(selected.id, "approve")}
+              >
+                Approve
+              </button>
+              <button
+                type="button"
+                className="qs-btn qs-btn--danger qs-btn--sm"
+                disabled={reviewBusy === selected.id}
+                onClick={() => void reviewSession(selected.id, "reject")}
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+
+          <AgentSessionEventLog events={events} loading={eventsLoading} />
+          <AgentSessionInteractForm
+            sessionId={selected.id}
+            onInteractionAppended={(event) => {
+              void mutateEvents((prev) => [event, ...(prev ?? [])], false);
+            }}
+          />
+        </div>
+      ) : null}
+
       <div className="mt-6 rounded-2xl border border-cyan/20 bg-black/30 p-4">
-        <h3 className="text-sm font-semibold text-zinc-100">Routines</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-zinc-100">Routines</h3>
+          <InfoHint
+            title="Routines"
+            description="Periodic Supervisor sessions triggered by schedule interval."
+            options={["Create routine", "Trigger now", "Status monitoring"]}
+          />
+        </div>
         <p className="mt-1 text-xs text-zinc-500">Recurring supervisor sessions via Celery schedule tick.</p>
         <div className="mt-3 grid gap-2 md:grid-cols-[1fr_1fr_140px_auto]">
           <input className="qs-input" placeholder="Routine name" value={routineName} onChange={(e) => setRoutineName(e.target.value)} />

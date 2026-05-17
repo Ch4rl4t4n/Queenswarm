@@ -20,7 +20,7 @@ export default function MonitoringPage() {
     <div className="space-y-8">
       <HivePageHeader
         title="Monitoring"
-        subtitle="Host pressure, Docker fan-out, hive throughput, and 24h LLM burn — live cockpit."
+        subtitle="Enterprise-only observability cockpit: scaling pressure, costs, alerts, and tenant-aware operator health."
       />
       <MonitoringDashboard />
     </div>

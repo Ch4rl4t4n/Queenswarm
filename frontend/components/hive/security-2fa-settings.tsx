@@ -46,6 +46,9 @@ export function Security2FASettings() {
   const [err, setErr] = useState<string | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [passwordBusy, setPasswordBusy] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
 
   const [enrollOpen, setEnrollOpen] = useState(false);
   /** password → hive password + provision · scan → QR + manual secret + 6-digit verify (never code-only). */
@@ -193,6 +196,32 @@ export function Security2FASettings() {
     }
   }
 
+  async function submitPasswordChange(): Promise<void> {
+    if (currentPassword.length < 8 || newPassword.length < 8) {
+      toast.error("Both passwords must be at least 8 characters.");
+      return;
+    }
+    if (currentPassword === newPassword) {
+      toast.error("New password must differ from current password.");
+      return;
+    }
+    setPasswordBusy(true);
+    try {
+      await hivePostJson<{ ok: boolean }>("auth/me/password", {
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      setCurrentPassword("");
+      setNewPassword("");
+      toast.success("Password changed.");
+    } catch (e) {
+      const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Password update failed";
+      toast.error(msg);
+    } finally {
+      setPasswordBusy(false);
+    }
+  }
+
   useEffect(() => {
     const uri = provision?.otpauth_uri?.trim();
     if (!uri || enrollPhase !== "scan") {
@@ -249,12 +278,40 @@ export function Security2FASettings() {
       <section className="rounded-3xl qs-rim-cyan-soft bg-[#0c0c14]/95 p-6 md:p-7">
         <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">Hive password</h2>
         <p className="mt-2 font-[family-name:var(--font-poppins)] text-sm text-zinc-400">
-          Operator passwords are provisioned through the bootstrap / admin flows on the API today. Use the same password you authenticate with at login; self-service rotation ships in a
-          follow-on release.
+          Change your login password directly here. Enter your current password first, then the new one.
         </p>
-        <p className="mt-3 font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
-          Need a reset? Re-seed the queen account via infrastructure playbooks or contact the hive admin.
-        </p>
+        <div className="mt-4 grid gap-3 md:max-w-xl">
+          <label className="grid gap-1.5">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-zinc-500">Current password</span>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              autoComplete="current-password"
+              className="qs-input"
+            />
+          </label>
+          <label className="grid gap-1.5">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-zinc-500">New password</span>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              autoComplete="new-password"
+              className="qs-input"
+            />
+          </label>
+          <div className="pt-1">
+            <button
+              type="button"
+              className="qs-btn qs-btn--primary qs-btn--sm disabled:opacity-40"
+              disabled={passwordBusy}
+              onClick={() => void submitPasswordChange()}
+            >
+              {passwordBusy ? "Saving..." : "Change password"}
+            </button>
+          </div>
+        </div>
       </section>
       {twofaPending ? (
         <div className="rounded-2xl border-[length:var(--qs-bubble-border-width)] border-solid border-pollen/35 bg-pollen/[0.06] px-4 py-3 font-[family-name:var(--font-poppins)] text-sm text-zinc-200">

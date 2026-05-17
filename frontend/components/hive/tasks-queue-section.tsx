@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { InfoHint } from "@/components/hive/info-hint";
 import type { TaskRow } from "@/lib/hive-types";
+import type { TaskCounts } from "@/lib/tasks-queue-utils";
 import { cn } from "@/lib/utils";
 
 type TaskBucket = "all" | "running" | "pending" | "completed";
@@ -52,26 +54,8 @@ function pctFor(id: string, bucket: Exclude<TaskBucket, "all">): number {
   return Math.min((((h >> 5) || 53) % 70) + 15, 95);
 }
 
-export function deriveTaskCounts(tasks: TaskRow[]): {
-  active: number;
-  pending: number;
-  completed: number;
-  running: number;
-} {
-  let running = 0;
-  let pending = 0;
-  let completed = 0;
-  for (const t of tasks) {
-    const b = classifyStatus(t.status);
-    if (b === "running") running += 1;
-    else if (b === "pending") pending += 1;
-    else completed += 1;
-  }
-  return { active: running + pending, pending, completed, running };
-}
-
 interface TasksQueueHeaderStatsProps {
-  counts: ReturnType<typeof deriveTaskCounts>;
+  counts: TaskCounts;
 }
 
 export function TasksQueueHeaderStats({ counts }: TasksQueueHeaderStatsProps) {
@@ -113,19 +97,33 @@ export function TasksQueueSection({ tasks }: TasksQueueSectionProps) {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 border-b border-cyan/[0.08] pb-5 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-6">
-        <div className="flex w-full min-w-0 gap-1 overflow-x-auto rounded-full bg-black/40 p-1 ring-1 ring-cyan/[0.1] hive-scrollbar pb-px sm:w-auto sm:overflow-visible">
-          {tabBtn("all", "All")}
-          {tabBtn("running", "Running")}
-          {tabBtn("pending", "Pending")}
-          {tabBtn("completed", "Completed")}
+        <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
+          <div className="flex min-w-0 gap-1 overflow-x-auto rounded-full bg-black/40 p-1 ring-1 ring-cyan/[0.1] hive-scrollbar pb-px sm:overflow-visible">
+            {tabBtn("all", "All")}
+            {tabBtn("running", "Running")}
+            {tabBtn("pending", "Pending")}
+            {tabBtn("completed", "Completed")}
+          </div>
+          <InfoHint
+            title="Task status filter"
+            description="Switches task visibility based on execution pipeline status."
+            options={["All", "Running", "Pending", "Completed"]}
+          />
         </div>
-        <input
-          type="search"
-          value={needle}
-          onChange={(e) => setNeedle(e.target.value)}
-          placeholder="Filter tasks…"
-          className="w-full min-w-0 max-w-full rounded-xl border border-cyan/[0.15] bg-black/45 px-4 py-2 font-[family-name:var(--font-poppins)] text-sm text-[#fafafa] placeholder:text-zinc-500 focus:border-pollen/35 focus:outline-none sm:max-w-[320px] sm:flex-none"
-        />
+        <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
+          <input
+            type="search"
+            value={needle}
+            onChange={(e) => setNeedle(e.target.value)}
+            placeholder="Filter tasks…"
+            className="w-full min-w-0 max-w-full rounded-xl border border-cyan/[0.15] bg-black/45 px-4 py-2 font-(family-name:--font-poppins) text-sm text-[#fafafa] placeholder:text-zinc-500 focus:border-pollen/35 focus:outline-none sm:max-w-[320px] sm:flex-none"
+          />
+          <InfoHint
+            title="Task search"
+            description="Filters by task title, ID, and task type."
+            options={["Live filter", "Search title", "Search task type"]}
+          />
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -178,8 +176,15 @@ export function TasksQueueSection({ tasks }: TasksQueueSectionProps) {
 
 export function TasksNewTaskActions() {
   return (
-    <Link href="/tasks/new" className="qs-btn qs-btn--primary">
-      + New task
-    </Link>
+    <div className="flex items-center gap-2">
+      <Link href="/tasks/new" className="qs-btn qs-btn--primary">
+        + New task
+      </Link>
+      <InfoHint
+        title="New task"
+        description="Creates a new task in the execution queue."
+        options={["Define title", "Set task type", "Assign mission scope"]}
+      />
+    </div>
   );
 }

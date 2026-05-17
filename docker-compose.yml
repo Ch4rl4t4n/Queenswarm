@@ -97,6 +97,9 @@ services:
       DOMAIN: ${DOMAIN:-queenswarm.love}
       BALLROOM_GUEST_WS: ${BALLROOM_GUEST_WS:-true}
       HIVE_DASHBOARD_GUEST_WS: ${HIVE_DASHBOARD_GUEST_WS:-true}
+      LLM_MAX_CONCURRENCY: ${LLM_MAX_CONCURRENCY:-6}
+      SIMULATION_MAX_PARALLEL: ${SIMULATION_MAX_PARALLEL:-2}
+      CELERY_WORKER_CONCURRENCY: ${CELERY_WORKER_CONCURRENCY:-3}
     depends_on:
       postgres:
         condition: service_healthy
@@ -127,7 +130,7 @@ services:
   celery-worker:
     <<: [*backend-build, *backend-env-files]
     command:
-      ["celery", "-A", "app.worker.celery_app", "worker", "-l", "info", "-Q", "hive", "-c", "4", "-n", "worker@%h"]
+      ["celery", "-A", "app.worker.celery_app", "worker", "-l", "info", "-Q", "hive", "-c", "${CELERY_WORKER_CONCURRENCY:-3}", "-n", "worker@%h"]
     environment:
       QUEENSWARM_CELERY_WORKER: "true"
       POSTGRES_URL: postgresql+asyncpg://${POSTGRES_USER:-queenswarm}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-queenswarm}
@@ -141,6 +144,9 @@ services:
       DOMAIN: ${DOMAIN:-queenswarm.love}
       BALLROOM_GUEST_WS: ${BALLROOM_GUEST_WS:-true}
       HIVE_DASHBOARD_GUEST_WS: ${HIVE_DASHBOARD_GUEST_WS:-true}
+      LLM_MAX_CONCURRENCY: ${LLM_MAX_CONCURRENCY:-6}
+      SIMULATION_MAX_PARALLEL: ${SIMULATION_MAX_PARALLEL:-2}
+      CELERY_WORKER_CONCURRENCY: ${CELERY_WORKER_CONCURRENCY:-3}
     depends_on:
       postgres:
         condition: service_healthy
@@ -175,6 +181,9 @@ services:
       DOMAIN: ${DOMAIN:-queenswarm.love}
       BALLROOM_GUEST_WS: ${BALLROOM_GUEST_WS:-true}
       HIVE_DASHBOARD_GUEST_WS: ${HIVE_DASHBOARD_GUEST_WS:-true}
+      LLM_MAX_CONCURRENCY: ${LLM_MAX_CONCURRENCY:-6}
+      SIMULATION_MAX_PARALLEL: ${SIMULATION_MAX_PARALLEL:-2}
+      CELERY_WORKER_CONCURRENCY: ${CELERY_WORKER_CONCURRENCY:-3}
     depends_on:
       redis:
         condition: service_healthy
@@ -218,6 +227,8 @@ services:
       options:
         max-size: "15m"
         max-file: "3"
+    mem_limit: 768m
+    cpus: "0.75"
 
   grafana:
     image: grafana/grafana:11.3.2
@@ -256,6 +267,8 @@ services:
       options:
         max-size: "15m"
         max-file: "3"
+    mem_limit: 640m
+    cpus: "0.75"
 
   frontend:
     build:
@@ -290,6 +303,8 @@ services:
       options:
         max-size: "15m"
         max-file: "4"
+    mem_limit: 1024m
+    cpus: "1.0"
 
   nginx:
     image: nginx:1.27-alpine
@@ -319,6 +334,8 @@ services:
       options:
         max-size: "15m"
         max-file: "4"
+    mem_limit: 256m
+    cpus: "0.5"
 
 volumes:
   postgres_data:

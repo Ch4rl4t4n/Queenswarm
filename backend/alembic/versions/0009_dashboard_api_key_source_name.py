@@ -12,6 +12,8 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # Default Alembic ``version_num`` is VARCHAR(32); revision ids can exceed that before migration 0011 runs.
+    op.execute(sa.text("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(128)"))
     op.add_column(
         "dashboard_api_keys",
         sa.Column("source_name", sa.String(length=80), nullable=True),

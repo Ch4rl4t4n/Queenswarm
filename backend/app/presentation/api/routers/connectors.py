@@ -7,10 +7,11 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 
 import httpx
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field
 
-from app.presentation.api.deps import DashboardSession, DbSession
+from app.presentation.api.deps import DashboardSession, DbSession, require_tenant_permission
+from app.common.http.security_headers import apply_no_store_cache_headers, no_store_cache_headers
 from app.infrastructure.connectors.mcp_adapter import MCPAdapter
 from app.infrastructure.connectors.base import ConnectorAuthEnvelope
 from app.infrastructure.connectors.oauth_refresh import exchange_refresh_token
@@ -39,6 +40,14 @@ router = APIRouter()
 
 logger = get_logger(__name__)
 
+_OAUTH_RESPONSE_SENSITIVE_KEYS = frozenset({
+    "accesstoken",
+    "refreshtoken",
+    "idtoken",
+    "clientsecret",
+    "oauthtoken",
+})
+
 
 def _session_user_id(sess: dict[str, Any]) -> uuid.UUID:
     """Resolve Postgres ``dashboard_users.id`` from JWT ``sub``."""
@@ -52,8 +61,36 @@ def _session_user_id(sess: dict[str, Any]) -> uuid.UUID:
     return parsed
 
 
+def _redact_oauth_refresh_raw(raw: dict[str, Any]) -> dict[str, Any]:
+    """Drop token-bearing keys from upstream OAuth raw response payload."""
+
+    def _is_sensitive_key(key: str) -> bool:
+        normalized = "".join(ch for ch in key.lower() if ch.isalnum())
+        if normalized in _OAUTH_RESPONSE_SENSITIVE_KEYS:
+            return True
+        return any(normalized.endswith(marker) for marker in _OAUTH_RESPONSE_SENSITIVE_KEYS)
+
+    def _redact_value(value: Any) -> Any:
+        if isinstance(value, dict):
+            output: dict[str, Any] = {}
+            for key, nested in value.items():
+                if _is_sensitive_key(str(key)):
+                    continue
+                output[key] = _redact_value(nested)
+            return output
+        if isinstance(value, list):
+            return [_redact_value(item) for item in value]
+        return value
+
+    return _redact_value(raw)
+
+
 @router.get("/catalog", summary="List registered connector adapters + dynamic MCP manifests")
-async def connectors_catalog(sess: DashboardSession, db: DbSession) -> dict[str, Any]:
+async def connectors_catalog(
+    sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("connectors:view")),
+) -> dict[str, Any]:
     """Return slug ordering enriched with Postgres-backed dynamic MCP tool slots."""
 
     _ = sess
@@ -117,6 +154,7 @@ async def connectors_vault_upsert(
     body: VaultUpsertBody,
     sess: DashboardSession,
     db: DbSession,
+    _: bool = Depends(require_tenant_permission("connectors:edit")),
 ) -> dict[str, str]:
     """Persist ciphertext via :mod:`app.connectors.secure_vault`."""
 
@@ -136,31 +174,59 @@ class OAuthRefreshBody(BaseModel):
     connector_slug: str = Field(..., min_length=2, max_length=128)
 
 
+class OAuthRefreshResponse(BaseModel):
+    """OAuth refresh result metadata without plaintext token material."""
+
+    ok: bool = True
+    token_type: str = "Bearer"
+    raw: dict[str, Any]
+
+
 @router.post("/oauth/token", summary="Refresh OAuth2 access tokens stored in vault")
 async def connectors_oauth_refresh(
     body: OAuthRefreshBody,
     sess: DashboardSession,
     db: DbSession,
-) -> dict[str, Any]:
+    response: Response,
+    _: bool = Depends(require_tenant_permission("connectors:edit")),
+) -> OAuthRefreshResponse:
     """Hydrate envelope, POST refresh upstream, persist updated ciphertext."""
 
     if body.grant_type != "refresh_token":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unsupported grant_type")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="unsupported grant_type",
+            headers=no_store_cache_headers(),
+        )
     uid = _session_user_id(sess)
     env = await vault_load_envelope(db, slug=body.connector_slug.strip().lower(), user_id=uid)
     if env is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="vault row missing.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="vault row missing.",
+            headers=no_store_cache_headers(),
+        )
     try:
         payload, raw = await exchange_refresh_token(env)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+            headers=no_store_cache_headers(),
+        ) from exc
     except httpx.HTTPError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"token_endpoint_error:{exc!s}",
+            headers=no_store_cache_headers(),
         ) from exc
     await vault_upsert_credential(db, slug=body.connector_slug.strip().lower(), user_id=uid, payload=payload)
-    return {"access_token": payload.oauth2_access_token, "token_type": "Bearer", "raw": raw}
+    apply_no_store_cache_headers(response)
+    return OAuthRefreshResponse(
+        ok=True,
+        token_type="Bearer",
+        raw=_redact_oauth_refresh_raw(raw),
+    )
 
 
 class PingBody(BaseModel):
@@ -199,6 +265,7 @@ async def connectors_ping(
     slug: str,
     sess: DashboardSession,
     db: DbSession,
+    _: bool = Depends(require_tenant_permission("connectors:view")),
     body: PingBody | None = None,
 ) -> dict[str, Any]:
     """Loads vault row unless caller supplies ephemeral :class:`PingBody` secrets."""

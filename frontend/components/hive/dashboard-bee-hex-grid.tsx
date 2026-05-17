@@ -8,11 +8,12 @@ import { HexCard, type GlowColor } from "@/components/ui/HexCard";
 import { LoadingHex } from "@/components/ui/LoadingHex";
 import { PollenBar } from "@/components/ui/PollenBar";
 import { StatusDot } from "@/components/ui/StatusDot";
+import { COCKPIT_POLL_AGENTS_TASKS_MS } from "@/lib/cockpit-poll-profile";
 import { useAgents } from "@/lib/hooks/use-agents";
 import { useTasks } from "@/lib/hooks/use-tasks";
 import type { AgentRow } from "@/lib/hive-types";
 
-const REFRESH_MS = 5000;
+const REFRESH_MS = COCKPIT_POLL_AGENTS_TASKS_MS;
 
 const swarmEmoji: Record<string, string> = {
   unassigned: "⬢",

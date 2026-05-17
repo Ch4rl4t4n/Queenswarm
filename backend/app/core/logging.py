@@ -3,12 +3,38 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import structlog
 from structlog.typing import FilteringBoundLogger
 
 
-def configure_logging(level: str = "INFO") -> None:
+def _append_static_log_context(
+    logger: Any, method_name: str, event_dict: dict[str, Any]  # noqa: ANN401
+) -> dict[str, Any]:
+    """Attach static service metadata for centralized log aggregation."""
+
+    del logger, method_name
+    event_dict.setdefault("service", _STATIC_LOG_CONTEXT["service"])
+    event_dict.setdefault("environment", _STATIC_LOG_CONTEXT["environment"])
+    event_dict.setdefault("instance_id", _STATIC_LOG_CONTEXT["instance_id"])
+    return event_dict
+
+
+_STATIC_LOG_CONTEXT = {
+    "service": "queenswarm-api",
+    "environment": "development",
+    "instance_id": "unknown",
+}
+
+
+def configure_logging(
+    level: str = "INFO",
+    *,
+    service_name: str = "queenswarm-api",
+    environment: str = "development",
+    instance_id: str = "unknown",
+) -> None:
     """Configure structlog for JSON logs with swarm task context merge support.
 
     Processors emit ISO timestamps, severity, logger name bound via `get_logger`,
@@ -21,10 +47,14 @@ def configure_logging(level: str = "INFO") -> None:
 
     log_level_name = level.upper()
     log_level_value = getattr(logging, log_level_name, logging.INFO)
+    _STATIC_LOG_CONTEXT["service"] = str(service_name).strip() or "queenswarm-api"
+    _STATIC_LOG_CONTEXT["environment"] = str(environment).strip() or "development"
+    _STATIC_LOG_CONTEXT["instance_id"] = str(instance_id).strip() or "unknown"
 
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,
+            _append_static_log_context,
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),
             structlog.processors.StackInfoRenderer(),

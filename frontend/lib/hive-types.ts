@@ -17,6 +17,18 @@ export interface SystemStatusPayload {
   agents_running: number;
   tasks_running: number;
   tasks_pending: number;
+  host_cpu_percent: number;
+  host_memory_percent: number;
+  host_disk_percent: number;
+  llm_concurrency_limit: number;
+  llm_in_flight: number;
+  simulation_concurrency_limit: number;
+  simulation_in_flight: number;
+  simulation_enabled: boolean;
+  simulation_tasks_running: number;
+  simulation_tasks_pending: number;
+  resource_pressure: boolean;
+  resource_pressure_reason: string;
 }
 
 /** Masked row from ``GET /api/v1/llm-keys``. */
@@ -68,6 +80,93 @@ export interface DashboardSummary {
     pending: number;
   };
   waggle_dances?: WaggleDanceSummaryRow[];
+}
+
+export interface TenantViewRow {
+  id: string;
+  slug: string;
+  name: string;
+  role: string;
+  is_active: boolean;
+}
+
+export interface TenantListPayload {
+  current_tenant_id: string | null;
+  tenants: TenantViewRow[];
+}
+
+export interface TeamMemberRow {
+  id: string;
+  user_id: string;
+  email: string;
+  role: string;
+  joined_at: string;
+  can_manage: boolean;
+}
+
+export interface TeamInviteRow {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  invite_token: string;
+  created_at: string;
+}
+
+export interface TeamOverviewPayload {
+  tenant_id: string;
+  tenant_role: string;
+  permissions: string[];
+  members: TeamMemberRow[];
+  invites: TeamInviteRow[];
+}
+
+export interface BillingUsageSnapshot {
+  tenant_id: string;
+  tier: string;
+  status: string;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  usage: Record<string, number>;
+  limits: Record<string, number>;
+  usage_health: Record<
+    string,
+    {
+      value: number;
+      soft_limit: number;
+      hard_limit: number;
+      soft_exceeded: boolean;
+      hard_exceeded: boolean;
+      soft_pct: number;
+      hard_pct: number;
+    }
+  >;
+  features: Record<string, boolean>;
+  upgrade_recommended: boolean;
+}
+
+export interface BillingPlansPayload {
+  current_tier: string;
+  plans: Array<{
+    tier: string;
+    label: string;
+    limits: Record<string, number>;
+    features: Record<string, boolean>;
+  }>;
+  checkout_ready: boolean;
+  message: string;
+}
+
+export interface PublicShareRow {
+  id: string;
+  resource_type: "output" | "session" | "swarm";
+  resource_id: string;
+  share_token: string;
+  is_active: boolean;
+  access_count: number;
+  expires_at: string | null;
+  created_at: string;
+  public_url: string;
 }
 
 export interface AgentRow {
@@ -148,6 +247,37 @@ export interface SupervisorRoutineRow {
   updated_at: string;
 }
 
+export interface SupervisorControlSummaryRow {
+  sessions_total: number;
+  status_counts: Record<string, number>;
+  running_sessions: number;
+  needs_input_sessions: number;
+  completed_sessions: number;
+  routines_total: number;
+  active_routines: number;
+  due_routines: number;
+}
+
+export interface AgentSuggestionRow {
+  id: string;
+  supervisor_session_id: string | null;
+  sub_agent_session_id: string | null;
+  proposal_type: "skill_proposal" | "workflow_optimization" | "prompt_optimization" | "tooling_proposal" | string;
+  proposed_by_role: string;
+  title: string;
+  description: string;
+  proposal_payload: Record<string, unknown>;
+  risk_level: "low" | "medium" | "high" | string;
+  impact_score: number;
+  status: "pending" | "approved" | "rejected" | string;
+  requires_manual_approval: boolean;
+  evaluation_reason: string | null;
+  reviewed_by_subject: string | null;
+  reviewed_at: string | null;
+  implemented_at: string | null;
+  created_at: string;
+}
+
 export interface SupervisorSessionEventRow {
   id: string;
   supervisor_session_id: string;
@@ -157,6 +287,39 @@ export interface SupervisorSessionEventRow {
   message: string;
   payload: Record<string, unknown>;
   occurred_at: string;
+  created_at: string;
+}
+
+export interface BrowserAutomationActionRow {
+  id: string;
+  browser_session_id: string;
+  action_type: string;
+  status: string;
+  requires_approval: boolean;
+  payload: Record<string, unknown>;
+  result_summary: string | null;
+  occurred_at: string;
+}
+
+export interface BrowserAutomationSessionRow {
+  id: string;
+  supervisor_session_id: string | null;
+  sub_agent_session_id: string | null;
+  mode: "headless" | "visible" | string;
+  status: string;
+  start_url: string | null;
+  current_url: string | null;
+  allowed_domains: string[];
+  blocked_reason: string | null;
+  expires_at: string | null;
+  max_actions: number;
+  actions_used: number;
+  pending_approval_action: Record<string, unknown>;
+  last_snapshot_text: string | null;
+  last_screenshot_base64: string | null;
+  is_headless: boolean;
+  started_at: string | null;
+  ended_at: string | null;
   created_at: string;
 }
 

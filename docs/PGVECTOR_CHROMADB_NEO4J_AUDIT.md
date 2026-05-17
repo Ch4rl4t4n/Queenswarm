@@ -4,7 +4,7 @@ This document records **where** Chroma and Neo4j appear in the codebase and **wh
 
 ## Postgres + pgvector (current default)
 
-- Compose: `postgres` uses image **`pgvector/pgvector:pg16`** in `docker-compose.yml`, `docker-compose.base.yml`, and `docker-compose.stg.yml` (prod overlay extends base).
+- Compose: `postgres` uses image **`pgvector/pgvector:pg16`** in `docker-compose.yml` and `docker-compose.base.yml` (production overlay extends base).
 - Persistence: table **`hive_vector_documents`** and Alembic revision **`0016_pgvector_hive_vectors`** (see `backend/alembic/versions/`).
 - Runtime: `VECTOR_STORE_BACKEND` defaults to **`pgvector`**; implementation is `PgvectorVectorBackend` (`backend/app/infrastructure/vectorstore/pgvector_backend.py`).
 - Public API: features should use **`app.core.chroma_client`** (`embed_and_store`, `semantic_search`, …), which delegates to `get_vector_backend()` — the name is historical; behaviour is backend-selected.

@@ -4,7 +4,7 @@
   "tags": ["queenswarm", "hive", "agents"],
   "timezone": "UTC",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "30s",
   "time": { "from": "now-3h", "to": "now" },
   "timepicker": {},
@@ -195,6 +195,139 @@
             "showPoints": "never"
           },
           "unit": "s"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Supervisor Sessions Created",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(queenswarm_supervisor_sessions_total{event=\"created\"}) or vector(0)",
+          "legendFormat": "created",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" }
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "#00FFFF", "mode": "fixed" },
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Supervisor Sessions Queued (durable)",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(queenswarm_supervisor_sessions_total{event=\"queued\",runtime_mode=\"durable\"}) or vector(0)",
+          "legendFormat": "durable queued",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" }
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "#FFB800", "mode": "fixed" },
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "Routines Triggered",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(queenswarm_supervisor_routines_total{event=\"triggered\"}) or vector(0)",
+          "legendFormat": "triggered",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" }
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "#00FF88", "mode": "fixed" },
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Routines Failed",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(queenswarm_supervisor_routines_total{event=\"failed\"}) or vector(0)",
+          "legendFormat": "failed",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" }
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "#FF3366", "mode": "fixed" },
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Supervisor Event Rate (per minute, 5m rate)",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (event) (rate(queenswarm_supervisor_sessions_total[5m])) * 60",
+          "legendFormat": "session {{event}}/min",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+          "editorMode": "code",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (event) (rate(queenswarm_supervisor_routines_total[5m])) * 60",
+          "legendFormat": "routine {{event}}/min",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+          "editorMode": "code",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "lineWidth": 1,
+            "showPoints": "never"
+          },
+          "unit": "short"
         },
         "overrides": []
       }

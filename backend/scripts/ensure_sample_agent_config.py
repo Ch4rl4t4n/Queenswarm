@@ -8,9 +8,9 @@ import asyncio
 from sqlalchemy import select
 
 from app.core.database import async_session
-from app.models import load_all_models
-from app.models.agent import Agent
-from app.models.agent_config import AgentConfig
+from app.infrastructure.persistence.models import load_all_models
+from app.infrastructure.persistence.models.agent import Agent
+from app.infrastructure.persistence.models.agent_config import AgentConfig
 
 
 async def main() -> None:

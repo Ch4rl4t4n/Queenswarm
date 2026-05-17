@@ -1,7 +1,9 @@
+import { redirect } from "next/navigation";
 import { PuzzleIcon } from "lucide-react";
 
 import { HivePageHeader } from "@/components/hive/hive-page-header";
 import { PluginsUserUploader } from "@/components/hive/plugins-user-uploader";
+import { PHASE70_CONSOLIDATED_NAV_ENABLED } from "@/lib/feature-flags";
 import { hiveServerRawJson } from "@/lib/hive-server";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +25,10 @@ interface PluginsPayload {
 }
 
 export default async function PluginsPhasePage() {
+  if (PHASE70_CONSOLIDATED_NAV_ENABLED) {
+    redirect("/integrations#plugins");
+  }
+
   const pack = await hiveServerRawJson<PluginsPayload>("/plugins");
 
   return (

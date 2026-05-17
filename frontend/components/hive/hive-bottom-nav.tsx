@@ -4,7 +4,9 @@ import type { LucideIcon } from "lucide-react";
 import { EllipsisVerticalIcon } from "lucide-react";
 import Link from "next/link";
 
+import { useUiLanguage } from "@/components/hive/ui-language-provider";
 import { hiveBottomNavItems, isNavItemActive } from "@/lib/hive-nav-primary";
+import { localizeNavLabel, localizePhrase } from "@/lib/ui-copy";
 import { cn } from "@/lib/utils";
 
 interface NavGlyphProps {
@@ -43,6 +45,7 @@ interface HiveBottomNavProps {
 
 /** Primary thumb targets — subset of nav + overflow sheet. */
 export function HiveBottomNav({ onMore, pathname }: HiveBottomNavProps) {
+  const { language } = useUiLanguage();
   const items = hiveBottomNavItems();
 
   return (
@@ -66,7 +69,7 @@ export function HiveBottomNav({ onMore, pathname }: HiveBottomNavProps) {
               className="flex min-w-0 flex-1 justify-center touch-manipulation"
               aria-current={active ? "page" : undefined}
             >
-              <NavGlyph label={label} Icon={Icon} active={active} />
+              <NavGlyph label={localizeNavLabel(label, language)} Icon={Icon} active={active} />
             </Link>
           );
         })}
@@ -76,7 +79,7 @@ export function HiveBottomNav({ onMore, pathname }: HiveBottomNavProps) {
           onClick={onMore}
           aria-haspopup="dialog"
         >
-          <NavGlyph label="More" Icon={EllipsisVerticalIcon} active={false} />
+          <NavGlyph label={localizePhrase(language, { en: "More", sk: "Viac" })} Icon={EllipsisVerticalIcon} active={false} />
         </button>
       </div>
     </nav>

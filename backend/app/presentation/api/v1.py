@@ -31,6 +31,12 @@ from app.presentation.api.routers import operator_notifications as operator_noti
 from app.presentation.api.routers import hive_mind as hive_mind_router
 from app.presentation.api.routers import outputs as outputs_router
 from app.presentation.api.routers import oauth_consent as oauth_consent_router
+from app.presentation.api.routers import settings_team as settings_team_router
+from app.presentation.api.routers import billing as billing_router
+from app.presentation.api.routers import shares as shares_router
+from app.presentation.api.routers import external_api as external_api_router
+from app.presentation.api.routers import tools_marketplace as tools_marketplace_router
+from app.presentation.api.routers import dreaming as dreaming_router
 from app.core.config import settings
 
 api_v1 = APIRouter()
@@ -51,14 +57,20 @@ async def api_v1_health() -> dict[str, str]:
 api_v1.include_router(auth_router.router, prefix="/auth")
 api_v1.include_router(dashboard_session_router.router, prefix="/auth")
 api_v1.include_router(connectors_router.router, prefix="/connectors")
+api_v1.include_router(tools_marketplace_router.router)
 api_v1.include_router(oauth_consent_router.router)
 api_v1.include_router(connectors_dynamic_router.router)
-api_v1.include_router(agents_router.router, prefix="/agents")
 api_v1.include_router(agent_sessions_router.router, prefix="/agents")
+api_v1.include_router(agents_router.router, prefix="/agents")
 api_v1.include_router(operator_router.router)
 api_v1.include_router(operator_monitoring_router.router)
 api_v1.include_router(system_status_router.router)
 api_v1.include_router(dashboard_router.router)
+api_v1.include_router(settings_team_router.router)
+api_v1.include_router(billing_router.router)
+api_v1.include_router(shares_router.router)
+api_v1.include_router(shares_router.public_router)
+api_v1.include_router(external_api_router.router)
 api_v1.include_router(learning_router.router, prefix="/learning")
 api_v1.include_router(workflows_router.router, prefix="/workflows")
 api_v1.include_router(swarms_router.router, prefix="/swarms")
@@ -67,6 +79,7 @@ api_v1.include_router(jobs_router.router, prefix="/jobs")
 api_v1.include_router(simulations_router.router, prefix="/simulations")
 api_v1.include_router(recipes_router.router, prefix="/recipes")
 api_v1.include_router(plugins_catalog_router.router, prefix="/plugins")
+api_v1.include_router(dreaming_router.router)
 api_v1.include_router(outputs_router.router)
 api_v1.include_router(hive_mind_router.router)
 api_v1.include_router(external_router.router)

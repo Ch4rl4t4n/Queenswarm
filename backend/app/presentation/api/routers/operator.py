@@ -23,6 +23,7 @@ from app.infrastructure.persistence.models.task import Task
 from app.infrastructure.persistence.models.workflow import Workflow, WorkflowStep
 from app.common.schemas.recipes_write import RecipeCreateBody
 from app.common.schemas.workflow_breaker import PreviewDecompositionResponse
+from app.common.http.rate_limit import rate_limited_http_exception
 from app.application.services.hive_async_workflow_run_ledger import enqueue_hive_async_workflow_run
 from app.application.services.plugin_hub import bump_plugin_generation, plugin_manifest
 from app.application.services.recipe_write import (
@@ -50,6 +51,26 @@ _ERROR_HTTP_MAP: dict[str, int] = {
     "budget_exceeded": status.HTTP_429_TOO_MANY_REQUESTS,
     "step_timeout": status.HTTP_504_GATEWAY_TIMEOUT,
 }
+
+
+def _operator_execution_http_exception(*, code: str, detail: str | None, traces: list[str]) -> HTTPException:
+    """Translate operator execution failures to stable HTTP responses."""
+
+    status_code = _ERROR_HTTP_MAP.get(code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+    payload = {
+        "code": code,
+        "detail": detail,
+        "traces": traces,
+    }
+    if status_code == status.HTTP_429_TOO_MANY_REQUESTS:
+        return rate_limited_http_exception(
+            payload,
+            window_sec=settings.rate_limit_sustain_window_sec,
+        )
+    return HTTPException(
+        status_code=status_code,
+        detail=payload,
+    )
 
 
 class OperatorIntakeRequest(BaseModel):
@@ -297,14 +318,10 @@ async def operator_intake_task(body: OperatorIntakeRequest, db: DbSession, _subj
         if not exec_out.ok:
             await db.rollback()
             code = exec_out.error_code or "unknown_error"
-            http_status = _ERROR_HTTP_MAP.get(code, status.HTTP_422_UNPROCESSABLE_ENTITY)
-            raise HTTPException(
-                status_code=http_status,
-                detail={
-                    "code": code,
-                    "detail": exec_out.error_detail,
-                    "traces": exec_out.traces,
-                },
+            raise _operator_execution_http_exception(
+                code=code,
+                detail=exec_out.error_detail,
+                traces=exec_out.traces,
             )
         await db.commit()
         execution = "inline"

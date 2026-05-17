@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from jose import jwt as jose_jwt
 
+from app.presentation.api.routers import auth as auth_router
 from app.presentation.api.routers.auth import HiveTokenExchangeConfig, hive_token_exchange_config
 from app.core.config import settings
 from app.main import app
@@ -38,6 +41,9 @@ async def test_auth_token_exchange_success(restore_dependency_overrides: None) -
     assert data["token_type"] == "bearer"
     assert "access_token" in data
     assert data["expires_in"] >= 60
+    assert response.headers.get("Cache-Control") == "no-store"
+    assert response.headers.get("Pragma") == "no-cache"
+    assert response.headers.get("Expires") == "0"
 
 
 @pytest.mark.asyncio
@@ -88,3 +94,30 @@ async def test_auth_token_exchange_embeds_scope_claim(restore_dependency_overrid
     token = response.json()["access_token"]
     payload = jose_jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
     assert payload.get("scope") == "recipes:write"
+
+
+@pytest.mark.asyncio
+async def test_auth_token_exchange_when_rate_limited_returns_429(
+    restore_dependency_overrides: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app.dependency_overrides[hive_token_exchange_config] = lambda: HiveTokenExchangeConfig(
+        True,
+        "worker",
+        "x" * 32,
+    )
+    monkeypatch.setattr(settings, "rate_limit_enabled", True)
+    monkeypatch.setattr(
+        auth_router,
+        "sliding_window_reserve",
+        AsyncMock(return_value=False),
+    )
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/api/v1/auth/token",
+            auth=("worker", "x" * 32),
+            json={"subject": "bee-ci-runner"},
+        )
+    assert response.status_code == 429
+    assert response.headers.get("Retry-After") == str(int(settings.rate_limit_token_exchange_window_sec))

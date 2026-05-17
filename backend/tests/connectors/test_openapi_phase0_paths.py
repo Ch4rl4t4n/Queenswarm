@@ -12,8 +12,14 @@ def test_openapi_includes_dashboard_me_and_connectors() -> None:
     assert "/api/v1/auth/me" in paths
     assert "/api/v1/auth/me/password" in paths
     assert "/api/v1/agents/sessions" in paths
+    assert "/api/v1/agents/sessions/summary" in paths
     assert "/api/v1/agents/sessions/{session_id}/events" in paths
     assert "/api/v1/agents/sessions/{session_id}/review" in paths
     assert "/api/v1/agents/routines" in paths
     assert "/api/v1/agents/routines/{routine_id}/trigger" in paths
     assert "/api/v1/connectors/catalog" in paths
+    assert "/api/v1/tools/registry" in paths
+    assert "/api/v1/tools/marketplace/catalog" in paths
+    assert "/api/v1/tools/marketplace/install" in paths
+    assert "/api/v1/ballroom/voice/transcribe" in paths
+    assert "/api/v1/ballroom/voice/synthesize" in paths

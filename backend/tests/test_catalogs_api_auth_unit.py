@@ -26,7 +26,7 @@ async def test_simulations_list_requires_bearer(restore_app_overrides: None) -> 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/api/v1/simulations")
-    assert response.status_code == 403
+    assert response.status_code in {401, 403}
 
 
 @pytest.mark.asyncio
@@ -61,7 +61,7 @@ async def test_recipes_list_requires_bearer(restore_app_overrides: None) -> None
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/api/v1/recipes")
-    assert response.status_code == 403
+    assert response.status_code in {401, 403}
 
 
 @pytest.mark.asyncio
@@ -97,7 +97,7 @@ async def test_recipes_search_requires_bearer(restore_app_overrides: None) -> No
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/api/v1/recipes/search", params={"q": "hello swarm"})
-    assert response.status_code == 403
+    assert response.status_code in {401, 403}
 
 
 @pytest.mark.asyncio

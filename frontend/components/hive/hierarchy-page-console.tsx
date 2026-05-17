@@ -94,7 +94,12 @@ function chunkRows<T>(items: T[], perRow: number): T[][] {
 }
 
 /** Hierarchy route — same `HexAgentCard` tiles + CSS as Agents; explicit Queen → managers → workers tree. */
-export function HierarchyPageConsole(): JSX.Element {
+interface HierarchyPageConsoleProps {
+  readonly showHeader?: boolean;
+}
+
+/** Hierarchy route — same `HexAgentCard` tiles + CSS as Agents; explicit Queen → managers → workers tree. */
+export function HierarchyPageConsole({ showHeader = true }: HierarchyPageConsoleProps): JSX.Element {
   const [agents, setAgents] = useState<AgentRow[]>([]);
   const [swarms, setSwarms] = useState<SwarmBrief[]>([]);
   const [loading, setLoading] = useState(true);
@@ -232,7 +237,7 @@ export function HierarchyPageConsole(): JSX.Element {
 
   if (loading) {
     return (
-      <div className="py-16 text-center font-mono text-sm text-[var(--qs-text-3)]">Loading hierarchy…</div>
+      <div className="py-16 text-center font-mono text-sm text-(--qs-text-3)">Loading hierarchy…</div>
     );
   }
 
@@ -242,10 +247,12 @@ export function HierarchyPageConsole(): JSX.Element {
 
   return (
     <div className="space-y-8">
-      <HivePageHeader
-        title="Hive hierarchy"
-        subtitle="Queen leads managers · same 140 px hex tiles as Agents · queen gets gold frame + crown."
-      />
+      {showHeader ? (
+        <HivePageHeader
+          title="Hive hierarchy"
+          subtitle="Queen leads managers · same 140 px hex tiles as Agents · queen gets gold frame + crown."
+        />
+      ) : null}
 
       <div className={cn("flex flex-col items-center pb-14")}>
         {tree.queen ? (
@@ -256,16 +263,16 @@ export function HierarchyPageConsole(): JSX.Element {
         ) : agents.length === 0 ? (
           <div className="px-6 py-14 text-center">
             <div className="mb-3 text-5xl">🐝</div>
-            <p className="text-sm text-[var(--qs-text-3)]">
+            <p className="text-sm text-(--qs-text-3)">
               No agents yet —{" "}
-              <Link href="/agents/new" className="font-semibold text-[var(--qs-amber)] underline-offset-2 hover:underline">
+              <Link href="/agents/new" className="font-semibold text-(--qs-amber) underline-offset-2 hover:underline">
                 spawn the first agent
               </Link>
               .
             </p>
           </div>
         ) : (
-          <p className="text-center font-mono text-sm text-[var(--qs-text-3)]">
+          <p className="text-center font-mono text-sm text-(--qs-text-3)">
             No orchestrator in the data — set Hive tier or spawn a Queen from Agents.
           </p>
         )}
@@ -274,10 +281,7 @@ export function HierarchyPageConsole(): JSX.Element {
           <div className="flex w-full max-w-[1200px] flex-col items-center">
             {tree.managers.length > 1 ? <HLine widthPx={managerBridgeWidth} color={amber} /> : null}
 
-            <div
-              className="relative z-[1] flex flex-wrap justify-center gap-[18px]"
-              style={{ marginTop: tree.managers.length > 1 ? 0 : 0 }}
-            >
+            <div className="relative z-1 flex flex-wrap justify-center gap-[18px]" style={{ marginTop: tree.managers.length > 1 ? 0 : 0 }}>
               {tree.managers.map((mgr) => {
                 const mgrSwarm =
                   swarms.find((s) => s.queen_agent_id === mgr.id) ??
@@ -314,7 +318,7 @@ export function HierarchyPageConsole(): JSX.Element {
 
         {tree.ungrouped.length > 0 ? (
           <div className="mt-12 w-full max-w-[1200px] px-2">
-            <p className="mb-5 text-center font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--qs-text-3)]">
+            <p className="mb-5 text-center font-mono text-[10px] uppercase tracking-[0.12em] text-(--qs-text-3)">
               Workers outside teams ({tree.ungrouped.length})
             </p>
             <div className="flex flex-wrap justify-center gap-[18px]">

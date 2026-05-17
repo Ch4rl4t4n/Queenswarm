@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
-
 from celery import Celery
-from celery.schedules import crontab
 
 from app.core.config import settings
+from app.worker.beat_schedule import beat_schedule
 
 
 def create_celery_app() -> Celery:
@@ -36,26 +34,10 @@ def create_celery_app() -> Celery:
         task_time_limit=int(settings.rapid_loop_timeout_sec * 4),
         task_soft_time_limit=int(settings.rapid_loop_timeout_sec * 3),
         worker_prefetch_multiplier=1,
-        worker_max_tasks_per_child=500,
+        worker_concurrency=int(settings.celery_worker_concurrency),
+        worker_max_tasks_per_child=300,
     )
-    celery.conf.beat_schedule = {
-        "hive-hourly-youtube-crypto-roll": {
-            "task": "hive.hourly_youtube_crypto_roll",
-            "schedule": crontab(minute=0),
-            "options": {"queue": "hive"},
-        },
-        "hive-dynamic-agent-scheduler": {
-            "task": "hive.dynamic_agent_schedule_tick",
-            "schedule": timedelta(seconds=60),
-            "options": {"queue": "hive"},
-        },
-    }
-    if settings.routines_enabled:
-        celery.conf.beat_schedule["hive-supervisor-routines-tick"] = {
-            "task": "hive.supervisor_routines_tick",
-            "schedule": timedelta(seconds=60),
-            "options": {"queue": "hive"},
-        }
+    celery.conf.beat_schedule = beat_schedule
     return celery
 
 
@@ -64,5 +46,6 @@ celery_app = create_celery_app()
 from app.worker import pool_reset as _pool_reset  # noqa: E402, F401 — fork hook side-effect
 
 from app.worker import tasks as _hive_tasks  # noqa: E402, F401 — register @celery_app.task
+from app.worker import dreaming_tasks as _dreaming_tasks  # noqa: E402, F401 — register dreaming tasks
 
 __all__ = ["celery_app", "create_celery_app"]

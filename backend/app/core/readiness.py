@@ -17,12 +17,15 @@ from app.core.database import async_session
 from app.core.logging import get_logger
 from app.core.neo4j_client import get_neo4j_driver
 from app.core.redis_client import ping_redis
+from app.core.retry_external import retry_async_call
 
 logger = get_logger(__name__)
 
 _cache_lock = asyncio.Lock()
 _cached_at_monotonic: float | None = None
 _cached_payload: dict[str, Any] | None = None
+_draining = False
+_drain_reason = ""
 
 
 class CheckResult(TypedDict, total=False):
@@ -34,11 +37,23 @@ class CheckResult(TypedDict, total=False):
 async def _check_postgres() -> CheckResult:
     started = time.perf_counter()
     try:
-        async with async_session() as session:
-            await session.execute(text("SELECT 1"))
+        async def _probe() -> None:
+            async with async_session() as session:
+                await session.execute(text("SELECT 1"))
+
+        await asyncio.wait_for(
+            retry_async_call(
+                _probe,
+                max_attempts=2,
+            ),
+            timeout=settings.health_dependency_timeout_sec,
+        )
     except SQLAlchemyError as exc:
         elapsed_ms = round((time.perf_counter() - started) * 1000, 3)
         return {"ok": False, "latency_ms": elapsed_ms, "error": str(exc)}
+    except TimeoutError:
+        elapsed_ms = round((time.perf_counter() - started) * 1000, 3)
+        return {"ok": False, "latency_ms": elapsed_ms, "error": "timeout"}
     elapsed_ms = round((time.perf_counter() - started) * 1000, 3)
     return {"ok": True, "latency_ms": elapsed_ms}
 
@@ -46,10 +61,19 @@ async def _check_postgres() -> CheckResult:
 async def _check_redis() -> CheckResult:
     started = time.perf_counter()
     try:
-        await ping_redis()
+        await asyncio.wait_for(
+            retry_async_call(
+                ping_redis,
+                max_attempts=2,
+            ),
+            timeout=settings.health_dependency_timeout_sec,
+        )
     except RedisError as exc:
         elapsed_ms = round((time.perf_counter() - started) * 1000, 3)
         return {"ok": False, "latency_ms": elapsed_ms, "error": str(exc)}
+    except TimeoutError:
+        elapsed_ms = round((time.perf_counter() - started) * 1000, 3)
+        return {"ok": False, "latency_ms": elapsed_ms, "error": "timeout"}
     elapsed_ms = round((time.perf_counter() - started) * 1000, 3)
     return {"ok": True, "latency_ms": elapsed_ms}
 
@@ -59,8 +83,17 @@ async def _check_neo4j() -> CheckResult:
 
     started = time.perf_counter()
     try:
-        driver = await get_neo4j_driver()
-        await driver.verify_connectivity()
+        async def _probe() -> None:
+            driver = await get_neo4j_driver()
+            await driver.verify_connectivity()
+
+        await asyncio.wait_for(
+            retry_async_call(
+                _probe,
+                max_attempts=2,
+            ),
+            timeout=settings.health_dependency_timeout_sec,
+        )
     except (Neo4jError, OSError, TimeoutError) as exc:
         elapsed_ms = round((time.perf_counter() - started) * 1000, 3)
         return {"ok": False, "latency_ms": elapsed_ms, "error": str(exc)}
@@ -73,12 +106,24 @@ async def _check_vector_store() -> CheckResult:
 
     started = time.perf_counter()
     try:
-        await ping_vector_store()
+        await asyncio.wait_for(
+            retry_async_call(
+                ping_vector_store,
+                max_attempts=2,
+            ),
+            timeout=settings.health_dependency_timeout_sec,
+        )
     except Exception as exc:  # noqa: BLE001 — vector clients emit heterogeneous transport faults
         elapsed_ms = round((time.perf_counter() - started) * 1000, 3)
         return {"ok": False, "latency_ms": elapsed_ms, "error": str(exc)}
     elapsed_ms = round((time.perf_counter() - started) * 1000, 3)
     return {"ok": True, "latency_ms": elapsed_ms}
+
+
+async def _check_chroma() -> CheckResult:
+    """Backward-compatible alias used by strict readiness unit tests."""
+
+    return await _check_vector_store()
 
 
 async def collect_readiness_uncached() -> tuple[dict[str, Any], bool]:
@@ -92,7 +137,7 @@ async def collect_readiness_uncached() -> tuple[dict[str, Any], bool]:
         _check_postgres(),
         _check_redis(),
         _check_neo4j(),
-        _check_vector_store(),
+        _check_chroma(),
     )
 
     checks: dict[str, CheckResult] = {
@@ -107,6 +152,8 @@ async def collect_readiness_uncached() -> tuple[dict[str, Any], bool]:
         critical_ok = critical_ok and bool(neo.get("ok"))
     if settings.readiness_require_chroma:
         critical_ok = critical_ok and bool(vec.get("ok"))
+    if _draining:
+        critical_ok = False
     status = "ready" if critical_ok else "not_ready"
 
     optional_required: dict[str, bool] = {}
@@ -119,7 +166,21 @@ async def collect_readiness_uncached() -> tuple[dict[str, Any], bool]:
         "status": status,
         "cached": False,
         "checks": checks,
+        "scaling": {
+            "enabled": settings.scaling_mode_enabled,
+            "instance_id": settings.instance_id,
+            "worker_count": settings.worker_count,
+            "ballroom_capsule_backend": settings.ballroom_capsule_backend,
+            "ha_mode_enabled": settings.ha_mode_enabled,
+            "redis_failover_candidates": len(settings.redis_failover_urls),
+            "postgres_replicas": len(settings.postgres_replica_urls),
+        },
+        "draining": {"enabled": _draining, "reason": _drain_reason},
         "readiness_strict_dependencies": optional_required,
+        "dependency_summary": {
+            "critical_ok": critical_ok,
+            "degraded_dependencies": [key for key, val in checks.items() if not bool(val.get("ok"))],
+        },
     }
     return body, critical_ok
 
@@ -179,8 +240,18 @@ def reset_readiness_cache() -> None:
     _cached_payload = None
 
 
+def set_readiness_draining(enabled: bool, *, reason: str = "") -> None:
+    """Enable/disable readiness drain mode for zero-downtime rollouts."""
+
+    global _draining, _drain_reason
+    _draining = bool(enabled)
+    _drain_reason = reason.strip() if enabled else ""
+    reset_readiness_cache()
+
+
 __all__ = [
     "collect_readiness_uncached",
     "get_readiness_snapshot",
     "reset_readiness_cache",
+    "set_readiness_draining",
 ]

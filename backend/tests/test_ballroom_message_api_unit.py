@@ -9,6 +9,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.application.services import ballroom_store
+from app.presentation.api.routers import realtime_ballroom
 from app.main import app
 from app.presentation.api.deps import require_subject
 
@@ -71,3 +72,70 @@ async def test_ballroom_message_accepts_text_for_known_session(ballroom_auth_fix
             break
         await asyncio.sleep(0.025)
     assert persisted, "Expected server-side transcript row for operator message."
+
+
+@pytest.mark.asyncio
+async def test_ballroom_voice_transcribe_dispatches_transcript(monkeypatch: pytest.MonkeyPatch, ballroom_auth_fixture: None) -> None:
+    """Voice STT endpoint appends user transcript and can dispatch the agent reply loop."""
+
+    sid = uuid.uuid4()
+    dispatched: list[tuple[uuid.UUID, str]] = []
+
+    class _FakeResult:
+        text = "voice hello"
+        provider = "pytest"
+        language = "sk"
+
+    async def _ok_transcribe(**_: object) -> _FakeResult:
+        return _FakeResult()
+
+    def _record_dispatch(session_id: uuid.UUID, text: str) -> None:
+        dispatched.append((session_id, text))
+
+    monkeypatch.setattr(realtime_ballroom, "transcribe_audio", _ok_transcribe)
+    monkeypatch.setattr(realtime_ballroom, "_spawn_user_chat_task", _record_dispatch)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/api/v1/ballroom/voice/transcribe",
+            json={
+                "session_id": str(sid),
+                "audio_base64": "Zm9vYmFyYmF6YmF6YmF6",
+                "mime_type": "audio/webm",
+                "dispatch_to_agents": True,
+            },
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["text"] == "voice hello"
+    cap = await ballroom_store.ballroom_load_capsule(sid)
+    rows = cap.get("transcript", [])
+    assert any(isinstance(row, dict) and row.get("agent") == "You" and row.get("text") == "voice hello" for row in rows)
+    assert dispatched == [(sid, "voice hello")]
+
+
+@pytest.mark.asyncio
+async def test_ballroom_voice_synthesize_returns_audio(monkeypatch: pytest.MonkeyPatch, ballroom_auth_fixture: None) -> None:
+    """Voice TTS endpoint proxies synthesized audio bytes as base64 payload."""
+
+    class _S:
+        provider = "pytest-tts"
+        content_type = "audio/mpeg"
+        audio_base64 = "dGVzdA=="
+
+    async def _fake_synthesize(*, text: str) -> _S:
+        assert text == "Ahoj swarm"
+        return _S()
+
+    monkeypatch.setattr(realtime_ballroom, "synthesize_speech", _fake_synthesize)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post("/api/v1/ballroom/voice/synthesize", json={"text": "Ahoj swarm"})
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["ok"] is True
+    assert payload["provider"] == "pytest-tts"
+    assert payload["audio_base64"] == "dGVzdA=="

@@ -13,10 +13,10 @@ def test_skill_library_resolve_slugs_when_role_defaults_then_filters_existing(tm
     """Role defaults are resolved only when backing Markdown files exist."""
 
     (tmp_path / "context.md").write_text("# Context\nHello", encoding="utf-8")
-    (tmp_path / "decide.md").write_text("# Decide\nWorld", encoding="utf-8")
+    (tmp_path / "decision-frameworks.md").write_text("# Decision Frameworks\nWorld", encoding="utf-8")
     lib = SkillLibrary(skills_dir=tmp_path)
     out = lib.resolve_slugs(role="designer", requested=["missing", "context"])
-    assert out == ["context", "decide"]
+    assert out == ["context", "decision-frameworks"]
 
 
 def test_skill_library_build_prompt_block_when_valid_slugs_then_includes_titles(tmp_path) -> None:
@@ -29,12 +29,68 @@ def test_skill_library_build_prompt_block_when_valid_slugs_then_includes_titles(
     assert "red-green" in block
 
 
+def test_skill_library_load_when_front_matter_then_parses_version_and_priority(tmp_path) -> None:
+    """Front matter metadata is parsed for versioning and prioritization."""
+
+    (tmp_path / "self-review-loop.md").write_text(
+        "---\nversion: 2.1.0\npriority: 91\nroles: coder,critic\nkeywords: review,test\n---\n# Self Review\nbody",
+        encoding="utf-8",
+    )
+    lib = SkillLibrary(skills_dir=tmp_path)
+    skill = lib.load("self-review-loop")
+    assert skill is not None
+    assert skill.version == "2.1.0"
+    assert skill.priority == 91
+    assert skill.roles == ["coder", "critic"]
+
+
+def test_skill_library_select_for_task_when_goal_matches_keywords_then_prioritizes_skill(tmp_path) -> None:
+    """Dynamic selector ranks keyword-matching skills higher for current goal."""
+
+    (tmp_path / "context.md").write_text("# Context\nbase", encoding="utf-8")
+    (tmp_path / "self-review-loop.md").write_text(
+        "---\nversion: 2.1.0\npriority: 90\nroles: coder\nkeywords: review,regression,test\n---\n# Review\nbody",
+        encoding="utf-8",
+    )
+    lib = SkillLibrary(skills_dir=tmp_path)
+    out = lib.select_for_task(role="coder", goal="Run review for regression risks", requested=None, max_skills=2)
+    assert out[0] == "self-review-loop"
+
+
 def test_retrieval_contract_parse_when_known_sections_then_keeps_order() -> None:
     """Retrieval contract parser keeps known tokens and removes duplicates."""
 
     svc = SharedContextService()
     out = svc.parse_retrieval_contract("policy+last_3_tasks,policy,graph_context")
     assert out == ["policy", "last_3_tasks", "graph_context"]
+
+
+def test_retrieval_contract_parse_when_v2_bundle_then_expands_sections() -> None:
+    """Contract parser expands v2 aliases and keeps deterministic order."""
+
+    svc = SharedContextService()
+    out = svc.parse_retrieval_contract("default_v2+policy")
+    assert out == [
+        "last_7_days_tasks",
+        "customer_profile",
+        "similar_past_decisions",
+        "hybrid_memory",
+        "policy",
+    ]
+
+
+def test_rank_and_prune_when_low_scores_then_drops_irrelevant_rows() -> None:
+    """Retrieval ranking prunes low relevance rows and keeps top-N."""
+
+    svc = SharedContextService()
+    rows = [
+        {"id": "a", "relevance_score": 0.92},
+        {"id": "b", "relevance_score": 0.51},
+        {"id": "c", "relevance_score": 0.12},
+    ]
+    kept, dropped = svc.rank_and_prune(rows, limit=2, min_score=0.2)
+    assert [item["id"] for item in kept] == ["a", "b"]
+    assert dropped == 1
 
 
 def test_compute_next_run_at_interval_when_small_then_clamps_to_minute() -> None:

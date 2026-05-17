@@ -11,9 +11,10 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base, TimestampMixin
+from app.infrastructure.persistence.models.base import TenantScopedMixin
 
 
-class SupervisorSession(Base, TimestampMixin):
+class SupervisorSession(Base, TimestampMixin, TenantScopedMixin):
     """Top-level orchestration envelope for dynamic sub-agent swarms."""
 
     __tablename__ = "supervisor_sessions"
@@ -59,7 +60,7 @@ class SupervisorSession(Base, TimestampMixin):
         )
 
 
-class SubAgentSession(Base, TimestampMixin):
+class SubAgentSession(Base, TimestampMixin, TenantScopedMixin):
     """Runtime sub-agent row belonging to one supervisor orchestration."""
 
     __tablename__ = "sub_agent_sessions"
@@ -104,7 +105,7 @@ class SubAgentSession(Base, TimestampMixin):
         return f"SubAgentSession(id={self.id!s}, role={self.role!r}, status={self.status!r})"
 
 
-class SupervisorSessionEvent(Base, TimestampMixin):
+class SupervisorSessionEvent(Base, TimestampMixin, TenantScopedMixin):
     """Structured timeline event for supervisor and sub-agent dashboards."""
 
     __tablename__ = "supervisor_session_events"

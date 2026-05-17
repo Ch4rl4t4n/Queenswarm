@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.jwt_tokens import decode_jwt_optional_typ, parse_dashboard_user_subject
+from app.core.tenant_context import set_current_tenant_id
+from app.application.services.rbac import has_permission, permissions_for_role
 
 _bearer_scheme = HTTPBearer()
 
@@ -149,7 +153,79 @@ async def require_dashboard_session(
             detail="Malformed dashboard identity.",
         )
 
+    tenant_claim = payload.get("tenant_id")
+    set_current_tenant_id(str(tenant_claim) if tenant_claim is not None else None)
     return payload
+
+
+async def require_dashboard_user_with_tenant_role(
+    sess: dict[str, Any] = Depends(require_dashboard_session),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Resolve dashboard user with active tenant membership + role."""
+
+    from app.application.services.tenancy import ensure_default_tenant_for_user
+    from app.infrastructure.persistence.models.dashboard_user import DashboardUser
+    from app.infrastructure.persistence.models.tenant import DashboardUserTenantMembership
+
+    raw_sub = sess.get("sub")
+    if not isinstance(raw_sub, str):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Dashboard credential missing stable subject.")
+    user_id = parse_dashboard_user_subject(raw_sub.strip())
+    if user_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Malformed dashboard identity.")
+    user = await db.get(DashboardUser, user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Dashboard user inactive.")
+    await ensure_default_tenant_for_user(db, user=user)
+
+    tenant_claim = sess.get("tenant_id")
+    tenant_id: uuid.UUID | None = None
+    if isinstance(tenant_claim, str) and tenant_claim.strip():
+        try:
+            tenant_id = uuid.UUID(tenant_claim.strip())
+        except ValueError:
+            tenant_id = None
+    if tenant_id is None:
+        tenant_id = user.active_tenant_id
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+
+    membership = await db.scalar(
+        select(DashboardUserTenantMembership).where(
+            DashboardUserTenantMembership.dashboard_user_id == user.id,
+            DashboardUserTenantMembership.tenant_id == tenant_id,
+        ),
+    )
+    if membership is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant membership missing.")
+    role = str(getattr(membership, "role", "guest") or "guest").lower()
+    set_current_tenant_id(str(tenant_id))
+    return {
+        "user": user,
+        "tenant_id": tenant_id,
+        "tenant_role": role,
+        "permissions": sorted(permissions_for_role(role)),
+        "membership": membership,
+        "session": sess,
+    }
+
+
+def require_tenant_permission(permission: str):
+    """Factory dependency: require one tenant permission on dashboard routes."""
+
+    async def _dep(
+        principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    ) -> bool:
+        role = str(principal.get("tenant_role") or "guest")
+        if not has_permission(role=role, permission=permission):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Tenant permission required: {permission}",
+            )
+        return True
+
+    return _dep
 
 
 async def require_dashboard_recipe_write(

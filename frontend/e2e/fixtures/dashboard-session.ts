@@ -27,17 +27,19 @@ function buildShellJwtStub(): string {
  * live hive. Use only for shell / navigation smoke tests.
  */
 export async function seedDashboardSessionCookie(context: BrowserContext, baseURL: string): Promise<void> {
-  const origin = new URL(baseURL).hostname;
-  await context.addCookies([
-    {
-      name: QS_ACCESS,
-      value: buildShellJwtStub(),
-      domain: origin,
-      path: "/",
-      httpOnly: false,
-      sameSite: "Lax",
-    },
-  ]);
+  const parsed = new URL(baseURL);
+  const host = parsed.hostname;
+  const common = {
+    name: QS_ACCESS,
+    value: buildShellJwtStub(),
+    httpOnly: false,
+    sameSite: "Lax" as const,
+  };
+  await context.addCookies(
+    host === "localhost" || host === "127.0.0.1"
+      ? [{ ...common, url: parsed.origin }]
+      : [{ ...common, domain: host, path: "/" }],
+  );
 }
 
 /**
@@ -54,15 +56,17 @@ export async function seedDashboardAccessToken(
   if (!trimmed) {
     throw new Error("seedDashboardAccessToken requires a non-empty access token.");
   }
-  const origin = new URL(baseURL).hostname;
-  await context.addCookies([
-    {
-      name: QS_ACCESS,
-      value: trimmed,
-      domain: origin,
-      path: "/",
-      httpOnly: false,
-      sameSite: "Lax",
-    },
-  ]);
+  const parsed = new URL(baseURL);
+  const host = parsed.hostname;
+  const common = {
+    name: QS_ACCESS,
+    value: trimmed,
+    httpOnly: false,
+    sameSite: "Lax" as const,
+  };
+  await context.addCookies(
+    host === "localhost" || host === "127.0.0.1"
+      ? [{ ...common, url: parsed.origin }]
+      : [{ ...common, domain: host, path: "/" }],
+  );
 }

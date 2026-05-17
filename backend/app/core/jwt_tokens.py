@@ -85,6 +85,8 @@ def create_dashboard_access_token(
     user_id: uuid.UUID,
     email: str,
     scopes: str,
+    tenant_id: uuid.UUID | None = None,
+    tenant_slug: str | None = None,
 ) -> tuple[str, int]:
     """Mint Neon dashboard access tokens routed through ``/auth/login``.
 
@@ -106,6 +108,10 @@ def create_dashboard_access_token(
         "typ": "dashboard_access",
         "exp": int(expire_at.timestamp()),
     }
+    if tenant_id is not None:
+        payload["tenant_id"] = str(tenant_id)
+    if tenant_slug is not None and tenant_slug.strip():
+        payload["tenant_slug"] = tenant_slug.strip()
     token = _encode(payload)
     return token, int(timedelta(minutes=ttl_min).total_seconds())
 

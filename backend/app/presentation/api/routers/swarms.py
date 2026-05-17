@@ -23,6 +23,7 @@ from app.common.schemas.sub_swarm import (
     RunWorkflowOnSwarmRequest,
     RunWorkflowOnSwarmResponse,
 )
+from app.common.http.rate_limit import rate_limited_http_exception
 from app.common.schemas.swarm_catalog import (
     SubSwarmCreateRequest,
     SubSwarmPatchRequest,
@@ -54,6 +55,26 @@ _ERROR_HTTP_MAP: dict[str, int] = {
     "budget_exceeded": status.HTTP_429_TOO_MANY_REQUESTS,
     "step_timeout": status.HTTP_504_GATEWAY_TIMEOUT,
 }
+
+
+def _workflow_execution_http_exception(*, code: str, detail: str | None, traces: list[str]) -> HTTPException:
+    """Translate sub-swarm execution failures to stable HTTP responses."""
+
+    status_code = _ERROR_HTTP_MAP.get(code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+    payload = {
+        "code": code,
+        "detail": detail,
+        "traces": traces,
+    }
+    if status_code == status.HTTP_429_TOO_MANY_REQUESTS:
+        return rate_limited_http_exception(
+            payload,
+            window_sec=settings.rate_limit_sustain_window_sec,
+        )
+    return HTTPException(
+        status_code=status_code,
+        detail=payload,
+    )
 
 
 @router.get(
@@ -398,14 +419,10 @@ async def run_workflow_through_sub_swarm(
 
     if not result.ok:
         code = result.error_code or "unknown_error"
-        status_code = _ERROR_HTTP_MAP.get(code, status.HTTP_422_UNPROCESSABLE_ENTITY)
-        raise HTTPException(
-            status_code=status_code,
-            detail={
-                "code": code,
-                "detail": result.error_detail,
-                "traces": result.traces,
-            },
+        raise _workflow_execution_http_exception(
+            code=code,
+            detail=result.error_detail,
+            traces=result.traces,
         )
     return result
 

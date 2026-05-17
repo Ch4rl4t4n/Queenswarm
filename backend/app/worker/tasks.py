@@ -27,9 +27,21 @@ from app.services.hive_mission_runner import MISSION_CORR_KEY, WORKER_LANE_KEY
 from app.services.hive_tier import resolve_hive_tier
 from app.services.sub_swarm.runner import run_sub_swarm_workflow_cycle
 from app.worker.celery_app import celery_app
-from app.application.services.supervisor.runtime import append_event
+from app.application.services.supervisor.runtime import (
+    append_event,
+    is_approval_required,
+    run_self_healing_cycle,
+)
+from app.application.services.supervisor.meta_reasoning import (
+    append_reflection_journal,
+    build_meta_reasoning_prompt_template,
+)
+from app.application.services.supervisor.initiative import propose_agent_improvements
+from app.application.services.supervisor.autonomy import update_session_autonomy_state
+from app.tools.browser_manager import BrowserGuardrailError, BrowserManager
 from app.application.services.supervisor.shared_context import SharedContextService
 from app.application.services.supervisor.skills import SkillLibrary
+from app.core.config import settings
 from app.application.services.supervisor.routine_service import run_due_routines_tick
 from app.infrastructure.persistence.models.supervisor_session import SubAgentSession, SupervisorSession
 
@@ -369,11 +381,21 @@ def run_supervisor_sub_agent_step_task(
             )
 
             skill_library = SkillLibrary()
-            selected_skills = [
+            requested_skills = [
                 str(item)
                 for item in (sub.short_memory or {}).get("skills", [])
                 if isinstance(item, str) and item.strip()
             ]
+            selected_skills = (
+                skill_library.select_for_task(
+                    role=sub.role,
+                    goal=sup.goal,
+                    requested=requested_skills,
+                    max_skills=settings.supervisor_max_skills_per_agent,
+                )
+                if settings.supervisor_skills_enabled
+                else requested_skills
+            )
             retrieval_contract = str((sup.context_summary or {}).get("retrieval_contract") or "").strip()
             retrieval_bundle = await shared_context.retrieve_context_bundle(
                 session,
@@ -381,12 +403,218 @@ def run_supervisor_sub_agent_step_task(
                 query=sup.goal,
                 contract=retrieval_contract,
             )
-
-            result_msg = (
-                f"{sub.role} durable step completed for goal: {sup.goal[:240]} "
-                "with shared context update. "
-                f"skills={len(selected_skills)} retrieval_sections={len(retrieval_bundle.matched_sections)}"
+            current_summary = dict(sup.context_summary or {})
+            prior_reflections = [
+                item
+                for item in current_summary.get("meta_reflection_journal", [])
+                if isinstance(item, dict)
+            ]
+            meta_reasoning_prompt = build_meta_reasoning_prompt_template(
+                role=sub.role,
+                goal=sup.goal,
+                retrieval_contract=retrieval_contract,
+                retrieval_sections=retrieval_bundle.matched_sections,
+                selected_skills=selected_skills,
+                prior_reflections=prior_reflections,
             )
+
+            browser_session_id: uuid.UUID | None = None
+            raw_browser_session = (sub.short_memory or {}).get("browser_session_id")
+            if isinstance(raw_browser_session, str) and raw_browser_session.strip():
+                try:
+                    browser_session_id = uuid.UUID(raw_browser_session.strip())
+                except ValueError:
+                    browser_session_id = None
+
+            async def _execute_attempt(attempt: int, hint: str | None) -> str:
+                nonlocal browser_session_id
+                if str(sub.role or "").strip().lower() == "browser_operator" and settings.browser_harness_enabled:
+                    try:
+                        browser_result = await BrowserManager.run_goal_step(
+                            session,
+                            tenant_id=sup.tenant_id,
+                            supervisor_session_id=sup.id,
+                            sub_agent_session_id=sub.id,
+                            created_by_subject=sup.created_by_subject,
+                            goal=sup.goal,
+                            existing_session_id=browser_session_id,
+                            mode="headless",
+                        )
+                        browser_sid = str(browser_result.get("browser_session_id") or "").strip()
+                        if browser_sid:
+                            try:
+                                browser_session_id = uuid.UUID(browser_sid)
+                            except ValueError:
+                                browser_session_id = None
+                        snippet = str(browser_result.get("snapshot_text") or "").strip().replace("\n", " ")[:360]
+                        return (
+                            f"browser_operator durable harness step; url={browser_result.get('current_url')} "
+                            f"session_id={browser_sid or 'n/a'} actions_used={browser_result.get('actions_used')} "
+                            f"snapshot='{snippet}' attempt={attempt}"
+                        )
+                    except BrowserGuardrailError as exc:
+                        return f"browser guardrail blocked action: {str(exc)[:300]}"
+
+                hint_note = f" fallback_hint={hint[:140]}" if hint else ""
+                return (
+                    f"{sub.role} durable step completed for goal: {sup.goal[:240]} "
+                    "with shared context update. "
+                    f"skills={len(selected_skills)} retrieval_sections={len(retrieval_bundle.matched_sections)}"
+                    f" meta_prompt_tokens={len(meta_reasoning_prompt.split())} attempt={attempt}{hint_note}"
+                )
+
+            async def _retry_adjustment(_attempt: int, issues: list[str]) -> None:
+                nonlocal retrieval_bundle, selected_skills
+                if "missing_context" in issues and settings.retrieval_contract_enabled:
+                    retrieval_bundle = await shared_context.retrieve_context_bundle(
+                        session,
+                        supervisor_session_id=sup.id,
+                        query=sup.goal,
+                        contract="default_v2",
+                    )
+                if "missing_skills" in issues and settings.supervisor_skills_enabled:
+                    selected_skills = skill_library.select_for_task(
+                        role=sub.role,
+                        goal=sup.goal,
+                        requested=["context", "decision-frameworks"],
+                        max_skills=settings.supervisor_max_skills_per_agent,
+                    )
+
+            healing = await run_self_healing_cycle(
+                role=sub.role,
+                goal=sup.goal,
+                retrieval_contract=retrieval_contract,
+                retrieval_sections=retrieval_bundle.matched_sections,
+                selected_skills=selected_skills,
+                execute_attempt=_execute_attempt,
+                retry_adjustment=_retry_adjustment if settings.supervisor_self_healing_enabled else None,
+            )
+            result_msg = healing.output
+            initiative_rows = await propose_agent_improvements(
+                session,
+                supervisor_session=sup,
+                sub_agent=sub,
+                role=sub.role,
+                goal=sup.goal,
+                selected_skills=selected_skills,
+                retrieval_sections=retrieval_bundle.matched_sections,
+                meta_reasoning=healing.meta_reasoning,
+                reflections=healing.reflections,
+            )
+            initiative_summaries = [
+                {
+                    "id": str(row.id),
+                    "proposal_type": row.proposal_type,
+                    "title": row.title,
+                    "risk_level": row.risk_level,
+                    "impact_score": float(row.impact_score),
+                    "status": row.status,
+                    "requires_manual_approval": bool(row.requires_manual_approval),
+                }
+                for row in initiative_rows
+            ]
+            pending_initiative = sum(1 for item in initiative_summaries if str(item.get("status")) == "pending")
+            strategy_score = healing.meta_reasoning.get("strategy_score") if isinstance(healing.meta_reasoning, dict) else None
+            if initiative_summaries:
+                await append_event(
+                    session,
+                    supervisor_session=sup,
+                    sub_agent=sub,
+                    event_type="agent_initiative_proposed",
+                    message=f"{sub.role} proposed {len(initiative_summaries)} improvement suggestions.",
+                    payload={"suggestions": initiative_summaries[:4]},
+                )
+            approval_required, approval_reason = is_approval_required(
+                goal=sup.goal,
+                toolset=list(sub.toolset or []),
+                context_summary=dict(sup.context_summary or {}),
+            )
+            if approval_required:
+                sup.status = "needs_input"
+                summary = dict(sup.context_summary or {})
+                summary["approval_required"] = True
+                summary["approval_reason"] = approval_reason
+                summary["approval_requested_at"] = datetime.now(tz=UTC).isoformat()
+                summary = append_reflection_journal(
+                    context_summary=summary,
+                    reflection=healing.reflections[-1] if healing.reflections else None,
+                    meta_reasoning=healing.meta_reasoning,
+                )
+                summary = update_session_autonomy_state(
+                    context_summary=summary,
+                    initiative_count=len(initiative_summaries),
+                    pending_approvals=pending_initiative + 1,
+                    latest_strategy_score=float(strategy_score) if isinstance(strategy_score, (int, float)) else None,
+                )
+                sup.context_summary = summary
+                sub.status = "needs_input"
+                sub.error_text = "Awaiting approval for critical action."
+                sub.short_memory = {
+                    **dict(sub.short_memory or {}),
+                    "last_summary": result_msg,
+                    "processed_at": datetime.now(tz=UTC).isoformat(),
+                    "reflection_reports": healing.reflections,
+                    "meta_reasoning": healing.meta_reasoning,
+                    "alternative_plans": healing.alternative_plans,
+                    "skills_prompt_block": skill_library.build_prompt_block(selected_skills)[:4000],
+                    "retrieval_prompt_block": shared_context.render_bundle_for_prompt(retrieval_bundle)[:2500],
+                    "meta_reasoning_prompt_block": meta_reasoning_prompt[:2500],
+                    "initiative_suggestions": initiative_summaries,
+                    "browser_session_id": str(browser_session_id) if browser_session_id else None,
+                }
+                await append_event(
+                    session,
+                    supervisor_session=sup,
+                    sub_agent=sub,
+                    event_type="approval_requested",
+                    message=f"{sub.role} requires approval before critical action.",
+                    payload={"reason": approval_reason},
+                    level="warning",
+                )
+                await session.commit()
+                return {"ok": False, "reason": "approval_required", "sub_agent_session_id": str(sub.id)}
+
+            if not healing.resolved:
+                sup.status = "needs_input"
+                sup.context_summary = append_reflection_journal(
+                    context_summary=dict(sup.context_summary or {}),
+                    reflection=healing.reflections[-1] if healing.reflections else None,
+                    meta_reasoning=healing.meta_reasoning,
+                )
+                sup.context_summary = update_session_autonomy_state(
+                    context_summary=dict(sup.context_summary or {}),
+                    initiative_count=len(initiative_summaries),
+                    pending_approvals=pending_initiative + 1,
+                    latest_strategy_score=float(strategy_score) if isinstance(strategy_score, (int, float)) else None,
+                )
+                sub.status = "needs_input"
+                sub.error_text = "Self-healing exhausted attempts; waiting for operator input."
+                sub.short_memory = {
+                    **dict(sub.short_memory or {}),
+                    "last_summary": result_msg,
+                    "processed_at": datetime.now(tz=UTC).isoformat(),
+                    "reflection_reports": healing.reflections,
+                    "meta_reasoning": healing.meta_reasoning,
+                    "alternative_plans": healing.alternative_plans,
+                    "needs_input_request": healing.needs_input_request or {},
+                    "skills_prompt_block": skill_library.build_prompt_block(selected_skills)[:4000],
+                    "retrieval_prompt_block": shared_context.render_bundle_for_prompt(retrieval_bundle)[:2500],
+                    "meta_reasoning_prompt_block": meta_reasoning_prompt[:2500],
+                    "initiative_suggestions": initiative_summaries,
+                    "browser_session_id": str(browser_session_id) if browser_session_id else None,
+                }
+                await append_event(
+                    session,
+                    supervisor_session=sup,
+                    sub_agent=sub,
+                    event_type="needs_input_requested",
+                    message=f"{sub.role} requested operator input after self-heal retries.",
+                    payload=dict(healing.needs_input_request or {}),
+                    level="warning",
+                )
+                await session.commit()
+                return {"ok": False, "reason": "needs_input", "sub_agent_session_id": str(sub.id)}
+
             memory_result = await shared_context.write_step_context(
                 supervisor_session_id=sup.id,
                 sub_agent_session_id=sub.id,
@@ -398,6 +626,7 @@ def run_supervisor_sub_agent_step_task(
                     "skills": selected_skills,
                     "retrieval_contract": retrieval_contract,
                     "retrieval_sections": retrieval_bundle.matched_sections,
+                    "meta_reasoning": healing.meta_reasoning,
                 },
             )
             sub.last_output = result_msg
@@ -405,9 +634,28 @@ def run_supervisor_sub_agent_step_task(
                 **dict(sub.short_memory or {}),
                 "last_summary": result_msg,
                 "processed_at": datetime.now(tz=UTC).isoformat(),
+                "skills": selected_skills,
+                "skill_manifest": skill_library.skill_manifest(selected_skills),
+                "reflection_reports": healing.reflections,
+                "meta_reasoning": healing.meta_reasoning,
+                "self_heal_attempts": healing.attempts,
                 "skills_prompt_block": skill_library.build_prompt_block(selected_skills)[:4000],
                 "retrieval_prompt_block": shared_context.render_bundle_for_prompt(retrieval_bundle)[:2500],
+                "meta_reasoning_prompt_block": meta_reasoning_prompt[:2500],
+                "initiative_suggestions": initiative_summaries,
+                "browser_session_id": str(browser_session_id) if browser_session_id else None,
             }
+            sup.context_summary = append_reflection_journal(
+                context_summary=dict(sup.context_summary or {}),
+                reflection=healing.reflections[-1] if healing.reflections else None,
+                meta_reasoning=healing.meta_reasoning,
+            )
+            sup.context_summary = update_session_autonomy_state(
+                context_summary=dict(sup.context_summary or {}),
+                initiative_count=len(initiative_summaries),
+                pending_approvals=pending_initiative,
+                latest_strategy_score=float(strategy_score) if isinstance(strategy_score, (int, float)) else None,
+            )
             sub.status = "completed"
             sub.completed_at = datetime.now(tz=UTC)
             await append_event(
@@ -428,7 +676,7 @@ def run_supervisor_sub_agent_step_task(
                 SubAgentSession.status.in_(("pending", "queued", "running")),
             )
             remaining = list((await session.scalars(remaining_stmt)).all())
-            if not remaining:
+            if not remaining and sup.status not in {"needs_input", "stopped"}:
                 sup.status = "completed"
                 sup.completed_at = datetime.now(tz=UTC)
                 await append_event(

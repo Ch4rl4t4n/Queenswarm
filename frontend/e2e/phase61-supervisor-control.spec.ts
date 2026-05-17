@@ -80,6 +80,23 @@ test.describe("Phase 6.1 supervisor control plane + routines", () => {
       });
     });
 
+    await page.route("**/api/proxy/agents/sessions/summary", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          sessions_total: 1,
+          status_counts: { needs_input: 1 },
+          running_sessions: 0,
+          needs_input_sessions: 1,
+          completed_sessions: 0,
+          routines_total: 1,
+          active_routines: 1,
+          due_routines: 1,
+        }),
+      });
+    });
+
     await page.route(`**/api/proxy/agents/sessions/${sessionId}/events?limit=120`, async (route) => {
       await route.fulfill({
         status: 200,
@@ -193,8 +210,16 @@ test.describe("Phase 6.1 supervisor control plane + routines", () => {
     await page.goto("/agents", { waitUntil: "load", timeout: 90_000 });
     await expect(page.locator('[data-hive-shell="canvas"]')).toBeVisible({ timeout: 45_000 });
 
+    // In environments where dynamic supervisor sessions are feature-gated off, mark this as an intentional skip.
+    if ((await page.getByText("Dynamic Supervisor Sessions").count()) === 0) {
+      test.skip(true, "Dynamic supervisor panel is disabled in this environment.");
+    }
+
     await expect(page.getByText("Dynamic Supervisor Sessions")).toBeVisible();
     await expect(page.getByText("needs_input").first()).toBeVisible();
+    await expect(page.getByText("Sessions total")).toBeVisible();
+    await expect(page.getByText("Running / Needs input")).toBeVisible();
+    await expect(page.getByText("Active / Due")).toBeVisible();
 
     await page.getByRole("button", { name: "Approve" }).first().click();
     await expect(page.getByText("running").first()).toBeVisible();

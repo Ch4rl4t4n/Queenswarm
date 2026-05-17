@@ -12,7 +12,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app.core.config import settings
 from app.main import app
-from app.presentation.api.deps import get_db, require_dashboard_session
+from app.presentation.api.deps import get_db, require_dashboard_session, require_dashboard_user_with_tenant_role
 from app.presentation.api.routers import agent_sessions as agent_sessions_router
 
 
@@ -20,6 +20,14 @@ from app.presentation.api.routers import agent_sessions as agent_sessions_router
 def restore_app_overrides() -> None:
     """Reset DI overrides between tests."""
 
+    app.dependency_overrides[require_dashboard_user_with_tenant_role] = lambda: {
+        "user": SimpleNamespace(id=uuid.uuid4()),
+        "tenant_id": uuid.uuid4(),
+        "tenant_role": "owner",
+        "permissions": ["*"],
+        "membership": SimpleNamespace(role="owner"),
+        "session": {"sub": "dash:test"},
+    }
     yield
     app.dependency_overrides.clear()
 
@@ -101,8 +109,11 @@ async def test_agent_sessions_create_when_enabled_returns_201(
 
         yield SimpleNamespace(commit=_commit)
 
+    captured: dict[str, object] = {}
+
     async def _fake_create(*args, **kwargs):  # noqa: ANN002, ANN003
-        del args, kwargs
+        del args
+        captured.update(kwargs)
         return fake_row
 
     async def _fake_get(*args, **kwargs):  # noqa: ANN002, ANN003
@@ -110,7 +121,8 @@ async def test_agent_sessions_create_when_enabled_returns_201(
         return fake_row
 
     app.dependency_overrides[get_db] = mock_db
-    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:test"}
+    tenant_id = str(uuid.uuid4())
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:test", "tenant_id": tenant_id}
     monkeypatch.setattr(settings, "supervisor_dynamic_subagents_enabled", True)
     monkeypatch.setattr(agent_sessions_router, "create_supervisor_session", _fake_create)
     monkeypatch.setattr(agent_sessions_router, "get_supervisor_session", _fake_get)
@@ -126,6 +138,7 @@ async def test_agent_sessions_create_when_enabled_returns_201(
     body = res.json()
     assert body["goal"] == "Investigate onboarding drop-off"
     assert body["sub_agents"][0]["role"] == "researcher"
+    assert str(captured.get("tenant_id")) == tenant_id
 
 
 @pytest.mark.asyncio
@@ -283,6 +296,58 @@ async def test_agent_routines_create_when_enabled_returns_201(
 
 
 @pytest.mark.asyncio
+async def test_agent_routines_create_when_event_watch_mode_then_accepts_payload(
+    restore_app_overrides: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Advanced event-triggered routine payload should be accepted by API surface."""
+
+    fake_row = _mk_routine()
+    fake_row.schedule_kind = "event"
+    fake_row.interval_seconds = 120
+    fake_row.context_payload = {
+        "watch_mode": True,
+        "condition": {"metric": "tasks_pending_count", "op": ">=", "value": 2},
+    }
+
+    async def mock_db() -> AsyncIterator[SimpleNamespace]:
+        async def _commit() -> None:
+            return None
+
+        yield SimpleNamespace(commit=_commit)
+
+    async def _fake_create(*args, **kwargs):  # noqa: ANN002, ANN003
+        del args, kwargs
+        return fake_row
+
+    app.dependency_overrides[get_db] = mock_db
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:test"}
+    monkeypatch.setattr(settings, "routines_enabled", True)
+    monkeypatch.setattr(agent_sessions_router, "create_supervisor_routine", _fake_create)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.post(
+            "/api/v1/agents/routines",
+            headers={"Authorization": "Bearer x"},
+            json={
+                "name": "event-watch",
+                "goal_template": "Run triage when pending tasks spike",
+                "schedule_kind": "event",
+                "interval_seconds": 120,
+                "runtime_mode": "durable",
+                "roles": ["researcher", "critic"],
+                "context_payload": {
+                    "watch_mode": True,
+                    "condition": {"metric": "tasks_pending_count", "op": ">=", "value": 2},
+                },
+            },
+        )
+    assert res.status_code == 201
+    assert res.json()["schedule_kind"] == "event"
+
+
+@pytest.mark.asyncio
 async def test_agent_routine_trigger_when_enabled_returns_session_id(
     restore_app_overrides: None,
     monkeypatch: pytest.MonkeyPatch,
@@ -319,4 +384,43 @@ async def test_agent_routine_trigger_when_enabled_returns_session_id(
         )
     assert res.status_code == 200
     assert res.json()["session_id"] == str(created_session_id)
+
+
+@pytest.mark.asyncio
+async def test_agent_sessions_summary_returns_aggregate_shape(
+    restore_app_overrides: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Summary endpoint should expose session and routine counters."""
+
+    async def _fake_summary(*args, **kwargs):  # noqa: ANN002, ANN003
+        del args, kwargs
+        return {
+            "sessions_total": 3,
+            "status_counts": {"running": 1, "needs_input": 1, "completed": 1},
+            "running_sessions": 1,
+            "needs_input_sessions": 1,
+            "completed_sessions": 1,
+            "routines_total": 2,
+            "active_routines": 2,
+            "due_routines": 1,
+        }
+
+    async def mock_db() -> AsyncIterator[SimpleNamespace]:
+        async def _commit() -> None:
+            return None
+
+        yield SimpleNamespace(commit=_commit)
+
+    app.dependency_overrides[get_db] = mock_db
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:test"}
+    monkeypatch.setattr(agent_sessions_router, "compute_supervisor_summary", _fake_summary)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.get("/api/v1/agents/sessions/summary", headers={"Authorization": "Bearer x"})
+    assert res.status_code == 200
+    body = res.json()
+    assert body["sessions_total"] == 3
+    assert body["due_routines"] == 1
 

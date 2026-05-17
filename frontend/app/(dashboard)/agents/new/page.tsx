@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { InfoHint } from "@/components/hive/info-hint";
 
 const AGENT_TEMPLATES = [
   {
@@ -234,7 +235,14 @@ function NewAgentWizardInner() {
       </button>
 
       <header>
-        <h1 className="font-[family-name:var(--font-poppins)] text-2xl font-bold text-[#fafafa]">Spawn agent</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="font-[family-name:var(--font-poppins)] text-2xl font-bold text-[#fafafa]">Spawn agent</h1>
+          <InfoHint
+            title="Spawn agent wizard"
+            description="Creates a new bee agent and configures prompts, tools, output format, and schedule."
+            options={["Template preset", "Swarm assignment", "Prompt and tool tuning", "Execution rhythm"]}
+          />
+        </div>
         <p className="mt-2 font-[family-name:var(--font-poppins)] text-sm text-muted-foreground">
           {step === "template" ? "Choose a hive template." : "Wire prompts, tools, and rhythm."}
         </p>
@@ -277,9 +285,14 @@ function NewAgentWizardInner() {
       ) : (
         <>
           <section className="rounded-3xl qs-rim bg-[#0f0f16]/95 p-5">
-            <label className="qs-label">
-              Bee name
-            </label>
+            <div className="flex items-center gap-2">
+              <label className="qs-label">Bee name</label>
+              <InfoHint
+                title="Bee name"
+                description="Human-readable agent name shown in lists, details, and logs."
+                options={["Required field", "Use purpose-based naming", "You can rename it later in agent detail"]}
+              />
+            </div>
             <input
               value={config.name}
               onChange={(e) => setConfig((c) => ({ ...c, name: e.target.value }))}
@@ -288,9 +301,14 @@ function NewAgentWizardInner() {
           </section>
 
           <section className="rounded-3xl qs-rim bg-[#0f0f16]/95 p-5">
-            <label className="qs-label">
-              Manager / Swarm
-            </label>
+            <div className="flex items-center gap-2">
+              <label className="qs-label">Manager / Swarm</label>
+              <InfoHint
+                title="Manager / Swarm"
+                description="Defines which colony the agent belongs to. Unassigned agents work independently."
+                options={["Inherited context from swarm", "Better domain organization", "Can remain unassigned"]}
+              />
+            </div>
             <p className="mt-1 font-[family-name:var(--font-poppins)] text-xs text-zinc-600">
               Anchor this bee under a colony, or leave unassigned.
             </p>
@@ -364,18 +382,28 @@ function NewAgentWizardInner() {
           </section>
 
           <section className="rounded-3xl qs-rim bg-[#0f0f16]/95 p-5">
-            <label className="qs-label">
-              System prompt
-            </label>
+            <div className="flex items-center gap-2">
+              <label className="qs-label">System prompt</label>
+              <InfoHint
+                title="System prompt"
+                description="Defines the persistent behavior and role of the agent. This is its core instruction."
+                options={["Persona and constraints", "Output style and depth", "Safety and no-go rules"]}
+              />
+            </div>
             <textarea
               rows={5}
               value={config.system_prompt}
               onChange={(e) => setConfig((c) => ({ ...c, system_prompt: e.target.value }))}
               className="mt-2 w-full resize-y rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-cyan/30"
             />
-            <label className="mt-4 qs-label">
-              Task template
-            </label>
+            <div className="mt-4 flex items-center gap-2">
+              <label className="qs-label">Task template</label>
+              <InfoHint
+                title="Task template"
+                description="Pre-filled user prompt for recurring tasks. Speeds up daily workflows."
+                options={["Reusable instructions", "Structured sections", "Can stay empty for ad-hoc runs"]}
+              />
+            </div>
             <textarea
               rows={3}
               value={config.user_prompt}
@@ -385,7 +413,14 @@ function NewAgentWizardInner() {
           </section>
 
           <section className="rounded-3xl qs-rim bg-[#0f0f16]/95 p-5">
-            <p className="qs-label">Tools</p>
+            <div className="flex items-center gap-2">
+              <p className="qs-label">Tools</p>
+              <InfoHint
+                title="Tools"
+                description="Allowed agent capabilities. Each enabled tool expands what the agent can do."
+                options={["Web + data feeds", "Keep minimal set for reliability", "Disable tools not needed"]}
+              />
+            </div>
             <div className="mt-3 grid gap-2 sm:grid-cols-3">
               {ALL_TOOLS.map((tool) => {
                 const on = config.tools.includes(tool.id);
@@ -413,7 +448,14 @@ function NewAgentWizardInner() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <section className="rounded-3xl qs-rim bg-[#0f0f16]/95 p-5">
-              <p className="qs-label">Output</p>
+              <div className="flex items-center gap-2">
+                <p className="qs-label">Output</p>
+                <InfoHint
+                  title="Output format"
+                  description="Defines the result format returned by the agent."
+                  options={["Text/Markdown for humans", "JSON/CSV for pipelines", "Excel for reporting"]}
+                />
+              </div>
               <div className="mt-3 flex flex-col gap-2">
                 {OUTPUT_FORMATS.map((f) => (
                   <button
@@ -432,7 +474,14 @@ function NewAgentWizardInner() {
               </div>
             </section>
             <section className="rounded-3xl qs-rim bg-[#0f0f16]/95 p-5">
-              <p className="qs-label">Schedule</p>
+              <div className="flex items-center gap-2">
+                <p className="qs-label">Schedule</p>
+                <InfoHint
+                  title="Schedule"
+                  description="Sets automatic execution interval. Empty value means on-demand mode."
+                  options={["On demand", "Hourly intervals", "Daily fixed time"]}
+                />
+              </div>
               <div className="mt-3 flex flex-col gap-2">
                 {SCHEDULE_PRESETS.map((s) => (
                   <button
@@ -460,6 +509,13 @@ function NewAgentWizardInner() {
           >
             {saving ? "Spawning…" : "Spawn agent"}
           </button>
+          <div className="flex justify-center">
+            <InfoHint
+              title="Spawn agent action"
+              description="Creates the agent configuration and redirects to the new agent detail page."
+              options={["Validates required fields", "Stores dynamic config", "Keeps selected swarm binding"]}
+            />
+          </div>
         </>
       )}
     </div>

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { QS_ACCESS } from "@/lib/auth-cookies";
 import { resolveInternalBackendOrigin } from "@/lib/backend-origin";
+import { clearDashboardAuthCookies } from "@/lib/auth-token-response";
 
 /** Node runtime: cookie bridge + private Docker DNS (`backend`) do not run on Edge. */
 export const runtime = "nodejs";
@@ -20,34 +21,46 @@ function buildTarget(request: NextRequest): string {
   return `${backendOrigin()}${url.pathname.replace("/api/proxy", "/api/v1")}${url.search}`;
 }
 
-async function resolveAuthHeader(request: NextRequest): Promise<string | null> {
-  const direct = request.headers.get("authorization");
-  if (direct?.trim()) {
-    return direct.trim();
+type AuthSource = "header" | "cookie" | "proxy_jwt" | "none";
+
+interface ResolvedAuthHeader {
+  value: string | null;
+  source: AuthSource;
+}
+
+async function resolveAuthHeader(request: NextRequest): Promise<ResolvedAuthHeader> {
+  const direct = request.headers.get("authorization")?.trim() ?? "";
+  const directIsBearer = /^bearer\s+/i.test(direct);
+  if (direct && directIsBearer) {
+    return { value: direct, source: "header" };
   }
   try {
     const jar = await cookies();
     const at = jar.get(QS_ACCESS)?.value?.trim();
     if (at) {
-      return `Bearer ${at}`;
+      return { value: `Bearer ${at}`, source: "cookie" };
     }
   } catch {
     /* cookies() only valid in App Router request context */
   }
   const proxyJwt = process.env.HIVE_PROXY_JWT?.trim();
   if (proxyJwt && proxyJwt !== "unset") {
-    return `Bearer ${proxyJwt}`;
+    return { value: `Bearer ${proxyJwt}`, source: "proxy_jwt" };
   }
-  return null;
+  if (direct) {
+    // Preserve legacy non-Bearer passthrough only when no dashboard cookie exists.
+    return { value: direct, source: "header" };
+  }
+  return { value: null, source: "none" };
 }
 
 async function proxyRequest(request: NextRequest, method: string): Promise<NextResponse> {
   const targetUrl = buildTarget(request);
   const headers = new Headers();
 
-  const auth = await resolveAuthHeader(request);
-  if (auth) {
-    headers.set("Authorization", auth);
+  const resolvedAuth = await resolveAuthHeader(request);
+  if (resolvedAuth.value) {
+    headers.set("Authorization", resolvedAuth.value);
   }
 
   const xff = request.headers.get("x-forwarded-for");
@@ -103,11 +116,19 @@ async function proxyRequest(request: NextRequest, method: string): Promise<NextR
   }
 
   const payload = upstream.status === 204 ? null : await upstream.arrayBuffer();
-  return new NextResponse(payload, {
+  const response = new NextResponse(payload, {
     status: upstream.status,
     statusText: upstream.statusText,
     headers: outHeaders,
   });
+  /**
+   * Clear browser auth cookies only when upstream explicitly says "unauthenticated".
+   * 403 frequently represents RBAC/feature gating and must not log users out.
+   */
+  if (upstream.status === 401 && resolvedAuth.source === "cookie") {
+    clearDashboardAuthCookies(response);
+  }
+  return response;
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {

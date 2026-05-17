@@ -4,7 +4,9 @@ import Link from "next/link";
 import { XIcon } from "lucide-react";
 
 import { QueenHoneycombLogo } from "@/components/auth/queen-honeycomb-logo";
+import { useUiLanguage } from "@/components/hive/ui-language-provider";
 import { HIVE_NAV_PRIMARY, isNavItemActive } from "@/lib/hive-nav-primary";
+import { localizeNavLabel, localizePhrase } from "@/lib/ui-copy";
 import { QS_ACCESS, QS_REFRESH } from "@/lib/auth-cookies";
 import { cn } from "@/lib/utils";
 
@@ -80,10 +82,12 @@ function SidebarBrand({ onMobileClose }: { onMobileClose?: () => void }) {
 function SidebarNav({
   pathname,
   linkClassFn,
+  language,
   onNavigate,
 }: {
   pathname: string;
   linkClassFn: (href: string) => string;
+  language: "en" | "sk";
   onNavigate?: () => void;
 }) {
   return (
@@ -94,7 +98,9 @@ function SidebarNav({
         return (
           <Link key={href} href={href} prefetch className={linkClassFn(href)} onClick={() => onNavigate?.()}>
             <Icon className={cn("h-[18px] w-[18px] shrink-0", active ? "text-pollen" : "text-zinc-500")} aria-hidden />
-            <span className="whitespace-nowrap font-[family-name:var(--font-poppins)] text-[13px] font-medium">{label}</span>
+            <span className="whitespace-nowrap font-[family-name:var(--font-poppins)] text-[13px] font-medium">
+              {localizeNavLabel(label, language)}
+            </span>
           </Link>
         );
       })}
@@ -104,6 +110,7 @@ function SidebarNav({
 
 /** Desktop: persistent 220px rail. Mobile: off-canvas drawer with same links + safe-area padding. */
 export function HiveSidebar({ pathname, mobileOpen, onMobileClose }: HiveSidebarProps) {
+  const { language } = useUiLanguage();
   function linkClass(href: string): string {
     return navLinkClass(pathname, href);
   }
@@ -137,14 +144,14 @@ export function HiveSidebar({ pathname, mobileOpen, onMobileClose }: HiveSidebar
         aria-hidden={!mobileOpen}
       >
         <SidebarBrand onMobileClose={onMobileClose} />
-        <SidebarNav pathname={pathname} linkClassFn={linkClass} onNavigate={onMobileClose} />
+        <SidebarNav pathname={pathname} linkClassFn={linkClass} language={language} onNavigate={onMobileClose} />
         <div className="mt-auto shrink-0 border-t border-[#1e1e35] px-2 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
           <button
             type="button"
             onClick={() => void handleLogout()}
             className="group flex min-h-[44px] w-full items-center gap-2.5 rounded-lg border border-transparent px-3 py-[9px] text-left font-[family-name:var(--font-poppins)] text-[13px] text-[#5a5a7a] transition-all duration-150 hover:border-[rgba(255,51,102,0.2)] hover:bg-[rgba(255,51,102,0.08)] hover:text-[#FF3366]"
           >
-            Log out
+            {localizePhrase(language, { en: "Log out", sk: "Odhlásiť" })}
           </button>
         </div>
       </aside>
@@ -152,17 +159,17 @@ export function HiveSidebar({ pathname, mobileOpen, onMobileClose }: HiveSidebar
       {/* Desktop rail */}
       <aside className="sticky top-0 z-30 hidden h-screen w-[220px] min-w-[220px] shrink-0 flex-col overflow-y-auto border-r border-[#1a1a3e]/90 bg-[#0d0d2b]/95 py-6 hive-scrollbar lg:flex">
         <SidebarBrand />
-        <SidebarNav pathname={pathname} linkClassFn={linkClass} />
+        <SidebarNav pathname={pathname} linkClassFn={linkClass} language={language} />
         <div className="mt-auto shrink-0 border-t border-[#1e1e35] px-2 pb-6 pt-3">
           <p className="mb-2 px-3 font-mono text-[10px] uppercase tracking-[0.14em] text-zinc-600">
-            Shortcuts · desktop
+            {localizePhrase(language, { en: "Shortcuts · desktop", sk: "Skratky · desktop" })}
           </p>
           <button
             type="button"
             onClick={() => void handleLogout()}
             className="group flex w-full items-center gap-2.5 rounded-lg border border-transparent px-3 py-[9px] text-left font-[family-name:var(--font-poppins)] text-[13px] text-[#5a5a7a] transition-all duration-150 hover:border-[rgba(255,51,102,0.2)] hover:bg-[rgba(255,51,102,0.08)] hover:text-[#FF3366]"
           >
-            Log out
+            {localizePhrase(language, { en: "Log out", sk: "Odhlásiť" })}
           </button>
         </div>
       </aside>

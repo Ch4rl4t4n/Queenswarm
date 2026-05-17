@@ -16,8 +16,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:phase70": "playwright test e2e/phase70-consolidated-navigation.spec.ts",
-    "test:e2e:phase41": "playwright test e2e/phase41-staging-validation.spec.ts",
-    "test:e2e:phase42": "playwright test e2e/phase42-staging-full-validation.spec.ts",
+    "test:e2e:phase120": "playwright test e2e/phase120-ecosystem-integration.spec.ts",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:install": "playwright install chromium",
     "typecheck": "tsc --noEmit"

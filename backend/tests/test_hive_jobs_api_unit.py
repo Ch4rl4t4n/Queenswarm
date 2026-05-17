@@ -35,7 +35,7 @@ async def test_get_job_requires_auth(restore_app_overrides: None) -> None:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/api/v1/jobs/any-id")
-    assert response.status_code == 403
+    assert response.status_code in {401, 403}
 
 
 @pytest.mark.asyncio

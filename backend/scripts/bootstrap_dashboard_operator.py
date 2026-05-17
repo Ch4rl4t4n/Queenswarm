@@ -19,8 +19,8 @@ if str(ROOT) not in sys.path:
 from sqlalchemy import select
 
 from app.core.database import async_session
-from app.models.dashboard_user import DashboardUser
-from app.services.dashboard_crypto import hash_dashboard_password
+from app.infrastructure.persistence.models.dashboard_user import DashboardUser
+from app.application.services.dashboard_crypto import hash_dashboard_password
 
 
 async def upsert_operator(*, email: str, password: str, display_name: str | None, is_admin: bool) -> str:

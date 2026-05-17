@@ -10,7 +10,12 @@ from httpx import ASGITransport, AsyncClient
 
 from app.core.config import settings
 from app.main import app
-from app.presentation.api.deps import get_db, require_dashboard_session, require_subject
+from app.presentation.api.deps import (
+    get_db,
+    require_dashboard_session,
+    require_dashboard_user_with_tenant_role,
+    require_subject,
+)
 
 
 @pytest.fixture
@@ -36,6 +41,10 @@ async def test_monitoring_snapshot_when_advanced_disabled_returns_403(
         yield SimpleNamespace()
 
     app.dependency_overrides[get_db] = mock_db
+    app.dependency_overrides[require_dashboard_user_with_tenant_role] = lambda: {
+        "tenant_role": "owner",
+        "tenant_id": "11111111-1111-4111-8111-111111111111",
+    }
     app.dependency_overrides[require_subject] = lambda: "pytest"
     monkeypatch.setattr(settings, "advanced_monitoring_enabled", False)
 

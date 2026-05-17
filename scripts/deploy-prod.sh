@@ -6,10 +6,10 @@
 #   ENV_FILE — default .env.prod
 #   AUTO_BOOTSTRAP_ENV=1 — when ENV_FILE is missing, create it from .env.prod.example
 #                          and overlay shared secrets from .env (default: 1)
-#   STOP_STG_ON_PORT_CONFLICT=1 — stop queenswarm_stg before prod deploy to free :80/:443 (default: 0)
 #   POST_DEPLOY_HEALTH=1 — run scripts/health-check.sh after compose
-#   POST_DEPLOY_SMOKE=1 — run scripts/smoke-edge.sh (TARGET=prd)
+#   POST_DEPLOY_SMOKE=1 — run scripts/smoke-edge.sh
 #   SMOKE_INSECURE_TLS=1 — forwarded to smoke-edge when POST_DEPLOY_SMOKE=1 (temporary cert mismatch only)
+#   DEPLOY_HA_PROFILE=1 — include docker compose profile "ha" (redis-replica)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -17,16 +17,16 @@ cd "$ROOT"
 
 ENV_FILE="${ENV_FILE:-.env.prod}"
 AUTO_BOOTSTRAP_ENV="${AUTO_BOOTSTRAP_ENV:-1}"
-STOP_STG_ON_PORT_CONFLICT="${STOP_STG_ON_PORT_CONFLICT:-0}"
 POST_DEPLOY_HEALTH="${POST_DEPLOY_HEALTH:-0}"
 POST_DEPLOY_SMOKE="${POST_DEPLOY_SMOKE:-0}"
+DEPLOY_HA_PROFILE="${DEPLOY_HA_PROFILE:-0}"
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   echo "Usage: ENV_FILE=.env.prod $0"
   echo "  AUTO_BOOTSTRAP_ENV=1 — create missing .env.prod from .env.prod.example + shared keys from .env"
-  echo "  STOP_STG_ON_PORT_CONFLICT=1 — stop queenswarm_stg before prod deploy (frees :80/:443)"
   echo "  POST_DEPLOY_HEALTH=1 — run ./scripts/health-check.sh after up"
-  echo "  POST_DEPLOY_SMOKE=1 — TARGET=prd ./scripts/smoke-edge.sh (optional SMOKE_INSECURE_TLS=1)"
+  echo "  POST_DEPLOY_SMOKE=1 — ./scripts/smoke-edge.sh (optional SMOKE_INSECURE_TLS=1)"
+  echo "  DEPLOY_HA_PROFILE=1 — include --profile ha (redis replica for failover drills)"
   echo "Before first prod cutover: backup Postgres + named volumes; verify Let’s Encrypt paths in deploy/nginx/queenswarm.love.conf."
   exit 0
 fi
@@ -145,30 +145,20 @@ prod_domain="$(load_kv "$ENV_FILE" DOMAIN || true)"
 if [[ -n "${prod_domain:-}" ]]; then
   ensure_selfsigned_cert_if_missing "$prod_domain"
 fi
-ensure_selfsigned_cert_if_missing "stg.queenswarm.love"
-
-if [[ "$STOP_STG_ON_PORT_CONFLICT" == "1" ]]; then
-  STG_ENV_FILE="${STG_ENV_FILE:-.env.stg}"
-  if [[ ! -f "$STG_ENV_FILE" ]]; then
-    STG_ENV_FILE=".env"
-  fi
-  stg_nginx_id="$(docker compose -p queenswarm_stg -f docker-compose.base.yml -f docker-compose.stg.yml --env-file "$STG_ENV_FILE" ps -q nginx 2>/dev/null || true)"
-  if [[ -n "${stg_nginx_id// }" ]]; then
-    stg_state="$(docker inspect -f '{{.State.Status}}' "$stg_nginx_id" 2>/dev/null || echo unknown)"
-    if [[ "$stg_state" == "running" ]]; then
-      echo "Stopping queenswarm_stg to free ports :80/:443 before production deploy."
-      docker compose -p queenswarm_stg -f docker-compose.base.yml -f docker-compose.stg.yml --env-file "$STG_ENV_FILE" down
-    fi
-  fi
-fi
 
 export QS_ENV_FILE_PROD="$ENV_FILE"
+
+HA_ARGS=()
+if [[ "$DEPLOY_HA_PROFILE" == "1" ]]; then
+  HA_ARGS=(--profile ha)
+fi
 
 docker compose -p queenswarm_prod \
   -f docker-compose.base.yml \
   -f docker-compose.prod.yml \
   --env-file "$ENV_FILE" \
-  up -d --build
+  "${HA_ARGS[@]}" \
+  up -d --build --wait
 
 verify_production_edge() {
   local domain nginx_id state health https_code https_health_code http_health_code i
@@ -232,6 +222,6 @@ if [[ "$POST_DEPLOY_HEALTH" == "1" ]]; then
 fi
 
 if [[ "$POST_DEPLOY_SMOKE" == "1" ]]; then
-  echo "Running smoke-edge (TARGET=prd) …"
-  TARGET=prd ENV_FILE="$ENV_FILE" SMOKE_INSECURE_TLS="${SMOKE_INSECURE_TLS:-0}" "${ROOT}/scripts/smoke-edge.sh"
+  echo "Running smoke-edge …"
+  ENV_FILE="$ENV_FILE" SMOKE_INSECURE_TLS="${SMOKE_INSECURE_TLS:-0}" "${ROOT}/scripts/smoke-edge.sh"
 fi

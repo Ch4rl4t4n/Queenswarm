@@ -6,10 +6,34 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const SECTIONS: { href: string; label: string }[] = [
-  { href: "/settings/security", label: "Security · 2FA" },
-  { href: "/settings/llm-keys", label: "LLM keys" },
-  { href: "/settings/notifications", label: "Notifications" },
-  { href: "/settings/api-keys", label: "API keys · external" },
+  {
+    href: "/settings/security",
+    label: "Security · 2FA",
+  },
+  {
+    href: "/settings/billing",
+    label: "Billing · Usage",
+  },
+  {
+    href: "/settings/team",
+    label: "Team · RBAC",
+  },
+  {
+    href: "/settings/sharing",
+    label: "Public sharing",
+  },
+  {
+    href: "/settings/llm-keys",
+    label: "LLM keys",
+  },
+  {
+    href: "/settings/notifications",
+    label: "Notifications",
+  },
+  {
+    href: "/settings/api-keys",
+    label: "API keys · external",
+  },
 ];
 
 export function SettingsSubnav() {

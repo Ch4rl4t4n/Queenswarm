@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { AgentSuggestionsPanel } from "@/components/hive/agent-suggestions-panel";
 import { QueenDashboardChrome } from "@/components/hive/queen-dashboard-chrome";
 import { hiveFetch, hiveGet, hivePatchJson, hivePostJson, hivePutJson } from "@/lib/api";
+import { COCKPIT_POLL_COLONY_TELEMETRY_MS } from "@/lib/cockpit-poll-profile";
 import type { AgentRow, DashboardSummary, SystemStatusPayload, TaskRow } from "@/lib/hive-types";
 
 interface ColonyConsoleProps {
@@ -152,7 +154,12 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
       }
     }
     void pollTelemetry();
-    const handle = window.setInterval(() => void pollTelemetry(), 8000);
+    const handle = window.setInterval(() => {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+      void pollTelemetry();
+    }, COCKPIT_POLL_COLONY_TELEMETRY_MS);
     return () => {
       cancelled = true;
       window.clearInterval(handle);
@@ -459,6 +466,9 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
       </section>
 
       {/* 2 — Agent creation */}
+      <AgentSuggestionsPanel className="mx-auto w-full max-w-3xl scroll-mt-28" />
+
+      {/* 3 — Agent creation */}
       <section id="hive-create" className="scroll-mt-28 mx-auto w-full max-w-3xl rounded-2xl border-[3px] border-cyan/30 bg-[#0a0a14]/95 p-6 shadow-[0_0_28px_rgb(0_255_255/0.08)] md:p-8">
         <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">New manager / worker</h2>
         <p className="mt-2 font-[family-name:var(--font-poppins)] text-sm text-zinc-500">

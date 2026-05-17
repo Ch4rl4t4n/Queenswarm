@@ -16,13 +16,16 @@ from app.application.services.supervisor.runtime import (
     normalize_role,
     run_sub_agent_inprocess,
 )
+from app.application.services.billing import assert_supervisor_session_hard_limit
 from app.application.services.supervisor.skills import SkillLibrary
 from app.application.services.supervisor.spawner import (
     infer_manager_slug_for_role,
     infer_specialist_roles_for_role,
 )
 from app.application.services.supervisor.shared_context import SharedContextService
+from app.application.services.supervisor.autonomy import update_session_autonomy_state
 from app.core.config import settings
+from app.core.metrics import observe_supervisor_session_event
 from app.worker.celery_app import celery_app
 from app.infrastructure.persistence.models.supervisor_session import (
     SubAgentSession,
@@ -68,6 +71,21 @@ def normalize_roles(raw_roles: list[str] | None) -> list[str]:
     return out or ["researcher", "critic"]
 
 
+def derive_sub_goal(*, role: str, goal: str) -> str:
+    """Derive autonomous role-specific sub-goal from session objective."""
+
+    normalized = normalize_role(role)
+    prefix_map = {
+        "researcher": "Collect context and constraints for",
+        "coder": "Implement and validate a safe execution path for",
+        "browser_operator": "Verify external surfaces and interaction flow for",
+        "critic": "Stress-test risks, regressions, and failure modes for",
+        "designer": "Refine UX/UI and decision clarity for",
+    }
+    prefix = prefix_map.get(normalized, "Advance objective for")
+    return f"{prefix} {goal.strip()[:320]}".strip()
+
+
 async def create_supervisor_session(
     db: AsyncSession,
     *,
@@ -79,8 +97,13 @@ async def create_supervisor_session(
     retrieval_contract: str | None = None,
     skill_slugs: list[str] | None = None,
     skill_library: SkillLibrary | None = None,
+    context_seed: dict[str, object] | None = None,
+    tenant_id: uuid.UUID | None = None,
 ) -> SupervisorSession:
     """Create supervisor session, spawn sub-agents, execute based on runtime mode."""
+
+    if tenant_id is not None:
+        await assert_supervisor_session_hard_limit(db, tenant_id=tenant_id)
 
     mode = coerce_runtime_mode(runtime_mode)
     norm_roles = normalize_roles(roles)
@@ -89,19 +112,38 @@ async def create_supervisor_session(
     contract = retrieval_contract.strip() if isinstance(retrieval_contract, str) else ""
     contract = contract if settings.retrieval_contract_enabled else ""
 
+    base_summary: dict[str, object] = {
+        "requested_roles": norm_roles,
+        "hybrid_runtime": True,
+        "manager_slugs": [infer_manager_slug_for_role(role) for role in norm_roles],
+        "retrieval_contract": contract,
+        "skills_enabled": settings.supervisor_skills_enabled,
+        "autonomy_enabled": settings.supervisor_autonomy_enabled,
+        "self_healing_enabled": settings.supervisor_self_healing_enabled,
+        "continuous_intelligence_enabled": settings.routines_enabled,
+        "memory_evolution_enabled": settings.memory_evolution_enabled,
+        "agent_initiative_enabled": settings.agent_initiative_enabled,
+        "swarm_full_autonomy_enabled": settings.swarm_full_autonomy_enabled,
+        "intelligence_layer_version": "phase9-v4",
+    }
+    if context_seed:
+        base_summary.update(dict(context_seed))
+    if settings.swarm_full_autonomy_enabled:
+        base_summary = update_session_autonomy_state(
+            context_summary=base_summary,
+            initiative_count=0,
+            pending_approvals=0,
+            latest_strategy_score=None,
+        )
+
     session_row = SupervisorSession(
         goal=goal.strip(),
         status="running",
         runtime_mode=mode,
+        tenant_id=tenant_id,
         created_by_subject=created_by_subject,
         started_at=now,
-        context_summary={
-            "requested_roles": norm_roles,
-            "hybrid_runtime": True,
-            "manager_slugs": [infer_manager_slug_for_role(role) for role in norm_roles],
-            "retrieval_contract": contract,
-            "skills_enabled": settings.supervisor_skills_enabled,
-        },
+        context_summary=base_summary,
     )
     db.add(session_row)
     await db.flush()
@@ -110,6 +152,7 @@ async def create_supervisor_session(
     for idx, role in enumerate(norm_roles):
         sub = SubAgentSession(
             supervisor_session_id=session_row.id,
+            tenant_id=tenant_id,
             role=role,
             status="queued" if mode == "durable" else "pending",
             runtime_mode=mode,
@@ -118,11 +161,21 @@ async def create_supervisor_session(
             spawn_order=idx,
         )
         resolved_skills = (
-            loader.resolve_slugs(role=role, requested=skill_slugs) if settings.supervisor_skills_enabled else []
+            loader.select_for_task(
+                role=role,
+                goal=goal,
+                requested=skill_slugs,
+                max_skills=settings.supervisor_max_skills_per_agent,
+            )
+            if settings.supervisor_skills_enabled
+            else []
         )
+        skill_manifest = loader.skill_manifest(resolved_skills)
         sub.short_memory = {
             **dict(sub.short_memory or {}),
+            "sub_goal": derive_sub_goal(role=role, goal=goal),
             "skills": resolved_skills,
+            "skill_manifest": skill_manifest,
             "skills_prompt_block": loader.build_prompt_block(resolved_skills)[:4000] if resolved_skills else "",
         }
         db.add(sub)
@@ -139,7 +192,9 @@ async def create_supervisor_session(
                 "runtime_mode": mode,
                 "manager_slug": infer_manager_slug_for_role(role),
                 "specialist_roles": infer_specialist_roles_for_role(role),
+                "sub_goal": derive_sub_goal(role=role, goal=goal),
                 "skills": resolved_skills,
+                "skill_manifest": skill_manifest,
             },
         )
 
@@ -151,6 +206,7 @@ async def create_supervisor_session(
         message="Supervisor session initialized.",
         payload={"runtime_mode": mode, "sub_agents": len(sub_agents)},
     )
+    observe_supervisor_session_event(event="created", runtime_mode=mode)
 
     if mode == "inprocess":
         for sub in sub_agents:
@@ -161,16 +217,28 @@ async def create_supervisor_session(
                 shared_context=shared_context,
                 skill_library=loader,
             )
-        session_row.status = "completed"
-        session_row.completed_at = datetime.now(tz=UTC)
-        await append_event(
-            db,
-            supervisor_session=session_row,
-            sub_agent=None,
-            event_type="session_completed",
-            message="Supervisor session completed in-process.",
-            payload={"runtime_mode": "inprocess"},
-        )
+        if session_row.status not in {"needs_input", "paused", "stopped"}:
+            session_row.status = "completed"
+            session_row.completed_at = datetime.now(tz=UTC)
+            await append_event(
+                db,
+                supervisor_session=session_row,
+                sub_agent=None,
+                event_type="session_completed",
+                message="Supervisor session completed in-process.",
+                payload={"runtime_mode": "inprocess"},
+            )
+            observe_supervisor_session_event(event="completed", runtime_mode="inprocess")
+        else:
+            await append_event(
+                db,
+                supervisor_session=session_row,
+                sub_agent=None,
+                event_type="session_waiting_input",
+                message="Supervisor session is waiting for operator input/approval.",
+                payload={"runtime_mode": "inprocess", "status": session_row.status},
+                level="warning",
+            )
     else:
         for sub in sub_agents:
             celery_app.send_task(
@@ -188,6 +256,7 @@ async def create_supervisor_session(
             message="Supervisor session queued for durable execution.",
             payload={"runtime_mode": "durable", "sub_agents": len(sub_agents)},
         )
+        observe_supervisor_session_event(event="queued", runtime_mode="durable")
 
     await db.flush()
     return session_row
@@ -264,6 +333,7 @@ async def apply_session_control(
         message=f"Session action applied: {action}.",
         payload={"action": action},
     )
+    observe_supervisor_session_event(event=f"control_{action}", runtime_mode=session_row.runtime_mode)
     await db.flush()
     return session_row
 
@@ -316,6 +386,8 @@ async def apply_session_review(
         message=f"Session {decision} by operator.",
         payload={"decision": decision, "note": (note or "").strip()[:1000]},
     )
+    runtime_mode = str(getattr(session_row, "runtime_mode", "inprocess") or "inprocess")
+    observe_supervisor_session_event(event=f"review_{decision}", runtime_mode=runtime_mode)
     await db.flush()
     return session_row
 

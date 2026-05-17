@@ -6,11 +6,15 @@ import json
 import math
 import time
 import uuid
+import hashlib
+import hmac
+from datetime import UTC, datetime, timedelta
 from collections.abc import AsyncGenerator, AsyncIterator
-from typing import Any
+from typing import Any, Awaitable, Callable, TypeVar
 
 import redis.asyncio as aioredis
 from redis.asyncio import Redis
+from redis.exceptions import RedisError
 
 from app.core.config import settings
 
@@ -30,6 +34,21 @@ redis.call('EXPIRE', KEYS[1], ttl_seconds)
 return 1
 """
 
+_LEASE_REFRESH_LUA = """
+if redis.call('GET', KEYS[1]) == ARGV[1] then
+  redis.call('EXPIRE', KEYS[1], tonumber(ARGV[2]))
+  return 1
+end
+return 0
+"""
+
+_LEASE_RELEASE_LUA = """
+if redis.call('GET', KEYS[1]) == ARGV[1] then
+  return redis.call('DEL', KEYS[1])
+end
+return 0
+"""
+
 CHANNEL_SWARM_EVENTS = "swarm_events"
 CHANNEL_POLLEN_REWARDS = "pollen_rewards"
 CHANNEL_RECIPE_UPDATES = "recipe_updates"
@@ -38,29 +57,144 @@ CHANNEL_RAPID_LOOP = "rapid_loop"
 CHANNEL_IMITATION_EVENTS = "imitation_events"
 
 _REFRESH_PREFIX = "dash_refresh:v1:"
+_REFRESH_LEGACY_PREFIX = "dash_refresh:v1:"
+
+
+def _refresh_fingerprint(token: str) -> str:
+    """Return keyed fingerprint for refresh token storage keys."""
+
+    digest = hmac.new(
+        settings.secret_key.encode("utf-8"),
+        token.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    return f"hmac-sha256:{digest}"
 
 
 def _refresh_key(token: str) -> str:
-    """Return a namespaced Redis key for opaque dashboard refresh blobs."""
+    """Return hardened namespaced key for opaque dashboard refresh blobs."""
 
-    return f"{_REFRESH_PREFIX}{token}"
+    return f"{_REFRESH_PREFIX}{_refresh_fingerprint(token)}"
+
+
+def _refresh_legacy_key(token: str) -> str:
+    """Return legacy plaintext-key format for backward compatibility reads."""
+
+    return f"{_REFRESH_LEGACY_PREFIX}{token}"
 
 
 _redis_pool: aioredis.ConnectionPool | None = None
+_redis_pool_url: str | None = None
+_RedisResultT = TypeVar("_RedisResultT")
+
+
+def _lease_key(name: str) -> str:
+    """Return namespaced Redis key for distributed runtime lease ownership."""
+
+    return f"queenswarm:lease:{name}"
+
+
+def _candidate_redis_urls() -> list[str]:
+    """Return deduplicated Redis URL candidates for HA failover."""
+
+    out: list[str] = []
+    for raw in [settings.redis_url, *settings.redis_failover_urls]:
+        value = str(raw).strip()
+        if not value or value in out:
+            continue
+        out.append(value)
+    return out
+
+
+async def _build_pool(url: str) -> aioredis.ConnectionPool:
+    """Create and verify one Redis connection pool."""
+
+    pool = aioredis.ConnectionPool.from_url(
+        url,
+        decode_responses=True,
+        max_connections=32,
+        socket_keepalive=True,
+    )
+    client = Redis(connection_pool=pool)
+    try:
+        await client.ping()
+    finally:
+        await client.aclose()
+    return pool
 
 
 async def _connection_pool() -> aioredis.ConnectionPool:
     """Return the process-wide Redis connection pool (constructed lazily)."""
 
-    global _redis_pool
+    global _redis_pool, _redis_pool_url
     if _redis_pool is None:
-        _redis_pool = aioredis.ConnectionPool.from_url(
-            settings.redis_url,
-            decode_responses=True,
-            max_connections=32,
-            socket_keepalive=True,
-        )
+        last_error: Exception | None = None
+        for url in _candidate_redis_urls():
+            try:
+                _redis_pool = await _build_pool(url)
+                _redis_pool_url = url
+                break
+            except Exception as exc:  # noqa: BLE001 - failover candidate probing
+                last_error = exc
+                continue
+        if _redis_pool is None:
+            if last_error is not None:
+                raise last_error
+            raise RuntimeError("No Redis failover candidates configured.")
     return _redis_pool
+
+
+async def _rotate_pool_after_failure() -> None:
+    """Drop current pool and switch to the next healthy candidate."""
+
+    global _redis_pool, _redis_pool_url
+    previous = _redis_pool_url
+    if _redis_pool is not None:
+        await _redis_pool.disconnect()
+    _redis_pool = None
+    _redis_pool_url = None
+    candidates = _candidate_redis_urls()
+    if previous and previous in candidates:
+        idx = candidates.index(previous)
+        candidates = candidates[idx + 1 :] + candidates[: idx + 1]
+    last_error: Exception | None = None
+    for url in candidates:
+        try:
+            _redis_pool = await _build_pool(url)
+            _redis_pool_url = url
+            return
+        except Exception as exc:  # noqa: BLE001 - continue scanning candidates
+            last_error = exc
+            continue
+    if last_error is not None:
+        raise last_error
+
+
+async def _with_redis_client(
+    operation: Callable[[Redis], Awaitable[_RedisResultT]],
+) -> _RedisResultT:
+    """Run a Redis operation with one automatic failover retry."""
+
+    attempts = 0
+    last_error: Exception | None = None
+    while attempts < 2:
+        pool = await _connection_pool()
+        client = Redis(connection_pool=pool)
+        try:
+            return await operation(client)
+        except (RedisError, OSError, RuntimeError) as exc:
+            last_error = exc
+            try:
+                await _rotate_pool_after_failure()
+            except Exception:  # noqa: BLE001 - keep original exception on final failure
+                pass
+            attempts += 1
+            continue
+        finally:
+            await client.aclose()
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("Redis operation failed without surfaced cause.")
 
 
 async def sliding_window_reserve(bucket_key: str, *, limit: int, window_sec: float) -> bool:
@@ -94,42 +228,41 @@ async def sliding_window_reserve(bucket_key: str, *, limit: int, window_sec: flo
     member = f"{now}:{uuid.uuid4().hex}"
     ttl = int(math.ceil(window_sec)) + 2
 
-    pool = await _connection_pool()
-    client = Redis(connection_pool=pool)
-    try:
-        raw = await client.eval(
-            _SLIDING_RESERVE_LUA,
-            1,
-            bucket_key,
-            str(limit),
-            f"{now}",
-            f"{cutoff}",
-            member,
-            str(ttl),
+    async def _op(client: Redis) -> int:
+        return int(
+            await client.eval(
+                _SLIDING_RESERVE_LUA,
+                1,
+                bucket_key,
+                str(limit),
+                f"{now}",
+                f"{cutoff}",
+                member,
+                str(ttl),
+            )
         )
-    finally:
-        await client.aclose()
+
+    raw = await _with_redis_client(_op)
     return int(raw) == 1
 
 
 async def ping_redis() -> None:
     """Issue ``PING`` against the shared pool (readiness probes, smoke tests)."""
 
-    pool = await _connection_pool()
-    client = Redis(connection_pool=pool)
-    try:
+    async def _op(client: Redis) -> None:
         await client.ping()
-    finally:
-        await client.aclose()
+
+    await _with_redis_client(_op)
 
 
 async def close_redis() -> None:
     """Disconnect pooled Redis sockets during application shutdown."""
 
-    global _redis_pool
+    global _redis_pool, _redis_pool_url
     if _redis_pool is not None:
         await _redis_pool.disconnect()
         _redis_pool = None
+        _redis_pool_url = None
 
 
 async def get_redis() -> AsyncGenerator[Redis, None]:
@@ -146,27 +279,24 @@ async def get_redis() -> AsyncGenerator[Redis, None]:
 async def set_json(key: str, value: Any, ttl: int | None = None) -> None:
     """Serialize JSON into Redis using an optional TTL in seconds."""
 
-    pool = await _connection_pool()
-    client = Redis(connection_pool=pool)
     payload = json.dumps(value, default=str)
-    try:
+
+    async def _op(client: Redis) -> None:
         if ttl is None:
             await client.set(key, payload)
         else:
             await client.setex(key, ttl, payload)
-    finally:
-        await client.aclose()
+
+    await _with_redis_client(_op)
 
 
 async def get_json(key: str) -> dict[str, Any] | None:
     """Fetch JSON object by key returning ``None`` on cache miss."""
 
-    pool = await _connection_pool()
-    client = Redis(connection_pool=pool)
-    try:
-        raw = await client.get(key)
-    finally:
-        await client.aclose()
+    async def _op(client: Redis) -> str | None:
+        return await client.get(key)
+
+    raw = await _with_redis_client(_op)
     if raw is None:
         return None
     try:
@@ -181,23 +311,21 @@ async def get_json(key: str) -> dict[str, Any] | None:
 async def redis_delete(key: str) -> int:
     """Remove a Redis key; returns count of keys removed (typically ``0`` or ``1``)."""
 
-    pool = await _connection_pool()
-    client = Redis(connection_pool=pool)
-    try:
+    async def _op(client: Redis) -> int:
         return int(await client.delete(key))
-    finally:
-        await client.aclose()
+
+    return int(await _with_redis_client(_op))
 
 
 async def publish_event(channel: str, event: dict[str, Any]) -> None:
     """Fan out a swarm event payload to subscribed worker bees."""
 
-    pool = await _connection_pool()
-    client = Redis(connection_pool=pool)
-    try:
-        await client.publish(channel, json.dumps(event, default=str))
-    finally:
-        await client.aclose()
+    payload = json.dumps(event, default=str)
+
+    async def _op(client: Redis) -> None:
+        await client.publish(channel, payload)
+
+    await _with_redis_client(_op)
 
 
 async def subscribe_channel(channel: str) -> AsyncIterator[dict[str, Any]]:
@@ -234,24 +362,24 @@ async def store_dashboard_refresh(token: str, user_id_text: str, ttl_sec: int) -
     """Persist a refresh token fingerprint → dashboard user UUID mapping."""
 
     key = _refresh_key(token)
-    pool = await _connection_pool()
-    client = Redis(connection_pool=pool)
-    try:
+    async def _op(client: Redis) -> None:
         await client.set(key, user_id_text, ex=ttl_sec)
-    finally:
-        await client.aclose()
+
+    await _with_redis_client(_op)
 
 
 async def fetch_dashboard_refresh_user(token: str) -> str | None:
     """Return the dashboard user UUID string for a refresh token, if still valid."""
 
     key = _refresh_key(token)
-    pool = await _connection_pool()
-    client = Redis(connection_pool=pool)
-    try:
+    legacy_key = _refresh_legacy_key(token)
+    async def _op(client: Redis) -> str | None:
         raw = await client.get(key)
-    finally:
-        await client.aclose()
+        if raw is None:
+            raw = await client.get(legacy_key)
+        return raw
+
+    raw = await _with_redis_client(_op)
     return raw
 
 
@@ -259,9 +387,93 @@ async def revoke_dashboard_refresh(token: str) -> None:
     """Delete a dashboard refresh credential (logout / rotation)."""
 
     key = _refresh_key(token)
-    pool = await _connection_pool()
-    client = Redis(connection_pool=pool)
-    try:
-        await client.delete(key)
-    finally:
-        await client.aclose()
+    legacy_key = _refresh_legacy_key(token)
+    async def _op(client: Redis) -> None:
+        await client.delete(key, legacy_key)
+
+    await _with_redis_client(_op)
+
+
+async def try_acquire_distributed_lock(name: str, *, owner: str, ttl_sec: int) -> bool:
+    """Attempt to claim a distributed lease via ``SET key value NX EX``."""
+
+    if ttl_sec < 1:
+        msg = "ttl_sec must be >= 1"
+        raise ValueError(msg)
+    async def _op(client: Redis) -> bool:
+        return bool(await client.set(_lease_key(name), owner, ex=ttl_sec, nx=True))
+
+    raw = await _with_redis_client(_op)
+    return bool(raw)
+
+
+async def refresh_distributed_lock(name: str, *, owner: str, ttl_sec: int) -> bool:
+    """Refresh lease expiry only when the same owner still holds it."""
+
+    if ttl_sec < 1:
+        msg = "ttl_sec must be >= 1"
+        raise ValueError(msg)
+    async def _op(client: Redis) -> int:
+        return int(
+            await client.eval(
+                _LEASE_REFRESH_LUA,
+                1,
+                _lease_key(name),
+                owner,
+                str(ttl_sec),
+            )
+        )
+
+    raw = await _with_redis_client(_op)
+    return int(raw) == 1
+
+
+async def release_distributed_lock(name: str, *, owner: str) -> bool:
+    """Release lease only if held by the calling owner."""
+
+    async def _op(client: Redis) -> int:
+        return int(await client.eval(_LEASE_RELEASE_LUA, 1, _lease_key(name), owner))
+
+    raw = await _with_redis_client(_op)
+    return int(raw) == 1
+
+
+def _minute_counter_key(metric: str, bucket: datetime) -> str:
+    return f"queenswarm:telemetry:{metric}:{bucket.strftime('%Y%m%d%H%M')}"
+
+
+async def increment_minute_counter(metric: str, *, ttl_sec: int = 7200) -> int:
+    """Increment minute-bucketed telemetry counter and set expiry on first write."""
+
+    now_bucket = datetime.now(tz=UTC).replace(second=0, microsecond=0)
+    key = _minute_counter_key(metric, now_bucket)
+    async def _op(client: Redis) -> int:
+        current = int(await client.incr(key))
+        if current == 1:
+            await client.expire(key, ttl_sec)
+        return current
+
+    current = int(await _with_redis_client(_op))
+    return current
+
+
+async def read_minute_counter_sum(metric: str, *, last_minutes: int) -> int:
+    """Read aggregate sum of minute counters in the requested lookback window."""
+
+    lookback = max(1, min(last_minutes, 24 * 60))
+    now = datetime.now(tz=UTC).replace(second=0, microsecond=0)
+    keys = [_minute_counter_key(metric, now - timedelta(minutes=i)) for i in range(lookback)]
+    async def _op(client: Redis) -> list[str | None]:
+        raw = await client.mget(keys)
+        return list(raw)
+
+    values = await _with_redis_client(_op)
+    total = 0
+    for value in values:
+        if value is None:
+            continue
+        try:
+            total += int(value)
+        except (TypeError, ValueError):
+            continue
+    return total

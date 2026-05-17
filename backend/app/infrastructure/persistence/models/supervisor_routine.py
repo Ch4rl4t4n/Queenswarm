@@ -10,9 +10,10 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base, TimestampMixin
+from app.infrastructure.persistence.models.base import TenantScopedMixin
 
 
-class SupervisorRoutine(Base, TimestampMixin):
+class SupervisorRoutine(Base, TimestampMixin, TenantScopedMixin):
     """Recurring routine that can spawn supervisor sessions on a schedule."""
 
     __tablename__ = "supervisor_routines"

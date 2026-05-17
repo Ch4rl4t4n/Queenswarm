@@ -7,8 +7,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 
+import { useUiLanguage } from "@/components/hive/ui-language-provider";
 import { hiveGet } from "@/lib/api";
 import type { OperatorCostSummary } from "@/lib/hive-types";
+import { localizePhrase } from "@/lib/ui-copy";
 
 interface HiveTopBarProps {
   email: string;
@@ -45,6 +47,7 @@ function latestDayUsd(series: OperatorCostSummary["series"]): number {
 /** Desktop cockpit chrome — gradient avatar + logout + hive search capsule. Mobile uses bottom-sheet actions. */
 export function HiveTopBar({ email, displayName }: HiveTopBarProps) {
   const router = useRouter();
+  const { language } = useUiLanguage();
   const [q, setQ] = useState("");
   const [time, setTime] = useState("");
   const [costTodayUsd, setCostTodayUsd] = useState<number | null>(null);
@@ -87,7 +90,7 @@ export function HiveTopBar({ email, displayName }: HiveTopBarProps) {
     } catch {
       /* ignore */
     }
-    toast.success("Session cleared");
+    toast.success(localizePhrase(language, { en: "Session cleared", sk: "Relácia vyčistená" }));
     router.push("/login");
     router.refresh();
   }
@@ -96,10 +99,17 @@ export function HiveTopBar({ email, displayName }: HiveTopBarProps) {
     ev.preventDefault();
     const term = q.trim();
     if (!term) {
-      toast.message("Search", { description: "Enter agents, tasks, or workflows." });
+      toast.message(localizePhrase(language, { en: "Search", sk: "Vyhľadávanie" }), {
+        description: localizePhrase(language, { en: "Enter agents, tasks, or workflows.", sk: "Zadaj agentov, úlohy alebo workflowy." }),
+      });
       return;
     }
-    toast.message("Hive search", { description: `Searching for “${term}” — proxy wiring optional.` });
+    toast.message(localizePhrase(language, { en: "Hive search", sk: "Hive vyhľadávanie" }), {
+      description:
+        language === "sk"
+          ? `Hľadám „${term}“ — proxy wiring je voliteľné.`
+          : `Searching for “${term}” — proxy wiring optional.`,
+    });
   }
 
   return (
@@ -111,7 +121,7 @@ export function HiveTopBar({ email, displayName }: HiveTopBarProps) {
 
       <form onSubmit={onSearch} className="mx-auto min-w-0 max-w-xl flex-1">
         <label htmlFor="hive-search" className="sr-only">
-          Search agents, tasks, workflows
+          {localizePhrase(language, { en: "Search agents, tasks, workflows", sk: "Hľadaj agentov, úlohy, workflowy" })}
         </label>
         <div className="relative">
           <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" aria-hidden />
@@ -119,7 +129,10 @@ export function HiveTopBar({ email, displayName }: HiveTopBarProps) {
             id="hive-search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search agents, tasks, workflows..."
+            placeholder={localizePhrase(language, {
+              en: "Search agents, tasks, workflows...",
+              sk: "Hľadaj agentov, úlohy, workflowy...",
+            })}
             className="w-full rounded-xl border border-cyan/[0.15] bg-black/55 py-2.5 pl-11 pr-4 font-[family-name:var(--font-poppins)] text-sm text-[#fafafa] placeholder:text-zinc-500 focus:border-pollen/35 focus:outline-none focus:ring-2 focus:ring-pollen/20"
           />
         </div>
@@ -129,7 +142,7 @@ export function HiveTopBar({ email, displayName }: HiveTopBarProps) {
         <span className="hidden font-[family-name:var(--font-poppins)] text-xs text-[#00FF88] sm:inline">{time}</span>
         <span className="flex items-center gap-1.5 font-[family-name:var(--font-poppins)] text-xs text-[#00FF88]">
           <span className="h-2 w-2 animate-pulse rounded-full bg-[#00FF88] shadow-[0_0_6px_#00FF88]" />
-          <span className="hidden sm:inline">HIVE ONLINE</span>
+          <span className="hidden sm:inline">{localizePhrase(language, { en: "HIVE ONLINE", sk: "HIVE ONLINE" })}</span>
         </span>
         <span className="rounded-full border border-[#FF00AA]/30 bg-[#FF00AA]/10 px-2 py-1 font-[family-name:var(--font-poppins)] text-xs text-[#FF00AA]">
           💰{" "}
@@ -138,7 +151,7 @@ export function HiveTopBar({ email, displayName }: HiveTopBarProps) {
             : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(
                 costTodayUsd,
               )}{" "}
-          today
+          {localizePhrase(language, { en: "today", sk: "dnes" })}
         </span>
       </div>
 
@@ -146,8 +159,12 @@ export function HiveTopBar({ email, displayName }: HiveTopBarProps) {
         <button
           type="button"
           className="relative rounded-xl border border-cyan/[0.18] p-2.5 text-zinc-400 transition hover:border-pollen/35 hover:text-pollen"
-          aria-label="Notifications"
-          onClick={() => toast.message("Hive alerts", { description: "Nothing unread." })}
+          aria-label={localizePhrase(language, { en: "Notifications", sk: "Notifikácie" })}
+          onClick={() =>
+            toast.message(localizePhrase(language, { en: "Hive alerts", sk: "Hive upozornenia" }), {
+              description: localizePhrase(language, { en: "Nothing unread.", sk: "Nič neprečítané." }),
+            })
+          }
         >
           <BellIcon className="h-4 w-4" aria-hidden />
           <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-alert shadow-[0_0_8px_#FF00AA]" />
@@ -162,10 +179,10 @@ export function HiveTopBar({ email, displayName }: HiveTopBarProps) {
           type="button"
           onClick={() => void logout()}
           className="flex items-center gap-1.5 rounded-full border border-danger/35 px-3 py-2 font-[family-name:var(--font-poppins)] text-[10px] uppercase tracking-wide text-danger transition hover:bg-danger/12"
-          aria-label="Log out"
+          aria-label={localizePhrase(language, { en: "Log out", sk: "Odhlásiť" })}
         >
           <LogOutIcon className="h-3.5 w-3.5" aria-hidden />
-          out
+          {localizePhrase(language, { en: "out", sk: "odhlásiť" })}
         </button>
       </div>
     </header>

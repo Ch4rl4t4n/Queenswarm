@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel, Field
 
+from app.common.http.security_headers import apply_no_store_cache_headers, no_store_cache_headers
 from app.presentation.api.deps import DashboardSession, DbSession
+from app.presentation.api.middleware.rate_limit import peer_ip_for_rate_limit
 from app.application.services.oauth_consent.providers import oauth_catalog_snapshot
 from app.application.services.oauth_consent.service import complete_oauth_callback, start_oauth_authorization
 from app.core.config import get_settings
@@ -16,15 +18,9 @@ __all__ = ["router"]
 
 
 def _callback_client_host(request: Request) -> str:
-    """Prefer ``X-Forwarded-For`` first hop when Next.js relays the vendor redirect."""
+    """Resolve callback peer label using the shared rate-limit proxy trust policy."""
 
-    raw = request.headers.get("x-forwarded-for") or request.headers.get("X-Forwarded-For")
-    if isinstance(raw, str) and raw.strip():
-        return raw.split(",")[0].strip()
-    solo = request.headers.get("x-real-ip") or request.headers.get("X-Real-IP")
-    if isinstance(solo, str) and solo.strip():
-        return solo.strip()
-    return request.client.host if request.client else "unknown"
+    return peer_ip_for_rate_limit(request)
 
 
 class OAuthStartBody(BaseModel):
@@ -49,15 +45,16 @@ class OAuthCallbackResponse(BaseModel):
 
 
 @router.get("/providers", summary="OAuth surfaces + vendor configuration flags")
-async def list_oauth_providers(sess: DashboardSession) -> dict[str, object]:
+async def list_oauth_providers(sess: DashboardSession, response: Response) -> dict[str, object]:
     """Enumerate OAuth consent targets — requires dashboard JWT to reduce idle probing."""
 
     _ = sess
+    apply_no_store_cache_headers(response)
     return oauth_catalog_snapshot(get_settings())
 
 
 @router.post("/start", summary="Mint PKCE + Redis state; returns vendor authorize URL")
-async def post_oauth_start(sess: DashboardSession, body: OAuthStartBody) -> OAuthStartResponse:
+async def post_oauth_start(sess: DashboardSession, body: OAuthStartBody, response: Response) -> OAuthStartResponse:
     """Start OAuth Authorization Code flow bound to the authenticated dashboard operator."""
 
     settings = get_settings()
@@ -68,7 +65,12 @@ async def post_oauth_start(sess: DashboardSession, body: OAuthStartBody) -> OAut
             dashboard_sub=str(sess.get("sub") or ""),
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+            headers=no_store_cache_headers(),
+        ) from exc
+    apply_no_store_cache_headers(response)
     return OAuthStartResponse.model_validate(payload)
 
 
@@ -76,6 +78,7 @@ async def post_oauth_start(sess: DashboardSession, body: OAuthStartBody) -> OAut
 async def get_oauth_callback(
     request: Request,
     db: DbSession,
+    response: Response,
     code: str | None = Query(None),
     state: str | None = Query(None),
     error: str | None = Query(None),
@@ -98,4 +101,5 @@ async def get_oauth_callback(
         state=state,
         oauth_error=oauth_error,
     )
+    apply_no_store_cache_headers(response)
     return OAuthCallbackResponse(redirect_url=url)

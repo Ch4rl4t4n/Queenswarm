@@ -15,14 +15,14 @@ if str(ROOT) not in sys.path:
 from sqlalchemy import select
 
 from app.core.database import async_session
-from app.learning.reward_tracker import grant_weighted_pollen
-from app.models.agent import Agent
-from app.models.enums import AgentRole, AgentStatus, SwarmPurpose, TaskType
-from app.models.recipe import Recipe
-from app.models.swarm import SubSwarm
-from app.models.task import Task
-from app.services.agent_catalog import create_agent_record
-from app.services.task_ledger import create_task_record
+from app.domain.learning.reward_tracker import grant_weighted_pollen
+from app.infrastructure.persistence.models.agent import Agent
+from app.infrastructure.persistence.models.enums import AgentRole, AgentStatus, SwarmPurpose, TaskType
+from app.infrastructure.persistence.models.recipe import Recipe
+from app.infrastructure.persistence.models.swarm import SubSwarm
+from app.infrastructure.persistence.models.task import Task
+from app.application.services.agent_catalog import create_agent_record
+from app.application.services.task_ledger import create_task_record
 
 
 PLAN: list[tuple[str, SwarmPurpose, int, AgentRole]] = [

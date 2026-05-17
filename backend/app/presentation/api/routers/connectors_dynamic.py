@@ -5,10 +5,10 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.presentation.api.deps import DashboardSession, DbSession
+from app.presentation.api.deps import DashboardSession, DbSession, require_tenant_permission
 from app.infrastructure.connectors.dynamic.schemas import (
     DynamicConnectorCreateBody,
     DynamicConnectorPatchBody,
@@ -43,7 +43,11 @@ class DynamicConnectorListResponse(BaseModel):
 
 
 @router.get("", summary="List built-in plus operator-defined dynamic MCP connectors")
-async def list_dynamic_connectors(sess: DashboardSession, db: DbSession) -> DynamicConnectorListResponse:
+async def list_dynamic_connectors(
+    sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("connectors:view")),
+) -> DynamicConnectorListResponse:
     svc = DynamicConnectorService()
     uid = _subject_uuid(sess)
     items = await svc.list_visible(db, dashboard_user_id=uid)
@@ -53,7 +57,12 @@ async def list_dynamic_connectors(sess: DashboardSession, db: DbSession) -> Dyna
 
 
 @router.post("", summary="Create connector row (inactive until upstream test succeeds)")
-async def create_dynamic_connector(sess: DashboardSession, db: DbSession, body: DynamicConnectorCreateBody) -> DynamicConnectorPublic:
+async def create_dynamic_connector(
+    sess: DashboardSession,
+    db: DbSession,
+    body: DynamicConnectorCreateBody,
+    _: bool = Depends(require_tenant_permission("connectors:edit")),
+) -> DynamicConnectorPublic:
     svc = DynamicConnectorService()
     uid = _subject_uuid(sess)
     try:
@@ -68,6 +77,7 @@ async def patch_dynamic_connector(
     sess: DashboardSession,
     db: DbSession,
     body: DynamicConnectorPatchBody,
+    _: bool = Depends(require_tenant_permission("connectors:edit")),
 ) -> DynamicConnectorPublic:
     svc = DynamicConnectorService()
     uid = _subject_uuid(sess)
@@ -82,6 +92,7 @@ async def delete_dynamic_connector(
     connector_id: uuid.UUID,
     sess: DashboardSession,
     db: DbSession,
+    _: bool = Depends(require_tenant_permission("connectors:edit")),
 ) -> Response:
     svc = DynamicConnectorService()
     uid = _subject_uuid(sess)
@@ -110,6 +121,7 @@ async def post_dynamic_connector_test(
     connector_id: uuid.UUID,
     sess: DashboardSession,
     db: DbSession,
+    _: bool = Depends(require_tenant_permission("connectors:edit")),
 ) -> dict[str, Any]:
     svc = DynamicConnectorService()
     uid = _subject_uuid(sess)

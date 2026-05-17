@@ -163,6 +163,63 @@ async def notify_email(
         )
         return False
 
+
+async def notify_pagerduty(*, summary: str, severity: str = "warning", source: str = "queenswarm") -> bool:
+    """Send PagerDuty event via Events API v2."""
+
+    routing_key = (settings.pagerduty_routing_key or "").strip()
+    endpoint = (settings.pagerduty_events_api_url or "").strip()
+    if not routing_key or not endpoint:
+        return False
+    payload = {
+        "routing_key": routing_key,
+        "event_action": "trigger",
+        "payload": {
+            "summary": summary[:1024],
+            "severity": (severity or "warning").lower(),
+            "source": source[:255],
+        },
+    }
+    try:
+        async with httpx.AsyncClient(timeout=6.0) as client:
+            response = await client.post(endpoint, json=payload)
+        accepted = response.status_code in {200, 202}
+        if not accepted:
+            logger.warning(
+                "notifications.pagerduty.reject",
+                agent_id="reporter_bee",
+                swarm_id="",
+                task_id="",
+                status=response.status_code,
+            )
+        return accepted
+    except httpx.HTTPError as exc:
+        logger.warning(
+            "notifications.pagerduty.http_error",
+            agent_id="reporter_bee",
+            swarm_id="",
+            task_id="",
+            error=str(exc),
+        )
+        return False
+
+
+async def notify_enterprise_alert(*, title: str, message: str, severity: str = "warning") -> dict[str, bool]:
+    """Dispatch enterprise alert to all configured channels."""
+
+    sev = (severity or "warning").lower()
+    color = "#FF3366" if sev in {"critical", "error"} else "#FFB800"
+    slack_ok, email_ok, pagerduty_ok = await asyncio.gather(
+        notify_slack(message=f"{title}\n{message}", color=color, title=f"Alert · {title}"),
+        notify_email(subject=f"Alert · {title}", body=message),
+        notify_pagerduty(summary=f"{title}: {message}", severity="critical" if sev == "critical" else "warning"),
+    )
+    return {
+        "slack": bool(slack_ok),
+        "email": bool(email_ok),
+        "pagerduty": bool(pagerduty_ok),
+    }
+
     try:
         await asyncio.to_thread(
             _smtp_send_sync,
@@ -195,7 +252,9 @@ async def notify_email(
 __all__ = [
     "notify_agent_error",
     "notify_budget_alert",
+    "notify_enterprise_alert",
     "notify_email",
+    "notify_pagerduty",
     "notify_slack",
     "notify_task_complete",
 ]

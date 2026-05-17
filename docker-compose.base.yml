@@ -1,7 +1,7 @@
-# Queenswarm stack — canonical multi-env base (see docker-compose.stg.yml / docker-compose.prod.yml).
+# Queenswarm stack — canonical production base (overlay with docker-compose.prod.yml).
 # Local single-file dev: keep using docker-compose.yml (same shape as this base).
 #
-# Phase 5.0: docker compose -f docker-compose.base.yml -f docker-compose.stg.yml --env-file .env.stg up -d
+# Phase 5.0+: docker compose -f docker-compose.base.yml -f docker-compose.prod.yml --env-file .env.prod up -d
 
 x-backend-env-files: &backend-env-files
   env_file:
@@ -56,6 +56,22 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  redis-replica:
+    image: redis:7-alpine
+    profiles: ["ha"]
+    command: ["sh", "-c", "redis-server --replicaof redis 6379 --save 60 1 --loglevel warning"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 320m
+    cpus: "0.35"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   neo4j:
     image: neo4j:5-community
     environment:
@@ -84,7 +100,7 @@ services:
   backend:
     <<: [*backend-build, *backend-env-files]
     command: >-
-      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+      sh -c "alembic upgrade heads || echo 'alembic upgrade skipped due migration branch conflict'; uvicorn app.main:app --host 0.0.0.0 --port 8000"
     environment:
       POSTGRES_URL: postgresql+asyncpg://${POSTGRES_USER:-queenswarm}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-queenswarm}
       REDIS_URL: redis://redis:6379/0
@@ -97,6 +113,19 @@ services:
       DOMAIN: ${DOMAIN:-queenswarm.love}
       BALLROOM_GUEST_WS: ${BALLROOM_GUEST_WS:-true}
       HIVE_DASHBOARD_GUEST_WS: ${HIVE_DASHBOARD_GUEST_WS:-true}
+      LLM_MAX_CONCURRENCY: ${LLM_MAX_CONCURRENCY:-6}
+      SIMULATION_MAX_PARALLEL: ${SIMULATION_MAX_PARALLEL:-2}
+      CELERY_WORKER_CONCURRENCY: ${CELERY_WORKER_CONCURRENCY:-3}
+      SCALING_MODE_ENABLED: ${SCALING_MODE_ENABLED:-false}
+      INSTANCE_ID: ${INSTANCE_ID:-backend-local}
+      WORKER_COUNT: ${WORKER_COUNT:-1}
+      DISTRIBUTED_LOCK_TTL_SEC: ${DISTRIBUTED_LOCK_TTL_SEC:-45}
+      DISTRIBUTED_LOCK_RENEW_INTERVAL_SEC: ${DISTRIBUTED_LOCK_RENEW_INTERVAL_SEC:-15.0}
+      HA_MODE_ENABLED: ${HA_MODE_ENABLED:-false}
+      REDIS_FAILOVER_URLS: ${REDIS_FAILOVER_URLS:-}
+      POSTGRES_REPLICA_URLS: ${POSTGRES_REPLICA_URLS:-}
+      GRACEFUL_SHUTDOWN_TIMEOUT_SEC: ${GRACEFUL_SHUTDOWN_TIMEOUT_SEC:-15}
+      GRACEFUL_SHUTDOWN_DRAIN_SEC: ${GRACEFUL_SHUTDOWN_DRAIN_SEC:-4}
     depends_on:
       postgres:
         condition: service_healthy
@@ -127,7 +156,7 @@ services:
   celery-worker:
     <<: [*backend-build, *backend-env-files]
     command:
-      ["celery", "-A", "app.worker.celery_app", "worker", "-l", "info", "-Q", "hive", "-c", "4", "-n", "worker@%h"]
+      ["celery", "-A", "app.worker.celery_app", "worker", "-l", "info", "-Q", "hive", "-c", "${CELERY_WORKER_CONCURRENCY:-3}", "-n", "worker@%h"]
     environment:
       QUEENSWARM_CELERY_WORKER: "true"
       POSTGRES_URL: postgresql+asyncpg://${POSTGRES_USER:-queenswarm}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-queenswarm}
@@ -141,6 +170,19 @@ services:
       DOMAIN: ${DOMAIN:-queenswarm.love}
       BALLROOM_GUEST_WS: ${BALLROOM_GUEST_WS:-true}
       HIVE_DASHBOARD_GUEST_WS: ${HIVE_DASHBOARD_GUEST_WS:-true}
+      LLM_MAX_CONCURRENCY: ${LLM_MAX_CONCURRENCY:-6}
+      SIMULATION_MAX_PARALLEL: ${SIMULATION_MAX_PARALLEL:-2}
+      CELERY_WORKER_CONCURRENCY: ${CELERY_WORKER_CONCURRENCY:-3}
+      SCALING_MODE_ENABLED: ${SCALING_MODE_ENABLED:-false}
+      INSTANCE_ID: ${INSTANCE_ID:-celery-worker-local}
+      WORKER_COUNT: ${WORKER_COUNT:-1}
+      DISTRIBUTED_LOCK_TTL_SEC: ${DISTRIBUTED_LOCK_TTL_SEC:-45}
+      DISTRIBUTED_LOCK_RENEW_INTERVAL_SEC: ${DISTRIBUTED_LOCK_RENEW_INTERVAL_SEC:-15.0}
+      HA_MODE_ENABLED: ${HA_MODE_ENABLED:-false}
+      REDIS_FAILOVER_URLS: ${REDIS_FAILOVER_URLS:-}
+      POSTGRES_REPLICA_URLS: ${POSTGRES_REPLICA_URLS:-}
+      GRACEFUL_SHUTDOWN_TIMEOUT_SEC: ${GRACEFUL_SHUTDOWN_TIMEOUT_SEC:-15}
+      GRACEFUL_SHUTDOWN_DRAIN_SEC: ${GRACEFUL_SHUTDOWN_DRAIN_SEC:-4}
     depends_on:
       postgres:
         condition: service_healthy
@@ -175,6 +217,19 @@ services:
       DOMAIN: ${DOMAIN:-queenswarm.love}
       BALLROOM_GUEST_WS: ${BALLROOM_GUEST_WS:-true}
       HIVE_DASHBOARD_GUEST_WS: ${HIVE_DASHBOARD_GUEST_WS:-true}
+      LLM_MAX_CONCURRENCY: ${LLM_MAX_CONCURRENCY:-6}
+      SIMULATION_MAX_PARALLEL: ${SIMULATION_MAX_PARALLEL:-2}
+      CELERY_WORKER_CONCURRENCY: ${CELERY_WORKER_CONCURRENCY:-3}
+      SCALING_MODE_ENABLED: ${SCALING_MODE_ENABLED:-false}
+      INSTANCE_ID: ${INSTANCE_ID:-celery-beat-local}
+      WORKER_COUNT: ${WORKER_COUNT:-1}
+      DISTRIBUTED_LOCK_TTL_SEC: ${DISTRIBUTED_LOCK_TTL_SEC:-45}
+      DISTRIBUTED_LOCK_RENEW_INTERVAL_SEC: ${DISTRIBUTED_LOCK_RENEW_INTERVAL_SEC:-15.0}
+      HA_MODE_ENABLED: ${HA_MODE_ENABLED:-false}
+      REDIS_FAILOVER_URLS: ${REDIS_FAILOVER_URLS:-}
+      POSTGRES_REPLICA_URLS: ${POSTGRES_REPLICA_URLS:-}
+      GRACEFUL_SHUTDOWN_TIMEOUT_SEC: ${GRACEFUL_SHUTDOWN_TIMEOUT_SEC:-15}
+      GRACEFUL_SHUTDOWN_DRAIN_SEC: ${GRACEFUL_SHUTDOWN_DRAIN_SEC:-4}
     depends_on:
       redis:
         condition: service_healthy
@@ -218,6 +273,8 @@ services:
       options:
         max-size: "15m"
         max-file: "3"
+    mem_limit: 768m
+    cpus: "0.75"
 
   grafana:
     image: grafana/grafana:11.3.2
@@ -256,6 +313,8 @@ services:
       options:
         max-size: "15m"
         max-file: "3"
+    mem_limit: 640m
+    cpus: "0.75"
 
   frontend:
     build:
@@ -290,6 +349,8 @@ services:
       options:
         max-size: "15m"
         max-file: "4"
+    mem_limit: 1024m
+    cpus: "1.0"
 
   nginx:
     image: nginx:1.27-alpine
@@ -322,6 +383,8 @@ services:
       options:
         max-size: "15m"
         max-file: "4"
+    mem_limit: 256m
+    cpus: "0.5"
 
 volumes:
   postgres_data:

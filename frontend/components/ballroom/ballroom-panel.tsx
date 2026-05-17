@@ -4,6 +4,7 @@ import { MicIcon, MicOffIcon } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { VoiceSessionControls } from "@/components/hive/voice-session-controls";
 import { HiveApiError, hivePostJson } from "@/lib/api";
 import { buildHiveWebsocketHref } from "@/lib/public-ws";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,11 @@ interface SessionAgentRow {
   name: string;
   role?: string;
   hive_tier?: string | null;
+}
+
+interface VoiceSynthesizeResponse {
+  audio_base64?: string;
+  content_type?: string;
 }
 
 const AGENT_ACCENTS: Record<string, string> = {
@@ -87,7 +93,11 @@ function accentForName(name: string): string {
   return first ?? "#9898b8";
 }
 
-export function BallroomPanel() {
+interface BallroomPanelProps {
+  readonly showHeader?: boolean;
+}
+
+export function BallroomPanel({ showHeader = true }: BallroomPanelProps): JSX.Element {
   /** WebSocket OPEN — transcripts stream live. */
   const [connected, setConnected] = useState(false);
   /** Session id minted / known — REST chat works immediately even before WS opens. */
@@ -100,6 +110,7 @@ export function BallroomPanel() {
   const mutedRef = useRef(false);
   const [speaking, setSpeaking] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const sessionIdRef = useRef<string | null>(null);
   const [sessionLabel, setSessionLabel] = useState<string | null>(null);
@@ -166,6 +177,42 @@ export function BallroomPanel() {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     setMessages((prev) => [...prev.slice(-240), { ...patch, id }]);
   }, []);
+
+  const playTts = useCallback(
+    async (text: string, voiceLabel: string) => {
+      if (mutedRef.current) {
+        return;
+      }
+      setSpeaking(voiceLabel);
+      try {
+        const tts = await hivePostJson<VoiceSynthesizeResponse>("ballroom/voice/synthesize", { text });
+        const blob = tts.audio_base64;
+        const contentType = tts.content_type ?? "audio/mpeg";
+        if (!blob) {
+          throw new Error("missing_audio");
+        }
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
+        const player = new Audio(`data:${contentType};base64,${blob}`);
+        audioRef.current = player;
+        player.onended = () => setSpeaking(null);
+        await player.play();
+        return;
+      } catch {
+        if (typeof window !== "undefined" && "speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(text.slice(0, 2500));
+          utterance.lang = "sk-SK";
+          utterance.onend = () => setSpeaking(null);
+          window.speechSynthesis.speak(utterance);
+          return;
+        }
+      }
+      setSpeaking(null);
+    },
+    [],
+  );
 
   const wsUrlFromSessionCapsule = useCallback((capsule: SessionCapsule): string => {
     if (typeof window === "undefined") {
@@ -252,20 +299,13 @@ export function BallroomPanel() {
               timestamp: new Date().toISOString(),
               variant: "agent",
             });
-            if (typeof window !== "undefined" && "speechSynthesis" in window && !mutedRef.current) {
-              window.speechSynthesis.cancel();
-              const u = new SpeechSynthesisUtterance(voiceScript.slice(0, 2500));
-              u.lang = "sk-SK";
-              const voiceLabel =
-                sessionAgentsRef.current.find(
-                  (a) =>
-                    /orchestrator|queen|manager/i.test(a.name) ||
-                    /orchestrator|manager/i.test(a.role ?? ""),
-                )?.name ?? agent;
-              setSpeaking(voiceLabel);
-              u.onend = () => setSpeaking(null);
-              window.speechSynthesis.speak(u);
-            }
+            const voiceLabel =
+              sessionAgentsRef.current.find(
+                (a) =>
+                  /orchestrator|queen|manager/i.test(a.name) ||
+                  /orchestrator|manager/i.test(a.role ?? ""),
+              )?.name ?? agent;
+            void playTts(voiceScript, voiceLabel);
             return;
           }
           if (t === "ballroom.transcript" || t === "message") {
@@ -334,7 +374,7 @@ export function BallroomPanel() {
       (window as Window & { __qs_ballroom_ws?: WebSocket }).__qs_ballroom_ws?.close?.();
       (window as Window & { __qs_ballroom_ws?: WebSocket }).__qs_ballroom_ws = ws;
     },
-    [appendBubble, wsUrlFromSessionCapsule],
+    [appendBubble, playTts, wsUrlFromSessionCapsule],
   );
 
   const startSession = useCallback(
@@ -385,6 +425,10 @@ export function BallroomPanel() {
   const endSession = useCallback(() => {
     wsRef.current?.close();
     wsRef.current = null;
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
     setConnected(false);
     sessionIdRef.current = null;
     setSessionLabel(null);
@@ -478,12 +522,55 @@ export function BallroomPanel() {
 
   return (
     <div className="flex min-h-[calc(100dvh-7rem)] flex-col gap-[var(--qs-gap)] pb-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-[family-name:var(--font-poppins)] text-[22px] font-bold text-[var(--qs-text)]">Ballroom</h1>
-          <p className="mt-0.5 text-[13px] text-[var(--qs-text-3)]">Voice + text session with the swarm</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2.5">
+      {showHeader ? (
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="font-(family-name:--font-poppins) text-[22px] font-bold text-[var(--qs-text)]">Ballroom</h1>
+            <p className="mt-0.5 text-[13px] text-[var(--qs-text-3)]">Voice + text session with the swarm</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <a href="/integrations#ecosystem" className="qs-btn qs-btn--ghost qs-btn--sm">
+              Ecosystem hub
+            </a>
+            <button
+              type="button"
+              className={cn(
+                "qs-btn qs-btn--ghost qs-btn--sm",
+                muted && "!border-[var(--qs-red)] !text-[var(--qs-red)]",
+              )}
+              onClick={() => setMuted((v) => !v)}
+            >
+              {muted ? (
+                <>
+                  <MicOffIcon className="mr-1 inline h-3.5 w-3.5" /> Muted
+                </>
+              ) : (
+                <>
+                  <MicIcon className="mr-1 inline h-3.5 w-3.5" /> Sound
+                </>
+              )}
+            </button>
+            {sessionBound && !connected ? (
+              <button type="button" className="qs-btn qs-btn--secondary shrink-0" onClick={() => reconnectStream()}>
+                Reconnect stream
+              </button>
+            ) : null}
+            {!sessionBound ? (
+              <button type="button" className="qs-btn qs-btn--primary" disabled={starting} onClick={() => void startSession()}>
+                {starting ? "Connecting…" : "Start session"}
+              </button>
+            ) : (
+              <button type="button" className="qs-btn qs-btn--danger" onClick={endSession}>
+                End session
+              </button>
+            )}
+          </div>
+        </header>
+      ) : (
+        <div className="flex flex-wrap items-center justify-end gap-2.5">
+          <a href="/integrations#ecosystem" className="qs-btn qs-btn--ghost qs-btn--sm">
+            Ecosystem hub
+          </a>
           <button
             type="button"
             className={cn(
@@ -517,7 +604,7 @@ export function BallroomPanel() {
             </button>
           )}
         </div>
-      </header>
+      )}
 
       <div className="grid min-h-0 flex-1 grid-cols-1 items-start gap-[var(--qs-gap)] lg:grid-cols-[1fr_280px]">
         <section className="qs-card flex min-h-[420px] flex-col overflow-hidden rounded-[var(--qs-radius-lg)] p-0 lg:min-h-[560px]">
@@ -596,6 +683,17 @@ export function BallroomPanel() {
               Send →
             </button>
           </footer>
+          <div className="border-t border-[var(--qs-border)] px-3 py-3 sm:px-[var(--qs-pad)]">
+            <VoiceSessionControls
+              label="Voice chat mode"
+              sessionId={sessionLabel}
+              dispatchToAgents={true}
+              disabled={!sessionBound || starting}
+              onTranscript={(text) => {
+                setInput((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text));
+              }}
+            />
+          </div>
         </section>
 
         <aside className="qs-card flex h-fit flex-col gap-3 self-start rounded-[var(--qs-radius-lg)]">

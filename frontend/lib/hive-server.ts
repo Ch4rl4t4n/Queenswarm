@@ -5,15 +5,8 @@ import { QS_ACCESS } from "@/lib/auth-cookies";
 
 const API_PREFIX = "/api/v1";
 
-/**
- * Prefer the Compose-injected hive proxy JWT, then fall back to the operator HttpOnly session
- * cookie so RSC dashboards load after login without requiring ``HIVE_PROXY_JWT``.
- */
+/** Dashboard RSC fetches should always use the operator HttpOnly access cookie. */
 async function resolveHiveBearerToken(): Promise<string | null> {
-  const proxyJwt = process.env.HIVE_PROXY_JWT?.trim();
-  if (proxyJwt && proxyJwt !== "unset") {
-    return proxyJwt;
-  }
   try {
     const jar = await cookies();
     const sessionAt = jar.get(QS_ACCESS)?.value?.trim();
@@ -31,7 +24,7 @@ async function hiveServerFetch(path: string, init?: RequestInit): Promise<Respon
 
   const bearer = await resolveHiveBearerToken();
   if (!bearer) {
-    throw new Error("Hive bearer unavailable — configure HIVE_PROXY_JWT or ensure the dashboard session cookie is present.");
+    throw new Error("Hive bearer unavailable — ensure the dashboard session cookie is present.");
   }
 
   const clean = path.startsWith("/") ? path : `/${path}`;
