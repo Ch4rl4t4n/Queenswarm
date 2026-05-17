@@ -47,5 +47,6 @@ from app.worker import pool_reset as _pool_reset  # noqa: E402, F401 — fork ho
 
 from app.worker import tasks as _hive_tasks  # noqa: E402, F401 — register @celery_app.task
 from app.worker import dreaming_tasks as _dreaming_tasks  # noqa: E402, F401 — register dreaming tasks
+from app.worker import goal_tasks as _goal_tasks  # noqa: E402, F401 — register goal tasks
 
 __all__ = ["celery_app", "create_celery_app"]
