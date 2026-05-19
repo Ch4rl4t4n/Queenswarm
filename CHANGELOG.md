@@ -1,5 +1,55 @@
 # Queenswarm Changelog
 
+## Responsive rollout — mobile/tablet shell + PWA (2026-05-19)
+
+- **bee:** shell-first responsive UI for all cockpit routes — mobile drawer, bottom nav, mobile header, FAB; tablet polish; desktop ≥1024px unchanged (sidebar only, no duplicated top bar).
+- **feat:** breakpoints single source (`frontend/lib/breakpoints.ts`), `ResponsiveTable`, v4 mobile cards, graceful SSR API fallbacks on P0 pages.
+- **test:** 65 viewport E2E tests (`responsive-shell.spec.ts`), 28 visual regression baselines (`responsive-visual.spec.ts`), API mocks for CI without live backend.
+- **feat:** PWA manifest + icons, service worker offline shell (`/sw.js`, `/offline`), offline banner, install prompt (mobile/tablet, 2nd visit).
+- **test:** 7 PWA E2E tests (`pwa-shell.spec.ts`); CI runs shell + visual + PWA suites.
+- **ops:** production deploy verified — manifest, SW, offline routes live on `queenswarm.love`.
+
+## Phase 14.2 — reliability + server-side hardening gates (2026-05-18)
+
+- **bee:** harden Ballroom voice orchestration with server-first websocket voice lane (`voice_chunk` in, `ballroom.voice_audio` out) and keep text-chat backward compatibility.
+- **fix:** repair Ballroom orchestrator reply/runtime regressions and websocket auth resolution path to improve stream stability under production traffic.
+- **fix:** harden Alembic graph for fresh environment bootstrap by adding missing migration dependencies on supervisor-session branch and idempotent tenant-column migration guards.
+- **ops:** enforce fail-fast backend startup in compose (`alembic upgrade heads && uvicorn`) to prevent hidden migration drift.
+- **ops:** add production deploy voice readiness gate in `scripts/deploy-prod.sh` (`REQUIRE_VOICE_READY=1` default) and explicit override for controlled emergencies.
+- **ops:** add `scripts/core-reliability-gate.sh` to validate container health, edge/auth contracts, persistence+broker sanity, scraping regression tests, and monitoring surfaces in one command.
+- **ops:** add `scripts/voice-readiness-gate.sh` as a standalone server-side STT/TTS prerequisite gate for pre-release verification.
+
+## Phase 14.1 — tenant-scoped memory + dreaming consolidation (2026-05-18)
+
+- **bee:** introduce tenant-scoped memory dreaming Celery flow with explicit task API `run_memory_dreaming(tenant_id)` and nightly scheduler fan-out across active tenants.
+- **feat:** upgrade Dreaming persistence to tenant-aware cycles/insights plus structured `dream_report` payload (`0035_tenant_scoped_memory_dreaming` migration).
+- **feat:** extend Dreamer pipeline to analyze supervisor sessions/events, extract lessons and recurring errors, and persist Dream Reports into HiveMind (`knowledge_items` source_type `dream_report`).
+- **feat:** add Dreaming control plane endpoints under `/api/v1/dreaming` for toggle/frequency management, manual trigger, and tenant-filtered report listing.
+- **feat:** add Knowledge UI block `Memory + Dreaming` with enable/disable toggle, configurable frequency, manual run action, and latest Dream Reports list.
+- **ux:** add beginner-friendly `InfoHint` coverage across all critical Dreaming controls (enable/disable, frequency, manual run, report interpretation).
+- **docs:** expand `QUICK_START_AND_BEST_PRACTICES.md` with full bilingual (SK+EN) Memory + Dreaming handbook including setup, expected results, performance impact, integrations, and troubleshooting.
+- **docs:** add global feature documentation policy `docs/STANDARD_FOR_FEATURE_DOCUMENTATION.md` (InfoHint + SK/EN manual + beginner explanation mandatory baseline).
+- **test:** add unit coverage for tenant-scoped dreaming task flow (`backend/tests/test_memory_dreaming_tasks_unit.py`) and update Dreamer service tests for tenant-scoped run signatures.
+
+## Phase 14.0 — dynamic forager management system (2026-05-17)
+
+- **feat:** add tenant-scoped `foragers` persistence model + migration (`ForagerORM`, `0034_add_foragers`) with JSONB source/filter configuration slots and optional links to agent templates and supervisor routines.
+- **feat:** add `ForagerService` with full tenant CRUD, routine binding, manual HiveMind-oriented ingestion into `knowledge_items`, and spawn-from-forager agent bootstrap flow.
+- **feat:** add full API surface for dynamic foragers under `/api/v1/foragers` (`GET/POST/GET-by-id/PUT/DELETE`, `/trigger`, `/toggle`, `/ingest`, `/spawn-agent`) with RBAC + tenant guards.
+- **feat:** add new dashboard route `/foragers` with dynamic create/edit/delete workflow, source-type-aware configuration forms (YouTube/RSS/Free API/Custom), routine toggles, manual ingest action, trigger-run action, and spawn-agent action.
+- **feat:** integrate navigation/manual surfaces to expose the new forager lane (primary nav + agents shortcuts + manual content).
+- **test:** add backend unit tests (`backend/tests/test_forager_service_unit.py`) + API unit tests (`backend/tests/test_foragers_api_unit.py`) and frontend tests (`frontend/lib/api.test.ts`, `frontend/e2e/phase-foragers.spec.ts`).
+
+## Phase 14.0 — dynamic agent templates system (2026-05-17)
+
+- **feat:** add tenant-scoped `agent_templates` persistence foundation (`AgentTemplateORM`, migration `0033_add_agent_templates`).
+- **feat:** add full backend CRUD for dynamic template management (`AgentTemplateService`, `GET/POST/GET-by-id/PUT/DELETE /api/v1/agent-templates`) with tenant RBAC protections.
+- **feat:** replace hardcoded `/agents/new` presets with API-driven template library cards grouped by category.
+- **feat:** add create/edit modal workflow with reusable template form (name, description, emoji picker, category, tools multi-select, prompt template, default toggle for admin).
+- **feat:** integrate spawn flow with live template fetch by id before creation so agent bootstrapping uses current template data and supports custom tenant templates.
+- **test:** add backend unit suite `backend/tests/test_agent_template_service_unit.py` and frontend Playwright scenario `frontend/e2e/phase-agent-templates.spec.ts`.
+- **ux:** improve template empty/loading/error states, add navigation/context hints, and align `/agents` CTA label with template-first spawn flow.
+
 ## Phase 13.7 — pre-production strict security alignment (2026-05-17)
 
 - **bee:** align `scripts/pre-production-health-check.sh` with production hardening policy by using venv-scoped backend pytest and optional strict security gate execution.
