@@ -26,7 +26,6 @@ from app.application.services.stripe_runtime_credentials import (
     stripe_webhook_secret_source,
 )
 from app.core.config import settings
-from app.core.jwt_tokens import parse_dashboard_user_subject
 from app.core.logging import get_logger
 from app.infrastructure.persistence.models.dashboard_user import DashboardUser
 from app.presentation.api.deps import DbSession, require_dashboard_user_with_tenant_role
@@ -107,18 +106,14 @@ def _require_settings_view(principal: dict[str, Any]) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Settings view permission required.")
 
 
-async def _require_billing_admin(db: DbSession, principal: dict[str, Any]) -> DashboardUser:
+def _require_billing_admin(principal: dict[str, Any]) -> DashboardUser:
     """Ensure dashboard admin can mutate platform Stripe secrets."""
 
     _require_settings_view(principal)
-    raw_sub = principal.get("sub")
-    if not isinstance(raw_sub, str):
+    user = principal.get("user")
+    if user is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Dashboard subject missing.")
-    user_id = parse_dashboard_user_subject(raw_sub.strip())
-    if user_id is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Malformed dashboard identity.")
-    user = await db.get(DashboardUser, user_id)
-    if user is None or not user.is_active:
+    if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive operator.")
     if not user.is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required.")
@@ -223,7 +218,7 @@ async def upsert_stripe_config(
 ) -> StripeConfigStatus:
     """Persist Stripe API + webhook secrets (admin only, encrypted at rest)."""
 
-    await _require_billing_admin(db, principal)
+    _require_billing_admin(principal)
     if not any([body.secret_key, body.webhook_secret, body.clear_secret_key, body.clear_webhook_secret]):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -251,7 +246,7 @@ async def upsert_stripe_config(
 
     logger.info(
         "billing.stripe_config.updated",
-        agent_id=str(principal.get("sub") or ""),
+        agent_id=str(getattr(principal.get("user"), "id", "") or ""),
         swarm_id=str(principal.get("tenant_id") or ""),
         task_id="",
     )
@@ -265,7 +260,7 @@ async def test_stripe_config(
 ) -> StripeConfigTestResponse:
     """Ping Stripe with the effective secret key (admin only)."""
 
-    await _require_billing_admin(db, principal)
+    _require_billing_admin(principal)
     secret = stripe_effective_secret_key()
     if not secret:
         raise HTTPException(

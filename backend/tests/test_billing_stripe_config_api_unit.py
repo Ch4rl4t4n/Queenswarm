@@ -59,3 +59,59 @@ async def test_stripe_config_get_when_unconfigured_returns_masked_none(
     assert payload["checkout_ready"] is False
     assert payload["secret_key_masked"] is None
     assert payload["webhook_url"].endswith("/api/v1/billing/stripe/webhook")
+
+
+@pytest.mark.asyncio
+async def test_stripe_config_put_when_admin_principal_uses_user_object(
+    restore_app_overrides: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """PUT must read admin from principal.user (not top-level sub)."""
+
+    admin = SimpleNamespace(id=uuid.uuid4(), is_admin=True, is_active=True)
+    app.dependency_overrides[require_dashboard_user_with_tenant_role] = lambda: {
+        "user": admin,
+        "tenant_id": uuid.uuid4(),
+        "tenant_role": "owner",
+        "permissions": ["*"],
+        "membership": SimpleNamespace(role="owner"),
+        "session": {"sub": f"dash:{admin.id}"},
+    }
+
+    persisted: dict[str, object] = {}
+
+    async def _fake_persist(session, **kwargs):  # noqa: ANN001, ARG001
+        persisted.update(kwargs)
+
+    async def mock_db() -> AsyncIterator[SimpleNamespace]:
+        async def _commit() -> None:
+            return None
+
+        db = SimpleNamespace(commit=_commit, rollback=lambda: None)
+        yield db
+
+    app.dependency_overrides[get_db] = mock_db
+    monkeypatch.setattr(
+        "app.presentation.api.routers.billing.persist_stripe_secrets",
+        _fake_persist,
+    )
+    monkeypatch.setattr(
+        "app.presentation.api.routers.billing.stripe_effective_secret_key",
+        lambda: "sk_test_" + "a" * 24,
+    )
+    monkeypatch.setattr(
+        "app.presentation.api.routers.billing.stripe_effective_webhook_secret",
+        lambda: "whsec_" + "b" * 24,
+    )
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.put(
+            "/api/v1/billing/stripe-config",
+            headers={"Authorization": "Bearer x"},
+            json={"secret_key": "sk_test_" + "c" * 24, "webhook_secret": "whsec_" + "d" * 24},
+        )
+
+    assert res.status_code == 200
+    assert persisted.get("secret_key", "").startswith("sk_test_")
+    assert res.json()["checkout_ready"] is True
