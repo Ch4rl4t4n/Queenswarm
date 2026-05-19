@@ -16,6 +16,7 @@ if [[ -n "${PLAYWRIGHT_BASE_URL:-}" ]]; then
   echo "Remote hive: $PLAYWRIGHT_BASE_URL"
   CI=true npx playwright test e2e/pwa-shell.spec.ts
   CI=true npx playwright test e2e/responsive-shell.spec.ts --grep "public login"
+  CI=true npx playwright test e2e/responsive-shell.spec.ts --grep "desktop shows glowing Ballroom FAB|desktop dashboard has no duplicate"
 else
   CI=true npx playwright test e2e/responsive-shell.spec.ts e2e/responsive-visual.spec.ts e2e/pwa-shell.spec.ts
 fi

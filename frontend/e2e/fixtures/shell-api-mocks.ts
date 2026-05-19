@@ -159,6 +159,18 @@ const STUB_PREVIEW_DECOMPOSITION = {
 };
 
 /**
+ * Install API mocks for local Playwright webserver runs only.
+ *
+ * Remote hive smoke (``PLAYWRIGHT_BASE_URL``) skips mocks so the real edge + proxy path is exercised.
+ */
+export async function maybeInstallShellApiMocks(page: Page): Promise<void> {
+  if (process.env.PLAYWRIGHT_BASE_URL) {
+    return;
+  }
+  await installShellApiMocks(page);
+}
+
+/**
  * Stubs common proxy routes so authenticated shell E2E runs without a live hive backend.
  *
  * Server Components still SSR without backend — pages degrade gracefully with empty initial data.

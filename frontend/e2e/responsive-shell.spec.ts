@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { seedDashboardSessionCookie } from "./fixtures/dashboard-session";
 import { suppressPwaInstallPrompt } from "./fixtures/pwa-test-hints";
-import { installShellApiMocks, STUB_AGENT_ID } from "./fixtures/shell-api-mocks";
+import { maybeInstallShellApiMocks, STUB_AGENT_ID } from "./fixtures/shell-api-mocks";
 
 const VIEWPORTS = [
   { name: "mobile", width: 390, height: 844 },
@@ -41,7 +41,7 @@ test.describe("Responsive shell — public login", () => {
 
 test.describe("Responsive shell — authenticated cockpit", () => {
   test.beforeEach(async ({ page }) => {
-    await installShellApiMocks(page);
+    await maybeInstallShellApiMocks(page);
     await suppressPwaInstallPrompt(page);
   });
 
@@ -120,9 +120,27 @@ test.describe("Responsive shell — authenticated cockpit", () => {
       return;
     }
 
+    await expect(page.locator(".hive-sidebar-rail--desktop")).toBeVisible({ timeout: 15_000 });
     await expect(page.locator("#hive-search")).toHaveCount(0);
-    await expect(page.getByRole("heading", { name: /queen dashboard/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /Queen Dashboard/i }).first()).toBeVisible({
+      timeout: 15_000,
+    });
     await assertNoHorizontalOverflow(page);
+  });
+
+  test("tablet billing settings shows stripe-not-configured hint", async ({ page, context, baseURL }) => {
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
+
+    const onShell = await gotoShellRoute(page, "/settings/billing");
+    if (!onShell) {
+      return;
+    }
+
+    await expect(page.getByRole("heading", { name: "Usage & Billing" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/Set STRIPE_SECRET_KEY to enable premium skill checkout/i)).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   test("tablet integrations skills tab shows stripe-not-configured state", async ({ page, context, baseURL }) => {
