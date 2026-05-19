@@ -146,7 +146,7 @@ export function SkillsMarketplacePanel({
     (recipe: SkillCatalogRecipeItem) => {
       if (recipe.premium && !recipe.unlocked && !stripeReady) {
         toast.error("Stripe checkout is not configured on this hive.", {
-          description: "Ask an admin to set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET, then redeploy backend.",
+          description: "Admin: add keys under Settings → Billing → Stripe checkout.",
         });
         return;
       }
