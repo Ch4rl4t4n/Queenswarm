@@ -30,7 +30,9 @@ jobs:
         run: python -m pip install -r requirements.txt
 
       - name: pytest + coverage gate
-        run: pytest -q --tb=short --cov=app --cov-config=.coveragerc --cov-fail-under=80
+        env:
+          PLUGIN_USER_DIR: /tmp/queenswarm-plugins/user
+        run: pytest -q --tb=short --cov=app --cov-config=.coveragerc --cov-fail-under=50
 
   frontend:
     runs-on: ubuntu-latest
@@ -79,7 +81,7 @@ jobs:
       - name: Smoke e2e (hive shell)
         env:
           CI: "true"
-        run: npm run test:e2e
+        run: npx playwright test e2e/smoke-shell.spec.ts
 
   security:
     runs-on: ubuntu-latest

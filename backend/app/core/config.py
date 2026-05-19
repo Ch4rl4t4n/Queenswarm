@@ -4,11 +4,15 @@ from __future__ import annotations
 
 from functools import lru_cache
 import socket
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Self
+
+_BACKEND_ROOT = Path(__file__).resolve().parents[2]
+_DEFAULT_PLUGIN_USER_DIR = _BACKEND_ROOT / "plugins" / "user"
 
 
 class Settings(BaseSettings):
@@ -122,7 +126,7 @@ class Settings(BaseSettings):
     )
 
     plugin_user_dir: str = Field(
-        default="/app/plugins/user",
+        default=str(_DEFAULT_PLUGIN_USER_DIR),
         description="Writable directory scanned for optional operator ``.py`` plugins.",
     )
 

@@ -7,6 +7,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict
+from starlette.responses import Response
 
 from app.application.services.curated_memory_service import CuratedMemoryService
 from app.presentation.api.deps import DbSession, require_dashboard_user_with_tenant_role
@@ -99,7 +100,7 @@ async def delete_curated_file(
     kind: CuratedFileKind,
     db: DbSession,
     principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
-) -> None:
+) -> Response:
     _require_admin(principal)
     tenant_id = principal.get("tenant_id")
     if tenant_id is None:
@@ -107,6 +108,7 @@ async def delete_curated_file(
     service = CuratedMemoryService(db=db)
     await service.clear(tenant_id, kind)
     await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 __all__ = ["router"]

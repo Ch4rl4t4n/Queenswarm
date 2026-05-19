@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 
 import { seedDashboardSessionCookie } from "./fixtures/dashboard-session";
+import { installShellApiMocks } from "./fixtures/shell-api-mocks";
+import { suppressPwaInstallPrompt } from "./fixtures/pwa-test-hints";
 
 /**
  * Phase 3.5 — authenticated shell smoke (middleware bypass cookie only).
@@ -43,14 +45,16 @@ async function assertShellForRoute(page: import("@playwright/test").Page, path: 
 test.describe("Phase 3.5 desktop cockpit", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test.beforeEach(async ({ context, baseURL }) => {
+  test.beforeEach(async ({ page, context, baseURL }) => {
+    await installShellApiMocks(page);
+    await suppressPwaInstallPrompt(page);
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
   });
 
   test("persistent sidebar navigation is visible on home", async ({ page }) => {
     await page.goto("/", { waitUntil: "load", timeout: 60_000 });
     await expect(page.getByRole("navigation", { name: "Hive navigation" })).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText("Shortcuts · desktop")).toBeVisible();
+    await expect(page.getByText("Shortcuts", { exact: true })).toBeVisible();
   });
 
   test("primary IA routes render main content", async ({ page }) => {
@@ -78,7 +82,9 @@ test.describe("Phase 3.5 desktop cockpit", () => {
 test.describe("Phase 3.5 mobile cockpit", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test.beforeEach(async ({ context, baseURL }) => {
+  test.beforeEach(async ({ page, context, baseURL }) => {
+    await installShellApiMocks(page);
+    await suppressPwaInstallPrompt(page);
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
   });
 
