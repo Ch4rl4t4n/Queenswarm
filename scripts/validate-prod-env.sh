@@ -44,4 +44,9 @@ print(f"  enable_2fa={s.enable_2fa}")
 print(f"  security_2fa_advanced_enabled={s.security_2fa_advanced_enabled}")
 print(f"  rate_limit_enabled={s.rate_limit_enabled}")
 print(f"  connector_vault_configured={bool((s.connector_vault_fernet_key or '').strip())}")
+
+if s.skill_export_premium_enabled and not (s.stripe_secret_key or "").strip():
+    print("  WARN: SKILL_EXPORT_PREMIUM_ENABLED=true but STRIPE_SECRET_KEY is empty", file=sys.stderr)
+if s.skill_export_premium_enabled and not (s.stripe_webhook_secret or "").strip():
+    print("  WARN: SKILL_EXPORT_PREMIUM_ENABLED=true but STRIPE_WEBHOOK_SECRET is empty", file=sys.stderr)
 PY

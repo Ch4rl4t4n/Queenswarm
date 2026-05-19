@@ -50,9 +50,21 @@ Stripe-off UX tests (skills/billing banners) run locally with API mocks only.
    - `STRIPE_WEBHOOK_SECRET`
 2. Stripe Dashboard → Webhooks → `https://queenswarm.love/api/v1/billing/stripe/webhook`
    - Event: `checkout.session.completed`
-3. Redeploy: `POST_DEPLOY_HEALTH=1 ./scripts/deploy-prod.sh`
-4. Verify: `./scripts/stripe-prod-setup.sh` exits 0
-5. Complete one premium skill checkout end-to-end
+3. One command (validate → deploy → strict sign-off):
+
+```bash
+./scripts/finish-stripe-setup.sh
+```
+
+Or step-by-step:
+
+```bash
+POST_DEPLOY_HEALTH=1 ./scripts/deploy-prod.sh
+./scripts/stripe-prod-setup.sh
+STRICT_STRIPE=1 PLAYWRIGHT_BASE_URL=https://queenswarm.love ./scripts/production-signoff-gate.sh
+```
+
+4. Complete one premium skill checkout end-to-end
 
 ## Known blockers
 

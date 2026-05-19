@@ -32,6 +32,7 @@ Updated: 2026-05-19
 | Responsive gate | `./scripts/responsive-rollout-gate.sh` |
 | Core reliability | `ENV_FILE=.env.prod ./scripts/core-reliability-gate.sh` |
 | Stripe checklist | `./scripts/stripe-prod-setup.sh` |
+| Finish Stripe (after keys in env) | `./scripts/finish-stripe-setup.sh` |
 | Health | `./scripts/health-check.sh` |
 | Edge smoke | `./scripts/smoke-edge.sh` |
 | TLS | `EMAIL=<admin@email> ./scripts/issue-letsencrypt.sh` |
@@ -52,10 +53,10 @@ Updated: 2026-05-19
 ## Recent commits (main)
 
 ```
+0ffc646 docs: note prod remote E2E scope in sign-off checklist
+99e66b5 test: add prod remote shell smoke and billing Stripe-off E2E
 a771964 ops: harden Stripe webhook path and production sign-off docs
 fc2b6f9 feat: graceful Stripe-off skills UX and prod setup helper
-8bc0c4c ops: add production sign-off gate and Phase 14 env baseline
 812cf8e fix: make desktop Ballroom FAB unmissable via portal and amber glow
-8b05d91 bee: ship Phase 14 backend
 84e0f4a bee: complete mobile/tablet responsive rollout with PWA shell
 ```
