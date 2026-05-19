@@ -125,6 +125,20 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     await assertNoHorizontalOverflow(page);
   });
 
+  test("tablet integrations skills tab shows stripe-not-configured state", async ({ page, context, baseURL }) => {
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
+
+    const onShell = await gotoShellRoute(page, "/integrations?tab=skills");
+    if (!onShell) {
+      return;
+    }
+
+    await expect(page.getByRole("heading", { name: "Integrations" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/Stripe checkout: not configured/i)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("button", { name: "Checkout unavailable" })).toBeVisible({ timeout: 15_000 });
+  });
+
   test("tablet integrations hub tab layout", async ({ page, context, baseURL }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");

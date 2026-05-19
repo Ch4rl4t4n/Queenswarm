@@ -34,6 +34,9 @@ export function SkillsMarketplacePanel({
   const [unlocks, setUnlocks] = useState<SkillUnlockStatusResponse | null>(null);
   const [checkoutBusyId, setCheckoutBusyId] = useState<string | null>(null);
 
+  const stripeReady = unlocks?.stripe_checkout_ready ?? false;
+  const hasLockedPremium = (catalog?.recipes ?? []).some((row) => row.premium && !row.unlocked);
+
   const loadCatalog = useCallback(async () => {
     setLoading(true);
     try {
@@ -141,13 +144,19 @@ export function SkillsMarketplacePanel({
 
   const handleRecipeAction = useCallback(
     (recipe: SkillCatalogRecipeItem) => {
+      if (recipe.premium && !recipe.unlocked && !stripeReady) {
+        toast.error("Stripe checkout is not configured on this hive.", {
+          description: "Ask an admin to set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET, then redeploy backend.",
+        });
+        return;
+      }
       if (recipe.premium && !recipe.unlocked) {
         void purchaseRecipe(recipe);
         return;
       }
       void exportRecipe(recipe);
     },
-    [exportRecipe, purchaseRecipe],
+    [exportRecipe, purchaseRecipe, stripeReady],
   );
 
   const copyInstall = useCallback(async () => {
@@ -166,8 +175,18 @@ export function SkillsMarketplacePanel({
 
       {unlocks ? (
         <p className="text-xs text-(--qs-text-3)">
-          Stripe checkout: {unlocks.stripe_checkout_ready ? "ready" : "not configured"} · default premium €
+          Stripe checkout: {stripeReady ? "ready" : "not configured"} · default premium €
           {(unlocks.premium_price_eur_cents_default / 100).toFixed(2)}
+        </p>
+      ) : null}
+
+      {!stripeReady && hasLockedPremium ? (
+        <p
+          className="rounded-xl border border-pollen/35 bg-pollen/10 px-4 py-3 text-sm text-pollen"
+          role="status"
+        >
+          Premium skill purchases need Stripe on the server. Free exports and Pro-tier unlocks still work once
+          configured — set <span className="font-mono text-xs">STRIPE_SECRET_KEY</span> in production env.
         </p>
       ) : null}
 
@@ -244,8 +263,22 @@ export function SkillsMarketplacePanel({
               ) : null}
               <button
                 type="button"
-                className={cn("qs-btn qs-btn--primary qs-btn--sm w-fit")}
-                disabled={exportBusyId === recipe.id || checkoutBusyId === recipe.id}
+                className={cn(
+                  "qs-btn qs-btn--sm w-fit",
+                  recipe.premium && !recipe.unlocked && !stripeReady
+                    ? "qs-btn--ghost opacity-70"
+                    : "qs-btn--primary",
+                )}
+                disabled={
+                  exportBusyId === recipe.id ||
+                  checkoutBusyId === recipe.id ||
+                  (recipe.premium && !recipe.unlocked && !stripeReady)
+                }
+                title={
+                  recipe.premium && !recipe.unlocked && !stripeReady
+                    ? "Stripe checkout not configured on server"
+                    : undefined
+                }
                 onClick={() => handleRecipeAction(recipe)}
               >
                 {exportBusyId === recipe.id || checkoutBusyId === recipe.id ? (
@@ -255,7 +288,11 @@ export function SkillsMarketplacePanel({
                 ) : (
                   <DownloadIcon className="h-3.5 w-3.5" aria-hidden />
                 )}
-                {recipe.premium && !recipe.unlocked ? "Unlock & export" : "Export skill"}
+                {recipe.premium && !recipe.unlocked
+                  ? stripeReady
+                    ? "Unlock & export"
+                    : "Checkout unavailable"
+                  : "Export skill"}
               </button>
             </article>
           ))}

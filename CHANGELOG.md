@@ -6,6 +6,8 @@
 - **docs:** publish `docs/STANDARD_FOR_FEATURE_DOCUMENTATION.md` (InfoHint + SK/EN manual baseline).
 - **docs:** extend `AUDIT_REPORT.md` with Phase 14.1–14.2 closure evidence.
 - **ops:** document Phase 14 feature flags + Stripe placeholders in `.env.prod.example`.
+- **ux:** skills marketplace shows clear banner + disabled checkout when Stripe is not configured (no silent 503).
+- **ops:** add `scripts/stripe-prod-setup.sh` for production Stripe webhook checklist.
 
 ## Responsive rollout — mobile/tablet shell + PWA (2026-05-19)
 

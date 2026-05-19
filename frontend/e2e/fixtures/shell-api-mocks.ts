@@ -94,6 +94,39 @@ const STUB_BILLING_PLANS = {
   ],
 };
 
+const STUB_SKILLS_CATALOG = {
+  builtin: [
+    {
+      slug: "grill-me",
+      title: "Grill me",
+      version: "1.0.0",
+      keywords: ["review", "critique"],
+    },
+  ],
+  recipes: [
+    {
+      id: "r1111111-1111-4111-8111-111111111111",
+      name: "Verified workflow export",
+      slug: "verified-workflow-export",
+      description: "Stub premium recipe for shell E2E.",
+      verified_at: new Date().toISOString(),
+      topic_tags: ["premium"],
+      success_rate: 0.92,
+      avg_pollen_earned: 8,
+      kind: "recipe",
+      premium: true,
+      price_eur_cents: 1900,
+      unlocked: false,
+    },
+  ],
+};
+
+const STUB_SKILL_UNLOCKS = {
+  stripe_checkout_ready: false,
+  unlocked_recipe_ids: [] as string[],
+  premium_price_eur_cents_default: 1900,
+};
+
 const STUB_PREVIEW_DECOMPOSITION = {
   steps: [
     {
@@ -214,6 +247,29 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         contentType: "application/json",
         body: JSON.stringify(STUB_BILLING_PLANS),
       });
+      return;
+    }
+
+    if (path.startsWith("recipes/skills-catalog")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_SKILLS_CATALOG),
+      });
+      return;
+    }
+
+    if (path.startsWith("recipes/skills/unlocks")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_SKILL_UNLOCKS),
+      });
+      return;
+    }
+
+    if (path.startsWith("learning/verified-pollen-leaderboard")) {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ rows: [] }) });
       return;
     }
 

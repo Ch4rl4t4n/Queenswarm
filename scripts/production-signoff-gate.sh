@@ -93,31 +93,15 @@ done
 
 echo
 echo "[6/6] Stripe + Phase 14 feature readiness"
-stripe_secret=""
-stripe_webhook=""
-skill_export=""
-if [[ -f "$ENV_FILE" ]]; then
-  stripe_secret="$(load_kv "$ENV_FILE" STRIPE_SECRET_KEY || true)"
-  stripe_webhook="$(load_kv "$ENV_FILE" STRIPE_WEBHOOK_SECRET || true)"
-  skill_export="$(load_kv "$ENV_FILE" SKILL_EXPORT_PREMIUM_ENABLED || true)"
-fi
-
-if [[ "${skill_export,,}" == "true" ]]; then
-  if [[ -z "${stripe_secret// }" || -z "${stripe_webhook// }" ]]; then
-    echo "  WARN skill marketplace enabled but Stripe keys missing in ${ENV_FILE}"
-    echo "        Add STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET, then:"
-    echo "        ./scripts/stripe-webhook-dev.sh  (local) or Stripe Dashboard → prod webhook"
+if [[ -x "${ROOT}/scripts/stripe-prod-setup.sh" ]]; then
+  ./scripts/stripe-prod-setup.sh || {
     if [[ "$STRICT_STRIPE" == "1" ]]; then
       exit 1
     fi
-  else
-    echo "  OK Stripe keys present (skill checkout ready)"
-  fi
-else
-  echo "  INFO SKILL_EXPORT_PREMIUM_ENABLED not true — Stripe optional"
+  }
 fi
 
-for flag in PAPER_TRADING_ENABLED PENDING_REVIEW_ENABLED RECIPES_ENABLED; do
+for flag in PAPER_TRADING_ENABLED PENDING_REVIEW_ENABLED RECIPES_ENABLED SKILL_EXPORT_PREMIUM_ENABLED; do
   val="$(load_kv "$ENV_FILE" "$flag" 2>/dev/null || echo "unset")"
   echo "  ${flag}=${val:-unset}"
 done
