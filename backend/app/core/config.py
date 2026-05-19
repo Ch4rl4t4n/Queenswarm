@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     grok_api_key: str = Field(default="", description="Primary LLM routing key (Grok / xAI); empty skips paid calls.")
     anthropic_api_key: str = Field(default="", description="Fallback Claude key via LiteLLM; empty skips that route.")
     openai_api_key: str | None = Field(default=None, description="Optional cheap-route key.")
+    deepgram_api_key: str | None = Field(
+        default=None,
+        description="Optional Deepgram API key for Ballroom STT when provider=deepgram.",
+    )
     xai_openai_compatible_base: str = Field(
         default="https://api.x.ai/v1",
         description="Chat Completions-compatible base URL for routing ``xai/`` LiteLLM slugs.",
