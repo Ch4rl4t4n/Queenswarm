@@ -1,5 +1,12 @@
 # Queenswarm Changelog
 
+## Production sign-off gate + Phase 14 env baseline (2026-05-19)
+
+- **ops:** add `scripts/production-signoff-gate.sh` — orchestrates validate-prod-env, core-reliability, backend pytest, responsive/PWA E2E (prod or local), edge smoke, Stripe readiness check.
+- **docs:** publish `docs/STANDARD_FOR_FEATURE_DOCUMENTATION.md` (InfoHint + SK/EN manual baseline).
+- **docs:** extend `AUDIT_REPORT.md` with Phase 14.1–14.2 closure evidence.
+- **ops:** document Phase 14 feature flags + Stripe placeholders in `.env.prod.example`.
+
 ## Responsive rollout — mobile/tablet shell + PWA (2026-05-19)
 
 - **bee:** shell-first responsive UI for all cockpit routes — mobile drawer, bottom nav, mobile header, FAB; tablet polish; desktop ≥1024px unchanged (sidebar only, no duplicated top bar).
