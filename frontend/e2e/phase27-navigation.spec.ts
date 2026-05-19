@@ -9,7 +9,7 @@ test.describe("Phase 2.7 navigation smoke", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/login", { waitUntil: "load", timeout: 45_000 });
     await expect(page.getByRole("button", { name: /continue/i })).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText(/Welcome back/i)).toBeVisible();
+    await expect(page.getByText(/nectar key/i)).toBeVisible();
   });
 
   test("protected hive routes redirect unauthenticated users to login", async ({ page }) => {

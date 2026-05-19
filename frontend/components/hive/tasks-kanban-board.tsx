@@ -101,7 +101,7 @@ export function TasksKanbanBoard({ tasks, onOpenTask }: TasksKanbanBoardProps): 
     <div className="space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap gap-2 font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
-          <span className="rounded-full border border-cyan/[0.12] px-3 py-1">
+          <span className="rounded-full border border-[color:var(--qs-border)] px-3 py-1">
             Hive Kanban · {filtered.length}/{tasks.length} visible
           </span>
         </div>
@@ -111,13 +111,13 @@ export function TasksKanbanBoard({ tasks, onOpenTask }: TasksKanbanBoardProps): 
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search title / type / bee…"
-            className="min-w-0 flex-1 rounded-xl border border-cyan/[0.15] bg-black/45 px-4 py-2 font-[family-name:var(--font-poppins)] text-sm text-[#fafafa] placeholder:text-zinc-500 focus:border-pollen/35 focus:outline-none"
+            className="min-w-0 flex-1 rounded-xl border border-[color:var(--qs-border)] bg-black/45 px-4 py-2 font-[family-name:var(--font-poppins)] text-sm text-[#fafafa] placeholder:text-zinc-500 focus:border-pollen/35 focus:outline-none"
           />
           <input
             value={swarmNeedle}
             onChange={(e) => setSwarmNeedle(e.target.value)}
             placeholder="Filter swarm UUID fragment…"
-            className="min-w-[200px] rounded-xl border border-cyan/[0.15] bg-black/45 px-4 py-2 font-[family-name:var(--font-poppins)] text-sm text-[#fafafa] placeholder:text-zinc-500 focus:border-pollen/35 focus:outline-none"
+            className="min-w-[200px] rounded-xl border border-[color:var(--qs-border)] bg-black/45 px-4 py-2 font-[family-name:var(--font-poppins)] text-sm text-[#fafafa] placeholder:text-zinc-500 focus:border-pollen/35 focus:outline-none"
           />
         </div>
         <NeonTasksNew />
@@ -157,7 +157,7 @@ export function TasksKanbanBoard({ tasks, onOpenTask }: TasksKanbanBoardProps): 
                         onClick={() => onOpenTask?.(String(t.id))}
                         disabled={!onOpenTask}
                         className={cn(
-                          "w-full rounded-xl border border-cyan/[0.08] bg-black/35 p-3 text-left transition hover:border-pollen/30",
+                          "w-full rounded-xl border border-[color:var(--qs-border-2)]/[0.08] bg-black/35 p-3 text-left transition hover:border-pollen/30",
                           onOpenTask ? "cursor-pointer" : "opacity-95",
                         )}
                       >

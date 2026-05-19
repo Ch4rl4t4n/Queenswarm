@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { HivePageHeader } from "@/components/hive/hive-page-header";
 import { HexNumberBadge } from "@/components/hive/hex-metric-tile";
+import { V4PageCanvas } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
 import type { AgentRow, RecipeRow, SubSwarmRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
@@ -71,22 +72,16 @@ export function LeaderboardPageClient() {
   ];
 
   return (
-    <div className="space-y-10">
+    <V4PageCanvas className="gap-8">
       <HivePageHeader title="Leaderboard" subtitle="Pollen-first bees · colony pollen totals · recipe win counts — live sorts." />
 
-      <nav
-        aria-label="Leaderboard scope"
-        className="-mt-6 flex w-full gap-2 overflow-x-auto hive-scrollbar rounded-xl border border-cyan/[0.1] bg-black/35 p-2 font-[family-name:var(--font-poppins)] text-sm md:w-fit sticky top-[calc(4rem+env(safe-area-inset-top))] z-10 lg:static lg:z-auto lg:bg-transparent lg:border-0 lg:p-0"
-      >
+      <nav aria-label="Leaderboard scope" className="v4-subtab-row w-full max-w-full">
         {tabs.map(({ id, label }) => (
           <button
             key={id}
             type="button"
             onClick={() => setTab(id)}
-            className={cn(
-              "qs-pill min-h-[42px] shrink-0 px-5 touch-manipulation transition",
-              tab === id ? "qs-pill--active-amber" : "",
-            )}
+            className={cn("v4-subtab min-h-[42px] touch-manipulation", tab === id && "v4-subtab--active")}
           >
             {label}
           </button>
@@ -97,9 +92,9 @@ export function LeaderboardPageClient() {
         <p className="rounded-xl border border-danger/35 bg-black/45 px-4 py-3 font-[family-name:var(--font-poppins)] text-sm text-danger">{err}</p>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <section className="rounded-3xl border border-cyan/[0.1] bg-hive-card/95 p-6">
-          <div className="flex justify-between gap-4 border-b border-cyan/[0.08] pb-4 font-[family-name:var(--font-poppins)]">
+      <div className="v4-leaderboard-layout grid gap-6">
+        <section className="v4-leaderboard-panel rounded-3xl border border-[color:var(--qs-border)] bg-hive-card/95 p-4 md:p-6">
+          <div className="flex justify-between gap-4 border-b border-[color:var(--qs-border-2)]/[0.08] pb-4 font-[family-name:var(--font-poppins)]">
             <h2 className="font-[family-name:var(--font-poppins)] text-lg text-[#fafafa]">
               {tab === "agents" ? "Top bees" : tab === "swarms" ? "Top colonies" : "Top recipes"}
             </h2>
@@ -160,7 +155,7 @@ export function LeaderboardPageClient() {
                     <p className="truncate font-semibold text-[#fafafa]">{swarm.name}</p>
                     <p className="truncate text-xs uppercase tracking-[0.14em] text-zinc-500">{swarm.purpose}</p>
                   </div>
-                  <span className="inline-flex shrink-0 rounded-full border border-cyan/30 bg-black/45 px-2 py-1 font-mono text-xs text-cyan">
+                  <span className="inline-flex shrink-0 rounded-full border border-[color:var(--qs-border-2)] bg-black/45 px-2 py-1 font-mono text-xs text-cyan">
                     {Math.round(swarm.total_pollen)}
                   </span>
                 </li>
@@ -199,8 +194,8 @@ export function LeaderboardPageClient() {
           ) : null}
         </section>
 
-        <section className="rounded-3xl border border-cyan/[0.1] bg-hive-card/95 p-6 xl:block">
-          <div className="border-b border-cyan/[0.08] pb-4 font-[family-name:var(--font-poppins)]">
+        <section className="v4-leaderboard-panel rounded-3xl border border-[color:var(--qs-border)] bg-hive-card/95 p-4 md:p-6">
+          <div className="border-b border-[color:var(--qs-border-2)]/[0.08] pb-4 font-[family-name:var(--font-poppins)]">
             <h2 className="text-lg text-[#fafafa]">Hive prestige notes</h2>
             <p className="mt-2 text-xs text-muted-foreground">
               Desktop column highlights interpretability — mobile stacks below the ranking list for minimal horizontal scrolling.
@@ -213,6 +208,6 @@ export function LeaderboardPageClient() {
           </ul>
         </section>
       </div>
-    </div>
+    </V4PageCanvas>
   );
 }

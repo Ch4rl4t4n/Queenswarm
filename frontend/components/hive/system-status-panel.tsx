@@ -2,12 +2,16 @@
 
 import useSWR from "swr";
 
+import { V4Card, V4CardHeader } from "@/components/ui/v4";
 import { hiveGet } from "@/lib/api";
 import { COCKPIT_POLL_SYSTEM_STATUS_MS } from "@/lib/cockpit-poll-profile";
 
 export interface HiveSystemHealth {
   redis_ok: boolean;
   celery_ok: boolean;
+  celery_workers_up?: number;
+  celery_active_tasks?: number;
+  celery_reserved_tasks?: number;
   db_ok: boolean;
   llm_ok: boolean;
   host_cpu_percent: number;
@@ -32,19 +36,19 @@ export function SystemStatusPanel(): JSX.Element {
 
   if (error) {
     return (
-      <section className="mt-8 rounded-2xl border border-danger/35 bg-black/40 p-5">
-        <p className="font-[family-name:var(--font-poppins)] text-sm text-danger">
+      <V4Card className="border-(--qs-red)/35">
+        <p className="text-sm text-(--qs-red)">
           System probe failed — retry after logging into the hive proxy.
         </p>
-      </section>
+      </V4Card>
     );
   }
 
   if (!data) {
     return (
-      <section className="mt-8 animate-pulse rounded-2xl border border-cyan/[0.08] bg-hive-card/80 p-5">
-        <p className="font-[family-name:var(--font-poppins)] text-xs text-muted-foreground">Fetching swarm diagnostics…</p>
-      </section>
+      <V4Card className="animate-pulse">
+        <p className="text-xs text-(--qs-text-3)">Fetching swarm diagnostics…</p>
+      </V4Card>
     );
   }
 
@@ -56,24 +60,24 @@ export function SystemStatusPanel(): JSX.Element {
   ];
 
   return (
-    <section className="mt-10 rounded-[22px] qs-rim bg-hive-card/95 p-6 shadow-[inset_0_0_0_1px_rgb(255_184_0/0.08)]">
-      <h3 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-pollen">
-        🔧 System status
-      </h3>
-      <p className="mt-1 font-[family-name:var(--font-poppins)] text-sm text-muted-foreground">
-        Live infra snapshot for swarm operators — adaptive polling via cookie JWT.
-      </p>
+    <V4Card glow>
+      <V4CardHeader
+        as="h3"
+        title="System status"
+        description="Live infra snapshot for swarm operators — adaptive polling via cookie JWT."
+      />
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         {rows.map((row) => (
-          <div key={row.label} className="flex items-center gap-3 rounded-xl border border-cyan/[0.08] bg-black/35 px-4 py-3">
+          <div
+            key={row.label}
+            className="flex items-center gap-3 rounded-xl border border-(--qs-border) bg-black/35 px-4 py-3"
+          >
             <span
-              className={`h-2.5 w-2.5 shrink-0 rounded-full ${row.ok ? "bg-success shadow-[0_0_12px_rgb(0_255_136/0.65)]" : "animate-pulse bg-danger"}`}
+              className={`h-2.5 w-2.5 shrink-0 rounded-full ${row.ok ? "bg-(--qs-green) shadow-[0_0_12px_rgb(0_255_136/0.65)]" : "animate-pulse bg-(--qs-red)"}`}
             />
             <div className="flex flex-col">
-              <span className={`text-sm ${row.ok ? "text-[#fafafa]" : "text-danger"} font-[family-name:var(--font-poppins)]`}>
-                {row.label}
-              </span>
-              <span className="font-[family-name:var(--font-poppins)] text-[11px] text-zinc-500">
+              <span className={`text-sm ${row.ok ? "text-(--qs-text)" : "text-(--qs-red)"}`}>{row.label}</span>
+              <span className="text-[11px] text-(--qs-text-3)">
                 {row.ok ? "nominal · rapid loop draining" : "check docker logs / celery queue"}
               </span>
             </div>
@@ -85,47 +89,53 @@ export function SystemStatusPanel(): JSX.Element {
         <MetricChip label="RAM" value={`${data.host_memory_percent.toFixed(1)}%`} />
         <MetricChip label="Disk" value={`${data.host_disk_percent.toFixed(1)}%`} />
       </div>
-      <p className="mt-4 font-[family-name:var(--font-poppins)] text-xs text-zinc-400">
-        LLM slots {data.llm_in_flight}/{data.llm_concurrency_limit} · simulations {data.simulation_in_flight}/
-        {data.simulation_concurrency_limit}
+      <p className="mt-4 text-xs text-(--qs-text-3)">
+        Celery {data.celery_workers_up ?? 0} workers · active {data.celery_active_tasks ?? 0} · reserved{" "}
+        {data.celery_reserved_tasks ?? 0} · LLM slots {data.llm_in_flight}/{data.llm_concurrency_limit} · simulations{" "}
+        {data.simulation_in_flight}/{data.simulation_concurrency_limit}
       </p>
       {data.simulation_enabled && (data.simulation_tasks_running > 0 || data.simulation_tasks_pending > 0) ? (
-        <div className="mt-4 rounded-xl border border-amber-300/25 bg-amber-300/10 p-3 text-xs text-amber-200">
+        <div className="mt-4 rounded-xl border border-(--qs-gold)/25 bg-(--qs-gold)/10 p-3 text-xs text-(--qs-gold)">
           Simulations pressure: running {data.simulation_tasks_running}, queued {data.simulation_tasks_pending}.
           {data.simulation_tasks_pending > 2 ? " Queue is high — consider temporary throttle." : ""}
         </div>
       ) : null}
       {data.resource_pressure ? (
-        <div className="mt-3 rounded-xl border border-danger/30 bg-danger/10 p-3 text-xs text-danger">
+        <div className="mt-3 rounded-xl border border-(--qs-red)/30 bg-(--qs-red)/10 p-3 text-xs text-(--qs-red)">
           Host resource pressure detected ({data.resource_pressure_reason || "system_high"}). Reduce concurrent workload before
           launching more simulations.
         </div>
       ) : null}
       {!data.llm_ok ? (
-        <div className="mt-5 rounded-xl border border-danger/25 bg-danger/10 p-4 font-[family-name:var(--font-poppins)] text-xs text-danger">
+        <div className="mt-5 rounded-xl border border-(--qs-red)/25 bg-(--qs-red)/10 p-4 text-xs text-(--qs-red)">
           LLM routing disabled · add{" "}
-          <code className="text-[11px] text-data">GROK_API_KEY</code>,{" "}
-          <code className="text-[11px] text-data">ANTHROPIC_API_KEY</code>, or{" "}
-          <code className="text-[11px] text-data">OPENAI_API_KEY</code>{" "}
-          to <span className="text-pollen">.env</span> and recycle <span className="text-pollen">celery-worker</span>. Bees still serialize tool
-          rails without paid inference.
-          <span className="mt-3 block font-[family-name:var(--font-poppins)] text-[11px] text-muted-foreground">
+          <code className="text-[11px] text-(--qs-cyan)">GROK_API_KEY</code>,{" "}
+          <code className="text-[11px] text-(--qs-cyan)">ANTHROPIC_API_KEY</code>, or{" "}
+          <code className="text-[11px] text-(--qs-cyan)">OPENAI_API_KEY</code> to{" "}
+          <span className="text-(--qs-gold)">.env</span> and recycle <span className="text-(--qs-gold)">celery-worker</span>. Bees still
+          serialize tool rails without paid inference.
+          <span className="mt-3 block text-[11px] text-(--qs-text-3)">
             Console:{" "}
-            <a href="https://console.x.ai" target="_blank" rel="noopener noreferrer" className="text-data underline-offset-4 hover:underline">
+            <a
+              href="https://console.x.ai"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-(--qs-cyan) underline-offset-4 hover:underline"
+            >
               https://console.x.ai
             </a>
           </span>
         </div>
       ) : null}
-    </section>
+    </V4Card>
   );
 }
 
 function MetricChip({ label, value }: { label: string; value: string }): JSX.Element {
   return (
-    <div className="rounded-lg border border-cyan/[0.12] bg-black/35 px-3 py-2">
-      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-zinc-500">{label}</p>
-      <p className="mt-1 font-[family-name:var(--font-poppins)] text-sm text-[#fafafa]">{value}</p>
+    <div className="rounded-lg border border-(--qs-border) bg-black/35 px-3 py-2">
+      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-(--qs-text-3)">{label}</p>
+      <p className="mt-1 text-sm text-(--qs-text)">{value}</p>
     </div>
   );
 }

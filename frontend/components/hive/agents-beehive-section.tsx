@@ -6,7 +6,6 @@ import { useMemo, useState } from "react";
 import type { AgentRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 import { AgentHexCard } from "@/components/hive/agent-hex-card";
-import { NeonButton } from "@/components/ui/neon-button";
 
 type AgentFilterTab = "all" | "busy" | "simulate";
 
@@ -35,13 +34,13 @@ export function AgentsBeehiveSection({ agents }: AgentsBeehiveSectionProps) {
       "shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 font-[family-name:var(--font-poppins)] text-xs font-semibold uppercase tracking-[0.12em]",
       active
         ? "bg-pollen text-black shadow-[0_0_18px_rgb(255_184_0/0.35)]"
-        : "border border-cyan/[0.15] text-zinc-400 hover:border-pollen/30 hover:text-pollen",
+        : "border border-[color:var(--qs-border)] text-zinc-400 hover:border-[color:var(--qs-border-2)] hover:text-pollen",
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-3 overflow-x-auto border-b border-cyan/[0.1] pb-4 hive-scrollbar sm:flex-wrap sm:gap-6">
+      <div className="flex gap-3 overflow-x-auto border-b border-[color:var(--qs-border)] pb-4 hive-scrollbar sm:flex-wrap sm:gap-6">
         {(
           [
             ["all", "All scouts"],
@@ -57,12 +56,12 @@ export function AgentsBeehiveSection({ agents }: AgentsBeehiveSectionProps) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div />
         <div className="flex flex-wrap gap-2">
-          <NeonButton variant="ghost" asChild className="text-xs uppercase">
-            <Link href="/simulations">Open simulation</Link>
-          </NeonButton>
-          <NeonButton variant="primary" asChild className="text-xs uppercase">
-            <Link href="/agents">+ Invite agent</Link>
-          </NeonButton>
+          <Link href="/simulations" className="qs-btn qs-btn--ghost qs-btn--sm text-xs uppercase">
+            Open simulation
+          </Link>
+          <Link href="/agents" className="qs-btn qs-btn--primary qs-btn--sm text-xs uppercase">
+            + Invite agent
+          </Link>
         </div>
       </div>
 

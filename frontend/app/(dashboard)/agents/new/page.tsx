@@ -1,71 +1,12 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
+import { HiveApiError, hiveDelete, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { InfoHint } from "@/components/hive/info-hint";
-
-const AGENT_TEMPLATES = [
-  {
-    id: "crypto_scout",
-    label: "Crypto Scout",
-    emoji: "📊",
-    color: "#00E5FF",
-    system_prompt:
-      "You are a crypto market intelligence agent. Monitor token prices, sentiment, news, and on-chain signals. Provide data-backed analysis with explicit confidence scores.",
-    user_prompt:
-      "Analyze current market conditions. Provide: 1) Price & 24h change 2) Sentiment (bull/bear/neutral with %) 3) Top 3 signals 4) Recommendation with reasoning.",
-    tools: ["web_search", "coingecko"],
-    output_format: "markdown",
-  },
-  {
-    id: "blog_writer",
-    label: "Blog Writer",
-    emoji: "✍️",
-    color: "#00FF88",
-    system_prompt:
-      "You are an SEO content writer. Produce engaging, optimized posts with meta description, headings, and CTA.",
-    user_prompt:
-      "Write a ~500-word SEO blog on the topic. Include title, meta description, 3 H2 sections, conclusion, and CTA.",
-    tools: ["web_search", "wikipedia"],
-    output_format: "markdown",
-  },
-  {
-    id: "instagram_manager",
-    label: "Instagram Manager",
-    emoji: "📸",
-    color: "#FF00AA",
-    system_prompt: "You are a social strategist for Instagram. Produce scroll-stopping captions and hashtag sets.",
-    user_prompt:
-      "Create 3 post variations: caption (≤150 chars), 10 hashtags, emojis, CTA.",
-    tools: ["web_search"],
-    output_format: "text",
-  },
-  {
-    id: "news_digest",
-    label: "News Digest",
-    emoji: "📰",
-    color: "#FFB800",
-    system_prompt: "You curate news into concise, cited briefings.",
-    user_prompt:
-      "Summarize the top five signals from configured feeds — headline, 2-sentence summary, why it matters, impact score 1–10.",
-    tools: ["rss", "web_search"],
-    output_format: "markdown",
-  },
-  {
-    id: "custom",
-    label: "Custom Agent",
-    emoji: "🐝",
-    color: "#FFB800",
-    system_prompt: "",
-    user_prompt: "",
-    tools: [],
-    output_format: "text",
-  },
-] as const;
 
 const ALL_TOOLS = [
   { id: "web_search", label: "Web Search", desc: "Search index (DuckDuckGo-style)" },
@@ -75,6 +16,8 @@ const ALL_TOOLS = [
   { id: "scrape_url", label: "Scrape URL", desc: "Fetched pages" },
   { id: "wikipedia", label: "Wikipedia", desc: "Article summaries" },
 ] as const;
+
+const EMOJI_OPTIONS = ["🐝", "📊", "✍️", "📸", "📰", "🧠", "⚡", "🔍", "🧩", "🚀", "🎯", "🛠️"] as const;
 
 const OUTPUT_FORMATS = [
   { id: "text", label: "Plain text" },
@@ -108,6 +51,206 @@ interface DynamicCreateResponse {
   config_id: string;
 }
 
+interface AgentTemplate {
+  id: string;
+  tenant_id: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: string;
+  tools: string[];
+  prompt_template: string;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface TeamOverviewResponse {
+  tenant_role: string;
+}
+
+interface TemplateFormValue {
+  name: string;
+  description: string;
+  icon: string;
+  category: string;
+  tools: string[];
+  prompt_template: string;
+  is_default: boolean;
+}
+
+interface TemplateModalProps {
+  open: boolean;
+  mode: "create" | "edit";
+  value: TemplateFormValue;
+  isAdmin: boolean;
+  saving: boolean;
+  onClose: () => void;
+  onChange: (next: TemplateFormValue) => void;
+  onSubmit: () => Promise<void>;
+}
+
+function createEmptyTemplateForm(): TemplateFormValue {
+  return {
+    name: "",
+    description: "",
+    icon: "🐝",
+    category: "general",
+    tools: [],
+    prompt_template: "",
+    is_default: false,
+  };
+}
+
+function TemplateEditorModal({
+  open,
+  mode,
+  value,
+  isAdmin,
+  saving,
+  onClose,
+  onChange,
+  onSubmit,
+}: TemplateModalProps) {
+  if (!open) return null;
+  const title = mode === "create" ? "Create template" : "Edit template";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4" onClick={onClose} role="presentation">
+      <div
+        role="dialog"
+        aria-label={title}
+        className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-cyan/30 bg-[#070d16] p-5 shadow-[0_0_40px_rgba(0,255,255,0.12)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-[#fafafa]">{title}</h2>
+          <button type="button" onClick={onClose} className="rounded-lg border border-white/15 px-3 py-1.5 text-xs text-zinc-300 hover:border-white/30">
+            Close
+          </button>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <section className="space-y-3 rounded-xl border border-white/10 bg-black/25 p-3">
+            <label className="qs-label">Názov</label>
+            <input
+              value={value.name}
+              onChange={(event) => onChange({ ...value, name: event.target.value })}
+              className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-pollen/50"
+              placeholder="Crypto Scout"
+            />
+
+            <label className="qs-label">Popis</label>
+            <textarea
+              rows={4}
+              value={value.description}
+              onChange={(event) => onChange({ ...value, description: event.target.value })}
+              className="w-full resize-y rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-pollen/50"
+              placeholder="What this template is optimized for..."
+            />
+
+            <label className="qs-label">Kategória</label>
+            <input
+              value={value.category}
+              onChange={(event) => onChange({ ...value, category: event.target.value })}
+              className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-pollen/50"
+              placeholder="research"
+            />
+          </section>
+
+          <section className="space-y-3 rounded-xl border border-white/10 bg-black/25 p-3">
+            <label className="qs-label">Ikona (emoji picker)</label>
+            <div className="grid grid-cols-6 gap-2">
+              {EMOJI_OPTIONS.map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => onChange({ ...value, icon: emoji })}
+                  className={cn(
+                    "rounded-lg border px-2 py-2 text-xl transition",
+                    value.icon === emoji
+                      ? "border-pollen/60 bg-pollen/12"
+                      : "border-white/10 bg-black/35 hover:border-white/25",
+                  )}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+
+            <label className="qs-label">Tools (multi-select)</label>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {ALL_TOOLS.map((tool) => {
+                const selected = value.tools.includes(tool.id);
+                return (
+                  <button
+                    key={tool.id}
+                    type="button"
+                    onClick={() =>
+                      onChange({
+                        ...value,
+                        tools: selected ? value.tools.filter((item) => item !== tool.id) : [...value.tools, tool.id],
+                      })
+                    }
+                    className={cn(
+                      "rounded-lg border px-3 py-2 text-left text-xs transition",
+                      selected
+                        ? "border-cyan/60 bg-cyan/[0.10] text-cyan"
+                        : "border-white/10 bg-black/35 text-zinc-400 hover:border-white/25",
+                    )}
+                  >
+                    <div className="font-semibold">{tool.label}</div>
+                    <div className="mt-0.5 text-[10px] text-zinc-500">{tool.desc}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        </div>
+
+        <section className="mt-4 space-y-2 rounded-xl border border-white/10 bg-black/25 p-3">
+          <label className="qs-label">Prompt template</label>
+          <textarea
+            rows={6}
+            value={value.prompt_template}
+            onChange={(event) => onChange({ ...value, prompt_template: event.target.value })}
+            className="w-full resize-y rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-cyan/50"
+            placeholder="You are a ..."
+          />
+        </section>
+
+        <section className="mt-4 rounded-xl border border-white/10 bg-black/25 p-3">
+          <label className="inline-flex items-center gap-2 text-sm text-zinc-200">
+            <input
+              type="checkbox"
+              checked={value.is_default}
+              disabled={!isAdmin}
+              onChange={(event) => onChange({ ...value, is_default: event.target.checked })}
+              className="h-4 w-4 rounded border border-white/20 bg-black/40"
+            />
+            Is default checkbox
+          </label>
+          {!isAdmin ? <p className="mt-1 text-xs text-zinc-500">Only admin can mark template as default.</p> : null}
+        </section>
+
+        <div className="mt-5 flex items-center justify-end gap-3">
+          <button type="button" onClick={onClose} className="qs-btn qs-btn--ghost qs-btn--sm">
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={saving || !value.name.trim()}
+            onClick={() => void onSubmit()}
+            className="rounded-lg border border-pollen bg-pollen px-4 py-2 text-sm font-semibold text-black shadow-[0_0_18px_rgb(255_184_0/0.30)] disabled:opacity-45"
+          >
+            {saving ? "Saving…" : mode === "create" ? "Create template" : "Save changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function swarmDisplayRole(sw: Pick<SwarmLite, "local_memory" | "purpose">): string {
   const lm = sw.local_memory ?? {};
   const hi = (lm.hive_ui as Record<string, unknown> | undefined) ?? {};
@@ -132,11 +275,23 @@ function NewAgentWizardInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [step, setStep] = useState<"template" | "configure">("template");
-  const [selectedTemplate, setSelectedTemplate] = useState<(typeof AGENT_TEMPLATES)[number] | null>(null);
+  const [templates, setTemplates] = useState<AgentTemplate[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<AgentTemplate | null>(null);
+  const [loadingTemplates, setLoadingTemplates] = useState(true);
+  const [templateError, setTemplateError] = useState<string | null>(null);
+  const [tenantRole, setTenantRole] = useState("guest");
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  const [templateModalMode, setTemplateModalMode] = useState<"create" | "edit">("create");
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+  const [templateForm, setTemplateForm] = useState<TemplateFormValue>(createEmptyTemplateForm());
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
   const [swarms, setSwarms] = useState<SwarmLite[]>([]);
   const [saving, setSaving] = useState(false);
 
   const swarmParam = searchParams.get("swarm_id") ?? "";
+  const canManageTemplates = tenantRole === "owner" || tenantRole === "admin";
+  const isAdmin = tenantRole === "admin";
 
   const [config, setConfig] = useState({
     name: "",
@@ -150,30 +305,63 @@ function NewAgentWizardInner() {
     output_config: {} as Record<string, string>,
   });
 
+  const templatesByCategory = useMemo(() => {
+    const grouped = new Map<string, AgentTemplate[]>();
+    templates.forEach((template) => {
+      const key = template.category.trim() || "general";
+      const list = grouped.get(key) ?? [];
+      list.push(template);
+      grouped.set(key, list);
+    });
+    return Array.from(grouped.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [templates]);
+
   useEffect(() => {
-    if (swarmParam) {
-      setConfig((c) => ({ ...c, swarm_id: swarmParam }));
+    void hiveGet<TeamOverviewResponse>("settings/team")
+      .then((overview) => setTenantRole(String(overview.tenant_role || "guest")))
+      .catch(() => setTenantRole("guest"));
+  }, []);
+
+  async function refreshTemplates() {
+    setLoadingTemplates(true);
+    setTemplateError(null);
+    try {
+      const rows = await hiveGet<AgentTemplate[]>("agent-templates");
+      setTemplates(rows);
+    } catch (error) {
+      const msg = error instanceof HiveApiError ? error.message : error instanceof Error ? error.message : "Failed to load templates";
+      setTemplateError(msg);
+    } finally {
+      setLoadingTemplates(false);
     }
+  }
+
+  useEffect(() => {
+    void refreshTemplates();
+  }, []);
+
+  useEffect(() => {
+    if (swarmParam) setConfig((prev) => ({ ...prev, swarm_id: swarmParam }));
   }, [swarmParam]);
 
   useEffect(() => {
     void hiveGet<unknown>("swarms?limit=200")
-      .then((d) => {
-        const rows = Array.isArray(d)
-          ? d
-          : Array.isArray((d as { items?: unknown }).items)
-            ? (d as { items: unknown[] }).items
-            : Array.isArray((d as { swarms?: unknown }).swarms)
-              ? (d as { swarms: unknown[] }).swarms
+      .then((data) => {
+        const rows = Array.isArray(data)
+          ? data
+          : Array.isArray((data as { items?: unknown }).items)
+            ? (data as { items: unknown[] }).items
+            : Array.isArray((data as { swarms?: unknown }).swarms)
+              ? (data as { swarms: unknown[] }).swarms
               : [];
         setSwarms(
           rows
-            .filter((r): r is SwarmLite => typeof r === "object" && r !== null && "id" in r && "name" in r)
-            .map((r) => ({
-              ...r,
+            .filter((item): item is SwarmLite => typeof item === "object" && item !== null && "id" in item && "name" in item)
+            .map((item) => ({
+              ...item,
               local_memory:
-                r.local_memory && typeof r.local_memory === "object"
-                  ? (r.local_memory as Record<string, unknown>)
+                item.local_memory && typeof item.local_memory === "object"
+                  ? (item.local_memory as Record<string, unknown>)
                   : undefined,
             })),
         );
@@ -181,109 +369,276 @@ function NewAgentWizardInner() {
       .catch(() => {});
   }, []);
 
-  function pickTemplate(tmpl: (typeof AGENT_TEMPLATES)[number]) {
-    setSelectedTemplate(tmpl);
-    setConfig((c) => ({
-      ...c,
-      system_prompt: tmpl.system_prompt,
-      user_prompt: tmpl.user_prompt,
-      tools: [...tmpl.tools],
-      output_format: tmpl.output_format,
-      name: tmpl.id === "custom" ? "" : tmpl.label,
+  function pickTemplate(template: AgentTemplate | null) {
+    setSelectedTemplate(template);
+    setConfig((prev) => ({
+      ...prev,
+      name: template ? template.name : "",
+      system_prompt: template?.prompt_template ?? "",
+      user_prompt: "",
+      tools: [...(template?.tools ?? [])],
+      output_format: "text",
     }));
     setStep("configure");
   }
 
-  async function save() {
+  function openCreateTemplateModal() {
+    setTemplateModalMode("create");
+    setEditingTemplateId(null);
+    setTemplateForm(createEmptyTemplateForm());
+    setTemplateModalOpen(true);
+  }
+
+  function openEditTemplateModal(template: AgentTemplate) {
+    setTemplateModalMode("edit");
+    setEditingTemplateId(template.id);
+    setTemplateForm({
+      name: template.name,
+      description: template.description,
+      icon: template.icon || "🐝",
+      category: template.category,
+      tools: [...template.tools],
+      prompt_template: template.prompt_template,
+      is_default: template.is_default,
+    });
+    setTemplateModalOpen(true);
+  }
+
+  async function submitTemplateModal() {
+    if (!canManageTemplates) {
+      window.alert("Only owner/admin can manage templates.");
+      return;
+    }
+    setSavingTemplate(true);
+    try {
+      if (templateModalMode === "create") {
+        await hivePostJson<AgentTemplate>("agent-templates", templateForm);
+      } else if (editingTemplateId) {
+        await hivePutJson<AgentTemplate>(`agent-templates/${encodeURIComponent(editingTemplateId)}`, templateForm);
+      }
+      setTemplateModalOpen(false);
+      await refreshTemplates();
+    } catch (error) {
+      window.alert(`Template save failed: ${error instanceof HiveApiError ? error.message : error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setSavingTemplate(false);
+    }
+  }
+
+  async function deleteTemplate(templateId: string) {
+    if (!canManageTemplates || !window.confirm("Delete this template?")) return;
+    setDeletingTemplateId(templateId);
+    try {
+      await hiveDelete<void>(`agent-templates/${encodeURIComponent(templateId)}`);
+      if (selectedTemplate?.id === templateId) setSelectedTemplate(null);
+      await refreshTemplates();
+    } catch (error) {
+      window.alert(`Template delete failed: ${error instanceof HiveApiError ? error.message : error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setDeletingTemplateId(null);
+    }
+  }
+
+  async function saveAgent() {
     if (!config.name.trim()) {
       window.alert("Give your bee a name");
       return;
     }
     setSaving(true);
     try {
+      let spawnTemplate = selectedTemplate;
+      if (selectedTemplate?.id) {
+        try {
+          spawnTemplate = await hiveGet<AgentTemplate>(`agent-templates/${encodeURIComponent(selectedTemplate.id)}`);
+        } catch {
+          // Keep local selection as fallback so spawn flow remains usable.
+        }
+      }
       const sid = config.swarm_id?.trim();
       const data = await hivePostJson<DynamicCreateResponse>("agents/dynamic", {
-        name: config.name.trim(),
+        name: config.name.trim() || spawnTemplate?.name || "Worker Bee",
         hive_tier: "worker",
         swarm_id: sid ? sid : null,
-        system_prompt: config.system_prompt.trim() || "You are a helpful AI agent executing Queenswarm missions.",
+        system_prompt:
+          config.system_prompt.trim() ||
+          spawnTemplate?.prompt_template ||
+          "You are a helpful AI agent executing Queenswarm missions.",
         user_prompt_template: config.user_prompt.trim() || null,
-        tools: config.tools,
+        tools: config.tools.length ? config.tools : (spawnTemplate?.tools ?? []),
         output_format: config.output_format,
         output_destination: config.output_destination,
-        output_config: { ...config.output_config, spawned_from_template: selectedTemplate?.id ?? "custom" },
+        output_config: {
+          ...config.output_config,
+          spawned_from_template: spawnTemplate?.id ?? "custom_manual",
+          spawned_template_category: spawnTemplate?.category ?? "custom",
+        },
         schedule_type: config.schedule_value ? "interval" : "on_demand",
         schedule_value: config.schedule_value || null,
         agent_status: "idle",
       });
       router.push(`/agents/${encodeURIComponent(data.agent_id)}`);
-    } catch (e) {
-      window.alert(`Failed: ${e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : String(e)}`);
+    } catch (error) {
+      window.alert(`Failed: ${error instanceof HiveApiError ? error.message : error instanceof Error ? error.message : String(error)}`);
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 pb-24">
-      <button
-        type="button"
-        onClick={() => (step === "configure" ? setStep("template") : router.back())}
-        className="qs-btn qs-btn--ghost qs-btn--sm self-start"
-      >
+    <div className="v4-spawn-agent-shell mx-auto max-w-2xl space-y-6 pb-24">
+      <TemplateEditorModal
+        open={templateModalOpen}
+        mode={templateModalMode}
+        value={templateForm}
+        isAdmin={isAdmin}
+        saving={savingTemplate}
+        onClose={() => setTemplateModalOpen(false)}
+        onChange={setTemplateForm}
+        onSubmit={submitTemplateModal}
+      />
+
+      <button type="button" onClick={() => (step === "configure" ? setStep("template") : router.back())} className="qs-btn qs-btn--ghost qs-btn--sm self-start">
         ← {step === "configure" ? "Back to templates" : "Back"}
       </button>
 
       <header>
         <div className="flex items-center gap-2">
-          <h1 className="font-[family-name:var(--font-poppins)] text-2xl font-bold text-[#fafafa]">Spawn agent</h1>
+          <h1 className="font-(family-name:--font-poppins) text-2xl font-bold text-[#fafafa]">Spawn agent</h1>
           <InfoHint
             title="Spawn agent wizard"
             description="Creates a new bee agent and configures prompts, tools, output format, and schedule."
             options={["Template preset", "Swarm assignment", "Prompt and tool tuning", "Execution rhythm"]}
           />
         </div>
-        <p className="mt-2 font-[family-name:var(--font-poppins)] text-sm text-muted-foreground">
-          {step === "template" ? "Choose a hive template." : "Wire prompts, tools, and rhythm."}
+        <p className="mt-2 font-(family-name:--font-poppins) text-sm text-muted-foreground">
+          {step === "template" ? "Choose or manage tenant templates." : "Wire prompts, tools, and rhythm."}
         </p>
+        <div className="mt-2 flex items-center gap-3 text-xs text-zinc-500">
+          <Link href="/agents" className="underline-offset-2 hover:text-zinc-300 hover:underline">
+            Agents overview
+          </Link>
+          <span>•</span>
+          <span>Template library is tenant-scoped</span>
+        </div>
       </header>
 
       {step === "template" ? (
-        <div className="flex flex-col gap-3">
-          {AGENT_TEMPLATES.map((tmpl) => (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between rounded-2xl border border-cyan/20 bg-cyan/[0.04] px-4 py-3">
+            <div>
+              <p className="text-sm font-semibold text-zinc-100">Template library</p>
+              <p className="text-xs text-zinc-500">Create segments for your team and reuse them in one click.</p>
+            </div>
             <button
-              key={tmpl.id}
               type="button"
-              onClick={() => pickTemplate(tmpl)}
-              className={cn(
-                "w-full rounded-3xl bg-black/35 p-4 text-left transition",
-                tmpl.id === "custom"
-                  ? "qs-rim hover:border-[color:rgb(255_184_0_/_0.35)]"
-                  : "qs-rim-cyan-soft hover:border-[color:rgb(255_184_0_/_0.35)] hover:shadow-[0_0_20px_rgb(255_184_0/0.15)]",
-              )}
+              onClick={openCreateTemplateModal}
+              disabled={!canManageTemplates}
+              className="rounded-lg border border-pollen/60 bg-pollen/15 px-3 py-1.5 text-xs font-semibold text-pollen disabled:opacity-40"
             >
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{tmpl.emoji}</span>
-                <div className="min-w-0 flex-1 text-left">
-                  <div className="font-semibold text-[#fafafa]">{tmpl.label}</div>
-                  <div className="mt-1 line-clamp-2 text-xs text-zinc-500">{tmpl.system_prompt || "Blank canvas"}</div>
-                  {tmpl.tools.length ? (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {tmpl.tools.map((t) => (
-                        <span key={t} className="rounded bg-black/40 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400">
-                          {t}
-                        </span>
+              + Create new template
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => pickTemplate(null)}
+            className="w-full rounded-3xl qs-rim bg-black/35 p-4 text-left transition hover:border-[rgb(255_184_0/0.35)]"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🐝</span>
+              <div className="min-w-0 flex-1">
+                <div className="font-semibold text-[#fafafa]">Custom (blank)</div>
+                <div className="mt-1 text-xs text-zinc-500">Start from an empty template and configure everything manually.</div>
+              </div>
+              <span className="text-zinc-500">→</span>
+            </div>
+          </button>
+
+          {loadingTemplates ? <div className="rounded-2xl border border-white/10 px-4 py-5 text-sm text-zinc-500">Loading templates…</div> : null}
+          {templateError ? <div className="rounded-2xl border border-red-500/30 bg-red-500/8 px-4 py-5 text-sm text-red-300">{templateError}</div> : null}
+
+          {!loadingTemplates && !templateError ? (
+            templates.length ? (
+              <div className="space-y-4">
+                {templatesByCategory.map(([category, entries]) => (
+                  <section key={category} className="space-y-2">
+                    <div className="text-xs uppercase tracking-[0.08em] text-zinc-500">{category}</div>
+                    <div className="flex flex-col gap-3">
+                      {entries.map((template) => (
+                        <div
+                          key={template.id}
+                          className="w-full rounded-3xl qs-rim-cyan-soft bg-black/35 p-4 transition hover:border-[rgb(255_184_0/0.35)] hover:shadow-[0_0_20px_rgb(255_184_0/0.15)]"
+                        >
+                          <div className="flex items-start gap-3">
+                            <button type="button" onClick={() => pickTemplate(template)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                              <span className="text-2xl">{template.icon || "🐝"}</span>
+                              <div className="min-w-0 flex-1">
+                                <div className="font-semibold text-[#fafafa]">{template.name}</div>
+                                <div className="mt-1 line-clamp-2 text-xs text-zinc-500">{template.description || "No description"}</div>
+                                <div className="mt-2 flex flex-wrap items-center gap-1">
+                                  {template.is_default ? (
+                                    <span className="rounded bg-pollen/15 px-1.5 py-0.5 text-[10px] font-semibold text-pollen">default</span>
+                                  ) : null}
+                                  {template.tools.map((tool) => (
+                                    <span key={tool} className="rounded bg-black/40 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400">
+                                      {tool}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                              <span className="text-zinc-500">→</span>
+                            </button>
+                            {canManageTemplates ? (
+                              <div className="flex shrink-0 flex-col gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => openEditTemplateModal(template)}
+                                  className="rounded-md border border-white/15 px-2 py-1 text-[11px] text-zinc-300 hover:border-white/30"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={deletingTemplateId === template.id}
+                                  onClick={() => void deleteTemplate(template.id)}
+                                  className="rounded-md border border-red-500/45 px-2 py-1 text-[11px] text-red-300 hover:bg-red-500/10 disabled:opacity-40"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
                       ))}
                     </div>
-                  ) : null}
-                </div>
-                <span className="text-zinc-500">→</span>
+                  </section>
+                ))}
               </div>
-            </button>
-          ))}
+            ) : (
+              <div className="rounded-2xl border border-white/10 px-4 py-5 text-sm text-zinc-500">
+                No templates yet. Create your first one, or continue with a blank custom agent.
+              </div>
+            )
+          ) : null}
+          <div className="flex justify-center">
+            <InfoHint
+              title="Dynamic templates"
+              description="Templates are now managed via API and shared across the active tenant."
+              options={["Create/Edit/Delete template cards", "Use template as spawn preset", "RBAC protected template management"]}
+            />
+          </div>
         </div>
       ) : (
         <>
+          {selectedTemplate ? (
+            <div className="rounded-2xl border border-cyan/30 bg-cyan/[0.06] p-3 text-xs text-zinc-300">
+              Spawning from template:{" "}
+              <span className="font-semibold text-cyan">
+                {selectedTemplate.icon || "🐝"} {selectedTemplate.name}
+              </span>
+            </div>
+          ) : null}
+
           <section className="rounded-3xl qs-rim bg-[#0f0f16]/95 p-5">
             <div className="flex items-center gap-2">
               <label className="qs-label">Bee name</label>
@@ -295,7 +650,7 @@ function NewAgentWizardInner() {
             </div>
             <input
               value={config.name}
-              onChange={(e) => setConfig((c) => ({ ...c, name: e.target.value }))}
+              onChange={(event) => setConfig((prev) => ({ ...prev, name: event.target.value }))}
               className="mt-2 w-full rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-pollen/40"
             />
           </section>
@@ -309,17 +664,17 @@ function NewAgentWizardInner() {
                 options={["Inherited context from swarm", "Better domain organization", "Can remain unassigned"]}
               />
             </div>
-            <p className="mt-1 font-[family-name:var(--font-poppins)] text-xs text-zinc-600">
+            <p className="mt-1 font-(family-name:--font-poppins) text-xs text-zinc-600">
               Anchor this bee under a colony, or leave unassigned.
             </p>
             <div className="mt-4 flex flex-col gap-2">
               <button
                 type="button"
-                onClick={() => setConfig((c) => ({ ...c, swarm_id: "" }))}
+                onClick={() => setConfig((prev) => ({ ...prev, swarm_id: "" }))}
                 className={cn(
                   "flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition",
                   !config.swarm_id
-                    ? "border-pollen/50 bg-pollen/[0.08] text-pollen"
+                    ? "border-pollen/50 bg-pollen/8 text-pollen"
                     : "border-white/10 bg-[#141424] text-zinc-400 hover:border-white/18",
                 )}
               >
@@ -328,23 +683,23 @@ function NewAgentWizardInner() {
               </button>
 
               {swarms
-                .filter((s) => s.is_active !== false && !String(s.name).includes("__inactive_"))
-                .map((s) => {
-                  const accent = swarmAccentHex(s);
-                  const sel = config.swarm_id === s.id;
+                .filter((swarm) => swarm.is_active !== false && !String(swarm.name).includes("__inactive_"))
+                .map((swarm) => {
+                  const accent = swarmAccentHex(swarm);
+                  const selected = config.swarm_id === swarm.id;
                   return (
                     <button
-                      key={s.id}
+                      key={swarm.id}
                       type="button"
-                      onClick={() => setConfig((c) => ({ ...c, swarm_id: s.id }))}
+                      onClick={() => setConfig((prev) => ({ ...prev, swarm_id: swarm.id }))}
                       className={cn(
                         "flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition",
-                        sel
+                        selected
                           ? "bg-black/55"
                           : "border-white/10 bg-[#141424] text-zinc-400 hover:border-white/18",
                       )}
                       style={
-                        sel
+                        selected
                           ? {
                               borderColor: `${accent}77`,
                               backgroundColor: `${accent}14`,
@@ -359,18 +714,18 @@ function NewAgentWizardInner() {
                         aria-hidden
                       />
                       <div className="min-w-0 flex-1">
-                        <div className={cn("font-semibold text-[#fafafa]", sel && "text-inherit")}>{s.name}</div>
+                        <div className={cn("font-semibold text-[#fafafa]", selected && "text-inherit")}>{swarm.name}</div>
                         <div className="text-[11px] text-zinc-500">
-                          {swarmDisplayRole(s)} · {s.member_count ?? 0} bees
+                          {swarmDisplayRole(swarm)} · {swarm.member_count ?? 0} bees
                         </div>
                       </div>
-                      {sel ? <span className="font-mono text-xs">✓</span> : null}
+                      {selected ? <span className="font-mono text-xs">✓</span> : null}
                     </button>
                   );
                 })}
 
-              {swarms.filter((s) => s.is_active !== false && !String(s.name).includes("__inactive_")).length === 0 ? (
-                <div className="rounded-xl px-3 py-2 font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
+              {swarms.filter((swarm) => swarm.is_active !== false && !String(swarm.name).includes("__inactive_")).length === 0 ? (
+                <div className="rounded-xl px-3 py-2 font-(family-name:--font-poppins) text-xs text-zinc-500">
                   No swarms yet —{" "}
                   <Link href="/swarms" className="font-semibold text-pollen underline-offset-2 hover:underline">
                     create one first
@@ -393,7 +748,7 @@ function NewAgentWizardInner() {
             <textarea
               rows={5}
               value={config.system_prompt}
-              onChange={(e) => setConfig((c) => ({ ...c, system_prompt: e.target.value }))}
+              onChange={(event) => setConfig((prev) => ({ ...prev, system_prompt: event.target.value }))}
               className="mt-2 w-full resize-y rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-cyan/30"
             />
             <div className="mt-4 flex items-center gap-2">
@@ -407,7 +762,7 @@ function NewAgentWizardInner() {
             <textarea
               rows={3}
               value={config.user_prompt}
-              onChange={(e) => setConfig((c) => ({ ...c, user_prompt: e.target.value }))}
+              onChange={(event) => setConfig((prev) => ({ ...prev, user_prompt: event.target.value }))}
               className="mt-2 w-full resize-y rounded-xl border border-white/15 bg-black/50 px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-cyan/30"
             />
           </section>
@@ -423,19 +778,19 @@ function NewAgentWizardInner() {
             </div>
             <div className="mt-3 grid gap-2 sm:grid-cols-3">
               {ALL_TOOLS.map((tool) => {
-                const on = config.tools.includes(tool.id);
+                const enabled = config.tools.includes(tool.id);
                 return (
                   <button
                     key={tool.id}
                     type="button"
                     onClick={() =>
-                      setConfig((c) => ({
-                        ...c,
-                        tools: on ? c.tools.filter((t) => t !== tool.id) : [...c.tools, tool.id],
+                      setConfig((prev) => ({
+                        ...prev,
+                        tools: enabled ? prev.tools.filter((id) => id !== tool.id) : [...prev.tools, tool.id],
                       }))
                     }
                     className={`rounded-xl border px-3 py-2 text-left text-xs transition ${
-                      on ? "border-pollen/50 bg-pollen/[0.08] text-pollen" : "border-white/10 bg-black/40 text-zinc-400 hover:border-white/20"
+                      enabled ? "border-pollen/50 bg-pollen/8 text-pollen" : "border-white/10 bg-black/40 text-zinc-400 hover:border-white/20"
                     }`}
                   >
                     <div className="font-semibold">{tool.label}</div>
@@ -457,18 +812,18 @@ function NewAgentWizardInner() {
                 />
               </div>
               <div className="mt-3 flex flex-col gap-2">
-                {OUTPUT_FORMATS.map((f) => (
+                {OUTPUT_FORMATS.map((format) => (
                   <button
-                    key={f.id}
+                    key={format.id}
                     type="button"
-                    onClick={() => setConfig((c) => ({ ...c, output_format: f.id }))}
+                    onClick={() => setConfig((prev) => ({ ...prev, output_format: format.id }))}
                     className={`rounded-xl border px-3 py-2 text-left text-sm ${
-                      config.output_format === f.id
-                        ? "border-success/50 bg-success/[0.08] text-success"
+                      config.output_format === format.id
+                        ? "border-success/50 bg-success/8 text-success"
                         : "border-white/10 bg-transparent text-zinc-400 hover:border-success/40"
                     }`}
                   >
-                    {f.label}
+                    {format.label}
                   </button>
                 ))}
               </div>
@@ -483,18 +838,18 @@ function NewAgentWizardInner() {
                 />
               </div>
               <div className="mt-3 flex flex-col gap-2">
-                {SCHEDULE_PRESETS.map((s) => (
+                {SCHEDULE_PRESETS.map((schedule) => (
                   <button
-                    key={s.label}
+                    key={schedule.label}
                     type="button"
-                    onClick={() => setConfig((c) => ({ ...c, schedule_value: s.value }))}
+                    onClick={() => setConfig((prev) => ({ ...prev, schedule_value: schedule.value }))}
                     className={`rounded-xl border px-3 py-2 text-left text-sm ${
-                      config.schedule_value === s.value
+                      config.schedule_value === schedule.value
                         ? "border-cyan/50 bg-cyan/[0.08] text-cyan"
                         : "border-white/10 bg-transparent text-zinc-400 hover:border-cyan/40"
                     }`}
                   >
-                    {s.label}
+                    {schedule.label}
                   </button>
                 ))}
               </div>
@@ -504,8 +859,8 @@ function NewAgentWizardInner() {
           <button
             type="button"
             disabled={saving || !config.name.trim()}
-            onClick={() => void save()}
-            className="w-full rounded-xl border-2 border-pollen bg-pollen py-4 font-[family-name:var(--font-poppins)] text-sm font-bold text-black shadow-[0_0_32px_rgb(255_184_0/0.35)] disabled:opacity-45"
+            onClick={() => void saveAgent()}
+            className="w-full rounded-xl border-2 border-pollen bg-pollen py-4 font-(family-name:--font-poppins) text-sm font-bold text-black shadow-[0_0_32px_rgb(255_184_0/0.35)] disabled:opacity-45"
           >
             {saving ? "Spawning…" : "Spawn agent"}
           </button>

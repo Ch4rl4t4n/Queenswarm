@@ -254,7 +254,7 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
           slideIn ? "translate-x-0" : "translate-x-full",
         )}
       >
-        <div className="flex items-start justify-between border-b border-cyan/[0.12] p-5">
+        <div className="flex items-start justify-between border-b border-[color:var(--qs-border)] p-5">
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex flex-wrap items-center gap-2">
               <span
@@ -290,7 +290,7 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
             <button
               type="button"
               onClick={onClose}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-cyan/[0.12] text-lg text-zinc-400 transition hover:border-zinc-500 hover:text-[#fafafa]"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-[color:var(--qs-border)] text-lg text-zinc-400 transition hover:border-zinc-500 hover:text-[#fafafa]"
             >
               ×
             </button>
@@ -342,7 +342,7 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
               {outputFmt === "markdown" ? (
                 <MarkdownPreview content={outputText} />
               ) : outputFmt === "json" ? (
-                <pre className="overflow-x-auto whitespace-pre-wrap rounded-xl border border-cyan/[0.12] bg-[#050510] p-4 font-[family-name:var(--font-jetbrains-mono)] text-xs text-data">
+                <pre className="overflow-x-auto whitespace-pre-wrap rounded-xl border border-[color:var(--qs-border)] bg-[#050510] p-4 font-[family-name:var(--font-jetbrains-mono)] text-xs text-data">
                   {outputText}
                 </pre>
               ) : outputFmt === "html" ? (
@@ -351,7 +351,7 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
                   dangerouslySetInnerHTML={{ __html: outputText }}
                 />
               ) : (
-                <pre className="overflow-x-auto whitespace-pre-wrap rounded-xl border border-cyan/[0.12] bg-[#050510] p-4 font-[family-name:var(--font-jetbrains-mono)] text-sm text-zinc-200">
+                <pre className="overflow-x-auto whitespace-pre-wrap rounded-xl border border-[color:var(--qs-border)] bg-[#050510] p-4 font-[family-name:var(--font-jetbrains-mono)] text-sm text-zinc-200">
                   {outputText}
                 </pre>
               )}

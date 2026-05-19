@@ -22,9 +22,4 @@ export const ADVANCED_MONITORING_ENABLED = parseBoolean(process.env.NEXT_PUBLIC_
 export const SIMULATIONS_ENABLED = parseBoolean(process.env.NEXT_PUBLIC_SIMULATIONS_ENABLED, true);
 export const LEADERBOARD_ENABLED = parseBoolean(process.env.NEXT_PUBLIC_LEADERBOARD_ENABLED, false);
 export const RECIPES_ENABLED = parseBoolean(process.env.NEXT_PUBLIC_RECIPES_ENABLED, false);
-export const SECURITY_2FA_ADVANCED_ENABLED = parseBoolean(
-  process.env.NEXT_PUBLIC_SECURITY_2FA_ADVANCED_ENABLED,
-  false,
-);
-export const API_KEY_MANAGEMENT_ENABLED = parseBoolean(process.env.NEXT_PUBLIC_API_KEY_MANAGEMENT_ENABLED, false);
 export const VOICE_ENABLED = parseBoolean(process.env.NEXT_PUBLIC_VOICE_ENABLED, false);

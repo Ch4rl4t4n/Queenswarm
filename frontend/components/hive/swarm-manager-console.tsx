@@ -346,7 +346,7 @@ export function SwarmManagerConsole() {
               value={form.system_prompt}
               onChange={(e) => setForm((f) => ({ ...f, system_prompt: e.target.value }))}
               rows={4}
-              className="mt-2 w-full resize-y rounded-xl border border-white/15 bg-black/55 px-3 py-2.5 font-[family-name:var(--font-poppins)] text-xs text-[#fafafa] outline-none focus:border-cyan/40"
+              className="mt-2 w-full resize-y rounded-xl border border-white/15 bg-black/55 px-3 py-2.5 font-[family-name:var(--font-poppins)] text-xs text-[#fafafa] outline-none focus:border-[color:var(--qs-border-2)]"
             />
             <div className="mt-6 flex gap-3">
               <button type="button" onClick={() => setCreating(false)} className="qs-btn qs-btn--secondary qs-btn--full flex-1">
@@ -363,7 +363,7 @@ export function SwarmManagerConsole() {
       {loading ? (
         <p className="py-14 text-center text-sm text-zinc-500">Loading swarms…</p>
       ) : swarms.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-cyan/20 bg-black/35 p-14 text-center">
+        <div className="rounded-3xl border border-dashed border-[color:var(--qs-border)] bg-black/35 p-14 text-center">
           <div className="text-4xl opacity-70" aria-hidden>
             🔗
           </div>

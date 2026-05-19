@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { HiveApiError, hiveDelete, hiveGet, hivePostJson } from "@/lib/api";
 import { Toggle } from "@/components/ui/toggle";
+import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import type { NotificationChannelListRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
@@ -205,21 +206,21 @@ export function SettingsNotificationsPanel() {
 
   if (err && channels.length === 0) {
     return (
-      <div className="qs-settings-card border-[var(--qs-red)]/30 bg-[var(--qs-red)]/[0.06] text-[var(--qs-red)]">
+      <V4Card className="border-danger/30 bg-danger/6 text-danger">
         Notifications: {err}
-      </div>
+      </V4Card>
     );
   }
 
   return (
-    <div className="flex flex-col gap-[var(--qs-gap)]">
-      <p className="font-[family-name:var(--font-poppins)] text-sm text-[var(--qs-text-3)]">
+    <div className="flex flex-col gap-6">
+      <p className="text-sm text-(--qs-text-3)">
         Delivery buckets sync to{" "}
-        <span className="font-mono text-xs text-[var(--qs-cyan)]">notification_prefs.delivery_channels</span> via{" "}
-        <span className="font-mono text-xs text-[var(--qs-cyan)]">/api/v1/notifications</span>.
+        <span className="font-mono text-xs text-pollen">notification_prefs.delivery_channels</span> via{" "}
+        <span className="font-mono text-xs text-pollen">/api/v1/notifications</span>.
       </p>
 
-      <div className="flex flex-col gap-0">
+      <div className="flex flex-col gap-4">
         {(["email", "sms", "discord", "telegram"] as ChannelSlug[]).map((slug) => {
           const { Icon, title } = META[slug];
           const blob = drafts[slug];
@@ -227,20 +228,23 @@ export function SettingsNotificationsPanel() {
           const configured = row?.is_active;
 
           return (
-            <article key={slug} className="qs-settings-card">
-              <header className="qs-settings-card__header !mb-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--qs-border)] bg-[var(--qs-bg)] text-[var(--qs-amber)]">
+            <V4Card key={slug}>
+              <V4CardHeader
+                as="h3"
+                title={title}
+                description={EVENTS[slug]}
+                actions={
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-(--qs-border) bg-[rgba(7,3,15,0.5)] text-pollen">
                     <Icon className="h-5 w-5" aria-hidden />
                   </div>
-                  <div className="min-w-0">
-                    <div className="qs-settings-card__title">{title}</div>
-                    <div className="qs-settings-card__subtitle">{EVENTS[slug]}</div>
-                  </div>
-                </div>
-              </header>
+                }
+              />
 
-              {configured ? <span className="qs-badge qs-badge--green mb-3">configured</span> : null}
+              {configured ? (
+                <V4Badge tone="ok" className="mb-3">
+                  configured
+                </V4Badge>
+              ) : null}
 
               <div className="mb-3 flex items-center justify-between gap-3 text-[13px] text-[var(--qs-text)]">
                 <span>Enabled</span>
@@ -322,7 +326,7 @@ export function SettingsNotificationsPanel() {
               ) : null}
 
               {slug === "telegram" ? (
-                <div className="mb-3 grid gap-3 sm:grid-cols-2">
+                <div className="v4-settings-notify-fields mb-3 grid gap-3 sm:grid-cols-2">
                   <div>
                     <label className="qs-label" htmlFor={`tg-token-${slug}`}>
                       Bot token
@@ -362,7 +366,7 @@ export function SettingsNotificationsPanel() {
                 </div>
               ) : null}
 
-              <div className="mt-1 flex flex-wrap gap-2">
+              <div className="v4-settings-notify-actions mt-1 flex flex-wrap gap-2">
                 <button type="button" disabled={busy} onClick={() => void saveChannel(slug)} className="qs-btn qs-btn--primary qs-btn--sm">
                   Save channel
                 </button>
@@ -384,7 +388,7 @@ export function SettingsNotificationsPanel() {
                   {testHints[slug]}
                 </p>
               ) : null}
-            </article>
+            </V4Card>
           );
         })}
       </div>

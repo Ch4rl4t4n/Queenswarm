@@ -153,7 +153,8 @@ export function MonitoringDashboard() {
 
       <section className="grid gap-6 lg:grid-cols-2">
         <ChartCard title="CPU & RAM (session window)">
-          <ResponsiveContainer width="100%" height={260}>
+          <div className="v4-chart-shell">
+          <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={history} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="cpuFill" x1="0" y1="0" x2="0" y2="1">
@@ -176,10 +177,12 @@ export function MonitoringDashboard() {
               <Area type="monotone" dataKey="ram" name="RAM %" stroke="#FFB800" fill="url(#ramFill)" strokeWidth={2} dot={false} />
             </AreaChart>
           </ResponsiveContainer>
+          </div>
         </ChartCard>
 
         <ChartCard title="Disk & swap %">
-          <ResponsiveContainer width="100%" height={260}>
+          <div className="v4-chart-shell">
+          <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={history} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#252a55" />
               <XAxis dataKey="t" tick={{ fill: "#6b6b8a", fontSize: 10 }} interval="preserveStartEnd" />
@@ -192,11 +195,12 @@ export function MonitoringDashboard() {
               <Area type="monotone" dataKey="swap" name="Swap %" stroke="#FF00AA" fill="#FF00AA22" strokeWidth={2} dot={false} />
             </AreaChart>
           </ResponsiveContainer>
+          </div>
         </ChartCard>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-3">
-        <div className="rounded-2xl border border-cyan/[0.12] bg-hive-card/90 p-5 lg:col-span-1">
+        <div className="rounded-2xl border border-[color:var(--qs-border)] bg-hive-card/90 p-5 lg:col-span-1">
           <h3 className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-[#fafafa]">Hive load</h3>
           <ul className="mt-4 space-y-3 font-[family-name:var(--font-poppins)] text-sm text-zinc-300">
             <li className="flex justify-between gap-2">
@@ -218,7 +222,7 @@ export function MonitoringDashboard() {
           </ul>
         </div>
 
-        <div className="rounded-2xl border border-cyan/[0.12] bg-hive-card/90 p-5 lg:col-span-1">
+        <div className="rounded-2xl border border-[color:var(--qs-border)] bg-hive-card/90 p-5 lg:col-span-1">
           <h3 className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-[#fafafa]">Docker</h3>
           <p className="mt-4 font-[family-name:var(--font-poppins)] text-3xl tabular-nums text-pollen">
             {data.docker.unavailable ? "—" : data.docker.running_containers}
@@ -230,12 +234,12 @@ export function MonitoringDashboard() {
           </p>
         </div>
 
-        <div className="rounded-2xl border border-cyan/[0.12] bg-hive-card/90 p-5 lg:col-span-1">
+        <div className="rounded-2xl border border-[color:var(--qs-border)] bg-hive-card/90 p-5 lg:col-span-1">
           <h3 className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-[#fafafa]">LLM · 24h</h3>
           <p className="mt-4 font-[family-name:var(--font-poppins)] text-3xl text-pollen">{formatUsd(data.costs.usd_24h)}</p>
           <p className="mt-2 font-[family-name:var(--font-poppins)] text-xs text-zinc-500">Summed from cost_records window.</p>
         </div>
-        <div className="rounded-2xl border border-cyan/[0.12] bg-hive-card/90 p-5 lg:col-span-1">
+        <div className="rounded-2xl border border-[color:var(--qs-border)] bg-hive-card/90 p-5 lg:col-span-1">
           <h3 className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-[#fafafa]">Critical path</h3>
           <p className="mt-4 font-[family-name:var(--font-poppins)] text-3xl text-danger">
             {data.critical_path.supervisor_failures_24h}
@@ -254,7 +258,7 @@ export function MonitoringDashboard() {
 
       {data.enterprise ? (
         <section className="grid gap-6 lg:grid-cols-2">
-          <div className="rounded-2xl border border-cyan/[0.12] bg-hive-card/90 p-5">
+          <div className="rounded-2xl border border-[color:var(--qs-border)] bg-hive-card/90 p-5">
             <h3 className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-[#fafafa]">
               Enterprise telemetry
             </h3>
@@ -281,15 +285,15 @@ export function MonitoringDashboard() {
               </li>
             </ul>
           </div>
-          <div className="rounded-2xl border border-cyan/[0.12] bg-hive-card/90 p-5">
+          <div className="rounded-2xl border border-[color:var(--qs-border)] bg-hive-card/90 p-5">
             <h3 className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-[#fafafa]">
               Top operator load (24h)
             </h3>
             <div className="mt-4 space-y-2">
               {data.enterprise.top_users_24h.length ? (
                 data.enterprise.top_users_24h.slice(0, 8).map((row) => (
-                  <div key={row.subject} className="flex items-center justify-between rounded-lg border border-cyan/[0.08] px-3 py-2 text-xs">
-                    <span className="font-mono text-zinc-400">{row.subject}</span>
+                  <div key={row.subject} className="v4-monitoring-user-row flex flex-col gap-1 rounded-lg border border-[color:var(--qs-border-2)]/[0.08] px-3 py-2 text-xs sm:flex-row sm:items-center sm:justify-between">
+                    <span className="font-mono text-zinc-400 break-all">{row.subject}</span>
                     <span className="text-zinc-300">sessions {row.sessions}</span>
                     <span className={row.failures > 0 ? "text-danger" : "text-success"}>failures {row.failures}</span>
                   </div>
@@ -335,7 +339,7 @@ function MetricTile({
   accent: string;
 }) {
   return (
-    <article className="rounded-2xl border border-cyan/[0.1] bg-hive-card/90 p-4 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
+    <article className="rounded-2xl border border-[color:var(--qs-border)] bg-hive-card/90 p-4 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
       <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-500">{label}</p>
       <p className={cn("mt-2 font-[family-name:var(--font-poppins)] text-2xl tabular-nums", accent)}>{value}</p>
       {sub ? <p className="mt-1 font-mono text-[11px] text-zinc-500">{sub}</p> : null}
@@ -345,7 +349,7 @@ function MetricTile({
 
 function ChartCard({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-cyan/[0.12] bg-hive-card/90 p-4">
+    <div className="rounded-2xl border border-[color:var(--qs-border)] bg-hive-card/90 p-4">
       <h3 className="mb-2 font-[family-name:var(--font-poppins)] text-sm font-semibold text-[#fafafa]">{title}</h3>
       {children}
     </div>

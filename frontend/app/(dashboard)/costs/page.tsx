@@ -4,11 +4,10 @@ import { DollarSignIcon, TargetIcon } from "lucide-react";
 import { HivePageHeader } from "@/components/hive/hive-page-header";
 import { SpendTrendChart } from "@/components/hive/spend-trend-chart";
 import { SystemStatusPanel } from "@/components/hive/system-status-panel";
-import { NeonButton } from "@/components/ui/neon-button";
+import { V4Card, V4CardHeader, V4PageCanvas, V4Stat } from "@/components/ui/v4";
 import { aggregateSpendByModel, consolidateDailySpend } from "@/lib/cost-aggregates";
 import { hiveServerRawJson } from "@/lib/hive-server";
 import type { AgentRow, OperatorCostSummary, TaskRow } from "@/lib/hive-types";
-import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -24,10 +23,6 @@ function summarizeWindow(series: OperatorCostSummary["series"], daysRecent: numb
   return { windowSum: last, deltaPct };
 }
 
-function barColor(idx: number): string {
-  return ["bg-success", "bg-orange-400", "bg-data"][idx % 3];
-}
-
 /** Operator spend cockpit — KPI row, trend curve, providers, pollen-linked top agents. */
 export default async function CostsPage() {
   const summary = await hiveServerRawJson<OperatorCostSummary>("/operator/costs/summary?days=35");
@@ -36,9 +31,23 @@ export default async function CostsPage() {
 
   if (!summary) {
     return (
-      <p className="font-[family-name:var(--font-poppins)] text-sm text-danger">
-        Operator ledger unavailable · try INTERNAL_BACKEND_ORIGIN / proxy JWT.
-      </p>
+      <V4PageCanvas>
+        <HivePageHeader
+          title="Costs"
+          subtitle="Per LLM · per agent · per swarm · Prometheus CostGovernor"
+          actions={
+            <Link href="/settings/billing" className="qs-btn qs-btn--ghost qs-btn--sm text-xs uppercase">
+              Configure caps
+            </Link>
+          }
+        />
+        <p className="rounded-xl border border-alert/30 bg-alert/10 px-4 py-3 text-sm text-(--qs-text-2) lg:hidden">
+          Spend ledger syncing — charts appear once the operator API responds.
+        </p>
+        <p className="text-sm text-(--qs-red)">
+          Operator ledger unavailable · try INTERNAL_BACKEND_ORIGIN / proxy JWT.
+        </p>
+      </V4PageCanvas>
     );
   }
 
@@ -55,7 +64,7 @@ export default async function CostsPage() {
   const week = summarizeWindow(summary.series, 7);
   const avgDay = week.windowSum > 0 ? week.windowSum / 7 : 0;
   const projectedMonth = avgDay * 30;
-  const capUsd = 500;
+  const providerTotal = providers.reduce((a, x) => a + x.spend_usd, 0) || 1;
 
   const spenders =
     [...(agents ?? [])]
@@ -65,139 +74,126 @@ export default async function CostsPage() {
   const maxPollen = Math.max(...spenders.map((s) => s.pollen_points), 1);
 
   return (
-    <div className="space-y-10">
+    <V4PageCanvas>
       <HivePageHeader
         title="Costs"
         subtitle="Per LLM · per agent · per swarm · Prometheus CostGovernor"
         actions={
-          <NeonButton type="button" variant="ghost" className="text-xs uppercase">
+          <Link href="/settings/billing" className="qs-btn qs-btn--ghost qs-btn--sm text-xs uppercase">
             Configure caps
-          </NeonButton>
+          </Link>
         }
       />
 
-      <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        <KpiChip label="Today" value={formatUsd(today.windowSum)} delta={today.deltaPct} />
-        <KpiChip label="Week (7d)" value={formatUsd(week.windowSum)} delta={week.deltaPct} />
-        <KpiChip label={`Window (${summary.window_days}d)`} value={formatUsd(totalWindow)} sub="Rolling LiteLLM burn" />
-        <aside className="rounded-2xl border border-alert/25 bg-hive-card/90 p-5 shadow-[inset_0_0_0_1px_rgb(255_0_170/0.12)]">
-          <div className="flex justify-between gap-2">
-            <p className="font-[family-name:var(--font-poppins)] text-xs uppercase tracking-[0.14em] text-muted-foreground">Cap</p>
-            <TargetIcon className="h-5 w-5 text-alert" aria-hidden />
-          </div>
-          <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl text-pollen">{formatUsd(capUsd)}</p>
-          <p className="mt-2 font-[family-name:var(--font-poppins)] text-xs text-muted-foreground">Auto-pause at 100%</p>
-        </aside>
-      </section>
+      <div className="v4-stat-grid">
+        <V4Stat
+          label="Today"
+          value={formatUsd(today.windowSum)}
+          icon={DollarSignIcon}
+          iconTone="green"
+          trend={
+            today.deltaPct !== 0
+              ? { dir: today.deltaPct > 0 ? "up" : "down", text: `${today.deltaPct > 0 ? "+" : ""}${today.deltaPct}%` }
+              : undefined
+          }
+        />
+        <V4Stat
+          label="Week (7d)"
+          value={formatUsd(week.windowSum)}
+          icon={DollarSignIcon}
+          iconTone="cyan"
+          trend={
+            week.deltaPct !== 0
+              ? { dir: week.deltaPct > 0 ? "up" : "down", text: `${week.deltaPct > 0 ? "+" : ""}${week.deltaPct}%` }
+              : undefined
+          }
+        />
+        <V4Stat
+          label={`Window (${summary.window_days}d)`}
+          value={formatUsd(totalWindow)}
+          icon={DollarSignIcon}
+          foot="Rolling LiteLLM burn"
+        />
+        <V4Stat label="Billing caps" value="Settings" icon={TargetIcon} iconTone="purple" foot="Soft/hard limits per tier" />
+      </div>
 
-      <p className="font-[family-name:var(--font-poppins)] text-xs text-alert">
+      <p className="text-xs text-(--qs-magenta)">
         Task ledger Σ cost_usd (UTC midnight window):{" "}
-        <span className="text-pollen tabular-nums">{formatUsd(taskLedgerUsdToday)}</span>
+        <span className="text-(--qs-gold) tabular-nums">{formatUsd(taskLedgerUsdToday)}</span>
       </p>
 
-      <section className="grid gap-6 xl:grid-cols-5">
-        <div className="space-y-3 xl:col-span-3">
+      <section className="v4-cost-layout">
+        <div className="space-y-3 min-w-0">
           <div className="flex flex-wrap justify-between gap-2">
-            <h2 className="font-[family-name:var(--font-poppins)] text-lg text-[#fafafa]">
+            <h2 className="text-lg text-(--qs-text)">
               Spend trend · {Math.min(summary.window_days, byDayFull.length)}d
             </h2>
-            <NeonButton asChild variant="ghost" className="text-[10px] uppercase">
-              <Link href="/grafana/">Open Grafana</Link>
-            </NeonButton>
+            <Link href="/grafana/" className="qs-btn qs-btn--ghost qs-btn--sm text-[10px] uppercase">
+              Open Grafana
+            </Link>
           </div>
           <SpendTrendChart data={byDayFull.slice(-Math.min(summary.window_days, byDayFull.length))} />
-          <div className="flex flex-wrap justify-between gap-2 px-2 font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
+          <div className="flex flex-wrap justify-between gap-2 px-2 text-xs text-(--qs-text-3)">
             <span>Avg ${avgDay.toFixed(2)} / day</span>
             <span>Proj. ${Math.round(projectedMonth)} / month</span>
           </div>
         </div>
 
-        <div className="space-y-3 xl:col-span-2">
-          <h2 className="font-[family-name:var(--font-poppins)] text-lg text-[#fafafa]">By LLM provider</h2>
-          <div className="space-y-4 rounded-2xl border border-cyan/[0.1] bg-hive-card/90 p-5">
+        <V4Card className="min-w-0">
+          <V4CardHeader title="By LLM provider" />
+          <div className="space-y-4">
             {providers.length === 0 ? (
-              <p className="font-[family-name:var(--font-poppins)] text-sm text-zinc-500">No spend in this window.</p>
+              <p className="text-sm text-(--qs-text-3)">No spend in this window.</p>
             ) : (
-              providers.map((p, idx) => {
-                const pct = Math.round(((p.spend_usd ?? 0) / (providers.reduce((a, x) => a + x.spend_usd, 0) || 1)) * 100);
+              providers.map((p) => {
+                const pct = Math.round(((p.spend_usd ?? 0) / providerTotal) * 100);
                 return (
                   <div key={p.model}>
-                    <div className="flex justify-between font-[family-name:var(--font-poppins)] text-sm text-[#fafafa]">
+                    <div className="flex justify-between text-sm text-(--qs-text)">
                       <span>{p.model}</span>
                       <span>
                         {formatUsd(p.spend_usd)}{" "}
-                        <span className="font-[family-name:var(--font-poppins)] text-[11px] text-zinc-500">· {pct}%</span>
+                        <span className="text-[11px] text-(--qs-text-3)">· {pct}%</span>
                       </span>
                     </div>
-                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/50">
-                      <div className={cn("h-full rounded-full", barColor(idx))} style={{ width: `${pct}%` }} />
+                    <div className="mt-2 v4-progress-track">
+                      <div className="v4-progress-fill" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
                 );
               })
             )}
           </div>
-        </div>
+        </V4Card>
       </section>
 
       <SystemStatusPanel />
 
-      <section className="rounded-3xl border border-cyan/[0.1] bg-hive-card/90 p-6">
-        <h2 className="font-[family-name:var(--font-poppins)] text-lg text-[#fafafa]">Pollen intensity · top bees</h2>
-        <p className="mt-1 font-[family-name:var(--font-poppins)] text-sm text-muted-foreground">
-          Relative to max in the hive — per-agent LiteLLM cost join still to come.
-        </p>
-        <ul className="mt-8 space-y-5">
-          {spenders.map((bee, idx) => {
+      <V4Card>
+        <V4CardHeader
+          title="Pollen intensity · top bees"
+          description="Relative to max in the hive — per-agent LiteLLM cost join still to come."
+        />
+        <ul className="space-y-5">
+          {spenders.map((bee) => {
             const w = Math.max(6, Math.round((bee.pollen_points / maxPollen) * 100));
             return (
               <li key={bee.id}>
-                <div className="flex justify-between gap-3 font-[family-name:var(--font-poppins)] text-sm">
-                  <span className="text-[#fafafa]">
+                <div className="flex justify-between gap-3 text-sm">
+                  <span className="text-(--qs-text)">
                     {bee.name}{" "}
-                    <span className="font-[family-name:var(--font-poppins)] text-[11px] text-zinc-500">· {bee.role}</span>
+                    <span className="text-[11px] text-(--qs-text-3)">· {bee.role}</span>
                   </span>
-                  <span className="font-[family-name:var(--font-poppins)] text-pollen tabular-nums">
-                    {Number(bee.pollen_points).toFixed(2)}
-                  </span>
+                  <span className="text-(--qs-gold) tabular-nums">{Number(bee.pollen_points).toFixed(2)}</span>
                 </div>
-                <div className="mt-2 h-2 rounded-full bg-black/50">
-                  <div className={cn("h-full rounded-full opacity-95", barColor(idx))} style={{ width: `${w}%` }} />
+                <div className="mt-2 v4-progress-track">
+                  <div className="v4-progress-fill" style={{ width: `${w}%` }} />
                 </div>
               </li>
             );
           })}
         </ul>
-      </section>
-    </div>
-  );
-}
-
-function KpiChip({
-  label,
-  value,
-  delta,
-  sub,
-}: {
-  label: string;
-  value: string;
-  delta?: number;
-  sub?: string;
-}) {
-  return (
-    <article className="rounded-2xl border border-cyan/[0.1] bg-hive-card/90 p-5">
-      <div className="flex items-start justify-between gap-3">
-        <p className="font-[family-name:var(--font-poppins)] text-xs uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
-        <DollarSignIcon className="h-6 w-6 text-pollen" aria-hidden />
-      </div>
-      <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl text-[#fafafa]">{value}</p>
-      {typeof delta === "number" && delta !== 0 ? (
-        <p className={cn("mt-2 font-[family-name:var(--font-poppins)] text-xs", delta > 0 ? "text-success" : "text-danger")}>
-          {delta > 0 ? "+" : ""}
-          {delta}%
-        </p>
-      ) : null}
-      {sub ? <p className="mt-2 font-[family-name:var(--font-poppins)] text-[11px] text-zinc-500">{sub}</p> : null}
-    </article>
+      </V4Card>
+    </V4PageCanvas>
   );
 }

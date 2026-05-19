@@ -3,6 +3,7 @@
 import type { JSX } from "react";
 import { useEffect, useMemo, useState } from "react";
 
+import { V4Badge, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 
 interface MarketplaceTemplateRow {
@@ -19,6 +20,10 @@ interface MarketplaceTemplateRow {
 
 interface MarketplaceCatalogResponse {
   phase3_templates: MarketplaceTemplateRow[];
+}
+
+function categoryLabel(category: string): string {
+  return category.replaceAll("_", " ");
 }
 
 export function ToolsMarketplacePanel(): JSX.Element {
@@ -73,53 +78,55 @@ export function ToolsMarketplacePanel(): JSX.Element {
   }
 
   return (
-    <section className="space-y-4 rounded-2xl border border-zinc-800 bg-black/25 p-4">
-      <header className="space-y-1">
-        <h3 className="text-sm font-semibold text-zinc-100 md:text-base">API Marketplace Foundation</h3>
-        <p className="text-xs text-zinc-400 md:text-sm">
-          One-click install for curated connector templates; custom/community sources can plug into the same install API.
-        </p>
-      </header>
+    <div className="space-y-6">
+      <V4CardHeader
+        as="h3"
+        title="API marketplace foundation"
+        description="One-click install for curated connector templates; custom and community sources plug into the same install API."
+      />
+
       {error ? (
-        <p className="rounded-xl border border-[#FF3366]/35 bg-[#FF3366]/10 px-3 py-2 text-xs text-[#FF3366]">{error}</p>
+        <p className="rounded-xl border border-(--qs-red)/35 bg-(--qs-red)/10 px-3 py-2 text-xs text-(--qs-red)">{error}</p>
       ) : null}
+
       {Object.entries(grouped).map(([category, categoryRows]) => (
-        <div key={category} className="space-y-2">
-          <p className="text-[11px] uppercase tracking-widest text-cyan">{category.replaceAll("_", " ")}</p>
-          <div className="grid gap-2 md:grid-cols-2">
+        <div key={category} className="space-y-3">
+          <p className="v4-field-label">{categoryLabel(category)}</p>
+          <div className="grid gap-3 md:grid-cols-2">
             {categoryRows.map((row) => (
-              <article key={row.id} className="rounded-xl border border-zinc-800 bg-black/30 p-3">
-                <p className="text-sm font-semibold text-zinc-100">{row.title}</p>
-                <p className="mt-1 text-xs text-zinc-400">{row.summary}</p>
-                <p className="mt-1 text-[11px] text-zinc-500">
-                  `{row.slug}` · {row.auth_type} · {row.tool_count} tools
+              <article key={row.id} className="v4-dream-cycle-card flex flex-col gap-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-semibold text-(--qs-text)">{row.title}</p>
+                  <V4Badge tone={row.installed ? "ok" : "warn"}>{row.installed ? "installed" : "not installed"}</V4Badge>
+                </div>
+                <p className="text-xs text-(--qs-text-3)">{row.summary}</p>
+                <p className="font-mono text-[11px] text-(--qs-text-3)">
+                  {row.slug} · {row.auth_type} · {row.tool_count} tools
                 </p>
-                <div className="mt-2 flex items-center gap-2">
-                  <span
-                    className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] ${
-                      row.installed ? "border-[#00FF88]/40 bg-[#00FF88]/10 text-[#00FF88]" : "border-zinc-700 text-zinc-400"
-                    }`}
-                  >
-                    {row.installed ? "installed" : "not installed"}
-                  </span>
-                  <button
-                    type="button"
-                    className="qs-btn qs-btn--ghost qs-btn--sm"
-                    disabled={row.installed || busyId === row.id}
-                    onClick={() => void install(row)}
-                  >
-                    {busyId === row.id ? "Installing…" : "Install one-click"}
-                  </button>
+                <div className="mt-auto flex flex-wrap items-center gap-2">
+                  {!row.installed ? (
+                    <button
+                      type="button"
+                      className="qs-btn qs-btn--primary qs-btn--sm"
+                      disabled={busyId === row.id}
+                      onClick={() => void install(row)}
+                    >
+                      {busyId === row.id ? "Installing…" : "Install one-click"}
+                    </button>
+                  ) : (
+                    <span className="text-[11px] text-(--qs-green)">Ready in connector hub — run test connection to activate.</span>
+                  )}
                 </div>
                 {installedId === row.id ? (
-                  <p className="mt-1 text-[11px] text-[#00FF88]">Installed. Run “Test connection” in Dynamic Hub to activate.</p>
+                  <p className="text-[11px] text-(--qs-green)">Installed. Open Connector hub to test the connection.</p>
                 ) : null}
               </article>
             ))}
           </div>
         </div>
       ))}
-      {!rows.length && !error ? <p className="text-sm text-zinc-500">Loading marketplace catalog…</p> : null}
-    </section>
+
+      {!rows.length && !error ? <p className="text-sm text-(--qs-text-3)">Loading marketplace catalog…</p> : null}
+    </div>
   );
 }

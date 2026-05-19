@@ -1,4 +1,5 @@
 import { HivePageHeader } from "@/components/hive/hive-page-header";
+import { V4PageCanvas } from "@/components/ui/v4";
 import { InfoHint } from "@/components/hive/info-hint";
 import { APP_FUNCTION_GUIDE, APP_MANUAL_SECTIONS } from "@/lib/manual-content";
 
@@ -6,13 +7,13 @@ export const dynamic = "force-dynamic";
 
 export default function ManualPage(): JSX.Element {
   return (
-    <div className="space-y-8">
+    <V4PageCanvas className="gap-8">
       <HivePageHeader
         title="Manual"
         subtitle="Kompletný návod na presné používanie celej aplikácie Queenswarm vrátane funkcií a možností nastavenia."
       />
 
-      <section className="space-y-5 rounded-3xl border border-cyan/20 bg-[#070d17]/70 p-5 md:p-7">
+      <section className="manual-section space-y-5 rounded-3xl border border-cyan/20 bg-[#070d17]/70 p-4 md:p-7">
         {APP_MANUAL_SECTIONS.map((section) => (
           <article key={section.id} className="space-y-3 border-b border-zinc-800/80 pb-5 last:border-b-0 last:pb-0">
             <h2 className="text-lg font-semibold text-zinc-100">{section.title}</h2>
@@ -32,7 +33,7 @@ export default function ManualPage(): JSX.Element {
         ))}
       </section>
 
-      <section className="space-y-4 rounded-3xl border border-[#FFB800]/30 bg-[#100d07]/50 p-5 md:p-7">
+      <section className="manual-section space-y-4 rounded-3xl border border-[#FFB800]/30 bg-[#100d07]/50 p-4 md:p-7">
         <header className="space-y-1">
           <h2 className="text-lg font-semibold text-zinc-100">Funkcie aplikácie a info popisy</h2>
           <p className="text-sm text-zinc-300">
@@ -46,10 +47,10 @@ export default function ManualPage(): JSX.Element {
               <h3 className="text-base font-semibold text-zinc-100">{group.title}</h3>
               <div className="grid gap-2 md:grid-cols-2">
                 {group.items.map((item) => (
-                  <div key={item.id} className="flex items-start justify-between gap-3 rounded-xl border border-zinc-800 bg-[#060b12] p-3">
-                    <div>
+                  <div key={item.id} className="manual-func-item flex flex-col gap-3 rounded-xl border border-zinc-800 bg-[#060b12] p-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
                       <p className="text-sm font-medium text-zinc-100">{item.label}</p>
-                      <p className="mt-1 text-xs text-zinc-400">{item.description}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-zinc-400">{item.description}</p>
                     </div>
                     <InfoHint title={item.label} description={item.description} options={item.options} />
                   </div>
@@ -59,7 +60,7 @@ export default function ManualPage(): JSX.Element {
           ))}
         </div>
       </section>
-    </div>
+    </V4PageCanvas>
   );
 }
 

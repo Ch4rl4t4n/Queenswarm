@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { Hexagon, LayoutGrid, List, Play, Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { HexAgentCard } from "@/components/hive/hex-agent-card";
+import { V4Card, V4CardHeader, V4Chip } from "@/components/ui/v4";
 import type { AgentsSwarmFilter, AgentHiveLane } from "@/lib/agent-hive-lane";
 import { isQueenAgent } from "@/lib/agent-hive-lane";
+import { MEDIA_QUERIES } from "@/lib/breakpoints";
 import type { AgentRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
@@ -95,24 +97,6 @@ function laneTabLabel(key: Exclude<AgentsSwarmFilter, "all">): string {
   return labels[key];
 }
 
-function rosterFilterActiveClass(key: AgentsSwarmFilter): string {
-  switch (key) {
-    case "all":
-      return "qs-pill--active-amber";
-    case "unassigned":
-      return "qs-pill--active-red";
-    case "scout":
-      return "qs-pill--active-cyan";
-    case "eval":
-      return "qs-pill--active-amber";
-    case "sim":
-      return "qs-pill--active-magenta";
-    case "action":
-      return "qs-pill--active-green";
-    default:
-      return "qs-pill--active-amber";
-  }
-}
 
 function formatPollen(n: number): string {
   if (n >= 1_000_000) {
@@ -268,6 +252,8 @@ interface AgentsLiveSectionProps {
   rebalanceBusy: boolean;
   /** Primary CTA for spawning — dashboard defaults to cockpit anchor. */
   spawnAgentHref?: string;
+  title?: string;
+  description?: React.ReactNode;
 }
 
 export function AgentsLiveSection({
@@ -276,10 +262,18 @@ export function AgentsLiveSection({
   onRebalanceHive,
   rebalanceBusy,
   spawnAgentHref,
+  title = "Agents",
+  description,
 }: AgentsLiveSectionProps) {
   const [swarmFilter, setSwarmFilter] = useState<AgentsSwarmFilter>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const spawnHref = spawnAgentHref ?? "/#hive-create";
+
+  useEffect(() => {
+    if (window.matchMedia(MEDIA_QUERIES.mobile).matches) {
+      setViewMode("list");
+    }
+  }, []);
 
   const counts = useMemo(() => {
     let scout = 0;
@@ -346,80 +340,66 @@ export function AgentsLiveSection({
   ];
 
   return (
-    <section id="hive-live-swarm" className="scroll-mt-24 rounded-3xl border-[3px] border-white/10 bg-[#07070f]/95 p-6 md:p-8">
-      <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-        <div className="min-w-0 flex-1 md:max-w-[min(100%,48rem)]">
-          <h2 className="font-[family-name:var(--font-poppins)] text-2xl font-bold text-[#fafafa] md:text-3xl">Agents</h2>
-          <p className="mt-2 font-[family-name:var(--font-poppins)] text-sm text-zinc-500">
-            {counts.all} bees · {assignedWorkerCount} assigned to swarms · {counts.unassigned} unassigned ·{" "}
-            {swarmCountDistinct} swarms with at least one bee · {roleTypeCount} role types
-          </p>
-          <p className="mt-2 max-w-3xl font-[family-name:var(--font-poppins)] text-xs leading-relaxed text-zinc-600">
-            No fixed scout/eval/sim quotas at boot — swarm assignment, management, and displaying learned material will be
-            tuned later; filter lanes bind to <span className="text-zinc-500">sub_swarm_id</span> and task type from metadata
-            (not automatic assignment from agent name).
-          </p>
-        </div>
-        <div className="flex w-full shrink-0 flex-row flex-wrap items-stretch justify-end gap-3 md:ml-auto md:w-auto md:flex-nowrap md:items-start md:justify-end">
-          <Link
-            href={spawnHref}
-            className="qs-btn qs-btn--ghost inline-flex min-w-[10rem] flex-1 items-center justify-center gap-2 whitespace-nowrap sm:flex-initial"
-          >
-            <Plus className="h-4 w-4 shrink-0" aria-hidden />
-            Add agent
-          </Link>
-          <button
-            type="button"
-            disabled={rebalanceBusy}
-            onClick={() => void onRebalanceHive()}
-            className="qs-btn qs-btn--primary inline-flex min-w-[10rem] flex-1 items-center justify-center gap-2 whitespace-nowrap sm:flex-initial disabled:opacity-40"
-          >
-            <Play className="h-4 w-4 shrink-0" aria-hidden />
-            {rebalanceBusy ? "Working…" : "Balance hive"}
-          </button>
-        </div>
-      </div>
+      <V4Card id="hive-live-swarm" className="scroll-mt-24 v4-card-interactive">
+      <V4CardHeader
+        title={title}
+        description={
+          description ?? (
+            <>
+              {counts.all} bees · {assignedWorkerCount} assigned to swarms · {counts.unassigned} unassigned ·{" "}
+              {swarmCountDistinct} swarms with at least one bee · {roleTypeCount} role types
+            </>
+          )
+        }
+        actions={
+          <div className="flex flex-col gap-2 max-lg:w-full lg:flex-row lg:flex-wrap">
+            <Link href={spawnHref} className="qs-btn qs-btn--ghost gap-2 max-lg:w-full lg:w-auto">
+              <Plus className="h-4 w-4 shrink-0" aria-hidden />
+              Add agent
+            </Link>
+            <button
+              type="button"
+              disabled={rebalanceBusy}
+              onClick={() => void onRebalanceHive()}
+              className="qs-btn qs-btn--primary gap-2 disabled:opacity-40 max-lg:w-full lg:w-auto"
+            >
+              <Play className="h-4 w-4 shrink-0" aria-hidden />
+              {rebalanceBusy ? "Working…" : "Balance hive"}
+            </button>
+          </div>
+        }
+      />
 
-      <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="v4-chip-scroll md:flex-wrap md:overflow-visible">
           {pills.map(({ key, count }) => {
             const active = swarmFilter === key;
+            const label =
+              key === "all"
+                ? "All"
+                : laneTabLabel(key as Exclude<AgentsSwarmFilter, "all">);
             return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setSwarmFilter(key)}
-                className={cn("qs-pill", active && rosterFilterActiveClass(key))}
-              >
-                {key === "all"
-                  ? `All · ${String(count)}`
-                  : `${laneTabLabel(key as Exclude<AgentsSwarmFilter, "all">)} · ${String(count)}`}
-              </button>
+              <V4Chip key={key} active={active} onClick={() => setSwarmFilter(key)}>
+                {label}
+                <span className="v4-chip-count">· {count}</span>
+              </V4Chip>
             );
           })}
         </div>
         <div role="group" aria-label="View" className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setViewMode("grid")}
-            className={cn("qs-pill gap-1.5", viewMode === "grid" && "qs-pill--active-amber")}
-          >
+          <V4Chip active={viewMode === "grid"} onClick={() => setViewMode("grid")}>
             <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
             Grid
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("list")}
-            className={cn("qs-pill gap-1.5", viewMode === "list" && "qs-pill--active-amber")}
-          >
+          </V4Chip>
+          <V4Chip active={viewMode === "list"} onClick={() => setViewMode("list")}>
             <List className="h-3.5 w-3.5" aria-hidden />
             List
-          </button>
+          </V4Chip>
         </div>
       </div>
 
       {viewMode === "grid" ? (
-        <div className="qs-hex-grid mx-auto mt-10 max-w-[1200px]">
+        <div className="v4-agent-grid mx-auto max-w-[1200px]">
           {filtered.map((agent) => (
             <HexAgentCard
               key={agent.id}
@@ -498,10 +478,8 @@ export function AgentsLiveSection({
       )}
 
       {filtered.length === 0 ? (
-        <p className="mt-10 text-center font-[family-name:var(--font-poppins)] text-sm text-zinc-500">
-          No agents match this filter.
-        </p>
+        <p className="mt-10 text-center text-sm text-(--qs-text-3)">No agents match this filter.</p>
       ) : null}
-    </section>
+    </V4Card>
   );
 }

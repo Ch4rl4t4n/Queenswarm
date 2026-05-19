@@ -22,7 +22,7 @@ interface SpendTrendChartProps {
 /** Verified operator spend curve — amber stroke per Costs mockups. */
 export function SpendTrendChart({ data }: SpendTrendChartProps) {
   return (
-    <div className="h-72 w-full rounded-xl border border-cyan/15 bg-black/35 p-3">
+    <div className="h-72 w-full rounded-xl border border-[color:var(--qs-border-2)]/15 bg-black/35 p-3">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data}>
           <defs>

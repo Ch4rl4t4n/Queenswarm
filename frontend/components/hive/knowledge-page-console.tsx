@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { DreamingConsole } from "@/components/hive/dreaming-console";
 import { HiveMindExplorer } from "@/components/hive/hive-mind-explorer";
 import { InfoHint } from "@/components/hive/info-hint";
 import { LearningConsole } from "@/components/hive/learning-console";
@@ -11,7 +12,7 @@ import { RecipesPageClient } from "@/components/hive/recipes-page-client";
 import type { FinalDeliverableSummaryRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
-type KnowledgeSection = "all" | "hivemind" | "outputs" | "recipes";
+type KnowledgeSection = "all" | "hivemind" | "outputs" | "recipes" | "dreaming";
 
 interface KnowledgePageConsoleProps {
   readonly initialOutputs: FinalDeliverableSummaryRow[];
@@ -22,6 +23,7 @@ const SECTION_COPY: Record<Exclude<KnowledgeSection, "all">, string> = {
   hivemind: "graph vault semantic search retrieval contract skills memory",
   outputs: "archive outputs regenerate semantic markdown lineage",
   recipes: "learning pollen rewards recipes imitation reflection skills",
+  dreaming: "memory dreaming consolidation lessons learned supervisor reports",
 };
 
 export function KnowledgePageConsole({ initialOutputs, recipesEnabled }: KnowledgePageConsoleProps): JSX.Element {
@@ -40,13 +42,16 @@ export function KnowledgePageConsole({ initialOutputs, recipesEnabled }: Knowled
       recipes:
         (focus === "all" || focus === "recipes") &&
         (q.length === 0 || SECTION_COPY.recipes.includes(q)),
+      dreaming:
+        (focus === "all" || focus === "dreaming") &&
+        (q.length === 0 || SECTION_COPY.dreaming.includes(q)),
     }),
     [focus, q],
   );
 
   return (
     <div className="scroll-smooth space-y-8">
-      <section className="sticky top-2 z-10 space-y-4 rounded-2xl border border-cyan/20 bg-[#060b12]/90 p-4 backdrop-blur">
+      <section className="sticky top-2 z-10 space-y-4 rounded-2xl border border-[color:var(--qs-border)] bg-[#060b12]/90 p-4 backdrop-blur">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -89,7 +94,7 @@ export function KnowledgePageConsole({ initialOutputs, recipesEnabled }: Knowled
             />
           </div>
           <div className="flex flex-wrap gap-2">
-            {(["all", "hivemind", "outputs", "recipes"] as const).map((option) => (
+            {(["all", "hivemind", "outputs", "recipes", "dreaming"] as const).map((option) => (
               <button
                 key={option}
                 type="button"
@@ -103,14 +108,17 @@ export function KnowledgePageConsole({ initialOutputs, recipesEnabled }: Knowled
         </div>
 
         <div className="flex flex-wrap gap-2 text-xs">
-          <a href="#hivemind" className="rounded-full border border-cyan/30 px-2 py-1 text-cyan">
+          <a href="#hivemind" className="rounded-full border border-[color:var(--qs-border-2)] px-2 py-1 text-cyan">
             #hivemind
           </a>
-          <a href="#outputs" className="rounded-full border border-cyan/30 px-2 py-1 text-cyan">
+          <a href="#outputs" className="rounded-full border border-[color:var(--qs-border-2)] px-2 py-1 text-cyan">
             #outputs
           </a>
-          <a href="#recipes" className="rounded-full border border-cyan/30 px-2 py-1 text-cyan">
+          <a href="#recipes" className="rounded-full border border-[color:var(--qs-border-2)] px-2 py-1 text-cyan">
             #recipes
+          </a>
+          <a href="#dreaming" className="rounded-full border border-[color:var(--qs-border-2)] px-2 py-1 text-cyan">
+            #dreaming
           </a>
         </div>
 
@@ -127,7 +135,7 @@ export function KnowledgePageConsole({ initialOutputs, recipesEnabled }: Knowled
       </section>
 
       {visible.hivemind ? (
-        <section id="hivemind" className="space-y-4 rounded-3xl border border-cyan/20 bg-[#070d17]/70 p-4 md:p-6">
+        <section id="hivemind" className="space-y-4 rounded-3xl border border-[color:var(--qs-border)] bg-[#070d17]/70 p-4 md:p-6">
           <header className="space-y-1">
             <h2 className="text-base font-semibold text-zinc-100 md:text-lg">HiveMind (graph + vault + search)</h2>
             <p className="text-xs text-zinc-400 md:text-sm">
@@ -170,14 +178,20 @@ export function KnowledgePageConsole({ initialOutputs, recipesEnabled }: Knowled
           {recipesEnabled ? (
             <RecipesPageClient showHeader={false} />
           ) : (
-            <p className="rounded-2xl border border-cyan/20 bg-black/30 p-4 text-sm text-zinc-300">
+            <p className="rounded-2xl border border-[color:var(--qs-border)] bg-black/30 p-4 text-sm text-zinc-300">
               Recipes module is disabled. Enable <code>NEXT_PUBLIC_RECIPES_ENABLED=true</code> for saved workflow catalog.
             </p>
           )}
         </section>
       ) : null}
 
-      {!visible.hivemind && !visible.outputs && !visible.recipes ? (
+      {visible.dreaming ? (
+        <section id="dreaming">
+          <DreamingConsole />
+        </section>
+      ) : null}
+
+      {!visible.hivemind && !visible.outputs && !visible.recipes && !visible.dreaming ? (
         <p className="rounded-2xl border border-zinc-800 bg-black/25 p-4 text-sm text-zinc-400">
           No blocks match this filter. Clear search or switch focus to <code>all</code>.
         </p>

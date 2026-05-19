@@ -35,7 +35,7 @@ export function OAuthConnectButton({ providerKey, label, configured, logo }: OAu
         <span
           className={cn(
             'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-black/78',
-            configured ? 'border-cyan/35 text-cyan' : 'border-zinc-800 text-zinc-600',
+            configured ? 'border-[color:var(--qs-border-2)] text-cyan' : 'border-zinc-800 text-zinc-600',
           )}
           aria-hidden
         >

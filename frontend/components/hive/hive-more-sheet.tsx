@@ -68,14 +68,14 @@ export function HiveMoreSheet({ open, onClose, pathname }: HiveMoreSheetProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="hive-more-sheet-title"
-        className="relative mx-auto flex max-h-[min(88vh,640px)] w-full max-w-lg flex-col rounded-t-3xl border border-cyan/[0.15] bg-[#0f0f16] shadow-[0_-24px_64px_rgb(0_0_0/0.55)]"
+        className="relative mx-auto flex max-h-[min(88vh,640px)] w-full max-w-lg flex-col rounded-t-3xl border border-[color:var(--qs-border)] bg-[#0f0f16] shadow-[0_-24px_64px_rgb(0_0_0/0.55)]"
       >
         <div className="relative flex flex-col items-center px-4 pt-3">
           <span className="mb-2 h-1 w-14 rounded-full bg-zinc-600" aria-hidden />
           <button
             type="button"
             aria-label={localizePhrase(language, { en: "Close sheet", sk: "Zavrieť panel" })}
-            className="absolute right-3 top-2 rounded-lg border border-cyan/[0.15] p-2 text-zinc-400 hover:text-pollen touch-manipulation min-h-[44px] min-w-[44px]"
+            className="absolute right-3 top-2 rounded-lg border border-[color:var(--qs-border)] p-2 text-zinc-400 hover:border-[color:var(--qs-border-2)] hover:text-pollen touch-manipulation min-h-[44px] min-w-[44px]"
             onClick={onClose}
           >
             <XIcon className="h-4 w-4" aria-hidden />
@@ -118,7 +118,7 @@ export function HiveMoreSheet({ open, onClose, pathname }: HiveMoreSheetProps) {
           ))}
         </div>
 
-        <div className="border-t border-[#1e2348] px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2">
+        <div className="border-t border-[color:var(--qs-border)] px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2">
           <p className="px-3 pb-2 font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-600">
             {localizePhrase(language, { en: "Session", sk: "Relácia" })}
           </p>

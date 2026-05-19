@@ -48,14 +48,14 @@ export function InfoHint({ title, description, options, className }: InfoHintPro
         type="button"
         aria-label={`Info: ${titleText}`}
         onClick={() => setOpen((prev) => !prev)}
-        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-cyan/50 bg-[#0a1424] text-[11px] font-semibold text-cyan transition hover:border-cyan hover:text-white"
+        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[color:var(--qs-border-2)] bg-[#0a1424] text-[11px] font-semibold text-cyan transition hover:border-[color:var(--qs-border-2)] hover:text-white"
       >
         i
       </button>
       {open ? (
         <span
           role="dialog"
-          className="absolute right-0 top-7 z-50 w-[min(320px,85vw)] rounded-xl border border-cyan/30 bg-[#060c16] p-3 text-left shadow-[0_0_24px_rgba(0,255,255,0.16)]"
+          className="absolute right-0 top-7 z-50 w-[min(320px,85vw)] rounded-xl border border-[color:var(--qs-border-2)] bg-[#060c16] p-3 text-left shadow-[0_0_24px_rgba(0,255,255,0.16)]"
         >
           <strong className="block text-sm text-zinc-100">{titleText}</strong>
           <span className="mt-1 block text-xs leading-relaxed text-zinc-300">{descriptionText}</span>

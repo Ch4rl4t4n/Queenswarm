@@ -37,3 +37,19 @@ Queenswarm is a bee-hive inspired AI agent swarm for **queenswarm.love**. Apply 
 ## Python specifics
 
 When editing Python, also follow `.cursor/rules/queenswarm-python.mdc` (`**/*.py`).
+
+## Responsive UI (mobile + tablet only)
+
+Breakpoints: mobile ≤767px, tablet 768–1023px, desktop ≥1024px (`frontend/lib/breakpoints.ts`).
+
+**NEVER on desktop (≥1024px):**
+
+- Mount `HiveTopBar` or any duplicate horizontal search/status bar — desktop = **sidebar + canvas only**.
+- Change desktop padding, max-width, grid columns, typography, or header layout without explicit user approval.
+- Use bare `sm:` / `md:` Tailwind that affects 1024px+ — prefer `max-lg:` (≤1023) or `@media (max-width: 767px)` / `(768px–1023px)`.
+
+**ALWAYS:**
+
+- Scope responsive CSS to `@media (max-width: 767px)` and/or `@media (min-width: 768px) and (max-width: 1023px)`.
+- Use `lg:hidden` for mobile/tablet chrome (bottom nav, mobile header, FAB); use `lg:block` / default styles for desktop unchanged.
+- After shell changes, run `e2e/responsive-shell.spec.ts` and verify desktop dashboard has **no** `#hive-search` top bar.

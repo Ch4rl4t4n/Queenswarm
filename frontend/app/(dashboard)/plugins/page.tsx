@@ -3,7 +3,9 @@ import { PuzzleIcon } from "lucide-react";
 
 import { HivePageHeader } from "@/components/hive/hive-page-header";
 import { PluginsUserUploader } from "@/components/hive/plugins-user-uploader";
+import { V4PageCanvas } from "@/components/ui/v4";
 import { PHASE70_CONSOLIDATED_NAV_ENABLED } from "@/lib/feature-flags";
+import { integrationsTabHref } from "@/lib/integrations-routes";
 import { hiveServerRawJson } from "@/lib/hive-server";
 
 export const dynamic = "force-dynamic";
@@ -26,13 +28,13 @@ interface PluginsPayload {
 
 export default async function PluginsPhasePage() {
   if (PHASE70_CONSOLIDATED_NAV_ENABLED) {
-    redirect("/integrations#plugins");
+    redirect(integrationsTabHref("plugins"));
   }
 
   const pack = await hiveServerRawJson<PluginsPayload>("/plugins");
 
   return (
-    <div className="space-y-8">
+    <V4PageCanvas className="gap-8">
       <HivePageHeader
         title="Plugin lattice"
         subtitle="Built-in hive modules + proxied uploads of operator ``.py`` drop-ins (`/api/v1/plugins`)."
@@ -43,17 +45,18 @@ export default async function PluginsPhasePage() {
           </span>
         }
       />
+
       {!pack ? (
         <p className="font-[family-name:var(--font-poppins)] text-sm text-danger">
           Plugin relay offline — confirm session + proxy.
         </p>
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="v4-plugin-grid">
             {pack.installed.map((plug) => (
               <article
                 key={plug.id}
-                className="rounded-3xl qs-rim bg-black/40 p-5 shadow-[0_0_32px_rgba(0,255,255,0.08)]"
+                className="rounded-3xl qs-rim bg-black/40 p-4 shadow-[0_0_32px_rgba(0,255,255,0.08)] md:p-5"
               >
                 <p className="font-[family-name:var(--font-poppins)] text-xl font-semibold text-pollen">
                   {plug.title ?? plug.id}
@@ -72,7 +75,7 @@ export default async function PluginsPhasePage() {
             ))}
           </div>
           <PluginsUserUploader />
-          <div className="rounded-3xl qs-rim bg-black/35 p-5 font-[family-name:var(--font-poppins)] text-[11px] text-zinc-500">
+          <div className="rounded-3xl qs-rim bg-black/35 p-4 font-[family-name:var(--font-poppins)] text-[11px] text-zinc-500 md:p-5">
             <p className="text-xs font-semibold text-pollen">User rows</p>
             <ul className="mt-3 space-y-2">
               {(pack.user ?? []).length === 0 ? <li>No user plugins scanned yet.</li> : null}
@@ -85,9 +88,10 @@ export default async function PluginsPhasePage() {
           </div>
         </>
       )}
-      <div className="rounded-2xl border border-dashed border-pollen/35 bg-black/30 p-6 text-center font-[family-name:var(--font-poppins)] text-sm text-zinc-400">
+
+      <div className="rounded-2xl border border-dashed border-pollen/35 bg-black/30 p-4 text-center font-[family-name:var(--font-poppins)] text-sm text-zinc-400 md:p-6">
         PATCH toggles bump reload generation · DELETE removes user ``.py`` only.
       </div>
-    </div>
+    </V4PageCanvas>
   );
 }

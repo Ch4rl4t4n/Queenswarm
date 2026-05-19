@@ -11,25 +11,21 @@ interface DanceStripProps {
 
 export function DanceStrip({ dances }: DanceStripProps) {
   return (
-    <section className="rounded-2xl border border-magenta/30 bg-black/35 p-5 shadow-[0_0_32px_rgba(255,0,170,0.18)]">
-      <header className="mb-4 flex flex-col gap-1">
-        <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-magenta">
-          recent waggle dances
-        </h2>
-        <p className="font-[family-name:var(--font-poppins)] text-xs text-cyan/70">
-          live hive relay · gossip decays after global sync pulses
-        </p>
+    <section className="v4-card">
+      <header className="v4-card-header">
+        <div>
+          <h3>Waggle dance feed</h3>
+          <p className="desc">Live hive relay · gossip decays after global sync pulses</p>
+        </div>
       </header>
       <ul className="space-y-3">
         {dances.map((d) => (
-          <li key={d.ts + d.signal} className="border-l-2 border-pollen/60 pl-3">
-            <p className="font-[family-name:var(--font-poppins)] text-sm text-[#FFB800]">
+          <li key={d.ts + d.signal} className="border-l-2 border-(--qs-border-2) pl-3">
+            <p className="text-sm font-medium text-pollen">
               {d.from_swarm} · {d.signal}
             </p>
-            <p className="text-sm text-[#CCFFFF]">{d.topic}</p>
-            <p className="font-[family-name:var(--font-poppins)] text-[11px] text-cyan/50">
-              {new Date(d.ts).toISOString()}
-            </p>
+            <p className="text-sm text-(--qs-text-2)">{d.topic}</p>
+            <p className="text-[11px] text-(--qs-text-3)">{new Date(d.ts).toISOString()}</p>
           </li>
         ))}
       </ul>

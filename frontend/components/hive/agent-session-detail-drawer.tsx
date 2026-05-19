@@ -44,7 +44,7 @@ export function AgentSessionDetailDrawer({
 }: AgentSessionDetailDrawerProps): JSX.Element {
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/50 p-2 md:p-4">
-      <div className="flex h-full w-full max-w-3xl flex-col rounded-2xl border border-cyan/30 bg-[#080a12] p-4">
+      <div className="flex h-full w-full max-w-3xl flex-col rounded-2xl border border-[color:var(--qs-border-2)] bg-[#080a12] p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-base font-semibold text-zinc-100">Session detail</h3>

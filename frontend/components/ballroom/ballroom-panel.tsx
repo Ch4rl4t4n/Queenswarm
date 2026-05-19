@@ -1,12 +1,17 @@
 "use client";
 
-import { MicIcon, MicOffIcon } from "lucide-react";
+import Link from "next/link";
+import { MicIcon, MicOffIcon, RefreshCw, Send, X } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { VoiceSessionControls } from "@/components/hive/voice-session-controls";
-import { HiveApiError, hivePostJson } from "@/lib/api";
+import { Filters, type ChatFilter } from "@/components/ballroom/filters";
+import { GrokLiveVoiceButton } from "@/components/ballroom/grok-live-voice-chat";
+import { V4Badge, V4Card } from "@/components/ui/v4";
+import { HiveApiError, hiveDelete, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
+import { resolveHiveBearerToken } from "@/lib/hive-bearer-token";
 import { buildHiveWebsocketHref } from "@/lib/public-ws";
+import { integrationsTabHref } from "@/lib/integrations-routes";
 import { cn } from "@/lib/utils";
 
 interface SessionCapsule {
@@ -30,10 +35,48 @@ interface SessionAgentRow {
   hive_tier?: string | null;
 }
 
+interface BallroomSessionListItem {
+  session_id: string;
+  started_at?: string | null;
+  message_count?: number;
+  status?: string | null;
+  title?: string | null;
+  preview?: string | null;
+  pinned?: boolean;
+}
+
 interface VoiceSynthesizeResponse {
   audio_base64?: string;
   content_type?: string;
 }
+
+interface VoiceProviderPreferences {
+  stt_provider: "auto" | "grok" | "deepgram" | "openai";
+  tts_provider: "auto" | "grok" | "elevenlabs" | "openai";
+  latency_mode: "balanced" | "fast";
+  vad_threshold: number;
+  silence_duration_ms: number;
+  tts_voice_id: string;
+  tts_language: string;
+  tts_tone: string;
+}
+
+interface VoiceAudioEvent {
+  audio_base64?: string;
+  content_type?: string;
+  text?: string;
+  agent?: string;
+}
+
+type VoiceChatMode = "swarm" | "orchestrator";
+
+interface ActiveChatPrompt {
+  filterId: string | null;
+  label: string;
+  text: string;
+}
+
+const VOICE_CHAT_MODE: VoiceChatMode = "orchestrator";
 
 const AGENT_ACCENTS: Record<string, string> = {
   Orchestrator: "#FFB800",
@@ -44,6 +87,42 @@ const AGENT_ACCENTS: Record<string, string> = {
   Queen: "#FFB800",
   System: "#5a5a7a",
 };
+
+function historyTimeLabel(iso?: string | null): string {
+  if (!iso) {
+    return "";
+  }
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) {
+    return "";
+  }
+  const diffSec = Math.max(1, Math.floor((Date.now() - ms) / 1000));
+  if (diffSec < 60) {
+    return "now";
+  }
+  const mins = Math.floor(diffSec / 60);
+  if (mins < 60) {
+    return `${mins}m`;
+  }
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) {
+    return `${hrs}h`;
+  }
+  return `${Math.floor(hrs / 24)}d`;
+}
+
+function parseChatPromptRow(raw: unknown): ActiveChatPrompt | null {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+  const row = raw as Record<string, unknown>;
+  const label = typeof row.label === "string" ? row.label.trim() : "";
+  const text = typeof row.text === "string" ? row.text.trim() : "";
+  if (!text) {
+    return null;
+  }
+  return { filterId: null, label: label || "Assignment", text };
+}
 
 function isOrchestratorLike(a: SessionAgentRow): boolean {
   const tier = (a.hive_tier ?? "").toLowerCase();
@@ -93,11 +172,46 @@ function accentForName(name: string): string {
   return first ?? "#9898b8";
 }
 
-interface BallroomPanelProps {
-  readonly showHeader?: boolean;
+function participantGlyph(name: string, role?: string, hiveTier?: string | null): string {
+  const n = name.toLowerCase();
+  const rl = (role ?? "").toLowerCase();
+  const tier = (hiveTier ?? "").toLowerCase();
+  if (tier === "orchestrator" || n.includes("orchestr") || n.includes("queen")) return "👑";
+  if (n.includes("scribe")) return "📜";
+  if (n.includes("sentinel")) return "🛡";
+  if (n.includes("forge")) return "⚒";
+  if (n.includes("oracle")) return "🔮";
+  if (rl.includes("scout")) return "🔭";
+  return "🐝";
 }
 
-export function BallroomPanel({ showHeader = true }: BallroomPanelProps): JSX.Element {
+function messageAvatar(msg: BallroomBubble): string {
+  if (msg.variant === "user") return "You";
+  if (msg.variant === "system") return "⚙";
+  const n = msg.agent.toLowerCase();
+  if (n.includes("queen")) return "👑";
+  if (n.includes("scribe")) return "📜";
+  if (n.includes("sentinel")) return "🛡";
+  return "🐝";
+}
+
+interface BallroomWsStatus {
+  connected: boolean;
+  error: string | null;
+  sessionBound: boolean;
+}
+
+interface BallroomPanelProps {
+  readonly showHeader?: boolean;
+  readonly variant?: "default" | "v4";
+  readonly onStatusChange?: (status: BallroomWsStatus) => void;
+}
+
+export function BallroomPanel({
+  showHeader = true,
+  variant = "default",
+  onStatusChange,
+}: BallroomPanelProps): JSX.Element {
   /** WebSocket OPEN — transcripts stream live. */
   const [connected, setConnected] = useState(false);
   /** Session id minted / known — REST chat works immediately even before WS opens. */
@@ -109,21 +223,167 @@ export function BallroomPanel({ showHeader = true }: BallroomPanelProps): JSX.El
   const [muted, setMuted] = useState(false);
   const mutedRef = useRef(false);
   const [speaking, setSpeaking] = useState<string | null>(null);
+  const [orchestratorThinking, setOrchestratorThinking] = useState(false);
+  const [activeChatPrompt, setActiveChatPrompt] = useState<ActiveChatPrompt | null>(null);
+  const voiceChatMode: VoiceChatMode = VOICE_CHAT_MODE;
+  const [voicePrefs, setVoicePrefs] = useState<VoiceProviderPreferences>({
+    stt_provider: "auto",
+    tts_provider: "auto",
+    latency_mode: "fast",
+    vad_threshold: 0.35,
+    silence_duration_ms: 450,
+    tts_voice_id: "eve",
+    tts_language: "auto",
+    tts_tone: "none",
+  });
   const wsRef = useRef<WebSocket | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const historyScrollRef = useRef<HTMLDivElement | null>(null);
+  const messageScrollRef = useRef<HTMLDivElement | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const [sessionLabel, setSessionLabel] = useState<string | null>(null);
   const [sessionAgents, setSessionAgents] = useState<SessionAgentRow[]>([]);
   const sessionAgentsRef = useRef<SessionAgentRow[]>([]);
+  const [recentSessions, setRecentSessions] = useState<BallroomSessionListItem[]>([]);
+  const [historyExpanded, setHistoryExpanded] = useState(false);
+  const reconnectStreamRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     mutedRef.current = muted;
   }, [muted]);
 
   useEffect(() => {
+    onStatusChange?.({ connected, error, sessionBound });
+  }, [connected, error, sessionBound, onStatusChange]);
+
+  useEffect(() => {
     sessionAgentsRef.current = sessionAgents;
   }, [sessionAgents]);
+
+  useEffect(() => {
+    void hiveGet<VoiceProviderPreferences>("llm-keys/voice-preferences")
+      .then((next) => {
+        setVoicePrefs({
+          stt_provider: next.stt_provider ?? "auto",
+          tts_provider: next.tts_provider ?? "auto",
+          latency_mode: next.latency_mode ?? "fast",
+          vad_threshold: typeof next.vad_threshold === "number" ? next.vad_threshold : 0.35,
+          silence_duration_ms: typeof next.silence_duration_ms === "number" ? next.silence_duration_ms : 450,
+          tts_voice_id: typeof next.tts_voice_id === "string" ? next.tts_voice_id : "eve",
+          tts_language: typeof next.tts_language === "string" ? next.tts_language : "auto",
+          tts_tone: typeof next.tts_tone === "string" ? next.tts_tone : "none",
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  const loadRecentSessions = useCallback(async () => {
+    try {
+      const data = await hiveGet<{ sessions?: BallroomSessionListItem[] }>("ballroom/sessions");
+      const rows = Array.isArray(data.sessions) ? data.sessions : [];
+      rows.sort((a, b) => {
+        const ap = a.pinned ? 1 : 0;
+        const bp = b.pinned ? 1 : 0;
+        if (ap !== bp) {
+          return bp - ap;
+        }
+        const at = a.started_at ? Date.parse(a.started_at) : 0;
+        const bt = b.started_at ? Date.parse(b.started_at) : 0;
+        return bt - at;
+      });
+      setRecentSessions(rows.slice(0, 24));
+    } catch {
+      setRecentSessions([]);
+    }
+  }, []);
+
+  const pinSession = useCallback(
+    async (sessionId: string, pinned: boolean) => {
+      try {
+        await hivePatchJson(`ballroom/session/${sessionId}/meta`, { pinned });
+        await loadRecentSessions();
+      } catch (exc) {
+        const detail =
+          exc instanceof HiveApiError ? exc.message : exc instanceof Error ? exc.message : "Could not pin session.";
+        window.alert(detail);
+      }
+    },
+    [loadRecentSessions],
+  );
+
+  const renameSession = useCallback(
+    async (sessionId: string, currentTitle?: string | null) => {
+      const next = window.prompt("Session title", (currentTitle ?? "").trim());
+      if (next === null) {
+        return;
+      }
+      try {
+        await hivePatchJson(`ballroom/session/${sessionId}/meta`, { title: next.trim() });
+        await loadRecentSessions();
+      } catch (exc) {
+        const detail =
+          exc instanceof HiveApiError ? exc.message : exc instanceof Error ? exc.message : "Could not rename session.";
+        window.alert(detail);
+      }
+    },
+    [loadRecentSessions],
+  );
+
+  const deleteSessionFromHistory = useCallback(
+    async (sessionId: string) => {
+      if (!window.confirm("Delete this chat session from history?")) {
+        return;
+      }
+      try {
+        await hiveDelete(`ballroom/session/${sessionId}`);
+        if (sessionIdRef.current === sessionId) {
+          wsRef.current?.close();
+          wsRef.current = null;
+          setConnected(false);
+          sessionIdRef.current = null;
+          setSessionLabel(null);
+          setSessionBound(false);
+          setMessages([]);
+          setActiveChatPrompt(null);
+        }
+        await loadRecentSessions();
+      } catch (exc) {
+        const detail =
+          exc instanceof HiveApiError ? exc.message : exc instanceof Error ? exc.message : "Could not delete session.";
+        window.alert(detail);
+      }
+    },
+    [loadRecentSessions],
+  );
+
+  const clearAllHistory = useCallback(async () => {
+    const ids = recentSessions.map((row) => row.session_id);
+    if (ids.length === 0) {
+      return;
+    }
+    if (!window.confirm(`Delete ALL ${ids.length} chat sessions from history? This cannot be undone.`)) {
+      return;
+    }
+    const activeId = sessionIdRef.current;
+    const results = await Promise.allSettled(
+      ids.map((sid) => hiveDelete(`ballroom/session/${sid}`)),
+    );
+    const failed = results.filter((r) => r.status === "rejected").length;
+    if (failed > 0) {
+      window.alert(`${failed} of ${ids.length} sessions could not be deleted. Try again.`);
+    }
+    if (activeId && ids.includes(activeId)) {
+      wsRef.current?.close();
+      wsRef.current = null;
+      setConnected(false);
+      sessionIdRef.current = null;
+      setSessionLabel(null);
+      setSessionBound(false);
+      setMessages([]);
+    }
+    setHistoryExpanded(false);
+    await loadRecentSessions();
+  }, [recentSessions, loadRecentSessions]);
 
   useEffect(() => {
     void fetch("/api/proxy/agents", { credentials: "include" })
@@ -170,13 +430,125 @@ export function BallroomPanel({ showHeader = true }: BallroomPanelProps): JSX.El
   }, []);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+    historyScrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
+    messageScrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
+  }, []);
+
+  useEffect(() => {
+    const el = messageScrollRef.current;
+    if (!el) {
+      return;
+    }
+    const distanceFromBottom = el.scrollHeight - el.clientHeight - el.scrollTop;
+    if (messages.length <= 1 || distanceFromBottom < 160) {
+      el.scrollTo({ top: el.scrollHeight, behavior: messages.length <= 1 ? "auto" : "smooth" });
+    }
   }, [messages]);
 
   const appendBubble = useCallback((patch: Omit<BallroomBubble, "id">) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     setMessages((prev) => [...prev.slice(-240), { ...patch, id }]);
   }, []);
+
+  const onVoiceUserLine = useCallback(
+    (text: string) => {
+      appendBubble({ agent: "You", text, timestamp: new Date().toISOString(), variant: "user" });
+    },
+    [appendBubble],
+  );
+
+  const onVoiceAssistantLine = useCallback(
+    (text: string) => {
+      appendBubble({
+        agent: "Orchestrator",
+        text,
+        timestamp: new Date().toISOString(),
+        variant: "agent",
+      });
+    },
+    [appendBubble],
+  );
+
+  const onVoiceError = useCallback(
+    (message: string) => {
+      appendBubble({
+        agent: "System",
+        text: message,
+        timestamp: new Date().toISOString(),
+        variant: "system",
+      });
+    },
+    [appendBubble],
+  );
+
+  const orchestratorVoiceInstructions = useMemo(() => {
+    const base =
+      "You are the Queenswarm Orchestrator. Have a natural spoken conversation with the operator. " +
+      "Be concise, helpful, and direct. No markdown. Respond in the same language the user speaks.";
+    if (!activeChatPrompt?.text.trim()) {
+      return base;
+    }
+    return (
+      `${base}\n\n## Active session assignment (${activeChatPrompt.label})\n` +
+      `Follow this brief for every reply until the operator changes it:\n${activeChatPrompt.text.trim()}`
+    );
+  }, [activeChatPrompt]);
+
+  const applyChatPrompt = useCallback(
+    async (filter: ChatFilter) => {
+      const sid = sessionIdRef.current;
+      if (!sid) {
+        appendBubble({
+          agent: "System",
+          text: "Start a ballroom session before applying a quick prompt.",
+          timestamp: new Date().toISOString(),
+          variant: "system",
+        });
+        return;
+      }
+      try {
+        await hivePostJson<{ chat_prompt?: { label?: string; text?: string } }>(
+          `ballroom/session/${sid}/prompt`,
+          { label: filter.label, text: filter.text },
+        );
+        setActiveChatPrompt({ filterId: filter.id, label: filter.label, text: filter.text });
+      } catch (exc) {
+        const detail =
+          exc instanceof HiveApiError ? exc.message : exc instanceof Error ? exc.message : "Could not apply prompt.";
+        appendBubble({
+          agent: "System",
+          text: detail,
+          timestamp: new Date().toISOString(),
+          variant: "system",
+        });
+      }
+    },
+    [appendBubble],
+  );
+
+  const clearChatPrompt = useCallback(async () => {
+    const sid = sessionIdRef.current;
+    if (!sid) {
+      setActiveChatPrompt(null);
+      return;
+    }
+    try {
+      await hiveDelete(`ballroom/session/${sid}/prompt`);
+      setActiveChatPrompt(null);
+    } catch (exc) {
+      const detail =
+        exc instanceof HiveApiError ? exc.message : exc instanceof Error ? exc.message : "Could not clear prompt.";
+      appendBubble({
+        agent: "System",
+        text: detail,
+        timestamp: new Date().toISOString(),
+        variant: "system",
+      });
+    }
+  }, [appendBubble]);
 
   const playTts = useCallback(
     async (text: string, voiceLabel: string) => {
@@ -185,7 +557,14 @@ export function BallroomPanel({ showHeader = true }: BallroomPanelProps): JSX.El
       }
       setSpeaking(voiceLabel);
       try {
-        const tts = await hivePostJson<VoiceSynthesizeResponse>("ballroom/voice/synthesize", { text });
+        const tts = await hivePostJson<VoiceSynthesizeResponse>("ballroom/voice/synthesize", {
+          text,
+          preferred_tts_provider: voicePrefs.tts_provider,
+          latency_mode: voicePrefs.latency_mode,
+          tts_voice_id: voicePrefs.tts_voice_id,
+          tts_language: voicePrefs.tts_language,
+          tts_tone: voicePrefs.tts_tone,
+        });
         const blob = tts.audio_base64;
         const contentType = tts.content_type ?? "audio/mpeg";
         if (!blob) {
@@ -199,27 +578,18 @@ export function BallroomPanel({ showHeader = true }: BallroomPanelProps): JSX.El
         player.onended = () => setSpeaking(null);
         await player.play();
         return;
-      } catch {
-        if (typeof window !== "undefined" && "speechSynthesis" in window) {
-          window.speechSynthesis.cancel();
-          const utterance = new SpeechSynthesisUtterance(text.slice(0, 2500));
-          utterance.lang = "sk-SK";
-          utterance.onend = () => setSpeaking(null);
-          window.speechSynthesis.speak(utterance);
-          return;
-        }
+      } catch (exc) {
+        setError(exc instanceof Error ? exc.message : "server_tts_failed");
       }
       setSpeaking(null);
     },
-    [],
+    [voicePrefs.latency_mode, voicePrefs.tts_language, voicePrefs.tts_provider, voicePrefs.tts_tone, voicePrefs.tts_voice_id],
   );
 
-  const wsUrlFromSessionCapsule = useCallback((capsule: SessionCapsule): string => {
+  const wsUrlFromSessionCapsule = useCallback((capsule: SessionCapsule, bearerToken: string | null): string => {
     if (typeof window === "undefined") {
       return "";
     }
-    const guestAllowed = process.env.NEXT_PUBLIC_BALLROOM_GUEST_WS === "true";
-    const token = guestAllowed ? null : window.sessionStorage.getItem("hive_jwt_optional");
 
     const pathStyle =
       typeof capsule.ws_url_path === "string" && capsule.ws_url_path.startsWith("/")
@@ -239,8 +609,8 @@ export function BallroomPanel({ showHeader = true }: BallroomPanelProps): JSX.El
 
     const pick = pathStyle || streamStyle;
     const url = new URL(pick);
-    if (token) {
-      url.searchParams.set("token", token);
+    if (bearerToken) {
+      url.searchParams.set("token", bearerToken);
     }
     return url.toString();
   }, []);
@@ -252,19 +622,27 @@ export function BallroomPanel({ showHeader = true }: BallroomPanelProps): JSX.El
       setSessionLabel(capsule.session_id);
       setSessionBound(true);
 
-      const wsUrl = wsUrlFromSessionCapsule(capsule);
-      if (!wsUrl) {
-        setSessionBound(false);
-        setError("ws_url_unavailable");
-        return;
-      }
+      void (async () => {
+        const guestAllowed = process.env.NEXT_PUBLIC_BALLROOM_GUEST_WS === "true";
+        const bearerToken = guestAllowed ? null : await resolveHiveBearerToken();
+        const wsUrl = wsUrlFromSessionCapsule(capsule, bearerToken);
+        if (!wsUrl) {
+          setSessionBound(false);
+          setError("ws_url_unavailable");
+          return;
+        }
 
-      wsRef.current?.close();
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
-      setConnected(false);
+        wsRef.current?.close();
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
+        setConnected(false);
 
-      ws.onopen = () => setConnected(true);
+        let opened = false;
+        ws.onopen = () => {
+          opened = true;
+          setConnected(true);
+          setError(null);
+        };
 
       ws.onmessage = (evt) => {
         try {
@@ -286,36 +664,82 @@ export function BallroomPanel({ showHeader = true }: BallroomPanelProps): JSX.El
               });
             }
             setMessages(mapped);
+            setActiveChatPrompt(parseChatPromptRow(row.chat_prompt));
+            return;
+          }
+          if (t === "ballroom.prompt_applied") {
+            const nextPrompt = parseChatPromptRow(row.chat_prompt);
+            if (nextPrompt) {
+              setActiveChatPrompt((prev) => ({
+                ...nextPrompt,
+                filterId: prev?.label === nextPrompt.label ? (prev.filterId ?? null) : null,
+              }));
+            }
+            appendBubble({
+              agent: "System",
+              text: typeof row.text === "string" ? row.text : "Assignment applied.",
+              timestamp: new Date().toISOString(),
+              variant: "system",
+            });
+            return;
+          }
+          if (t === "ballroom.prompt_cleared") {
+            setActiveChatPrompt(null);
+            appendBubble({
+              agent: "System",
+              text: typeof row.text === "string" ? row.text : "Session assignment cleared.",
+              timestamp: new Date().toISOString(),
+              variant: "system",
+            });
+            return;
+          }
+          if (t === "ballroom.thinking") {
+            setOrchestratorThinking(true);
             return;
           }
           if (t === "ballroom.orchestrator_out") {
+            setOrchestratorThinking(false);
             const agent = typeof row.agent === "string" ? row.agent : "Orchestrator";
             const report = typeof row.text === "string" ? row.text : "";
-            const voiceScript =
-              typeof row.voice_script === "string" && row.voice_script.trim() ? String(row.voice_script) : report;
             appendBubble({
               agent,
               text: report,
               timestamp: new Date().toISOString(),
               variant: "agent",
             });
-            const voiceLabel =
-              sessionAgentsRef.current.find(
-                (a) =>
-                  /orchestrator|queen|manager/i.test(a.name) ||
-                  /orchestrator|manager/i.test(a.role ?? ""),
-              )?.name ?? agent;
-            void playTts(voiceScript, voiceLabel);
+            /* Server emits ballroom.voice_audio — avoid duplicate client-side TTS (latency + overlap). */
+            return;
+          }
+          if (t === "ballroom.voice_audio") {
+            const ev = row as VoiceAudioEvent;
+            const blob = typeof ev.audio_base64 === "string" ? ev.audio_base64 : "";
+            if (!blob || mutedRef.current) {
+              return;
+            }
+            const contentType = typeof ev.content_type === "string" && ev.content_type.trim() ? ev.content_type : "audio/mpeg";
+            const label = typeof ev.agent === "string" && ev.agent.trim() ? ev.agent : "Orchestrator";
+            setSpeaking(label);
+            if (audioRef.current) {
+              audioRef.current.pause();
+            }
+            const player = new Audio(`data:${contentType};base64,${blob}`);
+            audioRef.current = player;
+            player.onended = () => setSpeaking(null);
+            void player.play().catch(() => setSpeaking(null));
             return;
           }
           if (t === "ballroom.transcript" || t === "message") {
             const agent = typeof row.agent === "string" ? row.agent : "bee";
             const text = typeof row.text === "string" ? row.text : "";
+            const isUser = agent.trim().toLowerCase() === "you";
+            if (!isUser && /orchestrator/i.test(agent)) {
+              setOrchestratorThinking(false);
+            }
             appendBubble({
               agent,
               text,
               timestamp: new Date().toISOString(),
-              variant: "agent",
+              variant: isUser ? "user" : "agent",
             });
             const al = agent.toLowerCase();
             const rows = sessionAgentsRef.current;
@@ -338,20 +762,18 @@ export function BallroomPanel({ showHeader = true }: BallroomPanelProps): JSX.El
             }
             return;
           }
+          if (t === "ballroom.error") {
+            return;
+          }
+          if (t === "ballroom.ready") {
+            return;
+          }
           if (t.startsWith("ballroom.") || typeof row.text === "string") {
             appendBubble({
               agent: typeof row.agent === "string" ? String(row.agent) : "System",
               text: typeof row.text === "string" ? String(row.text) : JSON.stringify(row),
               timestamp: new Date().toISOString(),
               variant: row.type === "ballroom.error" ? "system" : "agent",
-            });
-          }
-          if (t === "ballroom.ready") {
-            appendBubble({
-              agent: "System",
-              text: typeof row.text === "string" ? String(row.text) : "Ballroom ready.",
-              timestamp: new Date().toISOString(),
-              variant: "system",
             });
           }
         } catch {
@@ -364,17 +786,28 @@ export function BallroomPanel({ showHeader = true }: BallroomPanelProps): JSX.El
         }
       };
 
-      ws.onerror = () => setError("Ballroom websocket error");
+      ws.onerror = () => {
+        if (!opened) {
+          setError("Ballroom websocket error");
+        }
+      };
 
-      ws.onclose = () => {
+      ws.onclose = (evt) => {
         setConnected(false);
-        /* Keep session id so REST `/ballroom/message` still works and user can reconnect the stream. */
+        if (evt.code === 1008 && sessionIdRef.current) {
+          void resolveHiveBearerToken().then((token) => {
+            if (token) {
+              reconnectStreamRef.current();
+            }
+          });
+        }
       };
 
       (window as Window & { __qs_ballroom_ws?: WebSocket }).__qs_ballroom_ws?.close?.();
       (window as Window & { __qs_ballroom_ws?: WebSocket }).__qs_ballroom_ws = ws;
+      })();
     },
-    [appendBubble, playTts, wsUrlFromSessionCapsule],
+    [appendBubble, wsUrlFromSessionCapsule],
   );
 
   const startSession = useCallback(
@@ -391,13 +824,14 @@ export function BallroomPanel({ showHeader = true }: BallroomPanelProps): JSX.El
         }
         const body = (await res.json()) as SessionCapsule;
         setMessages([]);
+        setInput("");
+        setActiveChatPrompt(null);
         bindWebSocketToCapsule(body);
+        void loadRecentSessions();
         if (typeof window !== "undefined") {
           const next = new URL(window.location.href);
-          if (!next.searchParams.get("session")) {
-            next.searchParams.set("session", body.session_id);
-            window.history.replaceState({}, "", `${next.pathname}${next.search}${next.hash}`);
-          }
+          next.searchParams.set("session", body.session_id);
+          window.history.replaceState({}, "", `${next.pathname}${next.search}${next.hash}`);
         }
         if (!opts?.quiet) {
           appendBubble({
@@ -419,7 +853,7 @@ export function BallroomPanel({ showHeader = true }: BallroomPanelProps): JSX.El
         setStarting(false);
       }
     },
-    [appendBubble, bindWebSocketToCapsule],
+    [appendBubble, bindWebSocketToCapsule, loadRecentSessions],
   );
 
   const endSession = useCallback(() => {
@@ -430,15 +864,13 @@ export function BallroomPanel({ showHeader = true }: BallroomPanelProps): JSX.El
       audioRef.current = null;
     }
     setConnected(false);
+    setMessages([]);
+    setInput("");
+    setActiveChatPrompt(null);
     sessionIdRef.current = null;
     setSessionLabel(null);
     setSessionBound(false);
-    appendBubble({
-      agent: "System",
-      text: "Session ended.",
-      timestamp: new Date().toISOString(),
-      variant: "system",
-    });
+    void loadRecentSessions();
     if (typeof window !== "undefined") {
       const u = new URL(window.location.href);
       if (u.searchParams.has("session")) {
@@ -446,7 +878,32 @@ export function BallroomPanel({ showHeader = true }: BallroomPanelProps): JSX.El
         window.history.replaceState({}, "", `${u.pathname}${u.search}${u.hash}`);
       }
     }
-  }, [appendBubble]);
+  }, [loadRecentSessions]);
+
+  const refreshChat = useCallback(() => {
+    wsRef.current?.close();
+    wsRef.current = null;
+    setMessages([]);
+    setInput("");
+    setError(null);
+    void startSession({ quiet: true });
+  }, [startSession]);
+
+  const openSessionFromHistory = useCallback(
+    (sessionId: string) => {
+      if (!sessionId.trim()) {
+        return;
+      }
+      setMessages([]);
+      bindWebSocketToCapsule({ session_id: sessionId });
+      if (typeof window !== "undefined") {
+        const next = new URL(window.location.href);
+        next.searchParams.set("session", sessionId);
+        window.history.replaceState({}, "", `${next.pathname}${next.search}${next.hash}`);
+      }
+    },
+    [bindWebSocketToCapsule],
+  );
 
   const reconnectStream = useCallback(() => {
     const sid = sessionIdRef.current;
@@ -457,6 +914,10 @@ export function BallroomPanel({ showHeader = true }: BallroomPanelProps): JSX.El
       session_id: sid,
     });
   }, [bindWebSocketToCapsule]);
+
+  useEffect(() => {
+    reconnectStreamRef.current = reconnectStream;
+  }, [reconnectStream]);
 
   async function sendChat(): Promise<void> {
     const text = input.trim();
@@ -473,8 +934,19 @@ export function BallroomPanel({ showHeader = true }: BallroomPanelProps): JSX.El
     }
     appendBubble({ agent: "You", text, timestamp: new Date().toISOString(), variant: "user" });
     setInput("");
+    setOrchestratorThinking(true);
     try {
-      await hivePostJson<{ ok?: boolean; session_id?: string }>("ballroom/message", { session_id: sid, text });
+      await hivePostJson<{ ok?: boolean; session_id?: string }>("ballroom/message", {
+        session_id: sid,
+        text,
+        mode: voiceChatMode,
+        preferred_stt_provider: voicePrefs.stt_provider,
+        preferred_tts_provider: voicePrefs.tts_provider,
+        latency_mode: voicePrefs.latency_mode,
+        tts_voice_id: voicePrefs.tts_voice_id,
+        tts_language: voicePrefs.tts_language,
+        tts_tone: voicePrefs.tts_tone,
+      });
     } catch (exc) {
       const detail =
         exc instanceof HiveApiError
@@ -486,10 +958,12 @@ export function BallroomPanel({ showHeader = true }: BallroomPanelProps): JSX.El
         timestamp: new Date().toISOString(),
         variant: "system",
       });
+      setOrchestratorThinking(false);
     }
   }
 
   useEffect(() => {
+    void loadRecentSessions();
     if (typeof window === "undefined") {
       return undefined;
     }
@@ -500,7 +974,7 @@ export function BallroomPanel({ showHeader = true }: BallroomPanelProps): JSX.El
       void startSession({ quiet: true });
     }
     return () => (window as Window & { __qs_ballroom_ws?: WebSocket }).__qs_ballroom_ws?.close?.();
-  }, [bindWebSocketToCapsule, startSession]);
+  }, [bindWebSocketToCapsule, loadRecentSessions, startSession]);
 
   function timeStr(ts: string): string {
     try {
@@ -520,22 +994,343 @@ export function BallroomPanel({ showHeader = true }: BallroomPanelProps): JSX.El
     return "Messages and agent replies appear here — say hello below.";
   }, [sessionBound, starting]);
 
+  const HISTORY_COLLAPSED_LIMIT = 9;
+  const visibleRecentSessions = historyExpanded
+    ? recentSessions
+    : recentSessions.slice(0, HISTORY_COLLAPSED_LIMIT);
+  const activeSessionTitle = useMemo(() => {
+    const row = recentSessions.find((r) => r.session_id === sessionLabel);
+    const clean = (row?.title ?? row?.preview ?? "").trim();
+    return clean || "Ballroom session";
+  }, [recentSessions, sessionLabel]);
+  const sessionMetaLine = useMemo(() => {
+    const agentCount = sessionAgents.length || 0;
+    const msgCount = messages.length;
+    const chatCost = (msgCount * 0.003).toFixed(2);
+    const base = `${agentCount} agents present · ${msgCount} msgs · est. cost $${chatCost}`;
+    return orchestratorThinking ? `${base} · Orchestrator thinking…` : base;
+  }, [sessionAgents.length, messages.length, orchestratorThinking]);
+  const participantsLiveCount = connected
+    ? sessionAgents.length
+    : sessionAgents.filter((row) => speaking === row.name).length;
+  const toolbarButtonClass =
+    "qs-btn qs-btn--ghost h-9 min-w-[132px] justify-center px-3 text-[12px] sm:h-10 sm:min-w-[148px] sm:px-4 sm:text-[13px]";
+  const topRowClass = "flex flex-wrap items-center justify-end gap-3";
+  const panelShellClass =
+    "flex h-[min(62dvh,620px)] min-h-[340px] max-h-[620px] flex-col self-stretch overflow-hidden rounded-[var(--qs-radius-lg)] lg:h-[min(64dvh,700px)] lg:min-h-[420px] lg:max-h-[700px]";
+  const chatStatusLabel = error ? "WS ERROR" : connected ? "LIVE STREAM" : sessionBound ? "STREAM CONNECTING" : "IDLE";
+  const participantsTopBubble = (
+    <div className="flex min-w-[220px] max-w-full items-center gap-2 rounded-xl border border-[var(--qs-border)] bg-[var(--qs-surface-2)]/80 px-2 py-1.5">
+      <div className="hive-scrollbar flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
+        {sessionAgents.length === 0 ? (
+          <span className="px-1 text-[10px] text-[var(--qs-text-3)]">No participants</span>
+        ) : (
+          sessionAgents.map((row) => {
+            const color = accentForName(row.name);
+            const isSpeaking = speaking === row.name;
+            return (
+              <button
+                key={`top-${row.id ?? row.name}`}
+                type="button"
+                title={row.name}
+                className={cn(
+                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-md border",
+                  isSpeaking ? "border-transparent" : "border-[var(--qs-border)]",
+                )}
+                style={isSpeaking ? ({ borderColor: `${color}66`, background: `${color}12` } satisfies CSSProperties) : undefined}
+              >
+                <span className="text-[13px]">🐝</span>
+              </button>
+            );
+          })
+        )}
+      </div>
+      <span
+        className={cn(
+          "shrink-0 rounded-md border px-2 py-1 font-mono text-[10px]",
+          error
+            ? "border-[var(--qs-red)]/35 bg-[var(--qs-red)]/10 text-[var(--qs-red)]"
+            : connected
+              ? "border-[#00FF88]/35 bg-[#00FF88]/10 text-[#00FF88]"
+              : "border-[var(--qs-border)] text-[var(--qs-text-3)]",
+        )}
+      >
+        {chatStatusLabel}
+      </span>
+    </div>
+  );
+
+  if (variant === "v4") {
+    return (
+      <div className="v4-chat-shell flex min-h-0 flex-1 flex-col gap-4 pb-2">
+        <V4Card tight className="shrink-0">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-4">
+              <span className="v4-label-kicker shrink-0">Participants</span>
+              <div className="v4-participants">
+                {sessionAgents.length === 0 ? (
+                  <span className="text-xs text-(--qs-text-3)">No participants</span>
+                ) : (
+                  sessionAgents.map((row) => {
+                    const isLive = connected || speaking === row.name;
+                    return (
+                      <div key={`v4-${row.id ?? row.name}`} className="v4-participant" title={row.name}>
+                        {participantGlyph(row.name, row.role, row.hive_tier)}
+                        {isLive ? <span className="v4-participant-live" aria-hidden /> : null}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <span className="text-xs text-(--qs-text-3)">
+                {participantsLiveCount}/{Math.max(sessionAgents.length, 1)} live
+              </span>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {connected ? <V4Badge tone="ok">LIVE</V4Badge> : null}
+              <V4Badge tone={error ? "err" : connected ? "info" : "warn"}>
+                {error ? "WS error" : connected ? "WS connected" : sessionBound ? "WS connecting" : "WS idle"}
+              </V4Badge>
+            </div>
+          </div>
+        </V4Card>
+
+        <div className="v4-chat-wrap">
+          <aside className="v4-chat-side">
+            <div className="flex items-center justify-center">
+              <span className="v4-label-kicker">Chat history · {recentSessions.length}</span>
+            </div>
+            <div ref={historyScrollRef} className="hive-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
+              {recentSessions.length === 0 ? (
+                <p className="py-3 text-center text-xs text-(--qs-text-3)">No recent sessions yet.</p>
+              ) : (
+                visibleRecentSessions.map((row) => {
+                  const active = sessionLabel === row.session_id;
+                  const title = (row.title ?? row.preview ?? "").trim() || "Untitled session";
+                  const when = historyTimeLabel(row.started_at);
+                  return (
+                    <div
+                      key={row.session_id}
+                      className={cn("v4-chat-history-item", active && "v4-chat-history-item--active")}
+                    >
+                      <button
+                        type="button"
+                        className="w-full text-left"
+                        onClick={() => openSessionFromHistory(row.session_id)}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="truncate text-sm font-medium text-(--qs-text)">{title}</p>
+                          {when ? <span className="shrink-0 text-[10px] text-(--qs-text-3)">{when}</span> : null}
+                        </div>
+                      </button>
+                      {active ? (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          <button
+                            type="button"
+                            className={cn(
+                              "rounded border px-2 py-0.5 text-[10px] transition",
+                              row.pinned
+                                ? "border-(--qs-amber)/45 bg-(--qs-amber)/12 text-(--qs-amber)"
+                                : "border-(--qs-border) text-(--qs-text-3) hover:text-(--qs-cyan)",
+                            )}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void pinSession(row.session_id, !row.pinned);
+                            }}
+                          >
+                            {row.pinned ? "★ Pinned" : "☆ Pin"}
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded border border-(--qs-border) px-2 py-0.5 text-[10px] text-(--qs-text-3) transition hover:text-(--qs-cyan)"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void renameSession(row.session_id, row.title);
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded border border-(--qs-red)/45 px-2 py-0.5 text-[10px] text-(--qs-red) transition hover:bg-(--qs-red)/10"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void deleteSessionFromHistory(row.session_id);
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            <button
+              type="button"
+              className="qs-btn qs-btn--ghost qs-btn--sm w-full"
+              disabled={recentSessions.length === 0}
+              onClick={() => void clearAllHistory()}
+            >
+              Clear all
+            </button>
+          </aside>
+
+          <section className="v4-chat-main">
+            <div className="v4-chat-header">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="v4-msg-avatar">🐝</div>
+                <div className="min-w-0">
+                  <p className="truncate text-base font-semibold text-(--qs-text)">{activeSessionTitle}</p>
+                  <p className="text-xs text-(--qs-text-3)">{sessionMetaLine}</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Link href={integrationsTabHref("hub")} className="qs-btn qs-btn--ghost qs-btn--sm">
+                  Ecosystem hub
+                </Link>
+                <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-1" onClick={refreshChat}>
+                  <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+                  Refresh
+                </button>
+                {sessionBound && !connected ? (
+                  <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => reconnectStream()}>
+                    Reconnect
+                  </button>
+                ) : null}
+                {!sessionBound ? (
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--ghost qs-btn--sm"
+                    disabled={starting}
+                    onClick={() => void startSession()}
+                  >
+                    {starting ? "Connecting…" : "Start session"}
+                  </button>
+                ) : (
+                  <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-1" onClick={endSession}>
+                    <X className="h-3.5 w-3.5" aria-hidden />
+                    End session
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={cn("qs-btn qs-btn--ghost qs-btn--sm gap-1", muted && "text-(--qs-red)")}
+                  onClick={() => setMuted((v) => !v)}
+                >
+                  {muted ? <MicOffIcon className="h-3.5 w-3.5" aria-hidden /> : <MicIcon className="h-3.5 w-3.5" aria-hidden />}
+                  {muted ? "Muted" : "Sound"}
+                </button>
+              </div>
+            </div>
+
+            <div ref={messageScrollRef} className="v4-chat-body hive-scrollbar">
+              {messages.length === 0 ? (
+                <div className="flex flex-1 flex-col items-center justify-center py-16 text-center text-(--qs-text-3)">
+                  <div className="mb-3 text-5xl opacity-80">🎙</div>
+                  <p className="text-sm">{emptyLaneHint}</p>
+                </div>
+              ) : (
+                messages.map((msg) => {
+                  const isUser = msg.variant === "user";
+                  return (
+                    <div key={msg.id} className={cn("v4-msg", isUser && "v4-msg--me")}>
+                      <div className="v4-msg-avatar">{messageAvatar(msg)}</div>
+                      <div className="min-w-0 max-w-[78%]">
+                        <div className={cn("v4-msg-meta", isUser && "v4-msg-meta--me")}>
+                          <span className="v4-msg-who">{isUser ? "You" : msg.agent}</span>
+                          <span>{timeStr(msg.timestamp)}</span>
+                        </div>
+                        <div className={cn("v4-msg-bubble", isUser && "v4-msg-bubble--me")}>
+                          <span className="whitespace-pre-wrap">{msg.text}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="v4-chat-filters">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <span className="v4-label-kicker">
+                  Quick prompts · session assignment
+                  {activeChatPrompt ? (
+                    <span className="ml-1 text-(--qs-amber)">· active: {activeChatPrompt.label}</span>
+                  ) : null}
+                </span>
+              </div>
+              <Filters
+                disabled={!sessionBound || starting}
+                variant="v4"
+                activePromptId={activeChatPrompt?.filterId ?? null}
+                activePromptLabel={activeChatPrompt?.label ?? null}
+                onActivatePrompt={(filter) => void applyChatPrompt(filter)}
+                onClearPrompt={() => void clearChatPrompt()}
+              />
+            </div>
+
+            <div className="v4-chat-input-row">
+              <input
+                value={input}
+                disabled={!sessionBound || starting}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    void sendChat();
+                  }
+                }}
+                placeholder={
+                  starting
+                    ? "Opening channel…"
+                    : sessionBound
+                      ? "Message Orchestrator…"
+                      : "Waiting for ballroom…"
+                }
+                className="qs-input h-11 flex-1 rounded-(--qs-radius-sm)"
+              />
+              <GrokLiveVoiceButton
+                disabled={!sessionBound || starting}
+                voiceId={voicePrefs.tts_voice_id}
+                sessionInstructions={orchestratorVoiceInstructions}
+                onUserLine={onVoiceUserLine}
+                onAssistantLine={onVoiceAssistantLine}
+                onError={onVoiceError}
+              />
+              <button
+                type="button"
+                className="qs-btn qs-btn--primary h-11 shrink-0 gap-2 px-4 disabled:opacity-40"
+                disabled={!sessionBound || starting || !input.trim()}
+                onClick={() => void sendChat()}
+              >
+                <Send className="h-4 w-4" aria-hidden />
+                Send
+              </button>
+            </div>
+          </section>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex min-h-[calc(100dvh-7rem)] flex-col gap-[var(--qs-gap)] pb-6">
+    <div className="flex min-h-0 flex-col gap-[var(--qs-gap)] pb-2">
       {showHeader ? (
-        <header className="flex flex-wrap items-start justify-between gap-4">
+        <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="font-(family-name:--font-poppins) text-[22px] font-bold text-[var(--qs-text)]">Ballroom</h1>
             <p className="mt-0.5 text-[13px] text-[var(--qs-text-3)]">Voice + text session with the swarm</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2.5">
-            <a href="/integrations#ecosystem" className="qs-btn qs-btn--ghost qs-btn--sm">
+          <div className={topRowClass}>
+            <Link href={integrationsTabHref("hub")} className={toolbarButtonClass}>
               Ecosystem hub
-            </a>
+            </Link>
             <button
               type="button"
               className={cn(
-                "qs-btn qs-btn--ghost qs-btn--sm",
+                toolbarButtonClass,
                 muted && "!border-[var(--qs-red)] !text-[var(--qs-red)]",
               )}
               onClick={() => setMuted((v) => !v)}
@@ -551,30 +1346,34 @@ export function BallroomPanel({ showHeader = true }: BallroomPanelProps): JSX.El
               )}
             </button>
             {sessionBound && !connected ? (
-              <button type="button" className="qs-btn qs-btn--secondary shrink-0" onClick={() => reconnectStream()}>
+              <button type="button" className={toolbarButtonClass} onClick={() => reconnectStream()}>
                 Reconnect stream
               </button>
             ) : null}
+            <button type="button" className={toolbarButtonClass} onClick={refreshChat}>
+              Refresh chat
+            </button>
             {!sessionBound ? (
-              <button type="button" className="qs-btn qs-btn--primary" disabled={starting} onClick={() => void startSession()}>
+              <button type="button" className={toolbarButtonClass} disabled={starting} onClick={() => void startSession()}>
                 {starting ? "Connecting…" : "Start session"}
               </button>
             ) : (
-              <button type="button" className="qs-btn qs-btn--danger" onClick={endSession}>
+              <button type="button" className={toolbarButtonClass} onClick={endSession}>
                 End session
               </button>
             )}
+            {participantsTopBubble}
           </div>
         </header>
       ) : (
-        <div className="flex flex-wrap items-center justify-end gap-2.5">
-          <a href="/integrations#ecosystem" className="qs-btn qs-btn--ghost qs-btn--sm">
+        <div className={topRowClass}>
+          <Link href={integrationsTabHref("hub")} className={toolbarButtonClass}>
             Ecosystem hub
-          </a>
+          </Link>
           <button
             type="button"
             className={cn(
-              "qs-btn qs-btn--ghost qs-btn--sm",
+              toolbarButtonClass,
               muted && "!border-[var(--qs-red)] !text-[var(--qs-red)]",
             )}
             onClick={() => setMuted((v) => !v)}
@@ -590,25 +1389,130 @@ export function BallroomPanel({ showHeader = true }: BallroomPanelProps): JSX.El
             )}
           </button>
           {sessionBound && !connected ? (
-            <button type="button" className="qs-btn qs-btn--secondary shrink-0" onClick={() => reconnectStream()}>
+            <button type="button" className={toolbarButtonClass} onClick={() => reconnectStream()}>
               Reconnect stream
             </button>
           ) : null}
+          <button type="button" className={toolbarButtonClass} onClick={refreshChat}>
+            Refresh chat
+          </button>
           {!sessionBound ? (
-            <button type="button" className="qs-btn qs-btn--primary" disabled={starting} onClick={() => void startSession()}>
+            <button type="button" className={toolbarButtonClass} disabled={starting} onClick={() => void startSession()}>
               {starting ? "Connecting…" : "Start session"}
             </button>
           ) : (
-            <button type="button" className="qs-btn qs-btn--danger" onClick={endSession}>
+            <button type="button" className={toolbarButtonClass} onClick={endSession}>
               End session
             </button>
           )}
+          {participantsTopBubble}
         </div>
       )}
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 items-start gap-[var(--qs-gap)] lg:grid-cols-[1fr_280px]">
-        <section className="qs-card flex min-h-[420px] flex-col overflow-hidden rounded-[var(--qs-radius-lg)] p-0 lg:min-h-[560px]">
-          <div className="hive-scrollbar flex flex-1 flex-col gap-3 overflow-y-auto p-[var(--qs-pad)]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 items-stretch gap-3 lg:grid-cols-[260px_minmax(0,1fr)] [&>.qs-card]:mt-0!">
+        <aside className={cn("qs-card order-2 p-0 lg:order-1", panelShellClass)}>
+          <div className="flex items-center justify-center border-b border-[var(--qs-border)] px-3 py-3">
+            <p className="text-center text-[11px] uppercase tracking-widest text-[var(--qs-text-3)]">Chat history</p>
+          </div>
+          {historyExpanded && recentSessions.length > 0 ? (
+            <div className="border-b border-[var(--qs-border)] px-2 py-3">
+              <button
+                type="button"
+                className="w-full rounded-md border border-[var(--qs-red)]/45 bg-[var(--qs-red)]/5 px-3 py-2 text-center text-[12px] font-semibold text-[var(--qs-red)] transition hover:bg-[var(--qs-red)]/15"
+                onClick={() => void clearAllHistory()}
+              >
+                🗑 Clear all history ({recentSessions.length})
+              </button>
+            </div>
+          ) : null}
+          <div ref={historyScrollRef} className="hive-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 py-3">
+            {recentSessions.length === 0 ? (
+              <p className="px-2 py-3 text-center text-[11px] text-[var(--qs-text-3)]">No recent sessions yet.</p>
+            ) : (
+              visibleRecentSessions.map((row) => {
+                const active = sessionLabel === row.session_id;
+                const cleanTitle = (row.title ?? "").trim();
+                const cleanPreview = (row.preview ?? "").trim();
+                const title = cleanTitle || cleanPreview || "Untitled session";
+                const when = historyTimeLabel(row.started_at);
+                return (
+                  <div
+                    key={row.session_id}
+                    className={cn(
+                      "rounded-md border px-3 py-2.5 text-left transition",
+                      active
+                        ? "border-[var(--qs-cyan)]/45 bg-[var(--qs-cyan)]/10"
+                        : "border-[var(--qs-border)] bg-[var(--qs-surface-2)] hover:border-[var(--qs-cyan)]/35",
+                    )}
+                  >
+                    <button type="button" className="w-full text-left" onClick={() => openSessionFromHistory(row.session_id)}>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-[14px] font-semibold text-[var(--qs-text)]">{title}</p>
+                        {when ? <p className="shrink-0 text-[12px] text-[var(--qs-text-3)]">{when}</p> : null}
+                      </div>
+                    </button>
+                    {active ? (
+                    <div className="mt-3 flex items-center gap-2">
+                      <button
+                        type="button"
+                        className={cn(
+                          "rounded border px-1.5 py-0.5 text-[10px] transition",
+                          row.pinned
+                            ? "border-[#FFB800]/45 bg-[#FFB800]/12 text-[#FFB800]"
+                            : "border-[var(--qs-border)] text-[var(--qs-text-3)] hover:text-[var(--qs-cyan)]",
+                        )}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void pinSession(row.session_id, !row.pinned);
+                        }}
+                      >
+                        {row.pinned ? "★ Pinned" : "☆ Pin"}
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded border border-[var(--qs-border)] px-1.5 py-0.5 text-[10px] text-[var(--qs-text-3)] transition hover:text-[var(--qs-cyan)]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void renameSession(row.session_id, row.title);
+                        }}
+                      >
+                        Rename
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded border border-[var(--qs-red)]/45 px-1.5 py-0.5 text-[10px] text-[var(--qs-red)] transition hover:bg-[var(--qs-red)]/10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void deleteSessionFromHistory(row.session_id);
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                    ) : null}
+                  </div>
+                );
+              })
+            )}
+          </div>
+          <div className="border-t border-[var(--qs-border)] px-2 py-3">
+            <button
+              type="button"
+              disabled={recentSessions.length <= HISTORY_COLLAPSED_LIMIT}
+              className="w-full rounded-md border border-[var(--qs-border)] bg-[var(--qs-surface-2)] px-3 py-2 text-center text-[12px] font-semibold text-[var(--qs-text-3)] transition hover:border-[var(--qs-cyan)]/45 hover:text-[var(--qs-cyan)] disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => setHistoryExpanded((v) => !v)}
+            >
+              {recentSessions.length <= HISTORY_COLLAPSED_LIMIT
+                ? `Chat History (${recentSessions.length})`
+                : historyExpanded
+                  ? "Hide older chats"
+                  : `Chat History (${recentSessions.length})`}
+            </button>
+          </div>
+        </aside>
+
+        <section className={cn("qs-card order-1 mt-0! p-0 lg:order-2", panelShellClass)}>
+          <div ref={messageScrollRef} className="hive-scrollbar flex flex-1 flex-col gap-3 overflow-y-auto p-3">
             {messages.length === 0 ? (
               <div className="flex flex-1 flex-col items-center justify-center py-16 text-center text-[var(--qs-text-3)]">
                 <div className="mb-3 text-5xl opacity-80">🎙</div>
@@ -654,126 +1558,53 @@ export function BallroomPanel({ showHeader = true }: BallroomPanelProps): JSX.El
                 );
               })
             )}
-            <div ref={bottomRef} />
           </div>
-          <footer className="flex gap-2.5 border-t border-[var(--qs-border)] px-3 py-3 sm:px-[var(--qs-pad)]">
-            <input
-              value={input}
-              disabled={!sessionBound || starting}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void sendChat();
+          <footer className="flex items-end gap-2.5 border-t border-[var(--qs-border)] px-3 py-3 sm:px-[var(--qs-pad)]">
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <Filters
+                disabled={!sessionBound || starting}
+                activePromptId={activeChatPrompt?.filterId ?? null}
+                activePromptLabel={activeChatPrompt?.label ?? null}
+                onActivatePrompt={(filter) => void applyChatPrompt(filter)}
+                onClearPrompt={() => void clearChatPrompt()}
+              />
+              <input
+                value={input}
+                disabled={!sessionBound || starting}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    void sendChat();
+                  }
+                }}
+                placeholder={
+                  starting ? "Opening channel…"
+                  : sessionBound ? "Message Orchestrator…"
+                  : "Waiting for ballroom…"
                 }
-              }}
-              placeholder={
-                starting ? "Opening channel…"
-                : sessionBound ? "Send message to the swarm…"
-                : "Waiting for ballroom…"
-              }
-              className="qs-input flex-1 rounded-[var(--qs-radius-sm)]"
+                className="qs-input h-11 flex-1 rounded-[var(--qs-radius-sm)]"
+              />
+            </div>
+            <GrokLiveVoiceButton
+              disabled={!sessionBound || starting}
+              voiceId={voicePrefs.tts_voice_id}
+              sessionInstructions={orchestratorVoiceInstructions}
+              onUserLine={onVoiceUserLine}
+              onAssistantLine={onVoiceAssistantLine}
+              onError={onVoiceError}
             />
             <button
               type="button"
-              className="qs-btn qs-btn--primary shrink-0 px-4 disabled:opacity-40"
+              className="qs-btn qs-btn--primary h-11 shrink-0 px-4 disabled:opacity-40"
               disabled={!sessionBound || starting || !input.trim()}
               onClick={() => void sendChat()}
             >
               Send →
             </button>
           </footer>
-          <div className="border-t border-[var(--qs-border)] px-3 py-3 sm:px-[var(--qs-pad)]">
-            <VoiceSessionControls
-              label="Voice chat mode"
-              sessionId={sessionLabel}
-              dispatchToAgents={true}
-              disabled={!sessionBound || starting}
-              onTranscript={(text) => {
-                setInput((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text));
-              }}
-            />
-          </div>
         </section>
 
-        <aside className="qs-card flex h-fit flex-col gap-3 self-start rounded-[var(--qs-radius-lg)]">
-          <p className="text-[11px] uppercase tracking-[0.1em] text-[var(--qs-text-3)]">Participants</p>
-          <ul className="flex flex-col gap-2.5">
-            {sessionAgents.length === 0 ? (
-              <li className="rounded-[10px] border border-dashed border-[var(--qs-border)] px-3 py-3 text-center font-mono text-[11px] text-[var(--qs-text-3)]">
-                Loading agents from hive…
-              </li>
-            ) : (
-              sessionAgents.map((row) => {
-                const name = row.name;
-                const color = accentForName(name);
-                const isSpeaking = speaking === name;
-                return (
-                  <li
-                    key={row.id ?? name}
-                  className={cn(
-                    "flex items-center gap-3 rounded-[10px] border px-3 py-2.5 transition",
-                    isSpeaking ? "border-transparent" : "border-[var(--qs-border)] bg-transparent",
-                  )}
-                  style={
-                    isSpeaking
-                      ? ({
-                          borderColor: `${color}66`,
-                          background: `${color}12`,
-                        } satisfies CSSProperties)
-                      : undefined
-                  }
-                >
-                  <div className="qs-mini-hex" style={{ background: `${color}24`, outline: isSpeaking ? `1px solid ${color}80` : "none", outlineOffset: "-1px" }}>
-                    🐝
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-semibold" style={{ color: isSpeaking ? color : "var(--qs-text)" }}>
-                      {name}
-                    </p>
-                    <p className="font-mono text-[10px] text-[var(--qs-text-3)]">
-                      {isSpeaking ? "speaking…" : connected ? "listening" : sessionBound ? "stream reconnecting…" : "offline"}
-                    </p>
-                  </div>
-                  {isSpeaking ? (
-                    <div className="flex items-end gap-0.5">
-                      {[2, 5, 8, 6, 4].map((h, i) => (
-                        <span
-                          key={i}
-                          className="qs-pulse w-[3px] rounded-sm"
-                          style={{
-                            background: color,
-                            height: `${h}px`,
-                            animationDelay: `${i * 0.08}s`,
-                          }}
-                        />
-                      ))}
-                    </div>
-                  ) : null}
-                </li>
-                );
-              })
-            )}
-          </ul>
-          {!sessionBound ? (
-            <p className="mt-auto text-center text-[11px] text-[var(--qs-text-3)]">Ballroom spins up automatically…</p>
-          ) : (
-            <div
-              className={cn(
-                "mt-auto rounded-lg border px-3 py-2 text-center",
-                connected ? "border-[#00FF88]/20 bg-[#00FF88]/[0.06]" : "border-[var(--qs-border)] bg-[var(--qs-surface-2)]",
-              )}
-            >
-              <p className={cn("font-mono text-[10px]", connected ? "text-[#00FF88]" : "text-[var(--qs-text-3)]")}>
-                {connected ? "● LIVE STREAM" : "○ CHAT READY · STREAM CONNECTING"}
-              </p>
-              {sessionLabel ? (
-                <p className="mt-1 truncate font-mono text-[9px] text-[#3a3a5a]">{sessionLabel}</p>
-              ) : null}
-            </div>
-          )}
-          {error ? <p className="text-center font-mono text-xs text-[var(--qs-red)]">{error}</p> : null}
-        </aside>
       </div>
     </div>
   );

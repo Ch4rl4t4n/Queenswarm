@@ -53,7 +53,7 @@ export function HiveBottomNav({ onMore, pathname }: HiveBottomNavProps) {
       aria-label="Primary mobile navigation"
       className={cn(
         "fixed bottom-0 left-0 right-0 z-50 lg:hidden",
-        "border-t border-cyan/[0.12] bg-[#08080f]/94 backdrop-blur-xl",
+        "border-t border-[color:var(--qs-border)] bg-[#08080f]/94 backdrop-blur-xl",
         "pb-[calc(0.35rem+env(safe-area-inset-bottom))] pt-1 shadow-[0_-18px_40px_rgb(0_0_0/0.45)]",
       )}
     >

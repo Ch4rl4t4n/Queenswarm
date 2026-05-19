@@ -7,6 +7,9 @@ import { Toaster } from "sonner";
 
 import { UiLanguageProvider } from "@/components/hive/ui-language-provider";
 import { UiRuntimeTranslator } from "@/components/hive/ui-runtime-translator";
+import { HiveInstallPrompt } from "@/components/hive/hive-install-prompt";
+import { HiveOfflineBanner } from "@/components/hive/hive-offline-banner";
+import { HiveServiceWorker } from "@/components/hive/hive-service-worker";
 
 interface ProvidersProps {
   children: ReactNode;
@@ -29,6 +32,9 @@ export function Providers({ children }: ProvidersProps) {
     <QueryClientProvider client={client}>
       <UiLanguageProvider>
         <UiRuntimeTranslator />
+        <HiveServiceWorker />
+        <HiveOfflineBanner />
+        <HiveInstallPrompt />
         {children}
         <Toaster
           theme="dark"

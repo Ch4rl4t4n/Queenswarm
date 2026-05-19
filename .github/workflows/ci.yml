@@ -61,6 +61,21 @@ jobs:
       - name: test
         run: npm run test
 
+      - name: Responsive shell e2e (390 / 768 / 1280)
+        env:
+          CI: "true"
+        run: npx playwright test e2e/responsive-shell.spec.ts
+
+      - name: Responsive visual regression (mobile + tablet)
+        env:
+          CI: "true"
+        run: npx playwright test e2e/responsive-visual.spec.ts
+
+      - name: PWA shell e2e (manifest + offline)
+        env:
+          CI: "true"
+        run: npx playwright test e2e/pwa-shell.spec.ts
+
       - name: Smoke e2e (hive shell)
         env:
           CI: "true"

@@ -1,20 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { Loader2Icon, SearchIcon } from "lucide-react";
+import { DownloadIcon, Loader2Icon, SearchIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { HivePageHeader } from "@/components/hive/hive-page-header";
-import { NeonButton } from "@/components/ui/neon-button";
-import { HiveApiError, hiveGet } from "@/lib/api";
-import type { RecipeRow, RecipeSemanticHit } from "@/lib/hive-types";
+import { V4Badge, V4Card, V4CardHeader, V4Chip, V4PageCanvas } from "@/components/ui/v4";
+import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
+import type { RecipeRow, RecipeSemanticHit, SkillExportResponse } from "@/lib/hive-types";
+import { downloadSkillExportBundle } from "@/lib/skill-export-utils";
 import { cn } from "@/lib/utils";
 
 interface RecipesPageClientProps {
   readonly showHeader?: boolean;
 }
 
-/** Verified catalog + semantic recall + tag facets — mobile-first stacked layout. */
+/** Verified catalog + semantic recall + tag facets — Hive Control V4. */
 export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps): JSX.Element {
   const [catalog, setCatalog] = useState<RecipeRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +26,22 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
   const [semanticHits, setSemanticHits] = useState<RecipeSemanticHit[]>([]);
   const [searchBusy, setSearchBusy] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [exportBusyId, setExportBusyId] = useState<string | null>(null);
+
+  const exportRecipe = useCallback(async (recipeId: string, recipeName: string) => {
+    setExportBusyId(recipeId);
+    try {
+      const bundle = await hivePostJson<SkillExportResponse>(`recipes/${recipeId}/export-skill`, {});
+      await downloadSkillExportBundle(bundle);
+      toast.success(`Exported ${recipeName}`, {
+        description: "Skill bundle downloaded (SKILL.md + HIVE.md).",
+      });
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Skill export failed.");
+    } finally {
+      setExportBusyId(null);
+    }
+  }, []);
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebounced(needle.trim()), 350);
@@ -94,159 +112,165 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
   const showingSemantic = Boolean(debounced);
 
   return (
-    <div className="space-y-8">
+    <V4PageCanvas className="gap-6">
       {showHeader ? (
         <HivePageHeader
           title="Recipe Library"
           subtitle="Verified workflows · Chroma semantic recall · topic tag facets"
           actions={
-            <NeonButton asChild variant="primary" className="uppercase tracking-[0.12em] touch-manipulation min-h-[44px]">
-              <Link href="/tasks/new">Run mission</Link>
-            </NeonButton>
+            <Link href="/tasks/new" className="qs-btn qs-btn--primary qs-btn--sm">
+              Run mission
+            </Link>
           }
         />
       ) : (
-        <div className="flex items-center justify-between gap-2 rounded-2xl border border-cyan/20 bg-black/25 px-3 py-2">
-          <p className="font-[family-name:var(--font-poppins)] text-xs uppercase tracking-[0.16em] text-cyan">Saved recipes</p>
-          <NeonButton asChild variant="ghost" className="min-h-[36px] text-xs uppercase tracking-[0.1em]">
-            <Link href="/tasks/new">Run mission</Link>
-          </NeonButton>
-        </div>
+        <V4Card>
+          <V4CardHeader
+            title="Saved recipes"
+            description="Verified workflow catalog with semantic recall."
+            actions={
+              <Link href="/tasks/new" className="qs-btn qs-btn--primary qs-btn--sm">
+                Run mission
+              </Link>
+            }
+          />
+        </V4Card>
       )}
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="relative flex-1">
-          <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" aria-hidden />
-          <input
-            type="search"
-            value={needle}
-            onChange={(e) => setNeedle(e.target.value)}
-            placeholder="Semantic search (natural language)…"
-            className="min-h-[48px] w-full rounded-xl border border-cyan/[0.14] bg-hive-card/90 py-3 pl-11 pr-4 font-[family-name:var(--font-poppins)] text-sm text-[#fafafa] placeholder:text-zinc-500 focus:border-pollen/35 focus:outline-none"
-          />
-          {searchBusy ? (
-            <Loader2Icon className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-cyan" aria-hidden />
-          ) : null}
+      <V4Card>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="relative flex-1">
+            <SearchIcon
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-(--qs-text-3)"
+              aria-hidden
+            />
+            <input
+              type="search"
+              value={needle}
+              onChange={(e) => setNeedle(e.target.value)}
+              placeholder="Semantic search (natural language)…"
+              className="qs-input min-h-11 w-full pl-10"
+            />
+            {searchBusy ? (
+              <Loader2Icon
+                className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-pollen"
+                aria-hidden
+              />
+            ) : null}
+          </div>
+          <p className="hidden text-xs text-(--qs-text-3) lg:block lg:max-w-xs lg:text-right">
+            Desktop: keep search + catalog visible together. Mobile: scroll tags → grid.
+          </p>
         </div>
-        <p className="font-[family-name:var(--font-poppins)] text-xs text-zinc-500 lg:max-w-xs lg:text-right">
-          Desktop: keep search + catalog visible together. Mobile: scroll tags → grid — minimal context switching.
-        </p>
-      </div>
 
-      <div className="rounded-2xl border border-cyan/[0.08] bg-black/35 p-3">
-        <p className="mb-2 px-2 font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-600">Topic tags</p>
-        <div className="flex flex-wrap gap-2">
-          {allTags.map((tag) => {
-            const on = selectedTags.includes(tag);
-            return (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => toggleTag(tag)}
-                className={cn(
-                  "min-h-[36px] rounded-full border px-3 py-1.5 font-[family-name:var(--font-poppins)] text-xs transition touch-manipulation",
-                  on ? "border-pollen/55 bg-pollen/15 text-pollen" : "border-zinc-700 text-zinc-400 hover:border-cyan/25",
-                )}
-              >
-                #{tag}
-              </button>
-            );
-          })}
-          {!allTags.length ? <span className="text-xs text-zinc-500">No tags in catalog slice.</span> : null}
+        <div className="v4-learning-panel mt-5">
+          <p className="v4-field-label mb-2">Topic tags</p>
+          <div className="v4-chip-scroll md:flex-wrap md:overflow-visible">
+            {allTags.map((tag) => {
+              const on = selectedTags.includes(tag);
+              return (
+                <V4Chip key={tag} active={on} onClick={() => toggleTag(tag)}>
+                  #{tag}
+                </V4Chip>
+              );
+            })}
+            {!allTags.length ? <span className="text-xs text-(--qs-text-3)">No tags in catalog slice.</span> : null}
+          </div>
         </div>
-      </div>
+      </V4Card>
 
       {err ? (
-        <p className="rounded-xl border border-danger/35 bg-black/50 px-4 py-3 font-[family-name:var(--font-poppins)] text-sm text-danger">{err}</p>
+        <p className="rounded-xl border border-(--qs-red)/35 bg-(--qs-red)/10 px-4 py-3 text-sm text-(--qs-red)">{err}</p>
       ) : null}
 
       {loading ? (
-        <p className="flex items-center gap-2 font-[family-name:var(--font-poppins)] text-sm text-zinc-400">
+        <p className="flex items-center gap-2 text-sm text-(--qs-text-3)">
           <Loader2Icon className="h-4 w-4 animate-spin" aria-hidden /> Loading catalog…
         </p>
       ) : null}
 
-      <section>
-        <h2 className="mb-4 font-[family-name:var(--font-poppins)] text-sm font-semibold uppercase tracking-[0.2em] text-cyan">
-          {showingSemantic ? "Semantic hits" : `Catalog · ${filteredCatalog.length} recipes`}
-        </h2>
+      <V4Card>
+        <V4CardHeader
+          as="h2"
+          title={showingSemantic ? "Semantic hits" : `Catalog · ${filteredCatalog.length} recipes`}
+          description={showingSemantic ? "Chroma cosine matches for your query." : "Verified recipes from the hive catalog."}
+        />
 
         {showingSemantic ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {semanticHits.map((hit) => (
-              <article
-                key={hit.chroma_document_id}
-                className="flex flex-col gap-3 rounded-[22px] border border-cyan/[0.09] bg-hive-card/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.04)]"
-              >
+              <article key={hit.chroma_document_id} className="v4-dream-cycle-card flex flex-col gap-3">
                 <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">
+                  <h3 className="text-lg font-semibold text-(--qs-text)">
                     {hit.postgres_row?.name ?? "Embedding (unlink)"}
                   </h3>
-                  <span className="shrink-0 rounded-full border border-cyan/35 px-2 py-0.5 font-mono text-[11px] text-cyan">
-                    {(hit.similarity * 100).toFixed(1)}%
-                  </span>
+                  <V4Badge tone="gold">{(hit.similarity * 100).toFixed(1)}%</V4Badge>
                 </div>
-                <p className="line-clamp-4 font-[family-name:var(--font-poppins)] text-xs text-zinc-400">{hit.document_preview || "—"}</p>
+                <p className="line-clamp-4 text-xs text-(--qs-text-3)">{hit.document_preview || "—"}</p>
               </article>
             ))}
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {filteredCatalog.map((recipe) => (
-              <article
-                key={recipe.id}
-                className={cn(
-                  "flex flex-col gap-4 rounded-[22px] border border-cyan/[0.09] bg-hive-card/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.04)] transition hover:border-pollen/25",
-                )}
-              >
+              <article key={recipe.id} className={cn("v4-dream-cycle-card flex flex-col gap-4 transition")}>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="font-[family-name:var(--font-poppins)] text-[10px] uppercase tracking-[0.15em] text-zinc-500">
+                  <V4Badge tone={recipe.verified_at ? "ok" : "warn"}>
                     {recipe.verified_at ? "verified" : "draft"}
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-full border border-pollen/55 px-2 py-1 font-[family-name:var(--font-poppins)] text-[11px] text-pollen">
-                    ★ wins {recipe.success_count ?? 0}
-                  </span>
+                  </V4Badge>
+                  <V4Badge tone="gold">★ wins {recipe.success_count ?? 0}</V4Badge>
                 </div>
                 <div>
-                  <h2 className="font-[family-name:var(--font-poppins)] text-xl font-semibold text-[#fafafa]">{recipe.name}</h2>
+                  <h2 className="text-xl font-semibold text-(--qs-text)">{recipe.name}</h2>
                   {(recipe.topic_tags ?? []).length ? (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {(recipe.topic_tags ?? []).map((t) => (
-                        <span key={t} className="rounded-full bg-black/40 px-2 py-0.5 font-[family-name:var(--font-poppins)] text-[10px] text-zinc-500">
+                        <V4Chip key={t} type="span">
                           #{t}
-                        </span>
+                        </V4Chip>
                       ))}
                     </div>
                   ) : null}
                 </div>
-                <dl className="grid grid-cols-3 gap-2 font-[family-name:var(--font-poppins)] text-sm">
+                <dl className="v4-recipe-card-stats grid grid-cols-3 gap-2 text-sm">
                   <div>
-                    <dt className="font-[family-name:var(--font-poppins)] text-[10px] uppercase tracking-[0.16em] text-zinc-500">Fails</dt>
-                    <dd className="mt-1 tabular-nums text-[#fafafa]">{recipe.fail_count ?? 0}</dd>
+                    <dt className="v4-field-label">Fails</dt>
+                    <dd className="mt-1 tabular-nums text-(--qs-text)">{recipe.fail_count ?? 0}</dd>
                   </div>
                   <div>
-                    <dt className="font-[family-name:var(--font-poppins)] text-[10px] uppercase tracking-[0.16em] text-zinc-500">Avg pollen</dt>
-                    <dd className="mt-1 tabular-nums text-data">{Math.round(recipe.avg_pollen_earned ?? 0)}</dd>
+                    <dt className="v4-field-label">Avg pollen</dt>
+                    <dd className="mt-1 tabular-nums text-pollen">{Math.round(recipe.avg_pollen_earned ?? 0)}</dd>
                   </div>
                   <div>
-                    <dt className="font-[family-name:var(--font-poppins)] text-[10px] uppercase tracking-[0.16em] text-zinc-500">ID</dt>
-                    <dd className="mt-1 truncate font-mono text-[10px] text-zinc-500">{recipe.id.slice(0, 8)}…</dd>
+                    <dt className="v4-field-label">ID</dt>
+                    <dd className="mt-1 truncate font-mono text-[10px] text-(--qs-text-3)">{recipe.id.slice(0, 8)}…</dd>
                   </div>
                 </dl>
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--ghost qs-btn--sm w-full sm:w-fit"
+                  disabled={exportBusyId === recipe.id}
+                  onClick={() => void exportRecipe(recipe.id, recipe.name)}
+                >
+                  {exportBusyId === recipe.id ? (
+                    <Loader2Icon className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <DownloadIcon className="h-3.5 w-3.5" aria-hidden />
+                  )}
+                  Export skill
+                </button>
               </article>
             ))}
           </div>
         )}
 
         {!loading && !showingSemantic && filteredCatalog.length === 0 ? (
-          <p className="text-center font-[family-name:var(--font-poppins)] text-sm text-muted-foreground">
-            No recipes match selected tags — clear chips or widen catalog limits.
-          </p>
+          <p className="v4-dream-empty mt-4">No recipes match selected tags — clear chips or widen catalog limits.</p>
         ) : null}
         {showingSemantic && !semanticHits.length && !searchBusy ? (
-          <p className="text-center font-[family-name:var(--font-poppins)] text-sm text-muted-foreground">No semantic hits — tweak wording.</p>
+          <p className="v4-dream-empty mt-4">No semantic hits — tweak wording.</p>
         ) : null}
-      </section>
-    </div>
+      </V4Card>
+    </V4PageCanvas>
   );
 }

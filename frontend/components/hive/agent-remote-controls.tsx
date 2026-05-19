@@ -3,7 +3,6 @@
 import { PauseIcon, PlayIcon } from "lucide-react";
 import { toast } from "sonner";
 
-import { NeonButton } from "@/components/ui/neon-button";
 import { hivePostJson } from "@/lib/api";
 
 interface AgentRemoteControlsProps {
@@ -32,12 +31,14 @@ export function AgentRemoteControls({ agentId }: AgentRemoteControlsProps) {
 
   return (
     <div className="flex flex-wrap gap-3">
-      <NeonButton type="button" variant="ghost" className="gap-2" onClick={() => void pause()}>
-        <PauseIcon className="h-4 w-4" /> Pause
-      </NeonButton>
-      <NeonButton type="button" variant="primary" className="gap-2 text-black" onClick={() => void resume()}>
-        <PlayIcon className="h-4 w-4" /> Resume
-      </NeonButton>
+      <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm inline-flex items-center gap-2" onClick={() => void pause()}>
+        <PauseIcon className="h-4 w-4" aria-hidden />
+        Pause
+      </button>
+      <button type="button" className="qs-btn qs-btn--primary qs-btn--sm inline-flex items-center gap-2" onClick={() => void resume()}>
+        <PlayIcon className="h-4 w-4" aria-hidden />
+        Resume
+      </button>
     </div>
   );
 }

@@ -33,9 +33,9 @@ export function PluginsUserUploader() {
   }, []);
 
   return (
-    <div className="rounded-2xl border border-dashed border-pollen/40 bg-black/30 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
+    <div className="rounded-2xl border border-dashed border-pollen/40 bg-black/30 p-4 md:p-6">
+      <div className="v4-plugin-uploader-row flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <p className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-pollen">
             Drop-in Python plugins
           </p>
@@ -46,7 +46,7 @@ export function PluginsUserUploader() {
         <NeonButton
           type="button"
           variant="primary"
-          className="text-[10px] uppercase"
+          className="w-full text-[10px] uppercase sm:w-auto"
           disabled={busy}
           onClick={() => document.getElementById("qs-plugin-py")?.click()}
         >

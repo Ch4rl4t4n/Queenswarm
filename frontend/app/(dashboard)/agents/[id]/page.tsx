@@ -3,6 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { QsSelect } from "@/components/ui/qs-select";
 import { HiveApiError, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
 import type { AgentRow, TaskRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
@@ -165,7 +166,7 @@ export default function AgentDetailPage(): JSX.Element {
   const idleish = statusLower === "idle" || statusLower === "offline";
 
   return (
-    <div className="space-y-6 pb-10">
+    <div className="v4-agent-detail-shell space-y-6 pb-10">
       <button
         type="button"
         onClick={() => router.back()}
@@ -174,7 +175,7 @@ export default function AgentDetailPage(): JSX.Element {
         ← Back
       </button>
 
-      <header className="flex flex-wrap items-start gap-5 lg:gap-8">
+      <header className="v4-agent-detail-head flex flex-wrap items-start gap-5 lg:gap-8">
         <div
           className="relative flex h-[92px] w-20 shrink-0 items-center justify-center text-3xl"
           style={{
@@ -209,7 +210,7 @@ export default function AgentDetailPage(): JSX.Element {
           <p className="mb-3 text-[13px] text-[var(--qs-text-3)]">
             {agent.role.replaceAll("_", " ")} · ◈ {(agent.pollen_points ?? 0).toLocaleString()} pollen
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="v4-agent-detail-actions flex flex-wrap gap-2">
             <button
               type="button"
               disabled={running}
@@ -231,7 +232,7 @@ export default function AgentDetailPage(): JSX.Element {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="v4-agent-detail-stats flex flex-wrap gap-3">
           {[
             { label: "Tasks run", value: config?.run_count ?? "—" },
             {
@@ -251,16 +252,13 @@ export default function AgentDetailPage(): JSX.Element {
         </div>
       </header>
 
-      <div className="flex gap-1 border-b border-[var(--qs-border)]">
+      <div className="v4-subtab-row w-full max-w-full">
         {(["overview", "config", "tasks"] as const).map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => setTab(t)}
-            className={cn(
-              "border-b-2 px-4 py-2 font-[family-name:var(--font-poppins)] text-[13px] transition-colors",
-              tab === t ? "border-[var(--qs-amber)] font-semibold text-[var(--qs-amber)]" : "border-transparent text-[var(--qs-text-3)]",
-            )}
+            className={cn("v4-subtab", tab === t && "v4-subtab--active")}
           >
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
@@ -332,19 +330,14 @@ export default function AgentDetailPage(): JSX.Element {
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="qs-label">Output format</label>
-                <select
-                  className="qs-input cursor-pointer"
+                <QsSelect
                   value={config.output_format || "text"}
-                  onChange={(e) =>
-                    setConfig((c) => (c ? { ...c, output_format: e.target.value } : c))
-                  }
-                >
-                  {["text", "markdown", "json", "excel", "csv", "html"].map((f) => (
-                    <option key={f} value={f}>
-                      {f}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={(next) => setConfig((c) => (c ? { ...c, output_format: next } : c))}
+                  options={["text", "markdown", "json", "excel", "csv", "html"].map((f) => ({
+                    value: f,
+                    label: f,
+                  }))}
+                />
               </div>
               <div>
                 <label className="qs-label">Schedule value</label>

@@ -111,10 +111,10 @@ export function TasksListPanel({ tasks, onOpenTask }: TasksListPanelProps): JSX.
         </Link>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-cyan/[0.08] bg-[#07070f]/90">
+      <div className="overflow-x-auto rounded-2xl border border-[color:var(--qs-border-2)]/[0.08] bg-[#07070f]/90">
         <table className="w-full min-w-[320px] border-collapse text-left text-sm">
           <thead>
-            <tr className="border-b border-cyan/[0.08] font-[family-name:var(--font-poppins)] text-[10px] uppercase tracking-[0.16em] text-zinc-500">
+            <tr className="border-b border-[color:var(--qs-border-2)]/[0.08] font-[family-name:var(--font-poppins)] text-[10px] uppercase tracking-[0.16em] text-zinc-500">
               <th className="px-4 py-3">Task</th>
               <th className="hidden px-4 py-3 sm:table-cell">Swarm</th>
               <th className="px-4 py-3">Status</th>
@@ -135,7 +135,7 @@ export function TasksListPanel({ tasks, onOpenTask }: TasksListPanelProps): JSX.
                 const { done, total } = taskSteps(t);
                 const pct = total > 0 ? Math.round((done / total) * 100) : 0;
                 return (
-                  <tr key={t.id} className="border-b border-cyan/[0.05] hover:bg-white/[0.03]">
+                  <tr key={t.id} className="border-b border-[color:var(--qs-border-2)]/[0.05] hover:bg-white/[0.03]">
                     <td className="px-4 py-3">
                       <button
                         type="button"

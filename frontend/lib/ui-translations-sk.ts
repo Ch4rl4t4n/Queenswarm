@@ -40,6 +40,7 @@ export const UI_TRANSLATIONS_SK: Record<string, string> = {
   "Team · RBAC": "Tím · RBAC",
   "Public sharing": "Verejné zdieľanie",
   "LLM keys": "LLM kľúče",
+  "AI + Voice keys": "AI + Hlasové kľúče",
   "API keys · external": "API kľúče · externé",
   Language: "Jazyk",
 

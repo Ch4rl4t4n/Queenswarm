@@ -55,8 +55,8 @@ export function WorkflowDagHero({ workflow }: WorkflowDagHeroProps) {
   const cursor = Math.min(workflow.completed_steps, STEP_META.length - 1);
 
   return (
-    <section className="rounded-3xl border border-cyan/[0.12] bg-hive-card/90 p-6 md:p-8">
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-cyan/[0.08] pb-5">
+    <section className="rounded-3xl border border-[color:var(--qs-border)] bg-hive-card/90 p-6 md:p-8">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[color:var(--qs-border-2)]/[0.08] pb-5">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1 rounded-full border border-success/35 bg-success/[0.1] px-2 py-0.5 qs-chip uppercase tracking-[0.06em] text-success">
@@ -93,7 +93,7 @@ export function WorkflowDagHero({ workflow }: WorkflowDagHeroProps) {
                 <div
                   className={cn(
                     "mx-1 hidden h-0 min-w-[24px] flex-1 border-t-2 md:block",
-                    i < cursor ? "border-success/60 border-dotted" : "border-cyan/[0.12]",
+                    i < cursor ? "border-success/60 border-dotted" : "border-[color:var(--qs-border)]",
                   )}
                 />
               ) : null}

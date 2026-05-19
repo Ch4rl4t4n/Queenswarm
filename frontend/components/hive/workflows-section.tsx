@@ -5,6 +5,8 @@ import type { ComponentProps } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { HexNumberBadge } from "@/components/hive/hex-metric-tile";
+import { V4Badge, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import type {
   WorkflowDagStep,
@@ -12,7 +14,6 @@ import type {
   WorkflowListItem,
   WorkflowsDashboardResponse,
 } from "@/lib/hive-types";
-import { HexNumberBadge } from "@/components/hive/hex-metric-tile";
 import { cn } from "@/lib/utils";
 
 const DAG_TONE_HEX: Record<WorkflowDagStep["hex_tone"], string> = {
@@ -108,38 +109,25 @@ function FeaturedCard({
 }) {
   const st = featured.ui_status.toLowerCase();
   const canControl = st === "running" || st === "pending" || st === "paused";
-
-  const badgeDot =
-    st === "running"
-      ? "bg-success shadow-[0_0_6px_rgb(0_255_136/0.55)]"
-      : st === "completed"
-        ? "bg-cyan shadow-[0_0_6px_rgb(0_255_255/0.4)]"
-        : st === "paused"
-          ? "bg-pollen shadow-[0_0_6px_rgb(255_184_0/0.4)]"
-          : "bg-zinc-500";
-
   const steps = featured.steps ?? [];
 
   return (
-    <article className="rounded-3xl qs-rim bg-[#0a0a14]/95 p-5 md:p-7">
+    <article className="v4-featured-card">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h3 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa] md:text-xl">{featured.title}</h3>
-          <p className="mt-1 font-[family-name:var(--font-poppins)] text-[11px] leading-snug text-zinc-500">
+          <h3 className="text-lg font-semibold text-(--qs-text) md:text-xl">{featured.title}</h3>
+          <p className="mt-1 text-[11px] leading-snug text-(--qs-text-3)">
             {featured.short_id}
             {featured.tags.length > 0 ? ` · ${featured.tags.join(" · ")}` : ""}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/50 px-3 py-1 font-[family-name:var(--font-poppins)] text-xs font-semibold capitalize text-zinc-200">
-            <span className={cn("h-1.5 w-1.5 rounded-full", badgeDot)} aria-hidden />
-            {st}
-          </span>
-        </div>
+        <V4Badge tone={st === "running" ? "ok" : st === "completed" ? "info" : st === "paused" ? "gold" : "purple"}>
+          {st}
+        </V4Badge>
       </header>
 
       {steps.length > 0 ? (
-        <div className="mt-8 overflow-x-auto pb-2">
+        <div className="mt-8 v4-dag-scroll pb-2">
           <div className="flex min-w-min items-center px-1">
             {steps.map((step, i) => {
               const prev = i > 0 ? steps[i - 1] : null;
@@ -149,7 +137,7 @@ function FeaturedCard({
                   {prev ? <div className={connectorClass(prev.hex_tone, dashedTail)} aria-hidden /> : null}
                   <div className="flex flex-col items-center gap-2 px-1">
                     <DagNode step={step} />
-                    <span className="qs-chip max-w-[4.5rem] text-center uppercase tracking-wide text-zinc-500">
+                    <span className="v4-label-kicker max-w-[4.5rem] text-center text-(--qs-text-3)">
                       {step.label}
                     </span>
                   </div>
@@ -162,13 +150,13 @@ function FeaturedCard({
         <p className="mt-6 text-sm text-zinc-600">No steps in this workflow.</p>
       )}
 
-      <footer className="mt-8 flex flex-col gap-4 border-t border-white/[0.06] pt-5 sm:flex-row sm:items-center sm:justify-between">
-        <p className="max-w-xl font-[family-name:var(--font-poppins)] text-xs leading-relaxed text-zinc-400">{featured.footer_line}</p>
-        <div className="flex flex-wrap gap-2 sm:shrink-0">
-          <button type="button" disabled={!canControl || busy} onClick={onPause} className="qs-btn qs-btn--ghost qs-btn--sm">
+      <footer className="mt-8 flex flex-col gap-4 border-t border-(--qs-border) pt-5 sm:flex-row sm:items-center sm:justify-between">
+        <p className="max-w-xl text-xs leading-relaxed text-(--qs-text-3)">{featured.footer_line}</p>
+        <div className="flex w-full flex-wrap gap-2 sm:shrink-0">
+          <button type="button" disabled={!canControl || busy} onClick={onPause} className="qs-btn qs-btn--ghost qs-btn--sm flex-1 sm:flex-none">
             Pause
           </button>
-          <button type="button" disabled={!canControl || busy} onClick={onCancel} className="qs-btn qs-btn--danger qs-btn--sm">
+          <button type="button" disabled={!canControl || busy} onClick={onCancel} className="qs-btn qs-btn--danger qs-btn--sm flex-1 sm:flex-none">
             Cancel
           </button>
         </div>
@@ -190,39 +178,36 @@ function ListRow({
   const fill = st === "completed" ? "bg-pollen" : accent;
 
   return (
-    <li className="relative overflow-hidden rounded-2xl qs-rim bg-[#0c0c12]/95 pl-1.5 pr-4 py-4 sm:pr-5">
-      <div className={cn("absolute bottom-0 left-0 top-0 w-1 rounded-l-2xl", accent)} aria-hidden />
+    <li className="v4-list-row">
+      <div className={cn("v4-list-row-accent", accent)} aria-hidden />
       <div className="flex flex-col gap-4 pl-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <p className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-[#fafafa]">{row.title}</p>
-            <span className="font-[family-name:var(--font-poppins)] text-[11px] tracking-tight text-zinc-500">{row.short_id}</span>
+            <p className="text-sm font-semibold text-(--qs-text)">{row.title}</p>
+            <span className="text-[11px] tracking-tight text-(--qs-text-3)">{row.short_id}</span>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {row.tags.map((t) => (
-              <span
-                key={t}
-                className="rounded-full border border-pollen/45 bg-pollen/[0.06] px-2 py-0.5 qs-chip uppercase tracking-wide text-pollen"
-              >
+              <V4Badge key={t} tone="gold">
                 {t}
-              </span>
+              </V4Badge>
             ))}
-            <span className="font-[family-name:var(--font-poppins)] text-[11px] tabular-nums text-zinc-500">
+            <span className="text-[11px] tabular-nums text-(--qs-text-3)">
               {formatWfAgo(row.seconds_ago)} ago · {row.steps_done}/{row.steps_total} steps
             </span>
           </div>
         </div>
         <div className="flex flex-col items-stretch gap-2 sm:w-44 sm:items-end">
-          <span className="font-[family-name:var(--font-poppins)] text-[11px] capitalize text-zinc-500">{st}</span>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/60 sm:max-w-[11rem]">
-            <div className={cn("h-full rounded-full transition-all", fill)} style={{ width: `${row.progress_pct}%` }} />
+          <span className="text-[11px] capitalize text-(--qs-text-3)">{st}</span>
+          <div className="v4-bar-track sm:max-w-[11rem]">
+            <div className={cn("v4-bar-fill", fill)} style={{ width: `${row.progress_pct}%` }} />
           </div>
           <div className="flex items-center justify-between gap-3 sm:w-full sm:max-w-[11rem]">
-            <span className="font-[family-name:var(--font-poppins)] text-sm font-bold tabular-nums text-pollen">{row.progress_pct}%</span>
+            <span className="text-sm font-bold tabular-nums text-pollen">{row.progress_pct}%</span>
             <button
               type="button"
               onClick={() => onOpen(row.id)}
-              className="rounded-lg border border-white/20 px-3 py-1 font-[family-name:var(--font-poppins)] text-[11px] font-semibold text-zinc-200 transition hover:border-pollen/40 hover:text-pollen"
+              className="qs-btn qs-btn--ghost qs-btn--sm"
             >
               Open
             </button>
@@ -309,7 +294,7 @@ export function WorkflowsSection() {
 
   if (err) {
     return (
-      <section id="hive-workflows" className="scroll-mt-24 rounded-3xl border border-danger/30 bg-danger/[0.06] p-6">
+      <section id="hive-workflows" className="scroll-mt-24 p-6">
         <p className="text-sm text-danger">Workflows: {err}</p>
       </section>
     );
@@ -317,7 +302,7 @@ export function WorkflowsSection() {
 
   if (!data) {
     return (
-      <section id="hive-workflows" className="scroll-mt-24 space-y-4">
+      <section id="hive-workflows" className="scroll-mt-24 space-y-4 p-6">
         <div className="h-10 w-48 animate-pulse rounded-lg bg-white/10" />
         <div className="h-48 animate-pulse rounded-3xl bg-white/[0.04]" />
         <div className="h-24 animate-pulse rounded-2xl bg-white/[0.04]" />
@@ -326,13 +311,12 @@ export function WorkflowsSection() {
   }
 
   return (
-    <section id="hive-workflows" className="scroll-mt-24 flex flex-col gap-8">
-      <div>
-        <h2 className="font-[family-name:var(--font-poppins)] text-2xl font-bold text-[#fafafa] md:text-3xl">Workflows</h2>
-        <p className="mt-2 font-[family-name:var(--font-poppins)] text-sm text-zinc-500">
-          DAG executions · auto-decomposed from tasks
-        </p>
-      </div>
+    <section id="hive-workflows" className="scroll-mt-24 flex flex-col gap-6 p-6 pt-0">
+      <V4CardHeader
+        title="Workflows"
+        description="DAG executions · auto-decomposed from tasks"
+        as="h3"
+      />
 
       {data.featured ? (
         <FeaturedCard
@@ -342,14 +326,14 @@ export function WorkflowsSection() {
           onCancel={() => void onCancelFeatured()}
         />
       ) : (
-        <p className="rounded-2xl border border-dashed border-white/10 py-12 text-center text-sm text-zinc-500">No workflow records yet.</p>
+        <div className="v4-empty py-12 text-sm">No workflow records yet.</div>
       )}
 
       <div>
-        <h3 className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-zinc-400">Recent</h3>
+        <h3 className="v4-label-kicker text-(--qs-text-3)">Recent</h3>
         <ul className="mt-4 flex flex-col gap-3">
           {listRows.length === 0 ? (
-            <li className="rounded-2xl border border-dashed border-white/10 py-10 text-center text-sm text-zinc-600">No items.</li>
+            <li className="v4-empty py-10 text-sm">No items.</li>
           ) : (
             listRows.map((row) => (
               <ListRow key={row.id} row={row} accent={laneBarClass(row.lane)} onOpen={setWorkflowFocus} />

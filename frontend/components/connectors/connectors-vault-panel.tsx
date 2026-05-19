@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { HiveApiError, hivePostJson } from "@/lib/api";
 import { VAULT_VENDOR_PRESETS, type VaultVendorPreset } from "@/lib/connectors-vault-presets";
 import { isHttpsProbeUrl, normalizeVaultSlug } from "@/lib/connectors-vault-utils";
+import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { cn } from "@/lib/utils";
 
 type VaultKind = "oauth2" | "api_key";
@@ -235,40 +236,35 @@ export function ConnectorsVaultPanel(): JSX.Element {
   }
 
   return (
-    <section className="rounded-[28px] border border-[#1b1f4a]/90 bg-black/58 p-6 shadow-[0_35px_90px_-50px_rgb(255_184_0/0.35)]">
-      <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div>
-          <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#EEEEFF]">
-            Connector vault · handshake wizard
-          </h2>
-          <p className="font-[family-name:var(--font-poppins)] text-sm text-zinc-500">
-            AES-sealed rows scoped to your dashboard user — ciphertext never echoes back over JSON. Desktop: dense columns · Mobile: stacked with
-            44px tap targets.
-          </p>
-        </div>
-        <ol className="flex flex-wrap gap-2 font-[family-name:var(--font-poppins)] text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-          <li className="inline-flex items-center gap-1 rounded-full border border-pollen/35 bg-pollen/10 px-3 py-1.5 text-pollen">
-            <ShieldCheckIcon className="h-3.5 w-3.5" aria-hidden />
-            1 Seal
-          </li>
-          <li className="inline-flex items-center gap-1 rounded-full border border-cyan/30 bg-cyan/5 px-3 py-1.5 text-cyan">
-            <RadioIcon className="h-3.5 w-3.5" aria-hidden />
-            2 Ping
-          </li>
-          <li className="inline-flex items-center gap-1 rounded-full border border-white/12 px-3 py-1.5 text-zinc-400">
-            <CheckCircle2Icon className="h-3.5 w-3.5" aria-hidden />
-            3 Rotate / probe
-          </li>
-        </ol>
-      </header>
+    <V4Card>
+      <V4CardHeader
+        title="Connector vault · handshake wizard"
+        description="AES-sealed rows scoped to your dashboard user — ciphertext never echoes back over JSON. Desktop: dense columns · Mobile: stacked with 44px tap targets."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <V4Badge tone="gold">
+              <ShieldCheckIcon className="mr-1 inline h-3.5 w-3.5" aria-hidden />
+              1 Seal
+            </V4Badge>
+            <V4Badge tone="info">
+              <RadioIcon className="mr-1 inline h-3.5 w-3.5" aria-hidden />
+              2 Ping
+            </V4Badge>
+            <V4Badge tone="ok">
+              <CheckCircle2Icon className="mr-1 inline h-3.5 w-3.5" aria-hidden />
+              3 Rotate / probe
+            </V4Badge>
+          </div>
+        }
+      />
 
-      <div className="mb-6 rounded-2xl border border-cyan/20 bg-black/70 p-4 md:p-5">
+      <div className="mb-6 v4-learning-panel">
         <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
             <h3 className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-[#EEEEFF]">
               Phase 3 vendor presets
             </h3>
-            <p className="font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
+            <p className="font-[family-name:var(--font-poppins)] text-xs text-(--qs-text-3)">
               One tap fills slug, OAuth token endpoint (when applicable), and suggested HTTPS probe — you still complete consent out-of-band with the vendor,
               then <strong className="text-pollen">Seal → Ping → Refresh</strong> here.
             </p>
@@ -280,14 +276,14 @@ export function ConnectorsVaultPanel(): JSX.Element {
               key={p.id}
               type="button"
               data-qs-vault-preset={p.slug}
-              className="min-h-[44px] shrink-0 rounded-xl border border-white/12 bg-black/65 px-3 py-2 font-[family-name:var(--font-poppins)] text-[11px] font-semibold uppercase tracking-wide text-zinc-200 hover:border-pollen/45 hover:text-pollen touch-manipulation"
+              className="qs-btn qs-btn--ghost qs-btn--sm shrink-0 touch-manipulation"
               onClick={() => applyVendorPreset(p)}
             >
               {p.label}
             </button>
           ))}
         </div>
-        <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-zinc-500">
+        <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-(--qs-text-3)">
           <span className="font-mono text-cyan">Docs · Google / Microsoft OAuth</span>
           <a
             href="https://developers.google.com/identity/protocols/oauth2"
@@ -308,7 +304,7 @@ export function ConnectorsVaultPanel(): JSX.Element {
         </div>
         {presetHint ? (
           <p
-            className="mt-4 rounded-xl border border-pollen/25 bg-pollen/5 px-3 py-2 font-[family-name:var(--font-poppins)] text-xs leading-relaxed text-zinc-300"
+            className="mt-4 rounded-xl border border-pollen/25 bg-pollen/5 px-3 py-2 font-[family-name:var(--font-poppins)] text-xs leading-relaxed text-(--qs-text-2)"
             role="status"
           >
             <span className="font-semibold text-pollen">Selected preset · </span>
@@ -323,8 +319,8 @@ export function ConnectorsVaultPanel(): JSX.Element {
       </div>
 
       <div className="grid gap-8 lg:grid-cols-2">
-        <form onSubmit={(e) => void submitVault(e)} className="space-y-4 rounded-2xl border border-[#1e2348] bg-black/76 p-4 md:p-5">
-          <h3 className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-cyan">Seal credentials</h3>
+        <form onSubmit={(e) => void submitVault(e)} className="v4-learning-panel space-y-4">
+          <h3 className="text-sm font-semibold text-pollen">Seal credentials</h3>
           {vaultInlineErr ? (
             <p className="rounded-xl border border-danger/35 bg-black/65 px-3 py-2 text-sm text-danger" role="alert">
               {vaultInlineErr}
@@ -336,14 +332,14 @@ export function ConnectorsVaultPanel(): JSX.Element {
               id="qs-vault-connector-slug"
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
-              className="min-h-[44px] rounded-xl border border-[#1e2348] bg-black/76 px-3 py-2 font-mono text-sm"
+              className="qs-input min-h-[44px] font-mono text-sm"
               placeholder="gmail_workspace"
               required
             />
           </label>
           <label className="flex flex-col gap-2 font-[family-name:var(--font-poppins)] text-xs font-medium text-[#BEBED6]">
             Label (optional)
-            <input value={label} onChange={(e) => setLabel(e.target.value)} className="min-h-[44px] rounded-xl border border-[#1e2348] bg-black/76 px-3 py-2 text-sm" />
+            <input value={label} onChange={(e) => setLabel(e.target.value)} className="qs-input min-h-[44px] text-sm" />
           </label>
           <div className="flex gap-2">
             {(["oauth2", "api_key"] as const).map((k) => (
@@ -352,7 +348,7 @@ export function ConnectorsVaultPanel(): JSX.Element {
                 type="button"
                 className={cn(
                   "flex-1 rounded-xl border px-3 py-3 font-[family-name:var(--font-poppins)] text-xs font-semibold touch-manipulation min-h-[44px]",
-                  kind === k ? "border-pollen text-pollen bg-pollen/10" : "border-zinc-700 text-zinc-400",
+                  kind === k ? "border-pollen text-pollen bg-pollen/10" : "border-(--qs-border) text-(--qs-text-3)",
                 )}
                 onClick={() => setKind(k)}
               >
@@ -368,7 +364,7 @@ export function ConnectorsVaultPanel(): JSX.Element {
                 autoComplete="off"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                className="min-h-[44px] rounded-xl border border-[#1e2348] bg-black/76 px-3 py-2 font-mono text-sm"
+                className="qs-input min-h-[44px] font-mono text-sm"
               />
             </label>
           ) : (
@@ -380,7 +376,7 @@ export function ConnectorsVaultPanel(): JSX.Element {
                   autoComplete="off"
                   value={accessToken}
                   onChange={(e) => setAccessToken(e.target.value)}
-                  className="min-h-[44px] rounded-xl border border-[#1e2348] bg-black/76 px-3 py-2 font-mono text-sm"
+                  className="qs-input min-h-[44px] font-mono text-sm"
                 />
               </label>
               <label className="flex flex-col gap-2 font-[family-name:var(--font-poppins)] text-xs font-medium text-[#BEBED6]">
@@ -390,7 +386,7 @@ export function ConnectorsVaultPanel(): JSX.Element {
                   autoComplete="off"
                   value={refreshToken}
                   onChange={(e) => setRefreshToken(e.target.value)}
-                  className="min-h-[44px] rounded-xl border border-[#1e2348] bg-black/76 px-3 py-2 font-mono text-sm"
+                  className="qs-input min-h-[44px] font-mono text-sm"
                 />
               </label>
               <label className="flex flex-col gap-2 font-[family-name:var(--font-poppins)] text-xs font-medium text-[#BEBED6]" htmlFor="qs-vault-token-endpoint">
@@ -399,13 +395,13 @@ export function ConnectorsVaultPanel(): JSX.Element {
                   id="qs-vault-token-endpoint"
                   value={tokenEndpoint}
                   onChange={(e) => setTokenEndpoint(e.target.value)}
-                  className="min-h-[44px] rounded-xl border border-[#1e2348] bg-black/76 px-3 py-2 font-mono text-xs"
+                  className="qs-input min-h-[44px] font-mono text-xs"
                   placeholder="https://oauth2.googleapis.com/token"
                 />
               </label>
               <label className="flex flex-col gap-2 font-[family-name:var(--font-poppins)] text-xs font-medium text-[#BEBED6]">
                 Client id
-                <input value={clientId} onChange={(e) => setClientId(e.target.value)} className="min-h-[44px] rounded-xl border border-[#1e2348] bg-black/76 px-3 py-2 font-mono text-sm" />
+                <input value={clientId} onChange={(e) => setClientId(e.target.value)} className="qs-input min-h-[44px] font-mono text-sm" />
               </label>
               <label className="flex flex-col gap-2 font-[family-name:var(--font-poppins)] text-xs font-medium text-[#BEBED6]">
                 Client secret
@@ -414,7 +410,7 @@ export function ConnectorsVaultPanel(): JSX.Element {
                   autoComplete="off"
                   value={clientSecret}
                   onChange={(e) => setClientSecret(e.target.value)}
-                  className="min-h-[44px] rounded-xl border border-[#1e2348] bg-black/76 px-3 py-2 font-mono text-sm"
+                  className="qs-input min-h-[44px] font-mono text-sm"
                 />
               </label>
             </div>
@@ -430,9 +426,9 @@ export function ConnectorsVaultPanel(): JSX.Element {
         </form>
 
         <div className="flex flex-col gap-6">
-          <form onSubmit={(e) => void runPing(e)} className="space-y-4 rounded-2xl border border-[#1e2348] bg-black/76 p-4 md:p-5">
-            <h3 className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-cyan">Test handshake (vault ping)</h3>
-            <p className="font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
+          <form onSubmit={(e) => void runPing(e)} className="v4-learning-panel space-y-4">
+            <h3 className="text-sm font-semibold text-pollen">Test handshake (vault ping)</h3>
+            <p className="font-[family-name:var(--font-poppins)] text-xs text-(--qs-text-3)">
               Calls <span className="font-mono text-[11px] text-pollen">POST /connectors/&lt;slug&gt;/ping</span> — vault-backed unless you enable a
               one-shot ephemeral secret for staging only.
             </p>
@@ -441,12 +437,12 @@ export function ConnectorsVaultPanel(): JSX.Element {
               <input
                 value={testSlug}
                 onChange={(e) => setTestSlug(e.target.value)}
-                className="min-h-[44px] rounded-xl border border-[#1e2348] bg-black/76 px-3 py-2 font-mono text-sm"
+                className="qs-input min-h-[44px] font-mono text-sm"
                 placeholder="matches sealed row"
                 required
               />
             </label>
-            <label className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-xl border border-white/10 px-3 py-2 font-[family-name:var(--font-poppins)] text-xs text-zinc-300 touch-manipulation">
+            <label className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-xl border border-(--qs-border) px-3 py-2 text-xs text-(--qs-text-2) touch-manipulation">
               <input type="checkbox" checked={useEphemeralPing} onChange={(e) => setUseEphemeralPing(e.target.checked)} className="accent-cyan" />
               Ephemeral secrets (not stored — cleared after success)
             </label>
@@ -460,7 +456,7 @@ export function ConnectorsVaultPanel(): JSX.Element {
                     autoComplete="off"
                     value={ephemeralApiKey}
                     onChange={(e) => setEphemeralApiKey(e.target.value)}
-                    className="min-h-[44px] rounded-xl border border-[#1e2348] bg-black/76 px-3 py-2 font-mono text-sm"
+                    className="qs-input min-h-[44px] font-mono text-sm"
                   />
                 </label>
                 <label className="flex flex-col gap-2 font-[family-name:var(--font-poppins)] text-xs font-medium text-[#BEBED6]">
@@ -470,7 +466,7 @@ export function ConnectorsVaultPanel(): JSX.Element {
                     autoComplete="off"
                     value={ephemeralOAuthToken}
                     onChange={(e) => setEphemeralOAuthToken(e.target.value)}
-                    className="min-h-[44px] rounded-xl border border-[#1e2348] bg-black/76 px-3 py-2 font-mono text-sm"
+                    className="qs-input min-h-[44px] font-mono text-sm"
                   />
                 </label>
               </div>
@@ -478,7 +474,7 @@ export function ConnectorsVaultPanel(): JSX.Element {
             <button
               type="submit"
               disabled={pingBusy}
-              className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border border-cyan/50 px-4 py-3 font-[family-name:var(--font-poppins)] text-sm font-semibold text-cyan hover:bg-cyan/10 disabled:opacity-40 touch-manipulation"
+              className="qs-btn qs-btn--primary w-full touch-manipulation"
             >
               {pingBusy ? <Loader2Icon className="h-4 w-4 animate-spin" aria-hidden /> : null}
               Run ping
@@ -495,9 +491,9 @@ export function ConnectorsVaultPanel(): JSX.Element {
             ) : null}
           </form>
 
-          <form onSubmit={(e) => void runOAuthRefresh(e)} className="space-y-4 rounded-2xl border border-[#1e2348] bg-black/76 p-4 md:p-5">
+          <form onSubmit={(e) => void runOAuthRefresh(e)} className="v4-learning-panel space-y-4">
             <h3 className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-pollen">Rotate access token</h3>
-            <p className="font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
+            <p className="font-[family-name:var(--font-poppins)] text-xs text-(--qs-text-3)">
               Uses vaulted refresh token + client credentials — updated ciphertext persists server-side only.
             </p>
             {oauthInlineErr ? (
@@ -510,7 +506,7 @@ export function ConnectorsVaultPanel(): JSX.Element {
               <input
                 value={refreshSlug}
                 onChange={(e) => setRefreshSlug(e.target.value)}
-                className="min-h-[44px] rounded-xl border border-[#1e2348] bg-black/76 px-3 py-2 font-mono text-sm"
+                className="qs-input min-h-[44px] font-mono text-sm"
                 placeholder="outlook_graph"
                 required
               />
@@ -525,9 +521,9 @@ export function ConnectorsVaultPanel(): JSX.Element {
             </button>
           </form>
 
-          <form onSubmit={(e) => void runProbe(e)} className="space-y-4 rounded-2xl border border-[#1e2348] bg-black/76 p-4 md:p-5">
+          <form onSubmit={(e) => void runProbe(e)} className="v4-learning-panel space-y-4">
             <h3 className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-[#EEEEFF]">Egress probe (vault GET)</h3>
-            <p className="font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
+            <p className="font-[family-name:var(--font-poppins)] text-xs text-(--qs-text-3)">
               Applies vaulted bearer headers then performs <span className="font-mono text-cyan">GET</span> with retry policy — HTTPS only.
             </p>
             <label className="flex flex-col gap-2 font-[family-name:var(--font-poppins)] text-xs font-medium text-[#BEBED6]">
@@ -535,7 +531,7 @@ export function ConnectorsVaultPanel(): JSX.Element {
               <input
                 value={probeSlug}
                 onChange={(e) => setProbeSlug(e.target.value)}
-                className="min-h-[44px] rounded-xl border border-[#1e2348] bg-black/76 px-3 py-2 font-mono text-sm"
+                className="qs-input min-h-[44px] font-mono text-sm"
                 required
               />
             </label>
@@ -544,7 +540,7 @@ export function ConnectorsVaultPanel(): JSX.Element {
               <input
                 value={probeUrl}
                 onChange={(e) => setProbeUrl(e.target.value)}
-                className="min-h-[44px] rounded-xl border border-[#1e2348] bg-black/76 px-3 py-2 font-mono text-xs"
+                className="qs-input min-h-[44px] font-mono text-xs"
                 placeholder="https://api.github.com/user"
                 required
               />
@@ -552,7 +548,7 @@ export function ConnectorsVaultPanel(): JSX.Element {
             <button
               type="submit"
               disabled={probeBusy}
-              className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border border-white/18 px-4 py-3 font-[family-name:var(--font-poppins)] text-sm font-semibold text-zinc-100 hover:bg-white/5 disabled:opacity-40 touch-manipulation"
+              className="qs-btn qs-btn--ghost w-full touch-manipulation"
             >
               {probeBusy ? <Loader2Icon className="h-4 w-4 animate-spin" aria-hidden /> : null}
               Run HTTPS probe
@@ -570,6 +566,6 @@ export function ConnectorsVaultPanel(): JSX.Element {
           </form>
         </div>
       </div>
-    </section>
+    </V4Card>
   );
 }

@@ -1,8 +1,12 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { V4BarRow, V4Card, V4CardHeader, V4Stat } from "@/components/ui/v4";
 import type { BillingPlansPayload, BillingUsageSnapshot } from "@/lib/hive-types";
+import { integrationsTabHref } from "@/lib/integrations-routes";
 import { cn } from "@/lib/utils";
 
 function fmtInt(n: number): string {
@@ -13,7 +17,20 @@ function fmtUsd(n: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(n);
 }
 
+function healthTone(row: { hard_exceeded: boolean; soft_exceeded: boolean }): "ok" | "warn" | "err" {
+  if (row.hard_exceeded) return "err";
+  if (row.soft_exceeded) return "warn";
+  return "ok";
+}
+
+function healthLabel(row: { hard_exceeded: boolean; soft_exceeded: boolean }): string {
+  if (row.hard_exceeded) return "hard exceeded";
+  if (row.soft_exceeded) return "soft exceeded";
+  return "healthy";
+}
+
 export function BillingSettingsPanel() {
+  const router = useRouter();
   const [usage, setUsage] = useState<BillingUsageSnapshot | null>(null);
   const [plans, setPlans] = useState<BillingPlansPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -77,98 +94,126 @@ export function BillingSettingsPanel() {
   }, [usage]);
 
   if (loading) {
-    return <div className="rounded-2xl border border-cyan/20 bg-hive-card/70 p-5 text-sm text-zinc-400">Loading billing…</div>;
+    return (
+      <V4Card>
+        <p className="text-sm text-(--qs-text-3)">Loading billing…</p>
+      </V4Card>
+    );
   }
   if (error && !usage) {
-    return <div className="rounded-2xl border border-rose-500/30 bg-rose-950/30 p-5 text-sm text-rose-200">{error}</div>;
+    return (
+      <V4Card>
+        <p className="text-sm text-(--qs-red)">{error}</p>
+      </V4Card>
+    );
   }
 
   return (
-    <section className="space-y-6">
-      <header className="rounded-2xl border border-cyan/15 bg-hive-card/70 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold text-zinc-100">Usage & Billing</h2>
-            <p className="mt-1 text-sm text-zinc-400">
-              Current plan: <span className="text-amber-300">{usage?.tier ?? "free"}</span> · status:{" "}
-              <span className="text-cyan-300">{usage?.status ?? "active"}</span>
-            </p>
-          </div>
-          <button
-            type="button"
-            className="rounded-xl bg-amber-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-amber-300"
-          >
-            Upgrade plan
-          </button>
-        </div>
-        <p className="mt-2 text-xs text-zinc-500">Stripe checkout wiring is prepared, but payment activation is intentionally deferred.</p>
-      </header>
+    <div className="flex flex-col gap-6">
+      <V4Card>
+        <V4CardHeader
+          title="Usage & Billing"
+          description={
+            <>
+              Current plan: <span className="text-(--qs-amber)">{usage?.tier ?? "free"}</span> · status:{" "}
+              <span className="text-(--qs-text-2)">{usage?.status ?? "active"}</span>
+            </>
+          }
+          actions={
+            <button
+              type="button"
+              className="qs-btn qs-btn--primary qs-btn--sm"
+              onClick={() => {
+                if (plans?.checkout_ready) {
+                  router.push(integrationsTabHref("skills"));
+                  return;
+                }
+                router.push("/settings/billing");
+              }}
+            >
+              {plans?.checkout_ready ? "Browse premium skills" : "View plan limits"}
+            </button>
+          }
+        />
+        <p className="text-xs text-(--qs-text-3)">
+          {plans?.checkout_ready
+            ? "Stripe is configured — premium skill one-time checkout is available under Integrations → Skills export."
+            : "Set STRIPE_SECRET_KEY to enable premium skill checkout; subscription billing remains optional."}
+        </p>
+      </V4Card>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="v4-stat-grid">
         {topMetrics.map((metric) => (
-          <article key={metric.key} className="rounded-2xl border border-cyan/10 bg-hive-card/70 p-4">
-            <p className="text-xs uppercase tracking-wide text-zinc-500">{metric.label}</p>
-            <p className="mt-2 text-xl font-semibold text-zinc-100">{metric.value}</p>
-          </article>
+          <V4Stat key={metric.key} label={metric.label} value={metric.value} valueVariant="text" />
         ))}
       </div>
 
-      <div className="rounded-2xl border border-cyan/15 bg-hive-card/70 p-5">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-200">Soft/Hard limits</h3>
-        <div className="mt-4 space-y-3">
+      <V4Card>
+        <V4CardHeader title="Soft/Hard limits" description="Usage health against tier soft and hard caps." />
+        <div className="flex flex-col gap-3">
           {Object.entries(usage?.usage_health ?? {}).map(([metric, row]) => (
-            <div key={metric} className="rounded-xl border border-cyan/10 p-3">
-              <div className="flex items-center justify-between gap-2 text-sm">
-                <span className="text-zinc-200">{metric}</span>
-                <span className={cn("text-xs", row.hard_exceeded ? "text-rose-300" : row.soft_exceeded ? "text-amber-300" : "text-zinc-500")}>
-                  {row.hard_exceeded ? "hard exceeded" : row.soft_exceeded ? "soft exceeded" : "healthy"}
+            <div key={metric} className="rounded-(--qs-radius-sm) border border-(--qs-border) bg-white/2 p-3">
+              <div className="mb-2 flex justify-end">
+                <span
+                  className={cn(
+                    "text-xs",
+                    healthTone(row) === "err"
+                      ? "text-(--qs-red)"
+                      : healthTone(row) === "warn"
+                        ? "text-(--qs-amber)"
+                        : "text-(--qs-text-3)",
+                  )}
+                >
+                  {healthLabel(row)}
                 </span>
               </div>
-              <p className="mt-1 text-xs text-zinc-500">
-                value {fmtInt(row.value)} · soft {fmtInt(row.soft_limit)} · hard {fmtInt(row.hard_limit)}
+              <V4BarRow
+                label={metric}
+                value={`${fmtInt(row.value)} / ${fmtInt(row.hard_limit)}`}
+                pct={row.hard_pct}
+              />
+              <p className="mt-1 text-xs text-(--qs-text-3)">
+                soft {fmtInt(row.soft_limit)} · hard {fmtInt(row.hard_limit)}
               </p>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/40">
-                <div
-                  className={cn(
-                    "h-full rounded-full",
-                    row.hard_exceeded ? "bg-rose-400" : row.soft_exceeded ? "bg-amber-400" : "bg-cyan-400",
-                  )}
-                  style={{ width: `${Math.min(100, row.hard_pct)}%` }}
-                />
-              </div>
             </div>
           ))}
         </div>
-      </div>
+      </V4Card>
 
-      <div className="rounded-2xl border border-cyan/15 bg-hive-card/70 p-5">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-200">Plan comparison</h3>
-        <div className="mt-4 grid gap-3 lg:grid-cols-3">
+      <V4Card>
+        <V4CardHeader title="Plan comparison" description="Tier limits and enabled features." />
+        <div className="v4-settings-billing-plans grid gap-3 lg:grid-cols-3">
           {(plans?.plans ?? []).map((plan) => (
             <article
               key={plan.tier}
               className={cn(
-                "rounded-xl border p-4",
-                plan.tier === usage?.tier ? "border-amber-400/60 bg-amber-500/10" : "border-cyan/15 bg-hive-void/50",
+                "rounded-(--qs-radius-sm) border p-4",
+                plan.tier === usage?.tier
+                  ? "border-(--qs-amber)/45 bg-(--qs-amber)/6"
+                  : "border-(--qs-border) bg-white/2",
               )}
             >
-              <p className="text-sm font-semibold text-zinc-100">{plan.label}</p>
-              <p className="mt-2 text-xs text-zinc-500">Tokens hard: {fmtInt(plan.limits.monthly_tokens_hard ?? 0)}</p>
-              <p className="text-xs text-zinc-500">Sessions hard: {fmtInt(plan.limits.monthly_supervisor_sessions_hard ?? 0)}</p>
-              <p className="text-xs text-zinc-500">External calls hard: {fmtInt(plan.limits.monthly_external_calls_hard ?? 0)}</p>
-              <p className="text-xs text-zinc-500">Storage hard: {fmtInt(plan.limits.storage_mb_hard ?? 0)} MB</p>
-              <p className="mt-2 text-xs text-zinc-400">
+              <p className="text-sm font-semibold text-(--qs-text)">{plan.label}</p>
+              <p className="mt-2 text-xs text-(--qs-text-3)">Tokens hard: {fmtInt(plan.limits.monthly_tokens_hard ?? 0)}</p>
+              <p className="text-xs text-(--qs-text-3)">Sessions hard: {fmtInt(plan.limits.monthly_supervisor_sessions_hard ?? 0)}</p>
+              <p className="text-xs text-(--qs-text-3)">External calls hard: {fmtInt(plan.limits.monthly_external_calls_hard ?? 0)}</p>
+              <p className="text-xs text-(--qs-text-3)">Storage hard: {fmtInt(plan.limits.storage_mb_hard ?? 0)} MB</p>
+              <p className="mt-2 text-xs text-(--qs-text-2)">
                 Features: {Object.entries(plan.features).filter(([, ok]) => ok).map(([name]) => name).join(", ")}
               </p>
             </article>
           ))}
         </div>
-      </div>
+      </V4Card>
 
-      <div className="rounded-2xl border border-cyan/15 bg-hive-card/70 p-5 text-sm text-zinc-300">
-        Monthly LLM spend estimate: <span className="text-cyan-300">{fmtUsd(usage?.usage.monthly_spend_usd ?? 0)}</span>
-      </div>
-      {error ? <p className="text-sm text-rose-300">{error}</p> : null}
-    </section>
+      <V4Card tight>
+        <p className="text-sm text-(--qs-text-2)">
+          Monthly LLM spend estimate:{" "}
+          <span className="font-semibold text-(--qs-text)">{fmtUsd(usage?.usage.monthly_spend_usd ?? 0)}</span>
+        </p>
+      </V4Card>
+
+      {error ? <p className="text-sm text-(--qs-red)">{error}</p> : null}
+    </div>
   );
 }

@@ -105,7 +105,7 @@ test.describe("Phase 12 ecosystem integration polish", () => {
     if (await page.getByRole("link", { name: "Ecosystem hub" }).isVisible().catch(() => false)) {
       await expect(page.getByText("Voice chat mode")).toBeVisible();
     } else {
-      await expect(page.getByText(/Welcome back/i)).toBeVisible({ timeout: 45_000 });
+      await expect(page.getByText(/nectar key/i)).toBeVisible({ timeout: 45_000 });
     }
   });
 });

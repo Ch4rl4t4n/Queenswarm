@@ -3,6 +3,7 @@
 import type { JSX } from "react";
 
 import Link from "next/link";
+import { CheckCircle2, Play, Plus, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
@@ -13,7 +14,17 @@ import { VoiceSessionControls } from "@/components/hive/voice-session-controls";
 import { AgentSessionDetailDrawer } from "@/components/hive/agent-session-detail-drawer";
 import { AgentSessionEventLog } from "@/components/hive/agent-session-event-log";
 import { AgentSessionInteractForm } from "@/components/hive/agent-session-interact-form";
+import { QsSelect } from "@/components/ui/qs-select";
+import {
+  V4Badge,
+  V4Card,
+  V4CardHeader,
+  V4IconAgents,
+  V4IconBolt,
+  V4Stat,
+} from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
+import { integrationsTabHref } from "@/lib/integrations-routes";
 import type {
   SupervisorControlSummaryRow,
   SupervisorRoutineRow,
@@ -33,7 +44,45 @@ interface CreateSessionPayload {
 const ROLE_OPTIONS = ["researcher", "coder", "browser_operator", "critic", "designer"] as const;
 type SessionStatusFilter = "all" | "running" | "needs_input" | "completed" | "failed" | "queued";
 
-export function AgentsSessionsPanel(): JSX.Element {
+function shortSessionId(id: string): string {
+  const tail = id.replace(/-/g, "").slice(-4).toUpperCase();
+  return `S-${tail}`;
+}
+
+function sessionRuntimeLabel(session: SupervisorSessionRow): string {
+  const startRaw = session.started_at ?? session.created_at;
+  const start = new Date(startRaw).getTime();
+  if (Number.isNaN(start)) {
+    return "—";
+  }
+  const end = session.completed_at ? new Date(session.completed_at).getTime() : Date.now();
+  const sec = Math.max(0, Math.floor((end - start) / 1000));
+  if (sec < 60) {
+    return `${sec}s`;
+  }
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+}
+
+function sessionStatusBadgeTone(status: string): "info" | "warn" | "ok" | "gold" {
+  if (status === "running") {
+    return "info";
+  }
+  if (status === "needs_input") {
+    return "warn";
+  }
+  if (status === "completed" || status === "approved") {
+    return "ok";
+  }
+  return "gold";
+}
+
+interface AgentsSessionsPanelProps {
+  variant?: "default" | "v4";
+}
+
+export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanelProps): JSX.Element {
   const [goal, setGoal] = useState("");
   const [runtimeMode, setRuntimeMode] = useState<"inprocess" | "durable">("inprocess");
   const [busy, setBusy] = useState(false);
@@ -206,113 +255,162 @@ export function AgentsSessionsPanel(): JSX.Element {
 
   if (error) {
     return (
-      <section className="rounded-2xl border border-danger/30 bg-danger/5 p-4">
-        <p className="text-sm text-danger">
+      <V4Card>
+        <p className="text-sm text-(--qs-red)">
           Session panel unavailable ({error.message}). Enable dynamic supervisor feature flags first.
         </p>
-      </section>
+      </V4Card>
     );
   }
 
+  const isV4 = variant === "v4";
+  const Shell = isV4 ? V4Card : "section";
+  const shellClass = isV4 ? undefined : "rounded-3xl qs-rim-cyan-soft bg-[#0a0f18]/80 p-5 md:p-6";
+
   return (
-    <section id="sessions" className="rounded-3xl qs-rim-cyan-soft bg-[#0a0f18]/80 p-5 md:p-6">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-zinc-100">Dynamic Supervisor Sessions</h2>
-            <InfoHint
-              title="Dynamic Supervisor Sessions"
-              description="Control panel for Supervisor lifecycle, review decisions, and sub-agent orchestration."
-              options={["Create session", "Pause/Resume/Stop", "Approve/Reject", "Live event log"]}
-            />
+    <Shell id="sessions" className={shellClass}>
+      {isV4 ? (
+        <V4CardHeader
+          title="Dynamic supervisor sessions"
+          description="Spawn sub-agents, track statuses, and interact through shared memory logs."
+          actions={
+            <>
+              <Link href={integrationsTabHref("hub")} className="qs-btn qs-btn--ghost qs-btn--sm">
+                Tool hub
+              </Link>
+              <Link href="/ballroom" className="qs-btn qs-btn--ghost qs-btn--sm">
+                Open Ballroom
+              </Link>
+            </>
+          }
+        />
+      ) : (
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-zinc-100">Dynamic Supervisor Sessions</h2>
+              <InfoHint
+                title="Dynamic Supervisor Sessions"
+                description="Control panel for Supervisor lifecycle, review decisions, and sub-agent orchestration."
+                options={["Create session", "Pause/Resume/Stop", "Approve/Reject", "Live event log"]}
+              />
+            </div>
+            <p className="mt-1 text-xs text-zinc-400">
+              Spawn sub-agents, track statuses, and interact through shared memory logs.
+            </p>
           </div>
-          <p className="mt-1 text-xs text-zinc-400">
-            Spawn sub-agents, track statuses, and interact through shared memory logs.
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+              <Link href={integrationsTabHref("hub")} className="qs-btn qs-btn--ghost qs-btn--sm">
+              Tool Hub
+            </Link>
+            <Link href="/ballroom" className="qs-btn qs-btn--ghost qs-btn--sm">
+              Open Ballroom
+            </Link>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link href="/integrations#hub" className="qs-btn qs-btn--ghost qs-btn--sm">
-            Tool Hub
-          </Link>
-          <Link href="/ballroom" className="qs-btn qs-btn--ghost qs-btn--sm">
-            Open Ballroom
-          </Link>
-        </div>
-      </div>
+      )}
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-xl border border-cyan/20 bg-black/25 p-3 text-xs text-zinc-300">
-          <p className="text-zinc-500">Sessions total</p>
-          <p className="mt-1 text-base font-semibold text-zinc-100">{summary?.sessions_total ?? 0}</p>
+      {isV4 ? (
+        <div className="v4-stat-grid">
+          <V4Stat label="Sessions total" value={summary?.sessions_total ?? 0} icon={V4IconAgents} iconTone="purple" />
+          <V4Stat
+            label="Running / needs input"
+            value={`${summary?.running_sessions ?? 0} / ${summary?.needs_input_sessions ?? 0}`}
+            icon={V4IconBolt}
+            valueVariant="text"
+          />
+          <V4Stat
+            label="Routines total"
+            value={summary?.routines_total ?? 0}
+            icon={RefreshCw}
+            iconTone="cyan"
+            valueVariant="text"
+          />
+          <V4Stat
+            label="Active / due"
+            value={`${summary?.active_routines ?? 0} / ${summary?.due_routines ?? 0}`}
+            icon={CheckCircle2}
+            iconTone="green"
+            valueVariant="text"
+          />
         </div>
-        <div className="rounded-xl border border-cyan/20 bg-black/25 p-3 text-xs text-zinc-300">
-          <p className="text-zinc-500">Running / Needs input</p>
-          <p className="mt-1 text-base font-semibold text-zinc-100">
-            {summary?.running_sessions ?? 0} / {summary?.needs_input_sessions ?? 0}
-          </p>
+      ) : (
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-xl border border-[color:var(--qs-border)] bg-black/25 p-3 text-xs text-zinc-300">
+            <p className="text-zinc-500">Sessions total</p>
+            <p className="mt-1 text-base font-semibold text-zinc-100">{summary?.sessions_total ?? 0}</p>
+          </div>
+          <div className="rounded-xl border border-[color:var(--qs-border)] bg-black/25 p-3 text-xs text-zinc-300">
+            <p className="text-zinc-500">Running / Needs input</p>
+            <p className="mt-1 text-base font-semibold text-zinc-100">
+              {summary?.running_sessions ?? 0} / {summary?.needs_input_sessions ?? 0}
+            </p>
+          </div>
+          <div className="rounded-xl border border-[color:var(--qs-border)] bg-black/25 p-3 text-xs text-zinc-300">
+            <p className="text-zinc-500">Routines total</p>
+            <p className="mt-1 text-base font-semibold text-zinc-100">{summary?.routines_total ?? 0}</p>
+          </div>
+          <div className="rounded-xl border border-[color:var(--qs-border)] bg-black/25 p-3 text-xs text-zinc-300">
+            <p className="text-zinc-500">Active / Due</p>
+            <p className="mt-1 text-base font-semibold text-zinc-100">
+              {summary?.active_routines ?? 0} / {summary?.due_routines ?? 0}
+            </p>
+          </div>
         </div>
-        <div className="rounded-xl border border-cyan/20 bg-black/25 p-3 text-xs text-zinc-300">
-          <p className="text-zinc-500">Routines total</p>
-          <p className="mt-1 text-base font-semibold text-zinc-100">{summary?.routines_total ?? 0}</p>
-        </div>
-        <div className="rounded-xl border border-cyan/20 bg-black/25 p-3 text-xs text-zinc-300">
-          <p className="text-zinc-500">Active / Due</p>
-          <p className="mt-1 text-base font-semibold text-zinc-100">
-            {summary?.active_routines ?? 0} / {summary?.due_routines ?? 0}
-          </p>
-        </div>
-      </div>
+      )}
 
-      <div className="mt-4">
+      <div className={isV4 ? "mt-5" : "mt-4"}>
         <BrowserHarnessPanel />
       </div>
 
-      <div className="mt-4 grid gap-3 rounded-2xl border border-cyan/20 bg-black/30 p-4 md:grid-cols-[1fr_auto_auto]">
-        <div className="flex items-center gap-2">
-          <input
-            className="qs-input"
-            placeholder="Session goal (e.g. Investigate onboarding drop-off and propose implementation)"
-            value={goal}
-            onChange={(event) => setGoal(event.target.value)}
-          />
+      <div
+        className={
+          isV4
+            ? "mt-4 flex flex-col gap-3 md:flex-row md:items-center"
+            : "mt-4 grid gap-3 rounded-2xl border border-[color:var(--qs-border)] bg-black/30 p-4 md:grid-cols-[1fr_auto_auto]"
+        }
+      >
+        <input
+          className="qs-input min-w-0 flex-1"
+          placeholder="Session goal — e.g. investigate onboarding drop-off…"
+          value={goal}
+          onChange={(event) => setGoal(event.target.value)}
+        />
+        {!isV4 ? (
           <InfoHint
             title="Session goal"
             description="Primary session objective. The more specific the goal, the better the output quality."
             options={["One mission per session", "Include constraints", "Define expected outcome"]}
           />
-        </div>
-        <div className="flex items-center gap-2">
-          <select
-            className="qs-input"
-            value={runtimeMode}
-            onChange={(event) => setRuntimeMode(event.target.value as "inprocess" | "durable")}
-          >
-            <option value="inprocess">in-process</option>
-            <option value="durable">durable</option>
-          </select>
+        ) : null}
+        <QsSelect
+          className="w-full md:w-40"
+          value={runtimeMode}
+          onValueChange={(next) => setRuntimeMode(next as "inprocess" | "durable")}
+          options={[
+            { value: "inprocess", label: "in-process" },
+            { value: "durable", label: "durable" },
+          ]}
+        />
+        {!isV4 ? (
           <InfoHint
             title="Runtime mode"
             description="Selects execution mode for the Supervisor session."
             options={["in-process: faster flow", "durable: more robust long-running flow"]}
           />
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="qs-btn qs-btn--primary qs-btn--sm disabled:opacity-40"
-            disabled={busy}
-            onClick={() => void createSession()}
-          >
-            {busy ? "Creating..." : "Create session"}
-          </button>
-          <InfoHint
-            title="Create session"
-            description="Creates a new Supervisor session from the selected goal and runtime mode."
-            options={["Starts orchestration", "Session appears in list", "Can be reviewed via Approve/Reject"]}
-          />
-        </div>
+        ) : null}
+        <button
+          type="button"
+          className="qs-btn qs-btn--primary qs-btn--sm w-full gap-2 disabled:opacity-40 md:w-auto"
+          disabled={busy}
+          onClick={() => void createSession()}
+        >
+          <Play className="h-4 w-4" aria-hidden />
+          {busy ? "Creating…" : "Create session"}
+        </button>
       </div>
-      <div className="mt-3">
+
+      <div className={isV4 ? "mt-4" : "mt-3"}>
         <VoiceSessionControls
           compact
           label="Supervisor voice command"
@@ -322,63 +420,52 @@ export function AgentsSessionsPanel(): JSX.Element {
         />
       </div>
 
-      <div className="mt-4 grid gap-2 rounded-2xl border border-zinc-800 bg-black/20 p-3 md:grid-cols-[1fr_180px]">
-        <div className="flex items-center gap-2">
-          <input
-            className="qs-input"
-            placeholder="Filter sessions by goal/status/runtime..."
-            value={sessionQuery}
-            onChange={(event) => setSessionQuery(event.target.value)}
-          />
-          <InfoHint
-            title="Session filter"
-            description="Filters session list by text in goal, status, or runtime mode."
-            options={["Goal search", "Status search", "Runtime search"]}
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <select
-            className="qs-input"
-            value={sessionStatusFilter}
-            onChange={(event) => setSessionStatusFilter(event.target.value as SessionStatusFilter)}
-          >
-            <option value="all">all statuses</option>
-            <option value="running">running</option>
-            <option value="needs_input">needs_input</option>
-            <option value="queued">queued</option>
-            <option value="completed">completed</option>
-            <option value="failed">failed</option>
-          </select>
-          <InfoHint
-            title="Status scope"
-            description="Quick scope selector for a specific session lifecycle status."
-            options={["running", "needs_input", "queued", "completed", "failed"]}
-          />
-        </div>
+      <div className={isV4 ? "mt-5 flex flex-col gap-3 md:flex-row" : "mt-4 grid gap-2 rounded-2xl border border-zinc-800 bg-black/20 p-3 md:grid-cols-[1fr_180px]"}>
+        <input
+          className="qs-input min-w-0 flex-1"
+          placeholder="Filter sessions by goal / status / runtime…"
+          value={sessionQuery}
+          onChange={(event) => setSessionQuery(event.target.value)}
+        />
+        <QsSelect
+          className="w-full md:w-40"
+          value={sessionStatusFilter}
+          onValueChange={(next) => setSessionStatusFilter(next as SessionStatusFilter)}
+          options={[
+            { value: "all", label: "all statuses" },
+            { value: "running", label: "running" },
+            { value: "needs_input", label: "needs_input" },
+            { value: "queued", label: "queued" },
+            { value: "completed", label: "completed" },
+            { value: "failed", label: "failed" },
+          ]}
+        />
       </div>
 
-      <div className="mt-4 grid gap-3">
+      <div className="mt-4 flex flex-col gap-3">
         {isLoading ? (
-          <p className="text-sm text-zinc-500">Loading sessions...</p>
+          <p className="text-sm text-(--qs-text-3)">Loading sessions…</p>
         ) : filteredSessions.length === 0 ? (
-          <p className="text-sm text-zinc-500">No sessions yet.</p>
+          <p className="text-sm text-(--qs-text-3)">No sessions yet.</p>
         ) : (
-          filteredSessions.map((session) => (
-            <div key={session.id} className="rounded-2xl border border-zinc-800 bg-black/25 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-zinc-100">{session.goal}</p>
-                  <p className="mt-1 text-xs text-zinc-500">
-                    {runtimeModeLabel(session.runtime_mode)} · {session.status} · {session.sub_agents.length} sub-agents
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <span className={`qs-pill qs-pill--active-${sessionStatusTone(session.status)}`}>{session.status}</span>
-                  {session.status === "needs_input" ? (
-                    <span className="rounded-full border border-[#FFB800]/40 bg-[#FFB800]/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-[#FFB800]">
-                      needs input
+          filteredSessions.map((session) =>
+            isV4 ? (
+              <div key={session.id} className="v4-session-row">
+                <div className="min-w-0 flex-1">
+                  <div className="mb-1 flex flex-wrap items-center gap-2">
+                    <span className="font-(family-name:--font-jetbrains-mono) text-[11px] text-(--qs-text-3)">
+                      {shortSessionId(session.id)}
                     </span>
-                  ) : null}
+                    <V4Badge tone={sessionStatusBadgeTone(session.status)}>
+                      {session.status.replaceAll("_", " ")}
+                    </V4Badge>
+                  </div>
+                  <p className="text-sm font-medium text-(--qs-text)">{session.goal}</p>
+                </div>
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  <span className="text-xs text-(--qs-text-3)">
+                    {sessionRuntimeLabel(session)} · {session.sub_agents.length} agents
+                  </span>
                   <button
                     type="button"
                     className="qs-btn qs-btn--ghost qs-btn--sm"
@@ -389,56 +476,102 @@ export function AgentsSessionsPanel(): JSX.Element {
                   <Link href={`/ballroom?session=${encodeURIComponent(session.id)}`} className="qs-btn qs-btn--ghost qs-btn--sm">
                     Ballroom
                   </Link>
-                  <button
-                    type="button"
-                    className="qs-btn qs-btn--ghost qs-btn--sm"
-                    onClick={() => void controlSession(session.id, "pause")}
-                  >
+                  <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void controlSession(session.id, "pause")}>
                     Pause
                   </button>
-                  <button
-                    type="button"
-                    className="qs-btn qs-btn--ghost qs-btn--sm"
-                    onClick={() => void controlSession(session.id, "resume")}
-                  >
+                  <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void controlSession(session.id, "resume")}>
                     Resume
                   </button>
-                  <button
-                    type="button"
-                    className="qs-btn qs-btn--danger qs-btn--sm"
-                    onClick={() => void controlSession(session.id, "stop")}
-                  >
+                  <button type="button" className="qs-btn qs-btn--danger qs-btn--sm" onClick={() => void controlSession(session.id, "stop")}>
                     Stop
                   </button>
-                  <button
-                    type="button"
-                    className="qs-btn qs-btn--green qs-btn--sm"
-                    disabled={reviewBusy === session.id}
-                    onClick={() => void reviewSession(session.id, "approve")}
-                  >
-                    Approve
-                  </button>
-                  <button
-                    type="button"
-                    className="qs-btn qs-btn--danger qs-btn--sm"
-                    disabled={reviewBusy === session.id}
-                    onClick={() => void reviewSession(session.id, "reject")}
-                  >
-                    Reject
-                  </button>
+                  {session.status === "needs_input" ? (
+                    <>
+                      <button
+                        type="button"
+                        className="qs-btn qs-btn--green qs-btn--sm"
+                        disabled={reviewBusy === session.id}
+                        onClick={() => void reviewSession(session.id, "approve")}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        type="button"
+                        className="qs-btn qs-btn--danger qs-btn--sm"
+                        disabled={reviewBusy === session.id}
+                        onClick={() => void reviewSession(session.id, "reject")}
+                      >
+                        Reject
+                      </button>
+                    </>
+                  ) : null}
                 </div>
               </div>
-            </div>
-          ))
+            ) : (
+              <div key={session.id} className="rounded-2xl border border-zinc-800 bg-black/25 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-zinc-100">{session.goal}</p>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      {runtimeModeLabel(session.runtime_mode)} · {session.status} · {session.sub_agents.length} sub-agents
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <span className={`qs-pill qs-pill--active-${sessionStatusTone(session.status)}`}>{session.status}</span>
+                    {session.status === "needs_input" ? (
+                      <span className="rounded-full border border-[#FFB800]/40 bg-[#FFB800]/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-[#FFB800]">
+                        needs input
+                      </span>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="qs-btn qs-btn--ghost qs-btn--sm"
+                      onClick={() => setSelectedSessionId(session.id)}
+                    >
+                      Open
+                    </button>
+                    <Link href={`/ballroom?session=${encodeURIComponent(session.id)}`} className="qs-btn qs-btn--ghost qs-btn--sm">
+                      Ballroom
+                    </Link>
+                    <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void controlSession(session.id, "pause")}>
+                      Pause
+                    </button>
+                    <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void controlSession(session.id, "resume")}>
+                      Resume
+                    </button>
+                    <button type="button" className="qs-btn qs-btn--danger qs-btn--sm" onClick={() => void controlSession(session.id, "stop")}>
+                      Stop
+                    </button>
+                    <button
+                      type="button"
+                      className="qs-btn qs-btn--green qs-btn--sm"
+                      disabled={reviewBusy === session.id}
+                      onClick={() => void reviewSession(session.id, "approve")}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      className="qs-btn qs-btn--danger qs-btn--sm"
+                      disabled={reviewBusy === session.id}
+                      onClick={() => void reviewSession(session.id, "reject")}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ),
+          )
         )}
       </div>
 
       {selected ? (
-        <div className="mt-6 space-y-3 rounded-2xl border border-cyan/20 bg-black/25 p-4">
+        <div className={isV4 ? "v4-learning-panel mt-6" : "mt-6 space-y-3 rounded-2xl border border-[color:var(--qs-border)] bg-black/25 p-4"}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-cyan">Live event log</p>
-              <p className="mt-1 text-xs text-zinc-400">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-(--qs-text-3)">Live event log</p>
+              <p className="mt-1 text-xs text-(--qs-text-3)">
                 {selected.goal} · {selected.status} · {runtimeModeLabel(selected.runtime_mode)}
               </p>
             </div>
@@ -475,17 +608,26 @@ export function AgentsSessionsPanel(): JSX.Element {
         </div>
       ) : null}
 
-      <div className="mt-6 rounded-2xl border border-cyan/20 bg-black/30 p-4">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-zinc-100">Routines</h3>
-          <InfoHint
-            title="Routines"
-            description="Periodic Supervisor sessions triggered by schedule interval."
-            options={["Create routine", "Trigger now", "Status monitoring"]}
-          />
+      <div className={isV4 ? "v4-routines-panel mt-6" : "mt-6 rounded-2xl border border-[color:var(--qs-border)] bg-black/30 p-4"}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold text-(--qs-text)">Routines</h3>
+            <p className="mt-1 text-xs text-(--qs-text-3)">Recurring supervisor sessions via Celery schedule tick.</p>
+          </div>
+          {isV4 ? (
+            <V4Badge tone="gold">{routines.filter((r) => r.is_active).length} active</V4Badge>
+          ) : (
+            <InfoHint
+              title="Routines"
+              description="Periodic Supervisor sessions triggered by schedule interval."
+              options={["Create routine", "Trigger now", "Status monitoring"]}
+            />
+          )}
         </div>
-        <p className="mt-1 text-xs text-zinc-500">Recurring supervisor sessions via Celery schedule tick.</p>
-        <div className="mt-3 grid gap-2 md:grid-cols-[1fr_1fr_140px_auto]">
+        {!isV4 ? (
+          <p className="mt-1 text-xs text-zinc-500">Recurring supervisor sessions via Celery schedule tick.</p>
+        ) : null}
+        <div className="mt-3 grid gap-2 md:grid-cols-[1fr_1fr_100px_auto]">
           <input className="qs-input" placeholder="Routine name" value={routineName} onChange={(e) => setRoutineName(e.target.value)} />
           <input className="qs-input" placeholder="Goal template" value={routineGoal} onChange={(e) => setRoutineGoal(e.target.value)} />
           <input
@@ -496,22 +638,30 @@ export function AgentsSessionsPanel(): JSX.Element {
             value={routineInterval}
             onChange={(e) => setRoutineInterval(Number(e.target.value || 3600))}
           />
-          <button type="button" className="qs-btn qs-btn--primary qs-btn--sm" disabled={routineBusy} onClick={() => void createRoutine()}>
-            {routineBusy ? "Creating..." : "Create routine"}
+          <button type="button" className="qs-btn qs-btn--primary qs-btn--sm gap-2" disabled={routineBusy} onClick={() => void createRoutine()}>
+            <Plus className="h-4 w-4" aria-hidden />
+            {routineBusy ? "Creating…" : "Create"}
           </button>
         </div>
         <div className="mt-3 space-y-2">
           {routines.map((routine) => (
-            <div key={routine.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-800 bg-black/25 p-3">
-              <p className="text-xs text-zinc-300">
-                <span className="font-semibold text-zinc-100">{routine.name}</span> · every {routine.interval_seconds ?? 0}s · {routine.status}
+            <div
+              key={routine.id}
+              className={
+                isV4
+                  ? "v4-session-row"
+                  : "flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-800 bg-black/25 p-3"
+              }
+            >
+              <p className="text-xs text-(--qs-text-2)">
+                <span className="font-semibold text-(--qs-text)">{routine.name}</span> · every {routine.interval_seconds ?? 0}s · {routine.status}
               </p>
               <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void triggerRoutine(routine.id)}>
                 Run now
               </button>
             </div>
           ))}
-          {!routines.length ? <p className="text-xs text-zinc-500">No routines configured.</p> : null}
+          {!routines.length ? <p className="text-xs text-(--qs-text-3)">No routines configured.</p> : null}
         </div>
       </div>
 
@@ -530,7 +680,7 @@ export function AgentsSessionsPanel(): JSX.Element {
           }}
         />
       ) : null}
-    </section>
+    </Shell>
   );
 }
 

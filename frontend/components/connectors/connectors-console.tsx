@@ -8,15 +8,16 @@ import {
   Loader2Icon,
   RefreshCw,
   Sparkles,
-  Zap,
 } from 'lucide-react'
 import type { MouseEventHandler } from 'react'
 import { useCallback, useEffect, useState } from 'react'
 
+import { QsSelect } from '@/components/ui/qs-select'
 import { ConnectorsOAuthConsentRail } from '@/components/connectors/connectors-oauth-consent-rail'
 import { ConnectorsVaultPanel } from '@/components/connectors/connectors-vault-panel'
 import { Phase3TemplateInspector } from '@/components/connectors/phase3-template-inspector'
 import { InfoHint } from '@/components/hive/info-hint'
+import { V4Badge, V4Card, V4CardHeader, V4Stat } from '@/components/ui/v4'
 import { HiveApiError, hiveDelete, hiveGet, hivePatchJson, hivePostJson } from '@/lib/api'
 import {
   parsePhase3IntegrationOverview,
@@ -45,27 +46,11 @@ interface ConnectorsEnvelope {
 
 const AUTH_OPTIONS = ['none', 'api_key', 'bearer_token', 'oauth2'] as const
 
-function Badge({ builtin, active }: { builtin: boolean; active: boolean }) {
+function ConnectorBadges({ builtin, active }: { builtin: boolean; active: boolean }) {
   return (
-    <div className="flex flex-wrap gap-2 font-[family-name:var(--font-poppins)] text-[11px] font-semibold">
-      <span
-        className={cn(
-          'rounded-full border px-3 py-[3px] uppercase tracking-[0.18em]',
-          builtin
-            ? 'border-pollen text-pollen shadow-[0_0_10px_rgb(255_184_0/0.38)]'
-            : 'border-cyan/35 text-cyan',
-        )}
-      >
-        {builtin ? 'Built-in' : 'Custom'}
-      </span>
-      <span
-        className={cn(
-          'rounded-full border px-3 py-[3px]',
-          active ? 'border-[#00FF88]/50 text-[#00FF88]' : 'border-magenta/50 text-[#FF00AA]',
-        )}
-      >
-        {active ? 'Active' : 'Inactive'}
-      </span>
+    <div className="flex flex-wrap gap-2">
+      <V4Badge tone={builtin ? 'gold' : 'info'}>{builtin ? 'Built-in' : 'Custom'}</V4Badge>
+      <V4Badge tone={active ? 'ok' : 'err'}>{active ? 'Active' : 'Inactive'}</V4Badge>
     </div>
   )
 }
@@ -75,7 +60,11 @@ async function reloadConnectors(): Promise<DynamicConnectorPayload[]> {
   return body.items
 }
 
-export function ConnectorsConsole() {
+interface ConnectorsConsoleProps {
+  embedded?: boolean
+}
+
+export function ConnectorsConsole({ embedded = false }: ConnectorsConsoleProps) {
   const [rows, setRows] = useState<DynamicConnectorPayload[]>([])
   const [loadErr, setLoadErr] = useState<string | null>(null)
   const [phase3Slice, setPhase3Slice] = useState<Phase3CatalogSlice | null>(null)
@@ -349,45 +338,10 @@ export function ConnectorsConsole() {
         total: phase3Coverage.length,
       }
 
-  return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-4 py-10 text-zinc-200">
-      <header className="space-y-2">
-        <p className="font-[family-name:var(--font-poppins)] text-xs uppercase tracking-[0.42em] text-cyan">
-          Phase 3 · Communication &amp; Knowledge · MCP Hub
-        </p>
-        <div className="flex items-center gap-2">
-          <h1 className="font-[family-name:var(--font-poppins)] text-3xl font-bold tracking-tight text-pollen md:text-[2.125rem]">
-            Dynamic Connector Hub
-          </h1>
-          <InfoHint
-            title="Dynamic Connector Hub"
-            description="Connector operations hub for auth setup, marketplace wiring, and upstream integration testing."
-            options={['Connector create/update', 'Vault + OAuth', 'Probe/test controls', 'Enable/disable connectors']}
-          />
-        </div>
-        <p className="font-[family-name:var(--font-poppins)] text-base text-zinc-400">
-          Persist manifests in Postgres, seal secrets via hive Fernet blobs, hydrate Redis manifests (TTL 300s), rate-limit outbound
-          calls per slug, trip breakers automatically, then surface tools to Ballroom orchestration queues. Phase 3 adds curated Gmail,
-          Outlook, Calendar, GitHub, GitLab, Slack, Telegram, Discord, Notion, and Stripe manifests — plus Obsidian vault embeddings into
-          HiveMind when enabled.
-        </p>
-        <div className="flex flex-wrap gap-3 pt-2 font-[family-name:var(--font-poppins)] text-sm">
-          <Link
-            href="/external-projects"
-            className="inline-flex items-center gap-2 rounded-full border border-cyan/35 px-4 py-2 text-cyan hover:bg-cyan/10"
-          >
-            <ExternalLink className="h-4 w-4" aria-hidden />
-            External projects · MCP / REST / WS
-          </Link>
-          <Link href="/hive-mind" className="inline-flex items-center gap-2 rounded-full border border-pollen/35 px-4 py-2 text-pollen hover:bg-pollen/10">
-            <Sparkles className="h-4 w-4" aria-hidden />
-            HiveMind recall
-          </Link>
-        </div>
-      </header>
-
+  const shell = (
+    <>
       {loadErr ? (
-        <div className="rounded-2xl border border-danger/35 bg-black/65 px-4 py-3 text-sm text-danger" role="status">
+        <div className="rounded-xl border border-(--qs-red)/35 bg-(--qs-red)/10 px-4 py-3 text-sm text-danger" role="status">
           {loadErr}{' '}
           <button
             type="button"
@@ -408,8 +362,8 @@ export function ConnectorsConsole() {
         <div
           className={
             oauthFlash.kind === 'success'
-              ? 'rounded-2xl border border-[#00FF88]/35 bg-black/65 px-4 py-3 text-sm text-[#00FF88]'
-              : 'rounded-2xl border border-danger/35 bg-black/65 px-4 py-3 text-sm text-danger'
+              ? 'rounded-xl border border-(--qs-green)/35 bg-(--qs-green)/10 px-4 py-3 text-sm text-(--qs-green)'
+              : 'rounded-xl border border-(--qs-red)/35 bg-(--qs-red)/10 px-4 py-3 text-sm text-danger'
           }
           role="status"
         >
@@ -425,22 +379,22 @@ export function ConnectorsConsole() {
       <ConnectorsOAuthConsentRail catalog={oauthCatalog} />
 
       {phase3Slice ? (
-        <section className="space-y-5 rounded-[28px] border border-[#1b1f4a]/90 bg-black/58 p-6 shadow-[0_35px_90px_-50px_rgb(0_255_255/0.22)]">
-          <header className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            <div>
-              <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#EEEEFF]">
-                Phase 3 templates · Communication &amp; Knowledge
-              </h2>
-              <p className="font-[family-name:var(--font-poppins)] text-sm text-zinc-500">
+        <V4Card className="space-y-5">
+          <V4CardHeader
+            title="Phase 3 templates · Communication & Knowledge"
+            description={
+              <>
                 {phase3Slice.template_count} curated MCP manifests — use{' '}
-                <span className="text-[#B7F6FF]">hosted OAuth connect</span> above for Gmail / Outlook / Calendar / GitHub / Notion / Stripe,
+                <span className="text-pollen">hosted OAuth connect</span> above for Gmail / Outlook / Calendar / GitHub / Notion / Stripe,
                 prefill the forge below, or provision directly into the hub (manual secrets JSON still supported).
+              </>
+            }
+            actions={
+              <p className="font-mono text-xs text-(--qs-text-3)">
+                Coverage · {phase3Coverage.filter((c) => c.provisioned).length}/{phase3Coverage.length} defaults detected
               </p>
-            </div>
-            <p className="font-mono text-xs text-zinc-500">
-              Coverage · {phase3Coverage.filter((c) => c.provisioned).length}/{phase3Coverage.length} defaults detected
-            </p>
-          </header>
+            }
+          />
 
           {overviewErr ? (
             <p className="rounded-xl border border-magenta/35 bg-magenta/10 px-3 py-2 text-xs text-magenta" role="status">
@@ -448,29 +402,21 @@ export function ConnectorsConsole() {
             </p>
           ) : null}
 
-          <div className="mb-4 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-cyan/25 bg-black/72 px-4 py-3 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.08)]">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-500">Templates rostered</p>
-              <p className="font-[family-name:var(--font-poppins)] text-2xl font-bold text-cyan">
-                {pulse.provisioned}/{pulse.total}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-[#00FF88]/25 bg-black/72 px-4 py-3 shadow-[inset_0_0_0_1px_rgb(0_255_136/0.08)]">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-500">Active slugs</p>
-              <p className="font-[family-name:var(--font-poppins)] text-2xl font-bold text-[#00FF88]">{pulse.active}</p>
-            </div>
+          <div className="mb-4 v4-stat-grid">
+            <V4Stat label="Templates rostered" value={`${pulse.provisioned}/${pulse.total}`} valueVariant="text" />
+            <V4Stat label="Active slugs" value={pulse.active} iconTone="green" />
             <button
               type="button"
               disabled={overviewBusy}
               onClick={() => void refreshPhase3Overview()}
-              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-2xl border border-pollen/35 px-4 py-3 font-[family-name:var(--font-poppins)] text-xs font-semibold text-pollen hover:bg-pollen/10 disabled:opacity-40 touch-manipulation"
+              className="qs-btn qs-btn--ghost qs-btn--sm h-full min-h-[88px] w-full touch-manipulation"
             >
               {overviewBusy ? <Loader2Icon className="h-4 w-4 animate-spin" aria-hidden /> : <RefreshCw className="h-4 w-4" aria-hidden />}
               Refresh integration pulse
             </button>
           </div>
 
-          <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_340px] xl:gap-8 xl:items-start">
+          <div className="v4-connectors-split xl:grid xl:grid-cols-[minmax(0,1fr)_340px] xl:gap-8 xl:items-start">
           <div className="space-y-3">
             {orderedPhase3Categories(phase3Slice.grouped).map((category) => {
               const tpls = phase3Slice.grouped[category] ?? []
@@ -479,53 +425,48 @@ export function ConnectorsConsole() {
               }
               const open = phase3OpenCategory === category
               return (
-                <div key={category} className="rounded-2xl border border-[#1e2348] bg-black/76">
+                <div key={category} className="v4-learning-panel">
                   <button
                     type="button"
-                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left font-[family-name:var(--font-poppins)] text-sm font-semibold text-[#EEEEFF] md:px-5"
+                    className="flex w-full items-center justify-between gap-3 px-1 py-1 text-left text-sm font-semibold text-(--qs-text)"
                     onClick={() => setPhase3OpenCategory(open ? null : category)}
                     aria-expanded={open}
                   >
                     <span className="flex items-center gap-2">
-                      {open ? <ChevronDown className="h-4 w-4 text-cyan" aria-hidden /> : <ChevronRight className="h-4 w-4 text-zinc-500" aria-hidden />}
+                      {open ? <ChevronDown className="h-4 w-4 text-pollen" aria-hidden /> : <ChevronRight className="h-4 w-4 text-(--qs-text-3)" aria-hidden />}
                       {phase3CategoryLabel(category)}
-                      <span className="rounded-full border border-zinc-700 px-2 py-[2px] text-[11px] font-normal uppercase tracking-[0.18em] text-zinc-500">
-                        {tpls.length}
-                      </span>
+                      <V4Badge tone="info">{tpls.length}</V4Badge>
                     </span>
                   </button>
                   {open ? (
-                    <div className="grid gap-3 border-t border-[#1e2348] p-4 md:grid-cols-2 md:p-5">
+                    <div className="grid gap-3 border-t border-(--qs-border) pt-4 md:grid-cols-2">
                       {tpls.map((tpl) => {
                         const covered = phase3Coverage.find((row) => row.template_id === tpl.template_id)?.provisioned
                         return (
-                          <article
-                            key={tpl.template_id}
-                            className="flex flex-col gap-3 rounded-2xl border border-[#252a55] bg-black/80 p-4 shadow-[inset_0_0_0_1px_rgb(255_184_0/0.06)]"
-                          >
+                          <article key={tpl.template_id} className="v4-dream-cycle-card flex flex-col gap-3">
                             <header className="space-y-1">
-                              <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-cyan">{tpl.template_id}</p>
-                              <h3 className="font-[family-name:var(--font-poppins)] text-base font-semibold text-pollen">{tpl.title}</h3>
-                              <p className="font-[family-name:var(--font-poppins)] text-xs leading-relaxed text-zinc-400">{tpl.summary}</p>
+                              <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-(--qs-text-3)">{tpl.template_id}</p>
+                              <h3 className="text-base font-semibold text-pollen">{tpl.title}</h3>
+                              <p className="text-xs leading-relaxed text-(--qs-text-3)">{tpl.summary}</p>
                             </header>
-                            <dl className="grid gap-2 text-xs font-[family-name:var(--font-poppins)] text-zinc-500 md:grid-cols-2">
+                            <dl className="grid gap-2 text-xs text-(--qs-text-3) md:grid-cols-2">
                               <div>
-                                <dt className="uppercase tracking-[0.32em]">Auth</dt>
-                                <dd className="text-[#D7D9FF]">{tpl.auth_type}</dd>
+                                <dt className="v4-field-label">Auth</dt>
+                                <dd className="text-(--qs-text)">{tpl.auth_type}</dd>
                               </div>
                               <div>
-                                <dt className="uppercase tracking-[0.32em]">Tools</dt>
-                                <dd className="text-[#D7D9FF]">{tpl.tool_count}</dd>
+                                <dt className="v4-field-label">Tools</dt>
+                                <dd className="text-(--qs-text)">{tpl.tool_count}</dd>
                               </div>
                               <div className="md:col-span-2">
-                                <dt className="uppercase tracking-[0.32em]">Status</dt>
-                                <dd className={covered ? 'text-[#00FF88]' : 'text-magenta'}>{covered ? 'Slug detected in roster' : 'Not provisioned yet'}</dd>
+                                <dt className="v4-field-label">Status</dt>
+                                <dd className={covered ? 'text-(--qs-green)' : 'text-(--qs-magenta)'}>{covered ? 'Slug detected in roster' : 'Not provisioned yet'}</dd>
                               </div>
                             </dl>
                             <div className="flex flex-wrap gap-2">
                               <button
                                 type="button"
-                                className="inline-flex min-h-[40px] w-full basis-full items-center justify-center rounded-xl border border-white/14 px-3 py-2 font-[family-name:var(--font-poppins)] text-xs font-semibold text-[#F4F4FF] hover:bg-white/6 touch-manipulation sm:w-auto sm:flex-1 sm:basis-auto"
+                                className="qs-btn qs-btn--ghost qs-btn--sm w-full sm:w-auto sm:flex-1"
                                 onClick={() => setSelectedTemplateId(tpl.template_id)}
                               >
                                 Power panel
@@ -534,14 +475,14 @@ export function ConnectorsConsole() {
                                 href={tpl.documentation_url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-cyan/35 px-3 py-2 font-[family-name:var(--font-poppins)] text-xs font-semibold text-cyan hover:bg-cyan/10 min-[420px]:flex-none"
+                                className="qs-btn qs-btn--ghost qs-btn--sm flex-1 gap-2 min-[420px]:flex-none"
                               >
                                 Docs
                                 <ExternalLink className="h-3.5 w-3.5" aria-hidden />
                               </a>
                               <button
                                 type="button"
-                                className="inline-flex flex-1 items-center justify-center rounded-xl border border-pollen/35 px-3 py-2 font-[family-name:var(--font-poppins)] text-xs font-semibold text-pollen hover:bg-pollen/10 min-[420px]:flex-none"
+                                className="qs-btn qs-btn--ghost qs-btn--sm flex-1 min-[420px]:flex-none"
                                 onClick={() => applyPhase3Template(tpl)}
                               >
                                 Prefill forge
@@ -549,7 +490,7 @@ export function ConnectorsConsole() {
                               <button
                                 type="button"
                                 disabled={instantiatingId === tpl.template_id}
-                                className="inline-flex flex-1 items-center justify-center rounded-xl border border-[#00FF88]/35 px-3 py-2 font-[family-name:var(--font-poppins)] text-xs font-semibold text-[#00FF88] hover:bg-[#00FF88]/10 disabled:opacity-40 min-[420px]:flex-none"
+                                className="qs-btn qs-btn--primary qs-btn--sm flex-1 min-[420px]:flex-none"
                                 onClick={() => void provisionFromPhase3Template(tpl)}
                               >
                                 {instantiatingId === tpl.template_id ? (
@@ -586,14 +527,14 @@ export function ConnectorsConsole() {
                 testingId={testingConnectorId}
               />
             ) : (
-              <div className="sticky top-28 space-y-3 rounded-[26px] border border-[#252a55] bg-black/76 p-5 font-[family-name:var(--font-poppins)] text-sm text-zinc-400">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-pollen">Desktop · Power panel</p>
+              <div className="v4-learning-panel sticky top-28 space-y-3 text-sm text-(--qs-text-3)">
+                <p className="v4-field-label text-pollen">Desktop · Power panel</p>
                 <p>
-                  Pick any Phase 3 vendor card and open <span className="text-[#EEEEFF]">Power panel</span> to browse MCP tools, sync forge
+                  Pick any Phase 3 vendor card and open <span className="text-(--qs-text)">Power panel</span> to browse MCP tools, sync forge
                   prefill, provision instantly, and run upstream probes — sidebar stays visible for operators jumping across HiveMind or External
                   Projects.
                 </p>
-                <p className="text-xs text-zinc-500">Phones &amp; tablets surface the same inspector as a bottom sheet aligned with thumb navigation.</p>
+                <p className="text-xs">Phones &amp; tablets surface the same inspector as a bottom sheet aligned with thumb navigation.</p>
               </div>
             )}
           </div>
@@ -620,28 +561,25 @@ export function ConnectorsConsole() {
               />
             </>
           ) : null}
-        </section>
+        </V4Card>
       ) : null}
 
-      <section className="rounded-[26px] border border-[#1c2045] bg-black/72 p-5 md:p-6">
-        <header className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#EEEEFF]">Obsidian vault → HiveMind</h2>
-            <p className="font-[family-name:var(--font-poppins)] text-sm text-zinc-500">
-              Markdown mirror under <span className="font-mono text-cyan">HIVE_MIND_VAULT_ROOT</span> (Compose:{' '}
-              <span className="font-mono text-xs">/hive-mind/vault</span>) embeds into Chroma when watch mode is on — manual sync still
-              respects HiveMind flags.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => void refreshObsidianStatus()}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan/40 px-4 py-2 font-[family-name:var(--font-poppins)] text-xs font-semibold text-cyan hover:bg-cyan/10"
-          >
-            <RefreshCw className="h-4 w-4" aria-hidden />
-            Refresh telemetry
-          </button>
-        </header>
+      <V4Card>
+        <V4CardHeader
+          title="Obsidian vault → HiveMind"
+          description={
+            <>
+              Markdown mirror under <span className="font-mono text-pollen">HIVE_MIND_VAULT_ROOT</span> (Compose:{' '}
+              <span className="font-mono text-xs">/hive-mind/vault</span>) embeds into Chroma when watch mode is on.
+            </>
+          }
+          actions={
+            <button type="button" onClick={() => void refreshObsidianStatus()} className="qs-btn qs-btn--ghost qs-btn--sm gap-2">
+              <RefreshCw className="h-4 w-4" aria-hidden />
+              Refresh telemetry
+            </button>
+          }
+        />
 
         {obsidianErr ? (
           <p className="mb-3 rounded-xl border border-danger/35 bg-black/65 px-3 py-2 text-xs text-danger" role="status">
@@ -650,26 +588,26 @@ export function ConnectorsConsole() {
         ) : null}
 
         {obsidianStatus ? (
-          <dl className="grid gap-4 font-[family-name:var(--font-poppins)] text-sm text-zinc-400 md:grid-cols-3">
+          <dl className="grid gap-4 text-sm text-(--qs-text-2) md:grid-cols-3">
             <div>
-              <dt className="text-xs uppercase tracking-[0.32em] text-zinc-500">Watch mode</dt>
-              <dd className="text-[#D7D9FF]">{obsidianStatus.enabled ? 'enabled' : 'disabled'}</dd>
+              <dt className="v4-field-label">Watch mode</dt>
+              <dd className="text-(--qs-text)">{obsidianStatus.enabled ? 'enabled' : 'disabled'}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.32em] text-zinc-500">Poll cadence</dt>
-              <dd className="text-[#D7D9FF]">{obsidianStatus.poll_interval_sec}s</dd>
+              <dt className="v4-field-label">Poll cadence</dt>
+              <dd className="text-(--qs-text)">{obsidianStatus.poll_interval_sec}s</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.32em] text-zinc-500">Max files / sweep</dt>
-              <dd className="text-[#D7D9FF]">{obsidianStatus.max_files_per_sync}</dd>
+              <dt className="v4-field-label">Max files / sweep</dt>
+              <dd className="text-(--qs-text)">{obsidianStatus.max_files_per_sync}</dd>
             </div>
             <div className="md:col-span-3">
-              <dt className="text-xs uppercase tracking-[0.32em] text-zinc-500">Last snapshot</dt>
-              <dd className="break-all font-mono text-xs text-[#B7F6FF]">{JSON.stringify(obsidianStatus.snapshot)}</dd>
+              <dt className="v4-field-label">Last snapshot</dt>
+              <dd className="break-all font-mono text-xs text-(--qs-text-3)">{JSON.stringify(obsidianStatus.snapshot)}</dd>
             </div>
           </dl>
         ) : (
-          <p className="font-[family-name:var(--font-poppins)] text-sm text-zinc-500">Loading vault telemetry…</p>
+          <p className="text-sm text-(--qs-text-3)">Loading vault telemetry…</p>
         )}
 
         <div className="mt-5">
@@ -677,42 +615,27 @@ export function ConnectorsConsole() {
             type="button"
             disabled={obsidianBusy}
             onClick={() => void handleObsidianSyncNow()}
-            className="inline-flex items-center gap-2 rounded-2xl border border-pollen/70 px-6 py-[10px] font-[family-name:var(--font-poppins)] text-sm font-semibold text-pollen hover:bg-pollen/10 disabled:opacity-40"
+            className="qs-btn qs-btn--primary qs-btn--sm gap-2 disabled:opacity-40"
           >
             {obsidianBusy ? <Loader2Icon className="h-4 w-4 animate-spin" aria-hidden /> : <RefreshCw className="h-4 w-4" aria-hidden />}
             Force vault embedding pass
           </button>
         </div>
-      </section>
+      </V4Card>
 
-      <section className="rounded-[28px] border border-[#1b1f4a]/90 bg-black/58 p-6 shadow-[0_35px_90px_-50px_rgb(255_184_0/0.75)]">
-        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-pollen/30 bg-black/68 text-pollen">
-              <Zap className="h-5 w-5" aria-hidden />
-            </div>
-            <div>
-          <div className="flex items-center gap-2">
-            <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#EEEEFF]">Add New Connector</h2>
-            <InfoHint
-              title="Add New Connector"
-              description="Form for creating a custom dynamic connector."
-              options={['Slug', 'Base URL', 'Auth type', 'MCP manifest JSON', 'Encrypted secrets blob']}
-            />
-          </div>
-              <p className="font-[family-name:var(--font-poppins)] text-sm text-zinc-500">
-                ciphertext never echoes in JSON — only MCP manifest metadata survives.
-              </p>
-            </div>
-          </div>
-
-          <Link href="/settings/security" className="font-[family-name:var(--font-poppins)] text-[13px] text-cyan underline decoration-cyan/40">
-            Security reference
-          </Link>
-        </div>
+      <V4Card glow>
+        <V4CardHeader
+          title="Add new connector"
+          description="Ciphertext never echoes in JSON — only MCP manifest metadata survives."
+          actions={
+            <Link href="/settings/security" className="qs-btn qs-btn--ghost qs-btn--sm">
+              Security reference
+            </Link>
+          }
+        />
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <label className="flex flex-col gap-2 font-[family-name:var(--font-poppins)] text-sm font-medium text-[#BEBED6]">
+          <label className="flex flex-col gap-2 text-sm font-medium text-(--qs-text-2)">
             <span className="inline-flex items-center gap-2">
               <span>Slug · DNS-safe</span>
               <InfoHint
@@ -726,30 +649,30 @@ export function ConnectorsConsole() {
               value={slug}
               placeholder="stripe_pro"
               onChange={(evt) => setSlug(evt.target.value)}
-              className="rounded-xl border border-[#1e2348] bg-black/76 px-3 py-3 font-mono text-sm text-[#EEEEFF]"
+              className="qs-input font-mono"
             />
           </label>
-          <label className="flex flex-col gap-2 font-[family-name:var(--font-poppins)] text-sm font-medium text-[#BEBED6]">
+          <label className="flex flex-col gap-2 text-sm font-medium text-(--qs-text-2)">
             Display name
             <input
               type="text"
               value={displayName}
               placeholder="Stripe Pro · Billing"
               onChange={(evt) => setDisplayName(evt.target.value)}
-              className="rounded-xl border border-[#1e2348] bg-black/76 px-3 py-3 text-sm text-[#EEEEFF]"
+              className="qs-input"
             />
           </label>
-          <label className="flex flex-col gap-2 md:col-span-2 font-[family-name:var(--font-poppins)] text-sm font-medium text-[#BEBED6]">
+          <label className="flex flex-col gap-2 md:col-span-2 text-sm font-medium text-(--qs-text-2)">
             Base URL · HTTPS upstream
             <input
               type="url"
               value={baseUrl}
               placeholder="https://integration.example/api"
               onChange={(evt) => setBaseUrl(evt.target.value)}
-              className="rounded-xl border border-[#1e2348] bg-black/76 px-3 py-3 font-mono text-sm text-[#EEEEFF]"
+              className="qs-input font-mono"
             />
           </label>
-          <label className="flex flex-col gap-2 font-[family-name:var(--font-poppins)] text-sm font-medium text-[#BEBED6]">
+          <label className="flex flex-col gap-2 text-sm font-medium text-(--qs-text-2)">
             <span className="inline-flex items-center gap-2">
               <span>Auth type</span>
               <InfoHint
@@ -758,36 +681,33 @@ export function ConnectorsConsole() {
                 options={['none', 'api_key', 'bearer_token', 'oauth2']}
               />
             </span>
-            <select
+            <QsSelect
               value={authType}
-              onChange={(evt) => setAuthType(evt.target.value as (typeof AUTH_OPTIONS)[number])}
-              className="rounded-xl border border-[#1e2348] bg-black/76 px-3 py-3 text-sm text-[#EEEEFF]"
-            >
-              {AUTH_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt.replace('_', ' ')}
-                </option>
-              ))}
-            </select>
+              onValueChange={(next) => setAuthType(next as (typeof AUTH_OPTIONS)[number])}
+              options={AUTH_OPTIONS.map((opt) => ({
+                value: opt,
+                label: opt.replace("_", " "),
+              }))}
+            />
           </label>
-          <label className="flex flex-col gap-2 md:col-span-2 font-[family-name:var(--font-poppins)] text-sm font-medium text-[#BEBED6]">
+          <label className="flex flex-col gap-2 md:col-span-2 text-sm font-medium text-(--qs-text-2)">
             MCP manifest · JSON ({`tools[]`})
             <textarea
               value={manifest}
               rows={9}
               onChange={(evt) => setManifest(evt.target.value)}
               placeholder={'{\n  "tools": [{ "name": "lookup", "path": "/", "method": "POST", "description": "Proxy" }]\n}'}
-              className="rounded-xl border border-[#1e2348] bg-black/85 px-3 py-3 font-mono text-xs text-[#B7F6FF]"
+              className="v4-textarea font-mono text-xs"
             />
           </label>
-          <label className="flex flex-col gap-2 md:col-span-2 font-[family-name:var(--font-poppins)] text-sm font-medium text-[#BEBED6]">
+          <label className="flex flex-col gap-2 md:col-span-2 text-sm font-medium text-(--qs-text-2)">
             Secrets blob · encrypted once (never returned)
             <textarea
               rows={5}
               value={secretBlob}
               onChange={(evt) => setSecretBlob(evt.target.value)}
               placeholder='Example: {"api_key":"..."}'
-              className="rounded-xl border border-[#1e2348] bg-black/85 px-3 py-3 font-mono text-xs text-[#FFBFD6]"
+              className="v4-textarea font-mono text-xs"
             />
           </label>
         </div>
@@ -796,10 +716,7 @@ export function ConnectorsConsole() {
           <button
             type="button"
             disabled={saving || !slug.trim() || !displayName.trim()}
-            className={cn(
-              'inline-flex items-center gap-2 rounded-2xl border px-8 py-[11px] font-[family-name:var(--font-poppins)] text-sm font-semibold transition shadow-[inset_0_0_0_1px_rgb(255_184_0/0.42)]',
-              'border-pollen/70 bg-pollen text-black hover:brightness-105 disabled:opacity-40',
-            )}
+            className="qs-btn qs-btn--primary gap-2 disabled:opacity-40"
             onClick={handleCreate}
           >
             {saving ? (
@@ -808,25 +725,19 @@ export function ConnectorsConsole() {
                 Sealing…
               </>
             ) : (
-              '+ Add New Connector'
+              '+ Add new connector'
             )}
           </button>
         </div>
-      </section>
+      </V4Card>
 
-      <section className="space-y-6">
-        <div className="flex flex-wrap items-center gap-4">
-          <h2 className="font-[family-name:var(--font-poppins)] text-xl font-semibold text-[#EEEEFF]">Combined roster</h2>
-          <div className="h-px flex-1 min-w-[80px] rounded-full bg-gradient-to-r from-cyan via-pollen to-magenta opacity-60" aria-hidden />
-        </div>
+      <V4Card>
+        <V4CardHeader title="Combined roster" description="Dynamic hub rows synced from the hive API." />
 
         {!loadErr && !rows.length ? (
-          <div
-            className="rounded-[26px] border border-dashed border-cyan/25 bg-black/55 px-5 py-8 text-center md:text-left"
-            role="status"
-          >
-            <p className="font-[family-name:var(--font-poppins)] text-base font-semibold text-[#EEEEFF]">No dynamic hub rows yet</p>
-            <p className="mt-2 font-[family-name:var(--font-poppins)] text-sm text-zinc-500">
+          <div className="v4-dream-empty text-center md:text-left" role="status">
+            <p className="text-base font-semibold text-(--qs-text)">No dynamic hub rows yet</p>
+            <p className="mt-2 text-sm text-(--qs-text-3)">
               Provision a Phase 3 template above or seal vault credentials first — the roster fills after manifests sync from the hive API.
             </p>
           </div>
@@ -834,62 +745,96 @@ export function ConnectorsConsole() {
 
         <div className="grid gap-4">
           {rows.map((conn) => (
-            <article key={conn.id} className="rounded-[26px] border border-[#1c2045] bg-black/72 p-5">
-              <header className="flex flex-wrap items-start justify-between gap-3">
+            <article key={conn.id} className="v4-dream-cycle-card flex flex-col gap-3">
+              <header className="flex w-full flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="font-mono text-xs uppercase tracking-[0.25em] text-cyan">{conn.slug}</p>
-                  <h3 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-pollen">{conn.display_name}</h3>
-                  <p className="break-all font-mono text-xs text-zinc-500">{conn.base_url ?? '(unset base)'}</p>
+                  <p className="font-mono text-xs uppercase tracking-[0.25em] text-(--qs-text-3)">{conn.slug}</p>
+                  <h3 className="text-lg font-semibold text-pollen">{conn.display_name}</h3>
+                  <p className="break-all font-mono text-xs text-(--qs-text-3)">{conn.base_url ?? '(unset base)'}</p>
                 </div>
-                <Badge builtin={conn.is_builtin} active={conn.is_active} />
+                <ConnectorBadges builtin={conn.is_builtin} active={conn.is_active} />
               </header>
 
-              <dl className="mt-5 grid gap-4 text-sm font-[family-name:var(--font-poppins)] text-zinc-400 md:grid-cols-3">
+              <dl className="mt-4 grid w-full gap-4 text-sm text-(--qs-text-2) md:grid-cols-3">
                 <div>
-                  <dt className="text-xs uppercase tracking-[0.32em] text-zinc-500">Managers</dt>
-                  <dd className="text-[#D7D9FF]">{managerChip(conn.allowed_manager_slugs)}</dd>
+                  <dt className="v4-field-label">Managers</dt>
+                  <dd className="text-(--qs-text)">{managerChip(conn.allowed_manager_slugs)}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs uppercase tracking-[0.32em] text-zinc-500">Last test</dt>
-                  <dd className="text-[#D7D9FF]">{conn.last_tested_at ?? 'never probed'}</dd>
+                  <dt className="v4-field-label">Last test</dt>
+                  <dd className="text-(--qs-text)">{conn.last_tested_at ?? 'never probed'}</dd>
                 </div>
               </dl>
 
-              <footer className="mt-6 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  className="rounded-xl border border-cyan/40 px-5 py-[9px] font-[family-name:var(--font-poppins)] text-sm font-semibold text-cyan hover:bg-cyan/10"
-                  onClick={() => void handleTest(conn.id)}
-                >
-                  Test Connection · 2500 ms SLA
+              <footer className="mt-4 flex w-full flex-wrap gap-2">
+                <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void handleTest(conn.id)}>
+                  Test connection · 2500 ms SLA
                 </button>
                 <button
                   type="button"
                   disabled={conn.is_builtin}
-                  className={cn(
-                    'rounded-xl border px-5 py-[9px] font-[family-name:var(--font-poppins)] text-sm font-semibold hover:bg-white/10',
-                    conn.is_builtin ? 'opacity-35' : 'border-pollen text-pollen',
-                  )}
+                  className={cn('qs-btn qs-btn--ghost qs-btn--sm', conn.is_builtin && 'opacity-35')}
                   onClick={() => void toggleActive(conn)}
                 >
                   {conn.is_active ? 'Deactivate manually' : 'Activate manually'}
                 </button>
                 {!conn.is_builtin ? (
-                  <button
-                    type="button"
-                    className="rounded-xl border border-danger/35 px-5 py-[9px] font-[family-name:var(--font-poppins)] text-sm font-semibold text-danger hover:bg-danger/15"
-                    onClick={() => void handleRemove(conn)}
-                  >
+                  <button type="button" className="qs-btn qs-btn--danger qs-btn--sm" onClick={() => void handleRemove(conn)}>
                     Remove
                   </button>
                 ) : (
-                  <p className="text-xs font-mono text-zinc-500">seeded via alembic 0014_dynamic_connectors</p>
+                  <p className="text-xs font-mono text-(--qs-text-3)">seeded via alembic 0014_dynamic_connectors</p>
                 )}
               </footer>
             </article>
           ))}
         </div>
-      </section>
+      </V4Card>
+
+    </>
+  )
+
+  if (embedded) {
+    return <div className="flex flex-col gap-6">{shell}</div>
+  }
+
+  return (
+    <main className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-4 py-10 text-(--qs-text)">
+      <header className="space-y-2">
+        <p className="text-xs uppercase tracking-[0.42em] text-(--qs-cyan)">
+          Phase 3 · Communication &amp; Knowledge · MCP Hub
+        </p>
+        <div className="flex items-center gap-2">
+          <h1 className="text-3xl font-bold tracking-tight text-(--qs-gold) md:text-[2.125rem]">
+            Dynamic Connector Hub
+          </h1>
+          <InfoHint
+            title="Dynamic Connector Hub"
+            description="Connector operations hub for auth setup, marketplace wiring, and upstream integration testing."
+            options={['Connector create/update', 'Vault + OAuth', 'Probe/test controls', 'Enable/disable connectors']}
+          />
+        </div>
+        <p className="text-base text-(--qs-text-3)">
+          Persist manifests in Postgres, seal secrets via hive Fernet blobs, hydrate Redis manifests (TTL 300s), rate-limit outbound
+          calls per slug, trip breakers automatically, then surface tools to Ballroom orchestration queues. Phase 3 adds curated Gmail,
+          Outlook, Calendar, GitHub, GitLab, Slack, Telegram, Discord, Notion, and Stripe manifests — plus Obsidian vault embeddings into
+          HiveMind when enabled.
+        </p>
+        <div className="flex flex-wrap gap-3 pt-2 text-sm">
+          <Link
+            href="/external-projects"
+            className="qs-btn qs-btn--ghost qs-btn--sm gap-2"
+          >
+            <ExternalLink className="h-4 w-4" aria-hidden />
+            External projects · MCP / REST / WS
+          </Link>
+          <Link href="/hive-mind" className="qs-btn qs-btn--ghost qs-btn--sm gap-2">
+            <Sparkles className="h-4 w-4" aria-hidden />
+            HiveMind recall
+          </Link>
+        </div>
+      </header>
+      {shell}
     </main>
   )
 }

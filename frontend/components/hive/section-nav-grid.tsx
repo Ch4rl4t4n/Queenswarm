@@ -41,10 +41,10 @@ export function SectionNavGrid({ items, showHints = true }: SectionNavGridProps)
 
   return (
     <div className="space-y-4">
-      <div className="sticky top-16 z-20 rounded-2xl border border-cyan/20 bg-[#070714]/95 p-3 backdrop-blur">
+      <div className="sticky top-16 z-20 rounded-2xl border border-[color:var(--qs-border)] bg-[#070714]/95 p-3 backdrop-blur">
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <label className="flex min-w-0 flex-1 items-center rounded-xl border border-cyan/20 bg-black/30 px-3 py-2">
+            <label className="flex min-w-0 flex-1 items-center rounded-xl border border-[color:var(--qs-border)] bg-black/30 px-3 py-2">
               <span className="sr-only">Filter section links</span>
               <input
                 value={query}
@@ -95,7 +95,7 @@ export function SectionNavGrid({ items, showHints = true }: SectionNavGridProps)
               <button
                 type="button"
                 onClick={() => setQuery("")}
-                className="rounded-lg border border-cyan/30 px-2.5 py-1 text-xs text-cyan transition hover:border-cyan/60"
+                className="rounded-lg border border-[color:var(--qs-border-2)] px-2.5 py-1 text-xs text-cyan transition hover:border-[color:var(--qs-border-2)]/60"
               >
                 Clear
               </button>
@@ -115,7 +115,7 @@ export function SectionNavGrid({ items, showHints = true }: SectionNavGridProps)
           <article
             key={item.href}
             className={cn(
-              "group rounded-2xl border border-cyan/20 bg-black/25 transition hover:border-pollen/40 hover:bg-black/35",
+              "group rounded-2xl border border-[color:var(--qs-border)] bg-black/25 transition hover:border-pollen/40 hover:bg-black/35",
               densityClass,
             )}
           >

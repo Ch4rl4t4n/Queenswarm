@@ -3,8 +3,8 @@
 import { BookOpen, Calendar, CreditCard, Github, Mail } from 'lucide-react'
 
 import { OAuthConnectButton } from '@/components/connectors/oauth-connect-button'
+import { V4Badge, V4Card, V4CardHeader } from '@/components/ui/v4'
 import type { OAuthConsentCatalogSlice } from '@/lib/connectors-oauth-catalog'
-import { cn } from '@/lib/utils'
 
 function VendorGlyph({ providerKey }: { providerKey: string }) {
   switch (providerKey) {
@@ -13,7 +13,7 @@ function VendorGlyph({ providerKey }: { providerKey: string }) {
     case 'google_calendar':
       return <Calendar className="h-5 w-5" aria-hidden />
     case 'microsoft_graph':
-      return <Mail className="h-5 w-5 text-[#7CBDFF]" aria-hidden />
+      return <Mail className="h-5 w-5 text-(--qs-cyan)" aria-hidden />
     case 'github_rest':
       return <Github className="h-5 w-5" aria-hidden />
     case 'notion_workspace':
@@ -40,28 +40,19 @@ export function ConnectorsOAuthConsentRail({ catalog }: ConnectorsOAuthConsentRa
   const configuredCount = catalog.providers.filter((p) => p.configured).length
 
   return (
-    <section
-      className={cn(
-        'rounded-[28px] border border-[#1b1f4a]/90 bg-black/58 p-6 shadow-[0_35px_90px_-50px_rgb(255_0_170/0.18)]',
-      )}
-    >
-      <header className="mb-5 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-        <div>
-          <p className="font-[family-name:var(--font-poppins)] text-[11px] font-semibold uppercase tracking-[0.32em] text-magenta">
-            Phase 4.0 · Hosted OAuth consent
-          </p>
-          <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#EEEEFF]">
-            Connect Gmail, Outlook, Calendar, GitHub, Notion &amp; Stripe
-          </h2>
-          <p className="font-[family-name:var(--font-poppins)] text-sm text-zinc-500">
-            One tap launches vendor consent in the browser. Queenswarm exchanges the authorization code server-side (PKCE where supported),
-            seals tokens into the connector vault, and creates or refreshes the Dynamic Hub row automatically.
-          </p>
-        </div>
-        <p className="font-mono text-xs text-zinc-500">
-          Ready · {configuredCount}/{catalog.providers.length} vendors configured
-        </p>
-      </header>
+    <V4Card glow>
+      <V4CardHeader
+        title="Connect Gmail, Outlook, Calendar, GitHub, Notion & Stripe"
+        description="One tap launches vendor consent in the browser. Queenswarm exchanges the authorization code server-side (PKCE where supported), seals tokens into the connector vault, and creates or refreshes the Dynamic Hub row automatically."
+        actions={
+          <V4Badge tone="info">
+            Ready · {configuredCount}/{catalog.providers.length} vendors
+          </V4Badge>
+        }
+      />
+      <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.32em] text-(--qs-magenta)">
+        Phase 4.0 · Hosted OAuth consent
+      </p>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {catalog.providers.map((p) => (
@@ -75,9 +66,9 @@ export function ConnectorsOAuthConsentRail({ catalog }: ConnectorsOAuthConsentRa
         ))}
       </div>
 
-      <p className="mt-4 break-all font-mono text-[10px] leading-relaxed text-zinc-600">
+      <p className="mt-4 break-all font-mono text-[10px] leading-relaxed text-(--qs-text-3)">
         Registered redirect URI · {catalog.redirect_uri}
       </p>
-    </section>
+    </V4Card>
   )
 }

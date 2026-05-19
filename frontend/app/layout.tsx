@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { Viewport } from "next";
 import { JetBrains_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 
@@ -15,6 +16,13 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata = {
   title: "Queenswarm · Bee-Hive Neon Dashboard",
   description: "Decentralized agent swarms, verified simulations, pollen rewards.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#07030f",
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {

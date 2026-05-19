@@ -6,8 +6,10 @@ import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
 
+import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import type { BrowserAutomationActionRow, BrowserAutomationSessionRow } from "@/lib/hive-types";
+import { cn } from "@/lib/utils";
 
 export function BrowserHarnessPanel(): JSX.Element {
   const [createUrl, setCreateUrl] = useState("https://example.com");
@@ -103,16 +105,13 @@ export function BrowserHarnessPanel(): JSX.Element {
   }
 
   return (
-    <section className="rounded-2xl border border-cyan/20 bg-black/20 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h3 className="text-sm font-semibold text-zinc-100">Browser Harness</h3>
-          <p className="text-xs text-zinc-400">Live browser sessions for agent web navigation, form fill, and scraping.</p>
-        </div>
-        <span className="rounded-full border border-cyan/30 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-cyan-200">
-          {isLoading ? "loading" : `${sessions.length} sessions`}
-        </span>
-      </div>
+    <V4Card>
+      <V4CardHeader
+        as="h3"
+        title="Browser Harness"
+        description="Live browser sessions for agent web navigation, form fill, and scraping."
+        actions={<V4Badge tone="info">{isLoading ? "loading" : `${sessions.length} sessions`}</V4Badge>}
+      />
 
       <div className="mt-3 grid gap-2 md:grid-cols-[1fr_auto]">
         <input className="qs-input" value={createUrl} onChange={(event) => setCreateUrl(event.target.value)} placeholder="https://example.com" />
@@ -127,11 +126,10 @@ export function BrowserHarnessPanel(): JSX.Element {
             <button
               key={row.id}
               type="button"
-              className={`rounded-lg border px-2 py-1 text-[11px] ${
-                selected?.id === row.id
-                  ? "border-cyan-300/60 bg-cyan-500/20 text-cyan-100"
-                  : "border-zinc-700 bg-zinc-900/50 text-zinc-300"
-              }`}
+              className={cn(
+                "qs-btn qs-btn--ghost qs-btn--sm !rounded-lg text-[11px]",
+                selected?.id === row.id && "border-(--qs-cyan)/60 bg-(--qs-cyan)/15 text-(--qs-cyan)",
+              )}
               onClick={() => {
                 setSelectedId(row.id);
                 setActionUrl(row.current_url ?? row.start_url ?? createUrl);
@@ -171,8 +169,8 @@ export function BrowserHarnessPanel(): JSX.Element {
               </button>
             </div>
             {Object.keys(selected.pending_approval_action ?? {}).length > 0 ? (
-              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
-                <p className="text-xs text-amber-200">Pending critical browser action requires manual approval.</p>
+              <div className="rounded-xl border border-(--qs-gold)/30 bg-(--qs-gold)/10 p-3">
+                <p className="text-xs text-(--qs-gold)">Pending critical browser action requires manual approval.</p>
                 <div className="mt-2 flex gap-2">
                   <button type="button" className="qs-btn qs-btn--green qs-btn--sm disabled:opacity-40" disabled={busy} onClick={() => void approvePending(true)}>
                     Approve action
@@ -183,13 +181,13 @@ export function BrowserHarnessPanel(): JSX.Element {
                 </div>
               </div>
             ) : null}
-            <p className="text-xs text-zinc-500">
-              Current URL: <span className="text-zinc-300">{selected.current_url ?? "n/a"}</span>
+            <p className="text-xs text-(--qs-text-3)">
+              Current URL: <span className="text-(--qs-text)">{selected.current_url ?? "n/a"}</span>
             </p>
           </div>
 
           <div className="space-y-2">
-            <div className="rounded-xl border border-zinc-800 bg-black/30 p-2">
+            <div className="rounded-xl border border-(--qs-border) bg-(--qs-surface-2)/40 p-2">
               {selected.last_screenshot_base64 ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -198,19 +196,19 @@ export function BrowserHarnessPanel(): JSX.Element {
                   className="h-48 w-full rounded-lg object-cover"
                 />
               ) : (
-                <div className="flex h-48 items-center justify-center rounded-lg border border-dashed border-zinc-700 text-xs text-zinc-500">
+                <div className="flex h-48 items-center justify-center rounded-lg border border-dashed border-(--qs-border) text-xs text-(--qs-text-3)">
                   No screenshot yet
                 </div>
               )}
             </div>
-            <div className="max-h-40 overflow-y-auto rounded-xl border border-zinc-800 bg-black/20 p-2">
+            <div className="max-h-40 overflow-y-auto rounded-xl border border-(--qs-border) bg-(--qs-surface-2)/30 p-2">
               {actions.length === 0 ? (
-                <p className="text-xs text-zinc-500">No actions logged yet.</p>
+                <p className="text-xs text-(--qs-text-3)">No actions logged yet.</p>
               ) : (
                 actions.map((row) => (
-                  <div key={row.id} className="border-b border-zinc-800/70 py-1 text-xs text-zinc-400 last:border-b-0">
-                    <span className="text-zinc-200">{row.action_type}</span> · {row.status}
-                    {row.result_summary ? <span className="text-zinc-500"> · {row.result_summary}</span> : null}
+                  <div key={row.id} className="border-b border-(--qs-border)/70 py-1 text-xs text-(--qs-text-3) last:border-b-0">
+                    <span className="text-(--qs-text)">{row.action_type}</span> · {row.status}
+                    {row.result_summary ? <span className="text-(--qs-text-3)"> · {row.result_summary}</span> : null}
                   </div>
                 ))
               )}
@@ -218,8 +216,8 @@ export function BrowserHarnessPanel(): JSX.Element {
           </div>
         </div>
       ) : (
-        <p className="mt-3 text-xs text-zinc-500">Create a session to start browser automation.</p>
+        <p className="mt-3 text-xs text-(--qs-text-3)">Create a session to start browser automation.</p>
       )}
-    </section>
+    </V4Card>
   );
 }

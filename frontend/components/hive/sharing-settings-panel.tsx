@@ -2,9 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { QsSelect } from "@/components/ui/qs-select";
+import { V4Card, V4CardHeader } from "@/components/ui/v4";
 import type { PublicShareRow } from "@/lib/hive-types";
 
 const RESOURCE_TYPES = ["output", "session", "swarm"] as const;
+const RESOURCE_TYPE_OPTIONS = RESOURCE_TYPES.map((row) => ({ value: row, label: row }));
 
 export function SharingSettingsPanel() {
   const [rows, setRows] = useState<PublicShareRow[]>([]);
@@ -84,87 +87,86 @@ export function SharingSettingsPanel() {
   }, [load]);
 
   return (
-    <section className="space-y-6">
-      <header className="rounded-2xl border border-cyan/15 bg-hive-card/70 p-5">
-        <h2 className="text-lg font-semibold text-zinc-100">Public sharing</h2>
-        <p className="mt-2 text-sm text-zinc-400">
-          Generate read-only public links for outputs, supervisor sessions, and swarms.
-        </p>
-      </header>
+    <div className="flex flex-col gap-6">
+      <V4Card>
+        <V4CardHeader
+          title="Public sharing"
+          description="Generate read-only public links for outputs, supervisor sessions, and swarms."
+        />
+      </V4Card>
 
-      <div className="rounded-2xl border border-cyan/15 bg-hive-card/70 p-5">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-200">Create link</h3>
-        <div className="mt-3 grid gap-3 md:grid-cols-[auto_1fr_auto_auto]">
-          <select
+      <V4Card>
+        <V4CardHeader title="Create link" description="Resource type, UUID, and expiry in days." />
+        <div className="v4-settings-sharing-form grid gap-3 md:grid-cols-[auto_1fr_auto_auto]">
+          <QsSelect
             value={resourceType}
-            onChange={(event) => setResourceType(event.target.value as (typeof RESOURCE_TYPES)[number])}
-            className="rounded-xl border border-cyan/20 bg-hive-void/70 px-3 py-2 text-sm text-zinc-100"
+            onValueChange={(next) => setResourceType(next as (typeof RESOURCE_TYPES)[number])}
+            className="min-h-11 rounded-(--qs-radius-sm) text-sm"
             disabled={busy}
-          >
-            {RESOURCE_TYPES.map((row) => (
-              <option key={row} value={row}>
-                {row}
-              </option>
-            ))}
-          </select>
+            options={RESOURCE_TYPE_OPTIONS}
+          />
           <input
             value={resourceId}
             onChange={(event) => setResourceId(event.target.value)}
             placeholder="Resource UUID"
-            className="rounded-xl border border-cyan/20 bg-hive-void/70 px-3 py-2 text-sm text-zinc-100"
+            className="qs-input"
             disabled={busy}
           />
           <input
             value={expiresInDays}
             onChange={(event) => setExpiresInDays(event.target.value)}
             placeholder="Expires (days)"
-            className="rounded-xl border border-cyan/20 bg-hive-void/70 px-3 py-2 text-sm text-zinc-100"
+            className="qs-input"
             disabled={busy}
           />
           <button
             type="button"
             onClick={() => void createShare()}
             disabled={busy || !resourceId.trim()}
-            className="rounded-xl bg-amber-400 px-4 py-2 text-sm font-semibold text-black transition enabled:hover:bg-amber-300 disabled:opacity-50"
+            className="qs-btn qs-btn--primary qs-btn--sm"
           >
             Create
           </button>
         </div>
-      </div>
+      </V4Card>
 
-      <div className="rounded-2xl border border-cyan/15 bg-hive-card/70 p-5">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-200">Active links</h3>
+      <V4Card>
+        <V4CardHeader title="Active links" description="Read-only public URLs scoped to your tenant." />
         {loading ? (
-          <p className="mt-3 text-sm text-zinc-500">Loading links…</p>
+          <p className="text-sm text-(--qs-text-3)">Loading links…</p>
         ) : rows.length === 0 ? (
-          <p className="mt-3 text-sm text-zinc-500">No share links yet.</p>
+          <p className="text-sm text-(--qs-text-3)">No share links yet.</p>
         ) : (
-          <div className="mt-3 space-y-2">
+          <div className="flex flex-col gap-2">
             {rows.map((row) => (
-              <article key={row.id} className="rounded-xl border border-cyan/10 p-3">
+              <article
+                key={row.id}
+                className="rounded-(--qs-radius-sm) border border-(--qs-border) bg-white/2 p-3"
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm text-zinc-100">
+                  <p className="text-sm text-(--qs-text)">
                     {row.resource_type} · {row.resource_id}
                   </p>
                   <button
                     type="button"
                     onClick={() => void revokeShare(row.id)}
                     disabled={busy || !row.is_active}
-                    className="rounded-lg border border-rose-400/40 px-3 py-1 text-xs text-rose-200 enabled:hover:bg-rose-500/20 disabled:opacity-50"
+                    className="qs-btn qs-btn--danger qs-btn--sm"
                   >
                     Revoke
                   </button>
                 </div>
-                <p className="mt-1 break-all font-mono text-xs text-cyan-300">{row.public_url}</p>
-                <p className="mt-1 text-xs text-zinc-500">
+                <p className="mt-1 break-all font-mono text-xs text-(--qs-text-2)">{row.public_url}</p>
+                <p className="mt-1 text-xs text-(--qs-text-3)">
                   views {row.access_count} · expires {row.expires_at ? new Date(row.expires_at).toLocaleString() : "never"}
                 </p>
               </article>
             ))}
           </div>
         )}
-      </div>
-      {error ? <p className="text-sm text-rose-300">{error}</p> : null}
-    </section>
+      </V4Card>
+
+      {error ? <p className="text-sm text-(--qs-red)">{error}</p> : null}
+    </div>
   );
 }

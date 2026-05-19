@@ -1,10 +1,12 @@
 "use client";
 
-import { Loader2Icon, Sparkles } from "lucide-react";
+import { Loader2Icon, Play, Sparkles } from "lucide-react";
 import type { FormEvent } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { QsSelect } from "@/components/ui/qs-select";
+import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import type { AgentRow, RecipeSemanticHit } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
@@ -22,6 +24,8 @@ const AGENT_ROLES = [
   "recipe_keeper",
 ] as const;
 
+const AGENT_ROLE_OPTIONS = AGENT_ROLES.map((role) => ({ value: role, label: role }));
+
 interface ExemplarBrief {
   agent_id: string;
   name: string;
@@ -32,10 +36,11 @@ interface ExemplarBrief {
 
 interface LearningConsoleProps {
   readonly showHeader?: boolean;
+  readonly variant?: "default" | "v4";
 }
 
 /** Pollen · imitation · reflections — backed by ``/api/v1/learning/*``. */
-export function LearningConsole({ showHeader = true }: LearningConsoleProps): JSX.Element {
+export function LearningConsole({ showHeader = true, variant = "default" }: LearningConsoleProps): JSX.Element {
   const [agents, setAgents] = useState<AgentRow[]>([]);
   const [role, setRole] = useState<string>("evaluator");
   const [exemplars, setExemplars] = useState<ExemplarBrief[]>([]);
@@ -169,11 +174,168 @@ export function LearningConsole({ showHeader = true }: LearningConsoleProps): JS
     }
   }
 
-  const agentOptions = agents.map((a) => (
-    <option key={a.id} value={a.id}>
-      {a.name} · {a.role}
-    </option>
-  ));
+  const runReflectionPass = useCallback(async () => {
+    setBusy(true);
+    try {
+      await hivePostJson("dreaming/run-now", {});
+      toast.success("Reflection pass queued — dream cycle will consolidate learning logs.");
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Reflection pass failed.");
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  const agentSelectOptions = useMemo(
+    () => agents.map((agent) => ({ value: agent.id, label: `${agent.name} · ${agent.role}` })),
+    [agents],
+  );
+
+  const isV4 = variant === "v4";
+
+  if (isV4) {
+    return (
+      <div className="flex flex-col gap-8">
+        <div className="v4-learning-lane">
+          <Sparkles className="h-4 w-4 shrink-0 text-(--qs-amber)" aria-hidden />
+          <div>
+            <p className="v4-label-kicker">Learning + rewards lane</p>
+            <p className="text-xs text-(--qs-text-3)">
+              Pollen allocation, imitation, and semantic recipe recall in one operator surface.
+            </p>
+          </div>
+        </div>
+
+        <div className="v4-cols-2">
+          <section className="v4-learning-panel">
+            <h3 className="text-base font-semibold text-(--qs-text)">Imitation exemplars</h3>
+            <p className="mt-1 text-xs text-(--qs-text-3)">Top pollen performers per role · excludes offline bees automatically server-side.</p>
+            <div className="v4-learning-inline-actions mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              <QsSelect value={role} onValueChange={setRole} className="min-h-11 w-full min-w-0 flex-1 rounded-(--qs-radius-sm) sm:min-w-[140px]" options={AGENT_ROLE_OPTIONS} />
+              <button type="button" disabled={busy} className="qs-btn qs-btn--ghost qs-btn--sm w-full sm:w-auto" onClick={() => void loadExemplars()}>
+                {busy ? <Loader2Icon className="h-4 w-4 animate-spin" aria-hidden /> : null}
+                Load
+              </button>
+            </div>
+            <ul className="mt-4 space-y-2">
+              {exemplars.map((row) => (
+                <li key={row.agent_id} className="flex flex-wrap items-center justify-between gap-2 rounded-(--qs-radius-sm) border border-(--qs-border) bg-white/[0.04] px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-(--qs-text)">{row.name}</p>
+                    <p className="text-xs text-(--qs-text-3)">{row.role}</p>
+                  </div>
+                  <div className="flex gap-3 text-xs tabular-nums">
+                    <span className="text-(--qs-cyan)">pollen {Math.round(row.pollen_points)}</span>
+                    <span className="text-(--qs-amber)">perf {row.performance_score.toFixed(2)}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            {!exemplars.length ? <p className="mt-3 text-xs text-(--qs-text-3)">No exemplars loaded yet.</p> : null}
+          </section>
+
+          <section className="v4-learning-panel">
+            <h3 className="text-base font-semibold text-(--qs-text)">Semantic recipe recall</h3>
+            <p className="mt-1 text-xs text-(--qs-text-3)">Uses GET /recipes/search — cosine similarity ≥ operational threshold server-side.</p>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+              <input
+                value={recipeQuery}
+                onChange={(e) => setRecipeQuery(e.target.value)}
+                placeholder="Describe the workflow you need…"
+                className="qs-input min-h-11 w-full flex-1 rounded-(--qs-radius-sm)"
+              />
+              <button type="button" disabled={busy} className="qs-btn qs-btn--ghost qs-btn--sm w-full sm:w-auto" onClick={() => void searchRecipes()}>
+                Search
+              </button>
+            </div>
+            <ul className="mt-4 space-y-2">
+              {recipeHits.map((hit) => (
+                <li key={hit.chroma_document_id} className="rounded-(--qs-radius-sm) border border-(--qs-border) bg-white/[0.04] p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-medium text-(--qs-amber)">{hit.postgres_row?.name ?? "Unlinked embedding"}</p>
+                    <V4Badge tone="info">{(hit.similarity * 100).toFixed(1)}%</V4Badge>
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-xs text-(--qs-text-3)">{hit.document_preview || "—"}</p>
+                </li>
+              ))}
+            </ul>
+            {!recipeHits.length ? <p className="mt-3 text-xs text-(--qs-text-3)">No semantic hits yet.</p> : null}
+          </section>
+        </div>
+
+        <div className="v4-cols-3">
+          <form onSubmit={(e) => void submitReflection(e)} className="v4-learning-panel">
+            <h3 className="text-base font-semibold text-(--qs-text)">Reflection</h3>
+            <label className="mt-4 block">
+              <span className="v4-field-label">Agent</span>
+              <QsSelect value={reflectAgent} onValueChange={setReflectAgent} placeholder="Select…" className="min-h-11 w-full rounded-(--qs-radius-sm)" options={agentSelectOptions} />
+            </label>
+            <label className="mt-3 block">
+              <span className="v4-field-label">Insight</span>
+              <textarea required value={reflectInsight} onChange={(e) => setReflectInsight(e.target.value)} rows={4} className="qs-input w-full rounded-(--qs-radius-sm)" />
+            </label>
+            <button type="submit" disabled={busy} className="qs-btn qs-btn--ghost qs-btn--sm mt-4 w-full text-(--qs-green)">
+              Log reflection
+            </button>
+          </form>
+
+          <form onSubmit={(e) => void allocatePollen(e)} className="v4-learning-panel">
+            <h3 className="text-base font-semibold text-(--qs-text)">Pollen allocate</h3>
+            <label className="mt-4 block">
+              <span className="v4-field-label">Pollen pool</span>
+              <input value={poolUsd} onChange={(e) => setPoolUsd(e.target.value)} type="number" step="0.1" className="qs-input min-h-11 w-full rounded-(--qs-radius-sm) font-mono" />
+            </label>
+            <label className="mt-3 block">
+              <span className="v4-field-label">Agent</span>
+              <QsSelect value={rewardAgent} onValueChange={setRewardAgent} placeholder="Select…" className="min-h-11 w-full rounded-(--qs-radius-sm)" options={agentSelectOptions} />
+            </label>
+            <label className="mt-3 block">
+              <span className="v4-field-label">Signal</span>
+              <input value={rewardSignal} onChange={(e) => setRewardSignal(e.target.value)} className="qs-input min-h-11 w-full rounded-(--qs-radius-sm) font-mono" />
+            </label>
+            <button type="submit" disabled={busy} className="qs-btn qs-btn--primary qs-btn--sm mt-4 w-full">
+              Allocate Maynard-Cross
+            </button>
+          </form>
+
+          <form onSubmit={(e) => void recordImitation(e)} className="v4-learning-panel">
+            <h3 className="text-base font-semibold text-(--qs-text)">Imitation edge</h3>
+            <label className="mt-4 block">
+              <span className="v4-field-label">Copier</span>
+              <QsSelect value={copier} onValueChange={setCopier} placeholder="Select…" className="min-h-11 w-full rounded-(--qs-radius-sm)" options={agentSelectOptions} />
+            </label>
+            <label className="mt-3 block">
+              <span className="v4-field-label">Exemplar</span>
+              <QsSelect value={exemplar} onValueChange={setExemplar} placeholder="Select…" className="min-h-11 w-full rounded-(--qs-radius-sm)" options={agentSelectOptions} />
+            </label>
+            <button type="submit" disabled={busy} className="qs-btn qs-btn--ghost qs-btn--sm mt-4 w-full">
+              Record imitation
+            </button>
+          </form>
+        </div>
+
+        <V4Card glow>
+          <V4CardHeader
+            as="h3"
+            title="Learning console"
+            description="LearningLog reflections per agent-task cycle. Pollen rewards via Maynard-Cross + performance blend."
+            actions={
+              <button
+                type="button"
+                className="qs-btn qs-btn--ghost qs-btn--sm gap-2"
+                disabled={busy}
+                onClick={() => void runReflectionPass()}
+              >
+                <Play className="h-3.5 w-3.5" aria-hidden />
+                Run reflection pass
+              </button>
+            }
+          />
+          <p className="text-sm text-(--qs-text-3)">Reflection feed appears here after agents log insights through the hive learning loop.</p>
+        </V4Card>
+      </div>
+    );
+  }
 
   return (
     <main
@@ -221,17 +383,12 @@ export function LearningConsole({ showHeader = true }: LearningConsoleProps): JS
               <p className="font-[family-name:var(--font-poppins)] text-xs text-zinc-500">Top pollen performers per role · excludes offline bees automatically server-side.</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <select
+              <QsSelect
                 value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="min-h-[44px] flex-1 rounded-xl border border-[#1e2348] bg-black/76 px-3 py-2 font-[family-name:var(--font-poppins)] text-sm sm:flex-none"
-              >
-                {AGENT_ROLES.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setRole}
+                className="min-h-[44px] flex-1 sm:flex-none"
+                options={AGENT_ROLE_OPTIONS}
+              />
               <button
                 type="button"
                 disabled={busy}
@@ -274,7 +431,7 @@ export function LearningConsole({ showHeader = true }: LearningConsoleProps): JS
               type="button"
               disabled={busy}
               onClick={() => void searchRecipes()}
-              className="min-h-[44px] rounded-xl border border-cyan/45 px-5 py-2 font-[family-name:var(--font-poppins)] text-sm font-semibold text-cyan hover:bg-cyan/10 disabled:opacity-40 touch-manipulation"
+              className="min-h-[44px] rounded-xl border border-data/45 px-5 py-2 font-[family-name:var(--font-poppins)] text-sm font-semibold text-cyan hover:bg-cyan/10 disabled:opacity-40 touch-manipulation"
             >
               Search
             </button>
@@ -301,15 +458,7 @@ export function LearningConsole({ showHeader = true }: LearningConsoleProps): JS
           <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#EEEEFF]">Reflection</h2>
           <label className="mt-4 flex flex-col gap-2 font-[family-name:var(--font-poppins)] text-xs text-[#BEBED6]">
             Agent
-            <select
-              required
-              value={reflectAgent}
-              onChange={(e) => setReflectAgent(e.target.value)}
-              className="min-h-[44px] rounded-xl border border-[#1e2348] bg-black/76 px-3 py-2 text-sm"
-            >
-              <option value="">Select…</option>
-              {agentOptions}
-            </select>
+            <QsSelect value={reflectAgent} onValueChange={setReflectAgent} placeholder="Select…" className="min-h-[44px]" options={agentSelectOptions} />
           </label>
           <label className="mt-3 flex flex-col gap-2 font-[family-name:var(--font-poppins)] text-xs text-[#BEBED6]">
             Insight
@@ -338,10 +487,7 @@ export function LearningConsole({ showHeader = true }: LearningConsoleProps): JS
           </label>
           <label className="mt-3 flex flex-col gap-2 font-[family-name:var(--font-poppins)] text-xs text-[#BEBED6]">
             Agent
-            <select required value={rewardAgent} onChange={(e) => setRewardAgent(e.target.value)} className="min-h-[44px] rounded-xl border border-[#1e2348] bg-black/76 px-3 py-2 text-sm">
-              <option value="">Select…</option>
-              {agentOptions}
-            </select>
+            <QsSelect value={rewardAgent} onValueChange={setRewardAgent} placeholder="Select…" className="min-h-[44px]" options={agentSelectOptions} />
           </label>
           <label className="mt-3 flex flex-col gap-2 font-[family-name:var(--font-poppins)] text-xs text-[#BEBED6]">
             Signal
@@ -360,17 +506,11 @@ export function LearningConsole({ showHeader = true }: LearningConsoleProps): JS
           <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#EEEEFF]">Imitation edge</h2>
           <label className="mt-4 flex flex-col gap-2 font-[family-name:var(--font-poppins)] text-xs text-[#BEBED6]">
             Copier
-            <select required value={copier} onChange={(e) => setCopier(e.target.value)} className="min-h-[44px] rounded-xl border border-[#1e2348] bg-black/76 px-3 py-2 text-sm">
-              <option value="">Select…</option>
-              {agentOptions}
-            </select>
+            <QsSelect value={copier} onValueChange={setCopier} placeholder="Select…" className="min-h-[44px]" options={agentSelectOptions} />
           </label>
           <label className="mt-3 flex flex-col gap-2 font-[family-name:var(--font-poppins)] text-xs text-[#BEBED6]">
             Exemplar
-            <select required value={exemplar} onChange={(e) => setExemplar(e.target.value)} className="min-h-[44px] rounded-xl border border-[#1e2348] bg-black/76 px-3 py-2 text-sm">
-              <option value="">Select…</option>
-              {agentOptions}
-            </select>
+            <QsSelect value={exemplar} onValueChange={setExemplar} placeholder="Select…" className="min-h-[44px]" options={agentSelectOptions} />
           </label>
           <button
             type="submit"

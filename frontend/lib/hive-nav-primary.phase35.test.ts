@@ -24,9 +24,9 @@ describe("hive-nav-primary Phase 3.5 IA coverage", () => {
     const hrefs = integrations!.items.map((i) => i.href);
     if (hrefs.some((href) => href.startsWith("/integrations"))) {
       expect(hrefs).toContain("/integrations");
-      expect(hrefs).toContain("/integrations#hub");
-      expect(hrefs).toContain("/integrations#external");
-      expect(hrefs).toContain("/integrations#plugins");
+      expect(hrefs).toContain("/integrations?tab=hub");
+      expect(hrefs).toContain("/integrations?tab=external");
+      expect(hrefs).toContain("/integrations?tab=plugins");
       return;
     }
     expect(hrefs).toContain("/connectors");

@@ -1,7 +1,11 @@
 /**
  * Typed-ish fetch wrapper for `/api/proxy`, which relays to `{INTERNAL_BACKEND_ORIGIN}/api/v1/...`.
  * Use credentials so the dashboard JWT cookie reaches the relay.
+ * On 401, silently refreshes the session once and retries.
+ * On 429 / 502 / 503, retries with backoff (respects ``Retry-After`` for rate limits).
  */
+
+import { clearHiveBearerCache, refreshDashboardSession } from "@/lib/hive-bearer-token";
 
 export class HiveApiError extends Error {
   constructor(
@@ -16,6 +20,48 @@ export class HiveApiError extends Error {
   repr(): string {
     return `${this.name}(status=${this.status}, message=${JSON.stringify(this.message)})`;
   }
+}
+
+/** True when the API rejected the call due to sliding-window rate limiting. */
+export function isRateLimitError(error: unknown): error is HiveApiError {
+  return error instanceof HiveApiError && error.status === 429;
+}
+
+/** Operator-facing copy for toast / inline alerts. */
+export function hiveApiUserMessage(error: unknown): string {
+  if (error instanceof HiveApiError) {
+    if (error.status === 429) {
+      return "Rate limit reached — wait a few seconds and try again.";
+    }
+    return error.message;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return "Request failed.";
+}
+
+function retryAfterMs(res: Response): number {
+  const raw = res.headers.get("retry-after");
+  if (!raw) {
+    return 2000;
+  }
+  const seconds = Number.parseInt(raw, 10);
+  if (Number.isFinite(seconds) && seconds > 0) {
+    return Math.min(seconds, 8) * 1000;
+  }
+  return 2000;
+}
+
+async function notifyRateLimitToast(): Promise<void> {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const { toast } = await import("sonner");
+  toast.error("Rate limit reached", {
+    description: "Too many requests — wait a moment, then retry.",
+    duration: 7000,
+  });
 }
 
 const PROXY_PREFIX = "/api/proxy";
@@ -61,25 +107,53 @@ function detailFromBody(body: unknown): string | null {
 export async function hiveFetch<T = unknown>(subpath: string, init?: RequestInit): Promise<T> {
   const path = normalizeV1RelativePath(subpath);
   const url = `${PROXY_PREFIX}/${path}`;
-  const res = await fetch(url, {
-    credentials: "include",
-    cache: "no-store",
-    ...init,
-  });
-  const body = await parseBody(res);
 
-  if (!res.ok) {
-    const detail = detailFromBody(body);
-    throw new HiveApiError(
-      detail ?? (res.statusText || `HTTP ${res.status}`),
-      res.status,
-      body,
-    );
+  async function attempt(authRetried: boolean, transientRetries = 0): Promise<T> {
+    const res = await fetch(url, {
+      credentials: "include",
+      cache: "no-store",
+      ...init,
+    });
+    const body = await parseBody(res);
+
+    if (res.status === 401 && !authRetried) {
+      const refreshed = await refreshDashboardSession();
+      if (refreshed) {
+        clearHiveBearerCache();
+        return attempt(true, transientRetries);
+      }
+    }
+
+    if ((res.status === 502 || res.status === 503) && transientRetries < 2) {
+      await new Promise((resolve) => setTimeout(resolve, 800 * (transientRetries + 1)));
+      return attempt(authRetried, transientRetries + 1);
+    }
+
+    if (res.status === 429 && transientRetries < 2) {
+      await new Promise((resolve) => setTimeout(resolve, retryAfterMs(res)));
+      return attempt(authRetried, transientRetries + 1);
+    }
+
+    if (!res.ok) {
+      const detail = detailFromBody(body);
+      if (res.status === 429) {
+        await notifyRateLimitToast();
+      }
+      throw new HiveApiError(
+        res.status === 429
+          ? "Rate limit reached — wait a few seconds and try again."
+          : (detail ?? (res.statusText || `HTTP ${res.status}`)),
+        res.status,
+        body,
+      );
+    }
+    if (res.status === 204) {
+      return undefined as T;
+    }
+    return body as T;
   }
-  if (res.status === 204) {
-    return undefined as T;
-  }
-  return body as T;
+
+  return attempt(false);
 }
 
 export function hiveGet<T>(subpath: string, init?: RequestInit): Promise<T> {

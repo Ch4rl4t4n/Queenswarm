@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { QsSelect } from "@/components/ui/qs-select";
+import { V4Card, V4CardHeader } from "@/components/ui/v4";
 import type { TeamOverviewPayload } from "@/lib/hive-types";
-import { cn } from "@/lib/utils";
 
 const TEAM_ROLES = ["owner", "admin", "member", "viewer", "guest"] as const;
+const TEAM_ROLE_OPTIONS = TEAM_ROLES.map((role) => ({ value: role, label: role }));
 
 interface InviteFormState {
   email: string;
@@ -109,108 +111,114 @@ export function TeamSettingsPanel() {
   }, [load]);
 
   if (loading) {
-    return <div className="rounded-2xl border border-cyan/20 bg-hive-card/70 p-5 text-sm text-zinc-400">Loading team…</div>;
+    return (
+      <V4Card>
+        <p className="text-sm text-(--qs-text-3)">Loading team…</p>
+      </V4Card>
+    );
   }
   if (error && !data) {
-    return <div className="rounded-2xl border border-rose-500/30 bg-rose-950/30 p-5 text-sm text-rose-200">{error}</div>;
+    return (
+      <V4Card>
+        <p className="text-sm text-(--qs-red)">{error}</p>
+      </V4Card>
+    );
   }
 
   return (
-    <section className="space-y-6">
-      <header className="rounded-2xl border border-cyan/15 bg-hive-card/70 p-5">
-        <h2 className="text-lg font-semibold text-zinc-100">Team & RBAC</h2>
-        <p className="mt-2 text-sm text-zinc-400">
-          Tenant role: <span className="font-medium text-amber-300">{data?.tenant_role ?? "guest"}</span> · permissions:{" "}
-          {(data?.permissions ?? []).join(", ")}
-        </p>
-      </header>
+    <div className="flex flex-col gap-6">
+      <V4Card>
+        <V4CardHeader
+          title="Team & RBAC"
+          description={
+            <>
+              Tenant role: <span className="font-medium text-(--qs-amber)">{data?.tenant_role ?? "guest"}</span> ·
+              permissions: {(data?.permissions ?? []).join(", ")}
+            </>
+          }
+        />
+      </V4Card>
 
-      <div className="rounded-2xl border border-cyan/15 bg-hive-card/70 p-5">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-200">Invite member</h3>
-        <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto_auto]">
+      <V4Card>
+        <V4CardHeader title="Invite member" description="Send an email invite with a tenant role." />
+        <div className="v4-settings-inline-form grid gap-3">
           <input
             value={inviteForm.email}
             onChange={(event) => setInviteForm((prev) => ({ ...prev, email: event.target.value }))}
             placeholder="teammate@company.com"
-            className="rounded-xl border border-cyan/20 bg-hive-void/70 px-3 py-2 text-sm text-zinc-100 outline-none ring-cyan/40 focus:ring-2"
+            className="qs-input min-w-0"
             disabled={!canManage || saving}
           />
-          <select
+          <QsSelect
             value={inviteForm.role}
-            onChange={(event) => setInviteForm((prev) => ({ ...prev, role: event.target.value }))}
-            className="rounded-xl border border-cyan/20 bg-hive-void/70 px-3 py-2 text-sm text-zinc-100 outline-none ring-cyan/40 focus:ring-2"
+            onValueChange={(next) => setInviteForm((prev) => ({ ...prev, role: next }))}
+            className="min-h-11 w-full rounded-(--qs-radius-sm) sm:w-auto"
             disabled={!canManage || saving}
-          >
-            {TEAM_ROLES.map((role) => (
-              <option key={role} value={role}>
-                {role}
-              </option>
-            ))}
-          </select>
+            options={TEAM_ROLE_OPTIONS}
+          />
           <button
             type="button"
             onClick={() => void submitInvite()}
             disabled={!canManage || saving || !inviteForm.email.trim()}
-            className="rounded-xl bg-amber-400 px-4 py-2 text-sm font-semibold text-black transition enabled:hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
+            className="qs-btn qs-btn--primary qs-btn--sm w-full sm:w-auto"
           >
             Send invite
           </button>
         </div>
-      </div>
+      </V4Card>
 
-      <div className="rounded-2xl border border-cyan/15 bg-hive-card/70 p-5">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-200">Members</h3>
-        <div className="mt-3 space-y-2">
+      <V4Card>
+        <V4CardHeader title="Members" description="Active tenant memberships and roles." />
+        <div className="flex flex-col gap-2">
           {(data?.members ?? []).map((member) => (
             <div
               key={member.id}
-              className={cn("grid gap-2 rounded-xl border border-cyan/10 p-3", "sm:grid-cols-[1fr_auto_auto] sm:items-center")}
+              className="v4-settings-member-row grid gap-2 rounded-(--qs-radius-sm) border border-(--qs-border) bg-white/2 p-3 sm:grid-cols-[1fr_auto_auto] sm:items-center"
             >
-              <div>
-                <p className="text-sm font-medium text-zinc-100">{member.email}</p>
-                <p className="text-xs text-zinc-500">Joined {new Date(member.joined_at).toLocaleString()}</p>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-(--qs-text) break-all">{member.email}</p>
+                <p className="text-xs text-(--qs-text-3)">Joined {new Date(member.joined_at).toLocaleString()}</p>
               </div>
-              <select
+              <QsSelect
                 value={member.role}
                 disabled={!canManage || saving}
-                onChange={(event) => void updateRole(member.id, event.target.value)}
-                className="rounded-lg border border-cyan/20 bg-hive-void/70 px-3 py-2 text-sm text-zinc-100"
-              >
-                {TEAM_ROLES.map((role) => (
-                  <option key={role} value={role}>
-                    {role}
-                  </option>
-                ))}
-              </select>
+                onValueChange={(next) => void updateRole(member.id, next)}
+                className="min-h-10 w-full rounded-(--qs-radius-sm) text-sm sm:w-auto"
+                options={TEAM_ROLE_OPTIONS}
+              />
               <button
                 type="button"
                 onClick={() => void removeMember(member.id)}
                 disabled={!canManage || saving}
-                className="rounded-lg border border-rose-400/40 px-3 py-2 text-xs text-rose-200 transition enabled:hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                className="qs-btn qs-btn--danger qs-btn--sm w-full sm:w-auto"
               >
                 Remove
               </button>
             </div>
           ))}
         </div>
-      </div>
+      </V4Card>
 
-      <div className="rounded-2xl border border-cyan/15 bg-hive-card/70 p-5">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-200">Pending invites</h3>
-        <div className="mt-3 space-y-2">
+      <V4Card>
+        <V4CardHeader title="Pending invites" description="Outstanding invite tokens awaiting acceptance." />
+        <div className="flex flex-col gap-2">
           {(data?.invites ?? []).length ? (
             data?.invites.map((invite) => (
-              <div key={invite.id} className="rounded-xl border border-cyan/10 p-3 text-sm text-zinc-300">
-                {invite.email} · {invite.role} · token <span className="font-mono text-xs text-cyan-300">{invite.invite_token}</span>
+              <div
+                key={invite.id}
+                className="rounded-(--qs-radius-sm) border border-(--qs-border) bg-white/2 p-3 text-sm text-(--qs-text-2)"
+              >
+                {invite.email} · {invite.role} · token{" "}
+                <span className="font-mono text-xs text-(--qs-text-3)">{invite.invite_token}</span>
               </div>
             ))
           ) : (
-            <p className="text-sm text-zinc-500">No pending invites.</p>
+            <p className="text-sm text-(--qs-text-3)">No pending invites.</p>
           )}
         </div>
-      </div>
+      </V4Card>
 
-      {error ? <p className="text-sm text-rose-300">{error}</p> : null}
-    </section>
+      {error ? <p className="text-sm text-(--qs-red)">{error}</p> : null}
+    </div>
   );
 }

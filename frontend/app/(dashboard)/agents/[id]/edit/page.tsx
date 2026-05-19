@@ -216,8 +216,8 @@ export default function AgentEditPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <div className="v4-agent-edit-shell mx-auto max-w-3xl space-y-6 p-6">
+      <div className="v4-agent-edit-head flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="font-[family-name:var(--font-poppins)] text-2xl font-bold text-[#fafafa]">
             🐝 {agent?.name ?? id}
@@ -226,7 +226,7 @@ export default function AgentEditPage() {
             Configure prompts, tools, routing, and schedules for the universal executor.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="v4-agent-edit-actions flex gap-2">
           <button
             type="button"
             onClick={() => void runNow()}
@@ -509,7 +509,7 @@ export default function AgentEditPage() {
         )}
       </div>
 
-      <div className="flex gap-3 pt-2">
+      <div className="v4-agent-edit-footer flex gap-3 pt-2">
         <Link
           href={`/agents/${encodeURIComponent(id)}`}
           className="rounded-xl border border-[#1a1a3e] px-6 py-3 text-sm text-gray-400 hover:border-gray-600"

@@ -22,8 +22,15 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 2 : undefined,
+  workers: process.env.CI ? 1 : undefined,
   reporter: [["list"]],
+  snapshotPathTemplate: "{testDir}/{testFileDir}/__screenshots__/{testFileName}/{arg}{ext}",
+  expect: {
+    toHaveScreenshot: {
+      maxDiffPixelRatio: 0.025,
+      animations: "disabled",
+    },
+  },
   use: {
     baseURL,
     trace: "retain-on-failure",
@@ -35,7 +42,13 @@ export default defineConfig({
         webServer: {
           command: "npm run dev",
           cwd: ".",
-          env: { ...process.env, PORT: devPort },
+          env: {
+            ...process.env,
+            PORT: devPort,
+            NEXT_PUBLIC_LEADERBOARD_ENABLED: "true",
+            NEXT_PUBLIC_ADVANCED_MONITORING_ENABLED: "true",
+            NEXT_PUBLIC_SIMULATIONS_ENABLED: "true",
+          },
           url: `${baseURL}/login`,
           timeout: 240_000,
           reuseExistingServer: !process.env.CI,

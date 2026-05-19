@@ -3,7 +3,6 @@
 import { BellIcon, PanelLeftOpenIcon } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
-import { toast } from "sonner";
 
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
 import type { DashboardSummary } from "@/lib/hive-types";
@@ -56,7 +55,7 @@ export function HiveMobileHeader({ pathname, summary, className, onOpenNav }: Hi
   return (
     <header
       className={cn(
-        "sticky top-0 z-[45] flex items-start justify-between gap-3 border-b border-cyan/[0.12] bg-[#0a0a0c]/95 px-4 py-4 backdrop-blur-lg lg:hidden",
+        "sticky top-0 z-[45] flex items-start justify-between gap-3 border-b border-[color:var(--qs-border)] bg-[#0a0a0c]/95 px-4 py-4 backdrop-blur-lg lg:hidden",
         "pt-[calc(1rem+env(safe-area-inset-top,0px))]",
         className,
       )}
@@ -65,7 +64,7 @@ export function HiveMobileHeader({ pathname, summary, className, onOpenNav }: Hi
         {onOpenNav ? (
           <button
             type="button"
-            className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cyan/[0.18] bg-black/55 text-pollen shadow-[inset_0_0_0_1px_rgb(0_255_255/0.05)] hover:border-pollen/35 touch-manipulation"
+            className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[color:var(--qs-border)] bg-black/55 text-pollen hover:border-[color:var(--qs-border-2)] touch-manipulation"
             aria-label={localizePhrase(language, { en: "Open navigation menu", sk: "Otvoriť navigáciu" })}
             onClick={onOpenNav}
           >
@@ -91,19 +90,13 @@ export function HiveMobileHeader({ pathname, summary, className, onOpenNav }: Hi
           </span>
         </Link>
       </div>
-      <button
-        type="button"
+      <Link
+        href="/settings/notifications"
         aria-label={localizePhrase(language, { en: "Notifications", sk: "Notifikácie" })}
-        className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cyan/[0.18] bg-black/55 text-zinc-300 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.05)] hover:border-pollen/35 hover:text-pollen touch-manipulation"
-        onClick={() =>
-          toast.message(
-            localizePhrase(language, { en: "Hive alerts", sk: "Hive upozornenia" }),
-            { description: localizePhrase(language, { en: "Nothing unread.", sk: "Nič neprečítané." }) },
-          )
-        }
+        className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[color:var(--qs-border)] bg-black/55 text-zinc-300 hover:border-[color:var(--qs-border-2)] hover:text-pollen touch-manipulation"
       >
         <BellIcon className="h-[18px] w-[18px]" aria-hidden />
-      </button>
+      </Link>
     </header>
   );
 }

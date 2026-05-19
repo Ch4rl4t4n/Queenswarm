@@ -47,7 +47,7 @@ export function HexagonalAgentCard({ agent, className }: HexagonalAgentCardProps
     >
       <div
         style={{ boxShadow: `0 0 ${glowPx}px rgba(255, 184, 0, 0.18)` }}
-        className="relative flex flex-col gap-2 rounded-2xl border border-cyan/20 bg-gradient-to-b from-[#101228]/95 to-[#050510] p-3 text-left transition hover:border-pollen/35 sm:gap-3 sm:p-4"
+        className="relative flex flex-col gap-2 rounded-2xl border border-[color:var(--qs-border)] bg-gradient-to-b from-[#101228]/95 to-[#050510] p-3 text-left transition hover:border-pollen/35 sm:gap-3 sm:p-4"
       >
       <div className="flex items-start justify-between gap-2">
         <div

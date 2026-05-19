@@ -5,7 +5,16 @@ import { QS_ACCESS } from "@/lib/auth-cookies";
 
 /** Paths that bypass auth gates; gated routes rely on HttpOnly ``qs_dashboard_at`` cookie (see ``attachDashboardTokenCookies``). */
 
-const PUBLIC_PREFIXES = ["/login", "/verify-2fa"];
+const PUBLIC_PREFIXES = ["/login", "/verify-2fa", "/terms", "/privacy", "/health", "/offline"];
+
+/** PWA shell assets — no auth redirect (mobile/tablet install + offline fallback). */
+const PUBLIC_EXACT = new Set([
+  "/manifest.webmanifest",
+  "/manifest",
+  "/sw.js",
+  "/icon",
+  "/apple-icon",
+]);
 
 function base64UrlDecode(input: string): string | null {
   const normalized = input.replace(/-/g, "+").replace(/_/g, "/");
@@ -73,6 +82,9 @@ export function middleware(request: NextRequest) {
   if (PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
     return NextResponse.next();
   }
+  if (PUBLIC_EXACT.has(pathname)) {
+    return NextResponse.next();
+  }
 
   if (access && !isLikelyValidDashboardJwt(access)) {
     const url = request.nextUrl.clone();
@@ -96,5 +108,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };

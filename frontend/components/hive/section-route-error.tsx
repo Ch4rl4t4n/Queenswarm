@@ -19,14 +19,14 @@ export function SectionRouteError({ title, error, reset }: SectionRouteErrorProp
         <button
           type="button"
           onClick={reset}
-          className="rounded-xl bg-[#FFB800] px-4 py-2 text-sm font-semibold uppercase tracking-[0.06em] text-hive-bg"
+          className="qs-btn qs-btn--primary qs-btn--sm uppercase tracking-[0.06em]"
         >
           Retry
         </button>
-        <Link href="/dashboard" className="rounded-xl border border-cyan/40 px-4 py-2 text-sm font-medium text-cyan">
+        <Link href="/dashboard" className="qs-btn qs-btn--ghost qs-btn--sm">
           Dashboard
         </Link>
-        <Link href="/ballroom" className="rounded-xl border border-pollen/40 px-4 py-2 text-sm font-medium text-pollen">
+        <Link href="/ballroom" className="qs-btn qs-btn--ghost qs-btn--sm text-pollen">
           Ballroom
         </Link>
       </div>

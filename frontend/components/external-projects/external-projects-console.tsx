@@ -13,9 +13,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Boxes, Copy, KeyRound, LineChart as LineChartIcon, RefreshCw } from "lucide-react";
+import { Copy, RefreshCw } from "lucide-react";
 
+import { QsSelect } from "@/components/ui/qs-select";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
+import { V4Badge, V4Card, V4CardHeader, V4PageCanvas } from "@/components/ui/v4";
 import { COCKPIT_POLL_EXTERNAL_METRICS_MS } from "@/lib/cockpit-poll-profile";
 import { cn } from "@/lib/utils";
 
@@ -50,11 +52,11 @@ interface ExternalApiKeyMinted {
   plaintext_key: string;
 }
 
-function kindBadge(kind: string): string {
+function kindBadgeTone(kind: string): "info" | "gold" | "purple" {
   const k = kind.toLowerCase();
-  if (k === "trading") return "border-cyan/35 bg-cyan/15 text-cyan";
-  if (k === "food_ordering") return "border-pollen/35 bg-pollen/15 text-pollen";
-  return "border-white/12 bg-white/[0.06] text-zinc-200";
+  if (k === "trading") return "info";
+  if (k === "food_ordering") return "gold";
+  return "purple";
 }
 
 export function ExternalProjectsConsole() {
@@ -225,28 +227,21 @@ export function ExternalProjectsConsole() {
     }
   }
 
-  const inputClass =
-    "h-10 w-full rounded-xl border border-white/10 bg-[#050510]/90 px-3 text-sm text-white outline-none ring-offset-[#050510] focus-visible:ring-2 focus-visible:ring-pollen/45";
+  const inputClass = "qs-input min-h-10 w-full";
 
   return (
-    <div className="space-y-8 pb-16 pt-2">
-      <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <V4PageCanvas className="pb-16 pt-2">
+      <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan">Phase 2.5 · Integration Layer</p>
-          <h1 className="mt-2 font-[family-name:var(--font-space-grotesk)] text-3xl font-bold tracking-tight text-white md:text-4xl">
-            External projects
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
+          <p className="v4-field-label text-(--qs-magenta)">Phase 2.5 · Integration layer</p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-(--qs-text) md:text-4xl">External projects</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-(--qs-text-3)">
             Register MCP-first integrations with scoped <span className="font-mono text-pollen">qs_ep_</span> keys, REST{" "}
-            <code className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-[12px] text-cyan">{`/external/{slug}/run`}</code>, and WebSocket
+            <code className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-[12px] text-pollen">{`/external/{slug}/run`}</code>, and WebSocket
             lanes — mirrored into HiveMind vault audit stitches when enabled.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void refreshProjects()}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/14 bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-pollen transition hover:bg-white/[0.07]"
-        >
+        <button type="button" onClick={() => void refreshProjects()} className="qs-btn qs-btn--ghost gap-2">
           <RefreshCw className="h-4 w-4" aria-hidden />
           Refresh registry
         </button>
@@ -259,16 +254,12 @@ export function ExternalProjectsConsole() {
       ) : null}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
-        <section className="rounded-[22px] border border-[#1a1a3e]/90 bg-[#0d0d2b]/85 p-6 shadow-[0_0_40px_rgb(0_255_255/0.06)]">
-          <div className="flex items-center gap-2">
-            <Boxes className="h-5 w-5 text-pollen" aria-hidden />
-            <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg text-white">Register bridge</h2>
-          </div>
-          <p className="mt-2 text-sm text-zinc-500">Mint secrets once — external vaulting stays operator-owned.</p>
+        <V4Card>
+          <V4CardHeader title="Register bridge" description="Mint secrets once — external vaulting stays operator-owned." />
 
           <div className="mt-6 space-y-4">
             <div className="space-y-2">
-              <label htmlFor="ep-slug" className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              <label htmlFor="ep-slug" className="v4-field-label">
                 Slug
               </label>
               <input
@@ -280,7 +271,7 @@ export function ExternalProjectsConsole() {
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="ep-name" className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              <label htmlFor="ep-name" className="v4-field-label">
                 Display name
               </label>
               <input
@@ -292,22 +283,23 @@ export function ExternalProjectsConsole() {
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="ep-kind" className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              <label htmlFor="ep-kind" className="v4-field-label">
                 Lane template
               </label>
-              <select
+              <QsSelect
                 id="ep-kind"
                 value={projectKind}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => setProjectKind(e.target.value as typeof projectKind)}
+                onValueChange={(next) => setProjectKind(next as typeof projectKind)}
                 className={inputClass}
-              >
-                <option value="generic">Generic simulate / echo</option>
-                <option value="trading">Trading risk rails</option>
-                <option value="food_ordering">Food ordering cart</option>
-              </select>
+                options={[
+                  { value: "generic", label: "Generic simulate / echo" },
+                  { value: "trading", label: "Trading risk rails" },
+                  { value: "food_ordering", label: "Food ordering cart" },
+                ]}
+              />
             </div>
             <div className="space-y-2">
-              <label htmlFor="ep-settings" className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              <label htmlFor="ep-settings" className="v4-field-label">
                 Settings JSON
               </label>
               <textarea
@@ -316,33 +308,27 @@ export function ExternalProjectsConsole() {
                 onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setSettingsJson(e.target.value)}
                 rows={5}
                 spellCheck={false}
-                className="w-full resize-y rounded-xl border border-white/10 bg-[#050510]/90 p-3 font-mono text-[12px] leading-relaxed text-zinc-200 outline-none ring-offset-[#050510] focus-visible:ring-2 focus-visible:ring-pollen/45"
+                className="v4-textarea w-full font-mono text-[12px]"
               />
               <p className="text-[11px] text-zinc-500">
                 Trading example:{" "}
-                <code className="font-mono text-cyan">{`{"trading_mode":"paper","max_order_usd":25000}`}</code>
+                <code className="font-mono text-cyan">{`{"trading_mode":"paper","max_order_usd":2500,"max_daily_loss_usd":500,"max_risk_pct_per_trade":2,"watchlist":["BTC","ETH"],"paper_trading_auto_tick":true}`}</code>
               </p>
             </div>
             <button
               type="button"
               disabled={createBusy || !slug.trim() || !displayName.trim()}
               onClick={() => void handleCreate()}
-              className="w-full rounded-xl bg-gradient-to-r from-pollen/90 to-[#FFB800] py-3 text-sm font-bold text-[#050510] shadow-[0_0_24px_rgb(255_184_0/0.35)] transition enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+              className="qs-btn qs-btn--primary w-full disabled:opacity-40"
             >
               {createBusy ? "Provisioning…" : "Create project"}
             </button>
           </div>
-        </section>
+        </V4Card>
 
         <div className="space-y-6">
-          <section className="rounded-[22px] border border-[#1a1a3e]/90 bg-[#0d0d2b]/78 p-6">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg text-white">Registry</h2>
-                <p className="mt-1 text-sm text-zinc-500">Active bridges owned by this dashboard session.</p>
-              </div>
-              <LineChartIcon className="h-5 w-5 shrink-0 text-cyan/80" aria-hidden />
-            </div>
+          <V4Card>
+            <V4CardHeader title="Registry" description="Active bridges owned by this dashboard session." />
 
             <div className="mt-4 space-y-3">
               {!projects?.length ? (
@@ -358,25 +344,16 @@ export function ExternalProjectsConsole() {
                           onClick={() => setSelectedId(p.id)}
                           className={cn(
                             "flex w-full flex-col gap-1 rounded-2xl border px-4 py-3 text-left transition",
-                            active
-                              ? "border-pollen/45 bg-[rgb(61_53_38/0.55)] shadow-[inset_0_0_0_1px_rgb(255_184_0/0.25)]"
-                              : "border-transparent bg-white/[0.02] hover:border-cyan/25 hover:bg-white/[0.04]",
+                            active ? "v4-dream-cycle-card border-pollen/45 bg-pollen/[0.06]" : "v4-session-row border-transparent hover:border-(--qs-border)",
                           )}
                         >
                           <div className="flex items-center justify-between gap-3">
                             <span className="font-[family-name:var(--font-space-grotesk)] text-[15px] font-semibold text-white">
                               {p.display_name}
                             </span>
-                            <span
-                              className={cn(
-                                "rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide",
-                                kindBadge(p.project_kind),
-                              )}
-                            >
-                              {p.project_kind}
-                            </span>
+                            <V4Badge tone={kindBadgeTone(p.project_kind)}>{p.project_kind}</V4Badge>
                           </div>
-                          <div className="font-mono text-xs text-cyan/90">{p.slug}</div>
+                          <div className="font-mono text-xs text-(--qs-text-3)">{p.slug}</div>
                         </button>
                       </li>
                     );
@@ -384,23 +361,24 @@ export function ExternalProjectsConsole() {
                 </ul>
               )}
             </div>
-          </section>
+          </V4Card>
 
           {selected ? (
             <>
-              <section className="rounded-[22px] border border-[#1a1a3e]/90 bg-[#0d0d2b]/85 p-6">
-                <div className="flex items-center gap-2">
-                  <KeyRound className="h-5 w-5 text-pollen" aria-hidden />
-                  <h2 className="font-[family-name:var(--font-space-grotesk)] text-lg text-white">Scoped credential mint</h2>
-                </div>
-                <p className="mt-2 text-sm text-zinc-500">
-                  Include <span className="font-mono text-cyan">mcp:call</span> for MCP hosts;{" "}
-                  <span className="font-mono text-[#FF00AA]">trading:live</span> unlocks real-money execution rails.
-                </p>
+              <V4Card>
+                <V4CardHeader
+                  title="Scoped credential mint"
+                  description={
+                    <>
+                      Include <span className="font-mono text-pollen">mcp:call</span> for MCP hosts;{" "}
+                      <span className="font-mono text-(--qs-magenta)">trading:live</span> unlocks real-money execution rails.
+                    </>
+                  }
+                />
 
                 <div className="mt-6 grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Label</span>
+                    <span className="v4-field-label">Label</span>
                     <input
                       value={keyLabel}
                       onChange={(e: ChangeEvent<HTMLInputElement>) => setKeyLabel(e.target.value)}
@@ -409,7 +387,7 @@ export function ExternalProjectsConsole() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Scopes (comma-separated)</span>
+                    <span className="v4-field-label">Scopes (comma-separated)</span>
                     <input
                       value={permissionsText}
                       onChange={(e: ChangeEvent<HTMLInputElement>) => setPermissionsText(e.target.value)}
@@ -419,12 +397,7 @@ export function ExternalProjectsConsole() {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => void handleMintKey()}
-                  disabled={mintBusy}
-                  className="mt-4 rounded-xl border border-pollen/35 bg-pollen/10 px-4 py-2.5 text-sm font-semibold text-pollen transition hover:bg-pollen/18 disabled:cursor-not-allowed disabled:opacity-50"
-                >
+                <button type="button" onClick={() => void handleMintKey()} disabled={mintBusy} className="qs-btn qs-btn--primary mt-4 disabled:opacity-50">
                   {mintBusy ? "Minting…" : "Generate qs_ep key"}
                 </button>
 
@@ -444,7 +417,7 @@ export function ExternalProjectsConsole() {
                     </div>
                   </div>
                 ) : null}
-              </section>
+              </V4Card>
 
               {metricsFetchMode !== "idle" ? (
                 <p className="font-[family-name:var(--font-space-grotesk)] text-xs text-cyan/90" aria-live="polite">
@@ -514,7 +487,7 @@ export function ExternalProjectsConsole() {
           ) : null}
         </div>
       </div>
-    </div>
+    </V4PageCanvas>
   );
 }
 
@@ -535,7 +508,7 @@ function HexMetric({ title, value, accent }: HexMetricProps) {
           : "shadow-[0_0_22px_rgb(255_0_170/0.22)]";
   const border =
     accent === "cyan"
-      ? "border-cyan/35"
+      ? "border-[color:var(--qs-border-2)]"
       : accent === "pollen"
         ? "border-pollen/35"
         : accent === "green"
@@ -567,11 +540,10 @@ interface ChartCardProps {
 
 function ChartCard({ title, subtitle, emptyLabel, hasData, children }: ChartCardProps) {
   return (
-    <section className="rounded-[22px] border border-[#1a1a3e]/90 bg-[#0d0d2b]/78 p-6">
-      <h3 className="text-base text-white">{title}</h3>
-      <p className="mt-1 text-sm text-zinc-500">{subtitle}</p>
-      <div className="mt-4 h-64">{hasData ? children : <EmptyChart label={emptyLabel} />}</div>
-    </section>
+    <V4Card tight>
+      <V4CardHeader as="h3" title={title} description={subtitle} />
+      <div className="mt-2 h-64">{hasData ? children : <EmptyChart label={emptyLabel} />}</div>
+    </V4Card>
   );
 }
 

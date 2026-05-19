@@ -96,7 +96,7 @@ export function TasksQueueSection({ tasks }: TasksQueueSectionProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 border-b border-cyan/[0.08] pb-5 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-6">
+      <div className="flex flex-col gap-3 border-b border-[color:var(--qs-border-2)]/[0.08] pb-5 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-6">
         <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
           <div className="flex min-w-0 gap-1 overflow-x-auto rounded-full bg-black/40 p-1 ring-1 ring-cyan/[0.1] hive-scrollbar pb-px sm:overflow-visible">
             {tabBtn("all", "All")}
@@ -116,7 +116,7 @@ export function TasksQueueSection({ tasks }: TasksQueueSectionProps) {
             value={needle}
             onChange={(e) => setNeedle(e.target.value)}
             placeholder="Filter tasks…"
-            className="w-full min-w-0 max-w-full rounded-xl border border-cyan/[0.15] bg-black/45 px-4 py-2 font-(family-name:--font-poppins) text-sm text-[#fafafa] placeholder:text-zinc-500 focus:border-pollen/35 focus:outline-none sm:max-w-[320px] sm:flex-none"
+            className="w-full min-w-0 max-w-full rounded-xl border border-[color:var(--qs-border)] bg-black/45 px-4 py-2 font-(family-name:--font-poppins) text-sm text-[#fafafa] placeholder:text-zinc-500 focus:border-pollen/35 focus:outline-none sm:max-w-[320px] sm:flex-none"
           />
           <InfoHint
             title="Task search"
@@ -134,7 +134,7 @@ export function TasksQueueSection({ tasks }: TasksQueueSectionProps) {
           return (
             <article
               key={t.id}
-              className="relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-cyan/[0.08] bg-hive-card/90 p-4 sm:flex-row sm:items-center sm:justify-between lg:p-5"
+              className="relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-[color:var(--qs-border-2)]/[0.08] bg-hive-card/90 p-4 sm:flex-row sm:items-center sm:justify-between lg:p-5"
             >
               <span aria-hidden className={cn("absolute inset-y-0 left-0 w-1 rounded-l-2xl", strip)} />
               <div className="min-w-0 pt-1 pl-3">
@@ -145,7 +145,7 @@ export function TasksQueueSection({ tasks }: TasksQueueSectionProps) {
                   </span>
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-2 font-[family-name:var(--font-poppins)] text-[11px] text-zinc-500">
-                  <span className="rounded-full border border-cyan/[0.12] px-2 py-0.5 font-[family-name:var(--font-poppins)] uppercase tracking-[0.08em]">
+                  <span className="rounded-full border border-[color:var(--qs-border)] px-2 py-0.5 font-[family-name:var(--font-poppins)] uppercase tracking-[0.08em]">
                     swarm · {t.task_type}
                   </span>
                   <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5", statusBadge(b))}>

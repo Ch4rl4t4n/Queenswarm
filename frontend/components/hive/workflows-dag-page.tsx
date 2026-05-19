@@ -9,6 +9,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { HivePageHeader } from "@/components/hive/hive-page-header";
+import { V4PageCanvas } from "@/components/ui/v4";
 import { cn } from "@/lib/utils";
 
 interface WorkflowStep {
@@ -291,6 +293,7 @@ function WorkflowCard({
       <button
         type="button"
         onClick={() => void toggle()}
+        className="v4-workflow-card-toggle"
         style={{
           padding: "14px 18px",
           display: "flex",
@@ -335,7 +338,7 @@ function WorkflowCard({
           </div>
         </div>
 
-        <div style={{ width: 120, flexShrink: 0 }}>
+        <div className="v4-workflow-card-progress" style={{ width: 120, flexShrink: 0 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
             <span style={{ fontSize: 10, color: "#5a5a7a" }}>Progress</span>
             <span style={{ fontSize: 11, fontWeight: 700, color: c.text, fontFamily: "var(--font-hive-mono)" }}>
@@ -349,7 +352,7 @@ function WorkflowCard({
           </div>
         </div>
 
-        <span style={{ color: "#5a5a7a", fontSize: 14, padding: "4px 8px" }} aria-hidden>
+        <span className="v4-workflow-card-chevron" style={{ color: "#5a5a7a", fontSize: 14, padding: "4px 8px" }} aria-hidden>
           {expanded ? "▲" : "▼"}
         </span>
       </button>
@@ -360,7 +363,7 @@ function WorkflowCard({
             <div style={{ color: "#5a5a7a", fontSize: 13 }}>No steps defined</div>
           ) : wf.steps.length > 0 ? (
             <>
-              <div style={{ overflowX: "auto" }}>
+              <div className="v4-dag-scroll">
                 <div style={{ display: "flex", alignItems: "flex-start", paddingBottom: 8, minWidth: "max-content" }}>
                   {wf.steps.map((step, i) => (
                     <StepNode key={step.id} step={step} index={i} total={wf.steps.length} />
@@ -417,7 +420,7 @@ function WorkflowCard({
           )}
 
           {canControl ? (
-            <div style={{ marginTop: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div className="v4-workflow-control-actions" style={{ marginTop: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
                 type="button"
                 onClick={() => void runControl("pause")}
@@ -544,16 +547,16 @@ export default function WorkflowsDagPage(): JSX.Element {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="mb-2 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-[family-name:var(--font-poppins)] text-2xl font-bold text-[#e8e8f0]">Workflows</h1>
-          <p className="mt-1 text-[13px] text-[#5a5a7a]">DAG executions · auto-decomposed from tasks</p>
-        </div>
-        <Link href="/tasks/new" className="qs-btn qs-btn--primary">
-          + New task
-        </Link>
-      </div>
+    <V4PageCanvas className="gap-6">
+      <HivePageHeader
+        title="Workflows"
+        subtitle="DAG executions · auto-decomposed from tasks"
+        actions={
+          <Link href="/tasks/new" className="qs-btn qs-btn--primary w-full sm:w-auto">
+            + New task
+          </Link>
+        }
+      />
 
       {listError ? (
         <div
@@ -574,19 +577,16 @@ export default function WorkflowsDagPage(): JSX.Element {
         </div>
       ) : null}
 
-      <div className="mb-3 flex flex-wrap gap-2">
+      <div className="v4-subtab-row w-full max-w-full">
         {(["all", "running", "completed", "failed"] as const).map((f) => {
           const active = filter === f;
-          const activeClass =
-            f === "all"
-              ? "qs-pill--active-amber"
-              : f === "running"
-                ? "qs-pill--active-cyan"
-                : f === "completed"
-                  ? "qs-pill--active-green"
-                  : "qs-pill--active-red";
           return (
-            <button key={f} type="button" onClick={() => setFilter(f)} className={cn("qs-pill capitalize", active && activeClass)}>
+            <button
+              key={f}
+              type="button"
+              onClick={() => setFilter(f)}
+              className={cn("v4-subtab min-h-[42px] touch-manipulation capitalize", active && "v4-subtab--active")}
+            >
               {f} · {counts[f]}
             </button>
           );
@@ -642,6 +642,6 @@ export default function WorkflowsDagPage(): JSX.Element {
       ) : (
         filtered.map((wf) => <WorkflowCard key={wf.id} wf={wf} loadDetail={loadDetail} />)
       )}
-    </div>
+    </V4PageCanvas>
   );
 }

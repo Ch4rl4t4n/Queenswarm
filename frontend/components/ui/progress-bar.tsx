@@ -38,7 +38,7 @@ export function ProgressBar({
         </p>
       ) : null}
       <div
-        className="relative h-2.5 w-full overflow-hidden rounded-full border border-cyan/15 bg-black/50"
+        className="relative h-2.5 w-full overflow-hidden rounded-full border border-[color:var(--qs-border-2)]/15 bg-black/50"
         role="progressbar"
         aria-valuenow={Math.round(pct)}
         aria-valuemin={0}

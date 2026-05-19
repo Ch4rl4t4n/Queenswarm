@@ -4,12 +4,15 @@ import "@xyflow/react/dist/style.css";
 
 import type { Edge, Node } from "@xyflow/react";
 import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider, useEdgesState, useNodesState } from "@xyflow/react";
-import { Brain, Download, Loader2 } from "lucide-react";
+import { Brain, Download, Loader2, RefreshCw, Search, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { HiveMindConstellationGraph } from "@/components/hive/hive-mind-constellation-graph";
+import { HiveMindDeliverableModal } from "@/components/hive/hive-mind-deliverable-modal";
 import { InfoHint } from "@/components/hive/info-hint";
 import { HivePageHeader } from "@/components/hive/hive-page-header";
 import { NeonButton } from "@/components/ui/neon-button";
+import { V4Badge } from "@/components/ui/v4";
 import { HiveApiError, hiveFetchRaw, hiveGet, hivePostJson } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -39,10 +42,16 @@ interface SemanticHitPreview {
   key: string;
   deliverableId: string | null;
   snippet: string;
+  title: string;
+  source: string;
+  score: number | null;
+  tags: string[];
 }
 
 interface HiveMindExplorerProps {
   readonly showHeader?: boolean;
+  readonly variant?: "default" | "v4";
+  readonly filterHint?: string;
 }
 
 function latticePosition(index: number): { x: number; y: number } {
@@ -52,7 +61,7 @@ function latticePosition(index: number): { x: number; y: number } {
 }
 
 /** Cockpit constellation explorer — JWT `/hive-mind/*` + lightweight React Flow canvas. */
-export function HiveMindExplorer({ showHeader = true }: HiveMindExplorerProps): JSX.Element {
+export function HiveMindExplorer({ showHeader = true, variant = "default", filterHint = "" }: HiveMindExplorerProps): JSX.Element {
   const [graph, setGraph] = useState<HiveGraphPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -133,12 +142,21 @@ export function HiveMindExplorer({ showHeader = true }: HiveMindExplorerProps): 
         setSearchHits([]);
       } else {
         const hits = await hiveGet<{
-          items: { metadata?: Record<string, string>; document?: string | null }[];
+          items: { metadata?: Record<string, string>; document?: string | null; distance?: number | null }[];
         }>(`hive-mind/search?q=${encodeURIComponent(q)}&limit=10`);
         const rows: SemanticHitPreview[] = hits.items.map((row, idx) => {
-          const did = typeof row.metadata?.deliverable_id === "string" ? row.metadata?.deliverable_id : null;
+          const meta = row.metadata ?? {};
+          const did = typeof meta.deliverable_id === "string" ? meta.deliverable_id : null;
           const snippet = typeof row.document === "string" ? row.document.slice(0, 360) : "(empty payload)";
-          return { key: `hit-${did ?? idx}-${idx}`, deliverableId: did, snippet };
+          const title =
+            typeof meta.title === "string"
+              ? meta.title
+              : snippet.split("\n")[0]?.slice(0, 80) || `Hit ${idx + 1}`;
+          const source = typeof meta.source_path === "string" ? meta.source_path : did ? `deliverables/${did.slice(0, 8)}` : "hivemind/chroma";
+          const dist = typeof row.distance === "number" ? row.distance : null;
+          const score = dist != null ? Math.max(0, Math.min(1, 1 - dist)) : null;
+          const tags = [meta.tag, meta.source_type].filter((t): t is string => typeof t === "string" && t.length > 0);
+          return { key: `hit-${did ?? idx}-${idx}`, deliverableId: did, snippet, title, source, score, tags };
         });
         setSearchHits(rows);
       }
@@ -183,6 +201,133 @@ export function HiveMindExplorer({ showHeader = true }: HiveMindExplorerProps): 
     }
   }
 
+  const isV4 = variant === "v4";
+  const filteredHits = filterHint.trim()
+    ? searchHits.filter((hit) => {
+        const hay = `${hit.title} ${hit.source} ${hit.snippet} ${hit.tags.join(" ")}`.toLowerCase();
+        return hay.includes(filterHint.trim().toLowerCase());
+      })
+    : searchHits;
+
+  if (isV4) {
+    return (
+      <>
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-2" disabled={loading} onClick={() => void loadGraph()}>
+              <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} aria-hidden />
+              Refresh graph
+            </button>
+            <button type="button" className="qs-btn qs-btn--primary qs-btn--sm gap-2" onClick={() => void handleExportZip()}>
+              <Download className="h-3.5 w-3.5" aria-hidden />
+              Export ZIP
+            </button>
+          </div>
+
+          <form onSubmit={(e) => void submitSearch(e)} className="v4-hivemind-search-row">
+            <input
+              id="hm-search"
+              value={searchQ}
+              onChange={(e) => setSearchQ(e.target.value)}
+              placeholder="Global semantic probe — hive_mind chroma lane…"
+              className="qs-input h-11 min-w-0 flex-1 rounded-(--qs-radius-sm)"
+            />
+            <button type="submit" className="qs-btn qs-btn--ghost qs-btn--sm gap-2" disabled={busy}>
+              <Search className="h-3.5 w-3.5" aria-hidden />
+              Search
+            </button>
+            <button type="button" className="qs-btn qs-btn--primary qs-btn--sm gap-2" disabled={busy} onClick={() => void runRecallSimulation()}>
+              <Sparkles className="h-3.5 w-3.5" aria-hidden />
+              Recall preview
+            </button>
+          </form>
+
+          {error ? (
+            <p className="rounded-(--qs-radius-lg) border border-(--qs-red)/30 bg-(--qs-red)/10 px-4 py-3 text-sm text-(--qs-red)">{error}</p>
+          ) : null}
+
+          <div className="v4-hivemind-split">
+            <section className="v4-hivemind-canvas v4-hivemind-graph-panel">
+              {loading ? (
+                <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-black/50 text-xs text-(--qs-amber) backdrop-blur-sm">
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  Warping constellation…
+                </div>
+              ) : null}
+              <div className="relative z-[2] mb-4 flex items-center justify-between gap-3">
+                <V4Badge tone="gold">{graphStats}</V4Badge>
+                <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-2" disabled={loading} onClick={() => void loadGraph()}>
+                  <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} aria-hidden />
+                  Re-layout
+                </button>
+              </div>
+              <HiveMindConstellationGraph />
+            </section>
+
+            <aside className="v4-embedding-sidebar">
+              <div className="v4-embedding-head-card">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="v4-label-kicker">Embedding hits</span>
+                  <V4Badge tone="gold">{filteredHits.length}</V4Badge>
+                </div>
+                <p className="mt-2 text-xs text-(--qs-text-3)">Top-k recall · clipped to ballroom budget</p>
+              </div>
+
+              {filteredHits.length === 0 ? (
+                <div className="v4-embedding-hit-card">
+                  <p className="text-sm text-(--qs-text-3)">Run search to hydrate embedding hits.</p>
+                </div>
+              ) : (
+                filteredHits.map((hit) => (
+                  <button
+                    key={hit.key}
+                    type="button"
+                    className="v4-embedding-hit-card v4-embedding-hit-card--interactive"
+                    disabled={!hit.deliverableId}
+                    onClick={() => {
+                      if (hit.deliverableId) void hydrateDeliverable(hit.deliverableId);
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 text-left text-sm font-medium text-(--qs-text)">{hit.title}</div>
+                      {hit.score != null ? <V4Badge tone="gold">{hit.score.toFixed(2)}</V4Badge> : null}
+                    </div>
+                    <div className="mt-1 text-left font-mono text-[11px] text-(--qs-text-3)">{hit.source}</div>
+                    {hit.tags.length ? (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {hit.tags.slice(0, 4).map((tag) => (
+                          <span key={tag} className="v4-chip v4-chip--static px-2 py-0.5 text-[10px]">
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </button>
+                ))
+              )}
+            </aside>
+          </div>
+
+          {recallPreview.trim() ? (
+            <div className="v4-embedding-head-card">
+              <span className="v4-label-kicker">Recall appendix preview</span>
+              <pre className="hive-scrollbar mt-3 max-h-40 overflow-auto whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-(--qs-text-2)">
+                {recallPreview}
+              </pre>
+            </div>
+          ) : null}
+        </div>
+
+        <HiveMindDeliverableModal
+          title={inspect?.title ?? ""}
+          body={inspect?.markdown_body ?? ""}
+          busy={inspectBusy}
+          onClose={() => setInspect(null)}
+        />
+      </>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {showHeader ? (
@@ -213,12 +358,26 @@ export function HiveMindExplorer({ showHeader = true }: HiveMindExplorerProps): 
         />
       ) : (
         <div className="flex flex-wrap gap-2">
-          <NeonButton type="button" variant="ghost" className="uppercase tracking-[0.12em]" onClick={() => void loadGraph()}>
-            Refresh graph
-          </NeonButton>
-          <NeonButton type="button" variant="primary" className="uppercase tracking-[0.12em]" onClick={() => void handleExportZip()}>
-            <Download className="mr-2 inline h-4 w-4" aria-hidden /> Export ZIP
-          </NeonButton>
+          {isV4 ? (
+            <>
+              <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void loadGraph()}>
+                Refresh graph
+              </button>
+              <button type="button" className="qs-btn qs-btn--primary qs-btn--sm gap-2" onClick={() => void handleExportZip()}>
+                <Download className="h-4 w-4" aria-hidden />
+                Export ZIP
+              </button>
+            </>
+          ) : (
+            <>
+              <NeonButton type="button" variant="ghost" className="uppercase tracking-[0.12em]" onClick={() => void loadGraph()}>
+                Refresh graph
+              </NeonButton>
+              <NeonButton type="button" variant="primary" className="uppercase tracking-[0.12em]" onClick={() => void handleExportZip()}>
+                <Download className="mr-2 inline h-4 w-4" aria-hidden /> Export ZIP
+              </NeonButton>
+            </>
+          )}
         </div>
       )}
 
@@ -233,7 +392,7 @@ export function HiveMindExplorer({ showHeader = true }: HiveMindExplorerProps): 
               value={searchQ}
               onChange={(e) => setSearchQ(e.target.value)}
               placeholder="Global semantic probe (hive_mind Chroma lane)…"
-              className="w-full rounded-xl border border-cyan/[0.14] bg-hive-card/90 px-4 py-2.5 font-[family-name:var(--font-poppins)] text-sm text-[#fafafa] placeholder:text-zinc-500 focus:border-pollen/35 focus:outline-none"
+              className={isV4 ? "qs-input w-full" : "w-full rounded-xl border border-[color:var(--qs-border)] bg-hive-card/90 px-4 py-2.5 font-[family-name:var(--font-poppins)] text-sm text-[#fafafa] placeholder:text-zinc-500 focus:border-pollen/35 focus:outline-none"}
             />
             <InfoHint
               title={{ en: "HiveMind semantic search", sk: "HiveMind semantické vyhľadávanie" }}
@@ -252,12 +411,25 @@ export function HiveMindExplorer({ showHeader = true }: HiveMindExplorerProps): 
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <NeonButton type="submit" variant="ghost" disabled={busy}>
-            Search
-          </NeonButton>
-          <NeonButton type="button" variant="ghost" disabled={busy} onClick={() => void runRecallSimulation()}>
-            Recall preview
-          </NeonButton>
+          {isV4 ? (
+            <>
+              <button type="submit" className="qs-btn qs-btn--ghost qs-btn--sm" disabled={busy}>
+                Search
+              </button>
+              <button type="button" className="qs-btn qs-btn--primary qs-btn--sm" disabled={busy} onClick={() => void runRecallSimulation()}>
+                Recall preview
+              </button>
+            </>
+          ) : (
+            <>
+              <NeonButton type="submit" variant="ghost" disabled={busy}>
+                Search
+              </NeonButton>
+              <NeonButton type="button" variant="ghost" disabled={busy} onClick={() => void runRecallSimulation()}>
+                Recall preview
+              </NeonButton>
+            </>
+          )}
         </div>
       </form>
 
@@ -265,16 +437,30 @@ export function HiveMindExplorer({ showHeader = true }: HiveMindExplorerProps): 
         <p className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</p>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_minmax(320px,0.42fr)]">
+      <div className={cn("grid gap-6", isV4 ? "v4-cols-2" : "xl:grid-cols-[1fr_minmax(320px,0.42fr)]")}>
         <ReactFlowProvider>
-          <section className="relative h-[min(68vh,640px)] rounded-3xl border border-cyan/[0.1] bg-hive-card/65 p-2 shadow-inner">
+          <section
+            className={cn(
+              "relative p-2 shadow-inner",
+              isV4
+                ? "v4-hivemind-canvas min-h-[320px] h-[min(52vh,480px)]"
+                : "h-[min(68vh,640px)] rounded-3xl border border-[color:var(--qs-border)] bg-hive-card/65",
+            )}
+          >
             {loading ? (
               <div className="absolute inset-0 z-10 flex items-center justify-center gap-3 bg-black/50 text-[10px] uppercase tracking-[0.35em] text-pollen backdrop-blur">
                 <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
                 Warping constellation…
               </div>
             ) : null}
-            <div className="pointer-events-none absolute left-6 top-4 z-20 rounded-full border border-pollen/30 bg-black/65 px-3 py-1 text-[10px] text-pollen backdrop-blur">
+            <div
+              className={cn(
+                "pointer-events-none absolute left-4 top-4 z-20 rounded-full border px-3 py-1 text-[10px] backdrop-blur",
+                isV4
+                  ? "border-pollen/35 bg-black/55 text-pollen"
+                  : "border-pollen/30 bg-black/65 text-pollen",
+              )}
+            >
               <Brain className="mr-2 inline h-4 w-4 align-text-bottom text-pollen" aria-hidden /> {graphStats}
             </div>
             <ReactFlow
@@ -292,35 +478,72 @@ export function HiveMindExplorer({ showHeader = true }: HiveMindExplorerProps): 
             </ReactFlow>
           </section>
           <aside className="space-y-4">
-            <div className="rounded-2xl border border-cyan/[0.09] bg-hive-card/90 p-4">
-              <h2 className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-[#fafafa]">
-                Embedding hits ({searchHits.length})
-              </h2>
+            <div className={cn(isV4 ? "v4-embedding-hits-head" : "rounded-2xl border border-[color:var(--qs-border)] bg-hive-card/90 p-4")}>
+              <div className="flex items-center justify-between gap-2">
+                <h2 className={cn(isV4 ? "v4-label-kicker" : "font-[family-name:var(--font-poppins)] text-sm font-semibold text-[#fafafa]")}>
+                  Embedding hits
+                </h2>
+                {isV4 ? <span className="v4-badge v4-badge--gold">{filteredHits.length}</span> : null}
+              </div>
+              {isV4 ? (
+                <p className="mt-1 text-xs text-(--qs-text-3)">Top-k recall · clipped to ballroom budget</p>
+              ) : null}
               <div className="mt-3 space-y-2">
-                {searchHits.map((hit) => (
-                  <button
-                    key={hit.key}
-                    type="button"
-                    className={cn(
-                      "block w-full rounded-xl border border-cyan/[0.08] bg-black/35 px-3 py-2 text-left text-[12px] text-zinc-200 transition hover:border-pollen/35",
-                      !hit.deliverableId && "opacity-60",
-                    )}
-                    disabled={!hit.deliverableId}
-                    title={hit.deliverableId ? "Open Postgres mirror" : "No deliverable id on vector row"}
-                    onClick={() => {
-                      if (hit.deliverableId) void hydrateDeliverable(hit.deliverableId);
-                    }}
-                  >
-                    <span className="line-clamp-4">{hit.snippet}</span>
-                  </button>
-                ))}
-                {!searchHits.length ? <p className="text-xs text-muted-foreground">Run search to hydrate matches.</p> : null}
+                {filteredHits.map((hit) =>
+                  isV4 ? (
+                    <button
+                      key={hit.key}
+                      type="button"
+                      className="v4-embedding-hit"
+                      disabled={!hit.deliverableId}
+                      onClick={() => {
+                        if (hit.deliverableId) void hydrateDeliverable(hit.deliverableId);
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 text-left text-sm font-medium text-(--qs-text)">{hit.title}</div>
+                        {hit.score != null ? (
+                          <span className="v4-badge v4-badge--gold shrink-0">{hit.score.toFixed(2)}</span>
+                        ) : null}
+                      </div>
+                      <div className="mt-1 text-left font-mono text-[11px] text-(--qs-text-3)">{hit.source}</div>
+                      {hit.tags.length ? (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {hit.tags.slice(0, 4).map((tag) => (
+                            <span key={tag} className="v4-chip v4-chip--static text-[10px]">
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </button>
+                  ) : (
+                    <button
+                      key={hit.key}
+                      type="button"
+                      className={cn(
+                        "block w-full rounded-xl border border-[color:var(--qs-border-2)]/[0.08] bg-black/35 px-3 py-2 text-left text-[12px] text-zinc-200 transition hover:border-pollen/35",
+                        !hit.deliverableId && "opacity-60",
+                      )}
+                      disabled={!hit.deliverableId}
+                      title={hit.deliverableId ? "Open Postgres mirror" : "No deliverable id on vector row"}
+                      onClick={() => {
+                        if (hit.deliverableId) void hydrateDeliverable(hit.deliverableId);
+                      }}
+                    >
+                      <span className="line-clamp-4">{hit.snippet}</span>
+                    </button>
+                  ),
+                )}
+                {!filteredHits.length ? (
+                  <p className="text-xs text-muted-foreground">Run search to hydrate matches.</p>
+                ) : null}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-cyan/[0.08] bg-black/55 p-4">
-              <h3 className="text-[11px] uppercase tracking-[0.25em] text-data">Recall appendix preview</h3>
-              <pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap font-[family-name:var(--font-jetbrains)] text-[11px] leading-relaxed text-zinc-300">
+            <div className={cn(isV4 ? "v4-learning-panel" : "rounded-2xl border border-[color:var(--qs-border-2)]/[0.08] bg-black/55 p-4")}>
+              <h3 className={cn(isV4 ? "v4-field-label" : "text-[11px] uppercase tracking-[0.25em] text-data")}>Recall appendix preview</h3>
+              <pre className={cn("mt-3 max-h-48 overflow-auto whitespace-pre-wrap font-(family-name:--font-jetbrains) text-[11px] leading-relaxed", isV4 ? "text-(--qs-text-2)" : "text-zinc-300")}>
                 {recallPreview.trim() ? recallPreview : "Hit “Recall preview” to mirror Ballroom injection budget."}
               </pre>
             </div>

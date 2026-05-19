@@ -1,71 +1,518 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { InfoHint } from "@/components/hive/info-hint";
-import { TasksListPanel } from "@/components/hive/tasks-list-panel";
-import { hiveGet } from "@/lib/api";
+import {
+  ArrowRight,
+  Eye,
+  GitBranch,
+  Plus,
+  RefreshCw,
+  Shield,
+  Zap,
+} from "lucide-react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+
+import { HivePageHeader } from "@/components/hive/hive-page-header";
+import { ResponsiveTable } from "@/components/ui/responsive-table";
+import {
+  V4Badge,
+  V4BarRow,
+  V4Card,
+  V4CardHeader,
+  V4Chip,
+  V4SearchInput,
+  V4PageCanvas,
+  type V4BadgeTone,
+} from "@/components/ui/v4";
+import { HiveApiError, hiveGet } from "@/lib/api";
 import { COCKPIT_POLL_BOARD_MS } from "@/lib/cockpit-poll-profile";
-import type { TaskRow } from "@/lib/hive-types";
-import { useState } from "react";
-import useSWR from "swr";
+import { SIMULATIONS_ENABLED } from "@/lib/feature-flags";
+import type { DashboardSummaryPayload, TaskQueueItem, TaskQueueResponse } from "@/lib/hive-types";
+import { cn } from "@/lib/utils";
 
-interface TasksPageClientProps {
-  initialTasks: TaskRow[];
-}
+type FilterTab = "all" | "running" | "pending" | "done";
+type Density = "cozy" | "compact";
 
-const SWR_KEY = "phase-j/tasks?limit=100";
 const TaskResultDrawer = dynamic(
   () => import("@/components/hive/task-result-drawer").then((mod) => mod.TaskResultDrawer),
   { ssr: false },
 );
 
-export function TasksPageClient({ initialTasks }: TasksPageClientProps): JSX.Element {
+const LANE_CARDS = [
+  {
+    href: "/tasks/new",
+    title: "New task",
+    description: "Compose and dispatch a mission into the hive queue.",
+    icon: Plus,
+  },
+  {
+    href: "/workflows",
+    title: "Workflows",
+    description: "Visual DAG execution, pause/resume, and run controls.",
+    icon: GitBranch,
+  },
+  {
+    href: "/jobs",
+    title: "Jobs",
+    description: "Inspect async execution jobs, retries, and completion state.",
+    icon: Zap,
+  },
+  {
+    href: "/agents",
+    title: "Routines",
+    description: "Manage supervisor routines and schedule-driven task execution.",
+    icon: RefreshCw,
+  },
+  ...(SIMULATIONS_ENABLED
+    ? [
+        {
+          href: "/simulations",
+          title: "Simulations",
+          description: "Verified simulation ledger and compliance snapshots.",
+          icon: Shield,
+        },
+      ]
+    : []),
+] as const;
+
+const TIER_ORDER = ["orchestrator", "manager", "worker", "scout", "unknown"] as const;
+
+const TIER_LABELS: Record<string, string> = {
+  orchestrator: "Queen",
+  manager: "Managers",
+  worker: "Workers",
+  scout: "Scouts",
+  unknown: "Unassigned",
+};
+
+function formatAgo(sec: number): string {
+  if (sec < 60) return `${sec}s ago`;
+  const m = Math.floor(sec / 60);
+  if (m < 90) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 48) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+function laneLabel(lane: string): string {
+  if (!lane) return "Hive";
+  return lane.charAt(0).toUpperCase() + lane.slice(1);
+}
+
+function displayStatus(
+  status: string,
+  progress: number,
+): { label: string; tone: V4BadgeTone } {
+  const s = status.toLowerCase();
+  if (s === "running") return { label: "running", tone: "info" };
+  if (s === "completed") return { label: "done", tone: "ok" };
+  if (s === "failed" || s === "cancelled") return { label: "needs input", tone: "warn" };
+  if (s === "pending" && progress > 0 && progress < 100) return { label: "needs input", tone: "warn" };
+  if (s === "pending") return { label: "queued", tone: "gold" };
+  return { label: s.replaceAll("_", " "), tone: "purple" };
+}
+
+function matchesFilter(task: TaskQueueItem, tab: FilterTab): boolean {
+  const s = task.status.toLowerCase();
+  if (tab === "all") return true;
+  if (tab === "running") return s === "running";
+  if (tab === "pending") return s === "pending";
+  if (tab === "done") return s === "completed";
+  return true;
+}
+
+function buildTierRows(summary: DashboardSummaryPayload | null): { label: string; count: number; pct: number }[] {
+  const tiers = summary?.agents.by_hive_tier ?? {};
+  const total = summary?.agents.total ?? 0;
+  const ordered = [
+    ...TIER_ORDER.filter((key) => key in tiers),
+    ...Object.keys(tiers).filter((key) => !TIER_ORDER.includes(key as (typeof TIER_ORDER)[number])),
+  ];
+  return ordered.map((key) => {
+    const count = tiers[key] ?? 0;
+    const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+    return {
+      label: TIER_LABELS[key] ?? key,
+      count,
+      pct,
+    };
+  });
+}
+
+export function TasksPageClient({ initialQuery = "" }: { initialQuery?: string }) {
+  const [queue, setQueue] = useState<TaskQueueResponse | null>(null);
+  const [summary, setSummary] = useState<DashboardSummaryPayload | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [filter, setFilter] = useState<FilterTab>("all");
+  const [density, setDensity] = useState<Density>("cozy");
+  const [query, setQuery] = useState(initialQuery);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const { data = initialTasks, error, isValidating, mutate } = useSWR<TaskRow[]>(
-    SWR_KEY,
-    () => hiveGet<TaskRow[]>("tasks?limit=100"),
-    {
-      fallbackData: initialTasks,
-      refreshInterval: COCKPIT_POLL_BOARD_MS,
-      revalidateOnFocus: true,
-      dedupingInterval: 4_000,
-      focusThrottleInterval: COCKPIT_POLL_BOARD_MS,
-    },
+
+  const reload = useCallback(async () => {
+    try {
+      const [queuePayload, summaryPayload] = await Promise.all([
+        hiveGet<TaskQueueResponse>("dashboard/task-queue?limit=100"),
+        hiveGet<DashboardSummaryPayload>("dashboard/summary"),
+      ]);
+      setQueue(queuePayload);
+      setSummary(summaryPayload);
+      setErr(null);
+    } catch (e) {
+      const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Task queue unreachable";
+      setErr(msg);
+    }
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const [queuePayload, summaryPayload] = await Promise.all([
+          hiveGet<TaskQueueResponse>("dashboard/task-queue?limit=100"),
+          hiveGet<DashboardSummaryPayload>("dashboard/summary"),
+        ]);
+        if (!alive) return;
+        setQueue(queuePayload);
+        setSummary(summaryPayload);
+        setErr(null);
+      } catch (e) {
+        if (!alive) return;
+        const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Task queue unreachable";
+        setErr(msg);
+      }
+    })();
+    const id = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void reload();
+      }
+    }, COCKPIT_POLL_BOARD_MS);
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+    };
+  }, [reload]);
+
+  async function syncNow() {
+    setBusy(true);
+    try {
+      await reload();
+      toast.success("Task queue synced");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const tasks = queue?.tasks ?? [];
+  const activeCount = (queue?.running_count ?? 0) + (queue?.pending_count ?? 0);
+
+  const filteredTasks = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return tasks.filter((task) => {
+      if (!matchesFilter(task, filter)) return false;
+      if (!q) return true;
+      const hay = `${task.title} ${task.short_id} ${task.lane} ${task.status} ${task.swarm_label}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [tasks, filter, query]);
+
+  const tierRows = buildTierRows(summary);
+  const recentTasks = tasks.slice(0, 6);
+
+  const filterCounts = useMemo(
+    () => ({
+      all: tasks.length,
+      running: tasks.filter((t) => matchesFilter(t, "running")).length,
+      pending: tasks.filter((t) => matchesFilter(t, "pending")).length,
+      done: tasks.filter((t) => matchesFilter(t, "done")).length,
+    }),
+    [tasks],
   );
 
+  if (err && !queue) {
+    return (
+      <V4PageCanvas>
+        <HivePageHeader title="Tasks" subtitle="Mission queue · workflows · async jobs" />
+        <V4Card>
+          <p className="text-sm text-(--qs-red)">{err}</p>
+        </V4Card>
+      </V4PageCanvas>
+    );
+  }
+
+  const topLanes = LANE_CARDS.slice(0, 3);
+  const bottomLanes = LANE_CARDS.slice(3);
+
   return (
-    <>
-      {error ? (
-        <div
-          className="mb-4 flex flex-col gap-3 rounded-2xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger sm:flex-row sm:items-center sm:justify-between"
-          role="alert"
-        >
-          <span className="font-(family-name:--font-poppins)">
-            Task list sync failed — showing last known snapshot. {error instanceof Error ? error.message : "Unknown error"}
-          </span>
-          <div className="flex items-center gap-2">
+    <V4PageCanvas>
+      <HivePageHeader
+        title="Tasks"
+        subtitle={
+          <>
+            <span className="text-(--qs-text-2)">{activeCount} active</span>
+            {" · "}
+            <span>{queue?.pending_count ?? 0} pending</span>
+            {" · "}
+            <span>{queue?.completed_today_count ?? 0} completed today</span>
+          </>
+        }
+        actions={
+          <>
             <button
               type="button"
-              onClick={() => void mutate()}
-              className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-xl border border-danger/50 px-4 py-2 text-xs font-semibold text-danger hover:bg-danger/15 touch-manipulation"
+              className="qs-btn qs-btn--ghost qs-btn--sm gap-2"
+              disabled={busy}
+              onClick={() => void syncNow()}
             >
-              Retry fetch
+              <RefreshCw className={cn("h-4 w-4", busy && "animate-spin")} aria-hidden />
+              Sync
             </button>
-            <InfoHint
-              title="Retry fetch"
-              description="Triggers immediate task list synchronization from backend API."
-              options={["Manual refresh", "Recover stale snapshot", "Validate API connectivity"]}
-            />
-          </div>
+            <Link href="/tasks/new" className="qs-btn qs-btn--primary qs-btn--sm gap-2">
+              <Plus className="h-4 w-4" aria-hidden />
+              New task
+            </Link>
+          </>
+        }
+      />
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <V4SearchInput
+          className="min-w-0 flex-1"
+          value={query}
+          onChange={setQuery}
+          placeholder="Filter tasks by name, swarm, status…"
+          aria-label="Filter tasks"
+        />
+        <div className="flex gap-2">
+          <V4Chip active={density === "cozy"} onClick={() => setDensity("cozy")}>
+            Cozy
+          </V4Chip>
+          <V4Chip active={density === "compact"} onClick={() => setDensity("compact")}>
+            Compact
+          </V4Chip>
+        </div>
+      </div>
+
+      <div className="v4-cols-3">
+        {topLanes.map((lane) => {
+          const Icon = lane.icon;
+          return (
+            <Link key={lane.href} href={lane.href} className="v4-lane-card">
+              <span className="v4-lane-card-icon">
+                <Icon className="h-4 w-4" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-semibold text-(--qs-text)">{lane.title}</span>
+                <span className="mt-0.5 block text-xs text-(--qs-text-3)">{lane.description}</span>
+              </span>
+              <ArrowRight className="h-4 w-4 shrink-0 text-(--qs-text-3)" aria-hidden />
+            </Link>
+          );
+        })}
+      </div>
+
+      {bottomLanes.length ? (
+        <div className={cn(bottomLanes.length === 1 ? "max-w-xl" : "v4-cols-2")}>
+          {bottomLanes.map((lane) => {
+            const Icon = lane.icon;
+            return (
+              <Link key={lane.href} href={lane.href} className="v4-lane-card">
+                <span className="v4-lane-card-icon">
+                  <Icon className="h-4 w-4" aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold text-(--qs-text)">{lane.title}</span>
+                  <span className="mt-0.5 block text-xs text-(--qs-text-3)">{lane.description}</span>
+                </span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-(--qs-text-3)" aria-hidden />
+              </Link>
+            );
+          })}
         </div>
       ) : null}
-      {isValidating && !error ? (
-        <p className="mb-3 font-(family-name:--font-poppins) text-xs text-cyan/90" aria-live="polite">
-          Refreshing tasks…
-        </p>
-      ) : null}
-      <TasksListPanel onOpenTask={(id) => setSelectedTaskId(id)} tasks={data} />
+
+      <V4Card>
+        <div className="v4-card-header">
+          <div className="flex w-full flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              <V4Chip active={filter === "all"} count={filterCounts.all} onClick={() => setFilter("all")}>
+                All
+              </V4Chip>
+              <V4Chip active={filter === "running"} count={filterCounts.running} onClick={() => setFilter("running")}>
+                Running
+              </V4Chip>
+              <V4Chip active={filter === "pending"} count={filterCounts.pending} onClick={() => setFilter("pending")}>
+                Pending
+              </V4Chip>
+              <V4Chip active={filter === "done"} count={filterCounts.done} onClick={() => setFilter("done")}>
+                Done
+              </V4Chip>
+            </div>
+            <Link href="/tasks/new" className="qs-btn qs-btn--primary qs-btn--sm gap-2">
+              <Plus className="h-4 w-4" aria-hidden />
+              New task
+            </Link>
+          </div>
+        </div>
+        <ResponsiveTable
+          table={
+            <table className={cn("v4-data-table min-w-[920px]", density === "compact" && "v4-data-table--compact")}>
+              <thead>
+                <tr>
+                  <th>Task</th>
+                  <th>Swarm</th>
+                  <th>Status</th>
+                  <th>Progress</th>
+                  <th>Updated</th>
+                  <th aria-label="Actions" />
+                </tr>
+              </thead>
+              <tbody>
+                {!filteredTasks.length ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center text-sm text-(--qs-text-3)">
+                      {tasks.length ? "No tasks match this filter." : "No tasks yet — create one with New task."}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredTasks.map((task) => {
+                    const status = displayStatus(task.status, task.progress_pct);
+                    return (
+                      <tr key={task.id}>
+                        <td>
+                          <div className="v4-task-name">{task.title}</div>
+                          <div className="v4-task-id">{task.short_id}</div>
+                        </td>
+                        <td>
+                          <V4Badge tone="purple">{laneLabel(task.lane)}</V4Badge>
+                        </td>
+                        <td>
+                          <V4Badge tone={status.tone}>{status.label}</V4Badge>
+                        </td>
+                        <td>
+                          <div className="v4-progress-cell">
+                            <div className="v4-progress-track">
+                              <div className="v4-progress-fill" style={{ width: `${task.progress_pct}%` }} />
+                            </div>
+                            <span className="v4-progress-pct">{task.progress_pct}%</span>
+                          </div>
+                        </td>
+                        <td className="text-(--qs-text-3)">{formatAgo(task.seconds_ago)}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
+                            onClick={() => setSelectedTaskId(task.id)}
+                          >
+                            <Eye className="h-3.5 w-3.5" aria-hidden />
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          }
+          cards={
+            !filteredTasks.length ? (
+              <p className="py-8 text-center text-sm text-(--qs-text-3)">
+                {tasks.length ? "No tasks match this filter." : "No tasks yet — create one with New task."}
+              </p>
+            ) : (
+              filteredTasks.map((task) => {
+                const status = displayStatus(task.status, task.progress_pct);
+                return (
+                  <article key={task.id} className="v4-mobile-card-row">
+                    <div className="v4-mobile-card-row__head">
+                      <div className="min-w-0">
+                        <div className="v4-task-name">{task.title}</div>
+                        <div className="v4-task-id">{task.short_id}</div>
+                      </div>
+                      <V4Badge tone={status.tone}>{status.label}</V4Badge>
+                    </div>
+                    <div className="v4-mobile-card-row__meta">
+                      <V4Badge tone="purple">{laneLabel(task.lane)}</V4Badge>
+                      <span>{formatAgo(task.seconds_ago)}</span>
+                    </div>
+                    <div className="v4-progress-cell">
+                      <div className="v4-progress-track">
+                        <div className="v4-progress-fill" style={{ width: `${task.progress_pct}%` }} />
+                      </div>
+                      <span className="v4-progress-pct">{task.progress_pct}%</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="qs-btn qs-btn--ghost qs-btn--sm w-full gap-1.5"
+                      onClick={() => setSelectedTaskId(task.id)}
+                    >
+                      <Eye className="h-3.5 w-3.5" aria-hidden />
+                      View task
+                    </button>
+                  </article>
+                );
+              })
+            )
+          }
+        />
+      </V4Card>
+
+      <div className="v4-cols-2">
+        <V4Card>
+          <V4CardHeader
+            title="Performance by tier"
+            description="Share of agents in the hive · API summary"
+          />
+          {tierRows.length ? (
+            tierRows.map((row) => (
+              <V4BarRow
+                key={row.label}
+                label={row.label}
+                value={`${row.pct}% · ${row.count}`}
+                pct={row.pct}
+              />
+            ))
+          ) : (
+            <p className="text-sm text-(--qs-text-3)">Agent tier data loading…</p>
+          )}
+        </V4Card>
+
+        <V4Card>
+          <V4CardHeader title="Recent tasks" description="Latest 6 rows from /api/v1/tasks" />
+          <div className="flex flex-col gap-3">
+            {!recentTasks.length ? (
+              <p className="text-sm text-(--qs-text-3)">No recent tasks.</p>
+            ) : (
+              recentTasks.map((task) => {
+                const status = displayStatus(task.status, task.progress_pct);
+                return (
+                  <div key={task.id} className="v4-recent-task-row">
+                    <V4Badge tone={status.tone}>{status.label}</V4Badge>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm text-(--qs-text)">{task.title}</div>
+                      <div className="mt-0.5 text-xs text-(--qs-text-3)">
+                        {task.short_id} · {laneLabel(task.lane)} · {formatAgo(task.seconds_ago)}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="qs-btn qs-btn--ghost qs-btn--sm shrink-0"
+                      onClick={() => setSelectedTaskId(task.id)}
+                    >
+                      View
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </V4Card>
+      </div>
+
       <TaskResultDrawer onClose={() => setSelectedTaskId(null)} taskId={selectedTaskId} />
-    </>
+    </V4PageCanvas>
   );
 }

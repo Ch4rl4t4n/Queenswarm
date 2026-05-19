@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 
-import { NeonButton } from "@/components/ui/neon-button";
+import { V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveFetchRaw, hiveGet, hivePostJson } from "@/lib/api";
 import type {
   FinalDeliverableDetailRow,
@@ -128,54 +128,51 @@ export function OutputsInteractivePanel({ initialItems }: OutputsInteractivePane
   }
 
   return (
-    <div className="space-y-6">
-      <form onSubmit={(e) => void onSearch(e)} className="flex flex-col gap-3 lg:flex-row lg:items-end">
-        <div className="flex-1 space-y-1.5">
-          <label htmlFor="outputs-search-q" className="sr-only">
-            Semantic search across archived deliverables
-          </label>
-          <input
-            id="outputs-search-q"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Semantic search (Chroma) — min 2 characters…"
-            className="w-full rounded-xl border border-cyan/[0.14] bg-hive-card/90 px-4 py-2.5 font-[family-name:var(--font-poppins)] text-sm text-[#fafafa] placeholder:text-zinc-500 focus:border-pollen/35 focus:outline-none"
-          />
-          <p className="font-[family-name:var(--font-poppins)] text-[11px] text-zinc-500">
-            Embedding index mirrors titled Markdown; scope is rows you own on this dashboard JWT.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <NeonButton type="submit" variant="primary" disabled={searchBusy} className="uppercase tracking-[0.1em]">
-            {searchBusy ? "Searching…" : "Search"}
-          </NeonButton>
-          <NeonButton type="button" variant="ghost" onClick={() => onClearSearch()} className="uppercase tracking-[0.1em]">
-            Reset list
-          </NeonButton>
-        </div>
-      </form>
+    <div className="flex flex-col gap-6">
+      <V4Card>
+        <V4CardHeader
+          title="Semantic search"
+          description="Embedding index mirrors titled Markdown; scope is rows you own on this dashboard JWT."
+        />
+        <form onSubmit={(e) => void onSearch(e)} className="flex flex-col gap-3 lg:flex-row lg:items-end">
+          <div className="flex-1 space-y-1.5">
+            <label htmlFor="outputs-search-q" className="sr-only">
+              Semantic search across archived deliverables
+            </label>
+            <input
+              id="outputs-search-q"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Semantic search (Chroma) — min 2 characters…"
+              className="qs-input w-full"
+            />
+          </div>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <button type="submit" className="qs-btn qs-btn--primary qs-btn--sm w-full sm:w-auto" disabled={searchBusy}>
+              {searchBusy ? "Searching…" : "Search"}
+            </button>
+            <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm w-full sm:w-auto" onClick={() => onClearSearch()}>
+              Reset list
+            </button>
+          </div>
+        </form>
+      </V4Card>
 
-      <section className="rounded-2xl border border-cyan/[0.1] bg-hive-card/40 p-4">
-        <h2 className="font-[family-name:var(--font-poppins)] text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-          Regenerate (LiteLLM)
-        </h2>
-        <p className="mt-2 font-[family-name:var(--font-poppins)] text-xs text-muted-foreground">
-          Picks latest version per lineage — produces v+1 with merged structured JSON when the orch returns SECTION_JSON.
-        </p>
+      <V4Card>
+        <V4CardHeader
+          title="Regenerate (LiteLLM)"
+          description="Picks latest version per lineage — produces v+1 with merged structured JSON when the orch returns SECTION_JSON."
+        />
         <textarea
           value={instruction}
           onChange={(e) => setInstruction(e.target.value)}
           rows={3}
-          className="mt-3 w-full rounded-xl border border-cyan/[0.12] bg-[#050510]/80 px-3 py-2 font-[family-name:var(--font-jetbrains)] text-[13px] text-data focus:border-pollen/30 focus:outline-none"
+          className="v4-textarea font-mono text-xs leading-relaxed"
           spellCheck={false}
         />
-      </section>
+      </V4Card>
 
-      {error ? (
-        <p className="rounded-xl border border-danger/30 bg-danger/[0.08] px-4 py-2 font-[family-name:var(--font-poppins)] text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
+      {error ? <p className="text-sm text-(--qs-red)">{error}</p> : null}
 
       <ul className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         {items.map((row) => {
@@ -183,74 +180,72 @@ export function OutputsInteractivePanel({ initialItems }: OutputsInteractivePane
           const detail = detailById[row.id];
           return (
             <li key={row.id}>
-              <article
-                className={cn(
-                  "flex flex-col gap-3 rounded-[22px] border border-cyan/[0.09] bg-hive-card/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.04)] transition hover:border-pollen/25",
-                  open && "border-pollen/35 shadow-[inset_0_0_0_1px_rgb(255_184_0/0.12)]",
-                )}
-              >
+              <article className={cn("v4-dream-cycle-card flex flex-col gap-3", open && "border-(--qs-amber)/35")}>
                 <header className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="font-[family-name:var(--font-poppins)] text-[10px] uppercase tracking-[0.15em] text-zinc-500">
-                      Lineage · v{row.version}
-                    </p>
-                    <h3 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">{row.title}</h3>
+                    <p className="v4-label-kicker">Lineage · v{row.version}</p>
+                    <h3 className="text-lg font-semibold text-(--qs-text)">{row.title}</h3>
                   </div>
-                  <span className="shrink-0 rounded-full border border-data/35 px-2 py-1 font-[family-name:var(--font-jetbrains)] text-[11px] text-data">
+                  <span className="shrink-0 rounded-full border border-(--qs-border) px-2 py-1 font-mono text-[11px] text-(--qs-text-3)">
                     {new Date(row.created_at).toLocaleString()}
                   </span>
                 </header>
                 {(row.tags ?? []).length ? (
                   <div className="flex flex-wrap gap-2">
                     {row.tags.slice(0, 8).map((t) => (
-                      <span key={t} className="rounded-full bg-black/35 px-2 py-0.5 font-[family-name:var(--font-poppins)] text-[10px] text-pollen">
+                      <span key={t} className="rounded-full bg-white/4 px-2 py-0.5 text-[10px] text-(--qs-amber)">
                         #{t}
                       </span>
                     ))}
                   </div>
                 ) : null}
-                <p className="font-[family-name:var(--font-poppins)] text-sm leading-relaxed text-zinc-300">{row.preview}</p>
+                <p className="text-sm leading-relaxed text-(--qs-text-2)">{row.preview}</p>
                 <div className="flex flex-wrap gap-2">
-                  <NeonButton type="button" variant={open ? "primary" : "ghost"} onClick={() => void toggleExpand(row.id)}>
-                    {open ? "Collapse" : "View full"}
-                  </NeonButton>
-                  <NeonButton type="button" variant="ghost" onClick={() => void onDownloadMarkdown(row.id, row.slug, row.version)}>
-                    Download MD
-                  </NeonButton>
-                  <NeonButton type="button" variant="ghost" disabled title="PDF export returns 501 by design">
-                    PDF
-                  </NeonButton>
-                  <NeonButton
+                  <button
                     type="button"
-                    variant="ghost"
+                    className={cn("qs-btn qs-btn--sm", open ? "qs-btn--primary" : "qs-btn--ghost")}
+                    onClick={() => void toggleExpand(row.id)}
+                  >
+                    {open ? "Collapse" : "View full"}
+                  </button>
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--ghost qs-btn--sm"
+                    onClick={() => void onDownloadMarkdown(row.id, row.slug, row.version)}
+                  >
+                    Download MD
+                  </button>
+                  <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" disabled title="PDF export returns 501 by design">
+                    PDF
+                  </button>
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--ghost qs-btn--sm text-(--qs-amber)"
                     disabled={regenBusyLineage === row.lineage_id || instruction.trim().length < 4}
                     onClick={() => void onRegenerate(row.lineage_id)}
-                    className="text-pollen"
                   >
                     {regenBusyLineage === row.lineage_id ? "Regenerating…" : "Regenerate"}
-                  </NeonButton>
+                  </button>
                 </div>
                 {open && detail ? (
-                  <div className="space-y-3 border-t border-cyan/[0.06] pt-4">
-                    <pre className="max-h-[min(52vh,480px)] overflow-auto whitespace-pre-wrap rounded-xl border border-cyan/[0.08] bg-[#050510]/90 p-3 font-[family-name:var(--font-jetbrains)] text-[12px] text-[#eaeaf2]">
+                  <div className="space-y-3 border-t border-(--qs-border) pt-4">
+                    <pre className="hive-scrollbar max-h-[min(52vh,480px)] overflow-auto whitespace-pre-wrap rounded-(--qs-radius-sm) border border-(--qs-border) bg-black/40 p-3 font-mono text-[12px] text-(--qs-text-2)">
                       {detail.markdown_body}
                     </pre>
                     {detail.voice_script ? (
                       <div>
-                        <p className="mb-1 font-[family-name:var(--font-poppins)] text-[10px] uppercase tracking-[0.16em] text-zinc-500">
-                          SECTION_VOICE (preview)
-                        </p>
-                        <p className="rounded-xl border border-cyan/[0.08] bg-black/35 p-3 font-[family-name:var(--font-poppins)] text-sm text-zinc-200">
+                        <p className="v4-label-kicker mb-1">SECTION_VOICE (preview)</p>
+                        <p className="rounded-(--qs-radius-sm) border border-(--qs-border) bg-white/2 p-3 text-sm text-(--qs-text-2)">
                           {detail.voice_script.slice(0, 1200)}
                           {detail.voice_script.length > 1200 ? "…" : ""}
                         </p>
                       </div>
                     ) : null}
-                    <details className="rounded-xl border border-cyan/[0.08] bg-black/20 p-3">
-                      <summary className="cursor-pointer font-[family-name:var(--font-poppins)] text-xs font-semibold text-data">
+                    <details className="rounded-(--qs-radius-sm) border border-(--qs-border) bg-white/2 p-3">
+                      <summary className="cursor-pointer text-xs font-semibold text-(--qs-text-2)">
                         Structured JSON
                       </summary>
-                      <pre className="mt-2 max-h-48 overflow-auto font-[family-name:var(--font-jetbrains)] text-[11px] text-zinc-300">
+                      <pre className="mt-2 max-h-48 overflow-auto font-mono text-[11px] text-(--qs-text-3)">
                         {JSON.stringify(detail.structured_json, null, 2)}
                       </pre>
                     </details>
@@ -263,7 +258,7 @@ export function OutputsInteractivePanel({ initialItems }: OutputsInteractivePane
       </ul>
 
       {items.length === 0 ? (
-        <p className="text-center font-[family-name:var(--font-poppins)] text-sm text-muted-foreground">
+        <p className="v4-dream-empty">
           Nothing here yet — finish a Ballroom mission while logged into the cockpit to attach artefacts to your account.
         </p>
       ) : null}

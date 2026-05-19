@@ -1,14 +1,33 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { Activity, Coins, Cpu, ListTodo, Plus, Search, Users, Zap } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
 import { AgentsLiveSection } from "@/components/hive/agents-live-section";
-import { SwarmBoardSection } from "@/components/hive/swarm-board-section";
+import { PaperTradingPanel } from "@/components/hive/paper-trading-panel";
+import { useDashboardSection } from "@/components/hive/dashboard-layout-provider";
+import { HivePageHeader } from "@/components/hive/hive-page-header";
+import { SubSwarmsSection, WaggleFeedCard } from "@/components/hive/swarm-board-section";
 import { TaskQueueSection } from "@/components/hive/task-queue-section";
 import { WorkflowsSection } from "@/components/hive/workflows-section";
+import {
+  V4BallroomParticipants,
+  V4BarRow,
+  V4Card,
+  V4CardHeader,
+  V4IconAgents,
+  V4IconBolt,
+  V4IconCoin,
+  V4IconCpu,
+  V4IconPollen,
+  V4IconQueue,
+  V4QueenMission,
+  V4PageCanvas,
+  V4SearchInput,
+  V4Stat,
+  V4StatGrid,
+} from "@/components/ui/v4";
 import { HiveApiError, hivePostJson } from "@/lib/api";
 import type { AgentRow, DashboardSummary, SystemStatusPayload, TaskRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
@@ -27,8 +46,8 @@ function formatUsd(n: number | null): string {
 
 function statusDotClass(status: string): string {
   const u = status.toUpperCase();
-  if (u.includes("RUN")) return "bg-cyan shadow-[0_0_8px_rgb(0_255_255/0.8)]";
-  if (u.includes("PEND") || u.includes("QUEUE")) return "bg-pollen shadow-[0_0_8px_rgb(255_184_0/0.45)]";
+  if (u.includes("RUN")) return "bg-(--qs-cyan) shadow-[0_0_8px_rgba(111,214,255,0.8)]";
+  if (u.includes("PEND") || u.includes("QUEUE")) return "bg-pollen shadow-[0_0_6px_rgb(255_184_0/0.45)]";
   if (u.includes("COMP")) return "bg-success";
   if (u === "IDLE") return "bg-success";
   if (u === "PAUSED") return "bg-alert";
@@ -52,6 +71,11 @@ interface QueenDashboardChromeProps {
   systemStatus?: SystemStatusPayload | null;
   recentTasks?: TaskRow[];
   telemetryLoading?: boolean;
+  missionBrief: string;
+  onMissionBriefChange: (value: string) => void;
+  onRunMission: () => void;
+  missionBusy: boolean;
+  missionErr: string | null;
 }
 
 export function QueenDashboardChrome({
@@ -66,28 +90,46 @@ export function QueenDashboardChrome({
   systemStatus = null,
   recentTasks = [],
   telemetryLoading = false,
+  missionBrief,
+  onMissionBriefChange,
+  onRunMission,
+  missionBusy,
+  missionErr,
 }: QueenDashboardChromeProps) {
+  const showSearch = useDashboardSection("search");
+  const showKpiStats = useDashboardSection("kpiStats");
+  const showPollenCosts = useDashboardSection("pollenCosts");
+  const showBallroom = useDashboardSection("ballroomParticipants");
+  const showAgents = useDashboardSection("agents");
+  const showQueenMission = useDashboardSection("queenMission");
+  const showSubSwarms = useDashboardSection("subSwarms");
+  const showWaggle = useDashboardSection("waggleFeed");
+  const showWorkflows = useDashboardSection("workflows");
+  const showTaskQueue = useDashboardSection("taskQueue");
+  const showPerformanceTier = useDashboardSection("performanceTier");
+  const showRecentTasks = useDashboardSection("recentTasks");
+
   const [rebalanceBusy, setRebalanceBusy] = useState(false);
   const pollenTotal = agents.reduce((s, a) => s + (a.pollen_points ?? 0), 0);
   const pendingFallback = summary?.tasks.pending ?? 0;
   const totalAgentsListed = agents.length;
   const totalAgentsGauge = Math.max(totalAgentsListed, systemStatus?.agents_total ?? 0);
   const activeAgents = agents.filter((a) => ["RUNNING", "IDLE", "BUSY"].includes(String(a.status).toUpperCase())).length;
+  const idleAgents = Math.max(0, totalAgentsListed - activeAgents);
 
   const runningTasks = systemStatus?.tasks_running ?? 0;
   const queuedTasks = systemStatus?.tasks_pending ?? pendingFallback;
   const llmOk = Boolean(systemStatus?.llm_grok || systemStatus?.llm_anthropic);
-
   const showKpiPulse = telemetryLoading && !systemStatus;
 
   const tierBars = (() => {
     const m = summary?.agents.by_hive_tier ?? {};
     const tot = Math.max(1, Object.values(m).reduce((a, b) => a + b, 0));
     const rows = [
-      { key: "orchestrator", label: "Queen", bar: "bg-gradient-to-r from-pollen to-amber-600" },
-      { key: "manager", label: "Managers", bar: "bg-gradient-to-r from-cyan to-teal-500" },
-      { key: "worker", label: "Workers", bar: "bg-gradient-to-r from-alert to-fuchsia-600" },
-      { key: "unknown", label: "Unassigned", bar: "bg-gradient-to-r from-zinc-500 to-zinc-700" },
+      { key: "orchestrator", label: "Queen" },
+      { key: "manager", label: "Managers" },
+      { key: "worker", label: "Workers" },
+      { key: "unknown", label: "Unassigned" },
     ];
     return rows.map((r) => ({
       ...r,
@@ -110,210 +152,176 @@ export function QueenDashboardChrome({
     }
   }
 
+  const showSwarmSignals = showWaggle || showWorkflows;
+  const showInsights = showPerformanceTier || showRecentTasks;
+
   return (
-    <div className="flex w-full flex-col gap-8">
-      {/* Hero + search (desktop feel) */}
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0 flex-1">
-          <h1 className="font-[family-name:var(--font-poppins)] text-3xl font-bold tracking-tight text-[#fafafa] md:text-4xl">
-            Queen Swarm Dashboard
-          </h1>
-          <p className="mt-2 max-w-2xl font-[family-name:var(--font-poppins)] text-sm text-zinc-400">
-            {totalAgentsGauge} agents in the network · {swarmLabelCount} swarm nodes · hive sync roughly every 5 min
-          </p>
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-3">
-          <Link href="/tasks/new" className="qs-btn qs-btn--primary gap-2">
-            <Plus className="h-4 w-4" aria-hidden />
-            New task
-          </Link>
-          <Link href="/ballroom" className="qs-btn qs-btn--secondary">
-            Ballroom
-          </Link>
-        </div>
-      </div>
-
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" aria-hidden />
-        <input
-          type="search"
-          value={filterQuery}
-          onChange={(e) => onFilterChange(e.target.value)}
-          placeholder="Search agents, tier, name…"
-          className="w-full rounded-2xl qs-rim-cyan-soft bg-black/55 py-3.5 pl-11 pr-4 font-[family-name:var(--font-poppins)] text-sm text-[#fafafa] outline-none ring-pollen/20 placeholder:text-zinc-600 focus:border-pollen/40 focus:ring-2"
-          aria-label="Filter agents"
-        />
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {showKpiPulse ? (
+    <V4PageCanvas>
+      <HivePageHeader
+        title="Queen Dashboard"
+        subtitle={`${totalAgentsGauge} agents in the network · ${swarmLabelCount} swarm nodes · hive sync every 5 min`}
+        status={
           <>
-            {[0, 1, 2, 3].map((i) => (
-              <div key={String(i)} className="animate-pulse rounded-2xl qs-rim-cyan-soft bg-[#0d0d18]/95 p-5">
-                <div className="h-7 w-2/5 rounded-lg bg-white/10" />
-                <div className="mt-4 h-8 w-1/2 rounded-lg bg-white/10" />
+            <span className="hive-pulse-dot shrink-0" aria-hidden />
+            Hive open
+          </>
+        }
+      />
+
+      {showSearch ? (
+        <V4SearchInput
+          value={filterQuery}
+          onChange={onFilterChange}
+          placeholder="Search agents, tier, name, swarm…"
+          aria-label="Filter agents"
+          className="!mb-0"
+        />
+      ) : null}
+
+      {showKpiStats ? (
+        <V4StatGrid>
+          {showKpiPulse ? (
+            [0, 1, 2, 3].map((i) => (
+              <div key={String(i)} className="v4-stat animate-pulse">
+                <div className="mb-4 h-4 w-2/5 rounded bg-white/10" />
+                <div className="h-9 w-1/2 rounded bg-white/10" />
                 <div className="mt-3 h-3 w-3/5 rounded bg-white/5" />
               </div>
-            ))}
-          </>
-        ) : (
-          <>
-            <article className="rounded-2xl qs-rim-cyan-soft bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
-              <div className="flex items-start justify-between gap-2">
-                <p className="qs-meta-label text-zinc-500">
-                  Total agents
-                </p>
-                <Users className="h-5 w-5 text-cyan/60" aria-hidden />
-              </div>
-              <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl font-bold text-[#fafafa]">{totalAgentsListed}</p>
-              <p className="mt-1 font-[family-name:var(--font-poppins)] text-xs text-success">Active {activeAgents}</p>
-            </article>
-            <article className="rounded-2xl qs-rim-cyan-soft bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
-              <div className="flex items-start justify-between gap-2">
-                <p className="qs-meta-label text-zinc-500">
-                  Running tasks
-                </p>
-                <Zap className="h-5 w-5 text-data/80" aria-hidden />
-              </div>
-              <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl font-bold text-data">{runningTasks}</p>
-              <p className="mt-1 font-[family-name:var(--font-poppins)] text-xs text-zinc-500">From system pulse</p>
-            </article>
-            <article className="rounded-2xl qs-rim-cyan-soft bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
-              <div className="flex items-start justify-between gap-2">
-                <p className="qs-meta-label text-zinc-500">
-                  Queued tasks
-                </p>
-                <ListTodo className="h-5 w-5 text-pollen/70" aria-hidden />
-              </div>
-              <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl font-bold text-pollen">{queuedTasks}</p>
-              <p className="mt-1 font-[family-name:var(--font-poppins)] text-xs text-zinc-500">Pending lane</p>
-            </article>
-            <article className="rounded-2xl qs-rim-cyan-soft bg-[#0d0d18]/95 p-5 shadow-[inset_0_0_0_1px_rgb(0_255_255/0.06)]">
-              <div className="flex items-start justify-between gap-2">
-                <p className="qs-meta-label text-zinc-500">
-                  LLM status
-                </p>
-                <Cpu className="h-5 w-5 text-pollen/70" aria-hidden />
-              </div>
-              <div className="mt-3 flex items-center gap-2">
-                <span
-                  className={cn(
-                    "h-3 w-3 rounded-full",
-                    llmOk ? "bg-success shadow-[0_0_10px_rgb(0_255_136/0.8)]" : "bg-danger shadow-[0_0_10px_rgb(255_51_102/0.55)]",
-                  )}
-                  aria-hidden
+            ))
+          ) : (
+            <>
+              <V4Stat label="Total agents" value={totalAgentsListed} icon={V4IconAgents} iconTone="purple" foot={`${activeAgents} active · ${idleAgents} idle`} />
+              <V4Stat label="Running tasks" value={runningTasks} icon={V4IconBolt} foot="From system pulse" />
+              <V4Stat label="Queued tasks" value={queuedTasks} icon={V4IconQueue} iconTone="cyan" foot="Pending lane" />
+              <V4Stat
+                label="LLM routing"
+                valueVariant="text"
+                value={
+                  <>
+                    <span className={cn("hive-pulse-dot shrink-0", !llmOk && "bg-danger! shadow-none!")} aria-hidden />
+                    {llmOk ? "Routed" : "Degraded"}
+                  </>
+                }
+                icon={V4IconCpu}
+                iconTone="green"
+                foot={`Grok ${systemStatus?.llm_grok ? "·" : "—"} · Claude ${systemStatus?.llm_anthropic ? "·" : "—"} · GPT —`}
+              />
+            </>
+          )}
+        </V4StatGrid>
+      ) : null}
+
+      <PaperTradingPanel />
+
+      {showPollenCosts ? (
+        <div className="v4-cols-2">
+          <article className="v4-stat">
+            <div className="v4-stat-head">
+              <span className="v4-stat-label">Pollen · Roster activity</span>
+              <span className="v4-stat-icon">
+                <V4IconPollen className="h-4 w-4" size={16} />
+              </span>
+            </div>
+            <div className="v4-stat-value">{formatPollen(pollenTotal)}</div>
+            <div className="v4-stat-foot">Signals routed today · roster sum</div>
+            <div className="v4-stat-bars" aria-hidden>
+              {[40, 55, 32, 68, 90, 72, 85, 60, 78, 95, 82, 70].map((h, i) => (
+                <div
+                  key={i}
+                  className="v4-stat-bar"
+                  style={{ height: `${h}%`, opacity: 0.6 + i / 24 }}
                 />
-                <p className="font-[family-name:var(--font-poppins)] text-lg font-bold text-[#fafafa]">
-                  {llmOk ? "Routed" : "Degraded"}
-                </p>
-              </div>
-              <p className="mt-1 font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
-                Grok {systemStatus?.llm_grok ? "✓" : "—"} · Claude {systemStatus?.llm_anthropic ? "✓" : "—"}
-              </p>
-            </article>
-          </>
-        )}
-      </div>
+              ))}
+            </div>
+          </article>
+          <V4Stat label="Costs · 30 days" value={formatUsd(costWindowUsd)} icon={V4IconCoin} foot="Sums routed LLM spend — tasks, Ballroom chat, workflows" />
+        </div>
+      ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <article className="rounded-2xl qs-rim bg-[#0a0a12]/90 p-5 sm:col-span-2 xl:col-span-2">
-          <div className="flex items-start justify-between gap-2">
-            <p className="qs-meta-label text-zinc-500">
-              Pollen (roster)
-            </p>
-            <Activity className="h-5 w-5 text-success/80" aria-hidden />
-          </div>
-          <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl font-bold text-pollen">{formatPollen(pollenTotal)}</p>
-        </article>
-        <article className="rounded-2xl qs-rim bg-[#0a0a12]/90 p-5 sm:col-span-2 xl:col-span-2">
-          <div className="flex items-start justify-between gap-2">
-            <p className="qs-meta-label text-zinc-500">
-              Costs (30d)
-            </p>
-            <Coins className="h-5 w-5 text-pollen/70" aria-hidden />
-          </div>
-          <p className="mt-3 font-[family-name:var(--font-poppins)] text-3xl font-bold text-[#fafafa]">{formatUsd(costWindowUsd)}</p>
-          <p className="mt-2 font-[family-name:var(--font-poppins)] text-[11px] leading-snug text-zinc-600">
-            Sums routed LLM spend (CostGovernor ledger): tasks, Ballroom chat, workflows, LLM previews — not only queued
-            runs.
-          </p>
-        </article>
-      </div>
+      {showBallroom ? <V4BallroomParticipants agents={agents} /> : null}
 
-      {agents.length === 0 ? (
-        <div className="rounded-2xl border border-pollen/30 bg-black/35 px-5 py-4 text-center font-[family-name:var(--font-poppins)] text-sm text-zinc-300">
+      {showAgents && agents.length === 0 ? (
+        <V4Card tight className="v4-card-interactive text-center text-sm text-(--qs-text-2)">
           No agents in the hive yet —{" "}
           <Link href="/agents/new" className="font-semibold text-pollen underline-offset-4 hover:underline">
             Spawn first agent
           </Link>
+        </V4Card>
+      ) : null}
+
+      {showAgents ? (
+        <AgentsLiveSection agents={agents} onAgentActivate={onHoneycombAgent} onRebalanceHive={rebalanceHive} rebalanceBusy={rebalanceBusy} />
+      ) : null}
+
+      {showSubSwarms ? <SubSwarmsSection /> : null}
+
+      {showSwarmSignals ? (
+        <div className={cn(showWaggle && showWorkflows ? "v4-cols-2" : "grid grid-cols-1 gap-5")}>
+          {showWaggle ? <WaggleFeedCard /> : null}
+          {showWorkflows ? (
+            <Suspense
+              fallback={
+                <V4Card className="h-48 animate-pulse bg-white/4">
+                  <span className="sr-only">Loading workflows</span>
+                </V4Card>
+              }
+            >
+              <div className="v4-card v4-card-interactive h-full p-0">
+                <WorkflowsSection />
+              </div>
+            </Suspense>
+          ) : null}
         </div>
       ) : null}
 
-      <AgentsLiveSection
-        agents={agents}
-        onAgentActivate={onHoneycombAgent}
-        onRebalanceHive={rebalanceHive}
-        rebalanceBusy={rebalanceBusy}
-      />
+      {showTaskQueue ? <TaskQueueSection /> : null}
 
-      <SwarmBoardSection />
+      {showInsights ? (
+        <div className={cn(showPerformanceTier && showRecentTasks ? "v4-cols-2" : "grid grid-cols-1 gap-5")}>
+          {showPerformanceTier ? (
+            <V4Card className="v4-card-interactive">
+              <V4CardHeader title="Performance by tier" description="Share of agents in the hive (API summary)" as="h3" />
+              <div className="mt-2">
+                {tierBars.map((row) => (
+                  <V4BarRow key={row.key} label={row.label} value={`${row.pct}% · ${row.count}`} pct={row.pct} />
+                ))}
+              </div>
+            </V4Card>
+          ) : null}
+          {showRecentTasks ? (
+            <V4Card className="v4-card-interactive">
+              <V4CardHeader title="Recent tasks" description={`Latest ${Math.min(8, recentTasks.length)} rows from /api/v1/tasks`} as="h3" />
+              <ul className="mt-2 divide-y divide-(--qs-border)">
+                {recentTasks.length === 0 ? (
+                  <li className="py-6 text-center text-sm text-(--qs-text-3)">No tasks synced yet.</li>
+                ) : (
+                  recentTasks.slice(0, 8).map((t) => (
+                    <li key={t.id} className="flex gap-3 py-3 transition hover:bg-white/[0.03]">
+                      <span className={cn("mt-1.5 h-2 w-2 shrink-0 rounded-full", statusDotClass(t.status))} aria-hidden />
+                      <div className="min-w-0 flex-1">
+                        <Link href="/tasks" className="truncate text-sm text-(--qs-text) hover:text-pollen">
+                          {t.title}
+                        </Link>
+                        <p className="mt-0.5 text-[11px] text-(--qs-text-3)">{taskStatusBrief(t.status)}</p>
+                      </div>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </V4Card>
+          ) : null}
+        </div>
+      ) : null}
 
-      <Suspense
-        fallback={
-          <div
-            id="hive-workflows"
-            className="scroll-mt-24 h-44 animate-pulse rounded-3xl bg-white/[0.04]"
-          />
-        }
-      >
-        <WorkflowsSection />
-      </Suspense>
-
-      <TaskQueueSection />
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-3xl qs-rim-cyan-soft bg-[#0a0a14]/90 p-6">
-          <h3 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">Performance by tier</h3>
-          <p className="mt-1 text-xs text-zinc-500">Share of agents in the hive (API summary)</p>
-          <ul className="mt-5 space-y-4">
-            {tierBars.map((row) => (
-              <li key={row.key}>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium text-zinc-300">{row.label}</span>
-                  <span className="qs-chip tracking-tight text-cyan/80">{row.pct}% · {row.count}</span>
-                </div>
-                <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-black/60">
-                  <div
-                    className={cn("h-full rounded-full transition-all", row.bar)}
-                    style={{ width: `${row.pct}%`, boxShadow: "0 0 12px rgb(0 255 255 / 0.2)" }}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-        <section className="rounded-3xl qs-rim-cyan-soft bg-[#0a0a14]/90 p-6">
-          <h3 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">Recent tasks</h3>
-          <p className="mt-1 text-xs text-zinc-500">Latest {Math.min(8, recentTasks.length)} rows from /api/v1/tasks</p>
-          <ul className="mt-5 divide-y divide-cyan/10">
-            {recentTasks.length === 0 ? (
-              <li className="py-6 text-center text-sm text-zinc-600">No tasks synced yet.</li>
-            ) : (
-              recentTasks.slice(0, 8).map((t) => (
-                <li key={t.id} className="flex gap-3 py-3">
-                  <span className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", statusDotClass(t.status))} aria-hidden />
-                  <div className="min-w-0 flex-1">
-                    <Link href="/tasks" className="truncate font-[family-name:var(--font-poppins)] text-sm text-[#fafafa] hover:text-pollen">
-                      {t.title}
-                    </Link>
-                    <p className="qs-meta-label mt-0.5 truncate normal-case tracking-normal text-[11px] text-zinc-500">{taskStatusBrief(t.status)}</p>
-                  </div>
-                </li>
-              ))
-            )}
-          </ul>
-        </section>
-      </div>
-    </div>
+      {showQueenMission ? (
+        <V4QueenMission
+          brief={missionBrief}
+          onBriefChange={onMissionBriefChange}
+          onRun={onRunMission}
+          busy={missionBusy}
+          error={missionErr}
+        />
+      ) : null}
+    </V4PageCanvas>
   );
 }

@@ -1,3 +1,9 @@
+import { V4Card } from "@/components/ui/v4";
+
 export default function BillingSettingsLoading() {
-  return <div className="rounded-2xl border border-cyan/20 bg-hive-card/70 p-5 text-sm text-zinc-400">Loading billing…</div>;
+  return (
+    <V4Card>
+      <p className="text-sm text-(--qs-text-3)">Loading billing…</p>
+    </V4Card>
+  );
 }

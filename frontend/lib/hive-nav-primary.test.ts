@@ -5,7 +5,9 @@ import {
   buildHiveNavPrimary,
   HIVE_NAV_GROUPS,
   HIVE_NAV_PRIMARY,
+  HIVE_SIDEBAR_SECONDARY,
   hiveBottomNavItems,
+  isNavItemActive,
 } from "./hive-nav-primary";
 
 describe("hive-nav-primary", () => {
@@ -51,5 +53,25 @@ describe("hive-nav-primary", () => {
     expect(hrefs).not.toContain("/knowledge");
     expect(hrefs).toContain("/hive-mind");
     expect(hrefs).toContain("/tasks");
+  });
+
+  it("isNavItemActive highlights only the matching route, not whole section", () => {
+    const dashboard = HIVE_NAV_PRIMARY.find((i) => i.href === "/")!;
+    const swarms = HIVE_NAV_PRIMARY.find((i) => i.href === "/swarms")!;
+    const agents = HIVE_NAV_PRIMARY.find((i) => i.href === "/agents")!;
+    const foragers = HIVE_NAV_PRIMARY.find((i) => i.href === "/foragers")!;
+    const costs = HIVE_SIDEBAR_SECONDARY.find((i) => i.href === "/costs")!;
+
+    expect(isNavItemActive("/", dashboard)).toBe(true);
+    expect(isNavItemActive("/", swarms)).toBe(false);
+    expect(isNavItemActive("/", costs)).toBe(false);
+
+    expect(isNavItemActive("/agents", agents)).toBe(true);
+    expect(isNavItemActive("/agents", foragers)).toBe(false);
+
+    expect(isNavItemActive("/foragers", foragers)).toBe(true);
+    expect(isNavItemActive("/foragers", agents)).toBe(false);
+
+    expect(isNavItemActive("/settings/billing", HIVE_SIDEBAR_SECONDARY.find((i) => i.label === "Settings")!)).toBe(true);
   });
 });

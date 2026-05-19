@@ -21,7 +21,7 @@ interface PollenRankChartProps {
 
 export function PollenRankChart({ data }: PollenRankChartProps) {
   return (
-    <div className="h-72 w-full rounded-2xl border border-cyan/20 bg-black/30 p-4">
+    <div className="h-72 w-full rounded-2xl border border-[color:var(--qs-border)] bg-black/30 p-4">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />

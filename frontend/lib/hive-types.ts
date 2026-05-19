@@ -9,6 +9,9 @@ export interface WaggleDanceSummaryRow {
 export interface SystemStatusPayload {
   redis_ok: boolean;
   celery_ok: boolean;
+  celery_workers_up?: number;
+  celery_active_tasks?: number;
+  celery_reserved_tasks?: number;
   db_ok: boolean;
   llm_ok: boolean;
   llm_grok: boolean;
@@ -34,7 +37,7 @@ export interface SystemStatusPayload {
 /** Masked row from ``GET /api/v1/llm-keys``. */
 export interface LlmKeyMaskRow {
   id: string;
-  provider: "grok" | "anthropic" | "openai";
+  provider: "grok" | "anthropic" | "openai" | "deepgram" | "elevenlabs";
   label: string;
   api_key_masked: string;
   model_default: string | null;
@@ -396,6 +399,174 @@ export interface RecipeSemanticHit {
   postgres_row?: RecipeRow | null;
 }
 
+/** Skill export bundle (`POST /recipes/{id}/export-skill`). */
+export interface SkillExportFile {
+  path: string;
+  content: string;
+}
+
+export interface SkillExportMeta {
+  source: string;
+  recipe_id: string;
+  recipe_name: string;
+  slug: string;
+  verified: boolean;
+  verified_at?: string | null;
+  success_rate: number;
+  avg_pollen_earned: number;
+  success_count: number;
+  fail_count: number;
+  topic_tags: string[];
+  export_version: string;
+}
+
+export interface SkillExportResponse {
+  meta: SkillExportMeta;
+  files: SkillExportFile[];
+  install_command: string;
+  install_hint: string;
+}
+
+export interface SkillCatalogBuiltinItem {
+  slug: string;
+  title: string;
+  version: string;
+  roles: string[];
+  keywords: string[];
+  kind: "builtin";
+}
+
+export interface SkillCatalogRecipeItem {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  verified_at?: string | null;
+  topic_tags: string[];
+  success_rate: number;
+  avg_pollen_earned: number;
+  kind: "recipe";
+  premium?: boolean;
+  price_eur_cents?: number;
+  unlocked?: boolean;
+}
+
+export interface SkillUnlockStatusResponse {
+  stripe_checkout_ready: boolean;
+  unlocked_recipe_ids: string[];
+  premium_price_eur_cents_default: number;
+}
+
+export interface SkillCheckoutResponse {
+  status: string;
+  recipe_id: string;
+  slug: string;
+  purchase_id?: string | null;
+  checkout_url?: string | null;
+  amount_eur_cents?: string | null;
+  message?: string | null;
+}
+
+export interface SkillConfirmCheckoutResponse {
+  status: string;
+  checkout_session_id?: string | null;
+  recipe_id?: string | null;
+  purchase_id?: string | null;
+  payment_status?: string | null;
+  message?: string | null;
+}
+
+export interface VerifiedPollenLeaderboardRow {
+  rank: number;
+  agent_id: string;
+  agent_name: string;
+  agent_role: string;
+  swarm_id?: string | null;
+  verified_pollen: number;
+  total_pollen: number;
+}
+
+export interface PaperTradingFillRow {
+  id: string;
+  symbol: string;
+  side: string;
+  quantity: number;
+  fill_price_usd: number;
+  notional_usd: number;
+  confidence: number;
+  signal_note: string;
+  created_at: string;
+}
+
+export interface PaperTradingProjectSnapshot {
+  project_id: string;
+  project_slug: string;
+  display_name: string;
+  mode: string;
+  cash_usd: number;
+  starting_cash_usd: number;
+  equity_usd: number;
+  realized_pnl_usd: number;
+  daily_realized_pnl_usd: number;
+  unrealized_pnl_usd: number;
+  total_pnl_usd: number;
+  total_pnl_pct: number;
+  is_halted: boolean;
+  halt_reason?: string | null;
+  last_tick_at?: string | null;
+  recent_fills?: PaperTradingFillRow[];
+  disclaimer?: string;
+}
+
+export interface PaperTradingSummaryPayload {
+  enabled: boolean;
+  mode: string;
+  project_count: number;
+  total_equity_usd: number;
+  total_pnl_usd: number;
+  projects: PaperTradingProjectSnapshot[];
+  disclaimer: string;
+}
+
+export type PendingReviewStatus = "pending" | "approved" | "rejected";
+
+export interface PendingReviewItemRow {
+  id: string;
+  task_id: string | null;
+  swarm_id: string;
+  workflow_id: string;
+  simulation_id: string | null;
+  status: PendingReviewStatus;
+  reason: string;
+  confidence_fraction: number | null;
+  verification_passed: boolean;
+  verification_notes: string | null;
+  step_summary: Record<string, unknown> | null;
+  created_at: string;
+  resolved_at: string | null;
+  resolved_by: string | null;
+  resolution_note: string | null;
+}
+
+export interface PendingReviewStats {
+  pending_count: number;
+  approved_count: number;
+  rejected_count: number;
+}
+
+export interface SkillCatalogResponse {
+  builtin: SkillCatalogBuiltinItem[];
+  recipes: SkillCatalogRecipeItem[];
+}
+
+export interface HiveMdResponse {
+  swarm_id: string;
+  swarm_name: string;
+  content: string;
+  generated_at: string;
+  extras: Record<string, unknown>;
+}
+
 export interface WorkflowRow {
   id: string;
   original_task_text: string;
@@ -487,6 +658,104 @@ export interface SwarmBoardResponse {
   waggle_feed: WaggleFeedItem[];
 }
 
+/** `/dashboard/swarms-overview` — Swarms page aggregate payload. */
+export interface SwarmsOverviewColony {
+  id: string;
+  slug: string;
+  display_name: string;
+  lane: string;
+  lane_label: string;
+  queen_label: string;
+  member_count: number;
+  total_pollen: number;
+  last_sync_seconds_ago: number | null;
+  is_active: boolean;
+  status: "active" | "paused";
+}
+
+export interface SwarmsOverviewKpis {
+  colonies_total: number;
+  colonies_active: number;
+  colonies_paused: number;
+  total_bees: number;
+  bees_working: number;
+  bees_idle: number;
+  pollen_pool: number;
+  avg_sync_drift_sec: number;
+  last_global_tick_sec: number | null;
+}
+
+export interface SwarmsHiveSyncRow {
+  label: string;
+  state: "synced" | "syncing";
+  seconds_ago: number | null;
+}
+
+export interface SwarmsOverviewPayload {
+  generated_at: string;
+  hive_sync_interval_sec: number;
+  kpis: SwarmsOverviewKpis;
+  colonies: SwarmsOverviewColony[];
+  waggle_feed: WaggleFeedItem[];
+  hive_sync: SwarmsHiveSyncRow[];
+}
+
+/** `/dashboard/foragers-overview` — KPI tiles + configuration table. */
+export interface ForagersOverviewConfiguration {
+  id: string;
+  source_name: string;
+  source_type: string;
+  schedule_label: string;
+  last_run_seconds_ago: number | null;
+  items_count: number;
+  status: "ok" | "warn" | "paused" | "error";
+  is_active: boolean;
+}
+
+export interface ForagersOverviewKpis {
+  foragers_total: number;
+  foragers_active: number;
+  foragers_paused: number;
+  foragers_error: number;
+  items_ingested_24h: number;
+  items_trend_pct: number | null;
+  hivemind_chunks_7d: number;
+  auto_spawned_bees: number;
+}
+
+export interface ForagersSpawnRule {
+  id: string;
+  forager_id: string;
+  when_label: string;
+  spawn_label: string;
+  cooldown: string;
+  enabled: boolean;
+}
+
+export interface ForagersOverviewPayload {
+  generated_at: string;
+  kpis: ForagersOverviewKpis;
+  configurations: ForagersOverviewConfiguration[];
+  spawn_rules: ForagersSpawnRule[];
+}
+
+export interface ForagerRow {
+  id: string;
+  tenant_id: string;
+  name: string;
+  description: string;
+  source_type: string;
+  source_config: Record<string, unknown>;
+  filter_config: Record<string, unknown>;
+  prompt_template: string;
+  tools: string[];
+  is_active: boolean;
+  agent_template_id: string | null;
+  supervisor_routine_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 /** `/dashboard/task-queue` — backlog list with step progress. */
 export interface TaskQueueItem {
   id: string;
@@ -509,6 +778,19 @@ export interface TaskQueueResponse {
   pending_count: number;
   completed_today_count: number;
   tasks: TaskQueueItem[];
+}
+
+/** `/dashboard/summary` — agent tier counts for operator panels. */
+export interface DashboardSummaryPayload {
+  generated_at: string;
+  agents: {
+    total: number;
+    by_status: Record<string, number>;
+    by_hive_tier: Record<string, number>;
+  };
+  tasks: {
+    pending: number;
+  };
 }
 
 /** `/dashboard/workflows` — featured DAG + list rows. */

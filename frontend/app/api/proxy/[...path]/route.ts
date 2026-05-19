@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { QS_ACCESS } from "@/lib/auth-cookies";
 import { resolveInternalBackendOrigin } from "@/lib/backend-origin";
-import { clearDashboardAuthCookies } from "@/lib/auth-token-response";
 
 /** Node runtime: cookie bridge + private Docker DNS (`backend`) do not run on Edge. */
 export const runtime = "nodejs";
@@ -29,19 +28,21 @@ interface ResolvedAuthHeader {
 }
 
 async function resolveAuthHeader(request: NextRequest): Promise<ResolvedAuthHeader> {
-  const direct = request.headers.get("authorization")?.trim() ?? "";
-  const directIsBearer = /^bearer\s+/i.test(direct);
-  if (direct && directIsBearer) {
-    return { value: direct, source: "header" };
-  }
   try {
     const jar = await cookies();
     const at = jar.get(QS_ACCESS)?.value?.trim();
     if (at) {
+      // Prefer HttpOnly session cookie over potentially stale browser Authorization headers.
       return { value: `Bearer ${at}`, source: "cookie" };
     }
   } catch {
     /* cookies() only valid in App Router request context */
+  }
+
+  const direct = request.headers.get("authorization")?.trim() ?? "";
+  const directIsBearer = /^bearer\s+/i.test(direct);
+  if (direct && directIsBearer) {
+    return { value: direct, source: "header" };
   }
   const proxyJwt = process.env.HIVE_PROXY_JWT?.trim();
   if (proxyJwt && proxyJwt !== "unset") {
@@ -122,12 +123,9 @@ async function proxyRequest(request: NextRequest, method: string): Promise<NextR
     headers: outHeaders,
   });
   /**
-   * Clear browser auth cookies only when upstream explicitly says "unauthenticated".
-   * 403 frequently represents RBAC/feature gating and must not log users out.
+   * Do not clear auth cookies here — the browser client refreshes tokens on 401 via /api/auth/refresh.
+   * Clearing cookies on the first expired access token logged users out mid-session (Ballroom voice/chat).
    */
-  if (upstream.status === 401 && resolvedAuth.source === "cookie") {
-    clearDashboardAuthCookies(response);
-  }
   return response;
 }
 

@@ -14,9 +14,10 @@ import type { AgentRow } from "@/lib/hive-types";
 
 interface AgentsPageRosterProps {
   initialAgents: AgentRow[];
+  variant?: "default" | "v4";
 }
 
-export function AgentsPageRoster({ initialAgents }: AgentsPageRosterProps): JSX.Element {
+export function AgentsPageRoster({ initialAgents, variant = "default" }: AgentsPageRosterProps): JSX.Element {
   const router = useRouter();
   const [rebalanceBusy, setRebalanceBusy] = useState(false);
 
@@ -51,6 +52,12 @@ export function AgentsPageRoster({ initialAgents }: AgentsPageRosterProps): JSX.
       onRebalanceHive={rebalanceHive}
       rebalanceBusy={rebalanceBusy}
       spawnAgentHref="/agents/new"
+      title={variant === "v4" ? "Active agents" : "Agents"}
+      description={
+        variant === "v4"
+          ? "Live roster, health/status, and direct actions for each bee in one scanable board."
+          : undefined
+      }
     />
   );
 }

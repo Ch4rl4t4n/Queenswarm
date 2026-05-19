@@ -4,13 +4,18 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { AgentSuggestionsPanel } from "@/components/hive/agent-suggestions-panel";
+import { useDashboardSection, useDashboardSettings } from "@/components/hive/dashboard-layout-provider";
 import { QueenDashboardChrome } from "@/components/hive/queen-dashboard-chrome";
+import { QsSelect } from "@/components/ui/qs-select";
+import { V4AdvancedPanel, V4PageCanvas } from "@/components/ui/v4";
 import { hiveFetch, hiveGet, hivePatchJson, hivePostJson, hivePutJson } from "@/lib/api";
 import { COCKPIT_POLL_COLONY_TELEMETRY_MS } from "@/lib/cockpit-poll-profile";
 import type { AgentRow, DashboardSummary, SystemStatusPayload, TaskRow } from "@/lib/hive-types";
 
 interface ColonyConsoleProps {
   initialAgents: AgentRow[];
+  /** SSR roster fetch failed — client poll will retry. */
+  rosterSyncPending?: boolean;
 }
 
 interface ConfigDraft {
@@ -80,7 +85,11 @@ function deriveInactive(agent: AgentRow, cfg?: AgentConfigPayload | null): boole
   return cfg?.is_active === false;
 }
 
-export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
+export function ColonyConsole({ initialAgents, rosterSyncPending = false }: ColonyConsoleProps) {
+  const showAgentSuggestions = useDashboardSection("agentSuggestions");
+  const showSpawnAgent = useDashboardSection("spawnAgent");
+  const { settingsOpen } = useDashboardSettings();
+
   const [agents, setAgents] = useState<AgentRow[]>(initialAgents);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [draftById, setDraftById] = useState<Record<string, ConfigDraft>>({});
@@ -155,7 +164,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
     }
     void pollTelemetry();
     const handle = window.setInterval(() => {
-      if (document.visibilityState !== "visible") {
+      if (document.visibilityState !== "visible" || settingsOpen) {
         return;
       }
       void pollTelemetry();
@@ -164,7 +173,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
       cancelled = true;
       window.clearInterval(handle);
     };
-  }, []);
+  }, [settingsOpen]);
 
   const filteredHoneycombAgents = useMemo(() => {
     const q = filterQuery.trim().toLowerCase();
@@ -411,7 +420,12 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 pb-24">
+    <div className="mx-auto flex w-full max-w-none flex-col gap-8 pb-[calc(var(--qs-shell-bottom-nav-h)+2rem+env(safe-area-inset-bottom))] lg:pb-20">
+      {rosterSyncPending ? (
+        <p className="rounded-xl border border-alert/30 bg-alert/10 px-4 py-3 text-sm text-(--qs-text-2) lg:hidden max-lg:block">
+          Agent roster syncing — live poll will retry shortly.
+        </p>
+      ) : null}
       <QueenDashboardChrome
         agents={filteredHoneycombAgents}
         summary={summary}
@@ -429,125 +443,85 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
         systemStatus={systemPulse}
         recentTasks={recentTasks}
         telemetryLoading={telemetryBusy && !systemPulse}
+        missionBrief={missionBrief}
+        onMissionBriefChange={setMissionBrief}
+        onRunMission={() => void runMission()}
+        missionBusy={missionBusy}
+        missionErr={missionErr}
       />
 
-      {/* 1 — Queen mission */}
-      <section id="hive-task" className="scroll-mt-28 mx-auto w-full max-w-3xl rounded-2xl border-[3px] border-pollen/35 bg-gradient-to-br from-[#14101a] to-[#08080f] p-6 shadow-[0_0_40px_rgb(255_184_0/0.12)] md:p-8">
-        <h2 className="text-center font-[family-name:var(--font-poppins)] text-xl font-bold text-pollen md:text-left">
-          Queen mission
-        </h2>
-        <p className="mt-2 text-center font-[family-name:var(--font-poppins)] text-sm text-zinc-400 md:text-left">
-          After submit, the 7-step flow runs; Ballroom opens live transcript and voice.
-        </p>
-        <label className="mt-5 block qs-label">
-          Brief
-          <textarea
-            value={missionBrief}
-            onChange={(e) => setMissionBrief(e.target.value)}
-            rows={6}
-            className="mt-2 w-full rounded-xl border-[2px] border-cyan/25 bg-black/60 px-4 py-3 text-sm text-[#fafafa] outline-none focus:border-pollen/50"
-            placeholder="What should the hive do?"
-          />
-        </label>
-        <p className="mt-3 text-center font-[family-name:var(--font-poppins)] text-xs text-zinc-500 md:text-left">
-          <Link href="/tasks/new" className="text-cyan/80 underline decoration-cyan/40 underline-offset-4 hover:text-pollen">
-            Open full New task screen (step preview, recipe, submit)
-          </Link>
-        </p>
-        {missionErr ? <p className="mt-2 text-sm text-danger">{missionErr}</p> : null}
-        <button
-          type="button"
-          disabled={missionBusy}
-          className="qs-btn qs-btn--primary qs-btn--xl qs-btn--full mt-6 disabled:opacity-45"
-          onClick={() => void runMission()}
-        >
-          {missionBusy ? "Processing…" : "Run task"}
-        </button>
-      </section>
-
-      {/* 2 — Agent creation */}
-      <AgentSuggestionsPanel className="mx-auto w-full max-w-3xl scroll-mt-28" />
-
-      {/* 3 — Agent creation */}
-      <section id="hive-create" className="scroll-mt-28 mx-auto w-full max-w-3xl rounded-2xl border-[3px] border-cyan/30 bg-[#0a0a14]/95 p-6 shadow-[0_0_28px_rgb(0_255_255/0.08)] md:p-8">
-        <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#fafafa]">New manager / worker</h2>
-        <p className="mt-2 font-[family-name:var(--font-poppins)] text-sm text-zinc-500">
-          Add a bee to the hive. There is only one Queen. Use the swarm selector after spawn to tuck workers under managers;
-          everyone appears together in{" "}
-          <Link href="/#hive-live-swarm" className="font-semibold text-cyan/90 underline underline-offset-4 hover:text-pollen">
-            Live network
-          </Link>
-          .
-        </p>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <label className="block qs-label">
-            Name
-            <input
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              className="mt-2 w-full rounded-xl border-[2px] border-cyan/25 bg-black/55 px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-pollen/45"
-              placeholder="e.g. Research Manager"
-            />
-          </label>
-          <label className="block qs-label">
-            Tier
-            <select
-              value={newTier}
-              onChange={(e) => setNewTier(e.target.value as "manager" | "worker")}
-              className="mt-2 w-full rounded-xl border-[2px] border-cyan/25 bg-black/55 px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-pollen/45"
-            >
-              <option value="manager">Manager</option>
-              <option value="worker">Worker</option>
-            </select>
-          </label>
-        </div>
-        <label className="mt-4 block qs-label">
-          Starting prompt
-          <textarea
-            value={newPrompt}
-            onChange={(e) => setNewPrompt(e.target.value)}
-            rows={3}
-            className="mt-2 w-full rounded-xl border-[2px] border-cyan/25 bg-black/55 px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-pollen/45"
-          />
-        </label>
-        <button
-          type="button"
-          disabled={creating}
-          className="mt-5 rounded-xl border-[3px] border-pollen/50 bg-pollen/15 px-6 py-3 font-semibold text-pollen disabled:opacity-40"
-          onClick={() => void createBee()}
-        >
-          {creating ? "Adding…" : "Add agent"}
-        </button>
-      </section>
-
-      <p className="text-center font-[family-name:var(--font-poppins)] text-sm text-zinc-400">
-        Live room:{" "}
-        <Link href="/ballroom" className="font-semibold text-data underline-offset-4 hover:text-pollen hover:underline">
-          Ballroom
-        </Link>
-      </p>
+      {showAgentSuggestions || showSpawnAgent ? (
+        <V4PageCanvas>
+          {showAgentSuggestions ? <AgentSuggestionsPanel /> : null}
+          {showSpawnAgent ? (
+            <V4AdvancedPanel title="Advanced · spawn agent" description="Add a manager or worker bee to the hive (Queen is singleton).">
+              <section id="hive-create" className="scroll-mt-28">
+                <p className="mb-4 text-sm text-(--qs-text-3)">
+                  Everyone appears in{" "}
+                  <Link href="/#hive-live-swarm" className="text-(--qs-cyan) hover:text-pollen">
+                    Live network
+                  </Link>
+                  . Prefer the full wizard?{" "}
+                  <Link href="/agents/new" className="text-pollen hover:underline">
+                    Open /agents/new
+                  </Link>
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block qs-label">
+                    Name
+                    <input
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      className="v4-input mt-2"
+                      placeholder="e.g. Research Manager"
+                    />
+                  </label>
+                  <label className="block qs-label">
+                    Tier
+                    <QsSelect
+                      value={newTier}
+                      onValueChange={(next) => setNewTier(next as "manager" | "worker")}
+                      className="v4-input mt-2"
+                      options={[
+                        { value: "manager", label: "Manager" },
+                        { value: "worker", label: "Worker" },
+                      ]}
+                    />
+                  </label>
+                </div>
+                <label className="mt-4 block qs-label">
+                  Starting prompt
+                  <textarea value={newPrompt} onChange={(e) => setNewPrompt(e.target.value)} rows={3} className="v4-textarea mt-2" />
+                </label>
+                <button type="button" disabled={creating} className="qs-btn qs-btn--primary mt-5" onClick={() => void createBee()}>
+                  {creating ? "Adding…" : "Add agent"}
+                </button>
+              </section>
+            </V4AdvancedPanel>
+          ) : null}
+        </V4PageCanvas>
+      ) : null}
 
       {modalAgent && modalDraft ? (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center"
+          className="v4-modal-overlay fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center"
           role="dialog"
           aria-modal="true"
           aria-labelledby="agent-config-title"
         >
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border-[3px] border-cyan/30 bg-[#0a0a14] p-6 shadow-[0_0_48px_rgb(0_255_255/0.12)]">
-            <h3 id="agent-config-title" className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-pollen">
+          <div className="v4-modal max-h-[90vh] w-full max-w-lg overflow-y-auto p-6">
+            <h3 id="agent-config-title" className="text-lg font-semibold text-pollen">
               {modalAgent.name}
             </h3>
-            <p className="qs-meta-label mt-1 normal-case tracking-normal text-zinc-500">
+            <p className="v4-label-kicker mt-1 normal-case tracking-normal text-(--qs-text-3)">
               {tierLabel(modalAgent.hive_tier ?? "")}
             </p>
 
             <label className="mt-5 block qs-label">
               Manager / swarm
-              <select
+              <QsSelect
                 value={modalDraft.swarm_id ?? ""}
-                onChange={(ev) => {
-                  const raw = ev.target.value;
+                onValueChange={(raw) => {
                   setDraftById((d) => {
                     const cur = modalAgentId ? d[modalAgentId] : undefined;
                     if (!cur || !modalAgentId) return d;
@@ -560,17 +534,18 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
                     };
                   });
                 }}
-                className="mt-2 w-full rounded-xl border-[2px] border-cyan/25 bg-black/55 px-3 py-2 font-[family-name:var(--font-poppins)] text-sm text-[#fafafa] outline-none focus:border-pollen/50"
-              >
-                <option value="">— No swarm —</option>
-                {subSwarms
-                  .filter((s) => s.is_active !== false && !String(s.name).includes("__inactive_"))
-                  .map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({swarmRowRole(s)})
-                    </option>
-                  ))}
-              </select>
+                className="v4-input mt-2 w-full"
+                placeholder="— No swarm —"
+                options={[
+                  { value: "", label: "— No swarm —" },
+                  ...subSwarms
+                    .filter((s) => s.is_active !== false && !String(s.name).includes("__inactive_"))
+                    .map((s) => ({
+                      value: s.id,
+                      label: `${s.name} (${swarmRowRole(s)})`,
+                    })),
+                ]}
+              />
             </label>
 
             <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border-[2px] border-white/10 bg-black/35 px-3 py-3">
@@ -618,7 +593,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
                   }))
                 }
                 rows={5}
-                className="mt-2 w-full rounded-xl border-[2px] border-cyan/25 bg-black/55 px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-pollen/50"
+                className="v4-textarea mt-2 min-h-[120px]"
               />
             </label>
 
@@ -633,7 +608,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
                   }))
                 }
                 rows={3}
-                className="mt-2 w-full rounded-xl border-[2px] border-cyan/25 bg-black/55 px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-pollen/50"
+                className="v4-textarea mt-2 min-h-[120px]"
               />
             </label>
 
@@ -647,7 +622,7 @@ export function ColonyConsole({ initialAgents }: ColonyConsoleProps) {
                     [modalAgentId!]: { ...modalDraft, tagsStr: ev.target.value },
                   }))
                 }
-                className="mt-2 w-full rounded-xl border-[2px] border-cyan/25 bg-black/55 px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-pollen/50"
+                className="v4-textarea mt-2 min-h-[120px]"
                 placeholder="research, crypto, weekly"
               />
             </label>
