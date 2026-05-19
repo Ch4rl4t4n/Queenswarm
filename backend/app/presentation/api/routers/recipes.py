@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, HTTPException, Query, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.presentation.api.deps import DbSession, JwtSubject, RecipeMutationSubject
+from app.presentation.api.deps import DbSession, JwtSubject, RecipeMutationSubject, require_dashboard_user_with_tenant_role
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.infrastructure.persistence.models.recipe import Recipe
@@ -25,6 +25,22 @@ from app.application.services.recipe_write import (
     create_recipe_entry,
     delete_recipe_entry,
     update_recipe_entry,
+)
+from app.application.services.skill_checkout import (
+    assert_skill_export_allowed,
+    confirm_skill_checkout_session,
+    create_skill_checkout_session,
+    list_tenant_skill_unlocks,
+    stripe_checkout_ready,
+)
+from app.application.services.skill_export import build_skills_catalog, export_recipe_skill
+from app.common.schemas.skill_export import SkillCatalogResponse, SkillExportResponse
+from app.common.schemas.skill_marketplace import (
+    SkillCheckoutRequest,
+    SkillCheckoutResponse,
+    SkillConfirmCheckoutRequest,
+    SkillConfirmCheckoutResponse,
+    SkillUnlockStatusResponse,
 )
 
 logger = get_logger(__name__)
@@ -168,6 +184,198 @@ async def list_recipes(
             detail="Persistence rejected recipe catalog query.",
         )
     return rows
+
+
+@router.get(
+    "/skills-catalog",
+    response_model=SkillCatalogResponse,
+    summary="Built-in hive skills + verified recipes for export marketplace",
+)
+async def list_skills_export_catalog(
+    db: DbSession,
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+    limit: int = Query(default=80, ge=1, le=200),
+) -> SkillCatalogResponse:
+    """Return supervisor built-ins and verified Recipe Library rows eligible for skill export."""
+
+    _ensure_recipes_enabled()
+    tenant_id = principal.get("tenant_id")
+    try:
+        return await build_skills_catalog(
+            db,
+            recipe_limit=limit,
+            tenant_id=tenant_id,
+        )
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected skills catalog query.",
+        )
+
+
+@router.get(
+    "/skills/unlocks",
+    response_model=SkillUnlockStatusResponse,
+    summary="Tenant skill purchase unlock state",
+)
+async def get_skill_unlock_status(
+    db: DbSession,
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+) -> SkillUnlockStatusResponse:
+    """Return Stripe readiness and unlocked premium recipe ids for the active tenant."""
+
+    _ensure_recipes_enabled()
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    try:
+        unlocked = await list_tenant_skill_unlocks(db, tenant_id=tenant_id)
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected skill unlock query.",
+        )
+    return SkillUnlockStatusResponse(
+        stripe_checkout_ready=stripe_checkout_ready(),
+        unlocked_recipe_ids=[str(rid) for rid in unlocked],
+        premium_price_eur_cents_default=int(settings.skill_export_premium_price_eur_cents),
+    )
+
+
+@router.post(
+    "/skills/checkout",
+    response_model=SkillCheckoutResponse,
+    summary="Start Stripe checkout for premium skill export",
+)
+async def start_skill_checkout(
+    body: SkillCheckoutRequest,
+    db: DbSession,
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+) -> SkillCheckoutResponse:
+    """Create a Stripe Checkout Session to unlock premium verified skill export."""
+
+    _ensure_recipes_enabled()
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    user_uuid = user.id
+
+    try:
+        row = await db.get(Recipe, body.recipe_id)
+        if row is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recipe not found.")
+        payload = await create_skill_checkout_session(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=user_uuid,
+            recipe=row,
+        )
+        await db.commit()
+    except HTTPException:
+        await db.rollback()
+        raise
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected skill checkout.",
+        )
+
+    return SkillCheckoutResponse(
+        status=payload.get("status", "unknown"),
+        recipe_id=str(payload.get("recipe_id", body.recipe_id)),
+        slug=str(payload.get("slug", "")),
+        purchase_id=payload.get("purchase_id"),
+        checkout_url=payload.get("checkout_url"),
+        amount_eur_cents=payload.get("amount_eur_cents"),
+        message=payload.get("message"),
+    )
+
+
+@router.post(
+    "/skills/confirm-checkout",
+    response_model=SkillConfirmCheckoutResponse,
+    summary="Confirm Stripe checkout after success redirect",
+)
+async def confirm_skill_checkout(
+    body: SkillConfirmCheckoutRequest,
+    db: DbSession,
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+) -> SkillConfirmCheckoutResponse:
+    """Finalize premium skill unlock when webhook delivery is delayed."""
+
+    _ensure_recipes_enabled()
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    try:
+        payload = await confirm_skill_checkout_session(
+            db,
+            tenant_id=tenant_id,
+            checkout_session_id=body.checkout_session_id,
+        )
+        await db.commit()
+    except HTTPException:
+        await db.rollback()
+        raise
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected skill checkout confirmation.",
+        )
+    return SkillConfirmCheckoutResponse.model_validate(payload)
+
+
+@router.post(
+    "/{recipe_id}/export-skill",
+    response_model=SkillExportResponse,
+    summary="Export recipe as Cursor/Claude skill bundle (SKILL.md + HIVE.md)",
+)
+async def export_recipe_as_skill(
+    recipe_id: uuid.UUID,
+    db: DbSession,
+    subject: JwtSubject,
+    request: Request,
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+) -> SkillExportResponse:
+    """Build a Matt Pocock-style skill folder from a Recipe Library row."""
+
+    _ensure_recipes_enabled()
+    tenant_id = principal.get("tenant_id")
+    try:
+        row = await db.get(Recipe, recipe_id)
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Recipe not found.",
+            )
+        await assert_skill_export_allowed(db, tenant_id=tenant_id, recipe=row)
+        bundle = await export_recipe_skill(db, recipe_id)
+    except HTTPException:
+        raise
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected recipe export lookup.",
+        )
+
+    if bundle is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Recipe not found.",
+        )
+
+    logger.info(
+        "recipe_catalog.export_skill",
+        recipe_id=str(recipe_id),
+        slug=bundle.meta.slug,
+        verified=bundle.meta.verified,
+        operator_subject=subject,
+        client_host=request.client.host if request.client else None,
+    )
+    return bundle
 
 
 @router.get(

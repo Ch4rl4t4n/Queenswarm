@@ -36,3 +36,11 @@ groups:
           summary: >
             The Celery hourly YouTube ingest tick has not updated its heartbeat gauge in over two hours.
             Check celery-beat, worker queue `hive`, and database connectivity after running hive_seed.
+
+      - alert: CeleryWorkersDown
+        expr: queenswarm_celery_workers_up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: No Celery workers responded to inspect ping — background hive tasks will stall.

@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from app.common.http.rate_limit import rate_limited_http_exception, retry_after_header, retry_after_seconds
+from app.common.http.rate_limit import (
+    rate_limited_http_exception,
+    rate_limit_unavailable_http_exception,
+    retry_after_header,
+    retry_after_seconds,
+)
 
 
 def test_retry_after_seconds_has_floor_of_one() -> None:
@@ -30,6 +35,14 @@ def test_rate_limited_http_exception_uses_retry_after_header() -> None:
     assert exc.status_code == 429
     assert exc.detail == "Too many requests."
     assert exc.headers == {"Retry-After": "21"}
+
+
+def test_rate_limit_unavailable_http_exception_returns_503_with_retry_after() -> None:
+    """Fail-closed limiter outages should surface as retryable 503 responses."""
+
+    exc = rate_limit_unavailable_http_exception(window_sec=45.0)
+    assert exc.status_code == 503
+    assert exc.headers == {"Retry-After": "45"}
 
 
 def test_rate_limited_http_exception_allows_structured_detail_payload() -> None:

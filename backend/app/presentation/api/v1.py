@@ -39,6 +39,9 @@ from app.presentation.api.routers import tools_marketplace as tools_marketplace_
 from app.presentation.api.routers import dreaming as dreaming_router
 from app.presentation.api.routers import curated_memory as curated_memory_router
 from app.presentation.api.routers import goals as goals_router
+from app.presentation.api.routers import agent_templates as agent_templates_router
+from app.presentation.api.routers import foragers as foragers_router
+from app.presentation.api.routers import paper_trading as paper_trading_router
 from app.core.config import settings
 
 api_v1 = APIRouter()
@@ -84,6 +87,9 @@ api_v1.include_router(plugins_catalog_router.router, prefix="/plugins")
 api_v1.include_router(dreaming_router.router)
 api_v1.include_router(curated_memory_router.router)
 api_v1.include_router(goals_router.router)
+api_v1.include_router(agent_templates_router.router)
+api_v1.include_router(foragers_router.router)
+api_v1.include_router(paper_trading_router.router)
 api_v1.include_router(outputs_router.router)
 api_v1.include_router(hive_mind_router.router)
 api_v1.include_router(external_router.router)

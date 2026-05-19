@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.core.database import async_session
 from app.core.logging import get_logger
 from app.core.neo4j_client import get_neo4j_driver
+from app.core.celery_health import inspect_celery_workers
 from app.core.redis_client import ping_redis
 from app.core.retry_external import retry_async_call
 
@@ -140,18 +141,37 @@ async def collect_readiness_uncached() -> tuple[dict[str, Any], bool]:
         _check_chroma(),
     )
 
+    celery_check: CheckResult = {"ok": True, "latency_ms": 0.0}
+    if settings.readiness_require_celery:
+        started = time.perf_counter()
+        snapshot = await asyncio.to_thread(inspect_celery_workers)
+        elapsed_ms = round((time.perf_counter() - started) * 1000, 3)
+        celery_check = {
+            "ok": bool(snapshot.get("ok")),
+            "latency_ms": elapsed_ms,
+            "workers_up": float(snapshot.get("workers_up") or 0),
+            "active_tasks": float(snapshot.get("active_tasks") or 0),
+            "reserved_tasks": float(snapshot.get("reserved_tasks") or 0),
+        }
+        if not celery_check["ok"]:
+            celery_check["error"] = str(snapshot.get("error") or "no_workers")
+
     checks: dict[str, CheckResult] = {
         "postgres": pg,
         "redis": redis_check,
         "neo4j": neo,
         "chroma": vec,
     }
+    if settings.readiness_require_celery:
+        checks["celery"] = celery_check
 
     critical_ok = bool(pg.get("ok") and redis_check.get("ok"))
     if settings.readiness_require_neo4j:
         critical_ok = critical_ok and bool(neo.get("ok"))
     if settings.readiness_require_chroma:
         critical_ok = critical_ok and bool(vec.get("ok"))
+    if settings.readiness_require_celery:
+        critical_ok = critical_ok and bool(celery_check.get("ok"))
     if _draining:
         critical_ok = False
     status = "ready" if critical_ok else "not_ready"
@@ -161,6 +181,8 @@ async def collect_readiness_uncached() -> tuple[dict[str, Any], bool]:
         optional_required["neo4j"] = True
     if settings.readiness_require_chroma:
         optional_required["chroma"] = True
+    if settings.readiness_require_celery:
+        optional_required["celery"] = True
 
     body: dict[str, Any] = {
         "status": status,

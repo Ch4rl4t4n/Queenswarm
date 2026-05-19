@@ -17,6 +17,8 @@ from app.core.logging import get_logger
 from app.core.redis_client import publish_event
 from app.domain.dreaming.models import DreamCycle, DreamCycleStatus
 from app.infrastructure.persistence.models.dream_cycle import DreamCycleORM, DreamCycleStatusORM, DreamInsightORM
+from app.infrastructure.persistence.models.knowledge import KnowledgeItem
+from app.infrastructure.persistence.models.supervisor_session import SupervisorSession, SupervisorSessionEvent
 
 logger = get_logger(__name__)
 
@@ -38,6 +40,7 @@ class _RawLearningItem:
     source_kind: str
     source_ref: str
     text: str
+    metadata: dict[str, Any]
 
 
 class DreamerService:
@@ -58,22 +61,29 @@ class DreamerService:
         self._litellm_router = litellm_router
         self._logger = logger_instance or logger
 
-    async def run_cycle(self, window_hours: int = 24) -> DreamCycle:
+    async def run_cycle(self, *, tenant_id: uuid.UUID, window_hours: int = 24) -> DreamCycle:
         """Run one full dream cycle and return the resulting domain object."""
 
         async with self._session_factory() as session:
             cycle = DreamCycleORM(
+                tenant_id=tenant_id,
                 status=DreamCycleStatusORM.RUNNING,
                 started_at=datetime.now(tz=UTC),
                 items_processed=0,
                 items_deduplicated=0,
                 items_consolidated=0,
                 digest_md="",
+                dream_report={},
             )
             session.add(cycle)
             await session.flush()
             try:
-                insights_count = await self._execute_cycle_body(session=session, cycle=cycle, window_hours=window_hours)
+                insights_count = await self._execute_cycle_body(
+                    session=session,
+                    cycle=cycle,
+                    tenant_id=tenant_id,
+                    window_hours=window_hours,
+                )
                 cycle.status = DreamCycleStatusORM.COMPLETED
                 cycle.finished_at = datetime.now(tz=UTC)
                 await session.commit()
@@ -100,13 +110,16 @@ class DreamerService:
                 raise
             return self._to_domain(cycle)
 
-    async def get_last_digest(self) -> str | None:
+    async def get_last_digest(self, *, tenant_id: uuid.UUID) -> str | None:
         """Return markdown digest from latest completed dream cycle."""
 
         async with self._session_factory() as session:
             row = await session.scalar(
                 select(DreamCycleORM)
-                .where(DreamCycleORM.status == DreamCycleStatusORM.COMPLETED)
+                .where(
+                    DreamCycleORM.status == DreamCycleStatusORM.COMPLETED,
+                    DreamCycleORM.tenant_id == tenant_id,
+                )
                 .order_by(DreamCycleORM.started_at.desc())
                 .limit(1)
             )
@@ -114,9 +127,16 @@ class DreamerService:
                 return None
             return row.digest_md or None
 
-    async def _execute_cycle_body(self, *, session: AsyncSession, cycle: DreamCycleORM, window_hours: int) -> int:
+    async def _execute_cycle_body(
+        self,
+        *,
+        session: AsyncSession,
+        cycle: DreamCycleORM,
+        tenant_id: uuid.UUID,
+        window_hours: int,
+    ) -> int:
         window_start = datetime.now(tz=UTC) - timedelta(hours=max(1, int(window_hours)))
-        items = await self._fetch_recent_items(session=session, window_start=window_start)
+        items = await self._fetch_recent_items(session=session, tenant_id=tenant_id, window_start=window_start)
         cycle.items_processed = len(items)
         grouped = self._cluster_items(items)
         cycle.items_deduplicated = sum(max(0, len(cluster) - 1) for cluster in grouped)
@@ -137,6 +157,7 @@ class DreamerService:
             )
             insight = DreamInsightORM(
                 cycle_id=cycle.id,
+                tenant_id=tenant_id,
                 source_kind=cluster[0].source_kind,
                 source_ref=cluster[0].source_ref,
                 summary=summary,
@@ -149,16 +170,24 @@ class DreamerService:
 
         decay_deleted = await self._apply_memory_decay()
         cycle.items_consolidated = len(consolidated)
+        cycle.dream_report = self._build_dream_report(items=items, consolidated=consolidated)
         cycle.digest_md = self._build_digest(
             consolidated=consolidated,
             processed=cycle.items_processed,
             deduplicated=cycle.items_deduplicated,
             decay_deleted=decay_deleted,
         )
+        await self._persist_hivemind_knowledge_report(
+            session=session,
+            tenant_id=tenant_id,
+            cycle=cycle,
+            consolidated=consolidated,
+        )
         await publish_event(
             "dream:digest",
             {
                 "cycle_id": str(cycle.id),
+                "tenant_id": str(tenant_id),
                 "status": "completed",
                 "digest_md": cycle.digest_md,
                 "items_consolidated": cycle.items_consolidated,
@@ -166,7 +195,13 @@ class DreamerService:
         )
         return len(consolidated)
 
-    async def _fetch_recent_items(self, *, session: AsyncSession, window_start: datetime) -> list[_RawLearningItem]:
+    async def _fetch_recent_items(
+        self,
+        *,
+        session: AsyncSession,
+        tenant_id: uuid.UUID,
+        window_start: datetime,
+    ) -> list[_RawLearningItem]:
         rows: list[_RawLearningItem] = []
 
         task_rows = await session.execute(
@@ -174,51 +209,131 @@ class DreamerService:
                 """
                 SELECT id::text AS source_ref, COALESCE(title, '') AS txt
                 FROM tasks
-                WHERE status = 'completed' AND completed_at IS NOT NULL AND completed_at >= :window_start
+                WHERE tenant_id = :tenant_id
+                  AND status = 'completed'
+                  AND completed_at IS NOT NULL
+                  AND completed_at >= :window_start
                 ORDER BY completed_at DESC
                 LIMIT 250
                 """,
             ),
-            {"window_start": window_start},
+            {"window_start": window_start, "tenant_id": tenant_id},
         )
         for raw in task_rows:
             txt = str(raw.txt or "").strip()
             if txt:
-                rows.append(_RawLearningItem(source_kind="task_ledger", source_ref=str(raw.source_ref), text=txt))
+                rows.append(
+                    _RawLearningItem(
+                        source_kind="task_ledger",
+                        source_ref=str(raw.source_ref),
+                        text=txt,
+                        metadata={"signal": "success"},
+                    ),
+                )
 
         external_rows = await session.execute(
             text(
                 """
                 SELECT id::text AS source_ref, COALESCE(text_report, '') AS txt
                 FROM external_outputs
-                WHERE created_at >= :window_start
+                WHERE tenant_id = :tenant_id
+                  AND created_at >= :window_start
                 ORDER BY created_at DESC
                 LIMIT 250
                 """,
             ),
-            {"window_start": window_start},
+            {"window_start": window_start, "tenant_id": tenant_id},
         )
         for raw in external_rows:
             txt = str(raw.txt or "").strip()
             if txt:
-                rows.append(_RawLearningItem(source_kind="forager_output", source_ref=str(raw.source_ref), text=txt))
+                rows.append(
+                    _RawLearningItem(
+                        source_kind="forager_output",
+                        source_ref=str(raw.source_ref),
+                        text=txt,
+                        metadata={"signal": "observation"},
+                    ),
+                )
 
         relay_rows = await session.execute(
             text(
                 """
                 SELECT id::text AS source_ref, COALESCE(insight_text, '') AS txt
                 FROM learning_logs
-                WHERE created_at >= :window_start
+                WHERE tenant_id = :tenant_id
+                  AND created_at >= :window_start
                 ORDER BY created_at DESC
                 LIMIT 250
                 """,
             ),
-            {"window_start": window_start},
+            {"window_start": window_start, "tenant_id": tenant_id},
         )
         for raw in relay_rows:
             txt = str(raw.txt or "").strip()
             if txt:
-                rows.append(_RawLearningItem(source_kind="waggle_relay", source_ref=str(raw.source_ref), text=txt))
+                rows.append(
+                    _RawLearningItem(
+                        source_kind="waggle_relay",
+                        source_ref=str(raw.source_ref),
+                        text=txt,
+                        metadata={"signal": "lesson"},
+                    ),
+                )
+
+        sessions = list(
+            (
+                await session.scalars(
+                    select(SupervisorSession)
+                    .where(
+                        SupervisorSession.tenant_id == tenant_id,
+                        SupervisorSession.created_at >= window_start,
+                    )
+                    .order_by(SupervisorSession.created_at.desc())
+                    .limit(int(settings.dreaming_session_limit)),
+                )
+            ).all(),
+        )
+        for row in sessions:
+            status_tag = str(row.status or "").strip().lower()
+            summary_blob = str((row.context_summary or {}).get("summary") or "").strip()
+            text_blob = f"goal={row.goal.strip()} status={status_tag} {summary_blob}".strip()
+            if text_blob:
+                rows.append(
+                    _RawLearningItem(
+                        source_kind="supervisor_session",
+                        source_ref=str(row.id),
+                        text=text_blob,
+                        metadata={"signal": "error" if status_tag in {"failed", "needs_input"} else "success"},
+                    ),
+                )
+
+        events = list(
+            (
+                await session.scalars(
+                    select(SupervisorSessionEvent)
+                    .where(
+                        SupervisorSessionEvent.tenant_id == tenant_id,
+                        SupervisorSessionEvent.created_at >= window_start,
+                    )
+                    .order_by(SupervisorSessionEvent.created_at.desc())
+                    .limit(int(settings.dreaming_event_limit)),
+                )
+            ).all(),
+        )
+        for row in events:
+            msg = str(row.message or "").strip()
+            if not msg:
+                continue
+            level = str(row.level or "info").lower()
+            rows.append(
+                _RawLearningItem(
+                    source_kind="supervisor_event",
+                    source_ref=str(row.id),
+                    text=f"{row.event_type}: {msg}",
+                    metadata={"signal": "error" if level in {"error", "warning"} else "observation"},
+                ),
+            )
 
         return rows
 
@@ -366,16 +481,110 @@ class DreamerService:
             lines.append("No repetitive signals found in this window.")
         return "\n".join(lines)
 
+    async def _persist_hivemind_knowledge_report(
+        self,
+        *,
+        session: AsyncSession,
+        tenant_id: uuid.UUID,
+        cycle: DreamCycleORM,
+        consolidated: list[DreamInsightORM],
+    ) -> None:
+        """Upsert Dream Report into tenant KnowledgeItem space."""
+
+        top_lines = [item.summary for item in consolidated[:6]]
+        payload = cycle.dream_report if isinstance(cycle.dream_report, dict) else {}
+        report_text = "\n".join(
+            [
+                f"Dream cycle {cycle.id}",
+                f"Tenant: {tenant_id}",
+                f"Processed={cycle.items_processed} Deduplicated={cycle.items_deduplicated} Consolidated={cycle.items_consolidated}",
+                f"Success strategies: {', '.join(payload.get('success_strategies', [])[:3]) if isinstance(payload.get('success_strategies'), list) else 'n/a'}",
+                f"Repeated errors: {', '.join(payload.get('repeated_errors', [])[:3]) if isinstance(payload.get('repeated_errors'), list) else 'n/a'}",
+                "Top insights:",
+                *[f"- {line}" for line in top_lines],
+            ],
+        )
+        source_url = f"dream://tenant/{tenant_id}/cycle/{cycle.id}"
+        existing = await session.scalar(
+            select(KnowledgeItem).where(
+                KnowledgeItem.tenant_id == tenant_id,
+                KnowledgeItem.source_type == "dream_report",
+                KnowledgeItem.source_url == source_url,
+            ),
+        )
+        tags = ["dreaming", "memory-consolidation", "lessons-learned"]
+        if existing is None:
+            session.add(
+                KnowledgeItem(
+                    tenant_id=tenant_id,
+                    source_url=source_url,
+                    source_type="dream_report",
+                    content_text=report_text[:20_000],
+                    confidence_score=0.82,
+                    topic_tags=tags,
+                    decay_factor=1.0,
+                    scraped_at=datetime.now(tz=UTC),
+                ),
+            )
+            return
+        existing.content_text = report_text[:20_000]
+        existing.topic_tags = tags
+        existing.scraped_at = datetime.now(tz=UTC)
+        existing.confidence_score = 0.82
+
+    def _build_dream_report(
+        self,
+        *,
+        items: list[_RawLearningItem],
+        consolidated: list[DreamInsightORM],
+    ) -> dict[str, Any]:
+        """Build concise machine-readable dream report."""
+
+        successes: list[str] = []
+        repeated_errors: list[str] = []
+        improvement_ideas: list[str] = []
+        seen_success: set[str] = set()
+        seen_error: set[str] = set()
+        for row in items:
+            signal = str(row.metadata.get("signal") or "")
+            compact = row.text.strip().replace("\n", " ")
+            compact = compact[:180]
+            if signal == "success":
+                if compact and compact not in seen_success:
+                    successes.append(compact)
+                    seen_success.add(compact)
+            elif signal == "error":
+                if compact and compact not in seen_error:
+                    repeated_errors.append(compact)
+                    seen_error.add(compact)
+        for insight in consolidated[:6]:
+            line = str(insight.summary or "").strip()[:180]
+            if line:
+                improvement_ideas.append(line)
+        return {
+            "generated_at": datetime.now(tz=UTC).isoformat(),
+            "success_strategies": successes[:8],
+            "repeated_errors": repeated_errors[:8],
+            "improvement_proposals": improvement_ideas[:8],
+            "summary": (
+                f"Learned {len(successes[:8])} successful patterns, "
+                f"detected {len(repeated_errors[:8])} repeated issues, "
+                f"and consolidated {len(consolidated)} insights."
+            ),
+        }
+
     def _to_domain(self, cycle: DreamCycleORM) -> DreamCycle:
         status = DreamCycleStatus(cycle.status.value)
         return DreamCycle(
             id=cycle.id,
+            tenant_id=cycle.tenant_id,
             started_at=cycle.started_at,
             finished_at=cycle.finished_at,
             items_processed=int(cycle.items_processed),
             items_deduplicated=int(cycle.items_deduplicated),
             items_consolidated=int(cycle.items_consolidated),
             digest_md=cycle.digest_md,
+            dream_report=dict(cycle.dream_report or {}),
             status=status,
         )
 

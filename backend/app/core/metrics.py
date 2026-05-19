@@ -43,6 +43,26 @@ AGENTS_TOTAL = Gauge(
     "Total persisted agent rows.",
 )
 
+CELERY_WORKERS_UP = Gauge(
+    "queenswarm_celery_workers_up",
+    "Celery workers that responded to inspect ping.",
+)
+
+CELERY_ACTIVE_TASKS = Gauge(
+    "queenswarm_celery_active_tasks",
+    "Tasks currently executing across Celery workers.",
+)
+
+CELERY_RESERVED_TASKS = Gauge(
+    "queenswarm_celery_reserved_tasks",
+    "Tasks reserved (prefetched) but not yet executing.",
+)
+
+AGENTS_STALE = Gauge(
+    "queenswarm_agents_stale_running",
+    "Agents marked RUNNING but past stale timeout (updated by sweep).",
+)
+
 TASK_DURATION = Histogram(
     "queenswarm_task_duration_seconds",
     "End-to-end duration for successful universal executor runs.",
@@ -178,6 +198,23 @@ async def refresh_operative_agent_gauges(session: AsyncSession) -> None:
     AGENTS_ACTIVE.set(active)
 
 
+def refresh_celery_gauges() -> None:
+    """Sample Celery inspect counters for Prometheus scrapes."""
+
+    from app.core.celery_health import inspect_celery_workers
+
+    snapshot = inspect_celery_workers()
+    CELERY_WORKERS_UP.set(int(snapshot.get("workers_up") or 0))
+    CELERY_ACTIVE_TASKS.set(int(snapshot.get("active_tasks") or 0))
+    CELERY_RESERVED_TASKS.set(int(snapshot.get("reserved_tasks") or 0))
+
+
+def set_stale_running_agents_gauge(count: int) -> None:
+    """Publish stale RUNNING agent count after a sweep tick."""
+
+    AGENTS_STALE.set(max(0, int(count)))
+
+
 def observe_llm_cost_usd(*, model_name: str, cost_usd: float) -> None:
     """Increment LLM cost counter when a hop produced a positive USD estimate."""
 
@@ -204,8 +241,12 @@ def observe_supervisor_routine_event(*, event: str) -> None:
 
 __all__ = [
     "AGENTS_ACTIVE",
+    "AGENTS_STALE",
     "AGENTS_TOTAL",
     "BUDGET_BLOCK_TOTAL",
+    "CELERY_ACTIVE_TASKS",
+    "CELERY_RESERVED_TASKS",
+    "CELERY_WORKERS_UP",
     "HOURLY_ROLL_LAST_UNIXTIME",
     "LLM_COST_USD_TOTAL",
     "TASK_DURATION",
@@ -224,4 +265,6 @@ __all__ = [
     "observe_supervisor_routine_event",
     "observe_supervisor_session_event",
     "refresh_operative_agent_gauges",
+    "refresh_celery_gauges",
+    "set_stale_running_agents_gauge",
 ]

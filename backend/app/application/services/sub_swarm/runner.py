@@ -16,7 +16,12 @@ from app.common.schemas.sub_swarm import RunWorkflowOnSwarmResponse
 from app.application.services.outcome_verification import (
     assess_internal_step_outputs,
     build_operator_step_summaries,
+    max_simulator_confidence_fraction,
     maybe_attach_internal_echo,
+)
+from app.application.services.pending_review_service import (
+    enqueue_pending_review_if_needed,
+    outcome_needs_pending_review,
 )
 from app.application.services.recipe_chroma_sync import upsert_recipe_into_chroma_library
 from app.application.services.simulation_ledger import record_swarm_simulation_row
@@ -68,18 +73,25 @@ async def run_sub_swarm_workflow_cycle(
         internal,
         threshold=float(settings.reward_threshold_pass),
     )
+    graph_err = err_code if isinstance(err_code, str) else None
+    final_verified = verified and graph_err is None
+    final_notes = vnotes if graph_err is None else [*vnotes, f"graph_error={graph_err}"]
+    peak_frac = max_simulator_confidence_fraction(internal)
+    needs_review, _review_reason = outcome_needs_pending_review(
+        graph_err=graph_err,
+        final_verified=final_verified,
+        peak_frac=peak_frac,
+    )
+    operator_verified = final_verified and not needs_review
     operator_rows = build_operator_step_summaries(
         internal,
-        verified=verified,
+        verified=operator_verified,
         expose_raw=settings.expose_raw_step_outputs,
     )
     internal_echo = maybe_attach_internal_echo(
         internal,
         expose_raw=settings.expose_raw_step_outputs,
     )
-    graph_err = err_code if isinstance(err_code, str) else None
-    final_verified = verified and graph_err is None
-    final_notes = vnotes if graph_err is None else [*vnotes, f"graph_error={graph_err}"]
 
     wf_row = await session.get(Workflow, workflow_id)
     recipe_for_wf: Recipe | None = None
@@ -107,7 +119,7 @@ async def run_sub_swarm_workflow_cycle(
             else:
                 recipe_for_wf.fail_count = int(recipe_for_wf.fail_count) + 1
 
-    await record_swarm_simulation_row(
+    sim_row = await record_swarm_simulation_row(
         session,
         task_id=task_id,
         swarm_id=swarm_id,
@@ -116,6 +128,18 @@ async def run_sub_swarm_workflow_cycle(
         graph_error=graph_err,
         verification_passed=final_verified,
         verification_notes=final_notes,
+    )
+
+    await enqueue_pending_review_if_needed(
+        session,
+        task_id=task_id,
+        swarm_id=swarm_id,
+        workflow_id=workflow_id,
+        internal_step_outputs=internal,
+        graph_err=graph_err,
+        final_verified=final_verified,
+        verification_notes=final_notes,
+        simulation_id=sim_row.id if sim_row is not None else None,
     )
     if (
         settings.recipe_chroma_auto_sync_on_verify
@@ -147,8 +171,8 @@ async def run_sub_swarm_workflow_cycle(
         traces=list(final.get("traces") or []),
         step_summaries=operator_rows,
         internal_step_summaries=internal_echo,
-        verification_passed=final_verified,
-        verification_notes=final_notes,
+        verification_passed=operator_verified,
+        verification_notes=final_notes if not needs_review else [*final_notes, "pending_operator_review"],
         global_sync_recommended=bool(final.get("global_sync_recommended")),
     )
 

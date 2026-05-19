@@ -61,6 +61,12 @@ async def require_subject(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token missing sub claim.",
         )
+    token_typ = str(payload.get("typ") or "").strip().lower()
+    if token_typ == "pre_2fa":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Complete two-factor verification before calling hive API routes.",
+        )
     return subject
 
 

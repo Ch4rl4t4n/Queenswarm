@@ -17,7 +17,8 @@ from app.core.chroma_client import ensure_collections
 from app.core.config import settings
 from app.core.database import async_session, close_db, init_db
 from app.core.logging import configure_logging, get_logger
-from app.core.metrics import observe_scaling_event, refresh_operative_agent_gauges
+from app.core.observability import configure_observability
+from app.core.metrics import observe_scaling_event, refresh_celery_gauges, refresh_operative_agent_gauges
 from app.core.neo4j_client import close_neo4j
 from app.core.readiness import set_readiness_draining
 from app.core.redis_client import (
@@ -46,6 +47,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         environment=settings.log_environment,
         instance_id=settings.instance_id,
     )
+    configure_observability()
     set_readiness_draining(False)
     await init_db()
     async with async_session() as session:
@@ -115,6 +117,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     async def _gauge_refresh_tick() -> None:
         async with async_session() as session:
             await refresh_operative_agent_gauges(session)
+        await asyncio.to_thread(refresh_celery_gauges)
 
     async def _gauge_loop() -> None:
         while True:

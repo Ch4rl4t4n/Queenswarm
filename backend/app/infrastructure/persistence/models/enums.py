@@ -108,11 +108,20 @@ class HiveAsyncRunLifecycle(str, Enum):
     FAILED = "failed"
 
 
+class PendingReviewStatus(str, Enum):
+    """Operator gate before low-confidence swarm outcomes reach dashboards."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
 __all__ = [
     "AgentRole",
     "AgentStatus",
     "BudgetPeriod",
     "HiveAsyncRunLifecycle",
+    "PendingReviewStatus",
     "SimulationResult",
     "StepStatus",
     "SwarmPurpose",

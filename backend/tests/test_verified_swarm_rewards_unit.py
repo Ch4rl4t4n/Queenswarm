@@ -45,7 +45,10 @@ async def test_grant_returns_zero_when_no_completed_agent_ids() -> None:
 
 
 @pytest.mark.asyncio
-async def test_grant_updates_agent_pollen_and_persists_rows() -> None:
+async def test_grant_updates_agent_pollen_and_persists_rows(monkeypatch: pytest.MonkeyPatch) -> None:
+    record = AsyncMock()
+    monkeypatch.setattr("app.services.verified_swarm_rewards.record_verified_pollen_reward", record)
+
     aid = uuid.uuid4()
     task_id = uuid.uuid4()
     sid = uuid.uuid4()
@@ -74,6 +77,7 @@ async def test_grant_updates_agent_pollen_and_persists_rows() -> None:
     assert agent.pollen_points == 12.5
     assert session.add.call_count == 2
     session.flush.assert_awaited_once()
+    record.assert_awaited_once()
 
 
 @pytest.mark.asyncio

@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Float, ForeignKey, String
+from sqlalchemy import Boolean, Float, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base, TimestampMixin
@@ -30,6 +30,7 @@ class PollenReward(Base, TimestampMixin):
     )
     amount: Mapped[float] = mapped_column(Float, nullable=False)
     reason: Mapped[str] = mapped_column(String(500), nullable=False)
+    verified_reward: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     source_agent_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("agents.id"),
         nullable=True,

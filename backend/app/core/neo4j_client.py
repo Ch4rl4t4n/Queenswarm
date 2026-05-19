@@ -160,6 +160,31 @@ async def record_imitation(copier_id: str, copied_id: str, recipe_id: str) -> No
         )
 
 
+async def count_imitation_edges_by_recipes(recipe_ids: list[str]) -> dict[str, int]:
+    """Return Neo4j IMITATED edge counts keyed by ``recipe_id`` string."""
+
+    if not recipe_ids:
+        return {}
+    driver = await get_neo4j_driver()
+    cypher = """
+    MATCH ()-[r:IMITATED]->()
+    WHERE r.recipe_id IN $recipe_ids
+    RETURN r.recipe_id AS recipe_id, count(r) AS edge_count
+    """
+    try:
+        async with driver.session() as session:
+            result = await session.run(cypher, recipe_ids=recipe_ids)
+            counts: dict[str, int] = {}
+            async for record in result:
+                rid = record.get("recipe_id")
+                if rid is None:
+                    continue
+                counts[str(rid)] = int(record.get("edge_count") or 0)
+            return counts
+    except Neo4jError:
+        return {}
+
+
 async def close_neo4j() -> None:
     """Close the Neo4j driver during FastAPI shutdown."""
 

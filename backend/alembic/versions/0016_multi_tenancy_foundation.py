@@ -13,16 +13,31 @@ depends_on = None
 
 
 def _add_tenant_column(table_name: str) -> None:
-    op.add_column(table_name, sa.Column("tenant_id", postgresql.UUID(as_uuid=True), nullable=True))
-    op.create_index(f"ix_{table_name}_tenant_id", table_name, ["tenant_id"], unique=False)
-    op.create_foreign_key(
-        f"fk_{table_name}_tenant_id",
-        table_name,
-        "tenants",
-        ["tenant_id"],
-        ["id"],
-        ondelete="SET NULL",
-    )
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if not inspector.has_table(table_name):
+        return
+
+    existing_columns = {col["name"] for col in inspector.get_columns(table_name)}
+    if "tenant_id" not in existing_columns:
+        op.add_column(table_name, sa.Column("tenant_id", postgresql.UUID(as_uuid=True), nullable=True))
+
+    existing_indexes = {idx["name"] for idx in inspector.get_indexes(table_name)}
+    index_name = f"ix_{table_name}_tenant_id"
+    if index_name not in existing_indexes:
+        op.create_index(index_name, table_name, ["tenant_id"], unique=False)
+
+    existing_fks = {fk.get("name") for fk in inspector.get_foreign_keys(table_name)}
+    fk_name = f"fk_{table_name}_tenant_id"
+    if fk_name not in existing_fks:
+        op.create_foreign_key(
+            fk_name,
+            table_name,
+            "tenants",
+            ["tenant_id"],
+            ["id"],
+            ondelete="SET NULL",
+        )
 
 
 def upgrade() -> None:
@@ -130,9 +145,21 @@ def downgrade() -> None:
         "supervisor_sessions",
         "tasks",
     ):
-        op.drop_constraint(f"fk_{table_name}_tenant_id", table_name, type_="foreignkey")
-        op.drop_index(f"ix_{table_name}_tenant_id", table_name=table_name)
-        op.drop_column(table_name, "tenant_id")
+        bind = op.get_bind()
+        inspector = sa.inspect(bind)
+        if not inspector.has_table(table_name):
+            continue
+        existing_fks = {fk.get("name") for fk in inspector.get_foreign_keys(table_name)}
+        fk_name = f"fk_{table_name}_tenant_id"
+        if fk_name in existing_fks:
+            op.drop_constraint(fk_name, table_name, type_="foreignkey")
+        existing_indexes = {idx["name"] for idx in inspector.get_indexes(table_name)}
+        index_name = f"ix_{table_name}_tenant_id"
+        if index_name in existing_indexes:
+            op.drop_index(index_name, table_name=table_name)
+        existing_columns = {col["name"] for col in inspector.get_columns(table_name)}
+        if "tenant_id" in existing_columns:
+            op.drop_column(table_name, "tenant_id")
 
     op.drop_constraint("fk_dashboard_users_active_tenant_id", "dashboard_users", type_="foreignkey")
     op.drop_index("ix_dashboard_users_active_tenant_id", table_name="dashboard_users")

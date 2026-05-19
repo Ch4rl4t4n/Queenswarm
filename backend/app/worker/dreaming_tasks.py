@@ -6,6 +6,8 @@ import asyncio
 import uuid
 from typing import Any
 
+from sqlalchemy import select
+
 from app.application.services.dreamer_service import DreamerService
 from app.core.config import settings
 from app.core.database import async_session
@@ -13,6 +15,7 @@ from app.core.llm_router import LiteLLMRouter
 from app.core.logging import get_logger
 from app.core.neo4j_client import get_neo4j_driver
 from app.core.redis_client import release_distributed_lock, try_acquire_distributed_lock
+from app.infrastructure.persistence.models.tenant import Tenant
 from app.infrastructure.vectorstore.factory import get_vector_backend
 from app.worker.celery_app import celery_app
 
@@ -47,12 +50,13 @@ class _DreamChromaAdapter:
         await self.add(collection=collection, ids=ids, documents=documents, metadatas=metadatas)
 
 
-@celery_app.task(name="app.worker.tasks.dreaming_tasks.dreaming_nightly_cycle", bind=True, max_retries=2, queue="hive")
-def dreaming_nightly_cycle(self) -> dict[str, Any]:  # noqa: ANN001
-    """Run one dream cycle with Redis overlap lock and retry on transient failures."""
+@celery_app.task(name="app.worker.tasks.dreaming_tasks.run_memory_dreaming", bind=True, max_retries=2, queue="hive")
+def run_memory_dreaming(self, tenant_id: str) -> dict[str, Any]:  # noqa: ANN001
+    """Run one tenant-scoped memory dreaming cycle."""
 
-    lock_name = "lock:dreaming"
+    lock_name = f"lock:dreaming:{tenant_id}"
     lock_owner = str(uuid.uuid4())
+    tenant_uuid = uuid.UUID(str(tenant_id))
 
     async def _run() -> dict[str, Any]:
         acquired = await try_acquire_distributed_lock(lock_name, owner=lock_owner, ttl_sec=7200)
@@ -72,8 +76,16 @@ def dreaming_nightly_cycle(self) -> dict[str, Any]:  # noqa: ANN001
                 litellm_router=LiteLLMRouter(),
                 logger_instance=logger,
             )
-            cycle = await service.run_cycle(window_hours=settings.dreaming_window_hours)
-            return {"status": cycle.status.value, "cycle_id": str(cycle.id), "items_consolidated": cycle.items_consolidated}
+            cycle = await service.run_cycle(
+                tenant_id=tenant_uuid,
+                window_hours=settings.dreaming_window_hours,
+            )
+            return {
+                "status": cycle.status.value,
+                "tenant_id": str(tenant_uuid),
+                "cycle_id": str(cycle.id),
+                "items_consolidated": cycle.items_consolidated,
+            }
         finally:
             await release_distributed_lock(lock_name, owner=lock_owner)
 
@@ -86,4 +98,31 @@ def dreaming_nightly_cycle(self) -> dict[str, Any]:  # noqa: ANN001
         raise self.retry(exc=exc, countdown=120 * (retries + 1))
 
 
-__all__ = ["dreaming_nightly_cycle"]
+@celery_app.task(name="app.worker.tasks.dreaming_tasks.schedule_memory_dreaming", queue="hive")
+def schedule_memory_dreaming() -> dict[str, Any]:
+    """Enqueue tenant-scoped memory dreaming runs."""
+
+    async def _run() -> dict[str, Any]:
+        queued = 0
+        skipped = 0
+        async with async_session() as session:
+            tenants = list((await session.scalars(select(Tenant).where(Tenant.status == "active"))).all())
+            for tenant in tenants:
+                if tenant.id is None:
+                    skipped += 1
+                    continue
+                run_memory_dreaming.delay(str(tenant.id))
+                queued += 1
+        return {"queued": queued, "skipped": skipped}
+
+    return asyncio.run(_run())
+
+
+@celery_app.task(name="app.worker.tasks.dreaming_tasks.dreaming_nightly_cycle", queue="hive")
+def dreaming_nightly_cycle() -> dict[str, Any]:
+    """Backward-compatible alias for nightly scheduler task name."""
+
+    return schedule_memory_dreaming()
+
+
+__all__ = ["run_memory_dreaming", "schedule_memory_dreaming", "dreaming_nightly_cycle"]

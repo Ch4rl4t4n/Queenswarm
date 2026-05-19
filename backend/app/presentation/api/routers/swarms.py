@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import secrets
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -40,6 +41,8 @@ from app.application.services.sub_swarm_catalog import (
     fetch_sub_swarm,
     list_sub_swarms,
 )
+from app.application.services.hive_md_generator import generate_swarm_hive_md
+from app.common.schemas.skill_export import HiveMdResponse
 
 router = APIRouter(tags=["Swarms"])
 
@@ -145,6 +148,45 @@ async def create_sub_swarm_colony(
             detail="Persistence rejected sub-swarm insert.",
         )
     return row
+
+
+@router.get(
+    "/{swarm_id}/hive-md",
+    response_model=HiveMdResponse,
+    summary="Generate HIVE.md for a sub-swarm colony",
+)
+async def get_sub_swarm_hive_md(
+    swarm_id: uuid.UUID,
+    db: DbSession,
+    _subject: JwtSubject,
+) -> HiveMdResponse:
+    """Auto-generate HIVE.md from swarm goals, rules, and local memory."""
+
+    from app.infrastructure.persistence.models.swarm import SubSwarm
+
+    try:
+        row = await db.get(SubSwarm, swarm_id)
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected sub-swarm lookup.",
+        )
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sub-swarm not found.")
+
+    content = generate_swarm_hive_md(row)
+    return HiveMdResponse(
+        swarm_id=row.id,
+        swarm_name=row.name,
+        content=content,
+        generated_at=datetime.now(tz=UTC),
+        extras={
+            "purpose": row.purpose.value,
+            "member_count": row.member_count,
+            "total_pollen": row.total_pollen,
+            "needs_sync": row.needs_sync,
+        },
+    )
 
 
 @router.get(

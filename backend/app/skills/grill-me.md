@@ -1,3 +1,11 @@
+---
+version: 1.1.0
+priority: 85
+roles: [critic, researcher]
+keywords: [grill, adversarial, review, assumptions, verification]
+source: queenswarm.love
+---
+
 # Grill Me
 
 Purpose: Challenge assumptions and surface weak points before execution.

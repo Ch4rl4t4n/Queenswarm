@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
+from typing import Any
 
 
 class DreamCycleStatus(StrEnum):
@@ -21,12 +22,14 @@ class DreamCycle:
     """Domain representation of one nightly consolidation run."""
 
     id: UUID
+    tenant_id: UUID
     started_at: datetime
     finished_at: datetime | None
     items_processed: int
     items_deduplicated: int
     items_consolidated: int
     digest_md: str
+    dream_report: dict[str, Any]
     status: DreamCycleStatus
 
 

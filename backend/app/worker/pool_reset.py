@@ -20,6 +20,18 @@ def _reset_pools_after_prefork(**_kwargs: object) -> None:
     boundary, which surfaces as ``InterfaceError: another operation is in progress``.
     """
 
+    from app.core.logging import configure_logging
+    from app.core.observability import configure_observability
+    from app.core.config import settings
+
+    configure_logging(
+        level=settings.log_level,
+        service_name=settings.log_service_name,
+        environment=settings.log_environment,
+        instance_id=settings.instance_id,
+    )
+    configure_observability()
+
     async def _purge() -> None:
         from app.core.database import async_engine
         from app.core.neo4j_client import close_neo4j

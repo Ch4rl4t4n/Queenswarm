@@ -1,4 +1,4 @@
-"""Dashoard-stored LLM secrets: Fernet-encrypted in Postgres, cached + mirrored to process env."""
+"""Dashboard-stored provider secrets cached from encrypted Postgres vault."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from app.infrastructure.persistence.models.hive_llm_secret import HiveLlmSecret
 
 logger = get_logger(__name__)
 
-_ALLOWED: Final[frozenset[str]] = frozenset({"grok", "anthropic", "openai"})
+_ALLOWED: Final[frozenset[str]] = frozenset({"grok", "anthropic", "openai", "deepgram", "elevenlabs"})
 
 _cache: dict[str, str] = {}
 
@@ -32,7 +32,7 @@ def get_cached_llm_key(provider: str) -> str | None:
 
 
 def apply_llm_cache_to_environ() -> None:
-    """Mirror effective credentials into ``os.environ`` for LiteLLM (this process only)."""
+    """Mirror effective credentials into ``os.environ`` for runtime clients (process only)."""
 
     g_v = get_cached_llm_key("grok")
     g_e = (settings.grok_api_key or "").strip()
@@ -63,6 +63,24 @@ def apply_llm_cache_to_environ() -> None:
         os.environ["OPENAI_API_KEY"] = o_e
     else:
         os.environ.pop("OPENAI_API_KEY", None)
+
+    d_v = get_cached_llm_key("deepgram")
+    d_e = (settings.deepgram_api_key or "").strip()
+    if d_v:
+        os.environ["DEEPGRAM_API_KEY"] = d_v
+    elif d_e:
+        os.environ["DEEPGRAM_API_KEY"] = d_e
+    else:
+        os.environ.pop("DEEPGRAM_API_KEY", None)
+
+    e_v = get_cached_llm_key("elevenlabs")
+    e_e = (settings.elevenlabs_api_key or "").strip()
+    if e_v:
+        os.environ["ELEVENLABS_API_KEY"] = e_v
+    elif e_e:
+        os.environ["ELEVENLABS_API_KEY"] = e_e
+    else:
+        os.environ.pop("ELEVENLABS_API_KEY", None)
 
 
 async def refresh_llm_secret_cache(session: AsyncSession) -> None:
@@ -161,12 +179,26 @@ def provider_effective_openai() -> str:
     return ""
 
 
+def provider_effective_deepgram() -> str:
+    """Return non-empty Deepgram material when configured."""
+
+    return (get_cached_llm_key("deepgram") or (settings.deepgram_api_key or "")).strip()
+
+
+def provider_effective_elevenlabs() -> str:
+    """Return non-empty ElevenLabs material when configured."""
+
+    return (get_cached_llm_key("elevenlabs") or (settings.elevenlabs_api_key or "")).strip()
+
+
 __all__ = [
     "apply_llm_cache_to_environ",
     "delete_llm_provider_secret",
     "get_cached_llm_key",
     "persist_llm_provider_secret",
     "provider_effective_anthropic",
+    "provider_effective_deepgram",
+    "provider_effective_elevenlabs",
     "provider_effective_grok",
     "provider_effective_openai",
     "refresh_llm_secret_cache",

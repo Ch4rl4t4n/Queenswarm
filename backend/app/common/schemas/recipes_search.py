@@ -16,7 +16,19 @@ class RecipeSemanticHit(BaseModel):
     model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
 
     chroma_document_id: str = Field(description="Stable Chroma embedding row id.")
-    similarity: float = Field(ge=0.0, le=1.0, description="1 - cosine distance.")
+    similarity: float = Field(ge=0.0, le=1.0, description="Hybrid score when enabled, else vector cosine.")
+    vector_similarity: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Raw vector cosine similarity before graph blending.",
+    )
+    graph_score: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Postgres imitation + success-rate graph signal.",
+    )
     distance: float | None = Field(
         default=None,
         description="Raw Chroma distance when provided by the cluster.",

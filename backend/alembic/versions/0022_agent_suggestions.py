@@ -9,7 +9,7 @@ from sqlalchemy.dialects import postgresql
 revision = "0022_agent_suggestions"
 down_revision = "0021_memory_evolution_proposals"
 branch_labels = None
-depends_on = None
+depends_on = "0018_supervisor_routines"
 
 
 def upgrade() -> None:

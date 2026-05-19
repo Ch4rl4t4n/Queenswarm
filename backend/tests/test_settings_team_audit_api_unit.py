@@ -40,7 +40,7 @@ async def test_settings_team_audit_logs_when_owner_returns_rows(restore_app_over
         target_type="dashboard_user",
         target_ref=str(actor_id),
         actor_user_id=actor_id,
-        payload={"source": "self-service"},
+        payload={"source": "self-service", "ip": "10.0.0.42"},
         created_at=datetime.now(tz=UTC),
     )
 
@@ -69,4 +69,5 @@ async def test_settings_team_audit_logs_when_owner_returns_rows(restore_app_over
     body = res.json()
     assert len(body) == 1
     assert body[0]["action"] == "password_changed"
+    assert body[0]["payload"]["ip"] == "10.0.0.42"
 

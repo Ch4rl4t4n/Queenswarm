@@ -9,7 +9,7 @@ from sqlalchemy.dialects import postgresql
 revision = "0026_supervisor_sessions_tenant_hotfix"
 down_revision = "0025_dynamic_connectors_tenant_hotfix"
 branch_labels = None
-depends_on = None
+depends_on = "0018_supervisor_routines"
 
 
 def upgrade() -> None:
@@ -17,6 +17,8 @@ def upgrade() -> None:
 
     bind = op.get_bind()
     inspector = sa.inspect(bind)
+    if not inspector.has_table("supervisor_sessions"):
+        return
 
     existing_columns = {col["name"] for col in inspector.get_columns("supervisor_sessions")}
     if "tenant_id" not in existing_columns:

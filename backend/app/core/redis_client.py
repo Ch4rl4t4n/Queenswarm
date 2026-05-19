@@ -358,6 +358,13 @@ async def subscribe_channel(channel: str) -> AsyncIterator[dict[str, Any]]:
         await client.aclose()
 
 
+async def iter_pubsub_json(channel: str) -> AsyncIterator[dict[str, Any]]:
+    """Backward-compatible JSON pub/sub iterator for legacy callers."""
+
+    async for payload in subscribe_channel(channel):
+        yield payload
+
+
 async def store_dashboard_refresh(token: str, user_id_text: str, ttl_sec: int) -> None:
     """Persist a refresh token fingerprint → dashboard user UUID mapping."""
 
@@ -477,3 +484,30 @@ async def read_minute_counter_sum(metric: str, *, last_minutes: int) -> int:
         except (TypeError, ValueError):
             continue
     return total
+
+
+async def zset_increment(key: str, member: str, amount: float, *, ttl_sec: int | None = None) -> float:
+    """Increment a sorted-set member score and optionally refresh key TTL."""
+
+    async def _op(client: Redis) -> float:
+        score = float(await client.zincrby(key, amount, member))
+        if ttl_sec is not None and ttl_sec > 0:
+            await client.expire(key, ttl_sec)
+        return score
+
+    return float(await _with_redis_client(_op))
+
+
+async def zset_top(key: str, *, limit: int = 20) -> list[tuple[str, float]]:
+    """Return top members by descending score from a Redis sorted set."""
+
+    capped = max(1, min(limit, 200))
+
+    async def _op(client: Redis) -> list[tuple[str, float]]:
+        raw = await client.zrevrange(key, 0, capped - 1, withscores=True)
+        out: list[tuple[str, float]] = []
+        for member, score in raw:
+            out.append((str(member), float(score)))
+        return out
+
+    return await _with_redis_client(_op)

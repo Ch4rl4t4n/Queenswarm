@@ -393,6 +393,34 @@ async def run_due_routines_tick(db: AsyncSession) -> dict[str, int]:
     skipped = 0
     for row in due:
         try:
+            routine_kind = str((row.context_payload or {}).get("routine_kind") or "").strip().lower()
+            if routine_kind == "memory_dreaming":
+                if row.tenant_id is None:
+                    skipped += 1
+                    continue
+                from app.worker.celery_app import celery_app
+
+                celery_app.send_task(
+                    "app.worker.tasks.dreaming_tasks.run_memory_dreaming",
+                    args=[str(row.tenant_id)],
+                )
+                now = datetime.now(tz=UTC)
+                row.last_run_at = now
+                row.next_run_at = compute_next_run_at(
+                    now=now,
+                    schedule_kind="interval",
+                    interval_seconds=row.interval_seconds or (settings.dreaming_default_interval_hours * 3600),
+                    cron_expr=None,
+                )
+                row.last_error = None
+                row.status = "scheduled"
+                payload = _append_run_history(
+                    context_payload=dict(row.context_payload or {}),
+                    entry={"ran_at": now.isoformat(), "status": "triggered", "kind": "memory_dreaming"},
+                )
+                row.context_payload = consolidate_routine_memory(context_payload=payload)
+                queued += 1
+                continue
             if str(row.schedule_kind or "") == "event":
                 triggered, payload = await should_trigger_event_routine(db, routine=row)
                 now = datetime.now(tz=UTC)

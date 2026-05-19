@@ -20,7 +20,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from redis.exceptions import RedisError
 from starlette.responses import Response
 
-from app.common.http.rate_limit import rate_limited_http_exception
+from app.common.http.rate_limit import rate_limited_http_exception, rate_limit_unavailable_http_exception
 from app.common.http.security_headers import apply_no_store_cache_headers
 from app.presentation.api.deps import DashboardAdmin, DashboardSession, DbSession, JwtSubject
 from app.core.config import settings
@@ -276,6 +276,10 @@ async def dashboard_login(body: LoginRequest, db: DbSession, request: Request, r
                 error=str(exc),
                 peer=peer,
             )
+            if settings.production_security_mode:
+                raise rate_limit_unavailable_http_exception(
+                    window_sec=settings.rate_limit_login_window_sec,
+                ) from exc
             login_ok = True
             identity_ok = True
         if not login_ok or not identity_ok:
@@ -499,6 +503,7 @@ async def dashboard_switch_tenant(
     sess: DashboardSession,
     db: DbSession,
     response: Response,
+    request: Request,
 ) -> _TokenBundle:
     """Switch tenant when membership exists, then mint fresh scoped token pair."""
 
@@ -510,6 +515,7 @@ async def dashboard_switch_tenant(
         await _safe_tenant_audit(
             db,
             user=user,
+            request=request,
             action="tenant_switched",
             target_type="tenant",
             target_ref=str(tenant.id),
@@ -592,9 +598,11 @@ async def _safe_tenant_audit(
     target_type: str,
     target_ref: str,
     payload: dict[str, object] | None = None,
+    request: Request | None = None,
 ) -> None:
     """Persist tenant-scoped audit entry without breaking primary API flow."""
 
+    client_ip = peer_ip_for_rate_limit(request) if request is not None else None
     try:
         membership = await get_active_membership(db, user=user)
         if membership is None:
@@ -607,6 +615,7 @@ async def _safe_tenant_audit(
             target_type=target_type,
             target_ref=target_ref,
             payload=payload,
+            client_ip=client_ip,
         )
     except Exception as exc:  # noqa: BLE001 - audit side-channel must never break auth flow
         logger.warning(
@@ -669,6 +678,47 @@ async def dashboard_me_detail(sess: DashboardSession, db: DbSession) -> MeDetail
     )
 
 
+class SessionPolicyResponse(BaseModel):
+    """Read-only deployment session guardrails surfaced to dashboard operators."""
+
+    model_config = ConfigDict(from_attributes=False)
+
+    access_token_expire_minutes: int
+    refresh_token_expire_days: int
+    rate_limit_enabled: bool
+    rate_limit_requests: int
+    rate_limit_window_sec: float
+    oauth_state_ttl_sec: int
+    production_security_mode: bool
+    two_fa_enabled: bool
+    editable: bool = False
+
+
+@router.get("/session-policy", summary="Read-only JWT, refresh, and rate-limit guardrails")
+async def dashboard_session_policy(_sess: DashboardSession) -> SessionPolicyResponse:
+    """Return effective session policy for the signed-in operator's deployment."""
+
+    user_limits_active = settings.rate_limit_user_enabled or settings.production_security_mode
+    if user_limits_active:
+        rate_requests = settings.rate_limit_user_sustain_max
+        rate_window = settings.rate_limit_user_sustain_window_sec
+    else:
+        rate_requests = settings.rate_limit_sustain_max
+        rate_window = settings.rate_limit_sustain_window_sec
+
+    return SessionPolicyResponse(
+        access_token_expire_minutes=settings.access_token_expire_minutes,
+        refresh_token_expire_days=settings.refresh_token_expire_days,
+        rate_limit_enabled=settings.rate_limit_enabled,
+        rate_limit_requests=rate_requests,
+        rate_limit_window_sec=rate_window,
+        oauth_state_ttl_sec=settings.oauth_state_ttl_sec,
+        production_security_mode=settings.production_security_mode,
+        two_fa_enabled=bool(settings.enable_2fa or settings.security_2fa_advanced_enabled),
+        editable=False,
+    )
+
+
 class ProfilePatchBody(BaseModel):
     model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
 
@@ -696,6 +746,7 @@ async def dashboard_change_password(
     body: ChangePasswordBody,
     sess: DashboardSession,
     db: DbSession,
+    request: Request,
 ) -> ChangePasswordResponse:
     """Update password hash after validating the current password."""
 
@@ -713,6 +764,7 @@ async def dashboard_change_password(
         await _safe_tenant_audit(
             db,
             user=user,
+            request=request,
             action="password_changed",
             target_type="dashboard_user",
             target_ref=str(user.id),
@@ -1006,6 +1058,7 @@ async def vault_set_llm_provider_secret(
     body: LlmVaultRotateBody,
     sess: DashboardSession,
     db: DbSession,
+    request: Request,
 ) -> dict[str, bool]:
     user = await _current_dashboard_user(sess, db)
     if provider != "grok" and not user.is_admin:
@@ -1014,6 +1067,7 @@ async def vault_set_llm_provider_secret(
         await _safe_tenant_audit(
             db,
             user=user,
+            request=request,
             action="llm_secret_rotated",
             target_type="llm_provider",
             target_ref=provider,
@@ -1049,6 +1103,7 @@ async def vault_clear_llm_provider_secret(
     provider: Literal["grok", "anthropic", "openai"],
     sess: DashboardSession,
     db: DbSession,
+    request: Request,
 ) -> Response:
     user = await _current_dashboard_user(sess, db)
     if provider != "grok" and not user.is_admin:
@@ -1057,6 +1112,7 @@ async def vault_clear_llm_provider_secret(
         await _safe_tenant_audit(
             db,
             user=user,
+            request=request,
             action="llm_secret_cleared",
             target_type="llm_provider",
             target_ref=provider,
@@ -1118,6 +1174,7 @@ async def profile_totp_provision(
     sess: DashboardSession,
     db: DbSession,
     response: Response,
+    request: Request,
 ) -> TwoFAProvisionResponse:
     _ensure_2fa_advanced_enabled()
     user = await _current_dashboard_user(sess, db)
@@ -1134,6 +1191,7 @@ async def profile_totp_provision(
         await _safe_tenant_audit(
             db,
             user=user,
+            request=request,
             action="totp_provisioned",
             target_type="dashboard_user",
             target_ref=str(user.id),
@@ -1163,7 +1221,13 @@ class TotpConfirmResponse(BaseModel):
     summary="Finalize authenticator enrollment with a numeric OTP",
     response_model=TotpConfirmResponse,
 )
-async def profile_totp_confirm(body: TotpCodeBody, sess: DashboardSession, db: DbSession, response: Response) -> TotpConfirmResponse:
+async def profile_totp_confirm(
+    body: TotpCodeBody,
+    sess: DashboardSession,
+    db: DbSession,
+    response: Response,
+    request: Request,
+) -> TotpConfirmResponse:
     _ensure_2fa_advanced_enabled()
     user = await _current_dashboard_user(sess, db)
     if user.totp_secret is None:
@@ -1186,6 +1250,7 @@ async def profile_totp_confirm(body: TotpCodeBody, sess: DashboardSession, db: D
         await _safe_tenant_audit(
             db,
             user=user,
+            request=request,
             action="totp_confirmed",
             target_type="dashboard_user",
             target_ref=str(user.id),
@@ -1209,6 +1274,7 @@ async def profile_totp_backup_regenerate(
     sess: DashboardSession,
     db: DbSession,
     response: Response,
+    request: Request,
 ) -> dict[str, list[str]]:
     _ensure_2fa_advanced_enabled()
     user = await _current_dashboard_user(sess, db)
@@ -1227,6 +1293,7 @@ async def profile_totp_backup_regenerate(
         await _safe_tenant_audit(
             db,
             user=user,
+            request=request,
             action="totp_backup_codes_regenerated",
             target_type="dashboard_user",
             target_ref=str(user.id),
@@ -1248,7 +1315,12 @@ async def profile_totp_backup_regenerate(
 
 
 @router.post("/profile/totp/disable", summary="Strip authenticator enrollment after verifying password")
-async def profile_totp_disable(body: PasswordConfirmBody, sess: DashboardSession, db: DbSession) -> MeDetailResponse:
+async def profile_totp_disable(
+    body: PasswordConfirmBody,
+    sess: DashboardSession,
+    db: DbSession,
+    request: Request,
+) -> MeDetailResponse:
     _ensure_2fa_advanced_enabled()
     user = await _current_dashboard_user(sess, db)
     if not verify_dashboard_password(body.password, user.password_hash):
@@ -1264,6 +1336,7 @@ async def profile_totp_disable(body: PasswordConfirmBody, sess: DashboardSession
         await _safe_tenant_audit(
             db,
             user=user,
+            request=request,
             action="totp_disabled",
             target_type="dashboard_user",
             target_ref=str(user.id),
@@ -1337,6 +1410,7 @@ async def create_dashboard_api_credential_route(
     sess: DashboardSession,
     db: DbSession,
     response: Response,
+    request: Request,
 ) -> ApiKeyMinted:
     _ensure_api_key_management_enabled()
     user = await _current_dashboard_user(sess, db)
@@ -1350,6 +1424,7 @@ async def create_dashboard_api_credential_route(
         await _safe_tenant_audit(
             db,
             user=user,
+            request=request,
             action="api_key_created",
             target_type="dashboard_api_key",
             target_ref=str(row.id),
@@ -1383,6 +1458,7 @@ async def revoke_dashboard_api_credential_route(
     key_id: uuid.UUID,
     sess: DashboardSession,
     db: DbSession,
+    request: Request,
 ) -> Response:
     _ensure_api_key_management_enabled()
     user = await _current_dashboard_user(sess, db)
@@ -1457,7 +1533,7 @@ async def admin_create_dashboard_user(body: DashboardUserCreate, db: DbSession, 
 
 
 @router.post("/2fa/setup", summary="Administrators regenerate TOTP material for their login")
-async def setup_totp(sess: DashboardSession, db: DbSession, response: Response) -> TwoFAProvisionResponse:
+async def setup_totp(sess: DashboardSession, db: DbSession, response: Response, request: Request) -> TwoFAProvisionResponse:
     _ensure_2fa_advanced_enabled()
     scopes_raw = str(sess.get("scope", ""))
     if "dash:admin" not in scopes_raw.split():
@@ -1468,6 +1544,7 @@ async def setup_totp(sess: DashboardSession, db: DbSession, response: Response) 
     await _safe_tenant_audit(
         db,
         user=row,
+        request=request,
         action="totp_admin_setup",
         target_type="dashboard_user",
         target_ref=str(row.id),

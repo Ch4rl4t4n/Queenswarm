@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from redis.exceptions import RedisError
 
-from app.common.http.rate_limit import rate_limited_http_exception
+from app.common.http.rate_limit import rate_limited_http_exception, rate_limit_unavailable_http_exception
 from app.common.http.security_headers import apply_no_store_cache_headers
 from app.core.config import settings
 from app.core.jwt_tokens import create_access_token
@@ -89,6 +89,10 @@ async def exchange_machine_token(
                 error=str(exc),
                 peer=peer,
             )
+            if settings.production_security_mode:
+                raise rate_limit_unavailable_http_exception(
+                    window_sec=settings.rate_limit_token_exchange_window_sec,
+                ) from exc
             token_ok = True
         if not token_ok:
             raise rate_limited_http_exception(

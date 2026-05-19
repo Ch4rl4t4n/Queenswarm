@@ -11,6 +11,7 @@ def test_openapi_includes_dashboard_me_and_connectors() -> None:
     paths = app.openapi().get("paths") or {}
     assert "/api/v1/auth/me" in paths
     assert "/api/v1/auth/me/password" in paths
+    assert "/api/v1/auth/session-policy" in paths
     assert "/api/v1/agents/sessions" in paths
     assert "/api/v1/agents/sessions/summary" in paths
     assert "/api/v1/agents/sessions/{session_id}/events" in paths

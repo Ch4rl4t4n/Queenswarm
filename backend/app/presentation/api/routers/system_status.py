@@ -23,7 +23,7 @@ from app.application.services.llm_runtime_credentials import (
 from app.infrastructure.persistence.models.agent import Agent
 from app.infrastructure.persistence.models.enums import AgentStatus, TaskStatus, TaskType
 from app.infrastructure.persistence.models.task import Task
-from app.worker.celery_app import celery_app
+from app.core.celery_health import inspect_celery_workers
 
 logger = get_logger(__name__)
 
@@ -37,6 +37,9 @@ class SystemStatusPayload(BaseModel):
 
     redis_ok: bool = Field(description="Primary Redis cache / rate-limit socket healthy.")
     celery_ok: bool = Field(description="At least one Celery consumer answered a control ping.")
+    celery_workers_up: int = Field(default=0, ge=0)
+    celery_active_tasks: int = Field(default=0, ge=0)
+    celery_reserved_tasks: int = Field(default=0, ge=0)
     db_ok: bool = Field(description="Postgres accepted a trivial ``SELECT 1`` probe.")
     llm_ok: bool = Field(description="At least one LiteLLM provider credential is non-empty.")
     llm_grok: bool = Field(default=False, description="Grok credential present.")
@@ -173,18 +176,10 @@ def _host_pressure() -> tuple[float, float, float, bool, str]:
     return cpu, mem, disk, pressure, reason
 
 
-def _celery_workers_respond() -> bool:
-    """Return ``True`` when ``inspect.ping`` sees an active consumer."""
+def _celery_snapshot() -> dict[str, int | bool | str]:
+    """Return Celery inspect snapshot for dashboards."""
 
-    try:
-        inspector = celery_app.control.inspect(timeout=1.5)
-        if inspector is None:
-            return False
-        ping: dict[str, Any] | None = inspector.ping()
-        return bool(ping)
-    except Exception as exc:  # noqa: BLE001 — defensive operator surface
-        logger.warning("system.status.celery_inspect_failed", error=str(exc))
-        return False
+    return inspect_celery_workers()
 
 
 @router.get(
@@ -210,7 +205,8 @@ async def read_system_status(_subject: JwtSubject) -> SystemStatusPayload:
         except Exception as exc:  # noqa: BLE001
             logger.warning("system.status.db_direct_failed", error=str(exc))
 
-    celery_ok = await asyncio.to_thread(_celery_workers_respond)
+    celery_snapshot = await asyncio.to_thread(_celery_snapshot)
+    celery_ok = bool(celery_snapshot.get("ok"))
     llm_ok, grok_ok, anth_ok = _llm_flags()
     cpu_pct, mem_pct, disk_pct, pressure, pressure_reason = await asyncio.to_thread(_host_pressure)
     limiter = llm_concurrency_snapshot()
@@ -227,6 +223,9 @@ async def read_system_status(_subject: JwtSubject) -> SystemStatusPayload:
     return SystemStatusPayload(
         redis_ok=redis_ok,
         celery_ok=celery_ok,
+        celery_workers_up=int(celery_snapshot.get("workers_up") or 0),
+        celery_active_tasks=int(celery_snapshot.get("active_tasks") or 0),
+        celery_reserved_tasks=int(celery_snapshot.get("reserved_tasks") or 0),
         db_ok=db_second_opinion,
         llm_ok=llm_ok,
         llm_grok=grok_ok,

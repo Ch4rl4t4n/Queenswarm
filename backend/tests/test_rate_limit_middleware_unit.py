@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable
 from unittest.mock import AsyncMock
 
 import pytest
+from redis.exceptions import RedisError
 from starlette.requests import Request
 from starlette.responses import Response
 
@@ -157,3 +158,28 @@ async def test_rate_limit_middleware_when_user_endpoint_limited_sets_user_window
     response = await middleware.dispatch(request, call_next)
     assert response.status_code == 429
     assert response.headers.get("Retry-After") == "45"
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_middleware_when_redis_fails_and_production_mode_blocks_request(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Production hardening must fail closed when Redis limiter is unavailable."""
+
+    monkeypatch.setattr(settings, "rate_limit_enabled", True)
+    monkeypatch.setattr(settings, "production_security_mode", True)
+
+    async def raise_redis(*args: object, **kwargs: object) -> bool:  # noqa: ARG002
+        raise RedisError("redis unavailable")
+
+    monkeypatch.setattr(rate_limit_middleware, "sliding_window_reserve", raise_redis)
+
+    middleware = RateLimitMiddleware(app=lambda scope, receive, send: None)
+    request = _request(path="/api/v1/workflows")
+
+    async def call_next(_: Request) -> Response:
+        return Response(status_code=200)
+
+    response = await middleware.dispatch(request, call_next)
+    assert response.status_code == 503
+    assert response.headers.get("Retry-After") == "60"

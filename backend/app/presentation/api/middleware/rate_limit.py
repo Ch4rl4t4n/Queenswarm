@@ -5,14 +5,18 @@ from __future__ import annotations
 import hashlib
 import hmac
 import ipaddress
-from typing import ClassVar
+from typing import Annotated, Any, ClassVar
 
 from redis.exceptions import RedisError
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-from app.common.http.rate_limit import retry_after_header
+from app.common.http.rate_limit import (
+    rate_limit_redis_fail_closed,
+    rate_limit_unavailable_http_exception,
+    retry_after_header,
+)
 from app.core.config import settings
 from app.core.jwt_tokens import decode_jwt_optional_typ
 from app.core.logging import get_logger
@@ -157,6 +161,34 @@ def _rate_limited_response(detail: str, *, window_sec: float) -> JSONResponse:
     )
 
 
+def _rate_limit_unavailable_response(*, window_sec: float = 60.0) -> JSONResponse:
+    """Build standard 503 when Redis limiter is down and fail-closed policy applies."""
+
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Rate limit service unavailable. Retry later."},
+        headers=_retry_after_headers(window_sec),
+    )
+
+
+def _redis_limiter_degraded_response(
+    rl_log: Any,
+    *,
+    exc: RedisError,
+    peer: str,
+    event: str,
+    window_sec: float = 60.0,
+    **extra: object,
+) -> JSONResponse | None:
+    """Return 503 when fail-closed; otherwise log and allow the request through."""
+
+    if rate_limit_redis_fail_closed():
+        rl_log.error(event, error=str(exc), peer=peer, fail_closed=True, **extra)
+        return _rate_limit_unavailable_response(window_sec=window_sec)
+    rl_log.warning(event, error=str(exc), peer=peer, **extra)
+    return None
+
+
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Burst + sustained windows per client IP (hive defaults: 10/s burst, 100/min sustain)."""
 
@@ -207,7 +239,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 window_sec=settings.rate_limit_sustain_window_sec,
             )
         except RedisError as exc:
-            rl_log.warning("rate_limit.redis_degraded_allowing", error=str(exc), peer=ip_label)
+            blocked = _redis_limiter_degraded_response(
+                rl_log,
+                exc=exc,
+                peer=ip_label,
+                event="rate_limit.redis_degraded_allowing",
+            )
+            if blocked is not None:
+                return blocked
             return await call_next(request)
 
         if not burst_ok or not sustain_ok:
@@ -230,7 +269,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     window_sec=settings.rate_limit_agent_run_window_sec,
                 )
             except RedisError as exc:
-                rl_log.warning("rate_limit.redis_degraded_allowing", error=str(exc), peer=ip_label)
+                blocked = _redis_limiter_degraded_response(
+                    rl_log,
+                    exc=exc,
+                    peer=ip_label,
+                    event="rate_limit.redis_degraded_allowing",
+                    window_sec=settings.rate_limit_agent_run_window_sec,
+                )
+                if blocked is not None:
+                    return blocked
                 return await call_next(request)
             if not run_ok:
                 observe_rate_limit_block(scope="agent_run")
@@ -252,7 +299,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     window_sec=settings.rate_limit_task_create_window_sec,
                 )
             except RedisError as exc:
-                rl_log.warning("rate_limit.redis_degraded_allowing", error=str(exc), peer=ip_label)
+                blocked = _redis_limiter_degraded_response(
+                    rl_log,
+                    exc=exc,
+                    peer=ip_label,
+                    event="rate_limit.redis_degraded_allowing",
+                    window_sec=settings.rate_limit_task_create_window_sec,
+                )
+                if blocked is not None:
+                    return blocked
                 return await call_next(request)
             if not task_ok:
                 observe_rate_limit_block(scope="task_create")
@@ -283,12 +338,19 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                         window_sec=settings.rate_limit_user_endpoint_window_sec,
                     )
                 except RedisError as exc:
-                    rl_log.warning(
-                        "rate_limit.user_redis_degraded_allowing",
-                        error=str(exc),
+                    blocked = _redis_limiter_degraded_response(
+                        rl_log,
+                        exc=exc,
                         peer=ip_label,
+                        event="rate_limit.user_redis_degraded_allowing",
                         subject=sub_bucket,
+                        window_sec=max(
+                            settings.rate_limit_user_sustain_window_sec,
+                            settings.rate_limit_user_endpoint_window_sec,
+                        ),
                     )
+                    if blocked is not None:
+                        return blocked
                     return await call_next(request)
                 if not user_ok or not endpoint_ok:
                     observe_rate_limit_block(scope="user")

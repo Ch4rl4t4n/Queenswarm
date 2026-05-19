@@ -29,6 +29,19 @@ from app.common.schemas.learning import (
     ReflectionCreate,
     TaskReflectionRequest,
 )
+from app.common.schemas.skill_marketplace import VerifiedPollenLeaderboardRow
+from app.common.schemas.pending_review import (
+    PendingReviewItemRow,
+    PendingReviewResolveRequest,
+    PendingReviewStats,
+)
+from app.application.services.verified_pollen_leaderboard import fetch_verified_pollen_leaderboard
+from app.application.services.pending_review_service import (
+    fetch_pending_review_stats,
+    list_pending_review_items,
+    resolve_pending_review_item,
+)
+from app.infrastructure.persistence.models.enums import PendingReviewStatus
 from app.common.schemas.recipes_write import RecipeCreateBody
 from app.application.services.recipe_write import RecipeWriteConflictError, RecipeWritePayloadTooLargeError
 
@@ -140,6 +153,35 @@ async def list_exemplars(
         )
         for r in rows
     ]
+
+
+@router.get(
+    "/leaderboard/verified-pollen",
+    response_model=list[VerifiedPollenLeaderboardRow],
+    summary="Redis ZSET leaderboard for simulation-verified pollen",
+)
+async def list_verified_pollen_leaderboard(
+    db: DbSession,
+    _subject: JwtSubject,
+    limit: int = Query(default=20, ge=1, le=100),
+    swarm_id: uuid.UUID | None = Query(default=None, description="Optional sub-swarm filter."),
+) -> list[VerifiedPollenLeaderboardRow]:
+    """Return top bees ranked by verified pollen (simulation-gated rewards only)."""
+
+    _ensure_leaderboard_enabled()
+    if not settings.verified_pollen_leaderboard_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Verified pollen leaderboard is disabled.",
+        )
+    try:
+        rows = await fetch_verified_pollen_leaderboard(db, limit=limit, swarm_id=swarm_id)
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected leaderboard hydrate.",
+        )
+    return [VerifiedPollenLeaderboardRow.model_validate(row) for row in rows]
 
 
 @router.post(
@@ -313,6 +355,101 @@ async def autosave_recipe(
         )
 
     return {"recipe_id": str(recipe.id), "name": recipe.name}
+
+
+def _ensure_pending_review_enabled() -> None:
+    if not settings.pending_review_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Pending review queue is disabled.",
+        )
+
+
+@router.get(
+    "/pending-review/stats",
+    response_model=PendingReviewStats,
+    summary="Aggregate pending-review queue counts",
+)
+async def pending_review_stats(
+    db: DbSession,
+    _subject: JwtSubject,
+) -> PendingReviewStats:
+    """Return badge counts for operator dashboards."""
+
+    _ensure_pending_review_enabled()
+    try:
+        return await fetch_pending_review_stats(db)
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected pending-review stats.",
+        )
+
+
+@router.get(
+    "/pending-review",
+    response_model=list[PendingReviewItemRow],
+    summary="List operator pending-review items",
+)
+async def list_pending_review(
+    db: DbSession,
+    _subject: JwtSubject,
+    status_filter: PendingReviewStatus | None = Query(
+        default=PendingReviewStatus.PENDING,
+        alias="status",
+        description="Filter by review status (default: pending).",
+    ),
+    limit: int = Query(default=50, ge=1, le=200),
+) -> list[PendingReviewItemRow]:
+    """Return newest items awaiting human approval."""
+
+    _ensure_pending_review_enabled()
+    try:
+        rows = await list_pending_review_items(db, status=status_filter, limit=limit)
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected pending-review query.",
+        )
+    return [PendingReviewItemRow.model_validate(row) for row in rows]
+
+
+@router.post(
+    "/pending-review/{item_id}/resolve",
+    response_model=PendingReviewItemRow,
+    summary="Approve or reject a pending-review item",
+)
+async def resolve_pending_review(
+    item_id: uuid.UUID,
+    body: PendingReviewResolveRequest,
+    db: DbSession,
+    subject: JwtSubject,
+) -> PendingReviewItemRow:
+    """Operator decision — releases or blocks low-confidence outcomes."""
+
+    _ensure_pending_review_enabled()
+    try:
+        row = await resolve_pending_review_item(
+            db,
+            item_id=item_id,
+            action=body.action,
+            operator_subject=subject,
+            note=body.note,
+        )
+        if row is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pending review item not found.")
+        await db.commit()
+        await db.refresh(row)
+    except ValueError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected pending-review resolution.",
+        )
+    return PendingReviewItemRow.model_validate(row)
 
 
 __all__ = ["router"]

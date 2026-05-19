@@ -6,10 +6,11 @@ from datetime import datetime
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.presentation.api.deps import DbSession
+from app.presentation.api.external_api_key import extract_external_api_key
 from app.core.jwt_tokens import parse_dashboard_user_subject
 from app.core.logging import get_logger
 from app.domain.external.gateway import integration_router
@@ -44,21 +45,38 @@ class ExternalResultItem(BaseModel):
 
 
 async def require_external_api_user(
+    request: Request,
     db: DbSession,
-    api_key: Annotated[str | None, Query(description="Dashboard API key (qs_kw_…).")] = None,
+    api_key: Annotated[
+        str | None,
+        Query(description="Deprecated — prefer Authorization: Bearer or X-Api-Key header."),
+    ] = None,
+    x_api_key: Annotated[str | None, Header(alias="X-Api-Key", description="Dashboard API key (qs_kw_…).")] = None,
 ) -> UUID:
-    """Resolve ``api_key`` to the owning dashboard user id."""
+    """Resolve API key credentials to the owning dashboard user id."""
 
-    if api_key is None or not api_key.strip():
+    resolved = extract_external_api_key(request, query_api_key=api_key, header_api_key=x_api_key)
+    if resolved is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing api_key query parameter.",
+            detail="Missing API key. Send Authorization: Bearer <key> or X-Api-Key header.",
+            headers={"WWW-Authenticate": "Bearer"},
         )
-    subject = await resolve_api_key_principal(db, api_key.strip())
+    raw_key, source = resolved
+    if source == "query":
+        logger.warning(
+            "external.api_key_query_deprecated",
+            agent_id="external_feed",
+            swarm_id="",
+            task_id="",
+            path=str(request.url.path),
+        )
+    subject = await resolve_api_key_principal(db, raw_key)
     if subject is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or revoked API key.",
+            headers={"WWW-Authenticate": "Bearer"},
         )
     user_id = parse_dashboard_user_subject(subject)
     if user_id is None:

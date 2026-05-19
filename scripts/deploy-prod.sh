@@ -8,6 +8,8 @@
 #                          and overlay shared secrets from .env (default: 1)
 #   POST_DEPLOY_HEALTH=1 — run scripts/health-check.sh after compose
 #   POST_DEPLOY_SMOKE=1 — run scripts/smoke-edge.sh
+#   REQUIRE_VOICE_READY=1 — fail deploy when backend server-side voice prerequisites are missing
+#                           (VOICE_ENABLED + Grok/Deepgram/OpenAI for STT; Grok/OpenAI/ElevenLabs for TTS). Default: 1
 #   SMOKE_INSECURE_TLS=1 — forwarded to smoke-edge when POST_DEPLOY_SMOKE=1 (temporary cert mismatch only)
 #   DEPLOY_HA_PROFILE=1 — include docker compose profile "ha" (redis-replica)
 set -euo pipefail
@@ -19,6 +21,7 @@ ENV_FILE="${ENV_FILE:-.env.prod}"
 AUTO_BOOTSTRAP_ENV="${AUTO_BOOTSTRAP_ENV:-1}"
 POST_DEPLOY_HEALTH="${POST_DEPLOY_HEALTH:-0}"
 POST_DEPLOY_SMOKE="${POST_DEPLOY_SMOKE:-0}"
+REQUIRE_VOICE_READY="${REQUIRE_VOICE_READY:-1}"
 DEPLOY_HA_PROFILE="${DEPLOY_HA_PROFILE:-0}"
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
@@ -26,6 +29,7 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   echo "  AUTO_BOOTSTRAP_ENV=1 — create missing .env.prod from .env.prod.example + shared keys from .env"
   echo "  POST_DEPLOY_HEALTH=1 — run ./scripts/health-check.sh after up"
   echo "  POST_DEPLOY_SMOKE=1 — ./scripts/smoke-edge.sh (optional SMOKE_INSECURE_TLS=1)"
+  echo "  REQUIRE_VOICE_READY=1 — fail deploy when backend voice prerequisites are missing (default: 1)"
   echo "  DEPLOY_HA_PROFILE=1 — include --profile ha (redis replica for failover drills)"
   echo "Before first prod cutover: backup Postgres + named volumes; verify Let’s Encrypt paths in deploy/nginx/queenswarm.love.conf."
   exit 0
@@ -98,6 +102,9 @@ if [[ ! -f "$ENV_FILE" ]]; then
   echo "Missing ${ENV_FILE}. Copy .env.prod.example -> .env.prod and fill secrets."
   exit 1
 fi
+
+chmod +x "${ROOT}/scripts/validate-prod-env.sh"
+ENV_FILE="$ENV_FILE" "${ROOT}/scripts/validate-prod-env.sh"
 
 echo "Reminder: snapshot Postgres and named volumes (neo4j_data, postgres_data, prometheus_data, grafana_data) before major upgrades."
 echo "Reminder: TLS files under /etc/letsencrypt/live/queenswarm.love/ must exist on the host."
@@ -211,7 +218,61 @@ verify_production_edge() {
   esac
 }
 
+verify_voice_readiness() {
+  if [[ "$REQUIRE_VOICE_READY" != "1" ]]; then
+    echo "voice readiness gate: skipped (REQUIRE_VOICE_READY=${REQUIRE_VOICE_READY})"
+    return 0
+  fi
+
+  local backend_id
+  backend_id="$(docker compose -p queenswarm_prod -f docker-compose.base.yml -f docker-compose.prod.yml --env-file "$ENV_FILE" ps -q backend)"
+  if [[ -z "${backend_id// }" ]]; then
+    echo "voice readiness gate: backend container missing."
+    exit 1
+  fi
+
+  if ! docker exec "$backend_id" sh -lc "python - <<'PY'
+from app.core.config import settings
+from app.application.services.llm_runtime_credentials import (
+    provider_effective_deepgram,
+    provider_effective_elevenlabs,
+    provider_effective_grok,
+    provider_effective_openai,
+)
+
+voice_enabled = bool(settings.voice_enabled)
+openai_present = bool(provider_effective_openai().strip())
+deepgram_present = bool(provider_effective_deepgram().strip())
+eleven_present = bool(provider_effective_elevenlabs().strip())
+grok_present = bool(provider_effective_grok().strip())
+stt_ready = bool(voice_enabled and (grok_present or deepgram_present or openai_present))
+tts_ready = bool(voice_enabled and (grok_present or openai_present or eleven_present))
+
+print({
+    'voice_enabled': voice_enabled,
+    'grok_key_present': grok_present,
+    'openai_key_present': openai_present,
+    'deepgram_key_present': deepgram_present,
+    'elevenlabs_key_present': eleven_present,
+    'stt_ready': stt_ready,
+    'tts_ready': tts_ready,
+})
+
+if not voice_enabled:
+    raise SystemExit(2)
+if not stt_ready:
+    raise SystemExit(3)
+if not tts_ready:
+    raise SystemExit(4)
+PY"; then
+    echo "voice readiness gate: FAILED (configure VOICE_ENABLED + STT/TTS provider keys)."
+    exit 1
+  fi
+  echo "voice readiness gate: passed"
+}
+
 verify_production_edge
+verify_voice_readiness
 
 echo "Production stack up (project queenswarm_prod)."
 docker compose -p queenswarm_prod -f docker-compose.base.yml -f docker-compose.prod.yml --env-file "$ENV_FILE" ps

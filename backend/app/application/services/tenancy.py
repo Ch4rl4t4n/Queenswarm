@@ -138,6 +138,19 @@ async def get_active_membership(
     return await db.scalar(stmt)
 
 
+def enrich_audit_payload(
+    payload: dict[str, object] | None,
+    *,
+    client_ip: str | None = None,
+) -> dict[str, object]:
+    """Merge client IP into audit JSONB when absent."""
+
+    merged = dict(payload or {})
+    if client_ip and not merged.get("ip"):
+        merged["ip"] = client_ip
+    return merged
+
+
 async def write_tenant_audit_log(
     db: AsyncSession,
     *,
@@ -147,6 +160,7 @@ async def write_tenant_audit_log(
     target_type: str,
     target_ref: str,
     payload: dict[str, object] | None = None,
+    client_ip: str | None = None,
 ) -> None:
     """Persist one tenant audit record."""
 
@@ -156,7 +170,7 @@ async def write_tenant_audit_log(
         action=action.strip().lower(),
         target_type=target_type.strip().lower(),
         target_ref=target_ref.strip()[:255],
-        payload=dict(payload or {}),
+        payload=enrich_audit_payload(payload, client_ip=client_ip),
     )
     db.add(row)
     await db.flush()
@@ -164,6 +178,7 @@ async def write_tenant_audit_log(
 
 __all__ = [
     "ensure_default_tenant_for_user",
+    "enrich_audit_payload",
     "get_active_membership",
     "list_user_tenants",
     "switch_active_tenant",

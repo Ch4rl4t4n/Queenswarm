@@ -24,4 +24,13 @@ fi
 echo "[release_precheck] frontend typecheck + vitest"
 (cd "${ROOT}/frontend" && npm run typecheck && npm run test)
 
+if [[ -f "${ROOT}/.env.prod" ]]; then
+  echo "[release_precheck] validate production env (.env.prod)"
+  chmod +x "${ROOT}/scripts/validate-prod-env.sh"
+  ENV_FILE="${ROOT}/.env.prod" "${ROOT}/scripts/validate-prod-env.sh"
+fi
+
+echo "[release_precheck] security gates"
+SECURITY_STRICT="${SECURITY_STRICT:-1}" "${ROOT}/scripts/security-gates.sh"
+
 echo "[release_precheck] OK"

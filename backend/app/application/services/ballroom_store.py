@@ -14,7 +14,7 @@ from redis.exceptions import RedisError
 
 from app.core.config import Settings, get_settings
 from app.core.logging import get_logger
-from app.core.redis_client import get_json, publish_event, set_json
+from app.core.redis_client import get_json, publish_event, redis_delete, set_json
 
 logger = get_logger(__name__)
 
@@ -104,6 +104,15 @@ async def ballroom_save_capsule(session_id: uuid.UUID, cap: dict[str, Any]) -> N
     await _save_capsule_dict(session_id, cap)
 
 
+async def ballroom_delete_capsule(session_id: uuid.UUID) -> None:
+    """Delete one capsule from storage backend."""
+
+    if _settings().ballroom_capsule_backend == "memory":
+        _MEMORY_CAPSULES.pop(str(session_id), None)
+        return
+    await redis_delete(_capsule_redis_key(session_id))
+
+
 async def ballroom_publish_fanout(session_id: uuid.UUID, payload: dict[str, Any]) -> None:
     """Publish JSON for every worker subscribed to this ballroom."""
 
@@ -174,6 +183,7 @@ __all__ = [
     "ballroom_has_capsule",
     "ballroom_iter_fanout_messages",
     "ballroom_load_capsule",
+    "ballroom_delete_capsule",
     "ballroom_publish_fanout",
     "ballroom_save_capsule",
     "ballroom_scan_recent_session_ids",

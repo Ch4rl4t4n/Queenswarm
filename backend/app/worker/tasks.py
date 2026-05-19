@@ -706,12 +706,46 @@ def run_supervisor_routines_tick_task() -> dict[str, int]:
     return asyncio.run(_run())
 
 
+@celery_app.task(name="hive.paper_trading_tick", queue="hive")
+def paper_trading_tick_task() -> dict[str, object]:
+    """Run paper trading bee across eligible external projects."""
+
+    async def _run() -> dict[str, object]:
+        from app.application.services.paper_trading_service import run_paper_trading_tick_all
+
+        async with async_session() as session:
+            payload = await run_paper_trading_tick_all(session)
+            await session.commit()
+            return payload
+
+    return asyncio.run(_run())
+
+
+@celery_app.task(name="hive.agent_stale_sweep", queue="hive")
+def agent_stale_sweep_task() -> dict[str, int]:
+    """Mark RUNNING agents without recent heartbeat as ERROR."""
+
+    async def _run() -> dict[str, int]:
+        from app.application.services.agent_stale_sweep import sweep_stale_running_agents
+        from app.core.metrics import set_stale_running_agents_gauge
+
+        async with async_session() as session:
+            updated = await sweep_stale_running_agents(session)
+            await session.commit()
+        set_stale_running_agents_gauge(updated)
+        return {"stale_agents_updated": updated}
+
+    return asyncio.run(_run())
+
+
 __all__ = [
     "dynamic_agent_schedule_tick_task",
     "echo_hive_pulse",
     "execute_agent_task",
     "execute_universal_agent_task",
     "hourly_youtube_crypto_roll_task",
+    "agent_stale_sweep_task",
+    "paper_trading_tick_task",
     "run_supervisor_sub_agent_step_task",
     "run_supervisor_routines_tick_task",
     "run_sub_swarm_workflow_cycle_task",

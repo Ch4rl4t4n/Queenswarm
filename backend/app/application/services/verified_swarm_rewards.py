@@ -8,6 +8,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.services.verified_pollen_leaderboard import record_verified_pollen_reward
 from app.core.logging import get_logger
 from app.infrastructure.persistence.models.agent import Agent
 from app.infrastructure.persistence.models.knowledge import LearningLog
@@ -100,6 +101,7 @@ async def grant_pollen_for_verified_swarm_cycle(
             task_id=task_id,
             amount=float(amount_per_agent),
             reason="Verified swarm cycle (simulation gate cleared).",
+            verified_reward=True,
         )
         agent_row.pollen_points = float(agent_row.pollen_points) + float(amount_per_agent)
         session.add(reward)
@@ -112,6 +114,12 @@ async def grant_pollen_for_verified_swarm_cycle(
                 applied_at=stamp,
                 pollen_earned=float(amount_per_agent),
             ),
+        )
+        await record_verified_pollen_reward(
+            agent_id=agent_pk,
+            swarm_id=swarm_id,
+            amount=float(amount_per_agent),
+            task_id=task_id,
         )
         credited += 1
 

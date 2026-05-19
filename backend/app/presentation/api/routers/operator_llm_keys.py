@@ -18,6 +18,8 @@ from app.application.services.llm_runtime_credentials import (
     get_cached_llm_key,
     persist_llm_provider_secret,
     provider_effective_anthropic,
+    provider_effective_deepgram,
+    provider_effective_elevenlabs,
     provider_effective_grok,
     provider_effective_openai,
 )
@@ -26,17 +28,29 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/llm-keys", tags=["LLM Keys"])
 
-ProviderLiteral = Literal["grok", "anthropic", "openai"]
+ProviderLiteral = Literal["grok", "anthropic", "openai", "deepgram", "elevenlabs"]
+VoiceSttProviderLiteral = Literal["auto", "grok", "deepgram", "openai"]
+VoiceTtsProviderLiteral = Literal["auto", "grok", "elevenlabs", "openai"]
+VoiceLatencyModeLiteral = Literal["balanced", "fast"]
 
 
 class LLMKeyCreateBody(BaseModel):
     model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
 
     provider: ProviderLiteral
-    label: str = Field(default="Primary", min_length=2, max_length=160)
+    label: str = Field(default="", max_length=160)
     api_key: str = Field(..., min_length=12, max_length=2048)
     model_default: str | None = Field(default=None, max_length=160)
-    is_primary: bool = Field(default=True)
+    is_primary: bool = Field(default=False)
+
+
+class LLMKeyMetaBody(BaseModel):
+    """Update friendly label / primary flag without rotating the API secret."""
+
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+
+    label: str = Field(default="", max_length=160)
+    is_primary: bool = False
 
 
 class LLMKeyMask(BaseModel):
@@ -50,6 +64,32 @@ class LLMKeyMask(BaseModel):
     is_active: bool = True
     is_primary: bool = True
     from_vault: bool = False
+
+
+class VoiceProviderPreferences(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    stt_provider: VoiceSttProviderLiteral = "auto"
+    tts_provider: VoiceTtsProviderLiteral = "auto"
+    latency_mode: VoiceLatencyModeLiteral = "fast"
+    vad_threshold: float = Field(default=0.35, ge=0.0, le=1.0)
+    silence_duration_ms: int = Field(default=450, ge=300, le=4000)
+    tts_voice_id: str = Field(default="eve", min_length=2, max_length=64)
+    tts_language: str = Field(default="auto", min_length=2, max_length=16)
+    tts_tone: str = Field(default="none", min_length=2, max_length=32)
+
+
+class VoiceProviderPreferencesBody(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    stt_provider: VoiceSttProviderLiteral = "auto"
+    tts_provider: VoiceTtsProviderLiteral = "auto"
+    latency_mode: VoiceLatencyModeLiteral = "fast"
+    vad_threshold: float = Field(default=0.35, ge=0.0, le=1.0)
+    silence_duration_ms: int = Field(default=450, ge=300, le=4000)
+    tts_voice_id: str = Field(default="eve", min_length=2, max_length=64)
+    tts_language: str = Field(default="auto", min_length=2, max_length=16)
+    tts_tone: str = Field(default="none", min_length=2, max_length=32)
 
 
 def _user_uuid(sess: dict[str, Any]) -> uuid.UUID:
@@ -78,17 +118,61 @@ def _meta_prefs(user: DashboardUser) -> dict[str, Any]:
     return prefs
 
 
-def _provider_label_model(user: DashboardUser, provider: str) -> tuple[str, str | None]:
+def _provider_label_model(user: DashboardUser, provider: str) -> tuple[str, str | None, bool]:
     prefs = _meta_prefs(user)
     labels = prefs.get("llm_operator_labels")
     if not isinstance(labels, dict):
-        return provider.title(), None
+        return "", None, provider == "grok"
     meta = labels.get(provider)
     if isinstance(meta, dict):
-        label = meta.get("label") if isinstance(meta.get("label"), str) else provider.title()
+        label = meta.get("label") if isinstance(meta.get("label"), str) else ""
         model = meta.get("model_default") if isinstance(meta.get("model_default"), str) else None
-        return str(label), model
-    return provider.title(), None
+        is_primary = bool(meta.get("is_primary")) if "is_primary" in meta else provider == "grok"
+        return str(label), model, is_primary
+    return "", None, provider == "grok"
+
+
+def _voice_provider_preferences(user: DashboardUser) -> VoiceProviderPreferences:
+    prefs = dict(user.notification_prefs or {})
+    raw = prefs.get("voice_provider_preferences")
+    if not isinstance(raw, dict):
+        return VoiceProviderPreferences()
+    stt_raw = raw.get("stt_provider")
+    tts_raw = raw.get("tts_provider")
+    stt: VoiceSttProviderLiteral = "auto"
+    tts: VoiceTtsProviderLiteral = "auto"
+    if stt_raw in {"auto", "grok", "deepgram", "openai"}:
+        stt = stt_raw
+    if tts_raw in {"auto", "grok", "elevenlabs", "openai"}:
+        tts = tts_raw
+    latency_raw = raw.get("latency_mode")
+    latency_mode: VoiceLatencyModeLiteral = "fast"
+    if latency_raw in {"balanced", "fast"}:
+        latency_mode = latency_raw
+    vad_raw = raw.get("vad_threshold")
+    vad_threshold = 0.35
+    if isinstance(vad_raw, (int, float)) and 0.0 <= float(vad_raw) <= 1.0:
+        vad_threshold = float(vad_raw)
+    silence_raw = raw.get("silence_duration_ms")
+    silence_duration_ms = 450
+    if isinstance(silence_raw, int) and 300 <= silence_raw <= 4000:
+        silence_duration_ms = silence_raw
+    voice_raw = raw.get("tts_voice_id")
+    tts_voice_id = voice_raw.strip() if isinstance(voice_raw, str) and voice_raw.strip() else "eve"
+    language_raw = raw.get("tts_language")
+    tts_language = language_raw.strip() if isinstance(language_raw, str) and language_raw.strip() else "auto"
+    tone_raw = raw.get("tts_tone")
+    tts_tone = tone_raw.strip() if isinstance(tone_raw, str) and tone_raw.strip() else "none"
+    return VoiceProviderPreferences(
+        stt_provider=stt,
+        tts_provider=tts,
+        latency_mode=latency_mode,
+        vad_threshold=vad_threshold,
+        silence_duration_ms=silence_duration_ms,
+        tts_voice_id=tts_voice_id,
+        tts_language=tts_language,
+        tts_tone=tts_tone,
+    )
 
 
 @router.get("/", summary="Masked LLM credentials for the operator console")
@@ -105,12 +189,14 @@ async def list_llm_operator_keys(sess: DashboardSession, db: DbSession) -> dict[
         ("grok", provider_effective_grok(), get_cached_llm_key("grok")),
         ("anthropic", provider_effective_anthropic(), get_cached_llm_key("anthropic")),
         ("openai", provider_effective_openai(), get_cached_llm_key("openai")),
+        ("deepgram", provider_effective_deepgram(), get_cached_llm_key("deepgram")),
+        ("elevenlabs", provider_effective_elevenlabs(), get_cached_llm_key("elevenlabs")),
     ]
 
     for provider, effective, vault_val in triplets:
         if not effective:
             continue
-        label, model_default = _provider_label_model(user, provider)
+        label, model_default, is_primary = _provider_label_model(user, provider)
         keys.append(
             LLMKeyMask(
                 id=f"vault-{provider}",
@@ -119,7 +205,7 @@ async def list_llm_operator_keys(sess: DashboardSession, db: DbSession) -> dict[
                 api_key_masked=_mask(effective),
                 model_default=model_default,
                 is_active=True,
-                is_primary=True,
+                is_primary=is_primary,
                 from_vault=bool(vault_val),
             ).model_dump(),
         )
@@ -175,6 +261,53 @@ async def create_llm_operator_key(
     return {"status": "created", "id": body.provider, "provider": body.provider}
 
 
+@router.patch("/{provider}/meta", summary="Update provider label / primary flag (no secret rotation)")
+async def patch_llm_operator_key_meta(
+    provider: ProviderLiteral,
+    body: LLMKeyMetaBody,
+    sess: DashboardSession,
+    db: DbSession,
+) -> dict[str, Any]:
+    """Persist operator-facing metadata for a shard without requiring a new API key."""
+
+    uid = _user_uuid(sess)
+    user = await db.get(DashboardUser, uid)
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive operator.")
+    if provider != "grok" and not user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required.")
+
+    prefs = _meta_prefs(user)
+    labels = dict(prefs.get("llm_operator_labels") or {})
+    if body.is_primary:
+        for key in list(labels.keys()):
+            if key == provider:
+                continue
+            row = labels.get(key)
+            if isinstance(row, dict):
+                labels[key] = {**row, "is_primary": False}
+    labels[provider] = {
+        "label": body.label.strip(),
+        "model_default": (
+            labels.get(provider, {}).get("model_default")
+            if isinstance(labels.get(provider), dict)
+            else None
+        ),
+        "is_primary": body.is_primary,
+    }
+    prefs["llm_operator_labels"] = labels
+    user.notification_prefs = prefs
+    await db.commit()
+    label, model_default, is_primary = _provider_label_model(user, provider)
+    return {
+        "status": "updated",
+        "provider": provider,
+        "label": label,
+        "model_default": model_default,
+        "is_primary": is_primary,
+    }
+
+
 @router.delete("/{provider}", summary="Remove a provider secret from the vault")
 async def delete_llm_operator_key(
     provider: ProviderLiteral,
@@ -224,11 +357,23 @@ async def test_llm_operator_key(
     if provider != "grok" and not user.is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required.")
 
+    if provider in {"deepgram", "elevenlabs"}:
+        effective = get_cached_llm_key(provider)
+        if provider == "deepgram" and not effective:
+            effective = provider_effective_deepgram()
+        if provider == "elevenlabs" and not effective:
+            effective = provider_effective_elevenlabs()
+        if not effective:
+            return {"status": "error", "error": "No credential configured.", "model": provider}
+        return {"status": "ok", "model": provider, "response": "CREDENTIAL_READY"}
+
     _, model_hint = _provider_label_model(user, provider)
     defaults: dict[ProviderLiteral, str] = {
         "grok": "xai/grok-3-mini",
         "anthropic": "anthropic/claude-haiku-4-5-20251001",
         "openai": "openai/gpt-4o-mini",
+        "deepgram": "deepgram/nova-2",
+        "elevenlabs": "elevenlabs/tts",
     }
     model = (model_hint or defaults[provider]).strip()
 
@@ -252,3 +397,67 @@ async def test_llm_operator_key(
             error=str(exc),
         )
         return {"status": "error", "error": str(exc), "model": model}
+
+
+@router.get("/voice-preferences", response_model=VoiceProviderPreferences, summary="Get preferred voice providers")
+async def get_voice_provider_preferences(
+    sess: DashboardSession,
+    db: DbSession,
+) -> VoiceProviderPreferences:
+    uid = _user_uuid(sess)
+    user = await db.get(DashboardUser, uid)
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive operator.")
+    return _voice_provider_preferences(user)
+
+
+@router.put("/voice-preferences", response_model=VoiceProviderPreferences, summary="Update preferred voice providers")
+async def put_voice_provider_preferences(
+    body: VoiceProviderPreferencesBody,
+    sess: DashboardSession,
+    db: DbSession,
+) -> VoiceProviderPreferences:
+    uid = _user_uuid(sess)
+    user = await db.get(DashboardUser, uid)
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive operator.")
+
+    prefs = dict(user.notification_prefs or {})
+    prefs["voice_provider_preferences"] = {
+        "stt_provider": body.stt_provider,
+        "tts_provider": body.tts_provider,
+        "latency_mode": body.latency_mode,
+        "vad_threshold": body.vad_threshold,
+        "silence_duration_ms": body.silence_duration_ms,
+        "tts_voice_id": body.tts_voice_id,
+        "tts_language": body.tts_language,
+        "tts_tone": body.tts_tone,
+    }
+    user.notification_prefs = prefs
+    try:
+        await db.commit()
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Could not save voice provider preferences.",
+        ) from None
+    return VoiceProviderPreferences(
+        stt_provider=body.stt_provider,
+        tts_provider=body.tts_provider,
+        latency_mode=body.latency_mode,
+        vad_threshold=body.vad_threshold,
+        silence_duration_ms=body.silence_duration_ms,
+        tts_voice_id=body.tts_voice_id,
+        tts_language=body.tts_language,
+        tts_tone=body.tts_tone,
+    )
+
+
+@router.patch("/voice-preferences", response_model=VoiceProviderPreferences, summary="Update preferred voice providers")
+async def patch_voice_provider_preferences(
+    body: VoiceProviderPreferencesBody,
+    sess: DashboardSession,
+    db: DbSession,
+) -> VoiceProviderPreferences:
+    return await put_voice_provider_preferences(body=body, sess=sess, db=db)

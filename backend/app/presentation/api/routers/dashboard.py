@@ -14,6 +14,8 @@ from app.infrastructure.persistence.models.agent_config import AgentConfig
 from app.infrastructure.persistence.models.enums import TaskStatus
 from app.infrastructure.persistence.models.task import Task
 from app.application.services.dashboard_swarm_board import build_swarm_board_payload
+from app.application.services.dashboard_foragers_overview import build_foragers_overview_payload
+from app.application.services.dashboard_swarms_overview import build_swarms_overview_payload
 from app.application.services.dashboard_task_queue import build_task_queue_payload
 from app.application.services.dashboard_workflows import build_workflows_dashboard_payload
 from app.application.services.hive_tier import resolve_hive_tier
@@ -95,6 +97,20 @@ async def dashboard_swarm_board(db: DbSession, _subject: JwtSubject) -> dict[str
     """Sub-swarm telemetry cards and cross-swarm task handoff feed for operator UI."""
 
     return await build_swarm_board_payload(db)
+
+
+@router.get("/swarms-overview")
+async def dashboard_swarms_overview(db: DbSession, _subject: JwtSubject) -> dict[str, object]:
+    """Colonies table, KPI tiles, waggle feed, and hive sync rows for the Swarms page."""
+
+    return await build_swarms_overview_payload(db)
+
+
+@router.get("/foragers-overview")
+async def dashboard_foragers_overview(db: DbSession, _subject: JwtSubject) -> dict[str, object]:
+    """KPI tiles, configuration table rows, and auto-spawn rules for the Foragers page."""
+
+    return await build_foragers_overview_payload(db)
 
 
 __all__ = ["router"]

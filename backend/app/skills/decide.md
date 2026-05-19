@@ -1,3 +1,11 @@
+---
+version: 1.1.0
+priority: 75
+roles: [researcher, critic]
+keywords: [decide, tradeoffs, rollback, uncertainty]
+source: queenswarm.love
+---
+
 # Decide
 
 Purpose: Select the best next action under uncertainty.

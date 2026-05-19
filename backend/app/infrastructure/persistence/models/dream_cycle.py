@@ -5,12 +5,15 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from enum import StrEnum
+from typing import Any
 
-from sqlalchemy import DateTime, Enum as SQLEnum, Float, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import DateTime, Enum as SQLEnum, Float, ForeignKey, Index, Integer, String, Text, func, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
+from app.infrastructure.persistence.models.base import TenantScopedMixin
 
 
 class DreamCycleStatusORM(StrEnum):
@@ -21,7 +24,7 @@ class DreamCycleStatusORM(StrEnum):
     FAILED = "failed"
 
 
-class DreamCycleORM(Base):
+class DreamCycleORM(Base, TenantScopedMixin):
     """Dream cycle summary row with counters, digest, and failure diagnostics."""
 
     __tablename__ = "dream_cycles"
@@ -44,6 +47,11 @@ class DreamCycleORM(Base):
     items_deduplicated: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     items_consolidated: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     digest_md: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    dream_report: Mapped[dict[str, Any]] = mapped_column(
+        JSONB,
+        nullable=False,
+        server_default=text("'{}'::jsonb"),
+    )
     traceback_text: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     def __repr__(self) -> str:
@@ -52,7 +60,7 @@ class DreamCycleORM(Base):
         return f"DreamCycleORM(id={self.id!s}, status={self.status.value!r})"
 
 
-class DreamInsightORM(Base):
+class DreamInsightORM(Base, TenantScopedMixin):
     """Consolidated insight produced by a dream cycle."""
 
     __tablename__ = "dream_insights"
@@ -79,7 +87,9 @@ class DreamInsightORM(Base):
 
 
 Index("ix_dream_cycles_started_at_status", DreamCycleORM.started_at, DreamCycleORM.status)
+Index("ix_dream_cycles_tenant_started_at", DreamCycleORM.tenant_id, DreamCycleORM.started_at)
 Index("ix_dream_insights_source_kind_created_at", DreamInsightORM.source_kind, DreamInsightORM.created_at)
+Index("ix_dream_insights_tenant_created_at", DreamInsightORM.tenant_id, DreamInsightORM.created_at)
 
 
 __all__ = ["DreamCycleORM", "DreamCycleStatusORM", "DreamInsightORM"]

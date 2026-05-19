@@ -100,7 +100,7 @@ services:
   backend:
     <<: [*backend-build, *backend-env-files]
     command: >-
-      sh -c "alembic upgrade heads || echo 'alembic upgrade skipped due migration branch conflict'; uvicorn app.main:app --host 0.0.0.0 --port 8000"
+      sh -c "alembic upgrade heads && uvicorn app.main:app --host 0.0.0.0 --port 8000"
     environment:
       POSTGRES_URL: postgresql+asyncpg://${POSTGRES_USER:-queenswarm}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-queenswarm}
       REDIS_URL: redis://redis:6379/0

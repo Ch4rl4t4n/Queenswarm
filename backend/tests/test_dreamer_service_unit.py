@@ -63,6 +63,9 @@ class _FakeSession:
     async def scalar(self, _stmt):  # noqa: ANN001
         return None
 
+    async def scalars(self, _stmt):  # noqa: ANN001
+        return SimpleNamespace(all=lambda: [])
+
     async def commit(self) -> None:
         self.commits += 1
 
@@ -102,7 +105,7 @@ async def test_dreamer_service_empty_window_completes_with_zero_insights(monkeyp
     monkeypatch.setattr("app.application.services.dreamer_service.publish_event", _publish_noop)
     monkeypatch.setattr(service, "_apply_memory_decay", _decay_noop)
 
-    cycle = await service.run_cycle(window_hours=24)
+    cycle = await service.run_cycle(tenant_id=uuid4(), window_hours=24)
 
     assert cycle.status == DreamCycleStatus.COMPLETED
     assert cycle.items_processed == 0
@@ -146,7 +149,7 @@ async def test_dreamer_service_three_near_duplicates_creates_one_insight(monkeyp
     monkeypatch.setattr(service, "_upsert_chroma_insight", _chroma_noop)
     monkeypatch.setattr(service, "_summarize_cluster", _summary_noop)
 
-    cycle = await service.run_cycle(window_hours=24)
+    cycle = await service.run_cycle(tenant_id=uuid4(), window_hours=24)
 
     assert cycle.status == DreamCycleStatus.COMPLETED
     assert cycle.items_processed == 3
@@ -188,7 +191,7 @@ async def test_dreamer_service_when_chroma_fails_marks_cycle_failed(monkeypatch)
     monkeypatch.setattr("app.application.services.dreamer_service.publish_event", _publish_noop)
 
     with pytest.raises(RuntimeError, match="chroma unavailable"):
-        await service.run_cycle(window_hours=24)
+        await service.run_cycle(tenant_id=uuid4(), window_hours=24)
 
     assert session.last_cycle is not None
     assert session.last_cycle.status.value == "failed"

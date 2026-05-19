@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any
+from typing import Any, Literal
 
 import litellm
 from litellm import AuthenticationError, acompletion
@@ -14,6 +14,7 @@ from app.agents.cost_governor import BudgetExceededError, CostGovernor
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.metrics import observe_llm_cost_usd
+from app.core.observability import build_langfuse_metadata
 from app.core.retry_external import retry_async_call
 from app.models.cost import CostRecord
 from app.services.llm_runtime_credentials import (
@@ -251,6 +252,8 @@ class LiteLLMRouter:
         max_tokens: int | None = None,
         agent_id: object | None = None,
         task_id: object | None = None,
+        swarm_id: object | None = None,
+        workflow_id: object | None = None,
     ) -> tuple[Any, str, str, float]:
         """Invoke a single model and attach CostRecord rows when telemetry exists.
 
@@ -268,11 +271,15 @@ class LiteLLMRouter:
             "max_tokens": max_tokens if max_tokens is not None else settings.workflow_breaker_max_output_tokens,
             "api_key": api_key,
         }
-        if lowered_m.startswith("xai/"):
-            # LiteLLM 1.49 treats ``xai/`` inconsistently — use xAI OpenAI-compat surface.
-            slug = model_name.split("/", 1)[1]
-            completion_kwargs["model"] = f"openai/{slug}"
-            completion_kwargs["api_base"] = str(settings.xai_openai_compatible_base).rstrip("/")
+        # Native ``xai/`` routing — remapping to openai/ + custom api_base breaks LiteLLM cost maps
+        # and adds ~8–15s failed-hop latency before fallback models run.
+        if settings.langfuse_enabled:
+            completion_kwargs["metadata"] = build_langfuse_metadata(
+                agent_id=agent_id,
+                task_id=task_id,
+                swarm_id=swarm_id,
+                workflow_id=workflow_id,
+            )
         async def _call_llm() -> Any:
             return await acompletion(**completion_kwargs)
 
@@ -341,6 +348,9 @@ class LiteLLMRouter:
                     messages=messages,
                     max_tokens=max_tokens,
                     temperature=temperature,
+                    swarm_id=swarm_id or None,
+                    workflow_id=workflow_id or None,
+                    task_id=task_id or None,
                 )
                 logger.info(
                     "llm_router.completion_chain.ok",
@@ -417,6 +427,56 @@ class LiteLLMRouter:
             task_id=task_id,
         )
 
+    async def decompose_ballroom(
+        self,
+        session: AsyncSession,
+        *,
+        system_prompt: str,
+        user_payload: str,
+        swarm_id: str = "",
+        task_id: str | None = None,
+        latency_mode: Literal["balanced", "fast"] = "balanced",
+        strict_grok_only: bool = False,
+    ) -> tuple[str, float]:
+        """Low-latency ballroom orchestrator completion with tighter token limits."""
+
+        messages: list[dict[str, str]] = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_payload},
+        ]
+        max_tokens = 80 if latency_mode == "fast" else None
+        temperature = 0.25 if latency_mode == "fast" else None
+        if strict_grok_only:
+            grok_model = settings.workflow_breaker_primary_model
+            if not model_slug_has_configured_credentials(grok_model):
+                raise RuntimeError("Grok-only mode requested but Grok credentials are missing.")
+            await self._assert_budget(session)
+            _response, content, _used, hop_cost_usd = await self._acompletion_with_model(
+                session,
+                model_name=grok_model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                swarm_id=swarm_id or None,
+                task_id=task_id or None,
+            )
+            return content, hop_cost_usd
+        if latency_mode == "fast":
+            return await self.complete_with_fallback_messages(
+                session,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                swarm_id=swarm_id,
+                task_id=task_id,
+            )
+        return await self.complete_with_fallback_messages(
+            session,
+            messages=messages,
+            swarm_id=swarm_id,
+            task_id=task_id,
+        )
+
     async def evaluate(
         self,
         session: AsyncSession,
@@ -449,6 +509,9 @@ class LiteLLMRouter:
             session,
             model_name=settings.workflow_breaker_evaluation_model,
             messages=messages,
+            swarm_id=swarm_id or None,
+            workflow_id=workflow_id or None,
+            task_id=task_id or None,
         )
         try:
             parsed = json.loads(content)
@@ -499,6 +562,9 @@ class LiteLLMRouter:
                 session,
                 model_name=settings.workflow_breaker_simulation_model,
                 messages=messages,
+                swarm_id=swarm_id or None,
+                workflow_id=workflow_id or None,
+                task_id=task_id or None,
             )
         try:
             parsed = json.loads(content)

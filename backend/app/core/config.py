@@ -280,6 +280,26 @@ class Settings(BaseSettings):
             "embedding into the Recipe Library Chroma collection."
         ),
     )
+    recipe_hybrid_scoring_enabled: bool = Field(
+        default=True,
+        description="Blend vector similarity with Postgres imitation graph signals for recipe search.",
+    )
+    recipe_hybrid_vector_weight: float = Field(
+        default=0.85,
+        ge=0.0,
+        le=1.0,
+        description="Weight for vector cosine term in hybrid recipe score.",
+    )
+    recipe_hybrid_graph_weight: float = Field(
+        default=0.15,
+        ge=0.0,
+        le=1.0,
+        description="Weight for imitation/success graph term in hybrid recipe score.",
+    )
+    recipe_hybrid_neo4j_enabled: bool = Field(
+        default=True,
+        description="Include Neo4j IMITATED edge counts in hybrid recipe graph signal.",
+    )
     recipe_write_sync_chroma: bool = Field(
         default=True,
         description="When true, POST/PATCH /recipes refresh Chroma embeddings after Postgres writes.",
@@ -330,6 +350,24 @@ class Settings(BaseSettings):
     dreaming_cron_hour: int = Field(default=3, ge=0, le=23)
     dreaming_cron_minute: int = Field(default=0, ge=0, le=59)
     dreaming_window_hours: int = Field(default=24, ge=1, le=168)
+    dreaming_default_interval_hours: int = Field(
+        default=24,
+        ge=1,
+        le=168,
+        description="Default dreaming routine interval when tenant config is unset (hours).",
+    )
+    dreaming_session_limit: int = Field(
+        default=200,
+        ge=10,
+        le=5000,
+        description="Max supervisor sessions scanned per tenant dreaming cycle.",
+    )
+    dreaming_event_limit: int = Field(
+        default=500,
+        ge=10,
+        le=10_000,
+        description="Max supervisor session events scanned per tenant dreaming cycle.",
+    )
     scout_swarm_size: int = Field(default=8, ge=1)
     eval_swarm_size: int = Field(default=6, ge=1)
     sim_swarm_size: int = Field(default=5, ge=1)
@@ -521,6 +559,20 @@ class Settings(BaseSettings):
         default=False,
         description="When true, /health/ready returns 503 if the configured vector tier ping fails.",
     )
+    readiness_require_celery: bool = Field(
+        default=False,
+        description="When true, /health/ready returns 503 if no Celery worker responds to inspect ping.",
+    )
+    agent_stale_sweep_enabled: bool = Field(
+        default=True,
+        description="Celery beat task marks RUNNING agents ERROR when last_active_at expires.",
+    )
+    agent_stale_timeout_sec: int = Field(
+        default=600,
+        ge=60,
+        le=86400,
+        description="Seconds without last_active_at before a RUNNING agent is marked stale.",
+    )
 
     # --- Domain & CORS (Bee-Hive Dashboard origin)
     domain: str = "queenswarm.love"
@@ -678,6 +730,17 @@ class Settings(BaseSettings):
         default=False,
         description="Enable voice + multimodal pipeline (STT/TTS) for ballroom and agent control flows.",
     )
+    ballroom_fast_model: str = Field(
+        default="grok-4-fast-non-reasoning",
+        description="Direct xAI model for latency_mode=fast Ballroom orchestrator replies (~sub-second).",
+    )
+    ballroom_fast_max_tokens: int = Field(default=64, ge=16, le=256)
+    ballroom_fast_temperature: float = Field(default=0.2, ge=0.0, le=1.0)
+    ballroom_voice_live_model: str = Field(
+        default="grok-voice-latest",
+        description="xAI Voice Agent model for continuous Ballroom voice calls.",
+    )
+    ballroom_voice_live_token_ttl_sec: int = Field(default=300, ge=60, le=900)
     voice_stt_model: str = Field(
         default="whisper-1",
         description="OpenAI Whisper-compatible model slug used for STT.",
@@ -725,6 +788,36 @@ class Settings(BaseSettings):
     opentelemetry_exporter_otlp_endpoint: str = Field(
         default="",
         description="Optional OTLP endpoint for external tracing collector integration.",
+    )
+    langfuse_enabled: bool = Field(
+        default=False,
+        description="Emit LiteLLM traces to LangFuse via success/failure callbacks.",
+    )
+    langfuse_public_key: str = Field(
+        default="",
+        description="LangFuse public key (LANGFUSE_PUBLIC_KEY).",
+    )
+    langfuse_secret_key: str = Field(
+        default="",
+        description="LangFuse secret key (LANGFUSE_SECRET_KEY).",
+    )
+    langfuse_host: str = Field(
+        default="https://cloud.langfuse.com",
+        description="LangFuse API host (self-hosted or cloud).",
+    )
+    pending_review_enabled: bool = Field(
+        default=True,
+        description="Hold sub-threshold confidence outcomes in operator pending-review queue.",
+    )
+    pending_review_confidence_threshold: float = Field(
+        default=0.75,
+        ge=0.0,
+        le=1.0,
+        description="Outcomes below this simulator confidence fraction require human approval.",
+    )
+    pending_review_notify_slack: bool = Field(
+        default=True,
+        description="Best-effort Slack ping when a pending review item is enqueued.",
     )
     alerting_enabled: bool = Field(
         default=False,
@@ -775,6 +868,67 @@ class Settings(BaseSettings):
     leaderboard_enabled: bool = Field(
         default=False,
         description="Expose leaderboard-style learning/ranking API surfaces.",
+    )
+    verified_pollen_leaderboard_enabled: bool = Field(
+        default=True,
+        description="Maintain Redis ZSET leaderboard for simulation-verified pollen rewards.",
+    )
+    verified_pollen_leaderboard_ttl_sec: int = Field(
+        default=86_400 * 30,
+        ge=3600,
+        description="TTL refresh for verified pollen leaderboard Redis keys.",
+    )
+    skill_export_premium_enabled: bool = Field(
+        default=True,
+        description="Require purchase or Pro tier before exporting verified premium skills.",
+    )
+    skill_export_premium_price_eur_cents: int = Field(
+        default=1900,
+        ge=100,
+        description="Default one-time Stripe price for premium verified skill export (EUR cents).",
+    )
+    stripe_secret_key: str = Field(
+        default="",
+        description="Stripe secret API key for Checkout Sessions (env: STRIPE_SECRET_KEY).",
+    )
+    stripe_webhook_secret: str = Field(
+        default="",
+        description="Stripe webhook signing secret (env: STRIPE_WEBHOOK_SECRET).",
+    )
+    stripe_skills_success_url: str = Field(
+        default="https://queenswarm.love/integrations?tab=skills&purchase=success",
+        description="Redirect after successful skill checkout.",
+    )
+    stripe_skills_cancel_url: str = Field(
+        default="https://queenswarm.love/integrations?tab=skills&purchase=cancel",
+        description="Redirect when skill checkout is cancelled.",
+    )
+    paper_trading_enabled: bool = Field(
+        default=True,
+        description="Enable paper trading bee Celery ticks and dashboard APIs.",
+    )
+    paper_trading_tick_interval_sec: int = Field(
+        default=900,
+        ge=60,
+        le=86_400,
+        description="Celery beat interval for paper trading ticks (default 15 min).",
+    )
+    paper_trading_default_cash_usd: float = Field(
+        default=10_000.0,
+        ge=100.0,
+        description="Starting simulated cash for new paper accounts.",
+    )
+    paper_trading_confidence_threshold: float = Field(
+        default=0.8,
+        ge=0.5,
+        le=1.0,
+        description="Minimum signal confidence before paper execution.",
+    )
+    paper_trading_fee_bps: float = Field(
+        default=10.0,
+        ge=0.0,
+        le=100.0,
+        description="Simulated taker fee in basis points.",
     )
     recipes_enabled: bool = Field(
         default=False,

@@ -7,7 +7,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 
@@ -19,6 +19,7 @@ from app.infrastructure.persistence.models.task_final_deliverable import TaskFin
 from app.core.tenant_context import set_current_tenant_id
 from app.application.services.tenancy import write_tenant_audit_log
 from app.presentation.api.deps import DbSession, require_dashboard_user_with_tenant_role, require_tenant_permission
+from app.presentation.api.middleware.rate_limit import peer_ip_for_rate_limit
 
 ResourceType = Literal["output", "session", "swarm"]
 _ALLOWED_RESOURCE_TYPES: set[str] = {"output", "session", "swarm"}
@@ -138,6 +139,7 @@ async def list_share_links(
 async def create_share_link(
     body: ShareCreateBody,
     db: DbSession,
+    request: Request,
     principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
     _: bool = Depends(require_tenant_permission("resources:share")),
 ) -> ShareView:
@@ -177,6 +179,7 @@ async def create_share_link(
         target_type=body.resource_type,
         target_ref=str(body.resource_id),
         payload={"share_id": str(row.id)},
+        client_ip=peer_ip_for_rate_limit(request),
     )
     await db.commit()
     await db.refresh(row)
@@ -192,6 +195,7 @@ async def create_share_link(
 async def revoke_share_link(
     share_id: uuid.UUID,
     db: DbSession,
+    request: Request,
     principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
     _: bool = Depends(require_tenant_permission("resources:share")),
 ) -> Response:
@@ -208,6 +212,7 @@ async def revoke_share_link(
         target_type=row.resource_type,
         target_ref=str(row.resource_id),
         payload={"share_id": str(row.id)},
+        client_ip=peer_ip_for_rate_limit(request),
     )
     await db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

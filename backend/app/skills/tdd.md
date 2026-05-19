@@ -1,3 +1,11 @@
+---
+version: 1.1.0
+priority: 80
+roles: [coder, critic]
+keywords: [tdd, test, red-green-refactor, verification]
+source: queenswarm.love
+---
+
 # TDD
 
 Purpose: Ship behavior safely using red-green-refactor.

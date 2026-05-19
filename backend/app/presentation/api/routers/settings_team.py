@@ -6,7 +6,7 @@ import secrets
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from sqlalchemy import select
 
@@ -25,6 +25,7 @@ from app.infrastructure.persistence.models.tenant import (
     TenantInvite,
 )
 from app.presentation.api.deps import DbSession, require_dashboard_user_with_tenant_role
+from app.presentation.api.middleware.rate_limit import peer_ip_for_rate_limit
 
 router = APIRouter(prefix="/settings/team", tags=["Settings Team"])
 
@@ -191,6 +192,7 @@ async def get_team_overview(
 async def invite_team_member(
     body: InviteMemberBody,
     db: DbSession,
+    request: Request,
     principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
 ) -> TeamInviteView:
     """Create pending email invite for active tenant."""
@@ -218,6 +220,7 @@ async def invite_team_member(
         target_type="invite",
         target_ref=str(invite.id),
         payload={"email": invite.email, "role": role},
+        client_ip=peer_ip_for_rate_limit(request),
     )
     await db.commit()
     return TeamInviteView(
@@ -235,6 +238,7 @@ async def update_team_member_role(
     membership_id: uuid.UUID,
     body: UpdateMemberRoleBody,
     db: DbSession,
+    request: Request,
     principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
 ) -> TeamMemberView:
     """Change role for an existing tenant member."""
@@ -254,6 +258,7 @@ async def update_team_member_role(
         target_type="membership",
         target_ref=str(membership.id),
         payload={"new_role": new_role},
+        client_ip=peer_ip_for_rate_limit(request),
     )
     await db.commit()
     user = await db.get(DashboardUser, membership.dashboard_user_id)
@@ -278,6 +283,7 @@ async def update_team_member_role(
 async def remove_team_member(
     membership_id: uuid.UUID,
     db: DbSession,
+    request: Request,
     principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
 ) -> Response:
     """Remove a member from tenant."""
@@ -298,6 +304,7 @@ async def remove_team_member(
         target_type="membership",
         target_ref=str(membership_id),
         payload={},
+        client_ip=peer_ip_for_rate_limit(request),
     )
     await db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

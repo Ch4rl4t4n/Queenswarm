@@ -14,12 +14,16 @@ from app.schemas.recipes_catalog import RecipeCatalogItem
 @pytest.mark.asyncio
 async def test_search_recipes_semantic_filters_by_min_similarity(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "app.services.recipe_chroma_bridge.settings.recipe_chroma_min_similarity",
+        "app.application.services.recipe_chroma_bridge.settings.recipe_chroma_min_similarity",
         0.9,
     )
     monkeypatch.setattr(
-        "app.services.recipe_chroma_bridge.settings.recipe_chroma_search_limit_cap",
+        "app.application.services.recipe_chroma_bridge.settings.recipe_chroma_search_limit_cap",
         10,
+    )
+    monkeypatch.setattr(
+        "app.application.services.recipe_chroma_bridge.settings.recipe_hybrid_scoring_enabled",
+        False,
     )
 
     async def fake_semantic(
@@ -33,10 +37,10 @@ async def test_search_recipes_semantic_filters_by_min_similarity(monkeypatch: py
             {"id": "strong", "document": "bye", "metadata": {}, "distance": 0.04},
         ]
 
-    monkeypatch.setattr("app.services.recipe_chroma_bridge.semantic_search", fake_semantic)
+    monkeypatch.setattr("app.application.services.recipe_chroma_bridge.semantic_search", fake_semantic)
 
     session = AsyncMock()
-    from app.services.recipe_chroma_bridge import search_recipes_semantic
+    from app.application.services.recipe_chroma_bridge import search_recipes_semantic
 
     hits = await search_recipes_semantic(session, query="task", limit=5)
     assert len(hits) == 1
@@ -49,12 +53,16 @@ async def test_search_recipes_semantic_joins_postgres_when_metadata_uuid_present
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "app.services.recipe_chroma_bridge.settings.recipe_chroma_min_similarity",
+        "app.application.services.recipe_chroma_bridge.settings.recipe_chroma_min_similarity",
         0.0,
     )
     monkeypatch.setattr(
-        "app.services.recipe_chroma_bridge.settings.recipe_chroma_search_limit_cap",
+        "app.application.services.recipe_chroma_bridge.settings.recipe_chroma_search_limit_cap",
         10,
+    )
+    monkeypatch.setattr(
+        "app.application.services.recipe_chroma_bridge.settings.recipe_hybrid_scoring_enabled",
+        False,
     )
     pid = uuid.uuid4()
 
@@ -73,7 +81,7 @@ async def test_search_recipes_semantic_joins_postgres_when_metadata_uuid_present
             },
         ]
 
-    monkeypatch.setattr("app.services.recipe_chroma_bridge.semantic_search", fake_semantic)
+    monkeypatch.setattr("app.application.services.recipe_chroma_bridge.semantic_search", fake_semantic)
 
     attrs = RecipeCatalogItem(
         id=pid,
@@ -96,7 +104,7 @@ async def test_search_recipes_semantic_joins_postgres_when_metadata_uuid_present
     session = AsyncMock()
     session.execute = AsyncMock(return_value=exec_result)
 
-    from app.services.recipe_chroma_bridge import search_recipes_semantic
+    from app.application.services.recipe_chroma_bridge import search_recipes_semantic
 
     hits = await search_recipes_semantic(session, query="x", limit=3)
     assert len(hits) == 1
