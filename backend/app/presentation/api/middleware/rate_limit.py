@@ -201,6 +201,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         "/redoc",
         "/openapi.json",
         "/api/v1/health",
+        "/api/v1/billing/stripe/webhook",
         "/favicon.ico",
     })
 

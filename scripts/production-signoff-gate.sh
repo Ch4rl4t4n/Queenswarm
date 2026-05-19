@@ -91,6 +91,14 @@ for path in /api/v1/foragers /api/v1/paper-trading/summary; do
   echo "  OK ${path} (${code} — route wired)"
 done
 
+# Stripe webhook is public (signature auth). 503 = secret unset; 400 = secret set, no sig; never 401.
+webhook_code="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "${HIVE_BASE}/api/v1/billing/stripe/webhook" || echo "000")"
+if [[ "$webhook_code" == "401" || "$webhook_code" == "404" || "$webhook_code" == "000" ]]; then
+  echo "FAIL /api/v1/billing/stripe/webhook HTTP ${webhook_code} (expected 503 or 400, not JWT/missing route)" >&2
+  exit 1
+fi
+echo "  OK /api/v1/billing/stripe/webhook (${webhook_code} — public, not JWT-gated)"
+
 echo
 echo "[6/6] Stripe + Phase 14 feature readiness"
 if [[ -x "${ROOT}/scripts/stripe-prod-setup.sh" ]]; then
