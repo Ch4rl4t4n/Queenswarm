@@ -5,6 +5,8 @@
 - **ops:** exempt `/api/v1/billing/stripe/webhook` from rate limiting (Stripe retry-safe).
 - **test:** add ASGI contract tests for public webhook path (503 without secret, 400 without signature).
 - **ops:** sign-off gate rejects JWT-gated webhook responses (401/404).
+- **test:** prod remote E2E smoke for desktop Ballroom FAB + sidebar-only shell (no API mocks).
+- **test:** local E2E for billing settings Stripe-off hint (`/settings/billing`).
 - **docs:** add `docs/PRODUCTION_SIGNOFF.md` manual QA checklist for queenswarm.love rollout.
 
 ## Production sign-off gate + Phase 14 env baseline (2026-05-19)

@@ -12,7 +12,14 @@ PLAYWRIGHT_BASE_URL=https://queenswarm.love ./scripts/production-signoff-gate.sh
 STRICT_STRIPE=1 PLAYWRIGHT_BASE_URL=https://queenswarm.love ./scripts/production-signoff-gate.sh
 ```
 
-The gate runs: `validate-prod-env` → `core-reliability-gate` → backend pytest → responsive/PWA E2E → edge smoke → Stripe readiness.
+Remote hive smoke (``PLAYWRIGHT_BASE_URL``) skips API mocks and runs:
+
+- PWA shell routes
+- Public login overflow checks
+- Desktop Ballroom FAB visibility
+- Desktop sidebar-only shell (no `#hive-search` duplicate)
+
+Stripe-off UX tests (skills/billing banners) run locally with API mocks only.
 
 ## Manual QA
 
