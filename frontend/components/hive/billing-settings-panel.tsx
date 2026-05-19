@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { StripeCheckoutSettingsPanel } from "@/components/hive/stripe-checkout-settings-panel";
 import { V4BarRow, V4Card, V4CardHeader, V4Stat } from "@/components/ui/v4";
 import type { BillingPlansPayload, BillingUsageSnapshot } from "@/lib/hive-types";
 import { integrationsTabHref } from "@/lib/integrations-routes";
@@ -110,6 +111,7 @@ export function BillingSettingsPanel() {
 
   return (
     <div className="flex flex-col gap-6">
+      <StripeCheckoutSettingsPanel />
       <V4Card>
         <V4CardHeader
           title="Usage & Billing"
@@ -138,7 +140,7 @@ export function BillingSettingsPanel() {
         <p className="text-xs text-(--qs-text-3)">
           {plans?.checkout_ready
             ? "Stripe is configured — premium skill one-time checkout is available under Integrations → Skills export."
-            : "Set STRIPE_SECRET_KEY to enable premium skill checkout; subscription billing remains optional."}
+            : "Add Stripe keys in the panel above (or set STRIPE_SECRET_KEY in server env) to enable premium skill checkout."}
         </p>
       </V4Card>
 

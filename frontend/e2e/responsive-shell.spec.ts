@@ -138,9 +138,8 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     }
 
     await expect(page.getByRole("heading", { name: "Usage & Billing" })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/Set STRIPE_SECRET_KEY to enable premium skill checkout/i)).toBeVisible({
-      timeout: 15_000,
-    });
+    await expect(page.getByText(/Stripe checkout/i).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/Add Stripe keys in the panel above/i)).toBeVisible({ timeout: 15_000 });
   });
 
   test("tablet integrations skills tab shows stripe-not-configured state", async ({ page, context, baseURL }) => {

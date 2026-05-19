@@ -262,6 +262,41 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("billing/stripe-config")) {
+      if (route.request().method() === "GET") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            checkout_ready: false,
+            webhook_ready: false,
+            secret_key_masked: null,
+            webhook_secret_masked: null,
+            secret_key_source: "none",
+            webhook_secret_source: "none",
+            webhook_url: "https://queenswarm.love/api/v1/billing/stripe/webhook",
+            env_fallback_active: false,
+          }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          checkout_ready: true,
+          webhook_ready: true,
+          secret_key_masked: "••••••••cdef",
+          webhook_secret_masked: "••••••••7890",
+          secret_key_source: "vault",
+          webhook_secret_source: "vault",
+          webhook_url: "https://queenswarm.love/api/v1/billing/stripe/webhook",
+          env_fallback_active: false,
+        }),
+      });
+      return;
+    }
+
     if (path.startsWith("recipes/skills-catalog")) {
       await route.fulfill({
         status: 200,

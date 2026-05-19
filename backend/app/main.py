@@ -52,8 +52,10 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     await init_db()
     async with async_session() as session:
         from app.application.services.llm_runtime_credentials import refresh_llm_secret_cache
+        from app.application.services.stripe_runtime_credentials import refresh_stripe_secret_cache
 
         await refresh_llm_secret_cache(session)
+        await refresh_stripe_secret_cache(session)
     await ensure_collections()
     relay_task: asyncio.Task[None] | None = None
 

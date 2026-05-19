@@ -160,6 +160,17 @@ export interface BillingPlansPayload {
   message: string;
 }
 
+export interface StripeConfigStatus {
+  checkout_ready: boolean;
+  webhook_ready: boolean;
+  secret_key_masked: string | null;
+  webhook_secret_masked: string | null;
+  secret_key_source: string;
+  webhook_secret_source: string;
+  webhook_url: string;
+  env_fallback_active: boolean;
+}
+
 export interface PublicShareRow {
   id: string;
   resource_type: "output" | "session" | "swarm";

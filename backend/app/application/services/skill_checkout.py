@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.services.billing import TIER_ENTERPRISE, TIER_PRO, ensure_tenant_subscription
 from app.application.services.skill_marketplace_policy import is_premium_recipe, resolve_skill_price_cents
 from app.application.services.skill_export import recipe_slug
+from app.application.services.stripe_runtime_credentials import stripe_effective_secret_key
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.infrastructure.persistence.models.recipe import Recipe
@@ -97,7 +98,7 @@ async def list_tenant_skill_unlocks(
 def stripe_checkout_ready() -> bool:
     """Return True when Stripe secret key is configured."""
 
-    return bool((settings.stripe_secret_key or "").strip())
+    return bool(stripe_effective_secret_key())
 
 
 async def create_skill_checkout_session(
@@ -137,7 +138,7 @@ async def create_skill_checkout_session(
     try:
         import stripe
 
-        stripe.api_key = settings.stripe_secret_key.strip()
+        stripe.api_key = stripe_effective_secret_key()
         checkout = stripe.checkout.Session.create(
             mode="payment",
             success_url=f"{settings.stripe_skills_success_url}&session_id={{CHECKOUT_SESSION_ID}}",
@@ -256,7 +257,7 @@ async def confirm_skill_checkout_session(
     try:
         import stripe
 
-        stripe.api_key = settings.stripe_secret_key.strip()
+        stripe.api_key = stripe_effective_secret_key()
         checkout = stripe.checkout.Session.retrieve(session_id)
     except Exception as exc:  # noqa: BLE001
         logger.warning(

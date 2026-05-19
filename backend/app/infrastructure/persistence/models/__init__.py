@@ -47,6 +47,7 @@ _EXPORTABLE: dict[str, tuple[str, str]] = {
     "HiveAsyncRunLifecycle": ("app.infrastructure.persistence.models.enums", "HiveAsyncRunLifecycle"),
     "HiveAsyncWorkflowRun": ("app.infrastructure.persistence.models.hive_async_workflow_run", "HiveAsyncWorkflowRun"),
     "HiveLlmSecret": ("app.infrastructure.persistence.models.hive_llm_secret", "HiveLlmSecret"),
+    "HiveStripeSecret": ("app.infrastructure.persistence.models.hive_stripe_secret", "HiveStripeSecret"),
     "ImitationEvent": ("app.infrastructure.persistence.models.reward", "ImitationEvent"),
     "KnowledgeItem": ("app.infrastructure.persistence.models.knowledge", "KnowledgeItem"),
     "LearningLog": ("app.infrastructure.persistence.models.knowledge", "LearningLog"),
