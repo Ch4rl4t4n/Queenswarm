@@ -45,6 +45,44 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     await suppressPwaInstallPrompt(page);
   });
 
+  test("desktop shows glowing Ballroom FAB on dashboard routes", async ({ page, context, baseURL }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
+
+    const onShell = await gotoShellRoute(page, "/");
+    if (!onShell) {
+      return;
+    }
+
+    const fab = page.getByTestId("ballroom-fab");
+    await expect(fab).toBeVisible({ timeout: 15_000 });
+    await expect(fab.getByRole("link", { name: /Open Ballroom/i })).toBeVisible();
+
+    await page.goto("/swarms", { waitUntil: "load" });
+    await expect(fab).toBeVisible({ timeout: 15_000 });
+
+    await page.goto("/ballroom", { waitUntil: "load" });
+    await expect(fab).toBeHidden({ timeout: 10_000 });
+  });
+
+  test("mobile hides Ballroom FAB above bottom nav only on tablet/mobile", async ({ page, context, baseURL }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
+
+    const onShell = await gotoShellRoute(page, "/");
+    if (!onShell) {
+      return;
+    }
+
+    const fab = page.getByTestId("ballroom-fab");
+    await expect(fab).toBeVisible({ timeout: 15_000 });
+    const box = await fab.boundingBox();
+    expect(box).not.toBeNull();
+    if (box) {
+      expect(box.y).toBeGreaterThan(500);
+    }
+  });
+
   for (const viewport of VIEWPORTS) {
     test(`${viewport.name} swarms route layout`, async ({ page, context, baseURL }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });

@@ -1004,7 +1004,42 @@
     }
   }
 
-  /** Hive Control V4 — floating Ballroom CTA */
+  /** Hive Control V4 — floating Ballroom CTA (all viewports; portal to body) */
+  .fab-ballroom-shell {
+    pointer-events: none;
+    position: fixed;
+    z-index: 120;
+    bottom: calc(5.4rem + env(safe-area-inset-bottom, 0px));
+    right: 1rem;
+  }
+
+  @media (min-width: 1024px) {
+    .fab-ballroom-shell {
+      bottom: 1.5rem;
+      right: 1.5rem;
+    }
+
+    .fab-ballroom {
+      animation: fab-ballroom-glow-pulse 2.5s ease-in-out infinite;
+    }
+  }
+
+  @keyframes fab-ballroom-glow-pulse {
+    0%,
+    100% {
+      box-shadow:
+        0 12px 32px rgba(253, 185, 39, 0.4),
+        0 0 0 1px rgba(253, 185, 39, 0.55);
+    }
+
+    50% {
+      box-shadow:
+        0 16px 44px rgba(253, 185, 39, 0.58),
+        0 0 28px rgba(253, 185, 39, 0.32),
+        0 0 0 1px rgba(253, 185, 39, 0.72);
+    }
+  }
+
   .fab-ballroom {
     display: inline-flex;
     align-items: center;
