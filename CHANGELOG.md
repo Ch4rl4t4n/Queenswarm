@@ -1,5 +1,12 @@
 # Queenswarm Changelog
 
+## Stripe webhook hardening + production sign-off docs (2026-05-19)
+
+- **ops:** exempt `/api/v1/billing/stripe/webhook` from rate limiting (Stripe retry-safe).
+- **test:** add ASGI contract tests for public webhook path (503 without secret, 400 without signature).
+- **ops:** sign-off gate rejects JWT-gated webhook responses (401/404).
+- **docs:** add `docs/PRODUCTION_SIGNOFF.md` manual QA checklist for queenswarm.love rollout.
+
 ## Production sign-off gate + Phase 14 env baseline (2026-05-19)
 
 - **ops:** add `scripts/production-signoff-gate.sh` — orchestrates validate-prod-env, core-reliability, backend pytest, responsive/PWA E2E (prod or local), edge smoke, Stripe readiness check.
