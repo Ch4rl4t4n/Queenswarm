@@ -22,6 +22,71 @@ logger = get_logger(__name__)
 
 PREMIUM_TAG = "premium"
 PURCHASE_COMPLETED = "completed"
+PURCHASE_PENDING = "pending"
+
+
+async def _get_pending_purchase(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    recipe_id: uuid.UUID,
+) -> SkillPurchase | None:
+    """Return an in-flight checkout row for tenant + recipe, if any."""
+
+    exec_result = await session.execute(
+        select(SkillPurchase).where(
+            SkillPurchase.tenant_id == tenant_id,
+            SkillPurchase.recipe_id == recipe_id,
+            SkillPurchase.status == PURCHASE_PENDING,
+        ),
+    )
+    return exec_result.scalar_one_or_none()
+
+
+async def _resume_open_checkout_session(
+    *,
+    purchase: SkillPurchase,
+    recipe: Recipe,
+) -> dict[str, str] | None:
+    """Reuse an open Stripe Checkout Session when the operator retries unlock."""
+
+    session_id = (purchase.stripe_checkout_session_id or "").strip()
+    if not session_id:
+        return None
+
+    try:
+        import stripe
+
+        stripe.api_key = stripe_effective_secret_key()
+        checkout = stripe.checkout.Session.retrieve(session_id)
+    except Exception as exc:  # noqa: BLE001
+        logger.info(
+            "skill_checkout.resume_retrieve_failed",
+            purchase_id=str(purchase.id),
+            checkout_session_id=session_id,
+            error_type=type(exc).__name__,
+            error=str(exc),
+        )
+        return None
+
+    checkout_status = str(getattr(checkout, "status", "") or "")
+    checkout_url = str(getattr(checkout, "url", "") or "")
+    if checkout_status == "open" and checkout_url:
+        logger.info(
+            "skill_checkout.session_resumed",
+            purchase_id=str(purchase.id),
+            recipe_id=str(recipe.id),
+            checkout_session_id=session_id,
+        )
+        return {
+            "status": "checkout_resumed",
+            "purchase_id": str(purchase.id),
+            "checkout_url": checkout_url,
+            "recipe_id": str(recipe.id),
+            "slug": recipe_slug(recipe.name),
+            "amount_eur_cents": str(purchase.amount_cents),
+        }
+    return None
 
 
 async def tenant_has_skill_access(
@@ -124,15 +189,24 @@ async def create_skill_checkout_session(
         }
 
     amount_cents = resolve_skill_price_cents(recipe)
-    purchase = SkillPurchase(
-        tenant_id=tenant_id,
-        dashboard_user_id=dashboard_user_id,
-        recipe_id=recipe.id,
-        status="pending",
-        amount_cents=amount_cents,
-        currency="eur",
-    )
-    session.add(purchase)
+    pending = await _get_pending_purchase(session, tenant_id=tenant_id, recipe_id=recipe.id)
+    if pending is not None:
+        resumed = await _resume_open_checkout_session(purchase=pending, recipe=recipe)
+        if resumed is not None:
+            return resumed
+        purchase = pending
+        purchase.dashboard_user_id = dashboard_user_id
+        purchase.amount_cents = amount_cents
+    else:
+        purchase = SkillPurchase(
+            tenant_id=tenant_id,
+            dashboard_user_id=dashboard_user_id,
+            recipe_id=recipe.id,
+            status=PURCHASE_PENDING,
+            amount_cents=amount_cents,
+            currency="eur",
+        )
+        session.add(purchase)
     await session.flush()
 
     try:
