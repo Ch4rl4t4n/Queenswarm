@@ -51,7 +51,7 @@ def test_build_skill_md_when_verified_recipe_then_includes_front_matter() -> Non
     assert "no_code" in md
 
 
-def test_build_export_bundle_when_recipe_then_four_files() -> None:
+def test_build_export_bundle_when_recipe_then_six_files() -> None:
     recipe = Recipe(
         id=uuid.uuid4(),
         name="Export Test",
@@ -75,6 +75,10 @@ def test_build_export_bundle_when_recipe_then_four_files() -> None:
     assert f"{bundle.meta.slug}/HIVE.md" in paths
     assert f"{bundle.meta.slug}/tasks.prompt.md" in paths
     assert f"{bundle.meta.slug}/meta.json" in paths
+    assert f"{bundle.meta.slug}/README.md" in paths
+    assert f"{bundle.meta.slug}/LISTING.md" in paths
+    assert bundle.publish is not None
+    assert len(bundle.publish.channels) == 4
     assert "npx skills@latest add" in bundle.install_command
 
 

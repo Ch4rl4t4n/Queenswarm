@@ -907,6 +907,14 @@ class Settings(BaseSettings):
         default="https://queenswarm.love/integrations?tab=skills&purchase=cancel",
         description="Redirect when skill checkout is cancelled.",
     )
+    skill_publish_github_org: str = Field(
+        default="queenswarm",
+        description="GitHub org for public skills repo publish hints.",
+    )
+    skill_publish_github_repo: str = Field(
+        default="skills",
+        description="GitHub repo name for skill folder publish hints.",
+    )
     paper_trading_enabled: bool = Field(
         default=True,
         description="Enable paper trading bee Celery ticks and dashboard APIs.",

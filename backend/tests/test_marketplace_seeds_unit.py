@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.application.services.skill_marketplace_policy import is_premium_recipe, resolve_skill_price_cents
-from app.domain.recipes.marketplace_seeds import PREMIUM_MARKETPLACE_SEEDS, load_premium_marketplace_seeds
+from app.domain.recipes.marketplace_seeds import FACTORY_RECIPE_SEEDS, PREMIUM_MARKETPLACE_SEEDS, load_premium_marketplace_seeds
 from app.infrastructure.persistence.models.recipe import Recipe
 
 
@@ -19,10 +19,11 @@ async def test_load_premium_marketplace_seeds_when_empty_then_inserts_all() -> N
     session.add = MagicMock()
     session.flush = AsyncMock()
 
+    expected = len(PREMIUM_MARKETPLACE_SEEDS) + len(FACTORY_RECIPE_SEEDS)
     inserted = await load_premium_marketplace_seeds(session)
 
-    assert inserted == len(PREMIUM_MARKETPLACE_SEEDS)
-    assert session.add.call_count == len(PREMIUM_MARKETPLACE_SEEDS)
+    assert inserted == expected
+    assert session.add.call_count == expected
     session.flush.assert_awaited_once()
 
 

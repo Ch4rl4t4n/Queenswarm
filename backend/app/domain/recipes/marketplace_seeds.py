@@ -63,6 +63,22 @@ def _workflow_template(seed_key: str) -> dict[str, Any]:
     return {"seed_key": seed_key, "steps": blob.get("steps", [])}
 
 
+FACTORY_RECIPE_SEEDS: tuple[dict[str, Any], ...] = (
+    {
+        "name": "Product Mission — Revenue Swarm",
+        "description": (
+            "Ballroom playbook: niche → verified workflow → skill export → publish on GitHub, Gumroad, "
+            "and optional Stripe. Free factory template for operators."
+        ),
+        "seed_key": "PRODUCT_MISSION",
+        "topic_tags": ["factory", "product", "monetize", "publish"],
+        "success_count": 15,
+        "fail_count": 1,
+        "avg_pollen_earned": 55.0,
+    },
+)
+
+
 async def load_premium_marketplace_seeds(session: AsyncSession) -> int:
     """Insert verified premium marketplace recipes when missing (idempotent by name).
 
@@ -75,7 +91,8 @@ async def load_premium_marketplace_seeds(session: AsyncSession) -> int:
 
     inserted = 0
     verified_at = datetime.now(tz=UTC)
-    for spec in PREMIUM_MARKETPLACE_SEEDS:
+    all_specs = (*PREMIUM_MARKETPLACE_SEEDS, *FACTORY_RECIPE_SEEDS)
+    for spec in all_specs:
         name = str(spec["name"])
         existing = await session.scalar(
             select(func.count()).select_from(Recipe).where(Recipe.name == name),
@@ -111,4 +128,4 @@ async def load_premium_marketplace_seeds(session: AsyncSession) -> int:
     return inserted
 
 
-__all__ = ["PREMIUM_MARKETPLACE_SEEDS", "load_premium_marketplace_seeds"]
+__all__ = ["FACTORY_RECIPE_SEEDS", "PREMIUM_MARKETPLACE_SEEDS", "load_premium_marketplace_seeds"]

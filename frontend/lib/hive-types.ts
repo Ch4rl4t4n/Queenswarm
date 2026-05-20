@@ -431,11 +431,33 @@ export interface SkillExportMeta {
   export_version: string;
 }
 
+export interface SkillPublishChannel {
+  id: string;
+  label: string;
+  description: string;
+  action_url?: string | null;
+  copy_text?: string | null;
+}
+
+export interface SkillPublishGuide {
+  slug: string;
+  suggested_price_eur_cents: number;
+  suggested_price_display: string;
+  github_repo_url: string;
+  github_folder_path: string;
+  gumroad_new_product_url: string;
+  ballroom_mission_hint: string;
+  install_command: string;
+  channels: SkillPublishChannel[];
+  checklist: string[];
+}
+
 export interface SkillExportResponse {
   meta: SkillExportMeta;
   files: SkillExportFile[];
   install_command: string;
   install_hint: string;
+  publish?: SkillPublishGuide | null;
 }
 
 export interface SkillCatalogBuiltinItem {

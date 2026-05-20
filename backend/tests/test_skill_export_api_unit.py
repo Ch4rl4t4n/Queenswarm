@@ -124,7 +124,7 @@ async def test_export_skill_when_recipe_present_returns_bundle(
     assert response.status_code == 200
     payload = response.json()
     assert payload["meta"]["slug"] == "api-export"
-    assert len(payload["files"]) == 4
+    assert len(payload["files"]) == 6
     assert payload["files"][0]["path"].endswith("SKILL.md")
 
 

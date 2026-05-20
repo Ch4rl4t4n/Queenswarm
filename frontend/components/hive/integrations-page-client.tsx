@@ -422,9 +422,9 @@ export function IntegrationsPageClient({
       {tab === "skills" ? (
         <V4Card>
           <V4CardHeader
-            kicker="Matt Pocock style"
-            title="Skills export marketplace"
-            description="Export verified recipes as SKILL.md + HIVE.md bundles for Cursor, Claude Code, and npx skills install flows."
+            kicker="Revenue factory"
+            title="Skills export & publish"
+            description="Swarm → verify → export SKILL.md bundle → sell on GitHub, Gumroad, or optional Stripe unlock."
           />
           <SkillsMarketplacePanel
             checkoutSessionId={checkoutSessionId}

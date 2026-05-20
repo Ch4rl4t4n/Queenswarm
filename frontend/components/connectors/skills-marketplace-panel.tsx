@@ -1,10 +1,12 @@
 "use client";
 
-import { CopyIcon, CreditCardIcon, DownloadIcon, Loader2Icon, SparklesIcon } from "lucide-react";
+import Link from "next/link";
+import { CopyIcon, CreditCardIcon, DownloadIcon, Loader2Icon, RocketIcon, SparklesIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { VerifiedPollenLeaderboard } from "@/components/hive/verified-pollen-leaderboard";
+import { SkillProductPublishPanel } from "@/components/connectors/skill-product-publish-panel";
 import { V4Badge, V4CardHeader, V4Chip } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import type {
@@ -190,11 +192,32 @@ export function SkillsMarketplacePanel({
 
   return (
     <div className="space-y-5">
+      <section className="rounded-2xl border border-cyan/30 bg-cyan/5 p-4 md:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <RocketIcon className="h-4 w-4 text-cyan" aria-hidden />
+              <p className="text-sm font-medium text-(--qs-text)">Revenue swarm factory</p>
+            </div>
+            <p className="max-w-2xl text-xs text-(--qs-text-3)">
+              Swarm produces verified skills, plugins, and addons → export bundle → sell on{" "}
+              <strong className="text-(--qs-text-2)">GitHub</strong>,{" "}
+              <strong className="text-(--qs-text-2)">Gumroad</strong>, or optional{" "}
+              <strong className="text-pollen">Stripe</strong> in-app. Use built-in{" "}
+              <span className="font-mono text-cyan">product-mission</span> in Ballroom to start.
+            </p>
+          </div>
+          <Link href="/ballroom" className="qs-btn qs-btn--primary qs-btn--sm">
+            Start product mission
+          </Link>
+        </div>
+      </section>
+
       <section className="rounded-2xl border border-pollen/30 bg-pollen/5 p-4 md:p-5">
         <V4CardHeader
           as="h3"
-          title="Premium skills marketplace"
-          description="One-time unlock via Stripe — export verified recipes as SKILL.md + HIVE.md bundles for Cursor and Claude Code."
+          title="Premium skills (optional Stripe channel)"
+          description="One-time in-app unlock — or export and sell on GitHub/Gumroad instead."
         />
         {unlocks ? (
           <p className="mt-2 text-xs text-(--qs-text-3)">
@@ -329,22 +352,24 @@ export function SkillsMarketplacePanel({
       </section>
 
       {preview ? (
-        <section className="v4-learning-panel space-y-3 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <SparklesIcon className="h-4 w-4 text-pollen" aria-hidden />
-              <p className="text-sm font-medium text-(--qs-text)">Last export: {preview.meta.slug}</p>
+        <>
+          <SkillProductPublishPanel bundle={preview} />
+          <section className="v4-learning-panel space-y-3 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <SparklesIcon className="h-4 w-4 text-pollen" aria-hidden />
+                <p className="text-sm font-medium text-(--qs-text)">Bundle preview: {preview.meta.slug}</p>
+              </div>
+              <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void copyInstall()}>
+                <CopyIcon className="h-3.5 w-3.5" aria-hidden /> Copy install cmd
+              </button>
             </div>
-            <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void copyInstall()}>
-              <CopyIcon className="h-3.5 w-3.5" aria-hidden /> Copy install cmd
-            </button>
-          </div>
-          <p className="font-mono text-xs text-cyan">{preview.install_command}</p>
-          <p className="text-xs text-(--qs-text-3)">{preview.install_hint}</p>
-          <pre className="max-h-48 overflow-auto rounded-lg border border-(--qs-border) bg-black/40 p-3 font-mono text-[11px] text-(--qs-text-2)">
-            {preview.files.find((f) => f.path.endsWith("SKILL.md"))?.content.slice(0, 1200) ?? ""}
-          </pre>
-        </section>
+            <p className="font-mono text-xs text-cyan">{preview.install_command}</p>
+            <pre className="max-h-48 overflow-auto rounded-lg border border-(--qs-border) bg-black/40 p-3 font-mono text-[11px] text-(--qs-text-2)">
+              {preview.files.find((f) => f.path.endsWith("SKILL.md"))?.content.slice(0, 1200) ?? ""}
+            </pre>
+          </section>
+        </>
       ) : null}
     </div>
   );

@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.services.hive_md_generator import generate_recipe_hive_md, meta_json_preview
 from app.application.services.recipe_catalog import list_recipe_catalog_rows
 from app.application.services.skill_marketplace_policy import is_premium_recipe, resolve_skill_price_cents
+from app.application.services.skill_publish_assets import build_listing_md, build_publish_guide, build_readme_md
 from app.application.services.supervisor.skills import SkillLibrary
 from app.common.schemas.skill_export import (
     SkillCatalogBuiltinItem,
@@ -237,12 +238,18 @@ def build_export_bundle(recipe: Recipe) -> SkillExportResponse:
     tasks_md = _build_tasks_prompt_md(recipe)
     meta_dict = meta_json_preview(recipe)
     meta_json = json.dumps(meta_dict, indent=2, sort_keys=True)
+    install_command = f"npx skills@latest add queenswarm/{slug}"
+    readme_md = build_readme_md(recipe=recipe, slug=slug, install_command=install_command)
+    listing_md = build_listing_md(recipe=recipe, slug=slug, price_cents=resolve_skill_price_cents(recipe))
+    publish = build_publish_guide(recipe=recipe, slug=slug, install_command=install_command)
 
     files = [
         SkillExportFile(path=f"{folder}/SKILL.md", content=skill_md),
         SkillExportFile(path=f"{folder}/HIVE.md", content=hive_md),
         SkillExportFile(path=f"{folder}/tasks.prompt.md", content=tasks_md),
         SkillExportFile(path=f"{folder}/meta.json", content=meta_json + "\n"),
+        SkillExportFile(path=f"{folder}/README.md", content=readme_md),
+        SkillExportFile(path=f"{folder}/LISTING.md", content=listing_md),
     ]
 
     meta = SkillExportMeta(
@@ -258,10 +265,9 @@ def build_export_bundle(recipe: Recipe) -> SkillExportResponse:
         topic_tags=list(recipe.topic_tags or []),
     )
 
-    install_command = f"npx skills@latest add queenswarm/{slug}"
     install_hint = (
-        "Copy the bundle into your agent skills directory, or push to a public GitHub repo "
-        f"and run: {install_command}"
+        "Sell anywhere: push to GitHub, Gumroad, or Cursor skills folder. "
+        f"Bundle includes README.md + LISTING.md. In-app Stripe is optional — {install_command}"
     )
 
     logger.info(
@@ -279,6 +285,7 @@ def build_export_bundle(recipe: Recipe) -> SkillExportResponse:
         files=files,
         install_command=install_command,
         install_hint=install_hint,
+        publish=publish,
     )
 
 

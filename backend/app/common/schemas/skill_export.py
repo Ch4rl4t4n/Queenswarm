@@ -37,6 +37,35 @@ class SkillExportMeta(BaseModel):
     export_version: str = "1.0.0"
 
 
+class SkillPublishChannel(BaseModel):
+    """One external sales/distribution channel for a skill bundle."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1, max_length=32)
+    label: str = Field(min_length=1, max_length=80)
+    description: str = Field(min_length=1, max_length=400)
+    action_url: str | None = None
+    copy_text: str | None = None
+
+
+class SkillPublishGuide(BaseModel):
+    """Operator checklist to sell a verified skill outside the hive UI."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    slug: str
+    suggested_price_eur_cents: int = Field(ge=0)
+    suggested_price_display: str
+    github_repo_url: str
+    github_folder_path: str
+    gumroad_new_product_url: str
+    ballroom_mission_hint: str
+    install_command: str
+    channels: list[SkillPublishChannel] = Field(default_factory=list)
+    checklist: list[str] = Field(default_factory=list)
+
+
 class SkillExportResponse(BaseModel):
     """Full Matt Pocock-style bundle for one-click install flows."""
 
@@ -46,6 +75,7 @@ class SkillExportResponse(BaseModel):
     files: list[SkillExportFile]
     install_command: str
     install_hint: str
+    publish: SkillPublishGuide | None = None
 
 
 class SkillCatalogBuiltinItem(BaseModel):
@@ -109,4 +139,6 @@ __all__ = [
     "SkillExportFile",
     "SkillExportMeta",
     "SkillExportResponse",
+    "SkillPublishChannel",
+    "SkillPublishGuide",
 ]

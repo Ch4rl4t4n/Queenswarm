@@ -220,12 +220,65 @@ NEWSLETTER_WORKFLOW: dict[str, Any] = {
     ],
 }
 
+PRODUCT_MISSION_WORKFLOW: dict[str, Any] = {
+    "name": "PRODUCT_MISSION",
+    "description": "Niche → swarm produce → verify → package → multi-channel listing (GitHub, Gumroad, Stripe).",
+    "steps": [
+        {
+            "order": 1,
+            "description": "Research niche pain, buyer persona, and price anchor (€9/€19/€29)",
+            "agent_role": "researcher",
+            "input_schema": {"niche_hint": "str"},
+            "output_schema": {"offer_brief": "dict"},
+            "guardrails": _SHARED_GUARD,
+            "evaluation_criteria": _SHARED_EVAL,
+        },
+        {
+            "order": 2,
+            "description": "Decompose deliverable into 3–7 verified swarm workflow steps",
+            "agent_role": "orchestrator",
+            "input_schema": {"offer_brief": "dict"},
+            "output_schema": {"workflow_steps": "list[dict]"},
+            "guardrails": _SHARED_GUARD,
+            "evaluation_criteria": _SHARED_EVAL,
+        },
+        {
+            "order": 3,
+            "description": "Run simulation audit on each step — block unverified outputs",
+            "agent_role": "simulator",
+            "input_schema": {"workflow_steps": "list"},
+            "output_schema": {"verified": "bool", "confidence": "float"},
+            "guardrails": _SHARED_GUARD,
+            "evaluation_criteria": _SHARED_EVAL,
+        },
+        {
+            "order": 4,
+            "description": "Package SKILL.md bundle + README + Gumroad LISTING.md copy",
+            "agent_role": "coder",
+            "input_schema": {"workflow_steps": "list"},
+            "output_schema": {"export_checklist": "list[str]"},
+            "guardrails": _SHARED_GUARD,
+            "evaluation_criteria": _SHARED_EVAL,
+        },
+        {
+            "order": 5,
+            "description": "Publish plan: GitHub folder, Gumroad product, optional Queenswarm premium tag",
+            "agent_role": "reporter",
+            "input_schema": {"export_checklist": "list"},
+            "output_schema": {"listing_copy": "dict", "launch_hooks": "list[str]"},
+            "guardrails": _SHARED_GUARD,
+            "evaluation_criteria": _SHARED_EVAL,
+        },
+    ],
+}
+
 SEED_WORKFLOWS: dict[str, dict[str, Any]] = {
     "CRYPTO_ACKIE": CRYPTO_ACKIE_WORKFLOW,
     "BLOG_POST": BLOG_POST_WORKFLOW,
     "INSTAGRAM_POST": INSTAGRAM_POST_WORKFLOW,
     "YOUTUBE_DIGEST": YOUTUBE_DIGEST_WORKFLOW,
     "NEWSLETTER": NEWSLETTER_WORKFLOW,
+    "PRODUCT_MISSION": PRODUCT_MISSION_WORKFLOW,
 }
 
 
@@ -276,6 +329,7 @@ __all__ = [
     "CRYPTO_ACKIE_WORKFLOW",
     "INSTAGRAM_POST_WORKFLOW",
     "NEWSLETTER_WORKFLOW",
+    "PRODUCT_MISSION_WORKFLOW",
     "SEED_WORKFLOWS",
     "YOUTUBE_DIGEST_WORKFLOW",
     "load_seed_workflows",
