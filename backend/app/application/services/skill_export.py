@@ -314,6 +314,8 @@ async def build_skills_catalog(
         needle=None,
         limit=recipe_limit,
     )
+    from app.application.services.skill_checkout import tenant_has_skill_access
+
     recipes: list[SkillCatalogRecipeItem] = []
     for row in rows:
         total = row.success_count + row.fail_count

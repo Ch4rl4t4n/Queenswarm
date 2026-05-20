@@ -1,7 +1,7 @@
 "use client";
 
 import { CopyIcon, CreditCardIcon, DownloadIcon, Loader2Icon, SparklesIcon } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { VerifiedPollenLeaderboard } from "@/components/hive/verified-pollen-leaderboard";
@@ -35,7 +35,26 @@ export function SkillsMarketplacePanel({
   const [checkoutBusyId, setCheckoutBusyId] = useState<string | null>(null);
 
   const stripeReady = unlocks?.stripe_checkout_ready ?? false;
-  const hasLockedPremium = (catalog?.recipes ?? []).some((row) => row.premium && !row.unlocked);
+  const recipeRows = catalog?.recipes ?? [];
+  const sortByPrice = useCallback(
+    (a: SkillCatalogRecipeItem, b: SkillCatalogRecipeItem) =>
+      (a.price_eur_cents ?? 0) - (b.price_eur_cents ?? 0),
+    [],
+  );
+  const premiumLocked = useMemo(
+    () => recipeRows.filter((row) => row.premium && !row.unlocked).sort(sortByPrice),
+    [recipeRows, sortByPrice],
+  );
+  const premiumUnlocked = useMemo(
+    () => recipeRows.filter((row) => row.premium && row.unlocked).sort(sortByPrice),
+    [recipeRows, sortByPrice],
+  );
+  const freeVerified = recipeRows.filter((row) => !row.premium);
+  const hasLockedPremium = premiumLocked.length > 0;
+  const minPremiumEur =
+    premiumLocked.length > 0
+      ? (premiumLocked[0]?.price_eur_cents ?? 0) / 100
+      : (unlocks?.premium_price_eur_cents_default ?? 0) / 100;
 
   const loadCatalog = useCallback(async () => {
     setLoading(true);
@@ -171,24 +190,76 @@ export function SkillsMarketplacePanel({
 
   return (
     <div className="space-y-5">
+      <section className="rounded-2xl border border-pollen/30 bg-pollen/5 p-4 md:p-5">
+        <V4CardHeader
+          as="h3"
+          title="Premium skills marketplace"
+          description="One-time unlock via Stripe — export verified recipes as SKILL.md + HIVE.md bundles for Cursor and Claude Code."
+        />
+        {unlocks ? (
+          <p className="mt-2 text-xs text-(--qs-text-3)">
+            Stripe checkout:{" "}
+            <span className={stripeReady ? "text-(--qs-green)" : "text-(--qs-red)"}>
+              {stripeReady ? "ready" : "not configured"}
+            </span>
+            {hasLockedPremium ? (
+              <>
+                {" "}
+                · premium od{" "}
+                <span className="font-medium text-pollen">€{minPremiumEur.toFixed(2)}</span>
+                {premiumLocked.length > 1 ? (
+                  <span>
+                    {" "}
+                    (€9 / €19 / €29 podľa skillu)
+                  </span>
+                ) : null}
+              </>
+            ) : null}
+          </p>
+        ) : null}
+
+        {!stripeReady && hasLockedPremium ? (
+          <p
+            className="mt-3 rounded-xl border border-pollen/35 bg-pollen/10 px-4 py-3 text-sm text-pollen"
+            role="status"
+          >
+            Premium purchases need Stripe keys under Settings → Billing → Stripe checkout.
+          </p>
+        ) : null}
+
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {premiumLocked.map((recipe) => (
+            <RecipeSkillCard
+              key={recipe.id}
+              recipe={recipe}
+              stripeReady={stripeReady}
+              exportBusyId={exportBusyId}
+              checkoutBusyId={checkoutBusyId}
+              onAction={handleRecipeAction}
+              emphasizePremium
+            />
+          ))}
+          {premiumUnlocked.map((recipe) => (
+            <RecipeSkillCard
+              key={recipe.id}
+              recipe={recipe}
+              stripeReady={stripeReady}
+              exportBusyId={exportBusyId}
+              checkoutBusyId={checkoutBusyId}
+              onAction={handleRecipeAction}
+            />
+          ))}
+          {!loading && !premiumLocked.length && !premiumUnlocked.length ? (
+            <p className="text-sm text-(--qs-text-3) md:col-span-2 xl:col-span-3">
+              {stripeReady
+                ? "Premium catalog is loading — refresh in a moment. Verified premium recipes appear here with Unlock & export buttons."
+                : "Configure Stripe to enable premium unlocks. Built-in hive skills below remain free."}
+            </p>
+          ) : null}
+        </div>
+      </section>
+
       <VerifiedPollenLeaderboard limit={8} compact />
-
-      {unlocks ? (
-        <p className="text-xs text-(--qs-text-3)">
-          Stripe checkout: {stripeReady ? "ready" : "not configured"} · default premium €
-          {(unlocks.premium_price_eur_cents_default / 100).toFixed(2)}
-        </p>
-      ) : null}
-
-      {!stripeReady && hasLockedPremium ? (
-        <p
-          className="rounded-xl border border-pollen/35 bg-pollen/10 px-4 py-3 text-sm text-pollen"
-          role="status"
-        >
-          Premium skill purchases need Stripe on the server. Free exports and Pro-tier unlocks still work once
-          configured — set <span className="font-mono text-xs">STRIPE_SECRET_KEY</span> in production env.
-        </p>
-      ) : null}
 
       {err ? (
         <p className="rounded-xl border border-(--qs-red)/35 bg-(--qs-red)/10 px-4 py-3 text-sm text-(--qs-red)">
@@ -235,69 +306,24 @@ export function SkillsMarketplacePanel({
       <section>
         <V4CardHeader
           as="h3"
-          title="Verified recipe skills"
-          description="Export Recipe Library rows as Cursor/Claude-compatible bundles with simulation audit metadata."
+          title="Free verified recipe skills"
+          description="Already unlocked verified workflows — export without purchase."
         />
         <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-          {(catalog?.recipes ?? []).map((recipe) => (
-            <article key={recipe.id} className="v4-int-card flex flex-col gap-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="v4-int-name truncate">{recipe.name}</p>
-                  <p className="v4-int-meta">
-                    {recipe.slug} · ★ {(recipe.success_rate * 100).toFixed(0)}% · pollen{" "}
-                    {Math.round(recipe.avg_pollen_earned)}
-                  </p>
-                </div>
-                <V4Badge tone={recipe.premium && !recipe.unlocked ? "warn" : "ok"}>
-                  {recipe.premium && !recipe.unlocked ? "premium" : "verified"}
-                </V4Badge>
-              </div>
-              {recipe.premium && !recipe.unlocked ? (
-                <p className="text-xs text-pollen">
-                  €{((recipe.price_eur_cents ?? 0) / 100).toFixed(2)} one-time unlock
-                </p>
-              ) : null}
-              {recipe.description ? (
-                <p className="line-clamp-2 text-xs text-(--qs-text-3)">{recipe.description}</p>
-              ) : null}
-              <button
-                type="button"
-                className={cn(
-                  "qs-btn qs-btn--sm w-fit",
-                  recipe.premium && !recipe.unlocked && !stripeReady
-                    ? "qs-btn--ghost opacity-70"
-                    : "qs-btn--primary",
-                )}
-                disabled={
-                  exportBusyId === recipe.id ||
-                  checkoutBusyId === recipe.id ||
-                  (recipe.premium && !recipe.unlocked && !stripeReady)
-                }
-                title={
-                  recipe.premium && !recipe.unlocked && !stripeReady
-                    ? "Stripe checkout not configured on server"
-                    : undefined
-                }
-                onClick={() => handleRecipeAction(recipe)}
-              >
-                {exportBusyId === recipe.id || checkoutBusyId === recipe.id ? (
-                  <Loader2Icon className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                ) : recipe.premium && !recipe.unlocked ? (
-                  <CreditCardIcon className="h-3.5 w-3.5" aria-hidden />
-                ) : (
-                  <DownloadIcon className="h-3.5 w-3.5" aria-hidden />
-                )}
-                {recipe.premium && !recipe.unlocked
-                  ? stripeReady
-                    ? "Unlock & export"
-                    : "Checkout unavailable"
-                  : "Export skill"}
-              </button>
-            </article>
+          {freeVerified.map((recipe) => (
+            <RecipeSkillCard
+              key={recipe.id}
+              recipe={recipe}
+              stripeReady={stripeReady}
+              exportBusyId={exportBusyId}
+              checkoutBusyId={checkoutBusyId}
+              onAction={handleRecipeAction}
+            />
           ))}
-          {!loading && !(catalog?.recipes ?? []).length ? (
-            <p className="text-sm text-(--qs-text-3)">No verified recipes yet — run missions and promote workflows.</p>
+          {!loading && !freeVerified.length ? (
+            <p className="text-sm text-(--qs-text-3)">
+              No free verified recipes yet — run missions in Ballroom and promote workflows to the Recipe Library.
+            </p>
           ) : null}
         </div>
       </section>
@@ -321,5 +347,79 @@ export function SkillsMarketplacePanel({
         </section>
       ) : null}
     </div>
+  );
+}
+
+function RecipeSkillCard({
+  recipe,
+  stripeReady,
+  exportBusyId,
+  checkoutBusyId,
+  onAction,
+  emphasizePremium = false,
+}: {
+  recipe: SkillCatalogRecipeItem;
+  stripeReady: boolean;
+  exportBusyId: string | null;
+  checkoutBusyId: string | null;
+  onAction: (recipe: SkillCatalogRecipeItem) => void;
+  emphasizePremium?: boolean;
+}): JSX.Element {
+  const lockedPremium = recipe.premium && !recipe.unlocked;
+  const busy = exportBusyId === recipe.id || checkoutBusyId === recipe.id;
+  const isStarterTier = lockedPremium && (recipe.price_eur_cents ?? 0) <= 900;
+
+  return (
+    <article
+      className={cn(
+        "v4-int-card flex flex-col gap-3",
+        emphasizePremium &&
+          lockedPremium &&
+          (isStarterTier
+            ? "ring-2 ring-(--qs-green)/50 shadow-[0_0_28px_rgba(0,255,136,0.15)]"
+            : "ring-1 ring-pollen/40 shadow-[0_0_24px_rgba(255,184,0,0.12)]"),
+      )}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="v4-int-name truncate">{recipe.name}</p>
+          <p className="v4-int-meta">
+            {recipe.slug} · ★ {(recipe.success_rate * 100).toFixed(0)}% · pollen{" "}
+            {Math.round(recipe.avg_pollen_earned)}
+          </p>
+        </div>
+        <V4Badge tone={isStarterTier ? "ok" : lockedPremium ? "warn" : recipe.premium ? "ok" : "info"}>
+          {isStarterTier ? "starter €9" : lockedPremium ? "premium" : recipe.premium ? "unlocked" : "verified"}
+        </V4Badge>
+      </div>
+      {lockedPremium ? (
+        <p className={cn("text-sm font-medium", isStarterTier ? "text-(--qs-green)" : "text-pollen")}>
+          €{((recipe.price_eur_cents ?? 0) / 100).toFixed(2)} one-time unlock
+          {isStarterTier ? " · najlacnejší vstup" : ""}
+        </p>
+      ) : null}
+      {recipe.description ? (
+        <p className="line-clamp-3 text-xs text-(--qs-text-3)">{recipe.description}</p>
+      ) : null}
+      <button
+        type="button"
+        className={cn(
+          "qs-btn qs-btn--sm w-full sm:w-fit",
+          lockedPremium && stripeReady ? "qs-btn--primary" : lockedPremium ? "qs-btn--ghost opacity-70" : "qs-btn--primary",
+        )}
+        disabled={busy || (lockedPremium && !stripeReady)}
+        title={lockedPremium && !stripeReady ? "Stripe checkout not configured on server" : undefined}
+        onClick={() => onAction(recipe)}
+      >
+        {busy ? (
+          <Loader2Icon className="h-3.5 w-3.5 animate-spin" aria-hidden />
+        ) : lockedPremium ? (
+          <CreditCardIcon className="h-3.5 w-3.5" aria-hidden />
+        ) : (
+          <DownloadIcon className="h-3.5 w-3.5" aria-hidden />
+        )}
+        {lockedPremium ? (stripeReady ? "Unlock & export" : "Checkout unavailable") : "Export skill"}
+      </button>
+    </article>
   );
 }

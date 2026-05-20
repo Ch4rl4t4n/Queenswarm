@@ -53,9 +53,15 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     async with async_session() as session:
         from app.application.services.llm_runtime_credentials import refresh_llm_secret_cache
         from app.application.services.stripe_runtime_credentials import refresh_stripe_secret_cache
+        from app.domain.recipes.marketplace_seeds import load_premium_marketplace_seeds
 
         await refresh_llm_secret_cache(session)
         await refresh_stripe_secret_cache(session)
+        if settings.recipes_enabled:
+            seeded = await load_premium_marketplace_seeds(session)
+            if seeded:
+                await session.commit()
+                hive_log.info("premium_marketplace_seeds.loaded", count=seeded)
     await ensure_collections()
     relay_task: asyncio.Task[None] | None = None
 
