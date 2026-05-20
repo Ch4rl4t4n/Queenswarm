@@ -33,11 +33,30 @@ function persistSessionToken(token: string, expiresIn?: number): void {
   document.cookie = `qs_token=${encodeURIComponent(token.trim())}; Path=/; Max-Age=${String(maxAge)}; SameSite=Lax${secure}`;
 }
 
+function resolvePostLoginPath(searchParams: URLSearchParams): string {
+  const next = searchParams.get("next");
+  if (next && next.startsWith("/")) {
+    return next;
+  }
+  const purchase = searchParams.get("purchase");
+  if (purchase === "success" || purchase === "cancel") {
+    const tabRaw = searchParams.get("tab");
+    const tab = tabRaw === "skill" || tabRaw === "skills" ? "skills" : tabRaw ?? "skills";
+    const params = new URLSearchParams({ tab, purchase });
+    const sessionId = searchParams.get("session_id");
+    if (sessionId) {
+      params.set("session_id", sessionId);
+    }
+    return `/integrations?${params.toString()}`;
+  }
+  return "/";
+}
+
 function LoginFormInner(): JSX.Element {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextPath =
-    searchParams.get("next") && searchParams.get("next")!.startsWith("/") ? searchParams.get("next")! : "/";
+  const nextPath = resolvePostLoginPath(searchParams);
+  const skillPurchaseReturn = searchParams.get("purchase") === "success";
   const forceOTPTest = searchParams.get("test_2fa") === "1";
   const startOnOtp = searchParams.get("otp") === "1";
   const isDev = process.env.NODE_ENV === "development";
@@ -313,6 +332,12 @@ function LoginFormInner(): JSX.Element {
           </div>
 
           {error ? <div className="v4-login-error">{error}</div> : null}
+
+          {skillPurchaseReturn ? (
+            <p className="rounded-xl border border-(--qs-green)/35 bg-(--qs-green)/10 px-3 py-2 text-xs text-(--qs-green)">
+              Platba prebehla — po prihlásení ťa presmerujeme na Skills export.
+            </p>
+          ) : null}
 
           <div className="v4-login-status-row">
             <div className="v4-login-status-online">
