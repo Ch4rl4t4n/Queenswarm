@@ -1024,6 +1024,7 @@ export interface HarnessSnapshotPayload {
   feature_flags: Record<string, boolean>;
   slack_trainer?: HarnessSlackTrainerStatus;
   lsp_bridge?: HarnessLspBridgeStatus;
+  rubric_templates?: HarnessRubricTemplatesStatus;
   tech_health_score: number;
   monitoring: HarnessMonitoringPayload;
   docs: Record<string, string>;
@@ -1041,6 +1042,31 @@ export interface HarnessLspBridgeStatus {
   connector_slug: string;
   tools: string[];
   resolve_path: string;
+}
+
+export interface HarnessRubricTemplatesStatus {
+  enabled: boolean;
+  count: number;
+  list_path: string;
+}
+
+export interface RubricTemplateRow {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  pass_threshold: number;
+  evaluation_criteria: Record<string, unknown>;
+}
+
+export interface RubricEvaluateResponse {
+  is_valid?: boolean;
+  confidence?: number;
+  feedback?: string;
+  signals?: Record<string, string>;
+  rubric_template_id?: string;
+  rubric_name?: string;
+  pass_threshold?: number;
 }
 
 /** ``POST /api/v1/harness/slack-trainer/feedback`` */

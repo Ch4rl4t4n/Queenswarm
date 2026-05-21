@@ -17,6 +17,12 @@ from app.application.services.lsp.lsp_mcp_bridge import (
     bridge_status,
     invoke_lsp_tool,
 )
+from app.application.services.rubric_templates import (
+    evaluate_text_with_rubric,
+    get_rubric_template,
+    list_rubric_templates,
+    merge_rubric_into_criteria,
+)
 from app.application.services.slack_harness_trainer import (
     SlackHarnessTrainerConfigError,
     SlackHarnessTrainerDisabledError,
@@ -283,6 +289,79 @@ async def harness_lsp_bridge_invoke(
     except LspBridgeDisabledError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except LspBridgeToolError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+
+class RubricApplyRequest(BaseModel):
+    """Merge a rubric template into workflow evaluation criteria."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    template_id: str = Field(min_length=2, max_length=64)
+    base_criteria: dict[str, Any] = Field(default_factory=dict)
+
+
+class RubricEvaluateRequest(BaseModel):
+    """Score sample text against a curated rubric template."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    template_id: str = Field(min_length=2, max_length=64)
+    text: str = Field(min_length=8, max_length=12000)
+
+
+def _require_rubric_templates_enabled() -> None:
+    if not settings.rubric_templates_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Rubric templates are disabled (RUBRIC_TEMPLATES_ENABLED=false).",
+        )
+
+
+@router.get("/rubric-templates", summary="List curated subjective scoring rubrics")
+async def harness_rubric_templates_list(
+    _principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> list[dict[str, Any]]:
+    """Return design, copy, PRD, code review, and a11y rubric templates."""
+
+    _require_rubric_templates_enabled()
+    return [item.model_dump() for item in list_rubric_templates()]
+
+
+@router.post("/rubric-templates/apply", summary="Merge rubric into evaluation_criteria")
+async def harness_rubric_templates_apply(
+    body: RubricApplyRequest,
+    _principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Harness helper — copy merged criteria into workflow step definitions."""
+
+    _require_rubric_templates_enabled()
+    try:
+        merged = merge_rubric_into_criteria(body.base_criteria, body.template_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    return {"evaluation_criteria": merged}
+
+
+@router.post("/rubric-templates/evaluate", summary="Evaluate sample text with rubric")
+async def harness_rubric_templates_evaluate(
+    body: RubricEvaluateRequest,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Run generator-evaluator scoring against a rubric template."""
+
+    _require_rubric_templates_enabled()
+    if get_rubric_template(body.template_id) is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown rubric template.")
+    try:
+        return await evaluate_text_with_rubric(
+            db,
+            text=body.text,
+            template_id=body.template_id,
+            swarm_id=str(principal.get("tenant_id") or ""),
+        )
+    except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
 

@@ -10,6 +10,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.harness_tech_health import build_tech_health_report
+from app.application.services.rubric_templates import list_rubric_templates
 from app.core.repo_root import resolve_repo_root
 from app.application.services.pattern_telemetry_service import build_pattern_telemetry
 from app.application.services.supervisor.skills import SkillLibrary
@@ -184,6 +185,7 @@ async def build_harness_snapshot(
             "tracer_bullet_kanban_auto_on_intake": settings.tracer_bullet_kanban_auto_on_intake,
             "slack_harness_trainer_enabled": settings.slack_harness_trainer_enabled,
             "lsp_mcp_bridge_enabled": settings.lsp_mcp_bridge_enabled,
+            "rubric_templates_enabled": settings.rubric_templates_enabled,
         },
         "slack_trainer": {
             "enabled": settings.slack_harness_trainer_enabled,
@@ -198,6 +200,11 @@ async def build_harness_snapshot(
             "connector_slug": "queenswarm_lsp",
             "tools": ["resolve_symbol", "list_file_symbols", "find_references"],
             "resolve_path": "/api/v1/harness/lsp-bridge/resolve",
+        },
+        "rubric_templates": {
+            "enabled": settings.rubric_templates_enabled,
+            "count": len(list_rubric_templates()),
+            "list_path": "/api/v1/harness/rubric-templates",
         },
         "tech_health_score": tech_health.get("health_score"),
         "monitoring": monitoring,

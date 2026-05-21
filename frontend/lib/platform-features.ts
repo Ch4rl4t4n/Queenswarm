@@ -50,6 +50,7 @@ export const PLATFORM_FEATURE_CATALOG: Record<string, FeatureSpec> = {
   ai_harness_dashboard: { internal: true, commercial: true },
   slack_harness_trainer: { internal: true, commercial: true, minTier: "pro" },
   lsp_mcp_bridge: { internal: true, commercial: true, minTier: "pro" },
+  rubric_templates: { internal: true, commercial: true, minTier: "pro" },
   team_rbac: { internal: false, commercial: true },
   billing_settings: { internal: false, commercial: true },
   sharing_settings: { internal: false, commercial: true },

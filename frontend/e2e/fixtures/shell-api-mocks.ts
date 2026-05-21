@@ -118,6 +118,7 @@ const STUB_HARNESS_SNAPSHOT = {
     skill_lazy_reference_fetch_enabled: true,
     slack_harness_trainer_enabled: true,
     lsp_mcp_bridge_enabled: false,
+    rubric_templates_enabled: true,
   },
   slack_trainer: {
     enabled: true,
@@ -130,6 +131,11 @@ const STUB_HARNESS_SNAPSHOT = {
     connector_slug: "queenswarm_lsp",
     tools: ["resolve_symbol", "list_file_symbols", "find_references"],
     resolve_path: "/api/v1/harness/lsp-bridge/resolve",
+  },
+  rubric_templates: {
+    enabled: true,
+    count: 5,
+    list_path: "/api/v1/harness/rubric-templates",
   },
   tech_health_score: 0.85,
   monitoring: {

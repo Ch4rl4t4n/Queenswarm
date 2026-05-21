@@ -1308,6 +1308,10 @@ class Settings(BaseSettings):
         le=2_000_000,
         description="Skip indexing files larger than this many bytes.",
     )
+    rubric_templates_enabled: bool = Field(
+        default=True,
+        description="Expose curated subjective scoring rubrics in harness + workflow evaluation.",
+    )
     supervisor_self_healing_enabled: bool = Field(
         default=True,
         description="Enable self-healing retries and reflection loop in supervisor sub-agent runtime.",
