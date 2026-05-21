@@ -8,7 +8,9 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.application.services.plugin_hub import plugin_manifest
+from app.application.services.lsp.lsp_mcp_bridge import lsp_bridge_registry_rows
 from app.infrastructure.connectors.dynamic.hub import DynamicConnectorHub
 from app.infrastructure.connectors.dynamic.schemas import DynamicConnectorCreateBody, DynamicConnectorPublic
 from app.infrastructure.connectors.dynamic.service import DynamicConnectorService
@@ -171,6 +173,16 @@ async def tool_registry_snapshot(
             row["tool_name"],
         ),
     )
+    if settings.lsp_mcp_bridge_enabled:
+        lsp_rows = lsp_bridge_registry_rows(goal=goal, limit=min(6, int(limit)))
+        rows = lsp_rows + rows
+        rows.sort(
+            key=lambda row: (
+                -float(row.get("score") or 0.0),
+                row["connector_slug"],
+                row["tool_name"],
+            ),
+        )
     return rows[: max(1, int(limit))]
 
 

@@ -117,12 +117,19 @@ const STUB_HARNESS_SNAPSHOT = {
     supervisor_pattern_router_llm_enabled: false,
     skill_lazy_reference_fetch_enabled: true,
     slack_harness_trainer_enabled: true,
+    lsp_mcp_bridge_enabled: false,
   },
   slack_trainer: {
     enabled: true,
     signing_secret_configured: false,
     tenant_id_configured: false,
     slash_command_path: "/api/v1/harness/slack-trainer/slack-command",
+  },
+  lsp_bridge: {
+    enabled: false,
+    connector_slug: "queenswarm_lsp",
+    tools: ["resolve_symbol", "list_file_symbols", "find_references"],
+    resolve_path: "/api/v1/harness/lsp-bridge/resolve",
   },
   tech_health_score: 0.85,
   monitoring: {

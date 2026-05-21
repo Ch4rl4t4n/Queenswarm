@@ -387,6 +387,12 @@ async def run_sub_agent_inprocess(
         selected_skills,
         lazy_fetch=settings.skill_lazy_reference_fetch_enabled,
     )
+    if settings.lsp_mcp_bridge_enabled:
+        from app.application.services.lsp.lsp_mcp_bridge import build_symbol_context_block
+
+        lsp_symbol_block = build_symbol_context_block(goal=supervisor_session.goal, limit=6)
+        if lsp_symbol_block:
+            skill_prompt = f"{skill_prompt}\n\n{lsp_symbol_block}".strip()
     retrieval_contract = str((supervisor_session.context_summary or {}).get("retrieval_contract") or "").strip()
     retrieval_bundle = await shared_context.retrieve_context_bundle(
         db,
@@ -500,6 +506,10 @@ async def run_sub_agent_inprocess(
                 selected_skills,
                 lazy_fetch=settings.skill_lazy_reference_fetch_enabled,
             )
+            if settings.lsp_mcp_bridge_enabled:
+                from app.application.services.lsp.lsp_mcp_bridge import enrich_skill_prompt_with_lsp
+
+                skill_prompt = enrich_skill_prompt_with_lsp(skill_prompt, goal=supervisor_session.goal)
 
     healing = await run_self_healing_cycle(
         role=sub_agent.role,

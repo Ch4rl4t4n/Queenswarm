@@ -1023,6 +1023,7 @@ export interface HarnessSnapshotPayload {
   recent_agentic_patterns: HarnessPatternRow[];
   feature_flags: Record<string, boolean>;
   slack_trainer?: HarnessSlackTrainerStatus;
+  lsp_bridge?: HarnessLspBridgeStatus;
   tech_health_score: number;
   monitoring: HarnessMonitoringPayload;
   docs: Record<string, string>;
@@ -1033,6 +1034,13 @@ export interface HarnessSlackTrainerStatus {
   signing_secret_configured: boolean;
   tenant_id_configured: boolean;
   slash_command_path: string;
+}
+
+export interface HarnessLspBridgeStatus {
+  enabled: boolean;
+  connector_slug: string;
+  tools: string[];
+  resolve_path: string;
 }
 
 /** ``POST /api/v1/harness/slack-trainer/feedback`` */

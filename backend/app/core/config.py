@@ -1292,6 +1292,22 @@ class Settings(BaseSettings):
         default=True,
         description="Auto-create Kanban slices when operator intake_task runs workflow breaker.",
     )
+    lsp_mcp_bridge_enabled: bool = Field(
+        default=False,
+        description="Expose lightweight symbol index as MCP tools + prompt context for coder sub-agents.",
+    )
+    lsp_mcp_bridge_max_results: int = Field(
+        default=12,
+        ge=1,
+        le=50,
+        description="Max symbol matches or references returned per LSP bridge call.",
+    )
+    lsp_mcp_bridge_max_file_bytes: int = Field(
+        default=512_000,
+        ge=4096,
+        le=2_000_000,
+        description="Skip indexing files larger than this many bytes.",
+    )
     supervisor_self_healing_enabled: bool = Field(
         default=True,
         description="Enable self-healing retries and reflection loop in supervisor sub-agent runtime.",

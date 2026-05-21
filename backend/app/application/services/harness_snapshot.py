@@ -183,6 +183,7 @@ async def build_harness_snapshot(
             "tracer_bullet_kanban_enabled": settings.tracer_bullet_kanban_enabled,
             "tracer_bullet_kanban_auto_on_intake": settings.tracer_bullet_kanban_auto_on_intake,
             "slack_harness_trainer_enabled": settings.slack_harness_trainer_enabled,
+            "lsp_mcp_bridge_enabled": settings.lsp_mcp_bridge_enabled,
         },
         "slack_trainer": {
             "enabled": settings.slack_harness_trainer_enabled,
@@ -191,6 +192,12 @@ async def build_harness_snapshot(
                 settings.slack_harness_trainer_tenant_id and str(settings.slack_harness_trainer_tenant_id).strip(),
             ),
             "slash_command_path": "/api/v1/harness/slack-trainer/slack-command",
+        },
+        "lsp_bridge": {
+            "enabled": settings.lsp_mcp_bridge_enabled,
+            "connector_slug": "queenswarm_lsp",
+            "tools": ["resolve_symbol", "list_file_symbols", "find_references"],
+            "resolve_path": "/api/v1/harness/lsp-bridge/resolve",
         },
         "tech_health_score": tech_health.get("health_score"),
         "monitoring": monitoring,

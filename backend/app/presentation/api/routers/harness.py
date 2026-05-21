@@ -11,6 +11,12 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.application.services.forager_intelligence import run_intelligence_scan
 from app.application.services.harness_snapshot import build_harness_snapshot
 from app.application.services.pattern_explorer import build_pattern_explorer_payload
+from app.application.services.lsp.lsp_mcp_bridge import (
+    LspBridgeDisabledError,
+    LspBridgeToolError,
+    bridge_status,
+    invoke_lsp_tool,
+)
 from app.application.services.slack_harness_trainer import (
     SlackHarnessTrainerConfigError,
     SlackHarnessTrainerDisabledError,
@@ -20,6 +26,12 @@ from app.application.services.slack_harness_trainer import (
     notify_trainer_confirmation,
     resolve_slack_trainer_tenant_id,
     verify_slack_request_signature,
+)
+from app.common.schemas.lsp_bridge import (
+    LspFileSymbolsRequest,
+    LspFindReferencesRequest,
+    LspResolveRequest,
+    LspToolInvokeRequest,
 )
 from app.common.schemas.slack_harness_trainer import (
     SlackTrainerFeedbackRequest,
@@ -203,6 +215,75 @@ async def harness_slack_trainer_slash_command(
             f"> {preview}"
         ),
     )
+
+
+@router.get("/lsp-bridge/status", summary="LSP + MCP bridge deployment status")
+async def harness_lsp_bridge_status(
+    _principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return symbol bridge config (no secrets)."""
+
+    return bridge_status()
+
+
+@router.post("/lsp-bridge/resolve", summary="Resolve a symbol name in the monorepo")
+async def harness_lsp_bridge_resolve(
+    body: LspResolveRequest,
+    _principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Harness tester for ``resolve_symbol`` MCP tool."""
+
+    try:
+        return invoke_lsp_tool("resolve_symbol", {"query": body.query})
+    except LspBridgeDisabledError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except LspBridgeToolError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+
+@router.post("/lsp-bridge/file-symbols", summary="List symbols in one repo file")
+async def harness_lsp_bridge_file_symbols(
+    body: LspFileSymbolsRequest,
+    _principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Harness tester for ``list_file_symbols`` MCP tool."""
+
+    try:
+        return invoke_lsp_tool("list_file_symbols", {"path": body.path})
+    except LspBridgeDisabledError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except LspBridgeToolError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+
+@router.post("/lsp-bridge/find-references", summary="Find references to a symbol")
+async def harness_lsp_bridge_find_references(
+    body: LspFindReferencesRequest,
+    _principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Harness tester for ``find_references`` MCP tool."""
+
+    try:
+        return invoke_lsp_tool("find_references", {"symbol": body.symbol})
+    except LspBridgeDisabledError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except LspBridgeToolError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+
+@router.post("/lsp-bridge/invoke", summary="Generic LSP MCP tool invoke (harness)")
+async def harness_lsp_bridge_invoke(
+    body: LspToolInvokeRequest,
+    _principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Dispatch any builtin LSP bridge tool by name."""
+
+    try:
+        return invoke_lsp_tool(body.tool_name, body.arguments)
+    except LspBridgeDisabledError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except LspBridgeToolError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
 
 __all__ = ["router"]
