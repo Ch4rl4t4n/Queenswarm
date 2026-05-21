@@ -6,7 +6,6 @@ import { useCallback, useState } from "react";
 
 import { usePlatform } from "@/components/hive/platform-context";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
-import { usePlatform } from "@/components/hive/platform-context";
 import { COCKPIT_POLL_COLONY_TELEMETRY_MS } from "@/lib/cockpit-poll-profile";
 import { DASHBOARD_BOOT_STAGGER_MS } from "@/lib/dashboard-boot-stagger";
 import { HiveApiError, hiveGet } from "@/lib/api";
