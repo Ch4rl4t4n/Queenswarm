@@ -92,7 +92,7 @@ Analysis: `docs/ROUNDTABLESPACE_MAY2026_INSIGHTS.md`
 | Selective recall mode | P1 | 3–4 d | ✅ | hive_mind_max_prompt_chars, graph RAG |
 | Venice MCP preset + Tool Hub polish | P1 | 4–6 d | ✅ | Tools Marketplace + `/tools/hub/overview` |
 | Tool Discovery Loop (forager) | P1 | 3–5 d | ⏳ | Foragers — **merge → Forager Intelligence Loop (Fáza 6)** |
-| Unified Savings Dashboard | P2 | 3–4 d | ⏳ | /costs, time-saved |
+| Unified Savings Dashboard | P2 | 3–4 d | ✅ | `/costs` + `GET /dashboard/unified-savings` |
 | Voice Overnight Report (Ballroom TTS) | P2 | 2–3 d | ⏳ | Ballroom voice |
 
 **Rollout rule:** feature flags until verified simulation pass; Pro tier for Dump & Sleep / Auto-Graphify.

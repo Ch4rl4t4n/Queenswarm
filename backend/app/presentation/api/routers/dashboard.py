@@ -5,10 +5,10 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 
-from app.presentation.api.deps import DbSession, JwtSubject
+from app.presentation.api.deps import DbSession, JwtSubject, require_dashboard_user_with_tenant_role
 from app.infrastructure.persistence.models.agent import Agent
 from app.infrastructure.persistence.models.agent_config import AgentConfig
 from app.infrastructure.persistence.models.enums import TaskStatus
@@ -20,6 +20,7 @@ from app.application.services.dashboard_foragers_overview import build_foragers_
 from app.application.services.dashboard_swarms_overview import build_swarms_overview_payload
 from app.application.services.dashboard_task_queue import build_task_queue_payload
 from app.application.services.dashboard_time_saved import build_time_saved_payload
+from app.application.services.unified_savings import build_unified_savings_payload
 from app.application.services.dashboard_workflows import build_workflows_dashboard_payload
 from app.application.services.hive_tier import resolve_hive_tier
 
@@ -135,12 +136,13 @@ async def dashboard_foragers_overview(db: DbSession, _subject: JwtSubject) -> di
 @router.get("/rapid-loop")
 async def dashboard_rapid_loop(
     db: DbSession,
-    _subject: JwtSubject,
+    principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),
     window_hours: int = Query(default=24, ge=1, le=168),
 ) -> dict[str, object]:
-    """Scrape → reflect → simulate → reward loop counts and SLA for the dashboard widget."""
+    """Scrape → reflect → simulate → reward loop counts, SLA, and pattern telemetry."""
 
-    return await build_rapid_loop_payload(db, window_hours=window_hours)
+    tenant_id = principal.get("tenant_id")
+    return await build_rapid_loop_payload(db, window_hours=window_hours, tenant_id=tenant_id)
 
 
 @router.get("/time-saved")
@@ -152,6 +154,22 @@ async def dashboard_time_saved(
     """Verified workflow ROI — hours saved by template/recipe/custom."""
 
     return await build_time_saved_payload(db, window_days=window_days)
+
+
+@router.get("/unified-savings")
+async def dashboard_unified_savings(
+    db: DbSession,
+    principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),
+    window_days: int = Query(default=30, ge=1, le=90),
+) -> dict[str, object]:
+    """Merged time ROI + LLM cost savings for the Unified Savings Dashboard."""
+
+    tenant_id = principal.get("tenant_id")
+    return await build_unified_savings_payload(
+        db,
+        tenant_id=tenant_id,
+        window_days=window_days,
+    )
 
 
 __all__ = ["router"]

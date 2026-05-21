@@ -87,6 +87,25 @@ const STUB_LLM_COST_SAVINGS = {
   cost_guardian_enabled: true,
 };
 
+const STUB_UNIFIED_SAVINGS = {
+  window_days: 30,
+  hourly_rate_usd: 50,
+  headline: {
+    total_value_usd: 503.5,
+    time_value_usd: 500,
+    llm_saved_usd: 3.55,
+    hours_saved_total: 10,
+    hours_saved_projected_monthly: 12,
+    llm_saved_pct: 73.96,
+    verified_task_count: 4,
+    llm_call_count: 42,
+  },
+  time_saved: STUB_TIME_SAVED,
+  llm_savings: STUB_LLM_COST_SAVINGS,
+  llm_savings_available: true,
+  disclaimer: "Stub unified savings for shell E2E.",
+};
+
 const STUB_COST_SUMMARY = {
   window_days: 35,
   series: [{ day: new Date().toISOString().slice(0, 10), spend_usd: 1.25, model: "grok" }],
@@ -325,6 +344,15 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_RAPID_LOOP),
+      });
+      return;
+    }
+
+    if (path.startsWith("dashboard/unified-savings")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_UNIFIED_SAVINGS),
       });
       return;
     }

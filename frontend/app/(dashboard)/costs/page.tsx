@@ -21,14 +21,9 @@ const SystemStatusPanel = nextDynamic(
   { loading: () => <DashboardSectionSkeleton className="min-h-[180px]" /> },
 );
 
-const TimeSavedPanel = nextDynamic(
-  () => import("@/components/hive/time-saved-panel").then((mod) => ({ default: mod.TimeSavedPanel })),
-  { loading: () => <DashboardSectionSkeleton className="min-h-[160px]" /> },
-);
-
-const CostSavingsPanel = nextDynamic(
-  () => import("@/components/hive/cost-savings-panel").then((mod) => ({ default: mod.CostSavingsPanel })),
-  { loading: () => <DashboardSectionSkeleton className="min-h-[160px]" /> },
+const UnifiedSavingsPanel = nextDynamic(
+  () => import("@/components/hive/unified-savings-panel").then((mod) => ({ default: mod.UnifiedSavingsPanel })),
+  { loading: () => <DashboardSectionSkeleton className="min-h-[280px]" /> },
 );
 
 function formatUsd(n: number): string {
@@ -137,9 +132,7 @@ export default async function CostsPage() {
         <V4Stat label="Billing caps" value="Settings" icon={TargetIcon} iconTone="purple" foot="Soft/hard limits per tier" />
       </div>
 
-      <TimeSavedPanel />
-
-      <CostSavingsPanel />
+      <UnifiedSavingsPanel />
 
       <p className="text-xs text-(--qs-magenta)">
         Task ledger Σ cost_usd (UTC midnight window):{" "}

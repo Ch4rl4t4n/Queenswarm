@@ -851,6 +851,39 @@ export interface TimeSavedSummaryPayload {
   disclaimer: string;
 }
 
+export interface UnifiedSavingsHeadline {
+  total_value_usd: number;
+  time_value_usd: number;
+  llm_saved_usd: number;
+  hours_saved_total: number;
+  hours_saved_projected_monthly: number;
+  llm_saved_pct: number | null;
+  verified_task_count: number;
+  llm_call_count: number;
+}
+
+export interface LlmCostSavingsPayload {
+  window_days: number;
+  call_count: number;
+  actual_usd: number;
+  quality_baseline_usd: number;
+  saved_usd: number;
+  saved_pct: number;
+  routing_mode: string;
+  cost_guardian_enabled: boolean;
+}
+
+/** ``GET /api/v1/dashboard/unified-savings`` — merged time + LLM savings. */
+export interface UnifiedSavingsPayload {
+  window_days: number;
+  hourly_rate_usd: number;
+  headline: UnifiedSavingsHeadline;
+  time_saved: TimeSavedSummaryPayload;
+  llm_savings: LlmCostSavingsPayload | null;
+  llm_savings_available: boolean;
+  disclaimer: string;
+}
+
 export type PendingReviewStatus = "pending" | "approved" | "rejected";
 
 export interface PendingReviewItemRow {

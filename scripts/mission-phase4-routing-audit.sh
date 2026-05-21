@@ -69,10 +69,10 @@ if grep -q 'CostGuardianRoutingPanel' frontend/components/hive/settings-llm-keys
 else
   bad "CostGuardianRoutingPanel not mounted in settings"
 fi
-if grep -q 'CostSavingsPanel' frontend/app/\(dashboard\)/costs/page.tsx; then
-  ok "Costs page mounts CostSavingsPanel"
+if grep -q 'UnifiedSavingsPanel' frontend/app/\(dashboard\)/costs/page.tsx; then
+  ok "Costs page mounts UnifiedSavingsPanel (includes LLM savings lane)"
 else
-  bad "CostSavingsPanel not mounted on /costs"
+  bad "UnifiedSavingsPanel not mounted on /costs"
 fi
 if grep -q 'llm-routing/settings' frontend/e2e/fixtures/shell-api-mocks.ts; then
   ok "E2E mocks for llm-routing/settings"
