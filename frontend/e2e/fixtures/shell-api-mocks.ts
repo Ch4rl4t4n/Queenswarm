@@ -366,6 +366,42 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("auto-graphify/summary")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          available: false,
+          batch: null,
+          window_hours: 168,
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("auto-graphify/batches")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: "g1111111-1111-4111-8111-111111111111",
+          status: "completed",
+          folder_label: "Research dump",
+          file_count: 2,
+          items_ingested: 2,
+          graph_nodes_created: 6,
+          vectors_embedded: 2,
+          pollen_earned: 3.0,
+          summary_md: "# Auto-Graphify ingest report\n",
+          vault_rel_path: "graphify/demo/batch",
+          created_at: new Date().toISOString(),
+          processed_at: new Date().toISOString(),
+          error_text: null,
+        }),
+      });
+      return;
+    }
+
     if (path.startsWith("dreaming/")) {
       if (path.includes("settings")) {
         await route.fulfill({

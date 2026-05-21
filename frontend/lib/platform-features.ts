@@ -41,6 +41,7 @@ export const PLATFORM_FEATURE_CATALOG: Record<string, FeatureSpec> = {
   bee_gamification: { internal: true, commercial: true, minTier: "pro" },
   dump_sleep: { internal: true, commercial: true, minTier: "pro" },
   free_first_routing: { internal: true, commercial: true },
+  auto_graphify: { internal: true, commercial: true, minTier: "pro" },
   team_rbac: { internal: false, commercial: true },
   billing_settings: { internal: false, commercial: true },
   sharing_settings: { internal: false, commercial: true },

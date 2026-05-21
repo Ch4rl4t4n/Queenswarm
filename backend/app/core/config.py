@@ -409,6 +409,19 @@ class Settings(BaseSettings):
         default=True,
         description="Master switch for Free-First / economy LiteLLM routing (Phase 4).",
     )
+    auto_graphify_enabled: bool = Field(
+        default=True,
+        description="Master switch for Auto-Graphify folder ingest (Phase 4 P1).",
+    )
+    auto_graphify_upload_root: str = Field(
+        default="/tmp/queenswarm-auto-graphify",
+        description="Filesystem root for queued Auto-Graphify uploads.",
+    )
+    auto_graphify_max_files: int = Field(default=40, ge=1, le=200)
+    auto_graphify_max_file_bytes: int = Field(default=1_048_576, ge=1024, le=10_485_760)
+    auto_graphify_max_content_chars: int = Field(default=120_000, ge=1000, le=500_000)
+    auto_graphify_pollen_per_file: float = Field(default=1.5, ge=0.0, le=100.0)
+    auto_graphify_report_window_hours: int = Field(default=168, ge=1, le=720)
     scout_swarm_size: int = Field(default=8, ge=1)
     eval_swarm_size: int = Field(default=6, ge=1)
     sim_swarm_size: int = Field(default=5, ge=1)

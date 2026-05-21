@@ -318,4 +318,102 @@ async def neighbor_snapshot_for_prompt(
     return lines
 
 
-__all__ = ["bounded_operator_graph_snapshot", "neighbor_snapshot_for_prompt", "persist_hive_graph_bundle"]
+async def persist_graphify_ingest_bundle(
+    *,
+    tenant_id: uuid.UUID,
+    batch_id: uuid.UUID,
+    folder_label: str,
+    files: list[dict[str, Any]],
+) -> int:
+    """Upsert `:GraphifyBatch`, `:VaultFolder`, and `:VaultDocument` nodes for folder ingest."""
+
+    if not files:
+        return 0
+
+    driver = await get_neo4j_driver()
+    tid = str(tenant_id)
+    bid = str(batch_id)
+    folder_path = f"graphify/{tid}/{bid}"
+    created = 0
+
+    async with driver.session(database="neo4j") as session:
+        await session.run(
+            """
+            MERGE (b:GraphifyBatch {batch_id: $bid})
+            SET b.tenant_id = $tid,
+                b.folder_label = $label,
+                b.file_count = $count,
+                b.updated_at = datetime()
+            MERGE (f:VaultFolder {path: $folder_path, tenant_id: $tid})
+            SET f.label = $label,
+                f.updated_at = datetime()
+            MERGE (b)-[:ROOTED_IN]->(f)
+            """,
+            bid=bid,
+            tid=tid,
+            label=folder_label[:240],
+            count=len(files),
+            folder_path=folder_path,
+        )
+        created += 2
+
+        for row in files:
+            doc_id = str(row.get("doc_id") or "")
+            if not doc_id:
+                continue
+            rel_path = str(row.get("rel_path") or "")[:480]
+            title = str(row.get("title") or rel_path or "document")[:500]
+            excerpt = str(row.get("excerpt") or "")[:2600]
+            tags = [str(t)[:160] for t in (row.get("tags") or []) if str(t).strip()][:16]
+            await session.run(
+                """
+                MERGE (d:VaultDocument {doc_id: $doc_id})
+                SET d.tenant_id = $tid,
+                    d.batch_id = $bid,
+                    d.rel_path = $rel_path,
+                    d.title = $title,
+                    d.excerpt = $excerpt,
+                    d.tags = $tags,
+                    d.updated_at = datetime()
+                WITH d
+                MATCH (f:VaultFolder {path: $folder_path, tenant_id: $tid})
+                MERGE (f)-[:CONTAINS]->(d)
+                WITH d
+                MATCH (b:GraphifyBatch {batch_id: $bid})
+                MERGE (b)-[:INGESTED]->(d)
+                """,
+                doc_id=doc_id,
+                tid=tid,
+                bid=bid,
+                rel_path=rel_path,
+                title=title,
+                excerpt=excerpt,
+                tags=tags,
+                folder_path=folder_path,
+            )
+            created += 1
+            for tag in tags:
+                tag_norm = tag.strip().lower().replace(" ", "_")
+                if len(tag_norm) < 2:
+                    continue
+                await session.run(
+                    """
+                    MERGE (tg:Tag {name: $name})
+                    SET tg.updated_at = datetime()
+                    WITH tg
+                    MATCH (d:VaultDocument {doc_id: $doc_id})
+                    MERGE (d)-[:TAGGED_AS]->(tg)
+                    """,
+                    name=tag_norm[:160],
+                    doc_id=doc_id,
+                )
+
+    return created
+
+
+__all__ = [
+    "bounded_operator_graph_snapshot",
+    "neighbor_snapshot_for_prompt",
+    "persist_graphify_ingest_bundle",
+    "persist_hive_graph_bundle",
+]

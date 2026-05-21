@@ -30,6 +30,7 @@ _EXPORTABLE: dict[str, tuple[str, str]] = {
     "DreamCycleORM": ("app.infrastructure.persistence.models.dream_cycle", "DreamCycleORM"),
     "DreamInsightORM": ("app.infrastructure.persistence.models.dream_cycle", "DreamInsightORM"),
     "DumpSleepBatchORM": ("app.infrastructure.persistence.models.dump_sleep_batch", "DumpSleepBatchORM"),
+    "GraphifyBatchORM": ("app.infrastructure.persistence.models.graphify_batch", "GraphifyBatchORM"),
     "GoalORM": ("app.infrastructure.persistence.models.goal", "GoalORM"),
     "GoalAuditResultORM": ("app.infrastructure.persistence.models.goal", "GoalAuditResultORM"),
     "DashboardUserTenantMembership": (

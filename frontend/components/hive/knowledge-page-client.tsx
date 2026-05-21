@@ -11,7 +11,9 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 
+import { AutoGraphifyPanel } from "@/components/hive/auto-graphify-panel";
 import { CuratedMemoryPanel } from "@/components/hive/curated-memory-panel";
+import { EpisodicMemoryPanel } from "@/components/hive/episodic-memory-panel";
 import { DreamingConsole } from "@/components/hive/dreaming-console";
 import { GoalsPanel } from "@/components/hive/goals-panel";
 import { HiveMindExplorer } from "@/components/hive/hive-mind-explorer";
@@ -134,6 +136,7 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
 
       {tab === "hivemind" ? (
         <div id="hivemind" className="scroll-mt-28 space-y-6">
+          <AutoGraphifyPanel />
           <V4Card>
             <V4CardHeader
               title="HiveMind · graph + vault + search"
@@ -189,6 +192,7 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
       {tab === "memory" ? (
         <div id="memory" className="scroll-mt-28">
           <CuratedMemoryPanel />
+          <EpisodicMemoryPanel />
         </div>
       ) : null}
 

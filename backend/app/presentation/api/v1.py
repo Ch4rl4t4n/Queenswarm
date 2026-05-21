@@ -42,6 +42,7 @@ from app.presentation.api.routers import external_api as external_api_router
 from app.presentation.api.routers import tools_marketplace as tools_marketplace_router
 from app.presentation.api.routers import dump_sleep as dump_sleep_router
 from app.presentation.api.routers import llm_routing as llm_routing_router
+from app.presentation.api.routers import auto_graphify as auto_graphify_router
 from app.presentation.api.routers import dreaming as dreaming_router
 from app.presentation.api.routers import curated_memory as curated_memory_router
 from app.presentation.api.routers import goals as goals_router
@@ -101,6 +102,7 @@ api_v1.include_router(plugins_catalog_router.router, prefix="/plugins")
 api_v1.include_router(dreaming_router.router)
 api_v1.include_router(dump_sleep_router.router)
 api_v1.include_router(llm_routing_router.router)
+api_v1.include_router(auto_graphify_router.router)
 api_v1.include_router(curated_memory_router.router)
 api_v1.include_router(goals_router.router)
 api_v1.include_router(agent_templates_router.router)
