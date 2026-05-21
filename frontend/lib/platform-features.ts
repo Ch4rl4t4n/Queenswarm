@@ -39,6 +39,7 @@ export const PLATFORM_FEATURE_CATALOG: Record<string, FeatureSpec> = {
   ugc_content_engine: { internal: true, commercial: true, minTier: "pro" },
   sub_swarm_mind_ui: { internal: true, commercial: true },
   bee_gamification: { internal: true, commercial: true, minTier: "pro" },
+  dump_sleep: { internal: true, commercial: true, minTier: "pro" },
   team_rbac: { internal: false, commercial: true },
   billing_settings: { internal: false, commercial: true },
   sharing_settings: { internal: false, commercial: true },

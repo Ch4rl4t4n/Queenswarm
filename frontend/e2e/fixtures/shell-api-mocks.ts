@@ -294,6 +294,53 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("dump-sleep/overnight-report")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          available: false,
+          batch: null,
+          window_hours: 24,
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("dump-sleep/batches")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: "d1111111-1111-4111-8111-111111111111",
+          status: "completed",
+          file_count: 1,
+          items_ingested: 1,
+          stalled_signals: 0,
+          pollen_earned: 2.5,
+          briefing_md: "# Overnight Swarm Report\n",
+          voice_note_present: false,
+          created_at: new Date().toISOString(),
+          processed_at: new Date().toISOString(),
+          error_text: null,
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("dreaming/")) {
+      if (path.includes("settings")) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ enabled: true, frequency_hours: 24, routine_id: null }),
+        });
+        return;
+      }
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
+      return;
+    }
+
     if (path.startsWith("learning/bee-badges")) {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
       return;

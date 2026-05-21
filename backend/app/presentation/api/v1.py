@@ -40,6 +40,7 @@ from app.presentation.api.routers import billing as billing_router
 from app.presentation.api.routers import shares as shares_router
 from app.presentation.api.routers import external_api as external_api_router
 from app.presentation.api.routers import tools_marketplace as tools_marketplace_router
+from app.presentation.api.routers import dump_sleep as dump_sleep_router
 from app.presentation.api.routers import dreaming as dreaming_router
 from app.presentation.api.routers import curated_memory as curated_memory_router
 from app.presentation.api.routers import goals as goals_router
@@ -49,6 +50,8 @@ from app.presentation.api.routers import paper_trading as paper_trading_router
 from app.presentation.api.routers import command_center_admin as command_center_admin_router
 from app.presentation.api.routers import admin_accounts as admin_accounts_router
 from app.presentation.api.routers import platform_features_admin as platform_features_admin_router
+from app.presentation.api.routers import harness as harness_router
+from app.presentation.api.routers import queen_maintainer as queen_maintainer_router
 from app.core.config import settings
 
 api_v1 = APIRouter()
@@ -97,6 +100,9 @@ api_v1.include_router(recipes_router.router, prefix="/recipes")
 api_v1.include_router(skill_marketplace_ugc_router.router, prefix="/recipes")
 api_v1.include_router(plugins_catalog_router.router, prefix="/plugins")
 api_v1.include_router(dreaming_router.router)
+api_v1.include_router(dump_sleep_router.router)
+api_v1.include_router(harness_router.router)
+api_v1.include_router(queen_maintainer_router.router)
 api_v1.include_router(curated_memory_router.router)
 api_v1.include_router(goals_router.router)
 api_v1.include_router(agent_templates_router.router)

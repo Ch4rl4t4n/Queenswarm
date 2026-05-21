@@ -83,8 +83,8 @@ Analysis: `docs/ROUNDTABLESPACE_MAY2026_INSIGHTS.md`
 
 | Položka | Priorita | Est. | Status | Reuse |
 |---------|----------|------|--------|-------|
-| Dump & Sleep (folder/voice → overnight queue) | P0 | 3–5 d | ⏳ | DreamerService, Ballroom |
-| Overnight Swarm Report + pollen earned | P0 | 2 d | ⏳ | DreamingSummaryCard |
+| Dump & Sleep (folder/voice → overnight queue) | P0 | 3–5 d | ✅ | DreamerService, Celery |
+| Overnight Swarm Report + pollen earned | P0 | 2 d | ✅ | DreamingSummaryCard |
 | Life OS Swarm Builder template | P0 | 1–2 d | 🟡 stub | swarm-wizard-templates.ts |
 | Free-First routing + Cost Guardian UX | P0 | 2–3 d | ⏳ | LiteLLMRouter, CostGovernor |
 | Auto-Graphify folder ingest | P1 | 5–7 d | ⏳ | Foragers, Obsidian watch, Neo4j |
@@ -123,12 +123,12 @@ Doc: `docs/HARNESS_SELF_MAINTAINING_ANALYSIS.md`
 | Položka | Priorita | Est. | Status |
 |---------|----------|------|--------|
 | Queen Maintainer skill + instructions.md | P0 stub | 1 d | ✅ |
-| Maintainer weekly cron routine | P1 | 2–3 d | ⏳ |
-| GitHub PR-only workflow | P1 | 3–4 d | ⏳ |
-| Tech Health Dashboard | P1 | 4–5 d | ⏳ |
-| Forager Intelligence Loop (skills+MCP+docs) | P1 | 4–6 d | ⏳ |
+| Maintainer weekly cron routine | P1 | 2–3 d | ✅ API + `bootstrap_queen_maintainer_routine.py` |
+| GitHub PR-only workflow | P1 | 3–4 d | ✅ denylist + `POST /queen-maintainer/pr-draft` |
+| Tech Health Dashboard | P1 | 4–5 d | ✅ `GET /queen-maintainer/tech-health` |
+| Forager Intelligence Loop (skills+MCP+docs) | P1 | 4–6 d | ✅ `POST /harness/intelligence-scan` |
 | Layered AGENTS.md harness hierarchy | P1 | 1–2 d | ⏳ |
-| AI Layer Dashboard (`/settings/harness`) | P1 | 4–5 d | ⏳ |
+| AI Layer Dashboard (`/settings/harness`) | P1 | 4–5 d | ✅ |
 | Behavioral memory editor (instructions.md UX) | P1 | 3–4 d | ⏳ |
 | Skill lazy reference fetch | P2 | 2–3 d | ⏳ |
 | Tracer bullet → Kanban slices | P2 | 3–4 d | ⏳ |

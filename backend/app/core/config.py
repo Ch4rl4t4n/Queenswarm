@@ -392,6 +392,19 @@ class Settings(BaseSettings):
         le=10_000,
         description="Max supervisor session events scanned per tenant dreaming cycle.",
     )
+    dump_sleep_enabled: bool = Field(
+        default=True,
+        description="Master switch for Dump & Sleep overnight ingest (Phase 4).",
+    )
+    dump_sleep_upload_root: str = Field(
+        default="/tmp/queenswarm-dump-sleep",
+        description="Filesystem root for queued Dump & Sleep uploads.",
+    )
+    dump_sleep_max_files: int = Field(default=20, ge=1, le=100)
+    dump_sleep_max_file_bytes: int = Field(default=1_048_576, ge=1024, le=10_485_760)
+    dump_sleep_max_content_chars: int = Field(default=120_000, ge=1000, le=500_000)
+    dump_sleep_pollen_per_item: float = Field(default=2.5, ge=0.0, le=100.0)
+    dump_sleep_report_window_hours: int = Field(default=24, ge=1, le=168)
     scout_swarm_size: int = Field(default=8, ge=1)
     eval_swarm_size: int = Field(default=6, ge=1)
     sim_swarm_size: int = Field(default=5, ge=1)
@@ -1215,6 +1228,22 @@ class Settings(BaseSettings):
     supervisor_forced_reflection_enabled: bool = Field(
         default=True,
         description="Force reflection pattern + self-review-loop skills on all supervisor outputs.",
+    )
+    queen_maintainer_enabled: bool = Field(
+        default=False,
+        description="Enable Queen Maintainer weekly routine and HTTP controls.",
+    )
+    queen_maintainer_github_owner: str = Field(
+        default="",
+        description="GitHub org/user for Maintainer PR workflow (optional).",
+    )
+    queen_maintainer_github_repo: str = Field(
+        default="",
+        description="GitHub repository name for Maintainer PR workflow (optional).",
+    )
+    queen_maintainer_github_connector_slug: str = Field(
+        default="github_rest",
+        description="Dynamic connector slug used for Maintainer PR creation.",
     )
     supervisor_self_heal_max_attempts: int = Field(
         default=2,

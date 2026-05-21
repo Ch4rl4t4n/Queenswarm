@@ -694,9 +694,9 @@ export const PLANNED_PLATFORM_CAPABILITIES: PlannedCapability[] = [
     rolloutPhase: "phase4",
     week: 1,
     owner: "dev",
-    auditGate: "docs/ROUNDTABLESPACE_MAY2026_INSIGHTS.md",
+    auditGate: "./scripts/mission-phase4-dump-sleep-audit.sh",
     summary: "Upload folder/voice → overnight Dreaming → morning briefing + pollen earned.",
-    rationale: "Viral post #4 — wow moment pre non-tech; reuse DreamerService + Celery.",
+    rationale: "✅ Shipped — Ballroom DumpSleepPanel + Celery batch processor.",
     competitiveEdge: "Persistent Hive Mind + verified tasks — nie raw Claude overnight dump.",
     hints: "Ballroom upload entry; feature flag dump_sleep; Pro tier.",
     targetPhase: "Product",
@@ -826,7 +826,7 @@ export const PLANNED_PLATFORM_CAPABILITIES: PlannedCapability[] = [
     summary: "PR-only tech health swarm — deps, coverage, CVE triage via GitHub PR workflow.",
     rationale: "AnswerThis + Anthropic harness — codebase evolves with operator merge only.",
     competitiveEdge: "Verified PR loop + Hive Mind vs raw coding agent commits.",
-    hints: "Skill shipped; routine + github_rest PR flow next.",
+    hints: "QUEEN_MAINTAINER_ENABLED=1; GET /api/v1/queen-maintainer/tech-health",
     targetPhase: "Supervisor",
   },
   {
@@ -841,6 +841,7 @@ export const PLANNED_PLATFORM_CAPABILITIES: PlannedCapability[] = [
     summary: "Settings view: layered rules, active skills, MCP tools, pattern stack per session.",
     rationale: "Anthropic Medin — harness > model; operators see what agents see.",
     competitiveEdge: "Transparent harness vs black-box Cursor-only rules.",
+    hints: "/settings/harness · GET /api/v1/harness/snapshot",
     targetPhase: "Settings",
   },
   {

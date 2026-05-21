@@ -5,6 +5,7 @@ import { LayoutDashboard, Plug, Users } from "lucide-react";
 import { useState } from "react";
 
 import { BallroomPanel } from "@/components/ballroom/ballroom-panel";
+import { DumpSleepPanel } from "@/components/ballroom/dump-sleep-panel";
 import { HivePageHeader } from "@/components/hive/hive-page-header";
 import { V4PageCanvas } from "@/components/ui/v4";
 import { integrationsTabHref } from "@/lib/integrations-routes";
@@ -70,6 +71,7 @@ export function BallroomPageClient() {
           </span>
         }
       />
+      <DumpSleepPanel />
       <BallroomPanel variant="v4" showHeader={false} onStatusChange={setWsStatus} />
     </V4PageCanvas>
   );

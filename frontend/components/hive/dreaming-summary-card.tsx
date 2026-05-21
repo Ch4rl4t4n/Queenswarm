@@ -4,7 +4,9 @@ import Link from "next/link";
 import { Loader2Icon, Moon } from "lucide-react";
 import { useCallback, useState } from "react";
 
+import { usePlatform } from "@/components/hive/platform-context";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
+import { usePlatform } from "@/components/hive/platform-context";
 import { COCKPIT_POLL_COLONY_TELEMETRY_MS } from "@/lib/cockpit-poll-profile";
 import { DASHBOARD_BOOT_STAGGER_MS } from "@/lib/dashboard-boot-stagger";
 import { HiveApiError, hiveGet } from "@/lib/api";
@@ -26,6 +28,17 @@ interface DreamCycleRow {
   items_consolidated: number;
 }
 
+interface OvernightReportResponse {
+  available: boolean;
+  batch?: {
+    pollen_earned: number;
+    stalled_signals: number;
+    items_ingested: number;
+    briefing_md: string;
+    status: string;
+  } | null;
+}
+
 function cycleStatusTone(status: string): "ok" | "warn" | "err" | "info" {
   const s = status.toLowerCase();
   if (s.includes("complete") || s.includes("success")) {
@@ -42,26 +55,39 @@ function cycleStatusTone(status: string): "ok" | "warn" | "err" | "info" {
 
 /** Nightly dreaming snapshot for dashboard — full controls live in Knowledge hub. */
 export function DreamingSummaryCard(): JSX.Element {
+  const { hasFeature } = usePlatform();
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [settings, setSettings] = useState<DreamingSettingsResponse | null>(null);
   const [latest, setLatest] = useState<DreamCycleRow | null>(null);
+  const [overnight, setOvernight] = useState<OvernightReportResponse | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const [s, rows] = await Promise.all([
+      const requests: [
+        Promise<DreamingSettingsResponse>,
+        Promise<DreamCycleRow[]>,
+        Promise<OvernightReportResponse> | null,
+      ] = [
         hiveGet<DreamingSettingsResponse>("dreaming/settings"),
         hiveGet<DreamCycleRow[]>("dreaming/cycles?limit=1"),
+        hasFeature("dump_sleep") ? hiveGet<OvernightReportResponse>("dump-sleep/overnight-report") : null,
+      ];
+      const [s, rows, report] = await Promise.all([
+        requests[0],
+        requests[1],
+        requests[2] ?? Promise.resolve(null),
       ]);
       setSettings(s);
       setLatest(rows[0] ?? null);
+      setOvernight(report);
       setErr(null);
     } catch (e) {
       setErr(e instanceof HiveApiError ? e.message : "Dreaming summary unavailable.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [hasFeature]);
 
   useIntervalWhenVisible(() => void load(), COCKPIT_POLL_COLONY_TELEMETRY_MS, {
     initialDelayMs: DASHBOARD_BOOT_STAGGER_MS.dreamingSummary,
@@ -71,7 +97,7 @@ export function DreamingSummaryCard(): JSX.Element {
     <V4Card className="v4-card-interactive">
       <V4CardHeader
         title="Memory · Dreaming"
-        description="Nightly consolidation cycle"
+        description="Nightly consolidation + overnight swarm report"
         actions={
           <Link href="/knowledge" className="text-xs text-cyan underline-offset-2 hover:underline">
             Open Knowledge
@@ -96,6 +122,27 @@ export function DreamingSummaryCard(): JSX.Element {
             </span>
             <V4Badge tone={settings.enabled ? "ok" : "warn"}>{settings.enabled ? "on" : "off"}</V4Badge>
           </div>
+
+          {overnight?.available && overnight.batch ? (
+            <div className="rounded-xl border border-pollen/30 bg-pollen/5 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[11px] uppercase tracking-wide text-pollen">Overnight swarm report</p>
+                <Link href="/ballroom" className="text-[11px] text-cyan underline-offset-2 hover:underline">
+                  Ballroom
+                </Link>
+              </div>
+              <p className="mt-1 text-sm text-(--qs-text-2)">
+                pollen=<span className="text-pollen">{overnight.batch.pollen_earned.toFixed(1)}</span> · stalled=
+                <span className="text-magenta">{overnight.batch.stalled_signals}</span> · ingested=
+                {overnight.batch.items_ingested}
+              </p>
+              {overnight.batch.briefing_md ? (
+                <pre className="mt-2 max-h-28 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-(--qs-text-3)">
+                  {overnight.batch.briefing_md.slice(0, 600)}
+                </pre>
+              ) : null}
+            </div>
+          ) : null}
 
           {latest ? (
             <div className="rounded-xl border border-(--qs-border) bg-black/25 p-3">
