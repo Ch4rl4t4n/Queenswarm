@@ -1272,6 +1272,14 @@ class Settings(BaseSettings):
         le=12000,
         description="Max characters loaded per skill reference fetch.",
     )
+    tracer_bullet_kanban_enabled: bool = Field(
+        default=True,
+        description="Enable tracer bullet workflow → Kanban vertical slice materialization.",
+    )
+    tracer_bullet_kanban_auto_on_intake: bool = Field(
+        default=True,
+        description="Auto-create Kanban slices when operator intake_task runs workflow breaker.",
+    )
     supervisor_self_healing_enabled: bool = Field(
         default=True,
         description="Enable self-healing retries and reflection loop in supervisor sub-agent runtime.",

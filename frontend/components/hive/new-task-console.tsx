@@ -253,7 +253,11 @@ export function NewTaskConsole() {
         defer_to_worker: true,
         execution_payload: {},
       });
-      toast.success(`Task queued (${res.execution}).`);
+      toast.success(
+        res.kanban_slice_count != null
+          ? `Task queued (${res.execution}) · ${res.kanban_slice_count} Kanban slice(s).`
+          : `Task queued (${res.execution}).`,
+      );
       router.push("/");
     } catch (e) {
       const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Submit failed";

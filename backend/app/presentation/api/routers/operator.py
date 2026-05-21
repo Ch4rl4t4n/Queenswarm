@@ -33,6 +33,10 @@ from app.application.services.recipe_write import (
 )
 from app.application.services.sub_swarm.runner import run_sub_swarm_workflow_cycle
 from app.application.services.task_ledger import TaskUpsertViolationError, create_task_record
+from app.application.services.tracer_bullet_kanban import (
+    TracerBulletKanbanNotFoundError,
+    slice_workflow_to_kanban,
+)
 from app.application.services.workflow_breaker.breaker import WorkflowBreakerService
 from app.worker.tasks import run_sub_swarm_workflow_cycle_task
 
@@ -101,6 +105,10 @@ class OperatorIntakeResponse(BaseModel):
     swarm_id: uuid.UUID
     celery_task_id: str | None = None
     execution: Literal["queued", "inline", "skipped"]
+    kanban_slice_count: int | None = Field(
+        default=None,
+        description="Child vertical slices created when tracer_bullet_kanban_auto_on_intake is enabled.",
+    )
 
 
 class HumanStepOverride(BaseModel):
@@ -189,6 +197,47 @@ async def _resolve_target_swarm_id(
     return fallback.id
 
 
+async def _auto_slice_intake_kanban(
+    db: DbSession,
+    *,
+    workflow_id: uuid.UUID,
+    task_row: Task,
+    swarm_id: uuid.UUID,
+    title: str,
+    priority: int,
+) -> int | None:
+    """Best-effort tracer bullet slices after operator intake (non-blocking on failure)."""
+
+    if not settings.tracer_bullet_kanban_enabled or not settings.tracer_bullet_kanban_auto_on_intake:
+        return None
+    try:
+        result = await slice_workflow_to_kanban(
+            db,
+            workflow_id=workflow_id,
+            swarm_id=swarm_id,
+            parent_title=title,
+            priority=priority,
+            existing_parent_task_id=task_row.id,
+        )
+        return result.slice_count
+    except TracerBulletKanbanNotFoundError as exc:
+        logger.warning(
+            "operator.intake_task.kanban_slice_skipped",
+            agent_id="operator_hub",
+            task_id=str(task_row.id),
+            reason=str(exc),
+        )
+        return None
+    except TaskUpsertViolationError as exc:
+        logger.warning(
+            "operator.intake_task.kanban_slice_invalid",
+            agent_id="operator_hub",
+            task_id=str(task_row.id),
+            reason=str(exc),
+        )
+        return None
+
+
 @router.post(
     "/intake-task",
     response_model=OperatorIntakeResponse,
@@ -250,6 +299,15 @@ async def operator_intake_task(body: OperatorIntakeRequest, db: DbSession, _subj
             detail="Unable to enqueue hive task row.",
         )
 
+    kanban_slice_count = await _auto_slice_intake_kanban(
+        db,
+        workflow_id=plan.workflow_id,
+        task_row=task_row,
+        swarm_id=swarm_id,
+        title=body.title,
+        priority=body.priority,
+    )
+
     celery_id: str | None = None
     execution: Literal["queued", "inline", "skipped"] = "skipped"
 
@@ -298,6 +356,7 @@ async def operator_intake_task(body: OperatorIntakeRequest, db: DbSession, _subj
                 swarm_id=swarm_id,
                 celery_task_id=celery_id,
                 execution=execution,
+                kanban_slice_count=kanban_slice_count,
             )
 
         try:
@@ -341,6 +400,7 @@ async def operator_intake_task(body: OperatorIntakeRequest, db: DbSession, _subj
         swarm_id=swarm_id,
         celery_task_id=celery_id,
         execution=execution,
+        kanban_slice_count=kanban_slice_count,
     )
 
 

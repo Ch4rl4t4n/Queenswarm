@@ -17,11 +17,19 @@ from app.common.schemas.workflow_breaker import (
     DecomposeWorkflowRequest,
     DecomposeWorkflowResponse,
 )
+from app.common.schemas.tracer_bullet import SliceToKanbanRequest, SliceToKanbanResponse
 from app.common.schemas.workflows import (
     ExecutionResultResponse,
     WorkflowDetailResponse,
     WorkflowResponse,
     WorkflowStepResponse,
+)
+from app.application.services.task_ledger import TaskUpsertViolationError
+from app.application.services.tracer_bullet_kanban import (
+    TracerBulletKanbanDisabledError,
+    TracerBulletKanbanNotFoundError,
+    build_slice_to_kanban_response,
+    slice_workflow_to_kanban,
 )
 from app.application.services.workflow_breaker.breaker import WorkflowBreakerService
 from app.domain.workflows.executor import WorkflowExecutionFailedError, WorkflowExecutor
@@ -174,6 +182,49 @@ async def get_workflow_detail(
         parallel_groups=list(wf.parallelizable_groups or []),
         steps=steps,
     )
+
+
+@router.post(
+    "/{workflow_id}/slice-to-kanban",
+    response_model=SliceToKanbanResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Materialize workflow steps as Kanban vertical slices",
+)
+async def slice_workflow_to_kanban_route(
+    workflow_id: uuid.UUID,
+    body: SliceToKanbanRequest,
+    db: DbSession,
+    _subject: JwtSubject,
+) -> SliceToKanbanResponse:
+    """Tracer bullet pattern: parent backlog row + one child slice per breaker step."""
+
+    try:
+        result = await slice_workflow_to_kanban(
+            db,
+            workflow_id=workflow_id,
+            swarm_id=body.swarm_id,
+            parent_title=body.parent_title,
+            priority=body.priority,
+            force_reslice=body.force_reslice,
+        )
+        payload = await build_slice_to_kanban_response(db, result)
+        await db.commit()
+        return SliceToKanbanResponse.model_validate(payload)
+    except TracerBulletKanbanDisabledError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc))
+    except TracerBulletKanbanNotFoundError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    except TaskUpsertViolationError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected Kanban slice materialization.",
+        )
 
 
 __all__ = ["router"]

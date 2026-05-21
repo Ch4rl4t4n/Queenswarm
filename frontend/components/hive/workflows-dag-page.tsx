@@ -8,6 +8,7 @@
 
 import Link from "next/link";
 import { useCallback, useState } from "react";
+import { toast } from "sonner";
 
 import { HivePageHeader } from "@/components/hive/hive-page-header";
 import { V4PageCanvas } from "@/components/ui/v4";
@@ -51,6 +52,13 @@ interface ApiWorkflowStep {
   description: string;
   agent_role: string;
   status: string;
+}
+
+interface SliceToKanbanResponse {
+  workflow_id: string;
+  parent_task_id: string;
+  slice_count: number;
+  idempotent_reuse: boolean;
 }
 
 const STATUS_COLORS = {
@@ -226,6 +234,7 @@ function WorkflowCard({
 }): JSX.Element {
   const [expanded, setExpanded] = useState(false);
   const [hydrating, setHydrating] = useState(false);
+  const [sliceBusy, setSliceBusy] = useState(false);
 
   const pct =
     wf.progress_pct ??
@@ -268,6 +277,39 @@ function WorkflowCard({
       });
     } catch {
       /* best-effort */
+    }
+  };
+
+  const sliceToKanban = async () => {
+    setSliceBusy(true);
+    try {
+      const res = await fetch(`/api/proxy/workflows/${encodeURIComponent(wf.id)}/slice-to-kanban`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priority: 5 }),
+      });
+      const raw = await res.text();
+      if (!res.ok) {
+        let detail = raw.slice(0, 200);
+        try {
+          const parsed = JSON.parse(raw) as { detail?: string };
+          if (typeof parsed.detail === "string") {
+            detail = parsed.detail;
+          }
+        } catch {
+          /* keep raw */
+        }
+        toast.error(`Kanban slice failed: ${detail}`);
+        return;
+      }
+      const data = JSON.parse(raw) as SliceToKanbanResponse;
+      const verb = data.idempotent_reuse ? "Reused" : "Created";
+      toast.success(`${verb} ${data.slice_count} vertical slice(s) — view Tasks queue.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Kanban slice request failed");
+    } finally {
+      setSliceBusy(false);
     }
   };
 
@@ -421,8 +463,40 @@ function WorkflowCard({
             <div style={{ color: "#5a5a7a", fontSize: 13 }}>Fetching steps…</div>
           )}
 
-          {canControl ? (
-            <div className="v4-workflow-control-actions" style={{ marginTop: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div className="v4-workflow-control-actions" style={{ marginTop: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              disabled={sliceBusy || wf.steps.length === 0}
+              onClick={() => void sliceToKanban()}
+              style={{
+                padding: "6px 14px",
+                borderRadius: 7,
+                border: "1px solid rgba(0,255,136,0.3)",
+                background: "transparent",
+                color: "#00FF88",
+                fontSize: 12,
+                cursor: sliceBusy || wf.steps.length === 0 ? "not-allowed" : "pointer",
+                opacity: sliceBusy || wf.steps.length === 0 ? 0.5 : 1,
+              }}
+            >
+              {sliceBusy ? "Slicing…" : "⊞ Slice to Kanban"}
+            </button>
+            <Link
+              href="/tasks"
+              style={{
+                padding: "6px 14px",
+                borderRadius: 7,
+                border: "1px solid rgba(0,229,255,0.25)",
+                background: "transparent",
+                color: "#00E5FF",
+                fontSize: 12,
+                textDecoration: "none",
+              }}
+            >
+              Tasks queue →
+            </Link>
+            {canControl ? (
+              <>
               <button
                 type="button"
                 onClick={() => void runControl("pause")}
@@ -453,8 +527,9 @@ function WorkflowCard({
               >
                 ✕ Cancel
               </button>
-            </div>
-          ) : null}
+              </>
+            ) : null}
+          </div>
         </div>
       )}
     </div>

@@ -1133,6 +1133,7 @@ export interface OperatorIntakeResponse {
   swarm_id: string;
   celery_task_id: string | null;
   execution: "queued" | "inline" | "skipped";
+  kanban_slice_count?: number | null;
 }
 
 /** Local hive mind summary embedded in swarm board/overview payloads. */
