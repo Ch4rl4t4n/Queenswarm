@@ -189,6 +189,12 @@ async def create_skill_checkout_session(
             "slug": recipe_slug(recipe.name),
         }
 
+    pending = await _get_pending_purchase(session, tenant_id=tenant_id, recipe_id=recipe.id)
+    if pending is not None:
+        resumed = await _resume_open_checkout_session(purchase=pending, recipe=recipe)
+        if resumed is not None:
+            return resumed
+
     amount_cents = resolve_skill_price_cents(recipe)
     listing = await get_approved_listing_for_recipe(session, recipe.id)
     if listing is not None:
@@ -197,11 +203,7 @@ async def create_skill_checkout_session(
         amount_cents=amount_cents,
         cut_bps=listing.platform_cut_bps if listing is not None else 0,
     )
-    pending = await _get_pending_purchase(session, tenant_id=tenant_id, recipe_id=recipe.id)
     if pending is not None:
-        resumed = await _resume_open_checkout_session(purchase=pending, recipe=recipe)
-        if resumed is not None:
-            return resumed
         purchase = pending
         purchase.dashboard_user_id = dashboard_user_id
         purchase.amount_cents = amount_cents
