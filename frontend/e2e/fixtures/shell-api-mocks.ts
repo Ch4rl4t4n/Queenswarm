@@ -106,6 +106,33 @@ const STUB_UNIFIED_SAVINGS = {
   disclaimer: "Stub unified savings for shell E2E.",
 };
 
+const STUB_HARNESS_SNAPSHOT = {
+  rule_layers: [{ id: "cursorrules", path: ".cursorrules", scope: "root", bytes: "2048" }],
+  skills: { count: 3, items: [{ slug: "self-review-loop", title: "Self Review", priority: 10, roles: [] }] },
+  mcp_tools: { count: 0, items: [] },
+  recent_agentic_patterns: [],
+  feature_flags: {
+    supervisor_pattern_router_enabled: true,
+    supervisor_forced_reflection_enabled: true,
+    supervisor_pattern_router_llm_enabled: false,
+  },
+  tech_health_score: 0.85,
+  monitoring: {
+    slack_webhook_configured: false,
+    alertmanager_receiver: "blackhole",
+    pattern_alert_rules: ["PatternSuccessRateLow"],
+    grafana_dashboard_uid: "queenswarm-agentic-patterns",
+    smoke_script: "scripts/alertmanager-smoke.sh",
+  },
+  docs: {},
+};
+
+const STUB_HARNESS_INTELLIGENCE_SCAN = {
+  scanned_at: new Date().toISOString(),
+  proposal_count: 0,
+  proposals: [],
+};
+
 const STUB_PATTERN_EXPLORER = {
   router_enabled: true,
   forced_reflection_enabled: true,
@@ -374,6 +401,24 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_TIME_SAVED),
+      });
+      return;
+    }
+
+    if (path.startsWith("harness/snapshot")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_HARNESS_SNAPSHOT),
+      });
+      return;
+    }
+
+    if (path.startsWith("harness/intelligence-scan")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_HARNESS_INTELLIGENCE_SCAN),
       });
       return;
     }

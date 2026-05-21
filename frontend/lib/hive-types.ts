@@ -923,6 +923,83 @@ export interface PatternExplorerPayload {
   docs_path: string;
 }
 
+export interface RapidLoopPatternTelemetryRow {
+  id: string;
+  label: string;
+  sessions: number;
+  success_count: number;
+  failure_count: number;
+  success_rate_pct: number | null;
+}
+
+export interface RapidLoopPatternTelemetryPayload {
+  window_hours: number;
+  sessions_analyzed: number;
+  patterns_tracked: number;
+  best_pattern: RapidLoopPatternTelemetryRow | null;
+  top_patterns: RapidLoopPatternTelemetryRow[];
+  catalog_size: number;
+}
+
+/** ``GET /api/v1/harness/snapshot`` */
+export interface HarnessRuleLayerRow {
+  id: string;
+  path: string;
+  scope: string;
+  bytes: string;
+}
+
+export interface HarnessSkillRow {
+  slug: string;
+  title: string;
+  priority: number;
+  roles: string[];
+}
+
+export interface HarnessPatternRow {
+  session_id: string;
+  status: string;
+  started_at: string | null;
+  primary: string[];
+  secondary: string[];
+  forced_reflection: boolean;
+  rationale: string[];
+}
+
+export interface HarnessMonitoringPayload {
+  slack_webhook_configured: boolean;
+  alertmanager_receiver: string;
+  pattern_alert_rules: string[];
+  grafana_dashboard_uid: string;
+  smoke_script: string;
+  pattern_telemetry?: RapidLoopPatternTelemetryPayload;
+}
+
+export interface HarnessSnapshotPayload {
+  rule_layers: HarnessRuleLayerRow[];
+  skills: { count: number; items: HarnessSkillRow[] };
+  mcp_tools: { count: number; items: Record<string, unknown>[] };
+  recent_agentic_patterns: HarnessPatternRow[];
+  feature_flags: Record<string, boolean>;
+  tech_health_score: number;
+  monitoring: HarnessMonitoringPayload;
+  docs: Record<string, string>;
+}
+
+/** ``POST /api/v1/harness/intelligence-scan`` */
+export interface HarnessIntelligenceProposal {
+  kind: string;
+  target: string;
+  priority: string;
+  rationale: string;
+}
+
+export interface HarnessIntelligenceScanPayload {
+  scanned_at: string;
+  proposal_count: number;
+  proposals: HarnessIntelligenceProposal[];
+}
+
 export type PendingReviewStatus = "pending" | "approved" | "rejected";
 
 export interface PendingReviewItemRow {
