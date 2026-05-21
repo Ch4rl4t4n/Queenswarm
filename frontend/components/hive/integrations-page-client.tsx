@@ -62,6 +62,12 @@ const ToolsMarketplacePanel = dynamic(
   { ssr: false },
 );
 
+const UnifiedToolHubPanel = dynamic(
+  () =>
+    import("@/components/connectors/unified-tool-hub-panel").then((mod) => mod.UnifiedToolHubPanel),
+  { ssr: false },
+);
+
 const SkillsMarketplacePanel = dynamic(
   () =>
     import("@/components/connectors/skills-marketplace-panel").then((mod) => mod.SkillsMarketplacePanel),
@@ -539,6 +545,8 @@ export function IntegrationsPageClient({
             title="Dynamic connector hub"
             description="OAuth consent rail, connector provisioning, vault sync, and connection testing in one place."
           />
+          <UnifiedToolHubPanel />
+          <div className="my-8 border-t border-(--qs-border)/40" />
           <ConnectorsConsole embedded />
         </V4Card>
       ) : null}

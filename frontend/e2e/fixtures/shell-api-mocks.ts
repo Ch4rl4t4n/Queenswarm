@@ -900,6 +900,35 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("tools/hub/overview")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          registry: [],
+          featured_presets: [
+            {
+              id: "venice_mcp",
+              title: "Venice AI · MCP Hub",
+              installed: false,
+              featured: true,
+              cost_tier: "medium",
+              latency_tier: "balanced",
+              tool_count: 9,
+            },
+          ],
+          venice_preset: {
+            id: "venice_mcp",
+            title: "Venice AI · MCP Hub",
+            installed: false,
+            tool_count: 9,
+          },
+          totals: { installed_tools: 0, active_presets: 0, featured_count: 1 },
+        }),
+      });
+      return;
+    }
+
     if (path.startsWith("connectors/dynamic")) {
       await route.fulfill({
         status: 200,

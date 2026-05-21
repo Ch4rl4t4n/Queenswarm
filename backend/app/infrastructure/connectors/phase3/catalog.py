@@ -13,7 +13,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-CategoryLiteral = Literal["email", "calendar", "devtools", "chat", "knowledge", "billing", "vault"]
+CategoryLiteral = Literal["email", "calendar", "devtools", "chat", "knowledge", "billing", "vault", "ai"]
 AuthLiteral = Literal["none", "api_key", "bearer_token", "oauth2"]
 
 
@@ -251,6 +251,13 @@ _PHASE3_RAW: tuple[Phase3ConnectorTemplate, ...] = (
                 "path": "/repos/{owner}/{repo}/pulls/{pull_number}/reviews",
                 "method": "POST",
                 "description": "Publish structured review comments.",
+            },
+            {
+                "name": "pulls_create",
+                "path": "/repos/{owner}/{repo}/pulls",
+                "method": "POST",
+                "description": "Open a PR from queen-maintainer/* branch (Maintainer workflow).",
+                "required_permission": "tool:write",
             },
             {
                 "name": "pulls_get",
@@ -573,6 +580,95 @@ _PHASE3_RAW: tuple[Phase3ConnectorTemplate, ...] = (
                 "path": "/events",
                 "method": "GET",
                 "description": "Audit recent webhook envelopes during reconciliation.",
+            },
+        ),
+    ),
+    Phase3ConnectorTemplate(
+        template_id="venice_mcp",
+        category="ai",
+        title="Venice AI · MCP Hub",
+        summary=(
+            "OpenAI-compatible Venice API — chat, image generation, upscale, TTS, embeddings, "
+            "and model discovery. One-click preset for privacy-first multimodal swarms."
+        ),
+        documentation_url="https://docs.venice.ai/api-reference/api-spec",
+        suggested_slug="venice_mcp",
+        auth_type="bearer_token",
+        base_url="https://api.venice.ai/api/v1",
+        suggested_manager_slugs=("content_creation", "research_intelligence", "optimization"),
+        tools=(
+            {
+                "name": "chat_completions",
+                "path": "/chat/completions",
+                "method": "POST",
+                "description": "Chat completions with Venice-hosted Llama, DeepSeek, Qwen, Mistral models.",
+                "cost_tier": "medium",
+                "latency_tier": "balanced",
+            },
+            {
+                "name": "models_list",
+                "path": "/models",
+                "method": "GET",
+                "description": "List available Venice chat, image, and embedding models.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "image_generate",
+                "path": "/image/generate",
+                "method": "POST",
+                "description": "Generate images from text prompts (FLUX / SD families).",
+                "cost_tier": "high",
+                "latency_tier": "slow",
+            },
+            {
+                "name": "image_upscale",
+                "path": "/image/upscale",
+                "method": "POST",
+                "description": "Upscale and enhance generated or uploaded images.",
+                "cost_tier": "medium",
+                "latency_tier": "balanced",
+            },
+            {
+                "name": "audio_speech",
+                "path": "/audio/speech",
+                "method": "POST",
+                "description": "Text-to-speech for Ballroom voice briefings and alerts.",
+                "cost_tier": "medium",
+                "latency_tier": "balanced",
+            },
+            {
+                "name": "embeddings_create",
+                "path": "/embeddings",
+                "method": "POST",
+                "description": "Create embeddings for HiveMind vector lanes and tool routing.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "characters_list",
+                "path": "/characters",
+                "method": "GET",
+                "description": "List Venice character personas for styled chat hops.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "rate_limits_get",
+                "path": "/rate_limits",
+                "method": "GET",
+                "description": "Inspect Venice rate limits and usage for CostGovernor hints.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "web_search_chat",
+                "path": "/chat/completions",
+                "method": "POST",
+                "description": "Web-augmented chat hop — pass venice_parameters for search-enabled models.",
+                "cost_tier": "medium",
+                "latency_tier": "balanced",
+                "required_permission": "tool:write",
             },
         ),
     ),

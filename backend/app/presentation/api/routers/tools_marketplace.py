@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.application.services.tool_marketplace import (
     install_marketplace_entry,
     marketplace_catalog,
+    tool_hub_overview,
     tool_registry_snapshot,
 )
 from app.infrastructure.connectors.dynamic.hub import DynamicConnectorHub
@@ -65,6 +66,38 @@ async def tools_registry(
         limit=max(1, min(120, int(limit))),
     )
     return ToolRegistryResponse(items=rows)
+
+
+class ToolHubOverviewResponse(BaseModel):
+    """Unified Tool Hub — registry + featured MCP presets."""
+
+    model_config = ConfigDict(extra="ignore")
+    registry: list[dict[str, Any]]
+    featured_presets: list[dict[str, Any]]
+    venice_preset: dict[str, Any] | None = None
+    totals: dict[str, Any]
+    goal: str | None = None
+    manager_slug: str | None = None
+
+
+@router.get("/hub/overview", summary="Unified Tool Hub overview (registry + MCP presets)")
+async def tools_hub_overview(
+    sess: DashboardSession,
+    db: DbSession,
+    manager_slug: str | None = None,
+    goal: str | None = None,
+    limit: int = 48,
+    _: bool = Depends(require_tenant_permission("connectors:view")),
+) -> ToolHubOverviewResponse:
+    uid = _subject_uuid(sess)
+    payload = await tool_hub_overview(
+        db,
+        dashboard_user_id=uid,
+        manager_slug=manager_slug,
+        goal=goal,
+        limit=max(1, min(120, int(limit))),
+    )
+    return ToolHubOverviewResponse.model_validate(payload)
 
 
 @router.get("/registry/monitoring", summary="Per-tool monitoring counters and latency snapshots")

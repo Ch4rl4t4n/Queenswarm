@@ -43,6 +43,7 @@ export const PLATFORM_FEATURE_CATALOG: Record<string, FeatureSpec> = {
   free_first_routing: { internal: true, commercial: true },
   auto_graphify: { internal: true, commercial: true, minTier: "pro" },
   selective_recall: { internal: true, commercial: true, minTier: "pro" },
+  venice_mcp_preset: { internal: true, commercial: true, minTier: "pro" },
   team_rbac: { internal: false, commercial: true },
   billing_settings: { internal: false, commercial: true },
   sharing_settings: { internal: false, commercial: true },

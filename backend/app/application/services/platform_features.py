@@ -59,7 +59,7 @@ FEATURE_SECTIONS: list[dict[str, Any]] = [
         "id": "knowledge",
         "label": "Knowledge",
         "tone": "green",
-        "features": ["knowledge", "selective_recall", "auto_graphify"],
+        "features": ["knowledge", "selective_recall", "auto_graphify", "venice_mcp_preset"],
     },
     {
         "id": "integrations",
@@ -82,7 +82,7 @@ FEATURE_SECTIONS: list[dict[str, Any]] = [
         "id": "ballroom",
         "label": "Ballroom",
         "tone": "pollen",
-        "features": ["ballroom", "dump_sleep", "free_first_routing", "auto_graphify", "selective_recall"],
+        "features": ["ballroom", "dump_sleep", "free_first_routing", "auto_graphify", "selective_recall", "venice_mcp_preset"],
     },
     {
         "id": "settings",
@@ -135,6 +135,7 @@ FEATURE_LABELS: dict[str, str] = {
     "free_first_routing": "Free-First LLM routing + Cost Guardian",
     "auto_graphify": "Auto-Graphify folder ingest",
     "selective_recall": "Selective HiveMind recall (graph-neighbour RAG)",
+    "venice_mcp_preset": "Venice AI MCP preset + unified Tool Hub",
     "ballroom": "Realtime Ballroom",
     "settings": "Settings shell",
     "billing_settings": "Billing · usage",
@@ -183,6 +184,7 @@ _FEATURE_CATALOG: dict[str, dict[str, Any]] = {
     "free_first_routing": {"internal": True, "commercial": True},
     "auto_graphify": {"internal": True, "commercial": True, "min_tier": TIER_PRO},
     "selective_recall": {"internal": True, "commercial": True, "min_tier": TIER_PRO},
+    "venice_mcp_preset": {"internal": True, "commercial": True, "min_tier": TIER_PRO},
     "team_rbac": {"internal": False, "commercial": True},
     "billing_settings": {"internal": False, "commercial": True},
     "sharing_settings": {"internal": False, "commercial": True},

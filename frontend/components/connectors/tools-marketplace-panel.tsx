@@ -16,6 +16,9 @@ interface MarketplaceTemplateRow {
   auth_type: string;
   tool_count: number;
   installed: boolean;
+  cost_tier?: "low" | "medium" | "high" | null;
+  latency_tier?: "fast" | "balanced" | "slow" | null;
+  featured?: boolean;
 }
 
 interface MarketplaceCatalogResponse {
@@ -103,6 +106,21 @@ export function ToolsMarketplacePanel(): JSX.Element {
                 <p className="font-mono text-[11px] text-(--qs-text-3)">
                   {row.slug} · {row.auth_type} · {row.tool_count} tools
                 </p>
+                {row.cost_tier || row.latency_tier ? (
+                  <div className="flex flex-wrap gap-2">
+                    {row.cost_tier ? (
+                      <V4Badge tone={row.cost_tier === "low" ? "ok" : row.cost_tier === "high" ? "err" : "warn"}>
+                        {row.cost_tier} cost
+                      </V4Badge>
+                    ) : null}
+                    {row.latency_tier ? (
+                      <V4Badge tone={row.latency_tier === "fast" ? "ok" : row.latency_tier === "slow" ? "err" : "warn"}>
+                        {row.latency_tier}
+                      </V4Badge>
+                    ) : null}
+                    {row.featured ? <V4Badge tone="gold">featured</V4Badge> : null}
+                  </div>
+                ) : null}
                 <div className="mt-auto flex flex-wrap items-center gap-2">
                   {!row.installed ? (
                     <button

@@ -30,6 +30,58 @@ def _score_goal(goal_tokens: set[str], *, name: str, description: str) -> float:
     return min(1.0, overlap / max(1.0, len(goal_tokens)))
 
 
+def _tier_rank(tier: str | None) -> int:
+    """Rank cost/latency tiers for aggregation (higher = more expensive/slower)."""
+
+    mapping = {"low": 0, "medium": 1, "high": 2, "fast": 0, "balanced": 1, "slow": 2}
+    return mapping.get(str(tier or "").strip().lower(), 0)
+
+
+def _aggregate_tier(tiers: list[str], *, kind: str) -> str | None:
+    """Pick dominant tier from tool hints."""
+
+    if not tiers:
+        return None
+    order = ("low", "medium", "high") if kind == "cost" else ("fast", "balanced", "slow")
+    best_idx = max(_tier_rank(t) for t in tiers)
+    return order[min(best_idx, len(order) - 1)]
+
+
+def _tool_hint_fields(tool: dict[str, Any]) -> dict[str, str | None]:
+    """Extract optional cost/latency hints from a manifest tool row."""
+
+    cost = str(tool.get("cost_tier") or "").strip().lower() or None
+    latency = str(tool.get("latency_tier") or "").strip().lower() or None
+    out: dict[str, str | None] = {}
+    if cost in {"low", "medium", "high"}:
+        out["cost_tier"] = cost
+    if latency in {"fast", "balanced", "slow"}:
+        out["latency_tier"] = latency
+    return out
+
+
+def _template_hint_summary(tools: tuple[dict[str, Any], ...]) -> dict[str, Any]:
+    """Summarize cost/speed hints for marketplace cards."""
+
+    tool_hints: list[dict[str, str]] = []
+    cost_tiers: list[str] = []
+    latency_tiers: list[str] = []
+    for tool in tools:
+        hints = _tool_hint_fields(tool)
+        name = str(tool.get("name") or "").strip()
+        if name and hints:
+            tool_hints.append({"name": name, **{k: v for k, v in hints.items() if v}})
+        if hints.get("cost_tier"):
+            cost_tiers.append(str(hints["cost_tier"]))
+        if hints.get("latency_tier"):
+            latency_tiers.append(str(hints["latency_tier"]))
+    return {
+        "cost_tier": _aggregate_tier(cost_tiers, kind="cost"),
+        "latency_tier": _aggregate_tier(latency_tiers, kind="latency"),
+        "tool_hints": tool_hints,
+    }
+
+
 def _tool_rows_from_manifest(
     *,
     connector_slug: str,
@@ -72,6 +124,7 @@ def _tool_rows_from_manifest(
                 ),
                 "is_active": bool(is_active),
                 "source": "dynamic_connector",
+                **_tool_hint_fields(tool),
             },
         )
     return out
@@ -136,6 +189,7 @@ async def marketplace_catalog(
     for template in iter_phase3_templates():
         slug_key = template.suggested_slug.strip().lower()
         installed = by_slug.get(slug_key)
+        hint_summary = _template_hint_summary(template.tools)
         phase3.append(
             {
                 "source": "phase3_template",
@@ -150,6 +204,9 @@ async def marketplace_catalog(
                 "suggested_manager_slugs": list(template.suggested_manager_slugs),
                 "installed": installed is not None,
                 "installed_connector_id": installed.id if installed is not None else None,
+                "featured": template.template_id == "venice_mcp",
+                "mcp_preset": template.template_id == "venice_mcp",
+                **hint_summary,
             },
         )
 
@@ -241,8 +298,45 @@ async def install_marketplace_entry(
     return "installed", created
 
 
+async def tool_hub_overview(
+    session: AsyncSession,
+    *,
+    dashboard_user_id: uuid.UUID,
+    manager_slug: str | None = None,
+    goal: str | None = None,
+    limit: int = 48,
+) -> dict[str, Any]:
+    """Unified Tool Hub snapshot — registry rows + featured MCP presets + totals."""
+
+    catalog = await marketplace_catalog(session, dashboard_user_id=dashboard_user_id)
+    registry = await tool_registry_snapshot(
+        session,
+        manager_slug=manager_slug,
+        goal=goal,
+        limit=limit,
+    )
+    templates = catalog.get("phase3_templates")
+    phase3_rows = [row for row in templates if isinstance(row, dict)] if isinstance(templates, list) else []
+    featured = [row for row in phase3_rows if bool(row.get("featured"))]
+    venice = next((row for row in phase3_rows if row.get("id") == "venice_mcp"), None)
+    active_connectors = sum(1 for row in phase3_rows if bool(row.get("installed")))
+    return {
+        "registry": registry,
+        "featured_presets": featured,
+        "venice_preset": venice,
+        "totals": {
+            "installed_tools": len(registry),
+            "active_presets": active_connectors,
+            "featured_count": len(featured),
+        },
+        "goal": (goal or "").strip() or None,
+        "manager_slug": (manager_slug or "").strip().lower() or None,
+    }
+
+
 __all__ = [
     "install_marketplace_entry",
     "marketplace_catalog",
+    "tool_hub_overview",
     "tool_registry_snapshot",
 ]

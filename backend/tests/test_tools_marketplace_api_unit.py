@@ -98,3 +98,29 @@ async def test_tools_marketplace_install_route(monkeypatch: pytest.MonkeyPatch, 
     assert resp.status_code == 200
     assert resp.json()["status"] == "installed"
     assert resp.json()["connector"]["slug"] == "notion"
+
+
+@pytest.mark.asyncio
+async def test_tools_hub_overview_route(monkeypatch: pytest.MonkeyPatch, tools_auth_fixture: None) -> None:
+    """Hub overview endpoint returns unified registry + preset payload."""
+
+    async def _fake_overview(*_args: object, **_kwargs: object) -> dict[str, object]:
+        return {
+            "registry": [{"connector_slug": "venice_mcp", "tool_name": "chat_completions"}],
+            "featured_presets": [{"id": "venice_mcp", "featured": True}],
+            "venice_preset": {"id": "venice_mcp", "title": "Venice AI · MCP Hub"},
+            "totals": {"installed_tools": 1, "active_presets": 0, "featured_count": 1},
+            "goal": None,
+            "manager_slug": None,
+        }
+
+    monkeypatch.setattr(tools_marketplace, "tool_hub_overview", _fake_overview)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.get("/api/v1/tools/hub/overview?goal=chat")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["venice_preset"]["id"] == "venice_mcp"
+    assert body["registry"][0]["tool_name"] == "chat_completions"

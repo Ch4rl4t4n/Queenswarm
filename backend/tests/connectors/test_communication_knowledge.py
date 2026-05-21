@@ -54,6 +54,7 @@ def test_phase3_catalog_contains_core_vendors() -> None:
         "discord_bot_api",
         "notion_workspace",
         "stripe_billing",
+        "venice_mcp",
     ):
         assert needle in ids
 
