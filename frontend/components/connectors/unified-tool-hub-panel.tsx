@@ -52,6 +52,22 @@ interface ToolHubOverviewResponse {
   goal?: string | null;
 }
 
+interface MarketplaceProposalRow {
+  source: string;
+  entry_id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  score: number;
+  tool_count: number;
+  install_ready: boolean;
+}
+
+interface MarketplaceProposeResponse {
+  proposal_count: number;
+  proposals: MarketplaceProposalRow[];
+}
+
 function costLabel(tier: CostTier | null | undefined): string {
   if (tier === "low") return "Low cost";
   if (tier === "medium") return "Med cost";
@@ -80,6 +96,8 @@ function latencyTone(tier: LatencyTier | null | undefined): "ok" | "warn" | "err
 
 export function UnifiedToolHubPanel(): JSX.Element {
   const [overview, setOverview] = useState<ToolHubOverviewResponse | null>(null);
+  const [proposals, setProposals] = useState<MarketplaceProposalRow[]>([]);
+  const [proposeBusy, setProposeBusy] = useState(false);
   const [goal, setGoal] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -122,10 +140,53 @@ export function UnifiedToolHubPanel(): JSX.Element {
       await hivePostJson("tools/marketplace/install", {
         source: venice.source || "phase3_template",
         entry_id: venice.id,
+        require_simulation: true,
       });
       await load(goal);
     } catch (exc) {
       const detail = exc instanceof HiveApiError ? exc.message : "Venice install failed.";
+      setError(detail);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function proposeExtensions(): Promise<void> {
+    const trimmed = goal.trim();
+    if (trimmed.length < 3) {
+      setError("Enter a goal (3+ characters) to propose MCP extensions.");
+      return;
+    }
+    setProposeBusy(true);
+    setError(null);
+    try {
+      const payload = await hivePostJson<MarketplaceProposeResponse>("tools/marketplace/propose", {
+        goal: trimmed,
+        limit: 6,
+      });
+      setProposals(payload.proposals ?? []);
+    } catch (exc) {
+      const detail = exc instanceof HiveApiError ? exc.message : "Proposal scan failed.";
+      setError(detail);
+      setProposals([]);
+    } finally {
+      setProposeBusy(false);
+    }
+  }
+
+  async function installProposal(row: MarketplaceProposalRow): Promise<void> {
+    setBusyId(row.entry_id);
+    setError(null);
+    try {
+      await hivePostJson("tools/marketplace/install", {
+        source: row.source,
+        entry_id: row.entry_id,
+        require_simulation: true,
+      });
+      await load(goal);
+      await proposeExtensions();
+    } catch (exc) {
+      const detail = exc instanceof HiveApiError ? exc.message : "Install failed.";
       setError(detail);
     } finally {
       setBusyId(null);
@@ -205,7 +266,55 @@ export function UnifiedToolHubPanel(): JSX.Element {
         <button type="button" className="qs-btn qs-btn--secondary qs-btn--sm" onClick={() => void load(goal)}>
           Rank by goal
         </button>
+        <button
+          type="button"
+          className="qs-btn qs-btn--primary qs-btn--sm"
+          disabled={proposeBusy}
+          onClick={() => void proposeExtensions()}
+        >
+          {proposeBusy ? "Scanning…" : "Propose extensions"}
+        </button>
       </div>
+
+      {proposals.length ? (
+        <section className="space-y-3 rounded-xl border border-(--qs-pollen)/25 bg-(--qs-pollen)/5 p-4">
+          <V4CardHeader
+            as="h3"
+            kicker="Self-extending"
+            title="Suggested MCP presets"
+            description="Simulate-first install — only verified manifests reach your swarm."
+          />
+          <ul className="space-y-2">
+            {proposals.map((row) => (
+              <li
+                key={row.entry_id}
+                className="flex flex-wrap items-start justify-between gap-2 rounded-lg border border-(--qs-border)/40 bg-(--qs-surface-2)/30 px-3 py-2"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-(--qs-text)">{row.title}</p>
+                  <p className="text-[11px] text-(--qs-text-3)">{row.summary}</p>
+                  <p className="mt-1 font-mono text-[10px] text-(--qs-text-3)">
+                    {row.tool_count} tools · score {row.score.toFixed(2)}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <V4Badge tone={row.install_ready ? "ok" : "warn"}>
+                    {row.install_ready ? "Verified" : "Simulate first"}
+                  </V4Badge>
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--secondary qs-btn--sm"
+                    disabled={busyId === row.entry_id || !row.install_ready}
+                    onClick={() => void installProposal(row)}
+                  >
+                    {busyId === row.entry_id ? "Installing…" : "Install"}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {overview ? (
         <p className="font-mono text-[11px] text-(--qs-text-3)">

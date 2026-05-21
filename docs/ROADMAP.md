@@ -89,12 +89,12 @@ Full mapping: **`docs/QUEENSWARM_DESIGN_PATTERNS.md`**
 | 34 | **Pattern Router** — heuristic `select_patterns_for_task()` | P0 | 1–3 d | ✅ Shipped |
 | 35 | **Forced reflection** — self-review on all supervisor outputs | P0 | 1 d | ✅ Shipped |
 | 36 | **Pattern Bible** — 20-pattern mapping doc | P0 | 1 d | ✅ Shipped |
-| 37 | Pattern Explorer dashboard panel | P1 | 3–4 d | ⏳ |
-| 38 | Orchestration recipe pattern tags (Exec, Waterfall, Life OS) | P1 | 2 d | ⏳ |
-| 39 | Rapid loop: best-pattern telemetry | P1 | 2 d | ⏳ |
-| 40 | Episodic memory explicit layer | P1 | 3 d | ⏳ |
-| 41 | LLM-driven pattern router | P2 | 2 d | ⏳ |
-| 42 | Pattern success rate metrics + onboarding | P2 | 4 d | ⏳ |
+| 37 | Pattern Explorer dashboard panel | P1 | 3–4 d | ✅ |
+| 38 | Orchestration recipe pattern tags (Exec, Waterfall, Life OS) | P1 | 2 d | ✅ |
+| 39 | Rapid loop: best-pattern telemetry | P1 | 2 d | ✅ |
+| 40 | Episodic memory explicit layer | P1 | 3 d | ✅ |
+| 41 | LLM-driven pattern router | P2 | 2 d | ✅ |
+| 42 | Pattern success rate metrics + onboarding | P2 | 4 d | 🟡 |
 
 **Key insight:** ~14/20 patterns already exist in code — gap was visibility + explicit selection, not rebuild.
 

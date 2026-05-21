@@ -16,9 +16,9 @@ Updated: 2026-05-21
 | **Phase 2** — enterprise, sub-swarm mind | ✅ Shipped | `./scripts/mission-phase2-audit.sh` |
 | **Performance cockpit** — bundle, WS delta | ✅ Shipped | `docs/PERFORMANCE_COCKPIT.md` |
 | **Operator P0** — Stripe + Hetzner send | ⏳ Pending (human-only) | Latest handoff pack in `reports/operator-handoff-*` |
-| **Phase 4** — RoundtableSpace edge | ⏳ Planned | `docs/ROUNDTABLESPACE_MAY2026_INSIGHTS.md` |
-| **Phase 5** — Agentic design patterns | 🟡 P0 shipped | `docs/QUEENSWARM_DESIGN_PATTERNS.md` |
-| **Phase 6** — Harness & Queen Maintainer | 🟡 P0 stub | `docs/HARNESS_SELF_MAINTAINING_ANALYSIS.md` |
+| **Phase 4** — RoundtableSpace edge | ✅ Dev complete | `docs/ROUNDTABLESPACE_MAY2026_INSIGHTS.md` |
+| **Phase 5** — Agentic design patterns | ✅ Dev complete | `docs/QUEENSWARM_DESIGN_PATTERNS.md` |
+| **Phase 6** — Harness & Queen Maintainer | ✅ Dev complete (LSP bridge ⏳) | `docs/HARNESS_SELF_MAINTAINING_ANALYSIS.md` |
 
 Unified audit: `./scripts/mission-readiness-audit.sh`
 

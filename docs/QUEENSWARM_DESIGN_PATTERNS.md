@@ -146,12 +146,12 @@ flowchart TD
 | Priority | Item | Est. | Status |
 |----------|------|------|--------|
 | **P0** | Pattern Bible + Pattern Router + forced reflection | 1–3 d | ✅ |
-| **P1** | Pattern Explorer dashboard panel | 3–4 d | ⏳ |
-| **P1** | Orchestration recipe pattern tags | 2 d | ⏳ |
-| **P1** | Rapid loop: best-pattern telemetry | 2 d | ⏳ |
-| **P1** | Episodic memory explicit API | 3 d | ⏳ |
-| **P2** | LLM-driven pattern router hop | 2 d | ⏳ |
-| **P2** | Pattern success rate metrics | 2 d | ⏳ |
+| **P1** | Pattern Explorer dashboard panel | 3–4 d | ✅ |
+| **P1** | Orchestration recipe pattern tags | 2 d | ✅ |
+| **P1** | Rapid loop: best-pattern telemetry | 2 d | ✅ |
+| **P1** | Episodic memory explicit API | 3 d | ✅ |
+| **P2** | LLM-driven pattern router hop | 2 d | ✅ |
+| **P2** | Pattern success rate metrics | 2 d | 🟡 |
 | **P2** | Onboarding: „Your swarm used 5 patterns today“ | 2 d | ⏳ |
 
 ---
