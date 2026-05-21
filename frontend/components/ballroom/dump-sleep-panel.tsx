@@ -4,6 +4,7 @@ import { Loader2Icon, MoonStar, Upload } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
+import { OvernightVoiceReportPlayer } from "@/components/hive/overnight-voice-report-player";
 import { HiveApiError, hiveGet } from "@/lib/api";
 import { usePlatform } from "@/components/hive/platform-context";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
@@ -161,6 +162,7 @@ export function DumpSleepPanel(): JSX.Element | null {
 
         {activeBatch?.status === "completed" ? (
           <div className="rounded-xl border border-(--qs-border) bg-black/25 p-3 text-xs text-(--qs-text-2)">
+            <OvernightVoiceReportPlayer enabled className="mb-3" />
             <p>
               ingested={activeBatch.items_ingested} · stalled=
               <span className="text-magenta">{activeBatch.stalled_signals}</span> · pollen=

@@ -12,7 +12,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.application.services.billing import ensure_tenant_subscription
 from app.application.services.dump_sleep_service import DumpSleepService, dump_sleep_upload_dir
+from app.application.services.overnight_voice_report import build_overnight_voice_payload
 from app.application.services.platform_features import resolve_platform_features_for_subscription
+from app.application.services.voice_exceptions import VoiceServiceError
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.infrastructure.persistence.models.dump_sleep_batch import DumpSleepBatchORM, DumpSleepStatusORM
@@ -50,6 +52,21 @@ class OvernightReportResponse(BaseModel):
     available: bool
     batch: DumpSleepBatchResponse | None = None
     window_hours: int = Field(default=24, ge=1, le=168)
+
+
+class OvernightVoiceReportResponse(BaseModel):
+    """TTS briefing for the latest overnight swarm report."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    available: bool
+    batch_id: uuid.UUID | None = None
+    script_text: str = ""
+    audio_base64: str = ""
+    content_type: str = ""
+    provider: str = ""
+    window_hours: int = Field(default=24, ge=1, le=168)
+    voice_disabled: bool = False
 
 
 def _batch_response(row: DumpSleepBatchORM) -> DumpSleepBatchResponse:
@@ -100,6 +117,34 @@ async def _assert_dump_sleep_enabled(db: DbSession, principal: dict[str, Any]) -
     return tenant_id
 
 
+async def _assert_overnight_voice_enabled(db: DbSession, principal: dict[str, Any]) -> uuid.UUID:
+    """Gate voice briefing behind Dump & Sleep + overnight voice feature."""
+
+    tenant_id = await _assert_dump_sleep_enabled(db, principal)
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant not found.")
+    subscription = await ensure_tenant_subscription(db, tenant_id=tenant_id)
+    role = str(principal.get("tenant_role") or "guest")
+    is_admin = role in {"owner", "admin"}
+    features = resolve_platform_features_for_subscription(
+        platform_mode=str(tenant.platform_mode or "internal"),
+        is_admin=is_admin,
+        subscription=subscription,
+    )
+    if not features.get("overnight_voice_report"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Overnight voice report requires Pro tier or internal operator mode.",
+        )
+    if not settings.voice_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Voice pipeline is disabled on this deployment.",
+        )
+    return tenant_id
+
+
 @router.get("/overnight-report", response_model=OvernightReportResponse, summary="Latest overnight swarm report")
 async def get_overnight_report(
     db: DbSession,
@@ -120,6 +165,32 @@ async def get_overnight_report(
         batch=_batch_response(row),
         window_hours=settings.dump_sleep_report_window_hours,
     )
+
+
+@router.get(
+    "/overnight-report/voice",
+    response_model=OvernightVoiceReportResponse,
+    summary="Synthesize voice briefing for latest overnight report",
+)
+async def get_overnight_voice_report(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> OvernightVoiceReportResponse:
+    """Return TTS audio for the newest completed Dump & Sleep briefing."""
+
+    tenant_id = await _assert_overnight_voice_enabled(db, principal)
+    try:
+        payload = await build_overnight_voice_payload(
+            db,
+            tenant_id=tenant_id,
+            window_hours=settings.dump_sleep_report_window_hours,
+        )
+    except VoiceServiceError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+    return OvernightVoiceReportResponse.model_validate(payload)
 
 
 @router.get("/batches/{batch_id}", response_model=DumpSleepBatchResponse, summary="Get dump batch status")

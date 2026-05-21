@@ -40,6 +40,7 @@ export const PLATFORM_FEATURE_CATALOG: Record<string, FeatureSpec> = {
   sub_swarm_mind_ui: { internal: true, commercial: true },
   bee_gamification: { internal: true, commercial: true, minTier: "pro" },
   dump_sleep: { internal: true, commercial: true, minTier: "pro" },
+  overnight_voice_report: { internal: true, commercial: true, minTier: "pro" },
   free_first_routing: { internal: true, commercial: true },
   auto_graphify: { internal: true, commercial: true, minTier: "pro" },
   selective_recall: { internal: true, commercial: true, minTier: "pro" },

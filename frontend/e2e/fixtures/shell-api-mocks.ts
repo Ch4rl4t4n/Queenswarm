@@ -375,6 +375,24 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("dump-sleep/overnight-report/voice")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          available: true,
+          batch_id: "d1111111-1111-4111-8111-111111111111",
+          script_text: "Good morning. Here is your overnight swarm report.",
+          audio_base64: "",
+          content_type: "audio/mpeg",
+          provider: "stub",
+          window_hours: 24,
+          voice_disabled: true,
+        }),
+      });
+      return;
+    }
+
     if (path.startsWith("dump-sleep/overnight-report")) {
       await route.fulfill({
         status: 200,

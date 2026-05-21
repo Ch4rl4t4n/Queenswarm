@@ -6,6 +6,7 @@ import { useCallback, useState } from "react";
 
 import { usePlatform } from "@/components/hive/platform-context";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
+import { OvernightVoiceReportPlayer } from "@/components/hive/overnight-voice-report-player";
 import { COCKPIT_POLL_COLONY_TELEMETRY_MS } from "@/lib/cockpit-poll-profile";
 import { DASHBOARD_BOOT_STAGGER_MS } from "@/lib/dashboard-boot-stagger";
 import { HiveApiError, hiveGet } from "@/lib/api";
@@ -126,9 +127,12 @@ export function DreamingSummaryCard(): JSX.Element {
             <div className="rounded-xl border border-pollen/30 bg-pollen/5 p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-[11px] uppercase tracking-wide text-pollen">Overnight swarm report</p>
-                <Link href="/ballroom" className="text-[11px] text-cyan underline-offset-2 hover:underline">
-                  Ballroom
-                </Link>
+                <div className="flex flex-wrap items-center gap-2">
+                  <OvernightVoiceReportPlayer enabled={overnight.available} />
+                  <Link href="/ballroom" className="text-[11px] text-cyan underline-offset-2 hover:underline">
+                    Ballroom
+                  </Link>
+                </div>
               </div>
               <p className="mt-1 text-sm text-(--qs-text-2)">
                 pollen=<span className="text-pollen">{overnight.batch.pollen_earned.toFixed(1)}</span> · stalled=

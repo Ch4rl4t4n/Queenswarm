@@ -48,5 +48,14 @@ def test_commercial_free_blocks_dump_sleep_feature() -> None:
     assert features["dump_sleep"] is False
 
 
+def test_commercial_pro_enables_overnight_voice_feature() -> None:
+    features = resolve_platform_features(
+        platform_mode="commercial",
+        is_admin=False,
+        subscription_tier="pro",
+    )
+    assert features["overnight_voice_report"] is True
+
+
 def test_dump_sleep_service_repr() -> None:
     assert DumpSleepService.__name__ == "DumpSleepService"
