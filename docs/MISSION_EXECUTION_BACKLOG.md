@@ -13,7 +13,7 @@ Living backlog aligned with May 2026 business plan. Synced to **Settings → Cap
 | **Phase 1** | ✅ Shipped (time saved, UGC magnets, skill UGC, badges, recipe match) | `./scripts/mission-phase1-audit.sh` |
 | **Phase 2** | ✅ Shipped (enterprise checkout, HA/DR evidence, sub-swarm mind) | `./scripts/mission-phase2-audit.sh` |
 | **Performance** | ✅ Shipped (cockpit bundle, WS delta, virtual roster) | `docs/PERFORMANCE_COCKPIT.md` |
-| **Operator P0** | ⏳ Stripe keys + walkthrough + Hetzner | `./scripts/operator-launch-gate.sh` |
+| **Operator P0** | ⏳ Stripe keys + browser QA + Hetzner email | `./scripts/operator-launch-gate.sh` (auto dashboard + user JWT ✅) |
 
 ## North Star
 
@@ -110,7 +110,7 @@ See `docs/PERFORMANCE_COCKPIT.md`.
 | Operator gate check | `./scripts/operator-gates-audit.sh` | Stripe + walkthrough + routes |
 | **Operator launch (all-in-one)** | `./scripts/operator-launch-gate.sh` | Readiness + gates + prod walkthrough + responsive E2E |
 | Handoff evidence pack | `./scripts/operator-handoff-pack.sh` | Saves audit logs under `reports/operator-handoff-*` |
-| Manual QA | `./scripts/prod-walkthrough-gate.sh` | Automated walkthrough slice (auto dashboard JWT) |
+| Manual QA | `./scripts/prod-walkthrough-gate.sh` | Automated slice (auto dashboard + user JWT via `issue_operator_user_jwt.py`) |
 | Full CI parity | `./scripts/final-150-gates.sh` | Before major releases |
 
 ---

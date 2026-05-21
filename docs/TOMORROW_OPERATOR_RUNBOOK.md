@@ -10,8 +10,8 @@ cd /root/Queenswarm
 # Unified mission readiness (Phase 0 + 1 + 2 + perf)
 ./scripts/mission-readiness-audit.sh
 
-# All-in-one automated slice (readiness + operator gates + prod walkthrough + responsive E2E)
-# SKIP_E2E=1 ./scripts/operator-launch-gate.sh
+# All-in-one automated slice (readiness + operator gates + prod walkthrough [3b user JWT auto] + responsive E2E)
+# SKIP_E2E=1 SKIP_RESPONSIVE_E2E=1 ./scripts/operator-launch-gate.sh
 
 # Operator P0 gates (Stripe keys, checkout routes, walkthrough doc)
 ./scripts/operator-gates-audit.sh
