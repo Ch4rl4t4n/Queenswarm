@@ -31,6 +31,9 @@ export function SwarmBuilderEntryCard(): JSX.Element {
           <Link href="/swarms/new?template=content-flywheel" className="qs-btn qs-btn--ghost qs-btn--sm">
             Content Flywheel
           </Link>
+          <Link href="/swarms/new?template=product-ship" className="qs-btn qs-btn--ghost qs-btn--sm">
+            Product Ship
+          </Link>
           <Link href="/swarms/new" className="qs-btn qs-btn--ghost qs-btn--sm">
             All templates
           </Link>

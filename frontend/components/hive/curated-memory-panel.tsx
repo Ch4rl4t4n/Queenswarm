@@ -11,6 +11,7 @@ const KINDS = [
   { key: "ideal_state", label: "Ideal state" },
   { key: "soul", label: "Soul" },
   { key: "skills_hierarchy", label: "Skills hierarchy" },
+  { key: "instructions", label: "Instructions" },
 ] as const;
 
 /** Tenant curated memory bundle — Queen context bootstrap files. */
@@ -56,7 +57,7 @@ export function CuratedMemoryPanel() {
     <V4Card>
       <V4CardHeader
         title="Curated memory"
-        description="Queen bootstrap markdown — mission, ideal state, soul, and skills hierarchy."
+        description="Queen bootstrap markdown — mission, ideal state, soul, skills hierarchy, and behavioral instructions."
       />
       {err ? <p className="mb-3 text-sm text-(--qs-red)">{err}</p> : null}
       <div className="mb-3 flex flex-wrap gap-2">

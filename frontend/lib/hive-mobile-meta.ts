@@ -30,6 +30,7 @@ function routeTable(consolidatedEnabled: boolean): { prefix: string; meta: Mobil
     { prefix: "/settings/llm-keys", meta: { kicker: "Settings", staticSubtitle: "LLM vault · routing", pageTitleSuffix: "LLM keys" } },
     { prefix: "/settings/notifications", meta: { kicker: "Settings", staticSubtitle: "Alerts · channels", pageTitleSuffix: "Notifications" } },
     { prefix: "/settings/capabilities", meta: { kicker: "Settings", staticSubtitle: "Features · architecture · roadmap", pageTitleSuffix: "Capabilities" } },
+    { prefix: "/settings/harness", meta: { kicker: "Settings", staticSubtitle: "AI Layer · rules · skills · patterns", pageTitleSuffix: "Harness" } },
     { prefix: "/settings", meta: { kicker: "Settings", staticSubtitle: "Operator cockpit preferences", pageTitleSuffix: "Settings" } },
     { prefix: "/external-projects", meta: { kicker: "External", staticSubtitle: "MCP · REST · WebSocket bridges", pageTitleSuffix: "External projects" } },
     { prefix: "/connectors", meta: { kicker: "Connectors", staticSubtitle: "Phase 3 MCP · Gmail to Stripe · vault sync", pageTitleSuffix: "Connectors" } },

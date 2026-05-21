@@ -10,6 +10,7 @@ import { AgentSessionContextHistoryPanel } from "@/components/hive/agent-session
 import { AgentSessionEventLog } from "@/components/hive/agent-session-event-log";
 import { AgentSessionInteractForm } from "@/components/hive/agent-session-interact-form";
 import { AgentSessionSharedContextPanel } from "@/components/hive/agent-session-shared-context-panel";
+import { SessionCheckpointResumePanel } from "@/components/hive/session-checkpoint-resume-panel";
 import { SubAgentSessionCard } from "@/components/hive/sub-agent-session-card";
 import type {
   SupervisorSessionEventRow,
@@ -73,6 +74,8 @@ export function AgentSessionDetailDrawer({
             Reject
           </button>
         </div>
+
+        <SessionCheckpointResumePanel session={session} onSessionUpdated={onSessionRefresh} />
 
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <div className="space-y-2">

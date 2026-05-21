@@ -66,8 +66,8 @@ const DreamingSummaryCard = nextDynamic(
   { loading: () => <DashboardSectionSkeleton className="min-h-[140px]" /> },
 );
 
-const PatternExplorerCard = nextDynamic(
-  () => import("@/components/hive/pattern-explorer-card").then((mod) => ({ default: mod.PatternExplorerCard })),
+const PatternExplorerSection = nextDynamic(
+  () => import("@/components/hive/pattern-explorer-card").then((mod) => ({ default: mod.PatternExplorerSection })),
   { loading: () => <DashboardSectionSkeleton className="min-h-[140px]" /> },
 );
 
@@ -356,7 +356,7 @@ export function QueenDashboardChrome({
         </div>
       ) : null}
 
-      {showPatternExplorer ? <PatternExplorerCard /> : null}
+      {showPatternExplorer ? <PatternExplorerSection /> : null}
 
       {showTimeSaved ? <TimeSavedPanel /> : null}
 

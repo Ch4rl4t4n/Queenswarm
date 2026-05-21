@@ -18,7 +18,14 @@ import {
   type SwarmWizardTemplate,
   type SwarmWizardTemplateId,
 } from "@/lib/swarm-wizard-templates";
-import { patternCountLabel, SWARM_TEMPLATE_PATTERN_STACKS } from "@/lib/swarm-pattern-stacks";
+import {
+  buildPrdKanbanTasksUrl,
+  type PrdKanbanLaunchParams,
+} from "@/lib/prd-kanban-flow";
+import {
+  patternCountLabel,
+  SWARM_TEMPLATE_PATTERN_STACKS,
+} from "@/lib/swarm-pattern-stacks";
 import { cn } from "@/lib/utils";
 
 type WizardStep = "pick" | "review" | "building" | "done";
@@ -40,7 +47,9 @@ async function runSwarmWizardBuild(template: SwarmWizardTemplate): Promise<Build
           ? "execution_operations"
           : template.id === "content-flywheel"
             ? "content_creation"
-            : "personal_life",
+            : template.id === "product-ship"
+              ? "product_mission"
+              : "personal_life",
       hive_ui: {
         swarm_role_label: template.name,
         swarm_color_hex: template.accentHex,
@@ -165,7 +174,7 @@ export function SwarmBuilderWizard(): JSX.Element {
       />
 
       {step === "pick" ? (
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {SWARM_WIZARD_TEMPLATES.map((item) => (
             <button
               key={item.id}
@@ -253,6 +262,11 @@ export function SwarmBuilderWizard(): JSX.Element {
               ))}
             </div>
           ) : null}
+          {template.prdKanban ? (
+            <p className="mt-4 rounded-lg border border-cyan/30 bg-cyan/5 px-3 py-2 text-xs text-(--qs-text-2)">
+              {template.prdKanban.kanbanHint} After build, launch PRD intake to auto-create Kanban vertical slices.
+            </p>
+          ) : null}
           {proRequired ? (
             <p className="mt-4 rounded-lg border border-pollen/35 bg-pollen/10 px-3 py-2 text-xs text-pollen">
               Pro plan required — this template creates {template.agents.length} agents (Free max 2).
@@ -300,9 +314,28 @@ export function SwarmBuilderWizard(): JSX.Element {
                 ))}
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
+                {template.prdKanban ? (
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--primary qs-btn--sm"
+                    onClick={() =>
+                      router.push(
+                        buildPrdKanbanTasksUrl({
+                          template: template.id,
+                          swarmId: result.swarmId,
+                        } satisfies PrdKanbanLaunchParams),
+                      )
+                    }
+                  >
+                    Start PRD → Kanban
+                  </button>
+                ) : null}
                 <button
                   type="button"
-                  className="qs-btn qs-btn--primary qs-btn--sm"
+                  className={cn(
+                    "qs-btn qs-btn--sm",
+                    template.prdKanban ? "qs-btn--ghost" : "qs-btn--primary",
+                  )}
                   onClick={() => router.push("/swarms")}
                 >
                   Open swarms

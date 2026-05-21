@@ -2,59 +2,17 @@
 
 import Link from "next/link";
 import { Loader2Icon, Sparkles } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
 
+import { PatternOnboardingBanner } from "@/components/hive/pattern-onboarding-banner";
 import { usePlatform } from "@/components/hive/platform-context";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
-import { COCKPIT_POLL_COLONY_TELEMETRY_MS } from "@/lib/cockpit-poll-profile";
-import { DASHBOARD_BOOT_STAGGER_MS } from "@/lib/dashboard-boot-stagger";
-import { HiveApiError, hiveGet } from "@/lib/api";
+import { usePatternExplorerData } from "@/lib/hooks/use-pattern-explorer";
 import type { PatternExplorerPayload } from "@/lib/hive-types";
-import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 
 function patternTone(count: number): "ok" | "info" | "warn" {
   if (count >= 3) return "ok";
   if (count >= 1) return "info";
   return "warn";
-}
-
-function usePatternExplorerData(poll: boolean): {
-  loading: boolean;
-  err: string | null;
-  data: PatternExplorerPayload | null;
-  reload: () => Promise<void>;
-} {
-  const { hasFeature } = usePlatform();
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
-  const [data, setData] = useState<PatternExplorerPayload | null>(null);
-
-  const load = useCallback(async () => {
-    if (!hasFeature("pattern_explorer")) {
-      setLoading(false);
-      return;
-    }
-    try {
-      const body = await hiveGet<PatternExplorerPayload>("harness/pattern-explorer");
-      setData(body);
-      setErr(null);
-    } catch (e) {
-      setErr(e instanceof HiveApiError ? e.message : "Pattern Explorer unavailable.");
-    } finally {
-      setLoading(false);
-    }
-  }, [hasFeature]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  useIntervalWhenVisible(() => void load(), COCKPIT_POLL_COLONY_TELEMETRY_MS, {
-    enabled: poll && hasFeature("pattern_explorer"),
-    initialDelayMs: DASHBOARD_BOOT_STAGGER_MS.patternExplorer,
-  });
-
-  return { loading, err, data, reload: load };
 }
 
 function PatternExplorerBody({
@@ -124,15 +82,17 @@ function PatternExplorerBody({
   );
 }
 
-/** Dashboard panel — which agentic patterns the swarm used and why. */
-export function PatternExplorerCard(): JSX.Element | null {
-  const { hasFeature } = usePlatform();
-  const { loading, err, data } = usePatternExplorerData(true);
-
-  if (!hasFeature("pattern_explorer")) {
-    return null;
-  }
-
+function PatternExplorerCardInner({
+  loading,
+  err,
+  data,
+  compact,
+}: {
+  loading: boolean;
+  err: string | null;
+  data: PatternExplorerPayload | null;
+  compact?: boolean;
+}): JSX.Element {
   return (
     <V4Card className="v4-card-interactive border-cyan/20">
       <V4CardHeader
@@ -153,9 +113,38 @@ export function PatternExplorerCard(): JSX.Element | null {
 
       {err ? <p className="text-sm text-(--qs-red)">{err}</p> : null}
 
-      {!loading && !err && data ? <PatternExplorerBody data={data} compact /> : null}
+      {!loading && !err && data ? <PatternExplorerBody data={data} compact={compact} /> : null}
     </V4Card>
   );
+}
+
+/** Dashboard — single fetch for onboarding banner + explorer card. */
+export function PatternExplorerSection(): JSX.Element | null {
+  const { hasFeature } = usePlatform();
+  const { loading, err, data } = usePatternExplorerData(true);
+
+  if (!hasFeature("pattern_explorer")) {
+    return null;
+  }
+
+  return (
+    <>
+      {!loading && !err && data ? <PatternOnboardingBanner data={data} /> : null}
+      <PatternExplorerCardInner loading={loading} err={err} data={data} compact />
+    </>
+  );
+}
+
+/** @deprecated Use PatternExplorerSection on dashboard — kept for direct imports. */
+export function PatternExplorerCard(): JSX.Element | null {
+  const { hasFeature } = usePlatform();
+  const { loading, err, data } = usePatternExplorerData(true);
+
+  if (!hasFeature("pattern_explorer")) {
+    return null;
+  }
+
+  return <PatternExplorerCardInner loading={loading} err={err} data={data} compact />;
 }
 
 /** Settings harness page — full 19-pattern catalog + recent sessions. */

@@ -82,6 +82,7 @@ class CuratedMemoryService:
             CuratedFileKind.IDEAL_STATE: "",
             CuratedFileKind.SOUL: "",
             CuratedFileKind.SKILLS_HIERARCHY: "",
+            CuratedFileKind.INSTRUCTIONS: "",
         }
         for row in rows:
             kind = CuratedFileKind(str(row.kind))
@@ -95,6 +96,7 @@ class CuratedMemoryService:
         ideal_state = bundle.get(CuratedFileKind.IDEAL_STATE, "")
         soul = bundle.get(CuratedFileKind.SOUL, "")
         skills_hierarchy = bundle.get(CuratedFileKind.SKILLS_HIERARCHY, "")
+        instructions = bundle.get(CuratedFileKind.INSTRUCTIONS, "")
         return (
             "=== MISSION ===\n"
             f"{mission}\n"
@@ -104,6 +106,8 @@ class CuratedMemoryService:
             f"{soul}\n"
             "=== SKILLS HIERARCHY ===\n"
             f"{skills_hierarchy}\n"
+            "=== BEHAVIORAL INSTRUCTIONS ===\n"
+            f"{instructions}\n"
             "=== END CONTEXT ==="
         )
 

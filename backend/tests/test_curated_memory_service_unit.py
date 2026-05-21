@@ -77,6 +77,7 @@ async def test_get_bundle_returns_all_four_keys_with_missing_files(monkeypatch) 
         CuratedFileKind.IDEAL_STATE,
         CuratedFileKind.SOUL,
         CuratedFileKind.SKILLS_HIERARCHY,
+        CuratedFileKind.INSTRUCTIONS,
     }
     assert bundle[CuratedFileKind.MISSION] == "Mission text"
     assert bundle[CuratedFileKind.SOUL] == ""
@@ -91,6 +92,7 @@ def test_render_prompt_prefix_stable_output() -> None:
         CuratedFileKind.IDEAL_STATE: "",
         CuratedFileKind.SOUL: "S1",
         CuratedFileKind.SKILLS_HIERARCHY: "",
+        CuratedFileKind.INSTRUCTIONS: "Always verify.",
     }
 
     rendered = service.render_prompt_prefix(bundle)
@@ -98,6 +100,8 @@ def test_render_prompt_prefix_stable_output() -> None:
     assert "=== IDEAL STATE ===" in rendered
     assert "=== SOUL ===" in rendered
     assert "=== SKILLS HIERARCHY ===" in rendered
+    assert "=== BEHAVIORAL INSTRUCTIONS ===" in rendered
+    assert "Always verify." in rendered
     assert rendered.endswith("=== END CONTEXT ===")
 
 

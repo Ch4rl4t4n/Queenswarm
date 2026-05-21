@@ -44,7 +44,7 @@ def _require_admin(principal: dict[str, Any]) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin tenant role required.")
 
 
-@router.get("", summary="List all 4 curated files for active tenant")
+@router.get("", summary="List all curated files for active tenant")
 async def get_curated_bundle(
     db: DbSession,
     principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),

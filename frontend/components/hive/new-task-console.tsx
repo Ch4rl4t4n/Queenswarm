@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ChevronLeftIcon } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -14,7 +14,12 @@ import type {
   RecipeMatchBrief,
   RecipeMatchConfigPayload,
 } from "@/lib/hive-types";
-import { DEFAULT_RECIPE_MATCH_CONFIG, formatSimilarityPct, isRecipeMatchEligible } from "@/lib/recipe-match-utils";
+import { taskPrefillForWizardTemplate } from "@/lib/prd-kanban-flow";
+import {
+  DEFAULT_RECIPE_MATCH_CONFIG,
+  formatSimilarityPct,
+  isRecipeMatchEligible,
+} from "@/lib/recipe-match-utils";
 import { HexNumberBadge, LANE_HEX_STROKE } from "@/components/hive/hex-metric-tile";
 import { InfoHint } from "@/components/hive/info-hint";
 import { V4Card, V4CardHeader, V4Chip, V4PageCanvas } from "@/components/ui/v4";
@@ -163,6 +168,9 @@ function PreviewDagStrip({ steps }: { steps: PreviewWorkflowStep[] }) {
 
 export function NewTaskConsole() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const wizardTemplate = searchParams.get("template");
+  const linkedSwarmId = searchParams.get("swarm_id");
   const [taskText, setTaskText] = useState(
     "Generate a weekly ACKIE crypto digest with sentiment, fact-checks, and trade recommendation.",
   );
@@ -189,6 +197,18 @@ export function NewTaskConsole() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!wizardTemplate) {
+      return;
+    }
+    const prefill = taskPrefillForWizardTemplate(wizardTemplate);
+    if (prefill) {
+      setTaskText(prefill);
+      setTargetLane("action");
+      setPriority("normal");
+    }
+  }, [wizardTemplate]);
 
   const runPreview = useCallback(async () => {
     const text = taskText.trim();
@@ -244,7 +264,7 @@ export function NewTaskConsole() {
         task_text: text,
         task_type: laneTaskType(targetLane),
         priority: priorityValue(priority),
-        swarm_id: null,
+        swarm_id: linkedSwarmId && linkedSwarmId.length >= 8 ? linkedSwarmId : null,
         target_lane: targetLane,
         matching_recipe_id: recipeMatch?.postgres_recipe_id ?? null,
         enrich_from_chroma_recipes: enrichRecipes,
@@ -318,9 +338,17 @@ export function NewTaskConsole() {
           options={["Auto decomposition preview", "Recipe matching", "Submit to execution queue"]}
         />
       </div>
-      <p className="mb-8 max-w-xl text-sm text-(--qs-text-3)">
+      <p className="mb-4 max-w-xl text-sm text-(--qs-text-3)">
         Describe what you need. The auto workflow breaker splits the brief into atomic steps.
       </p>
+      {wizardTemplate === "product-ship" ? (
+        <p className="mb-8 max-w-xl rounded-lg border border-cyan/30 bg-cyan/5 px-3 py-2 text-xs text-(--qs-text-2)">
+          Product Ship flow: edit the PRD below → submit → Auto Workflow Breaker creates workflow steps → Kanban vertical
+          slices land on <Link href="/tasks" className="text-cyan underline">Tasks</Link>.
+        </p>
+      ) : (
+        <div className="mb-8" />
+      )}
 
       <V4Card>
         <V4CardHeader as="h2" title="Task brief" description="Min 8 characters — preview refreshes automatically." />

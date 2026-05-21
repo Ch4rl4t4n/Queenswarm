@@ -1,7 +1,6 @@
 "use client";
 
-import confetti from "canvas-confetti";
-import { BotIcon, DollarSignIcon, HexagonIcon, PartyPopperIcon, ZapIcon } from "lucide-react";
+import { BotIcon, DollarSignIcon, HexagonIcon, ZapIcon } from "lucide-react";
 
 import { AgentGrid } from "@/components/hive/agent-grid";
 import { DataCard } from "@/components/hive/data-card";
@@ -84,26 +83,6 @@ export function ComponentShowcase() {
           <HexagonalAgentCard agent={{ ...DEMO_AGENT, id: "3", name: "Sim-02", role: "SIMULATOR", status: "BUSY" }} />
           <HexagonalAgentCard agent={{ ...DEMO_AGENT, id: "4", name: "Rep-01", role: "REPORTER", status: "ERROR" }} />
         </AgentGrid>
-      </section>
-
-      <section className="rounded-2xl border border-success/25 bg-black/35 p-6">
-        <NeonButton
-          variant="secondary"
-          type="button"
-          className="uppercase tracking-[0.2em]"
-          onClick={() =>
-            confetti({
-              particleCount: 220,
-              spread: 90,
-              startVelocity: 36,
-              origin: { x: 0.5, y: 0.2 },
-              colors: ["#FFB800", "#00FFFF", "#00FF88", "#FF00AA"],
-            })
-          }
-        >
-          <PartyPopperIcon className="h-4 w-4" aria-hidden />
-          Confetti (canvas-confetti)
-        </NeonButton>
       </section>
     </div>
   );

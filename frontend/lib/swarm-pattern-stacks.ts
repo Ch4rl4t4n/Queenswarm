@@ -7,6 +7,7 @@ export const SWARM_TEMPLATE_PATTERN_STACKS: Record<SwarmWizardTemplateId, string
   "lead-waterfall": ["Parallelization", "Tool Use", "Human-in-the-Loop"],
   "content-flywheel": ["Prompt Chaining", "Tool Use", "Guardrails", "Reflection"],
   "life-os": ["Memory", "Prioritization", "Reflection", "Planning"],
+  "product-ship": ["Planning", "Tracer Bullets", "Human-in-the-Loop", "Reflection"],
 };
 
 export function patternCountLabel(templateId: SwarmWizardTemplateId): string {

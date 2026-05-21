@@ -43,6 +43,16 @@ describe("swarm-wizard-templates", () => {
     expect(template?.agents.length).toBeGreaterThanOrEqual(3);
   });
 
+  it("product-ship includes PRD → Kanban bees and prdKanban flow", () => {
+    const template = getSwarmWizardTemplate("product-ship");
+    expect(template).toBeDefined();
+    expect(template?.prdKanban).toBeDefined();
+    expect(template?.agents.map((a) => a.name)).toEqual(
+      expect.arrayContaining(["PRD Planner Manager", "Tracer Bullet Bee", "Kanban Slice Bee", "TDD Gate Bee"]),
+    );
+    expect(template?.routine?.name).toMatch(/ship review/i);
+  });
+
   it("no templates are marked comingSoon", () => {
     const soon = SWARM_WIZARD_TEMPLATES.filter((t) => t.comingSoon);
     expect(soon).toEqual([]);

@@ -20,6 +20,7 @@ class CuratedFileKindORM(StrEnum):
     IDEAL_STATE = "ideal_state"
     SOUL = "soul"
     SKILLS_HIERARCHY = "skills_hierarchy"
+    INSTRUCTIONS = "instructions"
 
 
 class CuratedMemoryORM(Base):

@@ -4,7 +4,8 @@ export type SwarmWizardTemplateId =
   | "exec-assistant"
   | "lead-waterfall"
   | "content-flywheel"
-  | "life-os";
+  | "life-os"
+  | "product-ship";
 
 export interface SwarmWizardAgentSpec {
   name: string;
@@ -33,6 +34,10 @@ export interface SwarmWizardTemplate {
     scheduleKind: "interval" | "cron";
     intervalSeconds?: number;
     cronExpr?: string;
+  };
+  /** Links wizard completion to PRD intake → workflow breaker → Kanban slices. */
+  prdKanban?: {
+    kanbanHint: string;
   };
   comingSoon?: boolean;
 }
@@ -212,6 +217,58 @@ export const SWARM_WIZARD_TEMPLATES: SwarmWizardTemplate[] = [
         "Process overnight dump: graphify ingest, extract tasks, flag stalled projects, simulate outputs, deliver morning briefing with pollen tally.",
       scheduleKind: "cron",
       cronExpr: "0 6 * * *",
+    },
+  },
+  {
+    id: "product-ship",
+    name: "Product Ship",
+    tagline: "PRD → tracer bullets → Kanban slices → TDD gate",
+    description:
+      "Matt Pocock-style shipping colony: PRD planner, workflow decomposer, Kanban slice materializer, and simulation/TDD gate before human review.",
+    swarmName: "Product Ship",
+    swarmPurpose: "action",
+    estimatedMinutes: 15,
+    timeSavedHoursPerWeek: 14,
+    accentHex: "#00E5FF",
+    prdKanban: {
+      kanbanHint: "After intake, Auto Workflow Breaker creates vertical slices on /tasks and /workflows.",
+    },
+    agents: [
+      {
+        name: "PRD Planner Manager",
+        hiveTier: "manager",
+        systemPrompt:
+          "You are a product PRD planner. Turn ambiguous requests into measurable success criteria, non-goals, and 3–7 vertical slices. Never skip simulation before reporting.",
+        tools: ["hive_memory_search", "task_list"],
+      },
+      {
+        name: "Tracer Bullet Bee",
+        hiveTier: "worker",
+        systemPrompt:
+          "Decompose PRD vertical slices into atomic workflow steps (3–7). Each step must have guardrails and evaluation criteria for the breaker graph.",
+        tools: ["hive_memory_search", "task_list"],
+      },
+      {
+        name: "Kanban Slice Bee",
+        hiveTier: "worker",
+        systemPrompt:
+          "Materialize each workflow step as a Kanban child task linked to a parent mission row. Preserve parent/child lineage for human review.",
+        tools: ["task_list"],
+      },
+      {
+        name: "TDD Gate Bee",
+        hiveTier: "worker",
+        systemPrompt:
+          "Run simulation and TDD checks on each slice before promotion. Block unverified outputs; queue needs_input when confidence is below threshold.",
+        tools: ["hive_memory_search", "task_list"],
+      },
+    ],
+    routine: {
+      name: "Weekly ship review",
+      goalTemplate:
+        "Review Product Ship Kanban: completed slices, blocked tracer bullets, PRD drift, and next vertical slice ready for human approval.",
+      scheduleKind: "cron",
+      cronExpr: "0 16 * * 5",
     },
   },
 ];

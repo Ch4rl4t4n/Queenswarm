@@ -96,7 +96,7 @@ async def test_search_recipes_semantic_joins_postgres_when_metadata_uuid_present
         last_used_at=None,
         is_deprecated=False,
     ).model_dump(mode="python")
-    stub = SimpleNamespace(**attrs)
+    stub = SimpleNamespace(**attrs, workflow_template=None)
 
     exec_result = MagicMock()
     exec_result.scalar_one_or_none.return_value = stub

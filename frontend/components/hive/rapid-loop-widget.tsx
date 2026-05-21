@@ -121,6 +121,33 @@ export function RapidLoopWidget(): JSX.Element {
               {new Date(payload.last_cycle_at).toLocaleString("sk-SK")}
             </p>
           ) : null}
+
+          {payload.pattern_telemetry && payload.pattern_telemetry.top_patterns.length > 0 ? (
+            <div className="mt-4 rounded-xl border border-cyan/20 bg-cyan/5 p-3">
+              <p className="text-[11px] uppercase tracking-wide text-cyan">Pattern telemetry</p>
+              <p className="mt-1 text-xs text-(--qs-text-2)">
+                {payload.pattern_telemetry.sessions_analyzed} verified sessions ·{" "}
+                {payload.pattern_telemetry.patterns_tracked} patterns tracked
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {payload.pattern_telemetry.top_patterns.slice(0, 6).map((row) => (
+                  <V4Badge
+                    key={row.id}
+                    tone={
+                      row.success_rate_pct == null
+                        ? "info"
+                        : row.success_rate_pct >= 70
+                          ? "ok"
+                          : "warn"
+                    }
+                  >
+                    {row.label}{" "}
+                    {row.success_rate_pct != null ? `${row.success_rate_pct.toFixed(0)}%` : "—"}
+                  </V4Badge>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </>
       ) : null}
     </V4Card>

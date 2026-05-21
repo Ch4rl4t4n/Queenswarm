@@ -951,6 +951,16 @@ export interface PatternExplorerSessionRow {
   router_version?: string;
 }
 
+export interface PatternOnboardingPayload {
+  target_unique_patterns: number;
+  progress_unique_patterns: number;
+  milestone_reached: boolean;
+  has_patterned_sessions: boolean;
+  headline: string;
+  starter_patterns: PatternCatalogRow[];
+  cta_path: string;
+}
+
 export interface PatternExplorerPayload {
   window_hours: number;
   sessions_in_window: number;
@@ -961,6 +971,7 @@ export interface PatternExplorerPayload {
   catalog: PatternCatalogRow[];
   recent_sessions: PatternExplorerSessionRow[];
   docs_path: string;
+  onboarding: PatternOnboardingPayload;
 }
 
 export interface RapidLoopPatternTelemetryRow {
@@ -1026,6 +1037,7 @@ export interface HarnessSnapshotPayload {
   lsp_bridge?: HarnessLspBridgeStatus;
   rubric_templates?: HarnessRubricTemplatesStatus;
   forager_intelligence?: HarnessForagerIntelligenceStatus;
+  self_extending_marketplace?: HarnessSelfExtendingMarketplaceStatus;
   queen_maintainer?: HarnessQueenMaintainerStatus;
   tech_health_score: number;
   monitoring: HarnessMonitoringPayload;
@@ -1059,6 +1071,13 @@ export interface HarnessForagerIntelligenceStatus {
   cron_hour: number;
   cron_minute: number;
   manual_scan_path: string;
+}
+
+export interface HarnessSelfExtendingMarketplaceStatus {
+  enabled: boolean;
+  scan_path: string;
+  apply_path: string;
+  supported_proposal_kinds: string[];
 }
 
 export interface HarnessQueenMaintainerStatus {
@@ -1112,12 +1131,38 @@ export interface HarnessIntelligenceProposal {
   target: string;
   priority: string;
   rationale: string;
+  action?: "review" | "install_marketplace";
+  marketplace_source?: string | null;
+  entry_id?: string;
+  template_title?: string;
+  template_summary?: string;
+  suggested_slug?: string;
+  installed?: boolean;
+  skill_doc_hint?: string;
+}
+
+export interface HarnessIntelligenceSelfExtendingStatus {
+  enabled: boolean;
+  installable_count: number;
+  apply_path: string;
+  marketplace_path: string;
 }
 
 export interface HarnessIntelligenceScanPayload {
   scanned_at: string;
   proposal_count: number;
   proposals: HarnessIntelligenceProposal[];
+  self_extending?: HarnessIntelligenceSelfExtendingStatus;
+}
+
+export interface HarnessIntelligenceApplyResponse {
+  status: string;
+  kind: string;
+  target: string;
+  template_title?: string;
+  suggested_slug?: string;
+  skill_doc_hint?: string;
+  connector?: Record<string, unknown>;
 }
 
 export type PendingReviewStatus = "pending" | "approved" | "rejected";
