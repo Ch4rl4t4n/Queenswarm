@@ -865,6 +865,7 @@ export interface RapidLoopSummaryPayload {
   last_cycle_at: string | null;
   stages: RapidLoopStageRow[];
   loop_healthy: boolean;
+  pattern_telemetry?: RapidLoopPatternTelemetryPayload | null;
 }
 
 export type TimeSavedSourceKind = "template" | "recipe" | "custom";
@@ -1021,9 +1022,29 @@ export interface HarnessSnapshotPayload {
   mcp_tools: { count: number; items: Record<string, unknown>[] };
   recent_agentic_patterns: HarnessPatternRow[];
   feature_flags: Record<string, boolean>;
+  slack_trainer?: HarnessSlackTrainerStatus;
   tech_health_score: number;
   monitoring: HarnessMonitoringPayload;
   docs: Record<string, string>;
+}
+
+export interface HarnessSlackTrainerStatus {
+  enabled: boolean;
+  signing_secret_configured: boolean;
+  tenant_id_configured: boolean;
+  slash_command_path: string;
+}
+
+/** ``POST /api/v1/harness/slack-trainer/feedback`` */
+export interface SlackTrainerFeedbackResponse {
+  tenant_id: string;
+  kind: string;
+  version: number;
+  char_count: number;
+  appended_chars: number;
+  source: string;
+  author?: string | null;
+  slack_notified: boolean;
 }
 
 /** ``POST /api/v1/harness/intelligence-scan`` */

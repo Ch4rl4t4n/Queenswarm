@@ -116,6 +116,13 @@ const STUB_HARNESS_SNAPSHOT = {
     supervisor_forced_reflection_enabled: true,
     supervisor_pattern_router_llm_enabled: false,
     skill_lazy_reference_fetch_enabled: true,
+    slack_harness_trainer_enabled: true,
+  },
+  slack_trainer: {
+    enabled: true,
+    signing_secret_configured: false,
+    tenant_id_configured: false,
+    slash_command_path: "/api/v1/harness/slack-trainer/slack-command",
   },
   tech_health_score: 0.85,
   monitoring: {

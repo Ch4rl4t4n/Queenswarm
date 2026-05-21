@@ -180,6 +180,17 @@ async def build_harness_snapshot(
             "queen_maintainer_enabled": settings.queen_maintainer_enabled,
             "routines_enabled": settings.routines_enabled,
             "skill_lazy_reference_fetch_enabled": settings.skill_lazy_reference_fetch_enabled,
+            "tracer_bullet_kanban_enabled": settings.tracer_bullet_kanban_enabled,
+            "tracer_bullet_kanban_auto_on_intake": settings.tracer_bullet_kanban_auto_on_intake,
+            "slack_harness_trainer_enabled": settings.slack_harness_trainer_enabled,
+        },
+        "slack_trainer": {
+            "enabled": settings.slack_harness_trainer_enabled,
+            "signing_secret_configured": bool((settings.slack_harness_trainer_signing_secret or "").strip()),
+            "tenant_id_configured": bool(
+                settings.slack_harness_trainer_tenant_id and str(settings.slack_harness_trainer_tenant_id).strip(),
+            ),
+            "slash_command_path": "/api/v1/harness/slack-trainer/slack-command",
         },
         "tech_health_score": tech_health.get("health_score"),
         "monitoring": monitoring,

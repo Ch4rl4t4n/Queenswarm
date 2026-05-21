@@ -221,6 +221,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         "/openapi.json",
         "/api/v1/health",
         "/api/v1/billing/stripe/webhook",
+        "/api/v1/harness/slack-trainer/slack-command",
         "/favicon.ico",
     })
 

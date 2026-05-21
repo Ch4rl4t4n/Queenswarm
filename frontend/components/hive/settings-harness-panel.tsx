@@ -9,6 +9,7 @@ import { usePlatform } from "@/components/hive/platform-context";
 import { hiveGet, hivePostJson, HiveApiError } from "@/lib/api";
 import type { HarnessIntelligenceScanPayload, HarnessSnapshotPayload } from "@/lib/hive-types";
 import { BehavioralMemoryPanel } from "@/components/hive/behavioral-memory-panel";
+import { SlackHarnessTrainerPanel } from "@/components/hive/slack-harness-trainer-panel";
 import { cn } from "@/lib/utils";
 
 export function SettingsHarnessPanel(): JSX.Element | null {
@@ -204,6 +205,9 @@ export function SettingsHarnessPanel(): JSX.Element | null {
       </V4Card>
 
       <BehavioralMemoryPanel />
+      {hasFeature("slack_harness_trainer") && snapshot ? (
+        <SlackHarnessTrainerPanel snapshot={snapshot} />
+      ) : null}
 
       <V4Card>
         <V4CardHeader kicker="Skills" title="Active skill lattice" description="Markdown skills selected by SkillLibrary." />

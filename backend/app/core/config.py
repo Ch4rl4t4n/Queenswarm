@@ -791,6 +791,18 @@ class Settings(BaseSettings):
 
     # --- Notifications (Reporter bee → humans)
     slack_webhook_url: str | None = None
+    slack_harness_trainer_enabled: bool = Field(
+        default=True,
+        description="Enable Slack slash-command + dashboard feedback → behavioral INSTRUCTIONS memory.",
+    )
+    slack_harness_trainer_signing_secret: str = Field(
+        default="",
+        description="Slack app signing secret for /harness/slack-trainer/slack-command verification.",
+    )
+    slack_harness_trainer_tenant_id: str | None = Field(
+        default=None,
+        description="Tenant UUID receiving Slack slash-command feedback (required for Slack ingress).",
+    )
     notify_email: str | None = Field(
         default=None,
         description="Default recipient for SMTP alerts when ``notify_email`` is not passed explicitly.",
