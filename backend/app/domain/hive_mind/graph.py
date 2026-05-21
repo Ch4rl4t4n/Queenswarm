@@ -196,7 +196,31 @@ def _pick_label(kind: str, props: dict[str, Any]) -> str:
     if kind == "Task":
         tid = props.get("task_id") or "task"
         return f"Task {tid}"[:140]
+    if kind == "VaultDocument":
+        return str(props.get("title") or props.get("rel_path") or "document")[:180]
+    if kind == "VaultFolder":
+        return str(props.get("label") or props.get("path") or "folder")[:180]
+    if kind == "GraphifyBatch":
+        return str(props.get("folder_label") or f"Batch {props.get('batch_id', '')[:8]}")[:180]
     return kind
+
+
+def _project_shape_peer_id(*, kind: str, props: dict[str, Any]) -> str | None:
+    """Stable React Flow node id for project-shape graph kinds."""
+
+    if kind == "VaultFolder":
+        path = props.get("path")
+        return f"vf:{path}" if path else None
+    if kind == "VaultDocument":
+        doc_id = props.get("doc_id")
+        return str(doc_id) if doc_id else None
+    if kind == "GraphifyBatch":
+        batch_id = props.get("batch_id")
+        return f"gb:{batch_id}" if batch_id else None
+    if kind == "Tag":
+        name = props.get("name")
+        return f"tg:{name}" if name else None
+    return None
 
 
 async def bounded_operator_graph_snapshot(
@@ -275,6 +299,120 @@ async def bounded_operator_graph_snapshot(
                 edges[ek] = {"source": ea, "target": eb, "kind": rtype_raw}
 
     return {"nodes": list(nodes.values()), "edges": list(edges.values())}
+
+
+async def bounded_tenant_project_shape_snapshot(
+    *,
+    tenant_id: uuid.UUID,
+    limit_nodes: int,
+) -> dict[str, Any]:
+    """Tenant-scoped Auto-Graphify folder tree — VaultFolder → VaultDocument constellation."""
+
+    driver = await get_neo4j_driver()
+    tid = str(tenant_id)
+    lim = max(4, min(int(limit_nodes), 200))
+    folder_lim = max(2, min(lim // 3, 24))
+    nodes: dict[str, dict[str, Any]] = {}
+    edges: dict[str, dict[str, Any]] = {}
+
+    stmt = """
+    MATCH (f:VaultFolder {tenant_id: $tid})
+    WITH f ORDER BY f.updated_at DESC LIMIT $folder_lim
+    OPTIONAL MATCH (f)-[contains:CONTAINS]->(d:VaultDocument {tenant_id: $tid})
+    OPTIONAL MATCH (b:GraphifyBatch {tenant_id: $tid})-[:ROOTED_IN]->(f)
+    OPTIONAL MATCH (d)-[tagged:TAGGED_AS]->(tg:Tag)
+    RETURN f.path AS folder_path,
+           properties(f) AS fprops,
+           labels(d)[0] AS dkind,
+           properties(d) AS dprops,
+           type(contains) AS contains_kind,
+           labels(b)[0] AS bkind,
+           properties(b) AS bprops,
+           type(tagged) AS tag_kind,
+           labels(tg)[0] AS tgkind,
+           properties(tg) AS tgprops
+    """
+    async with driver.session(database="neo4j") as session:
+        cursor = await session.run(stmt, tid=tid, folder_lim=folder_lim)
+        async for rec in cursor:
+            fprops = dict(rec.get("fprops") or {})
+            folder_path = rec.get("folder_path") or fprops.get("path")
+            if folder_path:
+                fid = f"vf:{folder_path}"
+                if fid not in nodes:
+                    nodes[fid] = {
+                        "id": fid,
+                        "graph_kind": "VaultFolder",
+                        "label": _pick_label("VaultFolder", fprops | {"path": folder_path}),
+                        "summary": str(folder_path)[:240],
+                        "tags": [],
+                        "rel_path": str(folder_path),
+                    }
+
+            bkind = rec.get("bkind")
+            bprops = dict(rec.get("bprops") or {})
+            if bkind == "GraphifyBatch":
+                batch_id = bprops.get("batch_id")
+                if batch_id:
+                    bid = f"gb:{batch_id}"
+                    if bid not in nodes:
+                        nodes[bid] = {
+                            "id": bid,
+                            "graph_kind": "GraphifyBatch",
+                            "label": _pick_label("GraphifyBatch", bprops),
+                            "summary": f"{bprops.get('file_count', 0)} files ingested",
+                            "tags": ["auto_graphify"],
+                            "batch_id": str(batch_id),
+                        }
+                    if folder_path:
+                        ek = f"{bid}|ROOTED_IN|vf:{folder_path}"
+                        edges[ek] = {"source": bid, "target": f"vf:{folder_path}", "kind": "ROOTED_IN"}
+
+            dkind = rec.get("dkind")
+            dprops = dict(rec.get("dprops") or {})
+            if dkind == "VaultDocument":
+                doc_id = dprops.get("doc_id")
+                if doc_id:
+                    did = str(doc_id)
+                    if did not in nodes:
+                        nodes[did] = {
+                            "id": did,
+                            "graph_kind": "VaultDocument",
+                            "label": _pick_label("VaultDocument", dprops),
+                            "summary": str(dprops.get("excerpt") or dprops.get("rel_path") or "")[:240],
+                            "tags": list(dprops.get("tags") or [])[:16],
+                            "rel_path": str(dprops.get("rel_path") or ""),
+                        }
+                    if folder_path:
+                        ek = f"vf:{folder_path}|CONTAINS|{did}"
+                        edges[ek] = {"source": f"vf:{folder_path}", "target": did, "kind": "CONTAINS"}
+
+            tgkind = rec.get("tgkind")
+            tgprops = dict(rec.get("tgprops") or {})
+            if tgkind == "Tag" and dprops.get("doc_id"):
+                tag_id = _project_shape_peer_id(kind="Tag", props=tgprops)
+                doc_id = str(dprops.get("doc_id"))
+                if tag_id and doc_id in nodes:
+                    if tag_id not in nodes:
+                        nodes[tag_id] = {
+                            "id": tag_id,
+                            "graph_kind": "Tag",
+                            "label": _pick_label("Tag", tgprops),
+                            "summary": "",
+                            "tags": [],
+                        }
+                    ek = f"{doc_id}|TAGGED_AS|{tag_id}"
+                    edges[ek] = {"source": doc_id, "target": tag_id, "kind": "TAGGED_AS"}
+
+            if len(nodes) >= lim:
+                break
+
+    return {
+        "nodes": list(nodes.values())[:lim],
+        "edges": list(edges.values()),
+        "tenant_id": tid,
+        "shape": "project",
+    }
 
 
 async def neighbor_snapshot_for_prompt(
@@ -413,6 +551,7 @@ async def persist_graphify_ingest_bundle(
 
 __all__ = [
     "bounded_operator_graph_snapshot",
+    "bounded_tenant_project_shape_snapshot",
     "neighbor_snapshot_for_prompt",
     "persist_graphify_ingest_bundle",
     "persist_hive_graph_bundle",

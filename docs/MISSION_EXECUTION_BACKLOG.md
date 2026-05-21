@@ -88,7 +88,7 @@ Analysis: `docs/ROUNDTABLESPACE_MAY2026_INSIGHTS.md`
 | Life OS Swarm Builder template | P0 | 1–2 d | ✅ | swarm-wizard-templates.ts |
 | Free-First routing + Cost Guardian UX | P0 | 2–3 d | ✅ | LiteLLMRouter, CostGovernor |
 | Auto-Graphify folder ingest | P1 | 5–7 d | ✅ | Foragers, Obsidian watch, Neo4j |
-| Project shape graph viz | P1 | 4–5 d | ⏳ | /hive-mind/graph |
+| Project shape graph viz | P1 | 4–5 d | ✅ | /hive-mind/project-shape |
 | Venice MCP preset + Tool Hub polish | P1 | 4–6 d | ⏳ | Tools Marketplace |
 | Tool Discovery Loop (forager) | P1 | 3–5 d | ⏳ | Foragers — **merge → Forager Intelligence Loop (Fáza 6)** |
 | Unified Savings Dashboard | P2 | 3–4 d | ⏳ | /costs, time-saved |

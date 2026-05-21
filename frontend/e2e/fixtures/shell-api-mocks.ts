@@ -208,6 +208,39 @@ const STUB_HIVE_GRAPH = {
   generated_at: new Date().toISOString(),
 };
 
+const STUB_PROJECT_SHAPE = {
+  shape: "project",
+  tenant_id: "00000000-0000-4000-8000-000000000001",
+  nodes: [
+    {
+      id: "gb:batch-1",
+      graph_kind: "GraphifyBatch",
+      label: "Research dump",
+      summary: "2 files ingested",
+      tags: ["auto_graphify"],
+    },
+    {
+      id: "vf:graphify/demo/batch",
+      graph_kind: "VaultFolder",
+      label: "Research dump",
+      summary: "graphify/demo/batch",
+      rel_path: "graphify/demo/batch",
+    },
+    {
+      id: "doc-hash-1",
+      graph_kind: "VaultDocument",
+      label: "notes.md",
+      summary: "Priority queue notes",
+      rel_path: "notes.md",
+      tags: ["auto_graphify"],
+    },
+  ],
+  edges: [
+    { source: "gb:batch-1", target: "vf:graphify/demo/batch", kind: "ROOTED_IN" },
+    { source: "vf:graphify/demo/batch", target: "doc-hash-1", kind: "CONTAINS" },
+  ],
+};
+
 const STUB_PAPER_TRADING = {
   enabled: false,
   positions: [],
@@ -682,6 +715,15 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ query: "", results: [], generated_at: new Date().toISOString() }),
+      });
+      return;
+    }
+
+    if (path.startsWith("hive-mind/project-shape")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_PROJECT_SHAPE),
       });
       return;
     }

@@ -21,7 +21,7 @@ from app.core.config import Settings, get_settings
 from app.core.jwt_tokens import parse_dashboard_user_subject
 from app.core.logging import get_logger
 from app.core.redis_client import get_json, set_json
-from app.domain.hive_mind.graph import bounded_operator_graph_snapshot
+from app.domain.hive_mind.graph import bounded_operator_graph_snapshot, bounded_tenant_project_shape_snapshot
 from app.domain.hive_mind.service import HiveMindService
 from app.domain.outputs.service import fetch_owned_deliverable
 from app.application.services.supervisor.memory_evolution import (
@@ -154,6 +154,46 @@ async def hive_graph(
                 for row in fallback_hits
             ],
         }
+    if cache_ttl > 0:
+        try:
+            await set_json(cache_key, payload, ttl=cache_ttl)
+        except Exception:
+            pass
+    return payload
+
+
+@router.get("/project-shape")
+async def hive_project_shape(
+    settings: SettingsDep,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    limit_nodes: int = Query(default=96, ge=8, le=260),
+) -> dict[str, Any]:
+    """Tenant-scoped folder tree from Auto-Graphify vault ingest (VaultFolder → VaultDocument)."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    cap = min(limit_nodes, settings.hive_mind_max_graph_export_nodes)
+    cache_ttl = max(0, int(settings.hive_mind_graph_cache_ttl_sec))
+    cache_key = f"hive_mind:project_shape:{tenant_id}:{cap}"
+    if cache_ttl > 0:
+        try:
+            cached = await get_json(cache_key)
+            if cached is not None:
+                return cached
+        except Exception:
+            pass
+    try:
+        payload = await bounded_tenant_project_shape_snapshot(tenant_id=tenant_id, limit_nodes=cap)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "hive_mind.project_shape.degraded",
+            agent_id="hive_mind_graph",
+            swarm_id=str(tenant_id),
+            task_id=f"project_shape:{tenant_id}",
+            error=str(exc),
+        )
+        payload = {"nodes": [], "edges": [], "degraded": True, "tenant_id": str(tenant_id), "shape": "project"}
     if cache_ttl > 0:
         try:
             await set_json(cache_key, payload, ttl=cache_ttl)
