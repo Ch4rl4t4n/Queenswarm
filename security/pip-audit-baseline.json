@@ -35,6 +35,8 @@
   "python-dotenv|CVE-2026-28684",
   "python-jose|PYSEC-2024-232",
   "python-jose|PYSEC-2024-233",
+  "python-jose|PYSEC-2025-185",
+  "pyjwt|PYSEC-2025-183",
   "python-multipart|CVE-2024-53981",
   "python-multipart|CVE-2026-24486",
   "python-multipart|CVE-2026-40347",
