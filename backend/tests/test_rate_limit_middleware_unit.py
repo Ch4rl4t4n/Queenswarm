@@ -140,7 +140,7 @@ async def test_rate_limit_middleware_when_user_endpoint_limited_sets_user_window
     monkeypatch.setattr(
         rate_limit_middleware,
         "decode_jwt_optional_typ",
-        lambda _token: {"sub": "dash:00000000-0000-4000-8000-000000000001"},
+        lambda _token, verify_exp=False: {"sub": "dash:00000000-0000-4000-8000-000000000001"},
     )
     monkeypatch.setattr(
         rate_limit_middleware,
@@ -173,7 +173,7 @@ async def test_rate_limit_middleware_when_authenticated_skips_peer_limits(
     monkeypatch.setattr(
         rate_limit_middleware,
         "decode_jwt_optional_typ",
-        lambda _token: {"sub": "dash:00000000-0000-4000-8000-000000000001"},
+        lambda _token, verify_exp=False: {"sub": "dash:00000000-0000-4000-8000-000000000001"},
     )
 
     middleware = RateLimitMiddleware(app=lambda scope, receive, send: None)
