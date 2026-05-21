@@ -49,7 +49,6 @@ export const PLATFORM_FEATURE_CATALOG: Record<string, FeatureSpec> = {
   episodic_memory: { internal: true, commercial: true, minTier: "pro" },
   ai_harness_dashboard: { internal: true, commercial: true },
   slack_harness_trainer: { internal: true, commercial: true, minTier: "pro" },
-  slack_harness_trainer: { internal: true, commercial: true, minTier: "pro" },
   team_rbac: { internal: false, commercial: true },
   billing_settings: { internal: false, commercial: true },
   sharing_settings: { internal: false, commercial: true },

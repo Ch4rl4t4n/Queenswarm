@@ -86,6 +86,9 @@ def build_tech_health_report(*, repo_root: Path | None = None) -> dict[str, Any]
         "harness": {
             "design_patterns_doc": (root / "docs" / "QUEENSWARM_DESIGN_PATTERNS.md").is_file(),
             "maintainer_instructions": (root / "docs" / "harness" / "QUEEN_MAINTAINER_INSTRUCTIONS.md").is_file(),
+            "agents_md_root": (root / "AGENTS.md").is_file(),
+            "agents_md_backend": (backend / "AGENTS.md").is_file(),
+            "agents_md_frontend": (frontend / "AGENTS.md").is_file(),
         },
         "signals": signals,
         "health_score": max(0.0, min(1.0, 1.0 - len(signals) * 0.15)),

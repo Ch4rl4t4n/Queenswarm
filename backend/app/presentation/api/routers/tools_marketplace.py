@@ -141,6 +141,39 @@ async def tools_marketplace_catalog(
     return await marketplace_catalog(db, dashboard_user_id=uid)
 
 
+@router.post("/marketplace/propose", summary="Propose MCP presets for a task goal (self-extending flow)")
+async def tools_marketplace_propose(
+    body: MarketplaceProposeBody,
+    sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("connectors:view")),
+) -> dict[str, Any]:
+    uid = _subject_uuid(sess)
+    return await propose_marketplace_extensions(
+        db,
+        dashboard_user_id=uid,
+        goal=body.goal,
+        manager_slug=body.manager_slug,
+        limit=body.limit,
+    )
+
+
+@router.post("/marketplace/simulate", summary="Simulate marketplace manifest before install")
+async def tools_marketplace_simulate(
+    body: MarketplaceSimulateBody,
+    sess: DashboardSession,
+    _: bool = Depends(require_tenant_permission("connectors:view")),
+) -> dict[str, Any]:
+    _ = sess
+    src = body.source.strip().lower()
+    if src != "phase3_template":
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="unsupported marketplace source")
+    try:
+        return simulate_phase3_template(body.entry_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
 @router.post("/marketplace/install", summary="Install marketplace entry one-click")
 async def tools_marketplace_install(
     body: MarketplaceInstallBody,
@@ -149,6 +182,26 @@ async def tools_marketplace_install(
     _: bool = Depends(require_tenant_permission("connectors:edit")),
 ) -> dict[str, Any]:
     uid = _subject_uuid(sess)
+    if body.require_simulation:
+        try:
+            payload = await install_verified_marketplace_extension(
+                db,
+                dashboard_user_id=uid,
+                source=body.source,
+                entry_id=body.entry_id,
+                require_simulation=True,
+            )
+        except KeyError as exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        if payload.get("status") == "simulation_failed":
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Manifest simulation failed — fix template or disable require_simulation.",
+            )
+        if payload.get("status") == "unsupported_source":
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="unsupported marketplace source")
+        return payload
+
     try:
         result, connector = await install_marketplace_entry(
             db,
@@ -166,7 +219,6 @@ async def tools_marketplace_install(
     if connector is None:
         return {"status": result}
     svc = DynamicConnectorService()
-    # Ensure latest projection after install path mutates storage.
     row = await svc.fetch_by_slug(db, slug=connector.slug)
     payload = connector.model_dump(mode="json") if row is None else {
         "id": str(row.id),
