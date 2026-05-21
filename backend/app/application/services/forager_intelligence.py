@@ -84,4 +84,21 @@ def run_intelligence_scan() -> dict[str, Any]:
     }
 
 
-__all__ = ["run_intelligence_scan"]
+def build_forager_intelligence_status() -> dict[str, object]:
+    """Non-secret daily automation status for harness dashboard."""
+
+    from app.core.config import settings
+
+    hour = int(settings.forager_intelligence_cron_hour)
+    minute = int(settings.forager_intelligence_cron_minute)
+    return {
+        "enabled": bool(settings.forager_intelligence_loop_enabled),
+        "celery_task": "hive.forager_intelligence_daily_tick",
+        "cron_utc": f"{hour:02d}:{minute:02d}",
+        "cron_hour": hour,
+        "cron_minute": minute,
+        "manual_scan_path": "/api/v1/harness/intelligence-scan",
+    }
+
+
+__all__ = ["build_forager_intelligence_status", "run_intelligence_scan"]

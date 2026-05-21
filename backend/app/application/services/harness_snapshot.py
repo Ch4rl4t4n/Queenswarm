@@ -10,6 +10,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.harness_tech_health import build_tech_health_report
+from app.application.services.forager_intelligence import build_forager_intelligence_status
 from app.application.services.rubric_templates import list_rubric_templates
 from app.application.services.queen_maintainer.post_merge_webhook import webhook_status_payload
 from app.core.repo_root import resolve_repo_root
@@ -187,6 +188,7 @@ async def build_harness_snapshot(
             "slack_harness_trainer_enabled": settings.slack_harness_trainer_enabled,
             "lsp_mcp_bridge_enabled": settings.lsp_mcp_bridge_enabled,
             "rubric_templates_enabled": settings.rubric_templates_enabled,
+            "forager_intelligence_loop_enabled": settings.forager_intelligence_loop_enabled,
         },
         "slack_trainer": {
             "enabled": settings.slack_harness_trainer_enabled,
@@ -207,6 +209,7 @@ async def build_harness_snapshot(
             "count": len(list_rubric_templates()),
             "list_path": "/api/v1/harness/rubric-templates",
         },
+        "forager_intelligence": build_forager_intelligence_status(),
         "queen_maintainer": {
             "enabled": settings.queen_maintainer_enabled,
             "post_merge_webhook": webhook_status_payload(),

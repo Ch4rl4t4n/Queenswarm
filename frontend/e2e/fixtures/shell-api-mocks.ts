@@ -119,6 +119,7 @@ const STUB_HARNESS_SNAPSHOT = {
     slack_harness_trainer_enabled: true,
     lsp_mcp_bridge_enabled: false,
     rubric_templates_enabled: true,
+    forager_intelligence_loop_enabled: false,
   },
   slack_trainer: {
     enabled: true,
@@ -136,6 +137,14 @@ const STUB_HARNESS_SNAPSHOT = {
     enabled: true,
     count: 5,
     list_path: "/api/v1/harness/rubric-templates",
+  },
+  forager_intelligence: {
+    enabled: false,
+    celery_task: "hive.forager_intelligence_daily_tick",
+    cron_utc: "06:00",
+    cron_hour: 6,
+    cron_minute: 0,
+    manual_scan_path: "/api/v1/harness/intelligence-scan",
   },
   queen_maintainer: {
     enabled: false,

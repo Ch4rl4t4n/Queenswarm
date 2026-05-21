@@ -1312,6 +1312,22 @@ class Settings(BaseSettings):
         default=True,
         description="Expose curated subjective scoring rubrics in harness + workflow evaluation.",
     )
+    forager_intelligence_loop_enabled: bool = Field(
+        default=False,
+        description="Schedule daily read-only Forager Intelligence Loop scan via Celery beat.",
+    )
+    forager_intelligence_cron_hour: int = Field(
+        default=6,
+        ge=0,
+        le=23,
+        description="UTC hour for daily Forager Intelligence Loop Celery beat tick.",
+    )
+    forager_intelligence_cron_minute: int = Field(
+        default=0,
+        ge=0,
+        le=59,
+        description="UTC minute for daily Forager Intelligence Loop Celery beat tick.",
+    )
     supervisor_self_healing_enabled: bool = Field(
         default=True,
         description="Enable self-healing retries and reflection loop in supervisor sub-agent runtime.",

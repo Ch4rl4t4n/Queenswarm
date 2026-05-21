@@ -50,5 +50,6 @@ from app.worker import dreaming_tasks as _dreaming_tasks  # noqa: E402, F401 —
 from app.worker import dump_sleep_tasks as _dump_sleep_tasks  # noqa: E402, F401 — register dump sleep tasks
 from app.worker import graphify_tasks as _graphify_tasks  # noqa: E402, F401 — register auto-graphify tasks
 from app.worker import goal_tasks as _goal_tasks  # noqa: E402, F401 — register goal tasks
+from app.worker import forager_intelligence_tasks as _forager_intelligence_tasks  # noqa: E402, F401
 
 __all__ = ["celery_app", "create_celery_app"]

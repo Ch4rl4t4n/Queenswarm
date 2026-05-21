@@ -67,6 +67,15 @@ def build_beat_schedule() -> dict[str, dict[str, Any]]:
             "schedule": crontab(hour=8, minute=0, day_of_week=1),
             "options": {"queue": "hive"},
         }
+    if settings.forager_intelligence_loop_enabled:
+        schedule["hive-forager-intelligence-daily"] = {
+            "task": "hive.forager_intelligence_daily_tick",
+            "schedule": crontab(
+                hour=settings.forager_intelligence_cron_hour,
+                minute=settings.forager_intelligence_cron_minute,
+            ),
+            "options": {"queue": "hive"},
+        }
     return schedule
 
 

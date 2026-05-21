@@ -1025,6 +1025,7 @@ export interface HarnessSnapshotPayload {
   slack_trainer?: HarnessSlackTrainerStatus;
   lsp_bridge?: HarnessLspBridgeStatus;
   rubric_templates?: HarnessRubricTemplatesStatus;
+  forager_intelligence?: HarnessForagerIntelligenceStatus;
   queen_maintainer?: HarnessQueenMaintainerStatus;
   tech_health_score: number;
   monitoring: HarnessMonitoringPayload;
@@ -1049,6 +1050,15 @@ export interface HarnessRubricTemplatesStatus {
   enabled: boolean;
   count: number;
   list_path: string;
+}
+
+export interface HarnessForagerIntelligenceStatus {
+  enabled: boolean;
+  celery_task: string;
+  cron_utc: string;
+  cron_hour: number;
+  cron_minute: number;
+  manual_scan_path: string;
 }
 
 export interface HarnessQueenMaintainerStatus {

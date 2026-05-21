@@ -24,6 +24,8 @@ async def test_build_harness_snapshot_includes_skills_and_flags() -> None:
     assert len(payload["monitoring"]["pattern_alert_rules"]) == 3
     assert "queen_maintainer" in payload
     assert "post_merge_webhook" in payload["queen_maintainer"]
+    assert "forager_intelligence" in payload
+    assert payload["forager_intelligence"]["celery_task"] == "hive.forager_intelligence_daily_tick"
 
 
 def test_run_intelligence_scan_returns_proposals() -> None:

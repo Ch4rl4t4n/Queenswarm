@@ -265,6 +265,15 @@ export function SettingsHarnessPanel(): JSX.Element | null {
           title="Intelligence Loop"
           description="Read-only scan — skill/MCP/doc refresh proposals (Langfuse-style freshness)."
         />
+        {snapshot.forager_intelligence ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <V4Badge tone={snapshot.forager_intelligence.enabled ? "ok" : "info"}>
+              Daily beat {snapshot.forager_intelligence.enabled ? "on" : "off"}
+            </V4Badge>
+            <V4Badge tone="info">UTC {snapshot.forager_intelligence.cron_utc}</V4Badge>
+            <V4Badge tone="info">{snapshot.forager_intelligence.celery_task}</V4Badge>
+          </div>
+        ) : null}
         <button
           type="button"
           className={cn("qs-btn qs-btn--ghost qs-btn--sm mt-3", scanBusy && "opacity-60")}
