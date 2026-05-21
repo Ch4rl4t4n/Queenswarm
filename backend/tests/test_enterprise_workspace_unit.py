@@ -64,6 +64,9 @@ def test_build_ha_profile_status_shape() -> None:
     assert "readiness_pct" in profile
     assert "profile_label" in profile
     assert 0 <= profile["readiness_pct"] <= 100
+    from app.common.schemas.enterprise_workspace import HaProfileStatus
+
+    HaProfileStatus.model_validate(profile)
 
 
 def test_serialize_tenant_branding_brief_when_empty() -> None:

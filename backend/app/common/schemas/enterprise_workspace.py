@@ -54,6 +54,35 @@ class EnterpriseCompliancePatch(BaseModel):
     dedicated_hive_note: str | None = Field(default=None, max_length=512)
 
 
+class DrDrillEvidenceView(BaseModel):
+    """Latest DR drill evidence surfaced in enterprise HA profile."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    report_available: bool = False
+    last_drill_at: str | None = None
+    backup_duration_sec: float | int | None = None
+    restore_status: str | None = None
+    report_file: str | None = None
+    reports_dir: str | None = None
+
+
+class HaChaosEvidenceView(BaseModel):
+    """Latest HA chaos smoke evidence surfaced in enterprise HA profile."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    report_available: bool = False
+    last_drill_at: str | None = None
+    passed: bool | None = None
+    baseline_ready_code: int | None = None
+    degraded_ready_code: int | None = None
+    recovered_ready_code: int | None = None
+    expect_failover_ready: bool = False
+    report_file: str | None = None
+    reports_dir: str | None = None
+
+
 class HaProfileStatus(BaseModel):
     """Deployment HA readiness signals (read-only)."""
 
@@ -65,6 +94,8 @@ class HaProfileStatus(BaseModel):
     backup_drill_script_available: bool = True
     profile_label: str
     readiness_pct: int = Field(ge=0, le=100)
+    dr_drill: DrDrillEvidenceView | None = None
+    ha_chaos: HaChaosEvidenceView | None = None
 
 
 class EnterpriseWorkspaceView(BaseModel):
@@ -106,10 +137,12 @@ class ComplianceExportBundle(BaseModel):
 
 __all__ = [
     "ComplianceExportBundle",
+    "DrDrillEvidenceView",
     "EnterpriseComplianceConfig",
     "EnterpriseCompliancePatch",
     "EnterpriseWorkspacePatch",
     "EnterpriseWorkspaceView",
+    "HaChaosEvidenceView",
     "HaProfileStatus",
     "WhiteLabelConfig",
     "WhiteLabelConfigPatch",
