@@ -26,6 +26,11 @@ const TimeSavedPanel = nextDynamic(
   { loading: () => <DashboardSectionSkeleton className="min-h-[160px]" /> },
 );
 
+const CostSavingsPanel = nextDynamic(
+  () => import("@/components/hive/cost-savings-panel").then((mod) => ({ default: mod.CostSavingsPanel })),
+  { loading: () => <DashboardSectionSkeleton className="min-h-[160px]" /> },
+);
+
 function formatUsd(n: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(n);
 }
@@ -133,6 +138,8 @@ export default async function CostsPage() {
       </div>
 
       <TimeSavedPanel />
+
+      <CostSavingsPanel />
 
       <p className="text-xs text-(--qs-magenta)">
         Task ledger Σ cost_usd (UTC midnight window):{" "}

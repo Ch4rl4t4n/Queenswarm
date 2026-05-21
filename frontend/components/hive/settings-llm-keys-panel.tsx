@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { CostGuardianRoutingPanel } from "@/components/hive/cost-guardian-routing-panel";
 import { QsSelect } from "@/components/ui/qs-select";
 import { InfoHint } from "@/components/hive/info-hint";
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
@@ -373,6 +374,8 @@ export function SettingsLlmKeysPanel() {
         <span className="font-mono text-xs text-pollen">POST /api/v1/llm-keys</span> through the hive proxy · masked
         values never round-trip plaintext. Voice providers (Deepgram/ElevenLabs) are configurable here too.
       </p>
+
+      <CostGuardianRoutingPanel />
 
       <V4Card className="v4-voice-prefs-card">
         <V4CardHeader

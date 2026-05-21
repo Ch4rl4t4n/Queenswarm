@@ -67,6 +67,26 @@ const STUB_TIME_SAVED = {
   disclaimer: "Stub ROI estimates for shell E2E.",
 };
 
+const STUB_LLM_ROUTING_SETTINGS = {
+  routing_mode: "free_first",
+  cost_guardian_enabled: true,
+  auto_upgrade_on_failure: true,
+  feature_enabled: true,
+  quality_primary_model: "grok-3",
+  economy_primary_model: "gpt-4o-mini",
+};
+
+const STUB_LLM_COST_SAVINGS = {
+  window_days: 30,
+  call_count: 42,
+  actual_usd: 1.25,
+  quality_baseline_usd: 4.8,
+  saved_usd: 3.55,
+  saved_pct: 73.96,
+  routing_mode: "free_first",
+  cost_guardian_enabled: true,
+};
+
 const STUB_COST_SUMMARY = {
   window_days: 35,
   series: [{ day: new Date().toISOString().slice(0, 10), spend_usd: 1.25, model: "grok" }],
@@ -324,6 +344,24 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           processed_at: new Date().toISOString(),
           error_text: null,
         }),
+      });
+      return;
+    }
+
+    if (path.startsWith("llm-routing/settings")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_LLM_ROUTING_SETTINGS),
+      });
+      return;
+    }
+
+    if (path.startsWith("llm-routing/cost-savings")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_LLM_COST_SAVINGS),
       });
       return;
     }

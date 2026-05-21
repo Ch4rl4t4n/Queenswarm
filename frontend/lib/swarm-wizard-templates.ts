@@ -175,7 +175,7 @@ export const SWARM_WIZARD_TEMPLATES: SwarmWizardTemplate[] = [
     estimatedMinutes: 8,
     timeSavedHoursPerWeek: 15,
     accentHex: "#00FF88",
-    comingSoon: true,
+    comingSoon: false,
     agents: [
       {
         name: "Overnight Supervisor",

@@ -405,6 +405,10 @@ class Settings(BaseSettings):
     dump_sleep_max_content_chars: int = Field(default=120_000, ge=1000, le=500_000)
     dump_sleep_pollen_per_item: float = Field(default=2.5, ge=0.0, le=100.0)
     dump_sleep_report_window_hours: int = Field(default=24, ge=1, le=168)
+    free_first_routing_enabled: bool = Field(
+        default=True,
+        description="Master switch for Free-First / economy LiteLLM routing (Phase 4).",
+    )
     scout_swarm_size: int = Field(default=8, ge=1)
     eval_swarm_size: int = Field(default=6, ge=1)
     sim_swarm_size: int = Field(default=5, ge=1)

@@ -85,8 +85,8 @@ Analysis: `docs/ROUNDTABLESPACE_MAY2026_INSIGHTS.md`
 |---------|----------|------|--------|-------|
 | Dump & Sleep (folder/voice → overnight queue) | P0 | 3–5 d | ✅ | DreamerService, Celery |
 | Overnight Swarm Report + pollen earned | P0 | 2 d | ✅ | DreamingSummaryCard |
-| Life OS Swarm Builder template | P0 | 1–2 d | 🟡 stub | swarm-wizard-templates.ts |
-| Free-First routing + Cost Guardian UX | P0 | 2–3 d | ⏳ | LiteLLMRouter, CostGovernor |
+| Life OS Swarm Builder template | P0 | 1–2 d | ✅ | swarm-wizard-templates.ts |
+| Free-First routing + Cost Guardian UX | P0 | 2–3 d | ✅ | LiteLLMRouter, CostGovernor |
 | Auto-Graphify folder ingest | P1 | 5–7 d | ⏳ | Foragers, Obsidian watch, Neo4j |
 | Project shape graph viz | P1 | 4–5 d | ⏳ | /hive-mind/graph |
 | Venice MCP preset + Tool Hub polish | P1 | 4–6 d | ⏳ | Tools Marketplace |

@@ -245,14 +245,15 @@ class LiteLLMRouter:
 
         self._governor = CostGovernor()
 
-    def _decomposition_chain(self) -> list[str]:
+    def _decomposition_chain(self, *, routing_mode: str | None = None) -> list[str]:
         """Ordered list of model slugs that have usable credentials."""
 
-        ordered: list[str] = [
-            settings.workflow_breaker_primary_model,
-            settings.workflow_breaker_fallback_model,
-            settings.workflow_breaker_tertiary_model,
-        ]
+        from app.application.services.llm_routing import DEFAULT_ROUTING_MODE, ordered_model_chain
+
+        primary = settings.workflow_breaker_primary_model
+        fallback = settings.workflow_breaker_fallback_model
+        tertiary = settings.workflow_breaker_tertiary_model
+        ordered: list[str] = [primary, fallback, tertiary]
         seen: set[str] = set()
         usable: list[str] = []
         for name in ordered:
@@ -263,7 +264,25 @@ class LiteLLMRouter:
                 logger.info("llm_router.decompose.skip_missing_credentials", model=name)
                 continue
             usable.append(name)
-        return usable
+
+        mode = routing_mode or DEFAULT_ROUTING_MODE
+        return ordered_model_chain(
+            routing_mode=mode,  # type: ignore[arg-type]
+            primary=primary,
+            fallback=fallback,
+            tertiary=tertiary,
+            usable=usable,
+        )
+
+    async def _resolve_routing_mode(self, session: AsyncSession) -> str:
+        """Load tenant routing mode when Free-First routing is enabled."""
+
+        from app.application.services.llm_routing import DEFAULT_ROUTING_MODE, load_routing_config
+
+        if not settings.free_first_routing_enabled:
+            return DEFAULT_ROUTING_MODE
+        cfg = await load_routing_config(session)
+        return str(cfg.get("routing_mode") or DEFAULT_ROUTING_MODE)
 
     async def _assert_budget(self, session: AsyncSession) -> None:
         """Block work when the daily envelope is already exceeded."""
@@ -361,7 +380,8 @@ class LiteLLMRouter:
             "task_id": task_id or "",
             "workflow_id": workflow_id or "",
         }
-        hops = self._decomposition_chain()
+        routing_mode = await self._resolve_routing_mode(session)
+        hops = self._decomposition_chain(routing_mode=routing_mode)
         if not hops:
             raise RuntimeError(
                 "LiteLLM router has no credentials for configured models "
