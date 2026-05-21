@@ -145,6 +145,34 @@ const STUB_PATTERN_EXPLORER = {
   docs_path: "docs/QUEENSWARM_DESIGN_PATTERNS.md",
 };
 
+const STUB_EPISODIC_SUMMARY = {
+  retention_days: 90,
+  counts: {
+    session_events: 2,
+    dream_insights: 1,
+    dump_sleep_batches: 0,
+    session_summaries: 1,
+  },
+  total_items: 4,
+  latest_at: "2026-05-21T08:00:00.000Z",
+};
+
+const STUB_EPISODIC_TIMELINE = {
+  retention_days: 90,
+  item_count: 1,
+  items: [
+    {
+      id: "evt-stub-1",
+      kind: "session_event",
+      occurred_at: "2026-05-21T08:00:00.000Z",
+      title: "Session started",
+      summary: "Supervisor session created.",
+      session_id: null,
+      metadata: {},
+    },
+  ],
+};
+
 const STUB_COST_SUMMARY = {
   window_days: 35,
   series: [{ day: new Date().toISOString().slice(0, 10), spend_usd: 1.25, model: "grok" }],
@@ -428,6 +456,24 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_PATTERN_EXPLORER),
+      });
+      return;
+    }
+
+    if (path.startsWith("memory/episodic/summary")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_EPISODIC_SUMMARY),
+      });
+      return;
+    }
+
+    if (path.startsWith("memory/episodic/timeline")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_EPISODIC_TIMELINE),
       });
       return;
     }

@@ -489,6 +489,35 @@ export interface RecipeRow {
   avg_pollen_earned?: number;
 }
 
+/** ``GET /api/v1/memory/episodic/timeline`` */
+export interface EpisodicMemoryItemRow {
+  id: string;
+  kind: string;
+  occurred_at: string;
+  title: string;
+  summary: string;
+  session_id: string | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface EpisodicMemoryPayload {
+  retention_days: number;
+  item_count: number;
+  items: EpisodicMemoryItemRow[];
+}
+
+export interface EpisodicSummaryPayload {
+  retention_days: number;
+  counts: {
+    session_events: number;
+    dream_insights: number;
+    dump_sleep_batches: number;
+    session_summaries: number;
+  };
+  total_items: number;
+  latest_at: string | null;
+}
+
 /** Semantic recipe hit (`GET /recipes/search`). */
 export interface RecipeSemanticHit {
   chroma_document_id: string;

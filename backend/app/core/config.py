@@ -392,6 +392,22 @@ class Settings(BaseSettings):
         le=10_000,
         description="Max supervisor session events scanned per tenant dreaming cycle.",
     )
+    episodic_memory_enabled: bool = Field(
+        default=True,
+        description="Enable explicit episodic memory timeline API (Pattern 8).",
+    )
+    episodic_memory_retention_days: int = Field(
+        default=90,
+        ge=7,
+        le=365,
+        description="Rolling retention window for episodic timeline queries.",
+    )
+    episodic_memory_timeline_limit: int = Field(
+        default=50,
+        ge=10,
+        le=200,
+        description="Default max rows returned by GET /memory/episodic/timeline.",
+    )
     dump_sleep_enabled: bool = Field(
         default=True,
         description="Master switch for Dump & Sleep overnight ingest (Phase 4).",
