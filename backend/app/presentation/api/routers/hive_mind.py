@@ -17,13 +17,21 @@ from app.presentation.api.deps import (
     require_tenant_permission,
 )
 from app.core.chroma_client import HIVE_MIND_COLLECTION, semantic_search
-from app.core.config import Settings, get_settings
+from app.core.config import Settings, get_settings, settings
 from app.core.jwt_tokens import parse_dashboard_user_subject
 from app.core.logging import get_logger
 from app.core.redis_client import get_json, set_json
 from app.domain.hive_mind.graph import bounded_operator_graph_snapshot, bounded_tenant_project_shape_snapshot
 from app.domain.hive_mind.service import HiveMindService
 from app.domain.outputs.service import fetch_owned_deliverable
+from app.application.services.selective_recall import (
+    effective_prompt_char_budget,
+    load_recall_config,
+    merge_recall_patch,
+    normalize_recall_mode,
+)
+from app.application.services.billing import ensure_tenant_subscription
+from app.application.services.platform_features import resolve_platform_features_for_subscription
 from app.application.services.supervisor.memory_evolution import (
     approve_memory_evolution_proposal,
     list_memory_evolution_proposals,
@@ -31,6 +39,7 @@ from app.application.services.supervisor.memory_evolution import (
     run_memory_evolution_for_tenant,
 )
 from app.infrastructure.persistence.models.memory_evolution import MemoryEvolutionProposal
+from app.infrastructure.persistence.models.tenant import Tenant
 
 router = APIRouter(prefix="/hive-mind", tags=["hive-mind"])
 logger = get_logger(__name__)
@@ -46,6 +55,25 @@ class HiveMindRecallBody(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     relevance_to_current_task: str = Field(min_length=3, max_length=8000)
+
+
+class HiveMindRecallSettingsResponse(BaseModel):
+    """Tenant recall mode + token budget."""
+
+    recall_mode: str
+    token_budget_chars: int
+    feature_enabled: bool
+    max_prompt_chars: int
+    selective_max_chars: int
+
+
+class HiveMindRecallSettingsUpdateBody(BaseModel):
+    """Partial recall settings patch."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    recall_mode: str | None = None
+    token_budget_chars: int | None = Field(default=None, ge=0, le=16_000)
 
 
 class MemoryEvolutionRunResponse(BaseModel):
@@ -202,6 +230,125 @@ async def hive_project_shape(
     return payload
 
 
+async def _assert_selective_recall_feature(db: DbSession, principal: dict[str, Any]) -> uuid.UUID:
+    """Gate selective recall settings behind platform feature."""
+
+    if not settings.hive_mind_selective_recall_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Selective recall is disabled on this deployment.",
+        )
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant not found.")
+    subscription = await ensure_tenant_subscription(db, tenant_id=tenant_id)
+    role = str(principal.get("tenant_role") or "guest")
+    features = resolve_platform_features_for_subscription(
+        platform_mode=str(tenant.platform_mode or "internal"),
+        is_admin=role in {"owner", "admin"},
+        subscription=subscription,
+    )
+    if not features.get("selective_recall"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Selective recall requires Pro tier or internal operator mode.",
+        )
+    return tenant_id
+
+
+@router.get("/recall-settings", response_model=HiveMindRecallSettingsResponse, summary="HiveMind recall mode settings")
+async def get_recall_settings(
+    db: DbSession,
+    settings: SettingsDep,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> HiveMindRecallSettingsResponse:
+    """Return tenant selective recall mode and token budget."""
+
+    tenant_id = await _assert_selective_recall_feature(db, principal)
+    cfg = await load_recall_config(db, tenant_id=tenant_id)
+    return HiveMindRecallSettingsResponse(
+        recall_mode=str(cfg.get("recall_mode") or "selective"),
+        token_budget_chars=int(cfg.get("token_budget_chars") or 0),
+        feature_enabled=bool(cfg.get("feature_enabled", True)),
+        max_prompt_chars=settings.hive_mind_max_prompt_chars,
+        selective_max_chars=settings.hive_mind_selective_recall_max_chars,
+    )
+
+
+@router.put("/recall-settings", response_model=HiveMindRecallSettingsResponse, summary="Update HiveMind recall settings")
+async def update_recall_settings(
+    body: HiveMindRecallSettingsUpdateBody,
+    db: DbSession,
+    settings: SettingsDep,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> HiveMindRecallSettingsResponse:
+    """Patch recall mode / token budget for active tenant."""
+
+    role = str(principal.get("tenant_role") or "guest")
+    if role not in {"owner", "admin"}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin tenant role required.")
+    tenant_id = await _assert_selective_recall_feature(db, principal)
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found.")
+
+    patch: dict[str, Any] = {}
+    if body.recall_mode is not None:
+        patch["recall_mode"] = normalize_recall_mode(body.recall_mode)
+    if body.token_budget_chars is not None:
+        patch["token_budget_chars"] = int(body.token_budget_chars)
+
+    tenant.operator_settings = merge_recall_patch(tenant.operator_settings, patch)
+    await db.commit()
+    await db.refresh(tenant)
+    cfg = await load_recall_config(db, tenant_id=tenant_id)
+    return HiveMindRecallSettingsResponse(
+        recall_mode=str(cfg["recall_mode"]),
+        token_budget_chars=int(cfg.get("token_budget_chars") or 0),
+        feature_enabled=True,
+        max_prompt_chars=settings.hive_mind_max_prompt_chars,
+        selective_max_chars=settings.hive_mind_selective_recall_max_chars,
+    )
+
+
+@router.get("/recall-preview", summary="Preview selective recall block for a query")
+async def recall_preview(
+    db: DbSession,
+    settings: SettingsDep,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    q: str = Query(min_length=2, max_length=2400),
+) -> dict[str, Any]:
+    """Return assembled recall markdown + char count for operator QA."""
+
+    tenant_id = await _assert_selective_recall_feature(db, principal)
+    cfg = await load_recall_config(db, tenant_id=tenant_id)
+    budget = effective_prompt_char_budget(
+        recall_mode=normalize_recall_mode(cfg.get("recall_mode")),
+        tenant_budget=int(cfg.get("token_budget_chars") or 0),
+        settings_max_prompt=settings.hive_mind_max_prompt_chars,
+        selective_max_chars=settings.hive_mind_selective_recall_max_chars,
+    )
+    text = await HiveMindService.query_for_prompt(
+        relevance_to_current_task=q.strip(),
+        settings=settings,
+        swarm_id="dashboard",
+        task_id=f"recall-preview:{tenant_id}",
+        agent_id="hive-mind-preview",
+        tenant_id=tenant_id,
+        recall_mode=str(cfg.get("recall_mode") or "selective"),
+        token_budget_chars=int(cfg.get("token_budget_chars") or 0),
+    )
+    return {
+        "recall_mode": str(cfg.get("recall_mode") or "selective"),
+        "characters": len(text),
+        "char_budget": budget,
+        "hive_mind_prompt_block": text,
+    }
+
+
 @router.get("/search")
 async def hive_search_semantic(
     _sess: DashboardSession,
@@ -249,18 +396,29 @@ async def hive_search_semantic(
 @router.post("/query")
 async def hive_query_debug(
     body: HiveMindRecallBody,
+    db: DbSession,
     sess: DashboardSession,
     settings: SettingsDep,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
 ) -> dict[str, Any]:
     """Operator parity with Ballroom HiveMind appendix — inspect clip lengths."""
 
     uid = _dashboard_principal(sess)
+    tenant_id = principal.get("tenant_id")
+    recall_mode = None
+    cfg: dict[str, Any] = {}
+    if tenant_id is not None and settings.hive_mind_selective_recall_enabled:
+        cfg = await load_recall_config(db, tenant_id=tenant_id)
+        recall_mode = str(cfg.get("recall_mode") or settings.hive_mind_default_recall_mode)
     text = await HiveMindService.query_for_prompt(
         relevance_to_current_task=body.relevance_to_current_task.strip(),
         settings=settings,
         swarm_id="dashboard",
         task_id=f"hive-mind-debug:{uid}",
         agent_id=str(uid),
+        tenant_id=tenant_id,
+        recall_mode=recall_mode,
+        token_budget_chars=int(cfg.get("token_budget_chars") or 0),
     )
     return {"hive_mind_prompt_block": text, "characters": len(text)}
 

@@ -19,10 +19,18 @@ from app.core.chroma_client import (
 )
 from app.core.config import Settings, get_settings
 from app.core.logging import get_logger
+from app.application.services.selective_recall import (
+    RecallMode,
+    effective_prompt_char_budget,
+    normalize_recall_mode,
+    rank_vector_hits,
+    score_vector_similarity,
+)
 from app.domain.hive_mind.graph import (
     bounded_operator_graph_snapshot,
     neighbor_snapshot_for_prompt,
     persist_hive_graph_bundle,
+    vault_document_recall_for_prompt,
 )
 from app.domain.hive_mind.ingest import (
     HiveMindExtras,
@@ -176,23 +184,47 @@ class HiveMindService:
         swarm_id: str = "",
         task_id: str = "",
         agent_id: str = "",
+        tenant_id: uuid.UUID | None = None,
+        recall_mode: RecallMode | str | None = None,
+        token_budget_chars: int = 0,
     ) -> str:
-        """Return Markdown snippet for orch / manager conditioning (vectors + correlations)."""
+        """Return Markdown snippet for orch / manager conditioning (vectors + graph neighbours)."""
 
         cfg = settings or get_settings()
         if not cfg.hive_mind_enabled or not relevance_to_current_task.strip():
             return ""
 
+        mode = normalize_recall_mode(
+            recall_mode
+            if recall_mode is not None
+            else (cfg.hive_mind_default_recall_mode if cfg.hive_mind_selective_recall_enabled else "full"),
+        )
+        char_budget = effective_prompt_char_budget(
+            recall_mode=mode,
+            tenant_budget=token_budget_chars,
+            settings_max_prompt=cfg.hive_mind_max_prompt_chars,
+            selective_max_chars=cfg.hive_mind_selective_recall_max_chars,
+        )
+
         clipped_query = relevance_to_current_task.strip()[:4000]
         lines: list[str] = []
+        pruned = 0
+
+        max_hits = (
+            cfg.hive_mind_selective_recall_max_hits
+            if mode == "selective"
+            else min(cfg.hive_mind_max_query_hits_vector, 12)
+        )
+        min_similarity = cfg.hive_mind_selective_recall_min_similarity if mode == "selective" else 0.0
 
         hints: list[dict[str, Any]] = []
         if cfg.hive_mind_chroma_enabled:
             try:
+                search_cap = max_hits * 3 if mode == "selective" else min(cfg.hive_mind_max_query_hits_vector, 12)
                 hints = await semantic_search(
                     clipped_query,
                     HIVE_MIND_COLLECTION,
-                    n_results=min(cfg.hive_mind_max_query_hits_vector, 12),
+                    n_results=search_cap,
                 )
             except Exception as exc:
                 logger.warning(
@@ -203,37 +235,49 @@ class HiveMindService:
                     error=str(exc),
                 )
 
+        if mode == "selective":
+            hints, pruned = rank_vector_hits(
+                hints,
+                max_hits=max_hits,
+                min_similarity=min_similarity,
+            )
+        else:
+            hints = hints[:max_hits]
+
         deliverable_hints: list[str] = []
         for hit in hints:
             blob = hit.get("document")
             snippet = ""
             if isinstance(blob, str) and blob.strip():
-                snippet = _truncate(blob.strip().replace("\n", " "), 420)
+                max_snip = 280 if mode == "selective" else 420
+                snippet = _truncate(blob.strip().replace("\n", " "), max_snip)
             meta = dict(hit.get("metadata") or {})
             did = meta.get("deliverable_id")
-            distance = hit.get("distance")
-            similarity = ""
-            try:
-                if distance is not None:
-                    similarity = f"(sim≈{max(0.0, 1 - float(distance)):.2f})"
-            except (TypeError, ValueError):
-                similarity = ""
+            similarity = score_vector_similarity(hit.get("distance"))
+            sim_label = f"(sim≈{similarity:.2f})" if mode == "selective" else ""
+            if not sim_label:
+                try:
+                    if hit.get("distance") is not None:
+                        sim_label = f"(sim≈{similarity:.2f})"
+                except (TypeError, ValueError):
+                    sim_label = ""
 
             headline = snippet or ""
             summary_line = headline or "vector hit"
             if did:
                 deliverable_hints.append(str(did))
                 summary_line += f" id={did}"
-            lines.append(f"- {similarity.strip()} {summary_line}")
+            lines.append(f"- {sim_label} {summary_line}".strip())
 
-        uniq_ids = list(dict.fromkeys(deliverable_hints))[:8]
+        graph_breadth = 2 if mode == "selective" else cfg.hive_mind_max_graph_neighbor_breadth
+        uniq_ids = list(dict.fromkeys(deliverable_hints))[: (3 if mode == "selective" else 8)]
         try:
             graph_lines = await neighbor_snapshot_for_prompt(
                 deliverable_ids=uniq_ids,
-                breadth=cfg.hive_mind_max_graph_neighbor_breadth,
+                breadth=graph_breadth,
             )
             if graph_lines:
-                lines.extend(["", "### Graph neighbourhoods", *graph_lines])
+                lines.extend(["", "### Graph neighbourhoods", *graph_lines[:graph_breadth]])
         except Exception as exc:
             logger.warning(
                 "hive_mind.query_graph_failed",
@@ -243,11 +287,36 @@ class HiveMindService:
                 error=str(exc),
             )
 
+        if mode == "selective" and tenant_id is not None:
+            try:
+                vault_lines = await vault_document_recall_for_prompt(
+                    tenant_id=tenant_id,
+                    query=clipped_query,
+                    limit=cfg.hive_mind_selective_vault_doc_limit,
+                )
+                if vault_lines:
+                    lines.extend(["", "### Vault documents (selective)", *vault_lines])
+            except Exception as exc:
+                logger.warning(
+                    "hive_mind.query_vault_failed",
+                    agent_id=agent_id or "hive-mind-query",
+                    swarm_id=swarm_id,
+                    task_id=task_id,
+                    error=str(exc),
+                )
+
         if not lines:
             return ""
 
-        body = "## HiveMind recall · vector + correlations\n" + "\n".join(lines)
-        return _truncate(body, cfg.hive_mind_max_prompt_chars)
+        header = (
+            "## HiveMind selective recall · graph-neighbour RAG\n"
+            if mode == "selective"
+            else "## HiveMind recall · vector + correlations\n"
+        )
+        if mode == "selective" and pruned > 0:
+            lines.append(f"\n_auto-pruned {pruned} low-similarity hits_")
+        body = header + "\n".join(lines)
+        return _truncate(body, char_budget)
 
     @staticmethod
     async def export_zip_bytes(

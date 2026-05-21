@@ -40,6 +40,12 @@ async def test_query_for_prompt_respects_budget() -> None:
         hive_mind_max_query_hits_vector = 2
         hive_mind_max_graph_neighbor_breadth = 3
         hive_mind_max_prompt_chars = 200
+        hive_mind_selective_recall_enabled = True
+        hive_mind_default_recall_mode = "full"
+        hive_mind_selective_recall_max_hits = 4
+        hive_mind_selective_recall_min_similarity = 0.55
+        hive_mind_selective_recall_max_chars = 200
+        hive_mind_selective_vault_doc_limit = 0
 
     cfg = _Cfg()
     with (
@@ -52,6 +58,7 @@ async def test_query_for_prompt_respects_budget() -> None:
             swarm_id="sw",
             task_id="tk",
             agent_id="ag",
+            recall_mode="full",
         )
     assert len(blob) <= 200
     assert "HiveMind" in blob

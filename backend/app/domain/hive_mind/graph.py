@@ -415,6 +415,65 @@ async def bounded_tenant_project_shape_snapshot(
     }
 
 
+async def vault_document_recall_for_prompt(
+    *,
+    tenant_id: uuid.UUID,
+    query: str,
+    limit: int = 3,
+) -> list[str]:
+    """Return ranked VaultDocument bullets for selective recall (Auto-Graphify lane)."""
+
+    from app.application.services.selective_recall import query_tokens
+
+    tokens = query_tokens(query)
+    if not tokens:
+        return []
+
+    driver = await get_neo4j_driver()
+    tid = str(tenant_id)
+    lim = max(1, min(int(limit), 8))
+    stmt = """
+    MATCH (d:VaultDocument {tenant_id: $tid})
+    RETURN d.title AS title,
+           d.excerpt AS excerpt,
+           d.rel_path AS rel_path,
+           coalesce(d.tags, []) AS tags,
+           d.updated_at AS updated_at
+    ORDER BY d.updated_at DESC
+    LIMIT $scan_lim
+    """
+    scan_lim = max(lim * 6, 12)
+    candidates: list[tuple[float, str]] = []
+
+    async with driver.session(database="neo4j") as session:
+        cursor = await session.run(stmt, tid=tid, scan_lim=scan_lim)
+        async for rec in cursor:
+            title = str(rec.get("title") or "").strip()
+            excerpt = str(rec.get("excerpt") or "").strip()
+            rel_path = str(rec.get("rel_path") or "").strip()
+            tags = [str(t).lower() for t in (rec.get("tags") or []) if str(t).strip()]
+            hay = " ".join([title, excerpt, rel_path, " ".join(tags)]).lower()
+            overlap = sum(1 for token in tokens if token in hay)
+            if overlap <= 0:
+                continue
+            score = overlap / max(1, len(tokens))
+            line = f"- vault · {title or rel_path}: {(excerpt or rel_path)[:220]}"
+            candidates.append((score, line))
+
+    if not candidates:
+        async with driver.session(database="neo4j") as session:
+            cursor = await session.run(stmt, tid=tid, scan_lim=lim)
+            async for rec in cursor:
+                title = str(rec.get("title") or "").strip()
+                excerpt = str(rec.get("excerpt") or "").strip()
+                rel_path = str(rec.get("rel_path") or "").strip()
+                line = f"- vault · {title or rel_path}: {(excerpt or rel_path)[:220]}"
+                candidates.append((0.1, line))
+
+    candidates.sort(key=lambda pair: pair[0], reverse=True)
+    return [line for _, line in candidates[:lim]]
+
+
 async def neighbor_snapshot_for_prompt(
     *,
     deliverable_ids: list[str],
@@ -555,4 +614,5 @@ __all__ = [
     "neighbor_snapshot_for_prompt",
     "persist_graphify_ingest_bundle",
     "persist_hive_graph_bundle",
+    "vault_document_recall_for_prompt",
 ]

@@ -719,6 +719,35 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("hive-mind/recall-settings")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          recall_mode: "selective",
+          token_budget_chars: 0,
+          feature_enabled: true,
+          max_prompt_chars: 4000,
+          selective_max_chars: 2400,
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("hive-mind/recall-preview")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          recall_mode: "selective",
+          characters: 128,
+          char_budget: 2400,
+          hive_mind_prompt_block: "## HiveMind selective recall · graph-neighbour RAG\n- (sim≈0.82) stub hit",
+        }),
+      });
+      return;
+    }
+
     if (path.startsWith("hive-mind/project-shape")) {
       await route.fulfill({
         status: 200,

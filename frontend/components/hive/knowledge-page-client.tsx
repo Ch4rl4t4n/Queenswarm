@@ -12,6 +12,7 @@ import {
 import { useState, useEffect, useCallback } from "react";
 
 import { AutoGraphifyPanel } from "@/components/hive/auto-graphify-panel";
+import { SelectiveRecallPanel } from "@/components/hive/selective-recall-panel";
 import { ProjectShapeGraphPanel } from "@/components/hive/project-shape-graph-panel";
 import { CuratedMemoryPanel } from "@/components/hive/curated-memory-panel";
 import { EpisodicMemoryPanel } from "@/components/hive/episodic-memory-panel";
@@ -139,6 +140,7 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
         <div id="hivemind" className="scroll-mt-28 space-y-6">
           <AutoGraphifyPanel />
           <ProjectShapeGraphPanel />
+          <SelectiveRecallPanel />
           <V4Card>
             <V4CardHeader
               title="HiveMind · graph + vault + search"

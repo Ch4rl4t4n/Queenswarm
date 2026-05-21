@@ -59,7 +59,7 @@ FEATURE_SECTIONS: list[dict[str, Any]] = [
         "id": "knowledge",
         "label": "Knowledge",
         "tone": "green",
-        "features": ["knowledge"],
+        "features": ["knowledge", "selective_recall", "auto_graphify"],
     },
     {
         "id": "integrations",
@@ -82,7 +82,7 @@ FEATURE_SECTIONS: list[dict[str, Any]] = [
         "id": "ballroom",
         "label": "Ballroom",
         "tone": "pollen",
-        "features": ["ballroom", "dump_sleep", "free_first_routing", "auto_graphify"],
+        "features": ["ballroom", "dump_sleep", "free_first_routing", "auto_graphify", "selective_recall"],
     },
     {
         "id": "settings",
@@ -134,6 +134,7 @@ FEATURE_LABELS: dict[str, str] = {
     "dump_sleep": "Dump & Sleep overnight ingest",
     "free_first_routing": "Free-First LLM routing + Cost Guardian",
     "auto_graphify": "Auto-Graphify folder ingest",
+    "selective_recall": "Selective HiveMind recall (graph-neighbour RAG)",
     "ballroom": "Realtime Ballroom",
     "settings": "Settings shell",
     "billing_settings": "Billing · usage",
@@ -181,6 +182,7 @@ _FEATURE_CATALOG: dict[str, dict[str, Any]] = {
     "dump_sleep": {"internal": True, "commercial": True, "min_tier": TIER_PRO},
     "free_first_routing": {"internal": True, "commercial": True},
     "auto_graphify": {"internal": True, "commercial": True, "min_tier": TIER_PRO},
+    "selective_recall": {"internal": True, "commercial": True, "min_tier": TIER_PRO},
     "team_rbac": {"internal": False, "commercial": True},
     "billing_settings": {"internal": False, "commercial": True},
     "sharing_settings": {"internal": False, "commercial": True},

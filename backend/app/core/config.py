@@ -484,6 +484,18 @@ class Settings(BaseSettings):
         le=32_000,
         description="Hard cap on HiveMind recall block injected into agent prompts.",
     )
+    hive_mind_selective_recall_enabled: bool = Field(
+        default=True,
+        description="Enable selective graph-neighbour RAG recall mode (Phase 4).",
+    )
+    hive_mind_default_recall_mode: str = Field(
+        default="selective",
+        description="Default recall mode when tenant has no override: full | selective.",
+    )
+    hive_mind_selective_recall_max_hits: int = Field(default=4, ge=1, le=16)
+    hive_mind_selective_recall_min_similarity: float = Field(default=0.55, ge=0.0, le=1.0)
+    hive_mind_selective_recall_max_chars: int = Field(default=2400, ge=256, le=16_000)
+    hive_mind_selective_vault_doc_limit: int = Field(default=3, ge=0, le=8)
     hive_mind_export_max_zip_bytes: int = Field(
         default=25_000_000,
         ge=1_000_000,
