@@ -17,6 +17,12 @@ from app.application.services.supervisor.runtime import (
     run_sub_agent_inprocess,
 )
 from app.application.services.billing import assert_supervisor_session_hard_limit
+from app.application.services.supervisor.pattern_router import (
+    PatternSelection,
+    build_pattern_prompt_block,
+    pattern_skill_slugs,
+    select_patterns_for_task,
+)
 from app.application.services.supervisor.skills import SkillLibrary
 from app.application.services.supervisor.spawner import (
     infer_manager_slug_for_role,
@@ -87,6 +93,26 @@ def derive_sub_goal(*, role: str, goal: str) -> str:
     }
     prefix = prefix_map.get(normalized, "Advance objective for")
     return f"{prefix} {goal.strip()[:320]}".strip()
+
+
+def _merge_pattern_skill_requests(
+    *,
+    skill_slugs: list[str] | None,
+    pattern_selection: PatternSelection | None,
+) -> list[str] | None:
+    """Merge pattern-router skill hints into explicit session skill requests."""
+
+    if pattern_selection is None:
+        return skill_slugs
+    merged: list[str] = []
+    seen: set[str] = set()
+    for slug in [*(skill_slugs or []), *pattern_skill_slugs(pattern_selection)]:
+        key = slug.strip().lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        merged.append(key)
+    return merged or None
 
 
 async def _list_session_sub_agents(db: AsyncSession, session_id: uuid.UUID) -> list[SubAgentSession]:
@@ -381,6 +407,16 @@ async def create_supervisor_session(
             latest_strategy_score=None,
         )
 
+    pattern_selection = None
+    if settings.supervisor_pattern_router_enabled:
+        pattern_selection = select_patterns_for_task(
+            goal=goal_clean,
+            roles=norm_roles,
+            forced_reflection=settings.supervisor_forced_reflection_enabled,
+        )
+        base_summary["agentic_patterns"] = pattern_selection.to_dict()
+        base_summary["pattern_prompt_block"] = build_pattern_prompt_block(pattern_selection)[:4000]
+
     session_row = SupervisorSession(
         goal=goal_for_prompt,
         status="running",
@@ -409,7 +445,10 @@ async def create_supervisor_session(
             loader.select_for_task(
                 role=role,
                 goal=goal,
-                requested=skill_slugs,
+                requested=_merge_pattern_skill_requests(
+                    skill_slugs=skill_slugs,
+                    pattern_selection=pattern_selection,
+                ),
                 max_skills=settings.supervisor_max_skills_per_agent,
             )
             if settings.supervisor_skills_enabled
@@ -422,6 +461,11 @@ async def create_supervisor_session(
             "skills": resolved_skills,
             "skill_manifest": skill_manifest,
             "skills_prompt_block": loader.build_prompt_block(resolved_skills)[:4000] if resolved_skills else "",
+            **(
+                {"pattern_prompt_block": str(base_summary.get("pattern_prompt_block") or "")[:2000]}
+                if pattern_selection is not None
+                else {}
+            ),
         }
         db.add(sub)
         await db.flush()
@@ -449,7 +493,15 @@ async def create_supervisor_session(
         sub_agent=None,
         event_type="session_created",
         message="Supervisor session initialized.",
-        payload={"runtime_mode": mode, "sub_agents": len(sub_agents)},
+        payload={
+            "runtime_mode": mode,
+            "sub_agents": len(sub_agents),
+            **(
+                {"agentic_patterns": pattern_selection.to_dict()}
+                if pattern_selection is not None
+                else {}
+            ),
+        },
     )
     observe_supervisor_session_event(event="created", runtime_mode=mode)
 

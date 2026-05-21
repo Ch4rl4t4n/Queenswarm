@@ -1208,6 +1208,14 @@ class Settings(BaseSettings):
         default=True,
         description="Enable self-healing retries and reflection loop in supervisor sub-agent runtime.",
     )
+    supervisor_pattern_router_enabled: bool = Field(
+        default=True,
+        description="Enable heuristic agentic design pattern selection at supervisor session start.",
+    )
+    supervisor_forced_reflection_enabled: bool = Field(
+        default=True,
+        description="Force reflection pattern + self-review-loop skills on all supervisor outputs.",
+    )
     supervisor_self_heal_max_attempts: int = Field(
         default=2,
         ge=1,
