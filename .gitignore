@@ -71,3 +71,9 @@ yarn-error.log*
 .cursor.OLD-backup/
 .cursor.hermes-backup/
 hermes_env_backup.txt
+
+# HA drill artifacts + operator evidence (local only)
+backups/ha/*.sql.gz
+backups/ha/*.rdb
+reports/operator-handoff-*/
+design-reference/
