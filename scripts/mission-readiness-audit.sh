@@ -33,10 +33,10 @@ if [[ "$failed" -eq 0 ]]; then
     echo "Note: operator-gates-audit reported failures — see above."
   fi
   echo
-  echo "Operator gates remaining (manual):"
-  echo "  • Stripe keys → ./scripts/finish-stripe-setup.sh"
-  echo "  • Prod walkthrough → docs/AUTHENTICATED_PROD_WALKTHROUGH.md"
-  echo "  • Hetzner abuse → ./scripts/hetzner-abuse-reply.sh"
+  echo "Operator P0 remaining (human-only):"
+  echo "  • Stripe keys → ./scripts/operator-p0-close.sh"
+  echo "  • Hetzner email → ./scripts/operator-hetzner-send-prep.sh"
+  echo "  • See docs/OPERATOR_P0_CLOSE.md"
   exit 0
 fi
 

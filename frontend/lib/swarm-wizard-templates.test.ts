@@ -35,8 +35,17 @@ describe("swarm-wizard-templates", () => {
     expect(template?.routine?.name).toMatch(/flywheel/i);
   });
 
-  it("no template is marked comingSoon", () => {
-    expect(SWARM_WIZARD_TEMPLATES.every((t) => !t.comingSoon)).toBe(true);
+  it("life-os template is phase4 stub (comingSoon)", () => {
+    const template = getSwarmWizardTemplate("life-os");
+    expect(template).toBeDefined();
+    expect(template?.comingSoon).toBe(true);
+    expect(template?.routine?.name).toMatch(/overnight/i);
+    expect(template?.agents.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("only life-os is marked comingSoon", () => {
+    const soon = SWARM_WIZARD_TEMPLATES.filter((t) => t.comingSoon);
+    expect(soon.map((t) => t.id)).toEqual(["life-os"]);
   });
 
   it("templateRequiresProTier when commercial free and three agents", () => {

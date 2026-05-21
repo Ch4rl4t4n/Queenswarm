@@ -101,7 +101,17 @@ for path in \
   scripts/finish-stripe-setup.sh \
   scripts/stripe-prod-setup.sh \
   scripts/hetzner-abuse-reply.sh \
+  scripts/operator-stripe-prep.sh \
+  scripts/operator-stripe-login.sh \
+  scripts/operator-p0-close.sh \
+  scripts/verify-stripe-live.sh \
+  scripts/operator-hetzner-send-prep.sh \
+  scripts/operator-pending-status.sh \
+  scripts/prod-command-center-gate.sh \
+  scripts/prod-browser-walkthrough-gate.sh \
+  scripts/prod-session-walkthrough-gate.sh \
   backend/scripts/issue_operator_user_jwt.py \
+  docs/OPERATOR_P0_CLOSE.md \
   docs/AUTHENTICATED_PROD_WALKTHROUGH.md; do
   if [[ -f "$path" ]]; then ok "${path}"; else bad "missing ${path}"; fi
 done
@@ -137,6 +147,48 @@ if [[ -n "${latest_walkthrough}" ]]; then
 else
   note "No walkthrough JSON — run ./scripts/walkthrough-evidence.sh"
 fi
+latest_session="$(ls -1 reports/walkthrough/session-walkthrough-*.json 2>/dev/null | tail -1 || true)"
+if [[ -n "${latest_session}" ]]; then
+  if python3 -c "import json,sys; d=json.load(open('${latest_session}')); sys.exit(0 if d.get('passed') else 1)" 2>/dev/null; then
+    ok "Session walkthrough evidence passed: $(basename "${latest_session}")"
+  else
+    note "Session walkthrough evidence present but failed: $(basename "${latest_session}")"
+  fi
+else
+  note "No session walkthrough JSON — run ./scripts/prod-session-walkthrough-gate.sh"
+fi
+latest_browser="$(ls -1 reports/walkthrough/browser-walkthrough-*.json 2>/dev/null | tail -1 || true)"
+if [[ -n "${latest_browser}" ]]; then
+  if python3 -c "import json,sys; d=json.load(open('${latest_browser}')); sys.exit(0 if d.get('passed') else 1)" 2>/dev/null; then
+    ok "Browser walkthrough evidence passed: $(basename "${latest_browser}")"
+  else
+    note "Browser walkthrough evidence present but failed: $(basename "${latest_browser}")"
+  fi
+else
+  note "No browser walkthrough JSON — run ./scripts/prod-browser-walkthrough-gate.sh"
+fi
+latest_cc="$(ls -1 reports/operator/command-center-*.json 2>/dev/null | tail -1 || true)"
+if [[ -n "${latest_cc}" ]]; then
+  if python3 -c "import json,sys; d=json.load(open('${latest_cc}')); sys.exit(0 if d.get('passed') else 1)" 2>/dev/null; then
+    ok "Command center evidence passed: $(basename "${latest_cc}")"
+  else
+    note "Command center evidence present but failed: $(basename "${latest_cc}")"
+  fi
+else
+  note "No command center JSON — run ./scripts/prod-command-center-gate.sh"
+fi
+latest_hetzner="$(ls -1 reports/hetzner/hetzner-reply-*.txt 2>/dev/null | tail -1 || true)"
+if [[ -n "${latest_hetzner}" ]]; then
+  ok "Hetzner reply draft saved: $(basename "${latest_hetzner}")"
+else
+  note "No Hetzner reply file — run ./scripts/hetzner-abuse-reply.sh"
+fi
+latest_pending="$(ls -1 reports/operator/operator-pending-*.json 2>/dev/null | tail -1 || true)"
+if [[ -n "${latest_pending}" ]]; then
+  ok "Operator pending status: $(basename "${latest_pending}")"
+else
+  note "No operator pending JSON — run ./scripts/operator-pending-status.sh"
+fi
 echo
 
 echo "[4] Finish-stripe readiness"
@@ -153,7 +205,7 @@ if [[ "$fail" -gt 0 ]]; then
   exit 1
 fi
 if [[ "$warn" -gt 0 ]]; then
-  echo "Operator action: add Stripe keys → ./scripts/finish-stripe-setup.sh"
-  echo "Then: docs/AUTHENTICATED_PROD_WALKTHROUGH.md manual checklist"
+  echo "Operator action: add Stripe keys → ./scripts/operator-p0-close.sh"
+  echo "Hetzner: ./scripts/operator-hetzner-send-prep.sh · docs/OPERATOR_P0_CLOSE.md"
 fi
 exit 0

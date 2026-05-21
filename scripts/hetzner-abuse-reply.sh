@@ -10,11 +10,18 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ABUSE_ID="${ABUSE_ID:-11B0286:23}"
 DOMAIN="${DOMAIN:-queenswarm.love}"
 TIMESTAMP="$(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+REPORT_DIR="${REPORT_DIR:-${ROOT}/reports/hetzner}"
+OUT_FILE="${REPORT_DIR}/hetzner-reply-${STAMP}.txt"
+
+mkdir -p "${REPORT_DIR}"
 
 echo "== Hetzner abuse reply draft =="
 echo "To: abuse@hetzner.com"
 echo "Subject: Re: AbuseID ${ABUSE_ID} — remediation completed"
+echo "Saved: ${OUT_FILE}"
 echo
+{
 cat <<EOF
 Dear Hetzner Abuse Team,
 
@@ -39,7 +46,8 @@ EOF
 echo
 echo "== Host exposure audit evidence (${TIMESTAMP}) =="
 "${ROOT}/scripts/audit-host-exposure.sh"
+} | tee "${OUT_FILE}"
 
 echo
 echo "== Next step =="
-echo "Copy the reply above into your mail client and send to abuse@hetzner.com with AbuseID ${ABUSE_ID}."
+echo "Send ${OUT_FILE} to abuse@hetzner.com (AbuseID ${ABUSE_ID})."

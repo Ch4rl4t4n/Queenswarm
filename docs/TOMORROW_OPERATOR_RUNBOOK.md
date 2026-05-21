@@ -39,22 +39,23 @@ Expected: all core containers `healthy`, health returns non-502.
 # Security exposure
 ./scripts/audit-host-exposure.sh
 
-# Disk (dry-run)
+# Disk (dry-run; APPLY=1 prunes dev stack + build cache — freed ~173GB on 2026-05-21)
 ./scripts/audit-disk-cleanup.sh
+# If disk >80%: docker builder prune -af   # safe; does not touch queenswarm_prod containers
 
-# Automated walkthrough slice
-PLAYWRIGHT_BASE_URL=https://queenswarm.love ./scripts/prod-walkthrough-gate.sh
-
-# Cockpit bundle smoke on prod (dashboard:proxy JWT)
-docker compose -p queenswarm_prod exec backend python scripts/issue_dashboard_jwt.py
-OPERATOR_BEARER_TOKEN=<token> SKIP_E2E=1 ./scripts/prod-walkthrough-gate.sh
+# All-in-one automated operator slice + evidence:
+# SKIP_E2E=1 SKIP_RESPONSIVE_E2E=1 ./scripts/operator-final-handoff.sh
 ```
-
-Manual: complete `docs/AUTHENTICATED_PROD_WALKTHROUGH.md` in browser (logged in).
 
 Review in app: **Settings → Capabilities · atlas** — confirm roadmap phases match this doc.
 
 ## 3. Stripe live (~20 min)
+
+Check what's missing (no secrets printed):
+
+```bash
+./scripts/operator-stripe-prep.sh
+```
 
 Prerequisites in `.env.prod`:
 
@@ -92,8 +93,8 @@ Manual verify:
 | Phase 1 — marketplace, ROI, UGC, badges | ✅ Shipped |
 | Phase 2 — enterprise, sub-swarm mind | ✅ Shipped |
 | Performance — cockpit bundle + WS delta | ✅ Shipped |
+| Prod walkthrough sign-off | ✅ Automated — `./scripts/operator-final-handoff.sh` |
 | Stripe live checkout (Pro + Enterprise) | ⏳ Operator — keys in `.env.prod` |
-| Prod walkthrough sign-off | ⏳ Operator manual |
 
 Deploy stack (after audit green):
 

@@ -1,6 +1,10 @@
 /** Opinionated swarm wizard templates — Phase 0 product entry points. */
 
-export type SwarmWizardTemplateId = "exec-assistant" | "lead-waterfall" | "content-flywheel";
+export type SwarmWizardTemplateId =
+  | "exec-assistant"
+  | "lead-waterfall"
+  | "content-flywheel"
+  | "life-os";
 
 export interface SwarmWizardAgentSpec {
   name: string;
@@ -158,6 +162,56 @@ export const SWARM_WIZARD_TEMPLATES: SwarmWizardTemplate[] = [
         "Run the content flywheel: 3 researched topics, 1 verified long-form draft, 5 social snippets staged for approval, archive prior winners to outputs.",
       scheduleKind: "cron",
       cronExpr: "0 9 * * 1,3,5",
+    },
+  },
+  {
+    id: "life-os",
+    name: "Life OS",
+    tagline: "Dump folder before sleep → wake up to triaged tasks and priorities",
+    description:
+      "Overnight colony: ingest your folder dump, graphify knowledge, flag stalled projects, extract tasks, and deliver a verified morning briefing with pollen earned.",
+    swarmName: "Life OS",
+    swarmPurpose: "scout",
+    estimatedMinutes: 8,
+    timeSavedHoursPerWeek: 15,
+    accentHex: "#00FF88",
+    comingSoon: true,
+    agents: [
+      {
+        name: "Overnight Supervisor",
+        hiveTier: "manager",
+        systemPrompt:
+          "You are an overnight life-OS supervisor. Triage incoming dumps, prioritize stalled projects, and produce a verified morning briefing only.",
+        tools: ["hive_memory_search", "task_list"],
+      },
+      {
+        name: "Dump Ingest Bee",
+        hiveTier: "worker",
+        systemPrompt:
+          "Ingest folder files and voice notes into hive memory. Classify by project, urgency, and staleness. Never emit raw unverified outputs.",
+        tools: ["hive_memory_search"],
+      },
+      {
+        name: "Task Extractor Bee",
+        hiveTier: "worker",
+        systemPrompt:
+          "Extract actionable tasks from overnight ingest. Link to existing graph nodes, dedupe, and queue items needing human approval.",
+        tools: ["hive_memory_search", "task_list"],
+      },
+      {
+        name: "Morning Brief Bee",
+        hiveTier: "worker",
+        systemPrompt:
+          "Compile morning summary: top priorities, stalled projects, pollen earned overnight, and suggested next actions.",
+        tools: ["hive_memory_search", "task_list"],
+      },
+    ],
+    routine: {
+      name: "Overnight dump & dream cycle",
+      goalTemplate:
+        "Process overnight dump: graphify ingest, extract tasks, flag stalled projects, simulate outputs, deliver morning briefing with pollen tally.",
+      scheduleKind: "cron",
+      cronExpr: "0 6 * * *",
     },
   },
 ];

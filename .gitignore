@@ -75,5 +75,7 @@ hermes_env_backup.txt
 # HA drill artifacts + operator evidence (local only)
 backups/ha/*.sql.gz
 backups/ha/*.rdb
+reports/
+frontend/reports/
 reports/operator-handoff-*/
 design-reference/

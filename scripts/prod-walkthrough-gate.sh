@@ -183,6 +183,38 @@ for magnet in exec-assistant lead-waterfall content-flywheel; do
 done
 
 echo
+echo "[4c/5] public lead magnet API payloads"
+for magnet in exec-assistant lead-waterfall content-flywheel; do
+  code="$(curl -sS -o /dev/null -w '%{http_code}' "${HIVE_BASE}/api/v1/marketing/lead-magnets/${magnet}" || echo "000")"
+  if [[ "$code" == "200" ]]; then
+    echo "  OK GET /api/v1/marketing/lead-magnets/${magnet} (${code})"
+  else
+    echo "FAIL lead-magnet API ${magnet} HTTP ${code}" >&2
+    exit 1
+  fi
+done
+
+if resolved_user_jwt="$(resolve_operator_user_jwt 2>/dev/null || true)" && [[ -n "${resolved_user_jwt:-}" ]]; then
+  echo
+  echo "[4d/5] billing plans + enterprise HA evidence (user JWT)"
+  user_header="Authorization: Bearer ${resolved_user_jwt}"
+  plans_body="$(curl -sS -H "$user_header" "${HIVE_BASE}/api/v1/billing/plans" || echo "{}")"
+  if echo "$plans_body" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if any(k in d for k in ('tier','plans','pro_checkout_ready')) else 1)" 2>/dev/null; then
+    echo "  OK /api/v1/billing/plans payload"
+  else
+    echo "FAIL /api/v1/billing/plans unexpected payload" >&2
+    exit 1
+  fi
+  ent_body="$(curl -sS -H "$user_header" "${HIVE_BASE}/api/v1/settings/enterprise/config" || echo "{}")"
+  if echo "$ent_body" | python3 -c "import json,sys; d=json.load(sys.stdin); hp=d.get('ha_profile') or {}; sys.exit(0 if hp.get('dr_drill') is not None and hp.get('ha_chaos') is not None else 1)" 2>/dev/null; then
+    echo "  OK enterprise ha_profile includes dr_drill + ha_chaos"
+  else
+    echo "FAIL enterprise ha_profile missing drill/chaos evidence" >&2
+    exit 1
+  fi
+fi
+
+echo
 echo "[4b/5] billing checkout routes (POST — expect 401 without JWT)"
 for path in /api/v1/billing/pro-checkout /api/v1/billing/enterprise-checkout; do
   code="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "${HIVE_BASE}${path}" || echo "000")"

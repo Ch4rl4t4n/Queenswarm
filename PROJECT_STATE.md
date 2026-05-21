@@ -15,7 +15,10 @@ Updated: 2026-05-21
 | **Phase 1** — marketplace, ROI, UGC | ✅ Shipped | `./scripts/mission-phase1-audit.sh` |
 | **Phase 2** — enterprise, sub-swarm mind | ✅ Shipped | `./scripts/mission-phase2-audit.sh` |
 | **Performance cockpit** — bundle, WS delta | ✅ Shipped | `docs/PERFORMANCE_COCKPIT.md` |
-| **Operator P0** — Stripe, walkthrough, Hetzner | ⏳ Pending | `./scripts/operator-launch-gate.sh` |
+| **Operator P0** — Stripe + Hetzner send | ⏳ Pending (human-only) | Latest handoff pack in `reports/operator-handoff-*` |
+| **Phase 4** — RoundtableSpace edge | ⏳ Planned | `docs/ROUNDTABLESPACE_MAY2026_INSIGHTS.md` |
+| **Phase 5** — Agentic design patterns | 🟡 P0 shipped | `docs/QUEENSWARM_DESIGN_PATTERNS.md` |
+| **Phase 6** — Harness & Queen Maintainer | 🟡 P0 stub | `docs/HARNESS_SELF_MAINTAINING_ANALYSIS.md` |
 
 Unified audit: `./scripts/mission-readiness-audit.sh`
 
@@ -40,11 +43,19 @@ Backlog source: `docs/MISSION_EXECUTION_BACKLOG.md` · in-app atlas: `/settings/
 |--------|---------|
 | Mission readiness (all phases) | `./scripts/mission-readiness-audit.sh` |
 | **Operator launch (all-in-one)** | `./scripts/operator-launch-gate.sh` |
+| Prod browser walkthrough | `./scripts/prod-browser-walkthrough-gate.sh` |
+| Prod session walkthrough | `./scripts/prod-session-walkthrough-gate.sh` |
+| Prod command center | `./scripts/prod-command-center-gate.sh` |
 | Handoff evidence pack | `./scripts/operator-handoff-pack.sh` → `reports/operator-handoff-*` |
 | Operator P0 gates | `./scripts/operator-gates-audit.sh` |
-| Hetzner abuse reply | `./scripts/hetzner-abuse-reply.sh` → `abuse@hetzner.com` |
-| Stripe live checkout | `./scripts/finish-stripe-setup.sh` after keys in `.env.prod` |
-| Manual prod QA | `docs/AUTHENTICATED_PROD_WALKTHROUGH.md` |
+| Hetzner abuse reply | `./scripts/hetzner-abuse-reply.sh` → `reports/hetzner/hetzner-reply-*.txt` |
+| Operator pending status | `./scripts/operator-pending-status.sh` |
+| Stripe prep checklist | `./scripts/operator-stripe-prep.sh` |
+| **Final handoff bundle** | `./scripts/operator-final-handoff.sh` |
+| **P0 close (Stripe go-live)** | `./scripts/operator-p0-close.sh` |
+| Hetzner send prep | `./scripts/operator-hetzner-send-prep.sh` |
+| Stripe live checkout | `./scripts/operator-p0-close.sh` after keys in `.env.prod` |
+| P0 close checklist | `docs/OPERATOR_P0_CLOSE.md` |
 
 See **`docs/ROADMAP.md`** and **`docs/MISSION_EXECUTION_BACKLOG.md`**.
 
