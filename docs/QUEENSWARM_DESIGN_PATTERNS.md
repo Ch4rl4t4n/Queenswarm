@@ -13,7 +13,7 @@ Queenswarm **already implements ~14/20 patterns** in production code. The gap is
 | Pattern Router (heuristic) | ✅ P0 shipped — `select_patterns_for_task()` |
 | Forced reflection skills | ✅ `supervisor_forced_reflection_enabled` |
 | Pattern Bible (this doc) | ✅ |
-| Pattern Explorer UI | ⏳ P1 |
+| Pattern Explorer UI | ✅ |
 | AI-driven pattern router | ⏳ P2 |
 | Pattern success metrics | ⏳ P2 |
 
@@ -164,6 +164,8 @@ Pattern-specific skill markdown lives in:
 - `backend/app/skills/patterns/` — pattern TL;DR index (optional deep dives)
 
 Pattern Router code: `backend/app/application/services/supervisor/pattern_router.py`
+
+Queen Maintainer API: `GET/PUT /api/v1/queen-maintainer/*` — see `docs/HARNESS_SELF_MAINTAINING_ANALYSIS.md`
 
 Tests: `backend/tests/test_supervisor_pattern_router_unit.py`
 

@@ -45,6 +45,7 @@ export const PLATFORM_FEATURE_CATALOG: Record<string, FeatureSpec> = {
   auto_graphify: { internal: true, commercial: true, minTier: "pro" },
   selective_recall: { internal: true, commercial: true, minTier: "pro" },
   venice_mcp_preset: { internal: true, commercial: true, minTier: "pro" },
+  pattern_explorer: { internal: true, commercial: true },
   team_rbac: { internal: false, commercial: true },
   billing_settings: { internal: false, commercial: true },
   sharing_settings: { internal: false, commercial: true },

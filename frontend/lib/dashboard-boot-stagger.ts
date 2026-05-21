@@ -14,5 +14,6 @@ export const DASHBOARD_BOOT_STAGGER_MS = {
   agentSuggestions: 5600,
   rapidLoop: 6000,
   dreamingSummary: 6400,
+  patternExplorer: 6600,
   timeSaved: 6800,
 } as const;

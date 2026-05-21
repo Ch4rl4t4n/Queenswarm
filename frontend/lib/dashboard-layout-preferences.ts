@@ -20,6 +20,7 @@ export type DashboardSectionId =
   | "swarmBuilderEntry"
   | "rapidLoop"
   | "dreamingSummary"
+  | "patternExplorer"
   | "timeSaved"
   | "leadMagnets"
   | "beeBadges";
@@ -57,6 +58,7 @@ export const DASHBOARD_LAYOUT_DEFAULTS: Record<DashboardSectionId, boolean> = {
   swarmBuilderEntry: true,
   rapidLoop: true,
   dreamingSummary: true,
+  patternExplorer: true,
   timeSaved: true,
   leadMagnets: true,
   beeBadges: true,
@@ -173,6 +175,12 @@ export const DASHBOARD_SECTIONS: DashboardSectionMeta[] = [
     group: "insights",
     label: { en: "Dreaming summary", sk: "Dreaming prehľad" },
     description: { en: "Latest nightly memory consolidation", sk: "Posledný nočný memory cyklus" },
+  },
+  {
+    id: "patternExplorer",
+    group: "insights",
+    label: { en: "Pattern Explorer", sk: "Pattern Explorer" },
+    description: { en: "Agentic patterns used by supervisor sessions", sk: "Agentic patterns z supervisor sessions" },
   },
   {
     id: "timeSaved",

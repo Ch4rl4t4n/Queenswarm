@@ -66,6 +66,11 @@ const DreamingSummaryCard = nextDynamic(
   { loading: () => <DashboardSectionSkeleton className="min-h-[140px]" /> },
 );
 
+const PatternExplorerCard = nextDynamic(
+  () => import("@/components/hive/pattern-explorer-card").then((mod) => ({ default: mod.PatternExplorerCard })),
+  { loading: () => <DashboardSectionSkeleton className="min-h-[140px]" /> },
+);
+
 const TimeSavedPanel = nextDynamic(
   () => import("@/components/hive/time-saved-panel").then((mod) => ({ default: mod.TimeSavedPanel })),
   { loading: () => <DashboardSectionSkeleton className="min-h-[160px]" /> },
@@ -170,6 +175,7 @@ export function QueenDashboardChrome({
   const showSwarmBuilderEntry = useDashboardSection("swarmBuilderEntry");
   const showRapidLoop = useDashboardSection("rapidLoop");
   const showDreamingSummary = useDashboardSection("dreamingSummary");
+  const showPatternExplorer = useDashboardSection("patternExplorer");
   const showTimeSaved = useDashboardSection("timeSaved");
   const showLeadMagnets = useDashboardSection("leadMagnets");
   const showBeeBadges = useDashboardSection("beeBadges");
@@ -220,7 +226,7 @@ export function QueenDashboardChrome({
 
   const showSwarmSignals = showWaggle || showWorkflows;
   const showInsights = showPerformanceTier || showRecentTasks;
-  const showLearningInsights = showRapidLoop || showDreamingSummary;
+  const showLearningInsights = showRapidLoop || showDreamingSummary || showPatternExplorer;
 
   return (
     <V4PageCanvas className={dashboardPageDensityClass(density)}>
@@ -349,6 +355,8 @@ export function QueenDashboardChrome({
           {showDreamingSummary ? <DreamingSummaryCard /> : null}
         </div>
       ) : null}
+
+      {showPatternExplorer ? <PatternExplorerCard /> : null}
 
       {showTimeSaved ? <TimeSavedPanel /> : null}
 

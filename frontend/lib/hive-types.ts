@@ -884,6 +884,45 @@ export interface UnifiedSavingsPayload {
   disclaimer: string;
 }
 
+/** ``GET /api/v1/harness/pattern-explorer`` */
+export interface PatternUsageRow {
+  id: string;
+  label: string;
+  count: number;
+}
+
+export interface PatternCatalogRow {
+  id: string;
+  number: number;
+  label: string;
+  summary: string;
+}
+
+export interface PatternExplorerSessionRow {
+  session_id: string;
+  status: string;
+  started_at: string | null;
+  goal_preview: string;
+  primary: string[];
+  secondary: string[];
+  all: string[];
+  forced_reflection?: boolean;
+  rationale: string[];
+  router_version?: string;
+}
+
+export interface PatternExplorerPayload {
+  window_hours: number;
+  sessions_in_window: number;
+  unique_patterns_today: number;
+  router_enabled: boolean;
+  forced_reflection_enabled: boolean;
+  usage_today: PatternUsageRow[];
+  catalog: PatternCatalogRow[];
+  recent_sessions: PatternExplorerSessionRow[];
+  docs_path: string;
+}
+
 export type PendingReviewStatus = "pending" | "approved" | "rejected";
 
 export interface PendingReviewItemRow {

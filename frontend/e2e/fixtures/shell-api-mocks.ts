@@ -106,6 +106,18 @@ const STUB_UNIFIED_SAVINGS = {
   disclaimer: "Stub unified savings for shell E2E.",
 };
 
+const STUB_PATTERN_EXPLORER = {
+  router_enabled: true,
+  forced_reflection_enabled: true,
+  window_hours: 24,
+  sessions_in_window: 0,
+  unique_patterns_today: 0,
+  usage_today: [],
+  catalog: [{ id: "planning", number: 6, label: "Planning", summary: "Orchestration" }],
+  recent_sessions: [],
+  docs_path: "docs/QUEENSWARM_DESIGN_PATTERNS.md",
+};
+
 const STUB_COST_SUMMARY = {
   window_days: 35,
   series: [{ day: new Date().toISOString().slice(0, 10), spend_usd: 1.25, model: "grok" }],
@@ -362,6 +374,15 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_TIME_SAVED),
+      });
+      return;
+    }
+
+    if (path.startsWith("harness/pattern-explorer")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_PATTERN_EXPLORER),
       });
       return;
     }
