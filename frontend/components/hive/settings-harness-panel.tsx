@@ -95,6 +95,12 @@ export function SettingsHarnessPanel(): JSX.Element | null {
           ) : (
             <V4Badge tone="info">LLM refine off</V4Badge>
           )}
+          {snapshot.feature_flags.skill_lazy_reference_fetch_enabled ? (
+            <V4Badge tone="ok">Skill refs lazy</V4Badge>
+          ) : null}
+          {snapshot.skills.reference_mode_count != null && snapshot.skills.reference_mode_count > 0 ? (
+            <V4Badge tone="info">Ref skills {snapshot.skills.reference_mode_count}</V4Badge>
+          ) : null}
           {snapshot.feature_flags.supervisor_forced_reflection_enabled ? (
             <V4Badge tone="ok">Forced reflection</V4Badge>
           ) : null}

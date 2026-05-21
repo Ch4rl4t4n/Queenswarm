@@ -26,6 +26,8 @@ class SkillSnippet:
     priority: int = 50
     roles: list[str] | None = None
     keywords: list[str] | None = None
+    reference_mode: bool = False
+    references: list[str] | None = None
 
 
 class SkillLibrary:
@@ -64,6 +66,8 @@ class SkillLibrary:
         title = first.removeprefix("#").strip() if first.startswith("#") else key
         roles = [self._normalize_role(item) for item in self._meta_list(meta.get("roles"))]
         keywords = [item.strip().lower() for item in self._meta_list(meta.get("keywords")) if item.strip()]
+        reference_mode = self._meta_bool(meta.get("reference_mode"))
+        references = [item.strip() for item in self._meta_list(meta.get("references")) if item.strip()]
         parsed = SkillSnippet(
             slug=key,
             title=title or key,
@@ -72,6 +76,8 @@ class SkillLibrary:
             priority=self._meta_priority(meta.get("priority")),
             roles=roles or None,
             keywords=keywords or None,
+            reference_mode=reference_mode,
+            references=references or None,
         )
         self._cache[key] = parsed
         return parsed
@@ -192,18 +198,70 @@ class SkillLibrary:
                 rows.append(item.stem.strip().lower())
         return sorted({slug for slug in rows if slug})
 
-    def build_prompt_block(self, slugs: list[str]) -> str:
-        """Construct a compact prompt appendix for selected skills."""
+    def build_prompt_block(self, slugs: list[str], *, lazy_fetch: bool = False) -> str:
+        """Construct a compact prompt appendix for selected skills (sync).
+
+        Reference-mode skills emit pointers unless ``lazy_fetch=True`` (use async variant).
+        """
 
         chunks: list[str] = []
         for slug in slugs:
             skill = self.load(slug)
             if skill is None:
                 continue
-            chunks.append(
-                f"## Skill: {skill.title} (v{skill.version}, p{skill.priority})\n{skill.body}",
-            )
+            chunks.append(self._format_skill_chunk(skill, fetched_refs=None))
         return "\n\n".join(chunks).strip()
+
+    async def build_prompt_block_async(self, slugs: list[str], *, lazy_fetch: bool = True) -> str:
+        """Build skill prompt block with optional lazy reference fetch."""
+
+        from app.application.services.supervisor.skill_reference_fetch import fetch_skill_reference
+        from app.core.config import settings
+
+        chunks: list[str] = []
+        for slug in slugs:
+            skill = self.load(slug)
+            if skill is None:
+                continue
+            fetched: list[str] | None = None
+            if (
+                lazy_fetch
+                and settings.skill_lazy_reference_fetch_enabled
+                and skill.reference_mode
+                and skill.references
+            ):
+                fetched = []
+                for ref in skill.references[:4]:
+                    text = await fetch_skill_reference(
+                        ref,
+                        max_chars=settings.skill_reference_fetch_max_chars,
+                    )
+                    if text:
+                        fetched.append(f"### Reference: {ref}\n{text}")
+            chunks.append(self._format_skill_chunk(skill, fetched_refs=fetched))
+        return "\n\n".join(chunks).strip()
+
+    def _format_skill_chunk(self, skill: SkillSnippet, *, fetched_refs: list[str] | None) -> str:
+        """Render one skill section for supervisor prompts."""
+
+        header = f"## Skill: {skill.title} (v{skill.version}, p{skill.priority})"
+        if skill.reference_mode:
+            header += " [reference mode]"
+        if fetched_refs:
+            ref_body = "\n\n".join(fetched_refs)
+            summary = skill.body[:600].strip()
+            return f"{header}\n{summary}\n\n{ref_body}".strip()
+        if skill.reference_mode and skill.references:
+            pointers = "\n".join(f"- {ref}" for ref in skill.references[:6])
+            summary = skill.body[:600].strip()
+            return f"{header}\nSummary:\n{summary}\n\nFetch on demand:\n{pointers}".strip()
+        return f"{header}\n{skill.body}".strip()
+
+    @staticmethod
+    def _meta_bool(raw: str | None) -> bool:
+        if raw is None:
+            return False
+        return raw.strip().lower() in {"1", "true", "yes", "on"}
 
     @staticmethod
     def _split_front_matter(raw: str) -> tuple[dict[str, str], str]:

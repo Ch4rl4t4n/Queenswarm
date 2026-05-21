@@ -108,13 +108,14 @@ const STUB_UNIFIED_SAVINGS = {
 
 const STUB_HARNESS_SNAPSHOT = {
   rule_layers: [{ id: "cursorrules", path: ".cursorrules", scope: "root", bytes: "2048" }],
-  skills: { count: 3, items: [{ slug: "self-review-loop", title: "Self Review", priority: 10, roles: [] }] },
+  skills: { count: 3, reference_mode_count: 1, items: [{ slug: "self-review-loop", title: "Self Review", priority: 10, roles: [], reference_mode: true }] },
   mcp_tools: { count: 0, items: [] },
   recent_agentic_patterns: [],
   feature_flags: {
     supervisor_pattern_router_enabled: true,
     supervisor_forced_reflection_enabled: true,
     supervisor_pattern_router_llm_enabled: false,
+    skill_lazy_reference_fetch_enabled: true,
   },
   tech_health_score: 0.85,
   monitoring: {

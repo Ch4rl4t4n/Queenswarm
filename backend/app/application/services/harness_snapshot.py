@@ -9,7 +9,8 @@ from typing import Any
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.services.queen_maintainer.tech_health import build_tech_health_report, resolve_repo_root
+from app.application.services.harness_tech_health import build_tech_health_report
+from app.core.repo_root import resolve_repo_root
 from app.application.services.pattern_telemetry_service import build_pattern_telemetry
 from app.application.services.supervisor.skills import SkillLibrary
 from app.core.config import settings
@@ -82,6 +83,7 @@ def _collect_skills_summary() -> list[dict[str, Any]]:
                 "title": skill.title,
                 "priority": skill.priority,
                 "roles": list(skill.roles or []),
+                "reference_mode": skill.reference_mode,
             },
         )
     rows.sort(key=lambda item: (-int(item["priority"]), str(item["slug"])))
@@ -103,6 +105,7 @@ async def build_harness_snapshot(
     """
     repo_root = resolve_repo_root()
     skills = _collect_skills_summary()
+    reference_mode_skills = sum(1 for row in skills if row.get("reference_mode"))
     mcp_tools: list[dict[str, Any]] = []
     if session is not None:
         mcp_tools = await MCPAdapter.dynamic_tool_catalog(session)
@@ -161,6 +164,7 @@ async def build_harness_snapshot(
         "rule_layers": _collect_rule_layers(repo_root),
         "skills": {
             "count": len(skills),
+            "reference_mode_count": reference_mode_skills,
             "items": skills[:24],
         },
         "mcp_tools": {
@@ -175,6 +179,7 @@ async def build_harness_snapshot(
             "supervisor_self_healing_enabled": settings.supervisor_self_healing_enabled,
             "queen_maintainer_enabled": settings.queen_maintainer_enabled,
             "routines_enabled": settings.routines_enabled,
+            "skill_lazy_reference_fetch_enabled": settings.skill_lazy_reference_fetch_enabled,
         },
         "tech_health_score": tech_health.get("health_score"),
         "monitoring": monitoring,

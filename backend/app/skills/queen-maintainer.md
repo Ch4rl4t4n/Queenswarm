@@ -4,6 +4,8 @@ priority: 95
 roles: [orchestrator, coder, critic, researcher]
 keywords: [maintainer, tech-debt, dependency, upgrade, refactor, coverage, security, cve, pr]
 source: queenswarm.love
+reference_mode: true
+references: docs/harness/QUEEN_MAINTAINER_INSTRUCTIONS.md
 ---
 
 # Queen Maintainer — Self-Maintaining Codebase Swarm

@@ -383,7 +383,10 @@ async def run_sub_agent_inprocess(
             seen_tools.add(cleaned)
             merged_toolset.append(cleaned)
         sub_agent.toolset = merged_toolset
-    skill_prompt = loader.build_prompt_block(selected_skills)
+    skill_prompt = await loader.build_prompt_block_async(
+        selected_skills,
+        lazy_fetch=settings.skill_lazy_reference_fetch_enabled,
+    )
     retrieval_contract = str((supervisor_session.context_summary or {}).get("retrieval_contract") or "").strip()
     retrieval_bundle = await shared_context.retrieve_context_bundle(
         db,
@@ -493,7 +496,10 @@ async def run_sub_agent_inprocess(
                 requested=["context", "decision-frameworks"],
                 max_skills=settings.supervisor_max_skills_per_agent,
             )
-            skill_prompt = loader.build_prompt_block(selected_skills)
+            skill_prompt = await loader.build_prompt_block_async(
+                selected_skills,
+                lazy_fetch=settings.skill_lazy_reference_fetch_enabled,
+            )
 
     healing = await run_self_healing_cycle(
         role=sub_agent.role,

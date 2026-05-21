@@ -14,8 +14,10 @@ from app.application.services.harness_snapshot import build_harness_snapshot
 async def test_build_harness_snapshot_includes_skills_and_flags() -> None:
     payload = await build_harness_snapshot(None)
     assert payload["skills"]["count"] >= 1
+    assert "reference_mode_count" in payload["skills"]
     assert "supervisor_pattern_router_enabled" in payload["feature_flags"]
     assert "supervisor_pattern_router_llm_enabled" in payload["feature_flags"]
+    assert "skill_lazy_reference_fetch_enabled" in payload["feature_flags"]
     assert isinstance(payload["rule_layers"], list)
     assert "monitoring" in payload
     assert payload["monitoring"]["grafana_dashboard_uid"] == "queenswarm-agentic-patterns"

@@ -460,7 +460,16 @@ async def create_supervisor_session(
             "sub_goal": derive_sub_goal(role=role, goal=goal),
             "skills": resolved_skills,
             "skill_manifest": skill_manifest,
-            "skills_prompt_block": loader.build_prompt_block(resolved_skills)[:4000] if resolved_skills else "",
+            "skills_prompt_block": (
+                (
+                    await loader.build_prompt_block_async(
+                        resolved_skills,
+                        lazy_fetch=settings.skill_lazy_reference_fetch_enabled,
+                    )
+                )[:4000]
+                if resolved_skills
+                else ""
+            ),
             **(
                 {"pattern_prompt_block": str(base_summary.get("pattern_prompt_block") or "")[:2000]}
                 if pattern_selection is not None

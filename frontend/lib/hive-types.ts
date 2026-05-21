@@ -993,6 +993,7 @@ export interface HarnessSkillRow {
   title: string;
   priority: number;
   roles: string[];
+  reference_mode?: boolean;
 }
 
 export interface HarnessPatternRow {
@@ -1016,7 +1017,7 @@ export interface HarnessMonitoringPayload {
 
 export interface HarnessSnapshotPayload {
   rule_layers: HarnessRuleLayerRow[];
-  skills: { count: number; items: HarnessSkillRow[] };
+  skills: { count: number; reference_mode_count?: number; items: HarnessSkillRow[] };
   mcp_tools: { count: number; items: Record<string, unknown>[] };
   recent_agentic_patterns: HarnessPatternRow[];
   feature_flags: Record<string, boolean>;

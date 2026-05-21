@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from app.application.services.queen_maintainer.tech_health import resolve_repo_root
+from app.core.repo_root import resolve_repo_root
 from app.application.services.supervisor.skills import SkillLibrary
 from app.infrastructure.connectors.phase3.catalog import iter_phase3_templates
 

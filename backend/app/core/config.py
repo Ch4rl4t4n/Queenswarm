@@ -1262,6 +1262,16 @@ class Settings(BaseSettings):
         le=16,
         description="Maximum number of skills selected per supervisor sub-agent.",
     )
+    skill_lazy_reference_fetch_enabled: bool = Field(
+        default=True,
+        description="Fetch skill reference pointers (URLs/docs) on demand instead of inlining full bodies.",
+    )
+    skill_reference_fetch_max_chars: int = Field(
+        default=3000,
+        ge=256,
+        le=12000,
+        description="Max characters loaded per skill reference fetch.",
+    )
     supervisor_self_healing_enabled: bool = Field(
         default=True,
         description="Enable self-healing retries and reflection loop in supervisor sub-agent runtime.",
@@ -1269,6 +1279,10 @@ class Settings(BaseSettings):
     supervisor_pattern_router_enabled: bool = Field(
         default=True,
         description="Enable heuristic agentic design pattern selection at supervisor session start.",
+    )
+    supervisor_pattern_router_llm_enabled: bool = Field(
+        default=False,
+        description="Optional LLM refinement hop after heuristic pattern selection (P2).",
     )
     supervisor_forced_reflection_enabled: bool = Field(
         default=True,
