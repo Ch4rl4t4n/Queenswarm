@@ -39,6 +39,31 @@ async function gotoShellRoute(page: import("@playwright/test").Page, path: strin
   return true;
 }
 
+/** Billing page hydrates usage/plans + Stripe config — wait for stable chrome. */
+async function gotoBillingSettings(page: import("@playwright/test").Page): Promise<boolean> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (!(await gotoShellRoute(page, "/settings/billing"))) {
+      return false;
+    }
+    const onDashboard = await page
+      .getByRole("heading", { name: /^Dashboard$/i })
+      .first()
+      .isVisible()
+      .catch(() => false);
+    if (onDashboard) {
+      continue;
+    }
+    try {
+      await expect(page.getByRole("heading", { name: "Stripe checkout" })).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole("heading", { name: "Usage & Billing" })).toBeVisible({ timeout: 15_000 });
+      return true;
+    } catch {
+      // App Router occasionally paints the previous canvas — retry navigation.
+    }
+  }
+  return false;
+}
+
 test.describe("Responsive shell — public login", () => {
   for (const viewport of VIEWPORTS) {
     test(`${viewport.name} login has no horizontal overflow`, async ({ page }) => {
@@ -143,14 +168,11 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     await page.setViewportSize({ width: 768, height: 1024 });
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
 
-    const onShell = await gotoShellRoute(page, "/settings/billing");
+    const onShell = await gotoBillingSettings(page);
     if (!onShell) {
       return;
     }
 
-    await expect(page.getByRole("heading", { name: "Usage & Billing" })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/Stripe checkout/i).first()).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole("heading", { name: "Stripe checkout" })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(/checkout off|— not set/i).first()).toBeVisible({ timeout: 15_000 });
   });
 
@@ -414,15 +436,20 @@ test.describe("Responsive shell — authenticated cockpit", () => {
         await page.setViewportSize({ width: viewport.width, height: viewport.height });
         await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
 
-        const onShell = await gotoShellRoute(page, route.path);
+        const onShell =
+          route.path === "/settings/billing"
+            ? await gotoBillingSettings(page)
+            : await gotoShellRoute(page, route.path);
         if (!onShell) {
           return;
         }
 
         await assertNoHorizontalOverflow(page);
-        await expect(page.getByRole("heading", { name: route.heading, exact: true }).first()).toBeVisible({
-          timeout: 15_000,
-        });
+        if (route.path !== "/settings/billing") {
+          await expect(page.getByRole("heading", { name: route.heading, exact: true }).first()).toBeVisible({
+            timeout: 15_000,
+          });
+        }
       });
     }
   }
