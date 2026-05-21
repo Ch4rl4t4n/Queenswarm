@@ -14,7 +14,9 @@ from app.infrastructure.persistence.models.recipe import Recipe
 from app.common.schemas.recipes_catalog import RecipeCatalogItem
 from app.common.schemas.recipes_search import RecipeSemanticHit
 from app.common.schemas.recipes_write import RecipeCreateBody, RecipePatchBody
+from app.domain.recipes.orchestration_pattern_stacks import list_orchestration_pattern_stacks
 from app.application.services.recipe_catalog import list_recipe_catalog_rows
+from app.application.services.recipe_pattern_tags import recipe_to_catalog_item
 from app.application.services.recipe_chroma_bridge import search_recipes_semantic
 from app.application.services.recipe_match_config import RecipeMatchConfigResponse, build_recipe_match_config
 from app.application.services.recipe_write import (
@@ -157,7 +159,18 @@ async def create_recipe(
         client_host=request.client.host if request.client else None,
     )
 
-    return RecipeCatalogItem.model_validate(row)
+    return recipe_to_catalog_item(row)
+
+
+@router.get(
+    "/pattern-stacks",
+    summary="Orchestration template pattern stacks",
+)
+async def recipe_pattern_stacks(_subject: JwtSubject) -> list[dict[str, object]]:
+    """Return canonical orchestration templates and their agentic pattern stacks."""
+
+    _ensure_recipes_enabled()
+    return list_orchestration_pattern_stacks()
 
 
 @router.get(
@@ -196,7 +209,7 @@ async def list_recipes(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Persistence rejected recipe catalog query.",
         )
-    return rows
+    return [recipe_to_catalog_item(row) for row in rows]
 
 
 @router.get(
@@ -418,7 +431,7 @@ async def get_recipe(
             detail="Recipe not found.",
         )
 
-    return RecipeCatalogItem.model_validate(row)
+    return recipe_to_catalog_item(row)
 
 
 @router.patch(
@@ -487,7 +500,7 @@ async def patch_recipe(
         client_host=request.client.host if request.client else None,
     )
 
-    return RecipeCatalogItem.model_validate(row)
+    return recipe_to_catalog_item(row)
 
 
 @router.delete(

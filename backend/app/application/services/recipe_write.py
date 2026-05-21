@@ -16,6 +16,7 @@ from app.infrastructure.persistence.models.recipe import Recipe
 from app.infrastructure.persistence.models.task import Task
 from app.infrastructure.persistence.models.workflow import Workflow
 from app.common.schemas.recipes_write import RecipeCreateBody, RecipePatchBody
+from app.domain.recipes.orchestration_pattern_stacks import enrich_workflow_template_patterns
 from app.application.services.recipe_chroma_sync import (
     delete_recipe_embedding_from_chroma,
     upsert_recipe_into_chroma_library,
@@ -120,6 +121,7 @@ async def create_recipe_entry(
         raise RecipeWriteConflictError(body.name)
 
     _ensure_workflow_template_size(dict(body.workflow_template))
+    workflow_template = enrich_workflow_template_patterns(dict(body.workflow_template))
 
     verified_at: datetime | None = None
     if body.mark_verified:
@@ -129,7 +131,7 @@ async def create_recipe_entry(
         name=body.name.strip(),
         description=body.description,
         topic_tags=list(body.topic_tags or []),
-        workflow_template=dict(body.workflow_template),
+        workflow_template=workflow_template,
         success_count=0,
         fail_count=0,
         avg_pollen_earned=0.0,
@@ -189,7 +191,7 @@ async def update_recipe_entry(
         recipe.topic_tags = list(patch["topic_tags"])
 
     if "workflow_template" in patch and patch["workflow_template"] is not None:
-        tpl = dict(patch["workflow_template"])
+        tpl = enrich_workflow_template_patterns(dict(patch["workflow_template"]))
         _ensure_workflow_template_size(tpl)
         recipe.workflow_template = tpl
 

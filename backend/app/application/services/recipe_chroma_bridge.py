@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.core.logging import get_logger
 from app.infrastructure.persistence.models.recipe import Recipe
 from app.infrastructure.persistence.models.reward import ImitationEvent
+from app.application.services.recipe_pattern_tags import recipe_to_catalog_item
 from app.common.schemas.recipes_catalog import RecipeCatalogItem
 from app.common.schemas.recipes_search import RecipeSemanticHit
 
@@ -206,7 +207,7 @@ async def search_recipes_semantic(
                 if recipe_orm is not None:
                     recipe_orm_cache[pid] = recipe_orm
             if recipe_orm is not None:
-                postgres_item = RecipeCatalogItem.model_validate(recipe_orm)
+                postgres_item = recipe_to_catalog_item(recipe_orm)
         chroma_doc_id = str(row.get("id") or "")
         out.append(
             RecipeSemanticHit(

@@ -17,7 +17,8 @@ export function SwarmBuilderEntryCard(): JSX.Element {
             <V4Badge tone="ok">~10 min</V4Badge>
           </div>
           <p className="mt-1 text-xs text-(--qs-text-3)">
-            Exec Assistant, Lead Waterfall, Content Flywheel — opinionated colonies without prompt engineering.
+            Exec Assistant ships with 4 agentic patterns — planning, RAG, reflection, and goal monitoring. Zero prompt
+            engineering.
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">

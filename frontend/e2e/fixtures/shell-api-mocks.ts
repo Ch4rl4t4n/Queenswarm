@@ -282,6 +282,21 @@ const STUB_SKILL_UNLOCKS = {
   premium_price_eur_cents_default: 1900,
 };
 
+const STUB_RECIPE_PATTERN_STACKS = [
+  {
+    id: "exec_assistant",
+    label: "Exec Assistant",
+    pattern_tags: ["planning", "rag", "reflection", "goal_monitoring"],
+    pattern_labels: ["Planning", "RAG", "Reflection", "Goal Monitoring"],
+  },
+  {
+    id: "life_os",
+    label: "Life OS",
+    pattern_tags: ["memory_management", "prioritization", "reflection", "planning"],
+    pattern_labels: ["Memory", "Prioritization", "Reflection", "Planning"],
+  },
+];
+
 const STUB_SWARM_BOARD = {
   sub_swarms: [],
   waggle_feed: [],
@@ -715,6 +730,15 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           webhook_url: "https://queenswarm.love/api/v1/billing/stripe/webhook",
           env_fallback_active: false,
         }),
+      });
+      return;
+    }
+
+    if (path.startsWith("recipes/pattern-stacks")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_RECIPE_PATTERN_STACKS),
       });
       return;
     }

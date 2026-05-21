@@ -32,6 +32,7 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
   const [matchConfig, setMatchConfig] = useState<RecipeMatchConfigPayload>(DEFAULT_RECIPE_MATCH_CONFIG);
   const [searchBusy, setSearchBusy] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedPatterns, setSelectedPatterns] = useState<string[]>([]);
   const [exportBusyId, setExportBusyId] = useState<string | null>(null);
 
   const exportRecipe = useCallback(async (recipeId: string, recipeName: string) => {
@@ -120,14 +121,32 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
     return [...s].sort((a, b) => a.localeCompare(b));
   }, [catalog]);
 
+  const allPatterns = useMemo(() => {
+    const s = new Set<string>();
+    for (const r of catalog) {
+      for (const label of r.pattern_labels ?? r.pattern_tags ?? []) {
+        if (label.trim()) s.add(label.trim());
+      }
+    }
+    return [...s].sort((a, b) => a.localeCompare(b));
+  }, [catalog]);
+
   const toggleTag = useCallback((tag: string) => {
     setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((x) => x !== tag) : [...prev, tag]));
   }, []);
 
+  const togglePattern = useCallback((pattern: string) => {
+    setSelectedPatterns((prev) => (prev.includes(pattern) ? prev.filter((x) => x !== pattern) : [...prev, pattern]));
+  }, []);
+
   const filteredCatalog = useMemo(() => {
-    if (!selectedTags.length) return catalog;
-    return catalog.filter((r) => selectedTags.every((t) => (r.topic_tags ?? []).includes(t)));
-  }, [catalog, selectedTags]);
+    return catalog.filter((r) => {
+      const tagsOk = !selectedTags.length || selectedTags.every((t) => (r.topic_tags ?? []).includes(t));
+      const labels = r.pattern_labels ?? r.pattern_tags ?? [];
+      const patternsOk = !selectedPatterns.length || selectedPatterns.every((p) => labels.includes(p));
+      return tagsOk && patternsOk;
+    });
+  }, [catalog, selectedTags, selectedPatterns]);
 
   const showingSemantic = Boolean(debounced);
 
@@ -136,7 +155,7 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
       {showHeader ? (
         <HivePageHeader
           title="Recipe Library"
-          subtitle="Verified workflows · Chroma semantic recall · topic tag facets"
+          subtitle="Verified workflows · Chroma semantic recall · topic + pattern stack facets"
           actions={
             <Link href="/tasks/new" className="qs-btn qs-btn--primary qs-btn--sm">
               Run mission
@@ -196,6 +215,21 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
             })}
             {!allTags.length ? <span className="text-xs text-(--qs-text-3)">No tags in catalog slice.</span> : null}
           </div>
+
+          <p className="v4-field-label mb-2 mt-4">Agentic patterns</p>
+          <div className="v4-chip-scroll md:flex-wrap md:overflow-visible">
+            {allPatterns.map((pattern) => {
+              const on = selectedPatterns.includes(pattern);
+              return (
+                <V4Chip key={pattern} active={on} onClick={() => togglePattern(pattern)}>
+                  {pattern}
+                </V4Chip>
+              );
+            })}
+            {!allPatterns.length ? (
+              <span className="text-xs text-(--qs-text-3)">Pattern stacks appear after orchestration recipes are tagged.</span>
+            ) : null}
+          </div>
         </div>
       </V4Card>
 
@@ -237,6 +271,20 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
                 </div>
                 <div>
                   <h2 className="text-xl font-semibold text-(--qs-text)">{recipe.name}</h2>
+                  {recipe.orchestration_template ? (
+                    <p className="mt-1 text-xs uppercase tracking-wide text-cyan">
+                      {recipe.orchestration_template.replaceAll("_", " ")}
+                    </p>
+                  ) : null}
+                  {(recipe.pattern_labels ?? recipe.pattern_tags ?? []).length ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {(recipe.pattern_labels ?? recipe.pattern_tags ?? []).map((p) => (
+                        <V4Badge key={p} tone="info">
+                          {p}
+                        </V4Badge>
+                      ))}
+                    </div>
+                  ) : null}
                   {(recipe.topic_tags ?? []).length ? (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {(recipe.topic_tags ?? []).map((t) => (

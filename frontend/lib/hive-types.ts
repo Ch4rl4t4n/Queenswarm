@@ -484,9 +484,19 @@ export interface RecipeRow {
   description: string | null;
   verified_at?: string | null;
   topic_tags: string[];
+  orchestration_template?: string | null;
+  pattern_tags?: string[];
+  pattern_labels?: string[];
   success_count?: number;
   fail_count?: number;
   avg_pollen_earned?: number;
+}
+
+export interface RecipePatternStackRow {
+  id: string;
+  label: string;
+  pattern_tags: string[];
+  pattern_labels: string[];
 }
 
 /** ``GET /api/v1/memory/episodic/timeline`` */

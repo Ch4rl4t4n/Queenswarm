@@ -18,6 +18,7 @@ import {
   type SwarmWizardTemplate,
   type SwarmWizardTemplateId,
 } from "@/lib/swarm-wizard-templates";
+import { patternCountLabel, SWARM_TEMPLATE_PATTERN_STACKS } from "@/lib/swarm-pattern-stacks";
 import { cn } from "@/lib/utils";
 
 type WizardStep = "pick" | "review" | "building" | "done";
@@ -145,7 +146,7 @@ export function SwarmBuilderWizard(): JSX.Element {
     <V4PageCanvas>
       <HivePageHeader
         title={step === "pick" ? "Swarm Builder" : template?.name ?? "Swarm wizard"}
-        subtitle="Opinionated swarms in ~10 minutes — zero prompt engineering."
+        subtitle="Opinionated swarms in ~10 minutes — 20 industry agentic patterns, zero prompt engineering."
         actions={
           <Link href="/swarms" className="qs-btn qs-btn--ghost qs-btn--sm gap-2">
             <ArrowLeft className="h-4 w-4" aria-hidden />
@@ -193,6 +194,9 @@ export function SwarmBuilderWizard(): JSX.Element {
               <p className="mt-2 text-[11px] text-pollen">
                 ~{item.estimatedMinutes} min · saves ~{item.timeSavedHoursPerWeek} h/week
               </p>
+              {!item.comingSoon ? (
+                <p className="mt-1 text-[10px] text-cyan">{patternCountLabel(item.id)}</p>
+              ) : null}
             </button>
           ))}
         </div>
@@ -240,6 +244,15 @@ export function SwarmBuilderWizard(): JSX.Element {
               </li>
             ))}
           </ul>
+          {SWARM_TEMPLATE_PATTERN_STACKS[template.id]?.length ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {SWARM_TEMPLATE_PATTERN_STACKS[template.id].map((label) => (
+                <V4Badge key={label} tone="info">
+                  {label}
+                </V4Badge>
+              ))}
+            </div>
+          ) : null}
           {proRequired ? (
             <p className="mt-4 rounded-lg border border-pollen/35 bg-pollen/10 px-3 py-2 text-xs text-pollen">
               Pro plan required — this template creates {template.agents.length} agents (Free max 2).
@@ -275,8 +288,17 @@ export function SwarmBuilderWizard(): JSX.Element {
             <div>
               <h3 className="text-sm font-semibold text-(--qs-text)">{template.name} is live</h3>
               <p className="mt-1 text-xs text-(--qs-text-3)">
-                {result.agentIds.length} agents · {result.routineId ? "routine scheduled" : "no routine"}
+                Your swarm will use {(SWARM_TEMPLATE_PATTERN_STACKS[template.id] ?? []).length || "several"} agentic
+                patterns on the first supervisor run — {result.agentIds.length} agents
+                {result.routineId ? " · routine scheduled" : ""}.
               </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {(SWARM_TEMPLATE_PATTERN_STACKS[template.id] ?? []).map((label) => (
+                  <V4Badge key={label} tone="ok">
+                    {label}
+                  </V4Badge>
+                ))}
+              </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   type="button"

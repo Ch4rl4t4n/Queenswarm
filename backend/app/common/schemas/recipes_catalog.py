@@ -18,6 +18,9 @@ class RecipeCatalogItem(BaseModel):
     name: str
     description: str | None = None
     topic_tags: list[str] = Field(default_factory=list)
+    orchestration_template: str | None = None
+    pattern_tags: list[str] = Field(default_factory=list)
+    pattern_labels: list[str] = Field(default_factory=list)
     success_count: int = 0
     fail_count: int = 0
     avg_pollen_earned: float = 0.0
