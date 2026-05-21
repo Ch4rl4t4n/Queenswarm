@@ -36,7 +36,11 @@ npm run test -- \
   lib/hive-mobile-meta.test.ts \
   lib/hive-navigation-mode.test.ts \
   lib/section-hub.test.ts \
-  lib/section-hub-preferences.test.ts
+  lib/section-hub-preferences.test.ts \
+  lib/knowledge-routes.test.ts \
+  lib/integrations-routes.test.ts \
+  lib/hub-ecosystem-lanes.test.ts \
+  lib/agents-page-status.test.ts
 
 echo "[phase70] frontend lint"
 npm run lint

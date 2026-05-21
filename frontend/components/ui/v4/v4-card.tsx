@@ -36,7 +36,7 @@ export function V4CardHeader({ title, description, kicker, actions, as = "h2" }:
         <TitleTag>{title}</TitleTag>
         {description ? <p className="desc">{description}</p> : null}
       </div>
-      {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="v4-card-header-actions flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
   );
 }

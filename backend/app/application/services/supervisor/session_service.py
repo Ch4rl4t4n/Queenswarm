@@ -28,7 +28,7 @@ from app.application.services.curated_memory_service import CuratedMemoryService
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.metrics import observe_supervisor_session_event
-from app.worker.celery_app import celery_app
+from app.application.services.supervisor.sub_agent_job import SUPERVISOR_SUB_AGENT_TASK_NAME
 from app.infrastructure.persistence.models.supervisor_session import (
     SubAgentSession,
     SupervisorSession,
@@ -87,6 +87,233 @@ def derive_sub_goal(*, role: str, goal: str) -> str:
     }
     prefix = prefix_map.get(normalized, "Advance objective for")
     return f"{prefix} {goal.strip()[:320]}".strip()
+
+
+async def _list_session_sub_agents(db: AsyncSession, session_id: uuid.UUID) -> list[SubAgentSession]:
+    """Load sub-agent rows for one supervisor session."""
+
+    stmt = select(SubAgentSession).where(SubAgentSession.supervisor_session_id == session_id)
+    return list((await db.scalars(stmt)).all())
+
+
+async def enqueue_durable_sub_agent_step(
+    db: AsyncSession,
+    *,
+    supervisor_session: SupervisorSession,
+    sub_agent: SubAgentSession,
+    reason: str = "initial",
+) -> str:
+    """Enqueue one durable Celery sub-agent step and persist task metadata."""
+
+    from app.worker.celery_app import celery_app
+
+    async_result = celery_app.send_task(
+        SUPERVISOR_SUB_AGENT_TASK_NAME,
+        kwargs={
+            "supervisor_session_id": str(supervisor_session.id),
+            "sub_agent_session_id": str(sub_agent.id),
+        },
+    )
+    task_id = str(async_result.id)
+    memory = dict(sub_agent.short_memory or {})
+    updates: dict[str, object] = {
+        "celery_task_id": task_id,
+        "celery_task_name": SUPERVISOR_SUB_AGENT_TASK_NAME,
+        "celery_enqueued_at": datetime.now(tz=UTC).isoformat(),
+    }
+    if reason != "initial":
+        updates["requeue_count"] = int(memory.get("requeue_count") or 0) + 1
+        updates["last_requeue_reason"] = reason
+        sub_agent.status = "queued"
+        sub_agent.error_text = None
+        await append_event(
+            db,
+            supervisor_session=supervisor_session,
+            sub_agent=sub_agent,
+            event_type="sub_agent_requeued",
+            message=f"{sub_agent.role} requeued for durable execution ({reason}).",
+            payload={"runtime_mode": "durable", "celery_task_id": task_id, "reason": reason},
+        )
+    sub_agent.short_memory = {**memory, **updates}
+    await db.flush()
+    return task_id
+
+
+async def requeue_durable_sub_agents_after_approval(
+    db: AsyncSession,
+    *,
+    session_row: SupervisorSession,
+    reason: str = "operator_approved",
+) -> int:
+    """Re-enqueue durable sub-agents blocked on operator approval."""
+
+    if str(session_row.runtime_mode or "").strip().lower() != "durable":
+        return 0
+
+    subs = list(getattr(session_row, "sub_agents", None) or [])
+    if not subs:
+        subs = await _list_session_sub_agents(db, session_row.id)
+
+    requeued = 0
+    for sub in subs:
+        if str(sub.status or "").strip().lower() != "needs_input":
+            continue
+        await enqueue_durable_sub_agent_step(
+            db,
+            supervisor_session=session_row,
+            sub_agent=sub,
+            reason=reason,
+        )
+        requeued += 1
+    return requeued
+
+
+async def requeue_durable_sub_agents_on_resume(
+    db: AsyncSession,
+    *,
+    session_row: SupervisorSession,
+    reason: str = "session_resumed",
+) -> int:
+    """Re-enqueue durable sub-agents that were queued when session was paused."""
+
+    if str(session_row.runtime_mode or "").strip().lower() != "durable":
+        return 0
+
+    subs = list(getattr(session_row, "sub_agents", None) or [])
+    if not subs:
+        subs = await _list_session_sub_agents(db, session_row.id)
+
+    requeue_statuses = {"queued", "pending"}
+    requeued = 0
+    for sub in subs:
+        if str(sub.status or "").strip().lower() not in requeue_statuses:
+            continue
+        await enqueue_durable_sub_agent_step(
+            db,
+            supervisor_session=session_row,
+            sub_agent=sub,
+            reason=reason,
+        )
+        requeued += 1
+    return requeued
+
+
+RETRYABLE_SUB_AGENT_STATUSES: frozenset[str] = frozenset({"needs_input", "queued", "pending", "failed"})
+
+
+async def retry_sub_agent_step(
+    db: AsyncSession,
+    *,
+    session_row: SupervisorSession,
+    sub_agent: SubAgentSession,
+    shared_context: SharedContextService | None = None,
+    skill_library: SkillLibrary | None = None,
+) -> SubAgentSession:
+    """Retry one sub-agent step without re-running the full session approve/resume flow."""
+
+    session_status = str(session_row.status or "").strip().lower()
+    if session_status in {"stopped", "completed"}:
+        msg = "Supervisor session is closed."
+        raise ValueError(msg)
+    if session_status == "paused":
+        msg = "Resume the session before retrying individual sub-agents."
+        raise ValueError(msg)
+
+    sub_status = str(sub_agent.status or "").strip().lower()
+    if sub_status == "completed":
+        msg = "Sub-agent step already completed."
+        raise ValueError(msg)
+    if sub_status not in RETRYABLE_SUB_AGENT_STATUSES:
+        msg = f"Sub-agent status '{sub_agent.status}' is not retryable."
+        raise ValueError(msg)
+
+    runtime_mode = str(session_row.runtime_mode or "inprocess").strip().lower()
+    if runtime_mode == "durable":
+        await enqueue_durable_sub_agent_step(
+            db,
+            supervisor_session=session_row,
+            sub_agent=sub_agent,
+            reason="operator_retry",
+        )
+        if session_status == "needs_input":
+            session_row.status = "running"
+        await db.flush()
+        return sub_agent
+
+    if runtime_mode == "inprocess" and sub_status == "needs_input":
+        ctx = shared_context or SharedContextService()
+        loader = skill_library or SkillLibrary()
+        sub_agent.status = "pending"
+        sub_agent.error_text = None
+        await run_sub_agent_inprocess(
+            db,
+            supervisor_session=session_row,
+            sub_agent=sub_agent,
+            shared_context=ctx,
+            skill_library=loader,
+        )
+        if session_row.status not in {"needs_input", "paused", "stopped"}:
+            pending = [
+                item
+                for item in (session_row.sub_agents or [])
+                if str(item.status or "").lower() in {"pending", "queued", "running", "needs_input"}
+            ]
+            if not pending:
+                session_row.status = "completed"
+                session_row.completed_at = datetime.now(tz=UTC)
+        await db.flush()
+        return sub_agent
+
+    msg = "Individual retry is only supported for durable steps or in-process needs_input sub-agents."
+    raise ValueError(msg)
+
+
+async def resume_inprocess_sub_agents_after_approval(
+    db: AsyncSession,
+    *,
+    session_row: SupervisorSession,
+    shared_context: SharedContextService,
+    skill_library: SkillLibrary | None = None,
+) -> int:
+    """Re-run in-process sub-agents that were blocked on operator approval."""
+
+    if str(session_row.runtime_mode or "").strip().lower() != "inprocess":
+        return 0
+
+    subs = list(getattr(session_row, "sub_agents", None) or [])
+    if not subs:
+        subs = await _list_session_sub_agents(db, session_row.id)
+
+    loader = skill_library or SkillLibrary()
+    resumed = 0
+    for sub in subs:
+        if str(sub.status or "").strip().lower() != "needs_input":
+            continue
+        sub.status = "pending"
+        sub.error_text = None
+        await run_sub_agent_inprocess(
+            db,
+            supervisor_session=session_row,
+            sub_agent=sub,
+            shared_context=shared_context,
+            skill_library=loader,
+        )
+        resumed += 1
+
+    if resumed and session_row.status not in {"needs_input", "paused", "stopped"}:
+        pending = [item for item in subs if str(item.status or "").lower() in {"pending", "queued", "running", "needs_input"}]
+        if not pending:
+            session_row.status = "completed"
+            session_row.completed_at = datetime.now(tz=UTC)
+            await append_event(
+                db,
+                supervisor_session=session_row,
+                sub_agent=None,
+                event_type="session_completed",
+                message="Supervisor session completed in-process after operator approval.",
+                payload={"runtime_mode": "inprocess", "resumed_sub_agents": resumed},
+            )
+    return resumed
 
 
 async def create_supervisor_session(
@@ -259,12 +486,11 @@ async def create_supervisor_session(
             )
     else:
         for sub in sub_agents:
-            celery_app.send_task(
-                "hive.supervisor_sub_agent_step",
-                kwargs={
-                    "supervisor_session_id": str(session_row.id),
-                    "sub_agent_session_id": str(sub.id),
-                },
+            await enqueue_durable_sub_agent_step(
+                db,
+                supervisor_session=session_row,
+                sub_agent=sub,
+                reason="initial",
             )
         await append_event(
             db,
@@ -332,11 +558,18 @@ async def apply_session_control(
 ) -> SupervisorSession:
     """Apply pause/resume/stop controls for a supervisor session."""
 
+    requeued = 0
     if action == "pause":
         session_row.status = "paused"
     elif action == "resume":
         if session_row.status in {"paused", "pending"}:
             session_row.status = "running"
+        requeued = await requeue_durable_sub_agents_on_resume(db, session_row=session_row)
+        if requeued:
+            summary = dict(session_row.context_summary or {})
+            summary["requeued_sub_agents"] = requeued
+            summary["last_resume_at"] = datetime.now(tz=UTC).isoformat()
+            session_row.context_summary = summary
     elif action == "stop":
         session_row.status = "stopped"
         session_row.completed_at = datetime.now(tz=UTC)
@@ -349,7 +582,7 @@ async def apply_session_control(
         sub_agent=None,
         event_type="session_control",
         message=f"Session action applied: {action}.",
-        payload={"action": action},
+        payload={"action": action, "requeued_sub_agents": requeued},
     )
     observe_supervisor_session_event(event=f"control_{action}", runtime_mode=session_row.runtime_mode)
     await db.flush()
@@ -396,13 +629,33 @@ async def apply_session_review(
     elif session_row.status in {"needs_input", "paused"}:
         session_row.status = "running"
 
+    requeued = 0
+    resumed = 0
+    if decision == "approve":
+        requeued = await requeue_durable_sub_agents_after_approval(db, session_row=session_row)
+        resumed = await resume_inprocess_sub_agents_after_approval(
+            db,
+            session_row=session_row,
+            shared_context=SharedContextService(),
+        )
+        if requeued:
+            summary["requeued_sub_agents"] = requeued
+        if resumed:
+            summary["resumed_sub_agents"] = resumed
+        session_row.context_summary = summary
+
     await append_event(
         db,
         supervisor_session=session_row,
         sub_agent=None,
         event_type="session_review",
         message=f"Session {decision} by operator.",
-        payload={"decision": decision, "note": (note or "").strip()[:1000]},
+        payload={
+            "decision": decision,
+            "note": (note or "").strip()[:1000],
+            "requeued_sub_agents": requeued,
+            "resumed_sub_agents": resumed,
+        },
     )
     runtime_mode = str(getattr(session_row, "runtime_mode", "inprocess") or "inprocess")
     observe_supervisor_session_event(event=f"review_{decision}", runtime_mode=runtime_mode)

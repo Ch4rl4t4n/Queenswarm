@@ -19,6 +19,8 @@ interface GrokLiveVoiceButtonProps {
   readonly onStatusChange?: (status: "idle" | "connecting" | "live" | "error") => void;
   readonly onError?: (message: string) => void;
   readonly className?: string;
+  /** Icon-only toggle vs full-width Voice Chat bar (Ballroom v4). */
+  readonly layout?: "icon" | "bar";
 }
 
 interface LiveTokenResponse {
@@ -127,6 +129,7 @@ export function GrokLiveVoiceButton({
   onStatusChange,
   onError,
   className,
+  layout = "icon",
 }: GrokLiveVoiceButtonProps): JSX.Element {
   const [live, setLive] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -378,13 +381,15 @@ export function GrokLiveVoiceButton({
   }, [cleanup, live, startLive]);
 
   const label = connecting ? "Connecting voice…" : live ? "End voice call" : "Start voice call";
+  const barLabel = connecting ? "Connecting…" : live ? "End voice call" : "Voice Chat";
+  const isBar = layout === "bar";
 
   return (
     <button
       type="button"
       className={cn(
-        "qs-btn h-11 shrink-0 px-3",
-        live ? "qs-btn--danger" : "qs-btn--ghost",
+        isBar ? "v4-ballroom-voice-chat-btn qs-btn h-11 w-full justify-center gap-2 px-4" : "qs-btn h-11 shrink-0 px-3",
+        live ? "qs-btn--danger" : isBar ? "qs-btn--ghost" : "qs-btn--ghost",
         connecting && "opacity-70",
         className,
       )}
@@ -397,10 +402,11 @@ export function GrokLiveVoiceButton({
       {connecting ? (
         <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
       ) : live ? (
-        <MicOffIcon className="h-4 w-4" aria-hidden />
+        <MicOffIcon className="h-4 w-4 shrink-0" aria-hidden />
       ) : (
-        <MicIcon className="h-4 w-4" aria-hidden />
+        <MicIcon className="h-4 w-4 shrink-0" aria-hidden />
       )}
+      {isBar ? <span className="font-medium">{barLabel}</span> : null}
     </button>
   );
 }

@@ -374,7 +374,7 @@ export function SettingsLlmKeysPanel() {
         values never round-trip plaintext. Voice providers (Deepgram/ElevenLabs) are configurable here too.
       </p>
 
-      <V4Card>
+      <V4Card className="v4-voice-prefs-card">
         <V4CardHeader
           as="h3"
           title={language === "sk" ? "Preferovaný voice provider (STT/TTS)" : "Preferred voice provider (STT/TTS)"}
@@ -401,7 +401,7 @@ export function SettingsLlmKeysPanel() {
             />
           }
         />
-        <div className="v4-settings-llm-grid grid gap-3 md:grid-cols-2">
+        <div className="v4-voice-prefs-grid">
           <label className="block">
             <span className="qs-label">{language === "sk" ? "STT priorita" : "STT priority"}</span>
             <QsSelect
@@ -430,22 +430,20 @@ export function SettingsLlmKeysPanel() {
               options={TTS_PROVIDER_OPTIONS}
             />
           </label>
-        </div>
-        <label className="mt-3 block md:max-w-[280px]">
-          <span className="qs-label">{language === "sk" ? "Rezim odozvy" : "Response mode"}</span>
-          <QsSelect
-            value={voicePrefs.latency_mode}
-            disabled={voicePrefsBusy}
-            onValueChange={(next) =>
-              setVoicePrefs((prev) => ({
-                ...prev,
-                latency_mode: next as "balanced" | "fast",
-              }))
-            }
-            options={latencyModeOptions}
-          />
-        </label>
-        <div className="v4-settings-llm-grid mt-4 grid gap-3 md:grid-cols-2">
+          <label className="block v4-voice-prefs-span-2 md:max-w-[280px] md:justify-self-center">
+            <span className="qs-label">{language === "sk" ? "Rezim odozvy" : "Response mode"}</span>
+            <QsSelect
+              value={voicePrefs.latency_mode}
+              disabled={voicePrefsBusy}
+              onValueChange={(next) =>
+                setVoicePrefs((prev) => ({
+                  ...prev,
+                  latency_mode: next as "balanced" | "fast",
+                }))
+              }
+              options={latencyModeOptions}
+            />
+          </label>
           <label className="block">
             <span className="qs-label">{language === "sk" ? "VAD threshold" : "VAD threshold"}</span>
             <input
@@ -513,7 +511,7 @@ export function SettingsLlmKeysPanel() {
               options={voiceToneOptions}
             />
           </label>
-          <label className="block md:max-w-[280px]">
+          <label className="block v4-voice-prefs-span-2 md:max-w-[280px] md:justify-self-center">
             <span className="qs-label">{language === "sk" ? "Voice language" : "Voice language"}</span>
             <QsSelect
               value={voicePrefs.tts_language}
@@ -532,7 +530,7 @@ export function SettingsLlmKeysPanel() {
           type="button"
           disabled={voicePrefsBusy}
           onClick={() => void saveVoicePreferences()}
-          className="qs-btn qs-btn--primary qs-btn--sm mt-3"
+          className="qs-btn qs-btn--primary v4-voice-prefs-save"
         >
           {language === "sk" ? "Uložiť voice preferencie" : "Save voice preferences"}
         </button>
@@ -545,33 +543,32 @@ export function SettingsLlmKeysPanel() {
           const copy = PROVIDER_COPY[provider];
           return (
             <V4Card key={provider}>
-              <V4CardHeader
-                as="h3"
-                title={language === "sk" ? copy.title.sk : copy.title.en}
-                description={language === "sk" ? copy.hint.sk : copy.hint.en}
-                actions={
-                  <div className="flex flex-wrap gap-2">
-                    <button type="button" disabled={busy} onClick={() => void testProvider(provider)} className="qs-btn qs-btn--ghost qs-btn--sm">
-                      Test
-                    </button>
-                    <button type="button" disabled={busy || !masked} onClick={() => void clearProvider(provider)} className="qs-btn qs-btn--ghost qs-btn--sm text-danger">
-                      Remove
-                    </button>
+              <div className="v4-section-header-row">
+                <div className="min-w-0 flex-1">
+                  <h3>{language === "sk" ? copy.title.sk : copy.title.en}</h3>
+                  <p className="desc">{language === "sk" ? copy.hint.sk : copy.hint.en}</p>
+                  <div className="v4-provider-meta-row mt-2">
+                    <div
+                      className="v4-provider-logo"
+                      style={{
+                        background: skin.bgColor,
+                        border: `1px solid ${skin.borderColor}`,
+                        color: skin.textColor,
+                      }}
+                    >
+                      {skin.logo}
+                    </div>
+                    {masked?.api_key_masked ? <V4Badge tone="gold">vault</V4Badge> : <V4Badge tone="info">empty</V4Badge>}
                   </div>
-                }
-              />
-              <div className="mb-3 flex items-center gap-3">
-                <div
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold"
-                  style={{
-                    background: skin.bgColor,
-                    border: `1px solid ${skin.borderColor}`,
-                    color: skin.textColor,
-                  }}
-                >
-                  {skin.logo}
                 </div>
-                {masked?.api_key_masked ? <V4Badge tone="gold">vault</V4Badge> : <V4Badge tone="info">empty</V4Badge>}
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                  <button type="button" disabled={busy} onClick={() => void testProvider(provider)} className="qs-btn qs-btn--ghost qs-btn--sm">
+                    Test
+                  </button>
+                  <button type="button" disabled={busy || !masked} onClick={() => void clearProvider(provider)} className="qs-btn qs-btn--ghost qs-btn--sm text-danger">
+                    Remove
+                  </button>
+                </div>
               </div>
 
               <div className="mb-3">

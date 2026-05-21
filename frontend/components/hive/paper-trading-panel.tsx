@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { Loader2Icon, TrendingUpIcon } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { V4Badge, V4Card, V4CardHeader, V4Stat } from "@/components/ui/v4";
 import { COCKPIT_POLL_COLONY_TELEMETRY_MS } from "@/lib/cockpit-poll-profile";
+import { DASHBOARD_BOOT_STAGGER_MS } from "@/lib/dashboard-boot-stagger";
 import { HiveApiError, hiveGet } from "@/lib/api";
+import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import type { PaperTradingSummaryPayload } from "@/lib/hive-types";
 
 function fmtUsd(n: number): string {
@@ -32,11 +34,9 @@ export function PaperTradingPanel(): JSX.Element {
     }
   }, []);
 
-  useEffect(() => {
-    void load();
-    const id = window.setInterval(() => void load(), COCKPIT_POLL_COLONY_TELEMETRY_MS);
-    return () => window.clearInterval(id);
-  }, [load]);
+  useIntervalWhenVisible(() => void load(), COCKPIT_POLL_COLONY_TELEMETRY_MS, {
+    initialDelayMs: DASHBOARD_BOOT_STAGGER_MS.paperTrading,
+  });
 
   const top = summary?.projects?.[0];
 

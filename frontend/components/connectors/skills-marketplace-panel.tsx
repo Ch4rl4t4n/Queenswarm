@@ -1,11 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { CopyIcon, CreditCardIcon, DownloadIcon, Loader2Icon, RocketIcon, SparklesIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { VerifiedPollenLeaderboard } from "@/components/hive/verified-pollen-leaderboard";
+import { usePlatform } from "@/components/hive/platform-context";
+import { SkillMarketplaceUgcPanel } from "@/components/connectors/skill-marketplace-ugc-panel";
 import { SkillProductPublishPanel } from "@/components/connectors/skill-product-publish-panel";
 import { V4Badge, V4CardHeader, V4Chip } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
@@ -17,6 +18,7 @@ import type {
   SkillExportResponse,
   SkillUnlockStatusResponse,
 } from "@/lib/hive-types";
+import { startProductMission } from "@/lib/product-mission";
 import { downloadSkillExportBundle } from "@/lib/skill-export-utils";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +30,10 @@ export function SkillsMarketplacePanel({
   checkoutSessionId?: string | null;
   purchaseOutcome?: "success" | "cancel" | null;
 }): JSX.Element {
+  const { hasFeature, isAdmin } = usePlatform();
+  const showFactory = hasFeature("skills_export_factory");
+  const showProductMission = hasFeature("product_mission");
+  const showUgc = hasFeature("skills_marketplace");
   const [catalog, setCatalog] = useState<SkillCatalogResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -35,6 +41,8 @@ export function SkillsMarketplacePanel({
   const [preview, setPreview] = useState<SkillExportResponse | null>(null);
   const [unlocks, setUnlocks] = useState<SkillUnlockStatusResponse | null>(null);
   const [checkoutBusyId, setCheckoutBusyId] = useState<string | null>(null);
+  const [missionBusy, setMissionBusy] = useState(false);
+  const [nicheHint, setNicheHint] = useState("");
 
   const stripeReady = unlocks?.stripe_checkout_ready ?? false;
   const recipeRows = catalog?.recipes ?? [];
@@ -190,8 +198,21 @@ export function SkillsMarketplacePanel({
     }
   }, [preview]);
 
+  const handleStartProductMission = useCallback(async () => {
+    setMissionBusy(true);
+    try {
+      toast.message("Otváram Ballroom — misia sa spustí v chate…");
+      await startProductMission({ nicheHint: nicheHint.trim() || undefined });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Product mission failed.";
+      toast.error(msg);
+      setMissionBusy(false);
+    }
+  }, [nicheHint]);
+
   return (
     <div className="space-y-5">
+      {showFactory && showProductMission ? (
       <section className="rounded-2xl border border-cyan/30 bg-cyan/5 p-4 md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -203,15 +224,35 @@ export function SkillsMarketplacePanel({
               Swarm produces verified skills, plugins, and addons → export bundle → sell on{" "}
               <strong className="text-(--qs-text-2)">GitHub</strong>,{" "}
               <strong className="text-(--qs-text-2)">Gumroad</strong>, or optional{" "}
-              <strong className="text-pollen">Stripe</strong> in-app. Use built-in{" "}
-              <span className="font-mono text-cyan">product-mission</span> in Ballroom to start.
+              <strong className="text-pollen">Stripe</strong> in-app. Spustí sa 5-kroková misia v
+              Ballroom — nie len prázdny chat.
             </p>
+            <label className="mt-3 block max-w-md text-xs text-(--qs-text-3)">
+              Niche (voliteľné)
+              <input
+                type="text"
+                value={nicheHint}
+                onChange={(e) => setNicheHint(e.target.value)}
+                placeholder="newsletter growth, crypto alerts, SEO blog…"
+                className="mt-1 w-full rounded-lg border border-(--qs-border) bg-black/40 px-3 py-2 text-sm text-(--qs-text) placeholder:text-(--qs-text-3)"
+                disabled={missionBusy}
+              />
+            </label>
           </div>
-          <Link href="/ballroom" className="qs-btn qs-btn--primary qs-btn--sm">
-            Start product mission
-          </Link>
+          <button
+            type="button"
+            className="qs-btn qs-btn--primary qs-btn--sm gap-2"
+            disabled={missionBusy}
+            onClick={() => void handleStartProductMission()}
+          >
+            {missionBusy ? <Loader2Icon className="h-4 w-4 animate-spin" aria-hidden /> : null}
+            {missionBusy ? "Spúšťam misiu…" : "Start product mission"}
+          </button>
         </div>
       </section>
+      ) : null}
+
+      {showUgc ? <SkillMarketplaceUgcPanel isCurator={isAdmin} /> : null}
 
       <section className="rounded-2xl border border-pollen/30 bg-pollen/5 p-4 md:p-5">
         <V4CardHeader
@@ -351,7 +392,7 @@ export function SkillsMarketplacePanel({
         </div>
       </section>
 
-      {preview ? (
+      {preview && showFactory ? (
         <>
           <SkillProductPublishPanel bundle={preview} />
           <section className="v4-learning-panel space-y-3 p-4">
@@ -414,12 +455,15 @@ function RecipeSkillCard({
           </p>
         </div>
         <V4Badge tone={isStarterTier ? "ok" : lockedPremium ? "warn" : recipe.premium ? "ok" : "info"}>
-          {isStarterTier ? "starter €9" : lockedPremium ? "premium" : recipe.premium ? "unlocked" : "verified"}
+          {recipe.ugc ? "UGC" : isStarterTier ? "starter €9" : lockedPremium ? "premium" : recipe.premium ? "unlocked" : "verified"}
         </V4Badge>
       </div>
       {lockedPremium ? (
         <p className={cn("text-sm font-medium", isStarterTier ? "text-(--qs-green)" : "text-pollen")}>
           €{((recipe.price_eur_cents ?? 0) / 100).toFixed(2)} one-time unlock
+          {recipe.ugc && recipe.platform_cut_bps ? (
+            <span className="text-xs text-(--qs-text-3)"> · community skill</span>
+          ) : null}
           {isStarterTier ? " · najlacnejší vstup" : ""}
         </p>
       ) : null}

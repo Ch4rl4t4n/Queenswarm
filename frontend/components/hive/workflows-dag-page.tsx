@@ -7,10 +7,12 @@
  */
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { HivePageHeader } from "@/components/hive/hive-page-header";
 import { V4PageCanvas } from "@/components/ui/v4";
+import { COCKPIT_POLL_WORKFLOWS_MS } from "@/lib/cockpit-poll-profile";
+import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import { cn } from "@/lib/utils";
 
 interface WorkflowStep {
@@ -525,11 +527,7 @@ export default function WorkflowsDagPage(): JSX.Element {
     }
   }, []);
 
-  useEffect(() => {
-    void loadWorkflows();
-    const interval = setInterval(() => void loadWorkflows(), 8000);
-    return () => clearInterval(interval);
-  }, [loadWorkflows]);
+  useIntervalWhenVisible(() => void loadWorkflows(), COCKPIT_POLL_WORKFLOWS_MS);
 
   const filtered =
     filter === "all"

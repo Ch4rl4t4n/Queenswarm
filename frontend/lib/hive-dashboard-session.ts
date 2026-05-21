@@ -30,6 +30,19 @@ export interface DashboardOperatorMe {
   audit_log_enabled?: boolean;
   /** Computed server-side — secret persisted and verifier completed successfully. */
   totp_enabled?: boolean;
+  tenant_id?: string | null;
+  tenant_role?: string | null;
+  permissions?: string[];
+  platform_mode?: string;
+  subscription_tier?: string;
+  platform_features?: Record<string, boolean>;
+  tenant_branding?: {
+    brand_name: string;
+    logo_url?: string | null;
+    accent_hex: string;
+    hide_platform_branding?: boolean;
+    tagline?: string;
+  } | null;
 }
 
 export interface LlmProvidersStatus {

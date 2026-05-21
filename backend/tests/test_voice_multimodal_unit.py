@@ -74,6 +74,47 @@ async def test_grok_stt_uploads_file_like_object_not_raw_tuple(monkeypatch: pyte
 
 
 @pytest.mark.asyncio
+async def test_grok_tts_succeeds_without_output_codec_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Grok TTS must not crash when optional xAI output codec settings use defaults."""
+
+    monkeypatch.setattr(voice_multimodal.settings, "voice_enabled", True)
+    monkeypatch.setattr(voice_multimodal, "provider_effective_grok", lambda: "grok-test-key")
+    monkeypatch.setattr(voice_multimodal, "provider_effective_elevenlabs", lambda: None)
+    monkeypatch.setattr(voice_multimodal, "provider_effective_openai", lambda: None)
+
+    captured: dict[str, object] = {}
+
+    class _FakeResponse:
+        status_code = 200
+        content = b"fake-mp3-bytes"
+
+    class _FakeClient:
+        async def __aenter__(self) -> _FakeClient:
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+        async def post(self, url: str, **kwargs: object) -> _FakeResponse:
+            captured["url"] = url
+            captured["json"] = kwargs.get("json")
+            return _FakeResponse()
+
+    monkeypatch.setattr(voice_multimodal.httpx, "AsyncClient", lambda **kwargs: _FakeClient())
+
+    out = await voice_multimodal.synthesize_speech(
+        text="Hello",
+        preferred_provider="grok",
+    )
+
+    assert out.provider == "grok_tts"
+    assert captured["url"] == "https://api.x.ai/v1/tts"
+    payload = captured["json"]
+    assert isinstance(payload, dict)
+    assert "output_format" not in payload
+
+
+@pytest.mark.asyncio
 async def test_stt_raises_when_all_providers_fail(monkeypatch: pytest.MonkeyPatch) -> None:
     """When every provider errors, surface a consolidated VoiceServiceError."""
 

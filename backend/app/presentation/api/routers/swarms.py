@@ -12,7 +12,8 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from app.presentation.api.deps import DbSession, JwtSubject
+from app.presentation.api.deps import DashboardSession, DbSession, JwtSubject
+from app.application.services.billing import assert_swarm_hard_limit
 from app.core.config import settings
 from app.infrastructure.persistence.models.agent import Agent
 from app.infrastructure.persistence.models.hive_async_workflow_run import HiveAsyncWorkflowRun
@@ -23,6 +24,7 @@ from app.common.schemas.sub_swarm import (
     RunWorkflowOnSwarmQueuedResponse,
     RunWorkflowOnSwarmRequest,
     RunWorkflowOnSwarmResponse,
+    SubSwarmLocalMindDetail,
 )
 from app.common.http.rate_limit import rate_limited_http_exception
 from app.common.schemas.swarm_catalog import (
@@ -32,6 +34,7 @@ from app.common.schemas.swarm_catalog import (
 )
 from app.application.services.hive_async_workflow_run_ledger import enqueue_hive_async_workflow_run
 from app.application.services.hive_sync import mark_sub_swarm_globally_synced
+from app.application.services.sub_swarm_local_mind import build_local_mind_detail
 from app.application.services.agent_catalog import apply_agent_updates
 from app.application.services.sub_swarm.runner import run_sub_swarm_workflow_cycle
 from app.application.services.sub_swarm_catalog import (
@@ -114,12 +117,39 @@ async def list_sub_swarm_colonies(
     status_code=status.HTTP_201_CREATED,
     summary="Create a sub-swarm colony",
 )
+def _tenant_id_from_session(sess: dict[str, Any]) -> uuid.UUID | None:
+    """Parse tenant UUID from dashboard session claims."""
+
+    raw = sess.get("tenant_id")
+    if raw is None:
+        return None
+    try:
+        return uuid.UUID(str(raw))
+    except (TypeError, ValueError):
+        return None
+
+
 async def create_sub_swarm_colony(
     body: SubSwarmCreateRequest,
     db: DbSession,
-    _subject: JwtSubject,
+    sess: DashboardSession,
 ):
     """Stand up local hive memory prior to attaching worker bees."""
+
+    try:
+        await assert_swarm_hard_limit(db, tenant_id=_tenant_id_from_session(sess))
+    except ValueError as exc:
+        marker = str(exc)
+        if marker.startswith("billing_limit_exceeded:"):
+            raise rate_limited_http_exception(
+                {
+                    "code": "billing_limit_exceeded",
+                    "detail": marker.split(":", 1)[1],
+                    "upgrade_hint": "Upgrade to Pro for more swarms.",
+                },
+                window_sec=3600,
+            ) from exc
+        raise
 
     try:
         row = await create_sub_swarm(
@@ -211,6 +241,33 @@ async def get_sub_swarm_colony(
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sub-swarm not found.")
     return row
+
+
+@router.get(
+    "/{swarm_id}/local-mind",
+    response_model=SubSwarmLocalMindDetail,
+    summary="Local hive mind projection for one colony",
+)
+async def get_sub_swarm_local_mind(
+    swarm_id: uuid.UUID,
+    db: DbSession,
+    _subject: JwtSubject,
+) -> SubSwarmLocalMindDetail:
+    """Return curated local_memory highlights and global sync countdown."""
+
+    from app.infrastructure.persistence.models.swarm import SubSwarm
+
+    try:
+        row = await db.get(SubSwarm, swarm_id)
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected sub-swarm lookup.",
+        )
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sub-swarm not found.")
+    payload = build_local_mind_detail(row)
+    return SubSwarmLocalMindDetail.model_validate(payload)
 
 
 @router.patch(

@@ -2,12 +2,15 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ComponentProps } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { HexNumberBadge } from "@/components/hive/hex-metric-tile";
-import { V4Badge, V4CardHeader } from "@/components/ui/v4";
+import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
+import { COCKPIT_POLL_WORKFLOW_BOARD_MS } from "@/lib/cockpit-poll-profile";
+import { DASHBOARD_BOOT_STAGGER_MS } from "@/lib/dashboard-boot-stagger";
+import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import type {
   WorkflowDagStep,
   WorkflowFeatured,
@@ -244,11 +247,9 @@ export function WorkflowsSection() {
     }
   }, [focusId]);
 
-  useEffect(() => {
-    void load();
-    const id = window.setInterval(() => void load(), 50_000);
-    return () => window.clearInterval(id);
-  }, [load]);
+  useIntervalWhenVisible(() => void load(), COCKPIT_POLL_WORKFLOW_BOARD_MS, {
+    initialDelayMs: DASHBOARD_BOOT_STAGGER_MS.workflows,
+  });
 
   const setWorkflowFocus = (id: string) => {
     const next = new URLSearchParams(searchParams.toString());
@@ -294,24 +295,26 @@ export function WorkflowsSection() {
 
   if (err) {
     return (
-      <section id="hive-workflows" className="scroll-mt-24 p-6">
+      <V4Card id="hive-workflows" className="scroll-mt-24 v4-card-interactive">
         <p className="text-sm text-danger">Workflows: {err}</p>
-      </section>
+      </V4Card>
     );
   }
 
   if (!data) {
     return (
-      <section id="hive-workflows" className="scroll-mt-24 space-y-4 p-6">
-        <div className="h-10 w-48 animate-pulse rounded-lg bg-white/10" />
-        <div className="h-48 animate-pulse rounded-3xl bg-white/[0.04]" />
-        <div className="h-24 animate-pulse rounded-2xl bg-white/[0.04]" />
-      </section>
+      <V4Card id="hive-workflows" className="scroll-mt-24 v4-card-interactive">
+        <div className="space-y-4">
+          <div className="h-10 w-48 animate-pulse rounded-lg bg-white/10" />
+          <div className="h-48 animate-pulse rounded-3xl bg-white/[0.04]" />
+          <div className="h-24 animate-pulse rounded-2xl bg-white/[0.04]" />
+        </div>
+      </V4Card>
     );
   }
 
   return (
-    <section id="hive-workflows" className="scroll-mt-24 flex flex-col gap-6 p-6 pt-0">
+    <V4Card id="hive-workflows" className="scroll-mt-24 v4-card-interactive">
       <V4CardHeader
         title="Workflows"
         description="DAG executions · auto-decomposed from tasks"
@@ -326,14 +329,14 @@ export function WorkflowsSection() {
           onCancel={() => void onCancelFeatured()}
         />
       ) : (
-        <div className="v4-empty py-12 text-sm">No workflow records yet.</div>
+        <div className="v4-empty py-8 text-sm">No workflow records yet.</div>
       )}
 
-      <div>
+      <div className="mt-6">
         <h3 className="v4-label-kicker text-(--qs-text-3)">Recent</h3>
         <ul className="mt-4 flex flex-col gap-3">
           {listRows.length === 0 ? (
-            <li className="v4-empty py-10 text-sm">No items.</li>
+            <li className="v4-empty py-8 text-sm">No items.</li>
           ) : (
             listRows.map((row) => (
               <ListRow key={row.id} row={row} accent={laneBarClass(row.lane)} onOpen={setWorkflowFocus} />
@@ -341,6 +344,6 @@ export function WorkflowsSection() {
           )}
         </ul>
       </div>
-    </section>
+    </V4Card>
   );
 }

@@ -19,10 +19,21 @@ async function assertNoHorizontalOverflow(page: import("@playwright/test").Page)
 }
 
 async function gotoShellRoute(page: import("@playwright/test").Page, path: string): Promise<boolean> {
-  await page.goto(path, { waitUntil: "load", timeout: 60_000 });
-  const currentPath = new URL(page.url()).pathname.replace(/\/$/, "") || "/";
+  const targetPath = new URL(path, "http://localhost").pathname.replace(/\/$/, "") || "/";
+  await page.goto(path, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  let currentPath = new URL(page.url()).pathname.replace(/\/$/, "") || "/";
   if (currentPath === "/login") {
     return false;
+  }
+  if (currentPath !== targetPath) {
+    await page.waitForURL(`**${targetPath}**`, { timeout: 20_000 }).catch(() => undefined);
+    currentPath = new URL(page.url()).pathname.replace(/\/$/, "") || "/";
+    if (currentPath === "/login") {
+      return false;
+    }
+    if (currentPath !== targetPath) {
+      return false;
+    }
   }
   await expect(page.locator('[data-hive-shell="canvas"], main').first()).toBeVisible({ timeout: 45_000 });
   return true;
@@ -122,7 +133,7 @@ test.describe("Responsive shell — authenticated cockpit", () => {
 
     await expect(page.locator(".hive-sidebar-rail--desktop")).toBeVisible({ timeout: 15_000 });
     await expect(page.locator("#hive-search")).toHaveCount(0);
-    await expect(page.getByRole("heading", { name: /Queen Dashboard/i }).first()).toBeVisible({
+    await expect(page.getByRole("heading", { name: /^Dashboard$/i }).first()).toBeVisible({
       timeout: 15_000,
     });
     await assertNoHorizontalOverflow(page);
@@ -139,7 +150,8 @@ test.describe("Responsive shell — authenticated cockpit", () => {
 
     await expect(page.getByRole("heading", { name: "Usage & Billing" })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(/Stripe checkout/i).first()).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/Add Stripe keys in the panel above/i)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Stripe checkout" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/checkout off|— not set/i).first()).toBeVisible({ timeout: 15_000 });
   });
 
   test("tablet integrations skills tab shows stripe-not-configured state", async ({ page, context, baseURL }) => {
@@ -381,7 +393,7 @@ test.describe("Responsive shell — authenticated cockpit", () => {
       }
 
       await assertNoHorizontalOverflow(page);
-      await expect(page.getByRole("heading", { name: /queen dashboard/i })).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole("heading", { name: /^Dashboard$/i }).first()).toBeVisible({ timeout: 15_000 });
       await expect(page.locator("#hive-search")).toHaveCount(0);
     });
   }

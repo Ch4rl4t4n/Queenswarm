@@ -8,14 +8,33 @@
 
 name: queenswarm_prod
 
+# Production: never publish data-plane ports to the public host — only nginx 80/443.
 services:
   postgres:
     mem_limit: 5120m
     cpus: "2.0"
+    ports: !reset []
 
   redis:
     mem_limit: 1024m
     cpus: "0.75"
+    ports: !reset []
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env.prod — run scripts/ensure-redis-password.sh}
+    command:
+      - redis-server
+      - --save
+      - "60"
+      - "1"
+      - --loglevel
+      - warning
+      - --requirepass
+      - ${REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
 
   neo4j:
     environment:
@@ -23,16 +42,22 @@ services:
       NEO4J_server_memory_heap_max__size: 3G
     mem_limit: 4096m
     cpus: "1.5"
+    ports: !reset []
 
   backend:
     env_file:
       - ${QS_ENV_FILE_PROD:-.env.prod}
     environment:
+      DR_REPORTS_DIR: ${DR_REPORTS_DIR:-/app/reports/dr}
+      HA_REPORTS_DIR: ${HA_REPORTS_DIR:-/app/reports/ha}
       LLM_MAX_CONCURRENCY: ${LLM_MAX_CONCURRENCY:-8}
       SIMULATION_MAX_PARALLEL: ${SIMULATION_MAX_PARALLEL:-3}
       CELERY_WORKER_CONCURRENCY: ${CELERY_WORKER_CONCURRENCY:-3}
+    volumes:
+      - ./reports:/app/reports:ro
     mem_limit: 10240m
     cpus: "4.0"
+    ports: !reset []
 
   celery-worker:
     env_file:
@@ -58,6 +83,7 @@ services:
       GF_SERVER_ROOT_URL: ${GF_SERVER_ROOT_URL:-https://queenswarm.love/grafana/}
     mem_limit: 768m
     cpus: "0.75"
+    ports: !reset []
 
   frontend:
     build:
@@ -78,10 +104,12 @@ services:
       NODE_ENV: production
     mem_limit: 1536m
     cpus: "1.25"
+    ports: !reset []
 
   prometheus:
     mem_limit: 1024m
     cpus: "1.0"
+    ports: !reset []
 
   nginx:
     extra_hosts:

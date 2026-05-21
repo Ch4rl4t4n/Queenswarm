@@ -5,6 +5,7 @@ import useSWR from "swr";
 import { V4Card, V4CardHeader } from "@/components/ui/v4";
 import { hiveGet } from "@/lib/api";
 import { COCKPIT_POLL_SYSTEM_STATUS_MS } from "@/lib/cockpit-poll-profile";
+import { useSwrVisiblePollOptions } from "@/lib/hooks/use-swr-refresh-interval";
 
 export interface HiveSystemHealth {
   redis_ok: boolean;
@@ -29,10 +30,12 @@ export interface HiveSystemHealth {
 }
 
 export function SystemStatusPanel(): JSX.Element {
-  const { data, error } = useSWR<HiveSystemHealth>("phase-k/system-status", () => hiveGet<HiveSystemHealth>("system/status"), {
-    refreshInterval: COCKPIT_POLL_SYSTEM_STATUS_MS,
-    revalidateOnFocus: true,
-  });
+  const pollOptions = useSwrVisiblePollOptions(COCKPIT_POLL_SYSTEM_STATUS_MS);
+  const { data, error } = useSWR<HiveSystemHealth>(
+    "phase-k/system-status",
+    () => hiveGet<HiveSystemHealth>("system/status"),
+    pollOptions,
+  );
 
   if (error) {
     return (

@@ -1,6 +1,8 @@
 "use client";
 
 import { HiveApiError, hiveFetchRaw, hiveGet, hivePostJson } from "@/lib/api";
+import { COCKPIT_POLL_TASK_DRAWER_MS } from "@/lib/cockpit-poll-profile";
+import { useDocumentVisible } from "@/lib/hooks/use-document-visible";
 import type { TaskRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 import { useCallback, useEffect, useState } from "react";
@@ -69,32 +71,46 @@ function LiveStatusPoller({
 }): JSX.Element {
   const [dots, setDots] = useState(".");
   const [elapsed, setElapsed] = useState(0);
+  const visible = useDocumentVisible();
 
   useEffect(() => {
     const dotInterval = window.setInterval(() => setDots((d) => (d.length >= 3 ? "." : `${d}.`)), 500);
     const eta = window.setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => {
+      window.clearInterval(dotInterval);
+      window.clearInterval(eta);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!visible) {
+      return undefined;
+    }
+
+    let cancelled = false;
     const poll = window.setInterval(() => {
       void (async (): Promise<void> => {
         try {
           const data = await hiveGet<TaskDrawerDetail>(`tasks/${encodeURIComponent(taskId)}`);
+          if (cancelled) {
+            return;
+          }
           onRefresh(data);
           const st = (data.status ?? "").toLowerCase();
           if (st === "completed" || st === "failed") {
             window.clearInterval(poll);
-            window.clearInterval(dotInterval);
-            window.clearInterval(eta);
           }
         } catch {
           /* ignore transient poll failures */
         }
       })();
-    }, 3000);
+    }, COCKPIT_POLL_TASK_DRAWER_MS);
+
     return () => {
+      cancelled = true;
       window.clearInterval(poll);
-      window.clearInterval(dotInterval);
-      window.clearInterval(eta);
     };
-  }, [taskId, onRefresh]);
+  }, [taskId, onRefresh, visible]);
 
   return (
     <div className="flex flex-col items-center justify-center gap-4 py-16">

@@ -17,7 +17,7 @@ export function ResponsiveTable({ table, cards, className }: ResponsiveTableProp
   return (
     <>
       <div className={cn("hidden hive-scrollbar overflow-x-auto md:block", className)}>{table}</div>
-      <div className={cn("flex flex-col gap-3 md:hidden", className)}>{cards}</div>
+      <div className={cn("flex flex-col gap-3 pt-3 md:hidden md:pt-0", className)}>{cards}</div>
     </>
   );
 }

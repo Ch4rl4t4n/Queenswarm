@@ -213,7 +213,7 @@ export function HiveMindExplorer({ showHeader = true, variant = "default", filte
     return (
       <>
         <div className="flex flex-col gap-5">
-          <div className="flex flex-wrap gap-2">
+          <div className="v4-hivemind-toolbar flex flex-wrap justify-start gap-2">
             <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-2" disabled={loading} onClick={() => void loadGraph()}>
               <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} aria-hidden />
               Refresh graph
@@ -225,18 +225,25 @@ export function HiveMindExplorer({ showHeader = true, variant = "default", filte
           </div>
 
           <form onSubmit={(e) => void submitSearch(e)} className="v4-hivemind-search-row">
-            <input
-              id="hm-search"
-              value={searchQ}
-              onChange={(e) => setSearchQ(e.target.value)}
-              placeholder="Global semantic probe — hive_mind chroma lane…"
-              className="qs-input h-11 min-w-0 flex-1 rounded-(--qs-radius-sm)"
-            />
-            <button type="submit" className="qs-btn qs-btn--ghost qs-btn--sm gap-2" disabled={busy}>
-              <Search className="h-3.5 w-3.5" aria-hidden />
-              Search
-            </button>
-            <button type="button" className="qs-btn qs-btn--primary qs-btn--sm gap-2" disabled={busy} onClick={() => void runRecallSimulation()}>
+            <div className="v4-hivemind-search-row__probe">
+              <input
+                id="hm-search"
+                value={searchQ}
+                onChange={(e) => setSearchQ(e.target.value)}
+                placeholder="Global semantic probe — hive_mind chroma lane…"
+                className="qs-input h-11 min-w-0 flex-1 rounded-(--qs-radius-sm)"
+              />
+              <button type="submit" className="qs-btn qs-btn--ghost qs-btn--sm shrink-0 gap-2" disabled={busy}>
+                <Search className="h-3.5 w-3.5" aria-hidden />
+                Search
+              </button>
+            </div>
+            <button
+              type="button"
+              className="v4-hivemind-search-row__recall qs-btn qs-btn--primary qs-btn--sm w-full gap-2"
+              disabled={busy}
+              onClick={() => void runRecallSimulation()}
+            >
               <Sparkles className="h-3.5 w-3.5" aria-hidden />
               Recall preview
             </button>

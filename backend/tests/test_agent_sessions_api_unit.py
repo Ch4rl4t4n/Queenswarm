@@ -127,6 +127,14 @@ async def test_agent_sessions_create_when_enabled_returns_201(
     monkeypatch.setattr(agent_sessions_router, "create_supervisor_session", _fake_create)
     monkeypatch.setattr(agent_sessions_router, "get_supervisor_session", _fake_get)
 
+    audit_calls: list[dict[str, object]] = []
+
+    async def _fake_audit(*args, **kwargs):  # noqa: ANN002, ANN003
+        del args
+        audit_calls.append(kwargs)
+
+    monkeypatch.setattr(agent_sessions_router, "write_supervisor_session_audit_log", _fake_audit)
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         res = await client.post(
@@ -139,6 +147,9 @@ async def test_agent_sessions_create_when_enabled_returns_201(
     assert body["goal"] == "Investigate onboarding drop-off"
     assert body["sub_agents"][0]["role"] == "researcher"
     assert str(captured.get("tenant_id")) == tenant_id
+    assert len(audit_calls) == 1
+    assert audit_calls[0]["action"] == "supervisor_session_create"
+    assert audit_calls[0]["session_id"] == fake_row.id
 
 
 @pytest.mark.asyncio
@@ -194,7 +205,14 @@ async def test_agent_sessions_list_resolves_static_route_before_agent_id(
     assert res.status_code == 200
     payload = res.json()
     assert isinstance(payload, list)
-    assert payload and payload[0]["id"] == str(fake_row.id)
+    assert payload and payload[0]["id"] == str(fake_row.id    )
+
+
+def _dash_session(tenant_id: uuid.UUID | None = None) -> dict[str, str]:
+    """Dashboard JWT session stub with tenant context for supervisor routes."""
+
+    tid = tenant_id or uuid.uuid4()
+    return {"sub": "dash:test", "tenant_id": str(tid)}
 
 
 @pytest.mark.asyncio
@@ -210,7 +228,10 @@ async def test_agent_sessions_review_when_enabled_returns_200(
         async def _commit() -> None:
             return None
 
-        yield SimpleNamespace(commit=_commit)
+        async def _get(_model: object, _key: object) -> None:
+            return None
+
+        yield SimpleNamespace(commit=_commit, get=_get)
 
     async def _fake_get(*args, **kwargs):  # noqa: ANN002, ANN003
         del args, kwargs
@@ -221,10 +242,16 @@ async def test_agent_sessions_review_when_enabled_returns_200(
         return fake_row
 
     app.dependency_overrides[get_db] = mock_db
-    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:test"}
+    app.dependency_overrides[require_dashboard_session] = lambda: _dash_session()
     monkeypatch.setattr(settings, "light_control_plane_enabled", True)
     monkeypatch.setattr(agent_sessions_router, "get_supervisor_session", _fake_get)
     monkeypatch.setattr(agent_sessions_router, "apply_session_review", _fake_review)
+
+    async def _fake_audit(*args, **kwargs):  # noqa: ANN002, ANN003
+        del args, kwargs
+        return None
+
+    monkeypatch.setattr(agent_sessions_router, "write_supervisor_session_audit_log", _fake_audit)
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -423,4 +450,40 @@ async def test_agent_sessions_summary_returns_aggregate_shape(
     body = res.json()
     assert body["sessions_total"] == 3
     assert body["due_routines"] == 1
+
+
+@pytest.mark.asyncio
+async def test_session_playbook_preview_when_session_ready_then_returns_metadata(
+    restore_app_overrides: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Playbook preview exposes suggested catalog name and step count."""
+
+    session = _mk_session()
+    session.sub_agents = [_mk_sub("researcher"), _mk_sub("critic")]
+    session.sub_agents[1].spawn_order = 1
+
+    async def mock_db() -> AsyncIterator[SimpleNamespace]:
+        yield SimpleNamespace()
+
+    async def _fake_get_session(*args, **kwargs):  # noqa: ANN002, ANN003
+        del args, kwargs
+        return session
+
+    app.dependency_overrides[get_db] = mock_db
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:test"}
+    monkeypatch.setattr(settings, "recipes_enabled", True)
+    monkeypatch.setattr(agent_sessions_router, "get_supervisor_session", _fake_get_session)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.get(
+            f"/api/v1/agents/sessions/{session.id}/playbook/preview",
+            headers={"Authorization": "Bearer x"},
+        )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["step_count"] == 3
+    assert body["sub_agent_count"] == 2
+    assert body["suggested_name"].startswith("playbook_")
 

@@ -1,11 +1,11 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { QS_ACCESS } from "@/lib/auth-cookies";
+import { QS_ACCESS, QS_REFRESH } from "@/lib/auth-cookies";
 
 /** Paths that bypass auth gates; gated routes rely on HttpOnly ``qs_dashboard_at`` cookie (see ``attachDashboardTokenCookies``). */
 
-const PUBLIC_PREFIXES = ["/login", "/verify-2fa", "/terms", "/privacy", "/health", "/offline"];
+const PUBLIC_PREFIXES = ["/login", "/verify-2fa", "/terms", "/privacy", "/health", "/offline", "/magnet"];
 
 /** PWA shell assets — no auth redirect (mobile/tablet install + offline fallback). */
 const PUBLIC_EXACT = new Set([
@@ -54,6 +54,11 @@ function isLikelyValidDashboardJwt(raw: string): boolean {
   }
 }
 
+function hasRefreshSession(request: NextRequest): boolean {
+  const refresh = request.cookies.get(QS_REFRESH)?.value?.trim() ?? "";
+  return refresh.length >= 16;
+}
+
 function buildNextTarget(url: URL): string {
   const pathname = url.pathname || "/";
   const query = url.search || "";
@@ -68,8 +73,13 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   /** HttpOnly dashboard cookie preferred; legacy ``qs_token`` mirrors Bearer for some clients. */
   const access = request.cookies.get(QS_ACCESS)?.value ?? request.cookies.get("qs_token")?.value;
+  const refreshSession = hasRefreshSession(request);
 
   if (access && (pathname.startsWith("/login") || pathname.startsWith("/verify-2fa"))) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
+  if (!access && refreshSession && (pathname.startsWith("/login") || pathname.startsWith("/verify-2fa"))) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
@@ -87,17 +97,23 @@ export function middleware(request: NextRequest) {
   }
 
   if (access && !isLikelyValidDashboardJwt(access)) {
+    if (refreshSession) {
+      return NextResponse.next();
+    }
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", buildNextTarget(request.nextUrl));
     const response = NextResponse.redirect(url);
     response.cookies.delete(QS_ACCESS);
     response.cookies.delete("qs_token");
-    response.cookies.delete("qs_dashboard_rt");
+    response.cookies.delete(QS_REFRESH);
     return response;
   }
 
   if (!access) {
+    if (refreshSession) {
+      return NextResponse.next();
+    }
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", buildNextTarget(request.nextUrl));

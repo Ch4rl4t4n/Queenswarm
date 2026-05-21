@@ -1,4 +1,11 @@
-import { JobsPollConsole } from "@/components/hive/jobs-poll-console";
+import nextDynamic from "next/dynamic";
+
+import { SettingsPanelSkeleton } from "@/components/hive/settings-panel-skeleton";
+
+const JobsPollConsole = nextDynamic(
+  () => import("@/components/hive/jobs-poll-console").then((mod) => ({ default: mod.JobsPollConsole })),
+  { loading: () => <SettingsPanelSkeleton /> },
+);
 
 export const dynamic = "force-dynamic";
 

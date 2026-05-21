@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { seedDashboardSessionCookie } from "./fixtures/dashboard-session";
+import { installShellApiMocks } from "./fixtures/shell-api-mocks";
 
 const phase120Enabled = process.env.E2E_PHASE120_ECOSYSTEM === "1";
 
@@ -11,6 +12,7 @@ test.describe("Phase 12 ecosystem integration polish", () => {
 
   test.beforeEach(async ({ context, baseURL, page }) => {
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
+    await installShellApiMocks(page);
 
     let installed = false;
     await page.route("**/api/proxy/tools/marketplace/catalog", async (route) => {
@@ -93,19 +95,26 @@ test.describe("Phase 12 ecosystem integration polish", () => {
     await expect(page.getByText("Installed. Run “Test connection” in Dynamic Hub to activate.")).toBeVisible();
   });
 
-  test("agents and ballroom expose cross-linked ecosystem controls", async ({ page }) => {
+  test("consolidated hubs expose cross-linked ecosystem controls", async ({ page }) => {
+    await page.goto("/", { waitUntil: "load", timeout: 90_000 });
+    await expect(page.getByRole("navigation", { name: "Ecosystem shortcuts" })).toBeVisible({ timeout: 45_000 });
+
     await page.goto("/agents", { waitUntil: "load", timeout: 90_000 });
-    if (await page.getByRole("link", { name: "Tool Hub" }).isVisible().catch(() => false)) {
-      await expect(page.getByText("Supervisor voice command")).toBeVisible();
-    } else {
-      await expect(page.getByText("Could not sync agents ledger.")).toBeVisible({ timeout: 45_000 });
-    }
+    await expect(page.getByRole("navigation", { name: "Ecosystem shortcuts" })).toBeVisible({ timeout: 45_000 });
+    await expect(
+      page
+        .getByRole("link", { name: "Tool Hub" })
+        .or(page.getByText("Dynamic supervisor sessions"))
+        .first(),
+    ).toBeVisible({ timeout: 45_000 });
+
+    await page.goto("/tasks", { waitUntil: "load", timeout: 90_000 });
+    await expect(page.getByRole("navigation", { name: "Ecosystem shortcuts" })).toBeVisible({ timeout: 45_000 });
 
     await page.goto("/ballroom", { waitUntil: "load", timeout: 90_000 });
-    if (await page.getByRole("link", { name: "Ecosystem hub" }).isVisible().catch(() => false)) {
-      await expect(page.getByText("Voice chat mode")).toBeVisible();
-    } else {
-      await expect(page.getByText(/nectar key/i)).toBeVisible({ timeout: 45_000 });
-    }
+    await expect(page.getByRole("navigation", { name: "Ecosystem shortcuts" })).toBeVisible({ timeout: 45_000 });
+    await expect(
+      page.getByRole("link", { name: "Ecosystem hub" }).or(page.getByRole("link", { name: "Integrations" })).first(),
+    ).toBeVisible({ timeout: 45_000 });
   });
 });

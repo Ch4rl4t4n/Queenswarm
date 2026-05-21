@@ -1,12 +1,13 @@
 "use client";
 
 import { CheckIcon, Loader2Icon, ShieldAlertIcon, XIcon } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { COCKPIT_POLL_COLONY_TELEMETRY_MS } from "@/lib/cockpit-poll-profile";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
+import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import type { PendingReviewItemRow, PendingReviewStats } from "@/lib/hive-types";
 
 function fmtConfidence(fraction: number | null): string {
@@ -42,11 +43,7 @@ export function PendingReviewPanel(): JSX.Element {
     }
   }, []);
 
-  useEffect(() => {
-    void load();
-    const id = window.setInterval(() => void load(), COCKPIT_POLL_COLONY_TELEMETRY_MS);
-    return () => window.clearInterval(id);
-  }, [load]);
+  useIntervalWhenVisible(() => void load(), COCKPIT_POLL_COLONY_TELEMETRY_MS);
 
   const resolve = async (itemId: string, action: "approve" | "reject") => {
     setBusyId(itemId);

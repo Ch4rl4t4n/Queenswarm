@@ -17,10 +17,54 @@ const STUB_SUMMARY = {
 };
 
 const STUB_TASK_QUEUE = {
-  items: [],
+  generated_at: new Date().toISOString(),
+  tasks: [],
   pending_count: 0,
   running_count: 0,
   completed_today_count: 0,
+};
+
+const STUB_COCKPIT_BUNDLE = {
+  generated_at: new Date().toISOString(),
+  revision: 1,
+  agents: [STUB_AGENT],
+  recent_tasks: [],
+  summary: STUB_SUMMARY,
+  system_status: {
+    agents_total: 1,
+    agents_running: 0,
+    tasks_running: 0,
+    tasks_pending: 0,
+    llm_grok: true,
+    llm_anthropic: false,
+  },
+};
+
+const STUB_RAPID_LOOP = {
+  generated_at: new Date().toISOString(),
+  window_hours: 24,
+  sla_target_sec: 60,
+  sla_met_pct: 100,
+  avg_cycle_sec: 12,
+  last_cycle_sec: 8,
+  last_cycle_at: new Date().toISOString(),
+  loop_healthy: true,
+  stages: [
+    { id: "scrape", label: "Scrape", count_24h: 0, last_at: null, status: "idle" },
+    { id: "reflect", label: "Reflect", count_24h: 0, last_at: null, status: "idle" },
+    { id: "simulate", label: "Simulate", count_24h: 0, last_at: null, status: "idle" },
+    { id: "reward", label: "Reward", count_24h: 0, last_at: null, status: "idle" },
+  ],
+};
+
+const STUB_TIME_SAVED = {
+  generated_at: new Date().toISOString(),
+  window_days: 30,
+  verified_task_count: 0,
+  hours_saved_total: 0,
+  hours_saved_projected_monthly: 0,
+  breakdown: [],
+  disclaimer: "Stub ROI estimates for shell E2E.",
 };
 
 const STUB_COST_SUMMARY = {
@@ -47,6 +91,11 @@ const STUB_OPERATOR_ME = {
   twofa_enabled: false,
   twofa_pending: false,
   backup_codes_remaining: 0,
+  is_admin: true,
+  platform_mode: "internal",
+  subscription_tier: "pro",
+  platform_features: {},
+  scopes: ["dash:admin", "dash:operator", "dash:read"],
 };
 
 export const STUB_AGENT_ID = STUB_AGENT.id;
@@ -127,6 +176,35 @@ const STUB_SKILL_UNLOCKS = {
   premium_price_eur_cents_default: 1900,
 };
 
+const STUB_SWARM_BOARD = {
+  sub_swarms: [],
+  waggle_feed: [],
+  generated_at: new Date().toISOString(),
+};
+
+const STUB_HIVE_GRAPH = {
+  nodes: [],
+  edges: [],
+  generated_at: new Date().toISOString(),
+};
+
+const STUB_PAPER_TRADING = {
+  enabled: false,
+  positions: [],
+  summary: { pnl_usd: 0, trades_total: 0 },
+};
+
+const STUB_AUTONOMY_SUMMARY = {
+  tenant_id: "00000000-0000-4000-8000-000000000001",
+  autonomy_mode: "supervised",
+  active_long_horizon_routines: 0,
+  pending_memory_approvals: 0,
+  pending_initiative_approvals: 0,
+  average_strategy_score: 0.62,
+  reflection_entries: 0,
+  status: "idle",
+};
+
 const STUB_PREVIEW_DECOMPOSITION = {
   steps: [
     {
@@ -180,12 +258,44 @@ export async function installShellApiMocks(page: Page): Promise<void> {
     const url = route.request().url();
     const path = new URL(url).pathname.replace(/^\/api\/proxy\/?/, "");
 
+    if (path.startsWith("dashboard/cockpit")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_COCKPIT_BUNDLE),
+      });
+      return;
+    }
+
+    if (path.startsWith("dashboard/rapid-loop")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_RAPID_LOOP),
+      });
+      return;
+    }
+
+    if (path.startsWith("dashboard/time-saved")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_TIME_SAVED),
+      });
+      return;
+    }
+
     if (path.startsWith("dashboard/task-queue")) {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_TASK_QUEUE),
       });
+      return;
+    }
+
+    if (path.startsWith("learning/bee-badges")) {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
       return;
     }
 
@@ -437,6 +547,135 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("dashboard/swarm-board")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_SWARM_BOARD),
+      });
+      return;
+    }
+
+    if (path.startsWith("hive-mind/search")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ query: "", results: [], generated_at: new Date().toISOString() }),
+      });
+      return;
+    }
+
+    if (path.startsWith("hive-mind/graph")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_HIVE_GRAPH),
+      });
+      return;
+    }
+
+    if (path.startsWith("hive-mind/memory-evolution/proposals")) {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
+      return;
+    }
+
+    if (path.startsWith("agents/suggestions")) {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
+      return;
+    }
+
+    if (path.startsWith("agents/browser-sessions")) {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
+      return;
+    }
+
+    if (path.startsWith("agents/sessions/autonomy/summary")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_AUTONOMY_SUMMARY),
+      });
+      return;
+    }
+
+    if (path.startsWith("agents/sessions/summary")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          sessions_total: 0,
+          status_counts: {},
+          running_sessions: 0,
+          needs_input_sessions: 0,
+          completed_sessions: 0,
+          routines_total: 0,
+          active_routines: 0,
+          due_routines: 0,
+        }),
+      });
+      return;
+    }
+
+    if (path === "agents/sessions" || path.startsWith("agents/sessions?")) {
+      if (route.request().method() !== "GET") {
+        await route.fallback();
+        return;
+      }
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
+      return;
+    }
+
+    if (path.startsWith("agents/sessions/")) {
+      if (route.request().method() !== "GET") {
+        await route.fallback();
+        return;
+      }
+      if (
+        path.includes("/events") ||
+        path.includes("/audit-logs") ||
+        path.includes("/context-history")
+      ) {
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
+        return;
+      }
+      if (path.includes("/shared-context")) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            enabled: false,
+            matched_sections: [],
+            sections: {},
+            retrieval_contract: "",
+            context_summary: {},
+            pruned_items: 0,
+            prompt_block: null,
+          }),
+        });
+        return;
+      }
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({}) });
+      return;
+    }
+
+    if (path.startsWith("agents/routines")) {
+      if (route.request().method() !== "GET") {
+        await route.fallback();
+        return;
+      }
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
+      return;
+    }
+
+    if (path.startsWith("paper-trading/summary")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_PAPER_TRADING),
+      });
+      return;
+    }
+
     if (path.startsWith("dashboard/summary")) {
       await route.fulfill({
         status: 200,
@@ -475,16 +714,6 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         contentType: "application/json",
         body: JSON.stringify({ items: [] }),
       });
-      return;
-    }
-
-    if (path.startsWith("agents/sessions")) {
-      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
-      return;
-    }
-
-    if (path.startsWith("agents/routines")) {
-      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
       return;
     }
 

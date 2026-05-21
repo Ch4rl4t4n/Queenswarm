@@ -738,6 +738,53 @@ def agent_stale_sweep_task() -> dict[str, int]:
     return asyncio.run(_run())
 
 
+@celery_app.task(name="hive.supervisor_audit_digest_tick", queue="hive")
+def run_supervisor_audit_digest_tick_task() -> dict[str, object]:
+    """Email supervisor session operator audit digests to tenant owners/admins."""
+
+    async def _run() -> dict[str, object]:
+        from app.application.services.supervisor.session_audit_digest import run_supervisor_audit_digest_tick
+
+        async with async_session() as session:
+            payload = await run_supervisor_audit_digest_tick(session)
+            await session.commit()
+            return payload
+
+    return asyncio.run(_run())
+
+
+@celery_app.task(name="hive.tenant_audit_retention_tick", queue="hive")
+def run_tenant_audit_retention_tick_task() -> dict[str, object]:
+    """Purge tenant audit rows older than configured retention."""
+
+    async def _run() -> dict[str, object]:
+        from app.application.services.supervisor.session_audit_digest import purge_expired_tenant_audit_logs
+
+        async with async_session() as session:
+            payload = await purge_expired_tenant_audit_logs(session)
+            await session.commit()
+            return payload
+
+    return asyncio.run(_run())
+
+
+@celery_app.task(name="hive.supervisor_audit_rollup_email_tick", queue="hive")
+def run_supervisor_audit_rollup_email_tick_task() -> dict[str, object]:
+    """Email weekly cross-tenant supervisor audit rollup to platform operators."""
+
+    async def _run() -> dict[str, object]:
+        from app.application.services.supervisor.session_audit_digest_rollup import (
+            run_supervisor_audit_rollup_email_tick,
+        )
+
+        async with async_session() as session:
+            payload = await run_supervisor_audit_rollup_email_tick(session)
+            await session.commit()
+            return payload
+
+    return asyncio.run(_run())
+
+
 __all__ = [
     "dynamic_agent_schedule_tick_task",
     "echo_hive_pulse",
@@ -748,5 +795,8 @@ __all__ = [
     "paper_trading_tick_task",
     "run_supervisor_sub_agent_step_task",
     "run_supervisor_routines_tick_task",
+    "run_supervisor_audit_digest_tick_task",
+    "run_supervisor_audit_rollup_email_tick_task",
+    "run_tenant_audit_retention_tick_task",
     "run_sub_swarm_workflow_cycle_task",
 ]

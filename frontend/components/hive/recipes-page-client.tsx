@@ -6,9 +6,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { HivePageHeader } from "@/components/hive/hive-page-header";
+import {
+  RecipeCosineThresholdBanner,
+  RecipeSemanticHitCard,
+} from "@/components/hive/recipe-cosine-match-panel";
 import { V4Badge, V4Card, V4CardHeader, V4Chip, V4PageCanvas } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
-import type { RecipeRow, RecipeSemanticHit, SkillExportResponse } from "@/lib/hive-types";
+import type { RecipeMatchConfigPayload, RecipeRow, RecipeSemanticHit, SkillExportResponse } from "@/lib/hive-types";
+import { DEFAULT_RECIPE_MATCH_CONFIG } from "@/lib/recipe-match-utils";
 import { downloadSkillExportBundle } from "@/lib/skill-export-utils";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +29,7 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
   const [needle, setNeedle] = useState("");
   const [debounced, setDebounced] = useState("");
   const [semanticHits, setSemanticHits] = useState<RecipeSemanticHit[]>([]);
+  const [matchConfig, setMatchConfig] = useState<RecipeMatchConfigPayload>(DEFAULT_RECIPE_MATCH_CONFIG);
   const [searchBusy, setSearchBusy] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [exportBusyId, setExportBusyId] = useState<string | null>(null);
@@ -62,6 +68,20 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void hiveGet<RecipeMatchConfigPayload>("recipes/match-config")
+      .then((cfg) => {
+        if (!cancelled) setMatchConfig(cfg);
+      })
+      .catch(() => {
+        /* keep DEFAULT_RECIPE_MATCH_CONFIG */
       });
     return () => {
       cancelled = true;
@@ -197,18 +217,13 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
         />
 
         {showingSemantic ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {semanticHits.map((hit) => (
-              <article key={hit.chroma_document_id} className="v4-dream-cycle-card flex flex-col gap-3">
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-lg font-semibold text-(--qs-text)">
-                    {hit.postgres_row?.name ?? "Embedding (unlink)"}
-                  </h3>
-                  <V4Badge tone="gold">{(hit.similarity * 100).toFixed(1)}%</V4Badge>
-                </div>
-                <p className="line-clamp-4 text-xs text-(--qs-text-3)">{hit.document_preview || "—"}</p>
-              </article>
-            ))}
+          <div className="flex flex-col gap-4">
+            <RecipeCosineThresholdBanner config={matchConfig} hitCount={semanticHits.length} />
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {semanticHits.map((hit) => (
+                <RecipeSemanticHitCard key={hit.chroma_document_id} hit={hit} config={matchConfig} />
+              ))}
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">

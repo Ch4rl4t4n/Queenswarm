@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 /** Global quick-open Ballroom action — visible on mobile, tablet, and desktop. */
-export function BallroomFab(): JSX.Element | null {
+export function BallroomFab({ hidden = false }: { hidden?: boolean } = {}): JSX.Element | null {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
 
@@ -15,7 +15,7 @@ export function BallroomFab(): JSX.Element | null {
     setMounted(true);
   }, []);
 
-  if (!mounted || pathname.startsWith("/ballroom")) {
+  if (!mounted || hidden || pathname.startsWith("/ballroom")) {
     return null;
   }
 

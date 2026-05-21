@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import json
+import uuid
 from typing import Any, Literal
 
 import litellm
 from litellm import AuthenticationError, acompletion
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.cost_governor import BudgetExceededError, CostGovernor
@@ -161,6 +163,22 @@ def model_slug_has_configured_credentials(model_name: str) -> bool:
     return bool(str(key).strip())
 
 
+def _coerce_optional_uuid_fk(value: object | None) -> uuid.UUID | None:
+    """Map telemetry ids to FK-safe UUIDs — slug labels (``orch_mt_pick-…``) become ``None``."""
+
+    if value is None:
+        return None
+    if isinstance(value, uuid.UUID):
+        return value
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return uuid.UUID(text)
+    except ValueError:
+        return None
+
+
 async def record_llm_cost(
     session: AsyncSession,
     *,
@@ -192,14 +210,24 @@ async def record_llm_cost(
         if cost_value == 0.0 and prompt_tokens == 0 and completion_tokens == 0:
             return
         entry = CostRecord(
-            agent_id=agent_id,
-            task_id=task_id,
+            agent_id=_coerce_optional_uuid_fk(agent_id),
+            task_id=_coerce_optional_uuid_fk(task_id),
             llm_model=model_name,
             tokens_in=prompt_tokens,
             tokens_out=completion_tokens,
             cost_usd=max(cost_value, 0.0),
         )
         session.add(entry)
+        try:
+            await session.flush(objects=[entry])
+        except IntegrityError as exc:
+            await session.expunge(entry)
+            logger.warning(
+                "llm_router.cost.fk_skip",
+                model=model_name,
+                error_type=type(exc).__name__,
+                error=str(exc),
+            )
     except Exception as exc:  # noqa: BLE001 — ledger is best-effort
         logger.warning(
             "llm_router.cost.unavailable",

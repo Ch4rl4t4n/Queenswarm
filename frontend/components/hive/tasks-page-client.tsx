@@ -2,7 +2,6 @@
 
 import dynamic from "next/dynamic";
 import {
-  ArrowRight,
   Eye,
   GitBranch,
   Plus,
@@ -11,10 +10,11 @@ import {
   Zap,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { HivePageHeader } from "@/components/hive/hive-page-header";
+import { HubEcosystemStrip } from "@/components/hive/hub-ecosystem-strip";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
 import {
   V4Badge,
@@ -27,13 +27,14 @@ import {
   type V4BadgeTone,
 } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
+import { useCenterActiveInScrollRow } from "@/lib/hooks/use-center-active-in-scroll-row";
 import { COCKPIT_POLL_BOARD_MS } from "@/lib/cockpit-poll-profile";
+import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import { SIMULATIONS_ENABLED } from "@/lib/feature-flags";
 import type { DashboardSummaryPayload, TaskQueueItem, TaskQueueResponse } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
 type FilterTab = "all" | "running" | "pending" | "done";
-type Density = "cozy" | "compact";
 
 const TaskResultDrawer = dynamic(
   () => import("@/components/hive/task-result-drawer").then((mod) => mod.TaskResultDrawer),
@@ -147,7 +148,7 @@ export function TasksPageClient({ initialQuery = "" }: { initialQuery?: string }
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState<FilterTab>("all");
-  const [density, setDensity] = useState<Density>("cozy");
+  const filterScrollRef = useCenterActiveInScrollRow(filter);
   const [query, setQuery] = useState(initialQuery);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
@@ -166,34 +167,7 @@ export function TasksPageClient({ initialQuery = "" }: { initialQuery?: string }
     }
   }, []);
 
-  useEffect(() => {
-    let alive = true;
-    void (async () => {
-      try {
-        const [queuePayload, summaryPayload] = await Promise.all([
-          hiveGet<TaskQueueResponse>("dashboard/task-queue?limit=100"),
-          hiveGet<DashboardSummaryPayload>("dashboard/summary"),
-        ]);
-        if (!alive) return;
-        setQueue(queuePayload);
-        setSummary(summaryPayload);
-        setErr(null);
-      } catch (e) {
-        if (!alive) return;
-        const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Task queue unreachable";
-        setErr(msg);
-      }
-    })();
-    const id = window.setInterval(() => {
-      if (document.visibilityState === "visible") {
-        void reload();
-      }
-    }, COCKPIT_POLL_BOARD_MS);
-    return () => {
-      alive = false;
-      window.clearInterval(id);
-    };
-  }, [reload]);
+  useIntervalWhenVisible(() => void reload(), COCKPIT_POLL_BOARD_MS);
 
   async function syncNow() {
     setBusy(true);
@@ -246,7 +220,7 @@ export function TasksPageClient({ initialQuery = "" }: { initialQuery?: string }
   const bottomLanes = LANE_CARDS.slice(3);
 
   return (
-    <V4PageCanvas>
+    <V4PageCanvas className="gap-6">
       <HivePageHeader
         title="Tasks"
         subtitle={
@@ -258,44 +232,29 @@ export function TasksPageClient({ initialQuery = "" }: { initialQuery?: string }
             <span>{queue?.completed_today_count ?? 0} completed today</span>
           </>
         }
-        actions={
-          <>
-            <button
-              type="button"
-              className="qs-btn qs-btn--ghost qs-btn--sm gap-2"
-              disabled={busy}
-              onClick={() => void syncNow()}
-            >
-              <RefreshCw className={cn("h-4 w-4", busy && "animate-spin")} aria-hidden />
-              Sync
-            </button>
-            <Link href="/tasks/new" className="qs-btn qs-btn--primary qs-btn--sm gap-2">
-              <Plus className="h-4 w-4" aria-hidden />
-              New task
-            </Link>
-          </>
+        status={
+          <button
+            type="button"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-(--qs-border) bg-black/55 text-zinc-300 hover:border-(--qs-border-2) hover:text-pollen disabled:opacity-50"
+            aria-label="Sync task queue"
+            disabled={busy}
+            onClick={() => void syncNow()}
+          >
+            <RefreshCw className={cn("h-4 w-4", busy && "animate-spin")} aria-hidden />
+          </button>
         }
       />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <V4SearchInput
-          className="min-w-0 flex-1"
-          value={query}
-          onChange={setQuery}
-          placeholder="Filter tasks by name, swarm, status…"
-          aria-label="Filter tasks"
-        />
-        <div className="flex gap-2">
-          <V4Chip active={density === "cozy"} onClick={() => setDensity("cozy")}>
-            Cozy
-          </V4Chip>
-          <V4Chip active={density === "compact"} onClick={() => setDensity("compact")}>
-            Compact
-          </V4Chip>
-        </div>
-      </div>
+      <HubEcosystemStrip preset="tasks" />
 
-      <div className="v4-cols-3">
+      <V4SearchInput
+        value={query}
+        onChange={setQuery}
+        placeholder="Filter tasks by name, swarm, status…"
+        aria-label="Filter tasks"
+      />
+
+      <div className="v4-mobile-card-slider v4-mobile-card-slider--cols-3">
         {topLanes.map((lane) => {
           const Icon = lane.icon;
           return (
@@ -307,14 +266,13 @@ export function TasksPageClient({ initialQuery = "" }: { initialQuery?: string }
                 <span className="block font-semibold text-(--qs-text)">{lane.title}</span>
                 <span className="mt-0.5 block text-xs text-(--qs-text-3)">{lane.description}</span>
               </span>
-              <ArrowRight className="h-4 w-4 shrink-0 text-(--qs-text-3)" aria-hidden />
             </Link>
           );
         })}
       </div>
 
       {bottomLanes.length ? (
-        <div className={cn(bottomLanes.length === 1 ? "max-w-xl" : "v4-cols-2")}>
+        <div className="v4-mobile-card-slider">
           {bottomLanes.map((lane) => {
             const Icon = lane.icon;
             return (
@@ -326,7 +284,6 @@ export function TasksPageClient({ initialQuery = "" }: { initialQuery?: string }
                   <span className="block font-semibold text-(--qs-text)">{lane.title}</span>
                   <span className="mt-0.5 block text-xs text-(--qs-text-3)">{lane.description}</span>
                 </span>
-                <ArrowRight className="h-4 w-4 shrink-0 text-(--qs-text-3)" aria-hidden />
               </Link>
             );
           })}
@@ -334,31 +291,29 @@ export function TasksPageClient({ initialQuery = "" }: { initialQuery?: string }
       ) : null}
 
       <V4Card>
-        <div className="v4-card-header">
-          <div className="flex w-full flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-2">
-              <V4Chip active={filter === "all"} count={filterCounts.all} onClick={() => setFilter("all")}>
-                All
-              </V4Chip>
-              <V4Chip active={filter === "running"} count={filterCounts.running} onClick={() => setFilter("running")}>
-                Running
-              </V4Chip>
-              <V4Chip active={filter === "pending"} count={filterCounts.pending} onClick={() => setFilter("pending")}>
-                Pending
-              </V4Chip>
-              <V4Chip active={filter === "done"} count={filterCounts.done} onClick={() => setFilter("done")}>
-                Done
-              </V4Chip>
-            </div>
-            <Link href="/tasks/new" className="qs-btn qs-btn--primary qs-btn--sm gap-2">
-              <Plus className="h-4 w-4" aria-hidden />
-              New task
-            </Link>
+        <div className="mb-3 flex flex-col gap-3">
+          <div ref={filterScrollRef} className="v4-chip-scroll">
+            <V4Chip active={filter === "all"} count={filterCounts.all} onClick={() => setFilter("all")}>
+              All
+            </V4Chip>
+            <V4Chip active={filter === "running"} count={filterCounts.running} onClick={() => setFilter("running")}>
+              Running
+            </V4Chip>
+            <V4Chip active={filter === "pending"} count={filterCounts.pending} onClick={() => setFilter("pending")}>
+              Pending
+            </V4Chip>
+            <V4Chip active={filter === "done"} count={filterCounts.done} onClick={() => setFilter("done")}>
+              Done
+            </V4Chip>
           </div>
+          <Link href="/tasks/new" className="qs-btn qs-btn--primary qs-btn--sm w-full justify-center gap-2">
+            <Plus className="h-4 w-4 shrink-0" aria-hidden />
+            New task
+          </Link>
         </div>
         <ResponsiveTable
           table={
-            <table className={cn("v4-data-table min-w-[920px]", density === "compact" && "v4-data-table--compact")}>
+            <table className="v4-data-table min-w-[920px]">
               <thead>
                 <tr>
                   <th>Task</th>

@@ -6,8 +6,10 @@ import { Check, ChevronDown, LogOut, XIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { QueenHoneycombLogo } from "@/components/auth/queen-honeycomb-logo";
 import { DashboardSettingsTrigger } from "@/components/hive/dashboard-settings-panel";
+import { HiveBrandMark } from "@/components/hive/hive-brand-mark";
+import { HiveAccountIdentity } from "@/components/hive/hive-account-identity";
+import { usePlatform } from "@/components/hive/platform-context";
 import { SidebarShortcuts } from "@/components/hive/sidebar-shortcuts";
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
 import { hiveGet } from "@/lib/api";
@@ -19,6 +21,7 @@ import {
 } from "@/lib/hive-nav-primary";
 import type { DashboardSummary, SwarmBoardResponse, TenantListPayload, TenantViewRow } from "@/lib/hive-types";
 import { localizeNavLabel, localizePhrase } from "@/lib/ui-copy";
+import { filterNavByFeatures } from "@/lib/platform-features";
 import { QS_ACCESS, QS_REFRESH } from "@/lib/auth-cookies";
 import { cn } from "@/lib/utils";
 
@@ -74,32 +77,21 @@ function navBadgeForHref(href: string, summary: DashboardSummary | null | undefi
 function tenantSubtitle(tenant: TenantViewRow, language: "en" | "sk"): string {
   const role = tenant.role.replace(/_/g, " ");
   const cap = role.charAt(0).toUpperCase() + role.slice(1);
+  const mode = tenant.platform_mode === "commercial" ? "commercial" : "operator";
   return localizePhrase(language, {
-    en: `${cap} · workspace`,
-    sk: `${cap} · workspace`,
+    en: `${cap} · ${mode}`,
+    sk: `${cap} · ${mode}`,
   });
 }
 
 function SidebarBrand({ onMobileClose }: { onMobileClose?: () => void }) {
   return (
     <div className="hive-sidebar-brand">
-      <Link href="/" className="flex min-w-0 flex-1 items-center gap-3" prefetch onClick={() => onMobileClose?.()}>
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-visible drop-shadow-[0_0_12px_rgba(253,185,39,0.55)]">
-          <QueenHoneycombLogo size={40} aria-hidden />
-        </div>
-        <div className="min-w-0">
-          <span className="block truncate font-[family-name:var(--font-poppins)] text-[17px] font-bold tracking-tight text-[var(--qs-text)]">
-            Queenswarm
-          </span>
-          <span className="block truncate text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--qs-text-3)]">
-            Hive Control · V4
-          </span>
-        </div>
-      </Link>
+      <HiveBrandMark onNavigate={onMobileClose} />
       {onMobileClose ? (
         <button
           type="button"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] border border-[var(--qs-border)] text-[var(--qs-text-3)] hover:border-[var(--qs-border-2)] hover:text-pollen lg:hidden"
+          className="absolute right-3 top-1/2 flex h-10 w-10 shrink-0 -translate-y-1/2 items-center justify-center rounded-[12px] border border-[var(--qs-border)] text-[var(--qs-text-3)] hover:border-[var(--qs-border-2)] hover:text-pollen lg:hidden"
           aria-label="Close navigation"
           onClick={onMobileClose}
         >
@@ -128,16 +120,33 @@ function SidebarTenantSwitcher({
   if (!current) {
     return (
       <div className="hive-tenant-switch hive-tenant-switch--static">
-        <div className="hive-tenant-mark">Q</div>
-        <div className="hive-tenant-copy">
-          <span className="hive-tenant-title">Queenswarm</span>
-          <span className="hive-tenant-sub">Hive Pro · workspace</span>
-        </div>
+        <HiveAccountIdentity
+          name="QueenSwarm"
+          subtitle={localizePhrase(language, { en: "Hive Pro · workspace", sk: "Hive Pro · workspace" })}
+          language={language}
+        />
       </div>
     );
   }
 
-  const canSwitch = list.length > 1 && onTenantSwitch;
+  const canSwitch = list.length > 1 && onTenantSwitch != null;
+
+  const identity = (
+    <HiveAccountIdentity
+      name={current.name}
+      subtitle={tenantSubtitle(current, language)}
+      language={language}
+      className="min-w-0 flex-1"
+    />
+  );
+
+  if (!canSwitch) {
+    return (
+      <div className="px-3">
+        <div className="hive-tenant-switch hive-tenant-switch--static !mx-0 !w-full">{identity}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative px-3">
@@ -145,19 +154,11 @@ function SidebarTenantSwitcher({
         type="button"
         className="hive-tenant-switch w-full text-left"
         aria-expanded={open}
-        disabled={!canSwitch || tenantSwitching}
-        onClick={() => {
-          if (canSwitch) {
-            setOpen((v) => !v);
-          }
-        }}
+        disabled={tenantSwitching}
+        onClick={() => setOpen((v) => !v)}
       >
-        <div className="hive-tenant-mark">{current.name.charAt(0).toUpperCase()}</div>
-        <div className="hive-tenant-copy min-w-0">
-          <span className="hive-tenant-title truncate">{current.name}</span>
-          <span className="hive-tenant-sub truncate">{tenantSubtitle(current, language)}</span>
-        </div>
-        {canSwitch ? <ChevronDown className={cn("h-4 w-4 shrink-0 text-[var(--qs-text-3)] transition", open && "rotate-180")} aria-hidden /> : null}
+        {identity}
+        <ChevronDown className={cn("h-4 w-4 shrink-0 text-[var(--qs-text-3)] transition", open && "rotate-180")} aria-hidden />
       </button>
       {open && canSwitch ? (
         <div className="hive-tenant-dropdown">
@@ -237,16 +238,20 @@ function SidebarNav({
   summary,
   counts,
   onNavigate,
+  primaryItems,
+  secondaryItems,
 }: {
   pathname: string;
   language: "en" | "sk";
   summary?: DashboardSummary | null;
   counts: SidebarNavCounts;
   onNavigate?: () => void;
+  primaryItems: HiveNavItem[];
+  secondaryItems: HiveNavItem[];
 }) {
   return (
     <nav aria-label="Hive navigation" className="hive-sidebar-nav hive-scrollbar">
-      {HIVE_NAV_PRIMARY.map((item) => {
+      {primaryItems.map((item) => {
         const isDashboard = item.href === "/";
         return (
           <SidebarNavLink
@@ -270,7 +275,7 @@ function SidebarNav({
 
       <div className="hive-nav-divider" aria-hidden />
 
-      {HIVE_SIDEBAR_SECONDARY.map((item) => (
+      {secondaryItems.map((item) => (
         <SidebarNavLink
           key={item.href}
           item={item}
@@ -338,16 +343,20 @@ export function HiveSidebar({
   tenantSwitching,
 }: HiveSidebarProps) {
   const { language } = useUiLanguage();
+  const { features } = usePlatform();
+  const primaryItems = filterNavByFeatures(HIVE_NAV_PRIMARY, features);
+  const secondaryItems = filterNavByFeatures(HIVE_SIDEBAR_SECONDARY, features);
   const [counts, setCounts] = useState<SidebarNavCounts>({ swarms: null, foragers: null });
 
   useEffect(() => {
     let alive = true;
     void (async () => {
       try {
-        const [board, foragers] = await Promise.all([
-          hiveGet<SwarmBoardResponse>("dashboard/swarm-board").catch(() => null),
-          hiveGet<unknown[]>("foragers").catch(() => null),
-        ]);
+        const boardPromise = hiveGet<SwarmBoardResponse>("dashboard/swarm-board").catch(() => null);
+        const foragersPromise = features.foragers
+          ? hiveGet<unknown[]>("foragers").catch(() => null)
+          : Promise.resolve(null);
+        const [board, foragers] = await Promise.all([boardPromise, foragersPromise]);
         if (!alive) {
           return;
         }
@@ -362,7 +371,7 @@ export function HiveSidebar({
     return () => {
       alive = false;
     };
-  }, []);
+  }, [features.foragers]);
 
   async function handleLogout(): Promise<void> {
     try {
@@ -411,7 +420,15 @@ export function HiveSidebar({
       >
         <SidebarBrand onMobileClose={onMobileClose} />
         <SidebarTenantSwitcher tenants={tenants} onTenantSwitch={onTenantSwitch} tenantSwitching={tenantSwitching} language={language} />
-        <SidebarNav pathname={pathname} language={language} summary={summary} counts={counts} onNavigate={onMobileClose} />
+        <SidebarNav
+          pathname={pathname}
+          language={language}
+          summary={summary}
+          counts={counts}
+          onNavigate={onMobileClose}
+          primaryItems={primaryItems}
+          secondaryItems={secondaryItems}
+        />
         <SidebarFooter language={language} swarmCount={counts.swarms} onLogout={() => void handleLogout()} onNavigate={onMobileClose} />
       </aside>
     </>
@@ -427,7 +444,14 @@ export function HiveSidebar({
       >
         <SidebarBrand />
         <SidebarTenantSwitcher tenants={tenants} onTenantSwitch={onTenantSwitch} tenantSwitching={tenantSwitching} language={language} />
-        <SidebarNav pathname={pathname} language={language} summary={summary} counts={counts} />
+        <SidebarNav
+          pathname={pathname}
+          language={language}
+          summary={summary}
+          counts={counts}
+          primaryItems={primaryItems}
+          secondaryItems={secondaryItems}
+        />
         <SidebarFooter language={language} swarmCount={counts.swarms} onLogout={() => void handleLogout()} />
       </aside>
     </>

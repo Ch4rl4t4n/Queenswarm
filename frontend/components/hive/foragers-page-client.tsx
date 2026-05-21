@@ -1,7 +1,7 @@
 "use client";
 
 import { Pencil, Play, Plus, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { ForagerFormDialog } from "@/components/hive/forager-form-dialog";
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
 import { COCKPIT_POLL_BOARD_MS } from "@/lib/cockpit-poll-profile";
+import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import type {
   ForagerRow,
   ForagersOverviewConfiguration,
@@ -131,38 +132,7 @@ export function ForagersPageClient() {
     }
   }, []);
 
-  useEffect(() => {
-    let alive = true;
-    void (async () => {
-      try {
-        const [overview, rows, team, templateRows] = await Promise.all([
-          hiveGet<ForagersOverviewPayload>("dashboard/foragers-overview"),
-          hiveGet<ForagerRow[]>("foragers"),
-          hiveGet<TeamOverviewResponse>("settings/team"),
-          hiveGet<AgentTemplateLite[]>("agent-templates"),
-        ]);
-        if (!alive) return;
-        setData(overview);
-        setForagers(rows);
-        setTenantRole(String(team.tenant_role || "guest"));
-        setTemplates(templateRows);
-        setErr(null);
-      } catch (e) {
-        if (!alive) return;
-        const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Foragers overview unreachable";
-        setErr(msg);
-      }
-    })();
-    const id = window.setInterval(() => {
-      if (document.visibilityState === "visible") {
-        void reload();
-      }
-    }, COCKPIT_POLL_BOARD_MS);
-    return () => {
-      alive = false;
-      window.clearInterval(id);
-    };
-  }, [reload]);
+  useIntervalWhenVisible(() => void reload(), COCKPIT_POLL_BOARD_MS);
 
   const kpis = data?.kpis;
   const configurations = data?.configurations ?? [];

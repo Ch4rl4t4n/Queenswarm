@@ -1,5 +1,7 @@
 /** Resolve a short-lived bearer for browser WebSocket subscriptions (HttpOnly cookie → session cache). */
 
+import { markHiveSessionDead } from "@/lib/hive-session-guard";
+
 const CACHE_KEY = "hive_jwt_optional";
 
 function jwtExpiresAtMs(token: string): number | null {
@@ -25,17 +27,38 @@ export function clearHiveBearerCache(): void {
   }
 }
 
-async function refreshDashboardSession(): Promise<boolean> {
-  try {
-    const res = await fetch("/api/auth/refresh", { method: "POST", credentials: "include" });
-    if (!res.ok) {
-      return false;
-    }
-    clearHiveBearerCache();
-    return true;
-  } catch {
-    return false;
+let refreshFlight: Promise<boolean> | null = null;
+let lastRefreshAttemptMs = 0;
+
+async function refreshDashboardSession(force = false): Promise<boolean> {
+  const now = Date.now();
+  if (!force && now - lastRefreshAttemptMs < 15_000) {
+    return refreshFlight ?? Promise.resolve(false);
   }
+  if (refreshFlight) {
+    return refreshFlight;
+  }
+
+  lastRefreshAttemptMs = now;
+  refreshFlight = (async () => {
+    try {
+      const res = await fetch("/api/auth/refresh", { method: "POST", credentials: "include" });
+      if (!res.ok) {
+        if (res.status === 401) {
+          markHiveSessionDead();
+        }
+        return false;
+      }
+      clearHiveBearerCache();
+      return true;
+    } catch {
+      return false;
+    } finally {
+      refreshFlight = null;
+    }
+  })();
+
+  return refreshFlight;
 }
 
 /**

@@ -39,6 +39,13 @@ class SkillPurchase(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     amount_cents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     currency: Mapped[str] = mapped_column(String(8), nullable=False, default="eur")
+    marketplace_listing_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("skill_marketplace_listings.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    platform_fee_cents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    publisher_tenant_id: Mapped[uuid.UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

@@ -49,6 +49,24 @@ def build_beat_schedule() -> dict[str, dict[str, Any]]:
             "schedule": timedelta(seconds=120),
             "options": {"queue": "hive"},
         }
+    if settings.supervisor_audit_digest_enabled:
+        schedule["hive-supervisor-audit-digest"] = {
+            "task": "hive.supervisor_audit_digest_tick",
+            "schedule": crontab(minute=0),
+            "options": {"queue": "hive"},
+        }
+    if settings.tenant_audit_retention_enabled:
+        schedule["hive-tenant-audit-retention"] = {
+            "task": "hive.tenant_audit_retention_tick",
+            "schedule": crontab(hour=3, minute=30, day_of_week=0),
+            "options": {"queue": "hive"},
+        }
+    if settings.supervisor_audit_rollup_email_enabled:
+        schedule["hive-supervisor-audit-rollup-email"] = {
+            "task": "hive.supervisor_audit_rollup_email_tick",
+            "schedule": crontab(hour=8, minute=0, day_of_week=1),
+            "options": {"queue": "hive"},
+        }
     return schedule
 
 

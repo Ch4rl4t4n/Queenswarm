@@ -1,4 +1,11 @@
-import { TasksPageClient } from "@/components/hive/tasks-page-client";
+import nextDynamic from "next/dynamic";
+
+import { SettingsPanelSkeleton } from "@/components/hive/settings-panel-skeleton";
+
+const TasksPageClient = nextDynamic(
+  () => import("@/components/hive/tasks-page-client").then((mod) => ({ default: mod.TasksPageClient })),
+  { loading: () => <SettingsPanelSkeleton /> },
+);
 
 export const dynamic = "force-dynamic";
 

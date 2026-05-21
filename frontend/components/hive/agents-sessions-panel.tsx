@@ -9,6 +9,7 @@ import useSWR from "swr";
 import { toast } from "sonner";
 
 import { BrowserHarnessPanel } from "@/components/hive/browser-harness-panel";
+import { AgentsPanelSkeleton } from "@/components/hive/agents-panel-skeleton";
 import { InfoHint } from "@/components/hive/info-hint";
 import { VoiceSessionControls } from "@/components/hive/voice-session-controls";
 import { AgentSessionDetailDrawer } from "@/components/hive/agent-session-detail-drawer";
@@ -24,7 +25,9 @@ import {
   V4Stat,
 } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
+import { COCKPIT_POLL_BOARD_MS } from "@/lib/cockpit-poll-profile";
 import { integrationsTabHref } from "@/lib/integrations-routes";
+import { useSwrVisiblePollOptions } from "@/lib/hooks/use-swr-refresh-interval";
 import type {
   SupervisorControlSummaryRow,
   SupervisorRoutineRow,
@@ -32,6 +35,10 @@ import type {
   SupervisorSessionRow,
 } from "@/lib/hive-types";
 import { runtimeModeLabel, sessionStatusTone } from "@/lib/supervisor-session";
+import {
+  playbookRecipeIdFromContext,
+  playbookWasAutoSavedOnReview,
+} from "@/lib/session-playbook-utils";
 
 interface CreateSessionPayload {
   goal: string;
@@ -80,9 +87,10 @@ function sessionStatusBadgeTone(status: string): "info" | "warn" | "ok" | "gold"
 
 interface AgentsSessionsPanelProps {
   variant?: "default" | "v4";
+  onFocusSessionChange?: (session: SupervisorSessionRow | null) => void;
 }
 
-export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanelProps): JSX.Element {
+export function AgentsSessionsPanel({ variant = "default", onFocusSessionChange }: AgentsSessionsPanelProps): JSX.Element {
   const [goal, setGoal] = useState("");
   const [runtimeMode, setRuntimeMode] = useState<"inprocess" | "durable">("inprocess");
   const [busy, setBusy] = useState(false);
@@ -94,27 +102,34 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
   const [routineBusy, setRoutineBusy] = useState(false);
   const [sessionQuery, setSessionQuery] = useState("");
   const [sessionStatusFilter, setSessionStatusFilter] = useState<SessionStatusFilter>("all");
+  const [detailDrawerDismissed, setDetailDrawerDismissed] = useState(false);
+
+  const sessionsPoll = useSwrVisiblePollOptions(COCKPIT_POLL_BOARD_MS);
+  const routinesPoll = useSwrVisiblePollOptions(COCKPIT_POLL_BOARD_MS * 1.5);
+  const eventsPoll = useSwrVisiblePollOptions(selectedSessionId ? COCKPIT_POLL_BOARD_MS : 0);
 
   const {
-    data: sessions = [],
+    data: rawSessions = [],
     error,
     isLoading,
     mutate,
   } = useSWR<SupervisorSessionRow[]>(
     "hive/agent-sessions",
     () => hiveGet<SupervisorSessionRow[]>("agents/sessions?limit=40"),
-    { refreshInterval: 5000 },
+    sessionsPoll,
   );
+  const sessions = Array.isArray(rawSessions) ? rawSessions : [];
 
-  const { data: routines = [], mutate: mutateRoutines } = useSWR<SupervisorRoutineRow[]>(
+  const { data: rawRoutines = [], mutate: mutateRoutines } = useSWR<SupervisorRoutineRow[]>(
     "hive/agent-routines",
     () => hiveGet<SupervisorRoutineRow[]>("agents/routines?limit=40"),
-    { refreshInterval: 10_000 },
+    routinesPoll,
   );
+  const routines = Array.isArray(rawRoutines) ? rawRoutines : [];
   const { data: summary } = useSWR<SupervisorControlSummaryRow>(
     "hive/agent-sessions-summary",
     () => hiveGet<SupervisorControlSummaryRow>("agents/sessions/summary"),
-    { refreshInterval: 5000 },
+    sessionsPoll,
   );
 
   const selected = useMemo(
@@ -145,20 +160,39 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
       }
       return;
     }
-    if (!selectedSessionId || !filteredSessions.some((session) => session.id === selectedSessionId)) {
-      setSelectedSessionId(filteredSessions[0]?.id ?? null);
+    const selectedStillVisible =
+      selectedSessionId !== null && filteredSessions.some((session) => session.id === selectedSessionId);
+    if (selectedStillVisible) {
+      return;
     }
-  }, [filteredSessions, selectedSessionId]);
+    if (!detailDrawerDismissed) {
+      setSelectedSessionId(filteredSessions[0]?.id ?? null);
+      return;
+    }
+    if (selectedSessionId !== null) {
+      setSelectedSessionId(null);
+    }
+  }, [detailDrawerDismissed, filteredSessions, selectedSessionId]);
+
+  function focusSession(sessionId: string): void {
+    setDetailDrawerDismissed(false);
+    setSelectedSessionId(sessionId);
+  }
+
+  useEffect(() => {
+    onFocusSessionChange?.(selected);
+  }, [onFocusSessionChange, selected]);
 
   const {
-    data: events = [],
+    data: rawEvents = [],
     mutate: mutateEvents,
     isLoading: eventsLoading,
   } = useSWR<SupervisorSessionEventRow[]>(
     selected ? `hive/agent-sessions/${selected.id}/events` : null,
     () => hiveGet<SupervisorSessionEventRow[]>(`agents/sessions/${selected?.id}/events?limit=120`),
-    { refreshInterval: 4000 },
+    eventsPoll,
   );
+  const events = Array.isArray(rawEvents) ? rawEvents : [];
 
   async function createSession(): Promise<void> {
     const payload: CreateSessionPayload = {
@@ -176,6 +210,7 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
     try {
       const created = await hivePostJson<SupervisorSessionRow>("agents/sessions", payload);
       setGoal("");
+      setDetailDrawerDismissed(false);
       setSelectedSessionId(created.id);
       await mutate();
       toast.success("Supervisor session created.");
@@ -189,21 +224,54 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
 
   async function controlSession(sessionId: string, action: "pause" | "resume" | "stop"): Promise<void> {
     try {
-      await hivePostJson(`agents/sessions/${sessionId}/control`, { action });
+      const updated = await hivePostJson<{ context_summary?: Record<string, unknown> }>(
+        `agents/sessions/${sessionId}/control`,
+        { action },
+      );
       await mutate();
-      toast.success(`Session ${action} applied.`);
+      const requeued = updated.context_summary?.requeued_sub_agents;
+      if (action === "resume" && typeof requeued === "number" && requeued > 0) {
+        toast.success(`Session resumed · ${requeued} sub-agent step(s) requeued`);
+      } else {
+        toast.success(`Session ${action} applied.`);
+      }
     } catch (e) {
       const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Control failed";
       toast.error(msg);
     }
   }
 
-  async function reviewSession(sessionId: string, decision: "approve" | "reject"): Promise<void> {
+  async function reviewSession(
+    sessionId: string,
+    decision: "approve" | "reject",
+    priorPlaybookRecipeId: string | null = null,
+  ): Promise<void> {
     setReviewBusy(sessionId);
     try {
-      await hivePostJson(`agents/sessions/${sessionId}/review`, { decision });
+      const updated = await hivePostJson<{ context_summary?: Record<string, unknown> }>(
+        `agents/sessions/${sessionId}/review`,
+        { decision },
+      );
       await mutate();
-      toast.success(`Session ${decision}d.`);
+      const requeued = updated.context_summary?.requeued_sub_agents;
+      const resumed = updated.context_summary?.resumed_sub_agents;
+      const autoSavedPlaybook = playbookWasAutoSavedOnReview(updated.context_summary, priorPlaybookRecipeId);
+      if (autoSavedPlaybook) {
+        toast.success(
+          <span>
+            Session approved · operator playbook auto-saved.{" "}
+            <Link href="/recipes" className="text-pollen underline">
+              Open recipes
+            </Link>
+          </span>,
+        );
+      } else if (decision === "approve" && typeof requeued === "number" && requeued > 0) {
+        toast.success(`Session approved · ${requeued} durable step(s) requeued`);
+      } else if (decision === "approve" && typeof resumed === "number" && resumed > 0) {
+        toast.success(`Session approved · ${resumed} in-process step(s) resumed`);
+      } else {
+        toast.success(`Session ${decision}d.`);
+      }
     } catch (e) {
       const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Review failed";
       toast.error(msg);
@@ -255,10 +323,33 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
 
   if (error) {
     return (
-      <V4Card>
-        <p className="text-sm text-(--qs-red)">
-          Session panel unavailable ({error.message}). Enable dynamic supervisor feature flags first.
-        </p>
+      <V4Card id="sessions" className="scroll-mt-28">
+        <V4CardHeader
+          title="Dynamic supervisor sessions"
+          description="Spawn sub-agents, track statuses, and interact through shared memory logs."
+        />
+        <div
+          role="alert"
+          data-testid="agents-sessions-error"
+          className="rounded-xl border border-(--qs-red)/40 bg-(--qs-red)/10 px-4 py-4"
+        >
+          <p className="text-sm text-(--qs-text)">
+            Session panel unavailable: <span className="text-(--qs-red)">{error.message}</span>
+          </p>
+          <p className="mt-2 text-xs text-(--qs-text-3)">
+            Verify supervisor feature flags (`SUPERVISOR_DYNAMIC_SUBAGENTS_ENABLED`, `LIGHT_CONTROL_PLANE_ENABLED`) and
+            API health, then retry.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5" onClick={() => void mutate()}>
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+              Retry
+            </button>
+            <Link href={integrationsTabHref("active", "ecosystem")} className="qs-btn qs-btn--ghost qs-btn--sm">
+              Open Tool Hub
+            </Link>
+          </div>
+        </div>
       </V4Card>
     );
   }
@@ -274,14 +365,9 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
           title="Dynamic supervisor sessions"
           description="Spawn sub-agents, track statuses, and interact through shared memory logs."
           actions={
-            <>
-              <Link href={integrationsTabHref("hub")} className="qs-btn qs-btn--ghost qs-btn--sm">
-                Tool hub
-              </Link>
-              <Link href="/ballroom" className="qs-btn qs-btn--ghost qs-btn--sm">
-                Open Ballroom
-              </Link>
-            </>
+            <Link href={integrationsTabHref("active", "ecosystem")} className="qs-btn qs-btn--ghost qs-btn--sm">
+              Tool hub
+            </Link>
           }
         />
       ) : (
@@ -300,11 +386,8 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-              <Link href={integrationsTabHref("hub")} className="qs-btn qs-btn--ghost qs-btn--sm">
+            <Link href={integrationsTabHref("active", "ecosystem")} className="qs-btn qs-btn--ghost qs-btn--sm">
               Tool Hub
-            </Link>
-            <Link href="/ballroom" className="qs-btn qs-btn--ghost qs-btn--sm">
-              Open Ballroom
             </Link>
           </div>
         </div>
@@ -420,15 +503,15 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
         />
       </div>
 
-      <div className={isV4 ? "mt-5 flex flex-col gap-3 md:flex-row" : "mt-4 grid gap-2 rounded-2xl border border-zinc-800 bg-black/20 p-3 md:grid-cols-[1fr_180px]"}>
+      <div className={isV4 ? "mt-5 flex flex-col gap-3 md:flex-row md:items-stretch" : "mt-4 grid gap-2 rounded-2xl border border-zinc-800 bg-black/20 p-3 md:grid-cols-[1fr_180px]"}>
         <input
-          className="qs-input min-w-0 flex-1"
+          className="qs-input w-full min-w-0 flex-1"
           placeholder="Filter sessions by goal / status / runtime…"
           value={sessionQuery}
           onChange={(event) => setSessionQuery(event.target.value)}
         />
         <QsSelect
-          className="w-full md:w-40"
+          className="w-full min-w-0 md:w-40 md:shrink-0"
           value={sessionStatusFilter}
           onValueChange={(next) => setSessionStatusFilter(next as SessionStatusFilter)}
           options={[
@@ -444,9 +527,49 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
 
       <div className="mt-4 flex flex-col gap-3">
         {isLoading ? (
-          <p className="text-sm text-(--qs-text-3)">Loading sessions…</p>
+          <AgentsPanelSkeleton rows={3} />
         ) : filteredSessions.length === 0 ? (
-          <p className="text-sm text-(--qs-text-3)">No sessions yet.</p>
+          <div
+            className="rounded-xl border border-dashed border-(--qs-border) bg-black/20 px-4 py-6 text-center"
+            data-testid="agents-sessions-empty"
+          >
+            <p className="text-sm text-(--qs-text-2)">
+              {sessions.length === 0
+                ? "No supervisor sessions yet."
+                : "No sessions match this filter."}
+            </p>
+            <p className="mt-1 text-xs text-(--qs-text-3)">
+              {sessions.length === 0
+                ? "Describe a goal above and spawn your first dynamic session."
+                : "Clear the filter or pick another status."}
+            </p>
+            {sessions.length === 0 ? (
+              <button
+                type="button"
+                className="qs-btn qs-btn--primary qs-btn--sm mt-4 gap-1.5"
+                onClick={() => {
+                  const input = document.querySelector<HTMLInputElement>(
+                    'input[placeholder="Session goal — e.g. investigate onboarding drop-off…"]',
+                  );
+                  input?.focus();
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" aria-hidden />
+                Create first session
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="qs-btn qs-btn--ghost qs-btn--sm mt-4"
+                onClick={() => {
+                  setSessionQuery("");
+                  setSessionStatusFilter("all");
+                }}
+              >
+                Reset filters
+              </button>
+            )}
+          </div>
         ) : (
           filteredSessions.map((session) =>
             isV4 ? (
@@ -459,17 +582,22 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
                     <V4Badge tone={sessionStatusBadgeTone(session.status)}>
                       {session.status.replaceAll("_", " ")}
                     </V4Badge>
+                    {playbookRecipeIdFromContext(session.context_summary) ? (
+                      <Link href="/recipes">
+                        <V4Badge tone="gold">playbook</V4Badge>
+                      </Link>
+                    ) : null}
                   </div>
                   <p className="text-sm font-medium text-(--qs-text)">{session.goal}</p>
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <span className="text-xs text-(--qs-text-3)">
-                    {sessionRuntimeLabel(session)} · {session.sub_agents.length} agents
+                    {sessionRuntimeLabel(session)} · {(session.sub_agents ?? []).length} agents
                   </span>
                   <button
                     type="button"
                     className="qs-btn qs-btn--ghost qs-btn--sm"
-                    onClick={() => setSelectedSessionId(session.id)}
+                    onClick={() => focusSession(session.id)}
                   >
                     Open
                   </button>
@@ -491,7 +619,13 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
                         type="button"
                         className="qs-btn qs-btn--green qs-btn--sm"
                         disabled={reviewBusy === session.id}
-                        onClick={() => void reviewSession(session.id, "approve")}
+                        onClick={() =>
+                          void reviewSession(
+                            session.id,
+                            "approve",
+                            playbookRecipeIdFromContext(session.context_summary),
+                          )
+                        }
                       >
                         Approve
                       </button>
@@ -499,7 +633,9 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
                         type="button"
                         className="qs-btn qs-btn--danger qs-btn--sm"
                         disabled={reviewBusy === session.id}
-                        onClick={() => void reviewSession(session.id, "reject")}
+                        onClick={() =>
+                          void reviewSession(session.id, "reject", playbookRecipeIdFromContext(session.context_summary))
+                        }
                       >
                         Reject
                       </button>
@@ -513,7 +649,7 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-zinc-100">{session.goal}</p>
                     <p className="mt-1 text-xs text-zinc-500">
-                      {runtimeModeLabel(session.runtime_mode)} · {session.status} · {session.sub_agents.length} sub-agents
+                      {runtimeModeLabel(session.runtime_mode)} · {session.status} · {(session.sub_agents ?? []).length} sub-agents
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -526,7 +662,7 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
                     <button
                       type="button"
                       className="qs-btn qs-btn--ghost qs-btn--sm"
-                      onClick={() => setSelectedSessionId(session.id)}
+                      onClick={() => focusSession(session.id)}
                     >
                       Open
                     </button>
@@ -546,7 +682,13 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
                       type="button"
                       className="qs-btn qs-btn--green qs-btn--sm"
                       disabled={reviewBusy === session.id}
-                      onClick={() => void reviewSession(session.id, "approve")}
+                      onClick={() =>
+                        void reviewSession(
+                          session.id,
+                          "approve",
+                          playbookRecipeIdFromContext(session.context_summary),
+                        )
+                      }
                     >
                       Approve
                     </button>
@@ -554,7 +696,9 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
                       type="button"
                       className="qs-btn qs-btn--danger qs-btn--sm"
                       disabled={reviewBusy === session.id}
-                      onClick={() => void reviewSession(session.id, "reject")}
+                      onClick={() =>
+                        void reviewSession(session.id, "reject", playbookRecipeIdFromContext(session.context_summary))
+                      }
                     >
                       Reject
                     </button>
@@ -583,7 +727,9 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
                 type="button"
                 className="qs-btn qs-btn--green qs-btn--sm"
                 disabled={reviewBusy === selected.id}
-                onClick={() => void reviewSession(selected.id, "approve")}
+                onClick={() =>
+                  void reviewSession(selected.id, "approve", playbookRecipeIdFromContext(selected.context_summary))
+                }
               >
                 Approve
               </button>
@@ -591,7 +737,9 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
                 type="button"
                 className="qs-btn qs-btn--danger qs-btn--sm"
                 disabled={reviewBusy === selected.id}
-                onClick={() => void reviewSession(selected.id, "reject")}
+                onClick={() =>
+                  void reviewSession(selected.id, "reject", playbookRecipeIdFromContext(selected.context_summary))
+                }
               >
                 Reject
               </button>
@@ -609,37 +757,52 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
       ) : null}
 
       <div className={isV4 ? "v4-routines-panel mt-6" : "mt-6 rounded-2xl border border-[color:var(--qs-border)] bg-black/30 p-4"}>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h3 className="text-sm font-semibold text-(--qs-text)">Routines</h3>
-            <p className="mt-1 text-xs text-(--qs-text-3)">Recurring supervisor sessions via Celery schedule tick.</p>
+        {isV4 ? (
+          <div className="v4-routines-panel__head">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold text-(--qs-text)">Routines</h3>
+              <V4Badge tone="gold" className="shrink-0">
+                {routines.filter((r) => r.is_active).length} active
+              </V4Badge>
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-(--qs-text-3)">
+              Recurring supervisor sessions via Celery schedule tick.
+            </p>
           </div>
-          {isV4 ? (
-            <V4Badge tone="gold">{routines.filter((r) => r.is_active).length} active</V4Badge>
-          ) : (
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold text-(--qs-text)">Routines</h3>
+              <p className="mt-1 text-xs text-(--qs-text-3)">Recurring supervisor sessions via Celery schedule tick.</p>
+            </div>
             <InfoHint
               title="Routines"
               description="Periodic Supervisor sessions triggered by schedule interval."
               options={["Create routine", "Trigger now", "Status monitoring"]}
             />
-          )}
-        </div>
+          </div>
+        )}
         {!isV4 ? (
           <p className="mt-1 text-xs text-zinc-500">Recurring supervisor sessions via Celery schedule tick.</p>
         ) : null}
-        <div className="mt-3 grid gap-2 md:grid-cols-[1fr_1fr_100px_auto]">
-          <input className="qs-input" placeholder="Routine name" value={routineName} onChange={(e) => setRoutineName(e.target.value)} />
-          <input className="qs-input" placeholder="Goal template" value={routineGoal} onChange={(e) => setRoutineGoal(e.target.value)} />
+        <div className={isV4 ? "v4-routines-form mt-4" : "mt-3 grid gap-2 md:grid-cols-[1fr_1fr_100px_auto]"}>
+          <input className="qs-input w-full min-w-0" placeholder="Routine name" value={routineName} onChange={(e) => setRoutineName(e.target.value)} />
+          <input className="qs-input w-full min-w-0" placeholder="Goal template" value={routineGoal} onChange={(e) => setRoutineGoal(e.target.value)} />
           <input
-            className="qs-input"
+            className="qs-input w-full min-w-0"
             type="number"
             min={60}
             step={60}
             value={routineInterval}
             onChange={(e) => setRoutineInterval(Number(e.target.value || 3600))}
           />
-          <button type="button" className="qs-btn qs-btn--primary qs-btn--sm gap-2" disabled={routineBusy} onClick={() => void createRoutine()}>
-            <Plus className="h-4 w-4" aria-hidden />
+          <button
+            type="button"
+            className="qs-btn qs-btn--primary qs-btn--sm w-full justify-center gap-2 md:w-auto"
+            disabled={routineBusy}
+            onClick={() => void createRoutine()}
+          >
+            <Plus className="h-4 w-4 shrink-0" aria-hidden />
             {routineBusy ? "Creating…" : "Create"}
           </button>
         </div>
@@ -670,13 +833,20 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
           session={selected}
           events={events}
           eventsLoading={eventsLoading}
-          onClose={() => setSelectedSessionId(null)}
-          onReview={async (decision) => {
-            await reviewSession(selected.id, decision);
+          onClose={() => {
+            setDetailDrawerDismissed(true);
+            setSelectedSessionId(null);
+          }}
+          onReview={async (decision, priorPlaybookRecipeId) => {
+            await reviewSession(selected.id, decision, priorPlaybookRecipeId ?? null);
             await mutate();
           }}
           onInteractionAppended={(event) => {
             void mutateEvents((prev) => [event, ...(prev ?? [])], false);
+          }}
+          onSessionRefresh={() => {
+            void mutate();
+            void mutateEvents();
           }}
         />
       ) : null}

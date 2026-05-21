@@ -2,10 +2,16 @@
 
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import useSWR from "swr";
 
+import { useCockpitTelemetry } from "@/components/hive/cockpit-telemetry-provider";
 import { V4Badge, V4Card, V4CardHeader, V4Chip, V4SearchInput } from "@/components/ui/v4";
-import { HiveApiError, hiveGet } from "@/lib/api";
+import { hiveGet } from "@/lib/api";
+import { COCKPIT_PERF } from "@/lib/cockpit-performance-budget";
+import { cockpitSwrKeys } from "@/lib/cockpit-swr-keys";
+import { COCKPIT_POLL_TASK_QUEUE_MS } from "@/lib/cockpit-poll-profile";
+import { useSwrVisiblePollOptions } from "@/lib/hooks/use-swr-refresh-interval";
 import type { TaskQueueItem, TaskQueueResponse } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
@@ -115,42 +121,30 @@ function matchesTab(item: TaskQueueItem, tab: StatusTab): boolean {
 }
 
 export function TaskQueueSection() {
-  const [data, setData] = useState<TaskQueueResponse | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const { wsConnected } = useCockpitTelemetry();
+  const pollMs = wsConnected
+    ? Math.max(COCKPIT_PERF.wsConnectedPollMs, COCKPIT_POLL_TASK_QUEUE_MS)
+    : COCKPIT_POLL_TASK_QUEUE_MS;
+  const pollOptions = useSwrVisiblePollOptions(pollMs);
+  const { data, error } = useSWR<TaskQueueResponse>(
+    cockpitSwrKeys.taskQueue(120),
+    () => hiveGet<TaskQueueResponse>("dashboard/task-queue?limit=120"),
+    {
+      ...pollOptions,
+      keepPreviousData: true,
+      dedupingInterval: 12_000,
+    },
+  );
+  const err = error instanceof Error ? error.message : error ? "Task queue unreachable" : null;
   const [tab, setTab] = useState<StatusTab>("all");
   const [q, setQ] = useState("");
-
-  useEffect(() => {
-    let alive = true;
-    async function load(): Promise<void> {
-      try {
-        const body = await hiveGet<TaskQueueResponse>("dashboard/task-queue?limit=120");
-        if (alive) {
-          setData(body);
-          setErr(null);
-        }
-      } catch (e) {
-        const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Task queue unreachable";
-        if (alive) {
-          setErr(msg);
-          setData(null);
-        }
-      }
-    }
-    void load();
-    const id = window.setInterval(() => void load(), 45_000);
-    return () => {
-      alive = false;
-      window.clearInterval(id);
-    };
-  }, []);
 
   const filtered = useMemo(() => {
     if (!data) {
       return [];
     }
     const needle = q.trim().toLowerCase();
-    return data.tasks.filter((t) => {
+    return (data.tasks ?? []).filter((t) => {
       if (!matchesTab(t, tab)) {
         return false;
       }
@@ -188,16 +182,10 @@ export function TaskQueueSection() {
       <V4CardHeader
         title="Task queue"
         description={`${data.running_count} running · ${data.pending_count} queued · ${data.completed_today_count} completed today`}
-        actions={
-          <Link href="/tasks/new" className="qs-btn qs-btn--primary gap-2">
-            <Plus className="h-4 w-4" aria-hidden />
-            New task
-          </Link>
-        }
       />
 
-      <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-2">
+      <div className="v4-task-queue-controls mt-5 flex flex-col gap-3">
+        <div className="v4-chip-scroll">
           {(
             [
               ["all", "All"],
@@ -211,12 +199,16 @@ export function TaskQueueSection() {
             </V4Chip>
           ))}
         </div>
+        <Link href="/tasks/new" className="qs-btn qs-btn--primary qs-btn--sm w-full justify-center gap-2">
+          <Plus className="h-4 w-4 shrink-0" aria-hidden />
+          New task
+        </Link>
         <V4SearchInput
           value={q}
           onChange={setQ}
           placeholder="Filter tasks…"
           aria-label="Filter tasks"
-          className="w-full sm:max-w-xs"
+          className="w-full"
         />
       </div>
 

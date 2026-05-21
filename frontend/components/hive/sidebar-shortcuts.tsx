@@ -42,29 +42,30 @@ export function SidebarShortcuts({ className, onNavigate }: SidebarShortcutsProp
         <ChevronUp className={cn("hive-shortcuts-drawer-chevron", open && "hive-shortcuts-drawer-chevron--open")} aria-hidden />
       </button>
 
-      <div id={panelId} className="hive-shortcuts-drawer-panel" aria-hidden={!open}>
-        <div className="hive-shortcuts-drawer-panel-inner">
-          <div className="hive-shortcuts-drawer-grid">
-            {HIVE_SIDEBAR_SHORTCUTS.map((row) => (
-              <Link
-                key={row.href + row.key}
-                href={row.href}
-                prefetch
-                tabIndex={open ? 0 : -1}
-                title={localizePhrase(language, row.label)}
-                className="hive-shortcut-bubble"
-                onClick={() => {
-                  onNavigate?.();
-                  setOpen(false);
-                }}
-              >
-                <kbd className="hive-shortcut-bubble-key">Ctrl+{row.key.toUpperCase()}</kbd>
-                <span className="hive-shortcut-bubble-label">{localizePhrase(language, row.label)}</span>
-              </Link>
-            ))}
+      {open ? (
+        <div id={panelId} className="hive-shortcuts-drawer-panel hive-shortcuts-drawer-panel--open">
+          <div className="hive-shortcuts-drawer-panel-inner">
+            <div className="hive-shortcuts-drawer-grid">
+              {HIVE_SIDEBAR_SHORTCUTS.map((row) => (
+                <Link
+                  key={row.href + row.key}
+                  href={row.href}
+                  prefetch={false}
+                  title={localizePhrase(language, row.label)}
+                  className="hive-shortcut-bubble"
+                  onClick={() => {
+                    onNavigate?.();
+                    setOpen(false);
+                  }}
+                >
+                  <kbd className="hive-shortcut-bubble-key">Ctrl+{row.key.toUpperCase()}</kbd>
+                  <span className="hive-shortcut-bubble-label">{localizePhrase(language, row.label)}</span>
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
     </section>
   );
 }

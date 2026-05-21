@@ -59,4 +59,23 @@ cat > "${report}" <<EOF
 - RTO proxy: restore duration (if executed) is measured above.
 EOF
 
+json_report="${report%.md}.json"
+if [[ "${restore_sec}" == "n/a" ]]; then
+  restore_json="null"
+else
+  restore_json="${restore_sec}"
+fi
+cat > "${json_report}" <<EOF
+{
+  "timestamp_utc": "${stamp}",
+  "compose_project": "${COMPOSE_PROJECT}",
+  "env_file": "${ENV_FILE}",
+  "backup_duration_sec": ${backup_sec},
+  "restore_status": "${restore_status}",
+  "restore_duration_sec": ${restore_json},
+  "report_file": "$(basename "${report}")"
+}
+EOF
+
 echo "[dr-drill] report written: ${report}"
+echo "[dr-drill] json written: ${json_report}"

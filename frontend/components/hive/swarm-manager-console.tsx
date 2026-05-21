@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { cn } from "@/lib/utils";
+import { COCKPIT_POLL_SWARM_MANAGER_MS } from "@/lib/cockpit-poll-profile";
+import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 
 const SWARM_COLORS = [
   "#00E5FF",
@@ -124,11 +126,7 @@ export function SwarmManagerConsole() {
     }
   }, []);
 
-  useEffect(() => {
-    void loadAll();
-    const iv = window.setInterval(() => void loadAll(), 10000);
-    return () => window.clearInterval(iv);
-  }, [loadAll]);
+  useIntervalWhenVisible(() => void loadAll(), COCKPIT_POLL_SWARM_MANAGER_MS);
 
   async function createSwarm() {
     if (!form.name.trim()) return;

@@ -16,7 +16,13 @@ export type DashboardSectionId =
   | "performanceTier"
   | "recentTasks"
   | "agentSuggestions"
-  | "spawnAgent";
+  | "spawnAgent"
+  | "swarmBuilderEntry"
+  | "rapidLoop"
+  | "dreamingSummary"
+  | "timeSaved"
+  | "leadMagnets"
+  | "beeBadges";
 
 export interface DashboardSectionMeta {
   id: DashboardSectionId;
@@ -48,6 +54,12 @@ export const DASHBOARD_LAYOUT_DEFAULTS: Record<DashboardSectionId, boolean> = {
   recentTasks: true,
   agentSuggestions: false,
   spawnAgent: false,
+  swarmBuilderEntry: true,
+  rapidLoop: true,
+  dreamingSummary: true,
+  timeSaved: true,
+  leadMagnets: true,
+  beeBadges: true,
 };
 
 export const DASHBOARD_SECTION_GROUPS: DashboardSectionGroupMeta[] = [
@@ -143,6 +155,42 @@ export const DASHBOARD_SECTIONS: DashboardSectionMeta[] = [
     group: "power",
     label: { en: "Spawn agent (advanced)", sk: "Spawn agent (advanced)" },
     description: { en: "Quick manager/worker create form", sk: "Rýchly formulár manager/worker" },
+  },
+  {
+    id: "swarmBuilderEntry",
+    group: "overview",
+    label: { en: "Swarm Builder CTA", sk: "Swarm Builder CTA" },
+    description: { en: "Hero path to opinionated swarm templates", sk: "Vstup do opinionated swarm šablón" },
+  },
+  {
+    id: "rapidLoop",
+    group: "insights",
+    label: { en: "Rapid learning loop", sk: "Rapid learning loop" },
+    description: { en: "Scrape → reflect → simulate → reward SLA", sk: "SLA cyklu scrape → reflect → simulate → reward" },
+  },
+  {
+    id: "dreamingSummary",
+    group: "insights",
+    label: { en: "Dreaming summary", sk: "Dreaming prehľad" },
+    description: { en: "Latest nightly memory consolidation", sk: "Posledný nočný memory cyklus" },
+  },
+  {
+    id: "timeSaved",
+    group: "insights",
+    label: { en: "Time saved ROI", sk: "Ušetrený čas" },
+    description: { en: "Verified workflow hours saved by template", sk: "Ušetrené hodiny podľa šablón" },
+  },
+  {
+    id: "leadMagnets",
+    group: "overview",
+    label: { en: "Lead magnets", sk: "Lead magnety" },
+    description: { en: "Share cards + public landing for swarm templates", sk: "Share karty + verejný landing pre šablóny" },
+  },
+  {
+    id: "beeBadges",
+    group: "insights",
+    label: { en: "Bee badges", sk: "Bee odznaky" },
+    description: { en: "Verified-workflow gamification badges", sk: "Gamifikácia overených workflow" },
   },
 ];
 

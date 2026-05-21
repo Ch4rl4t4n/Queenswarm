@@ -6,16 +6,17 @@ import { toast } from "sonner";
 
 import { HiveApiError, hiveDelete, hiveGet, hivePostJson } from "@/lib/api";
 import { Toggle } from "@/components/ui/toggle";
-import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
+import { V4Badge, V4Card } from "@/components/ui/v4";
 import type { NotificationChannelListRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
-type ChannelSlug = "email" | "sms" | "discord" | "telegram";
+type ChannelSlug = "email" | "sms" | "discord" | "teams" | "telegram";
 
 const EVENTS: Record<ChannelSlug, string> = {
   email: "task_complete · agent_error_digest · weekly_summary",
   sms: "severity_p0_only",
   discord: "waggle_hints · Ballroom transcripts",
+  teams: "supervisor_digest · operator alerts",
   telegram: "task_complete · ballroom_ping",
 };
 
@@ -23,6 +24,7 @@ const META: Record<ChannelSlug, { title: string; Icon: typeof Mail }> = {
   email: { title: "Email", Icon: Mail },
   sms: { title: "SMS", Icon: Send },
   discord: { title: "Discord", Icon: MessageSquare },
+  teams: { title: "Microsoft Teams", Icon: MessageSquare },
   telegram: { title: "Telegram", Icon: Send },
 };
 
@@ -33,6 +35,8 @@ function channelDraftDefaults(slug: ChannelSlug): Record<string, unknown> {
     case "sms":
       return { phone_e164: "", enabled: false };
     case "discord":
+      return { webhook_url: "", enabled: false };
+    case "teams":
       return { webhook_url: "", enabled: false };
     case "telegram":
       return { bot_token: "", chat_id: "", enabled: false };
@@ -62,6 +66,7 @@ export function SettingsNotificationsPanel() {
     email: { enabled: true, settings: channelDraftDefaults("email") },
     sms: { enabled: false, settings: channelDraftDefaults("sms") },
     discord: { enabled: false, settings: channelDraftDefaults("discord") },
+    teams: { enabled: false, settings: channelDraftDefaults("teams") },
     telegram: { enabled: false, settings: channelDraftDefaults("telegram") },
   });
   const [testHints, setTestHints] = useState<Partial<Record<ChannelSlug, string>>>({});
@@ -69,7 +74,7 @@ export function SettingsNotificationsPanel() {
   const hydrateDraftsFromApi = useCallback((rows: NotificationChannelListRow[]) => {
     setDrafts((prev) => {
       const next = { ...prev };
-      for (const slug of ["email", "sms", "discord", "telegram"] as ChannelSlug[]) {
+      for (const slug of ["email", "sms", "discord", "teams", "telegram"] as ChannelSlug[]) {
         const row = rows.find((r) => r.channel_type === slug || r.id === slug);
         if (!row) {
           continue;
@@ -85,7 +90,9 @@ export function SettingsNotificationsPanel() {
                 ? { phone_e164: "" }
                 : slug === "discord"
                   ? { webhook_url: "" }
-                  : { bot_token: "", chat_id: "" },
+                  : slug === "teams"
+                    ? { webhook_url: "" }
+                    : { bot_token: "", chat_id: "" },
         };
       }
       return next;
@@ -122,6 +129,10 @@ export function SettingsNotificationsPanel() {
     }
     if (slug === "discord" && blob.enabled && !String(blob.settings.webhook_url ?? "").trim()) {
       toast.error("Discord webhook required when enabled.");
+      return;
+    }
+    if (slug === "teams" && blob.enabled && !String(blob.settings.webhook_url ?? "").trim()) {
+      toast.error("Teams webhook required when enabled.");
       return;
     }
     if (slug === "telegram" && blob.enabled) {
@@ -221,7 +232,7 @@ export function SettingsNotificationsPanel() {
       </p>
 
       <div className="flex flex-col gap-4">
-        {(["email", "sms", "discord", "telegram"] as ChannelSlug[]).map((slug) => {
+        {(["email", "sms", "discord", "teams", "telegram"] as ChannelSlug[]).map((slug) => {
           const { Icon, title } = META[slug];
           const blob = drafts[slug];
           const row = channels.find((c) => c.channel_type === slug || c.id === slug);
@@ -229,16 +240,15 @@ export function SettingsNotificationsPanel() {
 
           return (
             <V4Card key={slug}>
-              <V4CardHeader
-                as="h3"
-                title={title}
-                description={EVENTS[slug]}
-                actions={
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-(--qs-border) bg-[rgba(7,3,15,0.5)] text-pollen">
-                    <Icon className="h-5 w-5" aria-hidden />
-                  </div>
-                }
-              />
+              <div className="v4-section-header-row">
+                <div className="min-w-0 flex-1">
+                  <h3>{title}</h3>
+                  <p className="desc">{EVENTS[slug]}</p>
+                </div>
+                <div className="v4-section-icon" aria-hidden>
+                  <Icon className="h-5 w-5" />
+                </div>
+              </div>
 
               {configured ? (
                 <V4Badge tone="ok" className="mb-3">
@@ -304,13 +314,13 @@ export function SettingsNotificationsPanel() {
                 </div>
               ) : null}
 
-              {slug === "discord" ? (
+              {slug === "discord" || slug === "teams" ? (
                 <div className="mb-3">
-                  <label className="qs-label" htmlFor={`notif-discord-${slug}`}>
+                  <label className="qs-label" htmlFor={`notif-${slug}-${slug}`}>
                     Webhook URL
                   </label>
                   <input
-                    id={`notif-discord-${slug}`}
+                    id={`notif-${slug}-${slug}`}
                     type="password"
                     disabled={busy}
                     value={String(blob.settings.webhook_url ?? "")}
@@ -321,6 +331,7 @@ export function SettingsNotificationsPanel() {
                       }))
                     }
                     className="qs-input"
+                    placeholder={slug === "teams" ? "https://outlook.office.com/webhook/…" : undefined}
                   />
                 </div>
               ) : null}

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -13,6 +13,8 @@ from app.services.agent_catalog import (
     AgentCatalogError,
     apply_agent_updates,
     create_agent_record,
+    fetch_agent,
+    list_agents,
 )
 from app.services.sub_swarm_catalog import (
     SubSwarmCatalogError,
@@ -164,3 +166,33 @@ async def test_apply_sub_swarm_updates_clears_queen() -> None:
     )
 
     assert swarm.queen_agent_id is None
+
+
+@pytest.mark.asyncio
+async def test_fetch_agent_returns_row() -> None:
+    agent_id = uuid.uuid4()
+    row = object()
+    session = AsyncMock()
+    session.get = AsyncMock(return_value=row)
+    assert await fetch_agent(session, agent_id) is row
+
+
+@pytest.mark.asyncio
+async def test_list_agents_returns_filtered_rows() -> None:
+    agent = object()
+    scalar_result = MagicMock()
+    scalar_result.all.return_value = [agent]
+    executed = MagicMock()
+    executed.scalars.return_value = scalar_result
+    session = AsyncMock()
+    session.execute = AsyncMock(return_value=executed)
+
+    rows = await list_agents(
+        session,
+        swarm_id=uuid.uuid4(),
+        role=AgentRole.SCRAPER,
+        status=AgentStatus.IDLE,
+        limit=999,
+    )
+
+    assert rows == [agent]

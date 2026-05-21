@@ -19,6 +19,7 @@ import { QsSelect } from "@/components/ui/qs-select";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import { V4Badge, V4Card, V4CardHeader, V4PageCanvas } from "@/components/ui/v4";
 import { COCKPIT_POLL_EXTERNAL_METRICS_MS } from "@/lib/cockpit-poll-profile";
+import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import { cn } from "@/lib/utils";
 
 interface ExternalProjectRow {
@@ -128,14 +129,15 @@ export function ExternalProjectsConsole() {
     }
   }, [selectedId, loadMetrics]);
 
-  useEffect(() => {
-    if (!selectedId) {
-      return undefined;
-    }
-    const id = selectedId;
-    const handle = window.setInterval(() => void loadMetrics(id, "poll"), COCKPIT_POLL_EXTERNAL_METRICS_MS);
-    return () => window.clearInterval(handle);
-  }, [selectedId, loadMetrics]);
+  useIntervalWhenVisible(
+    () => {
+      if (selectedId) {
+        void loadMetrics(selectedId, "poll");
+      }
+    },
+    selectedId ? COCKPIT_POLL_EXTERNAL_METRICS_MS : null,
+    { runImmediately: false },
+  );
 
   const selected = useMemo(
     () => projects?.find((p) => p.id === selectedId) ?? null,

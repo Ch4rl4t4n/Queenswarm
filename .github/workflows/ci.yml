@@ -150,6 +150,8 @@ jobs:
           RUN_FULL_E2E: "1"
           E2E_PHASE70_NAV: "1"
           E2E_PHASE120_ECOSYSTEM: "1"
+          E2E_PHASE14_OPERATOR_FLOWS: "1"
+          E2E_PHASE61_SUPERVISOR: "1"
           RUN_SECURITY_GATES: "1"
           SECURITY_STRICT: "1"
         run: bash scripts/final-150-gates.sh

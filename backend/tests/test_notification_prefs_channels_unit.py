@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.presentation.api.routers.dashboard_session import discord_webhook_url_ok, normalize_delivery_channels_blob
+from app.presentation.api.routers.dashboard_session import discord_webhook_url_ok, normalize_delivery_channels_blob, teams_webhook_url_ok
 
 
 def test_normalize_delivery_channels_from_json_string_round_trip() -> None:
@@ -30,3 +30,17 @@ def test_discord_webhook_url_rejects_bad_inputs() -> None:
     assert not discord_webhook_url_ok("https://discord.com/api/v10/channels/1")
     assert not discord_webhook_url_ok("https://fake-discord.com/api/webhooks/1/x")
     assert not discord_webhook_url_ok("https://evil.com/api/webhooks/%2f%2fdiscord.com")
+
+
+def test_teams_webhook_url_accepts_known_hosts() -> None:
+    assert teams_webhook_url_ok("https://contoso.webhook.office.com/webhook/abc/def")
+    assert teams_webhook_url_ok("https://outlook.office.com/webhook/uuid@uuid/IncomingWebhook/uuid/uuid")
+    assert teams_webhook_url_ok(
+        "https://prod-01.westus.logic.azure.com:443/workflows/abc/triggers/manual/paths/invoke",
+    )
+
+
+def test_teams_webhook_url_rejects_bad_inputs() -> None:
+    assert not teams_webhook_url_ok("http://outlook.office.com/webhook/x")
+    assert not teams_webhook_url_ok("https://evil.com/webhook/office.com")
+    assert not teams_webhook_url_ok("https://fake-webhook.office.com.evil.com/webhook/x")

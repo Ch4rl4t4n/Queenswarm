@@ -81,7 +81,7 @@ export function ToolsMarketplacePanel(): JSX.Element {
     <div className="space-y-6">
       <V4CardHeader
         as="h3"
-        title="API marketplace foundation"
+        title="API Marketplace Foundation"
         description="One-click install for curated connector templates; custom and community sources plug into the same install API."
       />
 
@@ -118,7 +118,9 @@ export function ToolsMarketplacePanel(): JSX.Element {
                   )}
                 </div>
                 {installedId === row.id ? (
-                  <p className="text-[11px] text-(--qs-green)">Installed. Open Connector hub to test the connection.</p>
+                  <p className="text-[11px] text-(--qs-green)">
+                    Installed. Run &ldquo;Test connection&rdquo; in Dynamic Hub to activate.
+                  </p>
                 ) : null}
               </article>
             ))}

@@ -1,19 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import nextDynamic from "next/dynamic";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { AgentSuggestionsPanel } from "@/components/hive/agent-suggestions-panel";
-import { useDashboardSection, useDashboardSettings } from "@/components/hive/dashboard-layout-provider";
+import { DashboardSectionSkeleton } from "@/components/hive/colony-console-skeleton";
+import { CockpitTelemetryProvider, useCockpitTelemetry } from "@/components/hive/cockpit-telemetry-provider";
+import { useDashboardSection } from "@/components/hive/dashboard-layout-provider";
 import { QueenDashboardChrome } from "@/components/hive/queen-dashboard-chrome";
 import { QsSelect } from "@/components/ui/qs-select";
 import { V4AdvancedPanel, V4PageCanvas } from "@/components/ui/v4";
 import { hiveFetch, hiveGet, hivePatchJson, hivePostJson, hivePutJson } from "@/lib/api";
-import { COCKPIT_POLL_COLONY_TELEMETRY_MS } from "@/lib/cockpit-poll-profile";
-import type { AgentRow, DashboardSummary, SystemStatusPayload, TaskRow } from "@/lib/hive-types";
+import type { DashboardCockpitBundle } from "@/lib/cockpit-bundle";
+import type { AgentRow } from "@/lib/hive-types";
+
+const AgentSuggestionsPanel = nextDynamic(
+  () => import("@/components/hive/agent-suggestions-panel").then((mod) => ({ default: mod.AgentSuggestionsPanel })),
+  { loading: () => <DashboardSectionSkeleton className="min-h-[160px]" /> },
+);
 
 interface ColonyConsoleProps {
-  initialAgents: AgentRow[];
+  initialAgents?: AgentRow[];
+  initialCockpit?: DashboardCockpitBundle | null;
   /** SSR roster fetch failed — client poll will retry. */
   rosterSyncPending?: boolean;
 }
@@ -85,16 +93,27 @@ function deriveInactive(agent: AgentRow, cfg?: AgentConfigPayload | null): boole
   return cfg?.is_active === false;
 }
 
-export function ColonyConsole({ initialAgents, rosterSyncPending = false }: ColonyConsoleProps) {
+export function ColonyConsole({
+  initialAgents = [],
+  initialCockpit = null,
+  rosterSyncPending = false,
+}: ColonyConsoleProps) {
+  return (
+    <CockpitTelemetryProvider initialAgents={initialAgents} initialCockpit={initialCockpit}>
+      <ColonyConsoleInner initialAgents={initialAgents} rosterSyncPending={rosterSyncPending} />
+    </CockpitTelemetryProvider>
+  );
+}
+
+function ColonyConsoleInner({ initialAgents = [], rosterSyncPending = false }: ColonyConsoleProps) {
   const showAgentSuggestions = useDashboardSection("agentSuggestions");
   const showSpawnAgent = useDashboardSection("spawnAgent");
-  const { settingsOpen } = useDashboardSettings();
 
-  const [agents, setAgents] = useState<AgentRow[]>(initialAgents);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [draftById, setDraftById] = useState<Record<string, ConfigDraft>>({});
   const [modalAgentId, setModalAgentId] = useState<string | null>(null);
   const [subSwarms, setSubSwarms] = useState<SwarmRowLite[]>([]);
+  const [filterQuery, setFilterQuery] = useState("");
 
   const [newName, setNewName] = useState("");
   const [newTier, setNewTier] = useState<"manager" | "worker">("worker");
@@ -105,76 +124,17 @@ export function ColonyConsole({ initialAgents, rosterSyncPending = false }: Colo
   const [missionBusy, setMissionBusy] = useState(false);
   const [missionErr, setMissionErr] = useState<string | null>(null);
 
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [costWindowUsd, setCostWindowUsd] = useState<number | null>(null);
-  const [filterQuery, setFilterQuery] = useState("");
-  const [systemPulse, setSystemPulse] = useState<SystemStatusPayload | null>(null);
-  const [recentTasks, setRecentTasks] = useState<TaskRow[]>([]);
-  const [telemetryBusy, setTelemetryBusy] = useState(true);
+  const {
+    agents: telemetryAgents,
+    recentTasks,
+    systemStatus: systemPulse,
+    summary,
+    costWindowUsd,
+    telemetryLoading: telemetryBusy,
+    refreshAgents,
+  } = useCockpitTelemetry();
 
-  useEffect(() => {
-    let alive = true;
-    void (async () => {
-      try {
-        const res = await fetch("/api/proxy/dashboard/summary", { credentials: "include" });
-        if (res.ok && alive) {
-          setSummary((await res.json()) as DashboardSummary);
-        }
-      } catch {
-        /* ignore */
-      }
-      try {
-        const res = await fetch("/api/proxy/operator/costs/summary?days=30", { credentials: "include" });
-        if (res.ok && alive) {
-          const body = (await res.json()) as { series?: { spend_usd: number }[] };
-          const total = (body.series ?? []).reduce((s, x) => s + (Number(x.spend_usd) || 0), 0);
-          setCostWindowUsd(total);
-        }
-      } catch {
-        /* ignore */
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function pollTelemetry(): Promise<void> {
-      try {
-        const [nextAgents, taskSlice, pulse] = await Promise.all([
-          hiveFetch<AgentRow[]>("agents?limit=200"),
-          hiveGet<TaskRow[]>("tasks?limit=10"),
-          hiveGet<SystemStatusPayload>("system/status"),
-        ]);
-        if (cancelled) {
-          return;
-        }
-        setAgents(nextAgents);
-        setRecentTasks(taskSlice);
-        setSystemPulse(pulse);
-      } catch {
-        /* keep last good snapshot */
-      } finally {
-        if (!cancelled) {
-          setTelemetryBusy(false);
-        }
-      }
-    }
-    void pollTelemetry();
-    const handle = window.setInterval(() => {
-      if (document.visibilityState !== "visible" || settingsOpen) {
-        return;
-      }
-      void pollTelemetry();
-    }, COCKPIT_POLL_COLONY_TELEMETRY_MS);
-    return () => {
-      cancelled = true;
-      window.clearInterval(handle);
-    };
-  }, [settingsOpen]);
-
+  const agents = telemetryAgents.length > 0 ? telemetryAgents : (initialAgents ?? []);
   const filteredHoneycombAgents = useMemo(() => {
     const q = filterQuery.trim().toLowerCase();
     if (!q) {
@@ -216,12 +176,7 @@ export function ColonyConsole({ initialAgents, rosterSyncPending = false }: Colo
     modalDraft !== undefined && (modalDraft.inactive || modalSwarmChosenId === "");
 
   async function reloadAgents(): Promise<void> {
-    try {
-      const next = await hiveFetch<AgentRow[]>("agents?limit=200");
-      setAgents(next);
-    } catch {
-      /* keep prior */
-    }
+    await refreshAgents();
   }
 
   useEffect(() => {

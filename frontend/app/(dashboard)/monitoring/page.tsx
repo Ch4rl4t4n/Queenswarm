@@ -1,9 +1,16 @@
 "use client";
 
+import dynamic from "next/dynamic";
+
 import { HivePageHeader } from "@/components/hive/hive-page-header";
-import { MonitoringDashboard } from "@/components/monitoring/monitoring-dashboard";
+import { SettingsPanelSkeleton } from "@/components/hive/settings-panel-skeleton";
 import { V4PageCanvas } from "@/components/ui/v4";
 import { ADVANCED_MONITORING_ENABLED } from "@/lib/feature-flags";
+
+const MonitoringDashboard = dynamic(
+  () => import("@/components/monitoring/monitoring-dashboard").then((mod) => ({ default: mod.MonitoringDashboard })),
+  { loading: () => <SettingsPanelSkeleton /> },
+);
 
 export default function MonitoringPage() {
   if (!ADVANCED_MONITORING_ENABLED) {

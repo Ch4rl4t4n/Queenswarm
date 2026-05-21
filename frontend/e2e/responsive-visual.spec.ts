@@ -21,7 +21,7 @@ interface SnapshotRoute {
 
 const SNAPSHOT_ROUTES: SnapshotRoute[] = [
   { path: "/login", slug: "login", public: true },
-  { path: "/", slug: "dashboard", heading: /queen dashboard/i },
+  { path: "/", slug: "dashboard", heading: /^Dashboard$/i },
   { path: "/swarms", slug: "swarms", heading: /swarms/i },
   { path: "/tasks", slug: "tasks", heading: "Tasks", headingExact: true },
   { path: "/agents", slug: "agents", heading: "Agents", headingExact: true },

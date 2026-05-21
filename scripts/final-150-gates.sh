@@ -13,6 +13,8 @@
 #   SECURITY_STRICT=1   -> forwarded to security-gates when enabled
 #   E2E_PHASE70_NAV=1   -> forwarded to Playwright
 #   E2E_PHASE120_ECOSYSTEM=1 -> forwarded to Playwright
+#   E2E_PHASE14_OPERATOR_FLOWS=1 -> forwarded to Playwright phase14 suite
+#   E2E_PHASE61_SUPERVISOR=1 -> forwarded to Playwright phase61 supervisor suite
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -38,6 +40,12 @@ if [[ "${RUN_FULL_E2E:-0}" == "1" ]]; then
   E2E_PHASE70_NAV="${E2E_PHASE70_NAV:-1}" \
   E2E_PHASE120_ECOSYSTEM="${E2E_PHASE120_ECOSYSTEM:-1}" \
   npm run test:e2e
+  echo "[final150] phase14 operator flows e2e"
+  E2E_PHASE14_OPERATOR_FLOWS="${E2E_PHASE14_OPERATOR_FLOWS:-1}" \
+  npm run test:e2e:phase14 -- --workers=1
+  echo "[final150] phase61 supervisor control e2e"
+  E2E_PHASE61_SUPERVISOR="${E2E_PHASE61_SUPERVISOR:-1}" \
+  npx playwright test e2e/phase61-supervisor-control.spec.ts --workers=1
 fi
 
 if [[ "${RUN_EDGE_CHECKS:-0}" == "1" ]]; then

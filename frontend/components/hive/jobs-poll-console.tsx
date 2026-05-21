@@ -1,11 +1,13 @@
 "use client";
 
 import { Loader2Icon, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { HivePageHeader } from "@/components/hive/hive-page-header";
 import { V4Card, V4PageCanvas } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
+import { COCKPIT_POLL_JOBS_MS } from "@/lib/cockpit-poll-profile";
+import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import type { HiveAsyncJobStatusPayload } from "@/lib/hive-types";
 
 /** Poll ``GET /jobs/{celery_task_id}`` — async swarm workflow telemetry. */
@@ -45,21 +47,20 @@ export function JobsPollConsole() {
     }
   }, [taskId]);
 
-  useEffect(() => {
-    if (!auto) {
-      return undefined;
-    }
-    const t = window.setInterval(() => {
+  useIntervalWhenVisible(
+    () => {
       void pollOnce({ silent: true });
-    }, 4000);
-    return () => window.clearInterval(t);
-  }, [auto, pollOnce]);
+    },
+    auto ? COCKPIT_POLL_JOBS_MS : null,
+    { runImmediately: auto },
+  );
 
   return (
     <V4PageCanvas>
       <HivePageHeader
         title="Async workflow jobs"
         subtitle="Phase 2.6 · Ops — paste a Celery task id from queued swarm workflows. Single-flight polling keeps ~16 GB hosts predictable (pause auto-refresh when idle)."
+        className="mb-3"
       />
 
       <V4Card>

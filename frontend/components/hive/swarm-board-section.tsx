@@ -2,46 +2,36 @@
 
 import Link from "next/link";
 import { ChevronRightIcon, RefreshCw, Search, Zap, Cpu, Activity } from "lucide-react";
-import { useEffect, useState } from "react";
+import useSWR from "swr";
 
+import { useCockpitTelemetry } from "@/components/hive/cockpit-telemetry-provider";
 import {
   V4Badge,
   V4Card,
   V4CardHeader,
 } from "@/components/ui/v4";
-import { HiveApiError, hiveGet } from "@/lib/api";
+import { hiveGet } from "@/lib/api";
+import { COCKPIT_PERF } from "@/lib/cockpit-performance-budget";
+import { cockpitSwrKeys } from "@/lib/cockpit-swr-keys";
+import { COCKPIT_POLL_SWARM_BOARD_MS } from "@/lib/cockpit-poll-profile";
+import { useSwrVisiblePollOptions } from "@/lib/hooks/use-swr-refresh-interval";
 import type { SwarmBoardCard, SwarmBoardResponse, WaggleFeedItem } from "@/lib/hive-types";
+import { formatSyncDue, syncTone } from "@/lib/sub-swarm-local-mind-utils";
+import { cn } from "@/lib/utils";
 
 function useSwarmBoard() {
-  const [data, setData] = useState<SwarmBoardResponse | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    async function load(): Promise<void> {
-      try {
-        const board = await hiveGet<SwarmBoardResponse>("dashboard/swarm-board");
-        if (alive) {
-          setData(board);
-          setErr(null);
-        }
-      } catch (e) {
-        const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Swarm board unreachable";
-        if (alive) {
-          setErr(msg);
-          setData(null);
-        }
-      }
-    }
-    void load();
-    const id = window.setInterval(() => void load(), 60_000);
-    return () => {
-      alive = false;
-      window.clearInterval(id);
-    };
-  }, []);
-
-  return { data, err, reload: () => void hiveGet<SwarmBoardResponse>("dashboard/swarm-board").then(setData) };
+  const { wsConnected } = useCockpitTelemetry();
+  const pollMs = wsConnected
+    ? Math.max(COCKPIT_PERF.wsConnectedPollMs, COCKPIT_POLL_SWARM_BOARD_MS)
+    : COCKPIT_POLL_SWARM_BOARD_MS;
+  const pollOptions = useSwrVisiblePollOptions(pollMs);
+  const { data, error, mutate } = useSWR<SwarmBoardResponse>(
+    cockpitSwrKeys.swarmBoard(),
+    () => hiveGet<SwarmBoardResponse>("dashboard/swarm-board"),
+    { ...pollOptions, keepPreviousData: true, dedupingInterval: 20_000 },
+  );
+  const err = error instanceof Error ? error.message : error ? "Swarm board unreachable" : null;
+  return { data: data ?? null, err, reload: () => void mutate() };
 }
 
 const LANE_ICON: Record<string, typeof Search> = {
@@ -66,6 +56,7 @@ function formatFeedAgo(sec: number): string {
 
 function SwarmCard({ card }: { card: SwarmBoardCard }) {
   const Icon = LANE_ICON[card.lane.toLowerCase()] ?? Zap;
+  const mind = card.local_mind;
   return (
     <article className="v4-swarm-card">
       <div className="flex items-start justify-between gap-2">
@@ -78,6 +69,22 @@ function SwarmCard({ card }: { card: SwarmBoardCard }) {
         <V4Badge tone={card.is_active ? "ok" : "warn"}>{card.is_active ? "live" : "idle"}</V4Badge>
       </div>
       <p className="mt-2 text-xs text-(--qs-text-3)">{card.description || "Local memory · Chroma · 5min sync"}</p>
+      {mind ? (
+        <div className="mt-3 space-y-2">
+          <div className="relative h-1.5 overflow-hidden rounded-full bg-white/10">
+            <div
+              className={cn("h-full rounded-full", mind.needs_sync ? "bg-pollen" : "bg-success")}
+              style={{ width: `${mind.sync_progress_pct}%` }}
+            />
+          </div>
+          <p className="text-[10px] text-(--qs-text-3)">
+            <V4Badge tone={syncTone(mind.needs_sync)}>{mind.needs_sync ? "sync due" : "local hive"}</V4Badge>
+            {" · "}
+            global in {formatSyncDue(mind.sync_due_in_sec)}
+            {mind.wizard_template ? ` · ${mind.wizard_template}` : ""}
+          </p>
+        </div>
+      ) : null}
       <div className="mt-3 flex gap-4 text-xs text-(--qs-text-3)">
         <span>
           <strong className="text-(--qs-text)">{card.member_count}</strong> bees
@@ -165,7 +172,7 @@ export function WaggleFeedCard() {
     return <V4Card className="h-48 animate-pulse bg-white/4"><span className="sr-only">Loading waggle feed</span></V4Card>;
   }
   return (
-    <V4Card className="v4-card-interactive h-full">
+    <V4Card className="v4-card-interactive">
       <V4CardHeader
         title="Waggle dance feed"
         description="Signals across swarms — from hive tasks"

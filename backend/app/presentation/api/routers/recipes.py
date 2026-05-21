@@ -16,6 +16,7 @@ from app.common.schemas.recipes_search import RecipeSemanticHit
 from app.common.schemas.recipes_write import RecipeCreateBody, RecipePatchBody
 from app.application.services.recipe_catalog import list_recipe_catalog_rows
 from app.application.services.recipe_chroma_bridge import search_recipes_semantic
+from app.application.services.recipe_match_config import RecipeMatchConfigResponse, build_recipe_match_config
 from app.application.services.recipe_write import (
     RecipeWriteConflictError,
     RecipeWriteEmptyPatchError,
@@ -62,6 +63,18 @@ def _ensure_leaderboard_enabled() -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Leaderboard module is disabled.",
         )
+
+
+@router.get(
+    "/match-config",
+    response_model=RecipeMatchConfigResponse,
+    summary="Recipe cosine match thresholds for UI",
+)
+async def recipe_match_config(_subject: JwtSubject) -> RecipeMatchConfigResponse:
+    """Expose imitation-engine similarity gate (default 0.85) and hybrid weights."""
+
+    _ensure_recipes_enabled()
+    return build_recipe_match_config()
 
 
 @router.get(

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
+from app.application.services.sub_swarm_local_mind import build_local_mind_summary
 from app.infrastructure.persistence.models.agent import Agent
 from app.infrastructure.persistence.models.enums import SwarmPurpose
 from app.infrastructure.persistence.models.swarm import SubSwarm
@@ -128,6 +129,7 @@ async def build_swarm_board_payload(session: AsyncSession) -> dict[str, Any]:
                 "is_active": swarm.is_active,
                 "last_global_sync_at": last_sync.isoformat() if last_sync else None,
                 "last_sync_seconds_ago": sync_sec_ago,
+                "local_mind": build_local_mind_summary(swarm, now=now),
             },
         )
 

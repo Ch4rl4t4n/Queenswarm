@@ -16,6 +16,20 @@ from app.application.services.billing import (
     resolve_plan_limits,
 )
 from app.application.services.rbac import has_permission
+from app.application.services.enterprise_subscription_checkout import (
+    CHECKOUT_KIND_ENTERPRISE,
+    complete_enterprise_subscription_from_stripe,
+    confirm_enterprise_checkout_session,
+    create_enterprise_checkout_session,
+    enterprise_checkout_ready,
+)
+from app.application.services.pro_subscription_checkout import (
+    CHECKOUT_KIND_PRO,
+    complete_pro_subscription_from_stripe,
+    confirm_pro_checkout_session,
+    create_pro_checkout_session,
+    pro_checkout_ready,
+)
 from app.application.services.skill_checkout import complete_skill_purchase_from_stripe, stripe_checkout_ready
 from app.application.services.stripe_runtime_credentials import (
     mask_stripe_material,
@@ -60,7 +74,24 @@ class BillingPlansResponse(BaseModel):
     current_tier: str
     plans: list[dict[str, Any]] = Field(default_factory=list)
     checkout_ready: bool = False
+    pro_checkout_ready: bool = False
+    pro_price_eur_cents: int = 2900
+    enterprise_checkout_ready: bool = False
+    enterprise_price_eur_cents: int = 9900
     message: str
+
+
+class ProCheckoutResponse(BaseModel):
+    """Stripe Pro subscription checkout session result."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    status: str
+    checkout_url: str | None = None
+    checkout_session_id: str | None = None
+    tier: str | None = None
+    amount_eur_cents: str | None = None
+    message: str | None = None
 
 
 class StripeConfigStatus(BaseModel):
@@ -187,15 +218,29 @@ async def get_billing_plans(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
     subscription = await ensure_tenant_subscription(db, tenant_id=tenant_id)
     checkout_ready = stripe_checkout_ready() or bool(subscription.stripe_customer_id)
+    pro_ready = pro_checkout_ready()
+    ent_ready = enterprise_checkout_ready()
     return BillingPlansResponse(
         current_tier=str(subscription.tier),
         plans=plan_catalog(),
         checkout_ready=checkout_ready,
+        pro_checkout_ready=pro_ready,
+        pro_price_eur_cents=int(settings.stripe_pro_price_eur_cents),
+        enterprise_checkout_ready=ent_ready,
+        enterprise_price_eur_cents=int(settings.stripe_enterprise_price_eur_cents),
         message=(
-            "Stripe skill checkout is active when STRIPE_SECRET_KEY is configured; "
-            "subscription billing remains optional."
-            if checkout_ready
-            else "Configure STRIPE_SECRET_KEY to enable premium skill checkout."
+            "Pro and Enterprise subscription checkout available from this page."
+            if pro_ready and ent_ready
+            else (
+                "Pro subscription checkout is active — upgrade from this page or browse premium skills."
+                if pro_ready
+                else (
+                    "Stripe skill checkout is active when STRIPE_SECRET_KEY is configured; "
+                    "set STRIPE_PRO_PRICE_ID for Pro tier subscription checkout."
+                    if checkout_ready
+                    else "Configure STRIPE_SECRET_KEY to enable checkout."
+                )
+            )
         ),
     )
 
@@ -281,6 +326,106 @@ async def test_stripe_config(
     return StripeConfigTestResponse(status="ok", message="Stripe secret key verified.")
 
 
+@router.post("/pro-checkout", response_model=ProCheckoutResponse, summary="Start Pro tier Stripe subscription checkout")
+async def start_pro_checkout(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> ProCheckoutResponse:
+    """Create Stripe Checkout Session for commercial Pro tier upgrade."""
+
+    tenant_id = principal.get("tenant_id")
+    _require_settings_view(principal)
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    user = principal.get("user")
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Dashboard subject missing.")
+
+    result = await create_pro_checkout_session(
+        db,
+        tenant_id=tenant_id,
+        dashboard_user=user,
+    )
+    await db.commit()
+    return ProCheckoutResponse(**result)
+
+
+@router.get("/pro-checkout/confirm", response_model=ProCheckoutResponse, summary="Confirm Pro checkout after redirect")
+async def confirm_pro_checkout(
+    session_id: str,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> ProCheckoutResponse:
+    """Finalize Pro tier unlock when webhook is delayed (success redirect fallback)."""
+
+    tenant_id = principal.get("tenant_id")
+    _require_settings_view(principal)
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+
+    result = await confirm_pro_checkout_session(
+        db,
+        tenant_id=tenant_id,
+        checkout_session_id=session_id,
+    )
+    await db.commit()
+    return ProCheckoutResponse(**result)
+
+
+@router.post(
+    "/enterprise-checkout",
+    response_model=ProCheckoutResponse,
+    summary="Start Enterprise tier Stripe subscription checkout",
+)
+async def start_enterprise_checkout(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> ProCheckoutResponse:
+    """Create Stripe Checkout Session for commercial Enterprise tier upgrade (Pro required)."""
+
+    tenant_id = principal.get("tenant_id")
+    _require_settings_view(principal)
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    user = principal.get("user")
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Dashboard subject missing.")
+
+    result = await create_enterprise_checkout_session(
+        db,
+        tenant_id=tenant_id,
+        dashboard_user=user,
+    )
+    await db.commit()
+    return ProCheckoutResponse(**result)
+
+
+@router.get(
+    "/enterprise-checkout/confirm",
+    response_model=ProCheckoutResponse,
+    summary="Confirm Enterprise checkout after redirect",
+)
+async def confirm_enterprise_checkout(
+    session_id: str,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> ProCheckoutResponse:
+    """Finalize Enterprise tier unlock when webhook is delayed."""
+
+    tenant_id = principal.get("tenant_id")
+    _require_settings_view(principal)
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+
+    result = await confirm_enterprise_checkout_session(
+        db,
+        tenant_id=tenant_id,
+        checkout_session_id=session_id,
+    )
+    await db.commit()
+    return ProCheckoutResponse(**result)
+
+
 @router.post("/stripe/webhook", include_in_schema=False)
 async def stripe_webhook(request: Request, db: DbSession) -> dict[str, str]:
     """Handle Stripe webhook events for skill purchase completion."""
@@ -308,7 +453,7 @@ async def stripe_webhook(request: Request, db: DbSession) -> dict[str, str]:
     if event.type == "checkout.session.completed":
         session_obj = event.data.object
         payment_status = str(getattr(session_obj, "payment_status", "") or "")
-        if payment_status and payment_status != "paid":
+        if payment_status and payment_status not in {"paid", "no_payment_required"}:
             logger.info(
                 "billing.stripe_webhook.checkout_not_paid",
                 session_id=str(getattr(session_obj, "id", "") or ""),
@@ -316,26 +461,56 @@ async def stripe_webhook(request: Request, db: DbSession) -> dict[str, str]:
             )
             return {"status": "ignored", "reason": "payment_not_completed"}
         session_id = str(getattr(session_obj, "id", "") or "")
+        metadata = dict(getattr(session_obj, "metadata", None) or {})
+        checkout_kind = str(metadata.get("queenswarm_checkout") or "")
         payment_intent = getattr(session_obj, "payment_intent", None)
         payment_intent_id = str(payment_intent) if payment_intent else None
         try:
-            await complete_skill_purchase_from_stripe(
-                db,
-                checkout_session_id=session_id,
-                payment_intent_id=payment_intent_id,
-            )
+            if checkout_kind == CHECKOUT_KIND_PRO:
+                upgraded = await complete_pro_subscription_from_stripe(
+                    db,
+                    checkout_session_id=session_id,
+                    stripe_customer_id=str(getattr(session_obj, "customer", "") or "") or None,
+                    stripe_subscription_id=str(getattr(session_obj, "subscription", "") or "") or None,
+                )
+                if not upgraded:
+                    logger.warning(
+                        "billing.stripe_webhook.pro_upgrade_failed",
+                        session_id=session_id,
+                    )
+                    return {"status": "ignored", "reason": "pro_upgrade_not_applied"}
+            elif checkout_kind == CHECKOUT_KIND_ENTERPRISE:
+                upgraded = await complete_enterprise_subscription_from_stripe(
+                    db,
+                    checkout_session_id=session_id,
+                    stripe_customer_id=str(getattr(session_obj, "customer", "") or "") or None,
+                    stripe_subscription_id=str(getattr(session_obj, "subscription", "") or "") or None,
+                )
+                if not upgraded:
+                    logger.warning(
+                        "billing.stripe_webhook.enterprise_upgrade_failed",
+                        session_id=session_id,
+                    )
+                    return {"status": "ignored", "reason": "enterprise_upgrade_not_applied"}
+            else:
+                await complete_skill_purchase_from_stripe(
+                    db,
+                    checkout_session_id=session_id,
+                    payment_intent_id=payment_intent_id,
+                )
             await db.commit()
         except Exception as exc:  # noqa: BLE001
             await db.rollback()
             logger.warning(
                 "billing.stripe_webhook.complete_failed",
                 session_id=session_id,
+                checkout_kind=checkout_kind or "skill",
                 error_type=type(exc).__name__,
                 error=str(exc),
             )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to finalize skill purchase.",
+                detail="Failed to finalize Stripe checkout.",
             ) from exc
 
     return {"status": "ok"}

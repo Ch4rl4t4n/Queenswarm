@@ -90,3 +90,47 @@ async def test_distribute_pollen_share_splits_evenly() -> None:
     assert agent1.pollen_points == 6.0
     assert agent2.pollen_points == 7.0
     assert swarm.total_pollen == 10.0
+
+
+@pytest.mark.asyncio
+async def test_elect_queen_raises_when_swarm_missing() -> None:
+    session = AsyncMock()
+    session.get = AsyncMock(return_value=None)
+    with pytest.raises(ValueError, match="not found"):
+        await elect_queen_for_swarm(session, uuid.uuid4())
+
+
+@pytest.mark.asyncio
+async def test_elect_queen_returns_none_when_no_candidates() -> None:
+    swarm = MagicMock()
+    session = AsyncMock()
+    session.get = AsyncMock(return_value=swarm)
+    session.scalars = AsyncMock(return_value=MagicMock(all=MagicMock(return_value=[])))
+
+    assert await elect_queen_for_swarm(session, uuid.uuid4()) is None
+
+
+@pytest.mark.asyncio
+async def test_record_waggle_raises_when_swarm_missing() -> None:
+    session = AsyncMock()
+    session.get = AsyncMock(return_value=None)
+    with pytest.raises(ValueError, match="not found"):
+        await record_waggle_dance(session, swarm_id=uuid.uuid4(), source_agent_id=uuid.uuid4(), cue={})
+
+
+@pytest.mark.asyncio
+async def test_distribute_pollen_share_zero_amount() -> None:
+    assert await distribute_pollen_share(AsyncMock(), swarm_id=uuid.uuid4(), total_amount=0) == []
+
+
+@pytest.mark.asyncio
+async def test_distribute_pollen_share_skips_missing_agent_row() -> None:
+    a1 = uuid.uuid4()
+    session = AsyncMock()
+    session.scalars = AsyncMock(return_value=MagicMock(all=MagicMock(return_value=[a1])))
+    session.get = AsyncMock(side_effect=[None, MagicMock(total_pollen=0.0)])
+    session.flush = AsyncMock()
+
+    allocations = await distribute_pollen_share(session, swarm_id=uuid.uuid4(), total_amount=4.0)
+
+    assert allocations == []

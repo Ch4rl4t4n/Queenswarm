@@ -102,6 +102,7 @@ _MODEL_PACKAGES: tuple[str, ...] = (
     "app.infrastructure.persistence.models.hive_llm_secret",
     "app.infrastructure.persistence.models.dashboard_user",
     "app.infrastructure.persistence.models.tenant",
+    "app.infrastructure.persistence.models.platform_feature_policy",
     "app.infrastructure.persistence.models.dashboard_api_key",
     "app.infrastructure.persistence.models.curated_memory",
     "app.infrastructure.persistence.models.dream_cycle",

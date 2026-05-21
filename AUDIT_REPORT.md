@@ -1,7 +1,31 @@
 # Queenswarm Audit Report
 
-Date: 2026-05-17  
+Date: 2026-05-19  
 Scope: production-only architecture and runtime workflow
+
+## Operator session tooling — completion status (Phase 12–18)
+
+- **Session audit:** tenant-scoped operator action log in session drawer; merged timeline export; context diff on control/review actions.
+- **Tenant digest:** scheduled + manual send via Settings → Audit; webhook test; playbook automation card; `last_sent_at` recorded on manual send.
+- **Platform rollup:** Command Center cross-tenant 7-day rollup with digest health badges, stale/never-sent alerts in email/Slack, cache invalidation on writes.
+- **Playbook:** verified session → Recipe Library; preview modal; auto-save on approve with toast + recipes link.
+- **Recovery UX:** Command Center per-tenant **Send digest** + bulk **Send all alerts** for stale/never-sent hives.
+- **Quality evidence:**
+  - `./scripts/phase14-gates.sh` → 49 backend + frontend unit tests pass
+  - `E2E_PHASE14_OPERATOR_FLOWS=1 npm run test:e2e:phase14` → 4/4 pass
+  - `./scripts/production-signoff-gate.sh` includes phase14 operator gates (step 4/7)
+
+### Phase 19 — docs + production deploy (2026-05-19)
+
+- `docs/OPERATOR_AUDIT.md` — Command Center rollup / digest recovery section
+- `POST_DEPLOY_HEALTH=1 REQUIRE_VOICE_READY=0 ./scripts/deploy-prod.sh` → all services healthy
+- Post-deploy probes: `https://queenswarm.love/api/v1/health` OK, `/health/ready` HTTP 200
+
+### Phase 20 — sign-off + E2E closure (2026-05-19)
+
+- `production-signoff-gate.sh` step [6/7] — probes `/api/v1/operator/command-center` + audit rollup routes
+- E2E — bulk **Send all alerts** click + success toast
+- `E2E_PHASE14_OPERATOR_FLOWS=1 ./scripts/phase14-gates.sh` — full operator flow verification
 
 ## Reliability + server-side hardening status (Phase 14.2)
 

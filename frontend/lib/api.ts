@@ -6,6 +6,8 @@
  */
 
 import { clearHiveBearerCache, refreshDashboardSession } from "@/lib/hive-bearer-token";
+import { notifyHiveApiRateLimitChanged } from "@/lib/hive-api-rate-limit-bus";
+import { isHiveSessionDead, markHiveSessionDead } from "@/lib/hive-session-guard";
 
 export class HiveApiError extends Error {
   constructor(
@@ -27,11 +29,41 @@ export function isRateLimitError(error: unknown): error is HiveApiError {
   return error instanceof HiveApiError && error.status === 429;
 }
 
+let rateLimitPauseUntilMs = 0;
+let lastRateLimitToastMs = 0;
+
+/** True while the client is backing off after a 429 (pollers should pause). */
+export function isHiveApiRateLimited(): boolean {
+  return Date.now() < rateLimitPauseUntilMs;
+}
+
+function registerRateLimitPause(retryMs: number): void {
+  rateLimitPauseUntilMs = Math.max(rateLimitPauseUntilMs, Date.now() + Math.max(retryMs, 8000));
+  notifyHiveApiRateLimitChanged();
+}
+
+const inFlightGet = new Map<string, Promise<unknown>>();
+
+function dedupeGet<T>(url: string, run: () => Promise<T>): Promise<T> {
+  const existing = inFlightGet.get(url) as Promise<T> | undefined;
+  if (existing) {
+    return existing;
+  }
+  const flight = run().finally(() => {
+    inFlightGet.delete(url);
+  });
+  inFlightGet.set(url, flight);
+  return flight;
+}
+
 /** Operator-facing copy for toast / inline alerts. */
 export function hiveApiUserMessage(error: unknown): string {
   if (error instanceof HiveApiError) {
     if (error.status === 429) {
       return "Rate limit reached — wait a few seconds and try again.";
+    }
+    if (error.status === 401) {
+      return "Session vypršala — prihlás sa znova.";
     }
     return error.message;
   }
@@ -57,6 +89,11 @@ async function notifyRateLimitToast(): Promise<void> {
   if (typeof window === "undefined") {
     return;
   }
+  const now = Date.now();
+  if (now - lastRateLimitToastMs < 15_000) {
+    return;
+  }
+  lastRateLimitToastMs = now;
   const { toast } = await import("sonner");
   toast.error("Rate limit reached", {
     description: "Too many requests — wait a moment, then retry.",
@@ -107,53 +144,81 @@ function detailFromBody(body: unknown): string | null {
 export async function hiveFetch<T = unknown>(subpath: string, init?: RequestInit): Promise<T> {
   const path = normalizeV1RelativePath(subpath);
   const url = `${PROXY_PREFIX}/${path}`;
+  const method = (init?.method ?? "GET").toUpperCase();
 
-  async function attempt(authRetried: boolean, transientRetries = 0): Promise<T> {
-    const res = await fetch(url, {
-      credentials: "include",
-      cache: "no-store",
-      ...init,
-    });
-    const body = await parseBody(res);
-
-    if (res.status === 401 && !authRetried) {
-      const refreshed = await refreshDashboardSession();
-      if (refreshed) {
-        clearHiveBearerCache();
-        return attempt(true, transientRetries);
+  async function execute(): Promise<T> {
+    async function attempt(authRetried: boolean, transientRetries = 0): Promise<T> {
+      if (isHiveSessionDead()) {
+        throw new HiveApiError("Session vypršala — prihlás sa znova.", 401, {});
       }
-    }
+      if (isHiveApiRateLimited()) {
+        throw new HiveApiError("Rate limit reached — wait a few seconds and try again.", 429, {});
+      }
 
-    if ((res.status === 502 || res.status === 503) && transientRetries < 2) {
-      await new Promise((resolve) => setTimeout(resolve, 800 * (transientRetries + 1)));
-      return attempt(authRetried, transientRetries + 1);
-    }
+      const res = await fetch(url, {
+        credentials: "include",
+        cache: "no-store",
+        ...init,
+      });
+      const body = await parseBody(res);
 
-    if (res.status === 429 && transientRetries < 2) {
-      await new Promise((resolve) => setTimeout(resolve, retryAfterMs(res)));
-      return attempt(authRetried, transientRetries + 1);
-    }
+      if (res.status === 401 && !authRetried) {
+        const refreshed = await refreshDashboardSession();
+        if (refreshed) {
+          clearHiveBearerCache();
+          return attempt(true, transientRetries);
+        }
+        markHiveSessionDead();
+        throw new HiveApiError("Session vypršala — prihlás sa znova.", 401, body);
+      }
 
-    if (!res.ok) {
-      const detail = detailFromBody(body);
+      if (res.status === 401 && authRetried) {
+        markHiveSessionDead();
+        throw new HiveApiError("Session vypršala — prihlás sa znova.", 401, body);
+      }
+
+      if ((res.status === 502 || res.status === 503) && transientRetries < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 800 * (transientRetries + 1)));
+        return attempt(authRetried, transientRetries + 1);
+      }
+
       if (res.status === 429) {
-        await notifyRateLimitToast();
+        if (transientRetries < 1) {
+          await new Promise((resolve) => setTimeout(resolve, retryAfterMs(res)));
+          return attempt(authRetried, transientRetries + 1);
+        }
+        registerRateLimitPause(retryAfterMs(res));
       }
-      throw new HiveApiError(
-        res.status === 429
-          ? "Rate limit reached — wait a few seconds and try again."
-          : (detail ?? (res.statusText || `HTTP ${res.status}`)),
-        res.status,
-        body,
-      );
+
+      if (!res.ok) {
+        const detail = detailFromBody(body);
+        if (res.status === 429) {
+          await notifyRateLimitToast();
+        }
+        throw new HiveApiError(
+          res.status === 429
+            ? "Rate limit reached — wait a few seconds and try again."
+            : res.status === 401
+              ? "Session vypršala — prihlás sa znova."
+              : (detail ?? (res.statusText || `HTTP ${res.status}`)),
+          res.status,
+          body,
+        );
+      }
+      if (res.status === 204) {
+        return undefined as T;
+      }
+      return body as T;
     }
-    if (res.status === 204) {
-      return undefined as T;
-    }
-    return body as T;
+
+    return attempt(false);
   }
 
-  return attempt(false);
+  if (method === "GET") {
+    return dedupeGet(url, execute);
+  }
+
+  return execute();
 }
 
 export function hiveGet<T>(subpath: string, init?: RequestInit): Promise<T> {

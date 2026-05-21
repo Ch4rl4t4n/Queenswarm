@@ -11,6 +11,7 @@ import {
   DASHBOARD_SECTIONS,
   type DashboardSectionId,
 } from "@/lib/dashboard-layout-preferences";
+import type { SectionDensity } from "@/lib/section-hub";
 import { localizePhrase } from "@/lib/ui-copy";
 import { cn } from "@/lib/utils";
 
@@ -85,7 +86,7 @@ const SettingToggleRow = memo(function SettingToggleRow({
 /** Flyout panel — sections visible on Queen Dashboard (portaled to body). */
 export function DashboardSettingsPanel() {
   const { language } = useUiLanguage();
-  const { layout, setVisible, resetLayout } = useDashboardLayout();
+  const { layout, setVisible, setDensity, density, resetLayout } = useDashboardLayout();
   const { settingsOpen, closeSettings } = useDashboardSettings();
   const panelRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
@@ -199,7 +200,29 @@ export function DashboardSettingsPanel() {
           ))}
         </div>
 
-        <div className="v4-dash-settings-foot">
+        <div className="v4-dash-settings-foot flex flex-col gap-3">
+          <div>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-(--qs-text-3)">
+              {localizePhrase(language, { en: "Section density", sk: "Hustota sekcií" })}
+            </p>
+            <div className="flex gap-2">
+              {(["comfortable", "compact"] as SectionDensity[]).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className={cn(
+                    "flex-1 rounded-lg border px-3 py-1.5 text-xs capitalize",
+                    density === mode
+                      ? "border-pollen/60 bg-pollen/15 text-pollen"
+                      : "border-(--qs-border) text-(--qs-text-3)",
+                  )}
+                  onClick={() => setDensity(mode)}
+                >
+                  {localizePhrase(language, mode === "compact" ? { en: "Compact", sk: "Kompaktné" } : { en: "Cozy", sk: "Pohodlné" })}
+                </button>
+              ))}
+            </div>
+          </div>
           <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm w-full" onClick={resetLayout}>
             {localizePhrase(language, { en: "Reset to defaults", sk: "Obnoviť predvolené" })}
           </button>

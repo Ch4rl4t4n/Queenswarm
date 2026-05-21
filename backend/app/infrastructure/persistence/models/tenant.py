@@ -23,6 +23,17 @@ class Tenant(Base, TimestampMixin):
     slug: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="active")
+    platform_mode: Mapped[str] = mapped_column(
+        String(24),
+        nullable=False,
+        default="internal",
+        index=True,
+    )
+    operator_settings: Mapped[dict[str, Any]] = mapped_column(
+        JSONB,
+        nullable=False,
+        server_default=text("'{}'::jsonb"),
+    )
 
     def __repr__(self) -> str:
         """Return tenant diagnostics."""

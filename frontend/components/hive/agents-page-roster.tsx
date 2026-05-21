@@ -4,28 +4,21 @@ import type { JSX } from "react";
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import useSWR from "swr";
 import { toast } from "sonner";
 
 import { AgentsLiveSection } from "@/components/hive/agents-live-section";
-import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
-import { COCKPIT_POLL_BOARD_MS } from "@/lib/cockpit-poll-profile";
+import { HiveApiError, hivePostJson } from "@/lib/api";
 import type { AgentRow } from "@/lib/hive-types";
 
 interface AgentsPageRosterProps {
-  initialAgents: AgentRow[];
+  agents: AgentRow[];
   variant?: "default" | "v4";
 }
 
-export function AgentsPageRoster({ initialAgents, variant = "default" }: AgentsPageRosterProps): JSX.Element {
+/** Live roster board — data comes from the parent page SWR (single poll). */
+export function AgentsPageRoster({ agents, variant = "default" }: AgentsPageRosterProps): JSX.Element {
   const router = useRouter();
   const [rebalanceBusy, setRebalanceBusy] = useState(false);
-
-  const { data = initialAgents } = useSWR<AgentRow[]>(
-    "hive/agents-page-roster",
-    () => hiveGet<AgentRow[]>("agents?limit=120"),
-    { fallbackData: initialAgents, refreshInterval: COCKPIT_POLL_BOARD_MS },
-  );
 
   function goAgent(agent: AgentRow): void {
     const target = agent.has_universal_config ? `/agents/${agent.id}` : `/agents/${agent.id}/edit`;
@@ -47,11 +40,12 @@ export function AgentsPageRoster({ initialAgents, variant = "default" }: AgentsP
 
   return (
     <AgentsLiveSection
-      agents={data}
+      agents={agents}
       onAgentActivate={goAgent}
       onRebalanceHive={rebalanceHive}
       rebalanceBusy={rebalanceBusy}
       spawnAgentHref="/agents/new"
+      virtualizeList
       title={variant === "v4" ? "Active agents" : "Agents"}
       description={
         variant === "v4"

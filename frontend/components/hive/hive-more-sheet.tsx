@@ -6,8 +6,13 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { toast } from "sonner";
 
+import { HiveAccountIdentity } from "@/components/hive/hive-account-identity";
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
+import { usePlatform } from "@/components/hive/platform-context";
 import { HIVE_NAV_GROUPS, isNavItemActive } from "@/lib/hive-nav-primary";
+import { filterNavGroupsByFeatures } from "@/lib/platform-features";
+import { useRouteHash } from "@/lib/hooks/use-route-hash";
+import type { TenantListPayload } from "@/lib/hive-types";
 import { localizeNavLabel, localizePhrase } from "@/lib/ui-copy";
 import { cn } from "@/lib/utils";
 
@@ -15,12 +20,30 @@ interface HiveMoreSheetProps {
   open: boolean;
   onClose: () => void;
   pathname: string;
+  tenants?: TenantListPayload | null;
+}
+
+function tenantSubtitle(tenant: { role: string; platform_mode?: string }, language: "en" | "sk"): string {
+  const role = tenant.role.replace(/_/g, " ");
+  const cap = role.charAt(0).toUpperCase() + role.slice(1);
+  const mode = tenant.platform_mode === "commercial" ? "commercial" : "operator";
+  return localizePhrase(language, {
+    en: `${cap} · ${mode}`,
+    sk: `${cap} · ${mode}`,
+  });
 }
 
 /** Full IA overflow — grouped routes + account actions (mobile / tablet). */
-export function HiveMoreSheet({ open, onClose, pathname }: HiveMoreSheetProps) {
+export function HiveMoreSheet({ open, onClose, pathname, tenants }: HiveMoreSheetProps) {
   const router = useRouter();
   const { language } = useUiLanguage();
+  const { features } = usePlatform();
+  const routeHash = useRouteHash();
+  const navGroups = filterNavGroupsByFeatures(HIVE_NAV_GROUPS, features);
+  const navCandidates = navGroups.flatMap((group) => group.items);
+  const tenantList = tenants?.tenants ?? [];
+  const currentTenant =
+    tenantList.find((t) => t.id === tenants?.current_tenant_id) ?? tenantList[0] ?? null;
 
   useEffect(() => {
     if (!open) {
@@ -75,10 +98,10 @@ export function HiveMoreSheet({ open, onClose, pathname }: HiveMoreSheetProps) {
           <button
             type="button"
             aria-label={localizePhrase(language, { en: "Close sheet", sk: "Zavrieť panel" })}
-            className="absolute right-3 top-2 rounded-lg border border-[color:var(--qs-border)] p-2 text-zinc-400 hover:border-[color:var(--qs-border-2)] hover:text-pollen touch-manipulation min-h-[44px] min-w-[44px]"
+            className="absolute right-3 top-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] border border-[color:var(--qs-border)] text-zinc-400 hover:border-[color:var(--qs-border-2)] hover:text-pollen touch-manipulation"
             onClick={onClose}
           >
-            <XIcon className="h-4 w-4" aria-hidden />
+            <XIcon className="h-5 w-5" aria-hidden strokeWidth={2} />
           </button>
         </div>
 
@@ -87,7 +110,7 @@ export function HiveMoreSheet({ open, onClose, pathname }: HiveMoreSheetProps) {
         </h2>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-2 hive-scrollbar">
-          {HIVE_NAV_GROUPS.map((group) => (
+          {navGroups.map((group) => (
             <div key={group.title} className="mb-4">
               <p className="px-3 pb-2 font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-600">
                 {localizeNavLabel(group.title, language)}
@@ -95,7 +118,7 @@ export function HiveMoreSheet({ open, onClose, pathname }: HiveMoreSheetProps) {
               <ul className="space-y-1">
                 {group.items.map((item) => {
                   const { href, label, Icon } = item;
-                  const active = isNavItemActive(pathname, item);
+                  const active = isNavItemActive(pathname, item, { hash: routeHash, candidates: navCandidates });
                   return (
                     <li key={`${group.title}-${href}`}>
                       <Link
@@ -108,7 +131,7 @@ export function HiveMoreSheet({ open, onClose, pathname }: HiveMoreSheetProps) {
                         )}
                       >
                         <Icon className={cn("h-5 w-5 shrink-0", active ? "text-pollen" : "text-zinc-500")} aria-hidden />
-                        <span>{localizeNavLabel(label, language)}</span>
+                        <span className="leading-normal">{localizeNavLabel(label, language)}</span>
                       </Link>
                     </li>
                   );
@@ -119,6 +142,15 @@ export function HiveMoreSheet({ open, onClose, pathname }: HiveMoreSheetProps) {
         </div>
 
         <div className="border-t border-[color:var(--qs-border)] px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2">
+          {currentTenant ? (
+            <div className="mx-1 mb-3 rounded-2xl border border-[color:var(--qs-border)] bg-black/35 px-3 py-3">
+              <HiveAccountIdentity
+                name={currentTenant.name}
+                subtitle={tenantSubtitle(currentTenant, language)}
+                language={language}
+              />
+            </div>
+          ) : null}
           <p className="px-3 pb-2 font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-600">
             {localizePhrase(language, { en: "Session", sk: "Relácia" })}
           </p>

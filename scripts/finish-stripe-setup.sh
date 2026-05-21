@@ -4,6 +4,8 @@
 # Prerequisites (in .env.prod):
 #   STRIPE_SECRET_KEY=sk_live_...
 #   STRIPE_WEBHOOK_SECRET=whsec_...
+#   STRIPE_PRO_PRICE_ID=price_...
+#   STRIPE_ENTERPRISE_PRICE_ID=price_...   # optional — dynamic EUR fallback if unset
 #
 # Stripe Dashboard webhook (before first checkout):
 #   https://queenswarm.love/api/v1/billing/stripe/webhook
@@ -43,3 +45,6 @@ STRICT_STRIPE=1 PLAYWRIGHT_BASE_URL="${HIVE_BASE}" ENV_FILE="${ENV_FILE}" ./scri
 echo
 echo "== Stripe setup complete =="
 echo "Manual: complete one premium skill checkout at ${HIVE_BASE}/integrations?tab=skills"
+echo "Manual: complete Pro upgrade at ${HIVE_BASE}/settings/billing (commercial Free tenant)"
+echo "Manual: complete Enterprise upgrade at ${HIVE_BASE}/settings/billing (commercial Pro tenant)"
+echo "Verify: ./scripts/operator-gates-audit.sh"

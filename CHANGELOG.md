@@ -1,5 +1,59 @@
 # Queenswarm Changelog
 
+## Phase 7.0 hub completion + roadmap (2026-05-20)
+
+- **docs:** `docs/ROADMAP.md` — prioritized backlog P0–P4 with gate commands.
+- **feat:** `HubEcosystemStrip` extended to `/` (dashboard) and `/integrations` — all six consolidated hubs linked.
+- **feat:** Agents hub degraded UX — sync banner, session error card with retry, empty-state CTAs, runtime strip retry.
+- **test:** phase61 E2E — create → interact → approve flow + roster failure banner.
+- **test:** phase120 E2E covers dashboard + agents + tasks + ballroom ecosystem strips.
+- **test:** phase61 supervisor control E2E in `final-150-gates.sh` + CI (`E2E_PHASE61_SUPERVISOR=1`).
+
+## Production security hardening + Phase 7.0 ecosystem closure (2026-05-19)
+
+- **fix:** production Redis/Postgres/Neo4j no longer published on `0.0.0.0`; Redis `requirepass` via `ensure-redis-password.sh`.
+- **ops:** `scripts/harden-prod-firewall.sh` DENY data-plane ports; `scripts/audit-host-exposure.sh` fails deploy/sign-off on public binds.
+- **ops:** `scripts/hetzner-abuse-reply.sh` — abuse reply draft + audit evidence (AbuseID 11B0286:23).
+- **ops:** `deploy-prod.sh` runs host exposure audit after stack up (skip with `SKIP_HOST_EXPOSURE_AUDIT=1`).
+- **docs:** `docs/PRODUCTION_SECURITY_CHECKLIST.md` — pre-deploy security checklist linked from sign-off doc.
+- **feat:** shared `HubEcosystemStrip` on `/agents`, `/tasks`, `/knowledge`, `/ballroom` with preset cross-links.
+- **feat:** Ballroom panel **Ecosystem hub** + Tool Hub links target `/integrations#ecosystem`.
+- **test:** `lib/hub-ecosystem-lanes.test.ts`; phase120 E2E covers agents/tasks/ballroom ecosystem strips.
+- **ops:** `production-signoff-gate.sh` — 9 steps incl. phase70 gates + host exposure audit.
+- **fix:** `core-reliability-gate.sh` probes Prometheus/Grafana via `docker exec` when data-plane ports are not host-published.
+
+## Operator session tooling — audit, digest, rollup, playbook (Phase 12–18, 2026-05-19)
+
+- **bee:** supervisor session operator audit trail with merged JSON/CSV export, context diff history, and realtime feed.
+- **feat:** per-tenant supervisor audit digest (email + Slack/Discord/Teams) with schedule config in Settings → Audit.
+- **feat:** cross-tenant audit rollup in Command Center (7-day trend, CSV/MD export, Redis cache + invalidation on audit writes/digest sends).
+- **feat:** operator playbook save/preview + auto-save on approve (tenant flag in `operator_settings`).
+- **feat:** digest delivery health classification (`healthy` / `stale` / `never_sent` / `disabled`) with Slack/email alerts in platform rollup.
+- **feat:** Command Center recovery actions — per-tenant **Send digest**, bulk **Send all alerts**, platform **Send rollup**.
+- **ops:** `scripts/phase14-gates.sh` + integration into `production-signoff-gate.sh` and CI (`E2E_PHASE14_OPERATOR_FLOWS=1`).
+- **test:** 49 backend unit tests + 4 Playwright operator-flow E2E scenarios.
+
+## Operator session tooling — Phase 19–20 closure (2026-05-19)
+
+- **docs:** `docs/OPERATOR_AUDIT.md` — Command Center rollup + digest recovery runbook.
+- **ops:** production deploy verified (`deploy-prod.sh` + `/health/ready`).
+- **ops:** production sign-off gate probes Command Center rollup routes (auth-gated, not 404).
+- **test:** E2E covers per-tenant **Send digest** + bulk **Send all alerts** toast flows.
+
+## Phase 7.0 — Knowledge hub hash deep links (2026-05-19)
+
+- **feat:** `/knowledge#hivemind|outputs|recipes|…` switches tabs and scrolls to section anchors.
+- **feat:** legacy aliases `#archive` → outputs, `#learning` → recipes (redirects from `/hive-mind`, `/outputs`, `/recipes`).
+- **feat:** `/agents#sessions|hierarchy|agents-learning-loop` scroll-to-section on load.
+- **test:** `lib/knowledge-routes.test.ts` — hash href + alias mapping.
+
+## Phase 7.0 — Integrations hub ecosystem lane (2026-05-19)
+
+- **feat:** `/integrations` overview — **Ecosystem Orchestration** lane + marketplace install preview on Active tab.
+- **feat:** unified `?tab=` URL sync + legacy `#ecosystem` scroll anchor.
+- **feat:** improved empty state CTAs (connector hub + marketplace).
+- **test:** `lib/integrations-routes.test.ts` — query/hash tab resolution.
+
 ## Stripe webhook hardening + production sign-off docs (2026-05-19)
 
 - **ops:** exempt `/api/v1/billing/stripe/webhook` from rate limiting (Stripe retry-safe).

@@ -10,10 +10,17 @@ interface TokenBundleShape {
 
 /** Attach HttpOnly JWT cookies expected by the dashboard proxy + SSR fetch helper. */
 
+function refreshCookieMaxAgeSec(): number {
+  const daysRaw = process.env.REFRESH_TOKEN_EXPIRE_DAYS ?? process.env.NEXT_PUBLIC_REFRESH_TOKEN_EXPIRE_DAYS ?? "90";
+  const days = Number.parseInt(daysRaw, 10);
+  const safeDays = Number.isFinite(days) && days > 0 ? days : 90;
+  return safeDays * 86_400;
+}
+
 export function attachDashboardTokenCookies(res: NextResponse, bundle: TokenBundleShape): void {
   const secure = process.env.NODE_ENV === "production";
   const accessAge = Math.max(120, Number(bundle.expires_in) || 900);
-  const refreshAge = 60 * 60 * 24 * 7;
+  const refreshAge = refreshCookieMaxAgeSec();
   res.cookies.set(QS_ACCESS, bundle.access_token, {
     httpOnly: true,
     secure,

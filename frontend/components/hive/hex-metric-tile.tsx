@@ -122,13 +122,12 @@ export interface HexNumberBadgeProps {
 }
 
 /**
- * Compact roster-style hex with centered inset square — same silhouette as agent tiles.
+ * Compact roster-style hex with centered number — same silhouette as agent tiles.
  */
 export function HexNumberBadge({
   value,
   strokeColor,
   textColor,
-  innerBackground = "#0a0a12",
   outerFill,
   glowColor,
   sizePx = 50,
@@ -155,38 +154,36 @@ export function HexNumberBadge({
       }
       return "";
     })();
-  const fontPx = sizePx <= 44 ? 12 : sizePx <= 50 ? 13 : sizePx <= 56 ? 14 : 15;
+  const fontPx = sizePx <= 44 ? 15 : sizePx <= 50 ? 17 : sizePx <= 56 ? 19 : 21;
 
   return (
     <div
       className={cn(
         "relative shrink-0",
-        emphasisRing && "rounded-sm ring-2 ring-white/40 ring-offset-2 ring-offset-[#0c0c14]",
+        emphasisRing && "rounded-sm ring-2 ring-pollen/40 ring-offset-2 ring-offset-[#0c0c14]",
         className,
       )}
       style={{ width: sizePx, height: sizePx }}
     >
       <RoundedHex strokeColor={stroke} strokeWidth={strokeWidth} fill={outer} glowColor={glowColor} />
-      <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center px-[17%] py-[15%]">
+      <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center">
         {activePulse ? (
           <span className="h-2 w-2 rounded-full bg-white shadow-[0_0_8px_#fff]" aria-hidden />
         ) : (
-          <div
+          <span
             className={cn(
-              "flex aspect-square h-full max-h-[78%] w-full max-w-[78%] items-center justify-center rounded-[2px] border-2 leading-none",
+              "leading-none",
               monoLabel
                 ? "font-[family-name:var(--font-poppins)] font-semibold uppercase tracking-tight"
                 : "font-[family-name:var(--font-poppins)] font-bold tabular-nums",
             )}
             style={{
-              borderColor: stroke,
               color: txt,
-              background: innerBackground,
               fontSize: `${fontPx}px`,
             }}
           >
             {insetBody}
-          </div>
+          </span>
         )}
       </div>
     </div>

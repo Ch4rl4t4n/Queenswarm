@@ -13,14 +13,33 @@ from app.infrastructure.persistence.models.agent import Agent
 from app.infrastructure.persistence.models.agent_config import AgentConfig
 from app.infrastructure.persistence.models.enums import TaskStatus
 from app.infrastructure.persistence.models.task import Task
+from app.application.services.dashboard_cockpit import build_dashboard_cockpit_payload
+from app.application.services.dashboard_rapid_loop import build_rapid_loop_payload
 from app.application.services.dashboard_swarm_board import build_swarm_board_payload
 from app.application.services.dashboard_foragers_overview import build_foragers_overview_payload
 from app.application.services.dashboard_swarms_overview import build_swarms_overview_payload
 from app.application.services.dashboard_task_queue import build_task_queue_payload
+from app.application.services.dashboard_time_saved import build_time_saved_payload
 from app.application.services.dashboard_workflows import build_workflows_dashboard_payload
 from app.application.services.hive_tier import resolve_hive_tier
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
+
+
+@router.get("/cockpit")
+async def dashboard_cockpit(
+    db: DbSession,
+    _subject: JwtSubject,
+    agents_limit: int = Query(default=96, ge=1, le=200),
+    tasks_limit: int = Query(default=10, ge=1, le=50),
+) -> dict[str, object]:
+    """Single round-trip bundle: agents, recent tasks, summary, and lite system gauges."""
+
+    return await build_dashboard_cockpit_payload(
+        db,
+        agents_limit=agents_limit,
+        tasks_limit=tasks_limit,
+    )
 
 
 @router.get("/summary")
@@ -111,6 +130,28 @@ async def dashboard_foragers_overview(db: DbSession, _subject: JwtSubject) -> di
     """KPI tiles, configuration table rows, and auto-spawn rules for the Foragers page."""
 
     return await build_foragers_overview_payload(db)
+
+
+@router.get("/rapid-loop")
+async def dashboard_rapid_loop(
+    db: DbSession,
+    _subject: JwtSubject,
+    window_hours: int = Query(default=24, ge=1, le=168),
+) -> dict[str, object]:
+    """Scrape → reflect → simulate → reward loop counts and SLA for the dashboard widget."""
+
+    return await build_rapid_loop_payload(db, window_hours=window_hours)
+
+
+@router.get("/time-saved")
+async def dashboard_time_saved(
+    db: DbSession,
+    _subject: JwtSubject,
+    window_days: int = Query(default=30, ge=1, le=90),
+) -> dict[str, object]:
+    """Verified workflow ROI — hours saved by template/recipe/custom."""
+
+    return await build_time_saved_payload(db, window_days=window_days)
 
 
 __all__ = ["router"]

@@ -8,6 +8,8 @@ import { toast } from "sonner";
 
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
+import { COCKPIT_POLL_BROWSER_ACTIONS_MS, COCKPIT_POLL_BROWSER_SESSIONS_MS } from "@/lib/cockpit-poll-profile";
+import { useSwrVisiblePollOptions } from "@/lib/hooks/use-swr-refresh-interval";
 import type { BrowserAutomationActionRow, BrowserAutomationSessionRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
@@ -19,10 +21,17 @@ export function BrowserHarnessPanel(): JSX.Element {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const { data: sessions = [], mutate, isLoading } = useSWR<BrowserAutomationSessionRow[]>(
+  const sessionsPoll = useSwrVisiblePollOptions(COCKPIT_POLL_BROWSER_SESSIONS_MS);
+  const actionsPoll = useSwrVisiblePollOptions(COCKPIT_POLL_BROWSER_ACTIONS_MS);
+
+  const { data: rawSessions = [], mutate, isLoading } = useSWR<BrowserAutomationSessionRow[]>(
     "hive/browser-sessions",
     () => hiveGet<BrowserAutomationSessionRow[]>("agents/browser-sessions?limit=40"),
-    { refreshInterval: 5000 },
+    sessionsPoll,
+  );
+  const sessions = useMemo(
+    () => (Array.isArray(rawSessions) ? rawSessions : []),
+    [rawSessions],
   );
   const selected = useMemo(
     () => sessions.find((item) => item.id === selectedId) ?? sessions[0] ?? null,
@@ -38,7 +47,7 @@ export function BrowserHarnessPanel(): JSX.Element {
   const { data: actions = [], mutate: mutateActions } = useSWR<BrowserAutomationActionRow[]>(
     selected ? `hive/browser-actions/${selected.id}` : null,
     () => hiveGet<BrowserAutomationActionRow[]>(`agents/browser-sessions/${selected?.id}/actions?limit=60`),
-    { refreshInterval: 3500 },
+    actionsPoll,
   );
 
   async function createSession(): Promise<void> {

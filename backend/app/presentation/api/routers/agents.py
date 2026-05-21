@@ -10,7 +10,9 @@ from fastapi import APIRouter, Body, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from app.presentation.api.deps import DbSession, JwtSubject
+from app.presentation.api.deps import DashboardSession, DbSession, JwtSubject
+from app.common.http.rate_limit import rate_limited_http_exception
+from app.application.services.billing import assert_agent_hard_limit
 from app.infrastructure.persistence.models.agent import Agent
 from app.infrastructure.persistence.models.agent_config import AgentConfig
 from app.infrastructure.persistence.models.enums import AgentRole, AgentStatus, SwarmPurpose
@@ -36,6 +38,18 @@ from app.application.services.hive_tier import is_fixed_orchestrator_agent, reso
 from app.worker.tasks import execute_universal_agent_task
 
 router = APIRouter(tags=["Agents"])
+
+
+def _tenant_id_from_session(sess: dict[str, Any]) -> uuid.UUID | None:
+    """Parse tenant UUID from dashboard session claims."""
+
+    raw = sess.get("tenant_id")
+    if raw is None:
+        return None
+    try:
+        return uuid.UUID(str(raw))
+    except (TypeError, ValueError):
+        return None
 
 
 async def _swarm_fields_for_agents(db: DbSession, rows: list[Agent]) -> dict[uuid.UUID, tuple[str, SwarmPurpose]]:
@@ -117,7 +131,7 @@ async def wake_all_agents(db: DbSession, _subject: JwtSubject) -> dict[str, Any]
 async def create_dynamic_agent(
     body: AgentDynamicCreate,
     db: DbSession,
-    _subject: JwtSubject,
+    sess: DashboardSession,
 ) -> AgentDynamicCreateResponse:
     """Factory endpoint used by the dashboard — managers and workers only."""
 
@@ -127,6 +141,21 @@ async def create_dynamic_agent(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Orchestrator is fixed — use PATCH on its persisted config.",
         )
+
+    try:
+        await assert_agent_hard_limit(db, tenant_id=_tenant_id_from_session(sess))
+    except ValueError as exc:
+        marker = str(exc)
+        if marker.startswith("billing_limit_exceeded:"):
+            raise rate_limited_http_exception(
+                {
+                    "code": "billing_limit_exceeded",
+                    "detail": marker.split(":", 1)[1],
+                    "upgrade_hint": "Upgrade to Pro for more agents.",
+                },
+                window_sec=3600,
+            ) from exc
+        raise
 
     oc = dict(body.output_config)
     oc["hive_tier"] = body.hive_tier

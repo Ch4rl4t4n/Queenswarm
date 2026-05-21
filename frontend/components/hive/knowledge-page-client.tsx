@@ -6,13 +6,10 @@ import {
   Flag,
   GitBranch,
   Layers,
-  Mic,
   Moon,
-  Plus,
   Save,
-  Sparkles,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 import { CuratedMemoryPanel } from "@/components/hive/curated-memory-panel";
 import { DreamingConsole } from "@/components/hive/dreaming-console";
@@ -31,9 +28,12 @@ import {
 } from "@/components/ui/v4";
 import { RECIPES_ENABLED } from "@/lib/feature-flags";
 import type { FinalDeliverableSummaryRow } from "@/lib/hive-types";
+import {
+  knowledgeTabFromHash,
+  knowledgeTabHref,
+  type KnowledgeTab,
+} from "@/lib/knowledge-routes";
 import { cn } from "@/lib/utils";
-
-type KnowledgeTab = "hivemind" | "outputs" | "recipes" | "dreaming" | "memory" | "goals";
 
 interface KnowledgePageClientProps {
   initialOutputs: FinalDeliverableSummaryRow[];
@@ -54,6 +54,29 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
   const [tab, setTab] = useState<KnowledgeTab>("hivemind");
   const [filter, setFilter] = useState("");
 
+  const selectTab = useCallback((next: KnowledgeTab) => {
+    setTab(next);
+    const href = knowledgeTabHref(next);
+    window.history.replaceState(null, "", href);
+  }, []);
+
+  useEffect(() => {
+    const syncFromHash = (): void => {
+      const fromHash = knowledgeTabFromHash(window.location.hash);
+      if (fromHash) {
+        setTab(fromHash);
+        requestAnimationFrame(() => {
+          document.getElementById(fromHash)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+        return;
+      }
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    };
+    syncFromHash();
+    window.addEventListener("hashchange", syncFromHash);
+    return () => window.removeEventListener("hashchange", syncFromHash);
+  }, []);
+
   return (
     <V4PageCanvas>
       {archiveSyncPending ? (
@@ -64,22 +87,6 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
       <HivePageHeader
         title="Knowledge"
         subtitle="One plane — HiveMind retrieval, outputs archive, recipes/learning, dreaming cycles, curated memory, goals."
-        actions={
-          <div className="v4-page-header-actions-group flex flex-wrap items-center gap-2">
-            <Link href="/agents#sessions" className="qs-btn qs-btn--ghost qs-btn--sm gap-2">
-              <Sparkles className="h-4 w-4" aria-hidden />
-              Retrieval session
-            </Link>
-            <Link href="/tasks/new" className="qs-btn qs-btn--ghost qs-btn--sm gap-2">
-              <Plus className="h-4 w-4" aria-hidden />
-              New task
-            </Link>
-            <Link href="/ballroom" className="qs-btn qs-btn--primary qs-btn--sm gap-2">
-              <Mic className="h-4 w-4" aria-hidden />
-              Ballroom
-            </Link>
-          </div>
-        }
       />
 
       <div className="v4-subtab-row w-full max-w-full">
@@ -90,7 +97,7 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
               key={item.id}
               type="button"
               className={cn("v4-subtab", tab === item.id && "v4-subtab--active")}
-              onClick={() => setTab(item.id)}
+              onClick={() => selectTab(item.id)}
             >
               <Icon className="h-3.5 w-3.5" aria-hidden />
               {item.label}
@@ -126,13 +133,13 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
       </V4Card>
 
       {tab === "hivemind" ? (
-        <>
+        <div id="hivemind" className="scroll-mt-28 space-y-6">
           <V4Card>
             <V4CardHeader
               title="HiveMind · graph + vault + search"
               description="Neo4j semantic graph · ChromaDB vector fallback · retrieval-aware prompting."
               actions={
-                <div className="flex flex-wrap gap-2">
+                <div className="v4-hivemind-toolbar flex flex-wrap justify-start gap-2">
                   <Link href="/tasks/new" className="qs-btn qs-btn--ghost qs-btn--sm">
                     Quick ingest · task
                   </Link>
@@ -145,11 +152,11 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
             <HiveMindExplorer showHeader={false} variant="v4" filterHint={filter} />
           </V4Card>
           <MemoryEvolutionPanel />
-        </>
+        </div>
       ) : null}
 
       {tab === "outputs" ? (
-        <V4Card>
+        <V4Card id="outputs" className="scroll-mt-28">
           <V4CardHeader
             title="Outputs &amp; archive"
             description="Semantic archive search · regenerate · PDF / markdown export in one operator loop."
@@ -159,7 +166,7 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
       ) : null}
 
       {tab === "recipes" ? (
-        <div className="space-y-6">
+        <div id="recipes" className="scroll-mt-28 space-y-6">
           <LearningConsole showHeader={false} variant="v4" />
           {RECIPES_ENABLED ? (
             <RecipesPageClient showHeader={false} />
@@ -173,11 +180,23 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
         </div>
       ) : null}
 
-      {tab === "dreaming" ? <DreamingConsole /> : null}
+      {tab === "dreaming" ? (
+        <div id="dreaming" className="scroll-mt-28">
+          <DreamingConsole />
+        </div>
+      ) : null}
 
-      {tab === "memory" ? <CuratedMemoryPanel /> : null}
+      {tab === "memory" ? (
+        <div id="memory" className="scroll-mt-28">
+          <CuratedMemoryPanel />
+        </div>
+      ) : null}
 
-      {tab === "goals" ? <GoalsPanel /> : null}
+      {tab === "goals" ? (
+        <div id="goals" className="scroll-mt-28">
+          <GoalsPanel />
+        </div>
+      ) : null}
     </V4PageCanvas>
   );
 }

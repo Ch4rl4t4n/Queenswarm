@@ -13,6 +13,8 @@ def test_resolve_plan_limits_when_free_tier_then_expected_defaults() -> None:
     limits = resolve_plan_limits(subscription)  # type: ignore[arg-type]
     assert limits["monthly_supervisor_sessions_hard"] == 80
     assert limits["monthly_token_hard"] == 250_000
+    assert limits["max_agents_hard"] == 2
+    assert limits["max_swarms_hard"] == 1
 
 
 def test_resolve_plan_features_when_override_present_then_override_applied() -> None:

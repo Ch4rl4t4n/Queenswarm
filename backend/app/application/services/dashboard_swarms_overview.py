@@ -14,6 +14,7 @@ from app.infrastructure.persistence.models.agent import Agent
 from app.infrastructure.persistence.models.enums import AgentStatus, SwarmPurpose
 from app.infrastructure.persistence.models.swarm import SubSwarm
 from app.application.services.dashboard_swarm_board import build_swarm_board_payload
+from app.application.services.sub_swarm_local_mind import build_local_mind_summary
 
 _LANE_LABEL: dict[SwarmPurpose, str] = {
     SwarmPurpose.SCOUT: "Scout",
@@ -114,6 +115,8 @@ async def build_swarms_overview_payload(session: AsyncSession) -> dict[str, Any]
         if sync_sec is not None:
             sync_samples.append(sync_sec)
 
+        mind = build_local_mind_summary(swarm, now=now)
+
         colonies.append(
             {
                 "id": str(swarm.id),
@@ -127,6 +130,7 @@ async def build_swarms_overview_payload(session: AsyncSession) -> dict[str, Any]
                 "last_sync_seconds_ago": sync_sec,
                 "is_active": bool(swarm.is_active),
                 "status": "active" if swarm.is_active else "paused",
+                "local_mind": mind,
             },
         )
 

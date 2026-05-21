@@ -11,12 +11,13 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { HivePageHeader } from "@/components/hive/hive-page-header";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
 import { SwarmsNewColonyDialog } from "@/components/hive/swarms-new-colony-dialog";
+import { SubSwarmLocalMindPanel } from "@/components/hive/sub-swarm-local-mind-panel";
 import {
   V4Badge,
   V4Card,
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
 import { COCKPIT_POLL_BOARD_MS } from "@/lib/cockpit-poll-profile";
+import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import type { SwarmsOverviewColony, SwarmsOverviewPayload, WaggleFeedItem } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
@@ -90,31 +92,7 @@ export function SwarmsPageClient() {
     }
   }, []);
 
-  useEffect(() => {
-    let alive = true;
-    void (async () => {
-      try {
-        const payload = await hiveGet<SwarmsOverviewPayload>("dashboard/swarms-overview");
-        if (alive) {
-          setData(payload);
-          setErr(null);
-        }
-      } catch (e) {
-        if (!alive) return;
-        const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Swarms overview unreachable";
-        setErr(msg);
-      }
-    })();
-    const id = window.setInterval(() => {
-      if (document.visibilityState === "visible") {
-        void reload();
-      }
-    }, COCKPIT_POLL_BOARD_MS);
-    return () => {
-      alive = false;
-      window.clearInterval(id);
-    };
-  }, [reload]);
+  useIntervalWhenVisible(() => void reload(), COCKPIT_POLL_BOARD_MS);
 
   async function withBusy<T>(key: string, fn: () => Promise<T>): Promise<T | undefined> {
     setBusy(key);
@@ -188,33 +166,46 @@ export function SwarmsPageClient() {
         title="Swarms"
         subtitle={`Colony control plane — decentralized sub-hives with local memory, global sync every ${syncMin} min.`}
         status={
-          <>
+          <span className="v4-status-pill inline-flex">
             <span className="hive-pulse-dot" aria-hidden />
-            {liveCount} {liveCount === 1 ? "colony" : "colonies"} live
-          </>
+            {liveCount} {liveCount === 1 ? "Colony" : "Colonies"} live
+          </span>
         }
         actions={
           <>
+            <div className="page-actions-row flex w-full flex-wrap gap-2">
+              <button
+                type="button"
+                className="qs-btn qs-btn--ghost qs-btn--sm min-w-0 flex-1 gap-2"
+                disabled={busy === "sync-ack"}
+                onClick={() => void hiveSyncAckAll()}
+              >
+                <RefreshCw className={cn("h-4 w-4 shrink-0", busy === "sync-ack" && "animate-spin")} aria-hidden />
+                Hive sync ACK
+              </button>
+              <button
+                type="button"
+                className="qs-btn qs-btn--ghost qs-btn--sm min-w-0 flex-1 gap-2"
+                disabled={busy === "wake-all"}
+                onClick={() => void wakeAllBees()}
+              >
+                <Sparkles className="h-4 w-4 shrink-0" aria-hidden />
+                Wake all bees
+              </button>
+            </div>
+            <Link
+              href="/swarms/new"
+              className="qs-btn qs-btn--primary qs-btn--sm page-actions-primary w-full gap-2"
+            >
+              <Sparkles className="h-4 w-4 shrink-0" aria-hidden />
+              Swarm Builder
+            </Link>
             <button
               type="button"
-              className="qs-btn qs-btn--ghost qs-btn--sm gap-2"
-              disabled={busy === "sync-ack"}
-              onClick={() => void hiveSyncAckAll()}
+              className="qs-btn qs-btn--ghost qs-btn--sm w-full gap-2"
+              onClick={() => setCreateOpen(true)}
             >
-              <RefreshCw className={cn("h-4 w-4", busy === "sync-ack" && "animate-spin")} aria-hidden />
-              Hive sync ACK
-            </button>
-            <button
-              type="button"
-              className="qs-btn qs-btn--ghost qs-btn--sm gap-2"
-              disabled={busy === "wake-all"}
-              onClick={() => void wakeAllBees()}
-            >
-              <Sparkles className="h-4 w-4" aria-hidden />
-              Wake all bees
-            </button>
-            <button type="button" className="qs-btn qs-btn--primary qs-btn--sm gap-2" onClick={() => setCreateOpen(true)}>
-              <Plus className="h-4 w-4" aria-hidden />
+              <Plus className="h-4 w-4 shrink-0" aria-hidden />
               New colony
             </button>
           </>
@@ -414,21 +405,24 @@ export function SwarmsPageClient() {
               const colony = data?.colonies.find((c) => c.id === openColonyId);
               if (!colony) return null;
               return (
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-(--qs-text)">{colony.display_name}</p>
-                    <p className="mt-1 text-xs text-(--qs-text-3)">
-                      {colony.member_count} bees · {colony.lane_label} lane · queen {colony.queen_label}
-                    </p>
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-(--qs-text)">{colony.display_name}</p>
+                      <p className="mt-1 text-xs text-(--qs-text-3)">
+                        {colony.member_count} bees · {colony.lane_label} lane · queen {colony.queen_label}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Link href={`/agents/new?swarm_id=${encodeURIComponent(colony.id)}`} className="qs-btn qs-btn--ghost qs-btn--sm">
+                        Assign bee
+                      </Link>
+                      <Link href="/agents" className="qs-btn qs-btn--ghost qs-btn--sm">
+                        View roster
+                      </Link>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Link href={`/agents/new?swarm_id=${encodeURIComponent(colony.id)}`} className="qs-btn qs-btn--ghost qs-btn--sm">
-                      Assign bee
-                    </Link>
-                    <Link href="/agents" className="qs-btn qs-btn--ghost qs-btn--sm">
-                      View roster
-                    </Link>
-                  </div>
+                  <SubSwarmLocalMindPanel swarmId={colony.id} onSynced={() => void reload()} />
                 </div>
               );
             })()}
@@ -436,7 +430,7 @@ export function SwarmsPageClient() {
         ) : null}
       </V4Card>
 
-      <div className="v4-cols-2">
+      <div className="v4-cols-2 v4-cols-2--stack-mobile">
         <V4Card className="h-full">
           <V4CardHeader
             title="Waggle dance feed"

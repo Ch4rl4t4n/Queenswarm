@@ -17,11 +17,18 @@ import {
   type DashboardLayoutPreferences,
   type DashboardSectionId,
 } from "@/lib/dashboard-layout-preferences";
+import {
+  readStoredSectionDensityFromBrowser,
+  saveStoredSectionDensityFromBrowser,
+} from "@/lib/section-hub-preferences";
+import type { SectionDensity } from "@/lib/section-hub";
 
 interface DashboardLayoutContextValue {
   layout: DashboardLayoutPreferences;
+  density: SectionDensity;
   isVisible: (id: DashboardSectionId) => boolean;
   setVisible: (id: DashboardSectionId, visible: boolean) => void;
+  setDensity: (density: SectionDensity) => void;
   resetLayout: () => void;
 }
 
@@ -47,10 +54,12 @@ function useDashboardSettingsBodyLock(open: boolean): void {
 
 export function DashboardLayoutProvider({ children }: { children: ReactNode }) {
   const [layout, setLayout] = useState<DashboardLayoutPreferences>(DASHBOARD_LAYOUT_DEFAULTS);
+  const [density, setDensityState] = useState<SectionDensity>("comfortable");
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     setLayout(readStoredDashboardLayoutFromBrowser());
+    setDensityState(readStoredSectionDensityFromBrowser());
   }, []);
 
   useDashboardSettingsBodyLock(settingsOpen);
@@ -80,14 +89,21 @@ export function DashboardLayoutProvider({ children }: { children: ReactNode }) {
     persist({ ...DASHBOARD_LAYOUT_DEFAULTS });
   }, [persist]);
 
+  const setDensity = useCallback((next: SectionDensity) => {
+    setDensityState(next);
+    saveStoredSectionDensityFromBrowser(next);
+  }, []);
+
   const layoutValue = useMemo<DashboardLayoutContextValue>(
     () => ({
       layout,
+      density,
       isVisible,
       setVisible,
+      setDensity,
       resetLayout,
     }),
-    [layout, isVisible, setVisible, resetLayout],
+    [layout, density, isVisible, setVisible, setDensity, resetLayout],
   );
 
   const settingsValue = useMemo<DashboardSettingsContextValue>(

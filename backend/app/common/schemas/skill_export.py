@@ -108,6 +108,8 @@ class SkillCatalogRecipeItem(BaseModel):
     premium: bool = False
     price_eur_cents: int = Field(default=0, ge=0)
     unlocked: bool = True
+    ugc: bool = False
+    platform_cut_bps: int | None = Field(default=None, ge=0, le=10_000)
 
 
 class SkillCatalogResponse(BaseModel):

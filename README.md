@@ -52,6 +52,7 @@ Vitest unit tests: `npm run test`.
 - **Knowledge aliases:** `/hive-mind`, `/outputs`, `/learning`, and `/recipes` route to `/knowledge` anchors when consolidated mode is enabled.
 - **Advanced modules behind flags:** monitoring, simulations, leaderboard, recipes, advanced 2FA controls, and API key management are explicitly feature-flagged.
 - **Security hardening:** dedicated rate limits for `POST /api/v1/auth/login` and `POST /api/v1/auth/token`.
+- **Production security checklist:** [docs/PRODUCTION_SECURITY_CHECKLIST.md](docs/PRODUCTION_SECURITY_CHECKLIST.md) + `./scripts/audit-host-exposure.sh` (wired into `deploy-prod.sh` and sign-off gate).
 
 ### Phase 7 quality gate
 

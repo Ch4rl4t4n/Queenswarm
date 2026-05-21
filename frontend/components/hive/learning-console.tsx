@@ -7,8 +7,10 @@ import { toast } from "sonner";
 
 import { QsSelect } from "@/components/ui/qs-select";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
+import { RecipeSemanticHitRow } from "@/components/hive/recipe-cosine-match-panel";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
-import type { AgentRow, RecipeSemanticHit } from "@/lib/hive-types";
+import type { AgentRow, RecipeMatchConfigPayload, RecipeSemanticHit } from "@/lib/hive-types";
+import { DEFAULT_RECIPE_MATCH_CONFIG, formatSimilarityPct } from "@/lib/recipe-match-utils";
 import { cn } from "@/lib/utils";
 
 const AGENT_ROLES = [
@@ -48,6 +50,7 @@ export function LearningConsole({ showHeader = true, variant = "default" }: Lear
 
   const [recipeQuery, setRecipeQuery] = useState("");
   const [recipeHits, setRecipeHits] = useState<RecipeSemanticHit[]>([]);
+  const [matchConfig, setMatchConfig] = useState<RecipeMatchConfigPayload>(DEFAULT_RECIPE_MATCH_CONFIG);
 
   const [reflectAgent, setReflectAgent] = useState("");
   const [reflectInsight, setReflectInsight] = useState("");
@@ -64,6 +67,18 @@ export function LearningConsole({ showHeader = true, variant = "default" }: Lear
     void hiveGet<AgentRow[]>("agents?limit=120")
       .then((rows) => {
         if (!cancelled) setAgents(rows);
+      })
+      .catch(() => null);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void hiveGet<RecipeMatchConfigPayload>("recipes/match-config")
+      .then((cfg) => {
+        if (!cancelled) setMatchConfig(cfg);
       })
       .catch(() => null);
     return () => {
@@ -236,7 +251,9 @@ export function LearningConsole({ showHeader = true, variant = "default" }: Lear
 
           <section className="v4-learning-panel">
             <h3 className="text-base font-semibold text-(--qs-text)">Semantic recipe recall</h3>
-            <p className="mt-1 text-xs text-(--qs-text-3)">Uses GET /recipes/search — cosine similarity ≥ operational threshold server-side.</p>
+            <p className="mt-1 text-xs text-(--qs-text-3)">
+              GET /recipes/search · auto-match when hybrid score ≥ {formatSimilarityPct(matchConfig.match_threshold)}
+            </p>
             <div className="mt-4 flex flex-col gap-2 sm:flex-row">
               <input
                 value={recipeQuery}
@@ -250,13 +267,7 @@ export function LearningConsole({ showHeader = true, variant = "default" }: Lear
             </div>
             <ul className="mt-4 space-y-2">
               {recipeHits.map((hit) => (
-                <li key={hit.chroma_document_id} className="rounded-(--qs-radius-sm) border border-(--qs-border) bg-white/[0.04] p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-sm font-medium text-(--qs-amber)">{hit.postgres_row?.name ?? "Unlinked embedding"}</p>
-                    <V4Badge tone="info">{(hit.similarity * 100).toFixed(1)}%</V4Badge>
-                  </div>
-                  <p className="mt-1 line-clamp-2 text-xs text-(--qs-text-3)">{hit.document_preview || "—"}</p>
-                </li>
+                <RecipeSemanticHitRow key={hit.chroma_document_id} hit={hit} config={matchConfig} />
               ))}
             </ul>
             {!recipeHits.length ? <p className="mt-3 text-xs text-(--qs-text-3)">No semantic hits yet.</p> : null}
@@ -419,7 +430,9 @@ export function LearningConsole({ showHeader = true, variant = "default" }: Lear
 
         <section className="rounded-[26px] border border-[#1c2045] bg-black/72 p-5 md:p-6">
           <h2 className="font-[family-name:var(--font-poppins)] text-lg font-semibold text-[#EEEEFF]">Semantic recipe recall</h2>
-          <p className="font-[family-name:var(--font-poppins)] text-xs text-zinc-500">Uses ``GET /recipes/search`` — cosine similarity ≥ operational threshold server-side.</p>
+          <p className="font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
+            GET /recipes/search · auto-match when hybrid score ≥ {formatSimilarityPct(matchConfig.match_threshold)}
+          </p>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <input
               value={recipeQuery}
@@ -438,15 +451,7 @@ export function LearningConsole({ showHeader = true, variant = "default" }: Lear
           </div>
           <ul className="mt-4 space-y-3">
             {recipeHits.map((hit) => (
-              <li key={hit.chroma_document_id} className="rounded-xl border border-[#252a55] bg-black/85 p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-[family-name:var(--font-poppins)] text-sm font-semibold text-pollen">
-                    {hit.postgres_row?.name ?? "Unlinked embedding"}
-                  </p>
-                  <span className="font-mono text-xs text-cyan">sim {(hit.similarity * 100).toFixed(1)}%</span>
-                </div>
-                <p className="mt-2 line-clamp-3 font-[family-name:var(--font-poppins)] text-xs text-zinc-400">{hit.document_preview || "—"}</p>
-              </li>
+              <RecipeSemanticHitRow key={hit.chroma_document_id} hit={hit} config={matchConfig} />
             ))}
           </ul>
           {!recipeHits.length ? <p className="mt-3 text-xs text-zinc-500">No semantic hits yet.</p> : null}

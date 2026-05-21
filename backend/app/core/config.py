@@ -101,6 +101,14 @@ class Settings(BaseSettings):
         default_factory=list,
         description="Optional Postgres read-replica DSNs for HA-ready deployments (read paths only).",
     )
+    dr_reports_dir: str = Field(
+        default="reports/dr",
+        description="Directory with dr-drill-*.json/md evidence (env: DR_REPORTS_DIR). Mount read-only in prod.",
+    )
+    ha_reports_dir: str = Field(
+        default="reports/ha",
+        description="Directory with ha-chaos-*.json evidence (env: HA_REPORTS_DIR). Mount read-only in prod.",
+    )
     graceful_shutdown_timeout_sec: int = Field(
         default=15,
         ge=1,
@@ -139,6 +147,18 @@ class Settings(BaseSettings):
         default=8,
         ge=1,
         description="Default bees per local sub-swarm (scout/eval/sim/action override below).",
+    )
+    swarm_max_manager_templates_active: int = Field(
+        default=3,
+        ge=1,
+        le=6,
+        description="Max dynamic manager template lanes in Ballroom missions and sub-swarm graphs.",
+    )
+    swarm_max_concurrent_specialist_workers: int = Field(
+        default=4,
+        ge=1,
+        le=16,
+        description="Max specialist worker delegations per manager lane in Ballroom missions.",
     )
     hive_sync_interval_sec: int = Field(
         default=300,
@@ -408,6 +428,42 @@ class Settings(BaseSettings):
         le=300,
         description="Short-lived cache for pgvector/chroma semantic search on /hive-mind/search.",
     )
+    hive_mind_chroma_enabled: bool = Field(
+        default=True,
+        description="Embed and query HiveMind vectors via Chroma/pgvector.",
+    )
+    hive_mind_vault_root: str = Field(
+        default="/app/hive-mind/vault",
+        description="Obsidian-compatible Markdown vault root for HiveMind artefacts.",
+    )
+    hive_mind_embed_max_chars: int = Field(
+        default=12_000,
+        ge=512,
+        le=100_000,
+        description="Max characters embedded per deliverable into hive_mind collection.",
+    )
+    hive_mind_max_graph_neighbor_breadth: int = Field(
+        default=6,
+        ge=1,
+        le=32,
+        description="Neo4j neighbour breadth when assembling HiveMind prompt recall.",
+    )
+    hive_mind_max_prompt_chars: int = Field(
+        default=4_000,
+        ge=256,
+        le=32_000,
+        description="Hard cap on HiveMind recall block injected into agent prompts.",
+    )
+    hive_mind_export_max_zip_bytes: int = Field(
+        default=25_000_000,
+        ge=1_000_000,
+        le=200_000_000,
+        description="Max in-memory ZIP size for /hive-mind/export bundles.",
+    )
+    external_integration_audit_to_vault: bool = Field(
+        default=True,
+        description="Mirror external integration audit lines into HiveMind vault.",
+    )
 
     # --- Security (JWT gates all routes except exempt paths in routers)
     secret_key: str = Field(..., min_length=32, description="HS256 signing secret from env.")
@@ -418,10 +474,14 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = Field(
-        default=7,
+        default=90,
         ge=1,
-        le=60,
+        le=365,
         description="Opaque Redis refresh TTL for dashboard operator sessions.",
+    )
+    default_tenant_platform_mode: Literal["internal", "commercial"] = Field(
+        default="commercial",
+        description="Platform mode assigned to new non-admin personal tenants.",
     )
     hive_token_client_id: str | None = Field(
         default=None,
@@ -475,14 +535,14 @@ class Settings(BaseSettings):
         description="Enable authenticated per-user and per-endpoint throttles.",
     )
     rate_limit_user_sustain_max: int = Field(
-        default=240,
+        default=480,
         ge=1,
         le=500_000,
         description="Sliding window cap per authenticated subject.",
     )
     rate_limit_user_sustain_window_sec: float = Field(default=60.0, gt=0)
     rate_limit_user_endpoint_max: int = Field(
-        default=90,
+        default=120,
         ge=1,
         le=500_000,
         description="Sliding window cap per authenticated subject+endpoint tuple.",
@@ -730,6 +790,10 @@ class Settings(BaseSettings):
         ge=60,
         description="TTL for ballroom capsule JSON in Redis (seconds); ignored for memory backend.",
     )
+    hive_ballroom_post_mortem_enabled: bool = Field(
+        default=True,
+        description="Persist post-mortem reflection + recipe autosave after Ballroom seven-step missions.",
+    )
     voice_enabled: bool = Field(
         default=False,
         description="Enable voice + multimodal pipeline (STT/TTS) for ballroom and agent control flows.",
@@ -768,6 +832,36 @@ class Settings(BaseSettings):
     voice_tts_openai_voice: str = Field(
         default="alloy",
         description="OpenAI voice preset for fallback TTS.",
+    )
+    voice_tts_xai_voice_id: str = Field(
+        default="Ara",
+        description="Default xAI Grok TTS voice id when operator preference is auto.",
+    )
+    voice_tts_xai_language: str = Field(
+        default="en",
+        description="Default xAI Grok TTS language code (ISO 639-1).",
+    )
+    voice_tts_xai_optimize_streaming_latency: int = Field(
+        default=0,
+        ge=0,
+        le=4,
+        description="xAI TTS optimize_streaming_latency hint (0–4); fast mode forces 1.",
+    )
+    voice_tts_xai_output_codec: str = Field(
+        default="",
+        description="Optional xAI TTS output codec (e.g. mp3). Empty skips output_format block.",
+    )
+    voice_tts_xai_sample_rate: int = Field(
+        default=24_000,
+        ge=8_000,
+        le=48_000,
+        description="xAI TTS sample rate when output_format is sent.",
+    )
+    voice_tts_xai_bit_rate: int = Field(
+        default=128_000,
+        ge=32_000,
+        le=320_000,
+        description="xAI TTS bit rate when output_format is sent.",
     )
     hive_dashboard_guest_ws: bool = Field(
         default=False,
@@ -891,6 +985,28 @@ class Settings(BaseSettings):
         ge=100,
         description="Default one-time Stripe price for premium verified skill export (EUR cents).",
     )
+    skill_marketplace_ugc_enabled: bool = Field(
+        default=True,
+        description="Allow tenants to submit verified recipes for curator marketplace review.",
+    )
+    skill_marketplace_platform_cut_bps: int = Field(
+        default=2500,
+        ge=2000,
+        le=3000,
+        description="Platform revenue share on UGC skill sales (basis points, default 25%).",
+    )
+    ugc_content_engine_enabled: bool = Field(
+        default=True,
+        description="Enable lead magnet landing pages and share-card generation.",
+    )
+    bee_gamification_enabled: bool = Field(
+        default=True,
+        description="Enable verified-workflow badge profiles and gamification UI.",
+    )
+    enterprise_workspace_enabled: bool = Field(
+        default=True,
+        description="Enable white-label branding and enterprise compliance workspace UI.",
+    )
     stripe_secret_key: str = Field(
         default="",
         description="Stripe secret API key for Checkout Sessions (env: STRIPE_SECRET_KEY).",
@@ -906,6 +1022,40 @@ class Settings(BaseSettings):
     stripe_skills_cancel_url: str = Field(
         default="https://queenswarm.love/integrations?tab=skills&purchase=cancel",
         description="Redirect when skill checkout is cancelled.",
+    )
+    stripe_pro_price_id: str = Field(
+        default="",
+        description="Stripe Price ID for Pro subscription (env: STRIPE_PRO_PRICE_ID). Preferred over dynamic price_data.",
+    )
+    stripe_pro_price_eur_cents: int = Field(
+        default=2900,
+        ge=100,
+        description="Fallback monthly Pro price in EUR cents when STRIPE_PRO_PRICE_ID is unset.",
+    )
+    stripe_pro_success_url: str = Field(
+        default="https://queenswarm.love/settings/billing?upgrade=success",
+        description="Redirect after successful Pro subscription checkout.",
+    )
+    stripe_pro_cancel_url: str = Field(
+        default="https://queenswarm.love/settings/billing?upgrade=cancel",
+        description="Redirect when Pro subscription checkout is cancelled.",
+    )
+    stripe_enterprise_price_id: str = Field(
+        default="",
+        description="Stripe Price ID for Enterprise subscription (env: STRIPE_ENTERPRISE_PRICE_ID).",
+    )
+    stripe_enterprise_price_eur_cents: int = Field(
+        default=9900,
+        ge=100,
+        description="Fallback monthly Enterprise price in EUR cents when STRIPE_ENTERPRISE_PRICE_ID is unset.",
+    )
+    stripe_enterprise_success_url: str = Field(
+        default="https://queenswarm.love/settings/billing?upgrade=enterprise-success",
+        description="Redirect after successful Enterprise subscription checkout.",
+    )
+    stripe_enterprise_cancel_url: str = Field(
+        default="https://queenswarm.love/settings/billing?upgrade=enterprise-cancel",
+        description="Redirect when Enterprise subscription checkout is cancelled.",
     )
     skill_publish_github_org: str = Field(
         default="queenswarm",
@@ -1067,6 +1217,62 @@ class Settings(BaseSettings):
     supervisor_autonomy_enabled: bool = Field(
         default=True,
         description="Allow autonomous sub-goal delegation and alternative planning without constant operator input.",
+    )
+    supervisor_audit_digest_enabled: bool = Field(
+        default=False,
+        description="Send daily supervisor session operator audit digest emails to tenant owners/admins.",
+    )
+    supervisor_audit_digest_window_hours: int = Field(
+        default=24,
+        ge=1,
+        le=168,
+        description="Rolling window for supervisor audit digest aggregation.",
+    )
+    supervisor_audit_digest_slack_enabled: bool = Field(
+        default=True,
+        description="Mirror supervisor audit digest summaries to Slack when SLACK_WEBHOOK_URL is configured.",
+    )
+    supervisor_audit_digest_discord_enabled: bool = Field(
+        default=True,
+        description="Mirror supervisor audit digest summaries to Discord when DISCORD_WEBHOOK_URL is configured.",
+    )
+    discord_webhook_url: str | None = Field(
+        default=None,
+        description="Optional global Discord incoming webhook for operator digests and alerts.",
+    )
+    supervisor_audit_digest_teams_enabled: bool = Field(
+        default=True,
+        description="Mirror supervisor audit digest summaries to Teams when TEAMS_WEBHOOK_URL is configured.",
+    )
+    teams_webhook_url: str | None = Field(
+        default=None,
+        description="Optional global Microsoft Teams incoming webhook for operator digests and alerts.",
+    )
+    supervisor_audit_rollup_email_enabled: bool = Field(
+        default=False,
+        description="Send weekly cross-tenant supervisor audit rollup to NOTIFY_EMAIL.",
+    )
+    supervisor_audit_rollup_window_hours: int = Field(
+        default=168,
+        ge=24,
+        le=168,
+        description="Rolling window for platform operator audit rollup email.",
+    )
+    supervisor_audit_rollup_cache_ttl_sec: int = Field(
+        default=300,
+        ge=0,
+        le=3600,
+        description="Redis TTL for cross-tenant audit rollup API cache (0 disables cache).",
+    )
+    tenant_audit_retention_enabled: bool = Field(
+        default=True,
+        description="Enable scheduled purge of tenant audit rows older than retention window.",
+    )
+    tenant_audit_retention_days: int = Field(
+        default=60,
+        ge=7,
+        le=365,
+        description="Tenant audit log retention in days before scheduled purge.",
     )
     retrieval_contract_enabled: bool = Field(
         default=False,
@@ -1239,8 +1445,8 @@ class Settings(BaseSettings):
         if self.access_token_expire_minutes > 20:
             msg = "When PRODUCTION_SECURITY_MODE=true, ACCESS_TOKEN_EXPIRE_MINUTES must be <= 20."
             raise ValueError(msg)
-        if self.refresh_token_expire_days > 14:
-            msg = "When PRODUCTION_SECURITY_MODE=true, REFRESH_TOKEN_EXPIRE_DAYS must be <= 14."
+        if self.refresh_token_expire_days > 90:
+            msg = "When PRODUCTION_SECURITY_MODE=true, REFRESH_TOKEN_EXPIRE_DAYS must be <= 90."
             raise ValueError(msg)
         ckv = (self.connector_vault_fernet_key or "").strip()
         if not ckv:

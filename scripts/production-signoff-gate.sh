@@ -46,32 +46,40 @@ echo "env: ${ENV_FILE}"
 echo "hive: ${HIVE_BASE}"
 echo
 
-echo "[1/6] validate-prod-env"
+echo "[1/9] validate-prod-env"
 ./scripts/validate-prod-env.sh
 
 echo
-echo "[2/6] core-reliability-gate"
+echo "[2/9] core-reliability-gate"
 ENV_FILE="$ENV_FILE" ./scripts/core-reliability-gate.sh
 
 if [[ "$SKIP_BACKEND_TESTS" != "1" ]]; then
   echo
-  echo "[3/6] backend pytest + coverage"
+  echo "[3/9] backend pytest + coverage"
   (
     cd backend
     PLUGIN_USER_DIR=/tmp/queenswarm-plugins/user \
-      python -m pytest -q --cov=app --cov-config=.coveragerc --cov-fail-under=50
+      ./venv/bin/python -m pytest -q --cov=app --cov-config=.coveragerc --cov-fail-under=80
   )
 else
   echo
-  echo "[3/6] backend pytest — skipped (SKIP_BACKEND_TESTS=1)"
+  echo "[3/9] backend pytest — skipped (SKIP_BACKEND_TESTS=1)"
 fi
 
 echo
-echo "[4/6] responsive + PWA gate"
+echo "[4/9] phase14 operator flow gates (backend + typecheck)"
+./scripts/phase14-gates.sh
+
+echo
+echo "[5/9] phase70 consolidation gates"
+./scripts/phase70-gates.sh
+
+echo
+echo "[6/9] responsive + PWA gate"
 PLAYWRIGHT_BASE_URL="$HIVE_BASE" ./scripts/responsive-rollout-gate.sh
 
 echo
-echo "[5/6] prod edge smoke (public routes)"
+echo "[7/9] prod edge smoke (public routes)"
 for path in /health /api/v1/health /health/ready /manifest.webmanifest /sw.js /offline; do
   code="$(curl -sS -o /dev/null -w '%{http_code}' "${HIVE_BASE}${path}" || echo "000")"
   if [[ "$code" != "200" && "$code" != "307" ]]; then
@@ -91,6 +99,18 @@ for path in /api/v1/foragers /api/v1/paper-trading/summary; do
   echo "  OK ${path} (${code} — route wired)"
 done
 
+# Operator session tooling — Command Center rollup APIs (admin JWT required).
+for path in \
+  /api/v1/operator/command-center \
+  /api/v1/operator/command-center/audit-digest-rollup; do
+  code="$(curl -sS -o /dev/null -w '%{http_code}' "${HIVE_BASE}${path}" || echo "000")"
+  if [[ "$code" == "404" || "$code" == "000" ]]; then
+    echo "FAIL ${path} HTTP ${code} (expected auth gate, not missing route)" >&2
+    exit 1
+  fi
+  echo "  OK ${path} (${code} — route wired)"
+done
+
 # Stripe webhook is public (signature auth). 503 = secret unset; 400 = secret set, no sig; never 401.
 webhook_code="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "${HIVE_BASE}/api/v1/billing/stripe/webhook" || echo "000")"
 if [[ "$webhook_code" == "401" || "$webhook_code" == "404" || "$webhook_code" == "000" ]]; then
@@ -100,7 +120,17 @@ fi
 echo "  OK /api/v1/billing/stripe/webhook (${webhook_code} — public, not JWT-gated)"
 
 echo
-echo "[6/6] Stripe + Phase 14 feature readiness"
+echo "[8/9] host exposure audit (production host only)"
+if [[ "${SKIP_HOST_EXPOSURE_AUDIT:-0}" == "1" ]]; then
+  echo "  skipped (SKIP_HOST_EXPOSURE_AUDIT=1)"
+elif [[ -x "${ROOT}/scripts/audit-host-exposure.sh" ]]; then
+  "${ROOT}/scripts/audit-host-exposure.sh"
+else
+  echo "  skipped (audit-host-exposure.sh missing or not executable)"
+fi
+
+echo
+echo "[9/9] Stripe + Phase 14 feature readiness"
 if [[ -x "${ROOT}/scripts/stripe-prod-setup.sh" ]]; then
   ./scripts/stripe-prod-setup.sh || {
     if [[ "$STRICT_STRIPE" == "1" ]]; then

@@ -91,6 +91,7 @@ export interface TenantViewRow {
   name: string;
   role: string;
   is_active: boolean;
+  platform_mode?: string;
 }
 
 export interface TenantListPayload {
@@ -157,6 +158,10 @@ export interface BillingPlansPayload {
     features: Record<string, boolean>;
   }>;
   checkout_ready: boolean;
+  pro_checkout_ready?: boolean;
+  pro_price_eur_cents?: number;
+  enterprise_checkout_ready?: boolean;
+  enterprise_price_eur_cents?: number;
   message: string;
 }
 
@@ -220,6 +225,65 @@ export interface SubAgentSessionRow {
   completed_at: string | null;
   last_output: string | null;
   error_text: string | null;
+  celery_task_id?: string | null;
+  celery_enqueued_at?: string | null;
+  self_heal_attempts?: number | null;
+  requeue_count?: number | null;
+}
+
+export interface SubAgentJobStatusRow {
+  sub_agent_session_id: string;
+  supervisor_session_id: string;
+  celery_task_id: string | null;
+  task_name: string;
+  state: string;
+  ready: boolean;
+  successful: boolean | null;
+  result: Record<string, unknown> | null;
+  error: string | null;
+  enqueued_at: string | null;
+  self_heal_attempts: number | null;
+}
+
+export interface SupervisorSessionAuditLogRow {
+  id: string;
+  tenant_id: string;
+  action: string;
+  target_type: string;
+  target_ref: string;
+  actor_user_id: string | null;
+  payload: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface SupervisorSessionContextHistoryRow {
+  audit_id: string;
+  action: string;
+  created_at: string;
+  context_diff: {
+    added?: Record<string, unknown>;
+    removed?: Record<string, unknown>;
+    changed?: Record<string, { before: unknown; after: unknown }>;
+    nested?: Record<
+      string,
+      {
+        added?: Record<string, unknown>;
+        removed?: Record<string, unknown>;
+        changed?: Record<string, { before: unknown; after: unknown }>;
+        nested?: Record<string, unknown>;
+        added_items?: unknown[];
+        removed_items?: unknown[];
+        item_changes?: Array<Record<string, unknown>>;
+        before_len?: number;
+        after_len?: number;
+        before?: unknown;
+        after?: unknown;
+      }
+    >;
+  };
+  session_status: string | null;
+  control_action: string | null;
+  decision: string | null;
 }
 
 export interface SupervisorSessionRow {
@@ -237,6 +301,18 @@ export interface SupervisorSessionRow {
   created_at: string;
   updated_at: string;
   sub_agents: SubAgentSessionRow[];
+}
+
+export interface SupervisorSharedContextRow {
+  session_id: string;
+  enabled: boolean;
+  retrieval_contract: string;
+  matched_sections: string[];
+  sections: Record<string, unknown>;
+  relevance_scores?: Record<string, number> | null;
+  pruned_items: number;
+  prompt_block: string;
+  context_summary: Record<string, unknown>;
 }
 
 export interface SupervisorRoutineRow {
@@ -270,6 +346,20 @@ export interface SupervisorControlSummaryRow {
   routines_total: number;
   active_routines: number;
   due_routines: number;
+  inprocess_active_sessions?: number;
+  durable_active_sessions?: number;
+  durable_queued_sub_agents?: number;
+}
+
+export interface SwarmAutonomySummaryRow {
+  tenant_id: string;
+  autonomy_mode: string;
+  active_long_horizon_routines: number;
+  pending_memory_approvals: number;
+  pending_initiative_approvals: number;
+  average_strategy_score: number;
+  reflection_entries: number;
+  status: string;
 }
 
 export interface AgentSuggestionRow {
@@ -403,11 +493,22 @@ export interface RecipeRow {
 export interface RecipeSemanticHit {
   chroma_document_id: string;
   similarity: number;
+  vector_similarity?: number | null;
+  graph_score?: number | null;
   distance?: number | null;
   document_preview: string;
   metadata: Record<string, unknown>;
   postgres_recipe_id?: string | null;
   postgres_row?: RecipeRow | null;
+}
+
+/** Imitation gate config (`GET /recipes/match-config`). */
+export interface RecipeMatchConfigPayload {
+  match_threshold: number;
+  min_search_similarity: number;
+  hybrid_scoring_enabled: boolean;
+  hybrid_vector_weight: number;
+  hybrid_graph_weight: number;
 }
 
 /** Skill export bundle (`POST /recipes/{id}/export-skill`). */
@@ -482,6 +583,73 @@ export interface SkillCatalogRecipeItem {
   premium?: boolean;
   price_eur_cents?: number;
   unlocked?: boolean;
+  ugc?: boolean;
+  platform_cut_bps?: number | null;
+}
+
+export interface SkillMarketplaceConfigPayload {
+  enabled: boolean;
+  platform_cut_bps: number;
+  platform_cut_display: string;
+  price_tiers_cents: number[];
+}
+
+export interface SkillMarketplaceListingRow {
+  id: string;
+  recipe_id: string;
+  recipe_name: string;
+  status: string;
+  price_eur_cents: number;
+  platform_cut_bps: number;
+  publisher_tenant_id: string;
+  pitch?: string | null;
+  curator_note?: string | null;
+  submitted_at: string;
+  reviewed_at?: string | null;
+}
+
+export interface LeadMagnetCatalogItem {
+  template_id: string;
+  name: string;
+  tagline: string;
+  description: string;
+  estimated_minutes: number;
+  time_saved_hours_per_week: number;
+  accent_hex: string;
+  agent_count: number;
+  headline: string;
+  landing_url: string;
+  wizard_url: string;
+}
+
+export interface LeadMagnetShareChannel {
+  id: string;
+  label: string;
+  text: string;
+  char_count: number;
+}
+
+export interface LeadMagnetLandingResponse {
+  template_id: string;
+  name: string;
+  headline: string;
+  tagline: string;
+  description: string;
+  bullets: string[];
+  estimated_minutes: number;
+  time_saved_hours_per_week: number;
+  accent_hex: string;
+  agent_count: number;
+  cta_label: string;
+  cta_url: string;
+  landing_url: string;
+}
+
+export interface LeadMagnetSharePackResponse extends LeadMagnetLandingResponse {
+  verified_hours_saved?: number | null;
+  hours_attribution_line: string;
+  share_channels: LeadMagnetShareChannel[];
+  share_card_markdown: string;
 }
 
 export interface SkillUnlockStatusResponse {
@@ -517,6 +685,81 @@ export interface VerifiedPollenLeaderboardRow {
   swarm_id?: string | null;
   verified_pollen: number;
   total_pollen: number;
+}
+
+export interface BeeBadgeItem {
+  id: string;
+  label: string;
+  description: string;
+  tier: string;
+  emoji: string;
+}
+
+export interface BeeBadgeProfile {
+  agent_id: string;
+  agent_name: string;
+  agent_role: string;
+  swarm_id?: string | null;
+  verified_pollen: number;
+  total_pollen: number;
+  performance_pct: number;
+  verified_task_count: number;
+  badges: BeeBadgeItem[];
+  badge_count: number;
+}
+
+export interface WhiteLabelConfig {
+  brand_name?: string | null;
+  logo_url?: string | null;
+  accent_hex: string;
+  hide_platform_branding: boolean;
+  custom_domain?: string | null;
+  custom_domain_status: string;
+}
+
+export interface EnterpriseComplianceConfig {
+  data_retention_days: number;
+  compliance_contact_email?: string | null;
+  soc2_attestation_url?: string | null;
+  monthly_audit_export: boolean;
+  dedicated_hive_note?: string | null;
+}
+
+export interface HaProfileStatus {
+  ha_mode_enabled: boolean;
+  redis_failover_configured: boolean;
+  postgres_replica_configured: boolean;
+  backup_drill_script_available: boolean;
+  profile_label: string;
+  readiness_pct: number;
+  dr_drill?: {
+    report_available: boolean;
+    last_drill_at: string | null;
+    backup_duration_sec: number | null;
+    restore_status: string | null;
+    report_file: string | null;
+    reports_dir: string | null;
+  };
+  ha_chaos?: {
+    report_available: boolean;
+    last_drill_at: string | null;
+    passed: boolean | null;
+    baseline_ready_code: number | null;
+    degraded_ready_code: number | null;
+    recovered_ready_code: number | null;
+    expect_failover_ready: boolean;
+    report_file: string | null;
+    reports_dir: string | null;
+  };
+}
+
+export interface EnterpriseWorkspaceView {
+  tenant_id: string;
+  tenant_name: string;
+  white_label: WhiteLabelConfig;
+  compliance: EnterpriseComplianceConfig;
+  ha_profile: HaProfileStatus;
+  custom_branding_allowed: boolean;
 }
 
 export interface PaperTradingFillRow {
@@ -558,6 +801,53 @@ export interface PaperTradingSummaryPayload {
   total_equity_usd: number;
   total_pnl_usd: number;
   projects: PaperTradingProjectSnapshot[];
+  disclaimer: string;
+}
+
+export type RapidLoopStageId = "scrape" | "reflect" | "simulate" | "reward";
+export type RapidLoopStageStatus = "idle" | "active" | "ok" | "warn";
+
+export interface RapidLoopStageRow {
+  id: RapidLoopStageId;
+  label: string;
+  count_24h: number;
+  last_at: string | null;
+  status: RapidLoopStageStatus;
+}
+
+/** ``GET /api/v1/dashboard/rapid-loop`` — verified learning cycle telemetry. */
+export interface RapidLoopSummaryPayload {
+  generated_at: string;
+  window_hours: number;
+  sla_target_sec: number;
+  sla_met_pct: number | null;
+  avg_cycle_sec: number | null;
+  last_cycle_sec: number | null;
+  last_cycle_at: string | null;
+  stages: RapidLoopStageRow[];
+  loop_healthy: boolean;
+}
+
+export type TimeSavedSourceKind = "template" | "recipe" | "custom";
+
+export interface TimeSavedBreakdownRow {
+  source_key: string;
+  source_kind: TimeSavedSourceKind;
+  source_label: string;
+  task_count: number;
+  minutes_per_task: number;
+  hours_saved: number;
+}
+
+/** ``GET /api/v1/dashboard/time-saved`` — verified workflow ROI estimates. */
+export interface TimeSavedSummaryPayload {
+  generated_at: string;
+  window_days: number;
+  verified_task_count: number;
+  hours_saved_total: number;
+  hours_saved_projected_monthly: number;
+  minutes_per_task_default: number;
+  breakdown: TimeSavedBreakdownRow[];
   disclaimer: string;
 }
 
@@ -656,6 +946,32 @@ export interface OperatorIntakeResponse {
   execution: "queued" | "inline" | "skipped";
 }
 
+/** Local hive mind summary embedded in swarm board/overview payloads. */
+export interface SubSwarmLocalMindSummary {
+  swarm_id: string;
+  hive_sync_interval_sec: number;
+  recommended_bee_count: number;
+  needs_sync: boolean;
+  last_sync_seconds_ago: number | null;
+  sync_due_in_sec: number;
+  sync_progress_pct: number;
+  wizard_template?: string | null;
+  swarm_role_label?: string | null;
+  accent_hex?: string | null;
+  last_waggle_cue?: string | null;
+  goal_preview?: string | null;
+  memory_key_count: number;
+  peer_count: number;
+}
+
+export interface SubSwarmLocalMindDetail extends SubSwarmLocalMindSummary {
+  local_memory_preview: Record<string, unknown>;
+  member_count: number;
+  is_active: boolean;
+  purpose: string;
+  slug: string;
+}
+
 /** `/dashboard/swarm-board` — sub-swarm cards + waggle feed. */
 export interface SwarmBoardCard {
   id: string;
@@ -671,6 +987,7 @@ export interface SwarmBoardCard {
   is_active: boolean;
   last_global_sync_at: string | null;
   last_sync_seconds_ago: number | null;
+  local_mind?: SubSwarmLocalMindSummary;
 }
 
 export interface WaggleFeedItem {
@@ -704,6 +1021,7 @@ export interface SwarmsOverviewColony {
   last_sync_seconds_ago: number | null;
   is_active: boolean;
   status: "active" | "paused";
+  local_mind?: SubSwarmLocalMindSummary;
 }
 
 export interface SwarmsOverviewKpis {

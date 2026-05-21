@@ -1,4 +1,11 @@
-import { ForagersPageClient } from "@/components/hive/foragers-page-client";
+import nextDynamic from "next/dynamic";
+
+import { SettingsPanelSkeleton } from "@/components/hive/settings-panel-skeleton";
+
+const ForagersPageClient = nextDynamic(
+  () => import("@/components/hive/foragers-page-client").then((mod) => ({ default: mod.ForagersPageClient })),
+  { loading: () => <SettingsPanelSkeleton /> },
+);
 
 export const dynamic = "force-dynamic";
 

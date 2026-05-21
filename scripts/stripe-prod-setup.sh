@@ -44,6 +44,8 @@ fi
 
 secret="$(load_kv "$ENV_FILE" STRIPE_SECRET_KEY || true)"
 webhook="$(load_kv "$ENV_FILE" STRIPE_WEBHOOK_SECRET || true)"
+pro_price="$(load_kv "$ENV_FILE" STRIPE_PRO_PRICE_ID || true)"
+pro_cents="$(load_kv "$ENV_FILE" STRIPE_PRO_PRICE_EUR_CENTS || true)"
 skill_export="$(load_kv "$ENV_FILE" SKILL_EXPORT_PREMIUM_ENABLED || true)"
 success_url="$(load_kv "$ENV_FILE" STRIPE_SKILLS_SUCCESS_URL || true)"
 cancel_url="$(load_kv "$ENV_FILE" STRIPE_SKILLS_CANCEL_URL || true)"
@@ -66,6 +68,24 @@ else
   ok=1
 fi
 
+if [[ -n "${pro_price// }" ]]; then
+  echo "  OK  STRIPE_PRO_PRICE_ID is set (Pro subscription checkout)"
+elif [[ -n "${pro_cents// }" ]] && [[ "${pro_cents}" =~ ^[0-9]+$ ]] && [[ "${pro_cents}" -ge 100 ]]; then
+  echo "  OK  STRIPE_PRO_PRICE_EUR_CENTS=${pro_cents} (dynamic Pro price fallback)"
+else
+  echo "  WARN  STRIPE_PRO_PRICE_ID unset — Pro checkout uses dynamic price_data"
+fi
+
+ent_price="$(load_kv "$ENV_FILE" STRIPE_ENTERPRISE_PRICE_ID || true)"
+ent_cents="$(load_kv "$ENV_FILE" STRIPE_ENTERPRISE_PRICE_EUR_CENTS || true)"
+if [[ -n "${ent_price// }" ]]; then
+  echo "  OK  STRIPE_ENTERPRISE_PRICE_ID is set (Enterprise checkout)"
+elif [[ -n "${ent_cents// }" ]] && [[ "${ent_cents}" =~ ^[0-9]+$ ]] && [[ "${ent_cents}" -ge 100 ]]; then
+  echo "  OK  STRIPE_ENTERPRISE_PRICE_EUR_CENTS=${ent_cents} (dynamic Enterprise fallback)"
+else
+  echo "  WARN  STRIPE_ENTERPRISE_PRICE_ID unset — Enterprise checkout uses dynamic price_data"
+fi
+
 echo "  SKILL_EXPORT_PREMIUM_ENABLED=${skill_export:-unset}"
 echo "  success URL: ${success_url:-(default in config)}"
 echo "  cancel URL:  ${cancel_url:-(default in config)}"
@@ -79,6 +99,8 @@ echo "  POST_DEPLOY_HEALTH=1 ./scripts/deploy-prod.sh"
 echo
 echo "Verify (non-secret):"
 echo "  curl -sS -o /dev/null -w '%{http_code}\\n' ${HIVE_BASE}/health"
+echo "  curl -sS -o /dev/null -w '%{http_code}\\n' -X POST ${HIVE_BASE}/api/v1/billing/pro-checkout  # expect 401"
+echo "  curl -sS -o /dev/null -w '%{http_code}\\n' -X POST ${HIVE_BASE}/api/v1/billing/enterprise-checkout  # expect 401"
 echo "  STRICT_STRIPE=1 ./scripts/production-signoff-gate.sh"
 echo
 echo "Local webhook forward (dev):"

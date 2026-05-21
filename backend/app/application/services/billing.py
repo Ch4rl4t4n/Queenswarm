@@ -16,6 +16,16 @@ from app.infrastructure.persistence.models.external_project import ExternalProje
 from app.infrastructure.persistence.models.knowledge import KnowledgeItem
 from app.infrastructure.persistence.models.billing import TenantSubscription
 from app.infrastructure.persistence.models.supervisor_session import SupervisorSession
+from app.infrastructure.persistence.models.agent import Agent
+from app.infrastructure.persistence.models.swarm import SubSwarm
+from app.infrastructure.persistence.models.tenant import Tenant
+
+
+def _normalize_platform_mode(raw: str | None) -> str:
+    """Coerce tenant mode without importing platform_features (avoids circular import)."""
+
+    key = str(raw or "internal").strip().lower()
+    return "commercial" if key == "commercial" else "internal"
 
 TIER_FREE = "free"
 TIER_PRO = "pro"
@@ -36,6 +46,10 @@ class PlanDefinition:
     monthly_external_calls_hard: int
     storage_mb_soft: int
     storage_mb_hard: int
+    max_agents_soft: int
+    max_agents_hard: int
+    max_swarms_soft: int
+    max_swarms_hard: int
     features: dict[str, bool]
 
 
@@ -51,6 +65,10 @@ _PLANS: dict[str, PlanDefinition] = {
         monthly_external_calls_hard=1_500,
         storage_mb_soft=200,
         storage_mb_hard=300,
+        max_agents_soft=2,
+        max_agents_hard=2,
+        max_swarms_soft=1,
+        max_swarms_hard=1,
         features={
             "advanced_routines": False,
             "priority_support": False,
@@ -70,6 +88,10 @@ _PLANS: dict[str, PlanDefinition] = {
         monthly_external_calls_hard=40_000,
         storage_mb_soft=3_000,
         storage_mb_hard=4_000,
+        max_agents_soft=50,
+        max_agents_hard=100,
+        max_swarms_soft=20,
+        max_swarms_hard=50,
         features={
             "advanced_routines": True,
             "priority_support": False,
@@ -89,6 +111,10 @@ _PLANS: dict[str, PlanDefinition] = {
         monthly_external_calls_hard=250_000,
         storage_mb_soft=50_000,
         storage_mb_hard=80_000,
+        max_agents_soft=500,
+        max_agents_hard=1_000,
+        max_swarms_soft=200,
+        max_swarms_hard=500,
         features={
             "advanced_routines": True,
             "priority_support": True,
@@ -161,6 +187,10 @@ def resolve_plan_limits(subscription: TenantSubscription) -> dict[str, int]:
         "monthly_external_calls_hard": plan.monthly_external_calls_hard,
         "storage_mb_soft": plan.storage_mb_soft,
         "storage_mb_hard": plan.storage_mb_hard,
+        "max_agents_soft": plan.max_agents_soft,
+        "max_agents_hard": plan.max_agents_hard,
+        "max_swarms_soft": plan.max_swarms_soft,
+        "max_swarms_hard": plan.max_swarms_hard,
     }
     for key, value in dict(subscription.limits_override or {}).items():
         if key in limits:
@@ -314,6 +344,53 @@ async def assert_supervisor_session_hard_limit(db: AsyncSession, *, tenant_id: u
         raise ValueError("billing_limit_exceeded:monthly_supervisor_sessions")
 
 
+async def _commercial_subscription_for_tenant(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID | None,
+) -> TenantSubscription | None:
+    """Return subscription when tenant is commercial; skip gating for internal hives."""
+
+    if tenant_id is None:
+        return None
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        return None
+    if _normalize_platform_mode(getattr(tenant, "platform_mode", "internal")) != "commercial":
+        return None
+    return await ensure_tenant_subscription(db, tenant_id=tenant_id)
+
+
+async def assert_agent_hard_limit(db: AsyncSession, *, tenant_id: uuid.UUID | None) -> None:
+    """Block new dynamic agents when commercial tier agent cap is reached."""
+
+    subscription = await _commercial_subscription_for_tenant(db, tenant_id=tenant_id)
+    if subscription is None:
+        return
+    limits = resolve_plan_limits(subscription)
+    hard = int(limits.get("max_agents_hard", 0))
+    if hard <= 0:
+        return
+    count = int(await db.scalar(select(func.count()).select_from(Agent)) or 0)
+    if count >= hard:
+        raise ValueError("billing_limit_exceeded:max_agents")
+
+
+async def assert_swarm_hard_limit(db: AsyncSession, *, tenant_id: uuid.UUID | None) -> None:
+    """Block new sub-swarms when commercial tier swarm cap is reached."""
+
+    subscription = await _commercial_subscription_for_tenant(db, tenant_id=tenant_id)
+    if subscription is None:
+        return
+    limits = resolve_plan_limits(subscription)
+    hard = int(limits.get("max_swarms_hard", 0))
+    if hard <= 0:
+        return
+    count = int(await db.scalar(select(func.count()).select_from(SubSwarm)) or 0)
+    if count >= hard:
+        raise ValueError("billing_limit_exceeded:max_swarms")
+
+
 def plan_catalog() -> list[dict[str, Any]]:
     """Return static plan comparison payload for dashboard UI."""
 
@@ -332,6 +409,10 @@ def plan_catalog() -> list[dict[str, Any]]:
                     "monthly_external_calls_hard": plan.monthly_external_calls_hard,
                     "storage_mb_soft": plan.storage_mb_soft,
                     "storage_mb_hard": plan.storage_mb_hard,
+                    "max_agents_soft": plan.max_agents_soft,
+                    "max_agents_hard": plan.max_agents_hard,
+                    "max_swarms_soft": plan.max_swarms_soft,
+                    "max_swarms_hard": plan.max_swarms_hard,
                 },
                 "features": dict(plan.features),
             },
@@ -343,7 +424,9 @@ __all__ = [
     "TIER_ENTERPRISE",
     "TIER_FREE",
     "TIER_PRO",
+    "assert_agent_hard_limit",
     "assert_supervisor_session_hard_limit",
+    "assert_swarm_hard_limit",
     "compute_tenant_usage",
     "ensure_tenant_subscription",
     "evaluate_usage_health",

@@ -64,17 +64,35 @@ def _subject_rate_bucket(raw_subject: str) -> str:
     return f"hmac-sha256:{digest}"
 
 
-def _extract_bearer_subject(request: Request) -> str | None:
-    """Decode bearer token subject for optional authenticated user throttles."""
+def _dashboard_access_token_from_cookie_header(cookie_header: str | None) -> str | None:
+    """Return raw dashboard access JWT from the Cookie header when present."""
 
-    raw = request.headers.get("authorization", "").strip()
-    if not raw.lower().startswith("bearer "):
+    if not cookie_header:
         return None
-    token = raw[7:].strip()
+    for chunk in cookie_header.split(";"):
+        part = chunk.strip()
+        if not part or "=" not in part:
+            continue
+        key, value = part.split("=", 1)
+        if key.strip() == "qs_dashboard_at":
+            token = value.strip()
+            return token if token else None
+    return None
+
+
+def _extract_bearer_subject(request: Request) -> str | None:
+    """Decode bearer or dashboard cookie subject for optional authenticated user throttles."""
+
+    token: str | None = None
+    raw = request.headers.get("authorization", "").strip()
+    if raw.lower().startswith("bearer "):
+        token = raw[7:].strip() or None
+    if not token:
+        token = _dashboard_access_token_from_cookie_header(request.headers.get("cookie"))
     if not token:
         return None
     try:
-        payload = decode_jwt_optional_typ(token)
+        payload = decode_jwt_optional_typ(token, verify_exp=False)
     except Exception:  # noqa: BLE001 - limiter path must fail open on token parse errors
         return None
     subject = payload.get("sub")
@@ -196,6 +214,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         "/",
         "/health",
         "/health/ready",
+        "/health/dependencies",
         "/metrics",
         "/docs",
         "/redoc",
@@ -227,40 +246,45 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         ip_label = peer_ip_for_rate_limit(request)
         rl_log = logger.bind(agent_id="rate_limit_gate", swarm_id="", task_id="")
+        user_limits_active = settings.rate_limit_user_enabled or settings.production_security_mode
+        auth_subject = _extract_bearer_subject(request) if user_limits_active else None
+        # Dashboard cockpit polls many read endpoints — authenticated operators use per-user limits only.
+        skip_peer_limits = bool(auth_subject and user_limits_active)
 
-        try:
-            burst_ok = await sliding_window_reserve(
-                f"{_RATE_KEY_PREFIX}:burst:{ip_label}",
-                limit=settings.rate_limit_burst_max,
-                window_sec=settings.rate_limit_burst_window_sec,
-            )
-            sustain_ok = await sliding_window_reserve(
-                f"{_RATE_KEY_PREFIX}:sustain:{ip_label}",
-                limit=settings.rate_limit_sustain_max,
-                window_sec=settings.rate_limit_sustain_window_sec,
-            )
-        except RedisError as exc:
-            blocked = _redis_limiter_degraded_response(
-                rl_log,
-                exc=exc,
-                peer=ip_label,
-                event="rate_limit.redis_degraded_allowing",
-            )
-            if blocked is not None:
-                return blocked
-            return await call_next(request)
-
-        if not burst_ok or not sustain_ok:
-            observe_rate_limit_block(scope="global")
+        if not skip_peer_limits:
             try:
-                await increment_minute_counter("rate_limit_blocks", ttl_sec=7200)
-            except Exception:  # noqa: BLE001 - telemetry side path must never block request handling
-                pass
-            rl_log.info("rate_limit.blocked", peer=ip_label, path=path)
-            return _rate_limited_response(
-                "Rate limit exceeded. Retry later.",
-                window_sec=max(settings.rate_limit_burst_window_sec, settings.rate_limit_sustain_window_sec),
-            )
+                burst_ok = await sliding_window_reserve(
+                    f"{_RATE_KEY_PREFIX}:burst:{ip_label}",
+                    limit=settings.rate_limit_burst_max,
+                    window_sec=settings.rate_limit_burst_window_sec,
+                )
+                sustain_ok = await sliding_window_reserve(
+                    f"{_RATE_KEY_PREFIX}:sustain:{ip_label}",
+                    limit=settings.rate_limit_sustain_max,
+                    window_sec=settings.rate_limit_sustain_window_sec,
+                )
+            except RedisError as exc:
+                blocked = _redis_limiter_degraded_response(
+                    rl_log,
+                    exc=exc,
+                    peer=ip_label,
+                    event="rate_limit.redis_degraded_allowing",
+                )
+                if blocked is not None:
+                    return blocked
+                return await call_next(request)
+
+            if not burst_ok or not sustain_ok:
+                observe_rate_limit_block(scope="global")
+                try:
+                    await increment_minute_counter("rate_limit_blocks", ttl_sec=7200)
+                except Exception:  # noqa: BLE001 - telemetry side path must never block request handling
+                    pass
+                rl_log.info("rate_limit.blocked", peer=ip_label, path=path)
+                return _rate_limited_response(
+                    "Rate limit exceeded. Retry later.",
+                    window_sec=max(settings.rate_limit_burst_window_sec, settings.rate_limit_sustain_window_sec),
+                )
 
         if _is_agent_run_post(path, request.method):
             try:
@@ -322,55 +346,53 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     window_sec=settings.rate_limit_task_create_window_sec,
                 )
 
-        if settings.rate_limit_user_enabled or settings.production_security_mode:
-            subject = _extract_bearer_subject(request)
-            if subject:
-                sub_bucket = _subject_rate_bucket(subject)
-                endpoint_bucket = _endpoint_rate_bucket(method=request.method, path=path)
+        if user_limits_active and auth_subject:
+            sub_bucket = _subject_rate_bucket(auth_subject)
+            endpoint_bucket = _endpoint_rate_bucket(method=request.method, path=path)
+            try:
+                user_ok = await sliding_window_reserve(
+                    f"{_RATE_KEY_PREFIX}:user:{sub_bucket}",
+                    limit=settings.rate_limit_user_sustain_max,
+                    window_sec=settings.rate_limit_user_sustain_window_sec,
+                )
+                endpoint_ok = await sliding_window_reserve(
+                    f"{_RATE_KEY_PREFIX}:user_endpoint:{sub_bucket}:{endpoint_bucket}",
+                    limit=settings.rate_limit_user_endpoint_max,
+                    window_sec=settings.rate_limit_user_endpoint_window_sec,
+                )
+            except RedisError as exc:
+                blocked = _redis_limiter_degraded_response(
+                    rl_log,
+                    exc=exc,
+                    peer=ip_label,
+                    event="rate_limit.user_redis_degraded_allowing",
+                    subject=sub_bucket,
+                    window_sec=max(
+                        settings.rate_limit_user_sustain_window_sec,
+                        settings.rate_limit_user_endpoint_window_sec,
+                    ),
+                )
+                if blocked is not None:
+                    return blocked
+                return await call_next(request)
+            if not user_ok or not endpoint_ok:
+                observe_rate_limit_block(scope="user")
                 try:
-                    user_ok = await sliding_window_reserve(
-                        f"{_RATE_KEY_PREFIX}:user:{sub_bucket}",
-                        limit=settings.rate_limit_user_sustain_max,
-                        window_sec=settings.rate_limit_user_sustain_window_sec,
-                    )
-                    endpoint_ok = await sliding_window_reserve(
-                        f"{_RATE_KEY_PREFIX}:user_endpoint:{sub_bucket}:{endpoint_bucket}",
-                        limit=settings.rate_limit_user_endpoint_max,
-                        window_sec=settings.rate_limit_user_endpoint_window_sec,
-                    )
-                except RedisError as exc:
-                    blocked = _redis_limiter_degraded_response(
-                        rl_log,
-                        exc=exc,
-                        peer=ip_label,
-                        event="rate_limit.user_redis_degraded_allowing",
-                        subject=sub_bucket,
-                        window_sec=max(
-                            settings.rate_limit_user_sustain_window_sec,
-                            settings.rate_limit_user_endpoint_window_sec,
-                        ),
-                    )
-                    if blocked is not None:
-                        return blocked
-                    return await call_next(request)
-                if not user_ok or not endpoint_ok:
-                    observe_rate_limit_block(scope="user")
-                    try:
-                        await increment_minute_counter("rate_limit_blocks", ttl_sec=7200)
-                    except Exception:  # noqa: BLE001
-                        pass
-                    rl_log.info(
-                        "rate_limit.user_blocked",
-                        peer=ip_label,
-                        path=path,
-                        subject=sub_bucket,
-                    )
-                    return _rate_limited_response(
-                        "User rate limit exceeded. Retry later.",
-                        window_sec=max(
-                            settings.rate_limit_user_sustain_window_sec,
-                            settings.rate_limit_user_endpoint_window_sec,
-                        ),
-                    )
+                    await increment_minute_counter("rate_limit_blocks", ttl_sec=7200)
+                except Exception:  # noqa: BLE001
+                    pass
+                rl_log.info(
+                    "rate_limit.user_blocked",
+                    peer=ip_label,
+                    path=path,
+                    subject=sub_bucket,
+                )
+                return _rate_limited_response(
+                    "User rate limit exceeded. Retry later.",
+                    window_sec=max(
+                        settings.rate_limit_user_sustain_window_sec,
+                        settings.rate_limit_user_endpoint_window_sec,
+                    ),
+                )
 
         return await call_next(request)

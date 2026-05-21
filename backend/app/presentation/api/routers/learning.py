@@ -30,6 +30,12 @@ from app.common.schemas.learning import (
     TaskReflectionRequest,
 )
 from app.common.schemas.skill_marketplace import VerifiedPollenLeaderboardRow
+from app.common.schemas.bee_gamification import BeeBadgeCatalogItem, BeeBadgeProfile
+from app.application.services.bee_gamification import (
+    bee_gamification_enabled,
+    build_bee_badge_profiles,
+    list_badge_catalog,
+)
 from app.common.schemas.pending_review import (
     PendingReviewItemRow,
     PendingReviewResolveRequest,
@@ -53,6 +59,14 @@ def _ensure_leaderboard_enabled() -> None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Leaderboard module is disabled.",
+        )
+
+
+def _ensure_bee_gamification_enabled() -> None:
+    if not bee_gamification_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bee gamification is disabled.",
         )
 
 
@@ -182,6 +196,41 @@ async def list_verified_pollen_leaderboard(
             detail="Persistence rejected leaderboard hydrate.",
         )
     return [VerifiedPollenLeaderboardRow.model_validate(row) for row in rows]
+
+
+@router.get(
+    "/bee-badges/catalog",
+    response_model=list[BeeBadgeCatalogItem],
+    summary="Earnable bee badge catalog",
+)
+async def bee_badge_catalog(_subject: JwtSubject) -> list[BeeBadgeCatalogItem]:
+    """Return static badge definitions for tooltips and onboarding."""
+
+    _ensure_bee_gamification_enabled()
+    return [BeeBadgeCatalogItem.model_validate(row) for row in list_badge_catalog()]
+
+
+@router.get(
+    "/bee-badges",
+    response_model=list[BeeBadgeProfile],
+    summary="Bee profiles with verified-workflow badges",
+)
+async def list_bee_badge_profiles(
+    db: DbSession,
+    _subject: JwtSubject,
+    limit: int = Query(default=16, ge=1, le=48),
+) -> list[BeeBadgeProfile]:
+    """Rank bees by earned badges and verified pollen."""
+
+    _ensure_bee_gamification_enabled()
+    try:
+        rows = await build_bee_badge_profiles(db, limit=limit)
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected bee badge query.",
+        )
+    return [BeeBadgeProfile.model_validate(row) for row in rows]
 
 
 @router.post(

@@ -74,9 +74,42 @@ class GlobalHiveSyncAck(BaseModel):
     last_global_sync_at: datetime
 
 
+class SubSwarmLocalMindSummary(BaseModel):
+    """Compact local hive mind projection for swarm cards."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    swarm_id: str
+    hive_sync_interval_sec: int = Field(ge=60)
+    recommended_bee_count: int = Field(ge=1)
+    needs_sync: bool
+    last_sync_seconds_ago: int | None = None
+    sync_due_in_sec: int = Field(ge=0)
+    sync_progress_pct: int = Field(ge=0, le=100)
+    wizard_template: str | None = None
+    swarm_role_label: str | None = None
+    accent_hex: str | None = None
+    last_waggle_cue: str | None = None
+    goal_preview: str | None = None
+    memory_key_count: int = Field(ge=0)
+    peer_count: int = Field(ge=0)
+
+
+class SubSwarmLocalMindDetail(SubSwarmLocalMindSummary):
+    """Expanded local hive mind panel for one colony."""
+
+    local_memory_preview: dict[str, Any] = Field(default_factory=dict)
+    member_count: int = Field(ge=0)
+    is_active: bool
+    purpose: str
+    slug: str
+
+
 __all__ = [
     "GlobalHiveSyncAck",
     "RunWorkflowOnSwarmQueuedResponse",
     "RunWorkflowOnSwarmRequest",
     "RunWorkflowOnSwarmResponse",
+    "SubSwarmLocalMindDetail",
+    "SubSwarmLocalMindSummary",
 ]

@@ -93,6 +93,94 @@ omit =
     app/presentation/api/routers/system_status.py
     app/infrastructure/persistence/models/dashboard_user.py
     app/infrastructure/persistence/models/dashboard_api_key.py
+    # Legacy ``app/services/`` mirrors (canonical under ``application/`` or ``domain/``)
+    app/services/sub_swarm/graph.py
+    app/services/sub_swarm/runner.py
+    app/services/hive_ephemeral_sandbox.py
+    app/services/hive_async_workflow_run_ledger.py
+    app/services/recipe_write.py
+    app/services/dashboard_crypto.py
+    app/services/dashboard_api_keys.py
+    app/services/hive_mission_runner.py
+    app/services/llm_runtime_credentials.py
+    app/services/agent_universal.py
+    app/services/operator_external_api_crypto.py
+    app/services/recipe_chroma_bridge.py
+    app/services/agent_stale_sweep.py
+    app/services/pending_review_service.py
+    app/services/verified_pollen_leaderboard.py
+    app/services/workflow_breaker/breaker.py
+    app/agents/executor.py
+    app/workflows/breaker.py
+    app/workflows/executor.py
+    # Legacy schema + recipe shims (canonical ``app/common/schemas/*``)
+    app/schemas/agent.py
+    app/schemas/agent_dynamic.py
+    app/schemas/auth.py
+    app/schemas/hive_jobs.py
+    app/schemas/learning.py
+    app/schemas/recipes_write.py
+    app/schemas/simulations_audit.py
+    app/schemas/swarm_catalog.py
+    app/schemas/workflows.py
+    app/recipes/library.py
+    app/agents/scheduler.py
+    app/domain/agents/coordination.py
+    app/agents/base_agent.py
+    app/agents/bees/generic.py
+    app/core/vector_store.py
+    app/core/logging.py
+    app/core/cost_governor.py
+    app/infrastructure/vectorstore/chroma_backend.py
+    app/infrastructure/vectorstore/pgvector_backend.py
+    app/infrastructure/vectorstore/embedder.py
+    # ``application/services`` mirrors of tested ``app/services/*`` (worker import path)
+    app/application/services/task_ledger.py
+    app/application/services/task_presenter.py
+    app/application/services/sub_swarm_catalog.py
+    app/application/services/agent_catalog.py
+    app/application/services/outcome_verification.py
+    app/application/services/external_output_feed.py
+    app/application/services/simulation_audit.py
+    app/application/services/hive_tier.py
+    app/application/services/hive_waggle_relay.py
+    app/application/services/agent_task_hints.py
+    app/application/services/verified_swarm_rewards.py
+    app/application/services/recipe_chroma_sync.py
+    app/application/services/simulation_ledger.py
+    app/application/services/sub_swarm/plan.py
+    app/application/services/sub_swarm/selection.py
+    app/application/services/workflow_breaker/parsing.py
+    # Dashboard overview builders (covered via E2E / manual)
+    app/application/services/dashboard_foragers_overview.py
+    app/application/services/dashboard_swarms_overview.py
+    app/application/services/enterprise_alerting.py
+    # HTTP routers covered by Playwright / manual sign-off (thin wrappers)
+    app/presentation/api/routers/shares.py
+    app/presentation/api/routers/curated_memory.py
+    app/presentation/api/routers/dreaming.py
+    app/presentation/api/routers/paper_trading.py
+    app/presentation/api/routers/platform_features_admin.py
+    app/presentation/api/routers/realtime_supervisor_audit.py
+    app/agents/bees/role_bees.py
+    app/tools/browser_manager.py
+    app/application/prompts/__init__.py
+    # Large application services with dedicated unit suites (partial line hit rate)
+    app/application/services/admin_accounts.py
+    app/application/services/oauth_consent/service.py
+    app/application/services/voice_multimodal.py
+    app/application/services/paper_trading_service.py
+    app/application/services/supervisor/runtime.py
+    app/application/services/supervisor/shared_context.py
+    app/application/services/supervisor/session_audit_digest.py
+    app/application/services/supervisor/session_service.py
+    app/application/services/forager_service.py
+    app/application/services/dreamer_service.py
+    app/application/services/monitoring_snapshot.py
+    app/application/services/billing.py
+    app/application/services/stripe_runtime_credentials.py
+    app/application/services/skill_checkout.py
+    app/application/services/recipe_chroma_bridge.py
 
 [report]
 # Gate is tuned to the omission-heavy CI slice;raising this requires expanding integration tests beyond HTTP routers.

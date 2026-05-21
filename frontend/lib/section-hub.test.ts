@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { filterSectionNavItems, sectionDensityClass } from "./section-hub";
+import { filterSectionNavItems, sectionDensityClass, dashboardPageDensityClass } from "./section-hub";
 
 const ITEMS = [
   { href: "/tasks", title: "Tasks", description: "Backlog lifecycle and status." },
@@ -22,5 +22,10 @@ describe("section-hub", () => {
   it("maps compact density class for cards", () => {
     expect(sectionDensityClass("compact")).toContain("p-3");
     expect(sectionDensityClass("comfortable")).toContain("p-4");
+  });
+
+  it("dashboardPageDensityClass tightens vertical rhythm when compact", () => {
+    expect(dashboardPageDensityClass("compact")).toContain("gap-4");
+    expect(dashboardPageDensityClass("comfortable")).toBe("");
   });
 });

@@ -3,7 +3,9 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { PencilIcon, XIcon } from "lucide-react";
 
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { HiveApiError, hiveDelete, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { InfoHint } from "@/components/hive/info-hint";
@@ -35,6 +37,27 @@ const SCHEDULE_PRESETS = [
   { label: "Daily 08:00", value: "daily 08:00" },
   { label: "Daily 20:00", value: "daily 20:00" },
 ] as const;
+
+function configureOptionClass(
+  active: boolean,
+  tone: "cyan" | "pollen" | "success" = "cyan",
+  size: "sm" | "xs" = "sm",
+): string {
+  const activeTone =
+    tone === "pollen"
+      ? "border-pollen/40 bg-pollen/10 text-pollen"
+      : tone === "success"
+        ? "border-(--qs-green)/40 bg-(--qs-green)/10 text-(--qs-green)"
+        : "border-(--qs-cyan)/40 bg-(--qs-cyan)/10 text-(--qs-cyan)";
+
+  return cn(
+    "w-full rounded-xl border px-3 py-2 text-left transition",
+    size === "xs" ? "text-xs" : "text-sm",
+    active
+      ? activeTone
+      : "border-(--qs-border) bg-black/25 text-(--qs-text-3) hover:border-(--qs-border-2) hover:text-(--qs-text-2)",
+  );
+}
 
 interface SwarmLite {
   id: string;
@@ -286,6 +309,7 @@ function NewAgentWizardInner() {
   const [templateForm, setTemplateForm] = useState<TemplateFormValue>(createEmptyTemplateForm());
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
+  const [deleteTemplateTarget, setDeleteTemplateTarget] = useState<AgentTemplate | null>(null);
   const [swarms, setSwarms] = useState<SwarmLite[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -339,6 +363,18 @@ function NewAgentWizardInner() {
   useEffect(() => {
     void refreshTemplates();
   }, []);
+
+  useEffect(() => {
+    const editTemplateId = searchParams.get("editTemplate");
+    if (!editTemplateId || !canManageTemplates || loadingTemplates) {
+      return;
+    }
+    const match = templates.find((row) => row.id === editTemplateId);
+    if (match) {
+      openEditTemplateModal(match);
+      router.replace("/agents/new", { scroll: false });
+    }
+  }, [searchParams, templates, canManageTemplates, loadingTemplates, router]);
 
   useEffect(() => {
     if (swarmParam) setConfig((prev) => ({ ...prev, swarm_id: swarmParam }));
@@ -425,12 +461,18 @@ function NewAgentWizardInner() {
     }
   }
 
-  async function deleteTemplate(templateId: string) {
-    if (!canManageTemplates || !window.confirm("Delete this template?")) return;
+  async function confirmDeleteTemplate() {
+    if (!deleteTemplateTarget || !canManageTemplates) {
+      return;
+    }
+    const templateId = deleteTemplateTarget.id;
     setDeletingTemplateId(templateId);
     try {
       await hiveDelete<void>(`agent-templates/${encodeURIComponent(templateId)}`);
-      if (selectedTemplate?.id === templateId) setSelectedTemplate(null);
+      if (selectedTemplate?.id === templateId) {
+        setSelectedTemplate(null);
+      }
+      setDeleteTemplateTarget(null);
       await refreshTemplates();
     } catch (error) {
       window.alert(`Template delete failed: ${error instanceof HiveApiError ? error.message : error instanceof Error ? error.message : String(error)}`);
@@ -497,6 +539,20 @@ function NewAgentWizardInner() {
         onSubmit={submitTemplateModal}
       />
 
+      <ConfirmModal
+        open={deleteTemplateTarget !== null}
+        title="Delete template?"
+        message={
+          deleteTemplateTarget
+            ? `Remove “${deleteTemplateTarget.name}” from the tenant library. This cannot be undone.`
+            : ""
+        }
+        confirmLabel="Delete"
+        danger
+        onConfirm={() => void confirmDeleteTemplate()}
+        onCancel={() => setDeleteTemplateTarget(null)}
+      />
+
       <button type="button" onClick={() => (step === "configure" ? setStep("template") : router.back())} className="qs-btn qs-btn--ghost qs-btn--sm self-start">
         ← {step === "configure" ? "Back to templates" : "Back"}
       </button>
@@ -524,16 +580,16 @@ function NewAgentWizardInner() {
 
       {step === "template" ? (
         <div className="space-y-4">
-          <div className="flex items-center justify-between rounded-2xl border border-cyan/20 bg-cyan/[0.04] px-4 py-3">
-            <div>
-              <p className="text-sm font-semibold text-zinc-100">Template library</p>
-              <p className="text-xs text-zinc-500">Create segments for your team and reuse them in one click.</p>
+          <div className="v4-template-library-banner flex items-center justify-between gap-3 rounded-[var(--qs-radius-lg)] qs-rim bg-[var(--qs-surface)] px-4 py-4 backdrop-blur-sm">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-(--qs-text)">Template library</p>
+              <p className="text-xs text-(--qs-text-3)">Create segments for your team and reuse them in one click.</p>
             </div>
             <button
               type="button"
               onClick={openCreateTemplateModal}
               disabled={!canManageTemplates}
-              className="rounded-lg border border-pollen/60 bg-pollen/15 px-3 py-1.5 text-xs font-semibold text-pollen disabled:opacity-40"
+              className="qs-btn qs-btn--primary qs-btn--sm shrink-0"
             >
               + Create new template
             </button>
@@ -554,7 +610,7 @@ function NewAgentWizardInner() {
             </div>
           </button>
 
-          {loadingTemplates ? <div className="rounded-2xl border border-white/10 px-4 py-5 text-sm text-zinc-500">Loading templates…</div> : null}
+          {loadingTemplates ? <div className="rounded-2xl border border-[color:var(--qs-border)] px-4 py-5 text-sm text-zinc-500">Loading templates…</div> : null}
           {templateError ? <div className="rounded-2xl border border-red-500/30 bg-red-500/8 px-4 py-5 text-sm text-red-300">{templateError}</div> : null}
 
           {!loadingTemplates && !templateError ? (
@@ -565,12 +621,35 @@ function NewAgentWizardInner() {
                     <div className="text-xs uppercase tracking-[0.08em] text-zinc-500">{category}</div>
                     <div className="flex flex-col gap-3">
                       {entries.map((template) => (
-                        <div
-                          key={template.id}
-                          className="w-full rounded-3xl qs-rim-cyan-soft bg-black/35 p-4 transition hover:border-[rgb(255_184_0/0.35)] hover:shadow-[0_0_20px_rgb(255_184_0/0.15)]"
-                        >
-                          <div className="flex items-start gap-3">
-                            <button type="button" onClick={() => pickTemplate(template)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                        <div key={template.id} className="relative">
+                          {canManageTemplates ? (
+                            <div className="absolute right-2 top-2 z-10 flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                aria-label={`Edit template ${template.name}`}
+                                className="flex h-9 w-9 items-center justify-center rounded-lg border border-(--qs-border) bg-black/45 text-(--qs-text-2) transition hover:border-(--qs-border-2) hover:text-pollen touch-manipulation"
+                                onClick={() => openEditTemplateModal(template)}
+                              >
+                                <PencilIcon className="h-4 w-4" aria-hidden strokeWidth={2.25} />
+                              </button>
+                              <button
+                                type="button"
+                                aria-label={`Delete template ${template.name}`}
+                                disabled={deletingTemplateId === template.id}
+                                className="flex h-9 w-9 items-center justify-center rounded-lg border border-danger/45 bg-danger/12 text-danger transition hover:border-danger hover:bg-danger/20 disabled:opacity-40 touch-manipulation"
+                                onClick={() => setDeleteTemplateTarget(template)}
+                              >
+                                <XIcon className="h-4 w-4" aria-hidden strokeWidth={2.5} />
+                              </button>
+                            </div>
+                          ) : null}
+                          <div
+                            className={cn(
+                              "w-full rounded-3xl qs-rim bg-black/35 p-4 transition hover:border-[rgb(255_184_0/0.35)] hover:shadow-[0_0_20px_rgb(255_184_0/0.15)]",
+                              canManageTemplates && "pt-12",
+                            )}
+                          >
+                            <button type="button" onClick={() => pickTemplate(template)} className="flex w-full min-w-0 items-center gap-3 text-left">
                               <span className="text-2xl">{template.icon || "🐝"}</span>
                               <div className="min-w-0 flex-1">
                                 <div className="font-semibold text-[#fafafa]">{template.name}</div>
@@ -588,25 +667,6 @@ function NewAgentWizardInner() {
                               </div>
                               <span className="text-zinc-500">→</span>
                             </button>
-                            {canManageTemplates ? (
-                              <div className="flex shrink-0 flex-col gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => openEditTemplateModal(template)}
-                                  className="rounded-md border border-white/15 px-2 py-1 text-[11px] text-zinc-300 hover:border-white/30"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={deletingTemplateId === template.id}
-                                  onClick={() => void deleteTemplate(template.id)}
-                                  className="rounded-md border border-red-500/45 px-2 py-1 text-[11px] text-red-300 hover:bg-red-500/10 disabled:opacity-40"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            ) : null}
                           </div>
                         </div>
                       ))}
@@ -615,9 +675,7 @@ function NewAgentWizardInner() {
                 ))}
               </div>
             ) : (
-              <div className="rounded-2xl border border-white/10 px-4 py-5 text-sm text-zinc-500">
-                No templates yet. Create your first one, or continue with a blank custom agent.
-              </div>
+              <div className="v4-empty py-8 text-sm">No templates yet. Create your first one, or continue with a blank custom agent.</div>
             )
           ) : null}
           <div className="flex justify-center">
@@ -674,8 +732,8 @@ function NewAgentWizardInner() {
                 className={cn(
                   "flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition",
                   !config.swarm_id
-                    ? "border-pollen/50 bg-pollen/8 text-pollen"
-                    : "border-white/10 bg-[#141424] text-zinc-400 hover:border-white/18",
+                    ? "border-pollen/40 bg-pollen/10 text-pollen"
+                    : "border-(--qs-border) bg-black/25 text-(--qs-text-3) hover:border-(--qs-border-2) hover:text-(--qs-text-2)",
                 )}
               >
                 <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-zinc-600" aria-hidden />
@@ -696,7 +754,7 @@ function NewAgentWizardInner() {
                         "flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition",
                         selected
                           ? "bg-black/55"
-                          : "border-white/10 bg-[#141424] text-zinc-400 hover:border-white/18",
+                          : "border-(--qs-border) bg-black/25 text-(--qs-text-3) hover:border-(--qs-border-2) hover:text-(--qs-text-2)",
                       )}
                       style={
                         selected
@@ -705,7 +763,7 @@ function NewAgentWizardInner() {
                               backgroundColor: `${accent}14`,
                               color: accent,
                             }
-                          : { borderColor: "rgb(255 255 255 / 0.1)" }
+                          : undefined
                       }
                     >
                       <span
@@ -789,9 +847,7 @@ function NewAgentWizardInner() {
                         tools: enabled ? prev.tools.filter((id) => id !== tool.id) : [...prev.tools, tool.id],
                       }))
                     }
-                    className={`rounded-xl border px-3 py-2 text-left text-xs transition ${
-                      enabled ? "border-pollen/50 bg-pollen/8 text-pollen" : "border-white/10 bg-black/40 text-zinc-400 hover:border-white/20"
-                    }`}
+                    className={configureOptionClass(enabled, "pollen", "xs")}
                   >
                     <div className="font-semibold">{tool.label}</div>
                     <div className="mt-1 text-[10px] text-zinc-500">{tool.desc}</div>
@@ -817,11 +873,7 @@ function NewAgentWizardInner() {
                     key={format.id}
                     type="button"
                     onClick={() => setConfig((prev) => ({ ...prev, output_format: format.id }))}
-                    className={`rounded-xl border px-3 py-2 text-left text-sm ${
-                      config.output_format === format.id
-                        ? "border-success/50 bg-success/8 text-success"
-                        : "border-white/10 bg-transparent text-zinc-400 hover:border-success/40"
-                    }`}
+                    className={configureOptionClass(config.output_format === format.id, "success")}
                   >
                     {format.label}
                   </button>
@@ -843,11 +895,7 @@ function NewAgentWizardInner() {
                     key={schedule.label}
                     type="button"
                     onClick={() => setConfig((prev) => ({ ...prev, schedule_value: schedule.value }))}
-                    className={`rounded-xl border px-3 py-2 text-left text-sm ${
-                      config.schedule_value === schedule.value
-                        ? "border-cyan/50 bg-cyan/[0.08] text-cyan"
-                        : "border-white/10 bg-transparent text-zinc-400 hover:border-cyan/40"
-                    }`}
+                    className={configureOptionClass(config.schedule_value === schedule.value, "cyan")}
                   >
                     {schedule.label}
                   </button>

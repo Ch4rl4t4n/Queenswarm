@@ -322,6 +322,10 @@ async def build_skills_catalog(
         limit=recipe_limit,
     )
     from app.application.services.skill_checkout import tenant_has_skill_access
+    from app.application.services.skill_marketplace_ugc import load_approved_listings_map
+
+    recipe_ids = [row.id for row in rows]
+    ugc_map = await load_approved_listings_map(session, recipe_ids)
 
     recipes: list[SkillCatalogRecipeItem] = []
     for row in rows:
@@ -331,6 +335,8 @@ async def build_skills_catalog(
         unlocked = True
         if tenant_id is not None:
             unlocked = await tenant_has_skill_access(session, tenant_id=tenant_id, recipe=row)
+        listing = ugc_map.get(row.id)
+        price_cents = listing.price_eur_cents if listing is not None else (resolve_skill_price_cents(row) if premium else 0)
         recipes.append(
             SkillCatalogRecipeItem(
                 id=row.id,
@@ -342,8 +348,10 @@ async def build_skills_catalog(
                 success_rate=sr,
                 avg_pollen_earned=float(row.avg_pollen_earned or 0.0),
                 premium=premium,
-                price_eur_cents=resolve_skill_price_cents(row) if premium else 0,
+                price_eur_cents=price_cents,
                 unlocked=unlocked,
+                ugc=listing is not None,
+                platform_cut_bps=listing.platform_cut_bps if listing is not None else None,
             ),
         )
 

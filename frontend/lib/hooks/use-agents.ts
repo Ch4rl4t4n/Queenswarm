@@ -3,8 +3,11 @@
 import useSWR from "swr";
 
 import { hiveGet } from "@/lib/api";
-import type { AgentRow } from "@/lib/hive-types";
+import { COCKPIT_PERF } from "@/lib/cockpit-performance-budget";
+import { cockpitSwrKeys } from "@/lib/cockpit-swr-keys";
 import { COCKPIT_POLL_AGENTS_TASKS_MS } from "@/lib/cockpit-poll-profile";
+import { useSwrVisiblePollOptions } from "@/lib/hooks/use-swr-refresh-interval";
+import type { AgentRow } from "@/lib/hive-types";
 
 export function useAgents(refreshMs: number = COCKPIT_POLL_AGENTS_TASKS_MS): {
   agents: AgentRow[] | undefined;
@@ -12,15 +15,11 @@ export function useAgents(refreshMs: number = COCKPIT_POLL_AGENTS_TASKS_MS): {
   isLoading: boolean;
   mutate: () => void;
 } {
+  const pollOptions = useSwrVisiblePollOptions(refreshMs);
   const { data, error, isLoading, mutate } = useSWR<AgentRow[]>(
-    "phase-g/agents",
-    () => hiveGet<AgentRow[]>("/agents?limit=200"),
-    {
-      refreshInterval: refreshMs,
-      revalidateOnFocus: true,
-      dedupingInterval: Math.min(4_000, Math.floor(refreshMs * 0.6)),
-      focusThrottleInterval: Math.max(refreshMs, 5_000),
-    }, // Phase G2: hive poll cadence ≈ rapid loop UX
+    cockpitSwrKeys.agentsFull(),
+    () => hiveGet<AgentRow[]>(`agents?limit=${COCKPIT_PERF.fullAgentsLimit}`),
+    { ...pollOptions, keepPreviousData: true },
   );
   return { agents: data, error, isLoading, mutate };
 }

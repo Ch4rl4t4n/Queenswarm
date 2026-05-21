@@ -396,20 +396,12 @@ async def append_silent_chat_line_public(session_id: uuid.UUID, agent: str, text
 
 
 async def _build_pulse_payload() -> dict[str, object]:
-    """Hydrate counters for realtime badges."""
+    """Hydrate counters and agent deltas for realtime badges."""
 
     async with async_session() as session:
-        agent_ct = await session.scalar(select(func.count()).select_from(Agent))
-        pending = await session.scalar(
-            select(func.count()).select_from(Task).where(Task.status == TaskStatus.PENDING),
-        )
-        pollen = await session.scalar(select(func.coalesce(func.sum(Agent.pollen_points), 0.0)))
-    return {
-        "type": "hive.snapshot",
-        "agents": int(agent_ct or 0),
-        "tasks_pending": int(pending or 0),
-        "pollen_points_total": float(pollen or 0.0),
-    }
+        from app.application.services.hive_live_pulse import build_hive_live_pulse_payload
+
+        return await build_hive_live_pulse_payload(session)
 
 
 async def _emit_placeholder_lines(session_id: uuid.UUID, lines: list[tuple[str, str]]) -> None:

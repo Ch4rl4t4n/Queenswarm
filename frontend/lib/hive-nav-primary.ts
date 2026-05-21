@@ -45,15 +45,19 @@ export interface HiveNavItem {
   /** Included in compact mobile bottom nav (first slots before “Menu”). */
   bottomNav?: boolean;
   section?: "overview" | "agents" | "execution" | "knowledge" | "integrations" | "ballroom" | "settings" | "manual";
+  /** Platform feature key — filtered at runtime via PlatformProvider. */
+  featureKey?: string;
 }
 
 /** Lower sidebar rail — costs, leaderboard, settings, manual. */
 export function buildHiveSidebarSecondary(_consolidatedEnabled: boolean): HiveNavItem[] {
   return [
-    { href: "/costs", label: "Costs", Icon: Coins, section: "overview" },
-    ...(LEADERBOARD_ENABLED ? [{ href: "/leaderboard", label: "Leaderboard", Icon: Trophy, section: "knowledge" as const }] : []),
-    { href: "/settings/security", label: "Settings", Icon: Settings, section: "settings" },
-    { href: "/manual", label: "Manual", Icon: CircleHelp, section: "manual" },
+    { href: "/costs", label: "Costs", Icon: Coins, section: "overview", featureKey: "costs" },
+    ...(LEADERBOARD_ENABLED
+      ? [{ href: "/leaderboard", label: "Leaderboard", Icon: Trophy, section: "knowledge" as const, featureKey: "leaderboard" as const }]
+      : []),
+    { href: "/settings/security", label: "Settings", Icon: Settings, section: "settings", featureKey: "settings" },
+    { href: "/manual", label: "Manual", Icon: CircleHelp, section: "manual", featureKey: "manual" },
   ];
 }
 
@@ -61,14 +65,14 @@ export const HIVE_SIDEBAR_SECONDARY: HiveNavItem[] = buildHiveSidebarSecondary(P
 
 function buildHiveNavPrimaryConsolidated(): HiveNavItem[] {
   return [
-    { href: "/", label: "Dashboard", Icon: LayoutDashboardIcon, bottomNav: true, section: "overview" },
-    { href: "/swarms", label: "Swarms", Icon: Share2, section: "overview" },
-    { href: "/agents", label: "Agents", Icon: Users, bottomNav: true, section: "agents" },
-    { href: "/foragers", label: "Foragers", Icon: Sparkles, section: "agents" },
-    { href: "/tasks", label: "Tasks", Icon: ListTodo, bottomNav: true, section: "execution" },
-    { href: "/knowledge", label: "Knowledge", Icon: Brain, section: "knowledge" },
-    { href: "/integrations", label: "Integrations", Icon: Cable, section: "integrations" },
-    { href: "/ballroom", label: "Ballroom", Icon: MicIcon, bottomNav: true, section: "ballroom" },
+    { href: "/", label: "Dashboard", Icon: LayoutDashboardIcon, bottomNav: true, section: "overview", featureKey: "dashboard" },
+    { href: "/swarms", label: "Swarms", Icon: Share2, section: "overview", featureKey: "swarms" },
+    { href: "/agents", label: "Agents", Icon: Users, bottomNav: true, section: "agents", featureKey: "agents" },
+    { href: "/foragers", label: "Foragers", Icon: Sparkles, section: "agents", featureKey: "foragers" },
+    { href: "/tasks", label: "Tasks", Icon: ListTodo, bottomNav: true, section: "execution", featureKey: "tasks" },
+    { href: "/knowledge", label: "Knowledge", Icon: Brain, section: "knowledge", featureKey: "knowledge" },
+    { href: "/integrations", label: "Integrations", Icon: Cable, section: "integrations", featureKey: "integrations" },
+    { href: "/ballroom", label: "Ballroom", Icon: MicIcon, bottomNav: true, section: "ballroom", featureKey: "ballroom" },
   ];
 }
 
@@ -121,9 +125,8 @@ export function buildHiveNavGroups(consolidatedEnabled: boolean): { title: strin
       items: [
         ...(consolidatedEnabled
           ? [{ href: "/tasks", label: "Tasks hub", Icon: ListTodo, section: "execution" as const }]
-          : []),
+          : [{ href: "/tasks", label: "Tasks", Icon: ListTodo, section: "execution" as const }]),
         { href: "/tasks/new", label: "New task", Icon: ClipboardList, section: "execution" },
-        { href: "/tasks", label: "Tasks", Icon: ListTodo, section: "execution" },
         { href: "/workflows", label: "Workflows", Icon: GitBranch, section: "execution" },
         { href: "/jobs", label: "Async jobs", Icon: Briefcase, section: "execution" },
         ...(SIMULATIONS_ENABLED
@@ -213,9 +216,9 @@ export function buildHiveNavGroups(consolidatedEnabled: boolean): { title: strin
 
 export const HIVE_NAV_GROUPS: { title: string; items: HiveNavItem[] }[] = buildHiveNavGroups(PHASE70_CONSOLIDATED_NAV_ENABLED);
 
-export function hiveBottomNavItems(): HiveNavItem[] {
-  const flagged = HIVE_NAV_PRIMARY.filter((i) => i.bottomNav);
-  return flagged.length ? flagged : HIVE_NAV_PRIMARY.slice(0, 3);
+export function hiveBottomNavItems(primary: HiveNavItem[] = HIVE_NAV_PRIMARY): HiveNavItem[] {
+  const flagged = primary.filter((i) => i.bottomNav);
+  return flagged.length ? flagged : primary.slice(0, 3);
 }
 
 export function sectionForPath(pathname: string): string {
@@ -272,26 +275,76 @@ export function sectionForPath(pathname: string): string {
   return "unknown";
 }
 
-export function isNavItemActive(pathname: string, item: HiveNavItem): boolean {
-  const normalized = pathname === "" ? "/" : (pathname.split("#")[0] ?? pathname);
+export interface NavActiveContext {
+  /** Current URL hash including leading `#`. */
+  hash?: string;
+  /** Peer nav items — used to pick the most specific active match. */
+  candidates?: HiveNavItem[];
+}
 
-  if (item.href.startsWith("/#")) {
-    return normalized === "/";
+function splitNavHref(href: string): { path: string; hash: string } {
+  const hashIdx = href.indexOf("#");
+  if (hashIdx === -1) {
+    return { path: href || "/", hash: "" };
   }
+  return {
+    path: href.slice(0, hashIdx) || "/",
+    hash: href.slice(hashIdx),
+  };
+}
 
-  const itemPath = item.href.split("#")[0] ?? item.href;
+/** True when this nav item should render as the sole active route in a group. */
+export function isNavItemActive(pathname: string, item: HiveNavItem, ctx?: NavActiveContext): boolean {
+  const normalizedPath = pathname === "" ? "/" : (pathname.split("#")[0] ?? pathname);
+  const currentHash = ctx?.hash ?? "";
+  const { path: itemPath, hash: itemHash } = splitNavHref(item.href);
+  const candidates = ctx?.candidates ?? [];
+
+  if (itemHash) {
+    if (normalizedPath !== itemPath) {
+      return false;
+    }
+    return currentHash === itemHash;
+  }
 
   if (itemPath === "/") {
-    return normalized === "/";
+    return normalizedPath === "/" && !currentHash;
   }
 
-  if (normalized === itemPath || normalized.startsWith(`${itemPath}/`)) {
+  if (normalizedPath === itemPath) {
+    if (currentHash) {
+      const hashTargetsSibling = candidates.some((other) => {
+        const { path: otherPath, hash: otherHash } = splitNavHref(other.href);
+        return otherPath === itemPath && otherHash && currentHash === otherHash;
+      });
+      if (hashTargetsSibling) {
+        return false;
+      }
+    }
     return true;
   }
 
-  if (itemPath.startsWith("/settings") && normalized.startsWith("/settings")) {
-    return true;
+  if (itemPath.startsWith("/settings") && normalizedPath.startsWith("/settings")) {
+    return itemPath === "/settings/security";
   }
 
-  return false;
+  if (!normalizedPath.startsWith(`${itemPath}/`)) {
+    return false;
+  }
+
+  const moreSpecificMatch = candidates.some((other) => {
+    if (other.href === item.href) {
+      return false;
+    }
+    const { path: otherPath, hash: otherHash } = splitNavHref(other.href);
+    if (otherHash) {
+      return false;
+    }
+    if (otherPath.length <= itemPath.length) {
+      return false;
+    }
+    return normalizedPath === otherPath || normalizedPath.startsWith(`${otherPath}/`);
+  });
+
+  return !moreSpecificMatch;
 }

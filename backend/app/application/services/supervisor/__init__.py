@@ -11,6 +11,7 @@ from app.application.services.supervisor.session_service import (
     list_session_events,
     list_supervisor_sessions,
     normalize_roles,
+    retry_sub_agent_step,
 )
 from app.application.services.supervisor.spawner import (
     infer_manager_slug_for_role,
@@ -43,6 +44,7 @@ __all__ = [
     "list_supervisor_routines",
     "list_supervisor_sessions",
     "normalize_roles",
+    "retry_sub_agent_step",
     "run_due_routines_tick",
     "trigger_supervisor_routine_now",
     "create_supervisor_routine",

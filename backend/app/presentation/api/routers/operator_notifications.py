@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
-ChannelSlug = Literal["email", "sms", "discord", "telegram"]
+ChannelSlug = Literal["email", "sms", "discord", "teams", "telegram"]
 
 
 class NotificationChannelPayload(BaseModel):
@@ -55,6 +55,10 @@ def _delivery_template(channel: ChannelSlug, raw: dict[str, Any], enabled: bool)
         return dashboard_session_router.DiscordChannelConfig.model_validate(
             {"enabled": enabled, "webhook_url": raw.get("webhook_url")},
         )
+    if channel == "teams":
+        return dashboard_session_router.TeamsChannelConfig.model_validate(
+            {"enabled": enabled, "webhook_url": raw.get("webhook_url")},
+        )
     return dashboard_session_router.TelegramChannelConfig.model_validate(
         {"enabled": enabled, "bot_token": raw.get("bot_token"), "chat_id": raw.get("chat_id")},
     )
@@ -66,6 +70,7 @@ def _flatten_channels(prefs: dict[str, Any]) -> list[dict[str, Any]]:
         "email": "Email",
         "sms": "SMS",
         "discord": "Discord",
+        "teams": "Microsoft Teams",
         "telegram": "Telegram",
     }
     out: list[dict[str, Any]] = []
@@ -220,6 +225,17 @@ async def post_notification_test(
             if resp.status_code >= 400:
                 raise RuntimeError(resp.text)
             return {"status": "ok", "detail": "discord"}
+
+        if channel_id == "teams":
+            hook = str(cfg_raw.get("webhook_url") or "").strip()
+            if not hook:
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Teams webhook missing.")
+            from app.core.notifications import notify_teams
+
+            ok = await notify_teams(msg, title="Queenswarm notification test", webhook_url=hook)
+            if not ok:
+                raise RuntimeError("Teams webhook rejected the test message.")
+            return {"status": "ok", "detail": "teams"}
 
         if channel_id == "email":
             raise HTTPException(

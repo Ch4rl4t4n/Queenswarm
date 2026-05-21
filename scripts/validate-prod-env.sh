@@ -49,4 +49,14 @@ if s.skill_export_premium_enabled and not (s.stripe_secret_key or "").strip():
     print("  WARN: SKILL_EXPORT_PREMIUM_ENABLED=true but STRIPE_SECRET_KEY is empty", file=sys.stderr)
 if s.skill_export_premium_enabled and not (s.stripe_webhook_secret or "").strip():
     print("  WARN: SKILL_EXPORT_PREMIUM_ENABLED=true but STRIPE_WEBHOOK_SECRET is empty", file=sys.stderr)
+if not (s.stripe_pro_price_id or "").strip() and int(s.stripe_pro_price_eur_cents) >= 100:
+    print("  NOTE: STRIPE_PRO_PRICE_ID unset — Pro checkout uses dynamic EUR price fallback", file=sys.stderr)
+elif not (s.stripe_secret_key or "").strip():
+    pass
+elif not (s.stripe_pro_price_id or "").strip():
+    print("  WARN: STRIPE_PRO_PRICE_ID unset — recommend Stripe Dashboard Price ID for Pro subscription", file=sys.stderr)
+if not (s.stripe_enterprise_price_id or "").strip() and int(s.stripe_enterprise_price_eur_cents) >= 100:
+    print("  NOTE: STRIPE_ENTERPRISE_PRICE_ID unset — Enterprise checkout uses dynamic EUR price fallback", file=sys.stderr)
+elif (s.stripe_secret_key or "").strip() and not (s.stripe_enterprise_price_id or "").strip():
+    print("  WARN: STRIPE_ENTERPRISE_PRICE_ID unset — recommend Stripe Dashboard Price ID for Enterprise subscription", file=sys.stderr)
 PY

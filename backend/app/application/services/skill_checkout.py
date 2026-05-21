@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.billing import TIER_ENTERPRISE, TIER_PRO, ensure_tenant_subscription
 from app.application.services.skill_marketplace_policy import is_premium_recipe, resolve_skill_price_cents
+from app.application.services.skill_marketplace_ugc import compute_platform_fee_cents, get_approved_listing_for_recipe
 from app.application.services.skill_export import recipe_slug
 from app.application.services.stripe_runtime_credentials import stripe_effective_secret_key
 from app.core.config import settings
@@ -189,6 +190,13 @@ async def create_skill_checkout_session(
         }
 
     amount_cents = resolve_skill_price_cents(recipe)
+    listing = await get_approved_listing_for_recipe(session, recipe.id)
+    if listing is not None:
+        amount_cents = listing.price_eur_cents
+    platform_fee = compute_platform_fee_cents(
+        amount_cents=amount_cents,
+        cut_bps=listing.platform_cut_bps if listing is not None else 0,
+    )
     pending = await _get_pending_purchase(session, tenant_id=tenant_id, recipe_id=recipe.id)
     if pending is not None:
         resumed = await _resume_open_checkout_session(purchase=pending, recipe=recipe)
@@ -197,6 +205,9 @@ async def create_skill_checkout_session(
         purchase = pending
         purchase.dashboard_user_id = dashboard_user_id
         purchase.amount_cents = amount_cents
+        purchase.platform_fee_cents = platform_fee
+        purchase.marketplace_listing_id = listing.id if listing is not None else None
+        purchase.publisher_tenant_id = listing.publisher_tenant_id if listing is not None else None
     else:
         purchase = SkillPurchase(
             tenant_id=tenant_id,
@@ -205,6 +216,9 @@ async def create_skill_checkout_session(
             status=PURCHASE_PENDING,
             amount_cents=amount_cents,
             currency="eur",
+            platform_fee_cents=platform_fee,
+            marketplace_listing_id=listing.id if listing is not None else None,
+            publisher_tenant_id=listing.publisher_tenant_id if listing is not None else None,
         )
         session.add(purchase)
     await session.flush()

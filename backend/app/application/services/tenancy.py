@@ -10,6 +10,8 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.services.platform_features import normalize_platform_mode
+from app.core.config import settings
 from app.infrastructure.persistence.models.dashboard_user import DashboardUser
 from app.infrastructure.persistence.models.tenant import (
     DashboardUserTenantMembership,
@@ -44,10 +46,12 @@ async def ensure_default_tenant_for_user(db: AsyncSession, *, user: DashboardUse
             return tenant
 
     base_slug = _slugify((user.display_name or user.email or "personal").split("@")[0])
+    default_mode = "internal" if user.is_admin else settings.default_tenant_platform_mode
     tenant = Tenant(
         slug=f"{base_slug}-{str(user.id)[:8]}",
         name=(user.display_name or user.email or "Personal Workspace").strip()[:120],
         status="active",
+        platform_mode=normalize_platform_mode(default_mode),
     )
     db.add(tenant)
     await db.flush()
@@ -87,6 +91,7 @@ async def list_user_tenants(db: AsyncSession, *, user: DashboardUser) -> list[di
                 "name": tenant.name,
                 "role": membership.role,
                 "is_active": user.active_tenant_id == tenant.id,
+                "platform_mode": normalize_platform_mode(getattr(tenant, "platform_mode", "internal")),
             },
         )
     return out
@@ -161,7 +166,7 @@ async def write_tenant_audit_log(
     target_ref: str,
     payload: dict[str, object] | None = None,
     client_ip: str | None = None,
-) -> None:
+) -> TenantAuditLog:
     """Persist one tenant audit record."""
 
     row = TenantAuditLog(
@@ -174,6 +179,7 @@ async def write_tenant_audit_log(
     )
     db.add(row)
     await db.flush()
+    return row
 
 
 __all__ = [

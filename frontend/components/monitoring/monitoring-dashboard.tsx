@@ -18,6 +18,7 @@ import {
 import { MonitoringSkeleton } from "@/components/monitoring/monitoring-skeleton";
 import { hiveGet } from "@/lib/api";
 import { COCKPIT_POLL_SYSTEM_STATUS_MS } from "@/lib/cockpit-poll-profile";
+import { useSwrVisiblePollOptions } from "@/lib/hooks/use-swr-refresh-interval";
 import type { MonitoringSnapshot } from "@/lib/monitoring-types";
 import { cn } from "@/lib/utils";
 
@@ -55,13 +56,13 @@ const MAX_SAMPLES = 48;
 export function MonitoringDashboard() {
   const [history, setHistory] = useState<SamplePoint[]>([]);
   const lastTs = useRef<string | null>(null);
+  const pollOptions = useSwrVisiblePollOptions(COCKPIT_POLL_SYSTEM_STATUS_MS);
 
   const { data, error, isLoading, isValidating } = useSWR<MonitoringSnapshot>(
     SWR_KEY,
     () => hiveGet<MonitoringSnapshot>("operator/monitoring/snapshot"),
     {
-      refreshInterval: COCKPIT_POLL_SYSTEM_STATUS_MS,
-      revalidateOnFocus: true,
+      ...pollOptions,
       dedupingInterval: 5_000,
       focusThrottleInterval: COCKPIT_POLL_SYSTEM_STATUS_MS,
     },

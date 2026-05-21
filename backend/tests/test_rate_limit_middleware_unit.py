@@ -145,7 +145,7 @@ async def test_rate_limit_middleware_when_user_endpoint_limited_sets_user_window
     monkeypatch.setattr(
         rate_limit_middleware,
         "sliding_window_reserve",
-        AsyncMock(side_effect=[True, True, True, False]),
+        AsyncMock(side_effect=[True, False]),
     )
 
     middleware = RateLimitMiddleware(app=lambda scope, receive, send: None)
@@ -158,6 +158,34 @@ async def test_rate_limit_middleware_when_user_endpoint_limited_sets_user_window
     response = await middleware.dispatch(request, call_next)
     assert response.status_code == 429
     assert response.headers.get("Retry-After") == "45"
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_middleware_when_authenticated_skips_peer_limits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Bearer-authenticated dashboard traffic uses user limits only (no IP burst/sustain)."""
+
+    monkeypatch.setattr(settings, "rate_limit_enabled", True)
+    monkeypatch.setattr(settings, "rate_limit_user_enabled", True)
+    reserve = AsyncMock(return_value=True)
+    monkeypatch.setattr(rate_limit_middleware, "sliding_window_reserve", reserve)
+    monkeypatch.setattr(
+        rate_limit_middleware,
+        "decode_jwt_optional_typ",
+        lambda _token: {"sub": "dash:00000000-0000-4000-8000-000000000001"},
+    )
+
+    middleware = RateLimitMiddleware(app=lambda scope, receive, send: None)
+    request = _request(path="/api/v1/agents", method="GET")
+    request.scope["headers"] = [(b"authorization", b"Bearer test-token")]
+
+    async def call_next(_: Request) -> Response:
+        return Response(status_code=200)
+
+    response = await middleware.dispatch(request, call_next)
+    assert response.status_code == 200
+    assert reserve.call_count == 2
 
 
 @pytest.mark.asyncio

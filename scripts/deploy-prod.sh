@@ -155,6 +155,13 @@ fi
 
 export QS_ENV_FILE_PROD="$ENV_FILE"
 
+chmod +x "${ROOT}/scripts/ensure-redis-password.sh" "${ROOT}/scripts/harden-prod-firewall.sh" "${ROOT}/scripts/audit-host-exposure.sh"
+"${ROOT}/scripts/ensure-redis-password.sh" "$ENV_FILE"
+
+if [[ "${HARDEN_PROD_FIREWALL:-1}" == "1" && "${EUID:-$(id -u)}" -eq 0 ]]; then
+  "${ROOT}/scripts/harden-prod-firewall.sh"
+fi
+
 HA_ARGS=()
 if [[ "$DEPLOY_HA_PROFILE" == "1" ]]; then
   HA_ARGS=(--profile ha)
@@ -273,6 +280,11 @@ PY"; then
 
 verify_production_edge
 verify_voice_readiness
+
+if [[ "${SKIP_HOST_EXPOSURE_AUDIT:-0}" != "1" ]]; then
+  echo "Running audit-host-exposure.sh …"
+  "${ROOT}/scripts/audit-host-exposure.sh"
+fi
 
 echo "Production stack up (project queenswarm_prod)."
 docker compose -p queenswarm_prod -f docker-compose.base.yml -f docker-compose.prod.yml --env-file "$ENV_FILE" ps

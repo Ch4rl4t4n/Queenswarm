@@ -119,9 +119,16 @@ print({'postgres': 'ok', 'redis': 'ok'})
 PY"
 
 echo "[core-gate] monitoring endpoints"
-curl -fsS --max-time 20 "http://127.0.0.1:9090/-/ready" >/dev/null
-curl -fsS --max-time 20 "http://127.0.0.1:9090/api/v1/rules" >/dev/null
-curl -fsS --max-time 20 "http://127.0.0.1:3030/api/health" >/dev/null
+prom_id="$(docker compose -p "$PROJECT" -f docker-compose.base.yml -f docker-compose.prod.yml --env-file "$ENV_FILE" ps -q prometheus)"
+grafana_id="$(docker compose -p "$PROJECT" -f docker-compose.base.yml -f docker-compose.prod.yml --env-file "$ENV_FILE" ps -q grafana)"
+if [[ -z "${prom_id// }" || -z "${grafana_id// }" ]]; then
+  echo "prometheus or grafana container missing in project ${PROJECT}"
+  exit 1
+fi
+# Data-plane ports are not published on the host in production — probe inside containers.
+docker exec "$prom_id" wget -qO- --timeout=20 "http://127.0.0.1:9090/-/ready" >/dev/null
+docker exec "$prom_id" wget -qO- --timeout=20 "http://127.0.0.1:9090/api/v1/rules" >/dev/null
+docker exec "$grafana_id" wget -qO- --timeout=20 "http://127.0.0.1:3000/api/health" >/dev/null
 
 if [[ "$SKIP_LOCAL_TESTS" != "1" && "$RUN_SCRAPING_TESTS" == "1" ]]; then
   echo "[core-gate] scraping loop regression tests"

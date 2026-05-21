@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
+import nextDynamic from "next/dynamic";
 
 import {
-  IntegrationsPageClient,
   type ExternalProjectRow,
   type IntegrationsInitialPayload,
   type PluginInstalledRow,
 } from "@/components/hive/integrations-page-client";
+import { SettingsPanelSkeleton } from "@/components/hive/settings-panel-skeleton";
 import { PHASE70_CONSOLIDATED_NAV_ENABLED } from "@/lib/feature-flags";
 import type { DynamicConnectorPayload } from "@/lib/connectors-types";
 import { hubFallbackTarget } from "@/lib/hive-navigation-mode";
@@ -21,6 +22,11 @@ interface PluginsPayload {
 }
 
 export const dynamic = "force-dynamic";
+
+const IntegrationsPageClient = nextDynamic(
+  () => import("@/components/hive/integrations-page-client").then((mod) => ({ default: mod.IntegrationsPageClient })),
+  { loading: () => <SettingsPanelSkeleton /> },
+);
 
 type IntegrationsSearchParams = Record<string, string | string[] | undefined>;
 

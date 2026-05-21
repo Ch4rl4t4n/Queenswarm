@@ -1,15 +1,30 @@
 import Link from "next/link";
+import nextDynamic from "next/dynamic";
 import { DollarSignIcon, TargetIcon } from "lucide-react";
 
+import { DashboardSectionSkeleton } from "@/components/hive/colony-console-skeleton";
 import { HivePageHeader } from "@/components/hive/hive-page-header";
-import { SpendTrendChart } from "@/components/hive/spend-trend-chart";
-import { SystemStatusPanel } from "@/components/hive/system-status-panel";
 import { V4Card, V4CardHeader, V4PageCanvas, V4Stat } from "@/components/ui/v4";
 import { aggregateSpendByModel, consolidateDailySpend } from "@/lib/cost-aggregates";
 import { hiveServerRawJson } from "@/lib/hive-server";
 import type { AgentRow, OperatorCostSummary, TaskRow } from "@/lib/hive-types";
 
 export const dynamic = "force-dynamic";
+
+const SpendTrendChart = nextDynamic(
+  () => import("@/components/hive/spend-trend-chart").then((mod) => ({ default: mod.SpendTrendChart })),
+  { loading: () => <DashboardSectionSkeleton className="h-72" /> },
+);
+
+const SystemStatusPanel = nextDynamic(
+  () => import("@/components/hive/system-status-panel").then((mod) => ({ default: mod.SystemStatusPanel })),
+  { loading: () => <DashboardSectionSkeleton className="min-h-[180px]" /> },
+);
+
+const TimeSavedPanel = nextDynamic(
+  () => import("@/components/hive/time-saved-panel").then((mod) => ({ default: mod.TimeSavedPanel })),
+  { loading: () => <DashboardSectionSkeleton className="min-h-[160px]" /> },
+);
 
 function formatUsd(n: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(n);
@@ -116,6 +131,8 @@ export default async function CostsPage() {
         />
         <V4Stat label="Billing caps" value="Settings" icon={TargetIcon} iconTone="purple" foot="Soft/hard limits per tier" />
       </div>
+
+      <TimeSavedPanel />
 
       <p className="text-xs text-(--qs-magenta)">
         Task ledger Σ cost_usd (UTC midnight window):{" "}

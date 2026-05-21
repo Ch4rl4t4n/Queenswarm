@@ -19,3 +19,8 @@ export function filterSectionNavItems<T extends SectionFilterableItem>(items: T[
 export function sectionDensityClass(density: SectionDensity): string {
   return density === "compact" ? "p-3" : "p-4";
 }
+
+/** Vertical rhythm on Queen Dashboard / V4 page canvas. */
+export function dashboardPageDensityClass(density: SectionDensity): string {
+  return density === "compact" ? "gap-4 [&_.v4-cols-2]:gap-3" : "";
+}

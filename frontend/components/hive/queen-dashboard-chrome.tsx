@@ -1,18 +1,16 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { useState } from "react";
+import nextDynamic from "next/dynamic";
 import Link from "next/link";
 import { toast } from "sonner";
 
 import { AgentsLiveSection } from "@/components/hive/agents-live-section";
-import { PaperTradingPanel } from "@/components/hive/paper-trading-panel";
-import { useDashboardSection } from "@/components/hive/dashboard-layout-provider";
+import { DashboardSectionSkeleton } from "@/components/hive/colony-console-skeleton";
+import { useDashboardSection, useDashboardLayout } from "@/components/hive/dashboard-layout-provider";
 import { HivePageHeader } from "@/components/hive/hive-page-header";
-import { SubSwarmsSection, WaggleFeedCard } from "@/components/hive/swarm-board-section";
-import { TaskQueueSection } from "@/components/hive/task-queue-section";
-import { WorkflowsSection } from "@/components/hive/workflows-section";
+import { HubEcosystemStrip } from "@/components/hive/hub-ecosystem-strip";
 import {
-  V4BallroomParticipants,
   V4BarRow,
   V4Card,
   V4CardHeader,
@@ -30,7 +28,68 @@ import {
 } from "@/components/ui/v4";
 import { HiveApiError, hivePostJson } from "@/lib/api";
 import type { AgentRow, DashboardSummary, SystemStatusPayload, TaskRow } from "@/lib/hive-types";
+import { dashboardPageDensityClass } from "@/lib/section-hub";
 import { cn } from "@/lib/utils";
+
+const PaperTradingPanel = nextDynamic(
+  () => import("@/components/hive/paper-trading-panel").then((mod) => ({ default: mod.PaperTradingPanel })),
+  { loading: () => <DashboardSectionSkeleton className="min-h-[140px]" /> },
+);
+
+const SubSwarmsSection = nextDynamic(
+  () => import("@/components/hive/swarm-board-section").then((mod) => ({ default: mod.SubSwarmsSection })),
+  { loading: () => <DashboardSectionSkeleton /> },
+);
+
+const WaggleFeedCard = nextDynamic(
+  () => import("@/components/hive/swarm-board-section").then((mod) => ({ default: mod.WaggleFeedCard })),
+  { loading: () => <DashboardSectionSkeleton /> },
+);
+
+const WorkflowsSection = nextDynamic(
+  () => import("@/components/hive/workflows-section").then((mod) => ({ default: mod.WorkflowsSection })),
+  { loading: () => <DashboardSectionSkeleton className="h-48" /> },
+);
+
+const TaskQueueSection = nextDynamic(
+  () => import("@/components/hive/task-queue-section").then((mod) => ({ default: mod.TaskQueueSection })),
+  { loading: () => <DashboardSectionSkeleton className="min-h-[200px]" /> },
+);
+
+const RapidLoopWidget = nextDynamic(
+  () => import("@/components/hive/rapid-loop-widget").then((mod) => ({ default: mod.RapidLoopWidget })),
+  { loading: () => <DashboardSectionSkeleton className="min-h-[160px]" /> },
+);
+
+const DreamingSummaryCard = nextDynamic(
+  () => import("@/components/hive/dreaming-summary-card").then((mod) => ({ default: mod.DreamingSummaryCard })),
+  { loading: () => <DashboardSectionSkeleton className="min-h-[140px]" /> },
+);
+
+const TimeSavedPanel = nextDynamic(
+  () => import("@/components/hive/time-saved-panel").then((mod) => ({ default: mod.TimeSavedPanel })),
+  { loading: () => <DashboardSectionSkeleton className="min-h-[160px]" /> },
+);
+
+const SwarmBuilderEntryCard = nextDynamic(
+  () => import("@/components/hive/swarm-builder-entry-card").then((mod) => ({ default: mod.SwarmBuilderEntryCard })),
+  { loading: () => <DashboardSectionSkeleton className="min-h-[88px]" /> },
+);
+
+const LeadMagnetPanel = nextDynamic(
+  () => import("@/components/hive/lead-magnet-panel").then((mod) => ({ default: mod.LeadMagnetPanel })),
+  { loading: () => <DashboardSectionSkeleton className="min-h-[160px]" /> },
+);
+
+const BeeBadgesPanel = nextDynamic(
+  () => import("@/components/hive/bee-badges-panel").then((mod) => ({ default: mod.BeeBadgesPanel })),
+  { loading: () => <DashboardSectionSkeleton className="min-h-[160px]" /> },
+);
+
+const V4BallroomParticipants = nextDynamic(
+  () => import("@/components/ui/v4/v4-ballroom-participants").then((mod) => ({ default: mod.V4BallroomParticipants })),
+  { loading: () => <DashboardSectionSkeleton className="min-h-[88px]" /> },
+);
 
 function formatPollen(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -108,6 +167,13 @@ export function QueenDashboardChrome({
   const showTaskQueue = useDashboardSection("taskQueue");
   const showPerformanceTier = useDashboardSection("performanceTier");
   const showRecentTasks = useDashboardSection("recentTasks");
+  const showSwarmBuilderEntry = useDashboardSection("swarmBuilderEntry");
+  const showRapidLoop = useDashboardSection("rapidLoop");
+  const showDreamingSummary = useDashboardSection("dreamingSummary");
+  const showTimeSaved = useDashboardSection("timeSaved");
+  const showLeadMagnets = useDashboardSection("leadMagnets");
+  const showBeeBadges = useDashboardSection("beeBadges");
+  const { density } = useDashboardLayout();
 
   const [rebalanceBusy, setRebalanceBusy] = useState(false);
   const pollenTotal = agents.reduce((s, a) => s + (a.pollen_points ?? 0), 0);
@@ -154,19 +220,26 @@ export function QueenDashboardChrome({
 
   const showSwarmSignals = showWaggle || showWorkflows;
   const showInsights = showPerformanceTier || showRecentTasks;
+  const showLearningInsights = showRapidLoop || showDreamingSummary;
 
   return (
-    <V4PageCanvas>
+    <V4PageCanvas className={dashboardPageDensityClass(density)}>
       <HivePageHeader
-        title="Queen Dashboard"
+        title="Dashboard"
         subtitle={`${totalAgentsGauge} agents in the network · ${swarmLabelCount} swarm nodes · hive sync every 5 min`}
         status={
-          <>
+          <span className="v4-status-pill inline-flex">
             <span className="hive-pulse-dot shrink-0" aria-hidden />
             Hive open
-          </>
+          </span>
         }
       />
+
+      <HubEcosystemStrip preset="dashboard" />
+
+      {showSwarmBuilderEntry ? <SwarmBuilderEntryCard /> : null}
+
+      {showLeadMagnets ? <LeadMagnetPanel compact /> : null}
 
       {showSearch ? (
         <V4SearchInput
@@ -256,28 +329,39 @@ export function QueenDashboardChrome({
       {showSubSwarms ? <SubSwarmsSection /> : null}
 
       {showSwarmSignals ? (
-        <div className={cn(showWaggle && showWorkflows ? "v4-cols-2" : "grid grid-cols-1 gap-5")}>
+        <div className={cn(showWaggle && showWorkflows ? "v4-cols-2 v4-cols-2--stack-mobile" : "grid grid-cols-1 gap-5")}>
           {showWaggle ? <WaggleFeedCard /> : null}
-          {showWorkflows ? (
-            <Suspense
-              fallback={
-                <V4Card className="h-48 animate-pulse bg-white/4">
-                  <span className="sr-only">Loading workflows</span>
-                </V4Card>
-              }
-            >
-              <div className="v4-card v4-card-interactive h-full p-0">
-                <WorkflowsSection />
-              </div>
-            </Suspense>
-          ) : null}
+          {showWorkflows ? <WorkflowsSection /> : null}
         </div>
       ) : null}
 
       {showTaskQueue ? <TaskQueueSection /> : null}
 
+      {showRapidLoop || showDreamingSummary ? (
+        <div
+          className={cn(
+            showRapidLoop && showDreamingSummary
+              ? "v4-cols-2 v4-cols-2--stack-mobile"
+              : "grid grid-cols-1 gap-5",
+          )}
+        >
+          {showRapidLoop ? <RapidLoopWidget /> : null}
+          {showDreamingSummary ? <DreamingSummaryCard /> : null}
+        </div>
+      ) : null}
+
+      {showTimeSaved ? <TimeSavedPanel /> : null}
+
+      {showBeeBadges ? <BeeBadgesPanel limit={6} compact /> : null}
+
       {showInsights ? (
-        <div className={cn(showPerformanceTier && showRecentTasks ? "v4-cols-2" : "grid grid-cols-1 gap-5")}>
+        <div
+          className={cn(
+            showPerformanceTier && showRecentTasks
+              ? "v4-mobile-card-slider v4-mobile-card-slider--wide"
+              : "grid grid-cols-1 gap-5",
+          )}
+        >
           {showPerformanceTier ? (
             <V4Card className="v4-card-interactive">
               <V4CardHeader title="Performance by tier" description="Share of agents in the hive (API summary)" as="h3" />

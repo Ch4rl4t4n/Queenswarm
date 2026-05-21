@@ -19,10 +19,16 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 
-async def notify_slack(message: str, color: str = "#FFB800", title: str = "Queenswarm") -> bool:
+async def notify_slack(
+    message: str,
+    color: str = "#FFB800",
+    title: str = "Queenswarm",
+    *,
+    webhook_url: str | None = None,
+) -> bool:
     """Send Slack notification via incoming webhook. Returns ``True`` when accepted."""
 
-    webhook_raw = (settings.slack_webhook_url or "").strip()
+    webhook_raw = (webhook_url or settings.slack_webhook_url or "").strip()
     if not webhook_raw:
         return False
     payload = {
@@ -52,6 +58,85 @@ async def notify_slack(message: str, color: str = "#FFB800", title: str = "Queen
     except httpx.HTTPError as exc:
         logger.warning(
             "notifications.slack.http_error",
+            agent_id="reporter_bee",
+            swarm_id="",
+            task_id="",
+            error=str(exc),
+        )
+        return False
+
+
+async def notify_discord(
+    message: str,
+    *,
+    webhook_url: str | None = None,
+) -> bool:
+    """Send Discord notification via incoming webhook. Returns ``True`` when accepted."""
+
+    webhook_raw = (webhook_url or settings.discord_webhook_url or "").strip()
+    if not webhook_raw:
+        return False
+    payload = {"content": message[:2000]}
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.post(webhook_raw, json=payload)
+        accepted = response.status_code in (200, 204)
+        if not accepted:
+            logger.warning(
+                "notifications.discord.reject",
+                agent_id="reporter_bee",
+                swarm_id="",
+                task_id="",
+                status=response.status_code,
+            )
+        return accepted
+    except httpx.HTTPError as exc:
+        logger.warning(
+            "notifications.discord.http_error",
+            agent_id="reporter_bee",
+            swarm_id="",
+            task_id="",
+            error=str(exc),
+        )
+        return False
+
+
+async def notify_teams(
+    message: str,
+    *,
+    title: str = "Queenswarm",
+    theme_color: str = "00FFFF",
+    webhook_url: str | None = None,
+) -> bool:
+    """Send Microsoft Teams notification via incoming webhook MessageCard."""
+
+    webhook_raw = (webhook_url or settings.teams_webhook_url or "").strip()
+    if not webhook_raw:
+        return False
+    payload = {
+        "@type": "MessageCard",
+        "@context": "http://schema.org/extensions",
+        "summary": title,
+        "themeColor": theme_color.lstrip("#"),
+        "title": title,
+        "text": message[:8000],
+    }
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.post(webhook_raw, json=payload)
+        accepted = response.status_code in (200, 202, 204)
+        if not accepted:
+            logger.warning(
+                "notifications.teams.reject",
+                agent_id="reporter_bee",
+                swarm_id="",
+                task_id="",
+                status=response.status_code,
+            )
+        return accepted
+    except httpx.HTTPError as exc:
+        logger.warning(
+            "notifications.teams.http_error",
             agent_id="reporter_bee",
             swarm_id="",
             task_id="",
@@ -163,6 +248,34 @@ async def notify_email(
         )
         return False
 
+    try:
+        await asyncio.to_thread(
+            _smtp_send_sync,
+            recipient=recipient,
+            subject=subject,
+            body=body,
+            attachment_bytes=attachment_bytes,
+            attachment_filename=attachment_filename,
+        )
+        logger.info(
+            "notifications.email.sent",
+            agent_id="reporter_bee",
+            swarm_id="",
+            task_id="",
+            recipient=recipient,
+            subject_preview=subject[:120],
+        )
+        return True
+    except Exception as exc:  # noqa: BLE001 — mail stack is heterogeneous
+        logger.warning(
+            "notifications.email.failed",
+            agent_id="reporter_bee",
+            swarm_id="",
+            task_id="",
+            error=str(exc),
+        )
+        return False
+
 
 async def notify_pagerduty(*, summary: str, severity: str = "warning", source: str = "queenswarm") -> bool:
     """Send PagerDuty event via Events API v2."""
@@ -220,41 +333,15 @@ async def notify_enterprise_alert(*, title: str, message: str, severity: str = "
         "pagerduty": bool(pagerduty_ok),
     }
 
-    try:
-        await asyncio.to_thread(
-            _smtp_send_sync,
-            recipient=recipient,
-            subject=subject,
-            body=body,
-            attachment_bytes=attachment_bytes,
-            attachment_filename=attachment_filename,
-        )
-        logger.info(
-            "notifications.email.sent",
-            agent_id="reporter_bee",
-            swarm_id="",
-            task_id="",
-            recipient=recipient,
-            subject_preview=subject[:120],
-        )
-        return True
-    except Exception as exc:  # noqa: BLE001 — mail stack is heterogeneous
-        logger.warning(
-            "notifications.email.failed",
-            agent_id="reporter_bee",
-            swarm_id="",
-            task_id="",
-            error=str(exc),
-        )
-        return False
-
 
 __all__ = [
     "notify_agent_error",
     "notify_budget_alert",
+    "notify_discord",
     "notify_enterprise_alert",
     "notify_email",
     "notify_pagerduty",
     "notify_slack",
+    "notify_teams",
     "notify_task_complete",
 ]

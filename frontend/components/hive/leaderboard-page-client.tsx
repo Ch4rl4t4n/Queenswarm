@@ -3,10 +3,14 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { BeeBadgesPanel } from "@/components/hive/bee-badges-panel";
 import { HivePageHeader } from "@/components/hive/hive-page-header";
 import { HexNumberBadge } from "@/components/hive/hex-metric-tile";
+import { usePlatform } from "@/components/hive/platform-context";
+import { VerifiedPollenLeaderboard } from "@/components/hive/verified-pollen-leaderboard";
 import { V4PageCanvas } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
+import { useCenterActiveInScrollRow } from "@/lib/hooks/use-center-active-in-scroll-row";
 import type { AgentRow, RecipeRow, SubSwarmRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +32,9 @@ function rankHexProps(idx: number): { strokeColor: string; variant: "solid" | "d
 
 /** Tabbed prestige boards backed by live API sorts — sticky controls on mobile. */
 export function LeaderboardPageClient() {
+  const { hasFeature } = usePlatform();
+  const showVerifiedPollen = hasFeature("leaderboard");
+  const showBeeBadges = hasFeature("bee_gamification");
   const [tab, setTab] = useState<LeaderTab>("agents");
   const [agents, setAgents] = useState<AgentRow[]>([]);
   const [swarms, setSwarms] = useState<SubSwarmRow[]>([]);
@@ -70,12 +77,13 @@ export function LeaderboardPageClient() {
     { id: "swarms", label: "Swarms" },
     { id: "recipes", label: "Recipes" },
   ];
+  const scrollRef = useCenterActiveInScrollRow<HTMLElement>(tab);
 
   return (
     <V4PageCanvas className="gap-8">
       <HivePageHeader title="Leaderboard" subtitle="Pollen-first bees · colony pollen totals · recipe win counts — live sorts." />
 
-      <nav aria-label="Leaderboard scope" className="v4-subtab-row w-full max-w-full">
+      <nav ref={scrollRef} aria-label="Leaderboard scope" className="v4-subtab-row w-full max-w-full">
         {tabs.map(({ id, label }) => (
           <button
             key={id}
@@ -195,18 +203,32 @@ export function LeaderboardPageClient() {
         </section>
 
         <section className="v4-leaderboard-panel rounded-3xl border border-[color:var(--qs-border)] bg-hive-card/95 p-4 md:p-6">
-          <div className="border-b border-[color:var(--qs-border-2)]/[0.08] pb-4 font-[family-name:var(--font-poppins)]">
-            <h2 className="text-lg text-[#fafafa]">Hive prestige notes</h2>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Desktop column highlights interpretability — mobile stacks below the ranking list for minimal horizontal scrolling.
-            </p>
-          </div>
-          <ul className="mt-6 space-y-3 font-[family-name:var(--font-poppins)] text-sm text-zinc-400">
-            <li>• Agents rank by live pollen ledger — tie-breaker is API insertion order.</li>
-            <li>• Swarms use ``total_pollen`` captured during sub-swarm sync cadence.</li>
-            <li>• Recipes prioritize verified ``success_count`` for imitation readiness.</li>
-          </ul>
+          {showVerifiedPollen ? (
+            <VerifiedPollenLeaderboard limit={12} compact />
+          ) : showBeeBadges ? (
+            <BeeBadgesPanel limit={12} compact />
+          ) : (
+            <>
+              <div className="border-b border-[color:var(--qs-border-2)]/[0.08] pb-4 font-[family-name:var(--font-poppins)]">
+                <h2 className="text-lg text-[#fafafa]">Hive prestige notes</h2>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Desktop column highlights interpretability — mobile stacks below the ranking list for minimal horizontal scrolling.
+                </p>
+              </div>
+              <ul className="mt-6 space-y-3 font-[family-name:var(--font-poppins)] text-sm text-zinc-400">
+                <li>• Agents rank by live pollen ledger — tie-breaker is API insertion order.</li>
+                <li>• Swarms use ``total_pollen`` captured during sub-swarm sync cadence.</li>
+                <li>• Recipes prioritize verified ``success_count`` for imitation readiness.</li>
+              </ul>
+            </>
+          )}
         </section>
+
+        {showVerifiedPollen && showBeeBadges ? (
+          <section className="v4-leaderboard-panel rounded-3xl border border-[color:var(--qs-border)] bg-hive-card/95 p-4 md:p-6">
+            <BeeBadgesPanel limit={12} compact />
+          </section>
+        ) : null}
       </div>
     </V4PageCanvas>
   );

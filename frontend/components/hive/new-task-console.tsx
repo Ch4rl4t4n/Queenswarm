@@ -1,18 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronLeftIcon, PlayIcon } from "lucide-react";
+import { ChevronLeftIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { HiveApiError, hivePostJson } from "@/lib/api";
+import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import type {
   OperatorIntakeResponse,
   PreviewDecompositionResponse,
   PreviewWorkflowStep,
   RecipeMatchBrief,
+  RecipeMatchConfigPayload,
 } from "@/lib/hive-types";
+import { DEFAULT_RECIPE_MATCH_CONFIG, formatSimilarityPct, isRecipeMatchEligible } from "@/lib/recipe-match-utils";
 import { HexNumberBadge, LANE_HEX_STROKE } from "@/components/hive/hex-metric-tile";
 import { InfoHint } from "@/components/hive/info-hint";
 import { V4Card, V4CardHeader, V4Chip, V4PageCanvas } from "@/components/ui/v4";
@@ -174,6 +176,19 @@ export function NewTaskConsole() {
 
   const [submitBusy, setSubmitBusy] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
+  const [matchConfig, setMatchConfig] = useState<RecipeMatchConfigPayload>(DEFAULT_RECIPE_MATCH_CONFIG);
+
+  useEffect(() => {
+    let cancelled = false;
+    void hiveGet<RecipeMatchConfigPayload>("recipes/match-config")
+      .then((cfg) => {
+        if (!cancelled) setMatchConfig(cfg);
+      })
+      .catch(() => null);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const runPreview = useCallback(async () => {
     const text = taskText.trim();
@@ -368,8 +383,8 @@ export function NewTaskConsole() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-2 sm:mt-auto sm:items-end">
-              <V4Chip active={enrichRecipes} onClick={() => setEnrichRecipes((v) => !v)}>
+            <div className="flex flex-col gap-2 sm:mt-auto sm:items-start">
+              <V4Chip active={enrichRecipes} onClick={() => setEnrichRecipes((v) => !v)} className="w-fit">
                 {enrichRecipes ? "✓ " : ""}Chroma · recipe library
               </V4Chip>
               <InfoHint
@@ -381,18 +396,33 @@ export function NewTaskConsole() {
           </div>
 
           {recipeMatch ? (
-            <div className="flex items-center gap-2 rounded-xl border border-success/35 bg-success/[0.05] px-3 py-2">
-              <span className="text-success" aria-hidden>
-                ✓
+            <div
+              className={cn(
+                "flex items-center gap-2 rounded-xl border px-3 py-2",
+                isRecipeMatchEligible(recipeMatch.similarity, matchConfig.match_threshold)
+                  ? "border-success/35 bg-success/[0.05]"
+                  : "border-pollen/35 bg-pollen/[0.05]",
+              )}
+            >
+              <span
+                className={isRecipeMatchEligible(recipeMatch.similarity, matchConfig.match_threshold) ? "text-success" : "text-pollen"}
+                aria-hidden
+              >
+                {isRecipeMatchEligible(recipeMatch.similarity, matchConfig.match_threshold) ? "✓" : "~"}
               </span>
               <span className="text-[11px] text-(--qs-text-2)">
-                {recipeMatch.name} · {recipeMatch.similarity.toFixed(2)}
+                {recipeMatch.name} · {formatSimilarityPct(recipeMatch.similarity)}
+                {isRecipeMatchEligible(recipeMatch.similarity, matchConfig.match_threshold)
+                  ? " · auto-match"
+                  : ` · below ${formatSimilarityPct(matchConfig.match_threshold)} gate`}
               </span>
             </div>
           ) : previewLoading ? (
             <p className="text-xs text-(--qs-text-3)">Matching recipe…</p>
           ) : enrichRecipes ? (
-            <p className="text-xs text-(--qs-text-3)">No recipe match above library threshold.</p>
+            <p className="text-xs text-(--qs-text-3)">
+              No recipe match above {formatSimilarityPct(matchConfig.match_threshold)} imitation gate.
+            </p>
           ) : null}
         </div>
       </V4Card>
@@ -516,10 +546,9 @@ export function NewTaskConsole() {
               type="button"
               disabled={submitBusy || taskText.trim().length < 8}
               onClick={() => void onSubmit()}
-              className="qs-btn qs-btn--primary gap-2 disabled:opacity-40"
+              className="qs-btn qs-btn--primary disabled:opacity-40"
             >
-              <PlayIcon className="h-4 w-4" aria-hidden />
-              {submitBusy ? "Submitting…" : "▶ Submit"}
+              {submitBusy ? "Submitting…" : "Submit"}
             </button>
             <InfoHint
               title="Submit task"

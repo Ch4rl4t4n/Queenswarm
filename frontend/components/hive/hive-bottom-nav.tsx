@@ -4,8 +4,10 @@ import type { LucideIcon } from "lucide-react";
 import { EllipsisVerticalIcon } from "lucide-react";
 import Link from "next/link";
 
+import { usePlatform } from "@/components/hive/platform-context";
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
-import { hiveBottomNavItems, isNavItemActive } from "@/lib/hive-nav-primary";
+import { HIVE_NAV_PRIMARY, hiveBottomNavItems, isNavItemActive } from "@/lib/hive-nav-primary";
+import { filterNavByFeatures } from "@/lib/platform-features";
 import { localizeNavLabel, localizePhrase } from "@/lib/ui-copy";
 import { cn } from "@/lib/utils";
 
@@ -27,13 +29,13 @@ function NavGlyph({ label, Icon, active }: NavGlyphProps) {
         className={cn(
           "rounded-2xl p-2 transition-[box-shadow,transform,color] touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center",
           active
-            ? "-translate-y-0.5 bg-pollen/[0.12] text-pollen shadow-[0_0_24px_rgb(255_184_0/0.42)]"
-            : "text-zinc-500 hover:text-pollen active:scale-95",
+            ? "-translate-y-0.5 bg-pollen/[0.12] text-pollen shadow-[0_0_24px_rgb(255_184_0/0.42)] outline-none ring-0"
+            : "text-zinc-500 hover:text-pollen active:scale-95 outline-none ring-0",
         )}
       >
         <Icon aria-hidden className="h-[21px] w-[21px]" strokeWidth={active ? 2.35 : 1.9} />
       </span>
-      <span className="max-w-[68px] truncate text-center leading-tight">{label}</span>
+      <span className="max-w-[68px] truncate text-center leading-normal pb-px">{label}</span>
     </span>
   );
 }
@@ -46,7 +48,8 @@ interface HiveBottomNavProps {
 /** Primary thumb targets — subset of nav + overflow sheet. */
 export function HiveBottomNav({ onMore, pathname }: HiveBottomNavProps) {
   const { language } = useUiLanguage();
-  const items = hiveBottomNavItems();
+  const { features } = usePlatform();
+  const items = hiveBottomNavItems(filterNavByFeatures(HIVE_NAV_PRIMARY, features));
 
   return (
     <nav
@@ -66,7 +69,7 @@ export function HiveBottomNav({ onMore, pathname }: HiveBottomNavProps) {
               key={href}
               href={href}
               prefetch
-              className="flex min-w-0 flex-1 justify-center touch-manipulation"
+              className="flex min-w-0 flex-1 justify-center touch-manipulation outline-none focus:outline-none focus-visible:outline-none"
               aria-current={active ? "page" : undefined}
             >
               <NavGlyph label={localizeNavLabel(label, language)} Icon={Icon} active={active} />

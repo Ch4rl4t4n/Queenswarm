@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
+import { HiveApiError, hiveGet } from "@/lib/api";
+import { DASHBOARD_BOOT_STAGGER_MS } from "@/lib/dashboard-boot-stagger";
 import type { AgentSuggestionRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
@@ -28,21 +30,20 @@ export function AgentSuggestionsPanel({ className }: AgentSuggestionsPanelProps)
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/proxy/agents/suggestions?limit=80", { cache: "no-store" });
-      const body = (await res.json().catch(() => [])) as AgentSuggestionRow[] | { detail?: string };
-      if (!res.ok) {
-        throw new Error(Array.isArray(body) ? "Unable to load suggestions" : String(body.detail ?? "Unable to load suggestions"));
-      }
+      const body = await hiveGet<AgentSuggestionRow[]>("agents/suggestions?limit=80");
       setRows(Array.isArray(body) ? body : []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load suggestions");
+      setError(err instanceof HiveApiError ? err.message : "Unable to load suggestions");
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void load();
+    const timer = window.setTimeout(() => {
+      void load();
+    }, DASHBOARD_BOOT_STAGGER_MS.agentSuggestions);
+    return () => window.clearTimeout(timer);
   }, [load]);
 
   const pendingCount = useMemo(() => rows.filter((item) => item.status === "pending").length, [rows]);

@@ -23,7 +23,7 @@ from app.core.llm_router import LiteLLMRouter
 from app.core.logging import get_logger
 from app.infrastructure.persistence.models.agent import Agent
 from app.infrastructure.persistence.models.agent_config import AgentConfig
-from app.infrastructure.persistence.models.enums import TaskType
+from app.infrastructure.persistence.models.enums import TaskStatus, TaskType
 from app.infrastructure.persistence.models.task import Task
 from app.domain.recipes.library import semantic_search_catalog
 from app.common.schemas.workflow_breaker import PreviewDecompositionResponse
@@ -288,6 +288,27 @@ async def run_seven_step_mission(
     if orch is None or orch_cfg is None:
         msg = "Fixed Orchestrator row or config missing — run Alembic seed migration."
         raise RuntimeError(msg)
+
+    session.add(
+        Task(
+            id=mission_id,
+            title=f"Ballroom mission · {brief[:160]}",
+            task_type=TaskType.AGENT_RUN,
+            status=TaskStatus.RUNNING,
+            priority=5,
+            payload={
+                "kind": "ballroom_seven_step_mission",
+                "session_id": str(session_id),
+                "brief_excerpt": brief[:1500],
+            },
+            agent_id=orch.id,
+            swarm_id=None,
+            workflow_id=None,
+            parent_task_id=None,
+            started_at=datetime.now(tz=UTC),
+        ),
+    )
+    await session.flush()
 
     worker_cfgs = {
         row.id: (await session.scalar(select(AgentConfig).where(AgentConfig.agent_id == row.id))) for row in workers
@@ -687,6 +708,12 @@ async def run_seven_step_mission(
             task_id=str(mission_id),
             reason="non_dashboard_subject",
         )
+
+    mission_task_row = await session.get(Task, mission_id)
+    if mission_task_row is not None:
+        mission_task_row.status = TaskStatus.COMPLETED
+        mission_task_row.completed_at = datetime.now(tz=UTC)
+        await session.flush()
 
     return {
         "mission_id": str(mission_id),

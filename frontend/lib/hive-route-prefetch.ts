@@ -1,0 +1,20 @@
+/** Routes prefetched after idle — warms JS chunks for common operator navigation. */
+export const HIVE_IDLE_PREFETCH_ROUTES: readonly string[] = [
+  "/agents",
+  "/tasks",
+  "/swarms",
+  "/integrations",
+  "/ballroom",
+  "/workflows",
+  "/knowledge",
+  "/foragers",
+  "/costs",
+  "/monitoring",
+  "/jobs",
+  "/simulations",
+  "/recipes",
+  "/external-projects",
+  "/plugins",
+  "/design-system",
+  "/settings/security",
+];

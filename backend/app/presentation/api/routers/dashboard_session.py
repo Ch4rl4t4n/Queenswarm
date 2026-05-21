@@ -61,8 +61,15 @@ from app.application.services.tenancy import (
     switch_active_tenant,
     write_tenant_audit_log,
 )
+from app.application.services.billing import ensure_tenant_subscription
+from app.application.services.enterprise_workspace import serialize_tenant_branding_brief
+from app.application.services.platform_feature_policy import load_policy_overrides
+from app.application.services.platform_features import (
+    normalize_platform_mode,
+    resolve_platform_features_for_subscription,
+)
 from app.application.services.rbac import permissions_for_role
-from app.infrastructure.persistence.models.tenant import DashboardUserTenantMembership
+from app.infrastructure.persistence.models.tenant import DashboardUserTenantMembership, Tenant
 from app.application.services.llm_runtime_credentials import (
     delete_llm_provider_secret,
     get_cached_llm_key,
@@ -168,6 +175,7 @@ class TenantView(BaseModel):
     name: str
     role: str
     is_active: bool
+    platform_mode: str = "internal"
 
 
 class TenantListResponse(BaseModel):
@@ -531,6 +539,18 @@ async def dashboard_switch_tenant(
     return _TokenBundle.model_validate(bundle)
 
 
+class TenantBrandingBrief(BaseModel):
+    """Active white-label overrides for dashboard shell chrome."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    brand_name: str
+    logo_url: str | None = None
+    accent_hex: str
+    hide_platform_branding: bool = False
+    tagline: str = "HIVE CONTROL · V4"
+
+
 class MeDetailResponse(BaseModel):
     """Operator envelope consumed by Neon settings screens."""
 
@@ -552,6 +572,10 @@ class MeDetailResponse(BaseModel):
     tenant_id: str | None = None
     tenant_role: str | None = None
     permissions: list[str] = Field(default_factory=list)
+    platform_mode: str = "internal"
+    subscription_tier: str = "free"
+    platform_features: dict[str, bool] = Field(default_factory=dict)
+    tenant_branding: TenantBrandingBrief | None = None
 
 
 async def _current_dashboard_user(sess: dict[str, Any], db: DbSession) -> DashboardUser:
@@ -633,6 +657,10 @@ def _serialize_me(
     *,
     tenant_id: str | None = None,
     tenant_role: str | None = None,
+    platform_mode: str = "internal",
+    subscription_tier: str = "free",
+    platform_features: dict[str, bool] | None = None,
+    tenant_branding: dict[str, Any] | None = None,
 ) -> MeDetailResponse:
     """Map ORM rows to public profile envelope."""
 
@@ -654,14 +682,23 @@ def _serialize_me(
         tenant_id=tenant_id,
         tenant_role=tenant_role,
         permissions=sorted(permissions_for_role(tenant_role)),
+        platform_mode=normalize_platform_mode(platform_mode),
+        subscription_tier=str(subscription_tier),
+        platform_features=dict(platform_features or {}),
+        tenant_branding=TenantBrandingBrief.model_validate(tenant_branding) if tenant_branding else None,
     )
 
 
 @router.get("/me", summary="Echo dashboard profile + prefs from JWT access tokens")
 async def dashboard_me_detail(sess: DashboardSession, db: DbSession) -> MeDetailResponse:
     user = await _current_dashboard_user(sess, db)
-    await ensure_default_tenant_for_user(db, user=user)
+    tenant = await ensure_default_tenant_for_user(db, user=user)
     role: str | None = None
+    platform_mode = normalize_platform_mode(getattr(tenant, "platform_mode", "internal"))
+    subscription_tier = "free"
+    platform_features: dict[str, bool] = {}
+    tenant_branding: dict[str, Any] | None = None
+    active_tenant: Tenant | None = None
     if user.active_tenant_id is not None:
         membership = await db.scalar(
             select(DashboardUserTenantMembership).where(
@@ -671,10 +708,27 @@ async def dashboard_me_detail(sess: DashboardSession, db: DbSession) -> MeDetail
         )
         if membership is not None:
             role = str(membership.role)
+        active_tenant = await db.get(Tenant, user.active_tenant_id)
+        if active_tenant is not None:
+            platform_mode = normalize_platform_mode(getattr(active_tenant, "platform_mode", platform_mode))
+            tenant_branding = serialize_tenant_branding_brief(active_tenant)
+        subscription = await ensure_tenant_subscription(db, tenant_id=user.active_tenant_id)
+        subscription_tier = str(subscription.tier)
+        policy_overrides = await load_policy_overrides(db)
+        platform_features = resolve_platform_features_for_subscription(
+            platform_mode=platform_mode,
+            is_admin=bool(user.is_admin),
+            subscription=subscription,
+            policy_overrides=policy_overrides,
+        )
     return _serialize_me(
         user,
         tenant_id=str(user.active_tenant_id) if user.active_tenant_id else None,
         tenant_role=role,
+        platform_mode=platform_mode,
+        subscription_tier=subscription_tier,
+        platform_features=platform_features,
+        tenant_branding=tenant_branding,
     )
 
 
@@ -869,6 +923,23 @@ def discord_webhook_url_ok(url: str) -> bool:
     return path.startswith("/api/webhooks/")
 
 
+def teams_webhook_url_ok(url: str) -> bool:
+    """True for official Microsoft Teams / Power Automate incoming webhook URLs."""
+
+    parsed = urlparse(url)
+    if parsed.scheme != "https":
+        return False
+    host = (parsed.hostname or "").lower()
+    path = parsed.path or ""
+    if host.endswith(".webhook.office.com") and "/webhook/" in path:
+        return True
+    if host in {"outlook.office.com", "outlook.office365.com"} and path.startswith("/webhook/"):
+        return True
+    if host.endswith(".logic.azure.com") and "/workflows/" in path:
+        return True
+    return False
+
+
 class EmailChannelConfig(BaseModel):
     model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
 
@@ -933,6 +1004,30 @@ class DiscordChannelConfig(BaseModel):
         return s
 
 
+class TeamsChannelConfig(BaseModel):
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+
+    enabled: bool = False
+    label: str | None = Field(default=None, max_length=120)
+    webhook_url: str | None = Field(default=None, max_length=2048)
+
+    @field_validator("webhook_url", mode="before")
+    @classmethod
+    def validate_webhook(cls, value: object) -> str | None:
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise TypeError("webhook_url must be a string")
+        s = value.strip()
+        if not s:
+            return None
+        if not teams_webhook_url_ok(s):
+            raise ValueError(
+                "Teams webhook must be an https Office 365 or Power Automate incoming webhook URL.",
+            )
+        return s
+
+
 class TelegramChannelConfig(BaseModel):
     model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
 
@@ -960,6 +1055,7 @@ class DeliveryChannelsMerge(BaseModel):
     email: EmailChannelConfig | None = None
     sms: SmsChannelConfig | None = None
     discord: DiscordChannelConfig | None = None
+    teams: TeamsChannelConfig | None = None
     telegram: TelegramChannelConfig | None = None
 
 
@@ -974,7 +1070,7 @@ class NotificationPrefsMergeBody(BaseModel):
 def _merge_delivery_buckets(existing: Any, merge: DeliveryChannelsMerge) -> dict[str, Any]:
     base: dict[str, Any] = normalize_delivery_channels_blob(existing)
     dumped = merge.model_dump(exclude_unset=True)
-    for ch_name in ("email", "sms", "discord", "telegram"):
+    for ch_name in ("email", "sms", "discord", "teams", "telegram"):
         ch_patch = dumped.get(ch_name)
         if ch_patch is None:
             continue

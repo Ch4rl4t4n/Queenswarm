@@ -1,18 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { Hexagon, LayoutGrid, List, Play, Plus } from "lucide-react";
+import { LayoutGrid, List, Play, Plus } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
+import { AgentListRow } from "@/components/hive/agents-list-row";
+import { AgentsVirtualList } from "@/components/hive/agents-virtual-list";
 import { HexAgentCard } from "@/components/hive/hex-agent-card";
 import { V4Card, V4CardHeader, V4Chip } from "@/components/ui/v4";
-import type { AgentsSwarmFilter, AgentHiveLane } from "@/lib/agent-hive-lane";
+import { laneTabLabel, shouldVirtualizeAgentList, workerSwarmPillBucket } from "@/lib/agents-list-presenters";
+import type { AgentsSwarmFilter } from "@/lib/agent-hive-lane";
 import { isQueenAgent } from "@/lib/agent-hive-lane";
 import { MEDIA_QUERIES } from "@/lib/breakpoints";
+import { COCKPIT_PERF } from "@/lib/cockpit-performance-budget";
+import { useCenterActiveInScrollRow } from "@/lib/hooks/use-center-active-in-scroll-row";
 import type { AgentRow } from "@/lib/hive-types";
-import { cn } from "@/lib/utils";
 
 export type { AgentsSwarmFilter, AgentHiveLane } from "@/lib/agent-hive-lane";
+export { laneTheme, roleDisplayName } from "@/lib/agents-list-presenters";
 
 type ViewMode = "grid" | "list";
 
@@ -24,227 +29,6 @@ function hasSubSwarmId(agent: AgentRow): boolean {
   return filledHiveId(agent.sub_swarm_id);
 }
 
-function rawSwarmHints(agent: AgentRow): string {
-  const parts = [agent.swarm_type, agent.swarm?.name, agent.swarm_name, agent.swarm_purpose].filter(Boolean);
-  return parts.join(" ").toLowerCase();
-}
-
-/**
- * Roster grouping for pills (workers only). ``unassigned`` when ``sub_swarm_id`` absent or swarm kind unknown.
- *
- * Phase R: never infer assignment from ``swarm_id`` alone — only ``sub_swarm_id`` marks placement.
- */
-function workerSwarmPillBucket(agent: AgentRow): Exclude<AgentsSwarmFilter, "all"> {
-  if (!hasSubSwarmId(agent)) {
-    return "unassigned";
-  }
-  const raw = rawSwarmHints(agent);
-  if (raw.includes("scout")) {
-    return "scout";
-  }
-  if (raw.includes("eval")) {
-    return "eval";
-  }
-  if (raw.includes("sim")) {
-    return "sim";
-  }
-  if (raw.includes("action")) {
-    return "action";
-  }
-  return "unassigned";
-}
-
-function agentListLane(agent: AgentRow): AgentHiveLane {
-  if (isQueenAgent(agent)) {
-    return "queen";
-  }
-  const b = workerSwarmPillBucket(agent);
-  if (b === "unassigned") {
-    return "unassigned";
-  }
-  return b;
-}
-
-function roleDisplayName(role: string): string {
-  const r = role.toLowerCase();
-  const map: Record<string, string> = {
-    scraper: "ScraperBee",
-    evaluator: "EvaluatorBee",
-    simulator: "SimulatorBee",
-    reporter: "ReporterBee",
-    trader: "TraderBee",
-    marketer: "MarketerBee",
-    blog_writer: "BlogWriterBee",
-    social_poster: "SocialPosterBee",
-    learner: "LearnerBee",
-    recipe_keeper: "RecipeKeeperBee",
-  };
-  if (map[r]) {
-    return map[r];
-  }
-  const cleaned = r.replace(/_/g, " ");
-  return `${cleaned.charAt(0).toUpperCase()}${cleaned.slice(1)}Bee`;
-}
-
-function laneTabLabel(key: Exclude<AgentsSwarmFilter, "all">): string {
-  const labels: Record<Exclude<AgentsSwarmFilter, "all">, string> = {
-    unassigned: "Unassigned",
-    scout: "Scout Swarm",
-    eval: "Eval Swarm",
-    sim: "Sim Swarm",
-    action: "Action Swarm",
-  };
-  return labels[key];
-}
-
-
-function formatPollen(n: number): string {
-  if (n >= 1_000_000) {
-    return `${(n / 1_000_000).toFixed(1)}M`;
-  }
-  if (n >= 1000) {
-    return `${(n / 1000).toFixed(1)}K`;
-  }
-  return String(Math.round(n * 10) / 10);
-}
-
-function pctScore(s: number | undefined): number {
-  if (s === undefined || Number.isNaN(s)) {
-    return 0;
-  }
-  return Math.round(Math.min(1, Math.max(0, s)) * 100);
-}
-
-function pctScoreDisplay(s: number | undefined): string {
-  if (s === undefined || Number.isNaN(s)) {
-    return "—";
-  }
-  return `${pctScore(s)}%`;
-}
-
-interface LaneTheme {
-  hexBorder: string;
-  barBg: string;
-  glow: string;
-  listBar: string;
-  scoreText: string;
-  pillClass: string;
-}
-
-function laneTheme(lane: AgentHiveLane, agent: AgentRow): LaneTheme {
-  if (lane === "queen") {
-    return {
-      hexBorder: "border-pollen/90",
-      barBg: "bg-pollen",
-      glow: "shadow-[0_0_26px_rgb(255_184_0/0.4)]",
-      listBar: "bg-pollen",
-      scoreText: "text-pollen",
-      pillClass: "border-pollen/45 text-pollen",
-    };
-  }
-  if (lane === "unassigned") {
-    return {
-      hexBorder: "border-pollen/65",
-      barBg: "bg-pollen/85",
-      glow: "shadow-[0_0_22px_rgb(255_184_0/0.33)]",
-      listBar: "bg-pollen/80",
-      scoreText: "text-pollen/90",
-      pillClass: "border-pollen/35 text-pollen/90",
-    };
-  }
-  const n = agent.name.toLowerCase();
-  const orangeAction = lane === "action" && n.includes("action") && (agent.id.charCodeAt(0) ?? 0) % 2 === 1;
-  if (lane === "scout") {
-    return {
-      hexBorder: "border-[#00E5FF]/85",
-      barBg: "bg-[#00E5FF]",
-      glow: "shadow-[0_0_24px_rgb(0_229_255/0.32)]",
-      listBar: "bg-[#00E5FF]",
-      scoreText: "text-[#00E5FF]",
-      pillClass: "border-[#00E5FF]/45 text-[#00E5FF]",
-    };
-  }
-  if (lane === "eval") {
-    return {
-      hexBorder: "border-pollen/80",
-      barBg: "bg-pollen",
-      glow: "shadow-[0_0_24px_rgb(255_184_0/0.28)]",
-      listBar: "bg-pollen",
-      scoreText: "text-pollen",
-      pillClass: "border-pollen/45 text-pollen",
-    };
-  }
-  if (lane === "sim") {
-    return {
-      hexBorder: "border-alert/80",
-      barBg: "bg-alert",
-      glow: "shadow-[0_0_24px_rgb(255_0_170/0.28)]",
-      listBar: "bg-alert",
-      scoreText: "text-alert",
-      pillClass: "border-alert/45 text-alert",
-    };
-  }
-  if (orangeAction) {
-    return {
-      hexBorder: "border-orange-400/85",
-      barBg: "bg-orange-400",
-      glow: "shadow-[0_0_22px_rgb(251_146_60/0.3)]",
-      listBar: "bg-orange-400",
-      scoreText: "text-orange-300",
-      pillClass: "border-orange-400/50 text-orange-300",
-    };
-  }
-  return {
-    hexBorder: "border-success/80",
-    barBg: "bg-success",
-    glow: "shadow-[0_0_22px_rgb(0_255_136/0.28)]",
-    listBar: "bg-success",
-    scoreText: "text-success",
-    pillClass: "border-success/45 text-success",
-  };
-}
-
-function statusDotClass(status: string): string {
-  const u = status.toUpperCase();
-  if (u === "RUNNING") {
-    return "bg-cyan shadow-[0_0_8px_rgb(0_255_255/0.75)]";
-  }
-  if (u === "IDLE") {
-    return "bg-zinc-400";
-  }
-  if (u === "PAUSED") {
-    return "bg-alert";
-  }
-  if (u === "OFFLINE") {
-    return "bg-zinc-500 ring-1 ring-zinc-400/35";
-  }
-  if (u === "ERROR") {
-    return "bg-danger";
-  }
-  return "bg-zinc-600";
-}
-
-function agentStatusLine(agent: AgentRow): string {
-  const t = (agent.current_task_title ?? "").trim();
-  if (t) {
-    return t;
-  }
-  const u = agent.status.toUpperCase();
-  if (u === "RUNNING") {
-    return "Working on task…";
-  }
-  if (u === "ERROR") {
-    return "Error — needs attention";
-  }
-  if (u === "PAUSED") {
-    return "Paused";
-  }
-  if (u === "OFFLINE") {
-    return "Inactive (offline)";
-  }
-  return "Waiting for handoff";
-}
-
 interface AgentsLiveSectionProps {
   agents: AgentRow[];
   onAgentActivate: (agent: AgentRow) => void;
@@ -254,19 +38,26 @@ interface AgentsLiveSectionProps {
   spawnAgentHref?: string;
   title?: string;
   description?: React.ReactNode;
+  /** Full roster pages — windowed list instead of cap + "Show more". */
+  virtualizeList?: boolean;
 }
 
 export function AgentsLiveSection({
-  agents,
+  agents: rawAgents,
   onAgentActivate,
   onRebalanceHive,
   rebalanceBusy,
   spawnAgentHref,
   title = "Agents",
   description,
+  virtualizeList = false,
 }: AgentsLiveSectionProps) {
+  const agents = Array.isArray(rawAgents) ? rawAgents : [];
   const [swarmFilter, setSwarmFilter] = useState<AgentsSwarmFilter>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [listExpanded, setListExpanded] = useState(false);
+  const [gridExpanded, setGridExpanded] = useState(false);
+  const filterScrollRef = useCenterActiveInScrollRow(swarmFilter);
   const spawnHref = spawnAgentHref ?? "/#hive-create";
 
   useEffect(() => {
@@ -285,16 +76,16 @@ export function AgentsLiveSection({
       if (isQueenAgent(a)) {
         continue;
       }
-      const L = workerSwarmPillBucket(a);
-      if (L === "scout") {
+      const lane = workerSwarmPillBucket(a);
+      if (lane === "scout") {
         scout += 1;
-      } else if (L === "eval") {
+      } else if (lane === "eval") {
         evalc += 1;
-      } else if (L === "sim") {
+      } else if (lane === "sim") {
         sim += 1;
-      } else if (L === "action") {
+      } else if (lane === "action") {
         action += 1;
-      } else if (L === "unassigned") {
+      } else if (lane === "unassigned") {
         unassigned += 1;
       }
     }
@@ -330,6 +121,16 @@ export function AgentsLiveSection({
     return agents.filter((a) => !isQueenAgent(a) && workerSwarmPillBucket(a) === swarmFilter);
   }, [agents, swarmFilter]);
 
+  const useVirtualList = shouldVirtualizeAgentList(filtered.length, virtualizeList);
+  const listRenderCap = COCKPIT_PERF.listInitialRender;
+  const gridRenderCap = COCKPIT_PERF.gridInitialRender;
+  const listOverflow = !useVirtualList && filtered.length > listRenderCap;
+  const gridOverflow = virtualizeList && filtered.length > gridRenderCap;
+  const visibleList =
+    viewMode === "list" && !useVirtualList && !listExpanded ? filtered.slice(0, listRenderCap) : filtered;
+  const visibleGrid =
+    viewMode === "grid" && gridOverflow && !gridExpanded ? filtered.slice(0, gridRenderCap) : filtered;
+
   const pills: { key: AgentsSwarmFilter; count: number }[] = [
     { key: "all", count: counts.all },
     { key: "unassigned", count: counts.unassigned },
@@ -340,7 +141,7 @@ export function AgentsLiveSection({
   ];
 
   return (
-      <V4Card id="hive-live-swarm" className="scroll-mt-24 v4-card-interactive">
+    <V4Card id="hive-live-swarm" className="scroll-mt-24 v4-card-interactive">
       <V4CardHeader
         title={title}
         description={
@@ -352,8 +153,8 @@ export function AgentsLiveSection({
           )
         }
         actions={
-          <div className="flex flex-col gap-2 max-lg:w-full lg:flex-row lg:flex-wrap">
-            <Link href={spawnHref} className="qs-btn qs-btn--ghost gap-2 max-lg:w-full lg:w-auto">
+          <div className="flex w-full items-center justify-between gap-3">
+            <Link href={spawnHref} className="qs-btn qs-btn--ghost qs-btn--sm shrink-0 gap-2">
               <Plus className="h-4 w-4 shrink-0" aria-hidden />
               Add agent
             </Link>
@@ -361,7 +162,7 @@ export function AgentsLiveSection({
               type="button"
               disabled={rebalanceBusy}
               onClick={() => void onRebalanceHive()}
-              className="qs-btn qs-btn--primary gap-2 disabled:opacity-40 max-lg:w-full lg:w-auto"
+              className="qs-btn qs-btn--primary qs-btn--sm shrink-0 gap-2 disabled:opacity-40"
             >
               <Play className="h-4 w-4 shrink-0" aria-hidden />
               {rebalanceBusy ? "Working…" : "Balance hive"}
@@ -370,14 +171,12 @@ export function AgentsLiveSection({
         }
       />
 
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="v4-chip-scroll md:flex-wrap md:overflow-visible">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div ref={filterScrollRef} className="v4-chip-scroll md:flex-wrap md:overflow-visible">
           {pills.map(({ key, count }) => {
             const active = swarmFilter === key;
             const label =
-              key === "all"
-                ? "All"
-                : laneTabLabel(key as Exclude<AgentsSwarmFilter, "all">);
+              key === "all" ? "All" : laneTabLabel(key as Exclude<AgentsSwarmFilter, "all">);
             return (
               <V4Chip key={key} active={active} onClick={() => setSwarmFilter(key)}>
                 {label}
@@ -400,7 +199,7 @@ export function AgentsLiveSection({
 
       {viewMode === "grid" ? (
         <div className="v4-agent-grid mx-auto max-w-[1200px]">
-          {filtered.map((agent) => (
+          {visibleGrid.map((agent) => (
             <HexAgentCard
               key={agent.id}
               agent={agent}
@@ -409,73 +208,37 @@ export function AgentsLiveSection({
             />
           ))}
         </div>
+      ) : useVirtualList ? (
+        <AgentsVirtualList agents={filtered} onAgentActivate={onAgentActivate} />
       ) : (
         <ul className="mt-8 space-y-3">
-          {filtered.map((agent) => {
-            const lane = agentListLane(agent);
-            const theme = laneTheme(lane === "queen" ? "queen" : lane, agent);
-            const err = agent.status.toUpperCase() === "ERROR";
-            const offline = agent.status.toUpperCase() === "OFFLINE";
-            const scoreP = pctScore(agent.performance_score);
-            return (
-              <li
-                key={agent.id}
-                className={cn(
-                  "flex overflow-hidden rounded-2xl qs-rim bg-black/40",
-                  offline && "opacity-[0.78] saturate-[0.42]",
-                )}
-              >
-                <div className={cn("w-1 shrink-0", offline ? "bg-zinc-600/85" : theme.listBar)} aria-hidden />
-                <button
-                  type="button"
-                  onClick={() => onAgentActivate(agent)}
-                  className="flex min-w-0 flex-1 flex-col gap-3 px-4 py-3 text-left transition hover:bg-white/[0.03] sm:flex-row sm:items-center sm:gap-6"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={cn("h-2 w-2 shrink-0 rounded-full", statusDotClass(agent.status))} aria-hidden />
-                      <span className="font-[family-name:var(--font-poppins)] text-sm font-bold text-[#fafafa]">
-                        {agent.name}
-                      </span>
-                      <span className="font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
-                        {roleDisplayName(agent.role)}
-                      </span>
-                      <span
-                        className={cn(
-                          "rounded-full border px-2 py-0.5 qs-chip uppercase",
-                          theme.pillClass,
-                        )}
-                      >
-                        {lane === "queen" ? "Queen" : laneTabLabel(lane as Exclude<AgentsSwarmFilter, "all">)}
-                      </span>
-                    </div>
-                    <p className="mt-1.5 font-[family-name:var(--font-poppins)] text-xs text-zinc-500">
-                      {agentStatusLine(agent)}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 flex-col gap-2 sm:w-40">
-                    <div>
-                      <div className="flex items-center justify-between qs-meta-label text-zinc-500">
-                        <span>Score</span>
-                        <span className={cn(err ? "text-danger" : theme.scoreText)}>
-                          {pctScoreDisplay(agent.performance_score)}
-                        </span>
-                      </div>
-                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-black/60">
-                        <div className={cn("h-full rounded-full", theme.barBg)} style={{ width: `${scoreP}%` }} />
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 font-[family-name:var(--font-poppins)] text-xs tabular-nums text-pollen">
-                      <Hexagon className="h-3.5 w-3.5 text-pollen/90" aria-hidden />
-                      {formatPollen(agent.pollen_points ?? 0)}
-                    </div>
-                  </div>
-                </button>
-              </li>
-            );
-          })}
+          {visibleList.map((agent) => (
+            <li key={agent.id}>
+              <AgentListRow agent={agent} onActivate={onAgentActivate} />
+            </li>
+          ))}
         </ul>
       )}
+
+      {viewMode === "grid" && gridOverflow && !gridExpanded ? (
+        <button
+          type="button"
+          className="mt-4 w-full rounded-xl border border-(--qs-border) bg-black/30 py-2 text-sm text-(--qs-text-2) hover:border-pollen/35 hover:text-pollen"
+          onClick={() => setGridExpanded(true)}
+        >
+          Show {filtered.length - gridRenderCap} more hex cards
+        </button>
+      ) : null}
+
+      {viewMode === "list" && listOverflow && !listExpanded ? (
+        <button
+          type="button"
+          className="mt-4 w-full rounded-xl border border-(--qs-border) bg-black/30 py-2 text-sm text-(--qs-text-2) hover:border-pollen/35 hover:text-pollen"
+          onClick={() => setListExpanded(true)}
+        >
+          Show {filtered.length - listRenderCap} more bees
+        </button>
+      ) : null}
 
       {filtered.length === 0 ? (
         <p className="mt-10 text-center text-sm text-(--qs-text-3)">No agents match this filter.</p>

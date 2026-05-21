@@ -69,14 +69,14 @@ def parse_dashboard_user_subject(sub: str) -> uuid.UUID | None:
         return None
 
 
-def decode_jwt_optional_typ(raw_token: str) -> dict[str, Any]:
+def decode_jwt_optional_typ(raw_token: str, *, verify_exp: bool = True) -> dict[str, Any]:
     """Decode JWT using the hive HS256 secret and return all registered claims."""
 
     return jwt.decode(
         raw_token,
         settings.secret_key,
         algorithms=[settings.jwt_algorithm],
-        options={"verify_aud": False},
+        options={"verify_aud": False, "verify_exp": verify_exp},
     )
 
 

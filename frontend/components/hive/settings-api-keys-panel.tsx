@@ -1,13 +1,16 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { useUiLanguage } from "@/components/hive/ui-language-provider";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveDelete, hiveGet, hivePostJson } from "@/lib/api";
 import type { ApiKeyCreated, ApiKeyListItem } from "@/lib/hive-dashboard-session";
 import type { ExternalApiStoredRow, ExternalProviderMeta } from "@/lib/hive-types";
+import { localizePhrase } from "@/lib/ui-copy";
 import { cn } from "@/lib/utils";
 
 const MAX_SCRIPT_KEYS = 50;
@@ -31,11 +34,13 @@ function providerGlyph(id: string): string {
 }
 
 export function SettingsApiKeysPanel() {
+  const { language } = useUiLanguage();
   const [providers, setProviders] = useState<ExternalProviderMeta[]>([]);
   const [apis, setApis] = useState<ExternalApiStoredRow[]>([]);
   const [rows, setRows] = useState<ApiKeyListItem[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ExternalApiStoredRow | null>(null);
 
   const [selectedProvider, setSelectedProvider] = useState<string>("alpaca");
   const [credLabel, setCredLabel] = useState("");
@@ -45,6 +50,16 @@ export function SettingsApiKeysPanel() {
   const [newSourceName, setNewSourceName] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [minted, setMinted] = useState<ApiKeyCreated | null>(null);
+
+  const apisByProvider = useMemo(() => {
+    const map = new Map<string, ExternalApiStoredRow[]>();
+    for (const row of apis) {
+      const bucket = map.get(row.provider) ?? [];
+      bucket.push(row);
+      map.set(row.provider, bucket);
+    }
+    return map;
+  }, [apis]);
 
   const loadExternal = useCallback(async () => {
     const [catalog, stash] = await Promise.all([
@@ -115,7 +130,7 @@ export function SettingsApiKeysPanel() {
     setBusy(true);
     try {
       await hiveDelete(`external-apis/${id}`);
-      toast.success("Credential removed.");
+      toast.success(localizePhrase(language, { en: "Credential removed.", sk: "Poverenie odstránené." }));
       await loadExternal();
     } catch (e) {
       const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Delete failed";
@@ -123,6 +138,19 @@ export function SettingsApiKeysPanel() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function confirmDeleteExternal(): Promise<void> {
+    if (!deleteTarget) {
+      return;
+    }
+    const id = deleteTarget.id;
+    setDeleteTarget(null);
+    await removeExternal(id);
+  }
+
+  function requestDeleteExternal(row: ExternalApiStoredRow): void {
+    setDeleteTarget(row);
   }
 
   async function createScriptKey(): Promise<void> {
@@ -188,36 +216,73 @@ export function SettingsApiKeysPanel() {
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {providers.map((p) => {
             const active = selectedProvider === p.id;
+            const stored = apisByProvider.get(p.id) ?? [];
+            const primaryStored = stored[0] ?? null;
             return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setSelectedProvider(p.id)}
-                className={cn(
-                  "v4-dream-cycle-card v4-card-interactive text-left",
-                  active && "border-pollen/45 bg-pollen/6 shadow-[0_0_24px_rgba(255,184,0,0.12)]",
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-(--qs-border) bg-(--qs-surface-2) font-mono text-xs font-bold text-pollen">
-                    {providerGlyph(p.id)}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold text-(--qs-text)">{p.label}</p>
-                    <p className="truncate font-mono text-[10px] uppercase text-(--qs-text-3)">{p.id}</p>
-                  </div>
-                </div>
-                {active ? (
-                  <V4Badge tone="gold" className="mt-3">
-                    selected
-                  </V4Badge>
+              <div key={p.id} className="relative">
+                {primaryStored ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    aria-label={localizePhrase(language, {
+                      en: `Delete stored API key for ${p.label}`,
+                      sk: `Odstrániť uložený API kľúč pre ${p.label}`,
+                    })}
+                    className="absolute right-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-lg border border-danger/45 bg-danger/12 text-danger transition hover:border-danger hover:bg-danger/20 touch-manipulation"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      requestDeleteExternal(primaryStored);
+                    }}
+                  >
+                    <X className="h-4 w-4" aria-hidden strokeWidth={2.5} />
+                  </button>
                 ) : null}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedProvider(p.id)}
+                  className={cn(
+                    "v4-dream-cycle-card v4-card-interactive w-full text-left",
+                    active && "border-pollen/45 bg-pollen/6 shadow-[0_0_24px_rgba(255,184,0,0.12)]",
+                    primaryStored && "pt-8",
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-(--qs-border) bg-(--qs-surface-2) font-mono text-xs font-bold text-pollen">
+                      {providerGlyph(p.id)}
+                    </div>
+                    <div className="min-w-0 pr-8">
+                      <p className="truncate font-semibold text-(--qs-text)">{p.label}</p>
+                      <p className="truncate font-mono text-[10px] uppercase text-(--qs-text-3)">{p.id}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {active ? (
+                      <V4Badge tone="gold">selected</V4Badge>
+                    ) : null}
+                    {primaryStored ? (
+                      <V4Badge tone="ok">
+                        {localizePhrase(language, {
+                          en: stored.length > 1 ? `${stored.length} keys saved` : "key saved",
+                          sk: stored.length > 1 ? `${stored.length} kľúčov uložených` : "kľúč uložený",
+                        })}
+                      </V4Badge>
+                    ) : null}
+                  </div>
+                </button>
+              </div>
             );
           })}
         </div>
 
-        <div className="mt-6 rounded-xl border border-(--qs-border) bg-[rgba(7,3,15,0.35)] p-4">
+        <button
+          type="button"
+          className="qs-btn qs-btn--ghost qs-btn--sm mt-4 w-full sm:w-auto"
+          onClick={() => document.getElementById("ext-cred-form")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+        >
+          + New API connector
+        </button>
+
+        <div id="ext-cred-form" className="mt-4 rounded-xl border border-(--qs-border) bg-[rgba(7,3,15,0.35)] p-4">
           <label htmlFor="ext-cred-label" className="v4-field-label">
             Label for this credential
           </label>
@@ -245,31 +310,34 @@ export function SettingsApiKeysPanel() {
           </button>
         </div>
 
-        <div className="mt-8">
+        <div className="mt-4 border-t border-(--qs-border)/60 pt-4">
           <p className="v4-field-label mb-3">Stored bundles</p>
           {apis.length === 0 ? (
             <p className="text-sm text-(--qs-text-3)">Nothing persisted yet.</p>
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {apis.map((row) => (
                 <div
                   key={row.id}
-                  className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-(--qs-border) bg-[rgba(7,3,15,0.35)] px-4 py-3"
+                  className="relative rounded-xl border border-(--qs-border) bg-[rgba(7,3,15,0.35)] px-4 py-3 pt-10"
                 >
-                  <div className="min-w-0">
-                    <p className="font-semibold text-(--qs-text)">{row.label}</p>
-                    <p className="font-mono text-xs text-pollen">{row.provider}</p>
-                    <pre className="mt-2 max-h-24 overflow-auto text-[10px] text-(--qs-text-3)">{JSON.stringify(row.credentials_masked, null, 2)}</pre>
-                  </div>
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => void removeExternal(row.id)}
-                    className="qs-btn qs-btn--ghost qs-btn--sm inline-flex shrink-0 items-center gap-1.5 text-danger"
+                    aria-label={localizePhrase(language, {
+                      en: `Delete API key ${row.label}`,
+                      sk: `Odstrániť API kľúč ${row.label}`,
+                    })}
+                    className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-lg border border-danger/45 bg-danger/12 text-danger transition hover:border-danger hover:bg-danger/20 touch-manipulation"
+                    onClick={() => requestDeleteExternal(row)}
                   >
-                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                    Remove
+                    <X className="h-4 w-4" aria-hidden strokeWidth={2.5} />
                   </button>
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-(--qs-text)">{row.label}</p>
+                    <p className="font-mono text-xs text-pollen">{row.provider}</p>
+                    <pre className="mt-2 max-h-24 overflow-auto text-[10px] text-(--qs-text-3)">{JSON.stringify(row.credentials_masked, null, 2)}</pre>
+                  </div>
                 </div>
               ))}
             </div>
@@ -350,6 +418,26 @@ export function SettingsApiKeysPanel() {
           </div>
         </div>
       ) : null}
+
+      <ConfirmModal
+        open={deleteTarget !== null}
+        title={localizePhrase(language, {
+          en: "Delete API key?",
+          sk: "Odstrániť API kľúč?",
+        })}
+        message={
+          deleteTarget
+            ? localizePhrase(language, {
+                en: `You are about to delete the configured API key “${deleteTarget.label}” (${deleteTarget.provider}). This cannot be undone. Are you sure?`,
+                sk: `Chystáte sa odstrániť nastavený API kľúč „${deleteTarget.label}“ (${deleteTarget.provider}). Túto akciu nemožno vrátiť späť. Ste si istí?`,
+              })
+            : ""
+        }
+        confirmLabel={localizePhrase(language, { en: "Delete key", sk: "Odstrániť kľúč" })}
+        danger
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => void confirmDeleteExternal()}
+      />
     </div>
   );
 }

@@ -2,6 +2,12 @@
 
 Checklist before declaring a rollout complete on `queenswarm.love`.
 
+**Security:** run [PRODUCTION_SECURITY_CHECKLIST.md](./PRODUCTION_SECURITY_CHECKLIST.md) before every production deploy (host exposure audit, Redis auth, firewall).
+
+```bash
+./scripts/audit-host-exposure.sh   # fail if data-plane ports listen on 0.0.0.0
+```
+
 ## Automated gate
 
 ```bash
@@ -71,7 +77,7 @@ STRICT_STRIPE=1 PLAYWRIGHT_BASE_URL=https://queenswarm.love ./scripts/production
 | Item | Status |
 |------|--------|
 | Stripe keys in `.env.prod` | Required for live checkout |
-| Backend coverage 80% | Backlog (CI gate at 50%) |
+| Backend coverage 80% | **Done** — sign-off gate uses `--cov-fail-under=80` |
 
 ## Rollback
 

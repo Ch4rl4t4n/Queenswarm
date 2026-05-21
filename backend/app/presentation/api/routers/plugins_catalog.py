@@ -17,18 +17,18 @@ from app.infrastructure.plugins.manager import (
     load_plugin,
     unload_plugin,
 )
-from app.application.services.plugin_hub import bump_plugin_generation, plugin_manifest
+from app.application.services.plugin_hub import bump_plugin_generation, plugin_manifest, set_builtin_plugin_enabled
 
 router = APIRouter(tags=["Plugins"])
 logger = get_logger(__name__)
 
 
 class PluginToggleBody(BaseModel):
-    """Stub body for dashboard toggles affecting built-in rows."""
+    """Body for dashboard toggles affecting built-in rows."""
 
     model_config = {"extra": "ignore"}
 
-    enabled: bool | None = None
+    enabled: bool
 
 
 def _builtin_rows() -> list[dict[str, Any]]:
@@ -145,15 +145,30 @@ async def disable_plugin(plugin_name: str, _subject: JwtSubject) -> dict[str, st
     return {"status": "disabled", "plugin_name": Path(plugin_name).name}
 
 
-@router.patch("/{plugin_id}", summary="Toggle built-in plugin flags (stub)")
+@router.patch("/{plugin_id}", summary="Toggle built-in plugin flags")
 async def plugins_patch(plugin_id: str, body: PluginToggleBody, _subject: JwtSubject) -> dict[str, Any]:
-    """Bump reload generation for UI cache busting."""
+    """Persist built-in enabled flag to the on-disk manifest overlay."""
 
-    _ = plugin_id
-    _ = body
-    gen = bump_plugin_generation()
-    logger.info("plugins.catalog.patch_stub", plugin_id=plugin_id, actor=_subject, generation=gen)
-    return {"ok": True, "plugin_id": plugin_id, "applied": {"enabled": body.enabled}, "reload_generation": gen}
+    try:
+        row = set_builtin_plugin_enabled(plugin_id, enabled=body.enabled)
+    except KeyError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Built-in plugin not found.") from None
+
+    manifest = plugin_manifest()
+    logger.info(
+        "plugins.catalog.patch_applied",
+        plugin_id=plugin_id,
+        actor=_subject,
+        enabled=body.enabled,
+        generation=manifest.get("reload_generation"),
+    )
+    return {
+        "ok": True,
+        "plugin_id": plugin_id,
+        "plugin": row,
+        "applied": {"enabled": body.enabled},
+        "reload_generation": manifest.get("reload_generation"),
+    }
 
 
 @router.delete("/{plugin_name}", summary="Delete a user plugin file")

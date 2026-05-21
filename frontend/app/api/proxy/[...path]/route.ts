@@ -1,8 +1,13 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
-import { QS_ACCESS } from "@/lib/auth-cookies";
+import { attachDashboardTokenCookies } from "@/lib/auth-token-response";
+import { QS_ACCESS, QS_REFRESH } from "@/lib/auth-cookies";
 import { resolveInternalBackendOrigin } from "@/lib/backend-origin";
+import {
+  dashboardAccessNeedsRefresh,
+  refreshDashboardAccessFromRefreshToken,
+} from "@/lib/proxy-session-refresh";
 
 /** Node runtime: cookie bridge + private Docker DNS (`backend`) do not run on Edge. */
 export const runtime = "nodejs";
@@ -25,15 +30,33 @@ type AuthSource = "header" | "cookie" | "proxy_jwt" | "none";
 interface ResolvedAuthHeader {
   value: string | null;
   source: AuthSource;
+  /** When proxy rotated tokens server-side, attach to the outgoing response. */
+  refreshedBundle?: { access_token: string; refresh_token: string; expires_in: number };
+  /** Refresh cookie present but rotation failed — avoid anonymous backend burst. */
+  sessionDead?: boolean;
 }
 
 async function resolveAuthHeader(request: NextRequest): Promise<ResolvedAuthHeader> {
+  let refreshedBundle: ResolvedAuthHeader["refreshedBundle"];
+
   try {
     const jar = await cookies();
-    const at = jar.get(QS_ACCESS)?.value?.trim();
+    let at = jar.get(QS_ACCESS)?.value?.trim() ?? "";
+    const rt = jar.get(QS_REFRESH)?.value?.trim() ?? "";
+
+    if (dashboardAccessNeedsRefresh(at) && rt.length >= 16) {
+      const bundle = await refreshDashboardAccessFromRefreshToken(rt);
+      if (bundle) {
+        at = bundle.access_token.trim();
+        refreshedBundle = bundle;
+      } else {
+        return { value: null, source: "none", sessionDead: true };
+      }
+    }
+
     if (at) {
       // Prefer HttpOnly session cookie over potentially stale browser Authorization headers.
-      return { value: `Bearer ${at}`, source: "cookie" };
+      return { value: `Bearer ${at}`, source: "cookie", refreshedBundle };
     }
   } catch {
     /* cookies() only valid in App Router request context */
@@ -60,6 +83,9 @@ async function proxyRequest(request: NextRequest, method: string): Promise<NextR
   const headers = new Headers();
 
   const resolvedAuth = await resolveAuthHeader(request);
+  if (resolvedAuth.sessionDead) {
+    return NextResponse.json({ detail: "Session expired — sign in again." }, { status: 401 });
+  }
   if (resolvedAuth.value) {
     headers.set("Authorization", resolvedAuth.value);
   }
@@ -122,6 +148,9 @@ async function proxyRequest(request: NextRequest, method: string): Promise<NextR
     statusText: upstream.statusText,
     headers: outHeaders,
   });
+  if (resolvedAuth.refreshedBundle) {
+    attachDashboardTokenCookies(response, resolvedAuth.refreshedBundle);
+  }
   /**
    * Do not clear auth cookies here — the browser client refreshes tokens on 401 via /api/auth/refresh.
    * Clearing cookies on the first expired access token logged users out mid-session (Ballroom voice/chat).
