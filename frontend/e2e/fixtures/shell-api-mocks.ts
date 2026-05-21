@@ -137,6 +137,19 @@ const STUB_HARNESS_SNAPSHOT = {
     count: 5,
     list_path: "/api/v1/harness/rubric-templates",
   },
+  queen_maintainer: {
+    enabled: false,
+    post_merge_webhook: {
+      enabled: false,
+      secret_configured: false,
+      tenant_id_configured: false,
+      github_owner: "",
+      github_repo: "",
+      webhook_path: "/api/v1/queen-maintainer/github-webhook",
+      accepted_events: ["ping", "pull_request", "push"],
+    },
+    tech_health_path: "/api/v1/queen-maintainer/tech-health",
+  },
   tech_health_score: 0.85,
   monitoring: {
     slack_webhook_configured: false,

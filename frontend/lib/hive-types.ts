@@ -1025,6 +1025,7 @@ export interface HarnessSnapshotPayload {
   slack_trainer?: HarnessSlackTrainerStatus;
   lsp_bridge?: HarnessLspBridgeStatus;
   rubric_templates?: HarnessRubricTemplatesStatus;
+  queen_maintainer?: HarnessQueenMaintainerStatus;
   tech_health_score: number;
   monitoring: HarnessMonitoringPayload;
   docs: Record<string, string>;
@@ -1048,6 +1049,20 @@ export interface HarnessRubricTemplatesStatus {
   enabled: boolean;
   count: number;
   list_path: string;
+}
+
+export interface HarnessQueenMaintainerStatus {
+  enabled: boolean;
+  post_merge_webhook: {
+    enabled: boolean;
+    secret_configured: boolean;
+    tenant_id_configured: boolean;
+    github_owner: string;
+    github_repo: string;
+    webhook_path: string;
+    accepted_events: string[];
+  };
+  tech_health_path: string;
 }
 
 export interface RubricTemplateRow {

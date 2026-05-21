@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.harness_tech_health import build_tech_health_report
 from app.application.services.rubric_templates import list_rubric_templates
+from app.application.services.queen_maintainer.post_merge_webhook import webhook_status_payload
 from app.core.repo_root import resolve_repo_root
 from app.application.services.pattern_telemetry_service import build_pattern_telemetry
 from app.application.services.supervisor.skills import SkillLibrary
@@ -205,6 +206,11 @@ async def build_harness_snapshot(
             "enabled": settings.rubric_templates_enabled,
             "count": len(list_rubric_templates()),
             "list_path": "/api/v1/harness/rubric-templates",
+        },
+        "queen_maintainer": {
+            "enabled": settings.queen_maintainer_enabled,
+            "post_merge_webhook": webhook_status_payload(),
+            "tech_health_path": "/api/v1/queen-maintainer/tech-health",
         },
         "tech_health_score": tech_health.get("health_score"),
         "monitoring": monitoring,

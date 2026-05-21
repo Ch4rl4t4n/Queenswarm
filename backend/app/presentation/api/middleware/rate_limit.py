@@ -222,6 +222,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         "/api/v1/health",
         "/api/v1/billing/stripe/webhook",
         "/api/v1/harness/slack-trainer/slack-command",
+        "/api/v1/queen-maintainer/github-webhook",
         "/favicon.ico",
     })
 

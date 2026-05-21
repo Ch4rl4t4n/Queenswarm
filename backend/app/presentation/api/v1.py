@@ -54,6 +54,7 @@ from app.presentation.api.routers import paper_trading as paper_trading_router
 from app.presentation.api.routers import command_center_admin as command_center_admin_router
 from app.presentation.api.routers import admin_accounts as admin_accounts_router
 from app.presentation.api.routers import platform_features_admin as platform_features_admin_router
+from app.presentation.api.routers import queen_maintainer as queen_maintainer_router
 from app.core.config import settings
 
 api_v1 = APIRouter()
@@ -104,6 +105,7 @@ api_v1.include_router(plugins_catalog_router.router, prefix="/plugins")
 api_v1.include_router(dreaming_router.router)
 api_v1.include_router(dump_sleep_router.router)
 api_v1.include_router(harness_router.router)
+api_v1.include_router(queen_maintainer_router.router)
 api_v1.include_router(episodic_memory_router.router)
 api_v1.include_router(llm_routing_router.router)
 api_v1.include_router(auto_graphify_router.router)

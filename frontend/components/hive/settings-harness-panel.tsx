@@ -12,6 +12,7 @@ import { BehavioralMemoryPanel } from "@/components/hive/behavioral-memory-panel
 import { SlackHarnessTrainerPanel } from "@/components/hive/slack-harness-trainer-panel";
 import { LspBridgePanel } from "@/components/hive/lsp-bridge-panel";
 import { RubricTemplatesPanel } from "@/components/hive/rubric-templates-panel";
+import { QueenMaintainerWebhookPanel } from "@/components/hive/queen-maintainer-webhook-panel";
 import { cn } from "@/lib/utils";
 
 export function SettingsHarnessPanel(): JSX.Element | null {
@@ -212,6 +213,7 @@ export function SettingsHarnessPanel(): JSX.Element | null {
       ) : null}
       {hasFeature("lsp_mcp_bridge") && snapshot ? <LspBridgePanel snapshot={snapshot} /> : null}
       {hasFeature("rubric_templates") && snapshot ? <RubricTemplatesPanel snapshot={snapshot} /> : null}
+      {snapshot ? <QueenMaintainerWebhookPanel snapshot={snapshot} /> : null}
 
       <V4Card>
         <V4CardHeader kicker="Skills" title="Active skill lattice" description="Markdown skills selected by SkillLibrary." />

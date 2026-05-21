@@ -1344,6 +1344,18 @@ class Settings(BaseSettings):
         default="github_rest",
         description="Dynamic connector slug used for Maintainer PR creation.",
     )
+    queen_maintainer_post_merge_webhook_enabled: bool = Field(
+        default=False,
+        description="Trigger Queen Maintainer after GitHub merge to main/master.",
+    )
+    queen_maintainer_github_webhook_secret: str = Field(
+        default="",
+        description="GitHub webhook HMAC secret (env: QUEEN_MAINTAINER_GITHUB_WEBHOOK_SECRET).",
+    )
+    queen_maintainer_post_merge_tenant_id: str | None = Field(
+        default=None,
+        description="Tenant UUID receiving post-merge Maintainer supervisor sessions.",
+    )
     supervisor_self_heal_max_attempts: int = Field(
         default=2,
         ge=1,

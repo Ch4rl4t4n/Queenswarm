@@ -22,6 +22,8 @@ async def test_build_harness_snapshot_includes_skills_and_flags() -> None:
     assert "monitoring" in payload
     assert payload["monitoring"]["grafana_dashboard_uid"] == "queenswarm-agentic-patterns"
     assert len(payload["monitoring"]["pattern_alert_rules"]) == 3
+    assert "queen_maintainer" in payload
+    assert "post_merge_webhook" in payload["queen_maintainer"]
 
 
 def test_run_intelligence_scan_returns_proposals() -> None:
