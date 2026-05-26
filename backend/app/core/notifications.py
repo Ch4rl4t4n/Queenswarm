@@ -101,6 +101,44 @@ async def notify_discord(
         return False
 
 
+async def notify_telegram(
+    message: str,
+    *,
+    bot_token: str | None = None,
+    chat_id: str | None = None,
+) -> bool:
+    """Send Telegram notification via Bot API. Returns ``True`` when accepted."""
+
+    token = (bot_token or "").strip()
+    chat = str(chat_id or "").strip()
+    if not token or not chat:
+        return False
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload = {"chat_id": chat, "text": message[:4000]}
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            response = await client.post(url, json=payload)
+        accepted = response.status_code == 200 and bool(response.json().get("ok"))
+        if not accepted:
+            logger.warning(
+                "notifications.telegram.reject",
+                agent_id="reporter_bee",
+                swarm_id="",
+                task_id="",
+                status=response.status_code,
+            )
+        return accepted
+    except httpx.HTTPError as exc:
+        logger.warning(
+            "notifications.telegram.http_error",
+            agent_id="reporter_bee",
+            swarm_id="",
+            task_id="",
+            error=str(exc),
+        )
+        return False
+
+
 async def notify_teams(
     message: str,
     *,
@@ -342,6 +380,7 @@ __all__ = [
     "notify_email",
     "notify_pagerduty",
     "notify_slack",
+    "notify_telegram",
     "notify_teams",
     "notify_task_complete",
 ]
