@@ -1,5 +1,5 @@
 /** Queenswarm PWA shell — mobile/tablet offline fallback (no API cache). */
-const CACHE = "queenswarm-shell-v65";
+const CACHE = "queenswarm-shell-v75";
 const PRECACHE = ["/offline", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
@@ -92,4 +92,40 @@ self.addEventListener("fetch", (event) => {
         }),
     );
   }
+});
+
+self.addEventListener("push", (event) => {
+  let payload = { title: "Execution Studio", body: "Pending operator approval", url: "/integrations?tab=studio" };
+  try {
+    if (event.data) {
+      payload = { ...payload, ...event.data.json() };
+    }
+  } catch {
+    /* keep defaults */
+  }
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: "/icon",
+      badge: "/icon",
+      tag: "execution-studio-pending",
+      data: { url: payload.url || "/integrations?tab=studio" },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || "/integrations?tab=studio";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if ("focus" in client) {
+          client.navigate(targetUrl);
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(targetUrl);
+    }),
+  );
 });

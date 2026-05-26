@@ -10,6 +10,8 @@ from app.application.services.billing import (
     TIER_PRO,
     resolve_plan_features,
 )
+from app.application.services.solo_mode import apply_solo_mode_overrides
+from app.core.config import settings
 from app.infrastructure.persistence.models.billing import TenantSubscription
 
 PlatformMode = Literal["internal", "commercial"]
@@ -41,7 +43,7 @@ FEATURE_SECTIONS: list[dict[str, Any]] = [
         "id": "overview",
         "label": "Overview",
         "tone": "cyan",
-        "features": ["dashboard", "swarms", "costs", "monitoring", "leaderboard"],
+        "features": ["dashboard", "swarms", "operator_cockpit", "costs", "monitoring", "leaderboard"],
     },
     {
         "id": "agents",
@@ -75,10 +77,12 @@ FEATURE_SECTIONS: list[dict[str, Any]] = [
         "features": [
             "integrations",
             "connectors",
+            "execution_studio",
             "plugins",
             "external_projects",
             "skills_marketplace",
             "skills_export_factory",
+            "self_extending_tool_marketplace",
             "product_mission",
             "ugc_content_engine",
             "sub_swarm_mind_ui",
@@ -104,6 +108,7 @@ FEATURE_SECTIONS: list[dict[str, Any]] = [
             "api_keys_settings",
             "ai_harness_dashboard",
             "pattern_explorer",
+            "self_extending_tool_marketplace",
             "audit_settings",
             "enterprise_workspace",
         ],
@@ -118,6 +123,7 @@ FEATURE_SECTIONS: list[dict[str, Any]] = [
 
 FEATURE_LABELS: dict[str, str] = {
     "dashboard": "Dashboard",
+    "operator_cockpit": "Hive Cockpit (Control Plane)",
     "swarms": "Swarms",
     "costs": "Costs & usage",
     "monitoring": "Advanced monitoring",
@@ -132,6 +138,7 @@ FEATURE_LABELS: dict[str, str] = {
     "knowledge": "Knowledge hub",
     "integrations": "Integrations hub",
     "connectors": "Connectors / MCP",
+    "execution_studio": "Execution Studio",
     "plugins": "Plugins lattice",
     "external_projects": "External projects",
     "skills_marketplace": "Skills marketplace",
@@ -151,6 +158,7 @@ FEATURE_LABELS: dict[str, str] = {
     "slack_harness_trainer": "Slack harness trainer — feedback → behavioral memory",
     "lsp_mcp_bridge": "LSP + MCP symbol bridge for coder sub-agents",
     "rubric_templates": "Subjective output rubric templates (design, copy, UX)",
+    "self_extending_tool_marketplace": "Forager scan → one-click MCP preset install",
     "venice_mcp_preset": "Venice AI MCP preset + unified Tool Hub",
     "ballroom": "Realtime Ballroom",
     "settings": "Settings shell",
@@ -171,6 +179,7 @@ FEATURE_LABELS: dict[str, str] = {
 # Single source of truth — keep in sync with frontend/lib/platform-features.ts
 _FEATURE_CATALOG: dict[str, dict[str, Any]] = {
     "dashboard": {"internal": True, "commercial": True},
+    "operator_cockpit": {"internal": True, "commercial": True},
     "swarms": {"internal": True, "commercial": True},
     "agents": {"internal": True, "commercial": True},
     "foragers": {"internal": True, "commercial": True, "min_tier": TIER_PRO},
@@ -190,6 +199,7 @@ _FEATURE_CATALOG: dict[str, dict[str, Any]] = {
     "external_projects": {"internal": True, "commercial": True, "min_tier": TIER_PRO},
     "plugins": {"internal": True, "commercial": True},
     "connectors": {"internal": True, "commercial": True},
+    "execution_studio": {"internal": True, "commercial": True},
     "skills_marketplace": {"internal": True, "commercial": True, "min_tier": TIER_PRO},
     "skills_export_factory": {"internal": True, "commercial": False},
     "product_mission": {"internal": True, "commercial": False},
@@ -208,6 +218,7 @@ _FEATURE_CATALOG: dict[str, dict[str, Any]] = {
     "slack_harness_trainer": {"internal": True, "commercial": True, "min_tier": TIER_PRO},
     "lsp_mcp_bridge": {"internal": True, "commercial": True, "min_tier": TIER_PRO},
     "rubric_templates": {"internal": True, "commercial": True, "min_tier": TIER_PRO},
+    "self_extending_tool_marketplace": {"internal": True, "commercial": True, "min_tier": TIER_PRO},
     "team_rbac": {"internal": False, "commercial": True},
     "billing_settings": {"internal": False, "commercial": True},
     "sharing_settings": {"internal": False, "commercial": True},
@@ -357,6 +368,13 @@ def resolve_platform_features(
     resolved["platform_features_admin"] = bool(is_admin and mode == "internal")
     resolved["accounts_admin"] = bool(is_admin and mode == "internal")
     resolved["command_center_admin"] = bool(is_admin and mode == "internal")
+
+    if settings.solo_mode_enabled:
+        resolved = apply_solo_mode_overrides(
+            resolved,
+            policy_overrides=overrides,
+            is_admin=is_admin,
+        )
     return resolved
 
 

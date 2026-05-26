@@ -1,5 +1,7 @@
 /** Routes prefetched after idle — warms JS chunks for common operator navigation. */
 export const HIVE_IDLE_PREFETCH_ROUTES: readonly string[] = [
+  "/cockpit",
+  "/oracle",
   "/agents",
   "/tasks",
   "/swarms",
@@ -8,7 +10,6 @@ export const HIVE_IDLE_PREFETCH_ROUTES: readonly string[] = [
   "/workflows",
   "/knowledge",
   "/foragers",
-  "/costs",
   "/monitoring",
   "/jobs",
   "/simulations",
@@ -16,5 +17,21 @@ export const HIVE_IDLE_PREFETCH_ROUTES: readonly string[] = [
   "/external-projects",
   "/plugins",
   "/design-system",
+  /* Settings hub — warm all tabs so section switches feel like dashboard layout modal */
+  "/settings",
   "/settings/security",
+  "/settings/costs",
+  "/settings/audit",
+  "/settings/llm-keys",
+  "/settings/platform",
+  "/settings/harness",
+  "/settings/accounts",
+  "/settings/command-center",
+  "/settings/capabilities",
+  "/settings/api-keys",
+  "/settings/billing",
+  "/settings/enterprise",
+  "/settings/sharing",
+  "/settings/team",
+  "/settings/notifications",
 ];

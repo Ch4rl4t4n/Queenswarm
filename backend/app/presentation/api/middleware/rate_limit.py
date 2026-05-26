@@ -17,6 +17,7 @@ from app.common.http.rate_limit import (
     rate_limit_unavailable_http_exception,
     retry_after_header,
 )
+from app.application.services.session_policy_config import read_cached_tenant_rate_limits
 from app.core.config import settings
 from app.core.jwt_tokens import decode_jwt_optional_typ
 from app.core.logging import get_logger
@@ -26,6 +27,13 @@ from app.core.redis_client import increment_minute_counter, sliding_window_reser
 logger = get_logger(__name__)
 
 _RATE_KEY_PREFIX = "queenswarm:rl"
+
+_TRUSTED_INTERNAL_NETWORKS: tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...] = (
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("::1/128"),
+)
 
 
 def _normalize_candidate_ip(raw: str) -> str:
@@ -80,15 +88,45 @@ def _dashboard_access_token_from_cookie_header(cookie_header: str | None) -> str
     return None
 
 
+def _dashboard_bearer_token(request: Request) -> str | None:
+    """Return raw dashboard bearer JWT from Authorization header or session cookie."""
+
+    raw = request.headers.get("authorization", "").strip()
+    if raw.lower().startswith("bearer "):
+        token = raw[7:].strip()
+        if token:
+            return token
+    return _dashboard_access_token_from_cookie_header(request.headers.get("cookie"))
+
+
+def _bearer_rate_bucket(request: Request) -> str | None:
+    """Return opaque principal bucket when a bearer/cookie token is present."""
+
+    token = _dashboard_bearer_token(request)
+    if not token:
+        return None
+    digest = hmac.new(
+        settings.secret_key.encode("utf-8"),
+        token.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    return f"bearer:{digest[:32]}"
+
+
+def _is_trusted_internal_peer(ip_label: str) -> bool:
+    """Return True for Docker/private relay peers (Next.js proxy → FastAPI)."""
+
+    try:
+        addr = ipaddress.ip_address(ip_label)
+    except ValueError:
+        return False
+    return any(addr in network for network in _TRUSTED_INTERNAL_NETWORKS)
+
+
 def _extract_bearer_subject(request: Request) -> str | None:
     """Decode bearer or dashboard cookie subject for optional authenticated user throttles."""
 
-    token: str | None = None
-    raw = request.headers.get("authorization", "").strip()
-    if raw.lower().startswith("bearer "):
-        token = raw[7:].strip() or None
-    if not token:
-        token = _dashboard_access_token_from_cookie_header(request.headers.get("cookie"))
+    token = _dashboard_bearer_token(request)
     if not token:
         return None
     try:
@@ -99,6 +137,23 @@ def _extract_bearer_subject(request: Request) -> str | None:
     if not isinstance(subject, str):
         return None
     trimmed = subject.strip()
+    return trimmed if trimmed else None
+
+
+def _extract_bearer_tenant_id(request: Request) -> str | None:
+    """Return tenant_id claim from dashboard JWT when present."""
+
+    token = _dashboard_bearer_token(request)
+    if not token:
+        return None
+    try:
+        payload = decode_jwt_optional_typ(token, verify_exp=False)
+    except Exception:  # noqa: BLE001
+        return None
+    tenant_id = payload.get("tenant_id")
+    if not isinstance(tenant_id, str):
+        return None
+    trimmed = tenant_id.strip()
     return trimmed if trimmed else None
 
 
@@ -161,6 +216,21 @@ def _is_api_task_create_post(path: str, method: str) -> bool:
     if method.upper() != "POST":
         return False
     return path.rstrip("/").endswith("/tasks")
+
+
+def _is_auth_session_route(path: str) -> bool:
+    """Return ``True`` for dashboard login/refresh routes (must not share frontend relay IP bucket)."""
+
+    norm = path.rstrip("/")
+    return norm.endswith(
+        (
+            "/auth/refresh",
+            "/auth/login",
+            "/auth/verify-2fa",
+            "/auth/totp/verify",
+            "/auth/logout",
+        )
+    )
 
 
 def _retry_after_headers(window_sec: float) -> dict[str, str]:
@@ -240,6 +310,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             or path.startswith("/static")
             or path.startswith("/api/docs")
             or path.startswith("/api/openapi")
+            or path.startswith("/api/v1/operator/telegram/webhook/")
+            or path.startswith("/api/v1/public/proof/")
+            or _is_auth_session_route(path)
         ):
             return await call_next(request)
 
@@ -250,8 +323,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         rl_log = logger.bind(agent_id="rate_limit_gate", swarm_id="", task_id="")
         user_limits_active = settings.rate_limit_user_enabled or settings.production_security_mode
         auth_subject = _extract_bearer_subject(request) if user_limits_active else None
-        # Dashboard cockpit polls many read endpoints — authenticated operators use per-user limits only.
-        skip_peer_limits = bool(auth_subject and user_limits_active)
+        bearer_bucket = _bearer_rate_bucket(request) if user_limits_active else None
+        rate_principal = auth_subject or bearer_bucket
+        internal_relay = _is_trusted_internal_peer(ip_label)
+        # Dashboard polls many read endpoints — never share one IP bucket for authenticated traffic.
+        skip_peer_limits = bool(user_limits_active and (rate_principal or internal_relay))
 
         if not skip_peer_limits:
             try:
@@ -348,14 +424,24 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     window_sec=settings.rate_limit_task_create_window_sec,
                 )
 
-        if user_limits_active and auth_subject:
-            sub_bucket = _subject_rate_bucket(auth_subject)
+        if user_limits_active and rate_principal:
+            tenant_rate = await read_cached_tenant_rate_limits(_extract_bearer_tenant_id(request) or "")
+            if tenant_rate is not None and not tenant_rate[0]:
+                return await call_next(request)
+
+            user_limit = settings.rate_limit_user_sustain_max
+            user_window = settings.rate_limit_user_sustain_window_sec
+            if tenant_rate is not None:
+                user_limit = tenant_rate[1]
+                user_window = tenant_rate[2]
+
+            sub_bucket = _subject_rate_bucket(rate_principal)
             endpoint_bucket = _endpoint_rate_bucket(method=request.method, path=path)
             try:
                 user_ok = await sliding_window_reserve(
                     f"{_RATE_KEY_PREFIX}:user:{sub_bucket}",
-                    limit=settings.rate_limit_user_sustain_max,
-                    window_sec=settings.rate_limit_user_sustain_window_sec,
+                    limit=user_limit,
+                    window_sec=user_window,
                 )
                 endpoint_ok = await sliding_window_reserve(
                     f"{_RATE_KEY_PREFIX}:user_endpoint:{sub_bucket}:{endpoint_bucket}",
@@ -392,7 +478,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 return _rate_limited_response(
                     "User rate limit exceeded. Retry later.",
                     window_sec=max(
-                        settings.rate_limit_user_sustain_window_sec,
+                        user_window,
                         settings.rate_limit_user_endpoint_window_sec,
                     ),
                 )
