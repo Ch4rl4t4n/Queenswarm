@@ -284,7 +284,7 @@ test.describe("Phase 6.1 supervisor control plane + routines", () => {
     }
 
     await expect(page.getByText("Dynamic supervisor sessions")).toBeVisible();
-    await expect(page.getByText("needs_input").first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/needs[_ ]input/i).first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("button", { name: "Approve" }).first()).toBeVisible({ timeout: 15_000 });
 
     await dismissSessionDetailDrawerIfOpen(page);

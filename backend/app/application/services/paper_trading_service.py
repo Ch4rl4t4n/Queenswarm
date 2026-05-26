@@ -233,8 +233,34 @@ async def _record_fill(
 ) -> PaperTradingFill | None:
     """Persist fill after TradingManager risk gate passes."""
 
-    mgr = TradingManager()
+    from app.application.services.trading_risk_validator import TradingRiskInput, validate_trading_risk
+
+    project_settings = _project_settings(project)
     notional = quantity * price
+    risk = validate_trading_risk(
+        TradingRiskInput(
+            symbol=symbol,
+            side=side,
+            quantity=quantity,
+            price_usd=price,
+            confidence=confidence,
+            notional_usd=notional,
+            is_halted=account.is_halted,
+            halt_reason=account.halt_reason,
+            daily_realized_pnl_usd=float(account.daily_realized_pnl_usd),
+        ),
+        project_settings=project_settings,
+    )
+    if not risk.allowed:
+        logger.info(
+            "paper_trading.risk_blocked",
+            project_id=str(project.id),
+            symbol=symbol,
+            reasons=risk.reasons,
+        )
+        return None
+
+    mgr = TradingManager()
     outcome = await mgr.handle(
         action="execute_trade",
         payload={
@@ -354,6 +380,33 @@ async def run_paper_trading_tick_for_project(
     )
     await _maybe_halt_on_daily_loss(account, project_settings)
 
+    if fill is not None:
+        try:
+            from app.application.services.trade_to_content import create_publish_draft_from_paper_fill
+
+            await create_publish_draft_from_paper_fill(session, fill=fill, project=project)
+        except Exception as content_exc:  # noqa: BLE001
+            logger.warning(
+                "paper_trading.trade_to_content_failed",
+                project_id=str(project.id),
+                error=str(content_exc)[:200],
+            )
+        try:
+            from app.application.services.trading_cockpit_notify import notify_trading_paper_fill
+
+            await notify_trading_paper_fill(
+                session,
+                fill=fill,
+                project=project,
+                dashboard_user_id=project.owner_dashboard_user_id,
+            )
+        except Exception as notify_exc:  # noqa: BLE001
+            logger.warning(
+                "paper_trading.notify_failed",
+                project_id=str(project.id),
+                error=str(notify_exc)[:200],
+            )
+
     logger.info(
         "paper_trading.tick_complete",
         project_id=str(project.id),
@@ -422,11 +475,72 @@ async def build_dashboard_paper_summary(session: AsyncSession) -> dict[str, Any]
     }
 
 
+async def deposit_paper_cash(
+    session: AsyncSession,
+    *,
+    project: ExternalProject,
+    amount_usd: float,
+) -> dict[str, Any]:
+    """Add simulated capital to a paper trading project ledger."""
+
+    if not _is_paper_project(project):
+        msg = "Paper deposit only allowed for paper-mode trading projects."
+        raise ValueError(msg)
+    if amount_usd <= 0 or amount_usd > 1_000_000:
+        msg = "Deposit amount must be between 0 and 1_000_000 USD."
+        raise ValueError(msg)
+
+    account = await get_or_create_account(session, project=project)
+    account.cash_usd = _d(float(account.cash_usd) + amount_usd)
+    logger.info(
+        "paper_trading.deposit",
+        project_id=str(project.id),
+        amount_usd=amount_usd,
+        cash_usd=float(account.cash_usd),
+    )
+    return {
+        "project_id": str(project.id),
+        "deposited_usd": round(amount_usd, 2),
+        "cash_usd": float(account.cash_usd),
+        "mode": "paper",
+    }
+
+
+async def reset_paper_account(
+    session: AsyncSession,
+    *,
+    project: ExternalProject,
+) -> dict[str, Any]:
+    """Reset paper cash to starting balance and clear halt flags (fills retained for audit)."""
+
+    if not _is_paper_project(project):
+        msg = "Paper reset only allowed for paper-mode trading projects."
+        raise ValueError(msg)
+
+    settings_blob = _project_settings(project)
+    starting = float(settings_blob.get("starting_cash_usd") or settings.paper_trading_default_cash_usd)
+    account = await get_or_create_account(session, project=project)
+    account.cash_usd = _d(starting)
+    account.realized_pnl_usd = _d(0)
+    account.daily_realized_pnl_usd = _d(0)
+    account.is_halted = False
+    account.halt_reason = None
+    account.daily_pnl_reset_at = datetime.now(tz=UTC)
+    return {
+        "project_id": str(project.id),
+        "cash_usd": starting,
+        "mode": "paper",
+        "message": "Paper cash reset — fill history kept for stats.",
+    }
+
+
 __all__ = [
     "build_dashboard_paper_summary",
     "build_portfolio_snapshot",
+    "deposit_paper_cash",
     "get_or_create_account",
     "list_paper_trading_projects",
+    "reset_paper_account",
     "run_paper_trading_tick_all",
     "run_paper_trading_tick_for_project",
 ]

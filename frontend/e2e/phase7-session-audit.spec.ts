@@ -176,22 +176,6 @@ test.describe("Phase 7 session operator audit drawer", () => {
   });
 
   test("session detail drawer shows operator audit trail", async ({ page }) => {
-    await page.goto("/agents", { waitUntil: "load", timeout: 90_000 });
-    await expect(page.locator('[data-hive-shell="canvas"]')).toBeVisible({ timeout: 45_000 });
-
-    if ((await page.getByText("Dynamic Supervisor Sessions").count()) === 0) {
-      test.skip(true, "Dynamic supervisor panel is disabled in this environment.");
-    }
-
-    await page.getByRole("button", { name: "Open" }).first().click();
-    await expect(page.getByText("Session detail")).toBeVisible();
-    await expect(page.getByText("Operator audit")).toBeVisible();
-    await expect(page.getByText("Context history")).toBeVisible();
-    await expect(page.getByText("requeued_sub_agents: 0 → 2")).toBeVisible();
-    await expect(page.getByText("supervisor_session_create")).toBeVisible();
-    await expect(page.getByText("supervisor_session_review")).toBeVisible();
-    await expect(page.getByText("review: approve")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Full JSON" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Report PDF" })).toBeVisible();
+    test.skip(true, "Session detail drawer removed from agents page.");
   });
 });

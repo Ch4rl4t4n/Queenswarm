@@ -221,6 +221,20 @@ async def connectors_oauth_refresh(
             headers=no_store_cache_headers(),
         ) from exc
     await vault_upsert_credential(db, slug=body.connector_slug.strip().lower(), user_id=uid, payload=payload)
+
+    from app.infrastructure.connectors.dynamic.credential_sync import (
+        hub_secrets_from_vault_envelope,
+        persist_hub_secrets_from_inbound,
+    )
+    from app.infrastructure.connectors.dynamic.service import DynamicConnectorService
+
+    refreshed_inbound = hub_secrets_from_vault_envelope(payload.to_envelope())
+    if refreshed_inbound is not None:
+        svc = DynamicConnectorService()
+        row = await svc.fetch_by_slug(db, slug=body.connector_slug.strip().lower())
+        if row is not None and row.dashboard_user_id == uid:
+            await persist_hub_secrets_from_inbound(db, row, secrets=refreshed_inbound)
+
     apply_no_store_cache_headers(response)
     return OAuthRefreshResponse(
         ok=True,

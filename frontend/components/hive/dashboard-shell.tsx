@@ -11,7 +11,9 @@ import { BallroomFab } from "@/components/hive/ballroom-fab";
 import { HiveMobileHeader } from "@/components/hive/hive-mobile-header";
 import { HiveMobileHeaderActionsProvider } from "@/components/hive/hive-mobile-header-actions";
 import { HiveMoreSheet } from "@/components/hive/hive-more-sheet";
+import { HotRouteChunkWarmer } from "@/components/hive/hot-route-chunk-warmer";
 import { IdleRoutePrefetcher } from "@/components/hive/idle-route-prefetcher";
+import { resyncExecutionStudioPushIfEnabled } from "@/lib/execution-studio-push-session-sync";
 import { HiveSidebar } from "@/components/hive/hive-sidebar";
 import { PlatformProvider } from "@/components/hive/platform-context";
 import { PlatformRouteGuard } from "@/components/hive/platform-route-guard";
@@ -52,7 +54,6 @@ function useDesktopHiveShortcuts(router: ReturnType<typeof useRouter>): void {
       }
       e.preventDefault();
       router.push(href);
-      router.refresh();
     };
 
     window.addEventListener("keydown", onKey);
@@ -123,9 +124,14 @@ export function DashboardShell({ children }: DashboardShellProps) {
     closeDrawer();
   }, [pathname, closeDrawer]);
 
+  useEffect(() => {
+    void resyncExecutionStudioPushIfEnabled();
+  }, []);
+
   return (
     <PlatformProvider>
       <IdleRoutePrefetcher />
+      <HotRouteChunkWarmer />
       <DashboardLayoutProvider>
         <HiveMobileHeaderActionsProvider>
         <div className="relative z-[1] flex min-h-screen min-w-0 bg-transparent text-[var(--qs-text)]">
@@ -144,7 +150,8 @@ export function DashboardShell({ children }: DashboardShellProps) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ tenant_id: tenantId }),
               })
-                .then(() => {
+                .then(async () => {
+                  await resyncExecutionStudioPushIfEnabled();
                   router.refresh();
                   window.location.reload();
                 })

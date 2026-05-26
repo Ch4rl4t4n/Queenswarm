@@ -40,6 +40,9 @@ class _FakeDb:
         filtered = [row for row in self.rows if isinstance(row, AgentSuggestion)]
         return _ScalarRows(filtered)
 
+    async def get(self, _model, _key):  # noqa: ANN001
+        return None
+
 
 @pytest.mark.asyncio
 async def test_propose_agent_improvements_when_low_risk_then_auto_approved(monkeypatch) -> None:

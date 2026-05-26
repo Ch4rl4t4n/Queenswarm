@@ -19,6 +19,7 @@ describe("integrationsTabHref", () => {
 
   it("appends scroll hash when requested", () => {
     expect(integrationsTabHref("active", "ecosystem")).toBe("/integrations#ecosystem");
+    expect(integrationsTabHref("hub", "oauth-consent")).toBe("/integrations?tab=hub#oauth-consent");
   });
 });
 
@@ -33,6 +34,9 @@ describe("integrationsTabFromHash", () => {
 describe("integrationsScrollTargetFromHash", () => {
   it("returns ecosystem anchor id", () => {
     expect(integrationsScrollTargetFromHash("#ecosystem")).toBe("ecosystem");
+    expect(integrationsScrollTargetFromHash("#oauth-consent")).toBe("oauth-consent");
+    expect(integrationsScrollTargetFromHash("#social-publish")).toBe("social-publish");
+    expect(integrationsScrollTargetFromHash("#publish-queue")).toBe("publish-queue");
     expect(integrationsScrollTargetFromHash("#hub")).toBeNull();
   });
 });

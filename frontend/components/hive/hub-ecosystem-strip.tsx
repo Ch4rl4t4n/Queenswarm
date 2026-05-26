@@ -6,6 +6,7 @@ import { Hexagon, LayoutDashboard, ListTodo, Mic, Plug, Users } from "lucide-rea
 import type { JSX } from "react";
 
 import { hubEcosystemLanes, type HubEcosystemPreset } from "@/lib/hub-ecosystem-lanes";
+import { hiveOverviewHref } from "@/lib/hive-home-route";
 import { useCenterActiveInScrollRow } from "@/lib/hooks/use-center-active-in-scroll-row";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +18,7 @@ const PRESET_KICKER: Record<
   agents: { icon: Users, label: "Ecosystem", href: "/agents" },
   tasks: { icon: ListTodo, label: "Ecosystem", href: "/tasks" },
   knowledge: { icon: Hexagon, label: "Ecosystem", href: "/knowledge" },
-  dashboard: { icon: LayoutDashboard, label: "Ecosystem", href: "/" },
+  dashboard: { icon: LayoutDashboard, label: "Ecosystem", href: hiveOverviewHref() },
   integrations: { icon: Plug, label: "Ecosystem", href: "/integrations" },
 };
 
@@ -29,8 +30,8 @@ interface HubEcosystemStripProps {
 
 function laneIsActive(pathname: string, href: string): boolean {
   const base = href.split("#")[0] ?? href;
-  if (base === "/") {
-    return pathname === "/";
+  if (base === "/" || base === "/cockpit" || base === "/dashboard") {
+    return pathname === base;
   }
   return pathname === base || pathname.startsWith(`${base}/`);
 }

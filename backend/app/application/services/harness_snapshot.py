@@ -13,6 +13,7 @@ from app.application.services.harness_tech_health import build_tech_health_repor
 from app.application.services.forager_intelligence import build_forager_intelligence_status
 from app.application.services.rubric_templates import list_rubric_templates
 from app.application.services.queen_maintainer.post_merge_webhook import webhook_status_payload
+from app.application.services.self_extending_marketplace import self_extending_marketplace_status
 from app.core.repo_root import resolve_repo_root
 from app.application.services.pattern_telemetry_service import build_pattern_telemetry
 from app.application.services.supervisor.skills import SkillLibrary
@@ -210,6 +211,7 @@ async def build_harness_snapshot(
             "list_path": "/api/v1/harness/rubric-templates",
         },
         "forager_intelligence": build_forager_intelligence_status(),
+        "self_extending_marketplace": self_extending_marketplace_status(),
         "queen_maintainer": {
             "enabled": settings.queen_maintainer_enabled,
             "post_merge_webhook": webhook_status_payload(),

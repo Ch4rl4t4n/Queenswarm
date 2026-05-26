@@ -22,7 +22,6 @@ import {
   V4Card,
   V4CardHeader,
   V4Chip,
-  V4SearchInput,
   V4PageCanvas,
   type V4BadgeTone,
 } from "@/components/ui/v4";
@@ -142,14 +141,13 @@ function buildTierRows(summary: DashboardSummaryPayload | null): { label: string
   });
 }
 
-export function TasksPageClient({ initialQuery = "" }: { initialQuery?: string }) {
+export function TasksPageClient() {
   const [queue, setQueue] = useState<TaskQueueResponse | null>(null);
   const [summary, setSummary] = useState<DashboardSummaryPayload | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState<FilterTab>("all");
   const filterScrollRef = useCenterActiveInScrollRow(filter);
-  const [query, setQuery] = useState(initialQuery);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
@@ -182,15 +180,7 @@ export function TasksPageClient({ initialQuery = "" }: { initialQuery?: string }
   const tasks = queue?.tasks ?? [];
   const activeCount = (queue?.running_count ?? 0) + (queue?.pending_count ?? 0);
 
-  const filteredTasks = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return tasks.filter((task) => {
-      if (!matchesFilter(task, filter)) return false;
-      if (!q) return true;
-      const hay = `${task.title} ${task.short_id} ${task.lane} ${task.status} ${task.swarm_label}`.toLowerCase();
-      return hay.includes(q);
-    });
-  }, [tasks, filter, query]);
+  const filteredTasks = useMemo(() => tasks.filter((task) => matchesFilter(task, filter)), [tasks, filter]);
 
   const tierRows = buildTierRows(summary);
   const recentTasks = tasks.slice(0, 6);
@@ -246,13 +236,6 @@ export function TasksPageClient({ initialQuery = "" }: { initialQuery?: string }
       />
 
       <HubEcosystemStrip preset="tasks" />
-
-      <V4SearchInput
-        value={query}
-        onChange={setQuery}
-        placeholder="Filter tasks by name, swarm, status…"
-        aria-label="Filter tasks"
-      />
 
       <div className="v4-mobile-card-slider v4-mobile-card-slider--cols-3">
         {topLanes.map((lane) => {

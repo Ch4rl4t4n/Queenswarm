@@ -15,7 +15,13 @@ from app.presentation.api.middleware import rate_limit as rate_limit_middleware
 from app.presentation.api.middleware.rate_limit import _rate_limited_response, _retry_after_headers, RateLimitMiddleware
 
 
-def _request(*, path: str, method: str = "GET") -> Request:
+def _request(
+    *,
+    path: str,
+    method: str = "GET",
+    client_host: str = "203.0.113.10",
+    headers: list[tuple[bytes, bytes]] | None = None,
+) -> Request:
     """Build minimal HTTP request for middleware dispatch testing."""
 
     scope: dict[str, object] = {
@@ -28,9 +34,9 @@ def _request(*, path: str, method: str = "GET") -> Request:
         "root_path": "",
         "scheme": "https",
         "query_string": b"",
-        "headers": [],
+        "headers": headers or [],
         "state": {},
-        "client": ("203.0.113.10", 44321),
+        "client": (client_host, 44321),
     }
     return Request(scope)
 
@@ -232,3 +238,53 @@ async def test_rate_limit_middleware_when_redis_fails_and_production_mode_blocks
     response = await middleware.dispatch(request, call_next)
     assert response.status_code == 503
     assert response.headers.get("Retry-After") == "60"
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_middleware_skips_peer_limits_for_internal_relay(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Next.js proxy traffic from Docker must not share one public IP burst bucket."""
+
+    monkeypatch.setattr(settings, "rate_limit_enabled", True)
+    monkeypatch.setattr(settings, "production_security_mode", True)
+    reserve = AsyncMock(return_value=True)
+    monkeypatch.setattr(rate_limit_middleware, "sliding_window_reserve", reserve)
+
+    middleware = RateLimitMiddleware(app=lambda scope, receive, send: None)
+    request = _request(path="/api/v1/dashboard/cockpit", client_host="172.18.0.10")
+
+    async def call_next(_: Request) -> Response:
+        return Response(status_code=200)
+
+    response = await middleware.dispatch(request, call_next)
+    assert response.status_code == 200
+    assert not any(
+        call.args[0].endswith(":burst:172.18.0.10") or call.args[0].endswith(":sustain:172.18.0.10")
+        for call in reserve.await_args_list
+    )
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_middleware_skips_peer_limits_when_bearer_present(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Authenticated dashboard traffic uses per-token buckets, not shared client IP."""
+
+    monkeypatch.setattr(settings, "rate_limit_enabled", True)
+    monkeypatch.setattr(settings, "production_security_mode", True)
+    reserve = AsyncMock(return_value=True)
+    monkeypatch.setattr(rate_limit_middleware, "sliding_window_reserve", reserve)
+
+    middleware = RateLimitMiddleware(app=lambda scope, receive, send: None)
+    request = _request(
+        path="/api/v1/auth/me",
+        headers=[(b"authorization", b"Bearer not-a-valid-jwt-but-present")],
+    )
+
+    async def call_next(_: Request) -> Response:
+        return Response(status_code=200)
+
+    response = await middleware.dispatch(request, call_next)
+    assert response.status_code == 200
+    assert not any(":burst:" in call.args[0] for call in reserve.await_args_list)

@@ -3,18 +3,18 @@
 import type { JSX } from "react";
 
 import Link from "next/link";
-import { CheckCircle2, Play, Plus, RefreshCw } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { CheckCircle2, Info, Play, Plus, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
 
 import { BrowserHarnessPanel } from "@/components/hive/browser-harness-panel";
 import { AgentsPanelSkeleton } from "@/components/hive/agents-panel-skeleton";
+import { AgentSessionReportDialog } from "@/components/hive/agent-session-report-dialog";
 import { InfoHint } from "@/components/hive/info-hint";
 import { VoiceSessionControls } from "@/components/hive/voice-session-controls";
-import { AgentSessionDetailDrawer } from "@/components/hive/agent-session-detail-drawer";
-import { AgentSessionEventLog } from "@/components/hive/agent-session-event-log";
-import { AgentSessionInteractForm } from "@/components/hive/agent-session-interact-form";
+import { usePlatform } from "@/components/hive/platform-context";
 import { QsSelect } from "@/components/ui/qs-select";
 import {
   V4Badge,
@@ -24,17 +24,18 @@ import {
   V4IconBolt,
   V4Stat,
 } from "@/components/ui/v4";
-import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
+import { HiveApiError, hiveDelete, hiveGet, hivePostJson } from "@/lib/api";
 import { COCKPIT_POLL_BOARD_MS } from "@/lib/cockpit-poll-profile";
 import { integrationsTabHref } from "@/lib/integrations-routes";
-import { useSwrVisiblePollOptions } from "@/lib/hooks/use-swr-refresh-interval";
+import { useRouteScopedPollOptions } from "@/lib/hooks/use-route-scoped-poll";
 import type {
   SupervisorControlSummaryRow,
   SupervisorRoutineRow,
-  SupervisorSessionEventRow,
   SupervisorSessionRow,
 } from "@/lib/hive-types";
-import { runtimeModeLabel, sessionStatusTone } from "@/lib/supervisor-session";
+import type { SoloSessionPreset, SoloSessionPresetsResponse } from "@/lib/solo-session-presets";
+import { SOLO_PRESET_LANE_LABEL } from "@/lib/solo-session-presets";
+import { runtimeModeLabel, sessionGoalPreview, sessionStatusTone, supervisorSessionBallroomHref, isActiveSupervisorSession } from "@/lib/supervisor-session";
 import {
   playbookRecipeIdFromContext,
   playbookWasAutoSavedOnReview,
@@ -87,14 +88,18 @@ function sessionStatusBadgeTone(status: string): "info" | "warn" | "ok" | "gold"
 
 interface AgentsSessionsPanelProps {
   variant?: "default" | "v4";
-  onFocusSessionChange?: (session: SupervisorSessionRow | null) => void;
 }
 
-export function AgentsSessionsPanel({ variant = "default", onFocusSessionChange }: AgentsSessionsPanelProps): JSX.Element {
+export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanelProps): JSX.Element {
+  const { soloMode } = usePlatform();
+  const searchParams = useSearchParams();
   const [goal, setGoal] = useState("");
   const [runtimeMode, setRuntimeMode] = useState<"inprocess" | "durable">("inprocess");
+  const [sessionRoles, setSessionRoles] = useState<string[]>([...ROLE_OPTIONS]);
+  const [sessionSkills, setSessionSkills] = useState<string[]>(["context", "decide", "tdd"]);
+  const [sessionRetrieval, setSessionRetrieval] = useState("customer_history+policy+last_3_tasks");
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [reviewBusy, setReviewBusy] = useState<string | null>(null);
   const [routineName, setRoutineName] = useState("");
   const [routineGoal, setRoutineGoal] = useState("");
@@ -102,11 +107,12 @@ export function AgentsSessionsPanel({ variant = "default", onFocusSessionChange 
   const [routineBusy, setRoutineBusy] = useState(false);
   const [sessionQuery, setSessionQuery] = useState("");
   const [sessionStatusFilter, setSessionStatusFilter] = useState<SessionStatusFilter>("all");
-  const [detailDrawerDismissed, setDetailDrawerDismissed] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState<string | null>(null);
+  const [clearAllBusy, setClearAllBusy] = useState(false);
+  const [reportSessionId, setReportSessionId] = useState<string | null>(null);
 
-  const sessionsPoll = useSwrVisiblePollOptions(COCKPIT_POLL_BOARD_MS);
-  const routinesPoll = useSwrVisiblePollOptions(COCKPIT_POLL_BOARD_MS * 1.5);
-  const eventsPoll = useSwrVisiblePollOptions(selectedSessionId ? COCKPIT_POLL_BOARD_MS : 0);
+  const sessionsPoll = useRouteScopedPollOptions(COCKPIT_POLL_BOARD_MS, "/agents");
+  const routinesPoll = useRouteScopedPollOptions(COCKPIT_POLL_BOARD_MS * 1.5, "/agents");
 
   const {
     data: rawSessions = [],
@@ -126,16 +132,45 @@ export function AgentsSessionsPanel({ variant = "default", onFocusSessionChange 
     routinesPoll,
   );
   const routines = Array.isArray(rawRoutines) ? rawRoutines : [];
-  const { data: summary } = useSWR<SupervisorControlSummaryRow>(
+  const { data: summary, mutate: mutateSummary } = useSWR<SupervisorControlSummaryRow>(
     "hive/agent-sessions-summary",
     () => hiveGet<SupervisorControlSummaryRow>("agents/sessions/summary"),
     sessionsPoll,
   );
 
-  const selected = useMemo(
-    () => sessions.find((session) => session.id === selectedSessionId) ?? null,
-    [sessions, selectedSessionId],
+  const { data: soloPresets } = useSWR<SoloSessionPresetsResponse>(
+    soloMode ? "hive/solo-session-presets" : null,
+    () => hiveGet<SoloSessionPresetsResponse>("solo-operator/session-presets"),
+    { revalidateOnFocus: false },
   );
+
+  function applySessionPreset(preset: SoloSessionPreset): void {
+    setGoal(preset.goal);
+    setRuntimeMode(preset.runtime_mode);
+    setSessionRoles(preset.roles.length > 0 ? preset.roles : [...ROLE_OPTIONS]);
+    setSessionSkills(preset.skills.length > 0 ? preset.skills : ["context", "decide", "tdd"]);
+    setSessionRetrieval(preset.retrieval_contract || "customer_history+policy+last_3_tasks");
+    setActivePresetId(preset.id);
+  }
+
+  useEffect(() => {
+    if (!soloMode || !soloPresets?.presets?.length) {
+      return;
+    }
+    const presetParam = searchParams.get("preset")?.trim();
+    if (!presetParam || activePresetId === presetParam) {
+      return;
+    }
+    const match = soloPresets.presets.find((row) => row.id === presetParam);
+    if (match) {
+      applySessionPreset(match);
+    }
+  }, [soloMode, soloPresets, searchParams, activePresetId]);
+
+  async function refreshSessionsAndSummary(): Promise<void> {
+    await Promise.all([mutate(), mutateSummary()]);
+  }
+
   const filteredSessions = useMemo(() => {
     const q = sessionQuery.trim().toLowerCase();
     return sessions.filter((session) => {
@@ -153,54 +188,13 @@ export function AgentsSessionsPanel({ variant = "default", onFocusSessionChange 
     });
   }, [sessions, sessionQuery, sessionStatusFilter]);
 
-  useEffect(() => {
-    if (filteredSessions.length === 0) {
-      if (selectedSessionId !== null) {
-        setSelectedSessionId(null);
-      }
-      return;
-    }
-    const selectedStillVisible =
-      selectedSessionId !== null && filteredSessions.some((session) => session.id === selectedSessionId);
-    if (selectedStillVisible) {
-      return;
-    }
-    if (!detailDrawerDismissed) {
-      setSelectedSessionId(filteredSessions[0]?.id ?? null);
-      return;
-    }
-    if (selectedSessionId !== null) {
-      setSelectedSessionId(null);
-    }
-  }, [detailDrawerDismissed, filteredSessions, selectedSessionId]);
-
-  function focusSession(sessionId: string): void {
-    setDetailDrawerDismissed(false);
-    setSelectedSessionId(sessionId);
-  }
-
-  useEffect(() => {
-    onFocusSessionChange?.(selected);
-  }, [onFocusSessionChange, selected]);
-
-  const {
-    data: rawEvents = [],
-    mutate: mutateEvents,
-    isLoading: eventsLoading,
-  } = useSWR<SupervisorSessionEventRow[]>(
-    selected ? `hive/agent-sessions/${selected.id}/events` : null,
-    () => hiveGet<SupervisorSessionEventRow[]>(`agents/sessions/${selected?.id}/events?limit=120`),
-    eventsPoll,
-  );
-  const events = Array.isArray(rawEvents) ? rawEvents : [];
-
   async function createSession(): Promise<void> {
     const payload: CreateSessionPayload = {
       goal: goal.trim(),
       runtime_mode: runtimeMode,
-      roles: [...ROLE_OPTIONS],
-      retrieval_contract: "customer_history+policy+last_3_tasks",
-      skills: ["context", "decide", "tdd"],
+      roles: sessionRoles.length > 0 ? sessionRoles : [...ROLE_OPTIONS],
+      retrieval_contract: sessionRetrieval,
+      skills: sessionSkills.length > 0 ? sessionSkills : ["context", "decide", "tdd"],
     };
     if (payload.goal.length < 4) {
       toast.error("Goal is too short.");
@@ -208,10 +202,12 @@ export function AgentsSessionsPanel({ variant = "default", onFocusSessionChange 
     }
     setBusy(true);
     try {
-      const created = await hivePostJson<SupervisorSessionRow>("agents/sessions", payload);
+      await hivePostJson<SupervisorSessionRow>("agents/sessions", payload);
       setGoal("");
-      setDetailDrawerDismissed(false);
-      setSelectedSessionId(created.id);
+      setActivePresetId(null);
+      setSessionRoles([...ROLE_OPTIONS]);
+      setSessionSkills(["context", "decide", "tdd"]);
+      setSessionRetrieval("customer_history+policy+last_3_tasks");
       await mutate();
       toast.success("Supervisor session created.");
     } catch (e) {
@@ -228,7 +224,7 @@ export function AgentsSessionsPanel({ variant = "default", onFocusSessionChange 
         `agents/sessions/${sessionId}/control`,
         { action },
       );
-      await mutate();
+      await refreshSessionsAndSummary();
       const requeued = updated.context_summary?.requeued_sub_agents;
       if (action === "resume" && typeof requeued === "number" && requeued > 0) {
         toast.success(`Session resumed · ${requeued} sub-agent step(s) requeued`);
@@ -238,6 +234,69 @@ export function AgentsSessionsPanel({ variant = "default", onFocusSessionChange 
     } catch (e) {
       const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Control failed";
       toast.error(msg);
+    }
+  }
+
+  async function deleteSession(sessionId: string): Promise<void> {
+    setDeleteBusy(sessionId);
+    try {
+      await hiveDelete<{ deleted: boolean }>(`agents/sessions/${sessionId}`);
+      await refreshSessionsAndSummary();
+      toast.success("Session deleted.");
+    } catch (e) {
+      const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Delete failed";
+      toast.error(msg);
+    } finally {
+      setDeleteBusy(null);
+    }
+  }
+
+  async function clearAllSessions(): Promise<void> {
+    const targets = filteredSessions;
+    if (targets.length === 0) {
+      return;
+    }
+    const filterHint =
+      sessionStatusFilter !== "all" || sessionQuery.trim()
+        ? " z aktuálneho filtra"
+        : "";
+    const confirmed = window.confirm(
+      `Vymazať ${targets.length} session${targets.length === 1 ? "" : "s"}${filterHint}? Táto akcia sa nedá vrátiť.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+    setClearAllBusy(true);
+    try {
+      const isFullList =
+        sessionStatusFilter === "all" &&
+        !sessionQuery.trim() &&
+        targets.length === sessions.length;
+      if (isFullList) {
+        const result = await hiveDelete<{ deleted_count: number }>("agents/sessions");
+        await refreshSessionsAndSummary();
+        toast.success(`Vymazaných ${result.deleted_count} sessions.`);
+        return;
+      }
+      let deletedCount = 0;
+      for (const session of targets) {
+        try {
+          await hiveDelete<{ deleted: boolean }>(`agents/sessions/${session.id}`);
+          deletedCount += 1;
+        } catch (e) {
+          const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Delete failed";
+          toast.error(`${shortSessionId(session.id)}: ${msg}`);
+        }
+      }
+      await refreshSessionsAndSummary();
+      if (deletedCount > 0) {
+        toast.success(`Vymazaných ${deletedCount} sessions.`);
+      }
+    } catch (e) {
+      const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Clear all failed";
+      toast.error(msg);
+    } finally {
+      setClearAllBusy(false);
     }
   }
 
@@ -374,7 +433,7 @@ export function AgentsSessionsPanel({ variant = "default", onFocusSessionChange 
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-zinc-100">Dynamic Supervisor Sessions</h2>
+              <h2 className="text-lg font-semibold leading-snug text-zinc-100">Dynamic Supervisor Sessions</h2>
               <InfoHint
                 title="Dynamic Supervisor Sessions"
                 description="Control panel for Supervisor lifecycle, review decisions, and sub-agent orchestration."
@@ -445,6 +504,30 @@ export function AgentsSessionsPanel({ variant = "default", onFocusSessionChange 
       <div className={isV4 ? "mt-5" : "mt-4"}>
         <BrowserHarnessPanel />
       </div>
+
+      {soloMode && soloPresets?.presets?.length ? (
+        <div className={isV4 ? "mt-4" : "mt-3"}>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-(--qs-text-3)">
+            Solo quick-start
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {soloPresets.presets.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                className={
+                  activePresetId === preset.id
+                    ? "qs-btn qs-btn--primary qs-btn--sm"
+                    : "qs-btn qs-btn--ghost qs-btn--sm"
+                }
+                onClick={() => applySessionPreset(preset)}
+              >
+                {SOLO_PRESET_LANE_LABEL[preset.lane] ?? preset.lane}: {preset.label.split("—").pop()?.trim() ?? preset.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <div
         className={
@@ -525,7 +608,21 @@ export function AgentsSessionsPanel({ variant = "default", onFocusSessionChange 
         />
       </div>
 
-      <div className="mt-4 flex flex-col gap-3">
+      <div className="mt-4">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-(--qs-text-3)">
+            Sessions
+            {!isLoading && filteredSessions.length > 0 ? (
+              <span className="ml-2 font-normal normal-case tracking-normal text-(--qs-text-4)">
+                ({filteredSessions.length})
+              </span>
+            ) : null}
+          </p>
+          {!isLoading && filteredSessions.length > 5 ? (
+            <span className="text-[10px] text-(--qs-text-4)">Scroll for older</span>
+          ) : null}
+        </div>
+        <div className="v4-sessions-list-scroll hive-scrollbar">
         {isLoading ? (
           <AgentsPanelSkeleton rows={3} />
         ) : filteredSessions.length === 0 ? (
@@ -588,30 +685,46 @@ export function AgentsSessionsPanel({ variant = "default", onFocusSessionChange 
                       </Link>
                     ) : null}
                   </div>
-                  <p className="text-sm font-medium text-(--qs-text)">{session.goal}</p>
+                  <p className="v4-session-goal text-sm font-medium text-(--qs-text)" title={session.goal}>
+                    {sessionGoalPreview(session.goal)}
+                  </p>
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <span className="text-xs text-(--qs-text-3)">
                     {sessionRuntimeLabel(session)} · {(session.sub_agents ?? []).length} agents
                   </span>
-                  <button
-                    type="button"
-                    className="qs-btn qs-btn--ghost qs-btn--sm"
-                    onClick={() => focusSession(session.id)}
-                  >
-                    Open
-                  </button>
-                  <Link href={`/ballroom?session=${encodeURIComponent(session.id)}`} className="qs-btn qs-btn--ghost qs-btn--sm">
+                  <Link href={supervisorSessionBallroomHref(session.id)} className="qs-btn qs-btn--ghost qs-btn--sm">
                     Ballroom
                   </Link>
-                  <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void controlSession(session.id, "pause")}>
-                    Pause
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
+                    aria-label={`Session report ${shortSessionId(session.id)}`}
+                    onClick={() => setReportSessionId(session.id)}
+                  >
+                    <Info className="h-3.5 w-3.5" aria-hidden />
+                    Info
                   </button>
-                  <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void controlSession(session.id, "resume")}>
-                    Resume
-                  </button>
-                  <button type="button" className="qs-btn qs-btn--danger qs-btn--sm" onClick={() => void controlSession(session.id, "stop")}>
-                    Stop
+                  {isActiveSupervisorSession(session.status) ? (
+                    <>
+                      <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void controlSession(session.id, "pause")}>
+                        Pause
+                      </button>
+                      <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void controlSession(session.id, "resume")}>
+                        Resume
+                      </button>
+                      <button type="button" className="qs-btn qs-btn--danger qs-btn--sm" onClick={() => void controlSession(session.id, "stop")}>
+                        Stop
+                      </button>
+                    </>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--ghost qs-btn--sm text-(--qs-red)"
+                    disabled={deleteBusy === session.id}
+                    onClick={() => void deleteSession(session.id)}
+                  >
+                    {deleteBusy === session.id ? "Deleting…" : "Delete"}
                   </button>
                   {session.status === "needs_input" ? (
                     <>
@@ -647,7 +760,9 @@ export function AgentsSessionsPanel({ variant = "default", onFocusSessionChange 
               <div key={session.id} className="rounded-2xl border border-zinc-800 bg-black/25 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-zinc-100">{session.goal}</p>
+                    <p className="v4-session-goal truncate text-sm font-semibold text-zinc-100" title={session.goal}>
+                      {sessionGoalPreview(session.goal)}
+                    </p>
                     <p className="mt-1 text-xs text-zinc-500">
                       {runtimeModeLabel(session.runtime_mode)} · {session.status} · {(session.sub_agents ?? []).length} sub-agents
                     </p>
@@ -659,24 +774,38 @@ export function AgentsSessionsPanel({ variant = "default", onFocusSessionChange 
                         needs input
                       </span>
                     ) : null}
-                    <button
-                      type="button"
-                      className="qs-btn qs-btn--ghost qs-btn--sm"
-                      onClick={() => focusSession(session.id)}
-                    >
-                      Open
-                    </button>
-                    <Link href={`/ballroom?session=${encodeURIComponent(session.id)}`} className="qs-btn qs-btn--ghost qs-btn--sm">
+                    <Link href={supervisorSessionBallroomHref(session.id)} className="qs-btn qs-btn--ghost qs-btn--sm">
                       Ballroom
                     </Link>
-                    <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void controlSession(session.id, "pause")}>
-                      Pause
+                    <button
+                      type="button"
+                      className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
+                      aria-label={`Session report ${shortSessionId(session.id)}`}
+                      onClick={() => setReportSessionId(session.id)}
+                    >
+                      <Info className="h-3.5 w-3.5" aria-hidden />
+                      Info
                     </button>
-                    <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void controlSession(session.id, "resume")}>
-                      Resume
-                    </button>
-                    <button type="button" className="qs-btn qs-btn--danger qs-btn--sm" onClick={() => void controlSession(session.id, "stop")}>
-                      Stop
+                    {isActiveSupervisorSession(session.status) ? (
+                      <>
+                        <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void controlSession(session.id, "pause")}>
+                          Pause
+                        </button>
+                        <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void controlSession(session.id, "resume")}>
+                          Resume
+                        </button>
+                        <button type="button" className="qs-btn qs-btn--danger qs-btn--sm" onClick={() => void controlSession(session.id, "stop")}>
+                          Stop
+                        </button>
+                      </>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="qs-btn qs-btn--ghost qs-btn--sm text-(--qs-red)"
+                      disabled={deleteBusy === session.id}
+                      onClick={() => void deleteSession(session.id)}
+                    >
+                      {deleteBusy === session.id ? "Deleting…" : "Delete"}
                     </button>
                     <button
                       type="button"
@@ -708,53 +837,32 @@ export function AgentsSessionsPanel({ variant = "default", onFocusSessionChange 
             ),
           )
         )}
+        </div>
+        {filteredSessions.length > 0 ? (
+          <button
+            type="button"
+            className="qs-btn qs-btn--danger mt-3 w-full justify-center py-2.5 text-sm font-semibold disabled:opacity-45"
+            disabled={clearAllBusy || isLoading}
+            onClick={() => void clearAllSessions()}
+          >
+            {clearAllBusy
+              ? "Clearing…"
+              : sessionStatusFilter !== "all" || sessionQuery.trim()
+                ? `Clear filtered (${filteredSessions.length})`
+                : `Clear all (${filteredSessions.length})`}
+          </button>
+        ) : null}
       </div>
 
-      {selected ? (
-        <div className={isV4 ? "v4-learning-panel mt-6" : "mt-6 space-y-3 rounded-2xl border border-[color:var(--qs-border)] bg-black/25 p-4"}>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-(--qs-text-3)">Live event log</p>
-              <p className="mt-1 text-xs text-(--qs-text-3)">
-                {selected.goal} · {selected.status} · {runtimeModeLabel(selected.runtime_mode)}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Link href={`/ballroom?session=${encodeURIComponent(selected.id)}`} className="qs-btn qs-btn--ghost qs-btn--sm">
-                Open in Ballroom
-              </Link>
-              <button
-                type="button"
-                className="qs-btn qs-btn--green qs-btn--sm"
-                disabled={reviewBusy === selected.id}
-                onClick={() =>
-                  void reviewSession(selected.id, "approve", playbookRecipeIdFromContext(selected.context_summary))
-                }
-              >
-                Approve
-              </button>
-              <button
-                type="button"
-                className="qs-btn qs-btn--danger qs-btn--sm"
-                disabled={reviewBusy === selected.id}
-                onClick={() =>
-                  void reviewSession(selected.id, "reject", playbookRecipeIdFromContext(selected.context_summary))
-                }
-              >
-                Reject
-              </button>
-            </div>
-          </div>
-
-          <AgentSessionEventLog events={events} loading={eventsLoading} />
-          <AgentSessionInteractForm
-            sessionId={selected.id}
-            onInteractionAppended={(event) => {
-              void mutateEvents((prev) => [event, ...(prev ?? [])], false);
-            }}
-          />
-        </div>
-      ) : null}
+      <AgentSessionReportDialog
+        sessionId={reportSessionId}
+        open={reportSessionId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setReportSessionId(null);
+          }
+        }}
+      />
 
       <div className={isV4 ? "v4-routines-panel mt-6" : "mt-6 rounded-2xl border border-[color:var(--qs-border)] bg-black/30 p-4"}>
         {isV4 ? (
@@ -806,7 +914,7 @@ export function AgentsSessionsPanel({ variant = "default", onFocusSessionChange 
             {routineBusy ? "Creating…" : "Create"}
           </button>
         </div>
-        <div className="mt-3 space-y-2">
+        <div className="v4-routines-list-scroll hive-scrollbar mt-3">
           {routines.map((routine) => (
             <div
               key={routine.id}
@@ -827,29 +935,6 @@ export function AgentsSessionsPanel({ variant = "default", onFocusSessionChange 
           {!routines.length ? <p className="text-xs text-(--qs-text-3)">No routines configured.</p> : null}
         </div>
       </div>
-
-      {selected ? (
-        <AgentSessionDetailDrawer
-          session={selected}
-          events={events}
-          eventsLoading={eventsLoading}
-          onClose={() => {
-            setDetailDrawerDismissed(true);
-            setSelectedSessionId(null);
-          }}
-          onReview={async (decision, priorPlaybookRecipeId) => {
-            await reviewSession(selected.id, decision, priorPlaybookRecipeId ?? null);
-            await mutate();
-          }}
-          onInteractionAppended={(event) => {
-            void mutateEvents((prev) => [event, ...(prev ?? [])], false);
-          }}
-          onSessionRefresh={() => {
-            void mutate();
-            void mutateEvents();
-          }}
-        />
-      ) : null}
     </Shell>
   );
 }

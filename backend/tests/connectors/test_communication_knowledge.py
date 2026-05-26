@@ -55,6 +55,11 @@ def test_phase3_catalog_contains_core_vendors() -> None:
         "notion_workspace",
         "stripe_billing",
         "venice_mcp",
+        "monid_mcp",
+        "composio_router",
+        "apify_store",
+        "nango_hub",
+        "merge_agent_handler",
     ):
         assert needle in ids
 

@@ -5,14 +5,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { QsSelect } from "@/components/ui/qs-select";
+import { SettingsAuditGrid, SettingsAuditGridSkeleton } from "@/components/hive/settings-audit-grid";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
 import {
-  auditActorLabel,
   filterAuditRows,
-  formatAuditAction,
   formatAuditTime,
-  ipFromAuditPayload,
   type AuditFilter,
   type TenantAuditLogRow,
 } from "@/lib/settings-audit-utils";
@@ -310,26 +308,11 @@ export function SettingsAuditPanel() {
       ) : null}
 
       {!rows ? (
-        <div className="mt-4 space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-12 animate-pulse rounded-xl bg-white/4" />
-          ))}
-        </div>
+        <SettingsAuditGridSkeleton />
       ) : filtered.length === 0 ? (
         <p className="mt-6 text-sm text-(--qs-text-3)">No audit entries yet for this filter.</p>
       ) : (
-        <div className="mt-4">
-          {filtered.map((row) => (
-            <div key={row.id} className="v4-audit-row">
-              <span className="v4-audit-time">{formatAuditTime(row.created_at)}</span>
-              <div className="min-w-0 flex-1">
-                <span className="v4-audit-who">{auditActorLabel(row, memberMap)}</span>
-                <span className="v4-audit-action"> · {formatAuditAction(row)}</span>
-              </div>
-              <span className="v4-audit-ip">{ipFromAuditPayload(row.payload)}</span>
-            </div>
-          ))}
-        </div>
+        <SettingsAuditGrid rows={filtered} memberMap={memberMap} />
       )}
 
       {rows && rows.length > 0 ? (

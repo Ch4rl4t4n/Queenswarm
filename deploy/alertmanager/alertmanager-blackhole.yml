@@ -1,0 +1,20 @@
+# Alertmanager routes alerts to a no-op receiver when Slack is not configured.
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: blackhole
+  group_by: ["alertname"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+
+receivers:
+  - name: blackhole
+
+inhibit_rules:
+  - source_matchers:
+      - severity = critical
+    target_matchers:
+      - severity = warning
+    equal: ["alertname", "pattern_id"]

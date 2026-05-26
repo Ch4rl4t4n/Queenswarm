@@ -212,10 +212,13 @@ async def build_command_center_snapshot() -> dict[str, Any]:
     """Compose admin command center payload from existing probes."""
 
     readiness, _ = await collect_readiness_uncached()
-    host_raw = await asyncio.to_thread(_host_metrics_sync)
-    cpu_pct, mem_pct, disk_pct, pressure, pressure_reason = await asyncio.to_thread(_host_pressure)
-    celery_snapshot = await asyncio.to_thread(inspect_celery_workers)
-    docker_info = await asyncio.to_thread(_docker_snapshot)
+    host_raw, host_pressure, celery_snapshot, docker_info = await asyncio.gather(
+        asyncio.to_thread(_host_metrics_sync),
+        asyncio.to_thread(_host_pressure),
+        asyncio.to_thread(inspect_celery_workers),
+        asyncio.to_thread(_docker_snapshot),
+    )
+    cpu_pct, mem_pct, disk_pct, pressure, pressure_reason = host_pressure
     limiter = llm_concurrency_snapshot()
 
     await record_host_sample(cpu_percent=cpu_pct, memory_percent=mem_pct, disk_percent=disk_pct)

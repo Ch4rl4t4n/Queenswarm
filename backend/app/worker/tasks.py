@@ -380,6 +380,41 @@ def run_supervisor_sub_agent_step_task(
                 payload={"runtime_mode": "durable"},
             )
 
+            from app.application.services.queen_maintainer.maintainer_guard import (
+                is_maintainer_session,
+                maintainer_self_heal_max_attempts,
+                session_cap_from_summary,
+            )
+            from app.application.services.session_cost_guardian import measure_session_cost
+
+            summary_snapshot = dict(sup.context_summary or {})
+            maintainer_lane = is_maintainer_session(summary_snapshot)
+            heal_attempts: int | None = None
+            if maintainer_lane:
+                heal_attempts = maintainer_self_heal_max_attempts()
+                cost_state = await measure_session_cost(
+                    session,
+                    session_id=sup.id,
+                    cap_usd=session_cap_from_summary(summary_snapshot),
+                    warn_ratio=float(summary_snapshot.get("session_cost_warn_ratio") or 0.60),
+                )
+                summary_snapshot["session_cost_guardian"] = cost_state.to_payload()
+                sup.context_summary = summary_snapshot
+                if cost_state.state == "halt":
+                    sup.status = "needs_input"
+                    sub.status = "needs_input"
+                    sub.error_text = cost_state.hint
+                    await append_event(
+                        session,
+                        supervisor_session=sup,
+                        sub_agent=sub,
+                        event_type="session_cost_halt",
+                        message="Queen Maintainer session halted — budget cap reached.",
+                        payload=cost_state.to_payload(),
+                    )
+                    await session.commit()
+                    return {"ok": False, "reason": "session_cost_cap_reached", "sub_agent_session_id": str(sub.id)}
+
             skill_library = SkillLibrary()
             requested_skills = [
                 str(item)
@@ -397,6 +432,10 @@ def run_supervisor_sub_agent_step_task(
                 else requested_skills
             )
             retrieval_contract = str((sup.context_summary or {}).get("retrieval_contract") or "").strip()
+            if maintainer_lane and (
+                not retrieval_contract or retrieval_contract.startswith("hive_mind:")
+            ):
+                retrieval_contract = "default_v2"
             retrieval_bundle = await shared_context.retrieve_context_bundle(
                 session,
                 supervisor_session_id=sup.id,
@@ -455,12 +494,20 @@ def run_supervisor_sub_agent_step_task(
                     except BrowserGuardrailError as exc:
                         return f"browser guardrail blocked action: {str(exc)[:300]}"
 
-                hint_note = f" fallback_hint={hint[:140]}" if hint else ""
-                return (
-                    f"{sub.role} durable step completed for goal: {sup.goal[:240]} "
-                    "with shared context update. "
-                    f"skills={len(selected_skills)} retrieval_sections={len(retrieval_bundle.matched_sections)}"
-                    f" meta_prompt_tokens={len(meta_reasoning_prompt.split())} attempt={attempt}{hint_note}"
+                from app.application.services.supervisor.llm_executor import execute_supervisor_sub_agent_llm
+
+                retrieval_prompt = shared_context.render_bundle_for_prompt(retrieval_bundle)
+                return await execute_supervisor_sub_agent_llm(
+                    session,
+                    supervisor_session=sup,
+                    sub_agent=sub,
+                    goal=sup.goal,
+                    selected_skills=selected_skills,
+                    skill_library=skill_library,
+                    retrieval_prompt=retrieval_prompt,
+                    meta_reasoning_prompt=meta_reasoning_prompt,
+                    hint=hint,
+                    attempt=attempt,
                 )
 
             async def _retry_adjustment(_attempt: int, issues: list[str]) -> None:
@@ -488,6 +535,8 @@ def run_supervisor_sub_agent_step_task(
                 selected_skills=selected_skills,
                 execute_attempt=_execute_attempt,
                 retry_adjustment=_retry_adjustment if settings.supervisor_self_healing_enabled else None,
+                max_attempts=heal_attempts,
+                context_summary=summary_snapshot,
             )
             result_msg = healing.output
             initiative_rows = await propose_agent_improvements(
@@ -671,6 +720,14 @@ def run_supervisor_sub_agent_step_task(
                 },
             )
 
+            from app.application.services.supervisor.hivemind_verify import enqueue_next_verify_sub_agent
+
+            await enqueue_next_verify_sub_agent(
+                session,
+                supervisor_session=sup,
+                completed_sub=sub,
+            )
+
             remaining_stmt = select(SubAgentSession).where(
                 SubAgentSession.supervisor_session_id == sup.id,
                 SubAgentSession.status.in_(("pending", "queued", "running")),
@@ -715,6 +772,51 @@ def paper_trading_tick_task() -> dict[str, object]:
 
         async with async_session() as session:
             payload = await run_paper_trading_tick_all(session)
+            await session.commit()
+            return payload
+
+    return asyncio.run(_run())
+
+
+@celery_app.task(name="hive.manager_peer_review_sweep", queue="hive")
+def manager_peer_review_sweep_task() -> dict[str, object]:
+    """Sample 10 % of completed sessions; emit info health-notes by alternate managers."""
+
+    async def _run() -> dict[str, object]:
+        from app.application.services.manager_peer_review import sweep_peer_reviews
+
+        async with async_session() as session:
+            payload = await sweep_peer_reviews(session)
+            await session.commit()
+            return payload
+
+    return asyncio.run(_run())
+
+
+@celery_app.task(name="hive.recipe_warmup", queue="hive")
+def recipe_warmup_task() -> dict[str, object]:
+    """Nightly warmup of top-N verified recipes into Chroma cache (cheap, read-only)."""
+
+    async def _run() -> dict[str, object]:
+        from app.application.services.recipe_warmup import warmup_top_recipes
+
+        async with async_session() as session:
+            payload = await warmup_top_recipes(session)
+            await session.commit()
+            return payload
+
+    return asyncio.run(_run())
+
+
+@celery_app.task(name="hive.pollen_reroster_sweep", queue="hive")
+def pollen_reroster_sweep_task() -> dict[str, object]:
+    """Flag under-performing worker bees (advisory only; writes health notes)."""
+
+    async def _run() -> dict[str, object]:
+        from app.application.services.pollen_reroster import run_pollen_reroster_sweep
+
+        async with async_session() as session:
+            payload = await run_pollen_reroster_sweep(session)
             await session.commit()
             return payload
 
@@ -785,6 +887,22 @@ def run_supervisor_audit_rollup_email_tick_task() -> dict[str, object]:
     return asyncio.run(_run())
 
 
+@celery_app.task(name="hive.execution_studio_weekly_rollup_tick", queue="hive")
+def run_execution_studio_weekly_rollup_tick_task() -> dict[str, object]:
+    """Send weekly Execution Studio telemetry rollup to tenant webhooks."""
+
+    async def _run() -> dict[str, object]:
+        from app.application.services.execution_studio_telemetry_rollup import (
+            run_weekly_execution_studio_rollup_tick,
+        )
+
+        async with async_session() as session:
+            payload = await run_weekly_execution_studio_rollup_tick(session)
+            return payload
+
+    return asyncio.run(_run())
+
+
 __all__ = [
     "dynamic_agent_schedule_tick_task",
     "echo_hive_pulse",
@@ -797,6 +915,7 @@ __all__ = [
     "run_supervisor_routines_tick_task",
     "run_supervisor_audit_digest_tick_task",
     "run_supervisor_audit_rollup_email_tick_task",
+    "run_execution_studio_weekly_rollup_tick_task",
     "run_tenant_audit_retention_tick_task",
     "run_sub_swarm_workflow_cycle_task",
 ]

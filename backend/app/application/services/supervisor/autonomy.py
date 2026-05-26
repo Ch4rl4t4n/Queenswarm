@@ -121,6 +121,7 @@ def build_autonomous_routine_plan(
                 "meta-reasoning-reflection",
                 "swarm-memory-evolution",
                 "agent-initiative-proposals",
+                "automation-proposal",
                 *[str(item) for item in list(payload.get("skills") or []) if str(item).strip()],
             },
         )[:8],

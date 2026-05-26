@@ -1,11 +1,24 @@
 # Queenswarm Roadmap & Backlog
 
-Updated: 2026-05-21
+Updated: 2026-05-26
 
 Living backlog for **queenswarm.love** — ordered by impact. Status reflects production host as of last deploy.
 
 **Mission backlog (May 2026):** see `docs/MISSION_EXECUTION_BACKLOG.md` — **Phase 0–2 + perf dev complete**; operator gates remain.  
-**Parallel agents:** see `docs/PHASE0_AGENT_SPLIT.md`. Tomorrow operator checklist: `docs/TOMORROW_OPERATOR_RUNBOOK.md`.
+**Parallel agents:** see `docs/PHASE0_AGENT_SPLIT.md`. Tomorrow operator checklist: `docs/TOMORROW_OPERATOR_RUNBOOK.md`.  
+**Latest synthesis (YouTube + X + Atlas):** [`docs/CAPABILITIES_SYNTHESIS_MAY2026.md`](CAPABILITIES_SYNTHESIS_MAY2026.md)
+
+## Feature Implementation Guardrails (mandatory)
+
+**Every new feature must follow** [`docs/FEATURE_IMPLEMENTATION_GUARDRAILS.md`](FEATURE_IMPLEMENTATION_GUARDRAILS.md) before merge:
+
+1. Simulate-first — no live without operator approval  
+2. Feature flag / env until gate green  
+3. Lazy FE panel (`dynamic()` + `React.memo`) — no monolith JSX growth  
+4. Single snapshot BE endpoint + cache on hot reads  
+5. Gate script + tests before prod deploy  
+
+Perf playbook: [`docs/PERFORMANCE_COCKPIT.md`](PERFORMANCE_COCKPIT.md). Execution Studio panel split is the reference pattern.
 
 ## Done recently
 
@@ -29,14 +42,97 @@ Living backlog for **queenswarm.love** — ordered by impact. Status reflects pr
 | Mission execution backlog (May 2026) | `docs/MISSION_EXECUTION_BACKLOG.md` |
 | Mission Phase 0–2 + perf dev | ✅ Shipped — `./scripts/mission-readiness-audit.sh` |
 | Cockpit performance playbook | `docs/PERFORMANCE_COCKPIT.md` |
+| **Feature Implementation Guardrails** | `docs/FEATURE_IMPLEMENTATION_GUARDRAILS.md` |
+| Execution Studio lazy panel split | 8 panels — scroll perf |
+| **Publish Queue Phase B** (approval inbox) | `GET /publish-queue` + Execution Studio panel |
+| **Morning → Publish pipeline Phase D** | `GET /solo-operator/morning-publish-pipeline` + Settings harness panel |
+| **Social publish Phase C** (IG/FB/X/TikTok) | `GET /social-publish` + Execution Studio panel |
+| **Phase E publish automation** (TikTok, newsletter, Telegram, scheduled) | `./scripts/audit-phase-e-publish-gate.sh` |
+| **Phase F publish audit trail** | audit v Social publish snapshot + rate limits |
+| **Publish lane hardening** (media preview, Venice, rate UI, TikTok validate) | `./scripts/audit-publish-lane-hardening-gate.sh` · `docs/OPERATOR_PUBLISH_LANE_MANUAL.md` |
+| **Publish lane completion** (TikTok poll, Venice hook, onboarding 11-step, Vitest) | same gate · `GET /solo-operator/publish-onboarding` |
+| **Publish lane admin + E2E** (TikTok audit, Monid video, admin overview, Playwright) | `GET /admin/publish-lane/onboarding-overview` · `E2E_PUBLISH_LANE=1` |
+| **Trading Cockpit Phase I** (paper deposit, real venue, principles, P&L panel) | `./scripts/audit-trading-cockpit-gate.sh` · `docs/OPERATOR_TRADING_COCKPIT_MANUAL.md` |
+| **Operator Loop** (overnight + brief + publish + trading command center) | `./scripts/audit-operator-loop-gate.sh` · `docs/OPERATOR_LOOP_MANUAL.md` |
+| **Trading Phase II — Polymarket only** (prep checklist, CLOB readiness) | Trading Cockpit panel · `docs/OPERATOR_PREDICTION_MARKETS_SETUP.md` |
+| **Publish Performance Loop** (simulate rate, channel stats, insights) | `./scripts/audit-publish-performance-gate.sh` |
+| **Agent OS P8** (cross-swarm, imitation v2, analysis, trade→content, risk) | `./scripts/audit-agent-os-p8-gate.sh` |
 
-## P0 — Operator / revenue blockers
+## P1 — Trading & publish (May 2026)
+
+| # | Item | Status | Doc |
+|---|------|--------|-----|
+| 62 | Operator Loop — daily command center | ✅ Shipped | `docs/OPERATOR_LOOP_MANUAL.md` |
+| 63 | Polymarket-only real money lane (Kalshi removed from roadmap) | ✅ Shipped | `docs/OPERATOR_PREDICTION_MARKETS_SETUP.md` |
+| 64 | Publish Performance Loop | ✅ Shipped | Execution Studio panel |
+| 65 | Polymarket live trading (operator OAuth + vault + live flag) | ✅ Shipped (prep) | `GET /live-lane` + preflight; flags OFF default |
+| 66 | Recipe marketplace beta | ✅ Shipped (beta) | `/knowledge#recipes` · `GET /recipes/marketplace-beta` |
+
+## P8 — Autonomous Agent OS (Q2–Q3 2026)
+
+Validated against Capabilities Atlas + YouTube/X synthesis (May 2026).  
+Full gap analysis: **`docs/CAPABILITIES_SYNTHESIS_MAY2026.md`**
+
+> **Already shipped from this analysis:** Pattern Router, Behavioral memory, Forager Loop, Dreaming, Recipe cosine, Operator Loop, Publish Performance, Polymarket Cockpit.
+
+| # | Item | Priority | Est. | Status | Gate / asset |
+|---|------|----------|------|--------|--------------|
+| 67 | **Cross-swarm knowledge transfer** — pollen winners → recipe suggestions across swarms | P0 | 5–7 d | ✅ Shipped | `GET /agent-os` |
+| 68 | **Imitation v2** — auto-suggest top neighbor workflow after N verified outcomes | P0 | 3–5 d | ✅ Shipped | `GET /agent-os` |
+| 69 | **Dreaming → behavioral proposals** — overnight `instructions.md` patches (approve-only) | P0 | 3–4 d | ✅ Shipped | `GET /agent-os` |
+| 70 | **Trading Swarm Builder template** — Forager → Analysis → Risk → Executor | P0 | 5–7 d | ✅ Shipped | `polymarket-trading` template |
+| 71 | **Analysis Swarm** — 3-model consensus bee (simulate-first) | P0 | 4–6 d | ✅ Shipped | `POST /agent-os/analysis/consensus` |
+| 72 | **Risk Validator bee** — pre-trade gate + daily stop-loss sync | P0 | 3–4 d | ✅ Shipped | `trading_risk_validator.py` |
+| 73 | **Dreaming overnight trading review** — 06:00 UTC P&L digest → Operator Loop | P1 | 2–3 d | ✅ Shipped | Celery 06:00 UTC |
+| 74 | **Trade → Content pipeline** — verified fill → publish pack draft | P1 | 4–5 d | ✅ Shipped | `trade_to_content.py` |
+| 75 | **Content Flywheel 2.0** — research → recipe → critic → hooks → performance loop | P1 | 5–7 d | ✅ Shipped | `content-flywheel-v2` template |
+| 76 | **A/B hook optimizer** — Publish Performance → hook variant winner per channel | P1 | 3–4 d | ✅ Shipped | `publish_hook_optimizer.py` + snapshot |
+| 77 | **Forager Intelligence v2** — daily MCP/skill stale scan + Maintainer PR drafts | P1 | 5–7 d | ✅ Shipped (beta) | `GET /harness/forager-v2` |
+| 78 | **NotebookLM-style research bee** — URL/PDF → structured HiveMind brief | P2 | 5–7 d | ✅ Shipped | `POST /research-bee/brief` + Knowledge panel |
+| 79 | **Pattern Router LLM** — opt-in smarter routing (flag, heuristic fallback) | P2 | 2 d | ✅ Shipped | Wired in session start; flag OFF default |
+
+**Autonomy principles (non-negotiable):**
+
+- Every self-modification → simulate → operator approve (instructions, live trade, Maintainer merge)
+- No central choke — sub-swarms + 5 min global sync
+- Verified outcomes only → Recipe Library + pollen
+
+## P9 — Revenue & combo swarms (Q3–Q4 2026)
+
+Business plays aligned with indie-hacker signals (Polymarket bot, faceless YouTube, agency white-label).
+
+| # | Item | Priority | Est. | Status | Notes |
+|---|------|----------|------|--------|-------|
+| 80 | **Trading + Content Hybrid swarm** — Polymarket paper/live + auto faceless content | P0 | 7–10 d | ✅ Shipped | template + `GET /trading-content-hybrid` |
+| 81 | **Life OS + Business OS bundle** — single Swarm Builder preset (brief + publish + trading) | P1 | 3–4 d | ✅ Shipped | `life-business-os` template |
+| 82 | **Public paper-trading transparency** — read-only P&L page (brand building) | P1 | 4–5 d | ✅ Shipped | `/transparency` + public API |
+| 83 | **Skill Marketplace 2.0** — verified trading/marketing recipes + revenue share | P1 | 7–10 d | ✅ Shipped (beta) | `GET /recipes/marketplace-beta` |
+| 84 | **Faceless Media Agency in a Box** — white-label publish lane for clients | P2 | 10–14 d | ✅ Shipped (beta) | `GET /media-agency` + template |
+| 85 | **Micro-SaaS Factory swarm** — landing + auth + deploy template | P3 | 14+ d | ✅ Shipped (beta) | `/factory` + `GET /micro-saas-factory` |
+
+**Revenue model fit:** performance transparency + content + marketplace cut — not PayPal execution.
+
+## P0 — Operator blockers
+
+> **Stripe / billing:** out of scope for solo operator deployment — code remains behind feature flags; no go-live planned. See `docs/SOLO_OPERATOR_MODE.md`.
 
 | # | Item | Owner | Notes |
 |---|------|-------|-------|
-| 1 | **Stripe live checkout** | Operator | `./scripts/operator-p0-close.sh` after keys in `.env.prod` |
-| 2 | **Pro tier feature gates** | Dev | ✅ Shipped — Mission Phase 0 |
-| 3 | **Hetzner abuse closure** | Operator | Send `reports/hetzner/hetzner-reply-*.txt` → abuse@hetzner.com |
+| 1 | **Pro tier feature gates** | Dev | ✅ Shipped — Mission Phase 0 |
+| 2 | **Hetzner abuse closure** | Operator | ✅ Sent — await Hetzner reply |
+| 3 | **SCV / Queen Maintainer first run** | Operator | ✅ Done — keep reviewing PR proposals |
+| 4 | **Solo trio + Brain Pack** | Operator | ✅ Trio cycle spustený — doplniť Brain Pack v Knowledge → Memory |
+
+## P1 — Hermes-competitive solo UX (May 2026)
+
+| # | Item | Status | Doc |
+|---|------|--------|-----|
+| 56 | Operator Brain Pack (SOUL/MEMORY/USER) | ✅ Shipped | `docs/SOLO_OPERATOR_TRIO_GUIDE.md` |
+| 57 | My 3 Bees preset group (routine orchestration) | ✅ Shipped | Settings → AI harness |
+| 58 | Morning Hive Brief composite | ✅ Shipped | `GET /solo-operator/morning-brief` |
+| 59 | Hive Session Search | ✅ Shipped | Knowledge → Memory tab |
+| 60 | Verified Skill Forge (critic → skill draft) | ✅ Shipped | pending `agent_suggestions` |
+| 61 | **Production publish lane** | ✅ Fázy A–E foundation | `docs/PRODUCTION_AUTOMATION_PHASES.md` |
 
 ## P1 — Quality & confidence
 
@@ -64,18 +160,18 @@ _All P2 items shipped — see Done recently._
 Validated against market signals (Graphify, free rerouter, Venice MCP, Overnight Life OS).  
 Full analysis: **`docs/ROUNDTABLESPACE_MAY2026_INSIGHTS.md`**
 
-| # | Item | Priority | Est. | Gate / asset |
-|---|------|----------|------|--------------|
-| 24 | **Dump & Sleep** — folder/voice → overnight Dreaming pipeline | P0 | 3–5 d | `DreamerService`, Ballroom upload |
-| 25 | **Overnight Swarm Report** — morning summary + pollen earned | P0 | 2 d | `DreamingSummaryCard` |
-| 26 | **Life OS Swarm Builder template** | P0 | 1–2 d | `swarm-wizard-templates.ts` |
-| 27 | **Free-First routing + Cost Guardian UX** | P0 | 2–3 d | `LiteLLMRouter`, `CostGovernor` |
-| 28 | **Auto-Graphify** — folder ingest → graph + selective recall | P1 | 5–7 d | Neo4j, Obsidian watch, Foragers |
-| 29 | **Project shape graph viz** on `/knowledge` | P1 | 4–5 d | `/hive-mind/graph` |
-| 30 | **Venice MCP preset** + Unified Tool Hub polish | P1 | 4–6 d | Tools Marketplace |
-| 31 | **Tool Discovery Loop** (forager scans new MCP servers) | P1 | 4–6 d | → merged into **Forager Intelligence Loop** (P6) |
-| 32 | **Unified Savings Dashboard** (time + LLM cost saved) | P2 | 3–4 d | `/costs`, time-saved panel |
-| 33 | **Voice Overnight Report** (Ballroom TTS briefing) | P2 | 2–3 d | Ballroom voice pipeline |
+| # | Item | Priority | Est. | Status | Gate / asset |
+|---|------|----------|------|--------|--------------|
+| 24 | **Dump & Sleep** — folder/voice → overnight Dreaming pipeline | P0 | 3–5 d | ✅ Shipped | `DreamerService`, Ballroom upload |
+| 25 | **Overnight Swarm Report** — morning summary + pollen earned | P0 | 2 d | ✅ Shipped | `DreamingSummaryCard` |
+| 26 | **Life OS Swarm Builder template** | P0 | 1–2 d | ✅ Shipped | `swarm-wizard-templates.ts` |
+| 27 | **Free-First routing + Cost Guardian UX** | P0 | 2–3 d | ✅ Shipped | `LiteLLMRouter`, `CostGovernor` |
+| 28 | **Auto-Graphify** — folder ingest → graph + selective recall | P1 | 5–7 d | ✅ Shipped | Neo4j, Obsidian watch, Foragers |
+| 29 | **Project shape graph viz** on `/knowledge` | P1 | 4–5 d | ✅ Shipped | `/hive-mind/project-shape` |
+| 30 | **Venice MCP preset** + Unified Tool Hub polish | P1 | 4–6 d | ✅ Shipped | Tools Marketplace |
+| 31 | **Tool Discovery Loop** (forager scans new MCP servers) | P1 | 4–6 d | ✅ Shipped | → merged into **Forager Intelligence Loop** (P6) |
+| 32 | **Unified Savings Dashboard** (time + LLM cost saved) | P2 | 3–4 d | ✅ Shipped | `/costs`, time-saved panel |
+| 33 | **Voice Overnight Report** (Ballroom TTS briefing) | P2 | 2–3 d | ✅ Shipped | Ballroom voice pipeline |
 
 **Moat:** persistent Hive Mind + verified loop — free reroutery a one-shot overnight skripty toto nenahradia.
 
@@ -89,12 +185,12 @@ Full mapping: **`docs/QUEENSWARM_DESIGN_PATTERNS.md`**
 | 34 | **Pattern Router** — heuristic `select_patterns_for_task()` | P0 | 1–3 d | ✅ Shipped |
 | 35 | **Forced reflection** — self-review on all supervisor outputs | P0 | 1 d | ✅ Shipped |
 | 36 | **Pattern Bible** — 20-pattern mapping doc | P0 | 1 d | ✅ Shipped |
-| 37 | Pattern Explorer dashboard panel | P1 | 3–4 d | ⏳ |
-| 38 | Orchestration recipe pattern tags (Exec, Waterfall, Life OS) | P1 | 2 d | ⏳ |
-| 39 | Rapid loop: best-pattern telemetry | P1 | 2 d | ⏳ |
-| 40 | Episodic memory explicit layer | P1 | 3 d | ⏳ |
-| 41 | LLM-driven pattern router | P2 | 2 d | ⏳ |
-| 42 | Pattern success rate metrics + onboarding | P2 | 4 d | ⏳ |
+| 37 | Pattern Explorer dashboard panel | P1 | 3–4 d | ✅ |
+| 38 | Orchestration recipe pattern tags (Exec, Waterfall, Life OS) | P1 | 2 d | ✅ |
+| 39 | Rapid loop: best-pattern telemetry | P1 | 2 d | ✅ |
+| 40 | Episodic memory explicit layer | P1 | 3 d | ✅ |
+| 41 | LLM-driven pattern router | P2 | 2 d | ✅ (flag OFF) |
+| 42 | Pattern success rate metrics + onboarding | P2 | 4 d | ✅ |
 
 **Key insight:** ~14/20 patterns already exist in code — gap was visibility + explicit selection, not rebuild.
 
@@ -106,18 +202,18 @@ Full analysis: **`docs/HARNESS_SELF_MAINTAINING_ANALYSIS.md`**
 | # | Item | Priority | Est. | Status |
 |---|------|----------|------|--------|
 | 43 | **Queen Maintainer** skill + behavioral `instructions.md` | P0 stub | 1 d | ✅ Shipped |
-| 44 | Queen Maintainer weekly cron routine | P1 | 2–3 d | ⏳ |
-| 45 | GitHub PR-only workflow (`queen-maintainer/*`) | P1 | 3–4 d | ⏳ |
-| 46 | **Tech Health Dashboard** (deps, coverage, perf) | P1 | 4–5 d | ⏳ |
-| 47 | **Forager Intelligence Loop** (skills + MCP + docs refresh) | P1 | 4–6 d | ⏳ |
-| 48 | Layered harness — `AGENTS.md` hierarchy | P1 | 1–2 d | ⏳ |
-| 49 | **AI Layer Dashboard** (`/settings/harness`) | P1 | 4–5 d | ⏳ |
-| 50 | Behavioral memory editor (tenant `instructions.md`) | P1 | 3–4 d | ⏳ |
-| 51 | Skill reference / lazy doc fetch mode | P2 | 2–3 d | ⏳ |
-| 52 | Tracer bullet → Kanban auto-slice | P2 | 3–4 d | ⏳ |
-| 53 | LSP + MCP bridge for coder agent | P2 | 5–7 d | ⏳ |
-| 54 | Slack harness trainer | P2 | 4 d | ⏳ |
-| 55 | Self-extending tool marketplace flow | P2 | 5 d | ⏳ |
+| 44 | Queen Maintainer weekly cron routine | P1 | 2–3 d | ✅ API + bootstrap |
+| 45 | GitHub PR-only workflow (`queen-maintainer/*`) | P1 | 3–4 d | ✅ `/queen-maintainer/pr-draft` + `pulls_create` |
+| 46 | **Tech Health Dashboard** (deps, coverage, perf) | P1 | 4–5 d | ✅ `GET /queen-maintainer/tech-health` |
+| 47 | **Forager Intelligence Loop** (skills + MCP + docs refresh) | P1 | 4–6 d | ✅ `POST /harness/intelligence-scan` |
+| 48 | Layered harness — `AGENTS.md` hierarchy | P1 | 1–2 d | ✅ |
+| 49 | **AI Layer Dashboard** (`/settings/harness`) | P1 | 4–5 d | ✅ Shipped |
+| 50 | Behavioral memory editor (tenant `instructions.md`) | P1 | 3–4 d | ✅ |
+| 51 | Skill reference / lazy doc fetch mode | P2 | 2–3 d | ✅ |
+| 52 | Tracer bullet → Kanban auto-slice | P2 | 3–4 d | ✅ |
+| 53 | LSP + MCP bridge for coder agent | P2 | 5–7 d | ✅ |
+| 54 | Slack harness trainer | P2 | 4 d | ✅ |
+| 55 | Self-extending tool marketplace flow | P2 | 5 d | ✅ |
 
 **Safety:** PR-only, simulate-first, scoped denylist — never direct `main` writes.
 
@@ -175,4 +271,5 @@ PLAYWRIGHT_BASE_URL=https://queenswarm.love ./scripts/prod-walkthrough-gate.sh
 - `docs/AUTHENTICATED_PROD_WALKTHROUGH.md` — operator session → playbook QA
 - `docs/ROUNDTABLESPACE_MAY2026_INSIGHTS.md` — market validation + Fáza 4 plan
 - `docs/HARNESS_SELF_MAINTAINING_ANALYSIS.md` — harness videos + Queen Maintainer
-- `docs/TOMORROW_OPERATOR_RUNBOOK.md` — audit + Stripe morning checklist
+- `docs/TOMORROW_OPERATOR_RUNBOOK.md` — audit + operator morning checklist (Stripe section optional / out of scope)
+- `docs/CAPABILITIES_SYNTHESIS_MAY2026.md` — YouTube + X + Atlas gap analysis (May 2026)

@@ -9,6 +9,11 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.services.queen_maintainer.maintainer_guard import (
+    append_maintainer_budget_goal_footer,
+    build_maintainer_session_seed,
+    maintainer_run_precheck,
+)
 from app.application.services.queen_maintainer.tech_health import build_tech_health_report
 from app.application.services.supervisor.routine_service import (
     compute_next_run_at,
@@ -29,6 +34,7 @@ MAINTAINER_WEEKLY_INTERVAL_SEC = 7 * 24 * 3600
 MAINTAINER_ROLES: list[str] = ["researcher", "coder", "critic"]
 MAINTAINER_SKILLS: list[str] = [
     "queen-maintainer",
+    "execution-studio",
     "self-review-loop",
     "tdd",
     "multi-step-reasoning",
@@ -54,7 +60,7 @@ def build_maintainer_goal(*, tech_health: dict[str, Any] | None = None) -> str:
     score = report.get("health_score", 0.0)
     instructions = load_instructions_excerpt(max_chars=800)
 
-    return (
+    base = (
         "Queen Maintainer weekly run — PR-only codebase health review.\n\n"
         f"Tech health score: {score:.2f}\n"
         f"Signals: {', '.join(signals) if signals else 'none'}\n"
@@ -67,6 +73,7 @@ def build_maintainer_goal(*, tech_health: dict[str, Any] | None = None) -> str:
         "4. Open GitHub PR on branch queen-maintainer/* — never merge\n\n"
         f"Behavioral instructions excerpt:\n{instructions}"
     )
+    return append_maintainer_budget_goal_footer(base)
 
 
 def build_post_merge_maintainer_goal(*, merge_meta: dict[str, Any]) -> str:
@@ -121,12 +128,13 @@ async def ensure_queen_maintainer_routine(
             cron_expr=None,
             runtime_mode="durable",
             roles=list(MAINTAINER_ROLES),
-            retrieval_contract="hive_mind:tech_health",
+            retrieval_contract="default_v2",
             skills=list(MAINTAINER_SKILLS),
             context_payload={
                 "routine_kind": MAINTAINER_ROUTINE_KIND,
                 "pr_only": True,
                 "self_healing_enabled": True,
+                "simulate_first": True,
             },
             tenant_id=tenant_id,
         )
@@ -143,6 +151,7 @@ async def ensure_queen_maintainer_routine(
                 "routine_kind": MAINTAINER_ROUTINE_KIND,
                 "pr_only": True,
                 "self_healing_enabled": True,
+                "simulate_first": True,
             },
         )
         row.context_payload = payload
@@ -168,18 +177,43 @@ async def ensure_queen_maintainer_routine(
     return row
 
 
-async def trigger_maintainer_run(
+async def queue_maintainer_run(
     db: AsyncSession,
     *,
     routine: SupervisorRoutine,
-) -> uuid.UUID:
-    """Refresh goal from latest tech health and spawn supervisor session."""
+    trigger_source: str,
+    goal_override: str | None = None,
+    pre_approved: bool = False,
+    proposal_id: str | None = None,
+) -> dict[str, Any]:
+    """Precheck budget, inject guardrails, and spawn Maintainer supervisor session."""
+
+    precheck = await maintainer_run_precheck(db, tenant_id=routine.tenant_id)
+    if not precheck.get("ok"):
+        logger.info(
+            "queen_maintainer.run_blocked",
+            agent_id="queen_maintainer",
+            swarm_id=str(routine.tenant_id or ""),
+            task_id="",
+            reason=str(precheck.get("error") or "blocked"),
+        )
+        return precheck
 
     report = build_tech_health_report()
-    routine.goal_template = build_maintainer_goal(tech_health=report)
+    goal = goal_override or build_maintainer_goal(tech_health=report)
+    if goal_override and "Maintainer budget policy" not in goal:
+        goal = append_maintainer_budget_goal_footer(goal)
+
+    routine.goal_template = goal
     payload = dict(routine.context_payload or {})
     payload["last_tech_health"] = report
     payload["maintainer_triggered_at"] = datetime.now(tz=UTC).isoformat()
+    payload["maintainer_trigger_source"] = trigger_source
+    payload["maintainer_session_seed"] = build_maintainer_session_seed(
+        trigger_source=trigger_source,
+        pre_approved=pre_approved,
+        proposal_id=proposal_id,
+    )
     routine.context_payload = payload
     await db.flush()
 
@@ -189,8 +223,39 @@ async def trigger_maintainer_run(
         agent_id="queen_maintainer",
         swarm_id=str(routine.tenant_id or ""),
         task_id=str(session_id),
+        trigger_source=trigger_source,
     )
-    return session_id
+    return {
+        "ok": True,
+        "session_id": str(session_id),
+        "routine_id": str(routine.id),
+        **precheck,
+    }
+
+
+async def trigger_maintainer_run(
+    db: AsyncSession,
+    *,
+    routine: SupervisorRoutine,
+    trigger_source: str = "manual",
+    goal_override: str | None = None,
+    pre_approved: bool = False,
+    proposal_id: str | None = None,
+) -> uuid.UUID:
+    """Spawn Maintainer session; raises ValueError when daily budget blocks run."""
+
+    result = await queue_maintainer_run(
+        db,
+        routine=routine,
+        trigger_source=trigger_source,
+        goal_override=goal_override,
+        pre_approved=pre_approved,
+        proposal_id=proposal_id,
+    )
+    if not result.get("ok"):
+        msg = str(result.get("message") or result.get("error") or "maintainer_run_blocked")
+        raise ValueError(msg)
+    return uuid.UUID(str(result["session_id"]))
 
 
 def is_queen_maintainer_routine(row: SupervisorRoutine) -> bool:
@@ -207,5 +272,6 @@ __all__ = [
     "ensure_queen_maintainer_routine",
     "is_queen_maintainer_routine",
     "load_instructions_excerpt",
+    "queue_maintainer_run",
     "trigger_maintainer_run",
 ]

@@ -15,6 +15,22 @@ export interface CockpitAgentDelta {
 /** Task queue strip from WS — counts plus recently updated rows. */
 export type TaskQueueWsStrip = TaskQueueResponse;
 
+/** Compact Execution Studio pending counts pushed over WS. */
+export interface OperatorPendingWsStrip {
+  revision: number;
+  count: number;
+  browser_pending: number;
+  external_pending: number;
+  codebase_pending: number;
+  review_pending?: number;
+  pending_alert?: {
+    fingerprint: string;
+    type: "browser" | "external";
+    message: string;
+    supervisor_session_id?: string;
+  };
+}
+
 /** Live pulse payload from ``GET /ws/live`` (extends legacy counter-only shape). */
 export interface HiveLivePulsePayload {
   type?: string;
@@ -26,6 +42,7 @@ export interface HiveLivePulsePayload {
   agent_deltas?: CockpitAgentDelta[];
   recent_tasks?: TaskRow[];
   task_queue_strip?: TaskQueueWsStrip;
+  operator_pending_strip?: OperatorPendingWsStrip;
 }
 
 function bumpStatusCount(counts: Record<string, number>, status: string, delta: number): void {

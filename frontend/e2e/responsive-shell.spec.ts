@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { seedDashboardSessionCookie } from "./fixtures/dashboard-session";
+import { e2eAdvancedDashboardPath, e2eHiveHomeHeading, e2eHiveHomePath } from "./fixtures/hive-home-route";
 import { suppressPwaInstallPrompt } from "./fixtures/pwa-test-hints";
 import { maybeInstallShellApiMocks, STUB_AGENT_ID } from "./fixtures/shell-api-mocks";
 
@@ -46,7 +47,7 @@ async function gotoBillingSettings(page: import("@playwright/test").Page): Promi
       return false;
     }
     const onDashboard = await page
-      .getByRole("heading", { name: /^Dashboard$/i })
+      .getByRole("heading", { name: e2eHiveHomeHeading() })
       .first()
       .isVisible()
       .catch(() => false);
@@ -151,7 +152,7 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
 
-    const onShell = await gotoShellRoute(page, "/");
+    const onShell = await gotoShellRoute(page, e2eAdvancedDashboardPath());
     if (!onShell) {
       return;
     }
@@ -240,7 +241,7 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
 
-    const onShell = await gotoShellRoute(page, "/");
+    const onShell = await gotoShellRoute(page, e2eHiveHomePath());
     if (!onShell) {
       return;
     }
@@ -280,8 +281,10 @@ test.describe("Responsive shell — authenticated cockpit", () => {
 
     await assertNoHorizontalOverflow(page);
     await expect(page.getByRole("heading", { name: "Manual" })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole("heading", { name: /Funkcie aplikácie/i })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText("Live dashboard").first()).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.getByRole("heading", { name: /Funkcie aplikácie|App functions and info descriptions/i }),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/Live dashboard|Hive Cockpit/i).first()).toBeVisible({ timeout: 15_000 });
   });
 
   for (const viewport of VIEWPORTS) {
@@ -378,7 +381,7 @@ test.describe("Responsive shell — authenticated cockpit", () => {
   });
 
   const SPRINT8_MOBILE_TABLET_ROUTES = [
-    { path: "/costs", heading: "Costs" },
+    { path: "/settings/costs", heading: "Costs" },
     { path: "/tasks", heading: "Tasks" },
     { path: "/foragers", heading: "Foragers" },
     { path: "/ballroom", heading: "Ballroom" },
@@ -409,13 +412,13 @@ test.describe("Responsive shell — authenticated cockpit", () => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
 
-      const onShell = await gotoShellRoute(page, "/");
+      const onShell = await gotoShellRoute(page, e2eHiveHomePath());
       if (!onShell) {
         return;
       }
 
       await assertNoHorizontalOverflow(page);
-      await expect(page.getByRole("heading", { name: /^Dashboard$/i }).first()).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole("heading", { name: e2eHiveHomeHeading() }).first()).toBeVisible({ timeout: 15_000 });
       await expect(page.locator("#hive-search")).toHaveCount(0);
     });
   }

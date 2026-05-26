@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import useSWR from "swr";
 
 import { useCockpitTelemetry } from "@/components/hive/cockpit-telemetry-provider";
-import { V4Badge, V4Card, V4CardHeader, V4Chip, V4SearchInput } from "@/components/ui/v4";
+import { V4Badge, V4Card, V4CardHeader, V4Chip } from "@/components/ui/v4";
 import { hiveGet } from "@/lib/api";
 import { COCKPIT_PERF } from "@/lib/cockpit-performance-budget";
 import { cockpitSwrKeys } from "@/lib/cockpit-swr-keys";
@@ -137,27 +137,13 @@ export function TaskQueueSection() {
   );
   const err = error instanceof Error ? error.message : error ? "Task queue unreachable" : null;
   const [tab, setTab] = useState<StatusTab>("all");
-  const [q, setQ] = useState("");
 
   const filtered = useMemo(() => {
     if (!data) {
       return [];
     }
-    const needle = q.trim().toLowerCase();
-    return (data.tasks ?? []).filter((t) => {
-      if (!matchesTab(t, tab)) {
-        return false;
-      }
-      if (!needle) {
-        return true;
-      }
-      return (
-        t.title.toLowerCase().includes(needle) ||
-        t.short_id.toLowerCase().includes(needle) ||
-        t.swarm_label.toLowerCase().includes(needle)
-      );
-    });
-  }, [data, tab, q]);
+    return (data.tasks ?? []).filter((t) => matchesTab(t, tab));
+  }, [data, tab]);
 
   if (err) {
     return (
@@ -203,13 +189,6 @@ export function TaskQueueSection() {
           <Plus className="h-4 w-4 shrink-0" aria-hidden />
           New task
         </Link>
-        <V4SearchInput
-          value={q}
-          onChange={setQ}
-          placeholder="Filter tasks…"
-          aria-label="Filter tasks"
-          className="w-full"
-        />
       </div>
 
       <ul className="mt-5 flex flex-col gap-3">

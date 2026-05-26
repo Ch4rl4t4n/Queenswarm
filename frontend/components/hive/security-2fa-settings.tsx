@@ -4,6 +4,7 @@ import { Download, ExternalLink, RefreshCw, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { SessionPolicySettingsCard } from "@/components/hive/session-policy-settings-card";
 import { Toggle } from "@/components/ui/toggle";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
@@ -14,12 +15,6 @@ import type {
   TotpProvisionResponse,
 } from "@/lib/hive-dashboard-session";
 import type { SessionPolicySnapshot } from "@/lib/session-policy-types";
-import {
-  formatAccessTtl,
-  formatOAuthStateTtl,
-  formatRateLimit,
-  formatRefreshTtl,
-} from "@/lib/session-policy-utils";
 
 function formatBackupLastUsed(iso: string | null | undefined): string {
   if (!iso) {
@@ -401,62 +396,7 @@ export function Security2FASettings() {
         ) : null}
       </V4Card>
 
-      <V4Card>
-        <V4CardHeader as="h3" title="Session policy" description="JWT, refresh, and rate-limit guardrails enforced at the API edge." />
-        <div className="mt-2">
-          <div className="v4-session-policy-row">
-            <div>
-              <p className="font-medium text-(--qs-text)">JWT access token TTL</p>
-              <p className="text-sm text-(--qs-text-3)">
-                Currently {sessionPolicy ? formatAccessTtl(sessionPolicy.access_token_expire_minutes) : "…"}
-              </p>
-            </div>
-            <V4Badge tone="info" className="shrink-0 tabular-nums">
-              {sessionPolicy ? formatAccessTtl(sessionPolicy.access_token_expire_minutes) : "…"}
-            </V4Badge>
-          </div>
-          <div className="v4-session-policy-row">
-            <div>
-              <p className="font-medium text-(--qs-text)">Refresh token TTL</p>
-              <p className="text-sm text-(--qs-text-3)">
-                Currently {sessionPolicy ? formatRefreshTtl(sessionPolicy.refresh_token_expire_days) : "…"}
-              </p>
-            </div>
-            <V4Badge tone="info" className="shrink-0 tabular-nums">
-              {sessionPolicy ? formatRefreshTtl(sessionPolicy.refresh_token_expire_days) : "…"}
-            </V4Badge>
-          </div>
-          <div className="v4-session-policy-row">
-            <div>
-              <p className="font-medium text-(--qs-text)">Rate limit (per user)</p>
-              <p className="text-sm text-(--qs-text-3)">
-                {sessionPolicy
-                  ? sessionPolicy.rate_limit_enabled
-                    ? formatRateLimit(sessionPolicy)
-                    : "Disabled for this deployment"
-                  : "Loading…"}
-              </p>
-            </div>
-            <V4Badge tone={sessionPolicy?.rate_limit_enabled ? "ok" : "warn"}>
-              {sessionPolicy?.rate_limit_enabled ? "enforced" : "off"}
-            </V4Badge>
-          </div>
-          <div className="v4-session-policy-row">
-            <div>
-              <p className="font-medium text-(--qs-text)">OAuth consent (PKCE)</p>
-              <p className="text-sm text-(--qs-text-3)">
-                {sessionPolicy ? formatOAuthStateTtl(sessionPolicy.oauth_state_ttl_sec) : "Loading…"}
-              </p>
-            </div>
-            <V4Badge tone="ok">enabled</V4Badge>
-          </div>
-        </div>
-        <p className="mt-3 text-xs text-(--qs-text-3)">
-          {sessionPolicy?.production_security_mode
-            ? "Production security mode is active — TTL values are locked via deployment env."
-            : "TTL values are operator-configured via deployment env — contact admin to change."}
-        </p>
-      </V4Card>
+      <SessionPolicySettingsCard policy={sessionPolicy} onSaved={setSessionPolicy} />
 
       <V4Card>
         <V4CardHeader as="h3" title="Hive password" description="Change your login password directly here." />

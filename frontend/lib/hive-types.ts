@@ -1331,12 +1331,22 @@ export interface SwarmsOverviewColony {
   lane: string;
   lane_label: string;
   queen_label: string;
+  queen_agent_id?: string | null;
+  manager_agent_id?: string | null;
   member_count: number;
   total_pollen: number;
   last_sync_seconds_ago: number | null;
   is_active: boolean;
   status: "active" | "paused";
   local_mind?: SubSwarmLocalMindSummary;
+  health?: SwarmHealthSummary | null;
+}
+
+export interface SwarmHealthSummary {
+  last_at: string;
+  last_severity: "info" | "warn" | "error";
+  last_message: string;
+  open_count: number;
 }
 
 export interface SwarmsOverviewKpis {
@@ -1361,6 +1371,7 @@ export interface SwarmsOverviewPayload {
   generated_at: string;
   hive_sync_interval_sec: number;
   kpis: SwarmsOverviewKpis;
+  orchestrator_agent_id?: string | null;
   colonies: SwarmsOverviewColony[];
   waggle_feed: WaggleFeedItem[];
   hive_sync: SwarmsHiveSyncRow[];

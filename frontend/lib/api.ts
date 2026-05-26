@@ -38,7 +38,7 @@ export function isHiveApiRateLimited(): boolean {
 }
 
 function registerRateLimitPause(retryMs: number): void {
-  rateLimitPauseUntilMs = Math.max(rateLimitPauseUntilMs, Date.now() + Math.max(retryMs, 8000));
+  rateLimitPauseUntilMs = Math.max(rateLimitPauseUntilMs, Date.now() + Math.max(retryMs, 30_000));
   notifyHiveApiRateLimitChanged();
 }
 
@@ -286,6 +286,11 @@ export function hiveFetchRaw(subpath: string, init?: RequestInit): Promise<Respo
 
 export function hiveDelete<T>(subpath: string, init?: RequestInit): Promise<T> {
   return hiveFetch<T>(subpath, { ...init, method: "DELETE" });
+}
+
+/** DELETE with JSON response — alias for push unsubscribe and similar endpoints. */
+export function hiveDeleteJson<T>(subpath: string, init?: RequestInit): Promise<T> {
+  return hiveDelete<T>(subpath, init);
 }
 
 /** Convenience object for callers that prefer a grouped API surface. */

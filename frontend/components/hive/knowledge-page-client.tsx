@@ -14,7 +14,8 @@ import { useState, useEffect, useCallback } from "react";
 import { AutoGraphifyPanel } from "@/components/hive/auto-graphify-panel";
 import { SelectiveRecallPanel } from "@/components/hive/selective-recall-panel";
 import { ProjectShapeGraphPanel } from "@/components/hive/project-shape-graph-panel";
-import { CuratedMemoryPanel } from "@/components/hive/curated-memory-panel";
+import { OperatorBrainPackPanel } from "@/components/hive/operator-brain-pack-panel";
+import { HiveSessionSearchPanel } from "@/components/hive/hive-session-search-panel";
 import { EpisodicMemoryPanel } from "@/components/hive/episodic-memory-panel";
 import { DreamingConsole } from "@/components/hive/dreaming-console";
 import { GoalsPanel } from "@/components/hive/goals-panel";
@@ -194,8 +195,9 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
       ) : null}
 
       {tab === "memory" ? (
-        <div id="memory" className="scroll-mt-28">
-          <CuratedMemoryPanel />
+        <div id="memory" className="scroll-mt-28 space-y-6">
+          <OperatorBrainPackPanel />
+          <HiveSessionSearchPanel />
           <EpisodicMemoryPanel />
         </div>
       ) : null}

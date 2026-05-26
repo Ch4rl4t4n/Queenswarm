@@ -57,8 +57,8 @@ ALL_PATTERN_IDS: frozenset[str] = frozenset(
 
 _PATTERN_SKILL_HINTS: dict[str, list[str]] = {
     PATTERN_REFLECTION: ["self-review-loop", "meta-reasoning-reflection"],
-    PATTERN_PLANNING: ["multi-step-reasoning", "decision-frameworks"],
-    PATTERN_TOOL_USE: ["tool-use-orchestration"],
+    PATTERN_PLANNING: ["multi-step-reasoning", "decision-frameworks", "automation-proposal"],
+    PATTERN_TOOL_USE: ["tool-use-orchestration", "automation-proposal"],
     PATTERN_RAG: ["context", "swarm-memory-evolution"],
     PATTERN_EXCEPTION_HANDLING: ["diagnose"],
     PATTERN_REASONING: ["multi-step-reasoning", "decision-frameworks"],
@@ -102,6 +102,7 @@ class PatternSelection:
     forced_reflection: bool = True
     resource_aware: bool = False
     rationale: list[str] = field(default_factory=list)
+    router_version: str = "heuristic-v1"
 
     def all_patterns(self) -> list[str]:
         """Return deduplicated primary + secondary pattern IDs."""
@@ -124,7 +125,7 @@ class PatternSelection:
             "forced_reflection": self.forced_reflection,
             "resource_aware": self.resource_aware,
             "rationale": list(self.rationale),
-            "router_version": "heuristic-v1",
+            "router_version": self.router_version,
         }
 
 

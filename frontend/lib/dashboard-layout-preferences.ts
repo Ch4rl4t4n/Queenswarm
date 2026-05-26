@@ -1,9 +1,8 @@
 /** Dashboard section visibility — persisted per browser (localStorage). */
 
-export const DASHBOARD_LAYOUT_STORAGE_KEY = "queenswarm:dashboard-layout-v2";
+export const DASHBOARD_LAYOUT_STORAGE_KEY = "queenswarm:dashboard-layout-v3";
 
 export type DashboardSectionId =
-  | "search"
   | "kpiStats"
   | "pollenCosts"
   | "ballroomParticipants"
@@ -39,29 +38,28 @@ export interface DashboardSectionGroupMeta {
   label: { en: string; sk: string };
 }
 
-/** Default layout — matches current lean dashboard; optional blocks off. */
+/** Default layout — lean solo cockpit; heavy insight widgets off (enable in layout settings). */
 export const DASHBOARD_LAYOUT_DEFAULTS: Record<DashboardSectionId, boolean> = {
-  search: true,
   kpiStats: true,
-  pollenCosts: true,
-  ballroomParticipants: true,
+  pollenCosts: false,
+  ballroomParticipants: false,
   agents: true,
   queenMission: true,
-  subSwarms: true,
+  subSwarms: false,
   waggleFeed: false,
   workflows: false,
   taskQueue: true,
-  performanceTier: true,
-  recentTasks: true,
+  performanceTier: false,
+  recentTasks: false,
   agentSuggestions: false,
   spawnAgent: false,
-  swarmBuilderEntry: true,
-  rapidLoop: true,
-  dreamingSummary: true,
-  patternExplorer: true,
-  timeSaved: true,
-  leadMagnets: true,
-  beeBadges: true,
+  swarmBuilderEntry: false,
+  rapidLoop: false,
+  dreamingSummary: false,
+  patternExplorer: false,
+  timeSaved: false,
+  leadMagnets: false,
+  beeBadges: false,
 };
 
 export const DASHBOARD_SECTION_GROUPS: DashboardSectionGroupMeta[] = [
@@ -74,12 +72,6 @@ export const DASHBOARD_SECTION_GROUPS: DashboardSectionGroupMeta[] = [
 ];
 
 export const DASHBOARD_SECTIONS: DashboardSectionMeta[] = [
-  {
-    id: "search",
-    group: "overview",
-    label: { en: "Agent search", sk: "Vyhľadávanie agentov" },
-    description: { en: "Filter roster by tier, name, swarm", sk: "Filter rosteru podľa tieru, mena, swarmu" },
-  },
   {
     id: "kpiStats",
     group: "overview",

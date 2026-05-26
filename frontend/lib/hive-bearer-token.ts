@@ -43,6 +43,9 @@ async function refreshDashboardSession(force = false): Promise<boolean> {
   refreshFlight = (async () => {
     try {
       const res = await fetch("/api/auth/refresh", { method: "POST", credentials: "include" });
+      if (res.status === 429) {
+        return false;
+      }
       if (!res.ok) {
         if (res.status === 401) {
           markHiveSessionDead();

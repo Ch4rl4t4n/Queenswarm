@@ -1,8 +1,11 @@
 /** Integrations hub tab routing — `?tab=` canonical; hash fragments legacy + scroll anchors. */
 
-export type IntegrationsTab = "active" | "hub" | "marketplace" | "skills" | "external" | "plugins";
+export type IntegrationsTab = "active" | "studio" | "hub" | "marketplace" | "skills" | "external" | "plugins";
 
 const HASH_TO_TAB: Record<string, IntegrationsTab> = {
+  studio: "studio",
+  execution: "studio",
+  "execution-studio": "studio",
   hub: "hub",
   connectors: "hub",
   marketplace: "marketplace",
@@ -37,7 +40,18 @@ export function integrationsScrollTargetFromHash(hash: string): string | null {
   if (key === "ecosystem") {
     return "ecosystem";
   }
+  if (key === "oauth-consent") {
+    return "oauth-consent";
+  }
+  if (key === "social-publish" || key === "publish-queue" || key === "execution-studio") {
+    return key;
+  }
   return null;
+}
+
+/** Connector hub tab scrolled to hosted OAuth consent rail (X · Meta · TikTok). */
+export function integrationsHubOAuthHref(): string {
+  return integrationsTabHref("hub", "oauth-consent");
 }
 
 /** Resolve tab from query string `?tab=` value. */
@@ -45,7 +59,7 @@ export function integrationsTabFromQuery(raw: string | null | undefined): Integr
   if (!raw) {
     return null;
   }
-  const allowed: IntegrationsTab[] = ["active", "hub", "marketplace", "skills", "external", "plugins"];
+  const allowed: IntegrationsTab[] = ["active", "studio", "hub", "marketplace", "skills", "external", "plugins"];
   return allowed.includes(raw as IntegrationsTab) ? (raw as IntegrationsTab) : null;
 }
 

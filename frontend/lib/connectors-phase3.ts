@@ -67,6 +67,28 @@ export function phase3CategoryLabel(category: string): string {
   }
 }
 
+/** Compact bubble label for Phase 3 category picker grid. */
+export function phase3CategoryShortLabel(category: string): string {
+  switch (category) {
+    case "email":
+      return "Email";
+    case "calendar":
+      return "Calendar";
+    case "devtools":
+      return "Git";
+    case "chat":
+      return "Chat";
+    case "knowledge":
+      return "Knowledge";
+    case "billing":
+      return "Billing";
+    case "vault":
+      return "Vault";
+    default:
+      return category.slice(0, 12);
+  }
+}
+
 /** Stable ordering: known lanes first, then any unexpected backend categories. */
 export function orderedPhase3Categories(grouped: Record<string, Phase3TemplatePublic[]>): string[] {
   const keys = Object.keys(grouped);

@@ -24,6 +24,7 @@ from html.parser import HTMLParser
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.connectors.dynamic.service import invoke_dynamic_tool
+from app.application.services.super_tool_router import invoke_mcp_with_router_fallback
 
 from app.core import metrics as hive_metrics
 from app.core.config import settings as hive_settings
@@ -362,6 +363,8 @@ async def tool_mcp_invoke(
     connector_allow_tokens: frozenset[str],
     manager_slug: str,
     agent_task_id: str,
+    tenant_id: uuid.UUID | None = None,
+    router_invoke_plan: dict[str, Any] | None = None,
 ) -> str:
     """Dynamic Postgres MCP manifests executed with vault-sealed outbound auth."""
 
@@ -370,6 +373,22 @@ async def tool_mcp_invoke(
     lowered = connector_slug.strip().lower()
     if connector_allow_tokens and lowered not in connector_allow_tokens:
         return f"mcp_invoke blocked for `{connector_slug}` (not manager-allowlisted)."
+
+    routing_mode = str((router_invoke_plan or {}).get("routing_mode") or "").strip().lower()
+    if routing_mode in {"priority", "research_then_action", "parallel_hint"}:
+        from app.infrastructure.persistence.models.tenant import Tenant
+
+        tenant_row = await session.get(Tenant, tenant_id) if tenant_id is not None else None
+        return await invoke_mcp_with_router_fallback(
+            session,
+            tenant=tenant_row,
+            manager_slug=manager_slug,
+            connector_slug=lowered,
+            tool_name=tool_name,
+            arguments=dict(arguments),
+            agent_task_id=agent_task_id,
+        )
+
     return await invoke_dynamic_tool(
         session,
         connector_slug=lowered,
@@ -684,6 +703,15 @@ async def run_tool_bundle(
     )
     manager_lane = str(ctx_payload.get("manager_slug") or "").strip().lower()
     agent_trace = str(ctx_payload.get("task_id") or "executor")
+    tenant_id_raw = ctx_payload.get("tenant_id")
+    tenant_uuid: uuid.UUID | None = None
+    if tenant_id_raw is not None:
+        try:
+            tenant_uuid = tenant_id_raw if isinstance(tenant_id_raw, uuid.UUID) else uuid.UUID(str(tenant_id_raw))
+        except ValueError:
+            tenant_uuid = None
+    router_invoke_plan = ctx_payload.get("router_invoke_plan")
+    router_plan_dict = dict(router_invoke_plan) if isinstance(router_invoke_plan, dict) else None
 
     async with httpx.AsyncClient(timeout=20.0) as client:
         pending: dict[str, Any] = {}
@@ -733,6 +761,8 @@ async def run_tool_bundle(
                     connector_allow_tokens=allow_tokens,
                     manager_slug=manager_lane,
                     agent_task_id=agent_trace,
+                    tenant_id=tenant_uuid,
+                    router_invoke_plan=router_plan_dict,
                 )
                 continue
 
@@ -832,6 +862,28 @@ async def execute_universal_agent(
         'manager_slug': str(agent_config.get('manager_template_slug') or ''),
         'task_id': str(task_id),
     }
+
+    manager_lane_slug = str(agent_config.get("manager_template_slug") or "").strip().lower()
+    try:
+        from app.application.services.super_tool_router import resolve_router_invoke_plan
+        from app.core.tenant_context import get_current_tenant_uuid
+        from app.infrastructure.persistence.models.tenant import Tenant
+
+        tenant_uuid = get_current_tenant_uuid()
+        if tenant_uuid is not None:
+            executor_payload["tenant_id"] = str(tenant_uuid)
+            tenant_row = await session.get(Tenant, tenant_uuid)
+            router_plan = resolve_router_invoke_plan(tenant_row, manager_slug=manager_lane_slug)
+            if router_plan is not None:
+                executor_payload["router_invoke_plan"] = {
+                    "routing_mode": router_plan.routing_mode,
+                    "connector_slugs": list(router_plan.connector_slugs),
+                    "fallback_builtin_search": router_plan.fallback_builtin_search,
+                    "router_slugs": list(router_plan.router_slugs),
+                    "max_cost_tier": router_plan.max_cost_tier,
+                }
+    except ImportError:
+        pass
 
     tool_results = await run_tool_bundle(
         session,

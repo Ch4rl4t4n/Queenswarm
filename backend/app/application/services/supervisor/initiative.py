@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.infrastructure.persistence.models.agent_suggestion import AgentSuggestion
 from app.infrastructure.persistence.models.supervisor_session import SubAgentSession, SupervisorSession
+from app.infrastructure.persistence.models.tenant import Tenant
 
 _DANGEROUS_CHANGE_TERMS: tuple[str, ...] = (
     "delete",
@@ -170,7 +171,85 @@ def _build_drafts(
             ),
         )
 
-    return drafts[:4]
+    from app.application.services.execution_studio_context import detect_execution_domain
+    from app.application.services.execution_studio_handoff import (
+        CODEBASE_PROPOSAL_TYPE,
+        risk_level_for_codebase,
+    )
+
+    domain = detect_execution_domain(goal)
+    codebase_hint = goal[:2000] if domain in {"internal", "hybrid"} else None
+    role_clean = role.strip().lower()
+    if codebase_hint and role_clean in {"researcher", "coder"} and (
+        "missing_context" in issues or score < 0.78 or "tool_failure" in issues
+    ):
+        suggested_paths: list[str] = []
+        for reflection in reflections[:3]:
+            if not isinstance(reflection, dict):
+                continue
+            raw_paths = reflection.get("suggested_paths") or reflection.get("files_touched")
+            if isinstance(raw_paths, list):
+                suggested_paths.extend(str(p).strip() for p in raw_paths if str(p).strip())
+        if isinstance(meta_reasoning.get("suggested_paths"), list):
+            suggested_paths.extend(
+                str(p).strip() for p in meta_reasoning["suggested_paths"] if str(p).strip()
+            )
+        suggested_paths = list(dict.fromkeys(suggested_paths))[:12]
+        crisk, creason = risk_level_for_codebase(text=codebase_hint, paths=suggested_paths)
+        drafts.append(
+            InitiativeDraft(
+                proposal_type=CODEBASE_PROPOSAL_TYPE,
+                title=f"Codebase execution handoff ({role})",
+                description=(
+                    "Research suggests repository changes. Operator approval triggers Queen Maintainer "
+                    "PR-only run with this goal injected."
+                ),
+                proposal_payload={
+                    "execution_domain": "internal_codebase",
+                    "goal_excerpt": codebase_hint,
+                    "suggested_paths": suggested_paths,
+                    "manual_ref": "/api/v1/execution-studio/manual",
+                    "detected_domain": domain,
+                },
+                risk_level=crisk,
+                impact_score=_normalize_impact(0.62 + (0.08 if suggested_paths else 0.0)),
+                requires_manual_approval=True,
+                evaluation_reason=creason,
+            ),
+        )
+
+    if domain in {"external", "hybrid"} and ("tool_failure" in issues or score < 0.7):
+        ext_text = (
+            f"External execution via Execution Studio connectors for goal domain={domain}. "
+            "Use draft → simulate → live with operator approval."
+        )
+        auto_simulate_ok = (
+            domain == "external"
+            and "tool_failure" in issues
+            and not _contains_dangerous_terms(goal)
+        )
+        erisk = "low" if auto_simulate_ok else "medium"
+        ereason = "external_simulate_lane_auto_ok" if auto_simulate_ok else "tooling_changes_require_review"
+        drafts.append(
+            InitiativeDraft(
+                proposal_type="execution_studio_external",
+                title=f"External execution lane ({role})",
+                description=ext_text,
+                proposal_payload={
+                    "execution_domain": domain,
+                    "goal_excerpt": goal[:1500],
+                    "manual_ref": "/api/v1/execution-studio/manual",
+                    "recommended_mode": "simulate",
+                    "auto_approved_eligible": auto_simulate_ok,
+                },
+                risk_level=erisk,
+                impact_score=_normalize_impact(0.42 if auto_simulate_ok else 0.58),
+                requires_manual_approval=not auto_simulate_ok,
+                evaluation_reason=ereason,
+            ),
+        )
+
+    return drafts[:5]
 
 
 def _risk_to_score(risk_level: str) -> float:
@@ -246,7 +325,14 @@ async def propose_agent_improvements(
         reflections=reflections,
     )
     rows: list[AgentSuggestion] = []
+    from app.application.services.execution_studio_handoff import CODEBASE_PROPOSAL_TYPE
+
     for draft in drafts:
+        payload = dict(draft.proposal_payload)
+        if draft.proposal_type == CODEBASE_PROPOSAL_TYPE:
+            payload["source"] = "research_agent" if role.strip().lower() == "researcher" else "initiative_agent"
+            payload["supervisor_session_id"] = str(supervisor_session.id)
+            payload["sub_agent_session_id"] = str(sub_agent.id)
         row = AgentSuggestion(
             tenant_id=supervisor_session.tenant_id,
             supervisor_session_id=supervisor_session.id,
@@ -255,7 +341,7 @@ async def propose_agent_improvements(
             proposed_by_role=role,
             title=draft.title[:260],
             description=draft.description[:3500],
-            proposal_payload=dict(draft.proposal_payload),
+            proposal_payload=payload,
             risk_level=draft.risk_level,
             impact_score=_normalize_impact(draft.impact_score),
             status="pending",
@@ -271,6 +357,55 @@ async def propose_agent_improvements(
         db.add(row)
         rows.append(row)
     await db.flush()
+
+    if supervisor_session.tenant_id is not None:
+        from app.application.services.execution_studio_activity import persist_execution_activity
+
+        tenant_row = await db.get(Tenant, supervisor_session.tenant_id)
+        if tenant_row is not None:
+            from app.application.services.execution_studio_external import execute_external_proposal_simulate
+
+            subject = str(supervisor_session.created_by_subject or "")
+            operator_id = uuid.uuid4()
+            if subject.startswith("dashboard:"):
+                try:
+                    operator_id = uuid.UUID(subject.split(":", 1)[1])
+                except ValueError:
+                    operator_id = uuid.uuid4()
+            for row in rows:
+                if row.proposal_type == "execution_studio_external" and row.status == "approved":
+                    await execute_external_proposal_simulate(
+                        db,
+                        tenant=tenant_row,
+                        suggestion=row,
+                        dashboard_user_id=operator_id,
+                    )
+        for row in rows:
+            if row.proposal_type != CODEBASE_PROPOSAL_TYPE or tenant_row is None:
+                if row.proposal_type == "execution_studio_external" and tenant_row is not None:
+                    await persist_execution_activity(
+                        db,
+                        tenant_row,
+                        event_type="proposal_created",
+                        message=f"External lane proposal: {row.title[:120]}",
+                        payload={
+                            "proposal_id": str(row.id),
+                            "source": (row.proposal_payload or {}).get("source", "initiative"),
+                            "auto_approved": row.status == "approved",
+                        },
+                    )
+                continue
+            await persist_execution_activity(
+                db,
+                tenant_row,
+                event_type="proposal_created",
+                message=f"Research proposal: {row.title[:120]}",
+                payload={
+                    "proposal_id": str(row.id),
+                    "source": (row.proposal_payload or {}).get("source"),
+                    "role": role,
+                },
+            )
     return rows
 
 
@@ -312,8 +447,108 @@ async def review_agent_suggestion(
     return suggestion
 
 
+async def review_agent_suggestion_with_handoff(
+    db: AsyncSession,
+    *,
+    suggestion: AgentSuggestion,
+    decision: str,
+    reviewer_subject: str,
+    supervisor_session: SupervisorSession | None,
+    tenant: Tenant | None,
+) -> tuple[AgentSuggestion, dict[str, Any] | None]:
+    """Review proposal and run Execution Studio handoff when codebase proposal approved."""
+
+    from app.infrastructure.persistence.models.tenant import Tenant as TenantModel
+
+    reviewed = await review_agent_suggestion(
+        db,
+        suggestion=suggestion,
+        decision=decision,
+        reviewer_subject=reviewer_subject,
+        supervisor_session=supervisor_session,
+    )
+    handoff_result: dict[str, Any] | None = None
+    if decision.strip().lower() == "approved" and tenant is None and suggestion.tenant_id is not None:
+        tenant = await db.get(TenantModel, suggestion.tenant_id)
+    if decision.strip().lower() == "approved":
+        from app.application.services.execution_studio_handoff import handoff_on_approved_proposal
+
+        handoff_result = await handoff_on_approved_proposal(
+            db,
+            suggestion=reviewed,
+            tenant=tenant,
+            reviewer_subject=reviewer_subject,
+        )
+        if handoff_result is None and reviewed.proposal_type == "execution_studio_external":
+            from app.application.services.execution_studio_external import handoff_on_approved_external_proposal
+
+            handoff_result = await handoff_on_approved_external_proposal(
+                db,
+                suggestion=reviewed,
+                tenant=tenant,
+                reviewer_subject=reviewer_subject,
+            )
+    return reviewed, handoff_result
+
+
+async def bulk_review_agent_suggestions(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    decision: str,
+    reviewer_subject: str,
+    suggestion_ids: list[uuid.UUID] | None = None,
+    include_high_risk: bool = False,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """Approve or reject many pending suggestions — skips high-risk unless explicitly allowed."""
+
+    normalized = decision.strip().lower()
+    if normalized not in {"approved", "rejected"}:
+        return {"processed": 0, "skipped": 0, "errors": []}
+
+    cap = max(1, min(limit, 100))
+    stmt = select(AgentSuggestion).where(
+        AgentSuggestion.tenant_id == tenant_id,
+        AgentSuggestion.status == "pending",
+    )
+    if suggestion_ids:
+        stmt = stmt.where(AgentSuggestion.id.in_(suggestion_ids))
+    stmt = stmt.order_by(desc(AgentSuggestion.created_at)).limit(cap)
+    rows = list((await db.scalars(stmt)).all())
+
+    processed = 0
+    skipped = 0
+    errors: list[str] = []
+    for row in rows:
+        if row.risk_level == "high" and not include_high_risk and normalized == "approved":
+            skipped += 1
+            continue
+        supervisor = None
+        if row.supervisor_session_id is not None:
+            supervisor = await db.get(SupervisorSession, row.supervisor_session_id)
+        tenant = await db.get(Tenant, tenant_id)
+        try:
+            await review_agent_suggestion_with_handoff(
+                db,
+                suggestion=row,
+                decision=normalized,
+                reviewer_subject=reviewer_subject,
+                supervisor_session=supervisor,
+                tenant=tenant,
+            )
+            processed += 1
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"{row.id}: {str(exc)[:120]}")
+            skipped += 1
+    await db.flush()
+    return {"processed": processed, "skipped": skipped, "errors": errors}
+
+
 __all__ = [
+    "bulk_review_agent_suggestions",
     "list_agent_suggestions",
     "propose_agent_improvements",
     "review_agent_suggestion",
+    "review_agent_suggestion_with_handoff",
 ]

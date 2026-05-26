@@ -68,10 +68,30 @@ if grep -q 'PatternExplorerCard' frontend/components/hive/queen-dashboard-chrome
 else
   bad "PatternExplorerCard not on dashboard"
 fi
-if [[ -f frontend/app/\(dashboard\)/settings/harness/page.tsx ]]; then
-  ok "settings/harness page"
+if [[ -f frontend/components/hive/pattern-onboarding-banner.tsx ]]; then
+  ok "pattern-onboarding-banner.tsx"
 else
-  bad "Missing settings/harness page"
+  bad "Missing pattern-onboarding-banner.tsx"
+fi
+if grep -q 'PatternOnboardingBanner' frontend/components/hive/queen-dashboard-chrome.tsx; then
+  ok "Dashboard mounts PatternOnboardingBanner"
+else
+  bad "PatternOnboardingBanner not on dashboard"
+fi
+if [[ -f frontend/components/hive/settings-harness-settings-view.tsx ]]; then
+  ok "settings-harness-settings-view.tsx"
+else
+  bad "Missing settings-harness-settings-view.tsx"
+fi
+if grep -q 'SettingsHarnessPanel' frontend/components/hive/settings-harness-settings-view.tsx; then
+  ok "Harness settings view mounts SettingsHarnessPanel"
+else
+  bad "SettingsHarnessPanel not mounted in harness settings view"
+fi
+if [[ -f frontend/app/\(dashboard\)/settings/\[\[...section\]\]/page.tsx ]]; then
+  ok "settings catch-all route page"
+else
+  bad "Missing settings catch-all route page"
 fi
 echo
 
@@ -87,6 +107,19 @@ if [[ -n "$PY" ]]; then
   fi
 else
   note "pytest not found — skip unit tests"
+fi
+echo
+
+echo "[5] Pattern onboarding UX"
+if grep -q 'onboarding' backend/app/application/services/pattern_explorer.py; then
+  ok "onboarding block in pattern_explorer.py"
+else
+  bad "Missing onboarding block"
+fi
+if [[ -f frontend/lib/pattern-onboarding.ts ]]; then
+  ok "pattern-onboarding.ts"
+else
+  bad "Missing pattern-onboarding.ts"
 fi
 echo
 

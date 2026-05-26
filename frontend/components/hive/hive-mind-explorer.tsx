@@ -5,10 +5,12 @@ import "@xyflow/react/dist/style.css";
 import type { Edge, Node } from "@xyflow/react";
 import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider, useEdgesState, useNodesState } from "@xyflow/react";
 import { Brain, Download, Loader2, RefreshCw, Search, Sparkles } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
+import { CollapsibleLazyPanel } from "@/components/hive/collapsible-lazy-panel";
 import { HiveMindConstellationGraph } from "@/components/hive/hive-mind-constellation-graph";
 import { HiveMindDeliverableModal } from "@/components/hive/hive-mind-deliverable-modal";
+import { HiveMindIngestPanel } from "@/components/hive/hivemind-ingest-panel";
 import { InfoHint } from "@/components/hive/info-hint";
 import { HivePageHeader } from "@/components/hive/hive-page-header";
 import { NeonButton } from "@/components/ui/neon-button";
@@ -63,11 +65,12 @@ function latticePosition(index: number): { x: number; y: number } {
 /** Cockpit constellation explorer — JWT `/hive-mind/*` + lightweight React Flow canvas. */
 export function HiveMindExplorer({ showHeader = true, variant = "default", filterHint = "" }: HiveMindExplorerProps): JSX.Element {
   const [graph, setGraph] = useState<HiveGraphPayload | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQ, setSearchQ] = useState("");
   const [busy, setBusy] = useState(false);
   const [searchHits, setSearchHits] = useState<SemanticHitPreview[]>([]);
+  const graphLoadedRef = useRef(false);
 
   const [inspect, setInspect] = useState<DeliverablePayload | null>(null);
   const [inspectBusy, setInspectBusy] = useState(false);
@@ -116,9 +119,12 @@ export function HiveMindExplorer({ showHeader = true, variant = "default", filte
     }
   }, [setEdges, setNodes]);
 
-  useEffect(() => {
-    void loadGraph();
-  }, [loadGraph]);
+  function handleGraphPanelOpen(open: boolean): void {
+    if (open && !graphLoadedRef.current) {
+      graphLoadedRef.current = true;
+      void loadGraph();
+    }
+  }
 
   const graphStats = useMemo(() => `${graph?.nodes.length ?? 0} nodes · ${graph?.edges.length ?? 0} ribs`, [graph]);
 
@@ -213,6 +219,7 @@ export function HiveMindExplorer({ showHeader = true, variant = "default", filte
     return (
       <>
         <div className="flex flex-col gap-5">
+          <HiveMindIngestPanel windowHours={24} />
           <div className="v4-hivemind-toolbar flex flex-wrap justify-start gap-2">
             <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-2" disabled={loading} onClick={() => void loadGraph()}>
               <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} aria-hidden />
@@ -253,6 +260,16 @@ export function HiveMindExplorer({ showHeader = true, variant = "default", filte
             <p className="rounded-(--qs-radius-lg) border border-(--qs-red)/30 bg-(--qs-red)/10 px-4 py-3 text-sm text-(--qs-red)">{error}</p>
           ) : null}
 
+          <CollapsibleLazyPanel
+            id="hivemind-graph"
+            variant="embedded"
+            title="Recall preview · graph"
+            hint="Constellation · embedding hits"
+            meta={graph ? graphStats : filteredHits.length > 0 ? `${filteredHits.length} hits` : undefined}
+            onOpenChange={handleGraphPanelOpen}
+            panelClassName="mt-3"
+            lazyContent={() => (
+          <>
           <div className="v4-hivemind-split">
             <section className="v4-hivemind-canvas v4-hivemind-graph-panel">
               {loading ? (
@@ -323,6 +340,9 @@ export function HiveMindExplorer({ showHeader = true, variant = "default", filte
               </pre>
             </div>
           ) : null}
+          </>
+            )}
+          />
         </div>
 
         <HiveMindDeliverableModal
@@ -388,6 +408,8 @@ export function HiveMindExplorer({ showHeader = true, variant = "default", filte
         </div>
       )}
 
+      <HiveMindIngestPanel windowHours={24} />
+
       <form onSubmit={(e) => void submitSearch(e)} className="flex flex-col gap-3 md:flex-row md:items-end">
         <div className="flex-1 space-y-1">
           <label htmlFor="hm-search" className="sr-only">
@@ -444,6 +466,15 @@ export function HiveMindExplorer({ showHeader = true, variant = "default", filte
         <p className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</p>
       ) : null}
 
+      <CollapsibleLazyPanel
+        id="hivemind-graph"
+        variant="embedded"
+        title="HiveMind constellation"
+        hint="Graph · embedding hits · recall appendix"
+        meta={graph ? graphStats : filteredHits.length > 0 ? `${filteredHits.length} hits` : undefined}
+        onOpenChange={handleGraphPanelOpen}
+        panelClassName="mt-3"
+        lazyContent={() => (
       <div className={cn("grid gap-6", isV4 ? "v4-cols-2" : "xl:grid-cols-[1fr_minmax(320px,0.42fr)]")}>
         <ReactFlowProvider>
           <section
@@ -588,6 +619,8 @@ export function HiveMindExplorer({ showHeader = true, variant = "default", filte
           </aside>
         </ReactFlowProvider>
       </div>
+        )}
+      />
     </div>
   );
 }

@@ -24,6 +24,7 @@ export interface QsSelectProps {
   onValueChange: (value: string) => void;
   options: readonly QsSelectOption[];
   disabled?: boolean;
+  /** Applied to the trigger button only (not a duplicate wrapper shell). */
   className?: string;
   id?: string;
   "aria-label"?: string;
@@ -40,7 +41,7 @@ interface MenuCoords {
 
 const MENU_GAP = 6;
 const MENU_MAX_HEIGHT = 280;
-const OPEN_MS = 120;
+const OPEN_MS = 40;
 
 export function QsSelect({
   value,
@@ -277,7 +278,7 @@ export function QsSelect({
       : null;
 
   return (
-    <div className={cn("qs-select", className)}>
+    <div className="qs-select">
       <button
         ref={triggerRef}
         id={id}

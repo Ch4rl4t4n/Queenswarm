@@ -41,7 +41,10 @@ async def test_connectors_oauth_refresh_sets_no_store_headers(
     uid = uuid.uuid4()
 
     async def mock_db() -> AsyncIterator[SimpleNamespace]:
-        yield SimpleNamespace()
+        async def _scalar(_stmt):  # noqa: ANN001
+            return None
+
+        yield SimpleNamespace(scalar=_scalar)
 
     app.dependency_overrides[get_db] = mock_db
     app.dependency_overrides[require_dashboard_session] = lambda: {

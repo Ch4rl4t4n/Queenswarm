@@ -135,3 +135,41 @@ async def test_tool_hub_overview_includes_venice_preset(monkeypatch: pytest.Monk
     assert payload["featured_presets"][0]["featured"] is True
     assert payload["registry"][0]["tool_name"] == "chat_completions"
     assert payload["goal"] == "chat"
+
+
+def test_monid_mcp_template_has_discover_run_tools() -> None:
+    """Monid preset ships discover → inspect → run workflow tools."""
+
+    from app.infrastructure.connectors.phase3.catalog import get_phase3_template
+
+    tpl = get_phase3_template("monid_mcp")
+    assert tpl.category == "knowledge"
+    assert tpl.suggested_slug == "monid_mcp"
+    assert tpl.base_url == "https://api.monid.ai/v1"
+    tool_names = {str(tool.get("name")) for tool in tpl.tools}
+    assert tool_names == {"discover", "inspect", "run", "runs_get", "runs_list"}
+    assert "research_intelligence" in tpl.suggested_manager_slugs
+
+
+def test_router_templates_have_marketplace_meta() -> None:
+    """New unified router presets expose agent guidance for marketplace cards."""
+
+    from app.infrastructure.connectors.phase3.catalog import get_phase3_template
+    from app.infrastructure.connectors.phase3.marketplace_meta import marketplace_meta_for
+
+    for template_id in ("composio_router", "apify_store", "nango_hub", "merge_agent_handler"):
+        tpl = get_phase3_template(template_id)
+        meta = marketplace_meta_for(template_id)
+        assert len(tpl.tools) >= 3
+        assert meta.get("agent_usage")
+        assert meta.get("cost_tier") in {"low", "medium", "high"}
+
+
+def test_secrets_configured_detects_missing_bearer() -> None:
+    """Upstream tests should fail fast when bearer credentials are absent."""
+
+    from app.infrastructure.connectors.dynamic.service import _secrets_configured
+
+    assert _secrets_configured("bearer_token", {}) is False
+    assert _secrets_configured("bearer_token", {"bearer_token": "tok"}) is True
+    assert _secrets_configured("none", {}) is True

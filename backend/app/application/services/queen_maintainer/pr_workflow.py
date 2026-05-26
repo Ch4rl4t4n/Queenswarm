@@ -45,7 +45,9 @@ def validate_changed_paths(paths: list[str]) -> tuple[bool, list[str]]:
     """
     blocked: list[str] = []
     for raw in paths:
-        normalized = str(PurePosixPath(raw.replace("\\", "/"))).lstrip("./")
+        normalized = str(PurePosixPath(raw.replace("\\", "/")))
+        if normalized.startswith("./"):
+            normalized = normalized[2:]
         if normalized in MAINTAINER_DENYLIST_EXACT:
             blocked.append(normalized)
             continue

@@ -153,20 +153,6 @@ def build_landing_payload(template_id: str) -> dict[str, Any]:
     }
 
 
-def _share_linkedin(magnet: LeadMagnetDefinition, *, hours_line: str) -> str:
-    base = _app_base()
-    url = f"{base}/magnet/{magnet.template_id}?utm_source=linkedin"
-    bullets = "\n".join(f"→ {b}" for b in magnet.bullets_sk[:2])
-    return (
-        f"{magnet.headline_sk}\n\n"
-        f"{magnet.tagline}\n\n"
-        f"{bullets}\n\n"
-        f"{hours_line}\n\n"
-        f"Queenswarm hive — verified agent swarms, nie ďalší chatbot.\n"
-        f"{url}"
-    )
-
-
 def _share_tiktok(magnet: LeadMagnetDefinition) -> str:
     base = _app_base()
     url = f"{base}/magnet/{magnet.template_id}?utm_source=tiktok"
@@ -224,12 +210,6 @@ async def build_share_pack(
 
     landing = build_landing_payload(template_id)
     channels = [
-        {
-            "id": "linkedin",
-            "label": "LinkedIn",
-            "text": _share_linkedin(magnet, hours_line=hours_line),
-            "char_count": len(_share_linkedin(magnet, hours_line=hours_line)),
-        },
         {
             "id": "tiktok",
             "label": "TikTok / Reels caption",

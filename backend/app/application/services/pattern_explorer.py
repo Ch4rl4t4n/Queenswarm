@@ -36,6 +36,15 @@ PATTERN_CATALOG: tuple[dict[str, str | int], ...] = (
     {"id": "exploration", "number": 19, "label": "Exploration", "summary": "Foragers and discovery"},
 )
 
+PATTERN_ONBOARDING_TARGET = 5
+STARTER_PATTERN_IDS: tuple[str, ...] = (
+    "reflection",
+    "planning",
+    "tool_use",
+    "guardrails",
+    "rag",
+)
+
 
 def _pattern_label(pattern_id: str) -> str:
     """Return human label for one pattern id."""
@@ -64,6 +73,45 @@ def _extract_patterns(summary: dict[str, Any]) -> list[str]:
         seen.add(norm)
         out.append(norm)
     return out
+
+
+def _build_onboarding_block(
+    *,
+    unique_patterns_today: int,
+    sessions_in_window: int,
+) -> dict[str, Any]:
+    """Build pattern onboarding UX payload for dashboard banner."""
+
+    starter: list[dict[str, str | int]] = []
+    catalog_by_id = {str(row["id"]): row for row in PATTERN_CATALOG}
+    for pattern_id in STARTER_PATTERN_IDS:
+        row = catalog_by_id.get(pattern_id)
+        if row is not None:
+            starter.append(dict(row))
+
+    target = PATTERN_ONBOARDING_TARGET
+    milestone_reached = unique_patterns_today >= target
+    if milestone_reached:
+        headline = (
+            f"Milestone — your swarm orchestrated {unique_patterns_today} agentic patterns today"
+        )
+    elif unique_patterns_today > 0:
+        headline = (
+            f"Your swarm used {unique_patterns_today} pattern"
+            f"{'' if unique_patterns_today == 1 else 's'} today — {max(0, target - unique_patterns_today)} more to explore"
+        )
+    else:
+        headline = "Discover 5 agentic patterns — run your first supervisor mission"
+
+    return {
+        "target_unique_patterns": target,
+        "progress_unique_patterns": min(unique_patterns_today, target),
+        "milestone_reached": milestone_reached,
+        "has_patterned_sessions": sessions_in_window > 0,
+        "headline": headline,
+        "starter_patterns": starter,
+        "cta_path": "/agents",
+    }
 
 
 def _session_row(row: SupervisorSession) -> dict[str, Any]:
@@ -143,9 +191,16 @@ async def build_pattern_explorer_payload(
         for pid, count in usage_counter.most_common(12)
     ]
     unique_patterns_today = len(usage_counter)
+    llm_refined_sessions = sum(
+        1
+        for row in recent
+        if "llm-v1" in str(row.get("router_version") or "")
+    )
 
     return {
         "router_enabled": settings.supervisor_pattern_router_enabled,
+        "llm_router_enabled": settings.supervisor_pattern_router_llm_enabled,
+        "llm_refined_sessions_recent": llm_refined_sessions,
         "forced_reflection_enabled": settings.supervisor_forced_reflection_enabled,
         "window_hours": window_hours,
         "sessions_in_window": sessions_in_window,
@@ -154,7 +209,16 @@ async def build_pattern_explorer_payload(
         "catalog": list(PATTERN_CATALOG),
         "recent_sessions": recent,
         "docs_path": "docs/QUEENSWARM_DESIGN_PATTERNS.md",
+        "onboarding": _build_onboarding_block(
+            unique_patterns_today=unique_patterns_today,
+            sessions_in_window=sessions_in_window,
+        ),
     }
 
 
-__all__ = ["PATTERN_CATALOG", "build_pattern_explorer_payload"]
+__all__ = [
+    "PATTERN_CATALOG",
+    "PATTERN_ONBOARDING_TARGET",
+    "STARTER_PATTERN_IDS",
+    "build_pattern_explorer_payload",
+]

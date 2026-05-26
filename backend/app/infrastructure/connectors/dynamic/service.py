@@ -16,6 +16,13 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.services.prediction_market_auth import (
+    KALSHI_RSA_AUTH,
+    POLYMARKET_L2_AUTH,
+    augment_prediction_market_headers,
+    kalshi_rsa_secrets_configured,
+    polymarket_l2_secrets_configured,
+)
 from app.core.cost_governor import BudgetExceededError, CostGovernor
 from app.infrastructure.connectors.dynamic.hub import DynamicConnectorHub, invalidate_registry_cache, manifest_tool_default
 from app.infrastructure.connectors.phase3.catalog import phase3_catalog_addon_lines
@@ -80,6 +87,28 @@ def _public_model(row: DynamicConnector) -> DynamicConnectorPublic:
         builtin_kind=builtin_kind_trim,
         last_tested_at=tested_txt,
     )
+
+
+def _secrets_configured(auth_type: str, payload: dict[str, Any]) -> bool:
+    """Return True when decrypted secrets satisfy the connector auth mode."""
+
+    style = auth_type.strip().lower()
+    if style in {"", "none"}:
+        return True
+    if style == "api_key":
+        key = payload.get("api_key")
+        return isinstance(key, str) and bool(key.strip())
+    if style == "bearer_token":
+        tok = payload.get("bearer_token")
+        return isinstance(tok, str) and bool(tok.strip())
+    if style == "oauth2":
+        tok = payload.get("oauth2_access_token")
+        return isinstance(tok, str) and bool(tok.strip())
+    if style == POLYMARKET_L2_AUTH:
+        return polymarket_l2_secrets_configured(payload)
+    if style == KALSHI_RSA_AUTH:
+        return kalshi_rsa_secrets_configured(payload)
+    return False
 
 
 def _secrets_to_headers(auth_type: str, payload: dict[str, Any]) -> dict[str, str]:
@@ -175,12 +204,8 @@ class DynamicConnectorService:
             raise ValueError(msg)
 
         cipher: str | None = None
-        if body.auth_type not in {"", "none"}:
-            secrets_model = body.secrets or None
-            if secrets_model is None:
-                msg = "secrets payload required whenever auth_type is not none."
-                raise ValueError(msg)
-            cipher = seal_dynamic_connector_blob(secrets_model.to_sealed_payload())
+        if body.secrets is not None:
+            cipher = seal_dynamic_connector_blob(body.secrets.to_sealed_payload())
 
         manifest = dict(body.mcp_manifest) if isinstance(body.mcp_manifest, dict) else manifest_tool_default()
         mgrs_raw = tuple({m.strip().lower() for m in body.allowed_manager_slugs if m.strip()})
@@ -337,7 +362,30 @@ class DynamicConnectorService:
         if not base:
             return {"slug": row.slug, "ok": False, "reason": "missing_base_url"}
 
-        headers = dict(_secrets_to_headers(row.auth_type, self._secrets_dict(row)))
+        secrets = self._secrets_dict(row)
+        if row.auth_type not in {"", "none"} and not _secrets_configured(row.auth_type, secrets):
+            return {"slug": row.slug, "ok": False, "reason": "missing_credentials"}
+
+        headers = dict(_secrets_to_headers(row.auth_type, secrets))
+        probe_path = ""
+        if row.auth_type.strip().lower() == KALSHI_RSA_AUTH:
+            probe_path = "/portfolio/balance"
+        elif row.auth_type.strip().lower() == POLYMARKET_L2_AUTH:
+            probe_path = "/data/orders"
+        if probe_path:
+            try:
+                headers.update(
+                    augment_prediction_market_headers(
+                        auth_type=row.auth_type,
+                        secrets=secrets,
+                        method="GET",
+                        base_url=base,
+                        resolved_path=probe_path,
+                        body=None,
+                    ),
+                )
+            except ValueError as exc:
+                return {"slug": row.slug, "ok": False, "reason": str(exc)[:200]}
 
         timeout = httpx.Timeout(cfg.dynamic_connector_tool_timeout_ms / 1000.0)
         ok = False
@@ -345,14 +393,20 @@ class DynamicConnectorService:
 
         async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
             try:
-                rsp = await client.head(base, headers=dict(headers))
-                if rsp.status_code >= 400 or rsp.status_code == 405:
-                    rsp_get = await client.get(base, headers=dict(headers))
+                if probe_path:
+                    probe_url = urljoin(base.rstrip("/") + "/", probe_path.lstrip("/"))
+                    rsp_get = await client.get(probe_url, headers=dict(headers))
                     ok = rsp_get.status_code < 400
-                    status_payload = {"status_code": rsp_get.status_code}
+                    status_payload = {"status_code": rsp_get.status_code, "probe": probe_path}
                 else:
-                    ok = rsp.status_code < 400
-                    status_payload = {"status_code": rsp.status_code}
+                    rsp = await client.head(base, headers=dict(headers))
+                    if rsp.status_code >= 400 or rsp.status_code == 405:
+                        rsp_get = await client.get(base, headers=dict(headers))
+                        ok = rsp_get.status_code < 400
+                        status_payload = {"status_code": rsp_get.status_code}
+                    else:
+                        ok = rsp.status_code < 400
+                        status_payload = {"status_code": rsp.status_code}
                 if ok:
                     await DynamicConnectorHub.breaker_note_success(row.slug)
                 else:
@@ -392,13 +446,23 @@ async def invoke_dynamic_tool(
     manager_slug: str | None = None,
     agent_task_id: str = "executor",
     granted_permissions: frozenset[str] | None = None,
+    secrets_override: dict[str, Any] | None = None,
 ) -> str:
     """Execute manifest-defined HTTP MCP tool with hardened budgets."""
 
     settings = get_settings()
     svc = DynamicConnectorService()
     row = await svc.fetch_by_slug(session, slug=connector_slug.strip().lower())
-    if row is None or not row.is_active:
+    if row is None:
+        return f"dynamic_invoke_error: connector `{connector_slug}` inactive or unknown"
+
+    owner_id = row.dashboard_user_id
+    if owner_id is not None:
+        from app.infrastructure.connectors.dynamic.credential_sync import hydrate_connector_secrets_from_vault
+
+        await hydrate_connector_secrets_from_vault(session, row, dashboard_user_id=owner_id)
+
+    if not row.is_active:
         return f"dynamic_invoke_error: connector `{connector_slug}` inactive or unknown"
 
     gov = CostGovernor()
@@ -484,7 +548,23 @@ async def invoke_dynamic_tool(
     resolved_path = substituted if substituted.startswith("/") else f"/{substituted}"
     endpoint = urljoin(base_txt.rstrip("/") + "/", resolved_path.lstrip("/"))
 
-    headers = dict(_secrets_to_headers(row.auth_type, svc._secrets_dict(row)))  # noqa: SLF001
+    secrets = secrets_override if secrets_override is not None else svc._secrets_dict(row)  # noqa: SLF001
+    headers = dict(_secrets_to_headers(row.auth_type, secrets))
+    body_for_sign = arguments if meth not in {"GET", "HEAD"} else None
+    if row.auth_type.strip().lower() in {POLYMARKET_L2_AUTH, KALSHI_RSA_AUTH}:
+        try:
+            headers.update(
+                augment_prediction_market_headers(
+                    auth_type=row.auth_type,
+                    secrets=secrets,
+                    method=meth,
+                    base_url=base_txt,
+                    resolved_path=resolved_path,
+                    body=body_for_sign,
+                ),
+            )
+        except ValueError as exc:
+            return f"dynamic_invoke_error: {exc}"
     extra_hdr = cfg_tool.get("headers")
     if isinstance(extra_hdr, dict):
         for hk, hv in extra_hdr.items():

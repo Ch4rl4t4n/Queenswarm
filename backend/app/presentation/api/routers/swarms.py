@@ -44,6 +44,23 @@ from app.application.services.sub_swarm_catalog import (
     fetch_sub_swarm,
     list_sub_swarms,
 )
+from app.application.services.swarm_health_notes import (
+    acknowledge_health_notes,
+    add_health_note,
+    list_health_notes,
+)
+from app.application.services.pollen_reroster import (
+    DEFAULT_RATIO_THRESHOLD,
+    DEFAULT_WINDOW_DAYS,
+    run_pollen_reroster_sweep,
+)
+from app.application.services.recipe_warmup import DEFAULT_TOP_N as RECIPE_WARMUP_DEFAULT_N, warmup_top_recipes
+from app.application.services.sentinel_upgrade_backlog import ensure_sentinel_upgrade_routine
+from app.application.services.manager_peer_review import (
+    DEFAULT_LOOKBACK_HOURS as PEER_REVIEW_LOOKBACK_HOURS,
+    DEFAULT_SAMPLE_RATIO as PEER_REVIEW_SAMPLE_RATIO,
+    sweep_peer_reviews,
+)
 from app.application.services.hive_md_generator import generate_swarm_hive_md
 from app.common.schemas.skill_export import HiveMdResponse
 
@@ -581,6 +598,183 @@ async def wake_swarm_colony(swarm_id: uuid.UUID, db: DbSession, _subject: JwtSub
             detail="Persistence rejected swarm wake.",
         )
     return {"ok": True, "swarm_id": str(swarm_id), "nudged_agents": woke}
+
+
+@router.get(
+    "/{swarm_id}/health-notes",
+    summary="List recent health notes for a swarm (newest first)",
+)
+async def get_swarm_health_notes(
+    swarm_id: uuid.UUID,
+    db: DbSession,
+    _subject: JwtSubject,
+    limit: int = Query(10, ge=1, le=10),
+) -> dict[str, Any]:
+    """Return advisory notes about under-performance / duplicated work / missing tools."""
+
+    items = await list_health_notes(db, swarm_id=swarm_id, limit=limit)
+    return {"swarm_id": str(swarm_id), "items": items, "count": len(items)}
+
+
+@router.post(
+    "/{swarm_id}/health-notes",
+    status_code=status.HTTP_201_CREATED,
+    summary="Append a health note (operator or Queen advisory)",
+)
+async def post_swarm_health_note(
+    swarm_id: uuid.UUID,
+    body: dict[str, Any],
+    db: DbSession,
+    _subject: JwtSubject,
+) -> dict[str, Any]:
+    """Append an advisory note; capped at the 10 most recent entries per swarm."""
+
+    message = str(body.get("message") or "").strip()
+    if not message:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="message required")
+    severity_raw = str(body.get("severity") or "warn").lower()
+    if severity_raw not in {"info", "warn", "error"}:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="severity must be info|warn|error")
+    source = str(body.get("source") or "operator").strip()[:64]
+    manager_raw = body.get("manager_agent_id")
+    manager_id: uuid.UUID | None = None
+    if manager_raw:
+        try:
+            manager_id = uuid.UUID(str(manager_raw))
+        except (TypeError, ValueError):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="manager_agent_id must be a UUID",
+            )
+    metadata = body.get("metadata") if isinstance(body.get("metadata"), dict) else None
+    try:
+        entry = await add_health_note(
+            db,
+            swarm_id=swarm_id,
+            message=message,
+            severity=severity_raw,
+            source=source,
+            manager_agent_id=manager_id,
+            metadata=metadata,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    await db.commit()
+    return entry
+
+
+@router.post(
+    "/recipe-warmup/run",
+    summary="Warm Chroma cache for top-N verified recipes (on-demand)",
+)
+async def run_recipe_warmup(
+    db: DbSession,
+    _subject: JwtSubject,
+    top_n: int = Query(RECIPE_WARMUP_DEFAULT_N, ge=1, le=100),
+) -> dict[str, Any]:
+    """Touch + Chroma-query the top-N verified recipes. Read-only, no LLM cost.
+
+    The nightly Celery beat schedule already runs this at 04:00 UTC. Use this
+    endpoint to warm immediately after a deploy or a Chroma restart.
+    """
+
+    payload = await warmup_top_recipes(db, top_n=top_n)
+    await db.commit()
+    return payload
+
+
+@router.post(
+    "/sentinel-upgrade-backlog/bootstrap",
+    summary="Idempotently install daily Sentinel 'Upgrade Backlog' routine",
+)
+async def bootstrap_sentinel_upgrade_routine(
+    db: DbSession,
+    sess: DashboardSession,
+) -> dict[str, Any]:
+    """Create the Sentinel daily upgrade-backlog routine for the operator tenant."""
+
+    tenant_raw = sess.get("tenant_id") if isinstance(sess, dict) else None
+    if not tenant_raw:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tenant context.")
+    try:
+        tenant_uuid = uuid.UUID(str(tenant_raw))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid tenant id.")
+    subject_raw = sess.get("sub") if isinstance(sess, dict) else None
+    payload = await ensure_sentinel_upgrade_routine(
+        db,
+        tenant_id=tenant_uuid,
+        created_by_subject=str(subject_raw) if subject_raw else None,
+    )
+    await db.commit()
+    return payload
+
+
+@router.post(
+    "/peer-review/sweep",
+    summary="Sample 10 % of completed sessions for alternate-manager peer review",
+)
+async def run_peer_review_sweep(
+    db: DbSession,
+    _subject: JwtSubject,
+    sample_ratio: float = Query(PEER_REVIEW_SAMPLE_RATIO, gt=0.0, le=1.0),
+    lookback_hours: int = Query(PEER_REVIEW_LOOKBACK_HOURS, ge=1, le=168),
+    max_reviews: int = Query(5, ge=1, le=20),
+) -> dict[str, Any]:
+    """Emit info-severity health notes from alternate managers on sampled sessions."""
+
+    payload = await sweep_peer_reviews(
+        db,
+        sample_ratio=sample_ratio,
+        lookback_hours=lookback_hours,
+        max_reviews=max_reviews,
+    )
+    await db.commit()
+    return payload
+
+
+@router.post(
+    "/pollen-reroster/run",
+    summary="Run pollen-driven re-roster advisor on demand (advisory only)",
+)
+async def run_pollen_reroster(
+    db: DbSession,
+    _subject: JwtSubject,
+    window_days: int = Query(DEFAULT_WINDOW_DAYS, ge=7, le=90),
+    ratio_threshold: float = Query(DEFAULT_RATIO_THRESHOLD, gt=0.0, lt=1.0),
+    write_notes: bool = Query(True),
+) -> dict[str, Any]:
+    """Flag under-performing bees vs swarm median; optionally append health notes.
+
+    This is **advisory only** — no agent is paused, deactivated, or deleted.
+    Operator decides what to do with the flags.
+    """
+
+    payload = await run_pollen_reroster_sweep(
+        db,
+        window_days=window_days,
+        ratio_threshold=ratio_threshold,
+        write_notes=write_notes,
+    )
+    await db.commit()
+    return payload
+
+
+@router.delete(
+    "/{swarm_id}/health-notes",
+    summary="Acknowledge / clear health notes (single by ?note_id= or all)",
+)
+async def delete_swarm_health_notes(
+    swarm_id: uuid.UUID,
+    db: DbSession,
+    _subject: JwtSubject,
+    note_id: str | None = Query(None),
+) -> dict[str, Any]:
+    """Remove one note (by id) or clear them all; returns remaining count."""
+
+    remaining = await acknowledge_health_notes(db, swarm_id=swarm_id, note_id=note_id)
+    await db.commit()
+    return {"swarm_id": str(swarm_id), "remaining": remaining}
 
 
 __all__ = ["router"]

@@ -9,6 +9,13 @@ import { usePlatform } from "@/components/hive/platform-context";
 import { hiveGet, hivePostJson, HiveApiError } from "@/lib/api";
 import type { HarnessIntelligenceScanPayload, HarnessSnapshotPayload } from "@/lib/hive-types";
 import { BehavioralMemoryPanel } from "@/components/hive/behavioral-memory-panel";
+import { CollapsibleLazyPanel } from "@/components/hive/collapsible-lazy-panel";
+import {
+  HarnessMcpToolGrid,
+  HarnessPatternGrid,
+  HarnessSkillLatticeGrid,
+} from "@/components/hive/harness-snapshot-grids";
+import { SoloOperatorTrioPanel } from "@/components/hive/solo-operator-trio-panel";
 import { SlackHarnessTrainerPanel } from "@/components/hive/slack-harness-trainer-panel";
 import { LspBridgePanel } from "@/components/hive/lsp-bridge-panel";
 import { RubricTemplatesPanel } from "@/components/hive/rubric-templates-panel";
@@ -183,30 +190,16 @@ export function SettingsHarnessPanel(): JSX.Element | null {
         </ul>
       </V4Card>
 
-      <V4Card>
-        <V4CardHeader
-          kicker="MCP"
-          title="Dynamic tool catalog"
-          description="Active connector tools discoverable by supervisor lanes."
-        />
-        {snapshot.mcp_tools.count === 0 ? (
-          <p className="mt-3 text-sm text-(--qs-muted)">No MCP tools provisioned — install a marketplace preset.</p>
-        ) : (
-          <ul className="mt-3 grid gap-2 md:grid-cols-2">
-            {snapshot.mcp_tools.items.map((tool, idx) => {
-              const slug = String((tool as { connector_slug?: string }).connector_slug ?? "tool");
-              const name = String((tool as { tool_name?: string }).tool_name ?? idx);
-              return (
-                <li key={`${slug}:${name}`} className="rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2 text-sm">
-                  <p className="font-mono text-xs text-cyan">{slug}</p>
-                  <p className="mt-1 text-(--qs-text)">{name}</p>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </V4Card>
+      <CollapsibleLazyPanel
+        id="harness-tool-catalog"
+        hashKey="tool-catalog"
+        title="Dynamic tool catalog"
+        hint="Active connector tools discoverable by supervisor lanes."
+        meta={`${snapshot.mcp_tools.count} tools`}
+        lazyContent={() => <HarnessMcpToolGrid items={snapshot.mcp_tools.items} />}
+      />
 
+      <SoloOperatorTrioPanel />
       <BehavioralMemoryPanel />
       {hasFeature("slack_harness_trainer") && snapshot ? (
         <SlackHarnessTrainerPanel snapshot={snapshot} />
@@ -215,49 +208,23 @@ export function SettingsHarnessPanel(): JSX.Element | null {
       {hasFeature("rubric_templates") && snapshot ? <RubricTemplatesPanel snapshot={snapshot} /> : null}
       {snapshot ? <QueenMaintainerWebhookPanel snapshot={snapshot} /> : null}
 
-      <V4Card>
-        <V4CardHeader kicker="Skills" title="Active skill lattice" description="Markdown skills selected by SkillLibrary." />
-        <ul className="mt-3 grid gap-2 md:grid-cols-2">
-          {snapshot.skills.items.map((skill) => (
-            <li key={skill.slug} className="rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-semibold text-(--qs-text)">{skill.title}</span>
-                <span className="font-mono text-xs text-pollen">p{skill.priority}</span>
-              </div>
-              <p className="mt-1 font-mono text-xs text-(--qs-muted)">{skill.slug}</p>
-            </li>
-          ))}
-        </ul>
-      </V4Card>
+      <CollapsibleLazyPanel
+        id="harness-skill-lattice"
+        hashKey="skill-lattice"
+        title="Active skill lattice"
+        hint="Markdown skills selected by SkillLibrary."
+        meta={`${snapshot.skills.count} skills`}
+        lazyContent={() => <HarnessSkillLatticeGrid skills={snapshot.skills.items} />}
+      />
 
-      <V4Card>
-        <V4CardHeader
-          kicker="Patterns"
-          title="Recent agentic patterns"
-          description="From supervisor sessions — Pattern Router selections."
-        />
-        {snapshot.recent_agentic_patterns.length === 0 ? (
-          <p className="mt-3 text-sm text-(--qs-muted)">No patterned sessions yet — run a supervisor task.</p>
-        ) : (
-          <ul className="mt-3 space-y-3">
-            {snapshot.recent_agentic_patterns.map((row) => (
-              <li key={row.session_id} className="rounded-lg border border-(--qs-border) bg-black/20 p-3 text-sm">
-                <div className="flex flex-wrap gap-2">
-                  <V4Badge tone="info">{row.status}</V4Badge>
-                  {row.forced_reflection ? <V4Badge tone="ok">reflection</V4Badge> : null}
-                </div>
-                <p className="mt-2 font-mono text-xs text-(--qs-muted)">{row.session_id.slice(0, 8)}…</p>
-                <p className="mt-1 text-(--qs-text)">
-                  Primary: {(row.primary.length ? row.primary.join(", ") : "—")}
-                </p>
-                {row.rationale?.[0] ? (
-                  <p className="mt-1 text-(--qs-muted)">Why: {row.rationale[0]}</p>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
-      </V4Card>
+      <CollapsibleLazyPanel
+        id="harness-recent-patterns"
+        hashKey="recent-patterns"
+        title="Recent agentic patterns"
+        hint="From supervisor sessions — Pattern Router selections."
+        meta={`${snapshot.recent_agentic_patterns.length} sessions`}
+        lazyContent={() => <HarnessPatternGrid patterns={snapshot.recent_agentic_patterns} />}
+      />
 
       <V4Card>
         <V4CardHeader

@@ -20,6 +20,12 @@ class DynamicConnectorSecretsInbound(BaseModel):
     oauth2_client_id: str | None = Field(default=None, max_length=512)
     oauth2_client_secret: str | None = Field(default=None, max_length=4096)
     api_key_header_name: str = Field(default="X-API-KEY", max_length=64)
+    polymarket_api_key: str | None = Field(default=None, max_length=512)
+    polymarket_api_secret: str | None = Field(default=None, max_length=4096)
+    polymarket_api_passphrase: str | None = Field(default=None, max_length=512)
+    polymarket_wallet_address: str | None = Field(default=None, max_length=128)
+    kalshi_api_key_id: str | None = Field(default=None, max_length=128)
+    kalshi_private_key_pem: str | None = Field(default=None, max_length=16384)
 
     def to_sealed_payload(self) -> dict[str, Any]:
         """Return JSON-safe dict handed to vault Fernet sealing."""
@@ -27,7 +33,7 @@ class DynamicConnectorSecretsInbound(BaseModel):
         return self.model_dump(mode="json")
 
 
-AuthTypeLiteral = Literal["none", "api_key", "bearer_token", "oauth2"]
+AuthTypeLiteral = Literal["none", "api_key", "bearer_token", "oauth2", "polymarket_l2", "kalshi_rsa"]
 
 
 class DynamicConnectorManifest(BaseModel):

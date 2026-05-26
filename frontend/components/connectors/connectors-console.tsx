@@ -2,8 +2,6 @@
 
 import Link from 'next/link'
 import {
-  ChevronDown,
-  ChevronRight,
   ExternalLink,
   Loader2Icon,
   RefreshCw,
@@ -17,7 +15,8 @@ import { ConnectorsOAuthConsentRail } from '@/components/connectors/connectors-o
 import { ConnectorsVaultPanel } from '@/components/connectors/connectors-vault-panel'
 import { Phase3TemplateInspector } from '@/components/connectors/phase3-template-inspector'
 import { InfoHint } from '@/components/hive/info-hint'
-import { V4Badge, V4Card, V4CardHeader, V4Stat } from '@/components/ui/v4'
+import { ListPaginator, ViewportBoundedPanel } from '@/components/ui/list-paginator'
+import { V4Badge, V4Card, V4CardHeader } from '@/components/ui/v4'
 import { HiveApiError, hiveDelete, hiveGet, hivePatchJson, hivePostJson } from '@/lib/api'
 import {
   parsePhase3IntegrationOverview,
@@ -30,12 +29,15 @@ import {
   extractPhase3FromCatalog,
   orderedPhase3Categories,
   phase3CategoryLabel,
+  phase3CategoryShortLabel,
   phase3ProvisionCoverage,
   type ObsidianVaultStatusPayload,
   type Phase3CatalogSlice,
   type Phase3TemplatePublic,
 } from '@/lib/connectors-phase3'
 import { extractOAuthConsentCatalog, type OAuthConsentCatalogSlice } from '@/lib/connectors-oauth-catalog'
+import { useGridTwoRowPageSize } from '@/lib/use-grid-two-row-page-size'
+import { usePaginatedSlice } from '@/lib/use-paginated-slice'
 import { cn } from '@/lib/utils'
 
 interface ConnectorsEnvelope {
@@ -90,6 +92,9 @@ export function ConnectorsConsole({ embedded = false }: ConnectorsConsoleProps) 
   const [overviewBusy, setOverviewBusy] = useState(false)
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
   const [testingConnectorId, setTestingConnectorId] = useState<string | null>(null)
+
+  const rosterPageSize = useGridTwoRowPageSize({ columns: 2 })
+  const rosterPagination = usePaginatedSlice(rows, rosterPageSize, `${rows.length}|${rosterPageSize}`)
 
   const refreshPhase3Overview = useCallback(async () => {
     setOverviewBusy(true)
@@ -149,7 +154,7 @@ export function ConnectorsConsole({ embedded = false }: ConnectorsConsoleProps) 
       const pk = params.get('provider')
       setOauthFlash({
         kind: 'success',
-        message: `Connected ${pk ?? 'integration'}. Vault sealed and Dynamic Hub updated — run connector test to activate when ready.`,
+        message: `Connected ${pk ?? 'integration'}. Vault sealed — connector active and super routers sync when ready.`,
       })
       void reloadConnectors()
         .then(setRows)
@@ -379,19 +384,13 @@ export function ConnectorsConsole({ embedded = false }: ConnectorsConsoleProps) 
       <ConnectorsOAuthConsentRail catalog={oauthCatalog} />
 
       {phase3Slice ? (
-        <V4Card className="space-y-5">
+        <V4Card className="space-y-4 phase3-templates-card">
           <V4CardHeader
-            title="Phase 3 templates · Communication & Knowledge"
-            description={
-              <>
-                {phase3Slice.template_count} curated MCP manifests — use{' '}
-                <span className="text-pollen">hosted OAuth connect</span> above for Gmail / Outlook / Calendar / GitHub / Notion / Stripe,
-                prefill the forge below, or provision directly into the hub (manual secrets JSON still supported).
-              </>
-            }
+            title="Phase 3 templates"
+            description="MCP manifests — OAuth connect above, or pick a category bubble and provision."
             actions={
-              <p className="font-mono text-xs text-(--qs-text-3)">
-                Coverage · {phase3Coverage.filter((c) => c.provisioned).length}/{phase3Coverage.length} defaults detected
+              <p className="font-mono text-[10px] text-(--qs-text-3)">
+                {phase3Coverage.filter((c) => c.provisioned).length}/{phase3Coverage.length} provisioned
               </p>
             }
           />
@@ -402,115 +401,116 @@ export function ConnectorsConsole({ embedded = false }: ConnectorsConsoleProps) 
             </p>
           ) : null}
 
-          <div className="mb-4 v4-stat-grid">
-            <V4Stat label="Templates rostered" value={`${pulse.provisioned}/${pulse.total}`} valueVariant="text" />
-            <V4Stat label="Active slugs" value={pulse.active} iconTone="green" />
+          <div className="phase3-templates-stats flex flex-wrap items-center gap-2">
+            <V4Badge tone="info">{pulse.provisioned}/{pulse.total} rostered</V4Badge>
+            <V4Badge tone="ok">{pulse.active} active</V4Badge>
             <button
               type="button"
               disabled={overviewBusy}
               onClick={() => void refreshPhase3Overview()}
-              className="qs-btn qs-btn--ghost qs-btn--sm h-full min-h-[88px] w-full touch-manipulation"
+              className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5 touch-manipulation"
             >
-              {overviewBusy ? <Loader2Icon className="h-4 w-4 animate-spin" aria-hidden /> : <RefreshCw className="h-4 w-4" aria-hidden />}
-              Refresh integration pulse
+              {overviewBusy ? <Loader2Icon className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <RefreshCw className="h-3.5 w-3.5" aria-hidden />}
+              Refresh
             </button>
           </div>
 
-          <div className="v4-connectors-split xl:grid xl:grid-cols-[minmax(0,1fr)_340px] xl:gap-8 xl:items-start">
+          <div className="v4-connectors-split min-w-0 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,300px)] xl:gap-6 xl:items-start">
           <div className="space-y-3">
-            {orderedPhase3Categories(phase3Slice.grouped).map((category) => {
-              const tpls = phase3Slice.grouped[category] ?? []
-              if (!tpls.length) {
-                return null
-              }
-              const open = phase3OpenCategory === category
-              return (
-                <div key={category} className="v4-learning-panel">
+            <div className="phase3-category-bubble-grid" role="tablist" aria-label="Phase 3 categories">
+              {orderedPhase3Categories(phase3Slice.grouped).map((category) => {
+                const tpls = phase3Slice.grouped[category] ?? []
+                if (!tpls.length) return null
+                const active = phase3OpenCategory === category
+                const provisionedInCat = tpls.filter((tpl) =>
+                  phase3Coverage.find((row) => row.template_id === tpl.template_id)?.provisioned,
+                ).length
+                return (
                   <button
+                    key={category}
                     type="button"
-                    className="flex w-full items-center justify-between gap-3 px-1 py-1 text-left text-sm font-semibold text-(--qs-text)"
-                    onClick={() => setPhase3OpenCategory(open ? null : category)}
-                    aria-expanded={open}
+                    role="tab"
+                    aria-selected={active}
+                    className={cn('phase3-category-bubble', active && 'phase3-category-bubble--active')}
+                    onClick={() => setPhase3OpenCategory(category)}
                   >
-                    <span className="flex items-center gap-2">
-                      {open ? <ChevronDown className="h-4 w-4 text-pollen" aria-hidden /> : <ChevronRight className="h-4 w-4 text-(--qs-text-3)" aria-hidden />}
-                      {phase3CategoryLabel(category)}
-                      <V4Badge tone="info">{tpls.length}</V4Badge>
-                    </span>
+                    <span className="phase3-category-bubble__label">{phase3CategoryShortLabel(category)}</span>
+                    <V4Badge tone={active ? 'gold' : 'info'}>{tpls.length}</V4Badge>
+                    {provisionedInCat > 0 ? (
+                      <span className="phase3-category-bubble__dot" aria-label={`${provisionedInCat} provisioned`} />
+                    ) : null}
                   </button>
-                  {open ? (
-                    <div className="grid gap-3 border-t border-(--qs-border) pt-4 md:grid-cols-2">
-                      {tpls.map((tpl) => {
-                        const covered = phase3Coverage.find((row) => row.template_id === tpl.template_id)?.provisioned
-                        return (
-                          <article key={tpl.template_id} className="v4-dream-cycle-card flex flex-col gap-3">
-                            <header className="space-y-1">
-                              <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-(--qs-text-3)">{tpl.template_id}</p>
-                              <h3 className="text-base font-semibold text-pollen">{tpl.title}</h3>
-                              <p className="text-xs leading-relaxed text-(--qs-text-3)">{tpl.summary}</p>
-                            </header>
-                            <dl className="grid gap-2 text-xs text-(--qs-text-3) md:grid-cols-2">
-                              <div>
-                                <dt className="v4-field-label">Auth</dt>
-                                <dd className="text-(--qs-text)">{tpl.auth_type}</dd>
-                              </div>
-                              <div>
-                                <dt className="v4-field-label">Tools</dt>
-                                <dd className="text-(--qs-text)">{tpl.tool_count}</dd>
-                              </div>
-                              <div className="md:col-span-2">
-                                <dt className="v4-field-label">Status</dt>
-                                <dd className={covered ? 'text-(--qs-green)' : 'text-(--qs-magenta)'}>{covered ? 'Slug detected in roster' : 'Not provisioned yet'}</dd>
-                              </div>
-                            </dl>
-                            <div className="flex flex-wrap gap-2">
-                              <button
-                                type="button"
-                                className="qs-btn qs-btn--ghost qs-btn--sm w-full sm:w-auto sm:flex-1"
-                                onClick={() => setSelectedTemplateId(tpl.template_id)}
-                              >
-                                Power panel
-                              </button>
-                              <a
-                                href={tpl.documentation_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="qs-btn qs-btn--ghost qs-btn--sm flex-1 gap-2 min-[420px]:flex-none"
-                              >
-                                Docs
-                                <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-                              </a>
-                              <button
-                                type="button"
-                                className="qs-btn qs-btn--ghost qs-btn--sm flex-1 min-[420px]:flex-none"
-                                onClick={() => applyPhase3Template(tpl)}
-                              >
-                                Prefill forge
-                              </button>
-                              <button
-                                type="button"
-                                disabled={instantiatingId === tpl.template_id}
-                                className="qs-btn qs-btn--primary qs-btn--sm flex-1 min-[420px]:flex-none"
-                                onClick={() => void provisionFromPhase3Template(tpl)}
-                              >
-                                {instantiatingId === tpl.template_id ? (
-                                  <>
-                                    <Loader2Icon className="mr-2 h-3.5 w-3.5 animate-spin" aria-hidden />
-                                    Sealing…
-                                  </>
-                                ) : (
-                                  'Provision hub row'
-                                )}
-                              </button>
-                            </div>
-                          </article>
-                        )
-                      })}
-                    </div>
-                  ) : null}
+                )
+              })}
+            </div>
+
+            {phase3OpenCategory && (phase3Slice.grouped[phase3OpenCategory]?.length ?? 0) > 0 ? (
+              <div className="phase3-templates-scroll">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-(--qs-text-3)">
+                  {phase3CategoryLabel(phase3OpenCategory)}
+                </p>
+                <div className="phase3-templates-grid">
+                  {(phase3Slice.grouped[phase3OpenCategory] ?? []).map((tpl) => {
+                    const covered = phase3Coverage.find((row) => row.template_id === tpl.template_id)?.provisioned
+                    return (
+                      <article key={tpl.template_id} className="phase3-template-card flex flex-col gap-2">
+                        <header className="space-y-0.5">
+                          <h3 className="text-sm font-semibold leading-tight text-pollen">{tpl.title}</h3>
+                          <p className="line-clamp-2 text-[10px] leading-relaxed text-(--qs-text-3)">{tpl.summary}</p>
+                        </header>
+                        <dl className="grid grid-cols-2 gap-1 text-[10px] text-(--qs-text-3)">
+                          <div>
+                            <dt className="v4-field-label text-[9px]">Auth</dt>
+                            <dd className="text-(--qs-text)">{tpl.auth_type}</dd>
+                          </div>
+                          <div>
+                            <dt className="v4-field-label text-[9px]">Tools</dt>
+                            <dd className="text-(--qs-text)">{tpl.tool_count}</dd>
+                          </div>
+                          <div className="col-span-2">
+                            <dd className={covered ? 'text-(--qs-green)' : 'text-(--qs-magenta)'}>
+                              {covered ? 'In roster' : 'Not provisioned'}
+                            </dd>
+                          </div>
+                        </dl>
+                        <div className="mt-auto flex flex-wrap gap-1 pt-1">
+                          <button
+                            type="button"
+                            className="qs-btn qs-btn--ghost qs-btn--sm text-[10px]"
+                            onClick={() => setSelectedTemplateId(tpl.template_id)}
+                          >
+                            Panel
+                          </button>
+                          <a
+                            href={tpl.documentation_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="qs-btn qs-btn--ghost qs-btn--sm text-[10px]"
+                          >
+                            Docs
+                          </a>
+                          <button
+                            type="button"
+                            className="qs-btn qs-btn--ghost qs-btn--sm text-[10px]"
+                            onClick={() => applyPhase3Template(tpl)}
+                          >
+                            Prefill
+                          </button>
+                          <button
+                            type="button"
+                            disabled={instantiatingId === tpl.template_id}
+                            className="qs-btn qs-btn--primary qs-btn--sm text-[10px]"
+                            onClick={() => void provisionFromPhase3Template(tpl)}
+                          >
+                            {instantiatingId === tpl.template_id ? '…' : 'Provision'}
+                          </button>
+                        </div>
+                      </article>
+                    )
+                  })}
                 </div>
-              )
-            })}
+              </div>
+            ) : null}
           </div>
 
           <div className="relative hidden xl:block">
@@ -527,14 +527,9 @@ export function ConnectorsConsole({ embedded = false }: ConnectorsConsoleProps) 
                 testingId={testingConnectorId}
               />
             ) : (
-              <div className="v4-learning-panel sticky top-28 space-y-3 text-sm text-(--qs-text-3)">
-                <p className="v4-field-label text-pollen">Desktop · Power panel</p>
-                <p>
-                  Pick any Phase 3 vendor card and open <span className="text-(--qs-text)">Power panel</span> to browse MCP tools, sync forge
-                  prefill, provision instantly, and run upstream probes — sidebar stays visible for operators jumping across HiveMind or External
-                  Projects.
-                </p>
-                <p className="text-xs">Phones &amp; tablets surface the same inspector as a bottom sheet aligned with thumb navigation.</p>
+              <div className="v4-learning-panel sticky top-28 space-y-2 p-3 text-xs text-(--qs-text-3)">
+                <p className="v4-field-label text-pollen text-[10px]">Power panel</p>
+                <p>Pick a template → <span className="text-(--qs-text)">Panel</span> for MCP tools, probe, and provision.</p>
               </div>
             )}
           </div>
@@ -743,52 +738,69 @@ export function ConnectorsConsole({ embedded = false }: ConnectorsConsoleProps) 
           </div>
         ) : null}
 
-        <div className="grid gap-4">
-          {rows.map((conn) => (
-            <article key={conn.id} className="v4-dream-cycle-card flex flex-col gap-3">
-              <header className="flex w-full flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="font-mono text-xs uppercase tracking-[0.25em] text-(--qs-text-3)">{conn.slug}</p>
-                  <h3 className="text-lg font-semibold text-pollen">{conn.display_name}</h3>
-                  <p className="break-all font-mono text-xs text-(--qs-text-3)">{conn.base_url ?? '(unset base)'}</p>
+        {rows.length ? (
+        <ViewportBoundedPanel
+          className="v4-recipe-catalog-panel"
+          footer={
+            <ListPaginator
+              page={rosterPagination.page}
+              totalPages={rosterPagination.totalPages}
+              totalItems={rosterPagination.totalItems}
+              pageSize={rosterPageSize}
+              onPageChange={rosterPagination.setPage}
+            />
+          }
+        >
+          <div className="combined-roster-grid">
+          {rosterPagination.slice.map((conn) => (
+            <article key={conn.id} className="v4-dream-cycle-card combined-roster-card flex flex-col gap-2">
+              <header className="flex w-full flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-(--qs-text-3)">{conn.slug}</p>
+                  <h3 className="text-base font-semibold leading-tight text-pollen">{conn.display_name}</h3>
+                  <p className="truncate font-mono text-[10px] text-(--qs-text-3)" title={conn.base_url ?? undefined}>
+                    {conn.base_url ?? '(unset base)'}
+                  </p>
                 </div>
                 <ConnectorBadges builtin={conn.is_builtin} active={conn.is_active} />
               </header>
 
-              <dl className="mt-4 grid w-full gap-4 text-sm text-(--qs-text-2) md:grid-cols-3">
-                <div>
-                  <dt className="v4-field-label">Managers</dt>
-                  <dd className="text-(--qs-text)">{managerChip(conn.allowed_manager_slugs)}</dd>
+              <dl className="grid w-full gap-2 text-xs text-(--qs-text-2) sm:grid-cols-2">
+                <div className="min-w-0">
+                  <dt className="v4-field-label text-[10px]">Managers</dt>
+                  <dd className="line-clamp-2 text-(--qs-text)">{managerChip(conn.allowed_manager_slugs)}</dd>
                 </div>
                 <div>
-                  <dt className="v4-field-label">Last test</dt>
+                  <dt className="v4-field-label text-[10px]">Last test</dt>
                   <dd className="text-(--qs-text)">{conn.last_tested_at ?? 'never probed'}</dd>
                 </div>
               </dl>
 
-              <footer className="mt-4 flex w-full flex-wrap gap-2">
-                <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void handleTest(conn.id)}>
-                  Test connection · 2500 ms SLA
+              <footer className="mt-auto flex w-full flex-wrap gap-1.5 pt-1">
+                <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm text-[11px]" onClick={() => void handleTest(conn.id)}>
+                  Test · 2500ms
                 </button>
                 <button
                   type="button"
                   disabled={conn.is_builtin}
-                  className={cn('qs-btn qs-btn--ghost qs-btn--sm', conn.is_builtin && 'opacity-35')}
+                  className={cn('qs-btn qs-btn--ghost qs-btn--sm text-[11px]', conn.is_builtin && 'opacity-35')}
                   onClick={() => void toggleActive(conn)}
                 >
-                  {conn.is_active ? 'Deactivate manually' : 'Activate manually'}
+                  {conn.is_active ? 'Deactivate' : 'Activate'}
                 </button>
                 {!conn.is_builtin ? (
-                  <button type="button" className="qs-btn qs-btn--danger qs-btn--sm" onClick={() => void handleRemove(conn)}>
+                  <button type="button" className="qs-btn qs-btn--danger qs-btn--sm text-[11px]" onClick={() => void handleRemove(conn)}>
                     Remove
                   </button>
                 ) : (
-                  <p className="text-xs font-mono text-(--qs-text-3)">seeded via alembic 0014_dynamic_connectors</p>
+                  <p className="text-[10px] font-mono text-(--qs-text-3)">seeded · alembic</p>
                 )}
               </footer>
             </article>
           ))}
-        </div>
+          </div>
+        </ViewportBoundedPanel>
+        ) : null}
       </V4Card>
 
     </>

@@ -2,6 +2,15 @@
 
 Quick checklist for the morning session. **Read-only audits first**, then Stripe, then manual walkthrough.
 
+**All-in-one prep (recommended):**
+
+```bash
+./scripts/operator-p0-prep-all.sh
+# Stripe + Hetzner + tenant UUID + GitHub webhook + harness env + launch checklist
+```
+
+See also: `docs/OPERATOR_LAUNCH_INDEX.md`, `docs/OPERATOR_P0_CLOSE.md`, `docs/OPERATOR_HARNESS_WEBHOOK_SETUP.md`
+
 ## 1. Health snapshot (~5 min)
 
 ```bash

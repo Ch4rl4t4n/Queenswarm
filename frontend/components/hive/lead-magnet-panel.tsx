@@ -21,7 +21,7 @@ export function LeadMagnetPanel({ compact = false }: LeadMagnetPanelProps): JSX.
   const [catalog, setCatalog] = useState<LeadMagnetCatalogItem[]>([]);
   const [selectedId, setSelectedId] = useState("exec-assistant");
   const [sharePack, setSharePack] = useState<LeadMagnetSharePackResponse | null>(null);
-  const [channelId, setChannelId] = useState("linkedin");
+  const [channelId, setChannelId] = useState("tiktok");
   const [loading, setLoading] = useState(true);
   const [packBusy, setPackBusy] = useState(false);
 
@@ -52,7 +52,7 @@ export function LeadMagnetPanel({ compact = false }: LeadMagnetPanelProps): JSX.
         `marketing/lead-magnets/${encodeURIComponent(templateId)}/share-pack?window_days=30`,
       );
       setSharePack(pack);
-      setChannelId("linkedin");
+      setChannelId(pack.share_channels[0]?.id ?? "tiktok");
     } catch (e) {
       setSharePack(null);
       toast.error(e instanceof HiveApiError ? e.message : "Share pack unavailable.");
@@ -101,7 +101,7 @@ export function LeadMagnetPanel({ compact = false }: LeadMagnetPanelProps): JSX.
             <V4Badge tone="info">UGC engine</V4Badge>
           </div>
           <p className="mt-1 max-w-2xl text-xs text-(--qs-text-3)">
-            Swarm output → LinkedIn / TikTok copy + public landing. Verified hours overlay when your hive has ROI data.
+            Swarm output → TikTok / X copy + public landing. Verified hours overlay when your hive has ROI data.
           </p>
         </div>
       </div>

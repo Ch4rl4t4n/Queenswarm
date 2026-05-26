@@ -202,6 +202,20 @@ async def route_external_invocation(
                     human_approved=None,
                 )
             out = await mgr.handle(action=action, payload=payload, project_settings=proj_settings)
+            venue = str(proj_settings.get("venue") or "").strip().lower()
+            if (
+                out.get("status") == "queued_for_execution"
+                and venue in {"polymarket", "kalshi"}
+            ):
+                from app.application.services.prediction_market_trading import execute_live_prediction_trade
+
+                live_out = await execute_live_prediction_trade(
+                    session,
+                    project=project,
+                    payload=payload,
+                    project_settings=proj_settings,
+                )
+                out = {**out, **live_out}
         elif proj_kind == "food_ordering":
             out = await FoodOrderingManager().handle(
                 action=action,
@@ -231,6 +245,9 @@ async def route_external_invocation(
     if approval_needed:
         ok_flag = False
     elif out.get("status") == "queued_for_execution":
+        human_ok = bool(payload.get("human_approval_confirmed"))
+    elif out.get("status") == "executed":
+        ok_flag = bool(out.get("verified"))
         human_ok = bool(payload.get("human_approval_confirmed"))
 
     return ResolvedInvocation(

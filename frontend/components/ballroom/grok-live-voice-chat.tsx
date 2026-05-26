@@ -5,6 +5,7 @@ import type { JSX } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { HiveApiError, hivePostJson } from "@/lib/api";
+import { formatVoiceLiveError } from "@/lib/voice-live-errors";
 import { cn } from "@/lib/utils";
 
 const PCM_SAMPLE_RATE = 16_000;
@@ -14,6 +15,8 @@ interface GrokLiveVoiceButtonProps {
   readonly disabled?: boolean;
   readonly voiceId?: string;
   readonly sessionInstructions?: string;
+  /** Run before connecting (e.g. mint ballroom session). Return false to abort. */
+  readonly onBeforeStart?: () => Promise<boolean>;
   readonly onUserLine?: (text: string) => void;
   readonly onAssistantLine?: (text: string) => void;
   readonly onStatusChange?: (status: "idle" | "connecting" | "live" | "error") => void;
@@ -124,6 +127,7 @@ export function GrokLiveVoiceButton({
   disabled = false,
   voiceId,
   sessionInstructions,
+  onBeforeStart,
   onUserLine,
   onAssistantLine,
   onStatusChange,
@@ -292,6 +296,16 @@ export function GrokLiveVoiceButton({
     onStatusChange?.("connecting");
 
     try {
+      if (onBeforeStart) {
+        const ready = await onBeforeStart();
+        if (!ready) {
+          reportError("Start a ballroom session first (Start session).");
+          setConnecting(false);
+          onStatusChange?.("idle");
+          return;
+        }
+      }
+
       const tokenOut = await hivePostJson<LiveTokenResponse>("ballroom/voice/live-token", {});
       const secret = tokenOut.client_secret?.trim();
       const wsUrl = tokenOut.ws_url?.trim() || "wss://api.x.ai/v1/realtime?model=grok-voice-latest";
@@ -365,12 +379,12 @@ export function GrokLiveVoiceButton({
         wsRef.current.send(JSON.stringify({ type: "input_audio_buffer.append", audio: encoded }));
       };
     } catch (exc) {
-      const detail =
+      const raw =
         exc instanceof HiveApiError ? exc.message : exc instanceof Error ? exc.message : "Could not start voice call.";
-      reportError(detail);
+      reportError(formatVoiceLiveError(raw));
       cleanup();
     }
-  }, [cleanup, connecting, disabled, handleServerEvent, live, onStatusChange, reportError, sessionInstructions, voiceId]);
+  }, [cleanup, connecting, disabled, handleServerEvent, live, onBeforeStart, onStatusChange, reportError, sessionInstructions, voiceId]);
 
   const toggleLive = useCallback(() => {
     if (live) {
@@ -396,7 +410,7 @@ export function GrokLiveVoiceButton({
       disabled={disabled || connecting}
       aria-label={label}
       aria-pressed={live}
-      title={label}
+      title={disabled ? "Please wait…" : label}
       onClick={toggleLive}
     >
       {connecting ? (

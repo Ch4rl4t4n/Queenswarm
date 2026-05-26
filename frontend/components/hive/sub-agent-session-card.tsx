@@ -20,6 +20,7 @@ interface SubAgentSessionCardProps {
   sub: SubAgentSessionRow;
   events?: SupervisorSessionEventRow[];
   onSessionRefresh?: () => void;
+  showFullOutput?: boolean;
 }
 
 function manifestTitle(entry: Record<string, unknown>): string {
@@ -40,6 +41,7 @@ export function SubAgentSessionCard({
   sub,
   events = [],
   onSessionRefresh,
+  showFullOutput = false,
 }: SubAgentSessionCardProps): JSX.Element {
   const [expanded, setExpanded] = useState(false);
   const [retryBusy, setRetryBusy] = useState(false);
@@ -139,7 +141,9 @@ export function SubAgentSessionCard({
       ) : null}
 
       {sub.last_output ? (
-        <p className={cn("mt-2 text-xs text-zinc-200", expanded ? "line-clamp-2" : "line-clamp-4")}>{sub.last_output}</p>
+        <p className={cn("mt-2 whitespace-pre-wrap text-xs text-zinc-200", !showFullOutput && (expanded ? "line-clamp-2" : "line-clamp-4"))}>
+          {sub.last_output}
+        </p>
       ) : null}
 
       {sub.error_text ? <p className="mt-2 text-xs text-danger">{sub.error_text}</p> : null}

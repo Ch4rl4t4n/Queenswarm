@@ -23,7 +23,7 @@ from app.application.services.queen_maintainer.pr_workflow import (
 )
 from app.application.services.queen_maintainer.service import (
     ensure_queen_maintainer_routine,
-    trigger_maintainer_run,
+    queue_maintainer_run,
 )
 from app.application.services.queen_maintainer.tech_health import build_tech_health_report
 from app.application.services.rbac import has_permission
@@ -152,9 +152,20 @@ async def run_queen_maintainer_now(
         created_by_subject=subject,
         enabled=True,
     )
-    session_id = await trigger_maintainer_run(db, routine=row)
+    result = await queue_maintainer_run(db, routine=row, trigger_source="api_manual")
+    if not result.get("ok"):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS
+            if result.get("error") == "daily_limit_reached"
+            else status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=result,
+        )
     await db.commit()
-    return {"session_id": str(session_id), "routine_id": str(row.id)}
+    return {
+        "session_id": str(result["session_id"]),
+        "routine_id": str(row.id),
+        "budget": result,
+    }
 
 
 @router.post("/pr-draft", summary="Validate paths and prepare GitHub PR (PR-only)")

@@ -103,9 +103,15 @@ export const APP_FUNCTION_GUIDE: FunctionInfoGroup[] = [
     title: "Dashboard",
     items: [
       {
+        id: "cockpit-home",
+        label: "Hive Cockpit",
+        description: "Solo Operator Control Plane — one entry for swarms, Factory, Innovation Lab, and verify-first actions.",
+        options: ["Start day / Trio cycle", "Bee Hotline routing", "Advanced dashboard link"],
+      },
+      {
         id: "dashboard-overview",
         label: "Live dashboard",
-        description: "Realtime prehľad stavu swarmu, health signálov a aktívnych tokov.",
+        description: "Advanced ColonyConsole — full Queen dashboard with agents, tasks, and live swarm network.",
         options: ["Otvorenie detailov swarms/costs/monitoring", "Rýchla orientácia pred akciou"],
       },
       {

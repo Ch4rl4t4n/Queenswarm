@@ -11,6 +11,7 @@ import { HiveBrandMark } from "@/components/hive/hive-brand-mark";
 import { HiveAccountIdentity } from "@/components/hive/hive-account-identity";
 import { usePlatform } from "@/components/hive/platform-context";
 import { SidebarShortcuts } from "@/components/hive/sidebar-shortcuts";
+import { HiveOperatorNotificationCenter } from "@/components/hive/hive-operator-notification-center";
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
 import { hiveGet } from "@/lib/api";
 import {
@@ -23,6 +24,8 @@ import type { DashboardSummary, SwarmBoardResponse, TenantListPayload, TenantVie
 import { localizeNavLabel, localizePhrase } from "@/lib/ui-copy";
 import { filterNavByFeatures } from "@/lib/platform-features";
 import { QS_ACCESS, QS_REFRESH } from "@/lib/auth-cookies";
+import { clearExecutionStudioPushOnLogout } from "@/lib/execution-studio-push-session-sync";
+import { useRoutePrefetch } from "@/lib/use-route-prefetch";
 import { cn } from "@/lib/utils";
 
 export { HIVE_NAV_PRIMARY } from "@/lib/hive-nav-primary";
@@ -205,6 +208,7 @@ function SidebarNavLink({
   counts,
   onNavigate,
   trailing,
+  onPrefetch,
 }: {
   item: HiveNavItem;
   pathname: string;
@@ -213,6 +217,7 @@ function SidebarNavLink({
   counts: SidebarNavCounts;
   onNavigate?: () => void;
   trailing?: ReactNode;
+  onPrefetch: (href: string) => void;
 }) {
   const { href, label, Icon } = item;
   const active = isNavItemActive(pathname, item);
@@ -220,7 +225,14 @@ function SidebarNavLink({
 
   return (
     <div className={cn("hive-nav-row", active && "hive-nav-row--active")}>
-      <Link href={href} prefetch className="hive-nav-item" onClick={() => onNavigate?.()}>
+      <Link
+        href={href}
+        prefetch
+        className="hive-nav-item"
+        onClick={() => onNavigate?.()}
+        onMouseEnter={() => onPrefetch(href)}
+        onFocus={() => onPrefetch(href)}
+      >
         <span className="hive-nav-icon">
           <Icon className="h-[18px] w-[18px]" aria-hidden />
         </span>
@@ -240,6 +252,7 @@ function SidebarNav({
   onNavigate,
   primaryItems,
   secondaryItems,
+  onPrefetch,
 }: {
   pathname: string;
   language: "en" | "sk";
@@ -248,11 +261,13 @@ function SidebarNav({
   onNavigate?: () => void;
   primaryItems: HiveNavItem[];
   secondaryItems: HiveNavItem[];
+  onPrefetch: (href: string) => void;
 }) {
   return (
     <nav aria-label="Hive navigation" className="hive-sidebar-nav hive-scrollbar">
       {primaryItems.map((item) => {
-        const isDashboard = item.href === "/";
+        const isDashboard =
+          item.href === "/" || item.href === "/cockpit" || item.href === "/dashboard";
         return (
           <SidebarNavLink
             key={item.href}
@@ -262,6 +277,7 @@ function SidebarNav({
             summary={summary}
             counts={counts}
             onNavigate={onNavigate}
+            onPrefetch={onPrefetch}
             trailing={
               isDashboard ? (
                 <span data-dash-settings-trigger className="mr-1.5">
@@ -284,6 +300,7 @@ function SidebarNav({
           summary={summary}
           counts={counts}
           onNavigate={onNavigate}
+          onPrefetch={onPrefetch}
         />
       ))}
     </nav>
@@ -295,11 +312,13 @@ function SidebarFooter({
   swarmCount,
   onLogout,
   onNavigate,
+  summary,
 }: {
   language: "en" | "sk";
   swarmCount: number | null;
   onLogout: () => void;
   onNavigate?: () => void;
+  summary?: DashboardSummary | null;
 }) {
   const statusSub = swarmCount != null
     ? localizePhrase(language, {
@@ -310,6 +329,8 @@ function SidebarFooter({
 
   return (
     <div className="hive-sidebar-footer">
+      <HiveOperatorNotificationCenter summary={summary ?? null} className="mb-3" />
+
       <div className="hive-sidebar-status">
         <span className="hive-pulse-dot shrink-0" aria-hidden />
         <div className="min-w-0 leading-tight">
@@ -344,6 +365,7 @@ export function HiveSidebar({
 }: HiveSidebarProps) {
   const { language } = useUiLanguage();
   const { features } = usePlatform();
+  const prefetchRoute = useRoutePrefetch();
   const primaryItems = filterNavByFeatures(HIVE_NAV_PRIMARY, features);
   const secondaryItems = filterNavByFeatures(HIVE_SIDEBAR_SECONDARY, features);
   const [counts, setCounts] = useState<SidebarNavCounts>({ swarms: null, foragers: null });
@@ -375,6 +397,7 @@ export function HiveSidebar({
 
   async function handleLogout(): Promise<void> {
     try {
+      await clearExecutionStudioPushOnLogout();
       await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     } catch {
       /* still clear mirrored client stores */
@@ -428,8 +451,9 @@ export function HiveSidebar({
           onNavigate={onMobileClose}
           primaryItems={primaryItems}
           secondaryItems={secondaryItems}
+          onPrefetch={prefetchRoute}
         />
-        <SidebarFooter language={language} swarmCount={counts.swarms} onLogout={() => void handleLogout()} onNavigate={onMobileClose} />
+        <SidebarFooter language={language} swarmCount={counts.swarms} onLogout={() => void handleLogout()} onNavigate={onMobileClose} summary={summary} />
       </aside>
     </>
   );
@@ -451,8 +475,9 @@ export function HiveSidebar({
           counts={counts}
           primaryItems={primaryItems}
           secondaryItems={secondaryItems}
+          onPrefetch={prefetchRoute}
         />
-        <SidebarFooter language={language} swarmCount={counts.swarms} onLogout={() => void handleLogout()} />
+        <SidebarFooter language={language} swarmCount={counts.swarms} onLogout={() => void handleLogout()} summary={summary} />
       </aside>
     </>
   );

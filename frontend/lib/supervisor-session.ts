@@ -118,3 +118,63 @@ export function parseSubAgentShortMemory(raw: Record<string, unknown>): SubAgent
   return { subGoal, skills, skillManifest, promptPreview };
 }
 
+const SESSION_GOAL_CONTEXT_MARKER = "=== END CONTEXT ===";
+
+/** Compact one-line label for session list rows (strips injected soul/mission blocks). */
+export function sessionGoalPreview(goal: string, maxLen = 140): string {
+  let text = goal.trim();
+  const markerIdx = text.indexOf(SESSION_GOAL_CONTEXT_MARKER);
+  if (markerIdx >= 0) {
+    text = text.slice(markerIdx + SESSION_GOAL_CONTEXT_MARKER.length).trim();
+  }
+  text = text.replace(/^=+\s*[^=]+=+\s*/g, "").trim();
+  const firstLine = text.split(/\r?\n/).find((line) => line.trim().length > 0)?.trim() ?? text;
+  if (firstLine.length <= maxLen) {
+    return firstLine;
+  }
+  return `${firstLine.slice(0, maxLen - 1)}…`;
+}
+
+/** Deep-link to read-only supervisor session replay in Ballroom. */
+export function supervisorSessionBallroomHref(sessionId: string): string {
+  return `/ballroom?supervisor_session=${encodeURIComponent(sessionId)}`;
+}
+
+/** Terminal supervisor session — control actions are no-ops. */
+export function isTerminalSupervisorSession(status: string): boolean {
+  return ["completed", "failed", "stopped", "cancelled", "approved", "rejected"].includes(status);
+}
+
+/** Active supervisor session — pause/resume/stop still apply. */
+export function isActiveSupervisorSession(status: string): boolean {
+  return ["running", "queued", "needs_input", "paused"].includes(status);
+}
+
+/** Compact excerpt from the latest supervisor session audit row. */
+export function supervisorAuditExcerpt(payload: Record<string, unknown>, maxLen = 120): string | null {
+  const parts: string[] = [];
+  if (typeof payload.control_action === "string" && payload.control_action.trim()) {
+    parts.push(`control: ${payload.control_action.trim()}`);
+  }
+  if (typeof payload.decision === "string" && payload.decision.trim()) {
+    parts.push(`review: ${payload.decision.trim()}`);
+  }
+  if (typeof payload.sub_agent_role === "string" && payload.sub_agent_role.trim()) {
+    parts.push(`retry: ${payload.sub_agent_role.trim()}`);
+  }
+  if (typeof payload.command_preview === "string" && payload.command_preview.trim()) {
+    parts.push(`interact: ${payload.command_preview.trim()}`);
+  }
+  if (typeof payload.goal_preview === "string" && payload.goal_preview.trim()) {
+    parts.push(`create: ${payload.goal_preview.trim()}`);
+  }
+  if (typeof payload.message === "string" && payload.message.trim()) {
+    parts.push(payload.message.trim());
+  }
+  if (parts.length === 0) {
+    return null;
+  }
+  const joined = parts.join(" · ");
+  return joined.length <= maxLen ? joined : `${joined.slice(0, maxLen - 1)}…`;
+}
+

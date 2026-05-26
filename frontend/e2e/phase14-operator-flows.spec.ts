@@ -374,33 +374,8 @@ test.describe("Phase 14 operator digest + playbook flows", () => {
     await expect(page.getByText("Session playbook automation saved.", { exact: false })).toBeVisible();
   });
 
-  test("agents drawer saves operator playbook via preview modal", async ({ page }) => {
-    test.setTimeout(90_000);
-    await seedAgentsApiMocks(page);
-
-    const sessionsReady = page.waitForResponse(
-      (response) =>
-        response.url().includes("/api/proxy/agents/sessions") &&
-        response.url().includes("limit=40") &&
-        response.status() === 200,
-    );
-
-    await page.goto("/agents", { waitUntil: "load", timeout: 90_000 });
-    const sessionsResponse = await sessionsReady;
-    const sessionsPayload: unknown = await sessionsResponse.json();
-    expect(Array.isArray(sessionsPayload)).toBeTruthy();
-
-    await expect(page.locator('[data-hive-shell="canvas"]')).toBeVisible({ timeout: 45_000 });
-
-    await expect(page.getByText("Dynamic supervisor sessions")).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText("Session detail")).toBeVisible({ timeout: 10_000 });
-    const drawer = page.locator("div.fixed.inset-0").filter({ hasText: "Session detail" });
-    await drawer.getByRole("button", { name: "Save playbook" }).click();
-    const dialog = page.getByRole("dialog", { name: "Save operator playbook" });
-    await expect(dialog).toBeVisible();
-    await expect(dialog.getByText("3 steps")).toBeVisible();
-    await dialog.getByRole("button", { name: "Save playbook" }).click();
-    await expect(page.getByText("Playbook saved", { exact: false })).toBeVisible();
+  test("agents drawer saves operator playbook via preview modal", async () => {
+    test.skip(true, "Session detail drawer removed from agents page.");
   });
 
   test("agents approve shows auto-saved playbook toast with recipes link", async ({ page }) => {
@@ -422,9 +397,7 @@ test.describe("Phase 14 operator digest + playbook flows", () => {
     await expect(page.locator('[data-hive-shell="canvas"]')).toBeVisible({ timeout: 45_000 });
 
     await expect(page.getByText("Dynamic supervisor sessions")).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText("Session detail")).toBeVisible({ timeout: 10_000 });
-    const drawer = page.locator("div.fixed.inset-0").filter({ hasText: "Session detail" });
-    await drawer.getByRole("button", { name: "Approve" }).click();
+    await page.locator(".v4-session-row").getByRole("button", { name: "Approve" }).click();
     await expect(page.getByText("operator playbook auto-saved", { exact: false })).toBeVisible();
     await expect(page.getByRole("link", { name: "Open recipes" })).toBeVisible();
     await expect(page.locator(".v4-session-row").getByRole("link", { name: "playbook" })).toBeVisible();

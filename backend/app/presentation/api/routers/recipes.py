@@ -37,6 +37,10 @@ from app.application.services.skill_checkout import (
     stripe_checkout_ready,
 )
 from app.application.services.skill_export import build_skills_catalog, export_recipe_skill
+from app.application.services.recipe_marketplace_beta import (
+    RecipeMarketplaceBetaSnapshotOut,
+    compose_recipe_marketplace_beta_snapshot,
+)
 from app.common.schemas.skill_export import SkillCatalogResponse, SkillExportResponse
 from app.common.schemas.skill_marketplace import (
     SkillCheckoutRequest,
@@ -77,6 +81,18 @@ async def recipe_match_config(_subject: JwtSubject) -> RecipeMatchConfigResponse
 
     _ensure_recipes_enabled()
     return build_recipe_match_config()
+
+
+@router.get(
+    "/marketplace-beta",
+    response_model=RecipeMarketplaceBetaSnapshotOut,
+    summary="Recipe marketplace beta snapshot",
+)
+async def recipe_marketplace_beta_snapshot(db: DbSession, _subject: JwtSubject) -> RecipeMarketplaceBetaSnapshotOut:
+    """UGC marketplace counts + config for recipes hub beta panel."""
+
+    _ensure_recipes_enabled()
+    return await compose_recipe_marketplace_beta_snapshot(db)
 
 
 @router.get(
@@ -195,7 +211,6 @@ async def list_recipes(
     """Return catalog metadata for imitation dashboards (no embedding payloads)."""
 
     _ensure_recipes_enabled()
-    _ensure_leaderboard_enabled()
     try:
         rows = await list_recipe_catalog_rows(
             db,

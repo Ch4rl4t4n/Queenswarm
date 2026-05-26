@@ -21,6 +21,7 @@ from app.application.services.supervisor.meta_reasoning import (
     build_reflection_cycle,
     evaluate_meta_reasoning as evaluate_meta_reasoning_engine,
 )
+from app.application.services.execution_studio_context import execution_prompt_from_summary
 from app.core.config import settings
 from app.tools.browser_manager import BrowserGuardrailError, BrowserManager
 from app.infrastructure.persistence.models.supervisor_session import (
@@ -112,6 +113,8 @@ def detect_step_issues(
     selected_skills: list[str],
     output_text: str,
     execution_error: str | None = None,
+    goal: str = "",
+    context_summary: dict[str, Any] | None = None,
 ) -> list[str]:
     """Detect likely execution quality issues requiring self-heal retry."""
 
@@ -119,13 +122,26 @@ def detect_step_issues(
     if execution_error:
         issues.append("tool_failure")
     if retrieval_contract.strip() and not retrieval_sections:
-        issues.append("missing_context")
+        from app.application.services.queen_maintainer.maintainer_guard import (
+            maintainer_treats_context_satisfied,
+        )
+
+        if not maintainer_treats_context_satisfied(goal=goal, context_summary=context_summary):
+            issues.append("missing_context")
     text = output_text.strip()
     if len(text) < 40:
         issues.append("bad_output")
-    lowered = text.lower()
-    if any(token in lowered for token in ("failed", "error:", "exception", "cannot proceed")):
-        issues.append("bad_output")
+    else:
+        head = text[:160].lower()
+        if any(
+            head.startswith(token) or f"\n{token}" in head
+            for token in ("failed", "error:", "exception", "cannot proceed", "llm execution error")
+        ):
+            issues.append("bad_output")
+        elif len(text) < 200 and any(
+            token in text.lower() for token in ("failed", "error:", "exception", "cannot proceed")
+        ):
+            issues.append("bad_output")
     if settings.supervisor_skills_enabled and not selected_skills:
         issues.append("missing_skills")
     deduped: list[str] = []
@@ -228,7 +244,28 @@ def is_approval_required(*, goal: str, toolset: list[str], context_summary: dict
     summary = dict(context_summary or {})
     if str(summary.get("approval_state") or "").strip().lower() == "approve":
         return False, ""
-    haystack = f"{goal} {' '.join(toolset)}".lower()
+
+    from app.application.services.queen_maintainer.maintainer_guard import (
+        is_maintainer_session,
+        maintainer_approval_scan_text,
+    )
+
+    if is_maintainer_session(summary):
+        scan_goal = maintainer_approval_scan_text(goal=goal, context_summary=summary)
+    else:
+        raw_goal = str(summary.get("raw_goal") or "").strip()
+        if raw_goal:
+            scan_goal = raw_goal
+        elif "=== END CONTEXT ===" in goal:
+            scan_goal = goal.split("=== END CONTEXT ===", 1)[-1]
+        else:
+            scan_goal = goal
+
+    haystack = f"{scan_goal} {' '.join(toolset)}".lower()
+    if is_maintainer_session(summary):
+        live_tokens = ("github_rest", "open pr", "create pr", "pull request", "merge to main", "live pr")
+        if any(token in haystack for token in live_tokens):
+            return True, "Maintainer live PR requires operator session approval."
     for keyword in _CRITICAL_ACTION_KEYWORDS:
         if keyword in haystack:
             return True, f"Critical action keyword detected: {keyword}"
@@ -244,16 +281,18 @@ async def run_self_healing_cycle(
     selected_skills: list[str],
     execute_attempt: Callable[[int, str | None], Awaitable[str]],
     retry_adjustment: Callable[[int, list[str]], Awaitable[None]] | None = None,
+    max_attempts: int | None = None,
+    context_summary: dict[str, Any] | None = None,
 ) -> SelfHealingResult:
     """Execute with automatic retry/self-correction and per-attempt reflection."""
 
-    max_attempts = max(1, int(settings.supervisor_self_heal_max_attempts))
+    attempts_cap = max(1, int(max_attempts or settings.supervisor_self_heal_max_attempts))
     reflections: list[dict[str, Any]] = []
     last_output = ""
     last_issues: list[str] = []
     alternatives: list[str] = []
 
-    for attempt in range(1, max_attempts + 1):
+    for attempt in range(1, attempts_cap + 1):
         execution_error: str | None = None
         try:
             hint = alternatives[0] if alternatives else None
@@ -267,6 +306,8 @@ async def run_self_healing_cycle(
             selected_skills=selected_skills,
             output_text=last_output,
             execution_error=execution_error,
+            goal=goal,
+            context_summary=context_summary,
         )
         resolved = not last_issues
         attempt_meta = evaluate_meta_reasoning_engine(
@@ -303,7 +344,7 @@ async def run_self_healing_cycle(
                 resolved=True,
             )
         alternatives = suggest_alternative_plans(role=role, issues=last_issues)
-        if retry_adjustment is not None and attempt < max_attempts:
+        if retry_adjustment is not None and attempt < attempts_cap:
             await retry_adjustment(attempt, last_issues)
 
     needs_input = build_needs_input_request(
@@ -319,12 +360,12 @@ async def run_self_healing_cycle(
         selected_skills=selected_skills,
         issues=last_issues,
         alternatives=alternatives,
-        attempts=max_attempts,
+        attempts=attempts_cap,
         resolved=False,
     )
     return SelfHealingResult(
         output=last_output,
-        attempts=max_attempts,
+        attempts=attempts_cap,
         issues=last_issues,
         alternative_plans=alternatives,
         needs_input_request=needs_input,
@@ -387,6 +428,9 @@ async def run_sub_agent_inprocess(
         selected_skills,
         lazy_fetch=settings.skill_lazy_reference_fetch_enabled,
     )
+    exec_block = execution_prompt_from_summary(dict(supervisor_session.context_summary or {}))
+    if exec_block:
+        skill_prompt = f"{skill_prompt}\n\n{exec_block}".strip()
     if settings.lsp_mcp_bridge_enabled:
         from app.application.services.lsp.lsp_mcp_bridge import build_symbol_context_block
 
@@ -394,6 +438,13 @@ async def run_sub_agent_inprocess(
         if lsp_symbol_block:
             skill_prompt = f"{skill_prompt}\n\n{lsp_symbol_block}".strip()
     retrieval_contract = str((supervisor_session.context_summary or {}).get("retrieval_contract") or "").strip()
+    context_summary = dict(supervisor_session.context_summary or {})
+    from app.application.services.queen_maintainer.maintainer_guard import is_maintainer_session
+
+    if is_maintainer_session(context_summary) and (
+        not retrieval_contract or retrieval_contract.startswith("hive_mind:")
+    ):
+        retrieval_contract = "default_v2"
     retrieval_bundle = await shared_context.retrieve_context_bundle(
         db,
         supervisor_session_id=supervisor_session.id,
@@ -477,12 +528,19 @@ async def run_sub_agent_inprocess(
             except BrowserGuardrailError as exc:
                 return f"browser guardrail blocked action: {str(exc)[:300]}"
 
-        hint_note = f" fallback_hint={hint[:140]}" if hint else ""
-        return (
-            f"{sub_agent.role} processed goal: {supervisor_session.goal[:240]} "
-            "and stored context for downstream agents. "
-            f"skills={len(selected_skills)} retrieval_sections={len(retrieval_bundle.matched_sections)}"
-            f" meta_prompt_tokens={len(meta_reasoning_prompt.split())} attempt={attempt}{hint_note}"
+        from app.application.services.supervisor.llm_executor import execute_supervisor_sub_agent_llm
+
+        return await execute_supervisor_sub_agent_llm(
+            db,
+            supervisor_session=supervisor_session,
+            sub_agent=sub_agent,
+            goal=supervisor_session.goal,
+            selected_skills=selected_skills,
+            skill_library=loader,
+            retrieval_prompt=retrieval_prompt,
+            meta_reasoning_prompt=meta_reasoning_prompt,
+            hint=hint,
+            attempt=attempt,
         )
 
     async def _retry_adjustment(_attempt: int, issues: list[str]) -> None:
@@ -519,9 +577,38 @@ async def run_sub_agent_inprocess(
         selected_skills=selected_skills,
         execute_attempt=_execute_attempt,
         retry_adjustment=_retry_adjustment if settings.supervisor_self_healing_enabled else None,
+        context_summary=context_summary,
     )
 
     result_msg = healing.output
+
+    from app.application.services.supervisor.browser_fallback import (
+        _healing_has_tool_failure,
+        maybe_auto_browser_harness_step,
+        maybe_spawn_browser_operator_fallback,
+    )
+
+    if _healing_has_tool_failure(
+        healing.meta_reasoning if isinstance(healing.meta_reasoning, dict) else None,
+        result_msg,
+    ):
+        await maybe_auto_browser_harness_step(
+            db,
+            supervisor_session=supervisor_session,
+            failed_sub_agent=sub_agent,
+            meta_reasoning=healing.meta_reasoning if isinstance(healing.meta_reasoning, dict) else None,
+            output_text=result_msg,
+        )
+        await maybe_spawn_browser_operator_fallback(
+            db,
+            supervisor_session=supervisor_session,
+            failed_sub_agent=sub_agent,
+            meta_reasoning=healing.meta_reasoning if isinstance(healing.meta_reasoning, dict) else None,
+            output_text=result_msg,
+            shared_context=shared_context,
+            skill_library=loader,
+        )
+
     initiative_rows = await propose_agent_improvements(
         db,
         supervisor_session=supervisor_session,

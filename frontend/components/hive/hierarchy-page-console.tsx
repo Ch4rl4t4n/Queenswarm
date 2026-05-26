@@ -96,15 +96,20 @@ function chunkRows<T>(items: T[], perRow: number): T[][] {
 /** Hierarchy route — same `HexAgentCard` tiles + CSS as Agents; explicit Queen → managers → workers tree. */
 interface HierarchyPageConsoleProps {
   readonly showHeader?: boolean;
+  /** When false, skip data fetch until the panel is expanded. */
+  readonly enabled?: boolean;
 }
 
 /** Hierarchy route — same `HexAgentCard` tiles + CSS as Agents; explicit Queen → managers → workers tree. */
-export function HierarchyPageConsole({ showHeader = true }: HierarchyPageConsoleProps): JSX.Element {
+export function HierarchyPageConsole({ showHeader = true, enabled = true }: HierarchyPageConsoleProps): JSX.Element {
   const [agents, setAgents] = useState<AgentRow[]>([]);
   const [swarms, setSwarms] = useState<SwarmBrief[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
     let alive = true;
     void Promise.allSettled([
       fetch("/api/proxy/agents?limit=200", { credentials: "include" }).then((r) => (r.ok ? r.json() : null)),
@@ -159,7 +164,7 @@ export function HierarchyPageConsole({ showHeader = true }: HierarchyPageConsole
     return () => {
       alive = false;
     };
-  }, []);
+  }, [enabled]);
 
   const tree = useMemo(() => {
     const orchestrator: AgentRow[] = [];

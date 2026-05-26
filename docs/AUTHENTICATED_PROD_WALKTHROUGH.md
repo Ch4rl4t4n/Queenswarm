@@ -48,6 +48,8 @@ SKIP_E2E=1 SKIP_RESPONSIVE_E2E=1 ./scripts/operator-launch-gate.sh
 
 ## 6 — Operator tooling (spot check)
 
+- [ ] Settings → **AI harness** → **Operator Hub** — next action, OAuth readiness, preflight dry-run *(automated: `E2E_OPERATOR_HUB=1` mocked E2E + prod authenticated Playwright)*
+- [ ] `./scripts/operator-publish-lane-status.sh` — JSON summary before live enable
 - [ ] Settings → **Audit** — digest config saves; test webhook if configured
 - [ ] Session **audit** tab in drawer — fanout events listed
 - [ ] **Playbook automation** toggle persists after reload

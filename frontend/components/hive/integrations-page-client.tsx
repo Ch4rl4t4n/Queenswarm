@@ -12,9 +12,11 @@ import {
   Plug,
   Plus,
   RefreshCw,
+  Rocket,
   Sparkles,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { HivePageHeader } from "@/components/hive/hive-page-header";
@@ -38,6 +40,7 @@ import type { DynamicConnectorPayload } from "@/lib/connectors-types";
 import {
   integrationsScrollTargetFromHash,
   integrationsTabHref,
+  integrationsHubOAuthHref,
   resolveIntegrationsTab,
   type IntegrationsTab,
 } from "@/lib/integrations-routes";
@@ -59,6 +62,12 @@ const ExternalProjectsConsole = dynamic(
 const ToolsMarketplacePanel = dynamic(
   () =>
     import("@/components/connectors/tools-marketplace-panel").then((mod) => mod.ToolsMarketplacePanel),
+  { ssr: false },
+);
+
+const ExecutionStudioPanel = dynamic(
+  () =>
+    import("@/components/connectors/execution-studio-panel").then((mod) => mod.ExecutionStudioPanel),
   { ssr: false },
 );
 
@@ -124,6 +133,7 @@ interface IntegrationsPageClientProps {
 
 const TABS: { id: IntegrationsTab; label: string; icon: typeof CheckCircle2; featureKey?: string }[] = [
   { id: "active", label: "Active", icon: CheckCircle2, featureKey: "integrations" },
+  { id: "studio", label: "Execution Studio", icon: Rocket, featureKey: "execution_studio" },
   { id: "hub", label: "Connector hub", icon: Plug, featureKey: "connectors" },
   { id: "marketplace", label: "Tools marketplace", icon: Globe, featureKey: "skills_marketplace" },
   { id: "skills", label: "Skills export", icon: Sparkles, featureKey: "skills_export_factory" },
@@ -253,10 +263,12 @@ export function IntegrationsPageClient({
   checkoutSessionId = null,
 }: IntegrationsPageClientProps) {
   const { features, hasFeature } = usePlatform();
+  const searchParams = useSearchParams();
   const tabs = useMemo(() => visibleIntegrationTabs(features), [features]);
   const [tab, setTab] = useState<IntegrationsTab>(() =>
     resolveIntegrationsTab({ queryTab: initialTab, fallback: "active" }),
   );
+  const pendingOAuthScrollRef = useRef(false);
   const [payload, setPayload] = useState(initial);
   const [refreshing, setRefreshing] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
@@ -267,13 +279,43 @@ export function IntegrationsPageClient({
     window.history.replaceState(null, "", integrationsTabHref(next));
   }, []);
 
+  const jumpToActiveIntegrations = useCallback(() => {
+    if (tab !== "active") {
+      selectTab("active");
+    }
+    window.requestAnimationFrame(() => {
+      document.getElementById("active-integrations")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [selectTab, tab]);
+
+  const scrollToElementId = useCallback((targetId: string, retries = 24): void => {
+    const attempt = (left: number): void => {
+      const el = document.getElementById(targetId);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+      if (left > 0) {
+        window.setTimeout(() => attempt(left - 1), 100);
+      }
+    };
+    attempt(retries);
+  }, []);
+
   const scrollToHashTarget = useCallback(() => {
     const targetId = integrationsScrollTargetFromHash(window.location.hash);
     if (!targetId) {
       return;
     }
-    document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, []);
+    scrollToElementId(targetId);
+  }, [scrollToElementId]);
+
+  const jumpToHubOAuth = useCallback(() => {
+    pendingOAuthScrollRef.current = true;
+    setTab("hub");
+    window.history.replaceState(null, "", integrationsHubOAuthHref());
+    scrollToElementId("oauth-consent");
+  }, [scrollToElementId]);
 
   useEffect(() => {
     const syncFromLocation = (): void => {
@@ -295,8 +337,24 @@ export function IntegrationsPageClient({
   }, [scrollToHashTarget]);
 
   useEffect(() => {
-    scrollToHashTarget();
-  }, [tab, scrollToHashTarget]);
+    const next = resolveIntegrationsTab({
+      queryTab: searchParams.get("tab"),
+      hash: typeof window !== "undefined" ? window.location.hash : "",
+    });
+    setTab(next);
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (tab !== "hub") {
+      return;
+    }
+    if (pendingOAuthScrollRef.current || window.location.hash === "#oauth-consent") {
+      pendingOAuthScrollRef.current = false;
+      scrollToElementId("oauth-consent");
+    } else {
+      scrollToHashTarget();
+    }
+  }, [tab, scrollToElementId, scrollToHashTarget]);
 
   useEffect(() => {
     if (tabs.some((item) => item.id === tab)) {
@@ -304,6 +362,29 @@ export function IntegrationsPageClient({
     }
     setTab(tabs[0]?.id ?? "active");
   }, [tab, tabs]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    const oauth = params.get("oauth");
+    if (!oauth) {
+      return;
+    }
+    if (oauth === "success") {
+      const pk = params.get("provider") ?? "integration";
+      toast.success(`${pk} connected — OAuth token sealed.`);
+    } else {
+      const reason = params.get("reason");
+      toast.error(reason ? `OAuth failed: ${reason}` : "OAuth flow failed.");
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.delete("oauth");
+    url.searchParams.delete("provider");
+    url.searchParams.delete("reason");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  }, []);
 
   const activeCards = useMemo(() => buildActiveCards(payload), [payload]);
   const healthyCount = activeCards.filter((card) => card.status === "connected").length;
@@ -460,10 +541,10 @@ export function IntegrationsPageClient({
           <IntegrationsEcosystemLane onSelectTab={selectTab} />
 
           <V4Card id="marketplace-preview" className="scroll-mt-28">
-            <ToolsMarketplacePanel />
+            <ToolsMarketplacePanel onJumpToActive={jumpToActiveIntegrations} />
           </V4Card>
 
-          <V4Card>
+          <V4Card id="active-integrations" className="scroll-mt-28">
             <V4CardHeader
               title="Active integrations"
               description="Unified health snapshot across hub, bridges, and plugins."
@@ -538,6 +619,15 @@ export function IntegrationsPageClient({
         </div>
       ) : null}
 
+      {tab === "studio" ? (
+        <V4Card id="execution-studio" className="scroll-mt-28">
+          <ExecutionStudioPanel
+            onOpenMarketplace={() => selectTab("marketplace")}
+            onOpenHub={jumpToHubOAuth}
+          />
+        </V4Card>
+      ) : null}
+
       {tab === "hub" ? (
         <V4Card id="hub" className="scroll-mt-28">
           <V4CardHeader
@@ -558,7 +648,7 @@ export function IntegrationsPageClient({
             title="Tools marketplace"
             description="Install API tools one-click, then expose them to supervisor lanes dynamically."
           />
-          <ToolsMarketplacePanel />
+          <ToolsMarketplacePanel onJumpToActive={jumpToActiveIntegrations} />
         </V4Card>
       ) : null}
 
@@ -606,19 +696,19 @@ export function IntegrationsPageClient({
               No plugin rows present.
             </p>
           ) : (
-            <div className="v4-cols-2 v4-cols-2--stack-mobile mb-4">
+            <div className="v4-plugin-grid mb-4">
               {payload.plugins.map((plug) => {
                 const enabled = pluginIsEnabled(plug);
                 const busy = pluginToggleBusy === plug.id;
                 return (
-                  <article key={plug.id} className="v4-int-card v4-int-card--plugin min-w-0">
-                    <div className="v4-int-head v4-int-head--plugin">
+                  <article key={plug.id} className="v4-int-card v4-int-card--plugin flex h-full min-w-0 flex-col">
+                    <div className="v4-int-head v4-int-head--plugin min-w-0">
                       <div className="flex min-w-0 flex-1 items-start gap-3">
                         <div className="v4-int-logo shrink-0">
                           <Boxes className="h-[18px] w-[18px]" aria-hidden />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="v4-int-name truncate">{plug.title ?? plug.name ?? plug.id}</p>
+                          <p className="v4-int-name">{plug.title ?? plug.name ?? plug.id}</p>
                           <p className="v4-int-meta line-clamp-2">{plug.description ?? "Awaiting operator notes."}</p>
                         </div>
                       </div>
@@ -630,7 +720,7 @@ export function IntegrationsPageClient({
                         onCheckedChange={(next) => void togglePlugin(plug, next)}
                       />
                     </div>
-                    <p className="v4-int-meta">{formatPluginMeta(plug)}</p>
+                    <p className="v4-int-meta mt-auto pt-1">{formatPluginMeta(plug)}</p>
                   </article>
                 );
               })}

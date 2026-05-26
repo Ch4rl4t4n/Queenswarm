@@ -72,9 +72,9 @@ def _frontend_redirect(settings: Settings, *, ok: bool, provider_key: str | None
     base = settings.oauth_public_origin
     if ok:
         pk = quote(provider_key or "", safe="")
-        return f"{base}/connectors?oauth=success&provider={pk}"
+        return f"{base}/integrations?tab=studio&oauth=success&provider={pk}"
     detail = quote(reason or "unknown", safe="")
-    return f"{base}/connectors?oauth=error&reason={detail}"
+    return f"{base}/integrations?tab=studio&oauth=error&reason={detail}"
 
 
 def _build_authorize_url(
@@ -85,17 +85,30 @@ def _build_authorize_url(
     state: str,
     code_challenge: str | None,
     nonce: str,
+    meta_config_id: str | None = None,
 ) -> str:
     """Compose vendor authorize URL with PKCE + OIDC nonce where applicable."""
 
     params: dict[str, str] = {
         "response_type": "code",
-        "client_id": client_id,
         "redirect_uri": redirect_uri,
         "state": state,
     }
+    if spec.vendor_family == "meta" and meta_config_id:
+        params["config_id"] = meta_config_id
+        params["override_default_response_type"] = "true"
+    if spec.provider_key == "instagram_graph":
+        # Do NOT send IG_API_ONBOARDING — Meta dialog returns "Something Went Wrong" (community #536420708641817).
+        pass
+    if spec.vendor_family == "tiktok":
+        params["client_key"] = client_id
+    else:
+        params["client_id"] = client_id
     if spec.scopes:
-        params["scope"] = " ".join(spec.scopes)
+        if spec.vendor_family in {"meta", "tiktok"}:
+            params["scope"] = ",".join(spec.scopes)
+        else:
+            params["scope"] = " ".join(spec.scopes)
     if spec.uses_pkce and code_challenge:
         params["code_challenge"] = code_challenge
         params["code_challenge_method"] = "S256"
@@ -156,6 +169,38 @@ async def _exchange_authorization_code(
         }
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(spec.token_url, data=form)
+    elif spec.vendor_family == "x":
+        if not code_verifier:
+            msg = "x_oauth_requires_pkce_verifier"
+            raise ValueError(msg)
+        from urllib.parse import quote
+
+        basic = base64.b64encode(f"{quote(cid, safe='')}:{quote(csec, safe='')}".encode()).decode("ascii")
+        headers["Authorization"] = f"Basic {basic}"
+        headers["Content-Type"] = "application/x-www-form-urlencoded"
+        form = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": redirect_uri,
+            "code_verifier": code_verifier,
+        }
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(spec.token_url, data=form, headers=headers)
+    elif spec.vendor_family == "tiktok":
+        if not code_verifier:
+            msg = "tiktok_oauth_requires_pkce_verifier"
+            raise ValueError(msg)
+        headers["Content-Type"] = "application/x-www-form-urlencoded"
+        form = {
+            "client_key": cid,
+            "client_secret": csec,
+            "code": code,
+            "grant_type": "authorization_code",
+            "redirect_uri": redirect_uri,
+            "code_verifier": code_verifier,
+        }
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(spec.token_url, data=form, headers=headers)
     else:
         form: dict[str, str] = {
             "grant_type": "authorization_code",
@@ -184,6 +229,10 @@ async def _exchange_authorization_code(
     if not isinstance(payload, dict):
         msg = "token_response_invalid_shape"
         raise ValueError(msg)
+    if spec.vendor_family == "tiktok":
+        data_block = payload.get("data")
+        if isinstance(data_block, dict):
+            payload = {**payload, **data_block}
     err = payload.get("error")
     if isinstance(err, str) and err.strip():
         desc = payload.get("error_description") or err
@@ -207,6 +256,36 @@ async def _exchange_authorization_code(
         "id_token": id_txt,
         "expires_in": exp_int,
     }
+
+
+async def _exchange_meta_long_lived_token(
+    *,
+    settings: Settings,
+    short_lived_token: str,
+) -> str:
+    """Exchange Meta short-lived user token for ~60-day long-lived token."""
+
+    cid, csec = client_credentials_for_family(settings, "meta")
+    params = {
+        "grant_type": "fb_exchange_token",
+        "client_id": cid,
+        "client_secret": csec,
+        "fb_exchange_token": short_lived_token.strip(),
+    }
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.get("https://graph.facebook.com/v21.0/oauth/access_token", params=params)
+    if resp.status_code >= 400:
+        msg = f"meta_long_lived_exchange_http_{resp.status_code}"
+        raise ValueError(msg)
+    payload = resp.json()
+    if not isinstance(payload, dict):
+        msg = "meta_long_lived_response_invalid"
+        raise ValueError(msg)
+    access = payload.get("access_token")
+    if not isinstance(access, str) or not access.strip():
+        msg = "meta_long_lived_missing_access_token"
+        raise ValueError(msg)
+    return access.strip()
 
 
 async def _mirror_audit(
@@ -238,6 +317,7 @@ async def start_oauth_authorization(
     settings: Settings,
     provider_key: str,
     dashboard_sub: str,
+    oauth_state_ttl_sec: int | None = None,
 ) -> dict[str, str]:
     """Mint Redis-bound state + PKCE verifier and return the vendor authorization URL."""
 
@@ -271,9 +351,11 @@ async def start_oauth_authorization(
         "dashboard_sub": cleaned_sub,
         "code_verifier": verifier or "",
     }
-    await set_json(oauth_state_redis_key(state), blob, ttl=int(settings.oauth_state_ttl_sec))
+    ttl = int(oauth_state_ttl_sec if oauth_state_ttl_sec is not None else settings.oauth_state_ttl_sec)
+    await set_json(oauth_state_redis_key(state), blob, ttl=ttl)
 
     redirect_uri = settings.oauth_redirect_uri
+    meta_config_id = settings.oauth_meta_config_id.strip() if spec.vendor_family == "meta" else ""
     authorize = _build_authorize_url(
         spec,
         client_id=cid,
@@ -281,6 +363,7 @@ async def start_oauth_authorization(
         state=state,
         code_challenge=challenge,
         nonce=nonce,
+        meta_config_id=meta_config_id or None,
     )
     logger.info(
         "oauth_consent.start",
@@ -426,6 +509,21 @@ async def complete_oauth_callback(
             redirect_uri=settings.oauth_redirect_uri,
             code_verifier=verifier,
         )
+        if spec.vendor_family == "meta":
+            try:
+                long_lived = await _exchange_meta_long_lived_token(
+                    settings=settings,
+                    short_lived_token=str(tokens["access_token"]),
+                )
+                tokens["access_token"] = long_lived
+            except ValueError as meta_exc:
+                logger.warning(
+                    "oauth_consent.meta_long_lived_fallback",
+                    agent_id=str(uid),
+                    swarm_id=pk,
+                    task_id=audit_task,
+                    error=str(meta_exc),
+                )
         _verify_oidc_nonce(
             id_token=tokens.get("id_token") if isinstance(tokens.get("id_token"), str) else None,
             expected_nonce=nonce_expected,
@@ -498,18 +596,46 @@ async def complete_oauth_callback(
         oauth2_client_secret=csec,
     )
 
+    from app.application.services.social_connected_accounts import SOCIAL_OAUTH_PROVIDER_KEYS, upsert_accounts_from_oauth
+
+    is_social_oauth = pk in SOCIAL_OAUTH_PROVIDER_KEYS
     try:
-        await _upsert_dynamic_hub_oauth(
-            db,
-            user_id=uid,
-            spec=spec,
-            tpl_slug=vault_slug,
-            tpl_title=tpl.title,
-            base_url=tpl.base_url,
-            manager_slugs=tuple(tpl.suggested_manager_slugs),
-            tools=tuple(tpl.tools),
-            secrets=secrets_inbound,
-        )
+        if is_social_oauth:
+            await _ensure_oauth_connector_template(
+                db,
+                user_id=uid,
+                spec=spec,
+                tpl_slug=vault_slug,
+                tpl_title=tpl.title,
+                base_url=tpl.base_url,
+                manager_slugs=tuple(tpl.suggested_manager_slugs),
+                tools=tuple(tpl.tools),
+            )
+            from app.infrastructure.persistence.models.dashboard_user import DashboardUser
+
+            dashboard_user = await db.get(DashboardUser, uid)
+            if dashboard_user is not None and dashboard_user.active_tenant_id is not None:
+                await upsert_accounts_from_oauth(
+                    db,
+                    tenant_id=dashboard_user.active_tenant_id,
+                    dashboard_user_id=uid,
+                    spec=spec,
+                    secrets=secrets_inbound,
+                    access_token=str(tokens["access_token"]),
+                    settings=settings,
+                )
+        else:
+            await _upsert_dynamic_hub_oauth(
+                db,
+                user_id=uid,
+                spec=spec,
+                tpl_slug=vault_slug,
+                tpl_title=tpl.title,
+                base_url=tpl.base_url,
+                manager_slugs=tuple(tpl.suggested_manager_slugs),
+                tools=tuple(tpl.tools),
+                secrets=secrets_inbound,
+            )
     except ValueError as exc:
         latency_ms = int((time.perf_counter() - started) * 1000)
         await _mirror_audit(
@@ -548,7 +674,50 @@ async def complete_oauth_callback(
         swarm_id=pk,
         task_id=audit_task,
     )
+    await _post_oauth_virtual_company_sync(db, user_id=uid)
     return _frontend_redirect(settings, ok=True, provider_key=pk)
+
+
+async def _ensure_oauth_connector_template(
+    db: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    spec: OAuthSurfaceSpec,
+    tpl_slug: str,
+    tpl_title: str,
+    base_url: str | None,
+    manager_slugs: tuple[str, ...],
+    tools: tuple[dict[str, Any], ...],
+) -> None:
+    """Install OAuth connector manifest without overwriting per-account social tokens."""
+
+    svc = DynamicConnectorService()
+    row = await svc.fetch_by_slug(db, slug=tpl_slug)
+    manifest = {"tools": [dict(tool) for tool in tools]}
+    if row is None:
+        body = DynamicConnectorCreateBody(
+            slug=tpl_slug,
+            display_name=tpl_title,
+            base_url=base_url,
+            auth_type="oauth2",
+            allowed_manager_slugs=list(manager_slugs),
+            mcp_manifest=manifest,
+            secrets=None,
+        )
+        await svc.create_row(db, dashboard_user_id=user_id, body=body)
+        await _activate_oauth_connector_row(db, tpl_slug=tpl_slug)
+        return
+
+    if row.is_builtin:
+        return
+
+    if row.dashboard_user_id != user_id:
+        msg = "connector slug already registered for a different dashboard user."
+        raise ValueError(msg)
+
+    if not row.is_active:
+        row.is_active = True
+        await db.flush()
 
 
 async def _upsert_dynamic_hub_oauth(
@@ -579,6 +748,7 @@ async def _upsert_dynamic_hub_oauth(
             secrets=secrets,
         )
         await svc.create_row(db, dashboard_user_id=user_id, body=body)
+        await _activate_oauth_connector_row(db, tpl_slug=tpl_slug)
         return
 
     if row.is_builtin:
@@ -589,8 +759,51 @@ async def _upsert_dynamic_hub_oauth(
         msg = "connector slug already registered for a different dashboard user."
         raise ValueError(msg)
 
-    patch = DynamicConnectorPatchBody(auth_type="oauth2", secrets=secrets)
+    patch = DynamicConnectorPatchBody(auth_type="oauth2", secrets=secrets, is_active=True)
     await svc.patch_row(db, connector_id=row.id, dashboard_user_id=user_id, body=patch)
+
+
+async def _activate_oauth_connector_row(db: AsyncSession, *, tpl_slug: str) -> None:
+    """Mark OAuth connector active after successful consent — no HEAD probe required."""
+
+    svc = DynamicConnectorService()
+    row = await svc.fetch_by_slug(db, slug=tpl_slug)
+    if row is None or row.is_builtin:
+        return
+    if row.is_active:
+        return
+    row.is_active = True
+    await db.commit()
+
+
+async def _post_oauth_virtual_company_sync(db: AsyncSession, *, user_id: uuid.UUID) -> None:
+    """After OAuth consent: try activating solo super routers when connectors become ready."""
+
+    from app.application.services.virtual_company_profile import provision_solo_super_routers
+    from app.infrastructure.persistence.models.dashboard_user import DashboardUser
+    from app.infrastructure.persistence.models.tenant import Tenant
+
+    user = await db.get(DashboardUser, user_id)
+    if user is None or user.active_tenant_id is None:
+        return
+    tenant = await db.get(Tenant, user.active_tenant_id)
+    if tenant is None:
+        return
+    try:
+        await provision_solo_super_routers(
+            db,
+            tenant=tenant,
+            dashboard_user_id=user_id,
+            activate_when_ready=True,
+        )
+    except Exception as exc:  # noqa: BLE001 — OAuth redirect must not fail on router sync
+        logger.warning(
+            "oauth_consent.virtual_company_router_sync_failed",
+            agent_id=str(user_id),
+            swarm_id="virtual_company",
+            task_id="oauth-callback",
+            error=str(exc),
+        )
 
 
 __all__ = [

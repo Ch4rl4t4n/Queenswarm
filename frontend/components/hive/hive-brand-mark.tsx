@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { usePlatform } from "@/components/hive/platform-context";
 import { resolveTenantBranding } from "@/lib/tenant-branding";
+import { hiveOverviewHref } from "@/lib/hive-home-route";
 import { cn } from "@/lib/utils";
 
 interface HiveBrandMarkProps {
@@ -19,7 +20,7 @@ export function HiveBrandMark({ onNavigate, compact = false, className }: HiveBr
 
   return (
     <Link
-      href="/"
+      href={hiveOverviewHref()}
       className={cn(
         "flex w-full min-w-0 flex-col items-center justify-center text-center",
         compact ? "px-2" : "px-10",

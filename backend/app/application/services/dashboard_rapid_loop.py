@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.services.pattern_telemetry_service import build_pattern_telemetry
 from app.core.config import settings
 from app.infrastructure.persistence.models.enums import TaskStatus
 from app.infrastructure.persistence.models.knowledge import KnowledgeItem, LearningLog
@@ -84,6 +86,7 @@ async def build_rapid_loop_payload(
     db: AsyncSession,
     *,
     window_hours: int = 24,
+    tenant_id: uuid.UUID | None = None,
 ) -> dict[str, Any]:
     """Aggregate scrape → reflect → simulate → reward counts and SLA for the tenant."""
 
@@ -193,6 +196,12 @@ async def build_rapid_loop_payload(
         and any(stage["status"] in {"active", "ok"} for stage in stages)
     )
 
+    pattern_telemetry = await build_pattern_telemetry(
+        db,
+        tenant_id=tenant_id,
+        window_hours=window_hours,
+    )
+
     return {
         "generated_at": now.isoformat(),
         "window_hours": window_hours,
@@ -203,6 +212,7 @@ async def build_rapid_loop_payload(
         "last_cycle_at": _iso(last_cycle_at),
         "stages": stages,
         "loop_healthy": loop_healthy,
+        "pattern_telemetry": pattern_telemetry,
     }
 
 

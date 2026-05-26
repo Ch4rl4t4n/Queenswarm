@@ -178,7 +178,15 @@ async def test_apply_session_review_when_approve_durable_then_requeues(monkeypat
         return None
 
     db.flush = _flush
-    row = SimpleNamespace(status="needs_input", runtime_mode="durable", context_summary={}, sub_agents=[])
+    row = SimpleNamespace(
+        status="needs_input",
+        runtime_mode="durable",
+        context_summary={
+            "approval_required": True,
+            "approval_reason": "Critical action keyword detected: drop",
+        },
+        sub_agents=[],
+    )
 
     monkeypatch.setattr("app.application.services.supervisor.session_service.append_event", _append_event)
     monkeypatch.setattr(
@@ -193,6 +201,8 @@ async def test_apply_session_review_when_approve_durable_then_requeues(monkeypat
     await apply_session_review(db, session_row=row, decision="approve", note="Looks good")
     assert row.status == "running"
     assert row.context_summary["requeued_sub_agents"] == 2
+    assert "approval_required" not in row.context_summary
+    assert "approval_reason" not in row.context_summary
 
 
 @pytest.mark.asyncio

@@ -310,4 +310,16 @@ async def command_center_notify_test(_: DashboardAdmin, db: DbSession) -> Notify
     return NotifyTestResponse(message=summary, results=results)
 
 
+@router.get(
+    "/codebase-atlas",
+    summary="Codebase Atlas — LOC, dev hours estimate, FE/BE architecture map",
+)
+async def get_codebase_atlas(_: DashboardAdmin) -> dict[str, Any]:
+    """Return lines-of-code breakdown, git effort estimate, and architecture layers."""
+
+    from app.application.services.codebase_atlas import build_codebase_atlas_cached
+
+    return await build_codebase_atlas_cached()
+
+
 __all__ = ["router"]

@@ -1,6 +1,14 @@
 'use client'
 
-import { BookOpen, Calendar, CreditCard, Github, Mail } from 'lucide-react'
+import { BookOpen, Calendar, CreditCard, Github, Instagram, Mail } from 'lucide-react'
+
+function XGlyph() {
+  return (
+    <span className="font-mono text-sm font-bold text-(--qs-text)" aria-hidden>
+      𝕏
+    </span>
+  )
+}
 
 import { OAuthConnectButton } from '@/components/connectors/oauth-connect-button'
 import { V4Badge, V4Card, V4CardHeader } from '@/components/ui/v4'
@@ -20,6 +28,14 @@ function VendorGlyph({ providerKey }: { providerKey: string }) {
       return <BookOpen className="h-5 w-5" aria-hidden />
     case 'stripe_billing':
       return <CreditCard className="h-5 w-5" aria-hidden />
+    case 'instagram_graph':
+      return <Instagram className="h-5 w-5 text-pollen" aria-hidden />
+    case 'facebook_graph':
+      return <Instagram className="h-5 w-5 text-(--qs-cyan)" aria-hidden />
+    case 'twitter_api_v2':
+      return <XGlyph />
+    case 'tiktok_content':
+      return <span className="font-mono text-xs font-bold text-pollen" aria-hidden>TT</span>
     default:
       return <Mail className="h-5 w-5 opacity-60" aria-hidden />
   }
@@ -40,10 +56,10 @@ export function ConnectorsOAuthConsentRail({ catalog }: ConnectorsOAuthConsentRa
   const configuredCount = catalog.providers.filter((p) => p.configured).length
 
   return (
-    <V4Card glow>
+    <V4Card id="oauth-consent" glow className="scroll-mt-28">
       <V4CardHeader
-        title="Connect Gmail, Outlook, Calendar, GitHub, Notion & Stripe"
-        description="One tap launches vendor consent in the browser. Queenswarm exchanges the authorization code server-side (PKCE where supported), seals tokens into the connector vault, and creates or refreshes the Dynamic Hub row automatically."
+        title="Connect Gmail, Outlook, Calendar, GitHub, Notion, Stripe & social (Meta · X · TikTok)"
+        description="One tap launches vendor consent in the browser. Queenswarm exchanges the authorization code server-side (PKCE for X/TikTok), seals tokens into the connector vault, and refreshes Dynamic Hub rows. Meta = Instagram/Facebook · X = tweet publish · TikTok = video publish."
         actions={
           <V4Badge tone="info">
             Ready · {configuredCount}/{catalog.providers.length} vendors

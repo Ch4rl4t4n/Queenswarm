@@ -106,6 +106,14 @@ fi
 chmod +x "${ROOT}/scripts/validate-prod-env.sh"
 ENV_FILE="$ENV_FILE" "${ROOT}/scripts/validate-prod-env.sh"
 
+# Mirror backend CP toggle into Next.js build flag when only OPERATOR_CONTROL_PLANE_ENABLED is set.
+cp_backend="$(load_kv "$ENV_FILE" OPERATOR_CONTROL_PLANE_ENABLED || true)"
+cp_frontend="$(load_kv "$ENV_FILE" NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED || true)"
+if [[ -z "${cp_frontend}" && -n "${cp_backend}" ]]; then
+  set_or_append_kv "$ENV_FILE" "NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED" "$cp_backend"
+  echo "Synced NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED=${cp_backend} from backend flag."
+fi
+
 echo "Reminder: snapshot Postgres and named volumes (neo4j_data, postgres_data, prometheus_data, grafana_data) before major upgrades."
 echo "Reminder: TLS files under /etc/letsencrypt/live/queenswarm.love/ must exist on the host."
 
@@ -154,9 +162,26 @@ if [[ -n "${prod_domain:-}" ]]; then
 fi
 
 export QS_ENV_FILE_PROD="$ENV_FILE"
+if [[ -f "${ENV_FILE_TOKENS:-.env.prod.tokens}" ]]; then
+  export QS_ENV_FILE_PROD_TOKENS="${ENV_FILE_TOKENS:-.env.prod.tokens}"
+fi
+if [[ -f "${ENV_FILE_OAUTH:-.env.prod.oauth}" ]]; then
+  export QS_ENV_FILE_PROD_OAUTH="${ENV_FILE_OAUTH:-.env.prod.oauth}"
+fi
 
-chmod +x "${ROOT}/scripts/ensure-redis-password.sh" "${ROOT}/scripts/harden-prod-firewall.sh" "${ROOT}/scripts/audit-host-exposure.sh"
+COMPOSE_ENV_ARGS=(--env-file "$ENV_FILE")
+if [[ -f "${ENV_FILE_TOKENS:-.env.prod.tokens}" ]]; then
+  COMPOSE_ENV_ARGS+=(--env-file "${ENV_FILE_TOKENS:-.env.prod.tokens}")
+  echo "Tokens overlay: ${ENV_FILE_TOKENS:-.env.prod.tokens}"
+fi
+if [[ -f "${QS_ENV_FILE_PROD_OAUTH:-.env.prod.oauth}" ]]; then
+  COMPOSE_ENV_ARGS+=(--env-file "${QS_ENV_FILE_PROD_OAUTH:-.env.prod.oauth}")
+  echo "OAuth overlay: ${QS_ENV_FILE_PROD_OAUTH:-.env.prod.oauth}"
+fi
+
+chmod +x "${ROOT}/scripts/ensure-redis-password.sh" "${ROOT}/scripts/harden-prod-firewall.sh" "${ROOT}/scripts/audit-host-exposure.sh" "${ROOT}/scripts/render-alertmanager-config.sh"
 "${ROOT}/scripts/ensure-redis-password.sh" "$ENV_FILE"
+"${ROOT}/scripts/render-alertmanager-config.sh" "$ENV_FILE"
 
 if [[ "${HARDEN_PROD_FIREWALL:-1}" == "1" && "${EUID:-$(id -u)}" -eq 0 ]]; then
   "${ROOT}/scripts/harden-prod-firewall.sh"
@@ -170,14 +195,14 @@ fi
 docker compose -p queenswarm_prod \
   -f docker-compose.base.yml \
   -f docker-compose.prod.yml \
-  --env-file "$ENV_FILE" \
+  "${COMPOSE_ENV_ARGS[@]}" \
   "${HA_ARGS[@]}" \
   up -d --build --wait
 
 verify_production_edge() {
   local domain nginx_id state health https_code https_health_code http_health_code i
   domain="$(load_kv "$ENV_FILE" DOMAIN || echo 'queenswarm.love')"
-  nginx_id="$(docker compose -p queenswarm_prod -f docker-compose.base.yml -f docker-compose.prod.yml --env-file "$ENV_FILE" ps -q nginx)"
+  nginx_id="$(docker compose -p queenswarm_prod -f docker-compose.base.yml -f docker-compose.prod.yml "${COMPOSE_ENV_ARGS[@]}" ps -q nginx)"
   if [[ -z "${nginx_id// }" ]]; then
     echo "nginx container not found in compose project queenswarm_prod."
     exit 1
@@ -194,7 +219,7 @@ verify_production_edge() {
 
   if [[ "$state" != "running" ]]; then
     echo "nginx failed to stay running (state=${state}, health=${health})."
-    docker compose -p queenswarm_prod -f docker-compose.base.yml -f docker-compose.prod.yml --env-file "$ENV_FILE" logs --tail=120 nginx || true
+    docker compose -p queenswarm_prod -f docker-compose.base.yml -f docker-compose.prod.yml "${COMPOSE_ENV_ARGS[@]}" logs --tail=120 nginx || true
     exit 1
   fi
 
@@ -206,20 +231,20 @@ verify_production_edge() {
     200|301|302|303|307|308|401|403) ;;
     *)
       echo "nginx local HTTPS probe failed (code=${https_code})."
-      docker compose -p queenswarm_prod -f docker-compose.base.yml -f docker-compose.prod.yml --env-file "$ENV_FILE" logs --tail=120 nginx || true
+      docker compose -p queenswarm_prod -f docker-compose.base.yml -f docker-compose.prod.yml "${COMPOSE_ENV_ARGS[@]}" logs --tail=120 nginx || true
       exit 1
       ;;
   esac
   if [[ "$https_health_code" != "200" && "$https_health_code" != "503" ]]; then
     echo "nginx /health probe via local HTTPS failed (code=${https_health_code})."
-    docker compose -p queenswarm_prod -f docker-compose.base.yml -f docker-compose.prod.yml --env-file "$ENV_FILE" logs --tail=120 nginx || true
+    docker compose -p queenswarm_prod -f docker-compose.base.yml -f docker-compose.prod.yml "${COMPOSE_ENV_ARGS[@]}" logs --tail=120 nginx || true
     exit 1
   fi
   case "$http_health_code" in
     200|301|302|303|307|308) ;;
     *)
       echo "nginx /health probe via :80 failed (code=${http_health_code})."
-      docker compose -p queenswarm_prod -f docker-compose.base.yml -f docker-compose.prod.yml --env-file "$ENV_FILE" logs --tail=120 nginx || true
+      docker compose -p queenswarm_prod -f docker-compose.base.yml -f docker-compose.prod.yml "${COMPOSE_ENV_ARGS[@]}" logs --tail=120 nginx || true
       exit 1
       ;;
   esac
@@ -232,7 +257,7 @@ verify_voice_readiness() {
   fi
 
   local backend_id
-  backend_id="$(docker compose -p queenswarm_prod -f docker-compose.base.yml -f docker-compose.prod.yml --env-file "$ENV_FILE" ps -q backend)"
+  backend_id="$(docker compose -p queenswarm_prod -f docker-compose.base.yml -f docker-compose.prod.yml "${COMPOSE_ENV_ARGS[@]}" ps -q backend)"
   if [[ -z "${backend_id// }" ]]; then
     echo "voice readiness gate: backend container missing."
     exit 1
@@ -287,7 +312,7 @@ if [[ "${SKIP_HOST_EXPOSURE_AUDIT:-0}" != "1" ]]; then
 fi
 
 echo "Production stack up (project queenswarm_prod)."
-docker compose -p queenswarm_prod -f docker-compose.base.yml -f docker-compose.prod.yml --env-file "$ENV_FILE" ps
+docker compose -p queenswarm_prod -f docker-compose.base.yml -f docker-compose.prod.yml "${COMPOSE_ENV_ARGS[@]}" ps
 
 if [[ "$POST_DEPLOY_HEALTH" == "1" ]]; then
   echo "Running health-check.sh …"

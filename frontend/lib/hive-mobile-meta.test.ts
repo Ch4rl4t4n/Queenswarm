@@ -77,7 +77,7 @@ describe("hiveMobileRouteMeta", () => {
 
   it("returns settings meta for nested settings routes", () => {
     expect(hiveMobileRouteMeta("/settings/security").kicker).toBe("Settings");
-    expect(hiveMobileRouteMeta("/settings/llm-keys").pageTitleSuffix).toBe("LLM keys");
+    expect(hiveMobileRouteMeta("/settings/llm-keys").pageTitleSuffix).toBe("LLM & Voice");
   });
 
   it("fallbacks to QueenSwarm for unknown routes", () => {

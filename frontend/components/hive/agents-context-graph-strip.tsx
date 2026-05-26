@@ -7,7 +7,8 @@ import { Loader2Icon, RefreshCwIcon } from "lucide-react";
 import { useMemo } from "react";
 import useSWR from "swr";
 
-import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
+import { CollapsibleLazyPanel } from "@/components/hive/collapsible-lazy-panel";
+import { V4Badge, V4CardHeader } from "@/components/ui/v4";
 import { hiveGet } from "@/lib/api";
 import { COCKPIT_POLL_HIVE_MIND_GRAPH_MS } from "@/lib/cockpit-poll-profile";
 import {
@@ -100,7 +101,7 @@ function MiniHiveGraphSvg({
             y1={source.y}
             x2={target.x}
             y2={target.y}
-            stroke={focused ? "rgba(0,255,255,0.65)" : "rgba(0,255,255,0.25)"}
+            stroke={focused ? "rgba(0,255,255,0.65)" : "rgba(126,63,190,0.35)"}
             strokeWidth={focused ? 1.6 : 1}
           />
         );
@@ -113,8 +114,8 @@ function MiniHiveGraphSvg({
               cx={node.x}
               cy={node.y}
               r={focused ? 12 : 10}
-              fill={focused ? "rgba(0,255,255,0.25)" : "rgba(255,184,0,0.15)"}
-              stroke={focused ? "#00FFFF" : "#FFB800"}
+              fill={focused ? "rgba(0,255,255,0.22)" : "rgba(126,63,190,0.2)"}
+              stroke={focused ? "#00FFFF" : "#7E3FBE"}
               strokeWidth={focused ? 2 : 1.2}
             />
             <text x={node.x} y={node.y + 3} textAnchor="middle" fontSize="7" fill="#E5E7EB">
@@ -131,8 +132,11 @@ function MiniHiveGraphSvg({
   );
 }
 
-/** Compact live Neo4j / vector fallback snapshot for the Agents control plane. */
-export function AgentsContextGraphStrip({ focusGoal, focusSessionLabel }: AgentsContextGraphStripProps): JSX.Element {
+/** Fetches and renders graph — mounted only while the collapsible panel is open. */
+function ContextGraphExpandedBody({
+  focusGoal,
+  focusSessionLabel,
+}: AgentsContextGraphStripProps): JSX.Element {
   const pollOptions = useSwrVisiblePollOptions(COCKPIT_POLL_HIVE_MIND_GRAPH_MS);
   const searchQuery = focusGoal?.trim() ? goalSearchQuery(focusGoal) : "";
 
@@ -157,24 +161,23 @@ export function AgentsContextGraphStrip({ focusGoal, focusSessionLabel }: Agents
   );
 
   return (
-    <V4Card className="relative p-4 md:p-5">
-      <button
-        type="button"
-        aria-label="Refresh context graph"
-        className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-[12px] border border-(--qs-border) text-(--qs-text-3) hover:border-(--qs-border-2) hover:text-pollen touch-manipulation md:right-5 md:top-5"
-        disabled={isLoading}
-        onClick={() => void mutate()}
-      >
-        <RefreshCwIcon className={cn("h-5 w-5", isLoading && "animate-spin")} aria-hidden />
-      </button>
-
-      <div className="pr-12">
+    <>
+      <div className="relative pr-10">
         <V4CardHeader
-          as="h2"
+          as="h3"
           kicker="Shared memory"
           title="Context graph"
           description="Neo4j constellation linked to supervisor sessions — refreshes while tab is visible."
         />
+        <button
+          type="button"
+          aria-label="Refresh context graph"
+          className="qs-btn qs-btn--ghost qs-btn--sm absolute right-0 top-0"
+          disabled={isLoading}
+          onClick={() => void mutate()}
+        >
+          <RefreshCwIcon className={cn("h-4 w-4", isLoading && "animate-spin")} aria-hidden />
+        </button>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -184,9 +187,6 @@ export function AgentsContextGraphStrip({ focusGoal, focusSessionLabel }: Agents
         {focusSessionLabel ? <V4Badge tone="info">focus · {focusSessionLabel}</V4Badge> : null}
         {focusedIds.size > 0 ? <V4Badge tone="ok">{focusedIds.size} matched</V4Badge> : null}
         {data?.degraded ? <V4Badge tone="warn">vector fallback</V4Badge> : null}
-        <span className="text-xs tabular-nums text-(--qs-text-3)">
-          {data?.nodes?.length ?? 0} nodes · {data?.edges?.length ?? 0} edges
-        </span>
       </div>
 
       {focusGoal ? (
@@ -207,10 +207,23 @@ export function AgentsContextGraphStrip({ focusGoal, focusSessionLabel }: Agents
           No graph nodes yet — supervisor writes populate vector + graph lanes automatically.
         </p>
       ) : (
-        <div className="mt-3 rounded-xl border border-cyan/15 bg-black/25 p-2">
+        <div className="v4-context-graph-canvas mt-3">
           <MiniHiveGraphSvg nodes={nodes} edges={data?.edges ?? []} focusedIds={focusedIds} />
         </div>
       )}
-    </V4Card>
+    </>
+  );
+}
+
+/** Compact Neo4j snapshot — collapsed by default, purple rim (no white bubble border). */
+export function AgentsContextGraphStrip({ focusGoal, focusSessionLabel }: AgentsContextGraphStripProps): JSX.Element {
+  return (
+    <CollapsibleLazyPanel
+      id="context-graph"
+      title="Context graph"
+      hint="Shared memory · Neo4j"
+      className="v4-context-graph-panel"
+      lazyContent={() => <ContextGraphExpandedBody focusGoal={focusGoal} focusSessionLabel={focusSessionLabel} />}
+    />
   );
 }

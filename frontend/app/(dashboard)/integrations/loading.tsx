@@ -1,5 +1,1 @@
-import { SectionRouteLoading } from "@/components/hive/section-route-loading";
-
-export default function IntegrationsLoading(): JSX.Element {
-  return <SectionRouteLoading title="Integrations" />;
-}
+export { default } from "@/components/hive/route-pulse-loading-page";

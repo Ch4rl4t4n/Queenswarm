@@ -49,6 +49,12 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/billing", tags=["Billing"])
 
 
+def _ensure_commercial_billing_surface() -> None:
+    """Legacy guard — solo operators use billing for their own Stripe revenue."""
+
+    return
+
+
 class BillingUsageSnapshot(BaseModel):
     """Tenant usage overview with limits and health saturation."""
 
@@ -181,6 +187,7 @@ async def get_billing_usage(
 ) -> BillingUsageSnapshot:
     """Return usage telemetry mapped to current subscription limits."""
 
+    _ensure_commercial_billing_surface()
     tenant_id = principal.get("tenant_id")
     _require_settings_view(principal)
     if tenant_id is None:
@@ -212,6 +219,7 @@ async def get_billing_plans(
 ) -> BillingPlansResponse:
     """Expose current plan and Stripe-ready upgrade metadata."""
 
+    _ensure_commercial_billing_surface()
     tenant_id = principal.get("tenant_id")
     _require_settings_view(principal)
     if tenant_id is None:
@@ -251,6 +259,7 @@ async def get_stripe_config(
 ) -> StripeConfigStatus:
     """Expose checkout readiness and masked key hints for the billing settings panel."""
 
+    _ensure_commercial_billing_surface()
     _require_settings_view(principal)
     return _build_stripe_config_status()
 
@@ -263,6 +272,7 @@ async def upsert_stripe_config(
 ) -> StripeConfigStatus:
     """Persist Stripe API + webhook secrets (admin only, encrypted at rest)."""
 
+    _ensure_commercial_billing_surface()
     _require_billing_admin(principal)
     if not any([body.secret_key, body.webhook_secret, body.clear_secret_key, body.clear_webhook_secret]):
         raise HTTPException(
@@ -305,6 +315,7 @@ async def test_stripe_config(
 ) -> StripeConfigTestResponse:
     """Ping Stripe with the effective secret key (admin only)."""
 
+    _ensure_commercial_billing_surface()
     _require_billing_admin(principal)
     secret = stripe_effective_secret_key()
     if not secret:
@@ -333,6 +344,7 @@ async def start_pro_checkout(
 ) -> ProCheckoutResponse:
     """Create Stripe Checkout Session for commercial Pro tier upgrade."""
 
+    _ensure_commercial_billing_surface()
     tenant_id = principal.get("tenant_id")
     _require_settings_view(principal)
     if tenant_id is None:
@@ -358,6 +370,7 @@ async def confirm_pro_checkout(
 ) -> ProCheckoutResponse:
     """Finalize Pro tier unlock when webhook is delayed (success redirect fallback)."""
 
+    _ensure_commercial_billing_surface()
     tenant_id = principal.get("tenant_id")
     _require_settings_view(principal)
     if tenant_id is None:
@@ -383,6 +396,7 @@ async def start_enterprise_checkout(
 ) -> ProCheckoutResponse:
     """Create Stripe Checkout Session for commercial Enterprise tier upgrade (Pro required)."""
 
+    _ensure_commercial_billing_surface()
     tenant_id = principal.get("tenant_id")
     _require_settings_view(principal)
     if tenant_id is None:
@@ -412,6 +426,7 @@ async def confirm_enterprise_checkout(
 ) -> ProCheckoutResponse:
     """Finalize Enterprise tier unlock when webhook is delayed."""
 
+    _ensure_commercial_billing_surface()
     tenant_id = principal.get("tenant_id")
     _require_settings_view(principal)
     if tenant_id is None:

@@ -4,16 +4,20 @@ import Link from "next/link";
 import { ArrowUp, ChevronDown, MicIcon, MicOffIcon, RefreshCw, X } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { Filters, type ChatFilter } from "@/components/ballroom/filters";
 import { GrokLiveVoiceButton } from "@/components/ballroom/grok-live-voice-chat";
 import { V4Badge, V4Card } from "@/components/ui/v4";
 import { HiveApiError, hiveDelete, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
+import type { SupervisorSessionEventRow, SupervisorSessionRow } from "@/lib/hive-types";
 import { resolveHiveBearerToken } from "@/lib/hive-bearer-token";
+import { LinkifyText } from "@/lib/linkify-text";
 import { buildHiveWebsocketHref } from "@/lib/public-ws";
 import { integrationsTabHref } from "@/lib/integrations-routes";
 import { useCenterActiveInScrollRow } from "@/lib/hooks/use-center-active-in-scroll-row";
 import { cn } from "@/lib/utils";
+import { formatVoiceLiveError } from "@/lib/voice-live-errors";
 
 interface SessionCapsule {
   session_id: string;
@@ -242,9 +246,11 @@ export function BallroomPanel({
   const messageScrollRef = useRef<HTMLDivElement | null>(null);
   const bottomAnchorRef = useRef<HTMLDivElement | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  const [supervisorReplayId, setSupervisorReplayId] = useState<string | null>(null);
   const productMissionKickoffRef = useRef(false);
   const [sessionLabel, setSessionLabel] = useState<string | null>(null);
   const historyTrackRef = useCenterActiveInScrollRow<HTMLDivElement>(sessionLabel ?? "");
+  const readOnlyReplay = supervisorReplayId !== null;
   const [sessionAgents, setSessionAgents] = useState<SessionAgentRow[]>([]);
   const sessionAgentsRef = useRef<SessionAgentRow[]>([]);
   const [recentSessions, setRecentSessions] = useState<BallroomSessionListItem[]>([]);
@@ -490,12 +496,26 @@ export function BallroomPanel({
 
   const onVoiceError = useCallback(
     (message: string) => {
+      const text = formatVoiceLiveError(message);
       appendBubble({
         agent: "System",
-        text: message,
+        text,
         timestamp: new Date().toISOString(),
         variant: "system",
       });
+      if (text.includes("LLM keys") || text.includes("neplatný")) {
+        void import("sonner").then(({ toast }) => {
+          toast.error(text, {
+            action: {
+              label: "LLM keys",
+              onClick: () => {
+                window.location.assign("/settings/llm-keys");
+              },
+            },
+            duration: 12_000,
+          });
+        });
+      }
     },
     [appendBubble],
   );
@@ -826,17 +846,106 @@ export function BallroomPanel({
     [appendBubble, wsUrlFromSessionCapsule],
   );
 
+  const loadSupervisorReplay = useCallback(async (supervisorSessionId: string) => {
+    setStarting(true);
+    setError(null);
+    wsRef.current?.close();
+    wsRef.current = null;
+    sessionIdRef.current = null;
+    setConnected(false);
+    setSupervisorReplayId(supervisorSessionId);
+    setSessionBound(true);
+    setSessionLabel(`Supervisor · S-${supervisorSessionId.replace(/-/g, "").slice(-4).toUpperCase()}`);
+    setMessages([]);
+    setInput("");
+    setActiveChatPrompt(null);
+    try {
+      const [session, events] = await Promise.all([
+        hiveGet<SupervisorSessionRow>(`agents/sessions/${encodeURIComponent(supervisorSessionId)}`),
+        hiveGet<SupervisorSessionEventRow[]>(`agents/sessions/${encodeURIComponent(supervisorSessionId)}/events?limit=200`),
+      ]);
+      const mapped: BallroomBubble[] = [
+        {
+          id: "supervisor-replay-intro",
+          agent: "System",
+          text: `Read-only replay · ${session.status} · ${session.goal}`,
+          timestamp: new Date().toISOString(),
+          variant: "system",
+        },
+      ];
+      for (const event of [...events].reverse()) {
+        mapped.push({
+          id: event.id,
+          agent: event.event_type.replaceAll("_", " "),
+          text: event.message,
+          timestamp: event.occurred_at,
+          variant: event.level === "error" ? "system" : "agent",
+        });
+      }
+      for (const sub of session.sub_agents ?? []) {
+        if (sub.last_output) {
+          mapped.push({
+            id: `sub-out-${sub.id}`,
+            agent: `${sub.role} output`,
+            text: sub.last_output,
+            timestamp: sub.completed_at ?? sub.started_at ?? new Date().toISOString(),
+            variant: "agent",
+          });
+        }
+        if (sub.error_text) {
+          mapped.push({
+            id: `sub-err-${sub.id}`,
+            agent: `${sub.role} error`,
+            text: sub.error_text,
+            timestamp: sub.completed_at ?? sub.started_at ?? new Date().toISOString(),
+            variant: "system",
+          });
+        }
+      }
+      setMessages(mapped);
+    } catch (exc) {
+      const msg = exc instanceof HiveApiError ? exc.message : exc instanceof Error ? exc.message : "Replay failed";
+      toast.error(msg);
+      setSessionBound(false);
+      setSupervisorReplayId(null);
+    } finally {
+      setStarting(false);
+    }
+  }, []);
+
   const startSession = useCallback(
-    async (opts?: { quiet?: boolean }) => {
+    async (opts?: { quiet?: boolean }): Promise<boolean> => {
       setStarting(true);
       setError(null);
+      setSupervisorReplayId(null);
       try {
-        let res = await fetch("/api/proxy/ballroom/start", { method: "POST", credentials: "include" });
-        if (!res.ok) {
-          res = await fetch("/api/proxy/ballroom/session", { method: "POST", credentials: "include" });
+        let res: Response | null = null;
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          res = await fetch("/api/proxy/ballroom/start", { method: "POST", credentials: "include" });
+          if (!res.ok) {
+            res = await fetch("/api/proxy/ballroom/session", { method: "POST", credentials: "include" });
+          }
+          if (res.ok) {
+            break;
+          }
+          const retryable = res.status === 502 || res.status === 503 || res.status === 429;
+          if (!retryable || attempt >= 2) {
+            break;
+          }
+          await new Promise((resolve) => window.setTimeout(resolve, 1200 * (attempt + 1)));
         }
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
+        if (!res?.ok) {
+          const status = res?.status ?? 0;
+          if (status === 401) {
+            throw new Error("sign_in_required");
+          }
+          if (status === 429) {
+            throw new Error("rate_limited");
+          }
+          if (status === 502 || status === 503) {
+            throw new Error("backend_unavailable");
+          }
+          throw new Error(`HTTP ${status || "unknown"}`);
         }
         const body = (await res.json()) as SessionCapsule;
         setMessages([]);
@@ -857,20 +966,40 @@ export function BallroomPanel({
             variant: "system",
           });
         }
+        return true;
       } catch (exc) {
-        setError(exc instanceof Error ? exc.message : "session_failed");
-        appendBubble({
-          agent: "System",
-          text: `Failed to start session (${exc instanceof Error ? exc.message : "unknown"})`,
-          timestamp: new Date().toISOString(),
-          variant: "system",
-        });
+        const code = exc instanceof Error ? exc.message : "session_failed";
+        const userMessage =
+          code === "sign_in_required"
+            ? "Sign in again to start a ballroom session."
+            : code === "rate_limited"
+              ? "Rate limit — wait a few seconds and try Start session again."
+              : code === "backend_unavailable"
+                ? "Backend is restarting — try Start session again in a moment."
+                : `Could not start session (${code}).`;
+        toast.error(userMessage);
+        if (!opts?.quiet) {
+          appendBubble({
+            agent: "System",
+            text: userMessage,
+            timestamp: new Date().toISOString(),
+            variant: "system",
+          });
+        }
+        return false;
       } finally {
         setStarting(false);
       }
     },
     [appendBubble, bindWebSocketToCapsule, loadRecentSessions],
   );
+
+  const ensureBallroomSessionForVoice = useCallback(async (): Promise<boolean> => {
+    if (sessionIdRef.current) {
+      return true;
+    }
+    return startSession({ quiet: true });
+  }, [startSession]);
 
   const endSession = useCallback(() => {
     wsRef.current?.close();
@@ -886,6 +1015,7 @@ export function BallroomPanel({
     sessionIdRef.current = null;
     setSessionLabel(null);
     setSessionBound(false);
+    setSupervisorReplayId(null);
     void loadRecentSessions();
     if (typeof window !== "undefined") {
       const u = new URL(window.location.href);
@@ -984,6 +1114,11 @@ export function BallroomPanel({
       return undefined;
     }
     const params = new URLSearchParams(window.location.search);
+    const supervisorSid = params.get("supervisor_session");
+    if (supervisorSid) {
+      void loadSupervisorReplay(supervisorSid);
+      return () => (window as Window & { __qs_ballroom_ws?: WebSocket }).__qs_ballroom_ws?.close?.();
+    }
     const sid = params.get("session");
     if (sid) {
       bindWebSocketToCapsule({ session_id: sid });
@@ -992,21 +1127,17 @@ export function BallroomPanel({
         void (async () => {
           try {
             const { runPendingProductMission } = await import("@/lib/product-mission");
-            const { toast } = await import("sonner");
             toast.message("Product Mission beží — sleduj transcript…");
             await runPendingProductMission(sid);
           } catch (exc) {
-            const { toast } = await import("sonner");
             const msg = exc instanceof Error ? exc.message : "Product mission failed.";
             toast.error(msg);
           }
         })();
       }
-    } else {
-      void startSession({ quiet: true });
     }
     return () => (window as Window & { __qs_ballroom_ws?: WebSocket }).__qs_ballroom_ws?.close?.();
-  }, [bindWebSocketToCapsule, loadRecentSessions, startSession]);
+  }, [bindWebSocketToCapsule, loadRecentSessions, loadSupervisorReplay]);
 
   function timeStr(ts: string): string {
     try {
@@ -1021,7 +1152,7 @@ export function BallroomPanel({
       return "Opening ballroom channel…";
     }
     if (!sessionBound) {
-      return "Use Start session to open the ballroom.";
+      return "Click Voice Chat or Start session to begin.";
     }
     return "Messages and agent replies appear here — say hello below.";
   }, [sessionBound, starting]);
@@ -1147,38 +1278,45 @@ export function BallroomPanel({
                   <RefreshCw className="h-4 w-4" aria-hidden />
                 </button>
               </div>
-              <div className="flex w-full flex-wrap items-center gap-2">
-                <Link href={integrationsTabHref("active", "ecosystem")} className="qs-btn qs-btn--ghost qs-btn--sm">
-                  Ecosystem hub
-                </Link>
-                {sessionBound && !connected ? (
-                  <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => reconnectStream()}>
-                    Reconnect
-                  </button>
-                ) : null}
-                {!sessionBound ? (
+              <div className="v4-ballroom-session-toolbar">
+                <div className="v4-ballroom-session-toolbar__left">
+                  <Link href={integrationsTabHref("active", "ecosystem")} className="qs-btn qs-btn--ghost qs-btn--sm">
+                    Ecosystem hub
+                  </Link>
+                  <Link href="/agents#sessions" className="qs-btn qs-btn--ghost qs-btn--sm">
+                    Supervisor sessions
+                  </Link>
+                  {sessionBound && !connected ? (
+                    <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => reconnectStream()}>
+                      Reconnect
+                    </button>
+                  ) : null}
                   <button
                     type="button"
-                    className="qs-btn qs-btn--ghost qs-btn--sm"
-                    disabled={starting}
-                    onClick={() => void startSession()}
+                    className={cn("qs-btn qs-btn--ghost qs-btn--sm gap-1", muted && "text-(--qs-red)")}
+                    onClick={() => setMuted((v) => !v)}
                   >
-                    {starting ? "Connecting…" : "Start session"}
+                    {muted ? <MicOffIcon className="h-3.5 w-3.5" aria-hidden /> : <MicIcon className="h-3.5 w-3.5" aria-hidden />}
+                    {muted ? "Muted" : "Sound"}
                   </button>
-                ) : (
-                  <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-1" onClick={endSession}>
-                    <X className="h-3.5 w-3.5" aria-hidden />
-                    End session
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className={cn("qs-btn qs-btn--ghost qs-btn--sm gap-1", muted && "text-(--qs-red)")}
-                  onClick={() => setMuted((v) => !v)}
-                >
-                  {muted ? <MicOffIcon className="h-3.5 w-3.5" aria-hidden /> : <MicIcon className="h-3.5 w-3.5" aria-hidden />}
-                  {muted ? "Muted" : "Sound"}
-                </button>
+                </div>
+                <div className="v4-ballroom-session-toolbar__right">
+                  {!sessionBound ? (
+                    <button
+                      type="button"
+                      className="qs-btn qs-btn--ghost qs-btn--sm"
+                      disabled={starting}
+                      onClick={() => void startSession()}
+                    >
+                      {starting ? "Connecting…" : "Start session"}
+                    </button>
+                  ) : (
+                    <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-1" onClick={endSession}>
+                      <X className="h-3.5 w-3.5" aria-hidden />
+                      End session
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1200,7 +1338,7 @@ export function BallroomPanel({
                           <span>{timeStr(msg.timestamp)}</span>
                         </div>
                         <div className={cn("v4-msg-bubble", isUser && "v4-msg-bubble--me")}>
-                          <span className="whitespace-pre-wrap">{msg.text}</span>
+                          <LinkifyText text={msg.text} className="whitespace-pre-wrap" />
                         </div>
                       </div>
                     </div>
@@ -1235,7 +1373,7 @@ export function BallroomPanel({
                     Session assignment · quick prompts
                   </p>
                   <Filters
-                    disabled={!sessionBound || starting}
+                    disabled={!sessionBound || starting || readOnlyReplay}
                     variant="v4"
                     activePromptId={activeChatPrompt?.filterId ?? null}
                     activePromptLabel={activeChatPrompt?.label ?? null}
@@ -1250,7 +1388,7 @@ export function BallroomPanel({
               <div className="v4-chat-input-row v4-chat-input-row--text">
                 <input
                   value={input}
-                  disabled={!sessionBound || starting}
+                  disabled={!sessionBound || starting || readOnlyReplay}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
@@ -1259,18 +1397,20 @@ export function BallroomPanel({
                     }
                   }}
                   placeholder={
-                    starting
+                    readOnlyReplay
+                      ? "Read-only supervisor replay — start a live session to chat"
+                      : starting
                       ? "Opening channel…"
                       : sessionBound
                         ? "Message Orchestrator…"
-                        : "Waiting for ballroom…"
+                        : "Click Voice Chat or Start session…"
                   }
                   className="qs-input h-11 min-w-0 flex-1 rounded-(--qs-radius-sm)"
                 />
                 <button
                   type="button"
                   className="v4-ballroom-send-btn qs-btn qs-btn--primary h-11 w-11 shrink-0 p-0 disabled:opacity-40"
-                  disabled={!sessionBound || starting || !input.trim()}
+                  disabled={!sessionBound || starting || readOnlyReplay || !input.trim()}
                   aria-label="Send message"
                   onClick={() => void sendChat()}
                 >
@@ -1279,10 +1419,11 @@ export function BallroomPanel({
               </div>
               <div className="v4-chat-input-row v4-chat-input-row--voice">
                 <GrokLiveVoiceButton
-                  disabled={!sessionBound || starting}
+                  disabled={starting || readOnlyReplay}
                   layout="bar"
                   voiceId={voicePrefs.tts_voice_id}
                   sessionInstructions={orchestratorVoiceInstructions}
+                  onBeforeStart={ensureBallroomSessionForVoice}
                   onUserLine={onVoiceUserLine}
                   onAssistantLine={onVoiceAssistantLine}
                   onError={onVoiceError}
@@ -1472,7 +1613,7 @@ export function BallroomPanel({
         </div>
       )}
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 items-stretch gap-3 lg:grid-cols-[260px_minmax(0,1fr)] [&>.qs-card]:mt-0!">
+      <div className="grid min-h-0 flex-1 grid-cols-1 items-stretch gap-3 lg:grid-cols-[minmax(0,260px)_minmax(0,1fr)] [&>.qs-card]:mt-0!">
         <aside className={cn("qs-card order-2 p-0 lg:order-1", panelShellClass)}>
           <div className="flex items-center justify-center border-b border-[var(--qs-border)] px-3 py-3">
             <p className="text-center text-[11px] uppercase tracking-widest text-[var(--qs-text-3)]">Chat history</p>
@@ -1615,7 +1756,7 @@ export function BallroomPanel({
                           isUser ? "rounded-br-sm border-[#FFB800]/30 bg-[#FFB800]/[0.06]" : "rounded-bl-sm border-[var(--qs-border)] bg-[var(--qs-surface-2)]",
                         )}
                       >
-                        <span className="whitespace-pre-wrap">{msg.text}</span>
+                        <LinkifyText text={msg.text} className="whitespace-pre-wrap" />
                       </div>
                     </div>
                   </div>
@@ -1627,7 +1768,7 @@ export function BallroomPanel({
           <footer className="flex items-end gap-2.5 border-t border-[var(--qs-border)] px-3 py-3 sm:px-[var(--qs-pad)]">
             <div className="flex min-w-0 flex-1 flex-col gap-2">
               <Filters
-                disabled={!sessionBound || starting}
+                disabled={!sessionBound || starting || readOnlyReplay}
                 activePromptId={activeChatPrompt?.filterId ?? null}
                 activePromptLabel={activeChatPrompt?.label ?? null}
                 onActivatePrompt={(filter) => void applyChatPrompt(filter)}
@@ -1635,7 +1776,7 @@ export function BallroomPanel({
               />
               <input
                 value={input}
-                disabled={!sessionBound || starting}
+                disabled={!sessionBound || starting || readOnlyReplay}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -1644,17 +1785,20 @@ export function BallroomPanel({
                   }
                 }}
                 placeholder={
-                  starting ? "Opening channel…"
-                  : sessionBound ? "Message Orchestrator…"
-                  : "Waiting for ballroom…"
+                  readOnlyReplay
+                    ? "Read-only supervisor replay — start a live session to chat"
+                    : starting ? "Opening channel…"
+                    : sessionBound ? "Message Orchestrator…"
+                    : "Click Voice Chat or Start session…"
                 }
                 className="qs-input h-11 flex-1 rounded-[var(--qs-radius-sm)]"
               />
             </div>
             <GrokLiveVoiceButton
-              disabled={!sessionBound || starting}
+              disabled={starting || readOnlyReplay}
               voiceId={voicePrefs.tts_voice_id}
               sessionInstructions={orchestratorVoiceInstructions}
+              onBeforeStart={ensureBallroomSessionForVoice}
               onUserLine={onVoiceUserLine}
               onAssistantLine={onVoiceAssistantLine}
               onError={onVoiceError}
@@ -1662,7 +1806,7 @@ export function BallroomPanel({
             <button
               type="button"
               className="qs-btn qs-btn--primary h-11 shrink-0 px-4 disabled:opacity-40"
-              disabled={!sessionBound || starting || !input.trim()}
+              disabled={!sessionBound || starting || readOnlyReplay || !input.trim()}
               onClick={() => void sendChat()}
             >
               Send →

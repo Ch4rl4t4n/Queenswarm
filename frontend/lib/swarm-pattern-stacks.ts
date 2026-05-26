@@ -3,11 +3,22 @@
 import type { SwarmWizardTemplateId } from "@/lib/swarm-wizard-templates";
 
 export const SWARM_TEMPLATE_PATTERN_STACKS: Record<SwarmWizardTemplateId, string[]> = {
-  "exec-assistant": ["Planning", "RAG", "Reflection", "Goal Monitoring"],
+  "marketing-ops": ["Prompt Chaining", "Tool Use", "Guardrails", "Human-in-the-Loop"],
   "lead-waterfall": ["Parallelization", "Tool Use", "Human-in-the-Loop"],
-  "content-flywheel": ["Prompt Chaining", "Tool Use", "Guardrails", "Reflection"],
-  "life-os": ["Memory", "Prioritization", "Reflection", "Planning"],
+  "finance-ops": ["Reflection", "Guardrails", "Goal Monitoring"],
+  "digital-ops": ["RAG", "Tool Use", "Reflection"],
+  "rnd-dev": ["Planning", "Tool Use", "Learning Adaptation"],
   "product-ship": ["Planning", "Tracer Bullets", "Human-in-the-Loop", "Reflection"],
+  "sentinel-radar": ["RAG", "Goal Monitoring", "Reflection"],
+  "exec-assistant": ["Planning", "RAG", "Reflection", "Goal Monitoring"],
+  "content-flywheel": ["Prompt Chaining", "Tool Use", "Guardrails"],
+  "content-flywheel-v2": ["RAG", "Prompt Chaining", "Learning Adaptation", "Human-in-the-Loop"],
+  "polymarket-trading": ["Planning", "Parallelization", "Guardrails", "Human-in-the-Loop", "Reflection"],
+  "trading-content-hybrid": ["Planning", "Prompt Chaining", "Guardrails", "Learning Adaptation", "Human-in-the-Loop"],
+  "life-business-os": ["Memory", "Planning", "Parallelization", "Reflection", "Goal Monitoring"],
+  "faceless-media-agency": ["Prompt Chaining", "Human-in-the-Loop", "Guardrails", "Tool Use", "Learning Adaptation"],
+  "micro-saas-factory": ["Planning", "Tool Use", "Guardrails", "Human-in-the-Loop", "Tracer Bullets"],
+  "life-os": ["Memory", "Prioritization", "Reflection", "Planning"],
 };
 
 export function patternCountLabel(templateId: SwarmWizardTemplateId): string {

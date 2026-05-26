@@ -12,7 +12,7 @@ import {
   type DashboardSectionId,
 } from "@/lib/dashboard-layout-preferences";
 import type { SectionDensity } from "@/lib/section-hub";
-import { localizePhrase } from "@/lib/ui-copy";
+import { localizeDescription, localizePhrase } from "@/lib/ui-copy";
 import { cn } from "@/lib/utils";
 
 interface DashboardSettingsTriggerProps {
@@ -162,7 +162,7 @@ export function DashboardSettingsPanel() {
               {localizePhrase(language, { en: "Dashboard layout", sk: "Rozloženie dashboardu" })}
             </h2>
             <p className="mt-0.5 text-xs text-(--qs-text-3)">
-              {localizePhrase(language, {
+              {localizeDescription(language, {
                 en: "Choose which blocks appear on Queen Dashboard.",
                 sk: "Vyber, ktoré bloky sa zobrazia na Queen Dashboard.",
               })}
@@ -181,9 +181,7 @@ export function DashboardSettingsPanel() {
         <div className="v4-dash-settings-body hive-scrollbar">
           {sectionsByGroup.map(({ group, sections }) => (
             <section key={group.id} className="v4-dash-settings-group">
-              <h3 className="v4-label-kicker mb-3 text-(--qs-text-3)">
-                {localizePhrase(language, group.label)}
-              </h3>
+              <h3 className="v4-label-kicker mb-3 text-(--qs-text-3)">{group.label.en}</h3>
               <div className="flex flex-col gap-2">
                 {sections.map((section) => (
                   <SettingToggleRow
@@ -191,8 +189,8 @@ export function DashboardSettingsPanel() {
                     sectionId={section.id}
                     checked={layout[section.id]}
                     onToggle={handleToggle}
-                    label={localizePhrase(language, section.label)}
-                    description={localizePhrase(language, section.description)}
+                    label={section.label.en}
+                    description={localizeDescription(language, section.description)}
                   />
                 ))}
               </div>

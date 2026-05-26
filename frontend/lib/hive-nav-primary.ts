@@ -40,6 +40,7 @@ import {
   RECIPES_ENABLED,
   SIMULATIONS_ENABLED,
 } from "@/lib/feature-flags";
+import { hiveOverviewHref } from "@/lib/hive-home-route";
 
 export interface HiveNavItem {
   href: string;
@@ -66,26 +67,22 @@ export function buildHiveSidebarSecondary(_consolidatedEnabled: boolean): HiveNa
 export const HIVE_SIDEBAR_SECONDARY: HiveNavItem[] = buildHiveSidebarSecondary(PHASE70_CONSOLIDATED_NAV_ENABLED);
 
 function buildHiveNavPrimaryConsolidated(): HiveNavItem[] {
-  const items: HiveNavItem[] = [];
   if (OPERATOR_CONTROL_PLANE_ENABLED) {
-    items.push({
-      href: "/cockpit",
-      label: "Cockpit",
-      Icon: Zap,
-      bottomNav: true,
-      section: "overview",
-      featureKey: "operator_cockpit",
-    });
-    items.push({
-      href: "/oracle",
-      label: "Oracle",
-      Icon: Eye,
-      section: "overview",
-      featureKey: "operator_cockpit",
-    });
+    return [
+      { href: "/cockpit", label: "Cockpit", Icon: Zap, bottomNav: true, section: "overview", featureKey: "operator_cockpit" },
+      { href: "/agents", label: "Agents", Icon: Users, bottomNav: true, section: "agents", featureKey: "agents" },
+      { href: "/knowledge", label: "Knowledge", Icon: Brain, bottomNav: true, section: "knowledge", featureKey: "knowledge" },
+      { href: "/integrations", label: "Integrations", Icon: Cable, section: "integrations", featureKey: "integrations" },
+      { href: "/ballroom", label: "Ballroom", Icon: MicIcon, bottomNav: true, section: "ballroom", featureKey: "ballroom" },
+      { href: "/swarms", label: "Swarms", Icon: Share2, section: "overview", featureKey: "swarms" },
+      { href: "/factory", label: "Factory", Icon: Factory, section: "execution", featureKey: "skills_export_factory" },
+      { href: "/tasks", label: "Tasks", Icon: ListTodo, section: "execution", featureKey: "tasks" },
+    ];
   }
+
+  const items: HiveNavItem[] = [];
   items.push(
-    { href: "/", label: "Dashboard", Icon: LayoutDashboardIcon, bottomNav: !OPERATOR_CONTROL_PLANE_ENABLED, section: "overview", featureKey: "dashboard" },
+    { href: hiveOverviewHref(), label: "Dashboard", Icon: LayoutDashboardIcon, bottomNav: true, section: "overview", featureKey: "dashboard" },
     { href: "/swarms", label: "Swarms", Icon: Share2, section: "overview", featureKey: "swarms" },
     { href: "/agents", label: "Agents", Icon: Users, bottomNav: true, section: "agents", featureKey: "agents" },
     { href: "/foragers", label: "Foragers", Icon: Sparkles, section: "agents", featureKey: "foragers" },
@@ -102,7 +99,7 @@ function buildHiveNavPrimaryConsolidated(): HiveNavItem[] {
 export function buildHiveNavPrimary(consolidatedEnabled: boolean): HiveNavItem[] {
   if (!consolidatedEnabled) {
     return [
-      { href: "/", label: "Dashboard", Icon: LayoutDashboardIcon, bottomNav: true, section: "overview" },
+      { href: hiveOverviewHref(), label: "Dashboard", Icon: LayoutDashboardIcon, bottomNav: true, section: "overview" },
       { href: "/swarms", label: "Swarms", Icon: Share2, section: "overview" },
       { href: "/agents", label: "Agents", Icon: Users, bottomNav: true, section: "agents" },
       { href: "/foragers", label: "Foragers", Icon: Sparkles, section: "agents" },
@@ -124,18 +121,18 @@ export function buildHiveNavGroups(consolidatedEnabled: boolean): { title: strin
     {
       title: "Overview",
       items: [
-        ...(OPERATOR_CONTROL_PLANE_ENABLED
+        ...(OPERATOR_CONTROL_PLANE_ENABLED && consolidatedEnabled
           ? [
               { href: "/cockpit", label: "Cockpit", Icon: Zap, section: "overview" as const },
+              { href: "/dashboard", label: "Advanced dashboard", Icon: LayoutDashboardIcon, section: "overview" as const },
               { href: "/oracle", label: "Oracle", Icon: Eye, section: "overview" as const },
             ]
-          : []),
-        { href: "/", label: "Dashboard", Icon: LayoutDashboardIcon, section: "overview" },
+          : [{ href: hiveOverviewHref(), label: "Dashboard", Icon: LayoutDashboardIcon, section: "overview" as const }]),
         ...(ADVANCED_MONITORING_ENABLED
           ? [{ href: "/monitoring", label: "Monitoring", Icon: Activity, section: "overview" as const }]
           : []),
-        { href: "/#hive-live-swarm", label: "Live network", Icon: Hexagon, section: "overview" },
-        { href: "/swarms", label: "Swarms", Icon: Share2, section: "overview" },
+        { href: "/#hive-live-swarm", label: "Live network", Icon: Hexagon, section: "overview" as const },
+        { href: "/swarms", label: "Swarms", Icon: Share2, section: "overview" as const },
       ],
     },
     {
@@ -255,6 +252,7 @@ export function sectionForPath(pathname: string): string {
     normalized === "/" ||
     normalized.startsWith("/dashboard") ||
     normalized.startsWith("/cockpit") ||
+    normalized.startsWith("/oracle") ||
     normalized.startsWith("/overview") ||
     normalized.startsWith("/monitoring") ||
     normalized.startsWith("/swarms")
@@ -336,8 +334,8 @@ export function isNavItemActive(pathname: string, item: HiveNavItem, ctx?: NavAc
     return currentHash === itemHash;
   }
 
-  if (itemPath === "/") {
-    return normalizedPath === "/" && !currentHash;
+  if (itemPath === "/" || itemPath === "/cockpit" || itemPath === "/dashboard") {
+    return normalizedPath === itemPath && !currentHash;
   }
 
   if (normalizedPath === itemPath) {

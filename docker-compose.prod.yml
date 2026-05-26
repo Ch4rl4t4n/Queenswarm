@@ -47,14 +47,22 @@ services:
   backend:
     env_file:
       - ${QS_ENV_FILE_PROD:-.env.prod}
+      - path: ${QS_ENV_FILE_PROD_TOKENS:-.env.prod.tokens}
+        required: false
+      - path: ${QS_ENV_FILE_PROD_OAUTH:-.env.prod.oauth}
+        required: false
     environment:
+      API_KEY_MANAGEMENT_ENABLED: ${API_KEY_MANAGEMENT_ENABLED:-true}
+      SOLO_MODE_ENABLED: ${SOLO_MODE_ENABLED:-false}
       DR_REPORTS_DIR: ${DR_REPORTS_DIR:-/app/reports/dr}
       HA_REPORTS_DIR: ${HA_REPORTS_DIR:-/app/reports/ha}
       LLM_MAX_CONCURRENCY: ${LLM_MAX_CONCURRENCY:-8}
       SIMULATION_MAX_PARALLEL: ${SIMULATION_MAX_PARALLEL:-3}
       CELERY_WORKER_CONCURRENCY: ${CELERY_WORKER_CONCURRENCY:-3}
+      CODEBASE_ATLAS_REPO_ROOT: /repo
     volumes:
       - ./reports:/app/reports:ro
+      - .:/repo:ro
     mem_limit: 10240m
     cpus: "4.0"
     ports: !reset []
@@ -62,6 +70,10 @@ services:
   celery-worker:
     env_file:
       - ${QS_ENV_FILE_PROD:-.env.prod}
+      - path: ${QS_ENV_FILE_PROD_TOKENS:-.env.prod.tokens}
+        required: false
+      - path: ${QS_ENV_FILE_PROD_OAUTH:-.env.prod.oauth}
+        required: false
     environment:
       LLM_MAX_CONCURRENCY: ${LLM_MAX_CONCURRENCY:-8}
       SIMULATION_MAX_PARALLEL: ${SIMULATION_MAX_PARALLEL:-3}
@@ -72,6 +84,10 @@ services:
   celery-beat:
     env_file:
       - ${QS_ENV_FILE_PROD:-.env.prod}
+      - path: ${QS_ENV_FILE_PROD_TOKENS:-.env.prod.tokens}
+        required: false
+      - path: ${QS_ENV_FILE_PROD_OAUTH:-.env.prod.oauth}
+        required: false
     environment:
       LLM_MAX_CONCURRENCY: ${LLM_MAX_CONCURRENCY:-8}
       SIMULATION_MAX_PARALLEL: ${SIMULATION_MAX_PARALLEL:-3}
@@ -93,12 +109,24 @@ services:
         NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-https://queenswarm.love/api/v1}
         NEXT_PUBLIC_HIVE_WS_GUEST: ${NEXT_PUBLIC_HIVE_WS_GUEST:-true}
         NEXT_PUBLIC_BALLROOM_GUEST_WS: ${NEXT_PUBLIC_BALLROOM_GUEST_WS:-true}
-        NEXT_PUBLIC_QS_POLL_PROFILE: ${NEXT_PUBLIC_QS_POLL_PROFILE:-low_ram}
+        NEXT_PUBLIC_QS_POLL_PROFILE: ${NEXT_PUBLIC_QS_POLL_PROFILE:-vps_32gb}
+        NEXT_PUBLIC_SOLO_MODE: ${NEXT_PUBLIC_SOLO_MODE:-false}
+        NEXT_PUBLIC_LEADERBOARD_ENABLED: ${NEXT_PUBLIC_LEADERBOARD_ENABLED:-false}
+        NEXT_PUBLIC_RECIPES_ENABLED: ${NEXT_PUBLIC_RECIPES_ENABLED:-true}
+        NEXT_PUBLIC_VOICE_ENABLED: ${NEXT_PUBLIC_VOICE_ENABLED:-true}
+        NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED: ${NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED:-true}
+        NEXT_PUBLIC_PHASE70_CONSOLIDATED_NAV_ENABLED: ${NEXT_PUBLIC_PHASE70_CONSOLIDATED_NAV_ENABLED:-true}
     environment:
       NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-https://queenswarm.love/api/v1}
       NEXT_PUBLIC_HIVE_WS_GUEST: ${NEXT_PUBLIC_HIVE_WS_GUEST:-true}
       NEXT_PUBLIC_BALLROOM_GUEST_WS: ${NEXT_PUBLIC_BALLROOM_GUEST_WS:-true}
-      NEXT_PUBLIC_QS_POLL_PROFILE: ${NEXT_PUBLIC_QS_POLL_PROFILE:-low_ram}
+      NEXT_PUBLIC_QS_POLL_PROFILE: ${NEXT_PUBLIC_QS_POLL_PROFILE:-vps_32gb}
+      NEXT_PUBLIC_SOLO_MODE: ${NEXT_PUBLIC_SOLO_MODE:-false}
+      NEXT_PUBLIC_LEADERBOARD_ENABLED: ${NEXT_PUBLIC_LEADERBOARD_ENABLED:-false}
+      NEXT_PUBLIC_RECIPES_ENABLED: ${NEXT_PUBLIC_RECIPES_ENABLED:-true}
+      NEXT_PUBLIC_VOICE_ENABLED: ${NEXT_PUBLIC_VOICE_ENABLED:-true}
+      NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED: ${NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED:-true}
+      NEXT_PUBLIC_PHASE70_CONSOLIDATED_NAV_ENABLED: ${NEXT_PUBLIC_PHASE70_CONSOLIDATED_NAV_ENABLED:-true}
       INTERNAL_BACKEND_ORIGIN: http://backend:8000
       HIVE_PROXY_JWT: ${DASHBOARD_JWT:-unset}
       NODE_ENV: production

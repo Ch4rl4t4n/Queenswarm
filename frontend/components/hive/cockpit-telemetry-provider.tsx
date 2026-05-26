@@ -32,7 +32,7 @@ import {
   useDashboardSummaryPollEnabled,
   useDashboardTelemetryPollEnabled,
 } from "@/lib/hooks/use-dashboard-telemetry-poll-enabled";
-import { useSwrVisiblePollOptions } from "@/lib/hooks/use-swr-refresh-interval";
+import { useRouteScopedPollOptions } from "@/lib/hooks/use-route-scoped-poll";
 import type { AgentRow, DashboardSummary, SystemStatusPayload, TaskRow } from "@/lib/hive-types";
 
 export interface CockpitTelemetryContextValue {
@@ -148,7 +148,11 @@ export function CockpitTelemetryProvider({
     return basePollMs;
   }, [telemetryEnabled, wsConnected, basePollMs]);
 
-  const telemetryPoll = useSwrVisiblePollOptions(telemetryPollMs);
+  const telemetryPollBase = useRouteScopedPollOptions(telemetryPollMs, "/");
+  const telemetryPoll = {
+    ...telemetryPollBase,
+    refreshInterval: telemetryEnabled ? telemetryPollBase.refreshInterval : 0,
+  };
 
   const {
     data: bundle,
@@ -174,7 +178,14 @@ export function CockpitTelemetryProvider({
     mutateRef.current = () => mutateBundle(undefined, { revalidate: true });
   }, [mutateBundle]);
 
-  const summaryPoll = useSwrVisiblePollOptions(summaryEnabled ? COCKPIT_POLL_SYSTEM_STATUS_MS : 0);
+  const summaryPollBase = useRouteScopedPollOptions(
+    summaryEnabled ? COCKPIT_POLL_SYSTEM_STATUS_MS : 0,
+    "/",
+  );
+  const summaryPoll = {
+    ...summaryPollBase,
+    refreshInterval: summaryEnabled ? summaryPollBase.refreshInterval : 0,
+  };
 
   const { data: costWindowUsd = null } = useSWR<number>(
     summaryEnabled ? cockpitSwrKeys.costs30d() : null,

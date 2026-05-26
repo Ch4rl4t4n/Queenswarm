@@ -14,8 +14,21 @@ from app.application.services.tool_marketplace import (
     tool_hub_overview,
     tool_registry_snapshot,
 )
+from app.application.services.super_tool_router import (
+    ROUTER_PRESETS,
+    SuperToolRouterCreateBody,
+    SuperToolRouterPatchBody,
+    SuperToolRouterPublic,
+    create_router_from_preset,
+    create_super_tool_router,
+    delete_super_tool_router,
+    list_super_tool_routers,
+    patch_super_tool_router,
+    resolve_router_connector_slugs,
+)
 from app.infrastructure.connectors.dynamic.hub import DynamicConnectorHub
 from app.infrastructure.connectors.dynamic.service import DynamicConnectorService
+from app.infrastructure.persistence.models.tenant import Tenant
 from app.presentation.api.deps import DashboardSession, DbSession, require_tenant_permission
 from app.core.jwt_tokens import parse_dashboard_user_subject
 
@@ -30,6 +43,22 @@ def _subject_uuid(sess: dict[str, Any]) -> uuid.UUID:
     if parsed is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Malformed subject.")
     return parsed
+
+
+async def _tenant_from_session(sess: DashboardSession, db: DbSession) -> Tenant:
+    """Load tenant row for operator-scoped marketplace settings."""
+
+    raw_tid = sess.get("tenant_id")
+    if raw_tid is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    try:
+        tenant_id = raw_tid if isinstance(raw_tid, uuid.UUID) else uuid.UUID(str(raw_tid))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid tenant context.") from exc
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found.")
+    return tenant
 
 
 class ToolRegistryResponse(BaseModel):
@@ -160,6 +189,8 @@ async def tools_marketplace_install(
         )
     except KeyError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     if result == "unsupported_source":
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="unsupported marketplace source")
 
@@ -182,6 +213,116 @@ async def tools_marketplace_install(
         "last_tested_at": row.last_tested_at.isoformat() if row.last_tested_at else None,
     }
     return {"status": result, "connector": payload}
+
+
+class SuperToolRouterListResponse(BaseModel):
+    """Tenant-scoped super router configs."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    items: list[SuperToolRouterPublic]
+    presets: list[dict[str, Any]]
+
+
+class SuperToolRouterPresetBody(BaseModel):
+    """Instantiate router from preset."""
+
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+
+    preset_id: str = Field(..., min_length=2, max_length=64)
+    slug: str = Field(..., min_length=2, max_length=128)
+    name: str | None = Field(default=None, max_length=160)
+
+
+@router.get("/super-routers", summary="List tenant super tool routers + presets")
+async def list_super_routers(
+    sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("connectors:view")),
+) -> SuperToolRouterListResponse:
+    tenant = await _tenant_from_session(sess, db)
+    return SuperToolRouterListResponse(
+        items=list_super_tool_routers(tenant),
+        presets=[dict(row) for row in ROUTER_PRESETS],
+    )
+
+
+@router.get("/super-routers/resolve", summary="Resolved connector slugs for a manager lane")
+async def resolve_super_routers(
+    sess: DashboardSession,
+    db: DbSession,
+    manager_slug: str,
+    _: bool = Depends(require_tenant_permission("connectors:view")),
+) -> dict[str, Any]:
+    tenant = await _tenant_from_session(sess, db)
+    slugs = resolve_router_connector_slugs(tenant, manager_slug=manager_slug)
+    return {"manager_slug": manager_slug.strip().lower(), "connector_slugs": list(slugs)}
+
+
+@router.post("/super-routers", summary="Create super tool router")
+async def create_super_router(
+    body: SuperToolRouterCreateBody,
+    sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("connectors:edit")),
+) -> SuperToolRouterPublic:
+    tenant = await _tenant_from_session(sess, db)
+    try:
+        return await create_super_tool_router(db, tenant=tenant, body=body)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+
+@router.post("/super-routers/preset", summary="Create super router from built-in preset")
+async def create_super_router_preset(
+    body: SuperToolRouterPresetBody,
+    sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("connectors:edit")),
+) -> SuperToolRouterPublic:
+    tenant = await _tenant_from_session(sess, db)
+    try:
+        return await create_router_from_preset(
+            db,
+            tenant=tenant,
+            preset_id=body.preset_id,
+            slug=body.slug.strip().lower(),
+            name=body.name,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+
+@router.patch("/super-routers/{router_id}", summary="Patch super tool router")
+async def patch_super_router(
+    router_id: uuid.UUID,
+    body: SuperToolRouterPatchBody,
+    sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("connectors:edit")),
+) -> SuperToolRouterPublic:
+    tenant = await _tenant_from_session(sess, db)
+    try:
+        return await patch_super_tool_router(db, tenant=tenant, router_id=router_id, body=body)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+
+@router.delete("/super-routers/{router_id}", summary="Delete super tool router")
+async def delete_super_router(
+    router_id: uuid.UUID,
+    sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("connectors:edit")),
+) -> dict[str, bool]:
+    tenant = await _tenant_from_session(sess, db)
+    try:
+        await delete_super_tool_router(db, tenant=tenant, router_id=router_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return {"deleted": True}
 
 
 __all__ = ["router"]

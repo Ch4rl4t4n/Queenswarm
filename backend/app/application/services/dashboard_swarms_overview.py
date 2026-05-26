@@ -15,6 +15,7 @@ from app.infrastructure.persistence.models.enums import AgentStatus, SwarmPurpos
 from app.infrastructure.persistence.models.swarm import SubSwarm
 from app.application.services.dashboard_swarm_board import build_swarm_board_payload
 from app.application.services.sub_swarm_local_mind import build_local_mind_summary
+from app.application.services.swarm_health_notes import summarize_health_notes
 
 _LANE_LABEL: dict[SwarmPurpose, str] = {
     SwarmPurpose.SCOUT: "Scout",
@@ -85,6 +86,35 @@ async def build_swarms_overview_payload(session: AsyncSession) -> dict[str, Any]
     bees_working = sum(1 for a in agent_rows if a.status in working_statuses)
     bees_idle = sum(1 for a in agent_rows if a.status is AgentStatus.IDLE)
 
+    # Discover the Orchestrator and per-swarm Manager bees via hive_tier metadata
+    # (set by the swarm builder) and a name-suffix fallback. AgentRole here is a
+    # legacy specialization enum (scraper/evaluator/…), not orchestrator/manager,
+    # so we do not rely on it for tier discovery.
+    def _tier_of(a: Agent) -> str | None:
+        cfg = a.config if isinstance(a.config, dict) else None
+        if cfg is None:
+            return None
+        raw = cfg.get("hive_tier")
+        return str(raw) if isinstance(raw, str) else None
+
+    orchestrator_row = next(
+        (a for a in agent_rows if _tier_of(a) == "orchestrator" or a.name.lower() == "orchestrator"),
+        None,
+    )
+    orchestrator_agent_id = str(orchestrator_row.id) if orchestrator_row else None
+
+    managers_by_swarm: dict[Any, Agent] = {}
+    for a in agent_rows:
+        if a.swarm_id is None:
+            continue
+        is_manager = (
+            _tier_of(a) == "manager"
+            or a.name.endswith(" Manager")
+            or a.name.endswith(" Supervisor")
+        )
+        if is_manager and a.swarm_id not in managers_by_swarm:
+            managers_by_swarm[a.swarm_id] = a
+
     colonies: list[dict[str, Any]] = []
     sync_samples: list[int] = []
     pollen_pool = 0.0
@@ -117,6 +147,20 @@ async def build_swarms_overview_payload(session: AsyncSession) -> dict[str, Any]
 
         mind = build_local_mind_summary(swarm, now=now)
 
+        # When no explicit `queen_agent_id` is set on the sub_swarm row we still
+        # want operators to be able to edit the responsible manager prompt — fall
+        # back to the manager bee assigned to this swarm.
+        edit_target_id: str | None = (
+            str(swarm.queen_agent_id) if swarm.queen_agent_id else None
+        )
+        manager_for_swarm = managers_by_swarm.get(swarm.id)
+        if edit_target_id is None and manager_for_swarm is not None:
+            edit_target_id = str(manager_for_swarm.id)
+        if manager_for_swarm is not None and queen_label == _QUEEN_DEFAULT.get(swarm.purpose, "Queen"):
+            queen_label = manager_for_swarm.name
+
+        health = summarize_health_notes(swarm)
+
         colonies.append(
             {
                 "id": str(swarm.id),
@@ -125,12 +169,15 @@ async def build_swarms_overview_payload(session: AsyncSession) -> dict[str, Any]
                 "lane": _purpose_lane(swarm.purpose),
                 "lane_label": _LANE_LABEL.get(swarm.purpose, swarm.purpose.value.title()),
                 "queen_label": queen_label,
+                "queen_agent_id": edit_target_id,
+                "manager_agent_id": str(manager_for_swarm.id) if manager_for_swarm else None,
                 "member_count": member_count,
                 "total_pollen": round(pollen, 1),
                 "last_sync_seconds_ago": sync_sec,
                 "is_active": bool(swarm.is_active),
                 "status": "active" if swarm.is_active else "paused",
                 "local_mind": mind,
+                "health": health,
             },
         )
 
@@ -175,6 +222,7 @@ async def build_swarms_overview_payload(session: AsyncSession) -> dict[str, Any]
             "avg_sync_drift_sec": avg_drift,
             "last_global_tick_sec": last_tick,
         },
+        "orchestrator_agent_id": orchestrator_agent_id,
         "colonies": colonies,
         "waggle_feed": board.get("waggle_feed", []),
         "hive_sync": hive_sync,

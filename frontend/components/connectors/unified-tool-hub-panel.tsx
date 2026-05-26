@@ -3,9 +3,13 @@
 import type { JSX } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import {
+  DynamicCollectorDeck,
+  type CollectorCardItem,
+  type CollectorTab,
+} from "@/components/hive/dynamic-collector-deck";
 import { V4Badge, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
-import { cn } from "@/lib/utils";
 
 type CostTier = "low" | "medium" | "high";
 type LatencyTier = "fast" | "balanced" | "slow";
@@ -114,6 +118,57 @@ export function UnifiedToolHubPanel(): JSX.Element {
     );
   }, [goal, registry]);
 
+  const toolTabs: CollectorTab[] = useMemo(() => {
+    const ranked = filteredRegistry.filter((row) => (row.score ?? 0) > 0);
+    const lowCost = filteredRegistry.filter((row) => row.cost_tier === "low");
+    const fast = filteredRegistry.filter((row) => row.latency_tier === "fast");
+    return [
+      { id: "all", label: "All tools", count: filteredRegistry.length, tone: "info" },
+      { id: "ranked", label: "Ranked", count: ranked.length, tone: "gold" },
+      { id: "low_cost", label: "Low cost", count: lowCost.length, tone: "ok" },
+      { id: "fast", label: "Fast", count: fast.length, tone: "purple" },
+    ];
+  }, [filteredRegistry]);
+
+  const toolItemsByTab = useMemo(() => {
+    const toCard = (row: ToolRegistryRow): CollectorCardItem => ({
+      id: `${row.connector_slug}:${row.tool_name}`,
+      title: row.tool_name,
+      body: row.description,
+      meta: `${row.connector_slug} · ${row.method} ${row.path}`,
+      badge:
+        typeof row.score === "number" && row.score > 0
+          ? `score ${row.score.toFixed(2)}`
+          : row.cost_tier
+            ? costLabel(row.cost_tier)
+            : "tool",
+      badgeTone:
+        typeof row.score === "number" && row.score > 0
+          ? "ok"
+          : costTone(row.cost_tier ?? undefined),
+      footer: (
+        <div className="flex flex-wrap gap-2">
+          {row.cost_tier ? <V4Badge tone={costTone(row.cost_tier)}>{costLabel(row.cost_tier)}</V4Badge> : null}
+          {row.latency_tier ? (
+            <V4Badge tone={latencyTone(row.latency_tier)}>{latencyLabel(row.latency_tier)}</V4Badge>
+          ) : null}
+          <V4Badge tone="info">{row.connector_display_name || row.connector_slug}</V4Badge>
+        </div>
+      ),
+    });
+
+    const ranked = filteredRegistry.filter((row) => (row.score ?? 0) > 0);
+    const lowCost = filteredRegistry.filter((row) => row.cost_tier === "low");
+    const fast = filteredRegistry.filter((row) => row.latency_tier === "fast");
+
+    return {
+      all: filteredRegistry.map(toCard),
+      ranked: ranked.map(toCard),
+      low_cost: lowCost.map(toCard),
+      fast: fast.map(toCard),
+    };
+  }, [filteredRegistry]);
+
   async function installVenice(): Promise<void> {
     if (!venice) return;
     setBusyId(venice.id);
@@ -145,7 +200,7 @@ export function UnifiedToolHubPanel(): JSX.Element {
       ) : null}
 
       {venice ? (
-        <article className="v4-dream-cycle-card space-y-3 border border-(--qs-cyan)/25 bg-(--qs-cyan)/5">
+        <article className="v4-dream-cycle-card qs-bubble--tint-cyan space-y-3">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-(--qs-cyan)">Featured MCP preset</p>
@@ -166,7 +221,7 @@ export function UnifiedToolHubPanel(): JSX.Element {
               {venice.tool_hints.slice(0, 6).map((hint) => (
                 <span
                   key={hint.name}
-                  className="rounded-md border border-(--qs-border)/60 px-2 py-0.5 font-mono text-[10px] text-(--qs-text-3)"
+                  className="qs-bubble-inner rounded-md px-2 py-0.5 font-mono text-[10px] text-(--qs-text-3)"
                 >
                   {hint.name}
                 </span>
@@ -213,54 +268,16 @@ export function UnifiedToolHubPanel(): JSX.Element {
         </p>
       ) : null}
 
-      <div className="overflow-x-auto rounded-xl border border-(--qs-border)/50">
-        <table className="min-w-full text-left text-xs">
-          <thead className="border-b border-(--qs-border)/50 bg-(--qs-surface-2)/40">
-            <tr>
-              <th className="px-3 py-2 font-medium text-(--qs-text-2)">Tool</th>
-              <th className="px-3 py-2 font-medium text-(--qs-text-2)">Connector</th>
-              <th className="px-3 py-2 font-medium text-(--qs-text-2)">Cost</th>
-              <th className="px-3 py-2 font-medium text-(--qs-text-2)">Speed</th>
-              <th className="px-3 py-2 font-medium text-(--qs-text-2)">Score</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredRegistry.map((row) => (
-              <tr key={`${row.connector_slug}:${row.tool_name}`} className="border-b border-(--qs-border)/30 last:border-0">
-                <td className="px-3 py-2">
-                  <p className="font-mono text-[11px] text-(--qs-text)">{row.tool_name}</p>
-                  <p className="text-[10px] text-(--qs-text-3)">{row.description}</p>
-                </td>
-                <td className="px-3 py-2 font-mono text-[11px] text-(--qs-text-3)">{row.connector_slug}</td>
-                <td className="px-3 py-2">
-                  {row.cost_tier ? (
-                    <V4Badge tone={costTone(row.cost_tier)}>{costLabel(row.cost_tier)}</V4Badge>
-                  ) : (
-                    <span className="text-(--qs-text-3)">—</span>
-                  )}
-                </td>
-                <td className="px-3 py-2">
-                  {row.latency_tier ? (
-                    <V4Badge tone={latencyTone(row.latency_tier)}>{latencyLabel(row.latency_tier)}</V4Badge>
-                  ) : (
-                    <span className="text-(--qs-text-3)">—</span>
-                  )}
-                </td>
-                <td className={cn("px-3 py-2 font-mono text-[11px]", row.score && row.score > 0 ? "text-(--qs-green)" : "text-(--qs-text-3)")}>
-                  {typeof row.score === "number" ? row.score.toFixed(2) : "—"}
-                </td>
-              </tr>
-            ))}
-            {!filteredRegistry.length ? (
-              <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-sm text-(--qs-text-3)">
-                  {overview ? "No tools match — install a marketplace preset or provision a connector." : "Loading registry…"}
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
+      <DynamicCollectorDeck
+        tabs={toolTabs}
+        itemsByTab={toolItemsByTab}
+        defaultTabId={goal.trim() ? "ranked" : "all"}
+        emptyLabel={
+          overview
+            ? "No tools in this collector — adjust goal filter or install a preset."
+            : "Loading registry…"
+        }
+      />
     </div>
   );
 }

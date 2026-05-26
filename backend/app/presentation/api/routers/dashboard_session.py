@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from jose import JWTError
 from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field, computed_field, field_validator
 from sqlalchemy import select
@@ -22,7 +22,7 @@ from starlette.responses import Response
 
 from app.common.http.rate_limit import rate_limited_http_exception, rate_limit_unavailable_http_exception
 from app.common.http.security_headers import apply_no_store_cache_headers
-from app.presentation.api.deps import DashboardAdmin, DashboardSession, DbSession, JwtSubject
+from app.presentation.api.deps import DashboardAdmin, DashboardSession, DbSession, JwtSubject, require_dashboard_user_with_tenant_role
 from app.core.config import settings
 from app.core.llm_router import _openai_key_looks_configured
 from app.core.jwt_tokens import (
@@ -32,7 +32,12 @@ from app.core.jwt_tokens import (
     parse_dashboard_user_subject,
 )
 from app.core.logging import get_logger
-from app.core.redis_client import fetch_dashboard_refresh_user, revoke_dashboard_refresh, store_dashboard_refresh
+from app.core.redis_client import (
+    fetch_dashboard_refresh_session,
+    fetch_dashboard_refresh_user,
+    revoke_dashboard_refresh,
+    store_dashboard_refresh,
+)
 from app.core.redis_client import sliding_window_reserve
 from app.infrastructure.persistence.models.dashboard_api_key import DashboardApiKey
 from app.infrastructure.persistence.models.dashboard_user import DashboardUser
@@ -62,6 +67,13 @@ from app.application.services.tenancy import (
     write_tenant_audit_log,
 )
 from app.application.services.billing import ensure_tenant_subscription
+from app.application.services.rbac import has_permission
+from app.application.services.session_policy_config import (
+    cache_tenant_rate_limits,
+    merge_tenant_session_policy_patch,
+    resolve_effective_session_policy,
+    serialize_session_policy_view,
+)
 from app.application.services.enterprise_workspace import serialize_tenant_branding_brief
 from app.application.services.platform_feature_policy import load_policy_overrides
 from app.application.services.platform_features import (
@@ -96,6 +108,26 @@ def _is_2fa_login_challenge_enabled() -> bool:
     """Return True when runtime policy requires TOTP challenge on login."""
 
     return bool(settings.enable_2fa or settings.security_2fa_advanced_enabled)
+
+
+def _user_has_verified_totp(user: DashboardUser) -> bool:
+    """Return True when the operator completed authenticator enrollment."""
+
+    totp_secret = getattr(user, "totp_secret", None)
+    totp_verified_at = getattr(user, "totp_verified_at", None)
+    return totp_secret is not None and totp_verified_at is not None
+
+
+def _2fa_session_reverify_required(user: DashboardUser, auth_at_epoch: int | None) -> bool:
+    """Return True when refresh must be rejected until password+TOTP sign-in."""
+
+    if not _is_2fa_login_challenge_enabled() or not _user_has_verified_totp(user):
+        return False
+    max_hours = settings.dashboard_2fa_session_max_hours
+    if max_hours <= 0 or auth_at_epoch is None:
+        return False
+    elapsed_sec = datetime.now(tz=UTC).timestamp() - float(auth_at_epoch)
+    return elapsed_sec > max_hours * 3600
 
 
 def _ensure_api_key_management_enabled() -> None:
@@ -209,19 +241,32 @@ def _scopes_for(user: DashboardUser) -> str:
     return " ".join(sorted(set(bits)))
 
 
-async def _issue_pair(db: DbSession, db_user: DashboardUser) -> dict[str, Any]:
+async def _issue_pair(
+    db: DbSession,
+    db_user: DashboardUser,
+    *,
+    auth_at: datetime | None = None,
+) -> dict[str, Any]:
     scopes = _scopes_for(db_user)
     tenant = await ensure_default_tenant_for_user(db, user=db_user)
+    effective = resolve_effective_session_policy(tenant)
     access, ttl = create_dashboard_access_token(
         user_id=db_user.id,
         email=db_user.email,
         scopes=scopes,
         tenant_id=tenant.id,
         tenant_slug=tenant.slug,
+        expires_minutes=effective["access_token_expire_minutes"],
     )
     refresh_plain = secrets.token_urlsafe(48)
-    ttl_sec = settings.refresh_token_expire_days * 86_400
-    await store_dashboard_refresh(refresh_plain, str(db_user.id), ttl_sec)
+    ttl_sec = int(effective["refresh_token_expire_days"]) * 86_400
+    stamped_at = auth_at or datetime.now(tz=UTC)
+    await store_dashboard_refresh(
+        refresh_plain,
+        str(db_user.id),
+        ttl_sec,
+        auth_at_epoch=int(stamped_at.timestamp()),
+    )
     logger.info(
         "dashboard_auth.tokens_minted",
         agent_id="dashboard_auth",
@@ -447,9 +492,10 @@ async def dashboard_totp_verify_alias(body: Verify2FARequest, db: DbSession, res
 @router.post("/refresh", summary="Rotate access token using opaque refresh credential")
 async def dashboard_refresh(body: RefreshRequest, db: DbSession, response: Response) -> _TokenBundle:
     cleaned = body.refresh_token.strip()
-    uid_text = await fetch_dashboard_refresh_user(cleaned)
-    if uid_text is None:
+    session = await fetch_dashboard_refresh_session(cleaned)
+    if session is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh revoked or expired.")
+    uid_text, auth_at_epoch = session
     try:
         user_uuid = uuid.UUID(uid_text)
     except ValueError:
@@ -463,8 +509,16 @@ async def dashboard_refresh(body: RefreshRequest, db: DbSession, response: Respo
     if user is None or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Inactive operator.")
 
+    if _2fa_session_reverify_required(user, auth_at_epoch):
+        await revoke_dashboard_refresh(cleaned)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="2FA session expired; sign in again.",
+        )
+
     await revoke_dashboard_refresh(cleaned)
-    bundle_dict = await _issue_pair(db, user)
+    auth_at = datetime.fromtimestamp(auth_at_epoch, tz=UTC) if auth_at_epoch is not None else None
+    bundle_dict = await _issue_pair(db, user, auth_at=auth_at)
     try:
         # Persist tenant bootstrap/active_tenant mutations performed during token issue.
         await _commit_if_supported(db)
@@ -575,6 +629,7 @@ class MeDetailResponse(BaseModel):
     platform_mode: str = "internal"
     subscription_tier: str = "free"
     platform_features: dict[str, bool] = Field(default_factory=dict)
+    solo_mode: bool = False
     tenant_branding: TenantBrandingBrief | None = None
 
 
@@ -660,6 +715,7 @@ def _serialize_me(
     platform_mode: str = "internal",
     subscription_tier: str = "free",
     platform_features: dict[str, bool] | None = None,
+    solo_mode: bool = False,
     tenant_branding: dict[str, Any] | None = None,
 ) -> MeDetailResponse:
     """Map ORM rows to public profile envelope."""
@@ -685,6 +741,7 @@ def _serialize_me(
         platform_mode=normalize_platform_mode(platform_mode),
         subscription_tier=str(subscription_tier),
         platform_features=dict(platform_features or {}),
+        solo_mode=bool(solo_mode),
         tenant_branding=TenantBrandingBrief.model_validate(tenant_branding) if tenant_branding else None,
     )
 
@@ -729,47 +786,121 @@ async def dashboard_me_detail(sess: DashboardSession, db: DbSession) -> MeDetail
         subscription_tier=subscription_tier,
         platform_features=platform_features,
         tenant_branding=tenant_branding,
+        solo_mode=bool(settings.solo_mode_enabled),
     )
 
 
 class SessionPolicyResponse(BaseModel):
-    """Read-only deployment session guardrails surfaced to dashboard operators."""
+    """Tenant-aware session guardrails for dashboard operators."""
 
     model_config = ConfigDict(from_attributes=False)
 
     access_token_expire_minutes: int
     refresh_token_expire_days: int
+    dashboard_2fa_session_max_hours: int
     rate_limit_enabled: bool
     rate_limit_requests: int
     rate_limit_window_sec: float
+    oauth_pkce_enabled: bool
     oauth_state_ttl_sec: int
     production_security_mode: bool
     two_fa_enabled: bool
     editable: bool = False
+    access_token_source: Literal["deployment", "tenant"] = "deployment"
+    access_token_minutes_custom: int | None = None
+    access_token_minutes_deployment: int
+    refresh_token_source: Literal["deployment", "tenant"] = "deployment"
+    refresh_token_days_custom: int | None = None
+    refresh_token_days_deployment: int
+    rate_limit_source: Literal["deployment", "tenant"] = "deployment"
+    rate_limit_enabled_custom: bool | None = None
+    rate_limit_requests_custom: int | None = None
+    rate_limit_window_sec_custom: float | None = None
+    rate_limit_enabled_deployment: bool
+    rate_limit_requests_deployment: int
+    rate_limit_window_sec_deployment: float
+    oauth_pkce_source: Literal["deployment", "tenant"] = "deployment"
+    oauth_pkce_enabled_custom: bool | None = None
+    oauth_state_ttl_sec_custom: int | None = None
+    oauth_pkce_enabled_deployment: bool = True
+    oauth_state_ttl_sec_deployment: int
 
 
-@router.get("/session-policy", summary="Read-only JWT, refresh, and rate-limit guardrails")
-async def dashboard_session_policy(_sess: DashboardSession) -> SessionPolicyResponse:
-    """Return effective session policy for the signed-in operator's deployment."""
+class SessionPolicyPatchBody(BaseModel):
+    """Partial tenant session policy override."""
 
-    user_limits_active = settings.rate_limit_user_enabled or settings.production_security_mode
-    if user_limits_active:
-        rate_requests = settings.rate_limit_user_sustain_max
-        rate_window = settings.rate_limit_user_sustain_window_sec
-    else:
-        rate_requests = settings.rate_limit_sustain_max
-        rate_window = settings.rate_limit_sustain_window_sec
+    model_config = ConfigDict(extra="ignore")
 
+    access_token_source: Literal["deployment", "tenant"] | None = None
+    access_token_minutes: int | None = Field(default=None, ge=5, le=480)
+    refresh_token_source: Literal["deployment", "tenant"] | None = None
+    refresh_token_days: int | None = Field(default=None, ge=1, le=365)
+    rate_limit_source: Literal["deployment", "tenant"] | None = None
+    rate_limit_enabled: bool | None = None
+    rate_limit_requests: int | None = Field(default=None, ge=10, le=10_000)
+    rate_limit_window_sec: float | None = Field(default=None, gt=0, le=3600)
+    oauth_pkce_source: Literal["deployment", "tenant"] | None = None
+    oauth_pkce_enabled: bool | None = None
+    oauth_state_ttl_sec: int | None = Field(default=None, ge=60, le=7200)
+
+
+def _session_policy_editable(principal: dict[str, Any]) -> bool:
+    role = str(principal.get("tenant_role") or "")
+    return has_permission(role=role, permission="team:manage")
+
+
+@router.get("/session-policy", summary="JWT, refresh, and rate-limit guardrails for active tenant")
+async def dashboard_session_policy(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> SessionPolicyResponse:
+    """Return effective session policy with per-field deployment vs tenant source."""
+
+    tenant_id = principal["tenant_id"]
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found.")
+    await cache_tenant_rate_limits(tenant_id, tenant=tenant)
     return SessionPolicyResponse(
-        access_token_expire_minutes=settings.access_token_expire_minutes,
-        refresh_token_expire_days=settings.refresh_token_expire_days,
-        rate_limit_enabled=settings.rate_limit_enabled,
-        rate_limit_requests=rate_requests,
-        rate_limit_window_sec=rate_window,
-        oauth_state_ttl_sec=settings.oauth_state_ttl_sec,
-        production_security_mode=settings.production_security_mode,
-        two_fa_enabled=bool(settings.enable_2fa or settings.security_2fa_advanced_enabled),
-        editable=False,
+        **serialize_session_policy_view(tenant, editable=_session_policy_editable(principal)),
+    )
+
+
+@router.patch("/session-policy", summary="Update tenant session policy overrides")
+async def dashboard_session_policy_patch(
+    body: SessionPolicyPatchBody,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> SessionPolicyResponse:
+    """Persist tenant-level session guardrail overrides (owner/admin)."""
+
+    if not _session_policy_editable(principal):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Team management permission required.")
+
+    tenant_id = principal["tenant_id"]
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found.")
+
+    tenant.operator_settings = merge_tenant_session_policy_patch(
+        tenant,
+        access_token_source=body.access_token_source,
+        access_token_minutes=body.access_token_minutes,
+        refresh_token_source=body.refresh_token_source,
+        refresh_token_days=body.refresh_token_days,
+        rate_limit_source=body.rate_limit_source,
+        rate_limit_enabled=body.rate_limit_enabled,
+        rate_limit_requests=body.rate_limit_requests,
+        rate_limit_window_sec=body.rate_limit_window_sec,
+        oauth_pkce_source=body.oauth_pkce_source,
+        oauth_pkce_enabled=body.oauth_pkce_enabled,
+        oauth_state_ttl_sec=body.oauth_state_ttl_sec,
+    )
+    await db.commit()
+    await db.refresh(tenant)
+    await cache_tenant_rate_limits(tenant_id, tenant=tenant)
+    return SessionPolicyResponse(
+        **serialize_session_policy_view(tenant, editable=True),
     )
 
 

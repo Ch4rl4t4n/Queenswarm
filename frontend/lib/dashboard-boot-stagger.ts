@@ -7,7 +7,6 @@ export const DASHBOARD_BOOT_STAGGER_MS = {
   colonySummary: 800,
   colonyCosts: 1200,
   colonyTelemetry: 1800,
-  paperTrading: 2400,
   swarmBoard: 3200,
   taskQueue: 4000,
   workflows: 4800,

@@ -43,14 +43,16 @@ export function dashboardAccessNeedsRefresh(accessToken: string | undefined, ske
  */
 export async function refreshDashboardAccessFromRefreshToken(
   refreshToken: string,
-): Promise<TokenUpstream | null> {
+): Promise<TokenUpstream | null | "rate_limited"> {
   return refreshDashboardAccessSingleFlight(refreshToken);
 }
 
-let refreshFlight: Promise<TokenUpstream | null> | null = null;
+let refreshFlight: Promise<TokenUpstream | null | "rate_limited"> | null = null;
 let refreshFlightKey = "";
 
-async function refreshDashboardAccessSingleFlight(refreshToken: string): Promise<TokenUpstream | null> {
+async function refreshDashboardAccessSingleFlight(
+  refreshToken: string,
+): Promise<TokenUpstream | null | "rate_limited"> {
   const key = refreshToken.slice(0, 24);
   if (refreshFlight && refreshFlightKey === key) {
     return refreshFlight;
@@ -69,7 +71,7 @@ async function refreshDashboardAccessSingleFlight(refreshToken: string): Promise
 
 async function refreshDashboardAccessFromRefreshTokenRaw(
   refreshToken: string,
-): Promise<TokenUpstream | null> {
+): Promise<TokenUpstream | null | "rate_limited"> {
   const path = "/auth/refresh";
   const targetUrl = hiveRelayTargetUrl(path);
 
@@ -78,6 +80,10 @@ async function refreshDashboardAccessFromRefreshTokenRaw(
     upstream = await hiveRelayPost(path, { refresh_token: refreshToken });
   } catch {
     return null;
+  }
+
+  if (upstream.status === 429) {
+    return "rate_limited";
   }
 
   const parsed = await hiveRelayReadJson<TokenUpstream & { detail?: unknown }>(upstream, targetUrl);

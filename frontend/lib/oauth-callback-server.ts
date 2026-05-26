@@ -29,6 +29,9 @@ export async function resolveDashboardBearer(request: NextRequest): Promise<stri
 
 /**
  * Validate CSRF cookie vs vendor ``state``, complete token exchange server-side, redirect operator.
+ *
+ * When the browser drops ``qs_oauth_state`` on the X → Queenswarm round-trip (common with
+ * privacy extensions), we still relay to the backend — Redis-bound ``state`` is authoritative.
  */
 export async function relayOAuthCallback(request: NextRequest): Promise<NextResponse> {
   const url = request.nextUrl;
@@ -37,7 +40,8 @@ export async function relayOAuthCallback(request: NextRequest): Promise<NextResp
   const cookieState = jar.get(QS_OAUTH_STATE)?.value;
 
   const failRedirect = (reason: string): NextResponse => {
-    const dest = new URL("/connectors", request.url);
+    const dest = new URL("/integrations", request.url);
+    dest.searchParams.set("tab", "hub");
     dest.searchParams.set("oauth", "error");
     dest.searchParams.set("reason", reason);
     const out = NextResponse.redirect(dest);
@@ -45,7 +49,10 @@ export async function relayOAuthCallback(request: NextRequest): Promise<NextResp
     return out;
   };
 
-  if (!state || !cookieState || state !== cookieState) {
+  if (!state?.trim()) {
+    return failRedirect("missing_state");
+  }
+  if (cookieState && state !== cookieState) {
     return failRedirect("csrf_state_mismatch");
   }
 

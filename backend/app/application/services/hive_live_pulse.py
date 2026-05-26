@@ -20,6 +20,7 @@ from app.infrastructure.persistence.models.agent import Agent
 from app.infrastructure.persistence.models.agent_config import AgentConfig
 from app.infrastructure.persistence.models.enums import AgentStatus, TaskStatus
 from app.infrastructure.persistence.models.task import Task
+from app.infrastructure.persistence.models.tenant import Tenant
 
 _DELTA_LOOKBACK_SEC = 30
 _DELTA_MAX = 48
@@ -98,8 +99,12 @@ async def _collect_recent_tasks(session: AsyncSession) -> list[dict[str, Any]]:
     ]
 
 
-async def build_hive_live_pulse_payload(session: AsyncSession) -> dict[str, Any]:
-    """Counters, lite system gauges, and agent deltas for ``hive.snapshot`` frames."""
+async def build_hive_live_pulse_payload(
+    session: AsyncSession,
+    *,
+    tenant: Tenant | None = None,
+) -> dict[str, Any]:
+    """Counters, lite system gauges, agent deltas, and optional operator pending strip."""
 
     revision = int(datetime.now(tz=UTC).timestamp())
     agent_ct = int(await session.scalar(select(func.count()).select_from(Agent)) or 0)
@@ -112,7 +117,7 @@ async def build_hive_live_pulse_payload(session: AsyncSession) -> dict[str, Any]
     recent_tasks = await _collect_recent_tasks(session)
     task_queue_strip = await build_task_queue_payload(session, list_limit=_TASK_QUEUE_STRIP_LIMIT)
 
-    return {
+    payload: dict[str, Any] = {
         "type": "hive.snapshot",
         "revision": revision,
         "agents": agent_ct,
@@ -123,6 +128,27 @@ async def build_hive_live_pulse_payload(session: AsyncSession) -> dict[str, Any]
         "recent_tasks": recent_tasks,
         "task_queue_strip": task_queue_strip,
     }
+
+    if tenant is not None:
+        from app.application.services.execution_studio_pending import build_pending_approvals_snapshot
+        from app.application.services.pending_review_service import fetch_pending_review_stats
+
+        pending_snapshot = await build_pending_approvals_snapshot(session, tenant=tenant)
+        review_stats = await fetch_pending_review_stats(session)
+        strip: dict[str, Any] = {
+            "revision": revision,
+            "count": pending_snapshot.get("count", 0),
+            "browser_pending": pending_snapshot.get("browser_pending", 0),
+            "external_pending": pending_snapshot.get("external_pending", 0),
+            "codebase_pending": pending_snapshot.get("codebase_pending", 0),
+            "review_pending": review_stats.pending_count,
+        }
+        pending_alert = pending_snapshot.get("pending_alert")
+        if isinstance(pending_alert, dict):
+            strip["pending_alert"] = pending_alert
+        payload["operator_pending_strip"] = strip
+
+    return payload
 
 
 __all__ = ["HiveAgentDelta", "build_hive_live_pulse_payload"]

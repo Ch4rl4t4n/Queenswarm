@@ -38,6 +38,11 @@ from app.application.services.supervisor.session_report import (
 )
 from app.application.services.recipe_write import RecipeWriteConflictError, RecipeWritePayloadTooLargeError
 
+from app.application.services.supervisor.checkpoint_resume import (
+    SessionCheckpointSnapshot,
+    build_session_checkpoint_snapshot,
+    resume_session_from_last_checkpoint,
+)
 from app.application.services.supervisor import (
     SUPPORTED_SUB_AGENT_ROLES,
     SharedContextService,
@@ -46,6 +51,8 @@ from app.application.services.supervisor import (
     apply_session_review,
     create_supervisor_routine,
     create_supervisor_session,
+    delete_all_supervisor_sessions,
+    delete_supervisor_session,
     get_supervisor_session,
     list_supervisor_routines,
     list_session_events,
@@ -53,7 +60,11 @@ from app.application.services.supervisor import (
     retry_sub_agent_step,
     trigger_supervisor_routine_now,
 )
-from app.application.services.supervisor.initiative import list_agent_suggestions, review_agent_suggestion
+from app.application.services.supervisor.initiative import (
+    bulk_review_agent_suggestions,
+    list_agent_suggestions,
+    review_agent_suggestion_with_handoff,
+)
 from app.application.services.supervisor.autonomy import compile_swarm_autonomy_snapshot
 from app.application.services.supervisor.sub_agent_job import (
     build_sub_agent_job_snapshot,
@@ -61,6 +72,11 @@ from app.application.services.supervisor.sub_agent_job import (
     extract_requeue_count,
     extract_self_heal_attempts,
     parse_enqueued_at,
+)
+from app.application.services.session_cost_guardian import (
+    DEFAULT_SESSION_CAP_USD,
+    DEFAULT_WARN_RATIO,
+    measure_session_cost,
 )
 from app.core.config import settings
 from app.core.jwt_tokens import parse_dashboard_user_subject
@@ -153,6 +169,32 @@ class SupervisorSessionContextHistoryView(BaseModel):
     decision: str | None = None
 
 
+class SessionCheckpointStepView(BaseModel):
+    """One sub-agent checkpoint row for the resume UI."""
+
+    sub_agent_id: uuid.UUID
+    role: str
+    status: str
+    spawn_order: int
+    is_verified_checkpoint: bool
+    is_resumable: bool
+
+
+class SessionCheckpointSnapshotView(BaseModel):
+    """Checkpoint resume snapshot for long-running supervisor sessions."""
+
+    session_id: uuid.UUID
+    session_status: str
+    runtime_mode: str
+    steps: list[SessionCheckpointStepView] = Field(default_factory=list)
+    last_verified_index: int = -1
+    last_verified_role: str | None = None
+    next_resumable_sub_agent_id: uuid.UUID | None = None
+    next_resumable_role: str | None = None
+    can_resume_from_checkpoint: bool = False
+    resume_hint: str = ""
+
+
 class SupervisorSessionView(BaseModel):
     """API view of one supervisor session."""
 
@@ -206,6 +248,20 @@ class SessionReviewBody(BaseModel):
     model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
 
     decision: Literal["approve", "reject"]
+    note: str | None = Field(default=None, max_length=1000)
+
+
+class SessionDeleteView(BaseModel):
+    """Result of deleting one supervisor session."""
+
+    deleted: bool
+    session_id: uuid.UUID
+
+
+class SessionsClearView(BaseModel):
+    """Result of clearing all supervisor sessions for the tenant."""
+
+    deleted_count: int
     note: str | None = Field(default=None, max_length=1000)
 
 
@@ -339,6 +395,16 @@ class AgentSuggestionReviewBody(BaseModel):
 
     model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
     decision: Literal["approve", "reject"]
+
+
+class AgentSuggestionBulkReviewBody(BaseModel):
+    """Bulk approve/reject for initiative queue processing."""
+
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+    decision: Literal["approve", "reject"]
+    suggestion_ids: list[uuid.UUID] | None = None
+    include_high_risk: bool = False
+    limit: int = Field(default=50, ge=1, le=100)
 
 
 class SwarmAutonomySummaryView(BaseModel):
@@ -724,6 +790,72 @@ async def list_agent_sessions(
     return out
 
 
+@router.delete(
+    "/sessions",
+    response_model=SessionsClearView,
+    summary="Delete all supervisor sessions for the active tenant",
+)
+async def clear_agent_sessions(
+    sess: DashboardSession,
+    request: Request,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("supervisor:run")),
+) -> SessionsClearView:
+    """Remove every supervisor session row visible in the operator list."""
+
+    tenant_id = _require_tenant_id(sess)
+    deleted_count = await delete_all_supervisor_sessions(db, tenant_id=tenant_id)
+    from app.application.services.tenancy import write_tenant_audit_log
+
+    await write_tenant_audit_log(
+        db,
+        tenant_id=tenant_id,
+        actor_user_id=_actor_user_id_from_session(sess),
+        action="supervisor_sessions_clear_all",
+        target_type="supervisor_session",
+        target_ref="*",
+        payload={"deleted_count": deleted_count},
+        client_ip=peer_ip_for_rate_limit(request),
+    )
+    await db.commit()
+    return SessionsClearView(deleted_count=deleted_count)
+
+
+@router.delete(
+    "/sessions/{session_id}",
+    response_model=SessionDeleteView,
+    summary="Delete one supervisor session",
+)
+async def delete_agent_session(
+    session_id: uuid.UUID,
+    sess: DashboardSession,
+    request: Request,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("supervisor:run")),
+) -> SessionDeleteView:
+    """Remove one supervisor session and its runtime timeline from the dashboard."""
+
+    row = await get_supervisor_session(db, session_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Supervisor session not found.")
+    goal_preview = str(row.goal or "")[:240]
+    deleted = await delete_supervisor_session(db, session_id=session_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Supervisor session not found.")
+    tenant_id = _require_tenant_id(sess)
+    await write_supervisor_session_audit_log(
+        db,
+        tenant_id=tenant_id,
+        actor_user_id=_actor_user_id_from_session(sess),
+        session_id=session_id,
+        action="supervisor_session_delete",
+        payload={"goal_preview": goal_preview, "status": row.status},
+        client_ip=peer_ip_for_rate_limit(request),
+    )
+    await db.commit()
+    return SessionDeleteView(deleted=True, session_id=session_id)
+
+
 @router.get("/sessions/summary", response_model=SupervisorControlSummaryView, summary="Supervisor control summary")
 async def get_agent_sessions_summary(
     _sess: DashboardSession,
@@ -801,6 +933,38 @@ async def get_session_shared_context(
         prompt_block=service.render_bundle_for_prompt(bundle),
         context_summary=context_summary,
     )
+
+
+@router.get(
+    "/sessions/{session_id}/cost",
+    summary="Per-session cost snapshot (Cost Guardian — auto-escalation hint)",
+)
+async def get_session_cost_state(
+    session_id: uuid.UUID,
+    _sess: DashboardSession,
+    db: DbSession,
+    cap_usd: float = Query(DEFAULT_SESSION_CAP_USD, gt=0.0, le=100.0),
+    warn_ratio: float = Query(DEFAULT_WARN_RATIO, gt=0.0, lt=1.0),
+    _: bool = Depends(require_tenant_permission("supervisor:view")),
+) -> dict[str, object]:
+    """Return ``{spent_usd, cap_usd, utilization, state, hint}`` for one session.
+
+    State transitions:
+    - ``ok``    — under ``warn_ratio`` of cap
+    - ``warn``  — between ``warn_ratio`` and 1.0 of cap (Queen should sub-divide)
+    - ``halt``  — over cap (Queen must stop, return smaller plan to operator)
+    """
+
+    try:
+        snapshot = await measure_session_cost(
+            db,
+            session_id=session_id,
+            cap_usd=cap_usd,
+            warn_ratio=warn_ratio,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return snapshot.to_payload()
 
 
 @router.get(
@@ -1385,6 +1549,99 @@ async def control_agent_session(
     return _serialize_session(hydrated)
 
 
+def _serialize_checkpoint_snapshot(snapshot: SessionCheckpointSnapshot) -> SessionCheckpointSnapshotView:
+    """Map domain checkpoint snapshot to API view."""
+
+    return SessionCheckpointSnapshotView(
+        session_id=snapshot.session_id,
+        session_status=snapshot.session_status,
+        runtime_mode=snapshot.runtime_mode,
+        steps=[
+            SessionCheckpointStepView(
+                sub_agent_id=step.sub_agent_id,
+                role=step.role,
+                status=step.status,
+                spawn_order=step.spawn_order,
+                is_verified_checkpoint=step.is_verified_checkpoint,
+                is_resumable=step.is_resumable,
+            )
+            for step in snapshot.steps
+        ],
+        last_verified_index=snapshot.last_verified_index,
+        last_verified_role=snapshot.last_verified_role,
+        next_resumable_sub_agent_id=snapshot.next_resumable_sub_agent_id,
+        next_resumable_role=snapshot.next_resumable_role,
+        can_resume_from_checkpoint=snapshot.can_resume_from_checkpoint,
+        resume_hint=snapshot.resume_hint,
+    )
+
+
+@router.get(
+    "/sessions/{session_id}/checkpoints",
+    response_model=SessionCheckpointSnapshotView,
+    summary="List verified sub-agent checkpoints for resume UI",
+)
+async def get_session_checkpoints(
+    session_id: uuid.UUID,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("supervisor:view")),
+) -> SessionCheckpointSnapshotView:
+    """Return spawn-order checkpoint timeline for operator resume decisions."""
+
+    row = await get_supervisor_session(db, session_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Supervisor session not found.")
+    snapshot = build_session_checkpoint_snapshot(row)
+    return _serialize_checkpoint_snapshot(snapshot)
+
+
+@router.post(
+    "/sessions/{session_id}/resume-checkpoint",
+    response_model=SupervisorSessionView,
+    summary="Resume durable session from last verified sub-agent checkpoint",
+)
+async def resume_session_checkpoint(
+    session_id: uuid.UUID,
+    sess: DashboardSession,
+    request: Request,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("supervisor:run")),
+) -> SupervisorSessionView:
+    """Re-enqueue the next retryable step after the last verified checkpoint."""
+
+    row = await get_supervisor_session(db, session_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Supervisor session not found.")
+    summary_before = dict(row.context_summary or {})
+    try:
+        updated, snapshot, requeued = await resume_session_from_last_checkpoint(db, session_row=row)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    summary_after = dict(updated.context_summary or {})
+    tenant_id = _require_tenant_id(sess)
+    await write_supervisor_session_audit_log(
+        db,
+        tenant_id=tenant_id,
+        actor_user_id=_actor_user_id_from_session(sess),
+        session_id=session_id,
+        action="supervisor_session_checkpoint_resume",
+        payload=audit_payload_with_context_diff(
+            before=summary_before,
+            after=summary_after,
+            control_action="resume_checkpoint",
+            session_status=updated.status,
+            requeued_sub_agents=requeued,
+            last_verified_role=snapshot.last_verified_role,
+            next_resumable_role=snapshot.next_resumable_role,
+        ),
+        client_ip=peer_ip_for_rate_limit(request),
+    )
+    await db.commit()
+    hydrated = await get_supervisor_session(db, session_id)
+    assert hydrated is not None
+    return _serialize_session(hydrated)
+
+
 @router.post(
     "/sessions/{session_id}/review",
     response_model=SupervisorSessionView,
@@ -1581,16 +1838,46 @@ async def review_supervisor_agent_suggestion(
     supervisor = None
     if row.supervisor_session_id is not None:
         supervisor = await db.get(SupervisorSession, row.supervisor_session_id)
-    reviewed = await review_agent_suggestion(
+    tenant = await db.get(Tenant, tenant_id) if tenant_id is not None else None
+    reviewed, _handoff = await review_agent_suggestion_with_handoff(
         db,
         suggestion=row,
         decision="approved" if body.decision == "approve" else "rejected",
         reviewer_subject=str(sess.get("sub") or "dashboard:reviewer"),
         supervisor_session=supervisor,
+        tenant=tenant,
     )
     await db.commit()
     await db.refresh(reviewed)
     return _serialize_suggestion(reviewed)
+
+
+@router.post(
+    "/suggestions/bulk-review",
+    summary="Approve or reject many pending agent suggestions",
+)
+async def bulk_review_supervisor_agent_suggestions(
+    body: AgentSuggestionBulkReviewBody,
+    sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("team:manage")),
+) -> dict[str, Any]:
+    """Bulk governance — skips high-risk proposals on approve unless include_high_risk=true."""
+
+    tenant_id = _tenant_id_from_session(sess)
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    result = await bulk_review_agent_suggestions(
+        db,
+        tenant_id=tenant_id,
+        decision="approved" if body.decision == "approve" else "rejected",
+        reviewer_subject=str(sess.get("sub") or "dashboard:reviewer"),
+        suggestion_ids=body.suggestion_ids,
+        include_high_risk=body.include_high_risk,
+        limit=body.limit,
+    )
+    await db.commit()
+    return result
 
 
 @router.get(

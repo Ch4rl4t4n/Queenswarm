@@ -25,4 +25,6 @@ head -20 "$LATEST"
 echo "---"
 echo
 echo "Action: copy ${LATEST} into your mail client and send."
+echo "Or run: ./scripts/operator-hetzner-copy-email.sh --no-refresh"
+echo "Guide: docs/OPERATOR_HETZNER_SEND.md"
 echo "After sent, note timestamp in ops log."

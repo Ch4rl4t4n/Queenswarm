@@ -1,0 +1,61 @@
+groups:
+  - name: queenswarm-agentic-patterns
+    rules:
+      - alert: PatternSuccessRateLow
+        expr: |
+          (
+            queenswarm_pattern_success_rate < 50
+            and on (pattern_id) (
+              sum by (pattern_id) (increase(queenswarm_pattern_sessions_total[24h])) >= 5
+            )
+          )
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: >
+            Agentic pattern {{ $labels.pattern_id }} success rate is {{ printf "%.1f" $value }}%
+            (rolling 24h, min 5 sessions).
+          description: >
+            Review Pattern Explorer and recent supervisor sessions using this pattern.
+            Consider recipe stack tuning or enabling LLM pattern refinement.
+
+      - alert: PatternSuccessRateCritical
+        expr: |
+          (
+            queenswarm_pattern_success_rate < 30
+            and on (pattern_id) (
+              sum by (pattern_id) (increase(queenswarm_pattern_sessions_total[24h])) >= 10
+            )
+          )
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: >
+            Agentic pattern {{ $labels.pattern_id }} success rate critically low at
+            {{ printf "%.1f" $value }}% (rolling 24h, min 10 sessions).
+          description: >
+            Pattern may be misfiring in supervisor sessions. Check rapid-loop telemetry,
+            guardrails, and imitation engine neighbors before routing more traffic.
+
+      - alert: PatternFailureBurst
+        expr: |
+          (
+            sum by (pattern_id) (increase(queenswarm_pattern_sessions_total{outcome="failure"}[15m])) >= 3
+            and on (pattern_id) (
+              sum by (pattern_id) (increase(queenswarm_pattern_sessions_total{outcome="failure"}[15m]))
+              /
+              sum by (pattern_id) (increase(queenswarm_pattern_sessions_total[15m]))
+              > 0.5
+            )
+          )
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: >
+            Agentic pattern {{ $labels.pattern_id }} has a failure burst (>50% failures in 15m).
+          description: >
+            At least three terminal failures in 15 minutes. Inspect Celery workers, LLM routing,
+            and simulation gates for sessions tagged with this pattern.

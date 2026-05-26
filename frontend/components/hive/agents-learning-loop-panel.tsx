@@ -2,11 +2,12 @@
 
 import type { JSX } from "react";
 
-import { Check, RefreshCw, Sparkles, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { RefreshCw, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
 
+import { ApprovalCardDeck, type ApprovalDeckItem } from "@/components/hive/approval-card-deck";
 import { V4Badge, V4Card, V4CardHeader, V4Stat } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import { COCKPIT_POLL_BOARD_MS } from "@/lib/cockpit-poll-profile";
@@ -23,6 +24,10 @@ interface MemoryEvolutionProposal {
   importance_score: number;
 }
 
+function impactBadge(score: number): string {
+  return score >= 0.7 ? "high impact" : "med impact";
+}
+
 /** Memory evolution + agent initiative approvals on the Agents control plane. */
 export function AgentsLearningLoopPanel(): JSX.Element {
   const pollOptions = useSwrVisiblePollOptions(COCKPIT_POLL_BOARD_MS);
@@ -30,6 +35,7 @@ export function AgentsLearningLoopPanel(): JSX.Element {
   const [suggestionRows, setSuggestionRows] = useState<AgentSuggestionRow[]>([]);
   const [memoryBusy, setMemoryBusy] = useState<string | null>(null);
   const [suggestionBusy, setSuggestionBusy] = useState<string | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [evolutionBusy, setEvolutionBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -44,8 +50,8 @@ export function AgentsLearningLoopPanel(): JSX.Element {
     setLoadError(null);
     try {
       const [memory, suggestions] = await Promise.all([
-        hiveGet<MemoryEvolutionProposal[]>("hive-mind/memory-evolution/proposals?status_filter=pending&limit=12"),
-        hiveGet<AgentSuggestionRow[]>("agents/suggestions?status_filter=pending&limit=12"),
+        hiveGet<MemoryEvolutionProposal[]>("hive-mind/memory-evolution/proposals?status_filter=pending&limit=24"),
+        hiveGet<AgentSuggestionRow[]>("agents/suggestions?status_filter=pending&limit=80"),
       ]);
       setMemoryRows(Array.isArray(memory) ? memory : []);
       setSuggestionRows(Array.isArray(suggestions) ? suggestions : []);
@@ -87,6 +93,66 @@ export function AgentsLearningLoopPanel(): JSX.Element {
     }
   }
 
+  async function approveAllSuggestions(includeHighRisk: boolean): Promise<void> {
+    const pending = suggestionRows.filter((row) => row.status === "pending");
+    if (!pending.length) return;
+
+    const highCount = pending.filter((row) => row.risk_level === "high").length;
+    if (highCount > 0 && !includeHighRisk) {
+      const ok = window.confirm(
+        `Approve ${pending.length - highCount} safe suggestion(s)? (${highCount} high-risk skipped — use "Approve all incl. high risk" if intended.)`,
+      );
+      if (!ok) return;
+    } else {
+      const ok = window.confirm(`Approve all ${pending.length} pending suggestion(s)?`);
+      if (!ok) return;
+    }
+
+    setBulkBusy(true);
+    try {
+      const result = await hivePostJson<{ processed: number; skipped: number; errors: string[] }>(
+        "agents/suggestions/bulk-review",
+        {
+          decision: "approve",
+          include_high_risk: includeHighRisk,
+          limit: 100,
+        },
+      );
+      toast.success(`Approved ${result.processed} · skipped ${result.skipped}`);
+      if (result.errors?.length) {
+        toast.error(`${result.errors.length} error(s) — check logs`);
+      }
+      await reload();
+      await mutateAutonomy();
+    } catch (err) {
+      toast.error(err instanceof HiveApiError ? err.message : "Bulk approve failed");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function rejectAllSuggestions(): Promise<void> {
+    const pending = suggestionRows.filter((row) => row.status === "pending");
+    if (!pending.length) return;
+    const ok = window.confirm(`Reject all ${pending.length} pending suggestion(s)?`);
+    if (!ok) return;
+
+    setBulkBusy(true);
+    try {
+      const result = await hivePostJson<{ processed: number; skipped: number }>(
+        "agents/suggestions/bulk-review",
+        { decision: "reject", include_high_risk: true, limit: 100 },
+      );
+      toast.success(`Rejected ${result.processed}`);
+      await reload();
+      await mutateAutonomy();
+    } catch (err) {
+      toast.error(err instanceof HiveApiError ? err.message : "Bulk reject failed");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
   async function runEvolution(): Promise<void> {
     setEvolutionBusy(true);
     try {
@@ -113,6 +179,34 @@ export function AgentsLearningLoopPanel(): JSX.Element {
 
   const pendingMemory = memoryRows.filter((row) => row.status === "pending");
   const pendingSuggestions = suggestionRows.filter((row) => row.status === "pending");
+
+  const memoryDeckItems: ApprovalDeckItem[] = useMemo(
+    () =>
+      pendingMemory.map((row) => ({
+        id: row.id,
+        title: row.title || row.summary,
+        description: row.summary || row.title,
+        meta: `${row.proposal_kind} · confidence ${row.importance_score.toFixed(2)}`,
+        badge: "memory",
+        badgeTone: "gold",
+      })),
+    [pendingMemory],
+  );
+
+  const suggestionDeckItems: ApprovalDeckItem[] = useMemo(
+    () =>
+      pendingSuggestions.map((row) => ({
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        meta: `${row.proposed_by_role} · impact ${(row.impact_score * 100).toFixed(0)}% · ${row.proposal_type.replace(/_/g, " ")}`,
+        badge: row.risk_level === "high" ? "high risk" : impactBadge(row.impact_score),
+        badgeTone: row.risk_level === "high" ? "warn" : row.impact_score >= 0.7 ? "gold" : "info",
+      })),
+    [pendingSuggestions],
+  );
+
+  const highRiskPending = pendingSuggestions.filter((row) => row.risk_level === "high").length;
 
   return (
     <V4Card id="agents-learning-loop" className="relative scroll-mt-28">
@@ -166,92 +260,55 @@ export function AgentsLearningLoopPanel(): JSX.Element {
 
       {loadError ? <p className="mb-3 text-sm text-(--qs-red)">{loadError}</p> : null}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
         <section>
-          <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="mb-3 flex items-center justify-between gap-2">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-(--qs-text-3)">
               Memory evolution
             </h3>
             <V4Badge tone="gold">{pendingMemory.length} pending</V4Badge>
           </div>
-          {!pendingMemory.length ? (
-            <p className="text-sm text-(--qs-text-3)">No pending memory proposals.</p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {pendingMemory.map((row) => (
-                <article key={row.id} className="v4-spawn-rule">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-(--qs-text)">{row.title || row.summary}</p>
-                    <p className="mt-1 text-[11px] text-(--qs-text-3)">
-                      {row.proposal_kind} · confidence {row.importance_score.toFixed(2)}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 gap-2">
-                    <button
-                      type="button"
-                      className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
-                      disabled={memoryBusy === row.id}
-                      onClick={() => void reviewMemory(row.id, "reject")}
-                    >
-                      <X className="h-3.5 w-3.5" aria-hidden />
-                    </button>
-                    <button
-                      type="button"
-                      className={cn("qs-btn qs-btn--primary qs-btn--sm gap-1")}
-                      disabled={memoryBusy === row.id}
-                      onClick={() => void reviewMemory(row.id, "approve")}
-                    >
-                      <Check className="h-3.5 w-3.5" aria-hidden />
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
+          <ApprovalCardDeck
+            items={memoryDeckItems}
+            busyId={memoryBusy}
+            emptyLabel="No pending memory proposals."
+            onApprove={(id) => reviewMemory(id, "approve")}
+            onReject={(id) => reviewMemory(id, "reject")}
+          />
         </section>
 
         <section>
-          <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-(--qs-text-3)">
               Agent suggestions
             </h3>
-            <V4Badge tone="purple">{pendingSuggestions.length} pending</V4Badge>
-          </div>
-          {!pendingSuggestions.length ? (
-            <p className="text-sm text-(--qs-text-3)">No pending initiative suggestions.</p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {pendingSuggestions.map((row) => (
-                <article key={row.id} className="v4-suggestion-row">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-(--qs-text)">{row.title}</p>
-                    <p className="mt-1 line-clamp-2 text-xs text-(--qs-text-2)">{row.description}</p>
-                    <p className="mt-1 text-[10px] text-(--qs-text-3)">
-                      {row.proposed_by_role} · impact {(row.impact_score * 100).toFixed(0)}%
-                    </p>
-                  </div>
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      type="button"
-                      className="qs-btn qs-btn--ghost qs-btn--sm"
-                      disabled={suggestionBusy === row.id}
-                      onClick={() => void reviewSuggestion(row.id, "reject")}
-                    >
-                      Reject
-                    </button>
-                    <button
-                      type="button"
-                      className="qs-btn qs-btn--primary qs-btn--sm"
-                      disabled={suggestionBusy === row.id}
-                      onClick={() => void reviewSuggestion(row.id, "approve")}
-                    >
-                      Approve
-                    </button>
-                  </div>
-                </article>
-              ))}
+            <div className="flex flex-wrap items-center gap-2">
+              <V4Badge tone="purple">{pendingSuggestions.length} pending</V4Badge>
+              {highRiskPending > 0 ? (
+                <V4Badge tone="warn">{highRiskPending} high risk</V4Badge>
+              ) : null}
             </div>
-          )}
+          </div>
+          <ApprovalCardDeck
+            items={suggestionDeckItems}
+            busyId={suggestionBusy}
+            bulkBusy={bulkBusy}
+            emptyLabel="No pending initiative suggestions."
+            onApprove={(id) => reviewSuggestion(id, "approve")}
+            onReject={(id) => reviewSuggestion(id, "reject")}
+            onApproveAll={() => approveAllSuggestions(false)}
+            onRejectAll={() => rejectAllSuggestions()}
+          />
+          {highRiskPending > 0 ? (
+            <button
+              type="button"
+              className="qs-btn qs-btn--ghost qs-btn--sm mt-3 w-full"
+              disabled={bulkBusy || suggestionBusy !== null}
+              onClick={() => void approveAllSuggestions(true)}
+            >
+              Approve all including {highRiskPending} high-risk
+            </button>
+          ) : null}
         </section>
       </div>
     </V4Card>

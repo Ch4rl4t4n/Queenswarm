@@ -17,6 +17,9 @@ from sqlalchemy.orm import selectinload
 from app.domain.agents.executor import execute_universal_agent, hive_llm_credentials_ready
 from app.domain.agents.managers.registry import get_manager_template
 from app.infrastructure.connectors.dynamic.service import describe_connector_catalog_addon, merged_static_and_dynamic_allowlist
+from app.application.services.super_tool_router import resolve_router_connector_slugs
+from app.core.tenant_context import get_current_tenant_uuid
+from app.infrastructure.persistence.models.tenant import Tenant
 from app.core.config import get_settings
 from app.core.jwt_tokens import parse_dashboard_user_subject
 from app.core.llm_router import LiteLLMRouter
@@ -435,6 +438,11 @@ async def run_seven_step_mission(
     for lane_slug in selected_slugs:
         spec = get_manager_template(lane_slug)
         merged_allow = await merged_static_and_dynamic_allowlist(session, manager_template_slug=lane_slug)
+        tenant_id = get_current_tenant_uuid()
+        tenant_row = await session.get(Tenant, tenant_id) if tenant_id is not None else None
+        router_slugs = resolve_router_connector_slugs(tenant_row, manager_slug=lane_slug)
+        if router_slugs:
+            merged_allow = tuple(dict.fromkeys((*router_slugs, *merged_allow)))
         hints = await _lane_recipe_hints(session, brief=brief, lane_slug=lane_slug, mission_id=mission_id)
         m_prompt = _lane_system_prompt(lane_slug, hints=hints, connector_allowlist=merged_allow)
         lane_title = spec.display_name
@@ -642,7 +650,7 @@ async def run_seven_step_mission(
         ),
         *(
             ["marketing"]
-            if any(k in brief.lower() for k in ("marketing", "campaign", "linkedin", "newsletter"))
+            if any(k in brief.lower() for k in ("marketing", "campaign", "tiktok", "newsletter"))
             else []
         ),
         *(["engineering"] if any(k in brief.lower() for k in ("deploy", "code", "github")) else []),

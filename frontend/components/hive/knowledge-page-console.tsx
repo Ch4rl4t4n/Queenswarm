@@ -9,6 +9,7 @@ import { InfoHint } from "@/components/hive/info-hint";
 import { LearningConsole } from "@/components/hive/learning-console";
 import { OutputsInteractivePanel } from "@/components/hive/outputs-interactive-panel";
 import { RecipesPageClient } from "@/components/hive/recipes-page-client";
+import { ResearchBeePanel } from "@/components/hive/research-bee-panel";
 import type { FinalDeliverableSummaryRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,7 @@ const SECTION_COPY: Record<Exclude<KnowledgeSection, "all">, string> = {
 export function KnowledgePageConsole({ initialOutputs, recipesEnabled }: KnowledgePageConsoleProps): JSX.Element {
   const [focus, setFocus] = useState<KnowledgeSection>("all");
   const [filterText, setFilterText] = useState("");
+  const [researchError, setResearchError] = useState<string | null>(null);
 
   const q = filterText.trim().toLowerCase();
   const visible = useMemo(
@@ -151,6 +153,8 @@ export function KnowledgePageConsole({ initialOutputs, recipesEnabled }: Knowled
             </Link>
           </div>
           <HiveMindExplorer showHeader={false} />
+          <ResearchBeePanel onError={setResearchError} />
+          {researchError ? <p className="text-xs text-[#FF3366]">{researchError}</p> : null}
         </section>
       ) : null}
 

@@ -25,9 +25,9 @@ interface HivePageHeaderProps {
 export function HivePageHeader({ title, subtitle, actions, status, info, className }: HivePageHeaderProps) {
   return (
     <header className={cn("qs-page-header mb-5 flex flex-col gap-3 lg:mb-6 lg:gap-4", className)}>
-      <div className="page-header-top flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <h1 className="truncate">{title}</h1>
+      <div className="page-header-top flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-2">
+          <h1 className="min-w-0 text-balance">{title}</h1>
           {info ? <InfoHint title={info.title} description={info.description} options={info.options} /> : null}
         </div>
         {status ? <div className="page-header-end flex shrink-0 items-center">{status}</div> : null}

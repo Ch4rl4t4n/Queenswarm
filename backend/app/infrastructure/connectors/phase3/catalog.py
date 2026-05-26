@@ -13,8 +13,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-CategoryLiteral = Literal["email", "calendar", "devtools", "chat", "knowledge", "billing", "vault", "ai"]
-AuthLiteral = Literal["none", "api_key", "bearer_token", "oauth2"]
+CategoryLiteral = Literal["email", "calendar", "devtools", "chat", "knowledge", "billing", "vault", "ai", "social", "trading"]
+AuthLiteral = Literal["none", "api_key", "bearer_token", "oauth2", "polymarket_l2", "kalshi_rsa"]
 
 
 class Phase3ConnectorTemplate(BaseModel):
@@ -669,6 +669,595 @@ _PHASE3_RAW: tuple[Phase3ConnectorTemplate, ...] = (
                 "cost_tier": "medium",
                 "latency_tier": "balanced",
                 "required_permission": "tool:write",
+            },
+        ),
+    ),
+    Phase3ConnectorTemplate(
+        template_id="monid_mcp",
+        category="knowledge",
+        title="Monid · Data Hub",
+        summary=(
+            "Pay-per-call agentic data layer — discover, inspect, and run 200+ external endpoints "
+            "(leads, social, sentiment, competitor intel). Connect only when deep verified research is needed."
+        ),
+        documentation_url="https://docs.monid.ai/",
+        suggested_slug="monid_mcp",
+        auth_type="bearer_token",
+        base_url="https://api.monid.ai/v1",
+        suggested_manager_slugs=("research_intelligence", "execution_operations", "review_quality"),
+        tools=(
+            {
+                "name": "discover",
+                "path": "/discover",
+                "method": "POST",
+                "description": "Natural-language search for Monid endpoints (query, optional limit).",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+                "allowed_manager_slugs": ["research_intelligence", "execution_operations", "review_quality"],
+            },
+            {
+                "name": "inspect",
+                "path": "/inspect",
+                "method": "POST",
+                "description": "Fetch input schema, pricing, and docs for a provider+endpoint pair.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+                "allowed_manager_slugs": ["research_intelligence", "execution_operations", "review_quality"],
+            },
+            {
+                "name": "run",
+                "path": "/run",
+                "method": "POST",
+                "description": "Execute a Monid endpoint (provider, endpoint, input). May return 202 — poll runs_get.",
+                "cost_tier": "high",
+                "latency_tier": "slow",
+                "required_permission": "tool:write",
+                "allowed_manager_slugs": ["research_intelligence", "execution_operations"],
+            },
+            {
+                "name": "runs_get",
+                "path": "/runs/{runId}",
+                "method": "GET",
+                "description": "Poll async Monid run status and output by runId.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+                "allowed_manager_slugs": ["research_intelligence", "execution_operations", "review_quality"],
+            },
+            {
+                "name": "runs_list",
+                "path": "/runs",
+                "method": "GET",
+                "description": "List recent Monid runs (limit, cursor query params).",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+                "allowed_manager_slugs": ["research_intelligence", "review_quality"],
+            },
+        ),
+    ),
+    Phase3ConnectorTemplate(
+        template_id="composio_router",
+        category="devtools",
+        title="Composio · Tool Router",
+        summary=(
+            "Unified agent action layer for 500+ SaaS apps — list tools, open Tool Router sessions, "
+            "and execute slugs (Gmail, Slack, CRM, LinkedIn) with managed auth."
+        ),
+        documentation_url="https://docs.composio.dev/",
+        suggested_slug="composio_router",
+        auth_type="api_key",
+        base_url="https://backend.composio.dev/api/v3.1",
+        suggested_manager_slugs=("execution_operations", "research_intelligence", "content_creation"),
+        tools=(
+            {
+                "name": "tools_list",
+                "path": "/tools",
+                "method": "GET",
+                "description": "Search/list Composio tools (pass search, toolkit, limit as query args).",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "tool_execute",
+                "path": "/tools/execute/{tool_slug}",
+                "method": "POST",
+                "description": "Execute a Composio tool slug with JSON arguments + connected account id.",
+                "cost_tier": "medium",
+                "latency_tier": "balanced",
+                "required_permission": "tool:write",
+            },
+            {
+                "name": "tool_router_session_create",
+                "path": "/tool_router/session/create",
+                "method": "POST",
+                "description": "Open a Tool Router session for autonomous multi-tool hops.",
+                "cost_tier": "medium",
+                "latency_tier": "balanced",
+            },
+            {
+                "name": "tool_router_execute",
+                "path": "/tool_router/session/{session_id}/execute",
+                "method": "POST",
+                "description": "Execute within an existing Tool Router session (session_id path arg).",
+                "cost_tier": "medium",
+                "latency_tier": "balanced",
+                "required_permission": "tool:write",
+            },
+        ),
+    ),
+    Phase3ConnectorTemplate(
+        template_id="apify_store",
+        category="knowledge",
+        title="Apify · Scraper Store",
+        summary=(
+            "Thousands of web scrapers and crawlers as Actors — Twitter, TikTok, Google, e-commerce, "
+            "and SERP harvesters with async run polling."
+        ),
+        documentation_url="https://docs.apify.com/api/v2",
+        suggested_slug="apify_store",
+        auth_type="bearer_token",
+        base_url="https://api.apify.com/v2",
+        suggested_manager_slugs=("research_intelligence", "execution_operations"),
+        tools=(
+            {
+                "name": "actors_list",
+                "path": "/acts",
+                "method": "GET",
+                "description": "List/store-search Apify Actors (my, limit, offset query params).",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "actor_run",
+                "path": "/acts/{actorId}/runs",
+                "method": "POST",
+                "description": "Start an Actor run asynchronously (actorId path + JSON input body).",
+                "cost_tier": "high",
+                "latency_tier": "slow",
+                "required_permission": "tool:write",
+            },
+            {
+                "name": "actor_run_get",
+                "path": "/acts/{actorId}/runs/{runId}",
+                "method": "GET",
+                "description": "Poll Actor run status and stats.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "actor_run_sync",
+                "path": "/acts/{actorId}/run-sync",
+                "method": "POST",
+                "description": "Run Actor synchronously when output must return in one hop (300s cap).",
+                "cost_tier": "high",
+                "latency_tier": "slow",
+                "required_permission": "tool:write",
+            },
+        ),
+    ),
+    Phase3ConnectorTemplate(
+        template_id="nango_hub",
+        category="devtools",
+        title="Nango · Auth Proxy Hub",
+        summary=(
+            "Managed OAuth vault plus HTTP proxy for 800+ integrations — list connections, "
+            "then proxy GET/POST to CRM, HR, and billing APIs with sealed tokens."
+        ),
+        documentation_url="https://nango.dev/docs",
+        suggested_slug="nango_hub",
+        auth_type="bearer_token",
+        base_url="https://api.nango.dev",
+        suggested_manager_slugs=("execution_operations", "review_quality"),
+        tools=(
+            {
+                "name": "connections_list",
+                "path": "/connection",
+                "method": "GET",
+                "description": "List synced Nango connections for the environment.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "proxy_get",
+                "path": "/proxy/{proxy_path}",
+                "method": "GET",
+                "description": "Authenticated GET proxy — include Connection-Id + Provider-Config-Key via hub manifest headers.",
+                "cost_tier": "medium",
+                "latency_tier": "balanced",
+            },
+            {
+                "name": "proxy_post",
+                "path": "/proxy/{proxy_path}",
+                "method": "POST",
+                "description": "Authenticated POST proxy for mutating upstream APIs.",
+                "cost_tier": "medium",
+                "latency_tier": "balanced",
+                "required_permission": "tool:write",
+            },
+        ),
+    ),
+    Phase3ConnectorTemplate(
+        template_id="merge_agent_handler",
+        category="billing",
+        title="Merge · Agent Handler",
+        summary=(
+            "Unified business-data MCP/REST for HR, accounting, and CRM categories — "
+            "list tool packs and invoke MCP JSON-RPC tools for registered users."
+        ),
+        documentation_url="https://docs.merge.dev/merge-agent-handler/",
+        suggested_slug="merge_agent_handler",
+        auth_type="bearer_token",
+        base_url="https://ah-api.merge.dev/api/v1",
+        suggested_manager_slugs=("execution_operations", "review_quality", "research_intelligence"),
+        tools=(
+            {
+                "name": "tool_packs_list",
+                "path": "/tool-packs",
+                "method": "GET",
+                "description": "List Merge Agent Handler tool packs available to the workspace.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "registered_users_list",
+                "path": "/registered-users",
+                "method": "GET",
+                "description": "List registered users entitled to tool-pack MCP access.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "mcp_tools_call",
+                "path": "/tool-packs/{tool_pack_id}/registered-users/{registered_user_id}/mcp",
+                "method": "POST",
+                "description": "JSON-RPC MCP hop — pass method/tools/call payload in JSON body.",
+                "cost_tier": "medium",
+                "latency_tier": "balanced",
+                "required_permission": "tool:write",
+            },
+        ),
+    ),
+    Phase3ConnectorTemplate(
+        template_id="instagram_graph_api",
+        category="social",
+        title="Instagram · Meta Graph",
+        summary=(
+            "Publish feed posts and Reels via Instagram Graph API. OAuth2 via Meta Business/Creator account. "
+            "Use media container → publish flow; default Execution Studio policy is simulate until operator approves live."
+        ),
+        documentation_url="https://developers.facebook.com/docs/instagram-api/guides/content-publishing",
+        suggested_slug="instagram_graph",
+        auth_type="oauth2",
+        base_url="https://graph.facebook.com/v21.0",
+        suggested_manager_slugs=("content_creation", "execution_operations"),
+        tools=(
+            {
+                "name": "ig_user_profile",
+                "path": "/{ig_user_id}",
+                "method": "GET",
+                "description": "Fetch IG user profile metadata (requires instagram_basic scope).",
+            },
+            {
+                "name": "media_create",
+                "path": "/{ig_user_id}/media",
+                "method": "POST",
+                "description": "Create media container — JSON `{image_url, caption}` or `{video_url, caption, media_type}`.",
+                "required_permission": "tool:write",
+            },
+            {
+                "name": "media_publish",
+                "path": "/{ig_user_id}/media_publish",
+                "method": "POST",
+                "description": "Publish container — JSON `{creation_id}` from media_create response.",
+                "required_permission": "tool:write",
+            },
+        ),
+    ),
+    Phase3ConnectorTemplate(
+        template_id="facebook_graph_api",
+        category="social",
+        title="Facebook · Meta Graph Pages",
+        summary=(
+            "Publish text, link, and photo posts to Facebook Pages via Graph API. "
+            "Pair with verified publish packs — simulate-first until live toggle + operator approval."
+        ),
+        documentation_url="https://developers.facebook.com/docs/pages-api/posts",
+        suggested_slug="facebook_graph",
+        auth_type="oauth2",
+        base_url="https://graph.facebook.com/v21.0",
+        suggested_manager_slugs=("content_creation", "execution_operations"),
+        tools=(
+            {
+                "name": "page_list",
+                "path": "/me/accounts",
+                "method": "GET",
+                "description": "List managed Pages and page access tokens.",
+            },
+            {
+                "name": "page_feed_publish",
+                "path": "/{page_id}/feed",
+                "method": "POST",
+                "description": "Publish text/link post — JSON `{message, link}` from publish pack body.",
+                "required_permission": "tool:write",
+            },
+            {
+                "name": "page_photo_publish",
+                "path": "/{page_id}/photos",
+                "method": "POST",
+                "description": "Publish photo post — JSON `{url, caption}` when media_url present.",
+                "required_permission": "tool:write",
+            },
+        ),
+    ),
+    Phase3ConnectorTemplate(
+        template_id="twitter_api_v2",
+        category="social",
+        title="X (Twitter) · API v2",
+        summary=(
+            "Post tweets with optional media via X API v2. OAuth2 user context recommended. "
+            "Compose caption from publish pack; live posts require operator approval in Execution Studio."
+        ),
+        documentation_url="https://developer.x.com/en/docs/twitter-api/tweets/manage-tweets/api-reference/post-tweets",
+        suggested_slug="twitter_api_v2",
+        auth_type="oauth2",
+        base_url="https://api.twitter.com",
+        suggested_manager_slugs=("content_creation", "execution_operations"),
+        tools=(
+            {
+                "name": "tweets_create",
+                "path": "/2/tweets",
+                "method": "POST",
+                "description": "Create tweet — JSON `{text}` up to 280 chars; optional media_ids from upload.",
+                "required_permission": "tool:write",
+            },
+            {
+                "name": "users_me",
+                "path": "/2/users/me",
+                "method": "GET",
+                "description": "Verify OAuth credentials and resolve authenticated user id.",
+            },
+        ),
+    ),
+    Phase3ConnectorTemplate(
+        template_id="tiktok_content_posting",
+        category="social",
+        title="TikTok · Content Posting API",
+        summary=(
+            "Init and publish short-form video to TikTok via Content Posting API. "
+            "Requires video_url from publish pack media; caption in post_info.title/description fields."
+        ),
+        documentation_url="https://developers.tiktok.com/doc/content-posting-api-get-started",
+        suggested_slug="tiktok_content",
+        auth_type="oauth2",
+        base_url="https://open.tiktokapis.com/v2",
+        suggested_manager_slugs=("content_creation", "execution_operations"),
+        tools=(
+            {
+                "name": "creator_info",
+                "path": "/post/publish/creator_info/query/",
+                "method": "POST",
+                "description": "Query creator publishing capabilities and privacy options.",
+            },
+            {
+                "name": "video_publish_init",
+                "path": "/post/publish/video/init/",
+                "method": "POST",
+                "description": "Init direct-post video publish — JSON post_info + source_info with video_url.",
+                "required_permission": "tool:write",
+            },
+            {
+                "name": "publish_status_fetch",
+                "path": "/post/publish/status/fetch/",
+                "method": "POST",
+                "description": "Poll publish_id status after video_publish_init.",
+            },
+        ),
+    ),
+    Phase3ConnectorTemplate(
+        template_id="polymarket_gamma_api",
+        category="trading",
+        title="Polymarket · Gamma (markets)",
+        summary=(
+            "Public market metadata from Polymarket Gamma API — events, markets, outcomes. "
+            "No auth required; use for research bees and trading bot signal discovery."
+        ),
+        documentation_url="https://docs.polymarket.com/quickstart",
+        suggested_slug="polymarket_gamma",
+        auth_type="none",
+        base_url="https://gamma-api.polymarket.com",
+        suggested_manager_slugs=("research_intelligence", "execution_operations"),
+        tools=(
+            {
+                "name": "markets_list",
+                "path": "/markets",
+                "method": "GET",
+                "description": "List active markets — optional query limit, closed, tag filters.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "events_list",
+                "path": "/events",
+                "method": "GET",
+                "description": "List events with nested markets for discovery.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "market_get",
+                "path": "/markets/{slug}",
+                "method": "GET",
+                "description": "Fetch one market by slug or id path param.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+        ),
+    ),
+    Phase3ConnectorTemplate(
+        template_id="polymarket_clob_api",
+        category="trading",
+        title="Polymarket · CLOB (trading)",
+        summary=(
+            "Central limit order book — order book, mid prices, orders. "
+            "Requires L2 API credentials derived from your Polygon wallet. "
+            "Simulate-first: live order placement needs operator approval + trading bot lane."
+        ),
+        documentation_url="https://docs.polymarket.com/api-reference/authentication",
+        suggested_slug="polymarket_clob",
+        auth_type="polymarket_l2",
+        base_url="https://clob.polymarket.com",
+        suggested_manager_slugs=("execution_operations", "research_intelligence"),
+        tools=(
+            {
+                "name": "orderbook_get",
+                "path": "/book",
+                "method": "GET",
+                "description": "Order book for token_id query param.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "midpoint_get",
+                "path": "/midpoint",
+                "method": "GET",
+                "description": "Mid price for token_id query param.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "orders_list",
+                "path": "/data/orders",
+                "method": "GET",
+                "description": "List open orders for authenticated wallet.",
+                "cost_tier": "medium",
+                "latency_tier": "balanced",
+            },
+            {
+                "name": "order_post",
+                "path": "/order",
+                "method": "POST",
+                "description": "Place order — requires signed order payload from trading bot (EIP-712).",
+                "required_permission": "tool:write",
+                "cost_tier": "high",
+                "latency_tier": "balanced",
+            },
+        ),
+    ),
+    Phase3ConnectorTemplate(
+        template_id="kalshi_markets_api",
+        category="trading",
+        title="Kalshi · Markets (public)",
+        summary=(
+            "Public Kalshi market data — browse events, order books, and trades. "
+            "No auth for read endpoints; pair with kalshi_trading for portfolio actions."
+        ),
+        documentation_url="https://docs.kalshi.com/getting_started/quick_start_market_data",
+        suggested_slug="kalshi_markets",
+        auth_type="none",
+        base_url="https://api.elections.kalshi.com/trade-api/v2",
+        suggested_manager_slugs=("research_intelligence", "execution_operations"),
+        tools=(
+            {
+                "name": "markets_list",
+                "path": "/markets",
+                "method": "GET",
+                "description": "List markets — status, series, limit query params.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "market_get",
+                "path": "/markets/{ticker}",
+                "method": "GET",
+                "description": "Fetch one market by ticker.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "orderbook_get",
+                "path": "/markets/{ticker}/orderbook",
+                "method": "GET",
+                "description": "Market order book depth.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+        ),
+    ),
+    Phase3ConnectorTemplate(
+        template_id="kalshi_trading_api",
+        category="trading",
+        title="Kalshi · Trading (RSA)",
+        summary=(
+            "Authenticated Kalshi trading — balance, positions, orders. "
+            "RSA-PSS signed requests with API Key ID + private key from Kalshi profile. "
+            "Simulate-first until operator enables live prediction-market trading."
+        ),
+        documentation_url="https://docs.kalshi.com/getting_started/api_keys",
+        suggested_slug="kalshi_trading",
+        auth_type="kalshi_rsa",
+        base_url="https://api.elections.kalshi.com/trade-api/v2",
+        suggested_manager_slugs=("execution_operations",),
+        tools=(
+            {
+                "name": "balance_get",
+                "path": "/portfolio/balance",
+                "method": "GET",
+                "description": "Portfolio cash balance — use as Connector Hub ping target.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "positions_list",
+                "path": "/portfolio/positions",
+                "method": "GET",
+                "description": "Open positions for the authenticated account.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "orders_list",
+                "path": "/portfolio/orders",
+                "method": "GET",
+                "description": "List resting and recent orders.",
+                "cost_tier": "medium",
+                "latency_tier": "balanced",
+            },
+            {
+                "name": "order_create",
+                "path": "/portfolio/orders",
+                "method": "POST",
+                "description": "Create order — JSON ticker, side, count, yes_price (cents). Operator confirm for live.",
+                "required_permission": "tool:write",
+                "cost_tier": "high",
+                "latency_tier": "balanced",
+            },
+        ),
+    ),
+    Phase3ConnectorTemplate(
+        template_id="resend_email_api",
+        category="email",
+        title="Resend · Transactional Email",
+        summary=(
+            "Send newsletter and transactional email via Resend API. "
+            "Alternative to Gmail for publish packs with channel=newsletter."
+        ),
+        documentation_url="https://resend.com/docs/api-reference/emails/send-email",
+        suggested_slug="resend_email",
+        auth_type="bearer_token",
+        base_url="https://api.resend.com",
+        suggested_manager_slugs=("content_creation", "execution_operations"),
+        tools=(
+            {
+                "name": "emails_send",
+                "path": "/emails",
+                "method": "POST",
+                "description": "Send email — JSON `{from, to, subject, html}` from publish pack body.",
+                "required_permission": "tool:write",
+            },
+            {
+                "name": "domains_list",
+                "path": "/domains",
+                "method": "GET",
+                "description": "List verified sending domains.",
             },
         ),
     ),

@@ -29,7 +29,11 @@ def test_derived_fernet_can_roundtrip(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.delenv("CONNECTOR_VAULT_FERNET_KEY", raising=False)
     monkeypatch.delenv("SECRET_KEY", raising=False)
-    monkeypatch.setenv("SECRET_KEY", "secret-key-derived-from-tests-min-length-hex")
+    monkeypatch.setenv("PRODUCTION_SECURITY_MODE", "false")
+    monkeypatch.setenv(
+        "SECRET_KEY",
+        "unit-test-secret-key-at-least-sixty-four-characters-long-for-pydantic-validation",
+    )
     from app.core.config import get_settings
 
     get_settings.cache_clear()

@@ -22,18 +22,18 @@ import {
   V4IconQueue,
   V4QueenMission,
   V4PageCanvas,
-  V4SearchInput,
   V4Stat,
   V4StatGrid,
 } from "@/components/ui/v4";
 import { HiveApiError, hivePostJson } from "@/lib/api";
+import { usePlatform } from "@/components/hive/platform-context";
 import type { AgentRow, DashboardSummary, SystemStatusPayload, TaskRow } from "@/lib/hive-types";
 import { dashboardPageDensityClass } from "@/lib/section-hub";
 import { cn } from "@/lib/utils";
 
-const PaperTradingPanel = nextDynamic(
-  () => import("@/components/hive/paper-trading-panel").then((mod) => ({ default: mod.PaperTradingPanel })),
-  { loading: () => <DashboardSectionSkeleton className="min-h-[140px]" /> },
+const SoloDailyPlanPanel = nextDynamic(
+  () => import("@/components/hive/solo-daily-plan-panel").then((mod) => ({ default: mod.SoloDailyPlanPanel })),
+  { loading: () => <DashboardSectionSkeleton className="min-h-[120px]" /> },
 );
 
 const SubSwarmsSection = nextDynamic(
@@ -127,8 +127,6 @@ interface QueenDashboardChromeProps {
   agents: AgentRow[];
   summary: DashboardSummary | null;
   costWindowUsd: number | null;
-  filterQuery: string;
-  onFilterChange: (q: string) => void;
   onHoneycombAgent: (agent: AgentRow) => void;
   onAgentsReload: () => void | Promise<void>;
   swarmLabelCount: number;
@@ -146,8 +144,6 @@ export function QueenDashboardChrome({
   agents,
   summary,
   costWindowUsd,
-  filterQuery,
-  onFilterChange,
   onHoneycombAgent,
   onAgentsReload,
   swarmLabelCount,
@@ -160,7 +156,7 @@ export function QueenDashboardChrome({
   missionBusy,
   missionErr,
 }: QueenDashboardChromeProps) {
-  const showSearch = useDashboardSection("search");
+  const { soloMode } = usePlatform();
   const showKpiStats = useDashboardSection("kpiStats");
   const showPollenCosts = useDashboardSection("pollenCosts");
   const showBallroom = useDashboardSection("ballroomParticipants");
@@ -243,19 +239,11 @@ export function QueenDashboardChrome({
 
       <HubEcosystemStrip preset="dashboard" />
 
+      {soloMode ? <SoloDailyPlanPanel compact /> : null}
+
       {showSwarmBuilderEntry ? <SwarmBuilderEntryCard /> : null}
 
       {showLeadMagnets ? <LeadMagnetPanel compact /> : null}
-
-      {showSearch ? (
-        <V4SearchInput
-          value={filterQuery}
-          onChange={onFilterChange}
-          placeholder="Search agents, tier, name, swarm…"
-          aria-label="Filter agents"
-          className="!mb-0"
-        />
-      ) : null}
 
       {showKpiStats ? (
         <V4StatGrid>
@@ -289,8 +277,6 @@ export function QueenDashboardChrome({
           )}
         </V4StatGrid>
       ) : null}
-
-      <PaperTradingPanel />
 
       {showPollenCosts ? (
         <div className="v4-cols-2">

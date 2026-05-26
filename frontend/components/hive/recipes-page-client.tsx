@@ -10,11 +10,15 @@ import {
   RecipeCosineThresholdBanner,
   RecipeSemanticHitCard,
 } from "@/components/hive/recipe-cosine-match-panel";
+import { RecipeMarketplaceBetaPanel } from "@/components/hive/recipe-marketplace-beta-panel";
+import { ListPaginator, ViewportBoundedPanel } from "@/components/ui/list-paginator";
 import { V4Badge, V4Card, V4CardHeader, V4Chip, V4PageCanvas } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import type { RecipeMatchConfigPayload, RecipeRow, RecipeSemanticHit, SkillExportResponse } from "@/lib/hive-types";
 import { DEFAULT_RECIPE_MATCH_CONFIG } from "@/lib/recipe-match-utils";
 import { downloadSkillExportBundle } from "@/lib/skill-export-utils";
+import { useGridTwoRowPageSize } from "@/lib/use-grid-two-row-page-size";
+import { usePaginatedSlice } from "@/lib/use-paginated-slice";
 import { cn } from "@/lib/utils";
 
 interface RecipesPageClientProps {
@@ -150,6 +154,75 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
 
   const showingSemantic = Boolean(debounced);
 
+  const catalogPageSize = useGridTwoRowPageSize();
+  const catalogResetKey = `${selectedTags.join(",")}|${selectedPatterns.join(",")}|${catalogPageSize}`;
+  const catalogPagination = usePaginatedSlice(filteredCatalog, catalogPageSize, catalogResetKey);
+  const semanticPagination = usePaginatedSlice(semanticHits, catalogPageSize, `${debounced}|${catalogPageSize}`);
+
+  const recipeCard = (recipe: RecipeRow) => (
+    <article key={recipe.id} className={cn("v4-dream-cycle-card flex h-full flex-col gap-4 transition")}>
+      <div className="flex items-start justify-between gap-3">
+        <V4Badge tone={recipe.verified_at ? "ok" : "warn"}>
+          {recipe.verified_at ? "verified" : "draft"}
+        </V4Badge>
+        <V4Badge tone="gold">★ wins {recipe.success_count ?? 0}</V4Badge>
+      </div>
+      <div>
+        <h2 className="text-xl font-semibold text-(--qs-text)">{recipe.name}</h2>
+        {recipe.orchestration_template ? (
+          <p className="mt-1 text-xs uppercase tracking-wide text-cyan">
+            {recipe.orchestration_template.replaceAll("_", " ")}
+          </p>
+        ) : null}
+        {(recipe.pattern_labels ?? recipe.pattern_tags ?? []).length ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(recipe.pattern_labels ?? recipe.pattern_tags ?? []).map((p) => (
+              <V4Badge key={p} tone="info">
+                {p}
+              </V4Badge>
+            ))}
+          </div>
+        ) : null}
+        {(recipe.topic_tags ?? []).length ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(recipe.topic_tags ?? []).map((t) => (
+              <V4Chip key={t} type="span">
+                #{t}
+              </V4Chip>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      <dl className="v4-recipe-card-stats mt-auto grid grid-cols-3 gap-2 text-sm">
+        <div>
+          <dt className="v4-field-label">Fails</dt>
+          <dd className="mt-1 tabular-nums text-(--qs-text)">{recipe.fail_count ?? 0}</dd>
+        </div>
+        <div>
+          <dt className="v4-field-label">Avg pollen</dt>
+          <dd className="mt-1 tabular-nums text-pollen">{Math.round(recipe.avg_pollen_earned ?? 0)}</dd>
+        </div>
+        <div>
+          <dt className="v4-field-label">ID</dt>
+          <dd className="mt-1 truncate font-mono text-[10px] text-(--qs-text-3)">{recipe.id.slice(0, 8)}…</dd>
+        </div>
+      </dl>
+      <button
+        type="button"
+        className="qs-btn qs-btn--ghost qs-btn--sm w-full sm:w-fit"
+        disabled={exportBusyId === recipe.id}
+        onClick={() => void exportRecipe(recipe.id, recipe.name)}
+      >
+        {exportBusyId === recipe.id ? (
+          <Loader2Icon className="h-3.5 w-3.5 animate-spin" aria-hidden />
+        ) : (
+          <DownloadIcon className="h-3.5 w-3.5" aria-hidden />
+        )}
+        Export skill
+      </button>
+    </article>
+  );
+
   return (
     <V4PageCanvas className="gap-6">
       {showHeader ? (
@@ -175,6 +248,8 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
           />
         </V4Card>
       )}
+
+      <RecipeMarketplaceBetaPanel />
 
       <V4Card>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -251,80 +326,44 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
         />
 
         {showingSemantic ? (
-          <div className="flex flex-col gap-4">
-            <RecipeCosineThresholdBanner config={matchConfig} hitCount={semanticHits.length} />
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {semanticHits.map((hit) => (
-                <RecipeSemanticHitCard key={hit.chroma_document_id} hit={hit} config={matchConfig} />
-              ))}
+          <ViewportBoundedPanel
+            className="v4-recipe-catalog-panel"
+            footer={
+              <ListPaginator
+                page={semanticPagination.page}
+                totalPages={semanticPagination.totalPages}
+                totalItems={semanticPagination.totalItems}
+                pageSize={catalogPageSize}
+                onPageChange={semanticPagination.setPage}
+              />
+            }
+          >
+            <div className="flex flex-col gap-4">
+              <RecipeCosineThresholdBanner config={matchConfig} hitCount={semanticHits.length} />
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {semanticPagination.slice.map((hit) => (
+                  <RecipeSemanticHitCard key={hit.chroma_document_id} hit={hit} config={matchConfig} />
+                ))}
+              </div>
             </div>
-          </div>
+          </ViewportBoundedPanel>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {filteredCatalog.map((recipe) => (
-              <article key={recipe.id} className={cn("v4-dream-cycle-card flex flex-col gap-4 transition")}>
-                <div className="flex items-start justify-between gap-3">
-                  <V4Badge tone={recipe.verified_at ? "ok" : "warn"}>
-                    {recipe.verified_at ? "verified" : "draft"}
-                  </V4Badge>
-                  <V4Badge tone="gold">★ wins {recipe.success_count ?? 0}</V4Badge>
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-(--qs-text)">{recipe.name}</h2>
-                  {recipe.orchestration_template ? (
-                    <p className="mt-1 text-xs uppercase tracking-wide text-cyan">
-                      {recipe.orchestration_template.replaceAll("_", " ")}
-                    </p>
-                  ) : null}
-                  {(recipe.pattern_labels ?? recipe.pattern_tags ?? []).length ? (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {(recipe.pattern_labels ?? recipe.pattern_tags ?? []).map((p) => (
-                        <V4Badge key={p} tone="info">
-                          {p}
-                        </V4Badge>
-                      ))}
-                    </div>
-                  ) : null}
-                  {(recipe.topic_tags ?? []).length ? (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {(recipe.topic_tags ?? []).map((t) => (
-                        <V4Chip key={t} type="span">
-                          #{t}
-                        </V4Chip>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-                <dl className="v4-recipe-card-stats grid grid-cols-3 gap-2 text-sm">
-                  <div>
-                    <dt className="v4-field-label">Fails</dt>
-                    <dd className="mt-1 tabular-nums text-(--qs-text)">{recipe.fail_count ?? 0}</dd>
-                  </div>
-                  <div>
-                    <dt className="v4-field-label">Avg pollen</dt>
-                    <dd className="mt-1 tabular-nums text-pollen">{Math.round(recipe.avg_pollen_earned ?? 0)}</dd>
-                  </div>
-                  <div>
-                    <dt className="v4-field-label">ID</dt>
-                    <dd className="mt-1 truncate font-mono text-[10px] text-(--qs-text-3)">{recipe.id.slice(0, 8)}…</dd>
-                  </div>
-                </dl>
-                <button
-                  type="button"
-                  className="qs-btn qs-btn--ghost qs-btn--sm w-full sm:w-fit"
-                  disabled={exportBusyId === recipe.id}
-                  onClick={() => void exportRecipe(recipe.id, recipe.name)}
-                >
-                  {exportBusyId === recipe.id ? (
-                    <Loader2Icon className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                  ) : (
-                    <DownloadIcon className="h-3.5 w-3.5" aria-hidden />
-                  )}
-                  Export skill
-                </button>
-              </article>
-            ))}
-          </div>
+          <ViewportBoundedPanel
+            className="v4-recipe-catalog-panel"
+            footer={
+              <ListPaginator
+                page={catalogPagination.page}
+                totalPages={catalogPagination.totalPages}
+                totalItems={catalogPagination.totalItems}
+                pageSize={catalogPageSize}
+                onPageChange={catalogPagination.setPage}
+              />
+            }
+          >
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {catalogPagination.slice.map((recipe) => recipeCard(recipe))}
+            </div>
+          </ViewportBoundedPanel>
         )}
 
         {!loading && !showingSemantic && filteredCatalog.length === 0 ? (

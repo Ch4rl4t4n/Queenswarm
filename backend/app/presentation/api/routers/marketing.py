@@ -10,6 +10,14 @@ from app.application.services.ugc_content_engine import (
     list_lead_magnets,
     ugc_content_engine_enabled,
 )
+from app.application.services.public_trading_transparency import (
+    PublicTradingTransparencyOut,
+    build_public_trading_transparency,
+)
+from app.application.services.micro_saas_factory import (
+    MicroSaasPublicBlueprintOut,
+    build_public_micro_saas_blueprint,
+)
 from app.common.schemas.ugc_content import (
     LeadMagnetCatalogItem,
     LeadMagnetLandingResponse,
@@ -54,6 +62,28 @@ async def lead_magnet_landing(template_id: str) -> LeadMagnetLandingResponse:
     return LeadMagnetLandingResponse.model_validate(payload)
 
 
+@public_router.get(
+    "/trading-transparency",
+    response_model=PublicTradingTransparencyOut,
+    summary="Public paper-trading transparency (no auth)",
+)
+async def public_trading_transparency(db: DbSession) -> PublicTradingTransparencyOut:
+    """Read-only aggregate paper P&L — no secrets, no user IDs."""
+
+    return await build_public_trading_transparency(db)
+
+
+@public_router.get(
+    "/micro-saas-blueprint",
+    response_model=MicroSaasPublicBlueprintOut,
+    summary="Public Micro-SaaS factory blueprint",
+)
+async def public_micro_saas_blueprint() -> MicroSaasPublicBlueprintOut:
+    """Public stack blueprint for landing + auth + stripe + deploy."""
+
+    return build_public_micro_saas_blueprint()
+
+
 @router.get(
     "/lead-magnets/{template_id}/share-pack",
     response_model=LeadMagnetSharePackResponse,
@@ -65,7 +95,7 @@ async def lead_magnet_share_pack(
     principal: dict = Depends(require_dashboard_user_with_tenant_role),
     window_days: int = Query(default=30, ge=7, le=90),
 ) -> LeadMagnetSharePackResponse:
-    """Generate LinkedIn/TikTok/X copy with optional verified hours from tenant ROI."""
+    """Generate TikTok/X copy with optional verified hours from tenant ROI."""
 
     _ensure_enabled()
     tenant_id = principal.get("tenant_id")

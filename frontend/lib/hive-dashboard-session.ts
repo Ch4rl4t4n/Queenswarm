@@ -36,6 +36,8 @@ export interface DashboardOperatorMe {
   platform_mode?: string;
   subscription_tier?: string;
   platform_features?: Record<string, boolean>;
+  /** True when deployment runs SOLO_MODE preset (commercial surfaces hidden). */
+  solo_mode?: boolean;
   tenant_branding?: {
     brand_name: string;
     logo_url?: string | null;

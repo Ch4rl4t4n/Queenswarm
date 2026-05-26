@@ -33,7 +33,9 @@ function summarizeFromDetail(row: FinalDeliverableDetailRow): FinalDeliverableSu
 export function OutputsInteractivePanel({ initialItems }: OutputsInteractivePanelProps) {
   const [items, setItems] = useState<FinalDeliverableSummaryRow[]>(initialItems);
   const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<"all" | "ready">("all");
   const [searchBusy, setSearchBusy] = useState(false);
+  const [filterBusy, setFilterBusy] = useState(false);
   const [regenBusyLineage, setRegenBusyLineage] = useState<string | null>(null);
   const [instruction, setInstruction] =
     useState("Tighten the executive summary and add clearer next-steps with owners.");
@@ -74,6 +76,26 @@ export function OutputsInteractivePanel({ initialItems }: OutputsInteractivePane
 
   function onClearSearch(): void {
     setQuery("");
+    setItems(initialItems);
+    setError(null);
+  }
+
+  async function onFilterReady(): Promise<void> {
+    setFilterBusy(true);
+    setError(null);
+    setFilter("ready");
+    try {
+      const rows = await hiveGet<FinalDeliverableSummaryRow[]>("outputs?ready_to_publish=true&limit=40");
+      setItems(rows);
+    } catch (e) {
+      setError(e instanceof HiveApiError ? e.message : "Ready-to-publish filter failed.");
+    } finally {
+      setFilterBusy(false);
+    }
+  }
+
+  function onFilterAll(): void {
+    setFilter("all");
     setItems(initialItems);
     setError(null);
   }
@@ -129,6 +151,30 @@ export function OutputsInteractivePanel({ initialItems }: OutputsInteractivePane
 
   return (
     <div className="flex flex-col gap-6">
+      <V4Card>
+        <V4CardHeader
+          title="Publish queue (Phase A)"
+          description="Verified publish packs — simulate_only, critic-approved. Live Instagram is Phase C."
+        />
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className={cn("qs-btn qs-btn--sm", filter === "all" ? "qs-btn--primary" : "qs-btn--ghost")}
+            onClick={() => onFilterAll()}
+          >
+            All outputs
+          </button>
+          <button
+            type="button"
+            className={cn("qs-btn qs-btn--sm", filter === "ready" ? "qs-btn--primary" : "qs-btn--ghost")}
+            disabled={filterBusy}
+            onClick={() => void onFilterReady()}
+          >
+            {filterBusy ? "Loading…" : "Ready to publish"}
+          </button>
+        </div>
+      </V4Card>
+
       <V4Card>
         <V4CardHeader
           title="Semantic search"

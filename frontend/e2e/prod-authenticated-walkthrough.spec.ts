@@ -50,6 +50,15 @@ test.describe("Prod authenticated walkthrough", () => {
     await expect(page.getByText(/capabilities|atlas/i).first()).toBeVisible({ timeout: 45_000 });
   });
 
+  test("AI harness operator hub loads on prod", async ({ page }) => {
+    await gotoShellRoute(page, "/settings/harness");
+    const hub = page.locator("#operator-hub");
+    await expect(hub).toBeVisible({ timeout: 60_000 });
+    await expect(hub.getByRole("heading", { name: /Autonomy & live lane hub/i })).toBeVisible();
+    await expect(hub.getByText("Next action")).toBeVisible();
+    await expect(hub.getByText("Social OAuth readiness")).toBeVisible();
+  });
+
   test("agents sessions tab shell loads", async ({ page }) => {
     await gotoShellRoute(page, "/agents");
     const sessionsTab = page.getByRole("tab", { name: /sessions/i }).or(page.getByRole("link", { name: /sessions/i }));

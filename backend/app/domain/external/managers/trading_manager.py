@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.application.services.prediction_market_trading import PREDICTION_VENUES, resolve_venue
+
 
 class TradingManager:
     """Evaluates trading intents without touching broker APIs (integration boundary stub).
@@ -28,10 +30,14 @@ class TradingManager:
             msg = "settings.trading_mode must be 'paper' or 'real'."
             raise ValueError(msg)
 
-        symbol = str(payload.get("symbol") or "").strip().upper()
+        symbol = str(payload.get("market_ticker") or payload.get("symbol") or "").strip()
+        venue = resolve_venue(project_settings)
         if not symbol:
-            msg = "payload.symbol is required."
+            msg = "payload.symbol or payload.market_ticker is required."
             raise ValueError(msg)
+
+        if venue in PREDICTION_VENUES:
+            symbol = symbol.upper() if venue == "kalshi" else symbol
 
         qty = payload.get("quantity")
         try:
@@ -59,7 +65,8 @@ class TradingManager:
                 "mode": mode,
                 "symbol": symbol,
                 "quantity": quantity,
-                "mid_px_proxy": float(payload.get("assumed_price_usd") or 100.0),
+                "venue": venue or None,
+                "mid_px_proxy": float(payload.get("assumed_price_usd") or payload.get("yes_price") or 50.0),
                 "verified": True,
             }
 
@@ -70,6 +77,7 @@ class TradingManager:
                     "mode": "paper",
                     "symbol": symbol,
                     "quantity": quantity,
+                    "venue": venue or None,
                     "verified": True,
                 }
 
@@ -88,6 +96,7 @@ class TradingManager:
                 "mode": "real",
                 "symbol": symbol,
                 "quantity": quantity,
+                "venue": venue or None,
                 "ticket": ticket[:160],
                 "verified": False,
             }

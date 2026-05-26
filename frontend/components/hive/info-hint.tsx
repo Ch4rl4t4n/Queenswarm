@@ -3,7 +3,14 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
-import { resolveLocalizedString, resolveLocalizedStringList, type MaybeLocalizedString, type MaybeLocalizedStringList } from "@/lib/ui-language";
+import {
+  resolveLocalizedDescription,
+  resolveLocalizedLabel,
+  resolveLocalizedStringList,
+  type MaybeLocalizedString,
+  type MaybeLocalizedStringList,
+} from "@/lib/ui-language";
+import { localizeDescription } from "@/lib/ui-copy";
 import { cn } from "@/lib/utils";
 
 interface InfoHintProps {
@@ -21,10 +28,13 @@ export function InfoHint({ title, description, options, className }: InfoHintPro
   const { language } = useUiLanguage();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLSpanElement | null>(null);
-  const titleText = resolveLocalizedString(title, language);
-  const descriptionText = resolveLocalizedString(description, language);
+  const titleText = resolveLocalizedLabel(title, language);
+  const descriptionText = resolveLocalizedDescription(description, language);
   const optionItems = resolveLocalizedStringList(options, language);
-  const settingsOptionsLabel = language === "sk" ? "Možnosti nastavenia" : "Configuration options";
+  const settingsOptionsLabel = localizeDescription(language, {
+    en: "Configuration options",
+    sk: "Možnosti nastavenia",
+  });
 
   useEffect(() => {
     if (!open) {

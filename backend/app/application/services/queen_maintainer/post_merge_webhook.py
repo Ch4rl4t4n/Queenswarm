@@ -15,7 +15,7 @@ from app.application.services.queen_maintainer.service import (
     build_maintainer_goal,
     build_post_merge_maintainer_goal,
     ensure_queen_maintainer_routine,
-    trigger_maintainer_run,
+    queue_maintainer_run,
 )
 from app.core.config import settings
 
@@ -203,7 +203,20 @@ async def handle_github_post_merge_webhook(
     routine.context_payload = payload_ctx
     await db.flush()
 
-    session_id = await trigger_maintainer_run(db, routine=routine)
+    result = await queue_maintainer_run(
+        db,
+        routine=routine,
+        trigger_source="post_merge_webhook",
+        goal_override=routine.goal_template,
+    )
+    if not result.get("ok"):
+        return {
+            "triggered": False,
+            "reason": str(result.get("error") or "blocked"),
+            "budget": result,
+        }
+
+    session_id = uuid.UUID(str(result["session_id"]))
     logger.info(
         "queen_maintainer.post_merge_triggered",
         agent_id="queen_maintainer",

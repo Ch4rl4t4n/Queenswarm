@@ -7,6 +7,8 @@ import { toast } from "sonner";
 
 import { LoginCardShell } from "@/components/auth/login-card-shell";
 import { LoginOtpInput } from "@/components/auth/login-otp-input";
+import { resetHiveSessionGuard } from "@/lib/hive-session-guard";
+import { resyncExecutionStudioPushIfEnabled } from "@/lib/execution-studio-push-session-sync";
 
 type LoginStep = "credentials" | "otp";
 
@@ -76,6 +78,19 @@ function LoginFormInner(): JSX.Element {
   const otpSubmitLock = useRef(false);
 
   useEffect(() => {
+    if (searchParams.get("reason") !== "session_expired") {
+      return;
+    }
+    toast.message("Session vypršala", {
+      description: "Prihlás sa znova (2FA platí 24 hodín).",
+      duration: 8000,
+    });
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (searchParams.get("reason") === "session_expired") {
+      return;
+    }
     let cancelled = false;
     void (async () => {
       try {
@@ -83,6 +98,7 @@ function LoginFormInner(): JSX.Element {
         if (cancelled || !res.ok) {
           return;
         }
+        resetHiveSessionGuard();
         router.replace(nextPath);
       } catch {
         /* stay on login */
@@ -91,7 +107,7 @@ function LoginFormInner(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [router, nextPath]);
+  }, [router, nextPath, searchParams]);
 
   useEffect(() => {
     if (!startOnOtp && !forceOTPTest) {
@@ -191,6 +207,8 @@ function LoginFormInner(): JSX.Element {
       if (token) {
         persistSessionToken(token, data.expires_in);
       }
+      resetHiveSessionGuard();
+      void resyncExecutionStudioPushIfEnabled();
       toast.success("Hive open");
       router.replace(nextPath);
       router.refresh();
@@ -240,8 +258,10 @@ function LoginFormInner(): JSX.Element {
       if (token) {
         persistSessionToken(token, data.expires_in);
       }
+      resetHiveSessionGuard();
       window.sessionStorage.removeItem("qs_pre_auth");
       window.sessionStorage.removeItem("qs_pre_auth_token");
+      void resyncExecutionStudioPushIfEnabled();
       toast.success("Verified");
       router.replace(nextPath);
       router.refresh();

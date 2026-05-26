@@ -34,6 +34,10 @@ jobs:
           PLUGIN_USER_DIR: /tmp/queenswarm-plugins/user
         run: pytest -q --tb=short --cov=app --cov-config=.coveragerc --cov-fail-under=50
 
+      - name: Operator Control Plane gate
+        working-directory: .
+        run: ./scripts/audit-operator-control-plane-gate.sh
+
   frontend:
     runs-on: ubuntu-latest
     defaults:
@@ -82,6 +86,24 @@ jobs:
         env:
           CI: "true"
         run: npx playwright test e2e/smoke-shell.spec.ts
+
+      - name: Execution Studio e2e
+        env:
+          CI: "true"
+          E2E_EXECUTION_STUDIO: "1"
+        run: npx playwright test e2e/execution-studio.spec.ts
+
+      - name: Execution Studio supervisor flow e2e
+        env:
+          CI: "true"
+          E2E_EXECUTION_STUDIO_SUPERVISOR: "1"
+        run: npx playwright test e2e/execution-studio-supervisor-flow.spec.ts
+
+      - name: Publish lane e2e
+        env:
+          CI: "true"
+          E2E_PUBLISH_LANE: "1"
+        run: npx playwright test e2e/publish-lane.spec.ts
 
   security:
     runs-on: ubuntu-latest

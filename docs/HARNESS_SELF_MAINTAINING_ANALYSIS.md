@@ -9,10 +9,10 @@ Cross-links: `docs/QUEENSWARM_DESIGN_PATTERNS.md` · `docs/ROUNDTABLESPACE_MAY20
 
 Všetkých **5 videí potvrdzuje náš smer** (harness > model, verified loop, layered memory). Queenswarm už má **viac integrácie než každý jednotlivý nástroj vo videách** — chýba:
 
-1. **Viditeľný harness** (AI Layer Dashboard)
-2. **Behavioral memory** (`instructions.md` editovateľné operátorom)
-3. **Queen Maintainer** — PR-only self-maintaining swarm (AnswerThis + Anthropic Ralph loop)
-4. **Forager intelligence loop** — auto-refresh skills + MCP + integration docs
+1. **Viditeľný harness** (AI Layer Dashboard) — ✅ `/settings/harness`
+2. **Behavioral memory** (`instructions.md` editovateľné operátorom) — ✅ Settings harness + Knowledge
+3. **Queen Maintainer** — PR-only self-maintaining swarm — ✅ API + routine + post-merge webhook
+4. **Forager intelligence loop** — ✅ scan API + daily Celery beat (enable via env)
 
 **Nerobiť:** priamy write do `main`, obídenie simulácie, monolitický rules súbor, fork cudzích harnessov.
 
@@ -26,8 +26,8 @@ Všetkých **5 videí potvrdzuje náš smer** (harness > model, verified loop, l
 |-------|--------|
 | Markdown skills + `SkillLibrary.select_for_task()` | ✅ Live |
 | Recipe Library + verified workflows | ✅ Live |
-| Skill references / lazy fetch | 🟡 Partial — skills loaded whole, nie search endpoint |
-| Auto-research on skills | ⏳ Planned |
+| Skill references / lazy fetch | ✅ `skill_reference_fetch.py` + reference_mode skills |
+| Auto-research on skills | ✅ Forager Intelligence Loop (daily cron optional) |
 
 **Naše vylepšenie (edge vs Langfuse):**
 
@@ -46,12 +46,12 @@ Všetkých **5 videí potvrdzuje náš smer** (harness > model, verified loop, l
 
 | U nás | Status |
 |-------|--------|
-| Layered rules | 🟡 `.cursorrules` + `.cursor/rules/*.mdc` — chýba per-module `AGENTS.md` |
+| Layered rules | ✅ `.cursorrules` + `.cursor/rules/*.mdc` + `AGENTS.md` hierarchy |
 | MCP connectors | ✅ Dynamic hub + marketplace |
 | Sub-agents / sub-swarms | ✅ Supervisor + Phase 6 |
 | Self-improving hooks | ✅ Rapid loop, imitation, pollen, Pattern Router |
-| LSP integration | ❌ Not yet |
-| Harness visibility dashboard | ❌ Not yet |
+| LSP integration | ✅ `lsp/` symbol index + MCP bridge |
+| Harness visibility dashboard | ✅ `/settings/harness` |
 
 **Roadmap:**
 
@@ -72,7 +72,7 @@ Všetkých **5 videí potvrdzuje náš smer** (harness > model, verified loop, l
 | PRD / product decomposition | 🟡 `product-mission.md` skill, Swarm Builder |
 | TDD pattern | ✅ `tdd.md` skill + Pattern Bible |
 | Task / Kanban hub | ✅ `/tasks` |
-| Tracer bullet slices | ⏳ Not explicit in UI |
+| Tracer bullet slices | ✅ `tracer_bullet_kanban.py` + slice-to-kanban UI |
 | Human review | ✅ `needs_input`, playbook approve |
 
 **Roadmap:**
@@ -125,8 +125,8 @@ Všetkých **5 videí potvrdzuje náš smer** (harness > model, verified loop, l
 
 | Feature | Popis | Priorita | Est. |
 |---------|-------|----------|------|
-| **Checkpoint resume UI** | Resume durable session from last verified step | P2 | 3 d |
-| **Rubric templates** | Subjective output scoring (design, copy) | P2 | 2 d |
+| **Checkpoint resume UI** | Resume durable session from last verified step | P2 | 3 d | ✅ `checkpoint_resume.py` + harness panel |
+| **Rubric templates** | Subjective output scoring (design, copy) | P2 | 2 d | ✅ `rubric_templates.py` + harness panel |
 
 **Väčšina už live** — Queen Maintainer použije tento stack priamo.
 
@@ -174,10 +174,9 @@ flowchart TD
 | Phase | Deliverable | Est. | Status |
 |-------|-------------|------|--------|
 | **P0 stub** | `queen-maintainer.md` skill + `docs/harness/QUEEN_MAINTAINER_INSTRUCTIONS.md` | 1 d | ✅ |
-| **P1a** | Maintainer Supervisor routine (weekly cron) | 2–3 d | ⏳ |
-| **P1b** | GitHub PR workflow (branch + PR create, no merge) | 3–4 d | ⏳ |
-| **P1c** | Tech Health Dashboard (deps, coverage, perf budget) | 4–5 d | ⏳ |
-| **P2** | Event trigger post-merge + checkpoint resume | 3 d | ⏳ |
+| **P1a** | Maintainer routine + tech health API | 2–3 d | ✅ |
+| **P1b** | GitHub PR workflow (denylist + pulls_create) | 3–4 d | ✅ |
+| **P2** | Event trigger post-merge + checkpoint resume | 3 d | ✅ post-merge webhook + checkpoint resume UI |
 
 **User estimate „1 týždeň P0“** → realisticky **P1a+b = 5–7 dní solo** po operator Stripe unblock.
 

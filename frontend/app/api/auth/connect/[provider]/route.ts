@@ -70,5 +70,7 @@ export async function POST(request: NextRequest, ctx: RouteCtx): Promise<NextRes
     path: "/",
     maxAge: 600,
   });
+  // Hint for browsers that partition cookies on cross-site OAuth round-trips.
+  out.headers.set("Cache-Control", "no-store");
   return out;
 }

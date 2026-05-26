@@ -8,7 +8,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from app.application.services.dreamer_service import DreamerService
 from app.application.services.rbac import has_permission
@@ -92,6 +92,31 @@ async def list_dream_cycles(
         )
         for row in rows
     ]
+
+
+@router.delete("/cycles", summary="Clear all dream cycles for tenant")
+async def clear_dream_cycles(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, int]:
+    """Remove tenant dream cycle history (insights cascade via FK)."""
+
+    _ensure_admin(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    rows = list(
+        (
+            await db.scalars(
+                select(DreamCycleORM.id).where(DreamCycleORM.tenant_id == tenant_id),
+            )
+        ).all(),
+    )
+    cleared = len(rows)
+    if cleared:
+        await db.execute(delete(DreamCycleORM).where(DreamCycleORM.tenant_id == tenant_id))
+        await db.commit()
+    return {"cleared": cleared}
 
 
 @router.get("/cycles/{cycle_id}", response_model=DreamCycleDetailResponse, summary="Get dream cycle detail")

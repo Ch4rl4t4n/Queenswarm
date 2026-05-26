@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { seedDashboardSessionCookie } from "./fixtures/dashboard-session";
+import { e2eHiveHomeHeading, e2eHiveHomePath } from "./fixtures/hive-home-route";
 import { suppressPwaInstallPrompt } from "./fixtures/pwa-test-hints";
 import { installShellApiMocks, STUB_AGENT_ID } from "./fixtures/shell-api-mocks";
 import { stabilizePageForScreenshot } from "./fixtures/visual-stable";
@@ -21,12 +22,12 @@ interface SnapshotRoute {
 
 const SNAPSHOT_ROUTES: SnapshotRoute[] = [
   { path: "/login", slug: "login", public: true },
-  { path: "/", slug: "dashboard", heading: /^Dashboard$/i },
+  { path: e2eHiveHomePath(), slug: "dashboard", heading: e2eHiveHomeHeading() },
   { path: "/swarms", slug: "swarms", heading: /swarms/i },
   { path: "/tasks", slug: "tasks", heading: "Tasks", headingExact: true },
   { path: "/agents", slug: "agents", heading: "Agents", headingExact: true },
   { path: "/knowledge", slug: "knowledge", heading: "Knowledge" },
-  { path: "/costs", slug: "costs", heading: "Costs", headingExact: true },
+  { path: "/settings/costs", slug: "costs", heading: "Costs", headingExact: true },
   { path: "/settings/security", slug: "settings-security", heading: "Settings", headingExact: true },
   { path: "/foragers", slug: "foragers", heading: "Foragers", headingExact: true },
   { path: "/ballroom", slug: "ballroom", heading: "Ballroom", headingExact: true },

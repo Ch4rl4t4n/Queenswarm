@@ -7,6 +7,7 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
+import { hiveOverviewHref } from "@/lib/hive-home-route";
 import type {
   OperatorIntakeResponse,
   PreviewDecompositionResponse,
@@ -556,7 +557,7 @@ export function NewTaskConsole() {
         </ul>
 
         <div className="v4-new-task-actions mt-8 flex flex-col items-start gap-4 border-t border-(--qs-border) pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <Link href="/" className="qs-btn qs-btn--ghost shrink-0 gap-1.5">
+          <Link href={hiveOverviewHref()} className="qs-btn qs-btn--ghost shrink-0 gap-1.5">
             <ChevronLeftIcon className="h-4 w-4 shrink-0" aria-hidden />
             Back
           </Link>

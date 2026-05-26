@@ -1,44 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useOperatorPendingSnapshot } from "@/lib/hooks/use-operator-pending-snapshot";
+import type { DashboardSummary } from "@/lib/hive-types";
 
-import { hiveGet } from "@/lib/api";
-import type { DashboardSummary, PendingReviewStats } from "@/lib/hive-types";
-
-/** Caps mobile bell badge at 9; returns 0 when nothing actionable. */
-export function formatHiveNotificationBadge(count: number): string | null {
-  if (count <= 0) {
-    return null;
-  }
-  return count > 9 ? "9+" : String(count);
+/** Format badge count for header/sidebar (cap at 9+). */
+export function formatHiveNotificationBadge(total: number): string | null {
+  if (total <= 0) return null;
+  return total > 9 ? "9+" : String(total);
 }
 
 /**
- * Actionable operator alerts for the mobile header bell (tasks + pending review).
+ * Actionable operator alerts for the mobile header bell (tasks + pending review + Execution Studio).
  */
 export function useHiveNotificationBadge(summary: DashboardSummary | null): string | null {
-  const [pendingReview, setPendingReview] = useState(0);
-
-  useEffect(() => {
-    let alive = true;
-    const timer = window.setTimeout(() => {
-      void (async () => {
-        try {
-          const stats = await hiveGet<PendingReviewStats>("learning/pending-review/stats");
-          if (alive) {
-            setPendingReview(Math.max(0, stats.pending_count ?? 0));
-          }
-        } catch {
-          /* keep last count */
-        }
-      })();
-    }, 600);
-    return () => {
-      alive = false;
-      window.clearTimeout(timer);
-    };
-  }, []);
-
-  const total = (summary?.tasks.pending ?? 0) + pendingReview;
-  return formatHiveNotificationBadge(total);
+  const snapshot = useOperatorPendingSnapshot(summary?.tasks.pending ?? 0);
+  return formatHiveNotificationBadge(snapshot.total);
 }

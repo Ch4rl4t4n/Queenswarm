@@ -5,6 +5,7 @@ import type { SWRConfiguration } from "swr";
 
 import { isHiveApiRateLimited } from "@/lib/api";
 import { subscribeHiveApiRateLimit } from "@/lib/hive-api-rate-limit-bus";
+import { isHiveSessionDead } from "@/lib/hive-session-guard";
 import { useDocumentVisible } from "@/lib/hooks/use-document-visible";
 
 /**
@@ -17,7 +18,7 @@ export function useSwrRefreshInterval(baseMs: number | null | undefined): number
 
   useEffect(() => subscribeHiveApiRateLimit(() => setRateLimitTick((n) => n + 1)), []);
 
-  if (!visible || baseMs == null || baseMs <= 0 || isHiveApiRateLimited()) {
+  if (!visible || baseMs == null || baseMs <= 0 || isHiveApiRateLimited() || isHiveSessionDead()) {
     return 0;
   }
   return baseMs;

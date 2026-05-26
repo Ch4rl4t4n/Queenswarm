@@ -33,10 +33,17 @@ frontend/e2e/.auth/
 .env.local
 .env.production
 .env.prod
+.env.prod.oauth
+.env.prod.tokens
 .env.*.local
 !.env.example
 !.env.production.example
 !.env.prod.example
+!.env.prod.oauth.example
+!.env.prod.tokens.example
+
+# Rendered Alertmanager config (contains Slack webhook when configured)
+deploy/alertmanager/alertmanager.generated.yml
 
 # IDE
 .vscode/

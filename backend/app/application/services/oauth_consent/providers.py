@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 from app.core.config import Settings
 
-VendorFamily = Literal["google", "microsoft", "github", "notion", "stripe"]
+VendorFamily = Literal["google", "microsoft", "github", "notion", "stripe", "meta", "x", "tiktok"]
 
 
 @dataclass(frozen=True)
@@ -103,6 +103,56 @@ OAUTH_SURFACES: dict[str, OAuthSurfaceSpec] = {
         scopes=("read_write",),
         uses_pkce=False,
     ),
+    "instagram_graph": OAuthSurfaceSpec(
+        provider_key="instagram_graph",
+        template_id="instagram_graph_api",
+        label="Instagram · Meta Graph",
+        vendor_family="meta",
+        authorize_url="https://www.facebook.com/v22.0/dialog/oauth",
+        token_url="https://graph.facebook.com/v22.0/oauth/access_token",
+        scopes=(
+            "public_profile",
+            "instagram_basic",
+            "instagram_content_publish",
+            "pages_show_list",
+            "pages_read_engagement",
+        ),
+        uses_pkce=False,
+    ),
+    "facebook_graph": OAuthSurfaceSpec(
+        provider_key="facebook_graph",
+        template_id="facebook_graph_api",
+        label="Facebook · Meta Graph Pages",
+        vendor_family="meta",
+        authorize_url="https://www.facebook.com/v22.0/dialog/oauth",
+        token_url="https://graph.facebook.com/v22.0/oauth/access_token",
+        scopes=(
+            "pages_show_list",
+            "pages_read_engagement",
+            "pages_manage_posts",
+        ),
+        uses_pkce=False,
+    ),
+    "twitter_api_v2": OAuthSurfaceSpec(
+        provider_key="twitter_api_v2",
+        template_id="twitter_api_v2",
+        label="X (Twitter) · API v2",
+        vendor_family="x",
+        authorize_url="https://twitter.com/i/oauth2/authorize",
+        token_url="https://api.twitter.com/2/oauth2/token",
+        scopes=("tweet.read", "tweet.write", "users.read", "offline.access"),
+        uses_pkce=True,
+    ),
+    "tiktok_content": OAuthSurfaceSpec(
+        provider_key="tiktok_content",
+        template_id="tiktok_content_posting",
+        label="TikTok · Content Posting API",
+        vendor_family="tiktok",
+        authorize_url="https://www.tiktok.com/v2/auth/authorize/",
+        token_url="https://open.tiktokapis.com/v2/oauth/token/",
+        scopes=("user.info.basic", "video.publish"),
+        uses_pkce=True,
+    ),
 }
 
 
@@ -119,6 +169,12 @@ def _family_configured(settings: Settings, family: VendorFamily) -> bool:
         return bool(settings.oauth_notion_client_id.strip() and settings.oauth_notion_client_secret.strip())
     if family == "stripe":
         return bool(settings.oauth_stripe_client_id.strip() and settings.oauth_stripe_client_secret.strip())
+    if family == "meta":
+        return bool(settings.oauth_meta_client_id.strip() and settings.oauth_meta_client_secret.strip())
+    if family == "x":
+        return bool(settings.oauth_x_client_id.strip() and settings.oauth_x_client_secret.strip())
+    if family == "tiktok":
+        return bool(settings.oauth_tiktok_client_key.strip() and settings.oauth_tiktok_client_secret.strip())
     return False
 
 
@@ -157,6 +213,12 @@ def client_credentials_for_family(settings: Settings, family: VendorFamily) -> t
         return settings.oauth_notion_client_id.strip(), settings.oauth_notion_client_secret.strip()
     if family == "stripe":
         return settings.oauth_stripe_client_id.strip(), settings.oauth_stripe_client_secret.strip()
+    if family == "meta":
+        return settings.oauth_meta_client_id.strip(), settings.oauth_meta_client_secret.strip()
+    if family == "x":
+        return settings.oauth_x_client_id.strip(), settings.oauth_x_client_secret.strip()
+    if family == "tiktok":
+        return settings.oauth_tiktok_client_key.strip(), settings.oauth_tiktok_client_secret.strip()
     msg = f"unsupported oauth vendor family: {family}"
     raise ValueError(msg)
 

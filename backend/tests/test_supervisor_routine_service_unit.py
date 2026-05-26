@@ -125,6 +125,20 @@ def test_compute_next_run_at_when_weekly_cron_then_next_monday_midnight() -> Non
     assert nxt.hour == 0 and nxt.minute == 0
 
 
+def test_compute_next_run_at_when_sales_cron_then_next_weekday_morning() -> None:
+    """Standard 5-field cron schedules the next matching slot (not hourly fallback)."""
+
+    # Friday 10:29 UTC — next Sales slot is Monday 08:00 UTC
+    now = datetime(2026, 5, 22, 10, 29, tzinfo=UTC)
+    nxt = compute_next_run_at(
+        now=now,
+        schedule_kind="cron",
+        interval_seconds=None,
+        cron_expr="0 8 * * 1-5",
+    )
+    assert nxt == datetime(2026, 5, 25, 8, 0, tzinfo=UTC)
+
+
 def test_suggest_optimal_schedule_when_event_then_watch_interval() -> None:
     """Event routines derive watch interval from payload or defaults."""
 

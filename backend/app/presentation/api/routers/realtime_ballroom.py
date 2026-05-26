@@ -30,6 +30,7 @@ from app.application.services.voice_multimodal import (
 from app.infrastructure.persistence.models.agent import Agent
 from app.infrastructure.persistence.models.enums import AgentStatus, TaskStatus
 from app.infrastructure.persistence.models.task import Task
+from app.infrastructure.persistence.models.tenant import Tenant
 from app.application.services import ballroom_store as ballroom_redis
 from app.application.services.hive_mission_runner import run_seven_step_mission
 
@@ -227,6 +228,49 @@ def _decode_ws_subject(websocket: WebSocket, token: str | None) -> str | None:
     return _decode_sub_from_cookie_header(websocket.headers.get("cookie"))
 
 
+def _extract_ws_access_token(websocket: WebSocket, token: str | None) -> str | None:
+    """Return raw dashboard JWT from query, Authorization header, or cookie."""
+
+    if isinstance(token, str) and token.strip():
+        return token.strip()
+    auth_header = websocket.headers.get("authorization")
+    if isinstance(auth_header, str) and auth_header.lower().startswith("bearer "):
+        return auth_header[7:].strip()
+    cookie_header = websocket.headers.get("cookie")
+    if not cookie_header:
+        return None
+    for chunk in [part.strip() for part in cookie_header.split(";") if part.strip()]:
+        if "=" not in chunk:
+            continue
+        key, value = chunk.split("=", 1)
+        if key.strip() == "qs_dashboard_at":
+            return value.strip()
+    return None
+
+
+def _resolve_ws_tenant_id(websocket: WebSocket, token: str | None) -> uuid.UUID | None:
+    """Resolve tenant id from dashboard JWT claims when present."""
+
+    raw_token = _extract_ws_access_token(websocket, token)
+    if not raw_token:
+        return None
+    try:
+        payload = jwt.decode(
+            raw_token,
+            settings.secret_key,
+            algorithms=[settings.jwt_algorithm],
+        )
+    except JWTError:
+        return None
+    tenant_raw = payload.get("tenant_id")
+    if tenant_raw is None:
+        return None
+    try:
+        return uuid.UUID(str(tenant_raw))
+    except ValueError:
+        return None
+
+
 def _voice_capabilities() -> BallroomVoiceCapabilitiesResponse:
     """Compute current server-side STT/TTS availability."""
 
@@ -395,13 +439,14 @@ async def append_silent_chat_line_public(session_id: uuid.UUID, agent: str, text
     await ballroom_redis.ballroom_save_capsule(session_id, cap)
 
 
-async def _build_pulse_payload() -> dict[str, object]:
+async def _build_pulse_payload(tenant_id: uuid.UUID | None = None) -> dict[str, object]:
     """Hydrate counters and agent deltas for realtime badges."""
 
     async with async_session() as session:
         from app.application.services.hive_live_pulse import build_hive_live_pulse_payload
 
-        return await build_hive_live_pulse_payload(session)
+        tenant = await session.get(Tenant, tenant_id) if tenant_id is not None else None
+        return await build_hive_live_pulse_payload(session, tenant=tenant)
 
 
 async def _emit_placeholder_lines(session_id: uuid.UUID, lines: list[tuple[str, str]]) -> None:
@@ -1099,10 +1144,12 @@ async def hive_live_channel(websocket: WebSocket, token: str | None = Query(defa
         await websocket.close(code=1008, reason="auth")
         return
 
+    tenant_id = _resolve_ws_tenant_id(websocket, token)
+
     try:
         while True:
             payload = await asyncio.wait_for(
-                _build_pulse_payload(),
+                _build_pulse_payload(tenant_id),
                 timeout=float(settings.rapid_loop_timeout_sec),
             )
             await websocket.send_json(payload)

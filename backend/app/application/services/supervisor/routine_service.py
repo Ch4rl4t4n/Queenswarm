@@ -6,6 +6,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
+from croniter import croniter
 from sqlalchemy import asc, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -51,6 +52,9 @@ def compute_next_run_at(
         return next_week
     if cron in {"@hourly", "hourly", "0 * * * *"}:
         return (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+    if croniter.is_valid(cron):
+        base = now.replace(tzinfo=None) if now.tzinfo is not None else now
+        return croniter(cron, base).get_next(datetime).replace(tzinfo=UTC)
     return now + timedelta(hours=1)
 
 
@@ -327,6 +331,47 @@ async def trigger_supervisor_routine_now(db: AsyncSession, *, routine: Superviso
         }
         payload["autonomy_snapshot"] = autonomy_snapshot_payload
 
+    context_seed: dict[str, object] = {
+        "routine_id": str(routine.id),
+        "routine_schedule_kind": str(routine.schedule_kind),
+        "routine_watch_mode": bool(payload.get("watch_mode") or False),
+        "continuous_intelligence_report": report,
+        "autonomous_plan": dict(payload.get("autonomous_plan") or {}),
+        "autonomy_snapshot": autonomy_snapshot_payload,
+    }
+    from app.application.services.queen_maintainer.service import is_queen_maintainer_routine
+
+    if is_queen_maintainer_routine(routine):
+        from app.application.services.queen_maintainer.maintainer_guard import build_maintainer_session_seed
+
+        maintainer_seed = payload.get("maintainer_session_seed")
+        if isinstance(maintainer_seed, dict):
+            context_seed.update(maintainer_seed)
+        else:
+            context_seed.update(
+                build_maintainer_session_seed(
+                    trigger_source=str(payload.get("maintainer_trigger_source") or "cron"),
+                ),
+            )
+
+    roles_list = [str(r).strip().lower() for r in list(routine.roles or []) if str(r).strip()]
+    goal_lower = str(routine.goal_template or "").lower()
+    if (
+        "researcher" in roles_list
+        and "critic" in roles_list
+        and (
+            "hivemind" in goal_lower
+            or "insight" in goal_lower
+            or "sentinel" in goal_lower
+            or "marketing" in goal_lower
+            or "publish pack" in goal_lower
+            or "publish" in goal_lower
+        )
+    ):
+        from app.application.services.supervisor.hivemind_verify import enable_hivemind_verify_seed
+
+        context_seed.update(enable_hivemind_verify_seed(roles=roles_list))
+
     created = await create_supervisor_session(
         db,
         goal=routine.goal_template,
@@ -337,14 +382,7 @@ async def trigger_supervisor_routine_now(db: AsyncSession, *, routine: Superviso
         retrieval_contract=routine.retrieval_contract,
         skill_slugs=list(routine.skills or []),
         skill_library=skills,
-        context_seed={
-            "routine_id": str(routine.id),
-            "routine_schedule_kind": str(routine.schedule_kind),
-            "routine_watch_mode": bool(payload.get("watch_mode") or False),
-            "continuous_intelligence_report": report,
-            "autonomous_plan": dict(payload.get("autonomous_plan") or {}),
-            "autonomy_snapshot": autonomy_snapshot_payload,
-        },
+        context_seed=context_seed,
         tenant_id=routine.tenant_id,
     )
     now = datetime.now(tz=UTC)

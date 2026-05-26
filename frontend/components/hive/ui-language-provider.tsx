@@ -53,7 +53,14 @@ export function UiLanguageProvider({ children }: { children: ReactNode }): React
   };
 
   const value = useMemo<UiLanguageContextValue>(() => ({ language, setLanguage }), [language]);
-  return <UiLanguageContext.Provider value={value}>{children}</UiLanguageContext.Provider>;
+  return (
+    <UiLanguageContext.Provider value={value}>
+      {/* Remount on language change so stale DOM translations cannot persist. */}
+      <div key={language} className="contents">
+        {children}
+      </div>
+    </UiLanguageContext.Provider>
+  );
 }
 
 export function useUiLanguage(): UiLanguageContextValue {

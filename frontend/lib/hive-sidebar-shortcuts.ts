@@ -1,4 +1,5 @@
 import { LEADERBOARD_ENABLED, PHASE70_CONSOLIDATED_NAV_ENABLED } from "@/lib/feature-flags";
+import { hiveOverviewHref, hiveOverviewLabel } from "@/lib/hive-home-route";
 
 export interface HiveSidebarShortcut {
   href: string;
@@ -16,7 +17,7 @@ export function buildHiveSidebarShortcuts(consolidatedEnabled: boolean = PHASE70
   const integrationsHref = consolidatedEnabled ? "/integrations" : "/connectors";
 
   const rows: HiveSidebarShortcut[] = [
-    { href: "/", label: { en: "Dashboard", sk: "Dashboard" }, key: "d" },
+    { href: hiveOverviewHref(), label: { en: hiveOverviewLabel(), sk: hiveOverviewLabel() }, key: "d" },
     { href: "/swarms", label: { en: "Swarms", sk: "Swarms" }, key: "s" },
     { href: "/agents", label: { en: "Agents", sk: "Agenti" }, key: "a" },
     { href: "/foragers", label: { en: "Foragers", sk: "Foragers" }, key: "f" },
@@ -24,7 +25,6 @@ export function buildHiveSidebarShortcuts(consolidatedEnabled: boolean = PHASE70
     { href: knowledgeHref, label: { en: "Knowledge", sk: "Knowledge" }, key: "k" },
     { href: integrationsHref, label: { en: "Integrations", sk: "Integrácie" }, key: "i" },
     { href: "/ballroom", label: { en: "Ballroom", sk: "Ballroom" }, key: "b" },
-    { href: "/costs", label: { en: "Costs", sk: "Náklady" }, key: "c" },
     ...(LEADERBOARD_ENABLED
       ? [{ href: "/leaderboard", label: { en: "Leaderboard", sk: "Leaderboard" }, key: "l" } satisfies HiveSidebarShortcut]
       : []),

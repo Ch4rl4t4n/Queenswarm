@@ -74,11 +74,19 @@ async def list_my_outputs(
     db: DbSession,
     sess: DashboardSession,
     limit: int = Query(default=40, ge=1, le=120),
+    tag: str | None = Query(default=None, max_length=64),
+    ready_to_publish: bool = Query(default=False),
 ) -> list[FinalDeliverableSummaryOut]:
     """List recent archival rows for authenticated dashboard operators."""
 
     user_id = _dashboard_principal(sess)
-    rows = await list_owned_deliverables(db, dashboard_user_id=user_id, limit=limit)
+    rows = await list_owned_deliverables(
+        db,
+        dashboard_user_id=user_id,
+        limit=limit,
+        tag=tag,
+        ready_to_publish=ready_to_publish,
+    )
     return [_summary(row) for row in rows]
 
 

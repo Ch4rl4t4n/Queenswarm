@@ -15,7 +15,12 @@ from app.infrastructure.connectors.dynamic.hub import DynamicConnectorHub
 from app.infrastructure.connectors.dynamic.schemas import DynamicConnectorCreateBody, DynamicConnectorPublic
 from app.infrastructure.connectors.dynamic.service import DynamicConnectorService
 from app.infrastructure.connectors.phase3.catalog import get_phase3_template, iter_phase3_templates
+from app.infrastructure.connectors.phase3.marketplace_meta import marketplace_meta_for
 from app.infrastructure.plugins.manager import discover_plugins
+
+_MARKETPLACE_FEATURED_TEMPLATE_IDS = frozenset(
+    {"venice_mcp", "monid_mcp", "composio_router", "apify_store"},
+)
 
 
 def _tokenize(text: str) -> set[str]:
@@ -202,6 +207,9 @@ async def marketplace_catalog(
         slug_key = template.suggested_slug.strip().lower()
         installed = by_slug.get(slug_key)
         hint_summary = _template_hint_summary(template.tools)
+        meta = marketplace_meta_for(template.template_id)
+        cost_tier = hint_summary.get("cost_tier") or meta.get("cost_tier") or "medium"
+        latency_tier = hint_summary.get("latency_tier") or meta.get("latency_tier") or "balanced"
         phase3.append(
             {
                 "source": "phase3_template",
@@ -213,12 +221,17 @@ async def marketplace_catalog(
                 "auth_type": template.auth_type,
                 "tool_count": len(template.tools),
                 "documentation_url": template.documentation_url,
+                "service_homepage": meta.get("service_homepage") or template.documentation_url,
+                "agent_usage": str(meta.get("agent_usage") or ""),
+                "auth_header_name": meta.get("auth_header_name"),
                 "suggested_manager_slugs": list(template.suggested_manager_slugs),
                 "installed": installed is not None,
                 "installed_connector_id": installed.id if installed is not None else None,
-                "featured": template.template_id == "venice_mcp",
-                "mcp_preset": template.template_id == "venice_mcp",
-                **hint_summary,
+                "featured": template.template_id in _MARKETPLACE_FEATURED_TEMPLATE_IDS,
+                "mcp_preset": template.template_id in _MARKETPLACE_FEATURED_TEMPLATE_IDS,
+                "cost_tier": cost_tier,
+                "latency_tier": latency_tier,
+                "tool_hints": hint_summary.get("tool_hints") or [],
             },
         )
 

@@ -5,9 +5,10 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.infrastructure.persistence.models.agent import Agent
 from app.infrastructure.persistence.models.enums import SwarmPurpose
 from app.infrastructure.persistence.models.swarm import SubSwarm
 
@@ -66,7 +67,11 @@ async def list_sub_swarms(
     is_active: bool | None = None,
     limit: int = 50,
 ) -> list[SubSwarm]:
-    """List colonies for dashboards."""
+    """List colonies for dashboards.
+
+    Recomputes ``member_count`` from current ``agents.swarm_id`` rows so the
+    dashboard always reflects reality even when seeders bypassed the column.
+    """
 
     stmt = select(SubSwarm).order_by(SubSwarm.updated_at.desc())
     if purpose is not None:
@@ -75,7 +80,23 @@ async def list_sub_swarms(
         stmt = stmt.where(SubSwarm.is_active == is_active)
     stmt = stmt.limit(min(max(limit, 1), 200))
     executed = await session.execute(stmt)
-    return list(executed.scalars().all())
+    rows = list(executed.scalars().all())
+
+    if not rows:
+        return rows
+
+    ids = [row.id for row in rows]
+    counts_stmt = (
+        select(Agent.swarm_id, func.count(Agent.id))
+        .where(Agent.swarm_id.in_(ids))
+        .group_by(Agent.swarm_id)
+    )
+    counts = {sid: int(c) for sid, c in (await session.execute(counts_stmt)).all()}
+    for row in rows:
+        actual = counts.get(row.id, 0)
+        if row.member_count != actual:
+            row.member_count = actual
+    return rows
 
 
 async def apply_sub_swarm_updates(

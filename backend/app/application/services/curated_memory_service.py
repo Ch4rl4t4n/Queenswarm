@@ -89,6 +89,28 @@ class CuratedMemoryService:
             mapped[kind] = row.content_md or ""
         return mapped
 
+    def render_brain_pack_export(self, bundle: dict[CuratedFileKind, str]) -> str:
+        """Export Hermes-style brain pack as one markdown document."""
+
+        soul = bundle.get(CuratedFileKind.SOUL, "")
+        skills = bundle.get(CuratedFileKind.SKILLS_HIERARCHY, "")
+        mission = bundle.get(CuratedFileKind.MISSION, "")
+        ideal = bundle.get(CuratedFileKind.IDEAL_STATE, "")
+        instructions = bundle.get(CuratedFileKind.INSTRUCTIONS, "")
+        return (
+            "# Operator Brain Pack\n\n"
+            "## SOUL\n"
+            f"{soul}\n\n"
+            "## SKILLS HIERARCHY\n"
+            f"{skills}\n\n"
+            "## MEMORY — Mission\n"
+            f"{mission}\n\n"
+            "## MEMORY — Ideal state\n"
+            f"{ideal}\n\n"
+            "## USER — Behavioral instructions\n"
+            f"{instructions}\n"
+        )
+
     def render_prompt_prefix(self, bundle: dict[CuratedFileKind, str]) -> str:
         """Render stable context block prepended to Queen system prompts."""
 
@@ -121,6 +143,29 @@ class CuratedMemoryService:
             ),
         )
         await self._db.flush()
+
+    async def seed_starter_pack(
+        self,
+        tenant_id: uuid.UUID,
+        *,
+        user_id: uuid.UUID | None,
+        overwrite: bool = False,
+    ) -> tuple[list[str], list[str]]:
+        """Fill empty curated slots with Queenswarm solo-operator starter markdown."""
+
+        from app.application.services.brain_pack_starters import BRAIN_PACK_STARTERS
+
+        bundle = await self.get_bundle(tenant_id)
+        seeded: list[str] = []
+        skipped: list[str] = []
+        for kind, content in BRAIN_PACK_STARTERS.items():
+            existing = (bundle.get(kind) or "").strip()
+            if existing and not overwrite:
+                skipped.append(kind.value)
+                continue
+            await self.upsert(tenant_id=tenant_id, kind=kind, content_md=content, user_id=user_id)
+            seeded.append(kind.value)
+        return seeded, skipped
 
     async def _get_row(self, tenant_id: uuid.UUID, kind: CuratedFileKind) -> CuratedMemoryORM | None:
         return await self._db.scalar(

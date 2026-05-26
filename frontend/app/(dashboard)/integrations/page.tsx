@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import nextDynamic from "next/dynamic";
+import { Suspense } from "react";
 
 import {
   type ExternalProjectRow,
@@ -67,11 +68,13 @@ export default async function IntegrationsPage({
   };
 
   return (
-    <IntegrationsPageClient
-      initial={initial}
-      initialTab={initialTab as "active" | "hub" | "marketplace" | "skills" | "external" | "plugins" | undefined}
-      purchaseOutcome={purchaseOutcome}
-      checkoutSessionId={checkoutSessionId}
-    />
+    <Suspense fallback={<SettingsPanelSkeleton />}>
+      <IntegrationsPageClient
+        initial={initial}
+        initialTab={initialTab as "active" | "hub" | "marketplace" | "skills" | "external" | "plugins" | undefined}
+        purchaseOutcome={purchaseOutcome}
+        checkoutSessionId={checkoutSessionId}
+      />
+    </Suspense>
   );
 }

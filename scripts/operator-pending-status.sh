@@ -80,11 +80,48 @@ fi
 
 hetzner_draft=false
 [[ -f "$(ls -1 reports/hetzner/hetzner-reply-*.txt 2>/dev/null | tail -1 || true)" ]] && hetzner_draft=true
+hetzner_sent=false
+[[ -f reports/operator/hetzner-sent.txt ]] && hetzner_sent=true
 
 host_exposure=false
 if ./scripts/audit-host-exposure.sh >/dev/null 2>&1; then
   host_exposure=true
 fi
+
+alertmanager_smoke=false
+slack_webhook=false
+[[ -n "$(load_kv "$ENV_FILE" SLACK_WEBHOOK_URL || true)" ]] && slack_webhook=true
+if ./scripts/alertmanager-smoke.sh >/dev/null 2>&1; then
+  alertmanager_smoke=true
+fi
+
+check_bool_env() {
+  local key="$1"
+  local val
+  val="$(load_kv "$ENV_FILE" "$key" || true)"
+  val="${val,,}"
+  [[ "$val" == "true" || "$val" == "1" || "$val" == "yes" ]]
+}
+
+# Publish lane flags default true in backend Settings when unset in .env.prod
+check_bool_env_or_default_true() {
+  local key="$1"
+  local val
+  val="$(load_kv "$ENV_FILE" "$key" || true)"
+  [[ -z "${val// }" ]] && return 0
+  val="${val,,}"
+  [[ "$val" != "false" && "$val" != "0" && "$val" != "no" ]]
+}
+
+harness_github_webhook=false
+harness_github_secret=false
+harness_maintainer_tenant=false
+harness_forager_cron=false
+check_bool_env QUEEN_MAINTAINER_POST_MERGE_WEBHOOK_ENABLED && harness_github_webhook=true
+[[ -n "$(load_kv "$ENV_FILE" QUEEN_MAINTAINER_GITHUB_WEBHOOK_SECRET || true)" ]] && harness_github_secret=true
+[[ -n "$(load_kv "$ENV_FILE" QUEEN_MAINTAINER_POST_MERGE_TENANT_ID || true)" ]] && harness_maintainer_tenant=true
+check_bool_env FORAGER_INTELLIGENCE_LOOP_ENABLED && harness_forager_cron=true
+harness_webhook_ready=$([[ "$harness_github_webhook" == true && "$harness_github_secret" == true && "$harness_maintainer_tenant" == true ]] && echo true || echo false)
 
 user_jwt_script=false
 [[ -f backend/scripts/issue_operator_user_jwt.py ]] && user_jwt_script=true
@@ -117,7 +154,11 @@ fi
 manual_stripe_checkout="pending"
 manual_hetzner_send="pending"
 [[ "$stripe_ready" == true ]] && manual_stripe_checkout="keys_ready_run_finish_stripe_setup"
-[[ "$hetzner_draft" == true ]] && manual_hetzner_send="draft_ready_copy_to_mail_client"
+if [[ "$hetzner_sent" == true ]]; then
+  manual_hetzner_send="sent"
+elif [[ "$hetzner_draft" == true ]]; then
+  manual_hetzner_send="draft_ready_copy_to_mail_client"
+fi
 
 cat >"$JSON_OUT" <<EOF
 {
@@ -135,6 +176,12 @@ cat >"$JSON_OUT" <<EOF
     "dr_drill_evidence_passed": ${dr_drill},
     "host_exposure_audit": ${host_exposure}
   },
+  "monitoring": {
+    "alertmanager_smoke_passed": ${alertmanager_smoke},
+    "slack_webhook_configured": ${slack_webhook},
+    "pattern_alert_rules_file": true,
+    "grafana_dashboard": "queenswarm-agentic-patterns"
+  },
   "stripe": {
     "secret_key": ${stripe_secret},
     "webhook_secret": ${stripe_webhook},
@@ -142,12 +189,41 @@ cat >"$JSON_OUT" <<EOF
     "enterprise_price_id": ${stripe_ent_price},
     "ready_for_finish_setup": ${stripe_ready}
   },
+  "harness": {
+    "post_merge_webhook_enabled": ${harness_github_webhook},
+    "github_webhook_secret": ${harness_github_secret},
+    "post_merge_tenant_id": ${harness_maintainer_tenant},
+    "webhook_ready": ${harness_webhook_ready},
+    "forager_daily_cron_enabled": ${harness_forager_cron},
+    "github_webhook_url": "${HIVE_BASE}/api/v1/queen-maintainer/github-webhook"
+  },
+  "publish_lane": {
+    "social_publish_enabled": $(check_bool_env_or_default_true SOCIAL_PUBLISH_ENABLED && echo true || echo false),
+    "social_publish_live_enabled": $(check_bool_env SOCIAL_PUBLISH_LIVE_ENABLED && echo true || echo false),
+    "publish_queue_enabled": $(check_bool_env_or_default_true PUBLISH_QUEUE_ENABLED && echo true || echo false),
+    "morning_publish_pipeline_enabled": $(check_bool_env_or_default_true MORNING_PUBLISH_PIPELINE_ENABLED && echo true || echo false),
+    "first_live_post_doc": $([[ -f docs/OPERATOR_FIRST_LIVE_POST.md ]] && echo true || echo false),
+    "oauth_setup_doc": $([[ -f docs/OPERATOR_SOCIAL_OAUTH_SETUP.md ]] && echo true || echo false)
+  },
+  "hetzner": {
+    "reply_draft_ready": ${hetzner_draft},
+    "marked_sent": ${hetzner_sent}
+  },
   "operator_manual": {
     "browser_walkthrough_sections_1_9": "${manual_browser_qa}",
     "stripe_live_checkout": "${manual_stripe_checkout}",
     "hetzner_abuse_email": "${manual_hetzner_send}"
   },
   "next_commands": [
+    "./scripts/operator-next.sh",
+    "./scripts/operator-p0-prep-all.sh",
+    "docs/OPERATOR_LAUNCH_INDEX.md",
+    "./scripts/operator-hetzner-copy-email.sh",
+    "./scripts/operator-launch-checklist.sh",
+    "./scripts/operator-github-webhook-prep.sh",
+    "./scripts/operator-resolve-tenant-id.sh",
+    "./scripts/operator-harness-env-prep.sh",
+    "./scripts/alertmanager-smoke.sh",
     "./scripts/operator-p0-close.sh",
     "./scripts/operator-hetzner-send-prep.sh",
     "./scripts/operator-launch-gate.sh",

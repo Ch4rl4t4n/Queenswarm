@@ -1,0 +1,233 @@
+{
+  "uid": "queenswarm-agentic-patterns",
+  "title": "Queenswarm — Agentic Patterns",
+  "tags": ["queenswarm", "patterns", "supervisor"],
+  "timezone": "UTC",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {},
+  "editable": true,
+  "graphTooltip": 1,
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Pattern Sessions (24h)",
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(queenswarm_pattern_sessions_total[24h])) or vector(0)",
+          "legendFormat": "sessions",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" }
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "#FFB800", "mode": "fixed" },
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Success Sessions (24h)",
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(queenswarm_pattern_sessions_total{outcome=\"success\"}[24h])) or vector(0)",
+          "legendFormat": "success",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" }
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "#00FF88", "mode": "fixed" },
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Failed Sessions (24h)",
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(queenswarm_pattern_sessions_total{outcome=\"failure\"}[24h])) or vector(0)",
+          "legendFormat": "failed",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" }
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "#FF3366", "mode": "fixed" },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#00FF88", "value": null },
+              { "color": "#FF3366", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "bargauge",
+      "title": "Pattern Success Rate (24h rolling gauge)",
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "queenswarm_pattern_success_rate",
+          "legendFormat": "{{pattern_id}}",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+          "editorMode": "code",
+          "range": true
+        }
+      ],
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showUnfilled": true,
+        "minVizWidth": 0,
+        "minVizHeight": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#FF3366", "value": null },
+              { "color": "#FFB800", "value": 50 },
+              { "color": "#00FF88", "value": 80 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Pattern Session Rate (per hour, 5m rate)",
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (pattern_id) (rate(queenswarm_pattern_sessions_total{outcome=\"success\"}[5m])) * 3600",
+          "legendFormat": "success {{pattern_id}}",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+          "editorMode": "code",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (pattern_id) (rate(queenswarm_pattern_sessions_total{outcome=\"failure\"}[5m])) * 3600",
+          "legendFormat": "failed {{pattern_id}}",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+          "editorMode": "code",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "stacking": { "mode": "none" }
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Success vs Failed by Pattern (stacked)",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (pattern_id, outcome) (increase(queenswarm_pattern_sessions_total[1h]))",
+          "legendFormat": "{{pattern_id}} — {{outcome}}",
+          "datasource": { "type": "prometheus", "uid": "queenswarm_prom" },
+          "editorMode": "code",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineWidth": 0,
+            "showPoints": "never",
+            "stacking": { "mode": "normal" }
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": ".*failed.*" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#FF3366", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byRegexp", "options": ".*success.*" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#00FF88", "mode": "fixed" } }]
+          }
+        ]
+      }
+    }
+  ]
+}

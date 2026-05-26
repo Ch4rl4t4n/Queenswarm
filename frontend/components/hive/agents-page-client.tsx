@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { useCallback, useState } from "react";
 import useSWR from "swr";
 
 import { AgentsContextGraphStrip } from "@/components/hive/agents-context-graph-strip";
@@ -12,17 +11,17 @@ import { AgentsPageRoster } from "@/components/hive/agents-page-roster";
 import { AgentsRuntimeStatusStrip } from "@/components/hive/agents-runtime-status-strip";
 import { AgentsSessionsPanel } from "@/components/hive/agents-sessions-panel";
 import { BeeRoleTypesSection } from "@/components/hive/bee-role-types-section";
-import { HierarchyPageConsole } from "@/components/hive/hierarchy-page-console";
+import { HierarchyGraphCollapsible } from "@/components/hive/hierarchy-graph-collapsible";
 import { HivePageHeader } from "@/components/hive/hive-page-header";
 import { HubEcosystemStrip } from "@/components/hive/hub-ecosystem-strip";
-import { V4Card, V4CardHeader, V4PageCanvas } from "@/components/ui/v4";
+import { V4PageCanvas } from "@/components/ui/v4";
 import { COCKPIT_PERF } from "@/lib/cockpit-performance-budget";
 import { hiveGet } from "@/lib/api";
 import { formatAgentsFetchError } from "@/lib/agents-page-status";
 import { COCKPIT_POLL_BOARD_MS } from "@/lib/cockpit-poll-profile";
-import { useSwrVisiblePollOptions } from "@/lib/hooks/use-swr-refresh-interval";
+import { useRouteScopedPollOptions } from "@/lib/hooks/use-route-scoped-poll";
 import { useRouteHashScroll } from "@/lib/hooks/use-route-hash-scroll";
-import type { AgentRow, SupervisorSessionRow } from "@/lib/hive-types";
+import type { AgentRow } from "@/lib/hive-types";
 
 interface AgentsPageClientProps {
   initialAgents: AgentRow[];
@@ -32,12 +31,8 @@ interface AgentsPageClientProps {
 
 export function AgentsPageClient({ initialAgents, rosterSyncPending = false }: AgentsPageClientProps) {
   useRouteHashScroll();
-  const [focusSession, setFocusSession] = useState<SupervisorSessionRow | null>(null);
-  const handleFocusSessionChange = useCallback((session: SupervisorSessionRow | null) => {
-    setFocusSession(session);
-  }, []);
 
-  const pollOptions = useSwrVisiblePollOptions(COCKPIT_POLL_BOARD_MS);
+  const pollOptions = useRouteScopedPollOptions(COCKPIT_POLL_BOARD_MS, "/agents");
   const {
     data: agents = initialAgents,
     error: agentsError,
@@ -103,29 +98,15 @@ export function AgentsPageClient({ initialAgents, rosterSyncPending = false }: A
 
       <AgentsRuntimeStatusStrip />
 
-      <AgentsContextGraphStrip
-        focusGoal={focusSession?.goal ?? null}
-        focusSessionLabel={focusSession ? focusSession.id.slice(-4).toUpperCase() : null}
-      />
+      <AgentsContextGraphStrip />
 
       <AgentsLearningLoopPanel />
 
-      <AgentsSessionsPanel variant="v4" onFocusSessionChange={handleFocusSessionChange} />
+      <AgentsSessionsPanel variant="v4" />
 
       <AgentsPageRoster agents={rosterAgents} variant="v4" />
 
-      <V4Card id="hierarchy">
-        <V4CardHeader
-          title="Hierarchy graph"
-          description="Queen → managers → workers topology with grouped swarm lanes."
-          actions={
-            <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => window.location.reload()}>
-              Re-layout
-            </button>
-          }
-        />
-        <HierarchyPageConsole showHeader={false} />
-      </V4Card>
+      <HierarchyGraphCollapsible beeCount={rosterAgents.length} />
     </V4PageCanvas>
   );
 }

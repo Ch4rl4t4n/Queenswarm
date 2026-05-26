@@ -83,6 +83,22 @@ log ""
 log "Prune build cache older than ${RETAIN_BUILD_CACHE_HOURS}h:"
 run docker builder prune -af --filter "until=${RETAIN_BUILD_CACHE_HOURS}h"
 
+log ""
+log "Trim oversized ops logs (>50MB → truncate tail):"
+while IFS= read -r logfile; do
+  [[ -f "$logfile" ]] || continue
+  size="$(stat -c%s "$logfile" 2>/dev/null || echo 0)"
+  if [[ "$size" -gt 52428800 ]]; then
+    run tail -n 5000 "$logfile" > "${logfile}.tmp" && run mv "${logfile}.tmp" "$logfile"
+  fi
+done < <(ls /var/log/queenswarm-*.log 2>/dev/null || true)
+
+if command -v journalctl >/dev/null 2>&1; then
+  log ""
+  log "Vacuum systemd journal (keep 7 days):"
+  run journalctl --vacuum-time=7d
+fi
+
 if [[ -d "$ROOT/backend/venv" && -d "$ROOT/backend/.venv" ]]; then
   log ""
   log "Duplicate Python venv: backend/.venv ($(du -sh "$ROOT/backend/.venv" | cut -f1)) — keeping backend/venv for gates"

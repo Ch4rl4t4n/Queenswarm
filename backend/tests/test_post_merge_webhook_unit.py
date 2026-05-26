@@ -101,9 +101,12 @@ async def test_handle_github_post_merge_webhook_triggers_session() -> None:
                             routine.context_payload = {}
                             ensure_mock.return_value = routine
                             with patch(
-                                "app.application.services.queen_maintainer.post_merge_webhook.trigger_maintainer_run",
+                                "app.application.services.queen_maintainer.post_merge_webhook.queue_maintainer_run",
                                 new_callable=AsyncMock,
-                                return_value="session-1",
+                                return_value={
+                                    "ok": True,
+                                    "session_id": "11111111-1111-1111-1111-111111111111",
+                                },
                             ):
                                 from app.application.services.queen_maintainer.post_merge_webhook import (
                                     handle_github_post_merge_webhook,
@@ -116,7 +119,7 @@ async def test_handle_github_post_merge_webhook_triggers_session() -> None:
                                 )
 
     assert result["triggered"] is True
-    assert result["session_id"] == "session-1"
+    assert result["session_id"] == "11111111-1111-1111-1111-111111111111"
 
 
 def test_repository_matches_config_when_owner_repo_set() -> None:

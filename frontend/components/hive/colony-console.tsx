@@ -113,7 +113,6 @@ function ColonyConsoleInner({ initialAgents = [], rosterSyncPending = false }: C
   const [draftById, setDraftById] = useState<Record<string, ConfigDraft>>({});
   const [modalAgentId, setModalAgentId] = useState<string | null>(null);
   const [subSwarms, setSubSwarms] = useState<SwarmRowLite[]>([]);
-  const [filterQuery, setFilterQuery] = useState("");
 
   const [newName, setNewName] = useState("");
   const [newTier, setNewTier] = useState<"manager" | "worker">("worker");
@@ -135,18 +134,6 @@ function ColonyConsoleInner({ initialAgents = [], rosterSyncPending = false }: C
   } = useCockpitTelemetry();
 
   const agents = telemetryAgents.length > 0 ? telemetryAgents : (initialAgents ?? []);
-  const filteredHoneycombAgents = useMemo(() => {
-    const q = filterQuery.trim().toLowerCase();
-    if (!q) {
-      return agents;
-    }
-    return agents.filter((a) => {
-      const name = a.name.toLowerCase();
-      const tier = tierLabel(a.hive_tier ?? "").toLowerCase();
-      const role = String(a.role ?? "").toLowerCase();
-      return name.includes(q) || tier.includes(q) || role.includes(q);
-    });
-  }, [agents, filterQuery]);
 
   const grouped = useMemo(() => {
     const orchestrator: AgentRow[] = [];
@@ -382,11 +369,9 @@ function ColonyConsoleInner({ initialAgents = [], rosterSyncPending = false }: C
         </p>
       ) : null}
       <QueenDashboardChrome
-        agents={filteredHoneycombAgents}
+        agents={agents}
         summary={summary}
         costWindowUsd={costWindowUsd}
-        filterQuery={filterQuery}
-        onFilterChange={setFilterQuery}
         onHoneycombAgent={(a) => {
           if (isQueenAgent(a)) {
             return;

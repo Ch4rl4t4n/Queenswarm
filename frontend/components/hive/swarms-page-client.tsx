@@ -2,9 +2,7 @@
 
 import {
   ArrowRight,
-  Eye,
-  Pause,
-  Play,
+  Pencil,
   Plus,
   Radio,
   RefreshCw,
@@ -15,9 +13,10 @@ import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { HivePageHeader } from "@/components/hive/hive-page-header";
-import { ResponsiveTable } from "@/components/ui/responsive-table";
+import { SwarmsColoniesGrid } from "@/components/hive/swarms-colonies-grid";
 import { SwarmsNewColonyDialog } from "@/components/hive/swarms-new-colony-dialog";
 import { SubSwarmLocalMindPanel } from "@/components/hive/sub-swarm-local-mind-panel";
+import { SwarmHealthNotesPanel } from "@/components/hive/swarm-health-notes-panel";
 import {
   V4Badge,
   V4Card,
@@ -212,6 +211,44 @@ export function SwarmsPageClient() {
         }
       />
 
+      <V4Card tight className="border-(--qs-cyan)/30 bg-(--qs-cyan)/[0.04]">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-(--qs-text)">
+              👑 Queen policy — orchestrator + curated memory
+            </p>
+            <p className="mt-1 text-xs text-(--qs-text-3)">
+              Hive-wide mission, behavioral instructions, and priorities. Per-swarm
+              manager prompts editable from each colony row below.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={
+                data?.orchestrator_agent_id
+                  ? `/agents/${encodeURIComponent(data.orchestrator_agent_id)}/edit`
+                  : "#"
+              }
+              aria-disabled={!data?.orchestrator_agent_id}
+              className={cn(
+                "qs-btn qs-btn--cyan qs-btn--sm gap-1.5",
+                !data?.orchestrator_agent_id && "pointer-events-none opacity-40",
+              )}
+            >
+              <Pencil className="h-3.5 w-3.5" aria-hidden />
+              Edit Orchestrator prompt
+            </Link>
+            <Link
+              href="/settings/harness#curated-memory"
+              className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
+            >
+              <Pencil className="h-3.5 w-3.5" aria-hidden />
+              Curated memory (Mission / Instructions)
+            </Link>
+          </div>
+        </div>
+      </V4Card>
+
       <div className="v4-stat-grid">
         {!data ? (
           Array.from({ length: 4 }).map((_, i) => (
@@ -258,146 +295,34 @@ export function SwarmsPageClient() {
         <V4CardHeader
           title="Colonies"
           description="Each colony is a decentralized SubSwarm running LangGraph locally; Maynard-Cross pollen rewards apply."
-        />
-        <ResponsiveTable
-          table={
-            <table className="v4-data-table min-w-[880px]">
-              <thead>
-                <tr>
-                  <th>Colony</th>
-                  <th>Swarm</th>
-                  <th>Queen</th>
-                  <th>Bees</th>
-                  <th>Pollen</th>
-                  <th>Last sync</th>
-                  <th>Status</th>
-                  <th aria-label="Actions" />
-                </tr>
-              </thead>
-              <tbody>
-                {!data?.colonies.length ? (
-                  <tr>
-                    <td colSpan={8} className="py-12 text-center text-sm text-(--qs-text-3)">
-                      No colonies yet — create one with <strong className="text-pollen">New colony</strong>.
-                    </td>
-                  </tr>
-                ) : (
-                  data.colonies.map((colony) => (
-                    <tr key={colony.id} className={openColonyId === colony.id ? "bg-white/[0.03]" : undefined}>
-                      <td>
-                        <div className="v4-colony-name">{colony.display_name}</div>
-                        <div className="v4-colony-slug">{colony.slug}</div>
-                      </td>
-                      <td>
-                        <V4Badge tone="purple">{colony.lane_label}</V4Badge>
-                      </td>
-                      <td>
-                        <span className="v4-queen-label">👑 {colony.queen_label}</span>
-                      </td>
-                      <td>{colony.member_count}</td>
-                      <td>
-                        <span className="v4-pollen-pill">
-                          <V4IconPollen size={11} />
-                          {formatPollen(colony.total_pollen)}
-                        </span>
-                      </td>
-                      <td className="text-(--qs-text-3)">{formatAgo(colony.last_sync_seconds_ago)}</td>
-                      <td>
-                        <V4Badge tone={colony.status === "active" ? "ok" : "warn"}>{colony.status}</V4Badge>
-                      </td>
-                      <td>
-                        <div className="flex flex-wrap justify-end gap-2">
-                          <button
-                            type="button"
-                            className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
-                            disabled={busy === `pause-${colony.id}`}
-                            onClick={() => void toggleColonyPause(colony)}
-                          >
-                            {colony.status === "paused" ? (
-                              <Play className="h-3.5 w-3.5" aria-hidden />
-                            ) : (
-                              <Pause className="h-3.5 w-3.5" aria-hidden />
-                            )}
-                            {colony.status === "paused" ? "Resume" : "Pause"}
-                          </button>
-                          <button
-                            type="button"
-                            className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
-                            onClick={() => {
-                              setOpenColonyId((cur) => (cur === colony.id ? null : colony.id));
-                              if (colony.status === "paused") {
-                                void wakeColony(colony);
-                              }
-                            }}
-                          >
-                            <Eye className="h-3.5 w-3.5" aria-hidden />
-                            Open
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          }
-          cards={
-            !data?.colonies.length ? (
-              <p className="py-8 text-center text-sm text-(--qs-text-3)">
-                No colonies yet — create one with <strong className="text-pollen">New colony</strong>.
-              </p>
-            ) : (
-              data.colonies.map((colony) => (
-                <article key={colony.id} className="v4-mobile-card-row">
-                  <div className="v4-mobile-card-row__head">
-                    <div className="min-w-0">
-                      <div className="v4-colony-name">{colony.display_name}</div>
-                      <div className="v4-colony-slug">{colony.slug}</div>
-                    </div>
-                    <V4Badge tone={colony.status === "active" ? "ok" : "warn"}>{colony.status}</V4Badge>
-                  </div>
-                  <div className="v4-mobile-card-row__meta">
-                    <V4Badge tone="purple">{colony.lane_label}</V4Badge>
-                    <span>👑 {colony.queen_label}</span>
-                    <span>{colony.member_count} bees</span>
-                    <span className="v4-pollen-pill">
-                      <V4IconPollen size={11} />
-                      {formatPollen(colony.total_pollen)}
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      className="qs-btn qs-btn--ghost qs-btn--sm flex-1 gap-1.5"
-                      disabled={busy === `pause-${colony.id}`}
-                      onClick={() => void toggleColonyPause(colony)}
-                    >
-                      {colony.status === "paused" ? (
-                        <Play className="h-3.5 w-3.5" aria-hidden />
-                      ) : (
-                        <Pause className="h-3.5 w-3.5" aria-hidden />
-                      )}
-                      {colony.status === "paused" ? "Resume" : "Pause"}
-                    </button>
-                    <button
-                      type="button"
-                      className="qs-btn qs-btn--ghost qs-btn--sm flex-1 gap-1.5"
-                      onClick={() => {
-                        setOpenColonyId((cur) => (cur === colony.id ? null : colony.id));
-                        if (colony.status === "paused") {
-                          void wakeColony(colony);
-                        }
-                      }}
-                    >
-                      <Eye className="h-3.5 w-3.5" aria-hidden />
-                      Open
-                    </button>
-                  </div>
-                </article>
-              ))
-            )
+          actions={
+            data?.colonies.length ? (
+              <span className="v4-field-label tabular-nums">All colonies ({data.colonies.length})</span>
+            ) : null
           }
         />
+
+        {!data ? (
+          <div className="grid gap-3 md:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="v4-dream-cycle-card h-[220px] animate-pulse bg-white/5" />
+            ))}
+          </div>
+        ) : (
+          <SwarmsColoniesGrid
+            colonies={data.colonies}
+            syncMin={syncMin}
+            busy={busy}
+            openColonyId={openColonyId}
+            onTogglePause={(colony) => void toggleColonyPause(colony)}
+            onOpenColony={(colony) => {
+              setOpenColonyId((cur) => (cur === colony.id ? null : colony.id));
+              if (colony.status === "paused") {
+                void wakeColony(colony);
+              }
+            }}
+          />
+        )}
 
         {openColonyId ? (
           <div className="mt-4 rounded-[var(--qs-radius-sm)] border border-(--qs-border) bg-white/[0.02] p-4">
@@ -422,6 +347,7 @@ export function SwarmsPageClient() {
                       </Link>
                     </div>
                   </div>
+                  <SwarmHealthNotesPanel swarmId={colony.id} onChanged={() => void reload()} />
                   <SubSwarmLocalMindPanel swarmId={colony.id} onSynced={() => void reload()} />
                 </div>
               );

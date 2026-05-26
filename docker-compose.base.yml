@@ -9,8 +9,8 @@ x-backend-env-files: &backend-env-files
 
 x-backend-build: &backend-build
   build:
-    context: ./backend
-    dockerfile: Dockerfile
+    context: .
+    dockerfile: backend/Dockerfile
 
 services:
   postgres:
@@ -126,6 +126,8 @@ services:
       POSTGRES_REPLICA_URLS: ${POSTGRES_REPLICA_URLS:-}
       GRACEFUL_SHUTDOWN_TIMEOUT_SEC: ${GRACEFUL_SHUTDOWN_TIMEOUT_SEC:-15}
       GRACEFUL_SHUTDOWN_DRAIN_SEC: ${GRACEFUL_SHUTDOWN_DRAIN_SEC:-4}
+      DUMP_SLEEP_UPLOAD_ROOT: /var/queenswarm/dump-sleep
+      AUTO_GRAPHIFY_UPLOAD_ROOT: /var/queenswarm/auto-graphify
     depends_on:
       postgres:
         condition: service_healthy
@@ -139,6 +141,8 @@ services:
       - ./backend/plugins/user:/app/plugins/user
       - ./backend/var/outputs:/app/var/outputs
       - ./backend/var/hive_mind/vault:/app/hive-mind/vault
+      - dump_sleep_data:/var/queenswarm/dump-sleep
+      - auto_graphify_data:/var/queenswarm/auto-graphify
     mem_limit: 6144m
     cpus: "2.75"
     healthcheck:
@@ -183,6 +187,8 @@ services:
       POSTGRES_REPLICA_URLS: ${POSTGRES_REPLICA_URLS:-}
       GRACEFUL_SHUTDOWN_TIMEOUT_SEC: ${GRACEFUL_SHUTDOWN_TIMEOUT_SEC:-15}
       GRACEFUL_SHUTDOWN_DRAIN_SEC: ${GRACEFUL_SHUTDOWN_DRAIN_SEC:-4}
+      DUMP_SLEEP_UPLOAD_ROOT: /var/queenswarm/dump-sleep
+      AUTO_GRAPHIFY_UPLOAD_ROOT: /var/queenswarm/auto-graphify
     depends_on:
       postgres:
         condition: service_healthy
@@ -193,6 +199,8 @@ services:
     restart: unless-stopped
     volumes:
       - ./backend/plugins/user:/app/plugins/user
+      - dump_sleep_data:/var/queenswarm/dump-sleep
+      - auto_graphify_data:/var/queenswarm/auto-graphify
     mem_limit: 2048m
     cpus: "1.25"
     logging:
@@ -230,6 +238,8 @@ services:
       POSTGRES_REPLICA_URLS: ${POSTGRES_REPLICA_URLS:-}
       GRACEFUL_SHUTDOWN_TIMEOUT_SEC: ${GRACEFUL_SHUTDOWN_TIMEOUT_SEC:-15}
       GRACEFUL_SHUTDOWN_DRAIN_SEC: ${GRACEFUL_SHUTDOWN_DRAIN_SEC:-4}
+      DUMP_SLEEP_UPLOAD_ROOT: /var/queenswarm/dump-sleep
+      AUTO_GRAPHIFY_UPLOAD_ROOT: /var/queenswarm/auto-graphify
     depends_on:
       redis:
         condition: service_healthy
@@ -259,6 +269,8 @@ services:
     ports:
       - "${PROMETHEUS_PUBLISH_PORT:-9090}:9090"
     depends_on:
+      alertmanager:
+        condition: service_healthy
       backend:
         condition: service_started
     restart: unless-stopped
@@ -275,6 +287,30 @@ services:
         max-file: "3"
     mem_limit: 768m
     cpus: "0.75"
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.generated.yml"
+      - "--storage.path=/alertmanager"
+      - "--web.external-url=http://alertmanager:9093/"
+    volumes:
+      - ./deploy/alertmanager/alertmanager.generated.yml:/etc/alertmanager/alertmanager.generated.yml:ro
+      - alertmanager_data:/alertmanager
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9093/-/ready >/dev/null 2>&1 || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 256m
+    cpus: "0.35"
 
   grafana:
     image: grafana/grafana:11.3.2
@@ -325,11 +361,15 @@ services:
         NEXT_PUBLIC_HIVE_WS_GUEST: ${NEXT_PUBLIC_HIVE_WS_GUEST:-true}
         NEXT_PUBLIC_BALLROOM_GUEST_WS: ${NEXT_PUBLIC_BALLROOM_GUEST_WS:-true}
         NEXT_PUBLIC_QS_POLL_PROFILE: ${NEXT_PUBLIC_QS_POLL_PROFILE:-default}
+        NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED: ${NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED:-true}
+        NEXT_PUBLIC_PHASE70_CONSOLIDATED_NAV_ENABLED: ${NEXT_PUBLIC_PHASE70_CONSOLIDATED_NAV_ENABLED:-true}
     environment:
       NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-https://queenswarm.love/api/v1}
       NEXT_PUBLIC_HIVE_WS_GUEST: ${NEXT_PUBLIC_HIVE_WS_GUEST:-true}
       NEXT_PUBLIC_BALLROOM_GUEST_WS: ${NEXT_PUBLIC_BALLROOM_GUEST_WS:-true}
       NEXT_PUBLIC_QS_POLL_PROFILE: ${NEXT_PUBLIC_QS_POLL_PROFILE:-default}
+      NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED: ${NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED:-true}
+      NEXT_PUBLIC_PHASE70_CONSOLIDATED_NAV_ENABLED: ${NEXT_PUBLIC_PHASE70_CONSOLIDATED_NAV_ENABLED:-true}
       INTERNAL_BACKEND_ORIGIN: http://backend:8000
       HIVE_PROXY_JWT: ${DASHBOARD_JWT:-unset}
       REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-90}
@@ -361,6 +401,7 @@ services:
       - ${QS_NGINX_SITE_CONF:-./deploy/nginx/conf.d/queenswarm.love.conf}:/etc/nginx/conf.d/default.conf:ro
       # Webroot for ACME HTTP-01 challenge files (written by scripts/issue-letsencrypt.sh).
       - ./deploy/nginx/.acme:/var/www/certbot:ro
+      - ./deploy/nginx/includes:/etc/nginx/includes:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       frontend:
@@ -391,5 +432,8 @@ volumes:
   postgres_data:
   redis_data:
   neo4j_data:
+  dump_sleep_data:
+  auto_graphify_data:
   prometheus_data:
   grafana_data:
+  alertmanager_data:

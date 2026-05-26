@@ -22,7 +22,12 @@ function backendOrigin(): string {
 
 function buildTarget(request: NextRequest): string {
   const url = request.nextUrl;
-  return `${backendOrigin()}${url.pathname.replace("/api/proxy", "/api/v1")}${url.search}`;
+  let apiPath = url.pathname.replace("/api/proxy", "/api/v1");
+  /** FastAPI collection routes are registered with a trailing slash; avoid 307 redirect loops on POST. */
+  if (/^\/api\/v1\/llm-keys$/i.test(apiPath)) {
+    apiPath = `${apiPath}/`;
+  }
+  return `${backendOrigin()}${apiPath}${url.search}`;
 }
 
 type AuthSource = "header" | "cookie" | "proxy_jwt" | "none";
@@ -34,6 +39,8 @@ interface ResolvedAuthHeader {
   refreshedBundle?: { access_token: string; refresh_token: string; expires_in: number };
   /** Refresh cookie present but rotation failed — avoid anonymous backend burst. */
   sessionDead?: boolean;
+  /** Server-side refresh hit upstream rate limit — surface 429 without killing session. */
+  rateLimited?: boolean;
 }
 
 async function resolveAuthHeader(request: NextRequest): Promise<ResolvedAuthHeader> {
@@ -46,6 +53,9 @@ async function resolveAuthHeader(request: NextRequest): Promise<ResolvedAuthHead
 
     if (dashboardAccessNeedsRefresh(at) && rt.length >= 16) {
       const bundle = await refreshDashboardAccessFromRefreshToken(rt);
+      if (bundle === "rate_limited") {
+        return { value: null, source: "none", rateLimited: true };
+      }
       if (bundle) {
         at = bundle.access_token.trim();
         refreshedBundle = bundle;
@@ -83,6 +93,12 @@ async function proxyRequest(request: NextRequest, method: string): Promise<NextR
   const headers = new Headers();
 
   const resolvedAuth = await resolveAuthHeader(request);
+  if (resolvedAuth.rateLimited) {
+    return NextResponse.json(
+      { detail: "Rate limit reached — wait a few seconds and try again." },
+      { status: 429 },
+    );
+  }
   if (resolvedAuth.sessionDead) {
     return NextResponse.json({ detail: "Session expired — sign in again." }, { status: 401 });
   }
@@ -97,6 +113,10 @@ async function proxyRequest(request: NextRequest, method: string): Promise<NextR
   const xrip = request.headers.get("x-real-ip");
   if (xrip?.trim()) {
     headers.set("X-Real-IP", xrip.trim());
+  }
+  const cookieHeader = request.headers.get("cookie");
+  if (cookieHeader?.trim()) {
+    headers.set("Cookie", cookieHeader.trim());
   }
   const xfProto = request.headers.get("x-forwarded-proto");
   if (xfProto?.trim()) {

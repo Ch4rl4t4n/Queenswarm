@@ -14,6 +14,7 @@ import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { InfoHint } from "@/components/hive/info-hint";
+import { ListPaginator, ViewportBoundedPanel } from "@/components/ui/list-paginator";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import {
   LIVE_PLATFORM_CAPABILITIES,
@@ -35,6 +36,8 @@ import {
   downloadTextFile,
   printCapabilitiesPdf,
 } from "@/lib/platform-capabilities-export";
+import { useGridTwoRowPageSize } from "@/lib/use-grid-two-row-page-size";
+import { usePaginatedSlice } from "@/lib/use-paginated-slice";
 import { cn } from "@/lib/utils";
 
 const LAYER_TONE: Record<ArchitectureLayer["tone"], string> = {
@@ -93,61 +96,59 @@ function CapabilityCard({ cap }: { cap: PlatformCapability }): JSX.Element {
   }
 
   return (
-    <article className="rounded-xl border border-(--qs-border) bg-black/25 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h4 className="text-sm font-semibold text-(--qs-text)">{cap.name}</h4>
-            <V4Badge tone={STATUS_TONE[cap.status]}>{cap.status}</V4Badge>
-            <InfoHint
-              title={cap.name}
-              description={cap.howItWorks}
-              options={[cap.value, cap.competitiveEdge]}
-            />
-          </div>
-          <p className="mt-2 text-xs leading-relaxed text-(--qs-text-3)">{cap.summary}</p>
+    <article className="v4-dream-cycle-card flex h-full flex-col gap-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 space-y-1">
+          <p className="text-sm font-semibold text-(--qs-text)">{cap.name}</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-(--qs-text-3)">{cap.section}</p>
         </div>
-        <div className="flex shrink-0 flex-wrap gap-1.5">
-          <button
-            type="button"
-            className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
-            disabled={busy !== null}
-            onClick={() => void exportOne("txt")}
-          >
-            {busy === "txt" ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
-            TXT
-          </button>
-          <button
-            type="button"
-            className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
-            disabled={busy !== null}
-            onClick={() => void exportOne("md")}
-          >
-            {busy === "md" ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
-            MD
-          </button>
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <V4Badge tone={STATUS_TONE[cap.status]}>{cap.status}</V4Badge>
+          <InfoHint
+            title={cap.name}
+            description={cap.howItWorks}
+            options={[cap.value, cap.competitiveEdge]}
+          />
         </div>
       </div>
-      <dl className="mt-3 space-y-2 text-xs">
-        <div>
-          <dt className="font-medium text-(--qs-text-2)">Ako funguje</dt>
-          <dd className="mt-0.5 text-(--qs-text-3)">{cap.howItWorks}</dd>
-        </div>
-        <div>
-          <dt className="font-medium text-(--qs-text-2)">Prínos</dt>
-          <dd className="mt-0.5 text-(--qs-text-3)">{cap.value}</dd>
-        </div>
-        <div>
-          <dt className="font-medium text-pollen">Edge oproti konkurencii</dt>
-          <dd className="mt-0.5 text-(--qs-text-3)">{cap.competitiveEdge}</dd>
-        </div>
-        {cap.routes?.length ? (
-          <div>
-            <dt className="font-medium text-(--qs-text-2)">Routes</dt>
-            <dd className="mt-0.5 font-mono text-[11px] text-cyan">{cap.routes.join(" · ")}</dd>
-          </div>
-        ) : null}
-      </dl>
+
+      <p className="text-xs leading-relaxed text-(--qs-text-3)">{cap.summary}</p>
+
+      <div className="rounded-xl bg-cyan-500/5 px-3 py-2">
+        <p className="v4-field-label text-[10px] text-cyan-300/90">Ako funguje</p>
+        <p className="mt-1 text-xs leading-relaxed text-(--qs-text-2)">{cap.howItWorks}</p>
+      </div>
+
+      <p className="font-mono text-[11px] text-(--qs-text-3)">
+        {cap.routes?.length ? cap.routes.join(" · ") : cap.id}
+      </p>
+
+      <div className="flex flex-wrap gap-2">
+        {cap.stack?.backend?.length ? <V4Badge tone="info">backend</V4Badge> : null}
+        {cap.stack?.frontend?.length ? <V4Badge tone="purple">frontend</V4Badge> : null}
+        {cap.status === "beta" ? <V4Badge tone="warn">beta</V4Badge> : null}
+      </div>
+
+      <div className="mt-auto flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
+          disabled={busy !== null}
+          onClick={() => void exportOne("txt")}
+        >
+          {busy === "txt" ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
+          Export TXT
+        </button>
+        <button
+          type="button"
+          className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
+          disabled={busy !== null}
+          onClick={() => void exportOne("md")}
+        >
+          {busy === "md" ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
+          Export MD
+        </button>
+      </div>
     </article>
   );
 }
@@ -171,52 +172,66 @@ function PlannedCard({ item }: { item: PlannedCapability }): JSX.Element {
   }
 
   return (
-    <article className="rounded-xl border border-(--qs-border) bg-black/20 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h4 className="text-sm font-semibold text-(--qs-text)">{item.name}</h4>
-            <span
-              className={cn(
-                "rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                PRIORITY_TONE[item.priority],
-              )}
-            >
-              {item.priority}
-            </span>
-            <span className="text-[10px] text-(--qs-text-3)">{IMPACT_LABEL[item.impact]}</span>
-            {item.week ? (
-              <span className="text-[10px] text-cyan">Týždeň {item.week}</span>
-            ) : null}
-            {item.owner ? (
-              <span className="text-[10px] uppercase text-(--qs-text-3)">{item.owner}</span>
-            ) : null}
-            {item.hints ? (
-              <InfoHint title={item.name} description={item.hints} options={[item.rationale, item.competitiveEdge]} />
-            ) : null}
-          </div>
-          <p className="mt-2 text-xs text-(--qs-text-3)">{item.summary}</p>
+    <article className="v4-dream-cycle-card flex h-full flex-col gap-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 space-y-1">
+          <p className="text-sm font-semibold text-(--qs-text)">{item.name}</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-(--qs-text-3)">
+            {item.targetPhase ?? "roadmap"}
+          </p>
         </div>
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <span
+            className={cn(
+              "rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+              PRIORITY_TONE[item.priority],
+            )}
+          >
+            {item.priority}
+          </span>
+          {item.hints ? (
+            <InfoHint title={item.name} description={item.hints} options={[item.rationale, item.competitiveEdge]} />
+          ) : null}
+        </div>
+      </div>
+
+      <p className="text-xs leading-relaxed text-(--qs-text-3)">{item.summary}</p>
+
+      <div className="rounded-xl bg-pollen-500/5 px-3 py-2">
+        <p className="v4-field-label text-[10px] text-pollen/90">Prečo</p>
+        <p className="mt-1 text-xs leading-relaxed text-(--qs-text-2)">{item.rationale}</p>
+      </div>
+
+      <p className="text-xs text-pollen/90">{item.competitiveEdge}</p>
+
+      <p className="font-mono text-[11px] text-(--qs-text-3)">
+        {IMPACT_LABEL[item.impact]}
+        {item.week ? ` · týždeň ${item.week}` : ""}
+        {item.owner ? ` · ${item.owner}` : ""}
+      </p>
+
+      <div className="flex flex-wrap gap-2">
+        <V4Badge tone={item.impact === "high" ? "warn" : item.impact === "medium" ? "info" : "purple"}>
+          {item.impact} impact
+        </V4Badge>
+        {item.auditGate ? <V4Badge tone="info">audit gate</V4Badge> : null}
+      </div>
+
+      {item.auditGate ? (
+        <p className="font-mono text-[10px] text-cyan/80">Audit: {item.auditGate}</p>
+      ) : null}
+
+      <div className="mt-auto flex flex-wrap gap-1.5">
         <button
           type="button"
-          className="qs-btn qs-btn--ghost qs-btn--sm shrink-0"
+          className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
           disabled={busy}
           onClick={() => void exportPlanned()}
         >
-          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : "MD"}
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
+          Export MD
         </button>
       </div>
-      <p className="mt-3 text-xs text-(--qs-text-3)">
-        <span className="font-medium text-(--qs-text-2)">Prečo: </span>
-        {item.rationale}
-      </p>
-      <p className="mt-2 text-xs text-pollen/90">{item.competitiveEdge}</p>
-      {item.auditGate ? (
-        <p className="mt-2 font-mono text-[10px] text-cyan/80">Audit: {item.auditGate}</p>
-      ) : null}
-      {item.targetPhase ? (
-        <p className="mt-2 text-[10px] uppercase tracking-wide text-(--qs-text-3)">Fáza: {item.targetPhase}</p>
-      ) : null}
     </article>
   );
 }
@@ -224,8 +239,49 @@ function PlannedCard({ item }: { item: PlannedCapability }): JSX.Element {
 /** Settings — platform capabilities atlas with architecture map and exports. */
 export function SettingsCapabilitiesPanel(): JSX.Element {
   const [exportBusy, setExportBusy] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState<string>("all");
+  const [activePhase, setActivePhase] = useState<string>("all");
   const grouped = useMemo(() => groupCapabilitiesBySection(LIVE_PLATFORM_CAPABILITIES), []);
   const plannedPhases = useMemo(() => groupPlannedByRolloutPhase(PLANNED_PLATFORM_CAPABILITIES), []);
+  const pageSize = useGridTwoRowPageSize({ columns: 2 });
+
+  const sectionTabs = useMemo(
+    () => [
+      { id: "all", label: "All", count: LIVE_PLATFORM_CAPABILITIES.length },
+      ...grouped.map(({ section, items }) => ({ id: section, label: section, count: items.length })),
+    ],
+    [grouped],
+  );
+
+  const filteredCapabilities = useMemo(() => {
+    if (activeSection === "all") {
+      return LIVE_PLATFORM_CAPABILITIES;
+    }
+    return grouped.find(({ section }) => section === activeSection)?.items ?? [];
+  }, [activeSection, grouped]);
+
+  const capabilitiesPagination = usePaginatedSlice(
+    filteredCapabilities,
+    pageSize,
+    `${activeSection}|${pageSize}`,
+  );
+
+  const phaseTabs = useMemo(
+    () => [
+      { id: "all", label: "All", count: PLANNED_PLATFORM_CAPABILITIES.length },
+      ...plannedPhases.map(({ phase, label, items }) => ({ id: phase, label, count: items.length })),
+    ],
+    [plannedPhases],
+  );
+
+  const filteredPlanned = useMemo(() => {
+    if (activePhase === "all") {
+      return PLANNED_PLATFORM_CAPABILITIES;
+    }
+    return plannedPhases.find(({ phase }) => phase === activePhase)?.items ?? [];
+  }, [activePhase, plannedPhases]);
+
+  const plannedPagination = usePaginatedSlice(filteredPlanned, pageSize, `${activePhase}|${pageSize}`);
 
   const exportAll = useCallback(async (kind: "md" | "txt" | "pdf") => {
     setExportBusy(kind);
@@ -393,21 +449,46 @@ export function SettingsCapabilitiesPanel(): JSX.Element {
             </span>
           }
         />
-        <div className="space-y-6">
-          {grouped.map(({ section, items }) => (
-            <section key={section}>
-              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-pollen">
-                {section}
-                <span className="text-xs font-normal text-(--qs-text-3)">({items.length})</span>
-              </h3>
-              <div className="grid gap-3 lg:grid-cols-2">
-                {items.map((cap) => (
-                  <CapabilityCard key={cap.id} cap={cap} />
-                ))}
-              </div>
-            </section>
+        <div className="v4-subtab-row w-full max-w-full">
+          {sectionTabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              className={cn("v4-subtab shrink-0 gap-2", activeSection === tab.id && "v4-subtab--active")}
+              onClick={() => setActiveSection(tab.id)}
+            >
+              {tab.label}
+              <span className="rounded-full bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-(--qs-text-3)">
+                {tab.count}
+              </span>
+            </button>
           ))}
         </div>
+
+        <div className="mt-4 flex shrink-0 items-center justify-between gap-2">
+          <p className="v4-field-label">
+            {activeSection === "all" ? "All capabilities" : activeSection} ({filteredCapabilities.length})
+          </p>
+        </div>
+
+        <ViewportBoundedPanel
+          className="v4-recipe-catalog-panel mt-3"
+          footer={
+            <ListPaginator
+              page={capabilitiesPagination.page}
+              totalPages={capabilitiesPagination.totalPages}
+              totalItems={capabilitiesPagination.totalItems}
+              pageSize={pageSize}
+              onPageChange={capabilitiesPagination.setPage}
+            />
+          }
+        >
+          <div className="grid gap-3 md:grid-cols-2">
+            {capabilitiesPagination.slice.map((cap) => (
+              <CapabilityCard key={cap.id} cap={cap} />
+            ))}
+          </div>
+        </ViewportBoundedPanel>
       </V4Card>
 
       <V4Card>
@@ -423,23 +504,53 @@ export function SettingsCapabilitiesPanel(): JSX.Element {
             </span>
           }
         />
-        <p className="mb-4 flex items-start gap-2 rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2 text-xs text-(--qs-text-3)">
+        <p className="mb-4 flex items-start gap-2 rounded-lg border border-pollen/20 bg-pollen/[0.04] px-3 py-2 text-xs text-(--qs-text-3)">
           <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-pollen" aria-hidden />
           Fáza 0 = revenue + Exec Assistant wizard. P0 = blocker (Stripe, tier gates). Synced with{" "}
           <code className="text-cyan">docs/MISSION_EXECUTION_BACKLOG.md</code>.
         </p>
-        <div className="space-y-8">
-          {plannedPhases.map(({ phase, label, items }) => (
-            <section key={phase}>
-              <h3 className="mb-3 text-sm font-semibold text-pollen">{label}</h3>
-              <div className="grid gap-3 lg:grid-cols-2">
-                {items.map((item) => (
-                  <PlannedCard key={item.id} item={item} />
-                ))}
-              </div>
-            </section>
+
+        <div className="v4-subtab-row w-full max-w-full">
+          {phaseTabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              className={cn("v4-subtab shrink-0 gap-2", activePhase === tab.id && "v4-subtab--active")}
+              onClick={() => setActivePhase(tab.id)}
+            >
+              {tab.label}
+              <span className="rounded-full bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-(--qs-text-3)">
+                {tab.count}
+              </span>
+            </button>
           ))}
         </div>
+
+        <div className="mt-4 flex shrink-0 items-center justify-between gap-2">
+          <p className="v4-field-label">
+            {activePhase === "all" ? "All planned" : phaseTabs.find((t) => t.id === activePhase)?.label} (
+            {filteredPlanned.length})
+          </p>
+        </div>
+
+        <ViewportBoundedPanel
+          className="v4-recipe-catalog-panel mt-3"
+          footer={
+            <ListPaginator
+              page={plannedPagination.page}
+              totalPages={plannedPagination.totalPages}
+              totalItems={plannedPagination.totalItems}
+              pageSize={pageSize}
+              onPageChange={plannedPagination.setPage}
+            />
+          }
+        >
+          <div className="grid gap-3 md:grid-cols-2">
+            {plannedPagination.slice.map((item) => (
+              <PlannedCard key={item.id} item={item} />
+            ))}
+          </div>
+        </ViewportBoundedPanel>
       </V4Card>
     </div>
   );

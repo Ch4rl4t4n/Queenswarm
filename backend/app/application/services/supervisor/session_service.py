@@ -6,7 +6,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Literal
 
-from sqlalchemy import desc, select
+from sqlalchemy import delete, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -23,6 +23,7 @@ from app.application.services.supervisor.pattern_router import (
     pattern_skill_slugs,
     select_patterns_for_task,
 )
+from app.application.services.supervisor.pattern_router_llm import refine_pattern_selection_with_llm
 from app.application.services.supervisor.skills import SkillLibrary
 from app.application.services.supervisor.spawner import (
     infer_manager_slug_for_role,
@@ -31,6 +32,10 @@ from app.application.services.supervisor.spawner import (
 from app.application.services.supervisor.shared_context import SharedContextService
 from app.application.services.supervisor.autonomy import update_session_autonomy_state
 from app.application.services.curated_memory_service import CuratedMemoryService
+from app.application.services.execution_studio_context import (
+    augment_skill_slugs_for_execution,
+    enrich_supervisor_session_summary,
+)
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.metrics import observe_supervisor_session_event
@@ -40,6 +45,7 @@ from app.infrastructure.persistence.models.supervisor_session import (
     SupervisorSession,
     SupervisorSessionEvent,
 )
+from app.infrastructure.persistence.models.tenant import Tenant
 
 SupervisorRuntimeMode = Literal["inprocess", "durable"]
 logger = get_logger(__name__)
@@ -366,6 +372,7 @@ async def create_supervisor_session(
     now = datetime.now(tz=UTC)
     loader = skill_library or SkillLibrary()
     goal_clean = goal.strip()
+    skill_slugs_effective = augment_skill_slugs_for_execution(goal_clean, skill_slugs=skill_slugs)
     contract = retrieval_contract.strip() if isinstance(retrieval_contract, str) else ""
     contract = contract if settings.retrieval_contract_enabled else ""
     queen_prompt_prefix = ""
@@ -414,8 +421,27 @@ async def create_supervisor_session(
             roles=norm_roles,
             forced_reflection=settings.supervisor_forced_reflection_enabled,
         )
+        if settings.supervisor_pattern_router_llm_enabled:
+            pattern_selection = await refine_pattern_selection_with_llm(
+                db,
+                heuristic=pattern_selection,
+                goal=goal_clean,
+                roles=norm_roles,
+                swarm_id=str(tenant_id) if tenant_id is not None else "",
+                task_id="supervisor-session-start",
+            )
         base_summary["agentic_patterns"] = pattern_selection.to_dict()
         base_summary["pattern_prompt_block"] = build_pattern_prompt_block(pattern_selection)[:4000]
+
+    if settings.execution_studio_enabled and tenant_id is not None:
+        tenant_row = await db.get(Tenant, tenant_id)
+        if tenant_row is not None:
+            base_summary = enrich_supervisor_session_summary(
+                base_summary,
+                tenant=tenant_row,
+                goal=goal_clean,
+                roles=norm_roles,
+            )
 
     session_row = SupervisorSession(
         goal=goal_for_prompt,
@@ -446,7 +472,7 @@ async def create_supervisor_session(
                 role=role,
                 goal=goal,
                 requested=_merge_pattern_skill_requests(
-                    skill_slugs=skill_slugs,
+                    skill_slugs=skill_slugs_effective,
                     pattern_selection=pattern_selection,
                 ),
                 max_skills=settings.supervisor_max_skills_per_agent,
@@ -473,6 +499,15 @@ async def create_supervisor_session(
             **(
                 {"pattern_prompt_block": str(base_summary.get("pattern_prompt_block") or "")[:2000]}
                 if pattern_selection is not None
+                else {}
+            ),
+            **(
+                {
+                    "execution_studio_prompt_block": str(
+                        (base_summary.get("execution_studio") or {}).get("prompt_block") or "",
+                    )[:2000]
+                }
+                if base_summary.get("execution_studio")
                 else {}
             ),
         }
@@ -546,13 +581,24 @@ async def create_supervisor_session(
                 level="warning",
             )
     else:
-        for sub in sub_agents:
+        from app.application.services.supervisor.hivemind_verify import should_enqueue_only_first_sub_agent
+
+        if should_enqueue_only_first_sub_agent(base_summary):
+            first_sub = min(sub_agents, key=lambda row: int(row.spawn_order or 0))
             await enqueue_durable_sub_agent_step(
                 db,
                 supervisor_session=session_row,
-                sub_agent=sub,
+                sub_agent=first_sub,
                 reason="initial",
             )
+        else:
+            for sub in sub_agents:
+                await enqueue_durable_sub_agent_step(
+                    db,
+                    supervisor_session=session_row,
+                    sub_agent=sub,
+                    reason="initial",
+                )
         await append_event(
             db,
             supervisor_session=session_row,
@@ -684,6 +730,10 @@ async def apply_session_review(
     if note and note.strip():
         summary["approval_note"] = note.strip()[:1000]
     summary["approval_updated_at"] = datetime.now(tz=UTC).isoformat()
+    if decision == "approve":
+        summary.pop("approval_required", None)
+        summary.pop("approval_reason", None)
+        summary.pop("approval_requested_at", None)
     session_row.context_summary = summary
     if decision == "reject":
         session_row.status = "needs_input"
@@ -722,4 +772,41 @@ async def apply_session_review(
     observe_supervisor_session_event(event=f"review_{decision}", runtime_mode=runtime_mode)
     await db.flush()
     return session_row
+
+
+async def delete_supervisor_session(db: AsyncSession, *, session_id: uuid.UUID) -> bool:
+    """Delete one supervisor session and cascade-linked runtime rows."""
+
+    row = await get_supervisor_session(db, session_id)
+    if row is None:
+        return False
+    await db.delete(row)
+    await db.flush()
+    observe_supervisor_session_event(event="deleted", runtime_mode=row.runtime_mode)
+    return True
+
+
+async def delete_all_supervisor_sessions(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID | None = None,
+) -> int:
+    """Delete all supervisor sessions for the active tenant scope."""
+
+    stmt = delete(SupervisorSession)
+    if tenant_id is not None:
+        stmt = stmt.where(SupervisorSession.tenant_id == tenant_id)
+    result = await db.execute(stmt)
+    await db.flush()
+    deleted = int(result.rowcount or 0)
+    if deleted:
+        logger.info(
+            "supervisor_sessions_cleared",
+            agent_id="supervisor_session_service",
+            swarm_id="",
+            task_id="",
+            deleted=deleted,
+            tenant_id=str(tenant_id) if tenant_id else None,
+        )
+    return deleted
 

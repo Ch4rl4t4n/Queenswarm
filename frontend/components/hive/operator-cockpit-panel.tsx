@@ -86,6 +86,42 @@ interface OperatorCockpitSnapshot {
     }>;
   };
   links: Record<string, string>;
+  context_teleport?: {
+    enabled: boolean;
+    packs: Array<{ pack_id: string; recipe_name: string; similarity: number; excerpt: string }>;
+  };
+  regret_simulator?: {
+    enabled: boolean;
+    regret_score: number;
+    recommendation: string;
+    summary: string;
+    scenarios: Array<{ id: string; label: string; detail: string; severity: string }>;
+  };
+  ambient_forager?: {
+    enabled: boolean;
+    item_count: number;
+    items: Array<{ id: string; title: string; detail: string; source: string }>;
+  };
+  parallel_hive_view?: {
+    enabled: boolean;
+    active_count: number;
+    sessions: Array<{ session_id: string; goal: string; status: string; merge_ready: boolean }>;
+  };
+  swarm_immune_system?: {
+    enabled: boolean;
+    quarantine_count: number;
+    watch_count: number;
+    healthy_count: number;
+    summary: string;
+    routines: Array<{ routine_id: string; name: string; immune_status: string; recommendation: string }>;
+  };
+  evolutionary_recipes?: {
+    enabled: boolean;
+    verified_outcomes: number;
+    ready: boolean;
+    summary: string;
+    variants: Array<{ recipe_id: string | null; name: string; similarity: number; fitness_rank: number; detail: string }>;
+  };
 }
 
 function priorityTone(p: CockpitAction["priority"]): "ok" | "warn" | "err" | "info" {
@@ -603,6 +639,139 @@ function OperatorCockpitPanelInner() {
           </ul>
         )}
       </V4Card>
+
+      {snapshot.swarm_immune_system?.enabled ? (
+        <V4Card id="swarm-immune-system">
+          <V4CardHeader
+            kicker="Swarm Immune System"
+            title={`${snapshot.swarm_immune_system.healthy_count} healthy · ${snapshot.swarm_immune_system.watch_count} watch · ${snapshot.swarm_immune_system.quarantine_count} quarantine`}
+            description={snapshot.swarm_immune_system.summary}
+          />
+          {snapshot.swarm_immune_system.routines.length > 0 ? (
+            <ul className="space-y-2">
+              {snapshot.swarm_immune_system.routines.map((row) => (
+                <li key={row.routine_id} className="rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2 text-xs">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-(--qs-text)">{row.name}</span>
+                    <V4Badge tone={immuneTone(row.immune_status as SwarmFleetItem["immune_status"])}>
+                      {row.immune_status}
+                    </V4Badge>
+                  </div>
+                  <p className="mt-0.5 text-(--qs-muted)">{row.recommendation}</p>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </V4Card>
+      ) : null}
+
+      {snapshot.evolutionary_recipes?.enabled ? (
+        <V4Card id="evolutionary-recipes">
+          <V4CardHeader
+            kicker="Evolutionary Recipes"
+            title={
+              snapshot.evolutionary_recipes.ready
+                ? `${snapshot.evolutionary_recipes.variants.length} competing variants`
+                : "Collecting verified outcomes"
+            }
+            description={snapshot.evolutionary_recipes.summary}
+          />
+          {snapshot.evolutionary_recipes.variants.length > 0 ? (
+            <ul className="space-y-2">
+              {snapshot.evolutionary_recipes.variants.map((variant) => (
+                <li key={`${variant.recipe_id ?? variant.name}-${variant.fitness_rank}`} className="rounded-lg border border-pollen/30 bg-pollen/5 px-3 py-2 text-xs">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-(--qs-text)">#{variant.fitness_rank} {variant.name}</span>
+                    <V4Badge tone="ok">{Math.round(variant.similarity * 100)}% match</V4Badge>
+                  </div>
+                  <p className="mt-0.5 text-(--qs-muted)">{variant.detail}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-(--qs-muted)">
+              {snapshot.evolutionary_recipes.verified_outcomes} verified outcomes — need 3+ to rank variants.
+            </p>
+          )}
+        </V4Card>
+      ) : null}
+
+      {snapshot.regret_simulator?.enabled ? (
+        <V4Card id="regret-simulator">
+          <V4CardHeader
+            kicker="Regret Simulator"
+            title={`Score ${snapshot.regret_simulator.regret_score}/100 · ${snapshot.regret_simulator.recommendation}`}
+            description={snapshot.regret_simulator.summary}
+          />
+          <ul className="space-y-2">
+            {snapshot.regret_simulator.scenarios.map((row) => (
+              <li key={row.id} className="rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2 text-xs">
+                <span className="font-medium text-(--qs-text)">{row.label}</span>
+                <p className="mt-0.5 text-(--qs-muted)">{row.detail}</p>
+              </li>
+            ))}
+          </ul>
+        </V4Card>
+      ) : null}
+
+      {snapshot.context_teleport?.enabled && snapshot.context_teleport.packs.length > 0 ? (
+        <V4Card id="context-teleport">
+          <V4CardHeader
+            kicker="Context Teleport"
+            title="Cross-swarm packs"
+            description="Verified recipe fragments ready to inject."
+          />
+          <ul className="space-y-2">
+            {snapshot.context_teleport.packs.slice(0, 4).map((pack) => (
+              <li key={pack.pack_id} className="rounded-lg border border-cyan/30 bg-cyan/5 px-3 py-2 text-xs">
+                <span className="font-medium text-(--qs-text)">{pack.recipe_name}</span>
+                <p className="mt-0.5 text-(--qs-muted)">{pack.excerpt}</p>
+              </li>
+            ))}
+          </ul>
+        </V4Card>
+      ) : null}
+
+      {snapshot.ambient_forager?.enabled && snapshot.ambient_forager.items.length > 0 ? (
+        <V4Card id="ambient-forager">
+          <V4CardHeader
+            kicker="Ambient Forager"
+            title={`${snapshot.ambient_forager.item_count} relevance signals`}
+            description="Passive scan — morning brief without spam."
+          />
+          <ul className="space-y-2">
+            {snapshot.ambient_forager.items.map((item) => (
+              <li key={item.id} className="rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2 text-xs">
+                <span className="font-medium text-(--qs-text)">{item.title}</span>
+                <p className="mt-0.5 text-(--qs-muted)">{item.detail}</p>
+              </li>
+            ))}
+          </ul>
+        </V4Card>
+      ) : null}
+
+      {snapshot.parallel_hive_view?.enabled && snapshot.parallel_hive_view.sessions.length > 0 ? (
+        <V4Card id="parallel-hive">
+          <V4CardHeader
+            kicker="Parallel Hive View"
+            title={`${snapshot.parallel_hive_view.active_count} active sessions`}
+            description="Mission control — open session for merge/approve."
+          />
+          <ul className="space-y-2">
+            {snapshot.parallel_hive_view.sessions.slice(0, 6).map((sess) => (
+              <li key={sess.session_id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2 text-xs">
+                <div className="min-w-0">
+                  <span className="font-medium text-(--qs-text)">{sess.goal}</span>
+                  <p className="text-(--qs-muted)">{sess.status}{sess.merge_ready ? " · merge ready" : ""}</p>
+                </div>
+                <Link href={`/agents?session=${sess.session_id}`} className="qs-btn qs-btn--ghost qs-btn--sm">
+                  Open
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </V4Card>
+      ) : null}
 
       <V4Card>
         <V4CardHeader

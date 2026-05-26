@@ -2,10 +2,23 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 import { QS_ACCESS, QS_REFRESH } from "@/lib/auth-cookies";
+import { isLikelyValidDashboardAccessToken } from "@/lib/dashboard-access-jwt";
+
+function controlPlaneHome(): string {
+  const raw = process.env.NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED;
+  if (raw === undefined) {
+    return "/cockpit";
+  }
+  const norm = raw.trim().toLowerCase();
+  if (["0", "false", "no", "off"].includes(norm)) {
+    return "/dashboard";
+  }
+  return "/cockpit";
+}
 
 /** Paths that bypass auth gates; gated routes rely on HttpOnly ``qs_dashboard_at`` cookie (see ``attachDashboardTokenCookies``). */
 
-const PUBLIC_PREFIXES = ["/login", "/verify-2fa", "/terms", "/privacy", "/health", "/offline", "/magnet"];
+const PUBLIC_PREFIXES = ["/login", "/verify-2fa", "/terms", "/privacy", "/data-deletion", "/health", "/offline", "/magnet", "/transparency"];
 
 /** PWA shell assets — no auth redirect (mobile/tablet install + offline fallback). */
 const PUBLIC_EXACT = new Set([
@@ -16,42 +29,8 @@ const PUBLIC_EXACT = new Set([
   "/apple-icon",
 ]);
 
-function base64UrlDecode(input: string): string | null {
-  const normalized = input.replace(/-/g, "+").replace(/_/g, "/");
-  const padding = normalized.length % 4;
-  const padded = padding ? normalized.padEnd(normalized.length + (4 - padding), "=") : normalized;
-  try {
-    return atob(padded);
-  } catch {
-    return null;
-  }
-}
-
 function isLikelyValidDashboardJwt(raw: string): boolean {
-  const trimmed = raw.trim();
-  if (!trimmed) {
-    return false;
-  }
-  const parts = trimmed.split(".");
-  if (parts.length < 2) {
-    return false;
-  }
-  const payloadRaw = base64UrlDecode(parts[1] ?? "");
-  if (!payloadRaw) {
-    return false;
-  }
-  try {
-    const payload = JSON.parse(payloadRaw) as { exp?: unknown; sub?: unknown };
-    if (typeof payload.exp !== "number") {
-      return false;
-    }
-    if (payload.exp <= Math.floor(Date.now() / 1000)) {
-      return false;
-    }
-    return typeof payload.sub === "string" && payload.sub.trim().length > 0;
-  } catch {
-    return false;
-  }
+  return isLikelyValidDashboardAccessToken(raw);
 }
 
 function hasRefreshSession(request: NextRequest): boolean {
@@ -74,13 +53,21 @@ export function middleware(request: NextRequest) {
   /** HttpOnly dashboard cookie preferred; legacy ``qs_token`` mirrors Bearer for some clients. */
   const access = request.cookies.get(QS_ACCESS)?.value ?? request.cookies.get("qs_token")?.value;
   const refreshSession = hasRefreshSession(request);
+  const sessionExpiredReason = request.nextUrl.searchParams.get("reason") === "session_expired";
 
-  if (access && (pathname.startsWith("/login") || pathname.startsWith("/verify-2fa"))) {
-    return NextResponse.redirect(new URL("/", request.url));
+  if (
+    sessionExpiredReason &&
+    (pathname.startsWith("/login") || pathname.startsWith("/verify-2fa"))
+  ) {
+    return NextResponse.next();
   }
 
-  if (!access && refreshSession && (pathname.startsWith("/login") || pathname.startsWith("/verify-2fa"))) {
-    return NextResponse.redirect(new URL("/", request.url));
+  if (
+    access &&
+    isLikelyValidDashboardJwt(access) &&
+    (pathname.startsWith("/login") || pathname.startsWith("/verify-2fa"))
+  ) {
+    return NextResponse.redirect(new URL(controlPlaneHome(), request.url));
   }
 
   if (pathname.startsWith("/api/auth")) {

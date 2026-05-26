@@ -45,7 +45,16 @@ async def mint_voice_live_client_secret(*, ttl_seconds: int = 300) -> dict[str, 
     if response.status_code >= 400:
         detail = response.text[:240]
         logger.warning("xai.voice_live.token_failed", status=response.status_code, detail=detail)
-        raise XaiVoiceLiveError(f"xAI voice token failed: {response.status_code} {detail}")
+        lowered = detail.lower()
+        if response.status_code in {400, 401, 403} and "incorrect api key" in lowered:
+            raise XaiVoiceLiveError(
+                "Grok API kľúč je neplatný — vytvor nový na console.x.ai a ulož ho v Settings → LLM keys."
+            )
+        if response.status_code == 401:
+            raise XaiVoiceLiveError(
+                "Grok API kľúč odmietnutý — skontroluj Settings → LLM keys alebo GROK_API_KEY v .env.prod."
+            )
+        raise XaiVoiceLiveError("Grok voice nedostupný — skontroluj API kľúč v Settings → LLM keys.")
 
     body = response.json()
     if not isinstance(body, dict):

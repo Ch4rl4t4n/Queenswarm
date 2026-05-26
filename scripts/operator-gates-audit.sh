@@ -107,11 +107,18 @@ for path in \
   scripts/verify-stripe-live.sh \
   scripts/operator-hetzner-send-prep.sh \
   scripts/operator-pending-status.sh \
+  scripts/alertmanager-smoke.sh \
+  scripts/monitoring-gate.sh \
+  scripts/mission-phase5-patterns-audit.sh \
   scripts/prod-command-center-gate.sh \
   scripts/prod-browser-walkthrough-gate.sh \
   scripts/prod-session-walkthrough-gate.sh \
+  scripts/operator-publish-lane-status.sh \
+  scripts/operator-social-oauth-prep-all.sh \
+  scripts/audit-operator-hub-settings-gate.sh \
   backend/scripts/issue_operator_user_jwt.py \
   docs/OPERATOR_P0_CLOSE.md \
+  docs/OPERATOR_FIRST_LIVE_POST.md \
   docs/AUTHENTICATED_PROD_WALKTHROUGH.md; do
   if [[ -f "$path" ]]; then ok "${path}"; else bad "missing ${path}"; fi
 done
@@ -196,6 +203,34 @@ if [[ -x scripts/finish-stripe-setup.sh ]] && [[ -x scripts/stripe-prod-setup.sh
   ok "finish-stripe-setup.sh + stripe-prod-setup.sh executable"
 else
   bad "Stripe setup scripts not executable"
+fi
+echo
+
+echo "[5] Monitoring — Alertmanager + pattern alerts"
+if [[ -x scripts/alertmanager-smoke.sh ]]; then
+  if ./scripts/alertmanager-smoke.sh >/dev/null 2>&1; then
+    ok "alertmanager-smoke.sh passed"
+  else
+    note "alertmanager-smoke.sh failed — run ./scripts/alertmanager-smoke.sh"
+  fi
+else
+  bad "missing scripts/alertmanager-smoke.sh"
+fi
+if [[ -f deploy/prometheus/rules/pattern.rules.yml ]]; then
+  ok "pattern.rules.yml present"
+else
+  bad "missing deploy/prometheus/rules/pattern.rules.yml"
+fi
+if [[ -f deploy/alertmanager/alertmanager.generated.yml ]]; then
+  ok "alertmanager.generated.yml rendered"
+else
+  note "run ./scripts/render-alertmanager-config.sh"
+fi
+slack_url="$(load_kv "$ENV_FILE" SLACK_WEBHOOK_URL || true)"
+if [[ -n "${slack_url// }" ]]; then
+  ok "SLACK_WEBHOOK_URL configured (Alertmanager + notify_slack)"
+else
+  note "SLACK_WEBHOOK_URL unset — alerts visible in Grafana only"
 fi
 echo
 

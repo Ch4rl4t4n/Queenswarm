@@ -237,7 +237,7 @@ export function ExternalProjectsConsole() {
         <div>
           <p className="v4-field-label text-(--qs-magenta)">Phase 2.5 · Integration layer</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-(--qs-text) md:text-4xl">External projects</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-(--qs-text-3)">
+          <p className="mt-2 max-w-2xl min-w-0 text-sm leading-relaxed text-(--qs-text-3)">
             Register MCP-first integrations with scoped <span className="font-mono text-pollen">qs_ep_</span> keys, REST{" "}
             <code className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-[12px] text-pollen">{`/external/{slug}/run`}</code>, and WebSocket
             lanes — mirrored into HiveMind vault audit stitches when enabled.
@@ -255,11 +255,11 @@ export function ExternalProjectsConsole() {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
-        <V4Card>
+      <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
+        <V4Card className="min-w-0">
           <V4CardHeader title="Register bridge" description="Mint secrets once — external vaulting stays operator-owned." />
 
-          <div className="mt-6 space-y-4">
+          <div className="mt-6 min-w-0 space-y-4">
             <div className="space-y-2">
               <label htmlFor="ep-slug" className="v4-field-label">
                 Slug
@@ -312,9 +312,9 @@ export function ExternalProjectsConsole() {
                 spellCheck={false}
                 className="v4-textarea w-full font-mono text-[12px]"
               />
-              <p className="text-[11px] text-zinc-500">
-                Trading example:{" "}
-                <code className="font-mono text-cyan">{`{"trading_mode":"paper","max_order_usd":2500,"max_daily_loss_usd":500,"max_risk_pct_per_trade":2,"watchlist":["BTC","ETH"],"paper_trading_auto_tick":true}`}</code>
+              <p className="v4-hint">
+                Trading example
+                <code className="v4-hint-code text-cyan">{`{"trading_mode":"paper","max_order_usd":2500,"max_daily_loss_usd":500,"max_risk_pct_per_trade":2,"watchlist":["BTC","ETH"],"paper_trading_auto_tick":true}`}</code>
               </p>
             </div>
             <button
@@ -328,7 +328,7 @@ export function ExternalProjectsConsole() {
           </div>
         </V4Card>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <V4Card>
             <V4CardHeader title="Registry" description="Active bridges owned by this dashboard session." />
 
@@ -355,7 +355,7 @@ export function ExternalProjectsConsole() {
                             </span>
                             <V4Badge tone={kindBadgeTone(p.project_kind)}>{p.project_kind}</V4Badge>
                           </div>
-                          <div className="font-mono text-xs text-(--qs-text-3)">{p.slug}</div>
+                          <div className="min-w-0 truncate font-mono text-xs text-(--qs-text-3)">{p.slug}</div>
                         </button>
                       </li>
                     );
@@ -406,8 +406,8 @@ export function ExternalProjectsConsole() {
                 {mintedKey ? (
                   <div className="mt-4 rounded-xl border border-green-500/35 bg-green-500/10 px-4 py-3">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-green-300">Copy once</p>
-                    <div className="mt-2 flex items-start gap-2">
-                      <code className="flex-1 break-all font-mono text-[12px] leading-snug text-green-100">{mintedKey}</code>
+                    <div className="mt-2 flex min-w-0 items-start gap-2">
+                      <code className="min-w-0 flex-1 break-all font-mono text-[12px] leading-snug text-green-100">{mintedKey}</code>
                       <button
                         type="button"
                         className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-green-200 hover:bg-green-500/15"

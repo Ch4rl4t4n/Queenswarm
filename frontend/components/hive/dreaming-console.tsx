@@ -2,10 +2,13 @@
 
 import { Loader2Icon, Moon, Play } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { InfoHint } from "@/components/hive/info-hint";
+import { DreamReportsGrid, DreamReportsGridSkeleton } from "@/components/hive/dream-reports-grid";
+import type { DreamCycleRow } from "@/components/hive/dream-report-info-dialog";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
-import { HiveApiError, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
+import { HiveApiError, hiveDelete, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 interface DreamingSettingsResponse {
@@ -14,33 +17,9 @@ interface DreamingSettingsResponse {
   routine_id: string | null;
 }
 
-interface DreamCycleRow {
-  id: string;
-  started_at: string;
-  finished_at: string | null;
-  status: string;
-  items_processed: number;
-  items_deduplicated: number;
-  items_consolidated: number;
-}
-
 interface RunNowResponse {
   status: string;
   celery_task_id: string;
-}
-
-function cycleStatusTone(status: string): "ok" | "warn" | "err" | "info" {
-  const s = status.toLowerCase();
-  if (s.includes("complete") || s.includes("success")) {
-    return "ok";
-  }
-  if (s.includes("fail") || s.includes("error")) {
-    return "err";
-  }
-  if (s.includes("run") || s.includes("queue") || s.includes("pending")) {
-    return "info";
-  }
-  return "warn";
 }
 
 /** Tenant-scoped dreaming controls — Hive Control V4. */
@@ -53,6 +32,7 @@ export function DreamingConsole(): JSX.Element {
   const [cycles, setCycles] = useState<DreamCycleRow[]>([]);
   const [frequencyHours, setFrequencyHours] = useState(24);
   const [lastRunTaskId, setLastRunTaskId] = useState<string | null>(null);
+  const [clearBusy, setClearBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -60,7 +40,7 @@ export function DreamingConsole(): JSX.Element {
     try {
       const [s, rows] = await Promise.all([
         hiveGet<DreamingSettingsResponse>("dreaming/settings"),
-        hiveGet<DreamCycleRow[]>("dreaming/cycles?limit=8"),
+        hiveGet<DreamCycleRow[]>("dreaming/cycles?limit=24"),
       ]);
       setSettings(s);
       setFrequencyHours(Math.max(1, Math.min(168, Number(s.frequency_hours || 24))));
@@ -107,6 +87,25 @@ export function DreamingConsole(): JSX.Element {
       setError(detail);
     } finally {
       setRunning(false);
+    }
+  }
+
+  async function clearAllDreamSessions(): Promise<void> {
+    if (!window.confirm("Clear all dream session reports for this tenant? This cannot be undone.")) {
+      return;
+    }
+    setClearBusy(true);
+    setError(null);
+    try {
+      const result = await hiveDelete<{ cleared: number }>("dreaming/cycles");
+      toast.success(`Cleared ${result.cleared ?? 0} dream session${result.cleared === 1 ? "" : "s"}.`);
+      await load();
+    } catch (exc) {
+      const detail = exc instanceof HiveApiError ? exc.message : "Could not clear dream sessions.";
+      setError(detail);
+      toast.error(detail);
+    } finally {
+      setClearBusy(false);
     }
   }
 
@@ -231,10 +230,9 @@ export function DreamingConsole(): JSX.Element {
 
         <div className="mt-6">
           <div className="mb-3 flex items-center gap-2">
-            <p className="v4-label-kicker">Latest dream reports</p>
             <InfoHint
               title="Latest Dream Reports"
-              description="Prehľad posledných behov Dreaming. Každý riadok ukazuje, koľko dát systém spracoval a koľko duplicít zlúčil."
+              description="Prehľad posledných behov Dreaming. Každá karta ukazuje, koľko dát systém spracoval a koľko duplicít zlúčil."
               options={[
                 "status: stav behu (completed/failed)",
                 "consolidated: počet nových konsolidovaných poznatkov",
@@ -243,29 +241,14 @@ export function DreamingConsole(): JSX.Element {
             />
           </div>
 
-          {cycles.length === 0 ? (
-            <p className="v4-dream-empty">No dream reports yet.</p>
+          {loading ? (
+            <DreamReportsGridSkeleton />
           ) : (
-            <ul className="flex flex-col gap-3">
-              {cycles.map((row) => (
-                <li key={row.id} className="v4-dream-cycle-card">
-                  <div className="flex items-start gap-3">
-                    <Moon className="mt-0.5 h-5 w-5 shrink-0 text-(--qs-purple-bright)" aria-hidden />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="v4-label-kicker">{new Date(row.started_at).toLocaleString("sk-SK")}</span>
-                        <V4Badge tone={cycleStatusTone(row.status)}>{row.status}</V4Badge>
-                      </div>
-                      <p className="mt-2 text-sm text-(--qs-text-2)">
-                        processed={row.items_processed} · consolidated=
-                        <span className="text-(--qs-amber)">{row.items_consolidated}</span> · dedup=
-                        <span className="text-(--qs-cyan)">{row.items_deduplicated}</span>
-                      </p>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <DreamReportsGrid
+              cycles={cycles}
+              clearBusy={clearBusy}
+              onClear={() => void clearAllDreamSessions()}
+            />
           )}
         </div>
       </V4Card>

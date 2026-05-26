@@ -219,8 +219,10 @@ async def list_owned_deliverables(
     *,
     dashboard_user_id: uuid.UUID,
     limit: int,
+    tag: str | None = None,
+    ready_to_publish: bool = False,
 ) -> list[TaskFinalDeliverable]:
-    """Recent rows newest-first."""
+    """Recent rows newest-first, optionally filtered by tag or ready-to-publish composite."""
 
     cap = max(1, min(limit, 120))
     stmt = (
@@ -230,7 +232,25 @@ async def list_owned_deliverables(
         .limit(cap)
     )
     res = await session.scalars(stmt)
-    return list(res.all())
+    rows = list(res.all())
+
+    if ready_to_publish:
+        required = {"publish-pack-verified", "simulate_only"}
+        rows = [
+            row
+            for row in rows
+            if isinstance(row.tags, list)
+            and required.issubset({str(t).strip().lower() for t in row.tags})
+        ]
+    elif tag:
+        needle = tag.strip().lower()
+        rows = [
+            row
+            for row in rows
+            if isinstance(row.tags, list) and any(str(t).strip().lower() == needle for t in row.tags)
+        ]
+
+    return rows[:cap]
 
 
 async def latest_for_lineage(

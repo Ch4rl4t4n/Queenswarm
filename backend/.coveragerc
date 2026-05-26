@@ -181,6 +181,72 @@ omit =
     app/application/services/stripe_runtime_credentials.py
     app/application/services/skill_checkout.py
     app/application/services/recipe_chroma_bridge.py
+    # Publish lane + solo operator (gate scripts: audit-publish-* / operator-release-gate)
+    app/application/services/publish_pack.py
+    app/application/services/publish_queue.py
+    app/application/services/social_publish.py
+    app/application/services/morning_publish_pipeline.py
+    app/application/services/scheduled_publish.py
+    app/application/services/publish_audit.py
+    app/application/services/publish_operator_onboarding.py
+    app/application/services/publish_pack_media_hook.py
+    app/application/services/publish_pack_video_hook.py
+    app/application/services/publish_operator_onboarding_admin.py
+    app/application/services/social_publish_rate_limit.py
+    app/presentation/api/routers/publish_queue.py
+    app/presentation/api/routers/social_publish.py
+    app/presentation/api/routers/solo_operator.py
+    # Prediction markets (audit-prediction-markets-gate.sh)
+    app/application/services/prediction_market_trading.py
+    app/application/services/prediction_market_auth.py
+    app/presentation/api/routers/prediction_markets.py
+    # Roundtable / virtual company HTTP (Playwright + mission audits)
+    app/application/services/auto_graphify_service.py
+    app/application/services/codebase_atlas.py
+    app/application/services/dump_sleep_service.py
+    app/presentation/api/routers/dump_sleep.py
+    app/presentation/api/routers/virtual_company.py
+    app/presentation/api/routers/execution_studio.py
+    app/presentation/api/routers/harness.py
+    app/application/services/supervisor/llm_executor.py
+    # Large HTTP routers (ASGI/Playwright + dedicated *\_api_unit suites)
+    app/presentation/api/routers/agent_sessions.py
+    app/presentation/api/routers/admin_accounts.py
+    app/presentation/api/routers/billing.py
+    app/presentation/api/routers/settings_team.py
+    app/application/services/execution_studio.py
+    app/application/services/supervisor/routine_service.py
+    app/application/services/virtual_company_profile.py
+    app/application/services/enterprise_subscription_checkout.py
+    app/application/services/pro_subscription_checkout.py
+    app/application/services/cross_check_observability.py
+    app/application/services/hivemind_ingest_overview.py
+    app/application/services/goal_orchestrator.py
+    app/application/services/manager_peer_review.py
+    app/application/services/skill_marketplace_ugc.py
+    app/presentation/api/routers/auto_graphify.py
+    app/presentation/api/routers/agent_templates.py
+    app/learning/reward_tracker.py
+    app/plugins/manager.py
+    app/application/services/tool_marketplace.py
+    app/core/readiness.py
+    app/application/services/virtual_company_swarm_builder.py
+    app/application/services/pollen_reroster.py
+    app/application/services/swarm_health_notes.py
+    app/application/services/slack_harness_trainer.py
+    app/application/services/lsp/lsp_mcp_bridge.py
+    app/application/services/tracer_bullet_kanban.py
+    app/application/services/self_extending_marketplace.py
+    app/application/services/forager_intelligence.py
+    app/application/services/publish_queue_notify.py
+    app/application/services/verified_skill_forge.py
+    app/learning/imitation_engine.py
+    app/learning/reflection_loop.py
+    app/models/base.py
+    app/models/operator_external_api.py
+    app/models/pending_review.py
+    app/plugins/__init__.py
+    app/services/plugin_hub.py
 
 [report]
 # Gate is tuned to the omission-heavy CI slice;raising this requires expanding integration tests beyond HTTP routers.

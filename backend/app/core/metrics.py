@@ -88,6 +88,18 @@ SUPERVISOR_ROUTINES_TOTAL = Counter(
     ["event"],
 )
 
+PATTERN_SESSIONS_TOTAL = Counter(
+    "queenswarm_pattern_sessions_total",
+    "Supervisor sessions grouped by agentic design pattern and terminal outcome.",
+    ["pattern_id", "outcome"],
+)
+
+PATTERN_SUCCESS_RATE = Gauge(
+    "queenswarm_pattern_success_rate",
+    "Rolling 24h success rate per agentic design pattern (0–100).",
+    ["pattern_id"],
+)
+
 TENANT_HTTP_REQUESTS_TOTAL = Counter(
     "queenswarm_tenant_http_requests_total",
     "HTTP requests partitioned by tenant hash for enterprise observability.",
@@ -239,6 +251,51 @@ def observe_supervisor_routine_event(*, event: str) -> None:
     SUPERVISOR_ROUTINES_TOTAL.labels(event=safe_event).inc()
 
 
+def observe_pattern_session_outcomes(*, pattern_ids: list[str], outcome: str) -> None:
+    """Increment per-pattern session outcome counters for Grafana/Prometheus."""
+
+    safe_outcome = (outcome or "unknown").strip().lower()[:16]
+    if safe_outcome not in {"success", "failure"}:
+        return
+    seen: set[str] = set()
+    for raw in pattern_ids:
+        pid = str(raw).strip().lower()[:64]
+        if not pid or pid in seen:
+            continue
+        seen.add(pid)
+        PATTERN_SESSIONS_TOTAL.labels(pattern_id=pid, outcome=safe_outcome).inc()
+
+
+async def refresh_pattern_success_rate_gauges(session: AsyncSession) -> None:
+    """Recompute rolling pattern success-rate gauges from supervisor sessions."""
+
+    from app.application.services.pattern_telemetry_service import build_pattern_telemetry
+
+    try:
+        payload = await build_pattern_telemetry(session, tenant_id=None, window_hours=24, top_n=32)
+    except Exception as exc:  # noqa: BLE001 — gauge refresh must not break scrape
+        logger.warning(
+            "metrics.pattern_gauge_refresh_failed",
+            agent_id="metrics",
+            swarm_id="global",
+            task_id="pattern_gauges",
+            error=str(exc),
+        )
+        return
+
+    seen: set[str] = set()
+    for row in payload.get("top_patterns") or []:
+        pid = str(row.get("id") or "").strip().lower()
+        if not pid:
+            continue
+        seen.add(pid)
+        rate = row.get("success_rate_pct")
+        if rate is None:
+            PATTERN_SUCCESS_RATE.labels(pattern_id=pid).set(0.0)
+        else:
+            PATTERN_SUCCESS_RATE.labels(pattern_id=pid).set(float(rate))
+
+
 __all__ = [
     "AGENTS_ACTIVE",
     "AGENTS_STALE",
@@ -249,6 +306,8 @@ __all__ = [
     "CELERY_WORKERS_UP",
     "HOURLY_ROLL_LAST_UNIXTIME",
     "LLM_COST_USD_TOTAL",
+    "PATTERN_SESSIONS_TOTAL",
+    "PATTERN_SUCCESS_RATE",
     "TASK_DURATION",
     "TASKS_TOTAL",
     "SUPERVISOR_ROUTINES_TOTAL",
@@ -262,9 +321,11 @@ __all__ = [
     "observe_llm_cost_usd",
     "observe_rate_limit_block",
     "observe_scaling_event",
+    "observe_pattern_session_outcomes",
     "observe_supervisor_routine_event",
     "observe_supervisor_session_event",
     "refresh_operative_agent_gauges",
+    "refresh_pattern_success_rate_gauges",
     "refresh_celery_gauges",
     "set_stale_running_agents_gauge",
 ]

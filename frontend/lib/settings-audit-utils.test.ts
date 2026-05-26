@@ -57,6 +57,7 @@ describe("settings nav", () => {
   it("includes security, api keys, and audit routes", () => {
     const hrefs = SETTINGS_NAV_SECTIONS.map((section) => section.href);
     expect(hrefs).toContain("/settings/security");
+    expect(hrefs).toContain("/settings/costs");
     expect(hrefs).toContain("/settings/api-keys");
     expect(hrefs).toContain("/settings/audit");
   });

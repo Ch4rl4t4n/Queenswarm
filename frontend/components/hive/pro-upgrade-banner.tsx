@@ -14,9 +14,9 @@ interface ProUpgradeBannerProps {
 
 /** Commercial Free tier upsell — links to billing settings. */
 export function ProUpgradeBanner({ className, reason }: ProUpgradeBannerProps): JSX.Element | null {
-  const { platformMode, subscriptionTier, loading } = usePlatform();
+  const { platformMode, subscriptionTier, loading, soloMode, hasFeature } = usePlatform();
 
-  if (loading) {
+  if (loading || soloMode || !hasFeature("billing_settings")) {
     return null;
   }
   if (platformMode !== "commercial" || subscriptionTier !== "free") {

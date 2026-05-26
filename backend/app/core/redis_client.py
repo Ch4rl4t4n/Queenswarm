@@ -83,6 +83,24 @@ def _refresh_legacy_key(token: str) -> str:
     return f"{_REFRESH_LEGACY_PREFIX}{token}"
 
 
+def _parse_dashboard_refresh_payload(raw: str) -> tuple[str, int | None]:
+    """Decode refresh blob value — legacy UUID string or JSON with ``auth_at`` epoch."""
+
+    cleaned = raw.strip()
+    if not cleaned:
+        return "", None
+    if cleaned.startswith("{"):
+        try:
+            data = json.loads(cleaned)
+            uid = str(data.get("uid", "")).strip()
+            auth_raw = data.get("auth_at")
+            auth_at = int(auth_raw) if auth_raw is not None else None
+            return uid, auth_at
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return "", None
+    return cleaned, None
+
+
 _redis_pool: aioredis.ConnectionPool | None = None
 _redis_pool_url: str | None = None
 _RedisResultT = TypeVar("_RedisResultT")
@@ -246,6 +264,23 @@ async def sliding_window_reserve(bucket_key: str, *, limit: int, window_sec: flo
     return int(raw) == 1
 
 
+async def sliding_window_count(bucket_key: str, *, window_sec: float) -> int:
+    """Return current event count inside the sliding window (read-only trim + zcard)."""
+
+    if window_sec <= 0:
+        msg = "window_sec must be positive."
+        raise ValueError(msg)
+
+    now = time.time()
+    cutoff = now - window_sec
+
+    async def _op(client: Redis) -> int:
+        await client.zremrangebyscore(bucket_key, "-inf", cutoff)
+        return int(await client.zcard(bucket_key))
+
+    return int(await _with_redis_client(_op))
+
+
 async def ping_redis() -> None:
     """Issue ``PING`` against the shared pool (readiness probes, smoke tests)."""
 
@@ -365,21 +400,33 @@ async def iter_pubsub_json(channel: str) -> AsyncIterator[dict[str, Any]]:
         yield payload
 
 
-async def store_dashboard_refresh(token: str, user_id_text: str, ttl_sec: int) -> None:
+async def store_dashboard_refresh(
+    token: str,
+    user_id_text: str,
+    ttl_sec: int,
+    *,
+    auth_at_epoch: int | None = None,
+) -> None:
     """Persist a refresh token fingerprint → dashboard user UUID mapping."""
 
     key = _refresh_key(token)
+    if auth_at_epoch is not None:
+        payload = json.dumps({"uid": user_id_text, "auth_at": auth_at_epoch}, separators=(",", ":"))
+    else:
+        payload = user_id_text
+
     async def _op(client: Redis) -> None:
-        await client.set(key, user_id_text, ex=ttl_sec)
+        await client.set(key, payload, ex=ttl_sec)
 
     await _with_redis_client(_op)
 
 
-async def fetch_dashboard_refresh_user(token: str) -> str | None:
-    """Return the dashboard user UUID string for a refresh token, if still valid."""
+async def fetch_dashboard_refresh_session(token: str) -> tuple[str, int | None] | None:
+    """Return dashboard user UUID and optional auth epoch for a refresh token."""
 
     key = _refresh_key(token)
     legacy_key = _refresh_legacy_key(token)
+
     async def _op(client: Redis) -> str | None:
         raw = await client.get(key)
         if raw is None:
@@ -387,7 +434,21 @@ async def fetch_dashboard_refresh_user(token: str) -> str | None:
         return raw
 
     raw = await _with_redis_client(_op)
-    return raw
+    if raw is None:
+        return None
+    uid, auth_at = _parse_dashboard_refresh_payload(raw)
+    if not uid:
+        return None
+    return uid, auth_at
+
+
+async def fetch_dashboard_refresh_user(token: str) -> str | None:
+    """Return the dashboard user UUID string for a refresh token, if still valid."""
+
+    session = await fetch_dashboard_refresh_session(token)
+    if session is None:
+        return None
+    return session[0]
 
 
 async def revoke_dashboard_refresh(token: str) -> None:

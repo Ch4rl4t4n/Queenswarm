@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import uuid
@@ -310,8 +311,8 @@ async def test_dashboard_refresh_success_sets_no_store_headers(
     monkeypatch.setattr(settings, "rate_limit_enabled", False)
     monkeypatch.setattr(
         dashboard_session_router,
-        "fetch_dashboard_refresh_user",
-        AsyncMock(return_value=str(user.id)),
+        "fetch_dashboard_refresh_session",
+        AsyncMock(return_value=(str(user.id), int(datetime.now(tz=UTC).timestamp()))),
     )
     monkeypatch.setattr(
         dashboard_session_router,
@@ -342,3 +343,51 @@ async def test_dashboard_refresh_success_sets_no_store_headers(
     assert response.headers.get("Cache-Control") == "no-store"
     assert response.headers.get("Pragma") == "no-cache"
     assert response.headers.get("Expires") == "0"
+
+
+@pytest.mark.asyncio
+async def test_dashboard_refresh_rejects_expired_2fa_session(
+    restore_app_overrides: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user = SimpleNamespace(
+        id=uuid.uuid4(),
+        email="admin@queenswarm.love",
+        is_active=True,
+        is_admin=False,
+        totp_secret="SECRET",
+        totp_verified_at=datetime.now(tz=UTC),
+    )
+
+    class _FakeDb:
+        async def get(self, *_args, **_kwargs):
+            return user
+
+    async def mock_db() -> AsyncIterator[_FakeDb]:
+        yield _FakeDb()
+
+    app.dependency_overrides[get_db] = mock_db
+    monkeypatch.setattr(settings, "rate_limit_enabled", False)
+    monkeypatch.setattr(settings, "enable_2fa", True)
+    monkeypatch.setattr(settings, "dashboard_2fa_session_max_hours", 24)
+    stale_auth_at = int(datetime.now(tz=UTC).timestamp()) - (25 * 3600)
+    monkeypatch.setattr(
+        dashboard_session_router,
+        "fetch_dashboard_refresh_session",
+        AsyncMock(return_value=(str(user.id), stale_auth_at)),
+    )
+    monkeypatch.setattr(
+        dashboard_session_router,
+        "revoke_dashboard_refresh",
+        AsyncMock(return_value=None),
+    )
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/api/v1/auth/refresh",
+            json={"refresh_token": "refresh-token-1234567890"},
+        )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "2FA session expired; sign in again."

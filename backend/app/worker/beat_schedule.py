@@ -13,17 +13,19 @@ from app.core.config import settings
 def build_beat_schedule() -> dict[str, dict[str, Any]]:
     """Return beat entries based on runtime feature flags/settings."""
 
-    schedule: dict[str, dict[str, Any]] = {
-        "hive-hourly-youtube-crypto-roll": {
+    schedule: dict[str, dict[str, Any]] = {}
+
+    if settings.hourly_youtube_crypto_roll_enabled:
+        schedule["hive-hourly-youtube-crypto-roll"] = {
             "task": "hive.hourly_youtube_crypto_roll",
             "schedule": crontab(minute=0),
             "options": {"queue": "hive"},
-        },
-        "hive-dynamic-agent-scheduler": {
-            "task": "hive.dynamic_agent_schedule_tick",
-            "schedule": timedelta(seconds=60),
-            "options": {"queue": "hive"},
-        },
+        }
+
+    schedule["hive-dynamic-agent-scheduler"] = {
+        "task": "hive.dynamic_agent_schedule_tick",
+        "schedule": timedelta(seconds=60),
+        "options": {"queue": "hive"},
     }
     if settings.routines_enabled:
         schedule["hive-supervisor-routines-tick"] = {
@@ -49,6 +51,24 @@ def build_beat_schedule() -> dict[str, dict[str, Any]]:
             "schedule": timedelta(seconds=120),
             "options": {"queue": "hive"},
         }
+    # Pollen-driven re-roster advisor — daily at 05:00 UTC, advisory only.
+    schedule["hive-pollen-reroster-daily"] = {
+        "task": "hive.pollen_reroster_sweep",
+        "schedule": crontab(hour=5, minute=0),
+        "options": {"queue": "hive"},
+    }
+    # Recipe warmup — preload top-N verified recipes into Chroma daily 04:00 UTC.
+    schedule["hive-recipe-warmup-daily"] = {
+        "task": "hive.recipe_warmup",
+        "schedule": crontab(hour=4, minute=0),
+        "options": {"queue": "hive"},
+    }
+    # Manager peer review sweep — every 2h, samples 10 % of completed sessions.
+    schedule["hive-manager-peer-review-sweep"] = {
+        "task": "hive.manager_peer_review_sweep",
+        "schedule": timedelta(hours=2),
+        "options": {"queue": "hive"},
+    }
     if settings.supervisor_audit_digest_enabled:
         schedule["hive-supervisor-audit-digest"] = {
             "task": "hive.supervisor_audit_digest_tick",
@@ -74,6 +94,36 @@ def build_beat_schedule() -> dict[str, dict[str, Any]]:
                 hour=settings.forager_intelligence_cron_hour,
                 minute=settings.forager_intelligence_cron_minute,
             ),
+            "options": {"queue": "hive"},
+        }
+    if settings.execution_studio_weekly_rollup_enabled and settings.execution_studio_enabled:
+        schedule["hive-execution-studio-weekly-rollup"] = {
+            "task": "hive.execution_studio_weekly_rollup_tick",
+            "schedule": crontab(hour=8, minute=15, day_of_week=1),
+            "options": {"queue": "hive"},
+        }
+    if settings.scheduled_publish_enabled:
+        schedule["hive-scheduled-publish-tick"] = {
+            "task": "hive.scheduled_publish_tick",
+            "schedule": timedelta(minutes=5),
+            "options": {"queue": "hive"},
+        }
+    if settings.morning_publish_pipeline_enabled:
+        schedule["hive-morning-publish-pipeline"] = {
+            "task": "hive.morning_publish_pipeline_tick",
+            "schedule": crontab(hour=8, minute=0),
+            "options": {"queue": "hive"},
+        }
+    if settings.operator_loop_enabled and settings.operator_loop_telegram_morning_enabled:
+        schedule["hive-operator-loop-morning"] = {
+            "task": "hive.operator_loop_morning_tick",
+            "schedule": crontab(hour=7, minute=30),
+            "options": {"queue": "hive"},
+        }
+    if settings.trading_overnight_review_enabled:
+        schedule["hive-trading-overnight-review"] = {
+            "task": "hive.trading_overnight_review_tick",
+            "schedule": crontab(hour=6, minute=0),
             "options": {"queue": "hive"},
         }
     return schedule

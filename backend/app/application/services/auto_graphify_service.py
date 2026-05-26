@@ -111,16 +111,19 @@ def _build_summary_md(
 async def _resolve_orchestrator_agent(session: AsyncSession, *, tenant_id: uuid.UUID) -> Agent | None:
     """Find tenant orchestrator bee for pollen credit."""
 
+    orch = await session.scalar(
+        select(Agent).where(Agent.name == FIXED_ORCHESTRATOR_AGENT_NAME).limit(1),
+    )
+    if orch is not None:
+        return orch
+    _ = tenant_id
     rows = list(
         (
             await session.scalars(
-                select(Agent).where(Agent.tenant_id == tenant_id).order_by(Agent.created_at.asc()).limit(40),
+                select(Agent).order_by(Agent.created_at.asc()).limit(40),
             )
         ).all(),
     )
-    for row in rows:
-        if row.name.strip().lower() == FIXED_ORCHESTRATOR_AGENT_NAME.lower():
-            return row
     return rows[0] if rows else None
 
 

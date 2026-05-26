@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
   Building2,
+  CircleDollarSign,
   ClipboardList,
   Coins,
   Globe,
@@ -30,9 +31,10 @@ export interface SettingsNavSection {
 export const SETTINGS_NAV_SECTIONS: SettingsNavSection[] = [
   { href: "/settings/security", label: "Security · 2FA", icon: Shield, featureKey: "settings" },
   { href: "/settings/billing", label: "Billing · Usage", icon: Coins, featureKey: "billing_settings" },
+  { href: "/settings/costs", label: "Costs · spend", icon: CircleDollarSign, featureKey: "costs" },
   { href: "/settings/team", label: "Team · RBAC", icon: Users, featureKey: "team_rbac" },
   { href: "/settings/sharing", label: "Public sharing", icon: Globe, featureKey: "sharing_settings" },
-  { href: "/settings/llm-keys", label: "AI · Voice keys", icon: Mic, featureKey: "llm_keys_settings" },
+  { href: "/settings/llm-keys", label: "AI · LLM & Voice", icon: Mic, featureKey: "llm_keys_settings" },
   { href: "/settings/notifications", label: "Notifications", icon: AlertTriangle, featureKey: "settings" },
   { href: "/settings/capabilities", label: "Capabilities · atlas", icon: Map, featureKey: "settings" },
   { href: "/settings/harness", label: "AI · harness", icon: Brain, featureKey: "ai_harness_dashboard" },

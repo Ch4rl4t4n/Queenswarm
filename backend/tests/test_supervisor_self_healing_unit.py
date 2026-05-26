@@ -43,6 +43,23 @@ def test_build_needs_input_request_when_issues_present_then_returns_precise_payl
     assert payload["alternatives"]
 
 
+def test_detect_step_issues_when_long_llm_output_mentions_error_then_not_bad_output() -> None:
+    """Long verified LLM reports must not fail self-heal on incidental 'error' tokens."""
+
+    issues = detect_step_issues(
+        retrieval_contract="",
+        retrieval_sections=["policy"],
+        selected_skills=["context"],
+        output_text=(
+            "## Finding 1\n"
+            "- claim: Operators should monitor rate-limit errors in RSS feeds.\n"
+            "This is a detailed verified report with enough content to pass length checks "
+            "and should not be rejected because the word error appears in context."
+        ),
+    )
+    assert "bad_output" not in issues
+
+
 def test_is_approval_required_when_critical_goal_then_true() -> None:
     """Critical action keywords trigger approval workflow."""
 

@@ -51,8 +51,10 @@ def _mk_sub(role: str) -> SimpleNamespace:
 
 def _mk_session() -> SimpleNamespace:
     now = datetime.now(tz=UTC)
+    tid = uuid.uuid4()
     return SimpleNamespace(
         id=uuid.uuid4(),
+        tenant_id=tid,
         goal="Investigate onboarding drop-off",
         status="completed",
         runtime_mode="inprocess",
@@ -231,13 +233,15 @@ async def test_agent_sessions_review_when_enabled_returns_200(
         async def _get(_model: object, _key: object) -> None:
             return None
 
-        yield SimpleNamespace(commit=_commit, get=_get)
+        async def _flush(*_a: object, **_k: object) -> None:
+            return None
+
+        def _add(_obj: object) -> None:
+            return None
+
+        yield SimpleNamespace(commit=_commit, get=_get, flush=_flush, add=_add)
 
     async def _fake_get(*args, **kwargs):  # noqa: ANN002, ANN003
-        del args, kwargs
-        return fake_row
-
-    async def _fake_review(*args, **kwargs):  # noqa: ANN002, ANN003
         del args, kwargs
         return fake_row
 
@@ -245,13 +249,13 @@ async def test_agent_sessions_review_when_enabled_returns_200(
     app.dependency_overrides[require_dashboard_session] = lambda: _dash_session()
     monkeypatch.setattr(settings, "light_control_plane_enabled", True)
     monkeypatch.setattr(agent_sessions_router, "get_supervisor_session", _fake_get)
-    monkeypatch.setattr(agent_sessions_router, "apply_session_review", _fake_review)
 
     async def _fake_audit(*args, **kwargs):  # noqa: ANN002, ANN003
         del args, kwargs
         return None
 
     monkeypatch.setattr(agent_sessions_router, "write_supervisor_session_audit_log", _fake_audit)
+    monkeypatch.setattr(agent_sessions_router, "maybe_auto_save_playbook_on_approve", lambda *a, **k: None)
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -450,6 +454,66 @@ async def test_agent_sessions_summary_returns_aggregate_shape(
     body = res.json()
     assert body["sessions_total"] == 3
     assert body["due_routines"] == 1
+
+
+@pytest.mark.asyncio
+async def test_agent_sessions_delete_and_clear_all(
+    restore_app_overrides: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Delete endpoints remove one or all supervisor sessions."""
+
+    session = _mk_session()
+
+    async def mock_db() -> AsyncIterator[SimpleNamespace]:
+        async def _commit() -> None:
+            return None
+
+        yield SimpleNamespace(commit=_commit)
+
+    async def _fake_get(*args, **kwargs):  # noqa: ANN002, ANN003
+        del args, kwargs
+        return session
+
+    async def _fake_delete_one(*args, **kwargs):  # noqa: ANN002, ANN003
+        del args, kwargs
+        return True
+
+    async def _fake_delete_all(*args, **kwargs):  # noqa: ANN002, ANN003
+        del args, kwargs
+        return 5
+
+    app.dependency_overrides[get_db] = mock_db
+    app.dependency_overrides[require_dashboard_session] = lambda: {
+        "sub": "dash:11111111-1111-1111-1111-111111111111",
+        "tenant_id": "22222222-2222-2222-2222-222222222222",
+    }
+    monkeypatch.setattr(agent_sessions_router, "get_supervisor_session", _fake_get)
+    monkeypatch.setattr(agent_sessions_router, "delete_supervisor_session", _fake_delete_one)
+    monkeypatch.setattr(agent_sessions_router, "delete_all_supervisor_sessions", _fake_delete_all)
+    async def _fake_session_audit(*args, **kwargs):  # noqa: ANN002, ANN003
+        del args, kwargs
+
+    async def _fake_tenant_audit(*args, **kwargs):  # noqa: ANN002, ANN003
+        del args, kwargs
+
+    monkeypatch.setattr(agent_sessions_router, "write_supervisor_session_audit_log", _fake_session_audit)
+    monkeypatch.setattr(
+        "app.application.services.tenancy.write_tenant_audit_log",
+        _fake_tenant_audit,
+    )
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        one = await client.delete(
+            f"/api/v1/agents/sessions/{session.id}",
+            headers={"Authorization": "Bearer x"},
+        )
+        all_rows = await client.delete("/api/v1/agents/sessions", headers={"Authorization": "Bearer x"})
+    assert one.status_code == 200
+    assert one.json()["deleted"] is True
+    assert all_rows.status_code == 200
+    assert all_rows.json()["deleted_count"] == 5
 
 
 @pytest.mark.asyncio

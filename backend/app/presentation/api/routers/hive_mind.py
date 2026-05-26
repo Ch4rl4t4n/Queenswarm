@@ -38,6 +38,8 @@ from app.application.services.supervisor.memory_evolution import (
     reject_memory_evolution_proposal,
     run_memory_evolution_for_tenant,
 )
+from app.application.services.hivemind_ingest_overview import build_hivemind_ingest_overview
+from app.application.services.cross_check_observability import build_cross_check_overview
 from app.infrastructure.persistence.models.memory_evolution import MemoryEvolutionProposal
 from app.infrastructure.persistence.models.tenant import Tenant
 
@@ -182,6 +184,27 @@ async def hive_graph(
                 for row in fallback_hits
             ],
         }
+
+    # When the operator has no Deliverable nodes yet (typical for solo onboarding),
+    # fall back to the tenant-scoped Auto-Graphify project shape so the UI still
+    # renders the vault constellation instead of an empty canvas.
+    if not payload.get("nodes"):
+        tenant_raw = sess.get("tenant_id") if isinstance(sess, dict) else None
+        if tenant_raw:
+            try:
+                tenant_uuid = uuid.UUID(str(tenant_raw))
+                shape = await bounded_tenant_project_shape_snapshot(
+                    tenant_id=tenant_uuid,
+                    limit_nodes=cap,
+                )
+                if shape.get("nodes"):
+                    payload = {
+                        **shape,
+                        "fallback_backend": "project_shape",
+                        "fallback_reason": "no_operator_deliverables",
+                    }
+            except (ValueError, TypeError):
+                pass
     if cache_ttl > 0:
         try:
             await set_json(cache_key, payload, ttl=cache_ttl)
@@ -578,3 +601,58 @@ async def reject_memory_evolution_change(
     await db.commit()
     await db.refresh(proposal)
     return _serialize_proposal(proposal)
+
+
+@router.get(
+    "/insights/overview",
+    summary="HiveMind ingest growth + Quality Contract compliance dashboard",
+)
+async def hive_mind_insights_overview(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    window_hours: int = Query(default=24, ge=1, le=720),
+) -> dict[str, Any]:
+    """Operator dashboard for HiveMind growth and Quality Contract compliance.
+
+    Surfaces: new VaultDocuments in window, % carrying the `hivemind-candidate`
+    tag (contract compliance), top tags, dump-queue lag, and dream insight
+    counts. This is the feedback loop for the agent prompt overlay deployed in
+    `agent_prompt_templates.py` — without it we cannot tell whether agents are
+    actually feeding the HiveMind.
+    """
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    return await build_hivemind_ingest_overview(
+        db,
+        tenant_id=tenant_id,
+        window_hours=window_hours,
+    )
+
+
+@router.get(
+    "/insights/cross-check",
+    summary="Grok truth-arbiter cross-check observability (last N hours)",
+)
+async def hive_mind_cross_check_overview(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    window_hours: int = Query(default=168, ge=1, le=720),
+) -> dict[str, Any]:
+    """Operator panel for the Grok cross-check protocol.
+
+    Surfaces total Grok primary-slug calls in the window (proxy for cross-check
+    volume) and counts/samples of `swarm_health_notes` entries that look like
+    `verdict=false` rejections from the truth-arbiter. Pairs with the HiveMind
+    ingest dashboard to close the quality loop.
+    """
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    return await build_cross_check_overview(
+        db,
+        tenant_id=tenant_id,
+        window_hours=window_hours,
+    )

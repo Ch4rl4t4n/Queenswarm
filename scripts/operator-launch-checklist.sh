@@ -1,0 +1,281 @@
+#!/usr/bin/env bash
+# Unified operator launch checklist — dev complete, human P0 remaining (read-only).
+#
+# Runs Stripe prep, harness env prep, Hetzner draft check, prod route probes, harness audit.
+# Does NOT mutate prod or .env.prod.
+#
+# Usage:
+#   ./scripts/operator-launch-checklist.sh
+#   ENV_FILE=.env.prod HIVE_BASE=https://queenswarm.love ./scripts/operator-launch-checklist.sh
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+ENV_FILE="${ENV_FILE:-${ROOT}/.env.prod}"
+HIVE_BASE="${HIVE_BASE:-https://queenswarm.love}"
+STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+REPORT_DIR="${ROOT}/reports/operator"
+OUT_MD="${REPORT_DIR}/OPERATOR_LAUNCH_CHECKLIST_${STAMP}.md"
+
+pass=0
+warn=0
+fail=0
+blockers=()
+
+ok() { echo "  ✓ $1"; pass=$((pass + 1)); }
+note() { echo "  ○ $1"; warn=$((warn + 1)); }
+bad() { echo "  ✗ $1"; fail=$((fail + 1)); blockers+=("$1"); }
+
+load_kv() {
+  local file="$1" key="$2"
+  local line val
+  [[ -f "$file" ]] || return 1
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ -z "${line// }" ]] && continue
+    if [[ "$line" =~ ^${key}= ]]; then
+      val="${line#*=}"
+      val="${val%$'\r'}"
+      if [[ "$val" == \"*\" ]]; then val="${val:1:-1}"; fi
+      printf '%s' "$val"
+      return 0
+    fi
+  done <"$file"
+  return 1
+}
+
+check_bool_env() {
+  local key="$1"
+  local val
+  val="$(load_kv "$ENV_FILE" "$key" || true)"
+  val="${val,,}"
+  if [[ "$val" == "true" || "$val" == "1" || "$val" == "yes" ]]; then
+    ok "${key}=true"
+    return 0
+  fi
+  note "${key} not enabled (optional)"
+  return 1
+}
+
+check_key_env() {
+  local key="$1"
+  local val
+  val="$(load_kv "$ENV_FILE" "$key" || true)"
+  if [[ -n "${val// }" ]]; then
+    ok "${key} set"
+    return 0
+  fi
+  bad "${key} missing in ${ENV_FILE}"
+  return 1
+}
+
+probe_http() {
+  local label="$1" url="$2" expect="$3"
+  local method="${4:-GET}"
+  local code
+  if [[ "$method" == "POST" ]]; then
+    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 12 -X POST -H 'Content-Type: application/json' -d '{}' "$url" 2>/dev/null || echo "000")"
+  else
+    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 12 "$url" 2>/dev/null || echo "000")"
+  fi
+  if [[ "$code" == "$expect" ]]; then
+    ok "${label} → HTTP ${code}"
+  else
+    bad "${label} → HTTP ${code} (expected ${expect})"
+  fi
+}
+
+mkdir -p "$REPORT_DIR"
+
+echo "╔══════════════════════════════════════════════════════════╗"
+echo "║  Queenswarm Operator Launch Checklist                    ║"
+echo "╚══════════════════════════════════════════════════════════╝"
+echo "env: ${ENV_FILE}"
+echo "hive: ${HIVE_BASE}"
+echo "stamp: ${STAMP}"
+echo
+
+echo "[A] Dev backlog — automated audits"
+if ./scripts/mission-phase6-harness-snapshot-audit.sh >/dev/null 2>&1; then
+  ok "Phase 6 harness audit (37 checks)"
+else
+  bad "Phase 6 harness audit failed"
+fi
+if ./scripts/mission-phase5-pattern-explorer-audit.sh >/dev/null 2>&1; then
+  ok "Phase 5 pattern explorer audit"
+else
+  note "Phase 5 pattern explorer audit skipped or failed"
+fi
+echo
+
+echo "[B] Stripe live checkout (P0 — operator keys)"
+stripe_missing=0
+if val="$(load_kv "$ENV_FILE" STRIPE_SECRET_KEY || true)" && [[ -n "${val// }" && "$val" == sk_* ]]; then
+  ok "STRIPE_SECRET_KEY set"
+elif [[ -n "${val// }" ]]; then
+  bad "STRIPE_SECRET_KEY invalid prefix"
+else
+  note "STRIPE_SECRET_KEY missing — add to .env.prod"
+  stripe_missing=$((stripe_missing + 1))
+fi
+if val="$(load_kv "$ENV_FILE" STRIPE_WEBHOOK_SECRET || true)" && [[ -n "${val// }" && "$val" == whsec_* ]]; then
+  ok "STRIPE_WEBHOOK_SECRET set"
+elif [[ -n "${val// }" ]]; then
+  bad "STRIPE_WEBHOOK_SECRET invalid prefix"
+else
+  note "STRIPE_WEBHOOK_SECRET missing — add to .env.prod"
+  stripe_missing=$((stripe_missing + 1))
+fi
+if [[ -n "$(load_kv "$ENV_FILE" STRIPE_PRO_PRICE_ID || true)" ]]; then
+  ok "STRIPE_PRO_PRICE_ID set"
+else
+  note "STRIPE_PRO_PRICE_ID unset — dynamic EUR fallback may apply"
+fi
+if [[ "$stripe_missing" -eq 0 ]]; then
+  ok "Stripe ready for ./scripts/operator-p0-close.sh"
+else
+  note "Add Stripe keys → ./scripts/operator-stripe-prep.sh for details"
+fi
+echo
+
+echo "[C] Hetzner abuse closure (P0 — manual send)"
+hetzner_draft="$(ls -1 reports/hetzner/hetzner-reply-*.txt 2>/dev/null | tail -1 || true)"
+if [[ -n "$hetzner_draft" ]]; then
+  ok "Hetzner reply draft: $(basename "$hetzner_draft")"
+  note "Operator must send → abuse@hetzner.com (Re: AbuseID 11B0286:23)"
+else
+  bad "No Hetzner reply draft — run ./scripts/operator-hetzner-send-prep.sh"
+fi
+echo
+
+echo "[D] Harness operator env (optional until launch features needed)"
+check_bool_env QUEEN_MAINTAINER_ENABLED || true
+if check_bool_env QUEEN_MAINTAINER_POST_MERGE_WEBHOOK_ENABLED; then
+  check_key_env QUEEN_MAINTAINER_GITHUB_WEBHOOK_SECRET || true
+  check_key_env QUEEN_MAINTAINER_POST_MERGE_TENANT_ID || true
+fi
+note "GitHub webhook URL: ${HIVE_BASE}/api/v1/queen-maintainer/github-webhook"
+check_bool_env FORAGER_INTELLIGENCE_LOOP_ENABLED || true
+check_bool_env SLACK_HARNESS_TRAINER_ENABLED || true
+if [[ -n "$(load_kv "$ENV_FILE" SLACK_WEBHOOK_URL || true)" ]]; then
+  ok "SLACK_WEBHOOK_URL set (Alertmanager → Slack)"
+else
+  note "SLACK_WEBHOOK_URL unset — alerts go to blackhole"
+fi
+echo
+
+echo "[E] Prod route probes (no JWT)"
+probe_http "Health" "${HIVE_BASE}/health" "200"
+probe_http "Queen Maintainer tech-health (auth required)" "${HIVE_BASE}/api/v1/queen-maintainer/tech-health" "401"
+probe_http "GitHub webhook (503 until secret configured)" "${HIVE_BASE}/api/v1/queen-maintainer/github-webhook" "503" POST
+echo
+
+echo "[F] Host + alert pipeline"
+if ./scripts/audit-host-exposure.sh >/dev/null 2>&1; then
+  ok "Host exposure audit"
+else
+  bad "Host exposure audit failed"
+fi
+if ./scripts/alertmanager-smoke.sh >/dev/null 2>&1; then
+  ok "Alertmanager smoke"
+else
+  note "Alertmanager smoke failed or Slack blackhole — check monitoring/"
+fi
+echo
+
+echo "== Checklist: pass=${pass} warn=${warn} fail=${fail} =="
+
+{
+  echo "# Operator launch checklist (${STAMP})"
+  echo
+  echo "Generated by \`./scripts/operator-launch-checklist.sh\`"
+  echo
+  echo "| Metric | Value |"
+  echo "|--------|-------|"
+  echo "| pass | ${pass} |"
+  echo "| warn | ${warn} |"
+  echo "| fail | ${fail} |"
+  echo "| hive | ${HIVE_BASE} |"
+  echo
+  echo "## Dev backlog"
+  echo
+  echo "All planned dev phases (0–6 + P2 harness) are **complete**. Remaining work is operator P0 only."
+  echo
+  echo "## Human P0 — do in order"
+  echo
+  echo "### 1. Stripe live checkout"
+  echo
+  echo "\`\`\`bash"
+  echo "./scripts/operator-stripe-prep.sh"
+  echo "# Add to .env.prod: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, price IDs"
+  echo "./scripts/operator-p0-close.sh"
+  echo "\`\`\`"
+  echo
+  echo "Stripe webhook URL: \`${HIVE_BASE}/api/v1/billing/stripe/webhook\`"
+  echo "Event: \`checkout.session.completed\`"
+  echo
+  echo "### 2. Hetzner abuse reply"
+  echo
+  echo "\`\`\`bash"
+  echo "./scripts/operator-hetzner-send-prep.sh"
+  echo "# Send reports/hetzner/hetzner-reply-*.txt → abuse@hetzner.com"
+  echo "# Subject: Re: AbuseID 11B0286:23 — remediation completed"
+  echo "\`\`\`"
+  echo
+  echo "### 3. Harness env (after Stripe, before Maintainer automation)"
+  echo
+  echo "\`\`\`bash"
+  echo "./scripts/operator-harness-env-prep.sh"
+  echo "\`\`\`"
+  echo
+  echo "| Variable | Purpose |"
+  echo "|----------|---------|"
+  echo "| \`QUEEN_MAINTAINER_POST_MERGE_WEBHOOK_ENABLED=true\` | Post-merge Maintainer trigger |"
+  echo "| \`QUEEN_MAINTAINER_GITHUB_WEBHOOK_SECRET\` | GitHub HMAC |"
+  echo "| \`QUEEN_MAINTAINER_POST_MERGE_TENANT_ID\` | Tenant UUID for Maintainer sessions |"
+  echo "| \`FORAGER_INTELLIGENCE_LOOP_ENABLED=true\` | Daily Forager scan (Celery beat) |"
+  echo "| \`SLACK_WEBHOOK_URL\` | Alertmanager → Slack |"
+  echo
+  echo "GitHub webhook: \`${HIVE_BASE}/api/v1/queen-maintainer/github-webhook\`"
+  echo "Events: Pull requests (merged), optional push to main"
+  echo
+  echo "### 4. Full launch gate (automated evidence)"
+  echo
+  echo "\`\`\`bash"
+  echo "SKIP_E2E=1 SKIP_RESPONSIVE_E2E=1 ./scripts/operator-launch-gate.sh"
+  echo "./scripts/operator-final-handoff.sh"
+  echo "\`\`\`"
+  echo
+  if [[ ${#blockers[@]} -gt 0 ]]; then
+    echo "## Blockers"
+    echo
+    for item in "${blockers[@]}"; do
+      echo "- ${item}"
+    done
+    echo
+  fi
+  echo "## References"
+  echo
+  echo "- \`docs/OPERATOR_P0_CLOSE.md\`"
+  echo "- \`docs/TOMORROW_OPERATOR_RUNBOOK.md\`"
+  echo "- \`docs/MISSION_EXECUTION_BACKLOG.md\`"
+} >"$OUT_MD"
+
+echo
+echo "Report: ${OUT_MD}"
+
+if [[ "$fail" -gt 0 ]]; then
+  echo
+  echo "INFRA BLOCKED: ${fail} hard failure(s) — see report above."
+  exit 1
+fi
+
+if [[ "$stripe_missing" -gt 0 ]]; then
+  echo
+  echo "OPERATOR P0 PENDING: Stripe keys missing — see ${OUT_MD}"
+  exit 2
+fi
+
+echo
+echo "READY for operator P0: Hetzner send may still be manual."

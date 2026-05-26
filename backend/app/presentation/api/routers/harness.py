@@ -9,8 +9,15 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.application.services.forager_intelligence import run_intelligence_scan
+from app.application.services.forager_intelligence_v2 import ForagerV2SnapshotOut, compose_forager_v2_snapshot
 from app.application.services.harness_snapshot import build_harness_snapshot
 from app.application.services.pattern_explorer import build_pattern_explorer_payload
+from app.application.services.self_extending_marketplace import (
+    SelfExtendingMarketplaceDisabledError,
+    SelfExtendingUnsupportedProposalError,
+    apply_intelligence_proposal,
+    build_enriched_intelligence_scan,
+)
 from app.application.services.lsp.lsp_mcp_bridge import (
     LspBridgeDisabledError,
     LspBridgeToolError,
@@ -44,7 +51,8 @@ from app.common.schemas.slack_harness_trainer import (
     SlackTrainerFeedbackResponse,
 )
 from app.core.config import settings
-from app.presentation.api.deps import DbSession, require_dashboard_user_with_tenant_role
+from app.infrastructure.persistence.models.tenant import Tenant
+from app.presentation.api.deps import DbSession, require_dashboard_user_with_tenant_role, require_tenant_permission
 
 router = APIRouter(prefix="/harness", tags=["Harness"])
 
@@ -75,11 +83,79 @@ async def harness_pattern_explorer(
 
 @router.post("/intelligence-scan", summary="Forager Intelligence Loop scan (read-only proposals)")
 async def harness_intelligence_scan(
-    _principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
 ) -> dict[str, Any]:
-    """Propose skill/MCP/doc refresh candidates without mutating the hive."""
+    """Propose skill/MCP/doc refresh candidates; enrich MCP presets with install actions."""
 
+    if settings.self_extending_tool_marketplace_enabled:
+        user = principal.get("user")
+        user_id = getattr(user, "id", None)
+        if user_id is not None:
+            return await build_enriched_intelligence_scan(db, dashboard_user_id=user_id)
     return run_intelligence_scan()
+
+
+@router.get("/forager-v2", response_model=ForagerV2SnapshotOut, summary="Forager Intelligence v2 snapshot")
+async def harness_forager_v2_snapshot(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> ForagerV2SnapshotOut:
+    """Tenant-scoped forager scan with connector gaps and MCP proposals."""
+
+    user = principal.get("user")
+    tenant_id = principal.get("tenant_id")
+    tenant = await db.get(Tenant, tenant_id) if tenant_id is not None else None
+    user_id = getattr(user, "id", None)
+    if user_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Dashboard user missing.")
+    return await compose_forager_v2_snapshot(
+        db,
+        tenant=tenant,
+        dashboard_user_id=user_id,
+    )
+
+
+class IntelligenceApplyBody(BaseModel):
+    """Apply one Forager intelligence proposal (MCP preset install)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: str = Field(min_length=2, max_length=64)
+    target: str = Field(min_length=2, max_length=160)
+
+
+@router.post("/intelligence-apply", summary="Apply Forager MCP preset proposal (one-click install)")
+async def harness_intelligence_apply(
+    body: IntelligenceApplyBody,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    _: bool = Depends(require_tenant_permission("connectors:edit")),
+) -> dict[str, Any]:
+    """Self-extending marketplace — install Phase3 template from intelligence scan."""
+
+    user = principal.get("user")
+    user_id = getattr(user, "id", None)
+    if user_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Dashboard user missing.")
+    try:
+        result = await apply_intelligence_proposal(
+            db,
+            dashboard_user_id=user_id,
+            kind=body.kind,
+            target=body.target,
+        )
+        await db.commit()
+    except SelfExtendingMarketplaceDisabledError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except SelfExtendingUnsupportedProposalError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    except KeyError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return result
 
 
 def _require_owner_or_admin(principal: dict[str, Any]) -> None:

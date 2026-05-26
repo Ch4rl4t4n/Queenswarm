@@ -204,6 +204,12 @@ class OperatorCockpitSnapshotOut(BaseModel):
     proof_of_hive: dict[str, Any] = Field(default_factory=dict)
     hive_oracle: dict[str, Any] = Field(default_factory=dict)
     intent_crystallizer: dict[str, Any] = Field(default_factory=dict)
+    context_teleport: dict[str, Any] = Field(default_factory=dict)
+    regret_simulator: dict[str, Any] = Field(default_factory=dict)
+    ambient_forager: dict[str, Any] = Field(default_factory=dict)
+    parallel_hive_view: dict[str, Any] = Field(default_factory=dict)
+    swarm_immune_system: dict[str, Any] = Field(default_factory=dict)
+    evolutionary_recipes: dict[str, Any] = Field(default_factory=dict)
     links: dict[str, str] = Field(default_factory=dict)
     operator_loop: dict[str, Any] = Field(default_factory=dict)
 
@@ -291,14 +297,14 @@ def _feature_modules_catalog() -> list[FeatureModuleOut]:
         FeatureModuleOut(
             id="context_teleport",
             label="Context Teleport",
-            status="planned",
+            status="live",
             summary="1-click verified context between swarms.",
             enabled=enabled and settings.cross_swarm_knowledge_enabled,
         ),
         FeatureModuleOut(
             id="regret_simulator",
             label="Regret Simulator",
-            status="planned",
+            status="live",
             summary="Pre-mortem score before live publish or trading.",
             enabled=enabled,
         ),
@@ -326,14 +332,14 @@ def _feature_modules_catalog() -> list[FeatureModuleOut]:
         FeatureModuleOut(
             id="ambient_forager",
             label="Ambient Forager",
-            status="planned",
+            status="live",
             summary="Passive ingest → morning relevance brief.",
-            enabled=enabled and getattr(settings, "forager_intelligence_enabled", True),
+            enabled=enabled and settings.forager_intelligence_v2_enabled,
         ),
         FeatureModuleOut(
             id="parallel_hive_view",
             label="Parallel Hive View",
-            status="planned",
+            status="live",
             summary="Mission control for multi-bee sessions.",
             enabled=enabled,
         ),
@@ -482,10 +488,16 @@ async def compose_operator_cockpit_snapshot(
 
         innovation_pending = await count_pending_innovation_proposals(db, tenant_id=tenant_id)
 
+    from app.application.services.ambient_forager import compose_ambient_forager_snapshot
+    from app.application.services.context_teleport import compose_context_teleport_snapshot
+    from app.application.services.evolutionary_recipes import compose_evolutionary_recipes_snapshot
     from app.application.services.hive_oracle import _warning_dicts, compose_hive_oracle_snapshot
     from app.application.services.intent_crystallizer import compose_intent_crystallizer_snapshot
     from app.application.services.operator_telegram_gateway import compose_zero_ui_status
+    from app.application.services.parallel_hive_view import compose_parallel_hive_view_snapshot
     from app.application.services.proof_of_hive import compose_recent_proof_receipts
+    from app.application.services.regret_simulator import compose_regret_simulator_snapshot
+    from app.application.services.swarm_immune_system import compose_swarm_immune_snapshot
 
     oracle_snap = await compose_hive_oracle_snapshot(
         db,
@@ -502,6 +514,25 @@ async def compose_operator_cockpit_snapshot(
 
     zero_ui = compose_zero_ui_status(tenant=tenant)
     proofs = compose_recent_proof_receipts(tenant, limit=6)
+    teleport = await compose_context_teleport_snapshot(session=db, tenant=tenant)
+    regret = await compose_regret_simulator_snapshot(
+        db,
+        tenant_id=tenant_id,
+        dashboard_user_id=dashboard_user_id,
+        tenant=tenant,
+    )
+    ambient = await compose_ambient_forager_snapshot(
+        db,
+        tenant=tenant,
+        dashboard_user_id=dashboard_user_id,
+    )
+    parallel = await compose_parallel_hive_view_snapshot(
+        db,
+        tenant_id=tenant_id,
+        dashboard_user_id=dashboard_user_id,
+    )
+    immune = compose_swarm_immune_snapshot(fleet=fleet)
+    evolutionary = await compose_evolutionary_recipes_snapshot(db, tenant_id=tenant_id)
 
     return OperatorCockpitSnapshotOut(
         enabled=True,
@@ -533,6 +564,12 @@ async def compose_operator_cockpit_snapshot(
             "href_full": "/oracle",
         },
         intent_crystallizer=compose_intent_crystallizer_snapshot().model_dump(mode="json"),
+        context_teleport=teleport.model_dump(mode="json"),
+        regret_simulator=regret.model_dump(mode="json"),
+        ambient_forager=ambient.model_dump(mode="json"),
+        parallel_hive_view=parallel.model_dump(mode="json"),
+        swarm_immune_system=immune.model_dump(mode="json"),
+        evolutionary_recipes=evolutionary.model_dump(mode="json"),
         operator_loop=loop.model_dump(mode="json"),
         links={
             "cockpit": "/cockpit",

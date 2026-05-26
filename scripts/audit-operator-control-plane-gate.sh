@@ -203,6 +203,46 @@ else
   fail "missing Intent Crystallizer UI"
 fi
 
+for svc in context_teleport regret_simulator ambient_forager parallel_hive_view swarm_immune_system evolutionary_recipes; do
+  if [[ -f "backend/app/application/services/${svc}.py" ]]; then
+    pass "${svc}.py"
+  else
+    fail "missing ${svc}.py"
+  fi
+done
+
+if [[ -f frontend/components/hive/settings-panel-host.tsx ]]; then
+  pass "settings-panel-host.tsx"
+else
+  fail "missing settings-panel-host.tsx"
+fi
+
+if [[ -f frontend/app/\(dashboard\)/settings/\[\[...section\]\]/page.tsx ]]; then
+  pass "settings catch-all route"
+else
+  fail "missing settings catch-all route"
+fi
+
+if grep -q 'dynamic(' frontend/components/connectors/execution-studio-panel.tsx; then
+  pass "execution studio lazy panels"
+else
+  fail "execution studio missing dynamic() splits"
+fi
+
+for section in regret-simulator context-teleport ambient-forager parallel-hive swarm-immune-system evolutionary-recipes; do
+  if grep -q "id=\"${section}\"" frontend/components/hive/operator-cockpit-panel.tsx; then
+    pass "cockpit ${section} section"
+  else
+    fail "missing cockpit ${section} section"
+  fi
+done
+
+if [[ -f backend/tests/test_control_plane_modules_unit.py ]]; then
+  pass "control plane modules unit tests"
+else
+  fail "missing control plane modules tests"
+fi
+
 echo
 if [[ "$FAIL" -eq 0 ]]; then
   echo "PASS — Operator Control Plane gate green"

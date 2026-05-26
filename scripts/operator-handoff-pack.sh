@@ -17,6 +17,7 @@ export HIVE_BASE="${HIVE_BASE:-https://queenswarm.love}"
 export ENV_FILE="${ENV_FILE:-.env.prod}"
 SKIP_E2E="${SKIP_E2E:-1}"
 SKIP_RESPONSIVE_E2E="${SKIP_RESPONSIVE_E2E:-1}"
+SKIP_OPERATOR_HUB_E2E="${SKIP_OPERATOR_HUB_E2E:-1}"
 
 echo "== Operator handoff pack =="
 echo "output: ${OUT_DIR}"
@@ -41,6 +42,8 @@ run_step "prod-walkthrough" env SKIP_E2E="$SKIP_E2E" ./scripts/prod-walkthrough-
 run_step "host-exposure" ./scripts/audit-host-exposure.sh
 run_step "hetzner-reply-draft" ./scripts/hetzner-abuse-reply.sh
 run_step "operator-pending-status" ./scripts/operator-pending-status.sh
+run_step "publish-lane-status" ./scripts/operator-publish-lane-status.sh --json-only
+run_step "social-oauth-status" ./scripts/operator-social-oauth-status.sh
 
 run_step "prod-command-center" ./scripts/prod-command-center-gate.sh
 run_step "prod-browser-walkthrough" env SKIP_PROD_PUBLIC=0 ./scripts/prod-browser-walkthrough-gate.sh
@@ -76,6 +79,10 @@ fi
 
 if [[ "$SKIP_RESPONSIVE_E2E" != "1" ]]; then
   run_step "responsive-shell-e2e" bash -c 'cd frontend && CI=1 npx playwright test e2e/responsive-shell.spec.ts --workers=1'
+fi
+
+if [[ "$SKIP_OPERATOR_HUB_E2E" != "1" ]]; then
+  run_step "operator-hub-e2e" bash -c 'cd frontend && CI=1 E2E_OPERATOR_HUB=1 npx playwright test e2e/operator-hub-settings.spec.ts --workers=1'
 fi
 
 cat >"${OUT_DIR}/README.txt" <<EOF

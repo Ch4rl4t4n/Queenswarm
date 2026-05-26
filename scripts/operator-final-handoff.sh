@@ -60,6 +60,13 @@ See latest handoff pack: \`${HANDOFF_DIR##*/}\`
 ./scripts/operator-hetzner-send-prep.sh
 \`\`\`
 
+### 3. Harness env (GitHub webhook, Forager cron)
+
+\`\`\`bash
+./scripts/operator-harness-env-prep.sh
+./scripts/operator-launch-checklist.sh
+\`\`\`
+
 ## Evidence pointers
 
 | Artifact | Path |

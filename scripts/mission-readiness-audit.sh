@@ -10,12 +10,12 @@ export HIVE_BASE="${HIVE_BASE:-https://queenswarm.love}"
 export ENV_FILE="${ENV_FILE:-.env.prod}"
 
 echo "╔══════════════════════════════════════════════════════════╗"
-echo "║  Queenswarm Mission Readiness Audit (Phase 0 → 2 + perf) ║"
+echo "║  Queenswarm Mission Readiness Audit (Phase 0 → 5 + perf) ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo
 
 failed=0
-for script in mission-phase0-audit.sh mission-phase1-audit.sh mission-phase2-audit.sh; do
+for script in mission-phase0-audit.sh mission-phase1-audit.sh mission-phase2-audit.sh mission-phase5-patterns-audit.sh audit-operator-control-plane-gate.sh; do
   echo "──────────────────────────────────────────────────────────"
   if ! "./scripts/${script}"; then
     failed=$((failed + 1))
@@ -33,10 +33,17 @@ if [[ "$failed" -eq 0 ]]; then
     echo "Note: operator-gates-audit reported failures — see above."
   fi
   echo
-  echo "Operator P0 remaining (human-only):"
-  echo "  • Stripe keys → ./scripts/operator-p0-close.sh"
-  echo "  • Hetzner email → ./scripts/operator-hetzner-send-prep.sh"
-  echo "  • See docs/OPERATOR_P0_CLOSE.md"
+  if grep -qE '^SOLO_MODE_ENABLED=(true|1|yes)' "$ENV_FILE" 2>/dev/null; then
+    echo "Solo mode: commercial P0 (Stripe/billing) DEFERRED — focus on feature audit:"
+    echo "  • ./scripts/operator-full-app-audit.sh"
+    echo "  • ./scripts/operator-solo-readiness-audit.sh"
+    echo "  • docs/AUTHENTICATED_PROD_WALKTHROUGH.md"
+  else
+    echo "Operator P0 remaining (human-only):"
+    echo "  • Stripe keys → ./scripts/operator-p0-close.sh"
+    echo "  • Hetzner email → ./scripts/operator-hetzner-send-prep.sh"
+    echo "  • See docs/OPERATOR_P0_CLOSE.md"
+  fi
   exit 0
 fi
 

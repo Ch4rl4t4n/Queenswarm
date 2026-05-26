@@ -13,6 +13,7 @@ import { HIVE_NAV_GROUPS, isNavItemActive } from "@/lib/hive-nav-primary";
 import { filterNavGroupsByFeatures } from "@/lib/platform-features";
 import { useRouteHash } from "@/lib/hooks/use-route-hash";
 import type { TenantListPayload } from "@/lib/hive-types";
+import { clearExecutionStudioPushOnLogout } from "@/lib/execution-studio-push-session-sync";
 import { localizeNavLabel, localizePhrase } from "@/lib/ui-copy";
 import { cn } from "@/lib/utils";
 
@@ -65,6 +66,7 @@ export function HiveMoreSheet({ open, onClose, pathname, tenants }: HiveMoreShee
 
   async function logout(): Promise<void> {
     try {
+      await clearExecutionStudioPushOnLogout();
       await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     } catch {
       /* ignore */

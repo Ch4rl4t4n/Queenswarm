@@ -7,6 +7,10 @@ import { hiveGet } from "@/lib/api";
 import { DASHBOARD_BOOT_STAGGER_MS } from "@/lib/dashboard-boot-stagger";
 import type { DashboardOperatorMe } from "@/lib/hive-dashboard-session";
 import {
+  applySoloModeOverrides,
+  SOLO_MODE_BUILD_HINT,
+} from "@/lib/solo-mode";
+import {
   isFeatureEnabled,
   isRouteAllowed,
   normalizePlatformMode,
@@ -18,6 +22,7 @@ import { isCustomTenantBranding, resolveTenantBranding } from "@/lib/tenant-bran
 
 export interface PlatformContextValue {
   loading: boolean;
+  soloMode: boolean;
   platformMode: PlatformMode;
   subscriptionTier: string;
   isAdmin: boolean;
@@ -33,14 +38,18 @@ export interface PlatformContextValue {
 
 const PlatformContext = createContext<PlatformContextValue | null>(null);
 
-const DEFAULT_FEATURES = resolvePlatformFeaturesFallback({
-  platformMode: "internal",
-  isAdmin: true,
-  subscriptionTier: "free",
-});
+const DEFAULT_FEATURES = applySoloModeOverrides(
+  resolvePlatformFeaturesFallback({
+    platformMode: "internal",
+    isAdmin: true,
+    subscriptionTier: "free",
+  }),
+  { isAdmin: true },
+);
 
 export function PlatformProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
+  const [soloMode, setSoloMode] = useState(SOLO_MODE_BUILD_HINT);
   const [platformMode, setPlatformMode] = useState<PlatformMode>("internal");
   const [subscriptionTier, setSubscriptionTier] = useState("free");
   const [isAdmin, setIsAdmin] = useState(false);
@@ -61,16 +70,20 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     setDisplayName(me.display_name ?? null);
     setEmail(me.email ?? null);
     setTenantBranding(me.tenant_branding ? resolveTenantBranding(me.tenant_branding) : null);
+    const activeSolo = Boolean(me.solo_mode ?? SOLO_MODE_BUILD_HINT);
+    setSoloMode(activeSolo);
     if (me.platform_features && Object.keys(me.platform_features).length > 0) {
       setFeatures(me.platform_features);
     } else {
-      setFeatures(
-        resolvePlatformFeaturesFallback({
-          platformMode: mode,
-          isAdmin: admin,
-          subscriptionTier: tier,
-        }),
-      );
+      let nextFeatures = resolvePlatformFeaturesFallback({
+        platformMode: mode,
+        isAdmin: admin,
+        subscriptionTier: tier,
+      });
+      if (activeSolo) {
+        nextFeatures = applySoloModeOverrides(nextFeatures, { isAdmin: admin });
+      }
+      setFeatures(nextFeatures);
     }
   }, []);
 
@@ -117,6 +130,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
   const value = useMemo<PlatformContextValue>(
     () => ({
       loading,
+      soloMode,
       platformMode,
       subscriptionTier,
       isAdmin,
@@ -129,7 +143,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
       isPathAllowed: (pathname: string) => isRouteAllowed(pathname, features),
       refresh,
     }),
-    [loading, platformMode, subscriptionTier, isAdmin, totpEnabled, displayName, email, features, tenantBranding, refresh],
+    [loading, soloMode, platformMode, subscriptionTier, isAdmin, totpEnabled, displayName, email, features, tenantBranding, refresh],
   );
 
   return <PlatformContext.Provider value={value}>{children}</PlatformContext.Provider>;
@@ -140,6 +154,7 @@ export function usePlatform(): PlatformContextValue {
   if (!ctx) {
     return {
       loading: false,
+      soloMode: SOLO_MODE_BUILD_HINT,
       platformMode: "internal",
       subscriptionTier: "free",
       isAdmin: true,

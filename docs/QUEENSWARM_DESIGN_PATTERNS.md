@@ -14,8 +14,8 @@ Queenswarm **already implements ~14/20 patterns** in production code. The gap is
 | Forced reflection skills | ✅ `supervisor_forced_reflection_enabled` |
 | Pattern Bible (this doc) | ✅ |
 | Pattern Explorer UI | ✅ |
-| AI-driven pattern router | ⏳ P2 |
-| Pattern success metrics | ⏳ P2 |
+| AI-driven pattern router | ✅ P2 shipped (flag OFF — enable after telemetry baseline) |
+| Pattern success metrics | ✅ Prometheus + Grafana + Alertmanager |
 
 Marketing line (accurate): **Queenswarm orchestrates verified swarms using 20 industry-standard agentic design patterns — with persistent Hive Mind, not stateless harnesses.**
 
@@ -152,7 +152,7 @@ flowchart TD
 | **P1** | Episodic memory explicit API | 3 d | ⏳ |
 | **P2** | LLM-driven pattern router hop | 2 d | ⏳ |
 | **P2** | Pattern success rate metrics | 2 d | ⏳ |
-| **P2** | Onboarding: „Your swarm used 5 patterns today“ | 2 d | ⏳ |
+| **P2** | Onboarding: „Your swarm used 5 patterns today“ | 2 d | ✅ |
 
 ---
 

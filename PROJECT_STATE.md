@@ -1,6 +1,19 @@
 # Queenswarm Project State
 
-Updated: 2026-05-21
+Updated: 2026-05-26
+
+## Operator Control Plane refactor (May 2026)
+
+| Area | Status |
+|------|--------|
+| Solo home `/` → `/cockpit` | ✅ Live |
+| Advanced dashboard `/dashboard` | ✅ ColonyConsole preserved |
+| Settings keep-alive shell | ✅ `/settings/[[...section]]` |
+| Execution Studio lazy panels | ✅ dynamic() splits |
+| CP compose modules (14) | ✅ All live/beta — gate green |
+| Innovation Lab pipeline | ✅ brainstorm → approve → Maintainer |
+
+Gate: `./scripts/audit-operator-control-plane-gate.sh`
 
 ## Runtime model
 
@@ -15,10 +28,10 @@ Updated: 2026-05-21
 | **Phase 1** — marketplace, ROI, UGC | ✅ Shipped | `./scripts/mission-phase1-audit.sh` |
 | **Phase 2** — enterprise, sub-swarm mind | ✅ Shipped | `./scripts/mission-phase2-audit.sh` |
 | **Performance cockpit** — bundle, WS delta | ✅ Shipped | `docs/PERFORMANCE_COCKPIT.md` |
-| **Operator P0** — Stripe + Hetzner send | ⏳ Pending (human-only) | Latest handoff pack in `reports/operator-handoff-*` |
-| **Phase 4** — RoundtableSpace edge | ⏳ Planned | `docs/ROUNDTABLESPACE_MAY2026_INSIGHTS.md` |
-| **Phase 5** — Agentic design patterns | 🟡 P0 shipped | `docs/QUEENSWARM_DESIGN_PATTERNS.md` |
-| **Phase 6** — Harness & Queen Maintainer | 🟡 P0 stub | `docs/HARNESS_SELF_MAINTAINING_ANALYSIS.md` |
+| **Operator P0** — Stripe + Hetzner send | ⏳ Pending (human-only) | `docs/OPERATOR_QUICKSTART.md` |
+| **Phase 4** — RoundtableSpace edge | ✅ Shipped | `docs/ROUNDTABLESPACE_MAY2026_INSIGHTS.md` |
+| **Phase 5** — Agentic design patterns | ✅ Shipped | `./scripts/mission-phase5-patterns-audit.sh` |
+| **Phase 6** — Harness & Queen Maintainer | ✅ Dev complete | `./scripts/mission-phase6-harness-snapshot-audit.sh` |
 
 Unified audit: `./scripts/mission-readiness-audit.sh`
 
@@ -52,7 +65,8 @@ Backlog source: `docs/MISSION_EXECUTION_BACKLOG.md` · in-app atlas: `/settings/
 | Operator pending status | `./scripts/operator-pending-status.sh` |
 | Stripe prep checklist | `./scripts/operator-stripe-prep.sh` |
 | **Final handoff bundle** | `./scripts/operator-final-handoff.sh` |
-| **P0 close (Stripe go-live)** | `./scripts/operator-p0-close.sh` |
+| **Operator P0 close (Stripe go-live)** | `./scripts/operator-p0-close.sh` |
+| **Next single action** | `./scripts/operator-next.sh` |
 | Hetzner send prep | `./scripts/operator-hetzner-send-prep.sh` |
 | Stripe live checkout | `./scripts/operator-p0-close.sh` after keys in `.env.prod` |
 | P0 close checklist | `docs/OPERATOR_P0_CLOSE.md` |

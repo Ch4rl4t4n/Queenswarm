@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
+import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { CostGuardianRoutingPanel } from "@/components/hive/cost-guardian-routing-panel";
@@ -10,6 +11,7 @@ import { useUiLanguage } from "@/components/hive/ui-language-provider";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveDelete, hiveGet, hivePatchJson, hivePostJson, hivePutJson } from "@/lib/api";
 import type { LlmKeyMaskRow } from "@/lib/hive-types";
+import { localizeDescription } from "@/lib/ui-copy";
 import { cn } from "@/lib/utils";
 
 type ProviderId = "grok" | "anthropic" | "openai" | "deepgram" | "elevenlabs";
@@ -134,42 +136,91 @@ const PROVIDER_SKINS: Record<
   },
 };
 
+interface LlmProviderCollapsibleProps {
+  readonly provider: ProviderId;
+  readonly title: string;
+  readonly hint: string;
+  readonly open: boolean;
+  readonly onToggle: () => void;
+  readonly masked?: LlmKeyMaskRow;
+  readonly isPrimary: boolean;
+  readonly headerActions: ReactNode;
+  readonly children: ReactNode;
+}
+
+/** Collapsed LLM shard tab — expands to full credential form (hierarchy-style). */
+function LlmProviderCollapsible({
+  provider,
+  title,
+  hint,
+  open,
+  onToggle,
+  masked,
+  isPrimary,
+  headerActions,
+  children,
+}: LlmProviderCollapsibleProps): JSX.Element {
+  const skin = PROVIDER_SKINS[provider];
+
+  return (
+    <section
+      className={cn("v4-card v4-card-tight v4-llm-provider-panel overflow-hidden", open && "v4-llm-provider-panel--open")}
+      style={
+        {
+          borderColor: skin.borderColor,
+          "--v4-llm-panel-border": skin.borderColor,
+        } as CSSProperties
+      }
+    >
+      <button
+        type="button"
+        className="v4-panel-collapsible-trigger flex w-full min-w-0 items-center justify-between gap-3 py-2.5 text-left"
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-controls={`llm-provider-panel-${provider}`}
+      >
+        <span className="flex min-w-0 items-center gap-3">
+          <span
+            className="v4-provider-logo shrink-0"
+            style={{
+              background: skin.bgColor,
+              border: `1px solid ${skin.borderColor}`,
+              color: skin.textColor,
+            }}
+          >
+            {skin.logo}
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-semibold text-(--qs-text-1)" role="heading" aria-level={3}>
+              {title}
+            </span>
+            <span className="hidden truncate text-xs text-(--qs-text-3) sm:block">{hint}</span>
+          </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-3">
+          {isPrimary ? <V4Badge tone="gold">primary</V4Badge> : null}
+          {masked?.api_key_masked ? <V4Badge tone="gold">vault</V4Badge> : <V4Badge tone="info">empty</V4Badge>}
+          <span
+            className={cn("v4-panel-collapsible-chevron", open && "v4-panel-collapsible-chevron--open")}
+            aria-hidden
+          >
+            <ChevronDown className="h-4 w-4" />
+          </span>
+        </span>
+      </button>
+
+      {open ? (
+        <div id={`llm-provider-panel-${provider}`} className="border-t pt-4" style={{ borderColor: skin.borderColor }}>
+          <div className="mb-4 flex flex-wrap items-start justify-end gap-2">{headerActions}</div>
+          {children}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 export function SettingsLlmKeysPanel() {
   const { language } = useUiLanguage();
-  const latencyModeOptions = useMemo(
-    () =>
-      language === "sk"
-        ? [
-            { value: "balanced", label: "Balanced (vyssia kvalita)" },
-            { value: "fast", label: "Fast (nizsia latencia)" },
-          ]
-        : [...LATENCY_MODE_OPTIONS],
-    [language],
-  );
-  const voiceProfileOptions = useMemo(
-    () =>
-      VOICE_PROFILE_OPTIONS.map((row) =>
-        row.value === "auto"
-          ? { ...row, label: language === "sk" ? "Auto (podla tone)" : "Auto (based on tone)" }
-          : row,
-      ),
-    [language],
-  );
-  const voiceToneOptions = useMemo(
-    () =>
-      language === "sk"
-        ? [
-            { value: "none", label: "Neutralny" },
-            { value: "warm", label: "Teply" },
-            { value: "friendly", label: "Priatelsky" },
-            { value: "professional", label: "Profesionalny" },
-            { value: "authoritative", label: "Autoritativny" },
-            { value: "expressive", label: "Expresivny" },
-            { value: "casual", label: "Neformalny" },
-          ]
-        : [...VOICE_TONE_OPTIONS],
-    [language],
-  );
   const [keys, setKeys] = useState<LlmKeyMaskRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [voicePrefsBusy, setVoicePrefsBusy] = useState(false);
@@ -207,6 +258,17 @@ export function SettingsLlmKeysPanel() {
     elevenlabs: false,
   });
   const [testMsg, setTestMsg] = useState<Record<string, string>>({});
+  const [openProviders, setOpenProviders] = useState<Record<ProviderId, boolean>>({
+    grok: false,
+    anthropic: false,
+    openai: false,
+    deepgram: false,
+    elevenlabs: false,
+  });
+
+  function toggleProvider(provider: ProviderId): void {
+    setOpenProviders((prev) => ({ ...prev, [provider]: !prev[provider] }));
+  }
 
   const load = useCallback(async () => {
     try {
@@ -271,7 +333,7 @@ export function SettingsLlmKeysPanel() {
         label: labels[provider]?.trim() ?? "",
         is_primary: Boolean(primaryFlags[provider]),
       });
-      toast.success(language === "sk" ? "Metadata uložená." : "Provider metadata saved.");
+      toast.success("Provider metadata saved.");
       await load();
     } catch (e) {
       const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Save failed";
@@ -289,7 +351,7 @@ export function SettingsLlmKeysPanel() {
     }
     setBusy(true);
     try {
-      await hivePostJson("llm-keys/", {
+      await hivePostJson("llm-keys", {
         provider,
         label: labels[provider]?.trim() ?? "",
         api_key: trimmed,
@@ -350,7 +412,7 @@ export function SettingsLlmKeysPanel() {
     setVoicePrefsBusy(true);
     try {
       await hivePutJson<VoiceProviderPreferences>("llm-keys/voice-preferences", voicePrefs);
-      toast.success(language === "sk" ? "Voice preferencie uložené." : "Voice preferences saved.");
+      toast.success("Voice preferences saved.");
     } catch (e) {
       const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Save failed";
       toast.error(msg);
@@ -380,7 +442,11 @@ export function SettingsLlmKeysPanel() {
       <V4Card className="v4-voice-prefs-card">
         <V4CardHeader
           as="h3"
-          title={language === "sk" ? "Preferovaný voice provider (STT/TTS)" : "Preferred voice provider (STT/TTS)"}
+          title="Preferred voice provider (STT/TTS)"
+          description={localizeDescription(language, {
+            en: "STT/TTS priority, latency, and voice profile for Ballroom voice chat.",
+            sk: "Priorita STT/TTS, latencia a hlas pre Ballroom voice chat.",
+          })}
           actions={
             <InfoHint
               title={{
@@ -404,173 +470,191 @@ export function SettingsLlmKeysPanel() {
             />
           }
         />
-        <div className="v4-voice-prefs-grid">
-          <label className="block">
-            <span className="qs-label">{language === "sk" ? "STT priorita" : "STT priority"}</span>
-            <QsSelect
-              value={voicePrefs.stt_provider}
-              disabled={voicePrefsBusy}
-              onValueChange={(next) =>
-                setVoicePrefs((prev) => ({
-                  ...prev,
-                  stt_provider: next as SttProviderPreference,
-                }))
-              }
-              options={STT_PROVIDER_OPTIONS}
-            />
-          </label>
-          <label className="block">
-            <span className="qs-label">{language === "sk" ? "TTS priorita" : "TTS priority"}</span>
-            <QsSelect
-              value={voicePrefs.tts_provider}
-              disabled={voicePrefsBusy}
-              onValueChange={(next) =>
-                setVoicePrefs((prev) => ({
-                  ...prev,
-                  tts_provider: next as TtsProviderPreference,
-                }))
-              }
-              options={TTS_PROVIDER_OPTIONS}
-            />
-          </label>
-          <label className="block v4-voice-prefs-span-2 md:max-w-[280px] md:justify-self-center">
-            <span className="qs-label">{language === "sk" ? "Rezim odozvy" : "Response mode"}</span>
-            <QsSelect
-              value={voicePrefs.latency_mode}
-              disabled={voicePrefsBusy}
-              onValueChange={(next) =>
-                setVoicePrefs((prev) => ({
-                  ...prev,
-                  latency_mode: next as "balanced" | "fast",
-                }))
-              }
-              options={latencyModeOptions}
-            />
-          </label>
-          <label className="block">
-            <span className="qs-label">{language === "sk" ? "VAD threshold" : "VAD threshold"}</span>
-            <input
-              type="range"
-              min={0.25}
-              max={0.95}
-              step={0.05}
-              value={voicePrefs.vad_threshold}
-              disabled={voicePrefsBusy}
-              onChange={(event) =>
-                setVoicePrefs((prev) => ({
-                  ...prev,
-                  vad_threshold: Number(event.target.value),
-                }))
-              }
-              className="w-full"
-            />
-            <p className="mt-1 text-[11px] text-(--qs-text-3)">
-              {language === "sk" ? "Citlivost hlasu" : "Voice sensitivity"}: {voicePrefs.vad_threshold.toFixed(2)}
-            </p>
-          </label>
-          <label className="block">
-            <span className="qs-label">{language === "sk" ? "Silence duration (ms)" : "Silence duration (ms)"}</span>
-            <input
-              type="number"
-              min={300}
-              max={4000}
-              step={50}
-              value={voicePrefs.silence_duration_ms}
-              disabled={voicePrefsBusy}
-              onChange={(event) =>
-                setVoicePrefs((prev) => ({
-                  ...prev,
-                  silence_duration_ms: Math.max(100, Math.min(4000, Number(event.target.value) || 700)),
-                }))
-              }
-              className="qs-input"
-            />
-          </label>
-          <label className="block">
-            <span className="qs-label">{language === "sk" ? "Voice profile" : "Voice profile"}</span>
-            <QsSelect
-              value={voicePrefs.tts_voice_id}
-              disabled={voicePrefsBusy}
-              onValueChange={(next) =>
-                setVoicePrefs((prev) => ({
-                  ...prev,
-                  tts_voice_id: next,
-                }))
-              }
-              options={voiceProfileOptions}
-            />
-          </label>
-          <label className="block">
-            <span className="qs-label">{language === "sk" ? "Voice tone" : "Voice tone"}</span>
-            <QsSelect
-              value={voicePrefs.tts_tone}
-              disabled={voicePrefsBusy}
-              onValueChange={(next) =>
-                setVoicePrefs((prev) => ({
-                  ...prev,
-                  tts_tone: next,
-                }))
-              }
-              options={voiceToneOptions}
-            />
-          </label>
-          <label className="block v4-voice-prefs-span-2 md:max-w-[280px] md:justify-self-center">
-            <span className="qs-label">{language === "sk" ? "Voice language" : "Voice language"}</span>
-            <QsSelect
-              value={voicePrefs.tts_language}
-              disabled={voicePrefsBusy}
-              onValueChange={(next) =>
-                setVoicePrefs((prev) => ({
-                  ...prev,
-                  tts_language: next,
-                }))
-              }
-              options={VOICE_LANGUAGE_OPTIONS}
-            />
-          </label>
+        <div className="v4-voice-prefs-body">
+          <section className="v4-voice-prefs-section" aria-label="Pipeline">
+            <p className="v4-voice-prefs-section-label">Pipeline</p>
+            <div className="v4-voice-prefs-grid">
+              <label className="v4-voice-prefs-field">
+                <span className="qs-label">STT priority</span>
+                <QsSelect
+                  value={voicePrefs.stt_provider}
+                  disabled={voicePrefsBusy}
+                  onValueChange={(next) =>
+                    setVoicePrefs((prev) => ({
+                      ...prev,
+                      stt_provider: next as SttProviderPreference,
+                    }))
+                  }
+                  options={STT_PROVIDER_OPTIONS}
+                />
+              </label>
+              <label className="v4-voice-prefs-field">
+                <span className="qs-label">TTS priority</span>
+                <QsSelect
+                  value={voicePrefs.tts_provider}
+                  disabled={voicePrefsBusy}
+                  onValueChange={(next) =>
+                    setVoicePrefs((prev) => ({
+                      ...prev,
+                      tts_provider: next as TtsProviderPreference,
+                    }))
+                  }
+                  options={TTS_PROVIDER_OPTIONS}
+                />
+              </label>
+              <label className="v4-voice-prefs-field">
+                <span className="qs-label">Response mode</span>
+                <QsSelect
+                  value={voicePrefs.latency_mode}
+                  disabled={voicePrefsBusy}
+                  onValueChange={(next) =>
+                    setVoicePrefs((prev) => ({
+                      ...prev,
+                      latency_mode: next as "balanced" | "fast",
+                    }))
+                  }
+                  options={[...LATENCY_MODE_OPTIONS]}
+                />
+              </label>
+            </div>
+          </section>
+
+          <section className="v4-voice-prefs-section" aria-label="Voice detection">
+            <p className="v4-voice-prefs-section-label">Voice detection</p>
+            <div className="v4-voice-prefs-grid">
+              <label className="v4-voice-prefs-field">
+                <span className="qs-label">VAD threshold</span>
+                <input
+                  type="range"
+                  min={0.25}
+                  max={0.95}
+                  step={0.05}
+                  value={voicePrefs.vad_threshold}
+                  disabled={voicePrefsBusy}
+                  onChange={(event) =>
+                    setVoicePrefs((prev) => ({
+                      ...prev,
+                      vad_threshold: Number(event.target.value),
+                    }))
+                  }
+                  className="v4-voice-prefs-range"
+                />
+                <p className="v4-voice-prefs-hint">
+                  Voice sensitivity: {voicePrefs.vad_threshold.toFixed(2)}
+                </p>
+              </label>
+              <label className="v4-voice-prefs-field">
+                <span className="qs-label">Silence duration (ms)</span>
+                <input
+                  type="number"
+                  min={300}
+                  max={4000}
+                  step={50}
+                  value={voicePrefs.silence_duration_ms}
+                  disabled={voicePrefsBusy}
+                  onChange={(event) =>
+                    setVoicePrefs((prev) => ({
+                      ...prev,
+                      silence_duration_ms: Math.max(100, Math.min(4000, Number(event.target.value) || 700)),
+                    }))
+                  }
+                  className="qs-input"
+                />
+              </label>
+              <label className="v4-voice-prefs-field">
+                <span className="qs-label">Voice language</span>
+                <QsSelect
+                  value={voicePrefs.tts_language}
+                  disabled={voicePrefsBusy}
+                  onValueChange={(next) =>
+                    setVoicePrefs((prev) => ({
+                      ...prev,
+                      tts_language: next,
+                    }))
+                  }
+                  options={VOICE_LANGUAGE_OPTIONS}
+                />
+              </label>
+            </div>
+          </section>
+
+          <section className="v4-voice-prefs-section" aria-label="Voice output">
+            <p className="v4-voice-prefs-section-label">Voice output</p>
+            <div className="v4-voice-prefs-grid v4-voice-prefs-grid--voice-output">
+              <label className="v4-voice-prefs-field">
+                <span className="qs-label">Voice profile</span>
+                <QsSelect
+                  value={voicePrefs.tts_voice_id}
+                  disabled={voicePrefsBusy}
+                  onValueChange={(next) =>
+                    setVoicePrefs((prev) => ({
+                      ...prev,
+                      tts_voice_id: next,
+                    }))
+                  }
+                  options={[...VOICE_PROFILE_OPTIONS]}
+                />
+              </label>
+              <label className="v4-voice-prefs-field">
+                <span className="qs-label">Voice tone</span>
+                <QsSelect
+                  value={voicePrefs.tts_tone}
+                  disabled={voicePrefsBusy}
+                  onValueChange={(next) =>
+                    setVoicePrefs((prev) => ({
+                      ...prev,
+                      tts_tone: next,
+                    }))
+                  }
+                  options={[...VOICE_TONE_OPTIONS]}
+                />
+              </label>
+            </div>
+          </section>
         </div>
-        <button
-          type="button"
-          disabled={voicePrefsBusy}
-          onClick={() => void saveVoicePreferences()}
-          className="qs-btn qs-btn--primary v4-voice-prefs-save"
-        >
-          {language === "sk" ? "Uložiť voice preferencie" : "Save voice preferences"}
-        </button>
+        <div className="v4-voice-prefs-footer">
+          <button
+            type="button"
+            disabled={voicePrefsBusy}
+            onClick={() => void saveVoicePreferences()}
+            className="qs-btn qs-btn--primary v4-voice-prefs-save"
+          >
+            Save voice preferences
+          </button>
+        </div>
       </V4Card>
 
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3">
         {PROVIDERS.map((provider) => {
           const masked = rowFor(provider);
-          const skin = PROVIDER_SKINS[provider];
           const copy = PROVIDER_COPY[provider];
+          const title = copy.title.en;
+          const hint = localizeDescription(language, copy.hint);
           return (
-            <V4Card key={provider}>
-              <div className="v4-section-header-row">
-                <div className="min-w-0 flex-1">
-                  <h3>{language === "sk" ? copy.title.sk : copy.title.en}</h3>
-                  <p className="desc">{language === "sk" ? copy.hint.sk : copy.hint.en}</p>
-                  <div className="v4-provider-meta-row mt-2">
-                    <div
-                      className="v4-provider-logo"
-                      style={{
-                        background: skin.bgColor,
-                        border: `1px solid ${skin.borderColor}`,
-                        color: skin.textColor,
-                      }}
-                    >
-                      {skin.logo}
-                    </div>
-                    {masked?.api_key_masked ? <V4Badge tone="gold">vault</V4Badge> : <V4Badge tone="info">empty</V4Badge>}
-                  </div>
-                </div>
-                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            <LlmProviderCollapsible
+              key={provider}
+              provider={provider}
+              title={title}
+              hint={hint}
+              open={openProviders[provider]}
+              onToggle={() => toggleProvider(provider)}
+              masked={masked}
+              isPrimary={Boolean(primaryFlags[provider])}
+              headerActions={
+                <>
                   <button type="button" disabled={busy} onClick={() => void testProvider(provider)} className="qs-btn qs-btn--ghost qs-btn--sm">
                     Test
                   </button>
                   <button type="button" disabled={busy || !masked} onClick={() => void clearProvider(provider)} className="qs-btn qs-btn--ghost qs-btn--sm text-danger">
                     Remove
                   </button>
+                </>
+              }
+            >
+              <div className="v4-section-header-row mb-4">
+                <div className="min-w-0 flex-1">
+                  <h3>{title}</h3>
+                  <p className="desc">{hint}</p>
                 </div>
               </div>
 
@@ -599,7 +683,7 @@ export function SettingsLlmKeysPanel() {
                       }))
                     }
                   />
-                  {language === "sk" ? "Primárny shard pre tento provider" : "Primary shard for this provider"}
+                  Primary shard for this provider
                 </label>
                 <button
                   type="button"
@@ -607,7 +691,7 @@ export function SettingsLlmKeysPanel() {
                   onClick={() => void saveProviderMeta(provider)}
                   className="qs-btn qs-btn--ghost qs-btn--sm mt-2"
                 >
-                  {language === "sk" ? "Uložiť label" : "Save label"}
+                  Save label
                 </button>
               </div>
 
@@ -650,7 +734,7 @@ export function SettingsLlmKeysPanel() {
                   {testMsg[provider]}
                 </p>
               ) : null}
-            </V4Card>
+            </LlmProviderCollapsible>
           );
         })}
       </div>

@@ -2,16 +2,32 @@
 
 import { ActivityIcon, BellIcon, ContainerIcon, Loader2Icon, RefreshCwIcon, ServerIcon } from "lucide-react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useCallback, useState } from "react";
 
 import { usePlatform } from "@/components/hive/platform-context";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
-import { CommandCenterAuditRollupCard } from "@/components/hive/command-center-audit-rollup-card";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import { cn } from "@/lib/utils";
 
 const POLL_MS = 15_000;
+
+const CommandCenterAuditRollupCard = dynamic(
+  () =>
+    import("@/components/hive/command-center-audit-rollup-card").then((mod) => ({
+      default: mod.CommandCenterAuditRollupCard,
+    })),
+  { ssr: false, loading: () => <div className="min-h-[12rem] animate-pulse rounded-xl bg-white/5" aria-hidden /> },
+);
+
+const CommandCenterCodebaseAtlas = dynamic(
+  () =>
+    import("@/components/hive/command-center-codebase-atlas").then((mod) => ({
+      default: mod.CommandCenterCodebaseAtlas,
+    })),
+  { ssr: false, loading: () => <div className="min-h-[16rem] animate-pulse rounded-xl bg-white/5" aria-hidden /> },
+);
 
 interface CommandCenterHost {
   cpu_percent: number;
@@ -229,25 +245,7 @@ export function CommandCenterSettingsPanel() {
     );
   }
 
-  if (loading && !snapshot) {
-    return (
-      <V4Card className="flex min-h-[200px] items-center justify-center">
-        <Loader2Icon className="h-6 w-6 animate-spin text-pollen" aria-hidden />
-      </V4Card>
-    );
-  }
-
-  if (error && !snapshot) {
-    return (
-      <V4Card className="border-(--qs-red)/35 p-4">
-        <p className="text-sm text-(--qs-red)">{error}</p>
-      </V4Card>
-    );
-  }
-
-  if (!snapshot) {
-    return null;
-  }
+  const snapshotReady = snapshot != null;
 
   const {
     host,
@@ -258,11 +256,56 @@ export function CommandCenterSettingsPanel() {
     docker = { available: false, running_total: null, queenswarm_running: null, containers: [] },
     host_history = [],
     telemetry = { rate_limit_blocks_5m: 0, scaling_events_5m: 0 },
-  } = snapshot;
+  } = snapshot ?? {
+    host: {
+      cpu_percent: 0,
+      memory_percent: 0,
+      disk_percent: 0,
+      memory_used_gb: 0,
+      memory_total_gb: 0,
+      disk_used_gb: 0,
+      disk_total_gb: 0,
+      swap_percent: 0,
+      resource_pressure: false,
+      resource_pressure_reason: "",
+    },
+    dependencies: [],
+    llm_providers: [],
+    integrations: [],
+    hive_load: {
+      agents_total: 0,
+      agents_running: 0,
+      tasks_running: 0,
+      tasks_pending: 0,
+      simulation_tasks_running: 0,
+      simulation_tasks_pending: 0,
+      llm_in_flight: 0,
+      llm_concurrency_limit: 0,
+      simulation_in_flight: 0,
+      simulation_concurrency_limit: 0,
+      simulations_enabled: false,
+    },
+    docker: { available: false, running_total: null, queenswarm_running: null, containers: [] },
+    host_history: [],
+    telemetry: { rate_limit_blocks_5m: 0, scaling_events_5m: 0 },
+  };
 
   return (
     <div className="space-y-4">
-      <V4Card className="overflow-hidden p-0">
+      {!snapshotReady && loading ? (
+        <V4Card className="flex min-h-[200px] items-center justify-center">
+          <Loader2Icon className="h-6 w-6 animate-spin text-pollen" aria-hidden />
+        </V4Card>
+      ) : null}
+
+      {!snapshotReady && error ? (
+        <V4Card className="border-(--qs-red)/35 p-4">
+          <p className="text-sm text-(--qs-red)">{error}</p>
+        </V4Card>
+      ) : null}
+
+      {snapshotReady && snapshot ? (
+        <V4Card className="overflow-hidden p-0">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-(--qs-border) px-4 py-4 md:px-6">
           <V4CardHeader
             as="h2"
@@ -431,9 +474,14 @@ export function CommandCenterSettingsPanel() {
           )}
         </div>
       </V4Card>
+      ) : null}
 
       <CommandCenterAuditRollupCard enabled={allowed} />
 
+      <CommandCenterCodebaseAtlas enabled={allowed} />
+
+      {snapshotReady && snapshot ? (
+        <>
       <V4Card className="overflow-hidden p-0">
         <div className="border-b border-(--qs-border) px-4 py-4 md:px-6">
           <V4CardHeader as="h3" title="LLM & API routes" description="Credentials, ktoré celá aplikácia využíva (env + vault)." />
@@ -467,7 +515,7 @@ export function CommandCenterSettingsPanel() {
         <div className="border-t border-(--qs-border)/70 px-4 py-3 text-xs text-(--qs-text-3) md:px-6">
           Upraviť kľúče:{" "}
           <Link href="/settings/llm-keys" className="text-cyan hover:underline">
-            Settings → AI · Voice keys
+            Settings → AI · LLM & Voice
           </Link>
           {" · "}
           <Link href="/settings/billing" className="text-cyan hover:underline">
@@ -499,6 +547,8 @@ export function CommandCenterSettingsPanel() {
           </p>
         </div>
       </V4Card>
+        </>
+      ) : null}
     </div>
   );
 }

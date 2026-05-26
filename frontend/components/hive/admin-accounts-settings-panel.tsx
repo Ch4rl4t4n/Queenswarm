@@ -19,6 +19,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { usePlatform } from "@/components/hive/platform-context";
+import { AdminPublishOnboardingOverview } from "@/components/hive/admin-publish-onboarding-overview";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
 import { HiveSwitch } from "@/components/ui/hive-switch";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
@@ -491,6 +492,7 @@ export function AdminAccountsSettingsPanel() {
 
   return (
     <div className="space-y-4">
+      <AdminPublishOnboardingOverview />
       <V4Card className="p-4 md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <V4CardHeader
@@ -1266,7 +1268,7 @@ export function AdminAccountsSettingsPanel() {
                         {log.target_type}:{log.target_ref}
                       </p>
                       {Object.keys(log.payload).length > 0 ? (
-                        <pre className="mt-2 overflow-x-auto rounded bg-black/40 p-2 font-mono text-[10px] text-(--qs-text-2)">
+                        <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-black/40 p-2 font-mono text-[10px] text-(--qs-text-2)">
                           {JSON.stringify(log.payload, null, 2)}
                         </pre>
                       ) : null}

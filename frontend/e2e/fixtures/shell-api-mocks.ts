@@ -40,6 +40,32 @@ const STUB_COCKPIT_BUNDLE = {
   },
 };
 
+const STUB_OPERATOR_COCKPIT = {
+  enabled: true,
+  generated_at: new Date().toISOString(),
+  now_actions: [
+    {
+      id: "start_day",
+      label: "Spusti deň",
+      detail: "Trio cycle + morning brief pipeline (verify-first).",
+      priority: "high",
+      href: null,
+      action: "start_day",
+    },
+  ],
+  swarm_fleet: [],
+  trio: { lanes_bound: 3, bound_lane_count: 3 },
+  oracle_warnings: [],
+  feature_modules: [],
+  innovation_lab: { enabled: true, pending_count: 0 },
+  links: { advanced_dashboard: "/dashboard" },
+};
+
+const STUB_INNOVATION_LAB = {
+  enabled: true,
+  proposals: [],
+};
+
 const STUB_RAPID_LOOP = {
   generated_at: new Date().toISOString(),
   window_hours: 24,
@@ -464,6 +490,24 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path === "operator/cockpit" || path.startsWith("operator/cockpit?")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_OPERATOR_COCKPIT),
+      });
+      return;
+    }
+
+    if (path === "operator/innovation-lab" || path.startsWith("operator/innovation-lab?")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_INNOVATION_LAB),
+      });
+      return;
+    }
+
     if (path.startsWith("dashboard/rapid-loop")) {
       await route.fulfill({
         status: 200,
@@ -657,6 +701,14 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           status: 200,
           contentType: "application/json",
           body: JSON.stringify({ enabled: true, frequency_hours: 24, routine_id: null }),
+        });
+        return;
+      }
+      if (route.request().method() === "DELETE" && path === "dreaming/cycles") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ cleared: 0 }),
         });
         return;
       }
