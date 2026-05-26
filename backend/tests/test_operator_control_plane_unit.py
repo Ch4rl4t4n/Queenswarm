@@ -56,11 +56,13 @@ async def test_execute_operator_action_disabled() -> None:
 
 @pytest.mark.asyncio
 async def test_execute_start_day_triggers_trio(monkeypatch: pytest.MonkeyPatch) -> None:
+    import sys
+    from unittest.mock import MagicMock
+
     trio_mock = AsyncMock(return_value={"sessions": []})
-    monkeypatch.setattr(
-        "app.application.services.solo_operator_trio.run_solo_trio_cycle",
-        trio_mock,
-    )
+    fake_mod = MagicMock()
+    fake_mod.run_solo_trio_cycle = trio_mock
+    monkeypatch.setitem(sys.modules, "app.application.services.solo_operator_trio", fake_mod)
     with patch("app.application.services.operator_control_plane.settings") as mock_settings:
         mock_settings.operator_control_plane_enabled = True
         result = await execute_operator_action(
