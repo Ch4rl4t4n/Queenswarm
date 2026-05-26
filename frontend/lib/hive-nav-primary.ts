@@ -124,6 +124,12 @@ export function buildHiveNavGroups(consolidatedEnabled: boolean): { title: strin
     {
       title: "Overview",
       items: [
+        ...(OPERATOR_CONTROL_PLANE_ENABLED
+          ? [
+              { href: "/cockpit", label: "Cockpit", Icon: Zap, section: "overview" as const },
+              { href: "/oracle", label: "Oracle", Icon: Eye, section: "overview" as const },
+            ]
+          : []),
         { href: "/", label: "Dashboard", Icon: LayoutDashboardIcon, section: "overview" },
         ...(ADVANCED_MONITORING_ENABLED
           ? [{ href: "/monitoring", label: "Monitoring", Icon: Activity, section: "overview" as const }]

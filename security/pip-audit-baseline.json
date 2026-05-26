@@ -43,5 +43,6 @@
   "python-multipart|CVE-2026-42561",
   "starlette|CVE-2024-47874",
   "starlette|CVE-2025-54121",
+  "starlette|PYSEC-2026-161",
   "yt-dlp|CVE-2026-26331"
 ]
