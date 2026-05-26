@@ -7,7 +7,7 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
-import { hiveOverviewHref } from "@/lib/hive-home-route";
+import { hiveOverviewHref, hiveOverviewLabel } from "@/lib/hive-home-route";
 import type {
   OperatorIntakeResponse,
   PreviewDecompositionResponse,
@@ -585,7 +585,7 @@ export function NewTaskConsole() {
             </button>
             <InfoHint
               title="Submit task"
-              description="Sends the task to intake pipeline, starts execution, and redirects back to dashboard."
+              description={`Sends the task to intake pipeline, starts execution, and redirects back to ${hiveOverviewLabel().toLowerCase()}.`}
               options={["Queues orchestration", "Uses selected lane/priority", "Includes matched recipe id if available"]}
             />
           </div>

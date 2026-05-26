@@ -275,6 +275,12 @@ else
   fail "operator cockpit missing live refresh"
 fi
 
+if grep -q 'operator-control-plane-live' frontend/lib/platform-capabilities-catalog.ts; then
+  pass "capabilities atlas lists Operator Control Plane"
+else
+  fail "capabilities atlas missing Operator Control Plane"
+fi
+
 echo
 if [[ "$FAIL" -eq 0 ]]; then
   echo "PASS — Operator Control Plane gate green"

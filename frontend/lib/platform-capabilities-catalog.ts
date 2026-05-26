@@ -689,6 +689,21 @@ export const LIVE_PLATFORM_CAPABILITIES: PlatformCapability[] = [
     stack: { backend: ["dr_drill_evidence.py"], frontend: ["enterprise-settings-panel.tsx"] },
   },
   {
+    id: "operator-control-plane-live",
+    section: "Operator",
+    name: "Operator Control Plane",
+    status: "live",
+    summary: "Solo operator home at /cockpit — compose layer over existing swarm (14 modules, no new bees).",
+    howItWorks: "`compose_operator_cockpit_snapshot()` + `GET /operator/cockpit`; Innovation Lab approve → Queen Maintainer PR.",
+    value: "One screen for now-actions, trust lane, hotline, oracle, teleport, regret, and immune posture.",
+    competitiveEdge: "Thin control plane vs. monolithic auto-GPT — verified compose only.",
+    routes: ["/cockpit", "/oracle", "/"],
+    stack: {
+      backend: ["operator_control_plane.py", "hive_innovation_lab.py"],
+      frontend: ["operator-cockpit-panel.tsx", "hive-home-route.ts"],
+    },
+  },
+  {
     id: "cockpit-telemetry-bundle-live",
     section: "Dashboard",
     name: "Cockpit telemetry bundle",
