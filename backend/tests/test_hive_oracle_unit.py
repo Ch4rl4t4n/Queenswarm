@@ -8,7 +8,7 @@ from app.application.services.hive_oracle import (
     derive_heuristic_predictions,
     derive_heuristic_warnings,
 )
-from app.application.services.operator_loop import OperatorLoopActionOut
+from app.application.services.operator_control_plane import OperatorLoopActionOut
 
 
 class _FleetStub:

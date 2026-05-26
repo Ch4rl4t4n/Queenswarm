@@ -14,7 +14,6 @@ import structlog
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.services.execution_studio_activity import list_execution_activity
 from app.core.config import settings
 from app.infrastructure.persistence.models.tenant import Tenant
 
@@ -222,7 +221,12 @@ def compose_recent_proof_receipts(
         return ProofOfHiveSnapshotOut(enabled=False, count=0, receipts=[])
 
     cap = max(1, min(limit, 20))
-    rows = list_execution_activity(tenant, limit=120)
+    try:
+        from app.application.services.execution_studio_activity import list_execution_activity
+
+        rows = list_execution_activity(tenant, limit=120)
+    except ModuleNotFoundError:
+        rows = []
     receipts: list[ProofReceiptSummaryOut] = []
     seen: set[str] = set()
 
@@ -282,7 +286,11 @@ async def mint_proof_for_artifact(
         if row is None:
             msg = "Publish pack not found."
             raise LookupError(msg)
-        from app.application.services.publish_queue import classify_publish_queue_status
+        try:
+            from app.application.services.publish_queue import classify_publish_queue_status
+        except ModuleNotFoundError:
+            msg = "Publish queue module not deployed."
+            raise ValueError(msg) from None
 
         status = classify_publish_queue_status(row)
         if status is None:

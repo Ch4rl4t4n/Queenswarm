@@ -10,10 +10,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.services.execution_studio_notifications import _resolve_telegram_credentials
 from app.application.services.operator_control_plane import (
     OperatorActRequest,
     OperatorCockpitSnapshotOut,
+    OperatorLoopActionOut,
     compose_operator_cockpit_snapshot,
     execute_operator_action,
 )
@@ -22,6 +22,33 @@ from app.core.notifications import notify_telegram
 from app.infrastructure.persistence.models.tenant import DashboardUserTenantMembership, Tenant
 
 logger = structlog.get_logger(__name__)
+
+
+def _studio_notifications_bucket(tenant: Tenant | None) -> dict[str, Any]:
+    """Read Execution Studio notification settings from tenant operator_settings."""
+
+    if tenant is None:
+        return {}
+    root = dict(tenant.operator_settings or {})
+    studio = root.get("execution_studio")
+    if not isinstance(studio, dict):
+        return {}
+    notifications = studio.get("notifications")
+    return dict(notifications) if isinstance(notifications, dict) else {}
+
+
+def _resolve_telegram_credentials(tenant: Tenant | None) -> tuple[str, str]:
+    """Resolve Telegram bot token + chat id from tenant notification settings."""
+
+    studio = _studio_notifications_bucket(tenant)
+    token_raw = studio.get("telegram_bot_token")
+    chat_raw = studio.get("telegram_chat_id")
+    token = token_raw.strip() if isinstance(token_raw, str) else ""
+    chat_id = str(chat_raw).strip() if chat_raw is not None else ""
+    if token and ":" not in token:
+        token = ""
+    return token, chat_id
+
 
 ZeroUiPriority = Literal["critical", "simulate", "info"]
 

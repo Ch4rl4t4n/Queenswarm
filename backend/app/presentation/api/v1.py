@@ -36,14 +36,12 @@ from app.presentation.api.routers import operator_notifications as operator_noti
 from app.presentation.api.routers import hive_mind as hive_mind_router
 from app.presentation.api.routers import outputs as outputs_router
 from app.presentation.api.routers import oauth_consent as oauth_consent_router
-from app.presentation.api.routers import settings_operator as settings_operator_router
 from app.presentation.api.routers import settings_team as settings_team_router
 from app.presentation.api.routers import settings_enterprise as settings_enterprise_router
 from app.presentation.api.routers import billing as billing_router
 from app.presentation.api.routers import shares as shares_router
 from app.presentation.api.routers import external_api as external_api_router
 from app.presentation.api.routers import tools_marketplace as tools_marketplace_router
-from app.presentation.api.routers import execution_studio as execution_studio_router
 from app.presentation.api.routers import dump_sleep as dump_sleep_router
 from app.presentation.api.routers import llm_routing as llm_routing_router
 from app.presentation.api.routers import auto_graphify as auto_graphify_router
@@ -57,22 +55,8 @@ from app.presentation.api.routers import foragers as foragers_router
 from app.presentation.api.routers import paper_trading as paper_trading_router
 from app.presentation.api.routers import command_center_admin as command_center_admin_router
 from app.presentation.api.routers import admin_accounts as admin_accounts_router
-from app.presentation.api.routers import admin_publish_lane as admin_publish_lane_router
 from app.presentation.api.routers import platform_features_admin as platform_features_admin_router
 from app.presentation.api.routers import queen_maintainer as queen_maintainer_router
-from app.presentation.api.routers import agent_os as agent_os_router
-from app.presentation.api.routers import publish_performance as publish_performance_router
-from app.presentation.api.routers import publish_queue as publish_queue_router
-from app.presentation.api.routers import social_publish as social_publish_router
-from app.presentation.api.routers import prediction_markets as prediction_markets_router
-from app.presentation.api.routers import live_lane as live_lane_router
-from app.presentation.api.routers import micro_saas_factory as micro_saas_factory_router
-from app.presentation.api.routers import media_agency as media_agency_router
-from app.presentation.api.routers import research_bee as research_bee_router
-from app.presentation.api.routers import trading_cockpit as trading_cockpit_router
-from app.presentation.api.routers import trading_content_hybrid as trading_content_hybrid_router
-from app.presentation.api.routers import virtual_company as virtual_company_router
-from app.presentation.api.routers import solo_operator as solo_operator_router
 from app.core.config import settings
 
 api_v1 = APIRouter()
@@ -94,7 +78,6 @@ api_v1.include_router(auth_router.router, prefix="/auth")
 api_v1.include_router(dashboard_session_router.router, prefix="/auth")
 api_v1.include_router(connectors_router.router, prefix="/connectors")
 api_v1.include_router(tools_marketplace_router.router)
-api_v1.include_router(execution_studio_router.router)
 api_v1.include_router(oauth_consent_router.router)
 api_v1.include_router(connectors_dynamic_router.router)
 api_v1.include_router(agent_sessions_router.router, prefix="/agents")
@@ -105,7 +88,6 @@ api_v1.include_router(operator_monitoring_router.router)
 api_v1.include_router(system_status_router.router)
 api_v1.include_router(dashboard_router.router)
 api_v1.include_router(settings_team_router.router)
-api_v1.include_router(settings_operator_router.router)
 api_v1.include_router(settings_enterprise_router.router)
 api_v1.include_router(billing_router.router)
 api_v1.include_router(shares_router.router)
@@ -126,8 +108,6 @@ api_v1.include_router(dreaming_router.router)
 api_v1.include_router(dump_sleep_router.router)
 api_v1.include_router(harness_router.router)
 api_v1.include_router(queen_maintainer_router.router)
-api_v1.include_router(virtual_company_router.router)
-api_v1.include_router(solo_operator_router.router)
 api_v1.include_router(operator_control_plane_router.router)
 api_v1.include_router(proof_of_hive_router.router)
 api_v1.include_router(proof_of_hive_router.public_router)
@@ -140,21 +120,9 @@ api_v1.include_router(agent_templates_router.router)
 api_v1.include_router(foragers_router.router)
 api_v1.include_router(platform_features_admin_router.router)
 api_v1.include_router(admin_accounts_router.router)
-api_v1.include_router(admin_publish_lane_router.router)
 api_v1.include_router(command_center_admin_router.router)
 api_v1.include_router(paper_trading_router.router)
 api_v1.include_router(outputs_router.router)
-api_v1.include_router(publish_queue_router.router)
-api_v1.include_router(publish_performance_router.router)
-api_v1.include_router(social_publish_router.router)
-api_v1.include_router(prediction_markets_router.router)
-api_v1.include_router(trading_cockpit_router.router)
-api_v1.include_router(trading_content_hybrid_router.router)
-api_v1.include_router(research_bee_router.router)
-api_v1.include_router(media_agency_router.router)
-api_v1.include_router(micro_saas_factory_router.router)
-api_v1.include_router(live_lane_router.router)
-api_v1.include_router(agent_os_router.router)
 api_v1.include_router(hive_mind_router.router)
 api_v1.include_router(external_router.router)
 api_v1.include_router(operator_llm_keys_router.router)

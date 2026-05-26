@@ -11,14 +11,120 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.curated_memory_service import CuratedMemoryService
-from app.application.services.operator_loop import OperatorLoopActionOut, compose_operator_loop_snapshot
-from app.application.services.solo_daily_plan import compose_solo_daily_plan
-from app.application.services.solo_operator_trio import get_solo_trio_status
 from app.core.config import settings
 from app.infrastructure.persistence.models.supervisor_routine import SupervisorRoutine
 from app.infrastructure.persistence.models.tenant import Tenant
 
 TrustLane = Literal["auto", "simulate", "live"]
+OperatorLoopPhase = Literal["morning", "evening", "anytime"]
+
+
+class OperatorLoopActionOut(BaseModel):
+    """One actionable next step for the operator loop panel."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    id: str
+    label: str
+    detail: str
+    priority: Literal["high", "medium", "low"]
+    href: str | None = None
+
+
+class OperatorLoopSnapshotOut(BaseModel):
+    """Morning/evening loop snapshot composed from optional subsystems."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    enabled: bool = True
+    generated_at: datetime
+    phase: OperatorLoopPhase
+    overnight: dict[str, Any] = Field(default_factory=dict)
+    morning_brief: dict[str, Any] = Field(default_factory=dict)
+    publish_pipeline: dict[str, Any] = Field(default_factory=dict)
+    publish_onboarding: dict[str, Any] = Field(default_factory=dict)
+    trading: dict[str, Any] = Field(default_factory=dict)
+    actions: list[OperatorLoopActionOut] = Field(default_factory=list)
+    links: dict[str, str] = Field(default_factory=dict)
+
+
+async def _compose_operator_loop_snapshot(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    dashboard_user_id: uuid.UUID,
+    tenant: Tenant | None,
+    phase: OperatorLoopPhase,
+) -> OperatorLoopSnapshotOut:
+    """Compose loop snapshot when the full Operator Loop module is deployed."""
+
+    try:
+        from app.application.services.operator_loop import compose_operator_loop_snapshot
+
+        return await compose_operator_loop_snapshot(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=dashboard_user_id,
+            tenant=tenant,
+            phase=phase,
+        )
+    except ModuleNotFoundError:
+        return OperatorLoopSnapshotOut(
+            enabled=False,
+            generated_at=datetime.now(tz=UTC),
+            phase=phase,
+            actions=[
+                OperatorLoopActionOut(
+                    id="open_cockpit",
+                    label="Open Hive Cockpit",
+                    detail="Operator Loop module not deployed — use Cockpit actions.",
+                    priority="medium",
+                    href="/cockpit",
+                ),
+            ],
+        )
+
+
+async def _get_solo_trio_status(db: AsyncSession, *, tenant_id: uuid.UUID) -> dict[str, Any]:
+    """Return solo trio status when module is available."""
+
+    try:
+        from app.application.services.solo_operator_trio import get_solo_trio_status
+
+        return await get_solo_trio_status(db, tenant_id=tenant_id)
+    except ModuleNotFoundError:
+        return {"enabled": False, "reason": "solo_operator_trio_not_deployed"}
+
+
+async def _compose_solo_daily_plan(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    dashboard_user_id: uuid.UUID,
+    tenant: Tenant | None,
+    max_items: int,
+) -> BaseModel:
+    """Return daily plan snapshot when module is available."""
+
+    try:
+        from app.application.services.solo_daily_plan import compose_solo_daily_plan
+
+        return await compose_solo_daily_plan(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=dashboard_user_id,
+            tenant=tenant,
+            max_items=max_items,
+        )
+    except ModuleNotFoundError:
+        from pydantic import BaseModel as PydanticBaseModel
+
+        class _EmptyDailyPlan(PydanticBaseModel):
+            enabled: bool = False
+            items: list[dict[str, Any]] = Field(default_factory=list)
+
+        return _EmptyDailyPlan()
+
 
 FEATURE_MODULE_IDS: tuple[str, ...] = (
     "bee_hotline",
@@ -353,15 +459,15 @@ async def compose_operator_cockpit_snapshot(
             phase=phase,
         )
 
-    loop = await compose_operator_loop_snapshot(
+    loop = await _compose_operator_loop_snapshot(
         db,
         tenant_id=tenant_id,
         dashboard_user_id=dashboard_user_id,
         tenant=tenant,
         phase=phase,
     )
-    trio = await get_solo_trio_status(db, tenant_id=tenant_id)
-    daily = await compose_solo_daily_plan(
+    trio = await _get_solo_trio_status(db, tenant_id=tenant_id)
+    daily = await _compose_solo_daily_plan(
         db,
         tenant_id=tenant_id,
         dashboard_user_id=dashboard_user_id,
@@ -514,7 +620,15 @@ async def execute_operator_action(
     lane = _resolve_trust_lane(action=body.action, explicit=body.trust_lane)
 
     if body.action == "start_day":
-        from app.application.services.solo_operator_trio import run_solo_trio_cycle
+        try:
+            from app.application.services.solo_operator_trio import run_solo_trio_cycle
+        except ModuleNotFoundError:
+            return OperatorActResultOut(
+                ok=False,
+                action=body.action,
+                message="Solo trio module not deployed.",
+                trust_lane="auto",
+            )
 
         trio_result = await run_solo_trio_cycle(db, tenant_id=tenant_id)
         return OperatorActResultOut(
@@ -527,7 +641,15 @@ async def execute_operator_action(
         )
 
     if body.action == "run_trio":
-        from app.application.services.solo_operator_trio import run_solo_trio_cycle
+        try:
+            from app.application.services.solo_operator_trio import run_solo_trio_cycle
+        except ModuleNotFoundError:
+            return OperatorActResultOut(
+                ok=False,
+                action=body.action,
+                message="Solo trio module not deployed.",
+                trust_lane="auto",
+            )
 
         result = await run_solo_trio_cycle(db, tenant_id=tenant_id)
         return OperatorActResultOut(

@@ -10,7 +10,7 @@ import structlog
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.services.operator_loop import OperatorLoopActionOut
+from app.application.services.operator_control_plane import OperatorLoopActionOut
 from app.core.config import settings
 
 logger = structlog.get_logger(__name__)

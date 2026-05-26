@@ -11,10 +11,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.services.execution_studio_handoff import (
-    create_codebase_execution_proposal,
-    trigger_maintainer_with_proposal_goal,
-)
 from app.application.services.supervisor.initiative import review_agent_suggestion
 from app.core.config import settings
 from app.infrastructure.persistence.models.agent_suggestion import AgentSuggestion
@@ -327,6 +323,14 @@ async def implement_innovation_proposal(
     plan = str(payload.get("implementation_plan_md") or row.description)
     paths = [str(p) for p in list(payload.get("suggested_paths") or []) if str(p).strip()]
     source = str(payload.get("source_prompt") or "")
+
+    try:
+        from app.application.services.execution_studio_handoff import (
+            create_codebase_execution_proposal,
+            trigger_maintainer_with_proposal_goal,
+        )
+    except ModuleNotFoundError:
+        return {"ok": False, "error": "execution_studio_handoff_not_deployed"}
 
     codebase_row = await create_codebase_execution_proposal(
         session,

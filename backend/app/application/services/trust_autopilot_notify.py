@@ -7,14 +7,33 @@ from datetime import UTC, datetime
 from typing import Any
 
 import structlog
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.operator_telegram_gateway import ZeroUiPriority, notify_zero_ui_ping
-from app.application.services.publish_queue_notify import _resolve_tenant_for_user
 from app.core.config import settings
 from app.infrastructure.persistence.models.task_final_deliverable import TaskFinalDeliverable
+from app.infrastructure.persistence.models.tenant import DashboardUserTenantMembership, Tenant
 
 logger = structlog.get_logger(__name__)
+
+
+async def _resolve_tenant_for_user(
+    db: AsyncSession,
+    *,
+    dashboard_user_id: uuid.UUID,
+) -> Tenant | None:
+    """Pick active tenant for operator notifications."""
+
+    membership = await db.scalar(
+        select(DashboardUserTenantMembership)
+        .where(DashboardUserTenantMembership.dashboard_user_id == dashboard_user_id)
+        .order_by(DashboardUserTenantMembership.created_at.asc())
+        .limit(1),
+    )
+    if membership is None:
+        return None
+    return await db.get(Tenant, membership.tenant_id)
 
 
 def _publish_queue_href(*, deliverable_id: uuid.UUID) -> str:
