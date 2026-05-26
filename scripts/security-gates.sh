@@ -142,6 +142,9 @@ allowed = {
     ".env.example",
     ".env.prod.example",
     ".env.production.example",
+    ".env.prod.oauth.example",
+    ".env.prod.tokens.example",
+    ".env.solo.example",
     "backend/.env.example",
     "frontend/.env.development",
 }
@@ -185,12 +188,16 @@ exclude_parts = {
     ".venv-ci",
     "assets",
     "backups",
+    "tests",
 }
 exclude_suffixes = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf", ".zip", ".gz", ".tar", ".ico", ".lock"}
 allow_files = {
     ".env.example",
     ".env.prod.example",
     ".env.production.example",
+    ".env.prod.oauth.example",
+    ".env.prod.tokens.example",
+    ".env.solo.example",
     "backend/.env.example",
 }
 

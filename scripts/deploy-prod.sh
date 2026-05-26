@@ -106,6 +106,13 @@ fi
 chmod +x "${ROOT}/scripts/validate-prod-env.sh"
 ENV_FILE="$ENV_FILE" "${ROOT}/scripts/validate-prod-env.sh"
 
+RUN_CI_PREFLIGHT="${RUN_CI_PREFLIGHT:-1}"
+if [[ "${RUN_CI_PREFLIGHT}" == "1" ]]; then
+  echo "CI preflight (security + typecheck + CP gate) — set RUN_CI_PREFLIGHT=0 to skip."
+  chmod +x "${ROOT}/scripts/ci-local.sh"
+  "${ROOT}/scripts/ci-local.sh" --quick
+fi
+
 # Mirror backend CP toggle into Next.js build flag when only OPERATOR_CONTROL_PLANE_ENABLED is set.
 cp_backend="$(load_kv "$ENV_FILE" OPERATOR_CONTROL_PLANE_ENABLED || true)"
 cp_frontend="$(load_kv "$ENV_FILE" NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED || true)"

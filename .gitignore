@@ -41,6 +41,7 @@ frontend/e2e/.auth/
 !.env.prod.example
 !.env.prod.oauth.example
 !.env.prod.tokens.example
+!.env.solo.example
 
 # Rendered Alertmanager config (contains Slack webhook when configured)
 deploy/alertmanager/alertmanager.generated.yml
