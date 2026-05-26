@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect } from "react";
 
+import { hiveOverviewHref, hiveOverviewLabel } from "@/lib/hive-home-route";
+
 export default function DashboardErrorBoundary({
   error,
   reset,
@@ -30,10 +32,10 @@ export default function DashboardErrorBoundary({
           Retry section
         </button>
         <Link
-          href="/dashboard"
+          href={hiveOverviewHref()}
           className="rounded-xl border border-cyan/40 px-4 py-2 font-[family-name:var(--font-poppins)] text-xs font-semibold text-cyan"
         >
-          Go to dashboard hub
+          Go to {hiveOverviewLabel().toLowerCase()} hub
         </Link>
       </div>
       {error.digest ? <p className="mt-4 font-mono text-[10px] text-zinc-600">digest: {error.digest}</p> : null}

@@ -1,12 +1,27 @@
 import { describe, expect, it } from "vitest";
 
 import { hiveMobileRouteMeta } from "./hive-mobile-meta";
+import { OPERATOR_CONTROL_PLANE_ENABLED } from "./feature-flags";
 
 describe("hiveMobileRouteMeta", () => {
   it("returns dashboard meta for root", () => {
     const m = hiveMobileRouteMeta("/");
-    expect(m.kicker).toBe("Dashboard");
-    expect(m.staticSubtitle).toContain("roster");
+    if (OPERATOR_CONTROL_PLANE_ENABLED) {
+      expect(m.kicker).toBe("Cockpit");
+      expect(m.pageTitleSuffix).toBe("Cockpit");
+    } else {
+      expect(m.kicker).toBe("Dashboard");
+      expect(m.staticSubtitle).toContain("roster");
+    }
+  });
+
+  it("returns cockpit meta under /cockpit when CP enabled", () => {
+    if (!OPERATOR_CONTROL_PLANE_ENABLED) {
+      return;
+    }
+    const m = hiveMobileRouteMeta("/cockpit");
+    expect(m.kicker).toBe("Cockpit");
+    expect(m.pageTitleSuffix).toBe("Cockpit");
   });
 
   it("returns dashboard hub meta under /dashboard", () => {
@@ -90,7 +105,8 @@ describe("hiveMobileRouteMeta", () => {
   });
 
   it("supports legacy mode metadata when consolidated nav is disabled", () => {
-    expect(hiveMobileRouteMeta("/", false).kicker).toBe("Dashboard");
+    const rootKicker = OPERATOR_CONTROL_PLANE_ENABLED ? "Cockpit" : "Dashboard";
+    expect(hiveMobileRouteMeta("/", false).kicker).toBe(rootKicker);
     expect(hiveMobileRouteMeta("/tasks", false).kicker).toBe("Tasks");
     expect(hiveMobileRouteMeta("/overview", false).kicker).toBe("QueenSwarm");
     expect(hiveMobileRouteMeta("/dashboard", false).kicker).toBe("QueenSwarm");

@@ -1,5 +1,5 @@
 /** Route labels used by compact mobile chrome (hive header + titles). */
-import { PHASE70_CONSOLIDATED_NAV_ENABLED } from "@/lib/feature-flags";
+import { OPERATOR_CONTROL_PLANE_ENABLED, PHASE70_CONSOLIDATED_NAV_ENABLED } from "@/lib/feature-flags";
 
 export interface MobileRouteMeta {
   kicker: string;
@@ -7,10 +7,19 @@ export interface MobileRouteMeta {
   staticSubtitle?: string;
 }
 
+const COCKPIT_ROUTE_META: MobileRouteMeta = {
+  kicker: "Cockpit",
+  staticSubtitle: "Operator control plane · now actions",
+  pageTitleSuffix: "Cockpit",
+};
+
 function routeTable(consolidatedEnabled: boolean): { prefix: string; meta: MobileRouteMeta }[] {
   return [
     ...(consolidatedEnabled
       ? [
+          ...(OPERATOR_CONTROL_PLANE_ENABLED
+            ? [{ prefix: "/cockpit", meta: COCKPIT_ROUTE_META }]
+            : []),
           { prefix: "/dashboard", meta: { kicker: "Dashboard", staticSubtitle: "Overview · monitoring · costs", pageTitleSuffix: "Dashboard" } },
           { prefix: "/overview", meta: { kicker: "Dashboard", staticSubtitle: "Overview · monitoring · costs", pageTitleSuffix: "Dashboard" } },
           { prefix: "/execution", meta: { kicker: "Tasks", staticSubtitle: "Tasks · workflows · jobs · routines", pageTitleSuffix: "Tasks" } },
@@ -72,9 +81,10 @@ function longestPrefixMeta(pathname: string, consolidatedEnabled: boolean): Mobi
 
 export function hiveMobileRouteMeta(pathname: string, consolidatedEnabled: boolean = PHASE70_CONSOLIDATED_NAV_ENABLED): MobileRouteMeta {
   if (pathname === "/") {
-    return consolidatedEnabled
-      ? { kicker: "Dashboard", staticSubtitle: "Live swarm roster", pageTitleSuffix: "Dashboard" }
-      : { kicker: "Dashboard", staticSubtitle: "Live swarm roster", pageTitleSuffix: "Dashboard" };
+    if (OPERATOR_CONTROL_PLANE_ENABLED) {
+      return COCKPIT_ROUTE_META;
+    }
+    return { kicker: "Dashboard", staticSubtitle: "Live swarm roster", pageTitleSuffix: "Dashboard" };
   }
 
   const hit = longestPrefixMeta(pathname, consolidatedEnabled);

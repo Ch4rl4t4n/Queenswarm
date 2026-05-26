@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 
+import { hiveOverviewHref, hiveOverviewLabel } from "@/lib/hive-home-route";
+
 interface SectionRouteErrorProps {
   readonly title: string;
   readonly error: Error & { digest?: string };
@@ -23,8 +25,8 @@ export function SectionRouteError({ title, error, reset }: SectionRouteErrorProp
         >
           Retry
         </button>
-        <Link href="/dashboard" className="qs-btn qs-btn--ghost qs-btn--sm">
-          Dashboard
+        <Link href={hiveOverviewHref()} className="qs-btn qs-btn--ghost qs-btn--sm">
+          {hiveOverviewLabel()}
         </Link>
         <Link href="/ballroom" className="qs-btn qs-btn--ghost qs-btn--sm text-pollen">
           Ballroom

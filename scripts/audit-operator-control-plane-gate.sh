@@ -243,6 +243,25 @@ else
   fail "missing control plane modules tests"
 fi
 
+if grep -q 'hiveOverviewHref' frontend/app/\(dashboard\)/error.tsx && \
+   grep -q 'hiveOverviewHref' frontend/components/hive/section-route-error.tsx; then
+  pass "error boundaries use CP-aware home route"
+else
+  fail "error boundaries still hardcode /dashboard home"
+fi
+
+if grep -q '/cockpit' frontend/lib/hooks/use-route-scoped-poll.ts; then
+  pass "route-scoped poll includes /cockpit overview alias"
+else
+  fail "route-scoped poll missing /cockpit alias"
+fi
+
+if grep -q '/cockpit' frontend/lib/hive-mobile-meta.ts; then
+  pass "mobile meta includes /cockpit route"
+else
+  fail "mobile meta missing /cockpit route"
+fi
+
 echo
 if [[ "$FAIL" -eq 0 ]]; then
   echo "PASS — Operator Control Plane gate green"
