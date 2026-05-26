@@ -300,6 +300,180 @@ async def innovation_implement(
     return result
 
 
+class LinkDropRequest(BaseModel):
+    """On-demand URL brief — read-only fetch."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    url: str = Field(min_length=8, max_length=2048)
+    persist: bool = False
+
+
+class DialogueExtractRequest(BaseModel):
+    """Paste dialogue transcript for structure extraction."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=40, max_length=120_000)
+    apply: Literal["preview", "harness", "knowledge"] = "preview"
+
+
+class KeywordScanRequest(BaseModel):
+    """Scan transcript for suggested actions (never auto-fire)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=8, max_length=120_000)
+
+
+@router.post("/link-drop", summary="ICM Link Drop — URL → structured brief")
+async def operator_link_drop(
+    body: LinkDropRequest,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Read-only URL fetch → Research Bee brief; optional HiveMind persist."""
+
+    if not settings.operator_icm_tools_enabled:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="ICM tools disabled.")
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+
+    from app.application.services.operator_icm_tools import preview_link_drop
+    from app.application.services.research_bee import compose_research_brief
+
+    try:
+        if body.persist:
+            _require_owner_or_admin(principal)
+            brief = await compose_research_brief(
+                db,
+                tenant_id=tenant_id,
+                source_url=body.url.strip(),
+                persist=True,
+            )
+        else:
+            brief = await preview_link_drop(db, tenant_id=tenant_id, url=body.url)
+        await db.commit()
+        return {"ok": True, "brief": brief.model_dump(mode="json")}
+    except ValueError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+
+@router.post("/dialogue-extract", summary="ICM Dialogue Extract — goals/constraints/decisions")
+async def operator_dialogue_extract(
+    body: DialogueExtractRequest,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Extract structure from dialogue; optional apply to harness or Knowledge."""
+
+    if not settings.operator_icm_tools_enabled:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="ICM tools disabled.")
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+
+    from app.application.services.operator_icm_tools import apply_dialogue_extract, extract_dialogue_structure
+
+    extraction = extract_dialogue_structure(body.text)
+    if body.apply != "preview":
+        _require_owner_or_admin(principal)
+        applied = await apply_dialogue_extract(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=user.id,
+            extraction=extraction,
+            target=body.apply,
+        )
+        await db.commit()
+        return {
+            "ok": True,
+            "extraction": extraction.model_dump(mode="json"),
+            "applied": applied,
+        }
+    return {"ok": True, "extraction": extraction.model_dump(mode="json")}
+
+
+@router.post("/keyword-scan", summary="ICM keyword hints from transcript")
+async def operator_keyword_scan(
+    body: KeywordScanRequest,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Suggest operator actions from keywords — human approve only."""
+
+    if not settings.operator_icm_tools_enabled:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="ICM tools disabled.")
+    if principal.get("tenant_id") is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+
+    from app.application.services.operator_icm_tools import scan_transcript_keywords
+
+    scan = scan_transcript_keywords(body.text)
+    return {"ok": True, "scan": scan.model_dump(mode="json")}
+
+
+@router.post(
+    "/sessions/{session_id}/recipe-draft",
+    summary="Save supervisor session as recipe draft",
+)
+async def operator_session_recipe_draft(
+    session_id: uuid.UUID,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Build recipe draft from completed session — unverified template."""
+
+    _require_owner_or_admin(principal)
+    if not settings.operator_icm_tools_enabled:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="ICM tools disabled.")
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+
+    from app.application.services.operator_icm_tools import build_session_recipe_draft
+    from app.application.services.recipe_write import RecipeWriteConflictError, create_recipe_entry
+    from app.common.schemas.recipes_write import RecipeCreateBody
+    from app.presentation.api.routers.operator import OperatorRecipeStepBody, OperatorSaveRecipeRequest
+
+    try:
+        draft = await build_session_recipe_draft(db, tenant_id=tenant_id, session_id=session_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+    req = OperatorSaveRecipeRequest.model_validate(draft)
+    ordered = sorted(req.steps, key=lambda step: step.step_order)
+    template: dict[str, Any] = {
+        "version": 1,
+        "source": "supervisor_session_icm",
+        "task_text": req.task_text,
+        "session_id": str(session_id),
+        "steps": [step.model_dump(mode="json") for step in ordered],
+    }
+    recipe_body = RecipeCreateBody(
+        name=req.name.strip(),
+        description=req.description,
+        topic_tags=req.topic_tags,
+        workflow_template=template,
+        mark_verified=False,
+    )
+    try:
+        recipe = await create_recipe_entry(
+            db,
+            recipe_body,
+            swarm_id="operator_recipe",
+            task_id=str(session_id),
+        )
+        await db.commit()
+    except RecipeWriteConflictError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+    return {"ok": True, "recipe_id": str(recipe.id), "name": recipe.name, "href": "/recipes"}
+
+
 @router.post(
     "/telegram/webhook/{webhook_secret}",
     include_in_schema=False,

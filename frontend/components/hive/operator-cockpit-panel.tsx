@@ -124,6 +124,22 @@ interface OperatorCockpitSnapshot {
     summary: string;
     variants: Array<{ recipe_id: string | null; name: string; similarity: number; fitness_rank: number; detail: string }>;
   };
+  icm_tools?: {
+    enabled: boolean;
+    link_drop_enabled: boolean;
+    dialogue_extract_enabled: boolean;
+    keyword_scan_enabled: boolean;
+    min_dialogue_chars: number;
+    min_url_chars: number;
+    quick_automations: Array<{
+      id: string;
+      label: string;
+      detail: string;
+      kind: "action" | "link_drop" | "dialogue_extract" | "href";
+      action: string | null;
+      href: string | null;
+    }>;
+  };
 }
 
 function priorityTone(p: CockpitAction["priority"]): "ok" | "warn" | "err" | "info" {
@@ -147,6 +163,13 @@ function OperatorCockpitPanelInner() {
   const [brainstorm, setBrainstorm] = useState("");
   const [crystal, setCrystal] = useState("");
   const [crystalPlan, setCrystalPlan] = useState<Record<string, unknown> | null>(null);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkBrief, setLinkBrief] = useState<Record<string, unknown> | null>(null);
+  const [dialogueText, setDialogueText] = useState("");
+  const [dialogueExtract, setDialogueExtract] = useState<Record<string, unknown> | null>(null);
+  const [keywordMatches, setKeywordMatches] = useState<
+    Array<{ id: string; label: string; detail: string; priority: string; href: string | null }>
+  >([]);
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) {
@@ -258,6 +281,81 @@ function OperatorCockpitPanelInner() {
       setBusy(null);
     }
   }, [crystal]);
+
+  const runLinkDrop = useCallback(async (persist: boolean) => {
+    const url = linkUrl.trim();
+    if (url.length < 8) {
+      toast.error("Zadaj platnú URL.");
+      return;
+    }
+    setBusy(persist ? "link-persist" : "link-preview");
+    try {
+      const result = await hivePostJson<{ ok: boolean; brief: Record<string, unknown> }>("operator/link-drop", {
+        url,
+        persist,
+      });
+      setLinkBrief(result.brief);
+      toast.success(persist ? "Brief uložený do Knowledge." : "Link brief pripravený.");
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Link Drop failed");
+    } finally {
+      setBusy(null);
+    }
+  }, [linkUrl]);
+
+  const runDialogueExtract = useCallback(
+    async (apply: "preview" | "harness" | "knowledge") => {
+      const text = dialogueText.trim();
+      const min = snapshot?.icm_tools?.min_dialogue_chars ?? 40;
+      if (text.length < min) {
+        toast.error(`Min. ${min} znakov dialógu.`);
+        return;
+      }
+      setBusy(`dialogue-${apply}`);
+      try {
+        const result = await hivePostJson<{
+          ok: boolean;
+          extraction: Record<string, unknown>;
+        }>("operator/dialogue-extract", { text, apply });
+        setDialogueExtract(result.extraction);
+        if (snapshot?.icm_tools?.keyword_scan_enabled) {
+          const scan = await hivePostJson<{ scan: { matches: typeof keywordMatches } }>("operator/keyword-scan", {
+            text,
+          });
+          setKeywordMatches(scan.scan.matches ?? []);
+        }
+        if (apply === "harness") toast.success("Pridané do harness memory.");
+        else if (apply === "knowledge") toast.success("Uložené do Knowledge.");
+        else toast.success("Dialogue extract hotový.");
+      } catch (e) {
+        toast.error(e instanceof HiveApiError ? e.message : "Dialogue extract failed");
+      } finally {
+        setBusy(null);
+      }
+    },
+    [dialogueText, snapshot?.icm_tools],
+  );
+
+  const runQuickAutomation = useCallback(
+    (preset: NonNullable<OperatorCockpitSnapshot["icm_tools"]>["quick_automations"][number]) => {
+      if (preset.kind === "action" && preset.action) {
+        void runAction(preset.action);
+        return;
+      }
+      if (preset.kind === "href" && preset.href) {
+        window.location.href = preset.href;
+        return;
+      }
+      if (preset.kind === "link_drop") {
+        document.getElementById("link-drop")?.scrollIntoView({ behavior: "smooth" });
+        return;
+      }
+      if (preset.kind === "dialogue_extract") {
+        document.getElementById("dialogue-extract")?.scrollIntoView({ behavior: "smooth" });
+      }
+    },
+    [runAction],
+  );
 
   const submitBrainstorm = useCallback(async () => {
     const prompt = brainstorm.trim();
@@ -458,6 +556,138 @@ function OperatorCockpitPanelInner() {
                   <Link href={String(crystalPlan.primary_href)} className="mt-1 inline-block text-cyan hover:text-pollen">
                     Open primary →
                   </Link>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {snapshot.icm_tools?.enabled ? (
+          <div className="mb-4 space-y-4" id="icm-tools">
+            <div className="rounded-lg border border-pollen/25 bg-pollen/5 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-pollen">Quick Automations</p>
+              <p className="mt-1 text-xs text-(--qs-muted)">Presety — žiadny builder, len overené akcie.</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {snapshot.icm_tools.quick_automations.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    title={preset.detail}
+                    className="qs-btn qs-btn--ghost qs-btn--sm"
+                    onClick={() => runQuickAutomation(preset)}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {snapshot.icm_tools.link_drop_enabled ? (
+              <div className="rounded-lg border border-cyan/30 bg-cyan/5 p-3" id="link-drop">
+                <p className="text-xs font-semibold uppercase tracking-wider text-cyan">Link Drop</p>
+                <p className="mt-1 text-xs text-(--qs-muted)">URL → structured brief (read-only fetch).</p>
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                  <input
+                    type="url"
+                    value={linkUrl}
+                    onChange={(e) => setLinkUrl(e.target.value)}
+                    placeholder="https://…"
+                    className="flex-1 rounded border border-(--qs-border) bg-black/30 px-3 py-2 text-sm"
+                  />
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--ghost qs-btn--sm"
+                    disabled={!linkUrl.trim() || busy === "link-preview"}
+                    onClick={() => void runLinkDrop(false)}
+                  >
+                    Preview
+                  </button>
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--primary qs-btn--sm"
+                    disabled={!linkUrl.trim() || busy === "link-persist"}
+                    onClick={() => void runLinkDrop(true)}
+                  >
+                    Save to Knowledge
+                  </button>
+                </div>
+                {linkBrief ? (
+                  <div className="mt-3 rounded border border-(--qs-border) bg-black/20 p-2 text-xs">
+                    <p className="font-medium text-(--qs-text)">{String(linkBrief.title ?? "")}</p>
+                    <p className="mt-1 text-(--qs-muted)">{String(linkBrief.summary ?? "").slice(0, 400)}</p>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {snapshot.icm_tools.dialogue_extract_enabled ? (
+              <div className="rounded-lg border border-(--qs-border) bg-black/20 p-3" id="dialogue-extract">
+                <p className="text-xs font-semibold uppercase tracking-wider text-(--qs-muted)">Dialogue Extract</p>
+                <p className="mt-1 text-xs text-(--qs-muted)">
+                  Transcript → ciele, constraints, rozhodnutia (inšpirácia ICM dialógu).
+                </p>
+                <textarea
+                  value={dialogueText}
+                  onChange={(e) => setDialogueText(e.target.value)}
+                  rows={4}
+                  placeholder="Vlož chat alebo meeting transcript…"
+                  className="mt-2 w-full rounded border border-(--qs-border) bg-black/30 px-3 py-2 text-sm"
+                />
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--ghost qs-btn--sm"
+                    disabled={dialogueText.trim().length < (snapshot.icm_tools.min_dialogue_chars ?? 40)}
+                    onClick={() => void runDialogueExtract("preview")}
+                  >
+                    Extract
+                  </button>
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--ghost qs-btn--sm"
+                    disabled={dialogueText.trim().length < (snapshot.icm_tools.min_dialogue_chars ?? 40) || busy?.startsWith("dialogue-")}
+                    onClick={() => void runDialogueExtract("harness")}
+                  >
+                    → Harness
+                  </button>
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--ghost qs-btn--sm"
+                    disabled={dialogueText.trim().length < (snapshot.icm_tools.min_dialogue_chars ?? 40) || busy?.startsWith("dialogue-")}
+                    onClick={() => void runDialogueExtract("knowledge")}
+                  >
+                    → Knowledge
+                  </button>
+                  {dialogueExtract?.task_prefill ? (
+                    <Link
+                      href={`/tasks/new?prefill=${encodeURIComponent(String(dialogueExtract.task_prefill))}`}
+                      className="qs-btn qs-btn--ghost qs-btn--sm"
+                    >
+                      → New task
+                    </Link>
+                  ) : null}
+                </div>
+                {dialogueExtract ? (
+                  <pre className="mt-3 max-h-48 overflow-auto rounded border border-(--qs-border) bg-black/40 p-2 text-[11px] text-(--qs-muted) whitespace-pre-wrap">
+                    {String(dialogueExtract.summary_md ?? "")}
+                  </pre>
+                ) : null}
+                {keywordMatches.length > 0 ? (
+                  <ul className="mt-3 space-y-1" id="keyword-suggestions">
+                    {keywordMatches.map((m) => (
+                      <li key={m.id} className="flex flex-wrap items-center gap-2 text-xs">
+                        <V4Badge tone={m.priority === "high" ? "err" : m.priority === "medium" ? "warn" : "info"}>
+                          {m.label}
+                        </V4Badge>
+                        <span className="text-(--qs-muted)">{m.detail}</span>
+                        {m.href ? (
+                          <Link href={m.href} className="text-cyan hover:text-pollen">
+                            Go →
+                          </Link>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
                 ) : null}
               </div>
             ) : null}

@@ -1537,6 +1537,10 @@ class Settings(BaseSettings):
         default=True,
         description="Unified Operator Control Plane — /operator/cockpit compose + act router.",
     )
+    operator_icm_tools_enabled: bool = Field(
+        default=True,
+        description="ICM tools in Cockpit — Link Drop, Dialogue Extract, keyword hints (on-demand, no cron).",
+    )
     operator_telegram_inbound_enabled: bool = Field(
         default=True,
         description="Telegram inbound webhook for Zero-UI Hive Mode (Control Plane commands).",

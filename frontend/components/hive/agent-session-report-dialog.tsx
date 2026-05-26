@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { AgentSessionEventLog } from "@/components/hive/agent-session-event-log";
 import { SubAgentSessionCard } from "@/components/hive/sub-agent-session-card";
 import { V4Badge } from "@/components/ui/v4";
-import { HiveApiError, hiveGet } from "@/lib/api";
+import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import type { SupervisorSessionEventRow, SupervisorSessionRow } from "@/lib/hive-types";
 import { sessionGoalPreview } from "@/lib/supervisor-session";
 import { cn } from "@/lib/utils";
@@ -40,6 +40,7 @@ export function AgentSessionReportDialog({ sessionId, open, onOpenChange }: Agen
   const [events, setEvents] = useState<SupervisorSessionEventRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [exportBusy, setExportBusy] = useState<string | null>(null);
+  const [recipeBusy, setRecipeBusy] = useState(false);
 
   useEffect(() => {
     if (!open || !sessionId) {
@@ -89,6 +90,31 @@ export function AgentSessionReportDialog({ sessionId, open, onOpenChange }: Agen
     }
     return map;
   }, [events]);
+
+  async function saveSessionRecipe(): Promise<void> {
+    if (!sessionId || !session) {
+      return;
+    }
+    if (session.status !== "completed" && session.status !== "needs_input") {
+      toast.error("Session must be completed before saving as recipe.");
+      return;
+    }
+    setRecipeBusy(true);
+    try {
+      const result = await hivePostJson<{ ok: boolean; recipe_id: string; href?: string }>(
+        `operator/sessions/${encodeURIComponent(sessionId)}/recipe-draft`,
+        {},
+      );
+      toast.success("Recipe draft saved.");
+      if (result.href) {
+        window.location.href = result.href;
+      }
+    } catch (err) {
+      toast.error(err instanceof HiveApiError ? err.message : "Recipe draft failed");
+    } finally {
+      setRecipeBusy(false);
+    }
+  }
 
   async function exportReport(format: "html" | "markdown" | "pdf"): Promise<void> {
     if (!sessionId) {
@@ -240,6 +266,16 @@ export function AgentSessionReportDialog({ sessionId, open, onOpenChange }: Agen
             ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
+            {session?.status === "completed" || session?.status === "needs_input" ? (
+              <button
+                type="button"
+                disabled={recipeBusy || exportBusy !== null}
+                className="qs-btn qs-btn--primary qs-btn--sm"
+                onClick={() => void saveSessionRecipe()}
+              >
+                {recipeBusy ? "Saving…" : "Save as recipe"}
+              </button>
+            ) : null}
             {(["html", "markdown", "pdf"] as const).map((format) => (
               <button
                 key={format}

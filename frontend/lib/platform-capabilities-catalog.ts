@@ -689,6 +689,21 @@ export const LIVE_PLATFORM_CAPABILITIES: PlatformCapability[] = [
     stack: { backend: ["dr_drill_evidence.py"], frontend: ["enterprise-settings-panel.tsx"] },
   },
   {
+    id: "operator-icm-tools-live",
+    section: "Operator",
+    name: "ICM Tools (Link Drop + Dialogue Extract)",
+    status: "live",
+    summary: "On-demand URL briefs and dialogue→structure — no cron, human approve only.",
+    howItWorks: "`operator_icm_tools.py` wraps Research Bee + heuristic extract; keyword hints never auto-fire.",
+    value: "Lindy-like simplicity without second workflow engine — inspired by ICM dialogue layer.",
+    competitiveEdge: "Conversation as trigger with verify-first guardrails.",
+    routes: ["/cockpit#link-drop", "/cockpit#dialogue-extract"],
+    stack: {
+      backend: ["operator_icm_tools.py", "research_bee.py"],
+      frontend: ["operator-cockpit-panel.tsx"],
+    },
+  },
+  {
     id: "operator-control-plane-live",
     section: "Operator",
     name: "Operator Control Plane",

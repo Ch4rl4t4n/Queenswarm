@@ -210,6 +210,7 @@ class OperatorCockpitSnapshotOut(BaseModel):
     parallel_hive_view: dict[str, Any] = Field(default_factory=dict)
     swarm_immune_system: dict[str, Any] = Field(default_factory=dict)
     evolutionary_recipes: dict[str, Any] = Field(default_factory=dict)
+    icm_tools: dict[str, Any] = Field(default_factory=dict)
     links: dict[str, str] = Field(default_factory=dict)
     operator_loop: dict[str, Any] = Field(default_factory=dict)
 
@@ -493,6 +494,7 @@ async def compose_operator_cockpit_snapshot(
     from app.application.services.evolutionary_recipes import compose_evolutionary_recipes_snapshot
     from app.application.services.hive_oracle import _warning_dicts, compose_hive_oracle_snapshot
     from app.application.services.intent_crystallizer import compose_intent_crystallizer_snapshot
+    from app.application.services.operator_icm_tools import compose_icm_tools_snapshot
     from app.application.services.operator_telegram_gateway import compose_zero_ui_status
     from app.application.services.parallel_hive_view import compose_parallel_hive_view_snapshot
     from app.application.services.proof_of_hive import compose_recent_proof_receipts
@@ -570,6 +572,7 @@ async def compose_operator_cockpit_snapshot(
         parallel_hive_view=parallel.model_dump(mode="json"),
         swarm_immune_system=immune.model_dump(mode="json"),
         evolutionary_recipes=evolutionary.model_dump(mode="json"),
+        icm_tools=compose_icm_tools_snapshot().model_dump(mode="json"),
         operator_loop=loop.model_dump(mode="json"),
         links={
             "cockpit": "/cockpit",

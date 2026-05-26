@@ -275,6 +275,72 @@ else
   fail "operator cockpit missing live refresh"
 fi
 
+if [[ -f backend/app/application/services/operator_icm_tools.py ]]; then
+  pass "operator_icm_tools.py"
+else
+  fail "missing operator_icm_tools.py"
+fi
+
+if grep -q 'link-drop' backend/app/presentation/api/routers/operator_control_plane.py; then
+  pass "operator link-drop API route"
+else
+  fail "missing link-drop route"
+fi
+
+if grep -q 'dialogue-extract' backend/app/presentation/api/routers/operator_control_plane.py; then
+  pass "operator dialogue-extract API route"
+else
+  fail "missing dialogue-extract route"
+fi
+
+if grep -q 'id="link-drop"' frontend/components/hive/operator-cockpit-panel.tsx; then
+  pass "cockpit link-drop section"
+else
+  fail "missing cockpit link-drop UI"
+fi
+
+if grep -q 'id="dialogue-extract"' frontend/components/hive/operator-cockpit-panel.tsx; then
+  pass "cockpit dialogue-extract section"
+else
+  fail "missing cockpit dialogue-extract UI"
+fi
+
+if grep -q 'Quick Automations' frontend/components/hive/operator-cockpit-panel.tsx; then
+  pass "cockpit quick automations section"
+else
+  fail "missing cockpit quick automations UI"
+fi
+
+if grep -q 'keyword-scan' backend/app/presentation/api/routers/operator_control_plane.py; then
+  pass "operator keyword-scan API route"
+else
+  fail "missing keyword-scan route"
+fi
+
+if grep -q 'recipe-draft' backend/app/presentation/api/routers/operator_control_plane.py; then
+  pass "operator session recipe-draft API route"
+else
+  fail "missing recipe-draft route"
+fi
+
+if grep -q 'Save as recipe' frontend/components/hive/agent-session-report-dialog.tsx; then
+  pass "session report save-as-recipe button"
+else
+  fail "missing save-as-recipe UI"
+fi
+
+if grep -q 'operator-icm-tools-live' frontend/lib/platform-capabilities-catalog.ts; then
+  pass "capabilities atlas lists ICM tools"
+else
+  fail "capabilities atlas missing ICM tools"
+fi
+
+if [[ -f backend/tests/test_operator_icm_tools_unit.py ]]; then
+  pass "operator icm tools unit tests"
+else
+  fail "missing icm tools unit tests"
+fi
+
 if grep -q 'operator-control-plane-live' frontend/lib/platform-capabilities-catalog.ts; then
   pass "capabilities atlas lists Operator Control Plane"
 else

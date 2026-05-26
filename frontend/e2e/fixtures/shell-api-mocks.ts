@@ -58,6 +58,18 @@ const STUB_OPERATOR_COCKPIT = {
   oracle_warnings: [],
   feature_modules: [],
   innovation_lab: { enabled: true, pending_count: 0 },
+  intent_crystallizer: { enabled: true, min_chars: 8, templates: [] },
+  icm_tools: {
+    enabled: true,
+    link_drop_enabled: true,
+    dialogue_extract_enabled: true,
+    keyword_scan_enabled: true,
+    min_dialogue_chars: 40,
+    min_url_chars: 8,
+    quick_automations: [
+      { id: "morning_check", label: "Morning check", detail: "Trio cycle", kind: "action", action: "start_day", href: null },
+    ],
+  },
   links: { advanced_dashboard: "/dashboard" },
 };
 
@@ -504,6 +516,31 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_INNOVATION_LAB),
+      });
+      return;
+    }
+
+    if (path === "operator/link-drop") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          brief: { title: "Stub brief", summary: "E2E stub", enabled: true },
+        }),
+      });
+      return;
+    }
+
+    if (path === "operator/dialogue-extract" || path === "operator/keyword-scan") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          extraction: { summary_md: "## Stub", goals: ["Test"], task_prefill: "Test goal" },
+          scan: { matches: [] },
+        }),
       });
       return;
     }
