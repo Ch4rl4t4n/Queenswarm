@@ -262,6 +262,19 @@ else
   fail "mobile meta missing /cockpit route"
 fi
 
+if grep -q '{HOME_ROUTE}' frontend/lib/manual-content.ts && \
+   grep -q 'interpolateManualHomeTokens' frontend/lib/manual-i18n.ts; then
+  pass "manual uses CP-aware home tokens"
+else
+  fail "manual still hardcodes /dashboard home copy"
+fi
+
+if grep -q 'useRouteScopedPollOptions' frontend/components/hive/operator-cockpit-panel.tsx; then
+  pass "operator cockpit route-scoped refresh"
+else
+  fail "operator cockpit missing live refresh"
+fi
+
 echo
 if [[ "$FAIL" -eq 0 ]]; then
   echo "PASS — Operator Control Plane gate green"

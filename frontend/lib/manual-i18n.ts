@@ -1,5 +1,6 @@
 import type { FunctionInfoGroup, ManualSection } from "@/lib/manual-content";
 import { APP_FUNCTION_GUIDE, APP_MANUAL_SECTIONS } from "@/lib/manual-content";
+import { hiveOverviewHref, hiveOverviewLabel } from "@/lib/hive-home-route";
 import type { UiLanguage } from "@/lib/ui-language";
 
 const MANUAL_SUBTITLE: Record<UiLanguage, string> = {
@@ -16,6 +17,23 @@ const FUNCTION_GUIDE_HEADING: Record<UiLanguage, string> = {
   en: "App functions and info descriptions",
   sk: "Funkcie aplikácie a info popisy",
 };
+
+/** Replace CP-aware home tokens in manual copy. */
+export function interpolateManualHomeTokens(text: string): string {
+  return text
+    .replaceAll("{HOME_ROUTE}", hiveOverviewHref())
+    .replaceAll("{HOME_LABEL}", hiveOverviewLabel());
+}
+
+function localizeManualSection(section: ManualSection, lang: UiLanguage): ManualSection {
+  return {
+    ...section,
+    paragraphs: pickTaggedLines(section.paragraphs, lang).map(interpolateManualHomeTokens),
+    checklist: section.checklist
+      ? pickTaggedLines(section.checklist, lang).map(interpolateManualHomeTokens)
+      : undefined,
+  };
+}
 
 /** Pick lines tagged with SK:/EN: prefixes inside mixed manual sections. */
 function pickTaggedLines(lines: string[], lang: UiLanguage): string[] {
@@ -36,11 +54,11 @@ const MANUAL_SECTIONS_EN: ManualSection[] = [
     id: "quick-start",
     title: "1. Quick Start",
     paragraphs: [
-      "After login, start on Dashboard, verify app health, then launch new sessions.",
+      "After login, start on {HOME_LABEL}, verify app health, then launch new sessions.",
       "Run your first Supervisor flow via Agents with a single goal, constraints, and a clear done definition.",
     ],
     checklist: [
-      "Sign in via /login and confirm you land on /dashboard.",
+      "Sign in via /login and confirm you land on {HOME_ROUTE}.",
       "Open Agents and start a Supervisor session with one goal.",
       "Create a related task in Tasks so outcomes stay tracked.",
       "Review existing outputs in Knowledge (retrieval-first).",
@@ -51,7 +69,7 @@ const MANUAL_SECTIONS_EN: ManualSection[] = [
     id: "main-sections",
     title: "2. Main sections",
     paragraphs: [
-      "Dashboard is the command center; Agents runs Supervisor sessions; Tasks covers execution and routines; Knowledge holds context and outputs; Integrations manages connectors; Ballroom is the realtime ops lane.",
+      "{HOME_LABEL} is the command center; Agents runs Supervisor sessions; Tasks covers execution and routines; Knowledge holds context and outputs; Integrations manages connectors; Ballroom is the realtime ops lane.",
       "Foragers manages data collectors (YouTube/RSS/API), schedules, HiveMind ingest, and agent spawn from forager config.",
       "Settings holds security, team, billing, and integration configuration for the tenant.",
     ],
@@ -69,7 +87,7 @@ const MANUAL_SECTIONS_EN: ManualSection[] = [
     id: "scenarios",
     title: "4. Common scenarios",
     paragraphs: [
-      "Morning check: Dashboard → Agents needs_input → Tasks priority → Integrations status → Knowledge latest outputs.",
+      "Morning check: {HOME_LABEL} → Agents needs_input → Tasks priority → Integrations status → Knowledge latest outputs.",
       "Production incident: confirm symptom, start Supervisor session, coordinate in Ballroom, write conclusion to Knowledge.",
     ],
   },
@@ -167,13 +185,9 @@ export function manualSubtitle(lang: UiLanguage): string {
 
 export function manualSections(lang: UiLanguage): ManualSection[] {
   if (lang === "en") {
-    return MANUAL_SECTIONS_EN;
+    return MANUAL_SECTIONS_EN.map((section) => localizeManualSection(section, "en"));
   }
-  return APP_MANUAL_SECTIONS.map((section) => ({
-    ...section,
-    paragraphs: pickTaggedLines(section.paragraphs, "sk"),
-    checklist: section.checklist ? pickTaggedLines(section.checklist, "sk") : undefined,
-  }));
+  return APP_MANUAL_SECTIONS.map((section) => localizeManualSection(section, "sk"));
 }
 
 export function functionGuideGroups(lang: UiLanguage): FunctionInfoGroup[] {

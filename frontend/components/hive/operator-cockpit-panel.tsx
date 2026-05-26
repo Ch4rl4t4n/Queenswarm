@@ -18,6 +18,8 @@ import { toast } from "sonner";
 
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
+import { COCKPIT_POLL_COLONY_TELEMETRY_MS } from "@/lib/cockpit-poll-profile";
+import { useRouteScopedPollOptions } from "@/lib/hooks/use-route-scoped-poll";
 import { cn } from "@/lib/utils";
 
 interface CockpitAction {
@@ -146,8 +148,10 @@ function OperatorCockpitPanelInner() {
   const [crystal, setCrystal] = useState("");
   const [crystalPlan, setCrystalPlan] = useState<Record<string, unknown> | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) {
+      setLoading(true);
+    }
     try {
       const [cockpit, lab] = await Promise.all([
         hiveGet<OperatorCockpitSnapshot>("operator/cockpit"),
@@ -158,13 +162,28 @@ function OperatorCockpitPanelInner() {
     } catch (e) {
       toast.error(e instanceof HiveApiError ? e.message : "Cockpit unavailable");
     } finally {
-      setLoading(false);
+      if (!opts?.silent) {
+        setLoading(false);
+      }
     }
   }, []);
+
+  const pollOpts = useRouteScopedPollOptions(COCKPIT_POLL_COLONY_TELEMETRY_MS, "/cockpit");
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const ms = pollOpts.refreshInterval;
+    if (typeof ms !== "number" || ms <= 0) {
+      return;
+    }
+    const id = window.setInterval(() => {
+      void load({ silent: true });
+    }, ms);
+    return () => window.clearInterval(id);
+  }, [load, pollOpts.refreshInterval]);
 
   const runAction = useCallback(
     async (action: string, extra?: Record<string, unknown>) => {

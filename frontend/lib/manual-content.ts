@@ -23,11 +23,11 @@ export const APP_MANUAL_SECTIONS: ManualSection[] = [
     id: "quick-start",
     title: "1. Quick Start",
     paragraphs: [
-      "Po prihlásení začni v Dashboarde, skontroluj stav aplikácie a až potom spúšťaj nové sessions.",
+      "Po prihlásení začni v {HOME_LABEL}, skontroluj stav aplikácie a až potom spúšťaj nové sessions.",
       "Prvý Supervisor flow štandardne spúšťaj cez Agents a viaž ho na konkrétny cieľ, obmedzenia a jasný výsledok.",
     ],
     checklist: [
-      "Prihlás sa cez /login a potvrď, že si na /dashboard.",
+      "Prihlás sa cez /login a potvrď, že si na {HOME_ROUTE}.",
       "Otvor Agents a spusti prvú Supervisor session s jedným cieľom.",
       "V Tasks založ súvisiaci task, aby bol výsledok trackovaný.",
       "V Knowledge over existujúce výstupy (retrieval-first).",
@@ -38,7 +38,7 @@ export const APP_MANUAL_SECTIONS: ManualSection[] = [
     id: "main-sections",
     title: "2. Hlavné sekcie",
     paragraphs: [
-      "Dashboard je command center, Agents riadi Supervisor a sessions, Tasks pokrýva execution/routines, Knowledge drží kontext a výstupy, Integrations spravuje konektory a Ballroom je realtime operačný kanál.",
+      "{HOME_LABEL} je command center, Agents riadi Supervisor a sessions, Tasks pokrýva execution/routines, Knowledge drží kontext a výstupy, Integrations spravuje konektory a Ballroom je realtime operačný kanál.",
       "Foragers sekcia slúži na správu dátových zberačov (YouTube/RSS/API), ich periodicitu, ingest do HiveMind a spawn agentov z forager konfigurácie.",
       "Settings obsahuje bezpečnostné, tímové, billing a integračné nastavenia pre tenant.",
     ],
@@ -56,7 +56,7 @@ export const APP_MANUAL_SECTIONS: ManualSection[] = [
     id: "scenarios",
     title: "4. Bežné scenáre",
     paragraphs: [
-      "Ranný check: Dashboard → Agents needs_input → Tasks priority → Integrations stav → Knowledge posledné outputs.",
+      "Ranný check: {HOME_LABEL} → Agents needs_input → Tasks priority → Integrations stav → Knowledge posledné outputs.",
       "Produkčný incident: potvrď symptóm, spusti Supervisor session, koordinuj v Ballroom, záver zapíš do Knowledge.",
     ],
   },
