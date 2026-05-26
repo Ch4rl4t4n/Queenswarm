@@ -518,6 +518,54 @@ async def operator_ballroom_transcript_text(
     }
 
 
+@router.get(
+    "/dump-sleep/{batch_id}/transcript-text",
+    summary="ICM — format Dump & Sleep batch for Dialogue Extract",
+)
+async def operator_dump_sleep_transcript_text(
+    batch_id: uuid.UUID,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Read-only Dump & Sleep briefing → plain dialogue text (no auto-extract)."""
+
+    if not settings.operator_icm_tools_enabled:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="ICM tools disabled.")
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+
+    from app.application.services.dump_sleep_service import DumpSleepService
+    from app.application.services.operator_icm_tools import format_dump_sleep_dialogue_text
+    from app.infrastructure.persistence.models.dump_sleep_batch import DumpSleepStatusORM
+
+    service = DumpSleepService(db=db)
+    row = await service.get_batch(tenant_id=tenant_id, batch_id=batch_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dump batch not found.")
+    if row.status != DumpSleepStatusORM.COMPLETED:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Dump batch must be completed before dialogue extract.",
+        )
+
+    text = format_dump_sleep_dialogue_text(
+        briefing_md=row.briefing_md or "",
+        voice_note_text=row.voice_note_text,
+    )
+    if len(text.strip()) < 40:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Dump & Sleep content too short for dialogue extract (min 40 chars).",
+        )
+    return {
+        "ok": True,
+        "batch_id": str(batch_id),
+        "text": text,
+        "char_count": len(text),
+    }
+
+
 @router.post(
     "/sessions/{session_id}/recipe-draft",
     summary="Save supervisor session as recipe draft",

@@ -90,6 +90,18 @@ def test_build_dialogue_recipe_draft_min_steps() -> None:
     assert "icm_tools" in draft["topic_tags"]
 
 
+def test_format_dump_sleep_dialogue_text() -> None:
+    from app.application.services.operator_icm_tools import format_dump_sleep_dialogue_text
+
+    text = format_dump_sleep_dialogue_text(
+        briefing_md="## Morning briefing\n\n- Must follow up on launch deadline by Friday.",
+        voice_note_text="Remember to check the bug in checkout before standup.",
+    )
+    assert "User:" in text
+    assert "Overnight briefing" in text
+    assert len(text) >= 40
+
+
 @pytest.mark.asyncio
 async def test_build_session_recipe_draft_requires_completed() -> None:
     from app.application.services.operator_icm_tools import build_session_recipe_draft

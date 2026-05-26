@@ -433,6 +433,18 @@ async def apply_dialogue_extract(
     return {"ok": False, "target": target, "message": "Unsupported target."}
 
 
+def format_dump_sleep_dialogue_text(*, briefing_md: str, voice_note_text: str | None = None) -> str:
+    """Format Dump & Sleep briefing + optional voice note for ICM dialogue extract."""
+
+    parts: list[str] = []
+    if voice_note_text and voice_note_text.strip():
+        parts.append(f"User: {voice_note_text.strip()}")
+    briefing = (briefing_md or "").strip()
+    if briefing:
+        parts.append(f"Overnight briefing:\n{briefing}")
+    return "\n\n".join(parts)
+
+
 def format_ballroom_transcript_text(transcript: list[Any]) -> str:
     """Format ballroom capsule transcript rows as dialogue text for ICM extract."""
 
@@ -577,6 +589,7 @@ __all__ = [
     "compose_icm_tools_snapshot",
     "extract_dialogue_structure",
     "format_ballroom_transcript_text",
+    "format_dump_sleep_dialogue_text",
     "preview_link_drop",
     "scan_transcript_keywords",
 ]

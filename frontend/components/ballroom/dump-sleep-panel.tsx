@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { Loader2Icon, MoonStar, Upload } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { OvernightVoiceReportPlayer } from "@/components/hive/overnight-voice-report-player";
 import { HiveApiError, hiveGet } from "@/lib/api";
+import { hiveOverviewHref } from "@/lib/hive-home-route";
 import { usePlatform } from "@/components/hive/platform-context";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 
@@ -173,6 +175,12 @@ export function DumpSleepPanel(): JSX.Element | null {
                 {activeBatch.briefing_md.slice(0, 1200)}
               </pre>
             ) : null}
+            <Link
+              href={`${hiveOverviewHref()}?dump_sleep_batch=${encodeURIComponent(activeBatch.id)}#dialogue-extract`}
+              className="qs-btn qs-btn--ghost qs-btn--sm mt-3 inline-flex"
+            >
+              Dialogue Extract
+            </Link>
           </div>
         ) : null}
       </div>

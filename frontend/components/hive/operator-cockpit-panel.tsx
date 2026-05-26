@@ -201,22 +201,29 @@ function OperatorCockpitPanelInner() {
 
   useEffect(() => {
     const ballroomSession = searchParams.get("ballroom_session")?.trim();
-    if (!ballroomSession || dialogueText.trim().length >= 40) {
+    const dumpSleepBatch = searchParams.get("dump_sleep_batch")?.trim();
+    const importId = ballroomSession || dumpSleepBatch;
+    if (!importId || dialogueText.trim().length >= 40) {
       return;
     }
+    const path = ballroomSession
+      ? `operator/ballroom/${encodeURIComponent(ballroomSession)}/transcript-text`
+      : `operator/dump-sleep/${encodeURIComponent(dumpSleepBatch!)}/transcript-text`;
     let cancelled = false;
-    void hiveGet<{ ok: boolean; text: string }>(`operator/ballroom/${encodeURIComponent(ballroomSession)}/transcript-text`)
+    void hiveGet<{ ok: boolean; text: string }>(path)
       .then((body) => {
         if (cancelled || !body.text?.trim()) {
           return;
         }
         setDialogueText(body.text);
         document.getElementById("dialogue-extract")?.scrollIntoView({ behavior: "smooth" });
-        toast.success("Ballroom transcript loaded — run Extract.");
+        toast.success(
+          ballroomSession ? "Ballroom transcript loaded — run Extract." : "Dump & Sleep briefing loaded — run Extract.",
+        );
       })
       .catch((e) => {
         if (!cancelled) {
-          toast.error(e instanceof HiveApiError ? e.message : "Ballroom transcript unavailable");
+          toast.error(e instanceof HiveApiError ? e.message : "Transcript import unavailable");
         }
       });
     return () => {
@@ -655,7 +662,7 @@ function OperatorCockpitPanelInner() {
               <div className="rounded-lg border border-(--qs-border) bg-black/20 p-3" id="dialogue-extract">
                 <p className="text-xs font-semibold uppercase tracking-wider text-(--qs-muted)">Dialogue Extract</p>
                 <p className="mt-1 text-xs text-(--qs-muted)">
-                  Transcript → ciele, constraints, rozhodnutia. V Ballroom klikni „Dialogue Extract“ alebo vlož text nižšie.
+                  Transcript → ciele, constraints, rozhodnutia. Import z Ballroom alebo Dump & Sleep, alebo vlož text nižšie.
                 </p>
                 <textarea
                   value={dialogueText}

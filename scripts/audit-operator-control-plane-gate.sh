@@ -353,6 +353,18 @@ else
   fail "missing ballroom dialogue extract link"
 fi
 
+if grep -q 'dump-sleep.*transcript-text' backend/app/presentation/api/routers/operator_control_plane.py; then
+  pass "operator dump-sleep transcript API route"
+else
+  fail "missing dump-sleep transcript route"
+fi
+
+if grep -q 'Dialogue Extract' frontend/components/ballroom/dump-sleep-panel.tsx; then
+  pass "dump-sleep link to dialogue extract"
+else
+  fail "missing dump-sleep dialogue extract link"
+fi
+
 if [[ -f backend/tests/test_operator_icm_tools_unit.py ]]; then
   pass "operator icm tools unit tests"
 else
