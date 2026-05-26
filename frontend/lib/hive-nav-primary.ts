@@ -11,8 +11,9 @@ import {
   Briefcase,
   Cable,
   ClipboardList,
-  Coins,
   FileText,
+  Eye,
+  Factory,
   FlaskConical,
   GitBranch,
   Hexagon,
@@ -27,6 +28,7 @@ import {
   Sparkles,
   Trophy,
   Users,
+  Zap,
 } from "lucide-react";
 
 import { integrationsTabHref } from "@/lib/integrations-routes";
@@ -34,6 +36,7 @@ import {
   ADVANCED_MONITORING_ENABLED,
   LEADERBOARD_ENABLED,
   PHASE70_CONSOLIDATED_NAV_ENABLED,
+  OPERATOR_CONTROL_PLANE_ENABLED,
   RECIPES_ENABLED,
   SIMULATIONS_ENABLED,
 } from "@/lib/feature-flags";
@@ -52,7 +55,6 @@ export interface HiveNavItem {
 /** Lower sidebar rail — costs, leaderboard, settings, manual. */
 export function buildHiveSidebarSecondary(_consolidatedEnabled: boolean): HiveNavItem[] {
   return [
-    { href: "/costs", label: "Costs", Icon: Coins, section: "overview", featureKey: "costs" },
     ...(LEADERBOARD_ENABLED
       ? [{ href: "/leaderboard", label: "Leaderboard", Icon: Trophy, section: "knowledge" as const, featureKey: "leaderboard" as const }]
       : []),
@@ -64,16 +66,36 @@ export function buildHiveSidebarSecondary(_consolidatedEnabled: boolean): HiveNa
 export const HIVE_SIDEBAR_SECONDARY: HiveNavItem[] = buildHiveSidebarSecondary(PHASE70_CONSOLIDATED_NAV_ENABLED);
 
 function buildHiveNavPrimaryConsolidated(): HiveNavItem[] {
-  return [
-    { href: "/", label: "Dashboard", Icon: LayoutDashboardIcon, bottomNav: true, section: "overview", featureKey: "dashboard" },
+  const items: HiveNavItem[] = [];
+  if (OPERATOR_CONTROL_PLANE_ENABLED) {
+    items.push({
+      href: "/cockpit",
+      label: "Cockpit",
+      Icon: Zap,
+      bottomNav: true,
+      section: "overview",
+      featureKey: "operator_cockpit",
+    });
+    items.push({
+      href: "/oracle",
+      label: "Oracle",
+      Icon: Eye,
+      section: "overview",
+      featureKey: "operator_cockpit",
+    });
+  }
+  items.push(
+    { href: "/", label: "Dashboard", Icon: LayoutDashboardIcon, bottomNav: !OPERATOR_CONTROL_PLANE_ENABLED, section: "overview", featureKey: "dashboard" },
     { href: "/swarms", label: "Swarms", Icon: Share2, section: "overview", featureKey: "swarms" },
     { href: "/agents", label: "Agents", Icon: Users, bottomNav: true, section: "agents", featureKey: "agents" },
     { href: "/foragers", label: "Foragers", Icon: Sparkles, section: "agents", featureKey: "foragers" },
     { href: "/tasks", label: "Tasks", Icon: ListTodo, bottomNav: true, section: "execution", featureKey: "tasks" },
+    { href: "/factory", label: "Factory", Icon: Factory, section: "execution", featureKey: "skills_export_factory" },
     { href: "/knowledge", label: "Knowledge", Icon: Brain, section: "knowledge", featureKey: "knowledge" },
     { href: "/integrations", label: "Integrations", Icon: Cable, section: "integrations", featureKey: "integrations" },
     { href: "/ballroom", label: "Ballroom", Icon: MicIcon, bottomNav: true, section: "ballroom", featureKey: "ballroom" },
-  ];
+  );
+  return items;
 }
 
 /** Ordered rail — desktop shows full list (scroll); mobile drawer mirrors this. */
@@ -102,11 +124,16 @@ export function buildHiveNavGroups(consolidatedEnabled: boolean): { title: strin
     {
       title: "Overview",
       items: [
+        ...(OPERATOR_CONTROL_PLANE_ENABLED
+          ? [
+              { href: "/cockpit", label: "Cockpit", Icon: Zap, section: "overview" as const },
+              { href: "/oracle", label: "Oracle", Icon: Eye, section: "overview" as const },
+            ]
+          : []),
         { href: "/", label: "Dashboard", Icon: LayoutDashboardIcon, section: "overview" },
         ...(ADVANCED_MONITORING_ENABLED
           ? [{ href: "/monitoring", label: "Monitoring", Icon: Activity, section: "overview" as const }]
           : []),
-        { href: "/costs", label: "Costs", Icon: Coins, section: "overview" },
         { href: "/#hive-live-swarm", label: "Live network", Icon: Hexagon, section: "overview" },
         { href: "/swarms", label: "Swarms", Icon: Share2, section: "overview" },
       ],
@@ -132,6 +159,7 @@ export function buildHiveNavGroups(consolidatedEnabled: boolean): { title: strin
         ...(SIMULATIONS_ENABLED
           ? [{ href: "/simulations", label: "Simulations", Icon: FlaskConical, section: "execution" as const }]
           : []),
+        { href: "/factory", label: "Micro-SaaS Factory", Icon: Factory, section: "execution" as const, featureKey: "skills_export_factory" as const },
       ],
     },
     {
@@ -226,9 +254,9 @@ export function sectionForPath(pathname: string): string {
   if (
     normalized === "/" ||
     normalized.startsWith("/dashboard") ||
+    normalized.startsWith("/cockpit") ||
     normalized.startsWith("/overview") ||
     normalized.startsWith("/monitoring") ||
-    normalized.startsWith("/costs") ||
     normalized.startsWith("/swarms")
   ) {
     return "overview";
@@ -239,6 +267,7 @@ export function sectionForPath(pathname: string): string {
   if (
     normalized.startsWith("/execution") ||
     normalized.startsWith("/tasks") ||
+    normalized.startsWith("/factory") ||
     normalized.startsWith("/workflows") ||
     normalized.startsWith("/jobs") ||
     normalized.startsWith("/simulations")

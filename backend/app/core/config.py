@@ -7,7 +7,7 @@ import socket
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Self
 
@@ -108,6 +108,13 @@ class Settings(BaseSettings):
     ha_reports_dir: str = Field(
         default="reports/ha",
         description="Directory with ha-chaos-*.json evidence (env: HA_REPORTS_DIR). Mount read-only in prod.",
+    )
+    codebase_atlas_repo_root: str = Field(
+        default="",
+        description=(
+            "Optional monorepo root for Command Center Codebase Atlas (env: CODEBASE_ATLAS_REPO_ROOT). "
+            "Mount host repo read-only in prod (e.g. /repo)."
+        ),
     )
     graceful_shutdown_timeout_sec: int = Field(
         default=15,
@@ -438,6 +445,20 @@ class Settings(BaseSettings):
     auto_graphify_max_content_chars: int = Field(default=120_000, ge=1000, le=500_000)
     auto_graphify_pollen_per_file: float = Field(default=1.5, ge=0.0, le=100.0)
     auto_graphify_report_window_hours: int = Field(default=168, ge=1, le=720)
+    output_archive_root: str = Field(
+        default="/app/var/outputs",
+        description="Filesystem root for final deliverable markdown archives (Outputs lane).",
+    )
+    output_archive_chroma_enabled: bool = Field(
+        default=True,
+        description="Embed archived deliverables into Chroma/pgvector when credentials ready.",
+    )
+    output_archive_embed_max_chars: int = Field(
+        default=12_000,
+        ge=1000,
+        le=500_000,
+        description="Max markdown chars embedded per archived deliverable.",
+    )
     scout_swarm_size: int = Field(default=8, ge=1)
     eval_swarm_size: int = Field(default=6, ge=1)
     sim_swarm_size: int = Field(default=5, ge=1)
@@ -541,6 +562,13 @@ class Settings(BaseSettings):
         default="commercial",
         description="Platform mode assigned to new non-admin personal tenants.",
     )
+    solo_mode_enabled: bool = Field(
+        default=False,
+        description=(
+            "Solo operator deployment: hide commercial/billing/marketplace UI via platform "
+            "feature preset. Code remains for future commercial re-enable."
+        ),
+    )
     hive_token_client_id: str | None = Field(
         default=None,
         description="HTTP Basic user for POST /api/v1/auth/token (pair with secret).",
@@ -558,6 +586,7 @@ class Settings(BaseSettings):
     )
     oauth_public_origin: str = Field(
         default="http://localhost:3000",
+        validation_alias=AliasChoices("OAUTH_FRONTEND_PUBLIC_ORIGIN", "OAUTH_PUBLIC_ORIGIN"),
         description="Public cockpit origin for OAuth callback redirects.",
     )
     oauth_redirect_uri: str = Field(
@@ -580,9 +609,31 @@ class Settings(BaseSettings):
     oauth_notion_client_secret: str = Field(default="")
     oauth_stripe_client_id: str = Field(default="")
     oauth_stripe_client_secret: str = Field(default="")
+    oauth_meta_client_id: str = Field(default="", description="Meta (Facebook Login) app id for IG/FB social publish.")
+    oauth_meta_client_secret: str = Field(default="", description="Meta app secret for IG/FB OAuth consent.")
+    oauth_meta_config_id: str = Field(
+        default="",
+        description=(
+            "Facebook Login for Business configuration id (Meta console → Configurations). "
+            "Required for Instagram/Business use-case apps when standard dialog/oauth fails."
+        ),
+    )
+    oauth_x_client_id: str = Field(default="", description="X (Twitter) OAuth2 client id for social publish.")
+    oauth_x_client_secret: str = Field(default="", description="X (Twitter) OAuth2 client secret for social publish.")
+    oauth_tiktok_client_key: str = Field(default="", description="TikTok Login Kit client key for Content Posting API.")
+    oauth_tiktok_client_secret: str = Field(default="", description="TikTok client secret for OAuth consent.")
     enable_2fa: bool = Field(
         default=False,
         description="Enable interactive 2FA challenge flow for dashboard login (feature-flag style toggle).",
+    )
+    dashboard_2fa_session_max_hours: int = Field(
+        default=24,
+        ge=0,
+        le=720,
+        description=(
+            "Hours after a successful password+TOTP login before refresh tokens are rejected "
+            "and full sign-in is required. 0 disables the sliding 2FA window."
+        ),
     )
     rate_limit_enabled: bool = Field(
         default=True,
@@ -1139,6 +1190,10 @@ class Settings(BaseSettings):
         default=True,
         description="Enable paper trading bee Celery ticks and dashboard APIs.",
     )
+    hourly_youtube_crypto_roll_enabled: bool = Field(
+        default=True,
+        description="Enable hourly YouTube/crypto background roll Celery task.",
+    )
     paper_trading_tick_interval_sec: int = Field(
         default=900,
         ge=60,
@@ -1268,6 +1323,10 @@ class Settings(BaseSettings):
         default=False,
         description="Enable lightweight Markdown skills injection for supervisor/sub-agent prompts.",
     )
+    supervisor_sub_agent_llm_enabled: bool = Field(
+        default=True,
+        description="When true, supervisor sub-agents call LiteLLM + tools instead of harness stub steps.",
+    )
     supervisor_max_skills_per_agent: int = Field(
         default=5,
         ge=1,
@@ -1328,6 +1387,304 @@ class Settings(BaseSettings):
         le=59,
         description="UTC minute for daily Forager Intelligence Loop Celery beat tick.",
     )
+    self_extending_tool_marketplace_enabled: bool = Field(
+        default=True,
+        description="Forager intelligence scan → one-click MCP preset install via harness apply.",
+    )
+    execution_studio_enabled: bool = Field(
+        default=True,
+        description="Execution Studio product layer — governed external app connections and tool execution.",
+    )
+    publish_queue_enabled: bool = Field(
+        default=True,
+        description="Publish Queue Phase B — operator approval inbox for verified publish packs (simulate-only).",
+    )
+    morning_publish_pipeline_enabled: bool = Field(
+        default=True,
+        description="Phase D — Life OS brief → content draft → critic verify → Publish Queue timeline.",
+    )
+    social_publish_enabled: bool = Field(
+        default=True,
+        description="Phase C — social channel publish adapter (Instagram, Facebook, X, TikTok).",
+    )
+    social_publish_live_enabled: bool = Field(
+        default=False,
+        description="Allow live upstream social API calls — default false until OAuth + operator ready.",
+    )
+    publish_queue_telegram_notify_enabled: bool = Field(
+        default=True,
+        description="Phase E — Telegram ping when operator approves a publish pack (if bot configured).",
+    )
+    social_publish_telegram_notify_on_auto_live_enabled: bool = Field(
+        default=True,
+        description="Phase G — Telegram ping when trusted auto-live succeeds (if bot configured).",
+    )
+    scheduled_publish_enabled: bool = Field(
+        default=True,
+        description="Phase E — Celery tick runs simulate publish for approved packs past scheduled_at.",
+    )
+    social_publish_rate_limit_enabled: bool = Field(
+        default=True,
+        description="Redis sliding-window limits for live social publish (per channel + global).",
+    )
+    social_publish_rate_limit_fail_closed: bool = Field(
+        default=True,
+        description="Block live publish when Redis rate limiter is unavailable.",
+    )
+    social_publish_live_daily_max_per_channel: int = Field(
+        default=10,
+        ge=1,
+        le=500,
+        description="Max live publishes per channel per operator per rate window.",
+    )
+    social_publish_live_daily_max_global: int = Field(
+        default=30,
+        ge=1,
+        le=2000,
+        description="Max live publishes across all channels per operator per rate window.",
+    )
+    social_publish_rate_limit_window_sec: float = Field(
+        default=86400.0,
+        gt=0,
+        description="Sliding window for live publish rate limits (default 24h).",
+    )
+    social_publish_trusted_auto_enabled: bool = Field(
+        default=False,
+        description="Phase G — allow tenant auto-live when channel mode=auto and simulate history meets threshold.",
+    )
+    social_publish_trusted_auto_min_simulates: int = Field(
+        default=5,
+        ge=1,
+        le=100,
+        description="Min successful social simulates per channel before auto-live is allowed.",
+    )
+    tiktok_publish_status_poll_enabled: bool = Field(
+        default=True,
+        description="Poll TikTok publish_status_fetch after successful video_publish_init (live).",
+    )
+    tiktok_publish_status_poll_max_attempts: int = Field(
+        default=6,
+        ge=1,
+        le=30,
+        description="Max poll attempts after TikTok video_publish_init.",
+    )
+    tiktok_publish_status_poll_interval_sec: float = Field(
+        default=2.0,
+        ge=0.5,
+        le=30.0,
+        description="Seconds between TikTok publish status polls.",
+    )
+    publish_pack_venice_media_hook_enabled: bool = Field(
+        default=False,
+        description="Server-side Venice image_generate when publish pack lacks media_url (Instagram/FB).",
+    )
+    publish_pack_monid_video_hook_enabled: bool = Field(
+        default=False,
+        description="Server-side Monid video resolve when TikTok pack lacks media_url.",
+    )
+    prediction_markets_enabled: bool = Field(
+        default=True,
+        description="Enable Polymarket marketplace connectors for trading bot lanes.",
+    )
+    prediction_markets_live_trading_enabled: bool = Field(
+        default=False,
+        description="Allow live order placement on prediction markets — default simulate until operator ready.",
+    )
+    prediction_markets_max_order_usd: float = Field(
+        default=2_500.0,
+        ge=1.0,
+        le=500_000.0,
+        description="Default max notional USD per live prediction-market order.",
+    )
+    prediction_markets_live_daily_max_per_venue: int = Field(
+        default=20,
+        ge=1,
+        le=500,
+        description="Max live orders per venue per operator per rate window.",
+    )
+    prediction_markets_live_daily_max_global: int = Field(
+        default=50,
+        ge=1,
+        le=2000,
+        description="Max live prediction-market orders across venues per operator per window.",
+    )
+    prediction_markets_rate_limit_window_sec: float = Field(
+        default=86400.0,
+        gt=0,
+        description="Sliding window for live prediction-market order rate limits.",
+    )
+    prediction_markets_rate_limit_fail_closed: bool = Field(
+        default=True,
+        description="Block live orders when Redis rate limiter unavailable.",
+    )
+    trading_cockpit_enabled: bool = Field(
+        default=True,
+        description="Trading Cockpit panel — paper + real prediction-market agent control in Execution Studio.",
+    )
+    trading_cockpit_telegram_notify_on_fill: bool = Field(
+        default=True,
+        description="Notify operator Telegram channel on paper fill or live trade audit (when configured).",
+    )
+    operator_loop_enabled: bool = Field(
+        default=True,
+        description="Unified Operator Loop snapshot — overnight + brief + publish + trading.",
+    )
+    operator_loop_telegram_morning_enabled: bool = Field(
+        default=True,
+        description="07:30 UTC Telegram morning digest from Operator Loop (when Telegram configured).",
+    )
+    operator_control_plane_enabled: bool = Field(
+        default=True,
+        description="Unified Operator Control Plane — /operator/cockpit compose + act router.",
+    )
+    operator_telegram_inbound_enabled: bool = Field(
+        default=True,
+        description="Telegram inbound webhook for Zero-UI Hive Mode (Control Plane commands).",
+    )
+    operator_telegram_webhook_secret: str = Field(
+        default="",
+        description="Shared secret in webhook path + X-Telegram-Bot-Api-Secret-Token.",
+    )
+    operator_zero_ui_notify_enabled: bool = Field(
+        default=True,
+        description="Priority Telegram pings for verify-first outcomes (Zero-UI mode).",
+    )
+    proof_of_hive_enabled: bool = Field(
+        default=True,
+        description="HMAC-signed shareable verify receipts for artifacts (Proof-of-Hive).",
+    )
+    proof_of_hive_signing_secret: str = Field(
+        default="",
+        description="Optional dedicated HMAC secret for proof tokens; falls back to SECRET_KEY.",
+    )
+    hive_oracle_enabled: bool = Field(
+        default=True,
+        description="Hive Oracle v2 — heuristic warnings + optional LLM-light synthesis.",
+    )
+    hive_oracle_llm_synthesis_enabled: bool = Field(
+        default=False,
+        description="Enable cheap LLM synthesis in Hive Oracle (off by default for stability).",
+    )
+    hive_oracle_synthesis_model: str = Field(
+        default="gpt-4o-mini",
+        description="LiteLLM model slug for Hive Oracle synthesis when LLM enabled.",
+    )
+    intent_crystallizer_enabled: bool = Field(
+        default=True,
+        description="Intent Crystallizer v2 — free text → goal plan + deep links.",
+    )
+    hive_innovation_lab_enabled: bool = Field(
+        default=True,
+        description="Hive Innovation Lab — brainstorm → approve → Maintainer auto-implement.",
+    )
+    publish_hook_variants_enabled: bool = Field(
+        default=True,
+        description="Auto-generate hook variants on verified publish packs.",
+    )
+    publish_audit_enabled: bool = Field(
+        default=True,
+        description="Phase F — audit trail for publish queue + social publish in Execution Studio activity.",
+    )
+    publish_performance_enabled: bool = Field(
+        default=True,
+        description="Publish Performance Loop — aggregate audit into channel stats + insights.",
+    )
+    agent_os_enabled: bool = Field(
+        default=True,
+        description="Agent OS P8 — cross-swarm, imitation v2, behavioral proposals snapshot.",
+    )
+    analysis_swarm_enabled: bool = Field(
+        default=True,
+        description="Analysis Swarm — 3-lane consensus before high-risk decisions.",
+    )
+    analysis_swarm_min_confidence: float = Field(
+        default=0.65,
+        ge=0.0,
+        le=1.0,
+        description="Minimum average confidence for Analysis Swarm execute recommendation.",
+    )
+    trade_to_content_enabled: bool = Field(
+        default=True,
+        description="Auto-draft publish pack from verified paper fill.",
+    )
+    cross_swarm_knowledge_enabled: bool = Field(
+        default=True,
+        description="Cross-swarm recipe transfer suggestions.",
+    )
+    imitation_v2_enabled: bool = Field(
+        default=True,
+        description="Imitation v2 — auto-suggest neighbor recipes after verified outcomes.",
+    )
+    dreaming_behavioral_proposals_enabled: bool = Field(
+        default=True,
+        description="Overnight dump → behavioral instruction proposals.",
+    )
+    trading_overnight_review_enabled: bool = Field(
+        default=True,
+        description="06:00 UTC trading P&L digest for Operator Loop.",
+    )
+    publish_hook_optimizer_enabled: bool = Field(
+        default=True,
+        description="P8 #76 — recommend winning hook style per channel from publish packs.",
+    )
+    forager_intelligence_v2_enabled: bool = Field(
+        default=True,
+        description="P8 #77 — tenant forager v2 snapshot with connector gaps.",
+    )
+    trading_content_hybrid_enabled: bool = Field(
+        default=True,
+        description="P9 #80 — unified trading + publish content hybrid snapshot.",
+    )
+    public_trading_transparency_enabled: bool = Field(
+        default=True,
+        description="P9 #82 — public read-only paper trading aggregate (no secrets).",
+    )
+    recipe_marketplace_beta_enabled: bool = Field(
+        default=True,
+        description="P9 #83 — recipe marketplace beta snapshot for /recipes hub.",
+    )
+    research_bee_enabled: bool = Field(
+        default=True,
+        description="P2 #78 — NotebookLM-style URL/text → structured HiveMind brief.",
+    )
+    research_bee_max_chars: int = Field(
+        default=12_000,
+        ge=512,
+        le=120_000,
+        description="Max extracted characters per research bee brief.",
+    )
+    media_agency_in_a_box_enabled: bool = Field(
+        default=True,
+        description="P2 #84 — faceless media agency white-label publish lane snapshot.",
+    )
+    micro_saas_factory_enabled: bool = Field(
+        default=True,
+        description="P3 #85 — Micro-SaaS factory landing + auth + deploy blueprint.",
+    )
+    live_lane_snapshot_enabled: bool = Field(
+        default=True,
+        description="#65 — unified Polymarket + publish OAuth live lane prep snapshot.",
+    )
+    operator_hub_settings_enabled: bool = Field(
+        default=True,
+        description="Settings UI — operator hub snapshot (modules, env flags, live lane).",
+    )
+    execution_studio_weekly_rollup_enabled: bool = Field(
+        default=True,
+        description="Send weekly Execution Studio telemetry rollup via Slack/Discord/Teams webhooks and email.",
+    )
+    execution_studio_vapid_public_key: str = Field(
+        default="",
+        description="VAPID public key for Execution Studio Web Push (base64url).",
+    )
+    execution_studio_vapid_private_key: str = Field(
+        default="",
+        description="VAPID private key for Execution Studio Web Push.",
+    )
+    execution_studio_vapid_contact_email: str = Field(
+        default="ops@queenswarm.love",
+        description="mailto: contact embedded in VAPID claims for Web Push.",
+    )
     supervisor_self_healing_enabled: bool = Field(
         default=True,
         description="Enable self-healing retries and reflection loop in supervisor sub-agent runtime.",
@@ -1371,6 +1728,46 @@ class Settings(BaseSettings):
     queen_maintainer_post_merge_tenant_id: str | None = Field(
         default=None,
         description="Tenant UUID receiving post-merge Maintainer supervisor sessions.",
+    )
+    queen_maintainer_session_cap_usd: float = Field(
+        default=0.50,
+        ge=0.05,
+        le=10.0,
+        description="Per Maintainer supervisor session LLM spend cap (Cost Guardian).",
+    )
+    queen_maintainer_session_warn_ratio: float = Field(
+        default=0.60,
+        ge=0.1,
+        le=0.95,
+        description="Fraction of session cap that triggers warn state.",
+    )
+    queen_maintainer_daily_run_limit: int = Field(
+        default=1,
+        ge=1,
+        le=24,
+        description="Max Queen Maintainer supervisor sessions per tenant per UTC day.",
+    )
+    queen_maintainer_routing_mode: str = Field(
+        default="economy",
+        description="LiteLLM routing mode override for Maintainer lane (economy | free_first).",
+    )
+    queen_maintainer_researcher_model: str = Field(
+        default="xai/grok-3-mini",
+        description="Cheap model slug for Maintainer researcher role.",
+    )
+    queen_maintainer_coder_model: str = Field(
+        default="xai/grok-3-mini",
+        description="Cheap model slug for Maintainer coder role.",
+    )
+    queen_maintainer_critic_model: str = Field(
+        default="openai/gpt-4o-mini",
+        description="Cheap model slug for Maintainer critic role.",
+    )
+    queen_maintainer_self_heal_max_attempts: int = Field(
+        default=1,
+        ge=1,
+        le=3,
+        description="Self-heal retry cap for Maintainer sub-agents (cost control).",
     )
     supervisor_self_heal_max_attempts: int = Field(
         default=2,

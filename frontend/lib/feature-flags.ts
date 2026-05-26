@@ -22,4 +22,8 @@ export const ADVANCED_MONITORING_ENABLED = parseBoolean(process.env.NEXT_PUBLIC_
 export const SIMULATIONS_ENABLED = parseBoolean(process.env.NEXT_PUBLIC_SIMULATIONS_ENABLED, true);
 export const LEADERBOARD_ENABLED = parseBoolean(process.env.NEXT_PUBLIC_LEADERBOARD_ENABLED, false);
 export const RECIPES_ENABLED = parseBoolean(process.env.NEXT_PUBLIC_RECIPES_ENABLED, false);
+export const OPERATOR_CONTROL_PLANE_ENABLED = parseBoolean(
+  process.env.NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED,
+  true,
+);
 export const VOICE_ENABLED = parseBoolean(process.env.NEXT_PUBLIC_VOICE_ENABLED, false);

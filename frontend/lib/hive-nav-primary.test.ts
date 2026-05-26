@@ -60,12 +60,10 @@ describe("hive-nav-primary", () => {
     const swarms = HIVE_NAV_PRIMARY.find((i) => i.href === "/swarms")!;
     const agents = HIVE_NAV_PRIMARY.find((i) => i.href === "/agents")!;
     const foragers = HIVE_NAV_PRIMARY.find((i) => i.href === "/foragers")!;
-    const costs = HIVE_SIDEBAR_SECONDARY.find((i) => i.href === "/costs")!;
     const executionItems = HIVE_NAV_GROUPS.find((g) => g.title === "Execution")!.items;
 
     expect(isNavItemActive("/", dashboard)).toBe(true);
     expect(isNavItemActive("/", swarms)).toBe(false);
-    expect(isNavItemActive("/", costs)).toBe(false);
     expect(isNavItemActive("/", dashboard, { hash: "#hive-live-swarm", candidates: HIVE_NAV_GROUPS[0]!.items })).toBe(false);
 
     expect(isNavItemActive("/agents", agents)).toBe(true);

@@ -17,6 +17,8 @@ from app.presentation.api.routers import jobs as jobs_router
 from app.presentation.api.routers import learning as learning_router
 from app.presentation.api.routers import marketing as marketing_router
 from app.presentation.api.routers import operator as operator_router
+from app.presentation.api.routers import operator_control_plane as operator_control_plane_router
+from app.presentation.api.routers import proof_of_hive as proof_of_hive_router
 from app.presentation.api.routers import operator_monitoring as operator_monitoring_router
 from app.presentation.api.routers import plugins_catalog as plugins_catalog_router
 from app.presentation.api.routers import realtime_ballroom as realtime_ballroom_router
@@ -106,6 +108,9 @@ api_v1.include_router(dreaming_router.router)
 api_v1.include_router(dump_sleep_router.router)
 api_v1.include_router(harness_router.router)
 api_v1.include_router(queen_maintainer_router.router)
+api_v1.include_router(operator_control_plane_router.router)
+api_v1.include_router(proof_of_hive_router.router)
+api_v1.include_router(proof_of_hive_router.public_router)
 api_v1.include_router(episodic_memory_router.router)
 api_v1.include_router(llm_routing_router.router)
 api_v1.include_router(auto_graphify_router.router)
