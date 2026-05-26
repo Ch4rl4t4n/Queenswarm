@@ -694,7 +694,7 @@ export const LIVE_PLATFORM_CAPABILITIES: PlatformCapability[] = [
     name: "ICM Tools (Link Drop + Dialogue Extract)",
     status: "live",
     summary: "On-demand URL briefs and dialogue→structure — no cron, human approve only.",
-    howItWorks: "`operator_icm_tools.py` wraps Research Bee + heuristic extract; keyword hints never auto-fire.",
+    howItWorks: "`operator_icm_tools.py` wraps Research Bee + heuristic extract; Ballroom transcript import; keyword hints never auto-fire.",
     value: "Lindy-like simplicity without second workflow engine — inspired by ICM dialogue layer.",
     competitiveEdge: "Conversation as trigger with verify-first guardrails.",
     routes: ["/cockpit#link-drop", "/cockpit#dialogue-extract"],

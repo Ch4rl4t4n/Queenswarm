@@ -27,7 +27,7 @@ from app.infrastructure.persistence.models.supervisor_session import (
 
 logger = structlog.get_logger(__name__)
 
-ApplyTarget = Literal["preview", "harness", "knowledge"]
+ApplyTarget = Literal["preview", "harness", "knowledge", "recipe"]
 
 
 class DialogueExtractItemOut(BaseModel):
@@ -433,6 +433,73 @@ async def apply_dialogue_extract(
     return {"ok": False, "target": target, "message": "Unsupported target."}
 
 
+def format_ballroom_transcript_text(transcript: list[Any]) -> str:
+    """Format ballroom capsule transcript rows as dialogue text for ICM extract."""
+
+    lines: list[str] = []
+    for row in transcript:
+        if not isinstance(row, dict):
+            continue
+        agent = str(row.get("agent") or "unknown").strip()
+        text = str(row.get("text") or "").strip()
+        if len(text) < 2:
+            continue
+        speaker = "User" if agent.lower() in {"you", "user", "operator"} else agent
+        lines.append(f"{speaker}: {text}")
+    return "\n".join(lines)
+
+
+def build_dialogue_recipe_draft(extraction: DialogueExtractOut) -> dict[str, Any]:
+    """Build unverified recipe draft payload from dialogue extraction."""
+
+    from app.application.services.supervisor.session_playbook import map_supervisor_role_to_agent_role
+
+    task = (extraction.task_prefill or (extraction.goals[0] if extraction.goals else "")).strip()
+    if len(task) < 8:
+        task = "Execute outcomes from dialogue extract with simulate-first guardrails."
+
+    source_lines = [line.strip() for line in extraction.next_steps if line.strip()]
+    if not source_lines:
+        source_lines = [line.strip() for line in extraction.goals if line.strip()]
+    if not source_lines:
+        source_lines = [task]
+
+    steps: list[dict[str, Any]] = []
+    for idx, line in enumerate(source_lines[:6]):
+        desc = line if len(line) >= 8 else f"Execute step: {line}"
+        mapped = map_supervisor_role_to_agent_role("critic" if idx == len(source_lines[:6]) - 1 else "reporter")
+        steps.append(
+            {
+                "step_order": idx + 1,
+                "description": desc[:4000],
+                "agent_role": mapped,
+                "guardrails": {"simulate_first": True},
+                "evaluation_criteria": {"verified_outcome": True},
+            },
+        )
+
+    while len(steps) < 3:
+        steps.append(
+            {
+                "step_order": len(steps) + 1,
+                "description": f"Verify dialogue outcome: {task[:200]}",
+                "agent_role": map_supervisor_role_to_agent_role("critic"),
+                "guardrails": {"simulate_first": True},
+                "evaluation_criteria": {"verified_outcome": True},
+            },
+        )
+
+    slug = datetime.now(tz=UTC).strftime("%Y%m%d")
+    return {
+        "name": f"Dialogue template {slug}"[:200],
+        "description": "Draft from dialogue extract (ICM layer 2→3).",
+        "topic_tags": ["dialogue_template", "icm_tools"],
+        "task_text": task[:50_000],
+        "steps": steps[:7],
+        "mark_verified": False,
+    }
+
+
 async def build_session_recipe_draft(
     session: AsyncSession,
     *,
@@ -505,9 +572,11 @@ __all__ = [
     "KeywordScanOut",
     "QuickAutomationPresetOut",
     "apply_dialogue_extract",
+    "build_dialogue_recipe_draft",
     "build_session_recipe_draft",
     "compose_icm_tools_snapshot",
     "extract_dialogue_structure",
+    "format_ballroom_transcript_text",
     "preview_link_drop",
     "scan_transcript_keywords",
 ]

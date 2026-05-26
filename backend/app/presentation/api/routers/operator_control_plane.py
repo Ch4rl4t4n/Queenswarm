@@ -315,7 +315,51 @@ class DialogueExtractRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     text: str = Field(min_length=40, max_length=120_000)
-    apply: Literal["preview", "harness", "knowledge"] = "preview"
+    apply: Literal["preview", "harness", "knowledge", "recipe"] = "preview"
+
+
+async def _persist_operator_recipe_draft(
+    db: DbSession,
+    draft: dict[str, Any],
+    *,
+    source: str,
+    source_id: str,
+) -> dict[str, Any]:
+    """Validate draft and persist unverified recipe entry."""
+
+    from app.application.services.recipe_write import RecipeWriteConflictError, create_recipe_entry
+    from app.common.schemas.recipes_write import RecipeCreateBody
+    from app.presentation.api.routers.operator import OperatorSaveRecipeRequest
+
+    req = OperatorSaveRecipeRequest.model_validate(draft)
+    ordered = sorted(req.steps, key=lambda step: step.step_order)
+    template: dict[str, Any] = {
+        "version": 1,
+        "source": source,
+        "task_text": req.task_text,
+        "source_id": source_id,
+        "steps": [step.model_dump(mode="json") for step in ordered],
+    }
+    recipe_body = RecipeCreateBody(
+        name=req.name.strip(),
+        description=req.description,
+        topic_tags=req.topic_tags,
+        workflow_template=template,
+        mark_verified=False,
+    )
+    try:
+        recipe = await create_recipe_entry(
+            db,
+            recipe_body,
+            swarm_id="operator_recipe",
+            task_id=source_id,
+        )
+        await db.commit()
+    except RecipeWriteConflictError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+    return {"recipe_id": str(recipe.id), "name": recipe.name, "href": "/recipes"}
 
 
 class KeywordScanRequest(BaseModel):
@@ -376,9 +420,27 @@ async def operator_dialogue_extract(
     if tenant_id is None or user is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
 
-    from app.application.services.operator_icm_tools import apply_dialogue_extract, extract_dialogue_structure
+    from app.application.services.operator_icm_tools import (
+        apply_dialogue_extract,
+        build_dialogue_recipe_draft,
+        extract_dialogue_structure,
+    )
 
     extraction = extract_dialogue_structure(body.text)
+    if body.apply == "recipe":
+        _require_owner_or_admin(principal)
+        draft = build_dialogue_recipe_draft(extraction)
+        saved = await _persist_operator_recipe_draft(
+            db,
+            draft,
+            source="dialogue_extract_icm",
+            source_id=str(uuid.uuid4()),
+        )
+        return {
+            "ok": True,
+            "extraction": extraction.model_dump(mode="json"),
+            "applied": {"ok": True, "target": "recipe", **saved},
+        }
     if body.apply != "preview":
         _require_owner_or_admin(principal)
         applied = await apply_dialogue_extract(
@@ -415,6 +477,47 @@ async def operator_keyword_scan(
     return {"ok": True, "scan": scan.model_dump(mode="json")}
 
 
+@router.get(
+    "/ballroom/{session_id}/transcript-text",
+    summary="ICM — format Ballroom capsule transcript for Dialogue Extract",
+)
+async def operator_ballroom_transcript_text(
+    session_id: uuid.UUID,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Read-only Ballroom transcript → plain dialogue text (no auto-extract)."""
+
+    if not settings.operator_icm_tools_enabled:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="ICM tools disabled.")
+    if principal.get("tenant_id") is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+
+    from app.application.services import ballroom_store as ballroom_redis
+    from app.application.services.operator_icm_tools import format_ballroom_transcript_text
+
+    try:
+        cap = await ballroom_redis.ballroom_load_capsule(session_id)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ballroom session not found.") from exc
+
+    transcript = cap.get("transcript", [])
+    if not isinstance(transcript, list):
+        transcript = []
+    text = format_ballroom_transcript_text(transcript)
+    if len(text.strip()) < 40:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Ballroom transcript too short for dialogue extract (min 40 chars).",
+        )
+    return {
+        "ok": True,
+        "session_id": str(session_id),
+        "text": text,
+        "char_count": len(text),
+        "message_count": len(transcript),
+    }
+
+
 @router.post(
     "/sessions/{session_id}/recipe-draft",
     summary="Save supervisor session as recipe draft",
@@ -434,44 +537,19 @@ async def operator_session_recipe_draft(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
 
     from app.application.services.operator_icm_tools import build_session_recipe_draft
-    from app.application.services.recipe_write import RecipeWriteConflictError, create_recipe_entry
-    from app.common.schemas.recipes_write import RecipeCreateBody
-    from app.presentation.api.routers.operator import OperatorRecipeStepBody, OperatorSaveRecipeRequest
 
     try:
         draft = await build_session_recipe_draft(db, tenant_id=tenant_id, session_id=session_id)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
-    req = OperatorSaveRecipeRequest.model_validate(draft)
-    ordered = sorted(req.steps, key=lambda step: step.step_order)
-    template: dict[str, Any] = {
-        "version": 1,
-        "source": "supervisor_session_icm",
-        "task_text": req.task_text,
-        "session_id": str(session_id),
-        "steps": [step.model_dump(mode="json") for step in ordered],
-    }
-    recipe_body = RecipeCreateBody(
-        name=req.name.strip(),
-        description=req.description,
-        topic_tags=req.topic_tags,
-        workflow_template=template,
-        mark_verified=False,
+    saved = await _persist_operator_recipe_draft(
+        db,
+        draft,
+        source="supervisor_session_icm",
+        source_id=str(session_id),
     )
-    try:
-        recipe = await create_recipe_entry(
-            db,
-            recipe_body,
-            swarm_id="operator_recipe",
-            task_id=str(session_id),
-        )
-        await db.commit()
-    except RecipeWriteConflictError as exc:
-        await db.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
-
-    return {"ok": True, "recipe_id": str(recipe.id), "name": recipe.name, "href": "/recipes"}
+    return {"ok": True, **saved}
 
 
 @router.post(

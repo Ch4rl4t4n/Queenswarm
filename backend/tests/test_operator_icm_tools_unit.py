@@ -60,6 +60,36 @@ def test_scan_transcript_keywords_incident() -> None:
     assert any(m.id == "incident" for m in scan.matches)
 
 
+def test_format_ballroom_transcript_text() -> None:
+    from app.application.services.operator_icm_tools import format_ballroom_transcript_text
+
+    text = format_ballroom_transcript_text(
+        [
+            {"agent": "You", "text": "Can you summarize our Q1 goals for the team?"},
+            {"agent": "Orchestrator", "text": "Here is a concise summary of Q1 priorities."},
+        ],
+    )
+    assert "User:" in text
+    assert "Orchestrator:" in text
+    assert len(text) >= 40
+
+
+def test_build_dialogue_recipe_draft_min_steps() -> None:
+    from app.application.services.operator_icm_tools import DialogueExtractOut, build_dialogue_recipe_draft
+
+    extraction = DialogueExtractOut(
+        enabled=True,
+        generated_at=__import__("datetime").datetime.now(tz=__import__("datetime").UTC),
+        goals=["Can you launch the new onboarding flow this week?"],
+        next_steps=["Draft copy", "Run simulate-first review", "Publish after approval"],
+        task_prefill="Launch onboarding flow this week with simulate-first guardrails.",
+    )
+    draft = build_dialogue_recipe_draft(extraction)
+    assert len(draft["steps"]) >= 3
+    assert draft["mark_verified"] is False
+    assert "icm_tools" in draft["topic_tags"]
+
+
 @pytest.mark.asyncio
 async def test_build_session_recipe_draft_requires_completed() -> None:
     from app.application.services.operator_icm_tools import build_session_recipe_draft

@@ -335,6 +335,24 @@ else
   fail "capabilities atlas missing ICM tools"
 fi
 
+if grep -q 'ballroom.*transcript-text' backend/app/presentation/api/routers/operator_control_plane.py; then
+  pass "operator ballroom transcript API route"
+else
+  fail "missing ballroom transcript route"
+fi
+
+if grep -q 'Recipe draft' frontend/components/hive/operator-cockpit-panel.tsx; then
+  pass "cockpit dialogue recipe draft button"
+else
+  fail "missing dialogue recipe draft UI"
+fi
+
+if grep -q 'Dialogue Extract' frontend/components/ballroom/ballroom-panel.tsx; then
+  pass "ballroom link to dialogue extract"
+else
+  fail "missing ballroom dialogue extract link"
+fi
+
 if [[ -f backend/tests/test_operator_icm_tools_unit.py ]]; then
   pass "operator icm tools unit tests"
 else

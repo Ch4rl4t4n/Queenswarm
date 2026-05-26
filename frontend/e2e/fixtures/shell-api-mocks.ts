@@ -532,6 +532,19 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("operator/ballroom/") && path.endsWith("/transcript-text")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          text: "User: Can you tighten our onboarding copy for next week?\nAssistant: Here is a shorter draft with clearer CTAs.",
+          char_count: 120,
+        }),
+      });
+      return;
+    }
+
     if (path === "operator/dialogue-extract" || path === "operator/keyword-scan") {
       await route.fulfill({
         status: 200,

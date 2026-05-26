@@ -15,6 +15,7 @@ import { resolveHiveBearerToken } from "@/lib/hive-bearer-token";
 import { LinkifyText } from "@/lib/linkify-text";
 import { buildHiveWebsocketHref } from "@/lib/public-ws";
 import { integrationsTabHref } from "@/lib/integrations-routes";
+import { hiveOverviewHref } from "@/lib/hive-home-route";
 import { useCenterActiveInScrollRow } from "@/lib/hooks/use-center-active-in-scroll-row";
 import { cn } from "@/lib/utils";
 import { formatVoiceLiveError } from "@/lib/voice-live-errors";
@@ -1301,6 +1302,14 @@ export function BallroomPanel({
                   </button>
                 </div>
                 <div className="v4-ballroom-session-toolbar__right">
+                  {sessionBound && messages.length > 0 ? (
+                    <Link
+                      href={`${hiveOverviewHref()}?ballroom_session=${encodeURIComponent(sessionLabel ?? "")}#dialogue-extract`}
+                      className="qs-btn qs-btn--ghost qs-btn--sm"
+                    >
+                      Dialogue Extract
+                    </Link>
+                  ) : null}
                   {!sessionBound ? (
                     <button
                       type="button"

@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   ArrowRight,
   Hexagon,
@@ -168,8 +169,9 @@ function OperatorCockpitPanelInner() {
   const [dialogueText, setDialogueText] = useState("");
   const [dialogueExtract, setDialogueExtract] = useState<Record<string, unknown> | null>(null);
   const [keywordMatches, setKeywordMatches] = useState<
-    Array<{ id: string; label: string; detail: string; priority: string; href: string | null }>
+    Array<{ id: string; label: string; detail: string; priority: string; href: string | null; action: string | null }>
   >([]);
+  const searchParams = useSearchParams();
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) {
@@ -196,6 +198,31 @@ function OperatorCockpitPanelInner() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const ballroomSession = searchParams.get("ballroom_session")?.trim();
+    if (!ballroomSession || dialogueText.trim().length >= 40) {
+      return;
+    }
+    let cancelled = false;
+    void hiveGet<{ ok: boolean; text: string }>(`operator/ballroom/${encodeURIComponent(ballroomSession)}/transcript-text`)
+      .then((body) => {
+        if (cancelled || !body.text?.trim()) {
+          return;
+        }
+        setDialogueText(body.text);
+        document.getElementById("dialogue-extract")?.scrollIntoView({ behavior: "smooth" });
+        toast.success("Ballroom transcript loaded — run Extract.");
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          toast.error(e instanceof HiveApiError ? e.message : "Ballroom transcript unavailable");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams, dialogueText]);
 
   useEffect(() => {
     const ms = pollOpts.refreshInterval;
@@ -304,7 +331,7 @@ function OperatorCockpitPanelInner() {
   }, [linkUrl]);
 
   const runDialogueExtract = useCallback(
-    async (apply: "preview" | "harness" | "knowledge") => {
+    async (apply: "preview" | "harness" | "knowledge" | "recipe") => {
       const text = dialogueText.trim();
       const min = snapshot?.icm_tools?.min_dialogue_chars ?? 40;
       if (text.length < min) {
@@ -316,6 +343,7 @@ function OperatorCockpitPanelInner() {
         const result = await hivePostJson<{
           ok: boolean;
           extraction: Record<string, unknown>;
+          applied?: { href?: string; recipe_id?: string };
         }>("operator/dialogue-extract", { text, apply });
         setDialogueExtract(result.extraction);
         if (snapshot?.icm_tools?.keyword_scan_enabled) {
@@ -326,7 +354,10 @@ function OperatorCockpitPanelInner() {
         }
         if (apply === "harness") toast.success("Pridané do harness memory.");
         else if (apply === "knowledge") toast.success("Uložené do Knowledge.");
-        else toast.success("Dialogue extract hotový.");
+        else if (apply === "recipe") {
+          toast.success("Recipe draft uložený.");
+          if (result.applied?.href) window.location.href = result.applied.href;
+        } else toast.success("Dialogue extract hotový.");
       } catch (e) {
         toast.error(e instanceof HiveApiError ? e.message : "Dialogue extract failed");
       } finally {
@@ -624,7 +655,7 @@ function OperatorCockpitPanelInner() {
               <div className="rounded-lg border border-(--qs-border) bg-black/20 p-3" id="dialogue-extract">
                 <p className="text-xs font-semibold uppercase tracking-wider text-(--qs-muted)">Dialogue Extract</p>
                 <p className="mt-1 text-xs text-(--qs-muted)">
-                  Transcript → ciele, constraints, rozhodnutia (inšpirácia ICM dialógu).
+                  Transcript → ciele, constraints, rozhodnutia. V Ballroom klikni „Dialogue Extract“ alebo vlož text nižšie.
                 </p>
                 <textarea
                   value={dialogueText}
@@ -658,6 +689,14 @@ function OperatorCockpitPanelInner() {
                   >
                     → Knowledge
                   </button>
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--ghost qs-btn--sm"
+                    disabled={dialogueText.trim().length < (snapshot.icm_tools.min_dialogue_chars ?? 40) || busy?.startsWith("dialogue-")}
+                    onClick={() => void runDialogueExtract("recipe")}
+                  >
+                    → Recipe draft
+                  </button>
                   {dialogueExtract?.task_prefill ? (
                     <Link
                       href={`/tasks/new?prefill=${encodeURIComponent(String(dialogueExtract.task_prefill))}`}
@@ -684,6 +723,15 @@ function OperatorCockpitPanelInner() {
                           <Link href={m.href} className="text-cyan hover:text-pollen">
                             Go →
                           </Link>
+                        ) : null}
+                        {m.action === "dialogue_extract_hint" ? (
+                          <button
+                            type="button"
+                            className="text-cyan hover:text-pollen"
+                            onClick={() => document.getElementById("dialogue-extract")?.scrollIntoView({ behavior: "smooth" })}
+                          >
+                            Extract →
+                          </button>
                         ) : null}
                       </li>
                     ))}
