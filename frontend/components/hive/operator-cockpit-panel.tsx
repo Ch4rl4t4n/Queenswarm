@@ -714,9 +714,39 @@ function OperatorCockpitPanelInner() {
                   ) : null}
                 </div>
                 {dialogueExtract ? (
-                  <pre className="mt-3 max-h-48 overflow-auto rounded border border-(--qs-border) bg-black/40 p-2 text-[11px] text-(--qs-muted) whitespace-pre-wrap">
-                    {String(dialogueExtract.summary_md ?? "")}
-                  </pre>
+                  <div className="mt-3 space-y-3 rounded border border-(--qs-border) bg-black/40 p-2 text-xs" id="dialogue-extract-table">
+                    {(
+                      [
+                        ["Goals", dialogueExtract.goals],
+                        ["Constraints", dialogueExtract.constraints],
+                        ["Decisions", dialogueExtract.decisions],
+                        ["Next steps", dialogueExtract.next_steps],
+                      ] as const
+                    ).map(([label, items]) => {
+                      const rows = Array.isArray(items) ? items.filter((row) => String(row).trim()) : [];
+                      if (rows.length === 0) {
+                        return null;
+                      }
+                      return (
+                        <div key={label}>
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-(--qs-muted)">{label}</p>
+                          <ul className="mt-1 space-y-1 text-(--qs-text)">
+                            {rows.slice(0, 6).map((row, idx) => (
+                              <li key={`${label}-${idx}`} className="rounded bg-black/25 px-2 py-1">
+                                {String(row)}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      );
+                    })}
+                    {dialogueExtract.summary_md ? (
+                      <details className="text-[11px] text-(--qs-muted)">
+                        <summary className="cursor-pointer text-cyan">Full summary</summary>
+                        <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap">{String(dialogueExtract.summary_md)}</pre>
+                      </details>
+                    ) : null}
+                  </div>
                 ) : null}
                 {keywordMatches.length > 0 ? (
                   <ul className="mt-3 space-y-1" id="keyword-suggestions">

@@ -208,11 +208,11 @@ def compose_icm_tools_snapshot() -> IcmToolsSnapshotOut:
             kind="link_drop",
         ),
         QuickAutomationPresetOut(
-            id="operator_loop",
-            label="Refresh command center",
-            detail="Open harness Operator Loop for overnight + publish status.",
+            id="save_session_template",
+            label="Save session as template",
+            detail="Open agent sessions — completed runs → recipe draft.",
             kind="href",
-            href="/settings/harness",
+            href="/agents",
         ),
     ]
     return IcmToolsSnapshotOut(

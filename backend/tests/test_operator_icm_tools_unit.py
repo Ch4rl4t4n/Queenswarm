@@ -22,6 +22,7 @@ def test_compose_icm_tools_snapshot_when_enabled() -> None:
         snap = compose_icm_tools_snapshot()
     assert snap.enabled is True
     assert len(snap.quick_automations) == 5
+    assert any(p.id == "save_session_template" for p in snap.quick_automations)
     assert snap.link_drop_enabled is True
 
 

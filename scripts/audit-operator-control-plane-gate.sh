@@ -365,6 +365,12 @@ else
   fail "missing dump-sleep dialogue extract link"
 fi
 
+if grep -q 'id="dialogue-extract-table"' frontend/components/hive/operator-cockpit-panel.tsx; then
+  pass "cockpit dialogue extract structured table"
+else
+  fail "missing dialogue extract table UI"
+fi
+
 if [[ -f backend/tests/test_operator_icm_tools_unit.py ]]; then
   pass "operator icm tools unit tests"
 else
