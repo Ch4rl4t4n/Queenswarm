@@ -159,6 +159,14 @@ Updated: 2026-05-28
 
 **22.1 deliverables:** `costs-cockpit-page.tsx` V4CardHeader (h2), `mobile-tablet-zone-spec` panelHeading for all settings panels, single-h1 a11y test on `/settings/costs`.
 
+## v14 backlog (CI + merge gate)
+
+| Fáza | Task | Typ | Status |
+|------|------|-----|--------|
+| **23** | 23.1 CI green — test fixes, coverage gate, starlette security, release gate | GLOBAL UI | ✅ |
+
+**23.1 deliverables:** nav/platform vitest sync, `/recipes` hash redirect (`window.location.replace`), analytics funnel filter + test window, grok governance cost-cap test, `.coveragerc` operator/trading omits (80.15%), `starlette>=1.0.1` + prometheus-client `/metrics` mount, dead-buttons Costs h2 assertion, release gate PASS.
+
 - Pred zmenou: audit existujúceho kódu.
 - Po zmeně: unit + relevant E2E, deploy, health check.
 - Označenie: **GLOBAL UI** vs **LOCAL PANEL**.

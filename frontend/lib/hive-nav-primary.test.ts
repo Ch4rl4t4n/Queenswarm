@@ -11,10 +11,10 @@ import {
   isNavItemActive,
 } from "./hive-nav-primary";
 import { OPERATOR_CONTROL_PLANE_ENABLED } from "./feature-flags";
+import { hiveOverviewHref } from "./hive-home-route";
 
 describe("hive-nav-primary", () => {
   const overviewHref = OPERATOR_CONTROL_PLANE_ENABLED ? "/agentic-os" : "/dashboard";
-  const legacyOverviewHref = OPERATOR_CONTROL_PLANE_ENABLED ? "/cockpit" : "/dashboard";
 
   it("lists consolidated primary section entries", () => {
     const hrefs = HIVE_NAV_PRIMARY.map((i) => i.href);
@@ -52,9 +52,10 @@ describe("hive-nav-primary", () => {
 
   it("buildHiveNavPrimary disables consolidated hubs when flag is false", () => {
     const nav = buildHiveNavPrimary(false).map((item) => item.href);
-    expect(nav).toContain(legacyOverviewHref);
+    expect(nav).toContain(hiveOverviewHref());
     expect(nav).toContain("/tasks");
     expect(nav).not.toContain("/knowledge");
+    expect(nav).toContain("/hive-mind");
   });
 
   it("keeps Dashboard out of secondary sidebar when Operator Control Plane is enabled", () => {
@@ -82,7 +83,7 @@ describe("hive-nav-primary", () => {
     const groups = buildHiveNavGroups(false);
     const hrefs = groups.flatMap((group) => group.items.map((item) => item.href));
     expect(hrefs).not.toContain("/knowledge");
-    expect(hrefs).toContain(legacyOverviewHref);
+    expect(hrefs).toContain(hiveOverviewHref());
     if (OPERATOR_CONTROL_PLANE_ENABLED) {
       expect(hrefs).not.toContain("/dashboard");
     } else {

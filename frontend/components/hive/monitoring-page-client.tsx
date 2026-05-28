@@ -5,7 +5,7 @@ import Link from "next/link";
 
 import { HivePageShell } from "@/components/hive/hive-page-shell";
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
-import { TASKS_HUB_PATH, WORKFLOWS_PATH } from "@/lib/execution-lane-routes";
+import { TASKS_HUB_PATH } from "@/lib/execution-lane-routes";
 import { ADVANCED_MONITORING_ENABLED } from "@/lib/feature-flags";
 
 const MonitoringDashboard = dynamic(

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  LIVE_PLATFORM_CAPABILITIES,
   PLANNED_PLATFORM_CAPABILITIES,
   groupPlannedByRolloutPhase,
 } from "@/lib/platform-capabilities-catalog";
@@ -10,8 +11,7 @@ describe("platform-capabilities-catalog", () => {
     const grouped = groupPlannedByRolloutPhase(PLANNED_PLATFORM_CAPABILITIES);
     expect(grouped.length).toBeGreaterThan(0);
     expect(grouped[0]?.phase).toBe("phase0");
-    expect(grouped.some((g) => g.items.some((i) => i.id === "pro-tier-gates-live"))).toBe(true);
-    expect(grouped.some((g) => g.items.some((i) => i.id === "pro-tier-gates-live"))).toBe(true);
+    expect(LIVE_PLATFORM_CAPABILITIES.some((i) => i.id === "pro-tier-gates-live")).toBe(true);
   });
 
   it("phase0 week1 items include deployment signoff", () => {

@@ -31,6 +31,11 @@ export function LegacyRouteRedirect({
     if (hash.length > 0) {
       destination += hash.startsWith("#") ? hash : `#${hash}`;
     }
+    // Full navigation for hash/query legacy aliases — App Router client replace can drop hash in e2e.
+    if (canonical.hash.length > 0 || canonical.search.length > 0 || preserveIncomingHash) {
+      window.location.replace(destination);
+      return;
+    }
     router.replace(destination);
   }, [router, target, preserveIncomingHash]);
 

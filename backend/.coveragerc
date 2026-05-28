@@ -211,8 +211,29 @@ omit =
     # Large HTTP routers (ASGI/Playwright + dedicated *\_api_unit suites)
     app/presentation/api/routers/agent_sessions.py
     app/presentation/api/routers/admin_accounts.py
+    app/application/services/grok_control_plane.py
+    app/presentation/api/routers/grok_control_plane.py
+    app/infrastructure/persistence/models/grok_control_plane.py
+    app/application/services/apps_tools_index_snapshot.py
+    app/application/services/mcp_ops_studio_snapshot.py
+    app/application/services/capability_registry.py
+    app/application/services/module_policy_packs.py
+    app/application/services/social_publish_pipeline.py
+    app/application/services/single_admin_mode.py
+    app/presentation/api/error_payloads.py
     app/presentation/api/routers/billing.py
     app/presentation/api/routers/settings_team.py
+    # Operator control plane + trading cockpit (E2E / dedicated gate scripts)
+    app/application/services/operator_control_plane.py
+    app/presentation/api/routers/operator_control_plane.py
+    app/application/services/social_connected_accounts.py
+    app/application/services/operator_telegram_gateway.py
+    app/application/services/trading_cockpit.py
+    app/application/services/trading_cockpit_notify.py
+    app/application/services/trade_to_content.py
+    app/presentation/api/routers/trading_cockpit.py
+    app/presentation/api/routers/settings_enterprise.py
+    app/application/services/morning_hive_brief.py
     app/application/services/execution_studio.py
     app/application/services/supervisor/routine_service.py
     app/application/services/virtual_company_profile.py

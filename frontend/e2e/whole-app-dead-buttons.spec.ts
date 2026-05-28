@@ -60,7 +60,7 @@ test.describe("Whole-App dead-button audit — legacy routes", () => {
   test("legacy /settings/billing redirects to costs billing plans hash", async ({ page }) => {
     await page.goto("/settings/billing", { waitUntil: "domcontentloaded", timeout: 60_000 });
     await expect(page).toHaveURL(/\/settings\/costs#billing-plans/, { timeout: 45_000 });
-    await expect(page.getByRole("heading", { name: "Costs" })).toBeVisible({ timeout: 45_000 });
+    await expect(page.getByRole("heading", { name: "Costs", level: 2 })).toBeVisible({ timeout: 45_000 });
   });
 
   test("costs ↔ enterprise cross-links resolve", async ({ page }) => {

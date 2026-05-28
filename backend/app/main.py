@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
-from prometheus_fastapi_instrumentator import Instrumentator
+from prometheus_client import make_asgi_app
 
 from app import __version__
 from app.application.services.single_admin_mode import SingleAdminInvariantError, assert_single_admin_invariants
@@ -236,7 +236,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-Instrumentator().instrument(app).expose(app)
+app.mount("/metrics", make_asgi_app())
 
 app.include_router(health_router.router, prefix="/health")
 app.include_router(api_v1, prefix="/api/v1")

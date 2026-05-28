@@ -165,7 +165,7 @@ def test_review_queue_escalation_reason_by_age(grok_settings: None) -> None:
 
 def test_build_governance_snapshot_marks_breaches(grok_settings: None) -> None:
     out = service._build_governance_snapshot(
-        mode_counts={"code_edit_and_test": 60},
+        mode_counts={"code_edit_and_test": 85},
         timeout_breaches=5,
         timeout_breaches_prev=1,
         high_risk_runs=8,

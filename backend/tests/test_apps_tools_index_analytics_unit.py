@@ -84,7 +84,7 @@ def test_compose_apps_tools_index_analytics_snapshot_aggregates_module_funnel() 
         }
     )
 
-    snapshot = compose_apps_tools_index_analytics_snapshot(tenant, limit=20)
+    snapshot = compose_apps_tools_index_analytics_snapshot(tenant, limit=20, window="all")
 
     assert snapshot.window == "all"
     assert snapshot.total_events == 2
@@ -116,7 +116,7 @@ def test_compose_apps_tools_index_analytics_snapshot_ignores_invalid_rows() -> N
         }
     )
 
-    snapshot = compose_apps_tools_index_analytics_snapshot(tenant, limit=8)
+    snapshot = compose_apps_tools_index_analytics_snapshot(tenant, limit=8, window="all")
 
     assert snapshot.total_events == 2
     assert len(snapshot.recent_events) == 0
@@ -137,7 +137,7 @@ def test_compose_apps_tools_index_analytics_snapshot_keeps_retry_telemetry_outsi
         }
     )
 
-    snapshot = compose_apps_tools_index_analytics_snapshot(tenant, limit=8)
+    snapshot = compose_apps_tools_index_analytics_snapshot(tenant, limit=8, window="all")
 
     assert snapshot.counters["mcp_ops_snapshot_retry:mcp_ops_studio"] == 2
     assert snapshot.module_funnel == []
@@ -158,7 +158,7 @@ def test_compose_apps_tools_index_analytics_snapshot_sanitizes_malformed_retry_c
         }
     )
 
-    snapshot = compose_apps_tools_index_analytics_snapshot(tenant, limit=8)
+    snapshot = compose_apps_tools_index_analytics_snapshot(tenant, limit=8, window="all")
 
     assert snapshot.counters["mcp_ops_snapshot_retry:mcp_ops_studio"] == 0
     assert snapshot.counters["mcp_ops_snapshot_retry:research_workspace"] == 3
@@ -181,7 +181,7 @@ def test_compose_apps_tools_index_analytics_snapshot_sanitizes_malformed_ack_cou
         }
     )
 
-    snapshot = compose_apps_tools_index_analytics_snapshot(tenant, limit=8)
+    snapshot = compose_apps_tools_index_analytics_snapshot(tenant, limit=8, window="all")
 
     assert snapshot.counters["mcp_ops_retry_anomaly_ack:mcp_ops_studio"] == 0
     assert snapshot.counters["mcp_ops_retry_anomaly_ack:research_workspace"] == 2
@@ -203,7 +203,7 @@ def test_compose_apps_tools_index_analytics_snapshot_sanitizes_malformed_ack_res
         }
     )
 
-    snapshot = compose_apps_tools_index_analytics_snapshot(tenant, limit=8)
+    snapshot = compose_apps_tools_index_analytics_snapshot(tenant, limit=8, window="all")
 
     assert snapshot.counters["mcp_ops_retry_anomaly_ack_reset:mcp_ops_studio"] == 0
     assert snapshot.counters["mcp_ops_retry_anomaly_ack_reset:research_workspace"] == 3
@@ -225,7 +225,7 @@ def test_compose_apps_tools_index_analytics_snapshot_sanitizes_malformed_lifecyc
         }
     )
 
-    snapshot = compose_apps_tools_index_analytics_snapshot(tenant, limit=8)
+    snapshot = compose_apps_tools_index_analytics_snapshot(tenant, limit=8, window="all")
 
     assert snapshot.counters["mcp_ops_lifecycle_recommendation_open:mcp_ops_studio"] == 0
     assert snapshot.counters["mcp_ops_lifecycle_recommendation_open:research_workspace"] == 4
@@ -247,7 +247,7 @@ def test_compose_apps_tools_index_analytics_snapshot_sanitizes_malformed_lifecyc
         }
     )
 
-    snapshot = compose_apps_tools_index_analytics_snapshot(tenant, limit=8)
+    snapshot = compose_apps_tools_index_analytics_snapshot(tenant, limit=8, window="all")
 
     assert snapshot.counters["mcp_ops_lifecycle_recommendation_cooldown_block:mcp_ops_studio"] == 0
     assert snapshot.counters["mcp_ops_lifecycle_recommendation_cooldown_block:research_workspace"] == 5
@@ -269,7 +269,7 @@ def test_compose_apps_tools_index_analytics_snapshot_sanitizes_malformed_lifecyc
         }
     )
 
-    snapshot = compose_apps_tools_index_analytics_snapshot(tenant, limit=8)
+    snapshot = compose_apps_tools_index_analytics_snapshot(tenant, limit=8, window="all")
 
     assert snapshot.counters["mcp_ops_lifecycle_recommendation_cooldown_override:mcp_ops_studio"] == 0
     assert snapshot.counters["mcp_ops_lifecycle_recommendation_cooldown_override:research_workspace"] == 6

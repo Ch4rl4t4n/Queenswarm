@@ -214,6 +214,8 @@ def compose_apps_tools_index_analytics_snapshot(
         event_name, module_key = _parse_counter_key(key)
         if event_name is None or module_key is None:
             continue
+        if event_name not in FUNNEL_AGGREGATION_EVENTS:
+            continue
         row = module_funnel_by_key.setdefault(module_key, AppsToolsModuleFunnelOut(module_key=module_key))
         if event_name == "module_card_open":
             row.card_open += value
