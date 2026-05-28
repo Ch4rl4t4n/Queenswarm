@@ -46,6 +46,7 @@ export const MOBILE_TABLET_SECONDARY_ROUTE_SPECS: MobileTabletRouteSpec[] = [
   { path: "/agents/new", mobileTitle: "New agent", shellTitle: "New agent" },
   { path: "/settings/costs", mobileTitle: "Costs", shellTitle: "Settings", panelHeading: /^Costs$/ },
   { path: "/settings/team", mobileTitle: "Team", shellTitle: "Settings" },
+  { path: "/settings/enterprise", mobileTitle: "Enterprise", shellTitle: "Settings" },
   { path: "/settings/harness", mobileTitle: "Harness", shellTitle: "Settings" },
   { path: "/settings/capabilities", mobileTitle: "Capabilities", shellTitle: "Settings" },
   { path: "/settings/llm-keys", mobileTitle: "LLM & Voice", shellTitle: "Settings", panelHeading: /Grok \(xAI\)/i },
