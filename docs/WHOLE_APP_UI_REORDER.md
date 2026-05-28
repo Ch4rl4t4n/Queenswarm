@@ -1,7 +1,7 @@
 # Whole-App UI Reorder
 
 Updated: 2026-05-28  
-**Status: Phase 1–22 complete** — v1–v10 + gate v5 shipped · Phase 21–22 on prod pending deploy.
+**Status: Phase 1–23 shipped** — Whole-App UI Reorder v1–v23 merged, tagged `v2026.05-whole-app-ui`, and deployed to production.
 
 ## Ciele
 

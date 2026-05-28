@@ -1,10 +1,10 @@
 # Queenswarm Roadmap & Backlog
 
-Updated: 2026-05-27
+Updated: 2026-05-28
 
 Living backlog for **queenswarm.love** — ordered by impact. Status reflects production host as of last deploy.
 
-**Whole-App UI Reorder (active):** see [`docs/WHOLE_APP_UI_REORDER.md`](WHOLE_APP_UI_REORDER.md) — Phase 1 Global IA in progress.
+**Whole-App UI Reorder:** see [`docs/WHOLE_APP_UI_REORDER.md`](WHOLE_APP_UI_REORDER.md) — ✅ Phase 1–23 shipped to production (`v2026.05-whole-app-ui`).
 
 **Mission backlog (May 2026):** see `docs/MISSION_EXECUTION_BACKLOG.md` — **Phase 0–2 + perf dev complete**; operator gates remain.  
 **Parallel agents:** see `docs/PHASE0_AGENT_SPLIT.md`. Tomorrow operator checklist: `docs/TOMORROW_OPERATOR_RUNBOOK.md`.  
@@ -142,6 +142,7 @@ Objective: cleanly split platform into `Agentic OS / Swarm Core` and `Apps & Too
 | **Trading Phase II — Polymarket only** (prep checklist, CLOB readiness) | Trading Cockpit panel · `docs/OPERATOR_PREDICTION_MARKETS_SETUP.md` |
 | **Publish Performance Loop** (simulate rate, channel stats, insights) | `./scripts/audit-publish-performance-gate.sh` |
 | **Agent OS P8** (cross-swarm, imitation v2, analysis, trade→content, risk) | `./scripts/audit-agent-os-p8-gate.sh` |
+| **Whole-App UI Reorder v1–v23** (IA, shell, settings, E2E gates, CI merge gate) | ✅ Shipped to prod · tag `v2026.05-whole-app-ui` |
 
 ## P1 — Trading & publish (May 2026)
 
