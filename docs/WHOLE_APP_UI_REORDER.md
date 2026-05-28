@@ -1,7 +1,7 @@
 # Whole-App UI Reorder
 
 Updated: 2026-05-28  
-**Status: Phase 1–20 complete (v1–v10 + final gate v5)** — batch release ready · tag `v2026.05-whole-app-ui` pending commit + deploy.
+**Status: Phase 1–20 complete (v1–v10 + final gate v5)** — **shipped** @ commit `870363878` · tag `v2026.05-whole-app-ui` · prod health OK.
 
 ## Ciele
 
