@@ -83,6 +83,7 @@ export function HiveBottomNav({ onMore, pathname, moreOpen = false }: HiveBottom
           onClick={onMore}
           aria-haspopup="dialog"
           aria-expanded={moreOpen}
+          aria-controls={moreOpen ? "hive-more-sheet" : undefined}
         >
           <NavGlyph label={localizePhrase(language, { en: "More", sk: "Viac" })} Icon={EllipsisVerticalIcon} active={false} />
         </button>

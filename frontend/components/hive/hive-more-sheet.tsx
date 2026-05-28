@@ -83,6 +83,7 @@ export function HiveMoreSheet({ open, onClose, pathname, tenants }: HiveMoreShee
       />
       <div
         ref={sheetRef}
+        id="hive-more-sheet"
         role="dialog"
         aria-modal="true"
         aria-labelledby="hive-more-sheet-title"

@@ -123,6 +123,31 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     });
   }
 
+  test("mobile More trigger wires ARIA disclosure to the nav sheet", async ({ page, context, baseURL }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
+
+    const onShell = await gotoShellRoute(page, "/swarms");
+    if (!onShell) {
+      return;
+    }
+
+    const moreButton = page
+      .getByRole("navigation", { name: "Primary mobile navigation" })
+      .getByRole("button", { name: /More/i });
+    await expect(moreButton).toBeVisible({ timeout: 15_000 });
+    await expect(moreButton).toHaveAttribute("aria-expanded", "false");
+    await expect(moreButton).toHaveAttribute("aria-haspopup", "dialog");
+
+    await moreButton.click();
+
+    const sheet = page.getByRole("dialog", { name: /Hive navigation/i });
+    await expect(sheet).toBeVisible({ timeout: 10_000 });
+    await expect(sheet).toHaveAttribute("id", "hive-more-sheet");
+    await expect(moreButton).toHaveAttribute("aria-expanded", "true");
+    await expect(moreButton).toHaveAttribute("aria-controls", "hive-more-sheet");
+  });
+
   test("desktop dashboard has no duplicate top search bar", async ({ page, context, baseURL }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
