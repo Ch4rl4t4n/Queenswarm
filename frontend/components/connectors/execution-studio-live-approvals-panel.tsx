@@ -290,7 +290,7 @@ function ExecutionStudioLiveApprovalsPanelInner({
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-(--qs-text)">Browser harness fallback</p>
               <p className="mt-1 text-xs text-(--qs-text-3)">{browserFallback.description}</p>
-              <p className="mt-2 font-mono text-[10px] text-(--qs-text-4)">
+              <p className="mt-2 break-all font-mono text-[10px] text-(--qs-text-4)">
                 Role: {browserFallback.supervisor_role} · {browserFallback.execute_api ?? browserFallback.sessions_api}
               </p>
             </div>

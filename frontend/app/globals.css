@@ -5618,7 +5618,7 @@
     }
 
     .hive-page-shell-subnav .v4-subtab-row {
-      margin-inline: -4px;
+      margin-inline: 0;
       padding-inline: 4px;
     }
   }

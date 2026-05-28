@@ -50,7 +50,7 @@ export function HivePageShell({
   testId = "hive-page-shell",
 }: HivePageShellProps) {
   return (
-    <V4PageCanvas className={canvasClassName} data-testid={testId}>
+    <V4PageCanvas className={cn("min-w-0 max-w-full overflow-x-hidden", canvasClassName)} data-testid={testId}>
       {banner}
       <HivePageHeader
         title={title}
@@ -60,7 +60,9 @@ export function HivePageShell({
         actions={actions}
         className={className}
       />
-      {subnav ? <div className="hive-page-shell-subnav shrink-0">{subnav}</div> : null}
+      {subnav ? (
+        <div className="hive-page-shell-subnav min-w-0 max-w-full shrink-0 overflow-x-hidden">{subnav}</div>
+      ) : null}
       {error ? (
         <HivePageErrorBanner
           message={error.message}
@@ -71,7 +73,12 @@ export function HivePageShell({
           testId={error.testId}
         />
       ) : null}
-      <div className={cn("hive-page-shell-content flex min-h-0 flex-1 flex-col gap-6", subnav ? "mt-0" : undefined)}>
+      <div
+        className={cn(
+          "hive-page-shell-content flex min-h-0 min-w-0 max-w-full flex-1 flex-col gap-6 overflow-x-hidden",
+          subnav ? "mt-0" : undefined,
+        )}
+      >
         {children}
       </div>
     </V4PageCanvas>
