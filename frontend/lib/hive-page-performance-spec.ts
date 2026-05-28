@@ -77,6 +77,18 @@ export const HIVE_SECONDARY_PERFORMANCE_SPECS: HiveRoutePerformanceSpec[] = [
     loadingFile: join("app", "(dashboard)", "(features)", "jobs", "loading.tsx"),
     errorFile: join("app", "(dashboard)", "(features)", "jobs", "error.tsx"),
   },
+  {
+    path: "/monitoring",
+    title: "Monitoring",
+    loadingFile: join("app", "(dashboard)", "monitoring", "loading.tsx"),
+    errorFile: join("app", "(dashboard)", "monitoring", "error.tsx"),
+  },
+  {
+    path: "/simulations",
+    title: "Simulations",
+    loadingFile: join("app", "(dashboard)", "simulations", "loading.tsx"),
+    errorFile: join("app", "(dashboard)", "simulations", "error.tsx"),
+  },
 ];
 
 export const HIVE_PERFORMANCE_SPECS: HiveRoutePerformanceSpec[] = [

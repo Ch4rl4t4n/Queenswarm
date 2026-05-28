@@ -73,4 +73,20 @@ test.describe("Whole-App page shell — zone headers", () => {
       }
     }
   });
+
+  test("observability secondary routes use HivePageShell", async ({ page }) => {
+    const routes = [
+      { path: "/monitoring", title: "Monitoring" },
+      { path: "/simulations", title: "Simulations" },
+    ];
+
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    for (const route of routes) {
+      await page.goto(route.path, { waitUntil: "domcontentloaded", timeout: 60_000 });
+      const shell = page.getByTestId("hive-page-shell");
+      await expect(shell).toBeVisible({ timeout: 45_000 });
+      await expect(shell.locator("h1")).toHaveText(route.title);
+    }
+  });
 });

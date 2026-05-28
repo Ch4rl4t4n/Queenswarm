@@ -1,7 +1,7 @@
 # Whole-App UI Reorder
 
 Updated: 2026-05-28  
-**Status: Phase 1–20 complete (v1–v10 + final gate v5)** — **shipped** @ commit `870363878` · tag `v2026.05-whole-app-ui` · prod health OK.
+**Status: Phase 1–21 complete** — v1–v10 + gate v5 shipped · Phase 21 observability shell on prod pending deploy.
 
 ## Ciele
 
@@ -142,6 +142,14 @@ Updated: 2026-05-28
 | **20** | 20.1 Release gate v5 + extended visual snapshots + runbook sync | GLOBAL UI | ✅ |
 
 **20.1 deliverables:** `HIVE_RELEASE_GATE_VERSION` → `2026.05-v5`, unit bundle +21 files (`execution-lane-routes`, `factory-content-factory-routes`), updated responsive visual snapshots (agents, knowledge, foragers, workflows), core + extended gate PASS.
+
+## v12 backlog (post-ship secondary shell pass)
+
+| Fáza | Task | Typ | Status |
+|------|------|-----|--------|
+| **21** | 21.1 Monitoring + Simulations → HivePageShell + error/loading + E2E | GLOBAL UI | ✅ |
+
+**21.1 deliverables:** `monitoring-page-client.tsx`, `simulations-page-client.tsx` HivePageShell, cross-links (Agentic OS, Tasks, Workflows), performance spec + mobile-tablet shellTitle, page-shell E2E observability group.
 
 - Pred zmenou: audit existujúceho kódu.
 - Po zmeně: unit + relevant E2E, deploy, health check.
