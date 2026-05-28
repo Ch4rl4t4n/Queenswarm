@@ -173,6 +173,10 @@ test.describe("Operator hub settings", () => {
     await expect(hub.getByRole("heading", { name: /Autonomy & live lane hub/i })).toBeVisible();
     await expect(hub.getByText("Next action")).toBeVisible();
     await expect(hub.getByRole("heading", { name: "Add OAuth vendor keys" })).toBeVisible();
+    const advancedToggle = hub.getByRole("button", { name: /Advanced lane & OAuth/i });
+    if ((await advancedToggle.getAttribute("aria-expanded")) !== "true") {
+      await advancedToggle.click();
+    }
     await expect(hub.getByText("Publish lane onboarding 36%")).toBeVisible();
     await expect(hub.getByText("Social OAuth readiness")).toBeVisible();
     await expect(hub.getByText("Env keys: 0/4")).toBeVisible();
@@ -231,6 +235,10 @@ test.describe("Operator hub settings", () => {
 
     await page.goto("/settings/harness", { waitUntil: "domcontentloaded", timeout: 60_000 });
     const hub = page.locator("#operator-hub");
+    const advancedToggle = hub.getByRole("button", { name: /Advanced lane & OAuth/i });
+    if ((await advancedToggle.getAttribute("aria-expanded")) !== "true") {
+      await advancedToggle.click();
+    }
     await expect(hub.getByText("Trusted auto-publish")).toBeVisible({ timeout: 45_000 });
     await expect(hub.getByRole("button", { name: "Enable auto" })).toBeEnabled();
     await hub.getByRole("button", { name: "Enable auto" }).click();
