@@ -33,6 +33,6 @@ describe("execution-lane-routes", () => {
   it("uses consistent cross-link labels", () => {
     expect(EXECUTION_LANE_CROSS_LINK_LABELS.toTasksHub).toBe("Tasks hub");
     expect(EXECUTION_LANE_CROSS_LINK_LABELS.toWorkflows).toBe("Workflows");
-    expect(EXECUTION_LANE_CROSS_LINK_LABELS.toAsyncJobs).toBe("Async jobs");
+    expect(EXECUTION_LANE_CROSS_LINK_LABELS.toAsyncJobs).toBe("Jobs");
   });
 });

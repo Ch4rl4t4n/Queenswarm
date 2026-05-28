@@ -294,7 +294,7 @@ export function buildCanonicalNavGroups(options: {
         ...(simulationsEnabled
           ? [{ href: "/simulations", label: "Simulations", Icon: FlaskConical, section: "execution" as const, iaZone: "agentic_os" as const }]
           : []),
-        { href: "/jobs", label: "Async jobs", Icon: Briefcase, section: "execution", iaZone: "agentic_os" },
+        { href: "/jobs", label: "Jobs", Icon: Briefcase, section: "execution", iaZone: "agentic_os" },
       ],
     },
     {

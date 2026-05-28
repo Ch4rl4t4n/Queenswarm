@@ -112,7 +112,7 @@ export const FACTORY_CONTENT_FACTORY_CROSS_LINKS = [
   { from: FACTORY_BLUEPRINT_PATH, to: contentFactoryMicroSaasHref(), label: FACTORY_CROSS_LINK_LABELS.toContentFactoryModule },
 ] as const;
 
-/** Tasks ↔ Workflows ↔ Async jobs — execution lane More-menu triangle. */
+/** Tasks ↔ Workflows ↔ Jobs — execution lane More-menu triangle. */
 export const EXECUTION_LANE_CROSS_LINKS = [
   { from: TASKS_HUB_PATH, to: WORKFLOWS_PATH, label: EXECUTION_LANE_CROSS_LINK_LABELS.toWorkflows },
   { from: TASKS_HUB_PATH, to: JOBS_PATH, label: EXECUTION_LANE_CROSS_LINK_LABELS.toAsyncJobs },
