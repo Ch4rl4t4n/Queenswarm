@@ -17,7 +17,8 @@ interface ExecutionStudioSupervisorContextProps {
 }
 
 function failedSubAgents(session: SupervisorSessionRow): SubAgentSessionRow[] {
-  return session.sub_agents.filter(
+  const subAgents = session.sub_agents ?? [];
+  return subAgents.filter(
     (sub) =>
       Boolean(sub.error_text?.trim()) ||
       sub.status === "failed" ||
@@ -144,7 +145,9 @@ export function ExecutionStudioSupervisorContext({ sessionIds }: ExecutionStudio
                 `agents/sessions/${encodeURIComponent(id)}/audit-logs?limit=1`,
               ).catch(() => []),
             ]);
-            if (session === null) return null;
+            if (session === null || typeof session.id !== "string" || !session.id) {
+              return null;
+            }
             const initialAudit = Array.isArray(auditRows) && auditRows.length > 0 ? auditRows[0] : null;
             return { session, initialAudit };
           }),

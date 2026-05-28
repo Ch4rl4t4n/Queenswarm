@@ -67,7 +67,7 @@ export default async function IntegrationsPage({
     <Suspense fallback={<SettingsPanelSkeleton />}>
       <IntegrationsPageClient
         initial={initial}
-        initialTab={initialTab as "active" | "hub" | "marketplace" | "skills" | "external" | "plugins" | undefined}
+        initialTab={initialTab as "active" | "studio" | "hub" | "marketplace" | "skills" | "external" | "plugins" | undefined}
       />
     </Suspense>
   );

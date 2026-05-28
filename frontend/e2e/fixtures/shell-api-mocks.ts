@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 
 import { resolvePlatformFeaturesFallback } from "../../lib/platform-features";
+import { STUB_EXECUTION_STUDIO_OVERVIEW } from "./execution-studio-api-mocks";
 
 const STUB_AGENT = {
   id: "a1111111-1111-4111-8111-111111111111",
@@ -291,6 +292,8 @@ const STUB_PLATFORM_FEATURES = {
   foragers: true,
   /** E2E: `/jobs` async poll console (internal-only feature on commercial). */
   jobs: true,
+  /** E2E: integrations Execution Studio tab (`?tab=studio`). */
+  execution_studio: true,
 };
 
 const STUB_ENTERPRISE_CONFIG = {
@@ -1271,7 +1274,26 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         });
         return;
       }
-      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({}) });
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: path.split("/")[2] ?? "00000000-0000-4000-8000-000000000001",
+          goal: "Execution Studio pending approval session",
+          status: "needs_input",
+          runtime_mode: "durable",
+          created_by_subject: "dashboard:test",
+          context_summary: {},
+          swarm_id: null,
+          task_id: null,
+          started_at: null,
+          completed_at: null,
+          error_text: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          sub_agents: [],
+        }),
+      });
       return;
     }
 
@@ -1407,6 +1429,82 @@ export async function installShellApiMocks(page: Page): Promise<void> {
 
     if (path.startsWith("ballroom/")) {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({}) });
+      return;
+    }
+
+    if (path === "virtual-company/bootstrap-checklist" || path.startsWith("virtual-company/bootstrap-checklist?")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          profile_complete: true,
+          routing_mode: "solo",
+          free_first_active: false,
+          departments_ready: 0,
+          departments_total: 0,
+          next_steps: [],
+          connectors: [],
+        }),
+      });
+      return;
+    }
+
+    if (path === "virtual-company/oauth-setup-guide" || path.startsWith("virtual-company/oauth-setup-guide?")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ redirect_uri: "http://localhost:4310/api/auth/callback/oauth" }),
+      });
+      return;
+    }
+
+    if (path === "oauth/providers" || path.startsWith("oauth/providers?")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ providers: [] }),
+      });
+      return;
+    }
+
+    if (path === "execution-studio/overview" || path.startsWith("execution-studio/overview?")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_EXECUTION_STUDIO_OVERVIEW),
+      });
+      return;
+    }
+
+    if (path === "execution-studio/pending-approvals" || path.startsWith("execution-studio/pending-approvals?")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ count: 0, browser_pending: 0, external_pending: 0, codebase_pending: 0, live_actions: [] }),
+      });
+      return;
+    }
+
+    if (path === "execution-studio/manual" || path.startsWith("execution-studio/manual?")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          version: "1",
+          title: "Manual",
+          summary: "Guide",
+          sections: [{ id: "overview", title: "Overview", content_md: "Hello" }],
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("tools/super-routers")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ items: [], presets: [] }),
+      });
       return;
     }
 
