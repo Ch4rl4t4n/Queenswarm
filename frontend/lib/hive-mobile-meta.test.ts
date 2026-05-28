@@ -77,6 +77,7 @@ describe("hiveMobileRouteMeta", () => {
   it("returns jobs meta under /jobs", () => {
     const m = hiveMobileRouteMeta("/jobs");
     expect(m.kicker).toBe("Jobs");
+    expect(m.pageTitleSuffix).toBe("Jobs");
     expect(m.staticSubtitle).toContain("Celery");
   });
 
@@ -100,6 +101,7 @@ describe("hiveMobileRouteMeta", () => {
   it("returns secondary route mobile titles", () => {
     expect(hiveMobileRouteMeta("/foragers").pageTitleSuffix).toBe("Foragers");
     expect(hiveMobileRouteMeta("/apps-tools/mcp-ops-studio").pageTitleSuffix).toBe("MCP Ops Studio");
+    expect(hiveMobileRouteMeta("/settings/team").pageTitleSuffix).toBe("Team");
     expect(hiveMobileRouteMeta("/settings/billing").pageTitleSuffix).toBe("Costs");
   });
 
