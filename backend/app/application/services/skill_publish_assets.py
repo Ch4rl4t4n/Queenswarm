@@ -1,4 +1,4 @@
-"""Publish-ready assets for verified skill exports (GitHub, Gumroad, Cursor, Stripe)."""
+"""Publish-ready assets for verified skill exports (GitHub, Gumroad, Cursor, Queenswarm)."""
 
 from __future__ import annotations
 
@@ -157,7 +157,7 @@ def build_publish_guide(*, recipe: Recipe, slug: str, install_command: str) -> S
         ),
         SkillPublishChannel(
             id="queenswarm",
-            label="Queenswarm Stripe",
+            label="Queenswarm Premium",
             description="Optional in-app unlock for hive operators",
             action_url=f"{base}/integrations?tab=skills",
             copy_text=None,
@@ -169,7 +169,7 @@ def build_publish_guide(*, recipe: Recipe, slug: str, install_command: str) -> S
         "Export bundle → test SKILL.md in Cursor",
         f"Create GitHub folder `{folder}/` and push README + skill files",
         "Publish Gumroad listing (paste LISTING.md) or sell on GitHub Sponsors",
-        "Optional: tag recipe `premium` / `premium-9` for Stripe unlock on queenswarm.love",
+        "Optional: tag recipe `premium` / `premium-9` for in-app unlock on queenswarm.love",
         "Share install command: npx skills add queenswarm/{slug}",
     ]
 

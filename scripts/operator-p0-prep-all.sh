@@ -15,8 +15,6 @@ echo
 
 scripts=(
   "operator-launch-checklist.sh"
-  "operator-stripe-dashboard-checklist.sh"
-  "operator-stripe-prep.sh"
   "operator-hetzner-send-prep.sh"
   "operator-hetzner-copy-email.sh"
   "operator-resolve-tenant-id.sh"
@@ -35,9 +33,6 @@ for script in "${scripts[@]}"; do
     rc=$?
     set -e
     case "${script}:${rc}" in
-      operator-launch-checklist.sh:2) echo "(exit 2 = Stripe keys pending — expected)" ;;
-      operator-stripe-prep.sh:1) echo "(exit 1 = Stripe keys missing — expected)" ;;
-      operator-stripe-dashboard-checklist.sh:1) echo "(exit 1 = Stripe Dashboard steps pending — expected)" ;;
       operator-github-webhook-prep.sh:1) echo "(exit 1 = harness webhook keys missing — expected)" ;;
       operator-harness-env-prep.sh:1) echo "(exit 1 = optional harness keys missing — expected)" ;;
       *:0) ;;
@@ -51,5 +46,5 @@ for script in "${scripts[@]}"; do
 done
 
 echo "== Operator P0 prep all finished (exit=${exit_code}) =="
-echo "Next: add Stripe keys → ./scripts/operator-p0-close.sh"
+echo "Next: run ./scripts/operator-p0-close.sh"
 exit "$exit_code"

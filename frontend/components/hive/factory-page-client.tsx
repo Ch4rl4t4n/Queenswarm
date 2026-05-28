@@ -5,9 +5,13 @@ import { Factory, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { ExecutionStudioMicroSaasFactoryPanel } from "@/components/connectors/execution-studio-micro-saas-factory-panel";
-import { HivePageHeader } from "@/components/hive/hive-page-header";
-import { V4Card, V4PageCanvas } from "@/components/ui/v4";
-import { HiveApiError, hiveGet } from "@/lib/api";
+import { HivePageShell } from "@/components/hive/hive-page-shell";
+import { V4Card } from "@/components/ui/v4";
+import { hiveGet } from "@/lib/api";
+import {
+  contentFactoryMicroSaasHref,
+  FACTORY_CROSS_LINK_LABELS,
+} from "@/lib/factory-content-factory-routes";
 
 interface MicroSaasBlueprint {
   enabled: boolean;
@@ -38,24 +42,26 @@ export function FactoryPageClient(): JSX.Element {
   }, [load]);
 
   return (
-    <V4PageCanvas>
-      <HivePageHeader
-        className="mb-3 lg:mb-6"
-        title="Micro-SaaS Factory"
-        subtitle="Scope → landing → auth → Stripe → deploy. Simulate-first mini aplikácie pre solo operátora."
-        status={
+    <HivePageShell
+      title="Micro-SaaS Factory"
+      subtitle="Scope → landing → auth → monetization lane → deploy. Simulate-first mini aplikácie pre solo operátora."
+      hintKey="factory"
+      actions={
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href={contentFactoryMicroSaasHref()} className="qs-btn qs-btn--ghost qs-btn--sm">
+            {FACTORY_CROSS_LINK_LABELS.toContentFactoryModule}
+          </Link>
           <Link href="/swarms/new?template=micro-saas-factory" className="qs-btn qs-btn--primary qs-btn--sm gap-2">
             <Factory className="size-4" aria-hidden />
             Spawn factory swarm
           </Link>
-        }
-      />
+        </div>
+      }
+      error={panelErr ? { message: panelErr, onDismiss: () => setPanelErr(null) } : null}
+    >
+      <ExecutionStudioMicroSaasFactoryPanel onError={setPanelErr} hideSpawnAction />
 
-      <ExecutionStudioMicroSaasFactoryPanel onError={setPanelErr} />
-
-      {panelErr ? <p className="mt-3 text-sm text-[#FF3366]">{panelErr}</p> : null}
-
-      <V4Card className="mt-6">
+      <V4Card>
         <h2 className="font-heading text-sm font-semibold text-(--qs-text)">Blueprint fázy</h2>
         {loading ? (
           <p className="mt-3 flex items-center gap-2 text-sm text-(--qs-muted)">
@@ -93,15 +99,6 @@ export function FactoryPageClient(): JSX.Element {
           </>
         )}
       </V4Card>
-
-      <div className="mt-4 flex flex-wrap gap-3 text-sm">
-        <Link href="/integrations?tab=studio#micro-saas-factory" className="text-cyan hover:underline">
-          Execution Studio checklist
-        </Link>
-        <Link href="/agents?preset=marketing-draft" className="text-cyan hover:underline">
-          Marketing draft session
-        </Link>
-      </div>
-    </V4PageCanvas>
+    </HivePageShell>
   );
 }

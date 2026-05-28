@@ -4,7 +4,6 @@ import { CopyIcon, CreditCardIcon, DownloadIcon, Loader2Icon, RocketIcon, Sparkl
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { VerifiedPollenLeaderboard } from "@/components/hive/verified-pollen-leaderboard";
 import { usePlatform } from "@/components/hive/platform-context";
 import { SkillMarketplaceUgcPanel } from "@/components/connectors/skill-marketplace-ugc-panel";
 import { SkillProductPublishPanel } from "@/components/connectors/skill-product-publish-panel";
@@ -13,8 +12,6 @@ import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import type {
   SkillCatalogRecipeItem,
   SkillCatalogResponse,
-  SkillCheckoutResponse,
-  SkillConfirmCheckoutResponse,
   SkillExportResponse,
   SkillUnlockStatusResponse,
 } from "@/lib/hive-types";
@@ -23,13 +20,7 @@ import { downloadSkillExportBundle } from "@/lib/skill-export-utils";
 import { cn } from "@/lib/utils";
 
 /** Skills marketplace — built-in hive skills + verified recipe exports. */
-export function SkillsMarketplacePanel({
-  checkoutSessionId,
-  purchaseOutcome,
-}: {
-  checkoutSessionId?: string | null;
-  purchaseOutcome?: "success" | "cancel" | null;
-}): JSX.Element {
+export function SkillsMarketplacePanel(): JSX.Element {
   const { hasFeature, isAdmin } = usePlatform();
   const showFactory = hasFeature("skills_export_factory");
   const showProductMission = hasFeature("product_mission");
@@ -40,12 +31,12 @@ export function SkillsMarketplacePanel({
   const [exportBusyId, setExportBusyId] = useState<string | null>(null);
   const [preview, setPreview] = useState<SkillExportResponse | null>(null);
   const [unlocks, setUnlocks] = useState<SkillUnlockStatusResponse | null>(null);
-  const [checkoutBusyId, setCheckoutBusyId] = useState<string | null>(null);
+  const checkoutBusyId: string | null = null;
   const [missionBusy, setMissionBusy] = useState(false);
   const [nicheHint, setNicheHint] = useState("");
 
-  const stripeReady = unlocks?.stripe_checkout_ready ?? false;
-  const recipeRows = catalog?.recipes ?? [];
+  const checkoutAvailable = false;
+  const recipeRows = useMemo(() => catalog?.recipes ?? [], [catalog?.recipes]);
   const sortByPrice = useCallback(
     (a: SkillCatalogRecipeItem, b: SkillCatalogRecipeItem) =>
       (a.price_eur_cents ?? 0) - (b.price_eur_cents ?? 0),
@@ -87,40 +78,6 @@ export function SkillsMarketplacePanel({
     void loadCatalog();
   }, [loadCatalog]);
 
-  useEffect(() => {
-    if (purchaseOutcome === "cancel") {
-      toast.message("Checkout cancelled — no charge applied.");
-      return;
-    }
-    if (purchaseOutcome !== "success" || !checkoutSessionId) {
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      try {
-        const confirmed = await hivePostJson<SkillConfirmCheckoutResponse>("recipes/skills/confirm-checkout", {
-          checkout_session_id: checkoutSessionId,
-        });
-        if (cancelled) return;
-        if (confirmed.status === "unlocked") {
-          toast.success("Skill unlocked!", {
-            description: confirmed.message ?? "You can export premium skills now.",
-          });
-          await loadCatalog();
-          return;
-        }
-        toast.message(confirmed.message ?? "Payment still processing…");
-      } catch (e) {
-        if (!cancelled) {
-          toast.error(e instanceof HiveApiError ? e.message : "Could not confirm checkout.");
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [checkoutSessionId, loadCatalog, purchaseOutcome]);
-
   const exportRecipe = useCallback(async (recipe: SkillCatalogRecipeItem) => {
     setExportBusyId(recipe.id);
     try {
@@ -145,47 +102,17 @@ export function SkillsMarketplacePanel({
     }
   }, []);
 
-  const purchaseRecipe = useCallback(
-    async (recipe: SkillCatalogRecipeItem) => {
-      setCheckoutBusyId(recipe.id);
-      try {
-        const checkout = await hivePostJson<SkillCheckoutResponse>("recipes/skills/checkout", {
-          recipe_id: recipe.id,
-        });
-        if (checkout.status === "already_unlocked") {
-          toast.success("Already unlocked — export now.");
-          await exportRecipe(recipe);
-          return;
-        }
-        if (checkout.checkout_url) {
-          window.location.href = checkout.checkout_url;
-          return;
-        }
-        toast.error("Checkout URL missing — configure Stripe keys.");
-      } catch (e) {
-        toast.error(e instanceof HiveApiError ? e.message : "Checkout failed.");
-      } finally {
-        setCheckoutBusyId(null);
-      }
-    },
-    [exportRecipe],
-  );
-
   const handleRecipeAction = useCallback(
     (recipe: SkillCatalogRecipeItem) => {
-      if (recipe.premium && !recipe.unlocked && !stripeReady) {
-        toast.error("Stripe checkout is not configured on this hive.", {
-          description: "Admin: add keys under Settings → Billing → Stripe checkout.",
+      if (recipe.premium && !recipe.unlocked && !checkoutAvailable) {
+        toast.error("Premium checkout has been removed.", {
+          description: "Premium skill unlock via in-app checkout is no longer available.",
         });
-        return;
-      }
-      if (recipe.premium && !recipe.unlocked) {
-        void purchaseRecipe(recipe);
         return;
       }
       void exportRecipe(recipe);
     },
-    [exportRecipe, purchaseRecipe, stripeReady],
+    [checkoutAvailable, exportRecipe],
   );
 
   const copyInstall = useCallback(async () => {
@@ -223,8 +150,7 @@ export function SkillsMarketplacePanel({
             <p className="max-w-2xl text-xs text-(--qs-text-3)">
               Swarm produces verified skills, plugins, and addons → export bundle → sell on{" "}
               <strong className="text-(--qs-text-2)">GitHub</strong>,{" "}
-              <strong className="text-(--qs-text-2)">Gumroad</strong>, or optional{" "}
-              <strong className="text-pollen">Stripe</strong> in-app. Spustí sa 5-kroková misia v
+              <strong className="text-(--qs-text-2)">Gumroad</strong>, and external channels. Spustí sa 5-kroková misia v
               Ballroom — nie len prázdny chat.
             </p>
             <label className="mt-3 block max-w-md text-xs text-(--qs-text-3)">
@@ -257,14 +183,14 @@ export function SkillsMarketplacePanel({
       <section className="rounded-2xl border border-pollen/30 bg-pollen/5 p-4 md:p-5">
         <V4CardHeader
           as="h3"
-          title="Premium skills (optional Stripe channel)"
-          description="One-time in-app unlock — or export and sell on GitHub/Gumroad instead."
+          title="Premium skills"
+          description="In-app premium checkout is removed; free verified exports remain available."
         />
         {unlocks ? (
           <p className="mt-2 text-xs text-(--qs-text-3)">
-            Stripe checkout:{" "}
-            <span className={stripeReady ? "text-(--qs-green)" : "text-(--qs-red)"}>
-              {stripeReady ? "ready" : "not configured"}
+            Premium checkout:{" "}
+            <span className={checkoutAvailable ? "text-(--qs-green)" : "text-(--qs-red)"}>
+              {checkoutAvailable ? "ready" : "removed"}
             </span>
             {hasLockedPremium ? (
               <>
@@ -282,12 +208,12 @@ export function SkillsMarketplacePanel({
           </p>
         ) : null}
 
-        {!stripeReady && hasLockedPremium ? (
+        {!checkoutAvailable && hasLockedPremium ? (
           <p
             className="mt-3 rounded-xl border border-pollen/35 bg-pollen/10 px-4 py-3 text-sm text-pollen"
             role="status"
           >
-            Premium purchases need Stripe keys under Settings → Billing → Stripe checkout.
+            Premium in-app checkout has been removed.
           </p>
         ) : null}
 
@@ -296,7 +222,7 @@ export function SkillsMarketplacePanel({
             <RecipeSkillCard
               key={recipe.id}
               recipe={recipe}
-              stripeReady={stripeReady}
+              checkoutAvailable={checkoutAvailable}
               exportBusyId={exportBusyId}
               checkoutBusyId={checkoutBusyId}
               onAction={handleRecipeAction}
@@ -307,7 +233,7 @@ export function SkillsMarketplacePanel({
             <RecipeSkillCard
               key={recipe.id}
               recipe={recipe}
-              stripeReady={stripeReady}
+              checkoutAvailable={checkoutAvailable}
               exportBusyId={exportBusyId}
               checkoutBusyId={checkoutBusyId}
               onAction={handleRecipeAction}
@@ -315,15 +241,13 @@ export function SkillsMarketplacePanel({
           ))}
           {!loading && !premiumLocked.length && !premiumUnlocked.length ? (
             <p className="text-sm text-(--qs-text-3) md:col-span-2 xl:col-span-3">
-              {stripeReady
+              {checkoutAvailable
                 ? "Premium catalog is loading — refresh in a moment. Verified premium recipes appear here with Unlock & export buttons."
-                : "Configure Stripe to enable premium unlocks. Built-in hive skills below remain free."}
+                : "Premium in-app unlock is disabled. Built-in hive skills below remain free."}
             </p>
           ) : null}
         </div>
       </section>
-
-      <VerifiedPollenLeaderboard limit={8} compact />
 
       {err ? (
         <p className="rounded-xl border border-(--qs-red)/35 bg-(--qs-red)/10 px-4 py-3 text-sm text-(--qs-red)">
@@ -378,7 +302,7 @@ export function SkillsMarketplacePanel({
             <RecipeSkillCard
               key={recipe.id}
               recipe={recipe}
-              stripeReady={stripeReady}
+              checkoutAvailable={checkoutAvailable}
               exportBusyId={exportBusyId}
               checkoutBusyId={checkoutBusyId}
               onAction={handleRecipeAction}
@@ -418,14 +342,14 @@ export function SkillsMarketplacePanel({
 
 function RecipeSkillCard({
   recipe,
-  stripeReady,
+  checkoutAvailable,
   exportBusyId,
   checkoutBusyId,
   onAction,
   emphasizePremium = false,
 }: {
   recipe: SkillCatalogRecipeItem;
-  stripeReady: boolean;
+  checkoutAvailable: boolean;
   exportBusyId: string | null;
   checkoutBusyId: string | null;
   onAction: (recipe: SkillCatalogRecipeItem) => void;
@@ -470,25 +394,27 @@ function RecipeSkillCard({
       {recipe.description ? (
         <p className="line-clamp-3 text-xs text-(--qs-text-3)">{recipe.description}</p>
       ) : null}
-      <button
-        type="button"
-        className={cn(
-          "qs-btn qs-btn--sm w-full sm:w-fit",
-          lockedPremium && stripeReady ? "qs-btn--primary" : lockedPremium ? "qs-btn--ghost opacity-70" : "qs-btn--primary",
-        )}
-        disabled={busy || (lockedPremium && !stripeReady)}
-        title={lockedPremium && !stripeReady ? "Stripe checkout not configured on server" : undefined}
-        onClick={() => onAction(recipe)}
-      >
-        {busy ? (
-          <Loader2Icon className="h-3.5 w-3.5 animate-spin" aria-hidden />
-        ) : lockedPremium ? (
-          <CreditCardIcon className="h-3.5 w-3.5" aria-hidden />
-        ) : (
-          <DownloadIcon className="h-3.5 w-3.5" aria-hidden />
-        )}
-        {lockedPremium ? (stripeReady ? "Unlock & export" : "Checkout unavailable") : "Export skill"}
-      </button>
+      <div className="v4-dream-cycle-card-actions">
+        <button
+          type="button"
+          className={cn(
+            "qs-btn qs-btn--sm",
+            lockedPremium && checkoutAvailable ? "qs-btn--primary" : lockedPremium ? "qs-btn--ghost opacity-70" : "qs-btn--primary",
+          )}
+          disabled={busy || (lockedPremium && !checkoutAvailable)}
+          title={lockedPremium && !checkoutAvailable ? "Premium checkout removed on this server" : undefined}
+          onClick={() => onAction(recipe)}
+        >
+          {busy ? (
+            <Loader2Icon className="h-3.5 w-3.5 animate-spin" aria-hidden />
+          ) : lockedPremium ? (
+            <CreditCardIcon className="h-3.5 w-3.5" aria-hidden />
+          ) : (
+            <DownloadIcon className="h-3.5 w-3.5" aria-hidden />
+          )}
+          {lockedPremium ? (checkoutAvailable ? "Unlock & export" : "Checkout removed") : "Export skill"}
+        </button>
+      </div>
     </article>
   );
 }

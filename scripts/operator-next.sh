@@ -25,7 +25,6 @@ def step(n, title, why, commands, doc=None):
     return {"priority": n, "title": title, "why": why, "commands": commands, "doc": doc}
 
 
-stripe = d.get("stripe", {})
 hetzner = d.get("hetzner", {})
 harness = d.get("harness", {})
 solo = False
@@ -44,7 +43,7 @@ if solo and not harness.get("webhook_ready"):
     out = step(
         1,
         "Solo harness automation",
-        "Queen Maintainer post-merge webhook + Forager daily cron (Stripe skipped in solo).",
+        "Queen Maintainer post-merge webhook + Forager daily cron.",
         [
             "./scripts/operator-solo-enable-modules.sh",
             "./scripts/operator-resolve-tenant-id.sh",
@@ -107,7 +106,7 @@ elif solo:
                 1,
                 "Full app audit + UI walkthrough",
                 f"Readiness {vc_readiness}% — simulate + swarms done. "
-                "Prejdite aplikáciu krok za krokom (Stripe/commercial DEFERRED).",
+                "Prejdite aplikáciu krok za krokom.",
                 [
                     "./scripts/operator-full-app-audit.sh",
                     "./scripts/operator-solo-status.sh",
@@ -165,27 +164,6 @@ elif solo:
             ],
             "docs/SOLO_OPERATOR_MODE.md",
         )
-elif not stripe.get("ready_for_finish_setup"):
-    missing = []
-    if not stripe.get("secret_key"):
-        missing.append("STRIPE_SECRET_KEY")
-    if not stripe.get("webhook_secret"):
-        missing.append("STRIPE_WEBHOOK_SECRET")
-    if not stripe.get("pro_price_id"):
-        missing.append("STRIPE_PRO_PRICE_ID")
-    if not stripe.get("enterprise_price_id"):
-        missing.append("STRIPE_ENTERPRISE_PRICE_ID")
-    out = step(
-        1,
-        "Stripe live checkout",
-        "Revenue blocker — add keys to .env.prod then close P0.",
-        [
-            "./scripts/operator-stripe-dashboard-checklist.sh",
-            "# Add to .env.prod: " + ", ".join(missing),
-            "./scripts/operator-p0-close.sh",
-        ],
-        "docs/OPERATOR_STRIPE_DASHBOARD_WALKTHROUGH.md",
-    )
 elif not hetzner.get("marked_sent"):
     out = step(
         2,
@@ -197,17 +175,6 @@ elif not hetzner.get("marked_sent"):
             "./scripts/operator-mark-hetzner-sent.sh",
         ],
         "docs/OPERATOR_HETZNER_SEND.md",
-    )
-elif stripe.get("ready_for_finish_setup"):
-    out = step(
-        3,
-        "Stripe go-live verify",
-        "Keys present — run close pipeline and browser smoke.",
-        [
-            "./scripts/operator-p0-close.sh",
-            "./scripts/operator-post-p0-verify.sh",
-        ],
-        "docs/OPERATOR_P0_CLOSE.md",
     )
 elif not harness.get("webhook_ready"):
     out = step(

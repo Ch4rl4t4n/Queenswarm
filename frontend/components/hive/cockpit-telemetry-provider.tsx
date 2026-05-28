@@ -198,7 +198,7 @@ export function CockpitTelemetryProvider({
   );
 
   const agents = bundle?.agents ?? initialAgents;
-  const recentTasks = bundle?.recent_tasks ?? [];
+  const recentTasks = useMemo(() => bundle?.recent_tasks ?? [], [bundle?.recent_tasks]);
   const summary = bundle?.summary ?? null;
   const systemStatus = bundle?.system_status ? mapCockpitSystemLiteToStatus(bundle.system_status) : null;
 

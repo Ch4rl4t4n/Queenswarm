@@ -120,7 +120,14 @@ export function OperatorBrainPackPanel() {
         kicker="Operator Brain Pack"
         title="SOUL · MEMORY · USER"
         description="Hermes-style three-tier identity — stored as existing curated memory files. Queen reads all on bootstrap."
-        actions={<InfoHint title={BRAIN_PACK_HINT.title} description={BRAIN_PACK_HINT.description} options={BRAIN_PACK_HINT.options} />}
+        hint={
+          <InfoHint
+            title={BRAIN_PACK_HINT.title}
+            description={BRAIN_PACK_HINT.description}
+            options={BRAIN_PACK_HINT.options}
+            className="hive-inline-hint"
+          />
+        }
       />
       {err ? <p className="mb-3 text-sm text-(--qs-red)">{err}</p> : null}
       <div className="mb-3 flex flex-wrap gap-2">

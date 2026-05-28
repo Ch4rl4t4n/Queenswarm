@@ -14,14 +14,14 @@ from httpx import ASGITransport, AsyncClient
 from app.application.services import ballroom_store
 from app.presentation.api.routers import realtime_ballroom
 from app.main import app
-from app.presentation.api.deps import require_subject
+from app.presentation.api.deps import require_dashboard_session
 
 
 @pytest.fixture
 def ballroom_auth_fixture() -> None:
-    """Inject a deterministic JWT subject."""
+    """Inject a deterministic dashboard session."""
 
-    app.dependency_overrides[require_subject] = lambda: "pytest-ballroom-operator"
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:pytest-ballroom-operator"}
     yield
     app.dependency_overrides.clear()
 

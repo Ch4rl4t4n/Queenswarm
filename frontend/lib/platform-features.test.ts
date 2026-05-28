@@ -16,7 +16,6 @@ describe("platform-features", () => {
     });
     expect(features.skills_export_factory).toBe(true);
     expect(features.foragers).toBe(true);
-    expect(features.leaderboard).toBe(true);
     expect(features.bee_gamification).toBe(true);
     expect(features.enterprise_workspace).toBe(true);
   });
@@ -64,7 +63,7 @@ describe("platform-features", () => {
       isAdmin: true,
       subscriptionTier: "pro",
     });
-    expect(routeFeatureKey("/settings/billing")).toBe("billing_settings");
+    expect(routeFeatureKey("/settings/security")).toBe("settings");
     expect(isRouteAllowed("/foragers", features)).toBe(true);
     expect(isRouteAllowed("/ballroom", features)).toBe(true);
   });

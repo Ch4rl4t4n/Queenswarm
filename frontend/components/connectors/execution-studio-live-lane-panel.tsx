@@ -1,9 +1,10 @@
 "use client";
 
-import { Loader2, RefreshCw, ShieldAlert } from "lucide-react";
+import { Loader2, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { memo, useCallback, useEffect, useState } from "react";
 
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { V4Badge } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 
@@ -99,14 +100,7 @@ function ExecutionStudioLiveLanePanelInner({ onError }: ExecutionStudioLiveLaneP
           <ShieldAlert className="size-4 text-[#FF00AA]" aria-hidden />
           <h3 className="font-heading text-sm font-semibold text-(--qs-text)">Live Lane Prep</h3>
         </div>
-        <button
-          type="button"
-          onClick={() => void load()}
-          className="rounded-md p-1 text-(--qs-text-3) hover:text-cyan"
-          aria-label="Refresh live lane"
-        >
-          {loading ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-        </button>
+        <HiveRefreshButton busy={loading} onClick={() => void load()} />
       </div>
 
       <p className="text-xs text-(--qs-text-3)">

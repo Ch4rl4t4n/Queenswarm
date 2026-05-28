@@ -1,12 +1,18 @@
 "use client";
 
 import { Loader2Icon, RefreshCw } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useState } from "react";
 
-import { HivePageHeader } from "@/components/hive/hive-page-header";
-import { V4Card, V4PageCanvas } from "@/components/ui/v4";
+import { HivePageShell } from "@/components/hive/hive-page-shell";
+import { V4Card } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
 import { COCKPIT_POLL_JOBS_MS } from "@/lib/cockpit-poll-profile";
+import {
+  EXECUTION_LANE_CROSS_LINK_LABELS,
+  TASKS_HUB_PATH,
+  WORKFLOWS_PATH,
+} from "@/lib/execution-lane-routes";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import type { HiveAsyncJobStatusPayload } from "@/lib/hive-types";
 
@@ -56,13 +62,20 @@ export function JobsPollConsole() {
   );
 
   return (
-    <V4PageCanvas>
-      <HivePageHeader
-        title="Async workflow jobs"
-        subtitle="Phase 2.6 · Ops — paste a Celery task id from queued swarm workflows. Single-flight polling keeps ~16 GB hosts predictable (pause auto-refresh when idle)."
-        className="mb-3"
-      />
-
+    <HivePageShell
+      title="Async workflow jobs"
+      subtitle="Phase 2.6 · Ops — paste a Celery task id from queued swarm workflows. Single-flight polling keeps ~16 GB hosts predictable (pause auto-refresh when idle)."
+      actions={
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href={TASKS_HUB_PATH} className="qs-btn qs-btn--ghost qs-btn--sm">
+            {EXECUTION_LANE_CROSS_LINK_LABELS.toTasksHub}
+          </Link>
+          <Link href={WORKFLOWS_PATH} className="qs-btn qs-btn--ghost qs-btn--sm">
+            {EXECUTION_LANE_CROSS_LINK_LABELS.toWorkflows}
+          </Link>
+        </div>
+      }
+    >
       <V4Card>
         {(manualBusy || pollPulse) && !err ? (
           <p className="mb-3 text-xs text-(--qs-cyan)" aria-live="polite">
@@ -109,6 +122,6 @@ export function JobsPollConsole() {
           <p className="mt-6 text-sm text-(--qs-text-3)">No snapshot yet.</p>
         )}
       </V4Card>
-    </V4PageCanvas>
+    </HivePageShell>
   );
 }

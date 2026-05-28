@@ -45,10 +45,6 @@ export default async function IntegrationsPage({
 }): Promise<JSX.Element> {
   const sp = await searchParams;
   const initialTab = readParam(sp, "tab");
-  const purchaseRaw = readParam(sp, "purchase");
-  const purchaseOutcome =
-    purchaseRaw === "success" || purchaseRaw === "cancel" ? purchaseRaw : null;
-  const checkoutSessionId = readParam(sp, "session_id") ?? null;
 
   if (!PHASE70_CONSOLIDATED_NAV_ENABLED) {
     redirect(hubFallbackTarget("integrations"));
@@ -72,8 +68,6 @@ export default async function IntegrationsPage({
       <IntegrationsPageClient
         initial={initial}
         initialTab={initialTab as "active" | "hub" | "marketplace" | "skills" | "external" | "plugins" | undefined}
-        purchaseOutcome={purchaseOutcome}
-        checkoutSessionId={checkoutSessionId}
       />
     </Suspense>
   );

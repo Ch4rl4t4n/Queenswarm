@@ -40,31 +40,6 @@ async function gotoShellRoute(page: import("@playwright/test").Page, path: strin
   return true;
 }
 
-/** Billing page hydrates usage/plans + Stripe config — wait for stable chrome. */
-async function gotoBillingSettings(page: import("@playwright/test").Page): Promise<boolean> {
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    if (!(await gotoShellRoute(page, "/settings/billing"))) {
-      return false;
-    }
-    const onDashboard = await page
-      .getByRole("heading", { name: e2eHiveHomeHeading() })
-      .first()
-      .isVisible()
-      .catch(() => false);
-    if (onDashboard) {
-      continue;
-    }
-    try {
-      await expect(page.getByRole("heading", { name: "Stripe checkout" })).toBeVisible({ timeout: 15_000 });
-      await expect(page.getByRole("heading", { name: "Usage & Billing" })).toBeVisible({ timeout: 15_000 });
-      return true;
-    } catch {
-      // App Router occasionally paints the previous canvas — retry navigation.
-    }
-  }
-  return false;
-}
-
 test.describe("Responsive shell — public login", () => {
   for (const viewport of VIEWPORTS) {
     test(`${viewport.name} login has no horizontal overflow`, async ({ page }) => {
@@ -165,19 +140,26 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     await assertNoHorizontalOverflow(page);
   });
 
-  test("tablet billing settings shows stripe-not-configured hint", async ({ page, context, baseURL }) => {
+  test("tablet costs settings shows upgrade-removed hint", async ({ page, context, baseURL }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
 
-    const onShell = await gotoBillingSettings(page);
+    const onShell = await gotoShellRoute(page, "/settings/costs");
     if (!onShell) {
       return;
     }
 
-    await expect(page.getByText(/checkout off|— not set/i).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Costs" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("link", { name: /Tier limits — view plan comparison/i })).toHaveAttribute(
+      "href",
+      "#billing-plans",
+    );
+    await expect(page.getByRole("heading", { name: "Plan & tier limits" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Usage & Billing" })).toHaveCount(0);
+    await expect(page.getByText(/Upgrade flow removed|upgrades unavailable/i).first()).toBeVisible({ timeout: 15_000 });
   });
 
-  test("tablet integrations skills tab shows stripe-not-configured state", async ({ page, context, baseURL }) => {
+  test("tablet integrations skills tab shows checkout-removed state", async ({ page, context, baseURL }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
 
@@ -187,8 +169,8 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     }
 
     await expect(page.getByRole("heading", { name: "Integrations" })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/Stripe checkout: not configured/i)).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole("button", { name: "Checkout unavailable" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/Premium checkout: removed/i)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("button", { name: "Checkout removed" })).toBeVisible({ timeout: 15_000 });
   });
 
   test("tablet integrations hub tab layout", async ({ page, context, baseURL }) => {
@@ -255,21 +237,6 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     expect(drawerWidth).toBeGreaterThanOrEqual(viewportWidth * 0.95);
   });
 
-  for (const viewport of VIEWPORTS) {
-    test(`${viewport.name} leaderboard route layout`, async ({ page, context, baseURL }) => {
-      await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
-
-      const onShell = await gotoShellRoute(page, "/leaderboard");
-      if (!onShell) {
-        return;
-      }
-
-      await assertNoHorizontalOverflow(page);
-      await expect(page.getByRole("heading", { name: /leaderboard/i }).first()).toBeVisible({ timeout: 15_000 });
-    });
-  }
-
   test("mobile manual page readable layout", async ({ page, context, baseURL }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
@@ -284,7 +251,8 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     await expect(
       page.getByRole("heading", { name: /Funkcie aplikácie|App functions and info descriptions/i }),
     ).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/Live dashboard|Hive Cockpit/i).first()).toBeVisible({ timeout: 15_000 });
+    const main = page.locator("#hive-main-canvas");
+    await expect(main.getByText(/Live dashboard|Agentic OS/i).first()).toBeVisible({ timeout: 15_000 });
   });
 
   for (const viewport of VIEWPORTS) {
@@ -427,7 +395,6 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     { path: `/agents/${STUB_AGENT_ID}`, heading: "Scout Bee" },
     { path: "/agents/new", heading: "Spawn agent" },
     { path: "/tasks/new", heading: "New task" },
-    { path: "/settings/billing", heading: "Usage & Billing" },
     { path: "/settings/team", heading: "Team & RBAC" },
     { path: "/settings/audit", heading: "Audit log" },
     { path: "/settings/api-keys", heading: "External data APIs" },
@@ -439,20 +406,15 @@ test.describe("Responsive shell — authenticated cockpit", () => {
         await page.setViewportSize({ width: viewport.width, height: viewport.height });
         await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
 
-        const onShell =
-          route.path === "/settings/billing"
-            ? await gotoBillingSettings(page)
-            : await gotoShellRoute(page, route.path);
+        const onShell = await gotoShellRoute(page, route.path);
         if (!onShell) {
           return;
         }
 
         await assertNoHorizontalOverflow(page);
-        if (route.path !== "/settings/billing") {
-          await expect(page.getByRole("heading", { name: route.heading, exact: true }).first()).toBeVisible({
-            timeout: 15_000,
-          });
-        }
+        await expect(page.getByRole("heading", { name: route.heading, exact: true }).first()).toBeVisible({
+          timeout: 15_000,
+        });
       });
     }
   }

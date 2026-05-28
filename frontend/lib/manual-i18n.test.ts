@@ -18,7 +18,7 @@ describe("manualSections", () => {
     const section = manualSections("en").find((s) => s.id === "quick-start");
     expect(section?.checklist?.[0]).toContain(hiveOverviewHref());
     if (OPERATOR_CONTROL_PLANE_ENABLED) {
-      expect(section?.checklist?.[0]).toContain("/cockpit");
+      expect(section?.checklist?.[0]).toContain("/agentic-os");
     }
   });
 });

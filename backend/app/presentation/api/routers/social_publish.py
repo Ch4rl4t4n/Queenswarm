@@ -14,6 +14,11 @@ from app.application.services.social_publish import (
     build_social_publish_snapshot,
     run_social_publish,
 )
+from app.application.services.social_publish_pipeline import (
+    SocialPublishPipelineRequestBody,
+    SocialPublishPipelineResultOut,
+    run_social_publish_pipeline,
+)
 from app.application.services.social_publish_trusted_auto import (
     TrustedAutoPolicyOut,
     TrustedAutoPolicyPatch,
@@ -278,6 +283,41 @@ async def delete_connected_social_account(
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Social account not found.")
     await db.commit()
+
+
+@router.post(
+    "/{deliverable_id}/orchestrate",
+    response_model=SocialPublishPipelineResultOut,
+    summary="Multi-target social publish orchestration",
+)
+async def orchestrate_social_publish(
+    deliverable_id: uuid.UUID,
+    body: SocialPublishPipelineRequestBody,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> SocialPublishPipelineResultOut:
+    """Run one publish pack across multiple target channels with rollback receipts."""
+
+    _require_enabled()
+    user = principal.get("user")
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Dashboard user missing.")
+    tenant = await _tenant_from_principal(db, principal)
+    try:
+        result = await run_social_publish_pipeline(
+            db,
+            deliverable_id=deliverable_id,
+            dashboard_user_id=user.id,
+            tenant=tenant,
+            body=body,
+            reviewed_by=str(principal.get("session", {}).get("sub") or ""),
+        )
+        await db.commit()
+        return result
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.post(

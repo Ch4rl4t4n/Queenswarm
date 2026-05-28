@@ -4,20 +4,16 @@
 # Usage:
 #   ./scripts/production-signoff-gate.sh
 #   PLAYWRIGHT_BASE_URL=https://queenswarm.love ./scripts/production-signoff-gate.sh
-#   STRICT_STRIPE=1 ./scripts/production-signoff-gate.sh   # fail when Stripe keys missing
-#
 # Env:
 #   ENV_FILE              — default .env.prod
 #   PLAYWRIGHT_BASE_URL   — when set, PWA/responsive E2E hit remote hive (no local webserver)
 #   SKIP_BACKEND_TESTS=1  — skip pytest (faster smoke)
-#   STRICT_STRIPE=1       — fail if skill marketplace Stripe keys are empty
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 ENV_FILE="${ENV_FILE:-.env.prod}"
-STRICT_STRIPE="${STRICT_STRIPE:-0}"
 SKIP_BACKEND_TESTS="${SKIP_BACKEND_TESTS:-0}"
 HIVE_BASE="${PLAYWRIGHT_BASE_URL:-https://queenswarm.love}"
 
@@ -111,14 +107,6 @@ for path in \
   echo "  OK ${path} (${code} — route wired)"
 done
 
-# Stripe webhook is public (signature auth). 503 = secret unset; 400 = secret set, no sig; never 401.
-webhook_code="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "${HIVE_BASE}/api/v1/billing/stripe/webhook" || echo "000")"
-if [[ "$webhook_code" == "401" || "$webhook_code" == "404" || "$webhook_code" == "000" ]]; then
-  echo "FAIL /api/v1/billing/stripe/webhook HTTP ${webhook_code} (expected 503 or 400, not JWT/missing route)" >&2
-  exit 1
-fi
-echo "  OK /api/v1/billing/stripe/webhook (${webhook_code} — public, not JWT-gated)"
-
 echo
 echo "[8/9] host exposure audit (production host only)"
 if [[ "${SKIP_HOST_EXPOSURE_AUDIT:-0}" == "1" ]]; then
@@ -130,15 +118,7 @@ else
 fi
 
 echo
-echo "[9/9] Stripe + Phase 14 feature readiness"
-if [[ -x "${ROOT}/scripts/stripe-prod-setup.sh" ]]; then
-  ./scripts/stripe-prod-setup.sh || {
-    if [[ "$STRICT_STRIPE" == "1" ]]; then
-      exit 1
-    fi
-  }
-fi
-
+echo "[9/9] Phase 14 feature readiness"
 for flag in PAPER_TRADING_ENABLED PENDING_REVIEW_ENABLED RECIPES_ENABLED SKILL_EXPORT_PREMIUM_ENABLED; do
   val="$(load_kv "$ENV_FILE" "$flag" 2>/dev/null || echo "unset")"
   echo "  ${flag}=${val:-unset}"
@@ -149,4 +129,3 @@ echo "== Production sign-off gate: OK =="
 echo "Manual QA still recommended:"
 echo "  • Mobile: 2× visit → install prompt; airplane mode → offline banner"
 echo "  • Desktop: sidebar-only shell; Ballroom FAB bottom-right (Ctrl+B)"
-echo "  • Stripe: complete checkout once keys are configured"

@@ -19,7 +19,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
-import { HivePageHeader } from "@/components/hive/hive-page-header";
+import { HivePageShell } from "@/components/hive/hive-page-shell";
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
+import { HiveSubnavRow } from "@/components/hive/hive-subnav-row";
+import { HiveSubnavContent, HiveSubnavStack } from "@/components/hive/hive-subnav-stack";
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
+import {
+  INTEGRATIONS_HUB_SECTIONS,
+  integrationsHubSectionHref,
+  resolveIntegrationsHubSection,
+  type IntegrationsHubSection,
+} from "@/lib/integrations-hub-routes";
 import { useSetHiveMobileHeaderTrailing } from "@/components/hive/hive-mobile-header-actions";
 import { IntegrationsEcosystemLane } from "@/components/hive/integrations-ecosystem-lane";
 import { usePlatform } from "@/components/hive/platform-context";
@@ -32,13 +42,13 @@ import {
   V4IconBolt,
   V4IconCoin,
   V4IconCpu,
-  V4PageCanvas,
   type V4BadgeTone,
 } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
 import type { DynamicConnectorPayload } from "@/lib/connectors-types";
 import {
   integrationsScrollTargetFromHash,
+  integrationsTabExplicitInLocation,
   integrationsTabHref,
   integrationsHubOAuthHref,
   resolveIntegrationsTab,
@@ -127,8 +137,6 @@ interface IntegrationCard {
 interface IntegrationsPageClientProps {
   initial: IntegrationsInitialPayload;
   initialTab?: IntegrationsTab;
-  purchaseOutcome?: "success" | "cancel" | null;
-  checkoutSessionId?: string | null;
 }
 
 const TABS: { id: IntegrationsTab; label: string; icon: typeof CheckCircle2; featureKey?: string }[] = [
@@ -259,14 +267,38 @@ function IntegrationIcon({ iconKey }: { iconKey: string }) {
 export function IntegrationsPageClient({
   initial,
   initialTab,
-  purchaseOutcome = null,
-  checkoutSessionId = null,
 }: IntegrationsPageClientProps) {
   const { features, hasFeature } = usePlatform();
   const searchParams = useSearchParams();
   const tabs = useMemo(() => visibleIntegrationTabs(features), [features]);
+  const tabIds = useMemo(() => tabs.map((item) => item.id), [tabs]);
+  const hasHubTab = tabIds.includes("hub");
+  const hasMarketplaceTab = tabIds.includes("marketplace");
+
+  const resolveTabFromLocation = useCallback(
+    (queryTab: string | null, hash: string): IntegrationsTab =>
+      resolveIntegrationsTab({
+        queryTab,
+        hash,
+        visibleTabIds: tabIds,
+        fallback: tabIds[0] ?? "active",
+      }),
+    [tabIds],
+  );
+
   const [tab, setTab] = useState<IntegrationsTab>(() =>
-    resolveIntegrationsTab({ queryTab: initialTab, fallback: "active" }),
+    resolveIntegrationsTab({
+      queryTab: initialTab,
+      visibleTabIds: tabIds,
+      fallback: tabIds[0] ?? "active",
+    }),
+  );
+  const [hubSection, setHubSection] = useState<IntegrationsHubSection>(() =>
+    resolveIntegrationsHubSection({
+      querySection:
+        typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("hubSection") : null,
+      hash: typeof window !== "undefined" ? window.location.hash : "",
+    }),
   );
   const pendingOAuthScrollRef = useRef(false);
   const [payload, setPayload] = useState(initial);
@@ -276,7 +308,16 @@ export function IntegrationsPageClient({
 
   const selectTab = useCallback((next: IntegrationsTab) => {
     setTab(next);
+    if (next === "hub") {
+      window.history.replaceState(null, "", integrationsHubSectionHref(hubSection));
+      return;
+    }
     window.history.replaceState(null, "", integrationsTabHref(next));
+  }, [hubSection]);
+
+  const selectHubSection = useCallback((next: IntegrationsHubSection) => {
+    setHubSection(next);
+    window.history.replaceState(null, "", integrationsHubSectionHref(next));
   }, []);
 
   const jumpToActiveIntegrations = useCallback(() => {
@@ -313,6 +354,7 @@ export function IntegrationsPageClient({
   const jumpToHubOAuth = useCallback(() => {
     pendingOAuthScrollRef.current = true;
     setTab("hub");
+    setHubSection("oauth");
     window.history.replaceState(null, "", integrationsHubOAuthHref());
     scrollToElementId("oauth-consent");
   }, [scrollToElementId]);
@@ -320,11 +362,31 @@ export function IntegrationsPageClient({
   useEffect(() => {
     const syncFromLocation = (): void => {
       const params = new URLSearchParams(window.location.search);
-      const next = resolveIntegrationsTab({
-        queryTab: params.get("tab"),
-        hash: window.location.hash,
-      });
+      const hash = window.location.hash;
+      const next = resolveTabFromLocation(params.get("tab"), hash);
       setTab(next);
+      if (next === "hub") {
+        setHubSection(
+          resolveIntegrationsHubSection({
+            querySection: params.get("hubSection"),
+            hash,
+          }),
+        );
+      }
+      if (!integrationsTabExplicitInLocation({ queryTab: params.get("tab"), hash })) {
+        const hubNext =
+          next === "hub"
+            ? resolveIntegrationsHubSection({
+                querySection: params.get("hubSection"),
+                hash,
+              })
+            : null;
+        window.history.replaceState(
+          null,
+          "",
+          next === "hub" && hubNext ? integrationsHubSectionHref(hubNext) : integrationsTabHref(next),
+        );
+      }
       scrollToHashTarget();
     };
     syncFromLocation();
@@ -334,15 +396,21 @@ export function IntegrationsPageClient({
       window.removeEventListener("hashchange", syncFromLocation);
       window.removeEventListener("popstate", syncFromLocation);
     };
-  }, [scrollToHashTarget]);
+  }, [resolveTabFromLocation, scrollToHashTarget]);
 
   useEffect(() => {
-    const next = resolveIntegrationsTab({
-      queryTab: searchParams.get("tab"),
-      hash: typeof window !== "undefined" ? window.location.hash : "",
-    });
+    const hash = typeof window !== "undefined" ? window.location.hash : "";
+    const next = resolveTabFromLocation(searchParams.get("tab"), hash);
     setTab(next);
-  }, [searchParams]);
+    if (next === "hub") {
+      setHubSection(
+        resolveIntegrationsHubSection({
+          querySection: searchParams.get("hubSection"),
+          hash,
+        }),
+      );
+    }
+  }, [searchParams, resolveTabFromLocation]);
 
   useEffect(() => {
     if (tab !== "hub") {
@@ -350,18 +418,28 @@ export function IntegrationsPageClient({
     }
     if (pendingOAuthScrollRef.current || window.location.hash === "#oauth-consent") {
       pendingOAuthScrollRef.current = false;
+      setHubSection("oauth");
       scrollToElementId("oauth-consent");
     } else {
       scrollToHashTarget();
     }
-  }, [tab, scrollToElementId, scrollToHashTarget]);
+  }, [tab, hubSection, scrollToElementId, scrollToHashTarget]);
+
+  useEffect(() => {
+    if (tab !== "studio") {
+      return;
+    }
+    scrollToHashTarget();
+  }, [tab, scrollToHashTarget]);
 
   useEffect(() => {
     if (tabs.some((item) => item.id === tab)) {
       return;
     }
-    setTab(tabs[0]?.id ?? "active");
-  }, [tab, tabs]);
+    const next = resolveTabFromLocation(null, "");
+    setTab(next);
+    window.history.replaceState(null, "", integrationsTabHref(next));
+  }, [tab, tabs, resolveTabFromLocation]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -475,69 +553,64 @@ export function IntegrationsPageClient({
   );
 
   const mobileRefreshAction = useMemo(
-    () => (
-      <button
-        type="button"
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-(--qs-border) bg-black/55 text-zinc-300 hover:border-(--qs-border-2) hover:text-pollen disabled:opacity-50 touch-manipulation"
-        aria-label="Refresh integration pulse"
-        disabled={refreshing}
-        onClick={() => void refreshPulse()}
-      >
-        <RefreshCw className={cn("h-[20px] w-[20px]", refreshing && "animate-spin")} aria-hidden />
-      </button>
-    ),
+    () => <HiveRefreshButton busy={refreshing} onClick={() => void refreshPulse()} />,
     [refreshPulse, refreshing],
   );
 
   useSetHiveMobileHeaderTrailing(mobileRefreshAction);
 
   return (
-    <V4PageCanvas>
-      <HivePageHeader
-        title="Integrations"
-        subtitle="Connectors · MCP hub · tools marketplace · external projects · plugin lattice."
-        status={
-          <button
-            type="button"
-            className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-(--qs-border) bg-black/55 text-zinc-300 hover:border-(--qs-border-2) hover:text-pollen disabled:opacity-50 lg:flex"
-            aria-label="Refresh integration pulse"
-            disabled={refreshing}
-            onClick={() => void refreshPulse()}
-          >
-            <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} aria-hidden />
-          </button>
-        }
-        actions={
+    <HivePageShell
+      title="Integrations"
+      subtitle="Connectors · MCP hub · tools marketplace · external projects · plugin lattice."
+      hintKey="integrations"
+      status={
+        <HiveRefreshButton
+          className="hidden lg:inline-flex"
+          busy={refreshing}
+          onClick={() => void refreshPulse()}
+        />
+      }
+      actions={
+        hasHubTab ? (
           <button
             type="button"
             className="qs-btn qs-btn--primary qs-btn--sm gap-2"
-            onClick={() => selectTab("hub")}
+            onClick={() => {
+              setHubSection("roster");
+              setTab("hub");
+              window.history.replaceState(null, "", integrationsHubSectionHref("roster"));
+            }}
           >
             <Plus className="h-4 w-4" aria-hidden />
             Add connector
           </button>
-        }
-      />
-
-      <div className="v4-subtab-row w-full max-w-full">
-        {tabs.map((item) => {
-          const Icon = item.icon;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              className={cn("v4-subtab", tab === item.id && "v4-subtab--active")}
-              onClick={() => selectTab(item.id)}
-            >
-              <Icon className="h-3.5 w-3.5" aria-hidden />
-              {item.label}
-            </button>
-          );
-        })}
-      </div>
+        ) : null
+      }
+      subnav={
+        <HiveSubnavStack>
+          <HiveSubnavRow
+            items={tabs.map((item) => ({ id: item.id, label: item.label, icon: item.icon }))}
+            activeId={tab}
+            onChange={(id) => selectTab(id as IntegrationsTab)}
+            ariaLabel="Integration sections"
+            menuKey="integrations-primary"
+          />
+          {tab === "hub" ? (
+            <HiveSubnavRow
+              items={INTEGRATIONS_HUB_SECTIONS.map(({ id, label, icon }) => ({ id, label, icon }))}
+              activeId={hubSection}
+              onChange={(id) => selectHubSection(id as IntegrationsHubSection)}
+              ariaLabel="Connector hub sections"
+              menuKey="integrations-hub"
+            />
+          ) : null}
+        </HiveSubnavStack>
+      }
+    >
 
       {tab === "active" ? (
-        <div className="space-y-6">
+        <HiveSubnavContent className="space-y-6">
           <IntegrationsEcosystemLane onSelectTab={selectTab} />
 
           <V4Card id="marketplace-preview" className="scroll-mt-28">
@@ -548,6 +621,7 @@ export function IntegrationsPageClient({
             <V4CardHeader
               title="Active integrations"
               description="Unified health snapshot across hub, bridges, and plugins."
+              hint={sectionHintNode("integrationsActive")}
               actions={
                 <V4Badge tone="ok">
                   {healthyCount} / {activeCards.length} healthy
@@ -560,16 +634,20 @@ export function IntegrationsPageClient({
                   No integrations connected yet. Install a marketplace template or provision a connector in the hub.
                 </p>
                 <div className="flex flex-wrap justify-center gap-2">
-                  <button type="button" className="qs-btn qs-btn--primary qs-btn--sm" onClick={() => selectTab("hub")}>
-                    Open connector hub
-                  </button>
-                  <button
-                    type="button"
-                    className="qs-btn qs-btn--ghost qs-btn--sm"
-                    onClick={() => selectTab("marketplace")}
-                  >
-                    Browse marketplace
-                  </button>
+                  {hasHubTab ? (
+                    <button type="button" className="qs-btn qs-btn--primary qs-btn--sm" onClick={() => selectTab("hub")}>
+                      Open connector hub
+                    </button>
+                  ) : null}
+                  {hasMarketplaceTab ? (
+                    <button
+                      type="button"
+                      className="qs-btn qs-btn--ghost qs-btn--sm"
+                      onClick={() => selectTab("marketplace")}
+                    >
+                      Browse marketplace
+                    </button>
+                  ) : null}
                 </div>
               </div>
             ) : (
@@ -589,13 +667,6 @@ export function IntegrationsPageClient({
                       <V4Badge tone={statusTone(card.status)}>{card.status}</V4Badge>
                     </div>
                     <div className="v4-int-foot">
-                      <button
-                        type="button"
-                        className="qs-btn qs-btn--ghost qs-btn--sm"
-                        onClick={() => selectTab(card.targetTab)}
-                      >
-                        Open
-                      </button>
                       {card.status === "error" ? (
                         <button
                           type="button"
@@ -610,81 +681,108 @@ export function IntegrationsPageClient({
                           Retry
                         </button>
                       ) : null}
+                      <button
+                        type="button"
+                        className="qs-btn qs-btn--primary qs-btn--sm"
+                        onClick={() => selectTab(card.targetTab)}
+                      >
+                        Open
+                      </button>
                     </div>
                   </article>
                 ))}
               </div>
             )}
           </V4Card>
-        </div>
+        </HiveSubnavContent>
       ) : null}
 
       {tab === "studio" ? (
-        <V4Card id="execution-studio" className="scroll-mt-28">
-          <ExecutionStudioPanel
-            onOpenMarketplace={() => selectTab("marketplace")}
-            onOpenHub={jumpToHubOAuth}
-          />
-        </V4Card>
+        <HiveSubnavContent>
+          <V4Card id="execution-studio" className="scroll-mt-28">
+            <ExecutionStudioPanel
+              onOpenMarketplace={() => selectTab("marketplace")}
+              onOpenHub={jumpToHubOAuth}
+            />
+          </V4Card>
+        </HiveSubnavContent>
       ) : null}
 
       {tab === "hub" ? (
-        <V4Card id="hub" className="scroll-mt-28">
-          <V4CardHeader
-            kicker="Phase 3 · MCP Hub"
-            title="Dynamic connector hub"
-            description="OAuth consent rail, connector provisioning, vault sync, and connection testing in one place."
-          />
-          <UnifiedToolHubPanel />
-          <div className="my-8 border-t border-(--qs-border)/40" />
-          <ConnectorsConsole embedded />
-        </V4Card>
+        <HiveSubnavContent className="space-y-4">
+          <V4Card id="hub" className="scroll-mt-28">
+            <V4CardHeader
+              kicker="Phase 3 · MCP Hub"
+              title="Dynamic connector hub"
+              description="OAuth consent rail, connector provisioning, vault sync, and connection testing in one place."
+              hint={sectionHintNode("integrationsHub")}
+            />
+          </V4Card>
+
+          {hubSection === "tools" ? (
+            <V4Card id="hub-tools" className="scroll-mt-28">
+              <UnifiedToolHubPanel />
+            </V4Card>
+          ) : (
+            <V4Card id={`hub-${hubSection}`} className="scroll-mt-28">
+              <ConnectorsConsole embedded hubSection={hubSection} />
+            </V4Card>
+          )}
+        </HiveSubnavContent>
       ) : null}
 
       {tab === "marketplace" ? (
-        <V4Card>
-          <V4CardHeader
-            kicker="Tools lattice"
-            title="Tools marketplace"
-            description="Install API tools one-click, then expose them to supervisor lanes dynamically."
-          />
-          <ToolsMarketplacePanel onJumpToActive={jumpToActiveIntegrations} />
-        </V4Card>
+        <HiveSubnavContent>
+          <V4Card>
+            <V4CardHeader
+              kicker="Tools lattice"
+              title="Tools marketplace"
+              description="Install API tools one-click, then expose them to supervisor lanes dynamically."
+              hint={sectionHintNode("integrationsMarketplace")}
+            />
+            <ToolsMarketplacePanel onJumpToActive={jumpToActiveIntegrations} />
+          </V4Card>
+        </HiveSubnavContent>
       ) : null}
 
       {tab === "skills" ? (
-        <V4Card>
-          <V4CardHeader
-            kicker={hasFeature("skills_export_factory") ? "Revenue factory" : "Skills marketplace"}
-            title={hasFeature("skills_export_factory") ? "Skills export & publish" : "Premium skills"}
-            description={
-              hasFeature("skills_export_factory")
-                ? "Swarm → verify → export SKILL.md bundle → sell on GitHub, Gumroad, or optional Stripe unlock."
-                : "Browse and unlock premium skills for your hive."
-            }
-          />
-          <SkillsMarketplacePanel
-            checkoutSessionId={checkoutSessionId}
-            purchaseOutcome={purchaseOutcome}
-          />
-        </V4Card>
+        <HiveSubnavContent>
+          <V4Card>
+            <V4CardHeader
+              kicker={hasFeature("skills_export_factory") ? "Revenue factory" : "Skills marketplace"}
+              title={hasFeature("skills_export_factory") ? "Skills export & publish" : "Premium skills"}
+              description={
+                hasFeature("skills_export_factory")
+                  ? "Swarm → verify → export SKILL.md bundle → publish on your external sales channels."
+                  : "Browse and unlock premium skills for your hive."
+              }
+              hint={sectionHintNode("integrationsSkills")}
+            />
+            <SkillsMarketplacePanel />
+          </V4Card>
+        </HiveSubnavContent>
       ) : null}
 
       {tab === "external" ? (
-        <V4Card>
-          <V4CardHeader
-            title="External projects"
-            description="External project registry, API key issuance, and live success/latency metrics."
-          />
-          <ExternalProjectsConsole />
-        </V4Card>
+        <HiveSubnavContent>
+          <V4Card>
+            <V4CardHeader
+              title="External projects"
+              description="External project registry, API key issuance, and live success/latency metrics."
+              hint={sectionHintNode("integrationsExternal")}
+            />
+            <ExternalProjectsConsole />
+          </V4Card>
+        </HiveSubnavContent>
       ) : null}
 
       {tab === "plugins" ? (
-        <V4Card>
+        <HiveSubnavContent>
+          <V4Card>
           <V4CardHeader
             title="Plugin catalog"
             description="Built-in modules and operator uploads with quick status inspection."
+            hint={sectionHintNode("integrationsPlugins")}
             actions={
               payload.reloadGeneration != null ? (
                 <V4Badge tone="info">gen {payload.reloadGeneration}</V4Badge>
@@ -727,8 +825,9 @@ export function IntegrationsPageClient({
             </div>
           )}
           <PluginsUserUploader />
-        </V4Card>
+          </V4Card>
+        </HiveSubnavContent>
       ) : null}
-    </V4PageCanvas>
+    </HivePageShell>
   );
 }

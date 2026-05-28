@@ -105,15 +105,7 @@ function ExecutionStackCard({
         </a>
       ) : null}
 
-      <div className="mt-auto flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          className="qs-btn qs-btn--primary qs-btn--sm gap-1.5"
-          onClick={() => onOpenGuide(connection.slug)}
-        >
-          <BookOpen className="h-3.5 w-3.5" aria-hidden />
-          Setup guide
-        </button>
+      <div className="v4-dream-cycle-card-actions">
         <button
           type="button"
           className="qs-btn qs-btn--ghost qs-btn--sm"
@@ -129,6 +121,14 @@ function ExecutionStackCard({
             Dry-run tool
           </button>
         ) : null}
+        <button
+          type="button"
+          className="qs-btn qs-btn--primary qs-btn--sm gap-1.5"
+          onClick={() => onOpenGuide(connection.slug)}
+        >
+          <BookOpen className="h-3.5 w-3.5" aria-hidden />
+          Setup guide
+        </button>
       </div>
     </article>
   );

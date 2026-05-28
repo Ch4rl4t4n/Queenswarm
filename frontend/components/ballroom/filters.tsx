@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
+import { HiveModalShell } from "@/components/hive/hive-modal-shell";
 import { cn } from "@/lib/utils";
 
 export interface ChatFilter {
@@ -109,7 +110,6 @@ export function Filters({
   const [draftLabel, setDraftLabel] = useState("");
   const [draftText, setDraftText] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const dialogRef = useRef<HTMLDivElement | null>(null);
   const labelInputRef = useRef<HTMLInputElement | null>(null);
   const labelId = useId();
   const textId = useId();
@@ -124,23 +124,6 @@ export function Filters({
       saveFilters(storageKey, filters);
     }
   }, [filters, hydrated, storageKey]);
-
-  useEffect(() => {
-    if (!editing) {
-      return;
-    }
-    const t = window.setTimeout(() => labelInputRef.current?.focus(), 30);
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setEditing(null);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.clearTimeout(t);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [editing]);
 
   const openAdd = useCallback(() => {
     setEditing({ id: newFilterId(), label: "", text: "" });
@@ -293,15 +276,15 @@ export function Filters({
         <div
           key={flt.id}
           className={cn(
-            "group inline-flex items-stretch overflow-hidden rounded border border-[var(--qs-border)] bg-[var(--qs-surface-2)] text-[10px] transition",
-            disabled ? "opacity-40" : "hover:border-[var(--qs-cyan)]/45",
-            isPromptActive(flt) && "border-[var(--qs-amber)]/70 ring-1 ring-[var(--qs-amber)]/40",
+            "group inline-flex items-stretch overflow-hidden rounded border border-(--qs-border) bg-(--qs-surface-2) text-[10px] transition",
+            disabled ? "opacity-40" : "hover:border-(--qs-cyan)/45",
+            isPromptActive(flt) && "border-(--qs-amber)/70 ring-1 ring-(--qs-amber)/40",
           )}
         >
           <button
             type="button"
             disabled={disabled}
-            className="px-2 py-1 text-[var(--qs-text-3)] transition hover:text-[var(--qs-cyan)] disabled:cursor-not-allowed"
+            className="px-2 py-1 text-(--qs-text-3) transition hover:text-(--qs-cyan) disabled:cursor-not-allowed"
             onClick={() => onActivatePrompt(flt)}
             title={flt.text}
           >
@@ -310,7 +293,7 @@ export function Filters({
           <button
             type="button"
             disabled={disabled}
-            className="border-l border-[var(--qs-border)] px-1.5 py-1 text-[10px] text-[var(--qs-text-3)] transition hover:text-[var(--qs-cyan)] disabled:cursor-not-allowed"
+            className="border-l border-(--qs-border) px-1.5 py-1 text-[10px] text-(--qs-text-3) transition hover:text-(--qs-cyan) disabled:cursor-not-allowed"
             onClick={() => openEdit(flt)}
             aria-label={`Edit quick prompt ${flt.label}`}
             title="Edit"
@@ -320,7 +303,7 @@ export function Filters({
           <button
             type="button"
             disabled={disabled}
-            className="border-l border-[var(--qs-border)] px-1.5 py-1 text-[10px] text-[var(--qs-text-3)] transition hover:bg-[var(--qs-red)]/15 hover:text-[var(--qs-red)] disabled:cursor-not-allowed"
+            className="border-l border-(--qs-border) px-1.5 py-1 text-[10px] text-(--qs-text-3) transition hover:bg-(--qs-red)/15 hover:text-(--qs-red) disabled:cursor-not-allowed"
             onClick={() => removeFilter(flt.id)}
             aria-label={`Remove quick prompt ${flt.label}`}
             title="Remove"
@@ -336,7 +319,7 @@ export function Filters({
       <button
         type="button"
         disabled={disabled}
-        className="inline-flex items-center gap-1 rounded border border-dashed border-[var(--qs-border)] px-2 py-1 text-[10px] text-[var(--qs-text-3)] transition hover:border-[var(--qs-cyan)]/45 hover:text-[var(--qs-cyan)] disabled:opacity-40"
+        className="inline-flex items-center gap-1 rounded border border-dashed border-(--qs-border) px-2 py-1 text-[10px] text-(--qs-text-3) transition hover:border-(--qs-cyan)/45 hover:text-(--qs-cyan) disabled:opacity-40"
         onClick={openAdd}
       >
         + Add prompt
@@ -346,7 +329,7 @@ export function Filters({
         <button
           type="button"
           disabled={disabled}
-          className="inline-flex items-center gap-1 rounded border border-[var(--qs-border)] px-2 py-1 text-[10px] text-[var(--qs-text-3)] transition hover:border-[var(--qs-cyan)]/45 hover:text-[var(--qs-cyan)] disabled:opacity-40"
+          className="inline-flex items-center gap-1 rounded border border-(--qs-border) px-2 py-1 text-[10px] text-(--qs-text-3) transition hover:border-(--qs-cyan)/45 hover:text-(--qs-cyan) disabled:opacity-40"
           onClick={restoreDefaults}
         >
           ↺ Restore defaults
@@ -357,7 +340,7 @@ export function Filters({
         <button
           type="button"
           disabled={disabled}
-          className="inline-flex items-center gap-1 rounded border border-[var(--qs-amber)]/45 px-2 py-1 text-[10px] text-[var(--qs-amber)] transition hover:bg-[var(--qs-amber)]/10 disabled:opacity-40"
+          className="inline-flex items-center gap-1 rounded border border-(--qs-amber)/45 px-2 py-1 text-[10px] text-(--qs-amber) transition hover:bg-(--qs-amber)/10 disabled:opacity-40"
           onClick={onClearPrompt}
         >
           Clear assignment
@@ -368,7 +351,7 @@ export function Filters({
         <button
           type="button"
           disabled={disabled || filters.length === 0}
-          className="rounded border border-[var(--qs-red)]/45 bg-[var(--qs-red)]/5 px-2 py-1 text-[10px] font-semibold text-[var(--qs-red)] transition hover:bg-[var(--qs-red)]/15 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded border border-(--qs-red)/45 bg-(--qs-red)/5 px-2 py-1 text-[10px] font-semibold text-(--qs-red) transition hover:bg-(--qs-red)/15 disabled:cursor-not-allowed disabled:opacity-40"
           onClick={clearAll}
         >
           Clear all prompts
@@ -379,28 +362,23 @@ export function Filters({
       </div>
 
       {editing ? (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Edit quick prompt"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              closeEdit();
-            }
-          }}
+        <HiveModalShell
+          open
+          onClose={closeEdit}
+          labelledBy="ballroom-prompt-edit-title"
+          align="center"
+          zIndexClass="z-[60]"
+          backdropClassName="bg-black/70 backdrop-blur-sm"
+          initialFocusRef={labelInputRef}
+          panelClassName="qs-card flex w-full max-w-md flex-col gap-4 rounded-xl p-5 max-h-[min(90dvh,640px)] overflow-y-auto"
         >
-          <div
-            ref={dialogRef}
-            className="qs-card flex w-full max-w-md flex-col gap-4 rounded-xl p-5 max-h-[min(90dvh,640px)] overflow-y-auto"
-          >
             <div className="flex items-center justify-between gap-3">
-              <h3 className="text-[14px] font-semibold text-[var(--qs-text)]">
+              <h3 id="ballroom-prompt-edit-title" className="text-[14px] font-semibold text-(--qs-text)">
                 {filters.some((f) => f.id === editing.id) ? "Edit quick prompt" : "Add quick prompt"}
               </h3>
               <button
                 type="button"
-                className="rounded border border-[var(--qs-border)] px-2 py-0.5 text-[11px] text-[var(--qs-text-3)] transition hover:text-[var(--qs-cyan)]"
+                className="rounded border border-(--qs-border) px-2 py-0.5 text-[11px] text-(--qs-text-3) transition hover:text-(--qs-cyan)"
                 onClick={closeEdit}
                 aria-label="Close"
               >
@@ -408,14 +386,14 @@ export function Filters({
               </button>
             </div>
 
-            <p className="text-[11px] leading-snug text-[var(--qs-text-3)]">
+            <p className="text-[11px] leading-snug text-(--qs-text-3)">
               Quick prompts are session assignments for the Orchestrator — like a project brief. They guide how
               Orchestrator receives tasks and replies; they are not inserted into the chat as messages.
             </p>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor={labelId} className="text-[10px] uppercase tracking-widest text-[var(--qs-text-3)]">
-                Name <span className="normal-case text-[10px] text-[var(--qs-text-3)]">({labelLeft} left)</span>
+              <label htmlFor={labelId} className="text-[10px] uppercase tracking-widest text-(--qs-text-3)">
+                Name <span className="normal-case text-[10px] text-(--qs-text-3)">({labelLeft} left)</span>
               </label>
               <input
                 id={labelId}
@@ -430,7 +408,7 @@ export function Filters({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor={textId} className="text-[10px] uppercase tracking-widest text-[var(--qs-text-3)]">
+              <label htmlFor={textId} className="text-[10px] uppercase tracking-widest text-(--qs-text-3)">
                 Assignment brief for Orchestrator
               </label>
               <textarea
@@ -444,7 +422,7 @@ export function Filters({
             </div>
 
             {error ? (
-              <p className="rounded border border-[var(--qs-red)]/45 bg-[var(--qs-red)]/10 px-3 py-1.5 text-[11px] text-[var(--qs-red)]">
+              <p className="rounded border border-(--qs-red)/45 bg-(--qs-red)/10 px-3 py-1.5 text-[11px] text-(--qs-red)">
                 {error}
               </p>
             ) : null}
@@ -465,8 +443,7 @@ export function Filters({
                 Save
               </button>
             </div>
-          </div>
-        </div>
+        </HiveModalShell>
       ) : null}
     </div>
   );

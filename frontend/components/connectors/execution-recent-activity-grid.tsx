@@ -122,7 +122,7 @@ function ActivityMarketCard({ item }: ActivityMarketCardProps): JSX.Element {
         {item.event_type} · {formatActivityAt(item.at)}
       </p>
 
-      <div className="mt-auto flex flex-wrap gap-2">
+      <div className="v4-dream-cycle-card-actions">
         <V4Badge tone={eventTone(item.event_type)}>{eventTypeLabel(item.event_type)}</V4Badge>
         {isDigest ? <V4Badge tone="gold">digest</V4Badge> : null}
         {item.payload?.pending_cleared === true ? <V4Badge tone="ok">cleared</V4Badge> : null}

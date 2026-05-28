@@ -65,7 +65,6 @@ const SUGGESTED_CONNECTORS = [
   "venice_mcp",
   "slack_web_api",
   "notion_workspace",
-  "stripe_billing",
 ];
 
 function routingLabel(mode: string): string {
@@ -266,7 +265,7 @@ export function SuperToolRouterPanel(): JSX.Element {
         <p className="v4-field-label">Quick setup presets</p>
         <div className="grid gap-3 md:grid-cols-3">
           {presets.map((preset) => (
-            <article key={preset.preset_id} className="v4-dream-cycle-card flex flex-col gap-2">
+            <article key={preset.preset_id} className="v4-dream-cycle-card flex h-full flex-col gap-2">
               <div className="flex items-start gap-2">
                 <Zap className="mt-0.5 h-4 w-4 shrink-0 text-pollen" aria-hidden />
                 <div>
@@ -275,14 +274,16 @@ export function SuperToolRouterPanel(): JSX.Element {
                 </div>
               </div>
               <p className="font-mono text-[10px] text-(--qs-text-3)">{preset.connector_slugs.join(" → ")}</p>
-              <button
-                type="button"
-                className="qs-btn qs-btn--ghost qs-btn--sm mt-auto"
-                disabled={busyId === preset.preset_id}
-                onClick={() => void applyPreset(preset)}
-              >
-                {busyId === preset.preset_id ? "Creating…" : "Use preset"}
-              </button>
+              <div className="v4-dream-cycle-card-actions">
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--primary qs-btn--sm"
+                  disabled={busyId === preset.preset_id}
+                  onClick={() => void applyPreset(preset)}
+                >
+                  {busyId === preset.preset_id ? "Creating…" : "Use preset"}
+                </button>
+              </div>
             </article>
           ))}
         </div>
@@ -427,7 +428,7 @@ export function SuperToolRouterPanel(): JSX.Element {
                 <p className="text-[11px] text-(--qs-text-3)">{routingLabel(row.routing_mode)}</p>
                 <p className="font-mono text-[10px] text-(--qs-text-3)">{row.connector_slugs.join(" → ")}</p>
                 <p className="text-[10px] text-(--qs-text-3)">Lanes: {row.manager_slugs.join(", ") || "all"}</p>
-                <div className="mt-auto flex flex-wrap gap-2">
+                <div className="v4-dream-cycle-card-actions">
                   <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => openEdit(row)}>
                     Edit
                   </button>

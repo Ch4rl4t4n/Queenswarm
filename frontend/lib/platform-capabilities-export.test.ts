@@ -16,7 +16,7 @@ describe("platform-capabilities-export", () => {
     expect(md).toContain("## Live features");
     expect(md).toContain("## Plánované features (roadmap)");
     expect(md).toContain("Dynamic Supervisor Sessions");
-    expect(md).toContain("Stripe live checkout");
+    expect(md).toContain("Pro tier gates live");
   });
 
   it("plain text strips markdown markers", () => {

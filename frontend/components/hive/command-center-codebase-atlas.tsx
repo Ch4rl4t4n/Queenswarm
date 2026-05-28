@@ -8,9 +8,9 @@ import {
   Layers,
   Loader2,
   Monitor,
-  RefreshCw,
   Timer,
 } from "lucide-react";
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { useCallback, useState } from "react";
 import {
   Area,
@@ -259,10 +259,7 @@ export function CommandCenterCodebaseAtlas({ enabled }: { enabled: boolean }) {
           title="Codebase Atlas"
           description="Riadky kódu, odhadované hodiny vývoja (git sessions) a mapa architektúry — prepni FE / BE."
           actions={
-            <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-2" disabled={loading} onClick={() => void load()}>
-              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} aria-hidden />
-              Refresh
-            </button>
+            <HiveRefreshButton busy={loading} onClick={() => void load()} />
           }
         />
       </div>

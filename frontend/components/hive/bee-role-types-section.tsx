@@ -5,6 +5,7 @@ import { PencilIcon, Plus, XIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveDelete, hiveGet } from "@/lib/api";
 import type { AgentRow } from "@/lib/hive-types";
@@ -127,6 +128,7 @@ export function BeeRoleTypesSection({ agents }: BeeRoleTypesSectionProps) {
       <V4CardHeader
         title="Bee role types"
         description="11 role archetypes. Each bee picks one — clone, extend, or compose for custom workers."
+        hint={sectionHintNode("agentsRoles")}
         actions={
           <Link href="/agents/new" className="qs-btn qs-btn--ghost qs-btn--sm gap-2">
             <Plus className="h-4 w-4" aria-hidden />

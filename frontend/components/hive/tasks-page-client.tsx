@@ -13,7 +13,10 @@ import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { HivePageHeader } from "@/components/hive/hive-page-header";
+import { HivePageShell } from "@/components/hive/hive-page-shell";
+import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { HubEcosystemStrip } from "@/components/hive/hub-ecosystem-strip";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
 import {
@@ -22,16 +25,22 @@ import {
   V4Card,
   V4CardHeader,
   V4Chip,
-  V4PageCanvas,
   type V4BadgeTone,
 } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
+import { hivePageShellError } from "@/lib/hive-page-error";
+import {
+  AGENTS_HUB_PATH,
+  EXECUTION_LANE_CROSS_LINK_LABELS,
+  JOBS_PATH,
+  TASKS_HUB_PATH,
+  WORKFLOWS_PATH,
+} from "@/lib/execution-lane-routes";
 import { useCenterActiveInScrollRow } from "@/lib/hooks/use-center-active-in-scroll-row";
 import { COCKPIT_POLL_BOARD_MS } from "@/lib/cockpit-poll-profile";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import { SIMULATIONS_ENABLED } from "@/lib/feature-flags";
 import type { DashboardSummaryPayload, TaskQueueItem, TaskQueueResponse } from "@/lib/hive-types";
-import { cn } from "@/lib/utils";
 
 type FilterTab = "all" | "running" | "pending" | "done";
 
@@ -48,19 +57,19 @@ const LANE_CARDS = [
     icon: Plus,
   },
   {
-    href: "/workflows",
-    title: "Workflows",
+    href: WORKFLOWS_PATH,
+    title: EXECUTION_LANE_CROSS_LINK_LABELS.toWorkflows,
     description: "Visual DAG execution, pause/resume, and run controls.",
     icon: GitBranch,
   },
   {
-    href: "/jobs",
-    title: "Jobs",
+    href: JOBS_PATH,
+    title: EXECUTION_LANE_CROSS_LINK_LABELS.toAsyncJobs,
     description: "Inspect async execution jobs, retries, and completion state.",
     icon: Zap,
   },
   {
-    href: "/agents",
+    href: AGENTS_HUB_PATH,
     title: "Routines",
     description: "Manage supervisor routines and schedule-driven task execution.",
     icon: RefreshCw,
@@ -177,7 +186,7 @@ export function TasksPageClient() {
     }
   }
 
-  const tasks = queue?.tasks ?? [];
+  const tasks = useMemo(() => queue?.tasks ?? [], [queue?.tasks]);
   const activeCount = (queue?.running_count ?? 0) + (queue?.pending_count ?? 0);
 
   const filteredTasks = useMemo(() => tasks.filter((task) => matchesFilter(task, filter)), [tasks, filter]);
@@ -195,46 +204,39 @@ export function TasksPageClient() {
     [tasks],
   );
 
-  if (err && !queue) {
-    return (
-      <V4PageCanvas>
-        <HivePageHeader title="Tasks" subtitle="Mission queue · workflows · async jobs" />
-        <V4Card>
-          <p className="text-sm text-(--qs-red)">{err}</p>
-        </V4Card>
-      </V4PageCanvas>
-    );
-  }
-
   const topLanes = LANE_CARDS.slice(0, 3);
   const bottomLanes = LANE_CARDS.slice(3);
 
-  return (
-    <V4PageCanvas className="gap-6">
-      <HivePageHeader
+  if (!queue) {
+    return (
+      <HivePageShell
         title="Tasks"
-        subtitle={
-          <>
-            <span className="text-(--qs-text-2)">{activeCount} active</span>
-            {" · "}
-            <span>{queue?.pending_count ?? 0} pending</span>
-            {" · "}
-            <span>{queue?.completed_today_count ?? 0} completed today</span>
-          </>
-        }
-        status={
-          <button
-            type="button"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-(--qs-border) bg-black/55 text-zinc-300 hover:border-(--qs-border-2) hover:text-pollen disabled:opacity-50"
-            aria-label="Sync task queue"
-            disabled={busy}
-            onClick={() => void syncNow()}
-          >
-            <RefreshCw className={cn("h-4 w-4", busy && "animate-spin")} aria-hidden />
-          </button>
-        }
-      />
+        subtitle="Mission queue · workflows · async jobs"
+        hintKey="tasks"
+        error={hivePageShellError(err, () => setErr(null))}
+      >
+        <HivePanelSectionSkeleton label="Loading task queue" minHeightClass="min-h-[20rem]" />
+      </HivePageShell>
+    );
+  }
 
+  return (
+    <HivePageShell
+      canvasClassName="gap-6"
+      title="Tasks"
+      subtitle={
+        <>
+          <span className="text-(--qs-text-2)">{activeCount} active</span>
+          {" · "}
+          <span>{queue?.pending_count ?? 0} pending</span>
+          {" · "}
+          <span>{queue?.completed_today_count ?? 0} completed today</span>
+        </>
+      }
+      hintKey="tasks"
+      error={hivePageShellError(err, () => setErr(null))}
+      status={<HiveRefreshButton busy={busy} label="Sync" onClick={() => void syncNow()} />}
+    >
       <HubEcosystemStrip preset="tasks" />
 
       <div className="v4-mobile-card-slider v4-mobile-card-slider--cols-3">
@@ -403,6 +405,7 @@ export function TasksPageClient() {
           <V4CardHeader
             title="Performance by tier"
             description="Share of agents in the hive · API summary"
+            hint={sectionHintNode("tasksPerformanceTier")}
           />
           {tierRows.length ? (
             tierRows.map((row) => (
@@ -419,7 +422,11 @@ export function TasksPageClient() {
         </V4Card>
 
         <V4Card>
-          <V4CardHeader title="Recent tasks" description="Latest 6 rows from /api/v1/tasks" />
+          <V4CardHeader
+            title="Recent tasks"
+            description="Latest 6 rows from /api/v1/tasks"
+            hint={sectionHintNode("tasksRecent")}
+          />
           <div className="flex flex-col gap-3">
             {!recentTasks.length ? (
               <p className="text-sm text-(--qs-text-3)">No recent tasks.</p>
@@ -451,6 +458,6 @@ export function TasksPageClient() {
       </div>
 
       <TaskResultDrawer onClose={() => setSelectedTaskId(null)} taskId={selectedTaskId} />
-    </V4PageCanvas>
+    </HivePageShell>
   );
 }

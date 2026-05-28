@@ -3,7 +3,6 @@ import type { ComponentType } from "react";
 /** Slug segment after `/settings/` — must match SETTINGS_NAV_SECTIONS hrefs. */
 export type SettingsPanelSlug =
   | "security"
-  | "billing"
   | "team"
   | "sharing"
   | "llm-keys"
@@ -21,7 +20,6 @@ export const DEFAULT_SETTINGS_PANEL: SettingsPanelSlug = "security";
 
 export const SETTINGS_PANEL_SLUGS: readonly SettingsPanelSlug[] = [
   "security",
-  "billing",
   "team",
   "sharing",
   "llm-keys",
@@ -43,10 +41,6 @@ export const SETTINGS_PANEL_LOADERS: Record<SettingsPanelSlug, PanelLoader> = {
   security: () =>
     import("@/components/hive/security-2fa-settings").then((mod) => ({
       default: mod.Security2FASettings as ComponentType<object>,
-    })),
-  billing: () =>
-    import("@/components/hive/billing-settings-panel").then((mod) => ({
-      default: mod.BillingSettingsPanel as ComponentType<object>,
     })),
   team: () =>
     import("@/components/hive/team-settings-panel").then((mod) => ({

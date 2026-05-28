@@ -9,21 +9,21 @@ import { DashboardSettingsPanel } from "@/components/hive/dashboard-settings-pan
 import { HiveBottomNav } from "@/components/hive/hive-bottom-nav";
 import { BallroomFab } from "@/components/hive/ballroom-fab";
 import { HiveMobileHeader } from "@/components/hive/hive-mobile-header";
+import { SkipToMainLink } from "@/components/hive/skip-to-main-link";
 import { HiveMobileHeaderActionsProvider } from "@/components/hive/hive-mobile-header-actions";
 import { HiveMoreSheet } from "@/components/hive/hive-more-sheet";
 import { HotRouteChunkWarmer } from "@/components/hive/hot-route-chunk-warmer";
 import { IdleRoutePrefetcher } from "@/components/hive/idle-route-prefetcher";
+import { OPERATOR_CONTROL_PLANE_ENABLED, SINGLE_ADMIN_MODE } from "@/lib/feature-flags";
 import { resyncExecutionStudioPushIfEnabled } from "@/lib/execution-studio-push-session-sync";
+import { HIVE_MAIN_CONTENT_ID } from "@/lib/hive-a11y";
 import { HiveSidebar } from "@/components/hive/hive-sidebar";
 import { PlatformProvider } from "@/components/hive/platform-context";
 import { PlatformRouteGuard } from "@/components/hive/platform-route-guard";
 import { useDashboardSessionRefresh } from "@/lib/hooks/use-dashboard-session-refresh";
 import { hiveGet } from "@/lib/api";
 import { DASHBOARD_BOOT_STAGGER_MS } from "@/lib/dashboard-boot-stagger";
-import { hiveShortcutHrefForKey } from "@/lib/hive-sidebar-shortcuts";
-import { MEDIA_QUERIES } from "@/lib/breakpoints";
 import { cn } from "@/lib/utils";
-import { PHASE70_CONSOLIDATED_NAV_ENABLED } from "@/lib/feature-flags";
 import type { DashboardSummary, TenantListPayload } from "@/lib/hive-types";
 
 interface DashboardShellProps {
@@ -31,35 +31,6 @@ interface DashboardShellProps {
 }
 
 const SIDEBAR_W = "lg:left-[272px]";
-
-/** Desktop Ctrl+letter shortcuts (ignored when typing in inputs). */
-function useDesktopHiveShortcuts(router: ReturnType<typeof useRouter>): void {
-  useEffect(() => {
-    const mq = window.matchMedia(MEDIA_QUERIES.desktop);
-    if (!mq.matches) {
-      return undefined;
-    }
-
-    const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable || t.tagName === "SELECT")) {
-        return;
-      }
-      if (!e.ctrlKey || e.altKey || e.metaKey) {
-        return;
-      }
-      const href = hiveShortcutHrefForKey(e.key, PHASE70_CONSOLIDATED_NAV_ENABLED);
-      if (!href) {
-        return;
-      }
-      e.preventDefault();
-      router.push(href);
-    };
-
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [router]);
-}
 
 /**
  * Shell layout:
@@ -75,12 +46,15 @@ export function DashboardShell({ children }: DashboardShellProps) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
-  useDesktopHiveShortcuts(router);
   useDashboardSessionRefresh();
 
   const closeDrawer = useCallback(() => setMobileDrawerOpen(false), []);
 
   useEffect(() => {
+    if (SINGLE_ADMIN_MODE) {
+      setTenants(null);
+      return;
+    }
     let alive = true;
     const timer = window.setTimeout(() => {
       void (async () => {
@@ -134,15 +108,18 @@ export function DashboardShell({ children }: DashboardShellProps) {
       <HotRouteChunkWarmer />
       <DashboardLayoutProvider>
         <HiveMobileHeaderActionsProvider>
-        <div className="relative z-[1] flex min-h-screen min-w-0 bg-transparent text-[var(--qs-text)]">
+        <div className="relative z-[1] flex min-h-screen min-w-0 bg-transparent text-(--qs-text)">
           <HiveSidebar
             pathname={pathname}
             mobileOpen={mobileDrawerOpen}
             onMobileClose={closeDrawer}
             summary={summary}
-            tenants={tenants}
-            tenantSwitching={tenantSwitching}
+            tenants={SINGLE_ADMIN_MODE ? null : tenants}
+            tenantSwitching={SINGLE_ADMIN_MODE ? false : tenantSwitching}
             onTenantSwitch={(tenantId) => {
+              if (SINGLE_ADMIN_MODE) {
+                return;
+              }
               setTenantSwitching(true);
               void fetch("/api/auth/tenant-switch", {
                 method: "POST",
@@ -158,7 +135,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
                 .finally(() => setTenantSwitching(false));
             }}
           />
-          <DashboardSettingsPanel />
+          {!OPERATOR_CONTROL_PLANE_ENABLED ? <DashboardSettingsPanel /> : null}
 
           <div
             className={cn(
@@ -182,10 +159,17 @@ export function DashboardShell({ children }: DashboardShellProps) {
               )}
             />
 
-            <HiveMobileHeader summary={summary} onOpenNav={() => setMobileDrawerOpen(true)} />
+            <SkipToMainLink />
+            <HiveMobileHeader
+              pathname={pathname}
+              summary={summary}
+              onOpenNav={() => setMobileDrawerOpen(true)}
+            />
 
             <main
+              id={HIVE_MAIN_CONTENT_ID}
               data-hive-shell="canvas"
+              tabIndex={-1}
               className={cn(
                 "relative mx-auto w-full min-w-0 flex-1",
                 "px-4 pt-4 pb-[calc(var(--qs-shell-bottom-nav-h)+4.25rem+env(safe-area-inset-bottom))]",
@@ -198,9 +182,18 @@ export function DashboardShell({ children }: DashboardShellProps) {
               <PlatformRouteGuard>{children}</PlatformRouteGuard>
             </main>
 
-            <HiveBottomNav onMore={() => setMoreOpen(true)} pathname={pathname} />
+            <HiveBottomNav
+              onMore={() => setMoreOpen(true)}
+              pathname={pathname}
+              moreOpen={moreOpen}
+            />
             <BallroomFab hidden={mobileDrawerOpen || moreOpen} />
-            <HiveMoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} pathname={pathname} tenants={tenants} />
+            <HiveMoreSheet
+              open={moreOpen}
+              onClose={() => setMoreOpen(false)}
+              pathname={pathname}
+              tenants={SINGLE_ADMIN_MODE ? null : tenants}
+            />
           </div>
         </div>
         </HiveMobileHeaderActionsProvider>

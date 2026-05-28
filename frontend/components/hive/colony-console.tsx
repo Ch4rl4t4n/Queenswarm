@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import nextDynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { DashboardSectionSkeleton } from "@/components/hive/colony-console-skeleton";
 import { CockpitTelemetryProvider, useCockpitTelemetry } from "@/components/hive/cockpit-telemetry-provider";
+import { HiveModalShell } from "@/components/hive/hive-modal-shell";
 import { useDashboardSection } from "@/components/hive/dashboard-layout-provider";
 import { QueenDashboardChrome } from "@/components/hive/queen-dashboard-chrome";
 import { QsSelect } from "@/components/ui/qs-select";
@@ -112,6 +113,7 @@ function ColonyConsoleInner({ initialAgents = [], rosterSyncPending = false }: C
   const [busyId, setBusyId] = useState<string | null>(null);
   const [draftById, setDraftById] = useState<Record<string, ConfigDraft>>({});
   const [modalAgentId, setModalAgentId] = useState<string | null>(null);
+  const modalCloseRef = useRef<HTMLButtonElement>(null);
   const [subSwarms, setSubSwarms] = useState<SwarmRowLite[]>([]);
 
   const [newName, setNewName] = useState("");
@@ -133,7 +135,10 @@ function ColonyConsoleInner({ initialAgents = [], rosterSyncPending = false }: C
     refreshAgents,
   } = useCockpitTelemetry();
 
-  const agents = telemetryAgents.length > 0 ? telemetryAgents : (initialAgents ?? []);
+  const agents = useMemo(
+    () => (telemetryAgents.length > 0 ? telemetryAgents : (initialAgents ?? [])),
+    [telemetryAgents, initialAgents],
+  );
 
   const grouped = useMemo(() => {
     const orchestrator: AgentRow[] = [];
@@ -398,8 +403,8 @@ function ColonyConsoleInner({ initialAgents = [], rosterSyncPending = false }: C
               <section id="hive-create" className="scroll-mt-28">
                 <p className="mb-4 text-sm text-(--qs-text-3)">
                   Everyone appears in{" "}
-                  <Link href="/#hive-live-swarm" className="text-(--qs-cyan) hover:text-pollen">
-                    Live network
+                  <Link href="/swarms" className="text-(--qs-cyan) hover:text-pollen">
+                    Swarms
                   </Link>
                   . Prefer the full wizard?{" "}
                   <Link href="/agents/new" className="text-pollen hover:underline">
@@ -443,13 +448,14 @@ function ColonyConsoleInner({ initialAgents = [], rosterSyncPending = false }: C
       ) : null}
 
       {modalAgent && modalDraft ? (
-        <div
-          className="v4-modal-overlay fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="agent-config-title"
-        >
-          <div className="v4-modal max-h-[90vh] w-full max-w-lg overflow-y-auto p-6">
+      <HiveModalShell
+        open
+        onClose={closeModal}
+        overlayClassName="v4-modal-overlay items-end sm:items-center"
+        panelClassName="v4-modal max-h-[90vh] w-full max-w-lg overflow-y-auto p-6"
+        labelledBy="agent-config-title"
+        initialFocusRef={modalCloseRef}
+      >
             <h3 id="agent-config-title" className="text-lg font-semibold text-pollen">
               {modalAgent.name}
             </h3>
@@ -568,7 +574,7 @@ function ColonyConsoleInner({ initialAgents = [], rosterSyncPending = false }: C
             </label>
 
             <div className="mt-6 flex flex-wrap justify-end gap-3">
-              <button type="button" className="qs-btn qs-btn--ghost min-w-[9rem]" onClick={closeModal}>
+              <button ref={modalCloseRef} type="button" className="qs-btn qs-btn--ghost min-w-[9rem]" onClick={closeModal}>
                 Close
               </button>
               <button
@@ -580,8 +586,7 @@ function ColonyConsoleInner({ initialAgents = [], rosterSyncPending = false }: C
                 Save
               </button>
             </div>
-          </div>
-        </div>
+      </HiveModalShell>
       ) : null}
     </div>
   );

@@ -1,7 +1,8 @@
 import type { UiLanguage } from "@/lib/ui-language";
 
 /** Navigation and function names stay English regardless of UI language. */
-export function localizeNavLabel(label: string, _language?: UiLanguage): string {
+export function localizeNavLabel(label: string, language?: UiLanguage): string {
+  void language;
   return label;
 }
 
@@ -10,7 +11,7 @@ export function localizePhrase(_language: UiLanguage, copy: { en: string; sk: st
   return copy.en;
 }
 
-/** Section descriptions and manual prose — Slovak when SVK is selected. */
-export function localizeDescription(language: UiLanguage, copy: { en: string; sk: string }): string {
-  return language === "sk" ? copy.sk : copy.en;
+/** Section descriptions and manual prose — English only. */
+export function localizeDescription(_language: UiLanguage, copy: { en: string; sk: string }): string {
+  return copy.en;
 }

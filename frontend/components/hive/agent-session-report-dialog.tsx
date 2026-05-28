@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AgentSessionEventLog } from "@/components/hive/agent-session-event-log";
+import { HiveModalShell, hiveModalBottomSheetPanelClass } from "@/components/hive/hive-modal-shell";
 import { SubAgentSessionCard } from "@/components/hive/sub-agent-session-card";
 import { V4Badge } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
@@ -146,17 +147,15 @@ export function AgentSessionReportDialog({ sessionId, open, onOpenChange }: Agen
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[72] flex items-end justify-center bg-black/75 p-0 sm:items-center sm:p-4"
-      onClick={() => onOpenChange(false)}
-      role="presentation"
+    <HiveModalShell
+      open
+      onClose={() => onOpenChange(false)}
+      labelledBy="session-report-title"
+      align="bottom-sheet"
+      zIndexClass="z-[72]"
+      closeLabel="Close report"
+      panelClassName={cn(hiveModalBottomSheetPanelClass, "max-h-[min(92dvh,920px)] max-w-3xl")}
     >
-      <div
-        className="qs-bubble flex max-h-[min(92dvh,920px)] w-full max-w-3xl flex-col overflow-hidden rounded-t-(--qs-radius-lg) sm:rounded-(--qs-radius-lg)"
-        onClick={(event) => event.stopPropagation()}
-        role="dialog"
-        aria-labelledby="session-report-title"
-      >
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-(--qs-border) px-4 py-4 sm:px-5">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -294,7 +293,6 @@ export function AgentSessionReportDialog({ sessionId, open, onOpenChange }: Agen
             ))}
           </div>
         </footer>
-      </div>
-    </div>
+    </HiveModalShell>
   );
 }

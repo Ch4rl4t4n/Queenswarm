@@ -9,8 +9,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.core.config import settings
-from app.presentation.api.deps import get_db, require_subject
-from app.core.jwt_tokens import create_access_token
+from app.presentation.api.deps import dashboard_admin_wall, get_db, require_dashboard_session
 from app.main import app
 from app.schemas.recipes_search import RecipeSemanticHit
 
@@ -34,7 +33,8 @@ async def test_simulations_returns_rows_from_mock_session(
     restore_app_overrides: None,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    app.dependency_overrides[require_subject] = lambda: "pytest"
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:pytest"}
+    app.dependency_overrides[dashboard_admin_wall] = lambda: True
     monkeypatch.setattr(settings, "simulations_enabled", True)
 
     async def mock_db() -> AsyncIterator[AsyncMock]:
@@ -45,12 +45,10 @@ async def test_simulations_returns_rows_from_mock_session(
         yield session
 
     app.dependency_overrides[get_db] = mock_db
-    token, _ = create_access_token(subject="pytest")
-    headers = {"Authorization": f"Bearer {token}"}
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.get("/api/v1/simulations", headers=headers)
+        response = await client.get("/api/v1/simulations")
 
     assert response.status_code == 200
     assert response.json() == []
@@ -69,7 +67,7 @@ async def test_recipes_list_empty_mock_db(
     restore_app_overrides: None,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    app.dependency_overrides[require_subject] = lambda: "pytest"
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:pytest"}
     monkeypatch.setattr(settings, "recipes_enabled", True)
     monkeypatch.setattr(settings, "leaderboard_enabled", True)
 
@@ -81,12 +79,10 @@ async def test_recipes_list_empty_mock_db(
         yield session
 
     app.dependency_overrides[get_db] = mock_db
-    token, _ = create_access_token(subject="pytest")
-    headers = {"Authorization": f"Bearer {token}"}
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.get("/api/v1/recipes", headers=headers)
+        response = await client.get("/api/v1/recipes")
 
     assert response.status_code == 200
     assert response.json() == []
@@ -105,7 +101,7 @@ async def test_recipes_search_returns_hits_through_bridge(
     restore_app_overrides: None,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    app.dependency_overrides[require_subject] = lambda: "pytest"
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:pytest"}
     monkeypatch.setattr(settings, "recipes_enabled", True)
 
     async def mock_db() -> AsyncIterator[AsyncMock]:
@@ -132,14 +128,10 @@ async def test_recipes_search_returns_hits_through_bridge(
         fake_search,
     )
 
-    token, _ = create_access_token(subject="pytest")
-    headers = {"Authorization": f"Bearer {token}"}
-
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get(
             "/api/v1/recipes/search",
-            headers=headers,
             params={"q": "verify workflow", "limit": 3},
         )
 

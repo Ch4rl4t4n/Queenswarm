@@ -8,15 +8,9 @@ describe("ui language policy", () => {
     expect(localizePhrase("sk", { en: "Save key", sk: "Uložiť kľúč" })).toBe("Save key");
   });
 
-  it("localizes descriptions when SVK is selected", () => {
+  it("always uses English for descriptions", () => {
     expect(
       localizeDescription("sk", {
-        en: "Choose which blocks appear on Queen Dashboard.",
-        sk: "Vyber, ktoré bloky sa zobrazia na Queen Dashboard.",
-      }),
-    ).toBe("Vyber, ktoré bloky sa zobrazia na Queen Dashboard.");
-    expect(
-      localizeDescription("en", {
         en: "Choose which blocks appear on Queen Dashboard.",
         sk: "Vyber, ktoré bloky sa zobrazia na Queen Dashboard.",
       }),

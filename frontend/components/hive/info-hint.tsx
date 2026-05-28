@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { useRef, useState, type ReactNode } from "react";
 
-import { useUiLanguage } from "@/components/hive/ui-language-provider";
+import { HivePopoverShell } from "@/components/hive/hive-popover-shell";
 import {
   resolveLocalizedDescription,
   resolveLocalizedLabel,
@@ -10,78 +11,80 @@ import {
   type MaybeLocalizedString,
   type MaybeLocalizedStringList,
 } from "@/lib/ui-language";
-import { localizeDescription } from "@/lib/ui-copy";
 import { cn } from "@/lib/utils";
 
 interface InfoHintProps {
   title: MaybeLocalizedString;
   description: MaybeLocalizedString;
   options?: MaybeLocalizedStringList;
+  /** Deep link to full manual section, e.g. `/manual#bee-hotline`. */
+  manualHref?: string;
+  manualLabel?: string;
   className?: string;
 }
 
 /**
- * Small circular info icon with an inline popup.
- * Used across sections to explain functionality and available settings.
+ * Small circular info icon with a portaled popup — escapes card overflow and stacks above all UI.
  */
-export function InfoHint({ title, description, options, className }: InfoHintProps): ReactNode {
-  const { language } = useUiLanguage();
+export function InfoHint({
+  title,
+  description,
+  options,
+  manualHref,
+  manualLabel = "Full manual →",
+  className,
+}: InfoHintProps): ReactNode {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLSpanElement | null>(null);
-  const titleText = resolveLocalizedLabel(title, language);
-  const descriptionText = resolveLocalizedDescription(description, language);
-  const optionItems = resolveLocalizedStringList(options, language);
-  const settingsOptionsLabel = localizeDescription(language, {
-    en: "Configuration options",
-    sk: "Možnosti nastavenia",
-  });
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const onClickAway = (event: MouseEvent) => {
-      if (!wrapRef.current) {
-        return;
-      }
-      if (!wrapRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    window.addEventListener("mousedown", onClickAway);
-    return () => window.removeEventListener("mousedown", onClickAway);
-  }, [open]);
+  const titleText = resolveLocalizedLabel(title, "en");
+  const descriptionText = resolveLocalizedDescription(description, "en");
+  const optionItems = resolveLocalizedStringList(options, "en");
+  const settingsOptionsLabel = "Configuration options";
 
   return (
-    <span ref={wrapRef} className={cn("relative inline-flex", className)}>
-      <button
-        type="button"
-        aria-label={`Info: ${titleText}`}
-        onClick={() => setOpen((prev) => !prev)}
-        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[color:var(--qs-border-2)] bg-[#0a1424] text-[11px] font-semibold text-cyan transition hover:border-[color:var(--qs-border-2)] hover:text-white"
-      >
-        i
-      </button>
-      {open ? (
-        <span
-          role="dialog"
-          className="absolute right-0 top-7 z-50 w-[min(320px,85vw)] rounded-xl border border-[color:var(--qs-border-2)] bg-[#060c16] p-3 text-left shadow-[0_0_24px_rgba(0,255,255,0.16)]"
+    <>
+      <span ref={wrapRef} className={cn("hive-inline-hint", className)}>
+        <button
+          ref={buttonRef}
+          type="button"
+          aria-label={`Info: ${titleText}`}
+          aria-expanded={open}
+          onClick={() => setOpen((prev) => !prev)}
+          className="hive-inline-hint-trigger"
         >
-          <strong className="block text-sm text-zinc-100">{titleText}</strong>
-          <span className="mt-1 block text-xs leading-relaxed text-zinc-300">{descriptionText}</span>
-          {optionItems?.length ? (
-            <span className="mt-2 block">
-              <span className="block text-[11px] uppercase tracking-[0.08em] text-zinc-500">{settingsOptionsLabel}</span>
-              <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-zinc-300">
-                {optionItems.map((option) => (
-                  <li key={option}>{option}</li>
-                ))}
-              </ul>
-            </span>
-          ) : null}
-        </span>
-      ) : null}
-    </span>
+          i
+        </button>
+      </span>
+      <HivePopoverShell
+        open={open}
+        onClose={() => setOpen(false)}
+        presentation="anchor"
+        anchorRef={buttonRef}
+        ignoreOutsideRefs={[wrapRef]}
+        ariaLabel={titleText}
+        panelClassName="hive-info-hint-panel"
+        preferredWidth={320}
+      >
+        <strong className="hive-info-hint-panel__title">{titleText}</strong>
+        <p className="hive-info-hint-panel__description">{descriptionText}</p>
+        {optionItems?.length ? (
+          <div className="hive-info-hint-panel__options">
+            <span className="hive-info-hint-panel__options-label">{settingsOptionsLabel}</span>
+            <ul className="hive-info-hint-panel__list">
+              {optionItems.map((option) => (
+                <li key={option}>{option}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {manualHref ? (
+          <Link href={manualHref} className="hive-info-hint-panel__link" onClick={() => setOpen(false)}>
+            {manualLabel}
+          </Link>
+        ) : null}
+      </HivePopoverShell>
+    </>
   );
 }
-

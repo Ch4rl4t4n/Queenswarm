@@ -3,11 +3,11 @@
 import type { JSX } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import {
-  DynamicCollectorDeck,
+import { DynamicCollectorDeck,
   type CollectorCardItem,
   type CollectorTab,
 } from "@/components/hive/dynamic-collector-deck";
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { V4Badge, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 
@@ -105,7 +105,7 @@ export function UnifiedToolHubPanel(): JSX.Element {
   }, [load]);
 
   const venice = overview?.venice_preset ?? null;
-  const registry = overview?.registry ?? [];
+  const registry = useMemo(() => overview?.registry ?? [], [overview?.registry]);
 
   const filteredRegistry = useMemo(() => {
     const needle = goal.trim().toLowerCase();
@@ -193,6 +193,7 @@ export function UnifiedToolHubPanel(): JSX.Element {
         as="h3"
         title="Unified Tool Hub"
         description="Orchestrated MCP registry with cost and latency hints — supervisor lanes pick tools by goal overlap."
+        hint={sectionHintNode("integrationsHubTools")}
       />
 
       {error ? (
@@ -200,7 +201,7 @@ export function UnifiedToolHubPanel(): JSX.Element {
       ) : null}
 
       {venice ? (
-        <article className="v4-dream-cycle-card qs-bubble--tint-cyan space-y-3">
+        <article className="v4-dream-cycle-card qs-bubble--tint-cyan flex flex-col gap-3">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-(--qs-cyan)">Featured MCP preset</p>
@@ -229,14 +230,16 @@ export function UnifiedToolHubPanel(): JSX.Element {
             </div>
           ) : null}
           {!venice.installed ? (
-            <button
-              type="button"
-              className="qs-btn qs-btn--primary qs-btn--sm"
-              disabled={busyId === venice.id}
-              onClick={() => void installVenice()}
-            >
-              {busyId === venice.id ? "Installing Venice…" : "Install Venice MCP preset"}
-            </button>
+            <div className="v4-dream-cycle-card-actions">
+              <button
+                type="button"
+                className="qs-btn qs-btn--primary qs-btn--sm"
+                disabled={busyId === venice.id}
+                onClick={() => void installVenice()}
+              >
+                {busyId === venice.id ? "Installing Venice…" : "Install Venice MCP preset"}
+              </button>
+            </div>
           ) : (
             <p className="text-[11px] text-(--qs-green)">Venice connector ready — add bearer token in hub and test connection.</p>
           )}

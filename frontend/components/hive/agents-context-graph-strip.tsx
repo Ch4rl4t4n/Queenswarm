@@ -3,11 +3,13 @@
 import type { JSX } from "react";
 
 import Link from "next/link";
-import { Loader2Icon, RefreshCwIcon } from "lucide-react";
+import { Loader2Icon } from "lucide-react";
 import { useMemo } from "react";
 import useSWR from "swr";
 
 import { CollapsibleLazyPanel } from "@/components/hive/collapsible-lazy-panel";
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { V4Badge, V4CardHeader } from "@/components/ui/v4";
 import { hiveGet } from "@/lib/api";
 import { COCKPIT_POLL_HIVE_MIND_GRAPH_MS } from "@/lib/cockpit-poll-profile";
@@ -17,7 +19,6 @@ import {
   probeGoalTokens,
 } from "@/lib/hive-graph-focus";
 import { useSwrVisiblePollOptions } from "@/lib/hooks/use-swr-refresh-interval";
-import { cn } from "@/lib/utils";
 
 interface HiveGraphNode {
   id: string;
@@ -55,6 +56,8 @@ interface AgentsContextGraphStripProps {
   /** When set, semantic search + token match highlights related nodes. */
   focusGoal?: string | null;
   focusSessionLabel?: string | null;
+  /** Static panel — no collapse toggle (Ecosystem sub-tab). */
+  expanded?: boolean;
 }
 
 function layoutNodes(nodes: HiveGraphNode[], width: number, height: number): LayoutNode[] {
@@ -162,23 +165,14 @@ function ContextGraphExpandedBody({
 
   return (
     <>
-      <div className="relative pr-10">
-        <V4CardHeader
-          as="h3"
-          kicker="Shared memory"
-          title="Context graph"
-          description="Neo4j constellation linked to supervisor sessions — refreshes while tab is visible."
-        />
-        <button
-          type="button"
-          aria-label="Refresh context graph"
-          className="qs-btn qs-btn--ghost qs-btn--sm absolute right-0 top-0"
-          disabled={isLoading}
-          onClick={() => void mutate()}
-        >
-          <RefreshCwIcon className={cn("h-4 w-4", isLoading && "animate-spin")} aria-hidden />
-        </button>
-      </div>
+      <V4CardHeader
+        as="h3"
+        kicker="Shared memory"
+        title="Context graph"
+        description="Neo4j constellation linked to supervisor sessions — refreshes while tab is visible."
+        hint={sectionHintNode("agentsContext")}
+        actions={<HiveRefreshButton busy={isLoading} onClick={() => void mutate()} />}
+      />
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Link href="/knowledge" className="qs-btn qs-btn--primary qs-btn--sm">
@@ -216,13 +210,14 @@ function ContextGraphExpandedBody({
 }
 
 /** Compact Neo4j snapshot — collapsed by default, purple rim (no white bubble border). */
-export function AgentsContextGraphStrip({ focusGoal, focusSessionLabel }: AgentsContextGraphStripProps): JSX.Element {
+export function AgentsContextGraphStrip({ focusGoal, focusSessionLabel, expanded = false }: AgentsContextGraphStripProps): JSX.Element {
   return (
     <CollapsibleLazyPanel
       id="context-graph"
       title="Context graph"
       hint="Shared memory · Neo4j"
       className="v4-context-graph-panel"
+      expanded={expanded}
       lazyContent={() => <ContextGraphExpandedBody focusGoal={focusGoal} focusSessionLabel={focusSessionLabel} />}
     />
   );

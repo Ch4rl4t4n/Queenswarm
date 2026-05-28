@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
+import { HiveModalShell } from "@/components/hive/hive-modal-shell";
 import { cn } from "@/lib/utils";
 import { COCKPIT_POLL_SWARM_MANAGER_MS } from "@/lib/cockpit-poll-profile";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
@@ -84,6 +85,7 @@ export function SwarmManagerConsole() {
   const [swarms, setSwarms] = useState<SubSwarmApi[]>([]);
   const [agents, setAgents] = useState<AgentApi[]>([]);
   const [creating, setCreating] = useState(false);
+  const createCancelRef = useRef<HTMLButtonElement>(null);
   const [assigningTo, setAssigningTo] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -261,19 +263,15 @@ export function SwarmManagerConsole() {
         </button>
       </div>
 
-      {creating ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-          role="dialog"
-          aria-modal
-          onClick={() => setCreating(false)}
-          onKeyDown={(e) => e.key === "Escape" && setCreating(false)}
-        >
-          <div
-            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-pollen/30 bg-[#0f0f1a] p-6 shadow-[0_0_48px_rgb(255_184_0/0.15)]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="font-[family-name:var(--font-poppins)] text-lg font-bold text-[#fafafa]">
+      <HiveModalShell
+        open={creating}
+        onClose={() => setCreating(false)}
+        panelClassName="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-pollen/30 bg-[#0f0f1a] p-6 shadow-[0_0_48px_rgb(255_184_0/0.15)]"
+        labelledBy="swarm-create-title"
+        initialFocusRef={createCancelRef}
+        backdropClassName="bg-black/70"
+      >
+            <h3 id="swarm-create-title" className="font-[family-name:var(--font-poppins)] text-lg font-bold text-[#fafafa]">
               Create new swarm
             </h3>
             <label className="mt-6 block qs-label">
@@ -347,16 +345,14 @@ export function SwarmManagerConsole() {
               className="mt-2 w-full resize-y rounded-xl border border-white/15 bg-black/55 px-3 py-2.5 font-[family-name:var(--font-poppins)] text-xs text-[#fafafa] outline-none focus:border-[color:var(--qs-border-2)]"
             />
             <div className="mt-6 flex gap-3">
-              <button type="button" onClick={() => setCreating(false)} className="qs-btn qs-btn--secondary qs-btn--full flex-1">
+              <button ref={createCancelRef} type="button" onClick={() => setCreating(false)} className="qs-btn qs-btn--secondary qs-btn--full flex-1">
                 Cancel
               </button>
               <button type="button" onClick={() => void createSwarm()} className="qs-btn qs-btn--primary qs-btn--full flex-[2]">
                 Create
               </button>
             </div>
-          </div>
-        </div>
-      ) : null}
+      </HiveModalShell>
 
       {loading ? (
         <p className="py-14 text-center text-sm text-zinc-500">Loading swarms…</p>

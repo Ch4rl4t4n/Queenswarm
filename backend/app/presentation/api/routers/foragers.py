@@ -230,7 +230,7 @@ async def update_forager(
     if tenant_id is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
     if body.model_dump(exclude_none=True) == {}:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No update fields provided.")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="No update fields provided.")
     service = ForagerService(db=db)
     row = await service.update(
         tenant_id=tenant_id,

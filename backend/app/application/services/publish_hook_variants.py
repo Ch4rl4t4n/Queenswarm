@@ -17,6 +17,18 @@ class PublishHookVariant(BaseModel):
     style: str
     hook: str = Field(max_length=280)
     rationale: str = Field(default="", max_length=200)
+    score: float = Field(default=0.0, ge=0.0, le=1.0)
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+
+
+_CHANNEL_STYLE_WEIGHT: dict[str, dict[str, float]] = {
+    "instagram": {"curiosity": 0.84, "number": 0.78, "question": 0.76, "bold": 0.82, "cta": 0.86},
+    "facebook": {"curiosity": 0.78, "number": 0.8, "question": 0.74, "bold": 0.77, "cta": 0.81},
+    "twitter": {"curiosity": 0.8, "number": 0.75, "question": 0.73, "bold": 0.79, "thread": 0.9},
+    "x": {"curiosity": 0.8, "number": 0.75, "question": 0.73, "bold": 0.79, "thread": 0.9},
+    "tiktok": {"curiosity": 0.76, "number": 0.78, "question": 0.77, "bold": 0.81, "pov": 0.91},
+    "newsletter": {"curiosity": 0.74, "number": 0.81, "question": 0.72, "bold": 0.78, "cta": 0.7},
+}
 
 
 def _first_sentence(text: str, *, max_len: int = 120) -> str:
@@ -28,6 +40,33 @@ def _first_sentence(text: str, *, max_len: int = 120) -> str:
     if len(sentence) > max_len:
         return sentence[: max_len - 1].rstrip() + "…"
     return sentence
+
+
+def _style_weight(*, channel: str, style: str) -> float:
+    per_channel = _CHANNEL_STYLE_WEIGHT.get(channel.lower()) or {}
+    return float(per_channel.get(style.lower(), 0.72))
+
+
+def _text_quality_score(hook: str, *, channel: str) -> float:
+    text = hook.strip()
+    if not text:
+        return 0.0
+    max_len = 280 if channel.lower() in {"twitter", "x"} else 200
+    length_ratio = min(1.0, len(text) / max_len)
+    length_score = 1.0 - abs(length_ratio - 0.55)
+    punctuation_bonus = 0.06 if ("?" in text or "!" in text) else 0.0
+    emoji_bonus = 0.04 if any(ch in text for ch in ("🧵", "🔥", "🚀")) else 0.0
+    return max(0.0, min(1.0, 0.7 * length_score + punctuation_bonus + emoji_bonus))
+
+
+def score_publish_hook_variant(*, channel: str, style: str, hook: str) -> tuple[float, float]:
+    """Return deterministic score + confidence for one variant."""
+
+    style_score = _style_weight(channel=channel, style=style)
+    quality_score = _text_quality_score(hook, channel=channel)
+    score = max(0.0, min(1.0, 0.65 * style_score + 0.35 * quality_score))
+    confidence = max(0.0, min(1.0, 0.75 * score + 0.2 * style_score))
+    return round(score, 3), round(confidence, 3)
 
 
 def generate_publish_hook_variants(
@@ -110,9 +149,30 @@ def generate_publish_hook_variants(
             ),
         )
 
+    scored_candidates: list[PublishHookVariant] = []
+    for variant in candidates:
+        score, confidence = score_publish_hook_variant(
+            channel=ch,
+            style=variant.style,
+            hook=variant.hook,
+        )
+        scored_candidates.append(
+            variant.model_copy(
+                update={
+                    "score": score,
+                    "confidence": confidence,
+                },
+            ),
+        )
+
     seen: set[str] = set()
     unique: list[dict[str, Any]] = []
-    for variant in candidates:
+    ranked = sorted(
+        scored_candidates,
+        key=lambda item: (item.score, item.confidence, len(item.hook)),
+        reverse=True,
+    )
+    for variant in ranked:
         key = variant.hook.strip().lower()
         if not key or key in seen:
             continue
@@ -124,4 +184,4 @@ def generate_publish_hook_variants(
     return unique
 
 
-__all__ = ["PublishHookVariant", "generate_publish_hook_variants"]
+__all__ = ["PublishHookVariant", "generate_publish_hook_variants", "score_publish_hook_variant"]

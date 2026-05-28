@@ -134,13 +134,13 @@ async def create_operator_external_api(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive operator.")
 
     if body.provider not in _SUPPORTED_PROVIDERS:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown provider.")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Unknown provider.")
 
     try:
         ciphertext = encrypt_credentials_blob(body.credentials)
     except (TypeError, ValueError) as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Could not serialize credentials: {exc}",
         ) from exc
 

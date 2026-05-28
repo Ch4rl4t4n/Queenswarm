@@ -6,6 +6,7 @@ import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { HexNumberBadge } from "@/components/hive/hex-metric-tile";
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import { COCKPIT_POLL_WORKFLOW_BOARD_MS } from "@/lib/cockpit-poll-profile";
@@ -318,6 +319,7 @@ export function WorkflowsSection() {
       <V4CardHeader
         title="Workflows"
         description="DAG executions · auto-decomposed from tasks"
+        hint={sectionHintNode("agentsWorkflows")}
         as="h3"
       />
 

@@ -16,7 +16,7 @@ from app.application.services.paper_trading_service import (
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.infrastructure.persistence.models.external_project import ExternalProject
-from app.presentation.api.deps import DbSession, JwtSubject
+from app.presentation.api.deps import DashboardSession, DbSession
 
 logger = get_logger(__name__)
 
@@ -32,7 +32,7 @@ def _ensure_paper_trading_enabled() -> None:
 
 
 @router.get("/summary", summary="Paper trading P&L dashboard aggregate")
-async def paper_trading_summary(db: DbSession, _subject: JwtSubject) -> dict[str, object]:
+async def paper_trading_summary(db: DbSession, _session: DashboardSession) -> dict[str, object]:
     """Return simulated equity and P&L across paper trading projects."""
 
     _ensure_paper_trading_enabled()
@@ -49,7 +49,7 @@ async def paper_trading_summary(db: DbSession, _subject: JwtSubject) -> dict[str
 async def paper_trading_project_snapshot(
     project_id: uuid.UUID,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> dict[str, object]:
     """Return positions, fills, and P&L for one paper project."""
 
@@ -75,7 +75,7 @@ async def paper_trading_project_snapshot(
 @router.post("/tick", summary="Run paper trading bee tick (all auto projects)")
 async def paper_trading_tick_all(
     db: DbSession,
-    subject: JwtSubject,
+    session: DashboardSession,
 ) -> dict[str, object]:
     """Manually trigger paper trading evaluation (same as Celery beat)."""
 
@@ -89,7 +89,11 @@ async def paper_trading_tick_all(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Persistence rejected paper trading tick.",
         )
-    logger.info("paper_trading.manual_tick", operator_subject=subject, projects=payload.get("projects"))
+    logger.info(
+        "paper_trading.manual_tick",
+        operator_subject=str(session.get("sub", "dashboard_operator")),
+        projects=payload.get("projects"),
+    )
     return payload
 
 
@@ -97,7 +101,7 @@ async def paper_trading_tick_all(
 async def paper_trading_tick_one(
     project_id: uuid.UUID,
     db: DbSession,
-    subject: JwtSubject,
+    session: DashboardSession,
 ) -> dict[str, object]:
     """Evaluate signals and maybe fill for a single paper project."""
 
@@ -116,7 +120,11 @@ async def paper_trading_tick_one(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Persistence rejected paper trading tick.",
         )
-    logger.info("paper_trading.manual_project_tick", operator_subject=subject, project_id=str(project_id))
+    logger.info(
+        "paper_trading.manual_project_tick",
+        operator_subject=str(session.get("sub", "dashboard_operator")),
+        project_id=str(project_id),
+    )
     return result
 
 

@@ -5,23 +5,52 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   ArrowRight,
-  Hexagon,
-  Lightbulb,
-  Loader2,
-  Play,
-  RefreshCw,
-  Rocket,
-  Sparkles,
   Copy,
+  FlaskConical,
+  Gauge,
+  Lightbulb,
+  Link2,
+  Loader2,
+  MessageSquare,
+  Play,
+  Rocket,
+  Terminal,
+  Users,
 } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { HivePageShell } from "@/components/hive/hive-page-shell";
+import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
+import { HiveSectionSubnav } from "@/components/hive/hive-section-subnav";
+import { HiveSubnavContent } from "@/components/hive/hive-subnav-stack";
+import { HiveSubsectionHeader } from "@/components/hive/hive-subsection-header";
+import { InlineSectionHintKey } from "@/components/hive/inline-section-hint";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
+import { hivePageShellErrorFirst } from "@/lib/hive-page-error";
 import { COCKPIT_POLL_COLONY_TELEMETRY_MS } from "@/lib/cockpit-poll-profile";
+import { readCockpitCoreCache, writeCockpitCoreCache } from "@/lib/cockpit-cache";
+import { type CockpitHintKey } from "@/lib/cockpit-section-hints";
+import { executionStudioSectionHref } from "@/lib/integrations-routes";
+import {
+  cockpitSectionFromHash,
+  cockpitSectionHref,
+  resolveCockpitSection,
+  type CockpitSection,
+} from "@/lib/cockpit-routes";
 import { useRouteScopedPollOptions } from "@/lib/hooks/use-route-scoped-poll";
-import { cn } from "@/lib/utils";
+
+const GrokControlPlanePanel = dynamic(
+  () => import("@/components/hive/grok-control-plane-panel").then((mod) => ({ default: mod.GrokControlPlanePanel })),
+  { loading: () => <HivePanelSectionSkeleton label="Loading Grok control plane" /> },
+);
+
+const InnovationLabPanel = dynamic(
+  () => import("@/components/hive/innovation-lab-panel").then((mod) => ({ default: mod.InnovationLabPanel })),
+  { loading: () => <HivePanelSectionSkeleton label="Loading innovation lab" /> },
+);
 
 interface CockpitAction {
   id: string;
@@ -39,15 +68,6 @@ interface SwarmFleetItem {
   schedule_kind: string;
   autopilot: boolean;
   immune_status: "healthy" | "watch" | "quarantine";
-}
-
-interface InnovationProposal {
-  id: string;
-  title: string;
-  status: string;
-  risk_level: string;
-  feature_modules: string[];
-  implementation_plan_md: string;
 }
 
 interface OperatorCockpitSnapshot {
@@ -141,6 +161,19 @@ interface OperatorCockpitSnapshot {
       href: string | null;
     }>;
   };
+  grok_control_plane?: {
+    enabled: boolean;
+    cli_available: boolean;
+    active_runs: number;
+    draft_runs: number;
+    failed_runs: number;
+    failed_alert_threshold?: number;
+    health_level?: "ok" | "warn" | "error";
+  };
+}
+
+function CockpitHint({ hintKey }: { hintKey: CockpitHintKey }) {
+  return <InlineSectionHintKey hintKey={hintKey} />;
 }
 
 function priorityTone(p: CockpitAction["priority"]): "ok" | "warn" | "err" | "info" {
@@ -155,13 +188,40 @@ function immuneTone(s: SwarmFleetItem["immune_status"]): "ok" | "warn" | "err" {
   return "ok";
 }
 
+function grokHealthTone(health: OperatorCockpitSnapshot["grok_control_plane"]): "ok" | "warn" | "err" | "info" {
+  if (!health?.enabled) return "info";
+  const level = health.health_level ?? "ok";
+  if (level === "error") return "err";
+  if (level === "warn") return "warn";
+  if (level === "ok") return "ok";
+  return "ok";
+}
+
+const COCKPIT_SECTIONS: {
+  id: CockpitSection;
+  label: string;
+  icon: typeof Gauge;
+}[] = [
+  { id: "overview", label: "Overview", icon: Gauge },
+  { id: "command", label: "Command", icon: MessageSquare },
+  { id: "grok", label: "Grok", icon: Terminal },
+  { id: "icm", label: "ICM tools", icon: Link2 },
+  { id: "fleet", label: "Fleet", icon: Users },
+  { id: "modules", label: "Modules", icon: FlaskConical },
+  { id: "innovation", label: "Innovation", icon: Lightbulb },
+];
+
+const COCKPIT_SECTION_IDS: CockpitSection[] = COCKPIT_SECTIONS.map((row) => row.id);
+
 function OperatorCockpitPanelInner() {
-  const [snapshot, setSnapshot] = useState<OperatorCockpitSnapshot | null>(null);
-  const [proposals, setProposals] = useState<InnovationProposal[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [snapshot, setSnapshot] = useState<OperatorCockpitSnapshot | null>(() =>
+    readCockpitCoreCache<OperatorCockpitSnapshot>(),
+  );
+  const [loading, setLoading] = useState(() => readCockpitCoreCache<OperatorCockpitSnapshot>() === null);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
+  const [modulesErr, setModulesErr] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [hotline, setHotline] = useState("");
-  const [brainstorm, setBrainstorm] = useState("");
   const [crystal, setCrystal] = useState("");
   const [crystalPlan, setCrystalPlan] = useState<Record<string, unknown> | null>(null);
   const [linkUrl, setLinkUrl] = useState("");
@@ -172,20 +232,54 @@ function OperatorCockpitPanelInner() {
     Array<{ id: string; label: string; detail: string; priority: string; href: string | null; action: string | null }>
   >([]);
   const searchParams = useSearchParams();
+  const [section, setSection] = useState<CockpitSection>(() =>
+    resolveCockpitSection({ visibleIds: COCKPIT_SECTION_IDS }),
+  );
+  const [modulesHydrated, setModulesHydrated] = useState(false);
+  const [modulesLoading, setModulesLoading] = useState(false);
+
+  const dismissShellErrors = useCallback(() => {
+    setLoadErr(null);
+    setModulesErr(null);
+  }, []);
+
+  const shellError = hivePageShellErrorFirst([loadErr, modulesErr], dismissShellErrors);
+
+  const selectSection = useCallback((next: CockpitSection) => {
+    setSection(next);
+    window.history.replaceState(null, "", cockpitSectionHref(next));
+  }, []);
+
+  const loadModules = useCallback(async () => {
+    if (modulesHydrated) {
+      return;
+    }
+    setModulesLoading(true);
+    try {
+      const partial = await hiveGet<OperatorCockpitSnapshot>("operator/cockpit?scope=modules");
+      setSnapshot((prev) => (prev ? { ...prev, ...partial } : partial));
+      setModulesHydrated(true);
+      setModulesErr(null);
+    } catch (e) {
+      const msg = e instanceof HiveApiError ? e.message : "Modules snapshot unavailable";
+      setModulesErr(msg);
+    } finally {
+      setModulesLoading(false);
+    }
+  }, [modulesHydrated]);
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) {
       setLoading(true);
     }
     try {
-      const [cockpit, lab] = await Promise.all([
-        hiveGet<OperatorCockpitSnapshot>("operator/cockpit"),
-        hiveGet<{ proposals: InnovationProposal[] }>("operator/innovation-lab"),
-      ]);
+      const cockpit = await hiveGet<OperatorCockpitSnapshot>("operator/cockpit?scope=core");
       setSnapshot(cockpit);
-      setProposals(lab.proposals ?? []);
+      writeCockpitCoreCache(cockpit);
+      setLoadErr(null);
     } catch (e) {
-      toast.error(e instanceof HiveApiError ? e.message : "Cockpit unavailable");
+      const msg = e instanceof HiveApiError ? e.message : "Agentic OS unavailable";
+      setLoadErr(msg);
     } finally {
       if (!opts?.silent) {
         setLoading(false);
@@ -193,11 +287,33 @@ function OperatorCockpitPanelInner() {
     }
   }, []);
 
-  const pollOpts = useRouteScopedPollOptions(COCKPIT_POLL_COLONY_TELEMETRY_MS, "/cockpit");
+  const pollOpts = useRouteScopedPollOptions(COCKPIT_POLL_COLONY_TELEMETRY_MS, "/agentic-os");
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (section === "modules" && snapshot?.enabled) {
+      void loadModules();
+    }
+  }, [section, snapshot?.enabled, loadModules]);
+
+  useEffect(() => {
+    const syncFromHash = (): void => {
+      const fromHash = cockpitSectionFromHash(window.location.hash);
+      if (fromHash) {
+        setSection(fromHash);
+        return;
+      }
+      const next = resolveCockpitSection({ visibleIds: COCKPIT_SECTION_IDS });
+      setSection(next);
+      window.history.replaceState(null, "", cockpitSectionHref(next));
+    };
+    syncFromHash();
+    window.addEventListener("hashchange", syncFromHash);
+    return () => window.removeEventListener("hashchange", syncFromHash);
+  }, []);
 
   useEffect(() => {
     const ballroomSession = searchParams.get("ballroom_session")?.trim();
@@ -216,7 +332,8 @@ function OperatorCockpitPanelInner() {
           return;
         }
         setDialogueText(body.text);
-        document.getElementById("dialogue-extract")?.scrollIntoView({ behavior: "smooth" });
+        setSection("icm");
+        window.history.replaceState(null, "", cockpitSectionHref("icm"));
         toast.success(
           ballroomSession ? "Ballroom transcript loaded — run Extract." : "Dump & Sleep briefing loaded — run Extract.",
         );
@@ -319,7 +436,7 @@ function OperatorCockpitPanelInner() {
   const runLinkDrop = useCallback(async (persist: boolean) => {
     const url = linkUrl.trim();
     if (url.length < 8) {
-      toast.error("Zadaj platnú URL.");
+      toast.error("Enter a valid URL.");
       return;
     }
     setBusy(persist ? "link-persist" : "link-preview");
@@ -329,7 +446,7 @@ function OperatorCockpitPanelInner() {
         persist,
       });
       setLinkBrief(result.brief);
-      toast.success(persist ? "Brief uložený do Knowledge." : "Link brief pripravený.");
+      toast.success(persist ? "Brief saved to Knowledge." : "Link brief ready.");
     } catch (e) {
       toast.error(e instanceof HiveApiError ? e.message : "Link Drop failed");
     } finally {
@@ -342,7 +459,7 @@ function OperatorCockpitPanelInner() {
       const text = dialogueText.trim();
       const min = snapshot?.icm_tools?.min_dialogue_chars ?? 40;
       if (text.length < min) {
-        toast.error(`Min. ${min} znakov dialógu.`);
+        toast.error(`Minimum ${min} dialogue characters required.`);
         return;
       }
       setBusy(`dialogue-${apply}`);
@@ -359,12 +476,12 @@ function OperatorCockpitPanelInner() {
           });
           setKeywordMatches(scan.scan.matches ?? []);
         }
-        if (apply === "harness") toast.success("Pridané do harness memory.");
-        else if (apply === "knowledge") toast.success("Uložené do Knowledge.");
+        if (apply === "harness") toast.success("Added to harness memory.");
+        else if (apply === "knowledge") toast.success("Saved to Knowledge.");
         else if (apply === "recipe") {
-          toast.success("Recipe draft uložený.");
+          toast.success("Recipe draft saved.");
           if (result.applied?.href) window.location.href = result.applied.href;
-        } else toast.success("Dialogue extract hotový.");
+        } else toast.success("Dialogue extract complete.");
       } catch (e) {
         toast.error(e instanceof HiveApiError ? e.message : "Dialogue extract failed");
       } finally {
@@ -395,145 +512,251 @@ function OperatorCockpitPanelInner() {
     [runAction],
   );
 
-  const submitBrainstorm = useCallback(async () => {
-    const prompt = brainstorm.trim();
-    if (prompt.length < 8) {
-      toast.error("Min. 8 znakov pre brainstorm.");
-      return;
-    }
-    setBusy("brainstorm");
-    try {
-      await hivePostJson("operator/innovation-lab/brainstorm", { prompt, category: "feature" });
-      toast.success("Návrh vytvorený — schváľ a implementuj.");
-      setBrainstorm("");
-      await load();
-    } catch (e) {
-      toast.error(e instanceof HiveApiError ? e.message : "Brainstorm failed");
-    } finally {
-      setBusy(null);
-    }
-  }, [brainstorm, load]);
-
-  const reviewProposal = useCallback(
-    async (id: string, decision: "approved" | "rejected") => {
-      setBusy(id);
-      try {
-        await hivePostJson(`operator/innovation-lab/proposals/${id}/review`, { decision });
-        toast.success(decision === "approved" ? "Schválené" : "Zamietnuté");
-        await load();
-      } catch (e) {
-        toast.error(e instanceof HiveApiError ? e.message : "Review failed");
-      } finally {
-        setBusy(null);
-      }
-    },
-    [load],
-  );
-
-  const implementProposal = useCallback(
-    async (id: string) => {
-      setBusy(`impl-${id}`);
-      try {
-        const result = await hivePostJson<{ ok: boolean; handoff?: { session_id?: string } }>(
-          `operator/innovation-lab/proposals/${id}/implement`,
-          {},
-        );
-        if (result.ok) {
-          toast.success("Queen Maintainer queued — PR-only implementácia.");
-          await load();
-        } else {
-          toast.error("Implementácia zlyhala — skontroluj Maintainer.");
-        }
-      } catch (e) {
-        toast.error(e instanceof HiveApiError ? e.message : "Implement failed");
-      } finally {
-        setBusy(null);
-      }
-    },
-    [load],
-  );
-
   const copyProofLink = useCallback(async (url: string) => {
     try {
       await navigator.clipboard.writeText(url);
-      toast.success("Proof link skopírovaný");
+      toast.success("Proof link copied");
     } catch {
-      toast.error("Kopírovanie zlyhalo");
+      toast.error("Copy failed");
     }
   }, []);
 
+  const cockpitSubnav = (
+    <HiveSectionSubnav
+      primary={COCKPIT_SECTIONS.map(({ id, label, icon }) => ({ id, label, icon }))}
+      activePrimary={section}
+      onPrimaryChange={(id) => selectSection(id as CockpitSection)}
+      primaryAriaLabel="Agentic OS sections"
+      primaryMenuKey="cockpit-primary"
+    />
+  );
+
   if (loading && !snapshot) {
     return (
-      <p className="flex items-center gap-2 text-sm text-(--qs-muted)">
-        <Loader2 className="size-4 animate-spin" aria-hidden /> Loading Hive Cockpit…
-      </p>
+      <HivePageShell
+        title="Agentic OS"
+        subtitle="One entry point for bees, swarms, and factory."
+        hintKey="cockpit"
+        subnav={cockpitSubnav}
+        error={shellError}
+      >
+        <HivePanelSectionSkeleton label="Loading operator snapshot" minHeightClass="min-h-[12rem]" />
+      </HivePageShell>
     );
   }
 
   if (!snapshot?.enabled) {
     return (
-      <V4Card>
-        <p className="text-sm text-(--qs-muted)">Operator Control Plane is disabled on this deployment.</p>
-      </V4Card>
+      <HivePageShell
+        title="Agentic OS"
+        subtitle="Operator Control Plane"
+        hintKey="cockpit"
+        error={shellError}
+      >
+        <V4Card>
+          <p className="text-sm text-(--qs-muted)">Operator Control Plane is disabled on this deployment.</p>
+        </V4Card>
+      </HivePageShell>
     );
   }
 
-  const trioBound = snapshot.trio.lanes_bound ?? snapshot.trio.bound_lane_count ?? 0;
+  const refreshButton = <HiveRefreshButton busy={loading} onClick={() => void load()} />;
 
   return (
-    <div className="space-y-6">
-      <V4Card>
-        <V4CardHeader
-          kicker="Control Plane"
-          title="Hive Cockpit"
-          description="Jeden vstup — všetky včely, swarms a Factory. Advanced UI ostáva nezmenené."
-        />
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <V4Badge tone="info">
-            <Hexagon className="mr-1 inline size-3" aria-hidden />
-            3 Bees {trioBound}/3
-          </V4Badge>
-          <V4Badge tone={snapshot.innovation_lab.pending_count > 0 ? "warn" : "ok"}>
-            Innovation {snapshot.innovation_lab.pending_count} pending
-          </V4Badge>
-          <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void load()}>
-            <RefreshCw className={cn("size-4", loading && "animate-spin")} aria-hidden />
-            Refresh
-          </button>
-          <Link href={snapshot.links.advanced_dashboard ?? "/dashboard"} className="qs-btn qs-btn--ghost qs-btn--sm">
-            Advanced dashboard
-          </Link>
-        </div>
+    <HivePageShell
+      title="Agentic OS"
+      subtitle="One entry point for bees, swarms, and factory."
+      hintKey="cockpit"
+      subnav={cockpitSubnav}
+      error={shellError}
+    >
+      <HiveSubnavContent>
+      {section === "overview" ? (
+        <V4Card>
+          <V4CardHeader
+            kicker="Control Plane"
+            title="Operator overview"
+            description="Now actions, trust lanes, proof receipts, and priority queue."
+            hint={<CockpitHint hintKey="overview" />}
+            actions={refreshButton}
+          />
+          <div className="mb-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="qs-btn qs-btn--primary qs-btn--sm gap-1"
+              disabled={busy === "start_day"}
+              onClick={() => void runAction("start_day")}
+            >
+              {busy === "start_day" ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
+              Start day
+            </button>
+            <Link href={snapshot.links.factory ?? "/factory"} className="qs-btn qs-btn--ghost qs-btn--sm gap-1">
+              <Rocket className="size-4" /> Factory
+            </Link>
+            <Link href={snapshot.links.swarms ?? "/swarms"} className="qs-btn qs-btn--ghost qs-btn--sm">
+              Swarms
+            </Link>
+            <Link href={snapshot.links.agents ?? "/agents"} className="qs-btn qs-btn--ghost qs-btn--sm">
+              Agents
+            </Link>
+          </div>
 
-        <div className="mb-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            className="qs-btn qs-btn--primary qs-btn--sm gap-1"
-            disabled={busy === "start_day"}
-            onClick={() => void runAction("start_day")}
-          >
-            {busy === "start_day" ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
-            Spusti deň
-          </button>
-          <Link href={snapshot.links.factory ?? "/factory"} className="qs-btn qs-btn--ghost qs-btn--sm gap-1">
-            <Rocket className="size-4" /> Factory
-          </Link>
-          <Link href={snapshot.links.swarms ?? "/swarms"} className="qs-btn qs-btn--ghost qs-btn--sm">
-            Swarms
-          </Link>
-          <Link href={snapshot.links.agents ?? "/agents"} className="qs-btn qs-btn--ghost qs-btn--sm">
-            Agents
-          </Link>
-        </div>
+          {snapshot.trust_autopilot?.enabled ? (
+            <div className="mb-4 rounded-lg border border-pollen/30 bg-pollen/5 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-pollen">Trust Autopilot</p>
+              <p className="mt-1 text-xs text-(--qs-muted)">
+                Priority Telegram pings only after verified outcomes — no spam.
+              </p>
+              <ul className="mt-2 space-y-0.5 text-[11px] text-(--qs-muted)">
+                {Object.entries(snapshot.trust_autopilot.lanes ?? {}).map(([key, label]) => (
+                  <li key={key}>{label}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {snapshot.grok_control_plane?.enabled ? (
+            <div className="mb-4 rounded-lg border border-cyan/30 bg-cyan/5 p-3" id="grok-health-overview">
+              {(() => {
+                const healthLevel = snapshot.grok_control_plane?.health_level ?? "ok";
+                const failedThreshold = snapshot.grok_control_plane?.failed_alert_threshold ?? 3;
+                return (
+                  <>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-cyan">Grok Control Plane</p>
+                <V4Badge
+                  tone={grokHealthTone(snapshot.grok_control_plane)}
+                  className={healthLevel === "error" ? "animate-pulse" : undefined}
+                >
+                  {healthLevel === "error"
+                    ? "needs attention"
+                    : healthLevel === "warn"
+                      ? "in progress"
+                      : "healthy"}
+                </V4Badge>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-(--qs-muted)">
+                <span>active {snapshot.grok_control_plane.active_runs}</span>
+                <span>draft {snapshot.grok_control_plane.draft_runs}</span>
+                <span>
+                  failed {snapshot.grok_control_plane.failed_runs}/{failedThreshold}
+                </span>
+                <span>cli {snapshot.grok_control_plane.cli_available ? "ok" : "missing"}</span>
+              </div>
+              <button
+                type="button"
+                className="mt-2 text-xs text-cyan hover:text-pollen"
+                onClick={() => selectSection("grok")}
+              >
+                Open Grok queue →
+              </button>
+                  </>
+                );
+              })()}
+            </div>
+          ) : null}
+
+          {snapshot.proof_of_hive?.enabled ? (
+            <div className="mb-4 rounded-lg border border-[#00FF8833] bg-[#00FF8808] p-3" id="proof-of-hive">
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#00FF88]">Proof-of-Hive</p>
+              <p className="mt-1 text-xs text-(--qs-muted)">
+                Shareable verify receipts — HMAC podpis, verify-first outcomes.
+              </p>
+              {snapshot.proof_of_hive.receipts.length === 0 ? (
+                <p className="mt-2 text-[11px] text-(--qs-muted)">
+                  No receipts yet — they appear after simulate-approved publish packs.
+                </p>
+              ) : (
+                <ul className="mt-2 space-y-2">
+                  {snapshot.proof_of_hive.receipts.map((receipt) => (
+                    <li
+                      key={receipt.token}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded border border-(--qs-border) bg-black/20 px-2 py-1.5 text-xs"
+                    >
+                      <div className="min-w-0">
+                        <span className="font-medium text-(--qs-text)">{receipt.title}</span>
+                        <p className="text-[10px] text-(--qs-muted)">
+                          {receipt.trust_lane} · {receipt.event_kind ?? receipt.artifact_type}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 gap-1">
+                        <Link href={receipt.share_url} className="qs-btn qs-btn--ghost qs-btn--sm" target="_blank">
+                          Open
+                        </Link>
+                        <button
+                          type="button"
+                          className="qs-btn qs-btn--ghost qs-btn--sm"
+                          onClick={() => void copyProofLink(receipt.share_url)}
+                        >
+                          <Copy className="size-3" aria-hidden />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : null}
+
+          {snapshot.now_actions.length > 0 ? (
+            <ul className="space-y-2">
+              {snapshot.now_actions.map((action) => (
+                <li
+                  key={action.id}
+                  className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium text-(--qs-text)">{action.label}</span>
+                      <V4Badge tone={priorityTone(action.priority)}>{action.priority}</V4Badge>
+                    </div>
+                    <p className="mt-0.5 text-xs text-(--qs-muted)">{action.detail}</p>
+                  </div>
+                  {action.action ? (
+                    <button
+                      type="button"
+                      className="qs-btn qs-btn--primary qs-btn--sm shrink-0 self-center"
+                      disabled={busy === action.action}
+                      onClick={() => void runAction(action.action!)}
+                    >
+                      Run
+                    </button>
+                  ) : action.href ? (
+                    <Link href={action.href} className="qs-btn qs-btn--ghost qs-btn--sm shrink-0 self-center">
+                      Go
+                    </Link>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-(--qs-muted)">No priority actions right now.</p>
+          )}
+        </V4Card>
+      ) : null}
+
+      {section === "command" ? (
+        <V4Card>
+          <V4CardHeader
+            kicker="Command lane"
+            title="Hotline · Crystallizer · Zero-UI"
+            description="Direct operator commands and intent routing."
+            hint={<CockpitHint hintKey="command" />}
+          />
 
         <div className="mb-4 rounded-lg border border-cyan/30 bg-cyan/5 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-cyan">Bee Hotline</p>
+          <HiveSubsectionHeader
+            tone="cyan"
+            title="Bee Hotline"
+            description="What do you need? Routes to the right bee automatically."
+            hintKey="beeHotline"
+          />
           <div className="mt-2 flex flex-col gap-2 sm:flex-row">
             <input
               type="text"
               value={hotline}
               onChange={(e) => setHotline(e.target.value)}
-              placeholder="Čo potrebuješ? (routuje na správnu včelu…)"
+              placeholder="What do you need? (routes to the right bee…)"
               className="qs-input flex-1 text-sm"
             />
             <button
@@ -542,7 +765,7 @@ function OperatorCockpitPanelInner() {
               disabled={!hotline.trim() || busy === "hotline"}
               onClick={() => void runAction("hotline", { text: hotline })}
             >
-              {busy === "hotline" ? <Loader2 className="size-4 animate-spin" /> : "Spusti"}
+              {busy === "hotline" ? <Loader2 className="size-4 animate-spin" /> : "Run"}
             </button>
           </div>
         </div>
@@ -552,16 +775,18 @@ function OperatorCockpitPanelInner() {
             className="mb-4 rounded-lg border border-[#FF00AA33] bg-[#FF00AA08] p-3"
             id="intent-crystallizer"
           >
-            <p className="text-xs font-semibold uppercase tracking-wider text-[#FF00AA]">Intent Crystallizer</p>
-            <p className="mt-1 text-xs text-(--qs-muted)">
-              Voľný text → swarm template + trust lane + deep links. Preview alebo Launch Queen goal.
-            </p>
+            <HiveSubsectionHeader
+              tone="magenta"
+              title="Intent Crystallizer"
+              description="Free text → swarm template + trust lane + deep links. Preview or launch a Queen goal."
+              hintKey="intentCrystallizer"
+            />
             <div className="mt-2 flex flex-col gap-2 sm:flex-row">
               <input
                 type="text"
                 value={crystal}
                 onChange={(e) => setCrystal(e.target.value)}
-                placeholder="Napr. Research competitor pricing + publish brief…"
+                placeholder="e.g. Research competitor pricing + publish brief…"
                 className="qs-input flex-1 text-sm"
               />
               <button
@@ -600,11 +825,60 @@ function OperatorCockpitPanelInner() {
           </div>
         ) : null}
 
-        {snapshot.icm_tools?.enabled ? (
-          <div className="mb-4 space-y-4" id="icm-tools">
+        {snapshot.zero_ui?.enabled ? (
+          <div className="mb-4 rounded-lg border border-(--qs-border) bg-black/20 p-3" id="zero-ui">
+            <HiveSubsectionHeader
+              title="Zero-UI Hive Mode"
+              description="Telegram commands — web optional. Set bot token + chat id in Execution Studio notifications."
+              hintKey="zeroUi"
+            />
+            <div className="mt-2 flex flex-wrap gap-2">
+              <V4Badge tone={snapshot.zero_ui.telegram_configured ? "ok" : "warn"}>
+                Telegram {snapshot.zero_ui.telegram_configured ? "configured" : "missing"}
+              </V4Badge>
+              <V4Badge tone={snapshot.zero_ui.webhook_secret_configured ? "ok" : "warn"}>
+                Webhook secret {snapshot.zero_ui.webhook_secret_configured ? "ok" : "missing"}
+              </V4Badge>
+            </div>
+            {snapshot.zero_ui.webhook_url ? (
+              <p className="mt-2 break-all font-mono text-[10px] text-cyan">{snapshot.zero_ui.webhook_url}</p>
+            ) : null}
+            {snapshot.zero_ui.commands.length > 0 ? (
+              <ul className="mt-2 space-y-0.5 text-[11px] text-(--qs-muted)">
+                {snapshot.zero_ui.commands.map((cmd) => (
+                  <li key={cmd}>{cmd}</li>
+                ))}
+              </ul>
+            ) : null}
+            <Link
+              href={snapshot.links.execution_studio ?? "/integrations?tab=studio"}
+              className="mt-2 inline-block text-xs text-cyan hover:text-pollen"
+            >
+              Execution Studio notifications →
+            </Link>
+          </div>
+        ) : null}
+        </V4Card>
+      ) : null}
+
+      {section === "grok" ? <GrokControlPlanePanel /> : null}
+
+      {section === "icm" && snapshot.icm_tools?.enabled ? (
+        <V4Card>
+          <V4CardHeader
+            kicker="ICM layer"
+            title="Quick automations · Link drop · Dialogue extract"
+            description="Presets and ingest tools — verified actions without the builder."
+            hint={<CockpitHint hintKey="icm" />}
+          />
+          <div className="space-y-4" id="icm-tools">
             <div className="rounded-lg border border-pollen/25 bg-pollen/5 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-pollen">Quick Automations</p>
-              <p className="mt-1 text-xs text-(--qs-muted)">Presety — žiadny builder, len overené akcie.</p>
+              <HiveSubsectionHeader
+                tone="pollen"
+                title="Quick Automations"
+                description="Presets — no builder, verified actions only."
+                hintKey="icmQuickAutomations"
+              />
               <div className="mt-2 flex flex-wrap gap-2">
                 {snapshot.icm_tools.quick_automations.map((preset) => (
                   <button
@@ -622,8 +896,12 @@ function OperatorCockpitPanelInner() {
 
             {snapshot.icm_tools.link_drop_enabled ? (
               <div className="rounded-lg border border-cyan/30 bg-cyan/5 p-3" id="link-drop">
-                <p className="text-xs font-semibold uppercase tracking-wider text-cyan">Link Drop</p>
-                <p className="mt-1 text-xs text-(--qs-muted)">URL → structured brief (read-only fetch).</p>
+                <HiveSubsectionHeader
+                  tone="cyan"
+                  title="Link Drop"
+                  description="URL → structured brief (read-only fetch)."
+                  hintKey="icmLinkDrop"
+                />
                 <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                   <input
                     type="url"
@@ -660,15 +938,16 @@ function OperatorCockpitPanelInner() {
 
             {snapshot.icm_tools.dialogue_extract_enabled ? (
               <div className="rounded-lg border border-(--qs-border) bg-black/20 p-3" id="dialogue-extract">
-                <p className="text-xs font-semibold uppercase tracking-wider text-(--qs-muted)">Dialogue Extract</p>
-                <p className="mt-1 text-xs text-(--qs-muted)">
-                  Transcript → ciele, constraints, rozhodnutia. Import z Ballroom alebo Dump & Sleep, alebo vlož text nižšie.
-                </p>
+                <HiveSubsectionHeader
+                  title="Dialogue Extract"
+                  description="Transcript → goals, constraints, decisions. Import from Ballroom or Dump & Sleep, or paste text below."
+                  hintKey="icmDialogueExtract"
+                />
                 <textarea
                   value={dialogueText}
                   onChange={(e) => setDialogueText(e.target.value)}
                   rows={4}
-                  placeholder="Vlož chat alebo meeting transcript…"
+                  placeholder="Paste chat or meeting transcript…"
                   className="mt-2 w-full rounded border border-(--qs-border) bg-black/30 px-3 py-2 text-sm"
                 />
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -761,15 +1040,6 @@ function OperatorCockpitPanelInner() {
                             Go →
                           </Link>
                         ) : null}
-                        {m.action === "dialogue_extract_hint" ? (
-                          <button
-                            type="button"
-                            className="text-cyan hover:text-pollen"
-                            onClick={() => document.getElementById("dialogue-extract")?.scrollIntoView({ behavior: "smooth" })}
-                          >
-                            Extract →
-                          </button>
-                        ) : null}
                       </li>
                     ))}
                   </ul>
@@ -777,166 +1047,29 @@ function OperatorCockpitPanelInner() {
               </div>
             ) : null}
           </div>
-        ) : null}
+        </V4Card>
+      ) : null}
 
-        {snapshot.zero_ui?.enabled ? (
-          <div className="mb-4 rounded-lg border border-(--qs-border) bg-black/20 p-3" id="zero-ui">
-            <p className="text-xs font-semibold uppercase tracking-wider text-(--qs-muted)">Zero-UI Hive Mode</p>
-            <p className="mt-1 text-xs text-(--qs-muted)">
-              Telegram príkazy — web voliteľný. Nastav bot token + chat id v Execution Studio notifications.
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <V4Badge tone={snapshot.zero_ui.telegram_configured ? "ok" : "warn"}>
-                Telegram {snapshot.zero_ui.telegram_configured ? "configured" : "missing"}
-              </V4Badge>
-              <V4Badge tone={snapshot.zero_ui.webhook_secret_configured ? "ok" : "warn"}>
-                Webhook secret {snapshot.zero_ui.webhook_secret_configured ? "ok" : "missing"}
-              </V4Badge>
-            </div>
-            {snapshot.zero_ui.webhook_url ? (
-              <p className="mt-2 break-all font-mono text-[10px] text-cyan">{snapshot.zero_ui.webhook_url}</p>
-            ) : null}
-            {snapshot.zero_ui.commands.length > 0 ? (
-              <ul className="mt-2 space-y-0.5 text-[11px] text-(--qs-muted)">
-                {snapshot.zero_ui.commands.map((cmd) => (
-                  <li key={cmd}>{cmd}</li>
-                ))}
-              </ul>
-            ) : null}
-            <Link
-              href={snapshot.links.execution_studio ?? "/integrations?tab=studio"}
-              className="mt-2 inline-block text-xs text-cyan hover:text-pollen"
-            >
-              Execution Studio notifications →
-            </Link>
-          </div>
-        ) : null}
+      {section === "icm" && !snapshot.icm_tools?.enabled ? (
+        <V4Card>
+          <p className="text-sm text-(--qs-muted)">ICM tools are disabled on this deployment.</p>
+        </V4Card>
+      ) : null}
 
-        {snapshot.trust_autopilot?.enabled ? (
-          <div className="mb-4 rounded-lg border border-pollen/30 bg-pollen/5 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-pollen">Trust Autopilot</p>
-            <p className="mt-1 text-xs text-(--qs-muted)">
-              Priority Telegram pingy len po verified outcomes — bez spamu.
-            </p>
-            <ul className="mt-2 space-y-0.5 text-[11px] text-(--qs-muted)">
-              {Object.entries(snapshot.trust_autopilot.lanes ?? {}).map(([key, label]) => (
-                <li key={key}>{label}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
-        {snapshot.proof_of_hive?.enabled ? (
-          <div className="mb-4 rounded-lg border border-[#00FF8833] bg-[#00FF8808] p-3" id="proof-of-hive">
-            <p className="text-xs font-semibold uppercase tracking-wider text-[#00FF88]">Proof-of-Hive</p>
-            <p className="mt-1 text-xs text-(--qs-muted)">
-              Shareable verify receipts — HMAC podpis, verify-first outcomes.
-            </p>
-            {snapshot.proof_of_hive.receipts.length === 0 ? (
-              <p className="mt-2 text-[11px] text-(--qs-muted)">
-                Zatiaľ žiadne receipts — vzniknú po schválení/simulate publish packu.
-              </p>
-            ) : (
-              <ul className="mt-2 space-y-2">
-                {snapshot.proof_of_hive.receipts.map((receipt) => (
-                  <li
-                    key={receipt.token}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded border border-(--qs-border) bg-black/20 px-2 py-1.5 text-xs"
-                  >
-                    <div className="min-w-0">
-                      <span className="font-medium text-(--qs-text)">{receipt.title}</span>
-                      <p className="text-[10px] text-(--qs-muted)">
-                        {receipt.trust_lane} · {receipt.event_kind ?? receipt.artifact_type}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 gap-1">
-                      <Link href={receipt.share_url} className="qs-btn qs-btn--ghost qs-btn--sm" target="_blank">
-                        Open
-                      </Link>
-                      <button
-                        type="button"
-                        className="qs-btn qs-btn--ghost qs-btn--sm"
-                        onClick={() => void copyProofLink(receipt.share_url)}
-                      >
-                        <Copy className="size-3" aria-hidden />
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        ) : null}
-
-        {snapshot.oracle_warnings.length > 0 ? (
-          <div className="mb-4 space-y-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-pollen">Hive Oracle</p>
-              <Link href="/oracle" className="text-xs text-cyan hover:text-pollen">
-                Full Oracle →
-              </Link>
-            </div>
-            {snapshot.oracle_warnings.map((w) => (
-              <div
-                key={w.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-pollen/30 bg-pollen/5 px-3 py-2 text-xs"
-              >
-                <span>{w.message}</span>
-                {w.fix_href ? (
-                  <Link href={w.fix_href} className="text-cyan hover:text-pollen">
-                    Fix
-                  </Link>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        ) : null}
-
-        {snapshot.now_actions.length > 0 ? (
-          <ul className="space-y-2">
-            {snapshot.now_actions.map((action) => (
-              <li
-                key={action.id}
-                className="flex flex-wrap items-start justify-between gap-2 rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2"
-              >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium text-(--qs-text)">{action.label}</span>
-                    <V4Badge tone={priorityTone(action.priority)}>{action.priority}</V4Badge>
-                  </div>
-                  <p className="mt-0.5 text-xs text-(--qs-muted)">{action.detail}</p>
-                </div>
-                {action.action === "start_day" ? (
-                  <button
-                    type="button"
-                    className="qs-btn qs-btn--primary qs-btn--sm"
-                    disabled={busy === "start_day"}
-                    onClick={() => void runAction("start_day")}
-                  >
-                    Run
-                  </button>
-                ) : action.href ? (
-                  <Link href={action.href} className="qs-btn qs-btn--ghost qs-btn--sm">
-                    Go
-                  </Link>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </V4Card>
-
+      {section === "fleet" ? (
+        <>
       <V4Card id="swarm-fleet">
         <V4CardHeader
           kicker="Trust Autopilot"
           title="Swarm Fleet"
-          description="Always-on routines — pause/resume bez straty včiel."
+          description="Always-on routines — pause/resume without losing bees."
+          hint={<CockpitHint hintKey="fleet" />}
         />
         {snapshot.swarm_fleet.length === 0 ? (
           <p className="text-xs text-(--qs-muted)">
-            Žiadne routines —{" "}
+            No routines yet —{" "}
             <Link href="/swarms/new" className="text-cyan underline">
-              vytvor swarm
+              create a swarm
             </Link>
           </p>
         ) : (
@@ -998,7 +1131,25 @@ function OperatorCockpitPanelInner() {
           ) : null}
         </V4Card>
       ) : null}
+        </>
+      ) : null}
 
+      {section === "modules" ? (
+        <>
+      {modulesLoading && !modulesHydrated ? (
+        <V4Card>
+          <V4CardHeader
+            kicker="Capabilities"
+            title="Futurist modules"
+            description="Loading experimental modules…"
+            hint={<CockpitHint hintKey="modules" />}
+          />
+          <div className="flex min-h-32 items-center justify-center gap-2 text-sm text-(--qs-muted)">
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+            Loading futurist modules…
+          </div>
+        </V4Card>
+      ) : null}
       {snapshot.evolutionary_recipes?.enabled ? (
         <V4Card id="evolutionary-recipes">
           <V4CardHeader
@@ -1111,7 +1262,8 @@ function OperatorCockpitPanelInner() {
         <V4CardHeader
           kicker="Capabilities"
           title="Futurist modules"
-          description="Compose-only — existujúce bees & swarms ostávajú."
+          description="Compose-only — existing bees and swarms unchanged."
+          hint={<CockpitHint hintKey="modules" />}
         />
         <div className="flex flex-wrap gap-2">
           {snapshot.feature_modules.map((mod) => (
@@ -1121,111 +1273,38 @@ function OperatorCockpitPanelInner() {
           ))}
         </div>
       </V4Card>
+        </>
+      ) : null}
 
-      <V4Card id="innovation-lab">
+      {section === "innovation" ? (
+      <V4Card id="innovation-lab" className="relative">
         <V4CardHeader
           kicker="Innovation Lab"
           title="Brainstorm → approve → auto-implement"
-          description="Navrhni novú funkciu — po schválení Queen Maintainer zapracuje cez PR."
+          description="Propose a new feature — after approval, Queen Maintainer implements via PR."
+          hint={<CockpitHint hintKey="innovation" />}
+          actions={
+            <V4Badge tone={snapshot.innovation_lab.pending_count > 0 ? "warn" : "ok"}>
+              {snapshot.innovation_lab.pending_count} pending
+            </V4Badge>
+          }
         />
-        <div className="mb-4 space-y-2">
-          <textarea
-            value={brainstorm}
-            onChange={(e) => setBrainstorm(e.target.value)}
-            rows={3}
-            placeholder="Napr.: Pridaj Telegram inbound pre Bee Hotline s trust lanes…"
-            className="qs-input w-full text-sm"
-          />
-          <button
-            type="button"
+        <InnovationLabPanel onMutate={() => void load({ silent: true })} />
+        <div className="mt-6 flex justify-end border-t border-(--qs-border) pt-4">
+          <Link
+            href={executionStudioSectionHref("innovation")}
             className="qs-btn qs-btn--primary qs-btn--sm gap-1"
-            disabled={busy === "brainstorm"}
-            onClick={() => void submitBrainstorm()}
           >
-            {busy === "brainstorm" ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Lightbulb className="size-4" />
-            )}
-            Brainstorm
-          </button>
+            Execution Studio
+            <ArrowRight className="size-4" aria-hidden />
+          </Link>
         </div>
-        {proposals.length === 0 ? (
-          <p className="text-xs text-(--qs-muted)">Zatiaľ žiadne návrhy.</p>
-        ) : (
-          <ul className="space-y-3">
-            {proposals.map((p) => (
-              <li key={p.id} className="rounded-lg border border-(--qs-border) bg-black/20 p-3">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-medium text-(--qs-text)">{p.title}</p>
-                    <p className="mt-1 text-xs text-(--qs-muted)">
-                      {p.status} · risk {p.risk_level} · {p.feature_modules.join(", ")}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {p.status === "pending" ? (
-                      <>
-                        <button
-                          type="button"
-                          className="qs-btn qs-btn--primary qs-btn--sm"
-                          disabled={busy === p.id}
-                          onClick={() => void reviewProposal(p.id, "approved")}
-                        >
-                          Approve
-                        </button>
-                        <button
-                          type="button"
-                          className="qs-btn qs-btn--ghost qs-btn--sm"
-                          disabled={busy === p.id}
-                          onClick={() => void reviewProposal(p.id, "rejected")}
-                        >
-                          Reject
-                        </button>
-                      </>
-                    ) : null}
-                    {p.status === "approved" ? (
-                      <button
-                        type="button"
-                        className="qs-btn qs-btn--primary qs-btn--sm gap-1"
-                        disabled={busy === `impl-${p.id}`}
-                        onClick={() => void implementProposal(p.id)}
-                      >
-                        <Sparkles className="size-3.5" /> Implement
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-                {p.implementation_plan_md ? (
-                  <pre className="mt-2 max-h-32 overflow-auto font-mono text-[10px] text-(--qs-text-3)">
-                    {p.implementation_plan_md.slice(0, 800)}
-                  </pre>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
-        <Link
-          href={snapshot.links.execution_studio ?? "/integrations?tab=studio"}
-          className="mt-3 inline-flex items-center gap-1 text-xs text-cyan hover:text-pollen"
-        >
-          Execution Studio <ArrowRight className="size-3" aria-hidden />
-        </Link>
       </V4Card>
-    </div>
+      ) : null}
+      </HiveSubnavContent>
+    </HivePageShell>
   );
 }
 
 export const OperatorCockpitPanel = memo(OperatorCockpitPanelInner);
 OperatorCockpitPanel.displayName = "OperatorCockpitPanel";
-
-const LazyOperatorCockpitPanel = dynamic(() => Promise.resolve({ default: OperatorCockpitPanel }), {
-  ssr: false,
-  loading: () => (
-    <p className="flex items-center gap-2 text-sm text-(--qs-muted)">
-      <Loader2 className="size-4 animate-spin" aria-hidden /> Loading Hive Cockpit…
-    </p>
-  ),
-});
-
-export { LazyOperatorCockpitPanel };

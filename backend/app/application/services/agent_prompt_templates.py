@@ -97,7 +97,7 @@ _SHARED_GUARDRAILS = """\
 ═══ GUARDRAILS ═══
 - Default mode is SIMULATE. Live writes need operator approval.
 - Cost ceiling per session: $0.50. If you project more, stop and downscope.
-- No Stripe / billing / commercial actions — solo deployment.
+- No checkout / billing / commercial actions — solo deployment.
 - Never write to HiveMind without a verifiable source.
 - Truth arbiter: when uncertain (confidence < high, contradicting node,
   verifiable claim, or single-source claim) run ONE Grok cross-check

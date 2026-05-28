@@ -1,11 +1,13 @@
 "use client";
 
 import { Pencil, Play, Plus, RefreshCw } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { ForagerFormDialog } from "@/components/hive/forager-form-dialog";
-import { HivePageHeader } from "@/components/hive/hive-page-header";
+import { HivePageShell } from "@/components/hive/hive-page-shell";
+import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
 import {
   V4Badge,
@@ -16,10 +18,15 @@ import {
   V4IconForagers,
   V4IconKnowledge,
   V4IconPollen,
-  V4PageCanvas,
   V4Stat,
 } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
+import { hivePageShellError } from "@/lib/hive-page-error";
+import {
+  AGENTS_HUB_PATH,
+  EXECUTION_LANE_CROSS_LINK_LABELS,
+  KNOWLEDGE_HIVEMIND_HREF,
+} from "@/lib/execution-lane-routes";
 import { COCKPIT_POLL_BOARD_MS } from "@/lib/cockpit-poll-profile";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import type {
@@ -135,7 +142,7 @@ export function ForagersPageClient() {
   useIntervalWhenVisible(() => void reload(), COCKPIT_POLL_BOARD_MS);
 
   const kpis = data?.kpis;
-  const configurations = data?.configurations ?? [];
+  const configurations = useMemo(() => data?.configurations ?? [], [data?.configurations]);
   const spawnRules = data?.spawn_rules ?? [];
 
   const filterCounts = useMemo(
@@ -234,51 +241,54 @@ export function ForagersPageClient() {
     });
   }
 
-  if (err && !data) {
+  if (!data) {
     return (
-      <V4PageCanvas>
-        <HivePageHeader
-          title="Foragers"
-          subtitle="Data-collectors that feed HiveMind — schedule them, watch them ingest, then auto-spawn agents from harvested context."
-        />
-        <V4Card>
-          <p className="text-sm text-(--qs-red)">{err}</p>
-        </V4Card>
-      </V4PageCanvas>
+      <HivePageShell
+        title="Foragers"
+        subtitle="Data-collectors that feed HiveMind — schedule them, watch them ingest, then auto-spawn agents from harvested context."
+        error={hivePageShellError(err, () => setErr(null))}
+      >
+        <HivePanelSectionSkeleton label="Loading foragers overview" minHeightClass="min-h-[20rem]" />
+      </HivePageShell>
     );
   }
 
   const trendPct = kpis?.items_trend_pct;
 
   return (
-    <V4PageCanvas>
-      <HivePageHeader
-        title="Foragers"
-        subtitle="Data-collectors that feed HiveMind — schedule them, watch them ingest, then auto-spawn agents from harvested context."
-        actions={
-          <>
-            <button
-              type="button"
-              className="qs-btn qs-btn--ghost qs-btn--sm gap-2"
-              disabled={!canManage || busy === "run-all" || !configurations.length}
-              onClick={() => void runAllNow()}
-            >
-              <RefreshCw className={cn("h-4 w-4", busy === "run-all" && "animate-spin")} aria-hidden />
-              Run all now
-            </button>
-            <button
-              type="button"
-              className="qs-btn qs-btn--primary qs-btn--sm gap-2"
-              disabled={!canManage}
-              onClick={openCreate}
-            >
-              <Plus className="h-4 w-4" aria-hidden />
-              New forager
-            </button>
-          </>
-        }
-      />
-
+    <HivePageShell
+      title="Foragers"
+      subtitle="Data-collectors that feed HiveMind — schedule them, watch them ingest, then auto-spawn agents from harvested context."
+      error={hivePageShellError(err, () => setErr(null))}
+      actions={
+        <>
+          <Link href={AGENTS_HUB_PATH} className="qs-btn qs-btn--ghost qs-btn--sm">
+            {EXECUTION_LANE_CROSS_LINK_LABELS.toAgentsHub}
+          </Link>
+          <Link href={KNOWLEDGE_HIVEMIND_HREF} className="qs-btn qs-btn--ghost qs-btn--sm">
+            {EXECUTION_LANE_CROSS_LINK_LABELS.toHiveMind}
+          </Link>
+          <button
+            type="button"
+            className="qs-btn qs-btn--ghost qs-btn--sm gap-2"
+            disabled={!canManage || busy === "run-all" || !configurations.length}
+            onClick={() => void runAllNow()}
+          >
+            <RefreshCw className={cn("h-4 w-4", busy === "run-all" && "animate-spin")} aria-hidden />
+            Run all now
+          </button>
+          <button
+            type="button"
+            className="qs-btn qs-btn--primary qs-btn--sm gap-2"
+            disabled={!canManage}
+            onClick={openCreate}
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            New forager
+          </button>
+        </>
+      }
+    >
       <div className="v4-stat-grid">
         {!data ? (
           Array.from({ length: 4 }).map((_, i) => (
@@ -503,6 +513,6 @@ export function ForagersPageClient() {
         canManage={canManage}
         onSaved={() => void reload()}
       />
-    </V4PageCanvas>
+    </HivePageShell>
   );
 }

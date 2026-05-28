@@ -306,7 +306,7 @@ SWARM_WIZARD_SPECS: dict[str, SwarmWizardSpec] = {
         name="Micro-SaaS Factory",
         swarm_name="Micro-SaaS Factory",
         purpose=SwarmPurpose.ACTION,
-        description="Build landing + auth docs + Stripe checkout + deploy recipe — simulate-first MVP factory.",
+        description="Build landing + auth docs + checkout strategy + deploy recipe — simulate-first MVP factory.",
         accent_hex="#00FFFF",
         category="virtual_company",
         department_id="product",
@@ -317,7 +317,7 @@ SWARM_WIZARD_SPECS: dict[str, SwarmWizardSpec] = {
                 "Factory Supervisor",
                 "manager",
                 _exec(
-                    "Orchestrate Micro-SaaS MVP factory: scope, landing, auth pattern, Stripe, deploy recipe. "
+                    "Orchestrate Micro-SaaS MVP factory: scope, landing, auth pattern, checkout strategy, deploy recipe. "
                     "Simulate every lane before live.",
                 ),
                 DEPT_TOOLS,
@@ -349,7 +349,7 @@ SWARM_WIZARD_SPECS: dict[str, SwarmWizardSpec] = {
         ),
         routine=_RoutineSpec(
             "Micro-SaaS factory cycle",
-            "Factory cycle: MVP scope → landing draft → auth doc → Stripe checklist → deploy recipe.",
+            "Factory cycle: MVP scope → landing draft → auth doc → checkout checklist → deploy recipe.",
             "cron",
             cron_expr="0 14 * * 5",
         ),

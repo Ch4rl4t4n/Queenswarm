@@ -215,8 +215,8 @@ async def test_oauth_providers_returns_registry_when_authenticated(restore_app_o
 
 @pytest.mark.asyncio
 async def test_start_oauth_authorization_requires_client_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OAUTH_STRIPE_CLIENT_ID", "")
-    monkeypatch.setenv("OAUTH_STRIPE_CLIENT_SECRET", "")
+    monkeypatch.setenv("OAUTH_GOOGLE_CLIENT_ID", "")
+    monkeypatch.setenv("OAUTH_GOOGLE_CLIENT_SECRET", "")
     get_settings.cache_clear()
 
     uid = uuid.uuid4()
@@ -225,6 +225,6 @@ async def test_start_oauth_authorization_requires_client_credentials(monkeypatch
     with pytest.raises(ValueError, match="oauth_client_not_configured"):
         await start_oauth_authorization(
             settings=settings,
-            provider_key="stripe_billing",
+            provider_key="google_gmail",
             dashboard_sub=sub,
         )

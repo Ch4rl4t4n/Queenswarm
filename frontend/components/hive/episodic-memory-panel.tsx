@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Clock3, Loader2Icon, RefreshCw } from "lucide-react";
+import { Clock3, Loader2Icon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
@@ -9,11 +9,10 @@ import {
   type CollectorCardItem,
   type CollectorTab,
 } from "@/components/hive/dynamic-collector-deck";
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
 import type { EpisodicMemoryItemRow, EpisodicMemoryPayload, EpisodicSummaryPayload } from "@/lib/hive-types";
-import { cn } from "@/lib/utils";
-
 function kindTone(kind: string): "ok" | "warn" | "info" | "err" {
   if (kind === "dump_sleep") return "ok";
   if (kind === "dream_insight") return "info";
@@ -47,7 +46,7 @@ function toCard(item: EpisodicMemoryItemRow): CollectorCardItem {
     footer: item.session_id ? (
       <Link
         href={`/agents?session=${encodeURIComponent(item.session_id)}`}
-        className="text-xs text-cyan underline-offset-2 hover:underline"
+        className="qs-btn qs-btn--primary qs-btn--sm"
       >
         Open session {item.session_id.slice(0, 8)}…
       </Link>
@@ -84,7 +83,7 @@ export function EpisodicMemoryPanel(): JSX.Element {
     void load();
   }, [load]);
 
-  const items = timeline?.items ?? [];
+  const items = useMemo(() => timeline?.items ?? [], [timeline?.items]);
 
   const tabs: CollectorTab[] = useMemo(
     () => [
@@ -127,18 +126,13 @@ export function EpisodicMemoryPanel(): JSX.Element {
         description="Supervisor events, dream insights, and overnight ingest — flip through the collector deck."
         actions={
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              aria-label="Refresh timeline"
-              className="qs-btn qs-btn--ghost qs-btn--sm !px-2"
-              disabled={refreshing}
+            <HiveRefreshButton
+              busy={refreshing}
               onClick={() => {
                 setRefreshing(true);
                 void load();
               }}
-            >
-              <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} aria-hidden />
-            </button>
+            />
             <Link href="/agents#sessions" className="text-xs text-cyan underline-offset-2 hover:underline">
               Sessions
             </Link>

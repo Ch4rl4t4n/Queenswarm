@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { usePlatform } from "@/components/hive/platform-context";
 import { QsSelect } from "@/components/ui/qs-select";
-import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
+import { V4Badge, V4Card, V4CardHeader, V4FormField, V4FormStack } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePutJson } from "@/lib/api";
 
 interface RecallSettings {
@@ -106,19 +106,25 @@ export function SelectiveRecallPanel(): JSX.Element | null {
       ) : null}
 
       {settings ? (
-        <div className="space-y-4">
-          <label className="block space-y-2 text-sm">
-            <span className="text-(--qs-text-2)">Recall mode</span>
+        <V4FormStack>
+          <V4FormField label="Recall mode">
             <QsSelect
               value={settings.recall_mode}
               options={MODE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
               onValueChange={(value) => void save({ recall_mode: value as RecallSettings["recall_mode"] })}
               disabled={busy}
             />
-          </label>
+          </V4FormField>
 
-          <label className="block space-y-2 text-sm">
-            <span className="text-(--qs-text-2)">Token budget override (chars, 0 = default)</span>
+          <V4FormField
+            label="Token budget override (chars, 0 = default)"
+            footer={
+              <>
+                <V4Badge tone="info">cap {settings.selective_max_chars} chars</V4Badge>
+                <V4Badge tone="warn">max {settings.max_prompt_chars} hard</V4Badge>
+              </>
+            }
+          >
             <input
               type="number"
               min={0}
@@ -128,15 +134,9 @@ export function SelectiveRecallPanel(): JSX.Element | null {
               className="qs-input w-full max-w-xs"
               disabled={busy}
             />
-          </label>
+          </V4FormField>
 
-          <div className="flex flex-wrap gap-2">
-            <V4Badge tone="info">cap {settings.selective_max_chars} chars</V4Badge>
-            <V4Badge tone="warn">max {settings.max_prompt_chars} hard</V4Badge>
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-sm text-(--qs-text-2)">Preview query</label>
+          <V4FormField label="Preview query">
             <div className="flex flex-wrap gap-2">
               <input
                 type="text"
@@ -149,7 +149,7 @@ export function SelectiveRecallPanel(): JSX.Element | null {
                 Preview recall
               </button>
             </div>
-          </div>
+          </V4FormField>
 
           {preview ? (
             <div className="space-y-2 rounded-xl border border-white/10 bg-black/25 p-3">
@@ -163,7 +163,7 @@ export function SelectiveRecallPanel(): JSX.Element | null {
               </pre>
             </div>
           ) : null}
-        </div>
+        </V4FormStack>
       ) : null}
     </V4Card>
   );

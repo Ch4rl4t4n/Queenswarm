@@ -5,6 +5,7 @@ import { Globe, Mic, Monitor, Plug, Sparkles } from "lucide-react";
 import type { JSX } from "react";
 
 import { V4Card, V4CardHeader } from "@/components/ui/v4";
+import { integrationsHubSectionHref } from "@/lib/integrations-hub-routes";
 import { integrationsTabHref, type IntegrationsTab } from "@/lib/integrations-routes";
 
 interface IntegrationsEcosystemLaneProps {
@@ -15,7 +16,7 @@ const LANES = [
   {
     title: "Connector hub",
     description: "OAuth rail, vault sync, connection tests.",
-    href: integrationsTabHref("hub"),
+    href: integrationsHubSectionHref("tools"),
     tab: "hub" as const,
     icon: Plug,
   },

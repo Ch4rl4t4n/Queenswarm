@@ -215,6 +215,7 @@ async def compose_morning_publish_pipeline_snapshot(
     *,
     tenant_id: uuid.UUID,
     dashboard_user_id: uuid.UUID,
+    include_brief: bool = True,
 ) -> MorningPublishPipelineSnapshotOut:
     """Read-only morning publish pipeline snapshot (brief + queue + step timeline)."""
 
@@ -254,8 +255,10 @@ async def compose_morning_publish_pipeline_snapshot(
         pending_count = int(queue.pending_count)
         approved_count = int(queue.approved_count)
 
-    brief = await compose_morning_hive_brief(db, tenant_id=tenant_id)
-    brief_preview = str(brief.get("markdown") or "")[:800]
+    brief_preview = ""
+    if include_brief:
+        brief = await compose_morning_hive_brief(db, tenant_id=tenant_id)
+        brief_preview = str(brief.get("markdown") or "")[:800]
 
     steps = build_pipeline_steps(
         life_os_lane=life_os_lane,

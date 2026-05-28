@@ -125,11 +125,12 @@ function MorningPublishPipelinePanelInner() {
         kicker="Phase D"
         title="Morning → Publish pipeline"
         description="Life OS brief → content draft → critic verify → Publish Queue approve (simulate-first)."
-        actions={
+        hint={
           <InfoHint
             title={MORNING_PIPELINE_HINT.title}
             description={MORNING_PIPELINE_HINT.description}
             options={MORNING_PIPELINE_HINT.options}
+            className="hive-inline-hint"
           />
         }
       />

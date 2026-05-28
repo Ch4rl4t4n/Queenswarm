@@ -29,7 +29,7 @@ async def get_micro_saas_factory_snapshot(
     db: DbSession,
     principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
 ) -> MicroSaasSnapshotOut:
-    """Tenant checklist for landing + auth + stripe + deploy lanes."""
+    """Tenant checklist for landing + auth + billing + deploy lanes."""
 
     _require_enabled()
     tenant_id = principal.get("tenant_id")

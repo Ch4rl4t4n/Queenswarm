@@ -8,8 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.presentation.api.deps import get_db, require_subject
-from app.core.jwt_tokens import create_access_token
+from app.presentation.api.deps import dashboard_admin_wall, get_db, require_dashboard_session
 from app.main import app
 
 
@@ -31,8 +30,6 @@ async def test_tasks_list_requires_bearer(restore_app_overrides: None) -> None:
 
 @pytest.mark.asyncio
 async def test_tasks_list_returns_empty_with_mock_db(restore_app_overrides: None) -> None:
-    token, _ = create_access_token(subject="pytest-operator", expires_minutes=5)
-
     async def mock_db() -> AsyncIterator[AsyncMock]:
         session = AsyncMock()
         result = MagicMock()
@@ -40,12 +37,12 @@ async def test_tasks_list_returns_empty_with_mock_db(restore_app_overrides: None
         session.execute = AsyncMock(return_value=result)
         yield session
 
-    app.dependency_overrides[require_subject] = lambda: "pytest-operator"
+    app.dependency_overrides[dashboard_admin_wall] = lambda: True
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:operator"}
     app.dependency_overrides[get_db] = mock_db
 
     transport = ASGITransport(app=app)
-    headers = {"Authorization": f"Bearer {token}"}
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.get("/api/v1/tasks", headers=headers)
+        response = await client.get("/api/v1/tasks")
     assert response.status_code == 200
     assert response.json() == []

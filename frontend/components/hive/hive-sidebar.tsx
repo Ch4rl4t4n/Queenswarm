@@ -1,16 +1,14 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import Link from "next/link";
 import { Check, ChevronDown, LogOut, XIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { DashboardSettingsTrigger } from "@/components/hive/dashboard-settings-panel";
 import { HiveBrandMark } from "@/components/hive/hive-brand-mark";
 import { HiveAccountIdentity } from "@/components/hive/hive-account-identity";
 import { usePlatform } from "@/components/hive/platform-context";
-import { SidebarShortcuts } from "@/components/hive/sidebar-shortcuts";
 import { HiveOperatorNotificationCenter } from "@/components/hive/hive-operator-notification-center";
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
 import { hiveGet } from "@/lib/api";
@@ -20,12 +18,14 @@ import {
   isNavItemActive,
   type HiveNavItem,
 } from "@/lib/hive-nav-primary";
+import { shouldRenderIaZoneDivider } from "@/lib/hive-ia-canonical";
 import type { DashboardSummary, SwarmBoardResponse, TenantListPayload, TenantViewRow } from "@/lib/hive-types";
 import { localizeNavLabel, localizePhrase } from "@/lib/ui-copy";
 import { filterNavByFeatures } from "@/lib/platform-features";
 import { QS_ACCESS, QS_REFRESH } from "@/lib/auth-cookies";
 import { clearExecutionStudioPushOnLogout } from "@/lib/execution-studio-push-session-sync";
 import { useRoutePrefetch } from "@/lib/use-route-prefetch";
+import { useModalA11y } from "@/lib/use-modal-a11y";
 import { cn } from "@/lib/utils";
 
 export { HIVE_NAV_PRIMARY } from "@/lib/hive-nav-primary";
@@ -87,14 +87,21 @@ function tenantSubtitle(tenant: TenantViewRow, language: "en" | "sk"): string {
   });
 }
 
-function SidebarBrand({ onMobileClose }: { onMobileClose?: () => void }) {
+function SidebarBrand({
+  onMobileClose,
+  closeButtonRef,
+}: {
+  onMobileClose?: () => void;
+  closeButtonRef?: Ref<HTMLButtonElement>;
+}) {
   return (
     <div className="hive-sidebar-brand">
       <HiveBrandMark onNavigate={onMobileClose} />
       {onMobileClose ? (
         <button
+          ref={closeButtonRef}
           type="button"
-          className="absolute right-3 top-1/2 flex h-10 w-10 shrink-0 -translate-y-1/2 items-center justify-center rounded-[12px] border border-[var(--qs-border)] text-[var(--qs-text-3)] hover:border-[var(--qs-border-2)] hover:text-pollen lg:hidden"
+          className="absolute right-3 top-1/2 flex h-10 w-10 shrink-0 -translate-y-1/2 items-center justify-center rounded-[12px] border border-(--qs-border) text-(--qs-text-3) hover:border-(--qs-border-2) hover:text-pollen lg:hidden"
           aria-label="Close navigation"
           onClick={onMobileClose}
         >
@@ -161,7 +168,7 @@ function SidebarTenantSwitcher({
         onClick={() => setOpen((v) => !v)}
       >
         {identity}
-        <ChevronDown className={cn("h-4 w-4 shrink-0 text-[var(--qs-text-3)] transition", open && "rotate-180")} aria-hidden />
+        <ChevronDown className={cn("h-4 w-4 shrink-0 text-(--qs-text-3) transition", open && "rotate-180")} aria-hidden />
       </button>
       {open && canSwitch ? (
         <div className="hive-tenant-dropdown">
@@ -265,12 +272,12 @@ function SidebarNav({
 }) {
   return (
     <nav aria-label="Hive navigation" className="hive-sidebar-nav hive-scrollbar">
-      {primaryItems.map((item) => {
-        const isDashboard =
-          item.href === "/" || item.href === "/cockpit" || item.href === "/dashboard";
-        return (
+      {primaryItems.map((item, index) => (
+        <div key={item.href}>
+          {shouldRenderIaZoneDivider(primaryItems, index) ? (
+            <div className="hive-nav-divider hive-nav-divider--zone" aria-hidden />
+          ) : null}
           <SidebarNavLink
-            key={item.href}
             item={item}
             pathname={pathname}
             language={language}
@@ -278,16 +285,9 @@ function SidebarNav({
             counts={counts}
             onNavigate={onNavigate}
             onPrefetch={onPrefetch}
-            trailing={
-              isDashboard ? (
-                <span data-dash-settings-trigger className="mr-1.5">
-                  <DashboardSettingsTrigger />
-                </span>
-              ) : undefined
-            }
           />
-        );
-      })}
+        </div>
+      ))}
 
       <div className="hive-nav-divider" aria-hidden />
 
@@ -311,13 +311,11 @@ function SidebarFooter({
   language,
   swarmCount,
   onLogout,
-  onNavigate,
   summary,
 }: {
   language: "en" | "sk";
   swarmCount: number | null;
   onLogout: () => void;
-  onNavigate?: () => void;
   summary?: DashboardSummary | null;
 }) {
   const statusSub = swarmCount != null
@@ -334,14 +332,12 @@ function SidebarFooter({
       <div className="hive-sidebar-status">
         <span className="hive-pulse-dot shrink-0" aria-hidden />
         <div className="min-w-0 leading-tight">
-          <span className="block text-xs font-semibold text-[var(--qs-green)]">
+          <span className="block text-xs font-semibold text-(--qs-green)">
             {localizePhrase(language, { en: "Hive synced", sk: "Hive sync" })}
           </span>
-          <span className="mt-0.5 block text-[10px] text-[var(--qs-text-3)]">{statusSub}</span>
+          <span className="mt-0.5 block text-[10px] text-(--qs-text-3)">{statusSub}</span>
         </div>
       </div>
-
-      <SidebarShortcuts onNavigate={onNavigate} />
 
       <button type="button" onClick={onLogout} className="hive-logout-btn">
         <LogOut className="h-4 w-4 shrink-0" aria-hidden />
@@ -408,6 +404,15 @@ export function HiveSidebar({
 
   const shellStyle = { width: SIDEBAR_WIDTH_PX, minWidth: SIDEBAR_WIDTH_PX } as const;
   const [mounted, setMounted] = useState(false);
+  const mobileDrawerRef = useRef<HTMLElement>(null);
+  const mobileCloseRef = useRef<HTMLButtonElement>(null);
+
+  useModalA11y({
+    open: mobileOpen,
+    onClose: onMobileClose,
+    containerRef: mobileDrawerRef,
+    initialFocusRef: mobileCloseRef,
+  });
 
   useEffect(() => {
     setMounted(true);
@@ -433,15 +438,20 @@ export function HiveSidebar({
         onClick={onMobileClose}
       />
       <aside
+        ref={mobileDrawerRef}
         className={cn(
           "hive-sidebar-rail hive-sidebar-rail--mobile lg:hidden",
           sidebarShellClass,
           "py-[max(0.75rem,env(safe-area-inset-top))]",
           mobileOpen ? "hive-sidebar-rail--mobile-open" : "hive-sidebar-rail--mobile-closed",
         )}
+        role="dialog"
+        aria-modal={mobileOpen ? true : undefined}
+        aria-label="Hive navigation"
         aria-hidden={!mobileOpen}
+        {...(!mobileOpen ? { inert: true } : {})}
       >
-        <SidebarBrand onMobileClose={onMobileClose} />
+        <SidebarBrand onMobileClose={onMobileClose} closeButtonRef={mobileCloseRef} />
         <SidebarTenantSwitcher tenants={tenants} onTenantSwitch={onTenantSwitch} tenantSwitching={tenantSwitching} language={language} />
         <SidebarNav
           pathname={pathname}
@@ -453,7 +463,7 @@ export function HiveSidebar({
           secondaryItems={secondaryItems}
           onPrefetch={prefetchRoute}
         />
-        <SidebarFooter language={language} swarmCount={counts.swarms} onLogout={() => void handleLogout()} onNavigate={onMobileClose} summary={summary} />
+        <SidebarFooter language={language} swarmCount={counts.swarms} onLogout={() => void handleLogout()} summary={summary} />
       </aside>
     </>
   );

@@ -39,9 +39,9 @@ test.describe("Prod authenticated walkthrough", () => {
     }
   });
 
-  test("billing and enterprise settings shells load", async ({ page }) => {
-    await gotoShellRoute(page, "/settings/billing");
-    await expect(page.getByText(/plan|billing|tier/i).first()).toBeVisible({ timeout: 45_000 });
+  test("costs billing and enterprise settings shells load", async ({ page }) => {
+    await gotoShellRoute(page, "/settings/costs");
+    await expect(page.getByText(/plan|billing|tier|costs/i).first()).toBeVisible({ timeout: 45_000 });
 
     await gotoShellRoute(page, "/settings/enterprise");
     await expect(page.getByText(/enterprise|white-label|compliance|HA/i).first()).toBeVisible({ timeout: 45_000 });

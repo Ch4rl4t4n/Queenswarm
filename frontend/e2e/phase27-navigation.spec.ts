@@ -23,7 +23,6 @@ test.describe("Phase 2.7 navigation smoke", () => {
       "/hive-mind",
       "/outputs",
       "/recipes",
-      "/leaderboard",
     ];
     for (const path of paths) {
       await page.goto(path, { waitUntil: "load", timeout: 45_000 });

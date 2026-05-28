@@ -11,6 +11,7 @@ import { QsSelect } from "@/components/ui/qs-select";
 import { V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { v4SectionToneHeader, v4SectionToneShell } from "@/lib/v4-section-tones";
 
 export interface PlatformFeatureMatrixCell {
   enabled: boolean;
@@ -57,43 +58,8 @@ const PREVIEW_PROFILE_OPTIONS = PREVIEW_PROFILES.map((profile) => ({
   label: profile.replaceAll("_", " · "),
 }));
 
-const TONE_STYLES: Record<string, { section: string; header: string }> = {
-  cyan: {
-    section: "border-cyan/35 bg-cyan/[0.06] text-cyan",
-    header: "text-cyan border-cyan/30",
-  },
-  amber: {
-    section: "border-pollen/35 bg-pollen/[0.06] text-pollen",
-    header: "text-pollen border-pollen/30",
-  },
-  pollen: {
-    section: "border-pollen/35 bg-pollen/[0.06] text-pollen",
-    header: "text-pollen border-pollen/30",
-  },
-  magenta: {
-    section: "border-[#FF00AA]/35 bg-[#FF00AA]/[0.06] text-[#FF00AA]",
-    header: "text-[#FF00AA] border-[#FF00AA]/30",
-  },
-  green: {
-    section: "border-[#00FF88]/35 bg-[#00FF88]/[0.06] text-[#00FF88]",
-    header: "text-[#00FF88] border-[#00FF88]/30",
-  },
-  purple: {
-    section: "border-purple-400/35 bg-purple-400/[0.06] text-purple-300",
-    header: "text-purple-300 border-purple-400/30",
-  },
-  zinc: {
-    section: "border-zinc-500/35 bg-zinc-500/[0.06] text-zinc-300",
-    header: "text-zinc-300 border-zinc-500/30",
-  },
-  red: {
-    section: "border-[#FF3366]/35 bg-[#FF3366]/[0.06] text-[#FF3366]",
-    header: "text-[#FF3366] border-[#FF3366]/30",
-  },
-};
-
 function toneStyle(tone: string, kind: "section" | "header"): string {
-  return TONE_STYLES[tone]?.[kind] ?? TONE_STYLES.zinc[kind];
+  return kind === "section" ? v4SectionToneShell(tone) : v4SectionToneHeader(tone);
 }
 
 function profileHeaderStyle(tone: string): string {

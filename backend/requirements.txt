@@ -35,7 +35,6 @@ docker==7.1.0
 websockets==13.1
 pywebpush==2.0.1
 cryptography==48.0.0
-stripe==11.6.0
 langfuse==2.60.10
 opentelemetry-api==1.29.0
 opentelemetry-sdk==1.29.0

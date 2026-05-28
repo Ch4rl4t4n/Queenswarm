@@ -138,7 +138,7 @@ async def upsert_notification_channel(
     try:
         tmpl = _delivery_template(channel, raw, body.enabled)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
     merge_kwargs: dict[str, Any] = {channel: tmpl}
     merge = dashboard_session_router.DeliveryChannelsMerge.model_validate(merge_kwargs)
@@ -208,7 +208,7 @@ async def post_notification_test(
             token = str(cfg_raw.get("bot_token") or "").strip()
             chat_id = str(cfg_raw.get("chat_id") or "").strip()
             if not token or not chat_id:
-                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="telegram bot_token/chat_id missing.")
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="telegram bot_token/chat_id missing.")
             url = f"https://api.telegram.org/bot{token}/sendMessage"
             async with httpx.AsyncClient(timeout=12.0) as client:
                 resp = await client.post(url, json={"chat_id": chat_id, "text": msg})
@@ -219,7 +219,7 @@ async def post_notification_test(
         if channel_id == "discord":
             hook = str(cfg_raw.get("webhook_url") or "").strip()
             if not hook:
-                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Discord webhook missing.")
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Discord webhook missing.")
             async with httpx.AsyncClient(timeout=12.0) as client:
                 resp = await client.post(hook, json={"content": msg})
             if resp.status_code >= 400:
@@ -229,7 +229,7 @@ async def post_notification_test(
         if channel_id == "teams":
             hook = str(cfg_raw.get("webhook_url") or "").strip()
             if not hook:
-                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Teams webhook missing.")
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Teams webhook missing.")
             from app.core.notifications import notify_teams
 
             ok = await notify_teams(msg, title="Queenswarm notification test", webhook_url=hook)
@@ -249,7 +249,7 @@ async def post_notification_test(
             sender = str(cfg_raw.get("from_number") or "").strip()
             dest = str(cfg_raw.get("to_number") or "").strip()
             if not (sid and tok and sender and dest):
-                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="SMS Twilio fields incomplete.")
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="SMS Twilio fields incomplete.")
             auth = (sid, tok)
             form = {"From": sender, "To": dest, "Body": msg}
             tw_url = f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json"

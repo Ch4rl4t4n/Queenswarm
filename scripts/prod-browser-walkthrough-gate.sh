@@ -56,11 +56,11 @@ else
 fi
 
 if [[ -n "${resolved_user_jwt}" ]]; then
-  echo "[2/2] prod authenticated Playwright (user JWT shell routes)"
+  echo "[2/2] prod authenticated Playwright (user JWT — whole-app journey matrix)"
   PLAYWRIGHT_BASE_URL="${HIVE_BASE}" \
     OPERATOR_USER_BEARER_TOKEN="${resolved_user_jwt}" \
     E2E_PROD_AUTHENTICATED=1 CI=1 \
-    npx playwright test e2e/prod-authenticated-walkthrough.spec.ts --workers=1
+    npx playwright test e2e/whole-app-prod-journeys.spec.ts e2e/prod-authenticated-walkthrough.spec.ts --workers=1
 else
   echo "[2/2] prod authenticated Playwright — skipped (no user JWT)"
   exit 1

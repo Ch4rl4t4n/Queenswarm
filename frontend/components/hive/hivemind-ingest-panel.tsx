@@ -7,9 +7,7 @@ import {
   Clock,
   Database,
   FileText,
-  Loader2,
   Moon,
-  RefreshCw,
   ShieldCheck,
   Sparkles,
   Tag,
@@ -17,6 +15,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import {
   V4Badge,
   V4BarRow,
@@ -207,15 +206,7 @@ export function HiveMindIngestPanel({
           description="Tracks whether agents feed verified [INSIGHT] pages into Auto-Graphify and Neo4j — the closed loop for swarm memory."
           as="h3"
           actions={
-            <button
-              type="button"
-              className="qs-btn qs-btn--ghost qs-btn--sm gap-2"
-              disabled={loading}
-              onClick={() => void load()}
-            >
-              <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} aria-hidden />
-              Refresh
-            </button>
+            <HiveRefreshButton busy={loading} onClick={() => void load()} />
           }
         />
 

@@ -71,15 +71,8 @@ echo "[4/6] OAuth redeploy (reload .env.prod.oauth)"
 ./scripts/operator-oauth-redeploy.sh
 echo
 
-echo "[5/6] Stripe (vault check)"
-curl -sS -H "Authorization: Bearer ${TOKEN}" "${HIVE_BASE}/api/v1/billing/stripe-config" \
-  | python3 -c "
-import json,sys
-d=json.load(sys.stdin)
-print('  checkout_ready:', d.get('checkout_ready'))
-print('  webhook_ready:', d.get('webhook_ready'))
-print('  secret_source:', d.get('secret_key_source'))
-"
+echo "[5/6] Checkout lane"
+echo "  In-app checkout removed from this deployment."
 echo
 
 echo "[6/6] Status snapshots"
@@ -121,5 +114,5 @@ echo
 echo "C) Venice media gen (optional, ~5 min)"
 echo "   VENICE_API_KEY=sk-... ./scripts/operator-venice-connector-prep.sh"
 echo
-echo "Stripe already in vault if checkout_ready=true above."
+echo "Checkout lane remains disabled in this deployment."
 echo "Hard refresh: ${HIVE_BASE}/"

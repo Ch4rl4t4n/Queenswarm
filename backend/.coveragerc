@@ -178,7 +178,6 @@ omit =
     app/application/services/dreamer_service.py
     app/application/services/monitoring_snapshot.py
     app/application/services/billing.py
-    app/application/services/stripe_runtime_credentials.py
     app/application/services/skill_checkout.py
     app/application/services/recipe_chroma_bridge.py
     # Publish lane + solo operator (gate scripts: audit-publish-* / operator-release-gate)

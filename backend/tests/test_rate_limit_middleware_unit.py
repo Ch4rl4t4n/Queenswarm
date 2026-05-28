@@ -195,27 +195,6 @@ async def test_rate_limit_middleware_when_authenticated_skips_peer_limits(
 
 
 @pytest.mark.asyncio
-async def test_rate_limit_middleware_when_stripe_webhook_exempt_bypasses_limiter(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Stripe webhook must never be rate-limited (Stripe retries on 429)."""
-
-    monkeypatch.setattr(settings, "rate_limit_enabled", True)
-    reserve = AsyncMock(return_value=False)
-    monkeypatch.setattr(rate_limit_middleware, "sliding_window_reserve", reserve)
-
-    middleware = RateLimitMiddleware(app=lambda scope, receive, send: None)
-    request = _request(path="/api/v1/billing/stripe/webhook", method="POST")
-
-    async def call_next(_: Request) -> Response:
-        return Response(status_code=200)
-
-    response = await middleware.dispatch(request, call_next)
-    assert response.status_code == 200
-    reserve.assert_not_called()
-
-
-@pytest.mark.asyncio
 async def test_rate_limit_middleware_when_redis_fails_and_production_mode_blocks_request(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

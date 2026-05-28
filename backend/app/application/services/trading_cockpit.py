@@ -425,6 +425,39 @@ async def compose_trading_cockpit_snapshot(
     )
 
 
+async def compose_trading_cockpit_action_signals(
+    session: AsyncSession,
+    *,
+    dashboard_user_id: uuid.UUID,
+    tenant: Tenant | None,
+) -> dict[str, Any]:
+    """Minimal trading signals for operator loop actions — skips metrics and run history."""
+
+    if not settings.trading_cockpit_enabled:
+        return {"config": {}, "performance": {}}
+
+    lane = _trading_lane_bucket(tenant.operator_settings if tenant is not None else None)
+    performance: dict[str, Any] = {
+        "is_halted": False,
+        "halt_reason": None,
+    }
+
+    if str(lane.get("venue") or "paper_crypto") == "paper_crypto" and settings.paper_trading_enabled:
+        project = await ensure_primary_trading_project(
+            session,
+            owner_id=dashboard_user_id,
+            tenant=tenant,
+            lane=lane,
+        )
+        portfolio = await build_portfolio_snapshot(session, project=project)
+        performance = {
+            "is_halted": portfolio.get("is_halted", False),
+            "halt_reason": portfolio.get("halt_reason"),
+        }
+
+    return {"config": lane, "performance": performance}
+
+
 async def apply_trading_cockpit_config(
     session: AsyncSession,
     *,
@@ -513,6 +546,7 @@ __all__ = [
     "TradingCockpitSnapshotOut",
     "apply_trading_cockpit_config",
     "compose_trading_cockpit_snapshot",
+    "compose_trading_cockpit_action_signals",
     "merge_trading_lane_patch",
     "run_cockpit_paper_deposit",
     "run_cockpit_paper_reset",

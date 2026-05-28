@@ -1,11 +1,6 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { LazyHiveOraclePanel } from "@/components/hive/hive-oracle-panel";
-
+/** Legacy route — Oracle removed; priorities live on Agentic OS overview. */
 export default function OraclePage() {
-  return (
-    <div className="mx-auto max-w-5xl space-y-4 p-4 lg:p-6">
-      <LazyHiveOraclePanel />
-    </div>
-  );
+  redirect("/agentic-os");
 }

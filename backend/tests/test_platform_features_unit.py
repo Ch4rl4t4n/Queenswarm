@@ -106,7 +106,7 @@ def test_preview_features_rejects_environment_column() -> None:
 
 def test_route_feature_key_and_guard() -> None:
     assert route_feature_key("/foragers") == "foragers"
-    assert route_feature_key("/settings/billing") == "billing_settings"
+    assert route_feature_key("/settings/security") == "settings"
     assert route_feature_key("/settings/platform") == "platform_features_admin"
 
     features = resolve_platform_features(platform_mode="internal", is_admin=True, subscription_tier=TIER_PRO)

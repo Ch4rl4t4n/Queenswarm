@@ -22,11 +22,12 @@ def build_beat_schedule() -> dict[str, dict[str, Any]]:
             "options": {"queue": "hive"},
         }
 
-    schedule["hive-dynamic-agent-scheduler"] = {
-        "task": "hive.dynamic_agent_schedule_tick",
-        "schedule": timedelta(seconds=60),
-        "options": {"queue": "hive"},
-    }
+    if settings.dynamic_agent_scheduler_enabled:
+        schedule["hive-dynamic-agent-scheduler"] = {
+            "task": "hive.dynamic_agent_schedule_tick",
+            "schedule": timedelta(seconds=60),
+            "options": {"queue": "hive"},
+        }
     if settings.routines_enabled:
         schedule["hive-supervisor-routines-tick"] = {
             "task": "hive.supervisor_routines_tick",
@@ -52,23 +53,26 @@ def build_beat_schedule() -> dict[str, dict[str, Any]]:
             "options": {"queue": "hive"},
         }
     # Pollen-driven re-roster advisor — daily at 05:00 UTC, advisory only.
-    schedule["hive-pollen-reroster-daily"] = {
-        "task": "hive.pollen_reroster_sweep",
-        "schedule": crontab(hour=5, minute=0),
-        "options": {"queue": "hive"},
-    }
+    if settings.pollen_reroster_enabled:
+        schedule["hive-pollen-reroster-daily"] = {
+            "task": "hive.pollen_reroster_sweep",
+            "schedule": crontab(hour=5, minute=0),
+            "options": {"queue": "hive"},
+        }
     # Recipe warmup — preload top-N verified recipes into Chroma daily 04:00 UTC.
-    schedule["hive-recipe-warmup-daily"] = {
-        "task": "hive.recipe_warmup",
-        "schedule": crontab(hour=4, minute=0),
-        "options": {"queue": "hive"},
-    }
+    if settings.recipe_warmup_enabled:
+        schedule["hive-recipe-warmup-daily"] = {
+            "task": "hive.recipe_warmup",
+            "schedule": crontab(hour=4, minute=0),
+            "options": {"queue": "hive"},
+        }
     # Manager peer review sweep — every 2h, samples 10 % of completed sessions.
-    schedule["hive-manager-peer-review-sweep"] = {
-        "task": "hive.manager_peer_review_sweep",
-        "schedule": timedelta(hours=2),
-        "options": {"queue": "hive"},
-    }
+    if settings.manager_peer_review_enabled:
+        schedule["hive-manager-peer-review-sweep"] = {
+            "task": "hive.manager_peer_review_sweep",
+            "schedule": timedelta(hours=2),
+            "options": {"queue": "hive"},
+        }
     if settings.supervisor_audit_digest_enabled:
         schedule["hive-supervisor-audit-digest"] = {
             "task": "hive.supervisor_audit_digest_tick",

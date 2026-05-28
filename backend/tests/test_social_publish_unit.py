@@ -28,6 +28,17 @@ def test_compose_social_caption() -> None:
     assert "Learn more" in caption
 
 
+def test_compose_social_caption_with_hook_override() -> None:
+    caption = compose_social_caption(
+        body="Hello hive",
+        hashtags=["Queenswarm"],
+        cta="Join",
+        hook_override="Stop scrolling — this matters.",
+    )
+    assert caption.startswith("Stop scrolling")
+    assert "Hello hive" in caption
+
+
 def test_build_social_publish_arguments_instagram() -> None:
     tool, args = build_social_publish_arguments(
         channel="instagram",

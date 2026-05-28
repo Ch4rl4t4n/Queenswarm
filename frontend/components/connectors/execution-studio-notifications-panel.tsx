@@ -519,7 +519,16 @@ export const ExecutionStudioNotificationsPanel = memo(function ExecutionStudioNo
     } finally {
       setEmailTestBusy(false);
     }
-  }, [discordWebhookDraft, emailDraft, onError, onNotificationsChange, slackWebhookDraft, teamsWebhookDraft]);
+  }, [
+    discordWebhookDraft,
+    emailDraft,
+    onError,
+    onNotificationsChange,
+    slackWebhookDraft,
+    teamsWebhookDraft,
+    telegramBotTokenDraft,
+    telegramChatIdDraft,
+  ]);
 
   const loadDigestPreview = useCallback(async () => {
     setDigestPreviewBusy(true);

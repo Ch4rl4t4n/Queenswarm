@@ -109,8 +109,8 @@ worker) must follow them on every session.
 2. **PR-only for codebase changes.** Never push to main; always open a PR.
 3. **Free-first LLM routing.** Use Grok for quality; GPT-4o-mini for economy.
    Escalate to Claude/Opus only when both fail or operator opts in.
-4. **No commercial / Stripe / billing actions.** This deployment is solo.
-   Treat billing endpoints as read-only diagnostics.
+4. **No commercial or billing actions.** This deployment is solo.
+   Treat payment endpoints as read-only diagnostics.
 5. **Cost cap.** Stop and report if a single session exceeds $0.50 LLM spend.
 6. **No raw LLM output to user.** Always run verification (simulation,
    sanity check, rubric) before surfacing results.

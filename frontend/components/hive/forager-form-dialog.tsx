@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { QsSelect } from "@/components/ui/qs-select";
+import { HiveModalShell } from "@/components/hive/hive-modal-shell";
 import { InfoHint } from "@/components/hive/info-hint";
+import { QsSelect } from "@/components/ui/qs-select";
 import { HiveApiError, hivePostJson, hivePutJson } from "@/lib/api";
 import type { ForagerRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
@@ -287,20 +288,18 @@ export function ForagerFormDialog({
     }
   }
 
-  if (!open) return null;
+  const dialogTitle = editingId ? "Edit forager" : "Create forager";
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
-      onClick={() => onOpenChange(false)}
-      role="presentation"
+    <HiveModalShell
+      open={open}
+      onClose={() => onOpenChange(false)}
+      labelledBy="forager-form-title"
+      panelClassName="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-[color:var(--qs-border-2)] bg-[#070d16] p-5"
     >
-      <div
-        className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-[color:var(--qs-border-2)] bg-[#070d16] p-5"
-        style={{ borderRadius: "var(--qs-radius-lg)" }}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <h2 className="text-lg font-semibold text-zinc-100">{editingId ? "Edit forager" : "Create forager"}</h2>
+      <h2 id="forager-form-title" className="text-lg font-semibold text-zinc-100">
+        {dialogTitle}
+      </h2>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <div>
@@ -595,15 +594,14 @@ export function ForagerFormDialog({
           />
         </div>
 
-        <div className="mt-5 flex justify-end gap-2">
-          <button type="button" onClick={() => onOpenChange(false)} className="qs-btn qs-btn--ghost qs-btn--sm">
-            Cancel
-          </button>
-          <button type="button" onClick={() => void saveForager()} disabled={saving} className="qs-btn qs-btn--primary qs-btn--sm">
-            {saving ? "Saving…" : editingId ? "Save changes" : "Create forager"}
-          </button>
-        </div>
+      <div className="mt-5 flex justify-end gap-2">
+        <button type="button" onClick={() => onOpenChange(false)} className="qs-btn qs-btn--ghost qs-btn--sm">
+          Cancel
+        </button>
+        <button type="button" onClick={() => void saveForager()} disabled={saving} className="qs-btn qs-btn--primary qs-btn--sm">
+          {saving ? "Saving…" : editingId ? "Save changes" : "Create forager"}
+        </button>
       </div>
-    </div>
+    </HiveModalShell>
   );
 }

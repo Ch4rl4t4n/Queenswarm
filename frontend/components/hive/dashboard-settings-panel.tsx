@@ -1,10 +1,10 @@
 "use client";
 
 import { Settings2, X } from "lucide-react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { memo, useCallback, useMemo, useRef } from "react";
 
 import { useDashboardLayout, useDashboardSettings } from "@/components/hive/dashboard-layout-provider";
+import { HivePopoverShell } from "@/components/hive/hive-popover-shell";
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
 import {
   DASHBOARD_SECTION_GROUPS,
@@ -88,43 +88,7 @@ export function DashboardSettingsPanel() {
   const { language } = useUiLanguage();
   const { layout, setVisible, setDensity, density, resetLayout } = useDashboardLayout();
   const { settingsOpen, closeSettings } = useDashboardSettings();
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!settingsOpen) {
-      return undefined;
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        closeSettings();
-      }
-    };
-    const onPointer = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (panelRef.current?.contains(t)) {
-        return;
-      }
-      const trigger = (e.target as HTMLElement | null)?.closest?.("[data-dash-settings-trigger]");
-      if (trigger) {
-        return;
-      }
-      closeSettings();
-    };
-    window.addEventListener("keydown", onKey);
-    const timer = window.setTimeout(() => {
-      window.addEventListener("mousedown", onPointer);
-    }, 0);
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("mousedown", onPointer);
-    };
-  }, [settingsOpen, closeSettings]);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   const sectionsByGroup = useMemo(
     () =>
@@ -142,91 +106,87 @@ export function DashboardSettingsPanel() {
     [setVisible],
   );
 
-  if (!settingsOpen || !mounted) {
-    return null;
-  }
-
-  return createPortal(
-    <>
-      <div className="v4-dash-settings-backdrop" aria-hidden onClick={closeSettings} />
-      <div
-        ref={panelRef}
-        className="v4-dash-settings-panel v4-dash-settings-panel--open"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="dash-settings-title"
-      >
-        <div className="v4-dash-settings-head">
-          <div className="min-w-0">
-            <h2 id="dash-settings-title" className="text-base font-semibold text-(--qs-text)">
-              {localizePhrase(language, { en: "Dashboard layout", sk: "Rozloženie dashboardu" })}
-            </h2>
-            <p className="mt-0.5 text-xs text-(--qs-text-3)">
-              {localizeDescription(language, {
-                en: "Choose which blocks appear on Queen Dashboard.",
-                sk: "Vyber, ktoré bloky sa zobrazia na Queen Dashboard.",
-              })}
-            </p>
-          </div>
-          <button
-            type="button"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border border-(--qs-border) text-(--qs-text-3) hover:text-pollen"
-            aria-label={localizePhrase(language, { en: "Close", sk: "Zavrieť" })}
-            onClick={closeSettings}
-          >
-            <X className="h-4 w-4" aria-hidden />
-          </button>
+  return (
+    <HivePopoverShell
+      open={settingsOpen}
+      onClose={closeSettings}
+      presentation="flyout"
+      ignoreOutsideSelector="[data-dash-settings-trigger]"
+      labelledBy="dash-settings-title"
+      initialFocusRef={closeRef}
+      backdropClassName="v4-dash-settings-backdrop"
+      panelClassName="v4-dash-settings-panel v4-dash-settings-panel--open"
+    >
+      <div className="v4-dash-settings-head">
+        <div className="min-w-0">
+          <h2 id="dash-settings-title" className="text-base font-semibold text-(--qs-text)">
+            {localizePhrase(language, { en: "Dashboard layout", sk: "Rozloženie dashboardu" })}
+          </h2>
+          <p className="mt-0.5 text-xs text-(--qs-text-3)">
+            {localizeDescription(language, {
+              en: "Choose which blocks appear on Queen Dashboard.",
+              sk: "Vyber, ktoré bloky sa zobrazia na Queen Dashboard.",
+            })}
+          </p>
         </div>
+        <button
+          ref={closeRef}
+          type="button"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border border-(--qs-border) text-(--qs-text-3) hover:text-pollen"
+          aria-label={localizePhrase(language, { en: "Close", sk: "Zavrieť" })}
+          onClick={closeSettings}
+        >
+          <X className="h-4 w-4" aria-hidden />
+        </button>
+      </div>
 
-        <div className="v4-dash-settings-body hive-scrollbar">
-          {sectionsByGroup.map(({ group, sections }) => (
-            <section key={group.id} className="v4-dash-settings-group">
-              <h3 className="v4-label-kicker mb-3 text-(--qs-text-3)">{group.label.en}</h3>
-              <div className="flex flex-col gap-2">
-                {sections.map((section) => (
-                  <SettingToggleRow
-                    key={section.id}
-                    sectionId={section.id}
-                    checked={layout[section.id]}
-                    onToggle={handleToggle}
-                    label={section.label.en}
-                    description={localizeDescription(language, section.description)}
-                  />
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
-
-        <div className="v4-dash-settings-foot flex flex-col gap-3">
-          <div>
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-(--qs-text-3)">
-              {localizePhrase(language, { en: "Section density", sk: "Hustota sekcií" })}
-            </p>
-            <div className="flex gap-2">
-              {(["comfortable", "compact"] as SectionDensity[]).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  className={cn(
-                    "flex-1 rounded-lg border px-3 py-1.5 text-xs capitalize",
-                    density === mode
-                      ? "border-pollen/60 bg-pollen/15 text-pollen"
-                      : "border-(--qs-border) text-(--qs-text-3)",
-                  )}
-                  onClick={() => setDensity(mode)}
-                >
-                  {localizePhrase(language, mode === "compact" ? { en: "Compact", sk: "Kompaktné" } : { en: "Cozy", sk: "Pohodlné" })}
-                </button>
+      <div className="v4-dash-settings-body hive-scrollbar">
+        {sectionsByGroup.map(({ group, sections }) => (
+          <section key={group.id} className="v4-dash-settings-group">
+            <h3 className="v4-label-kicker mb-3 text-(--qs-text-3)">{group.label.en}</h3>
+            <div className="flex flex-col gap-2">
+              {sections.map((section) => (
+                <SettingToggleRow
+                  key={section.id}
+                  sectionId={section.id}
+                  checked={layout[section.id]}
+                  onToggle={handleToggle}
+                  label={section.label.en}
+                  description={localizeDescription(language, section.description)}
+                />
               ))}
             </div>
-          </div>
-          <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm w-full" onClick={resetLayout}>
-            {localizePhrase(language, { en: "Reset to defaults", sk: "Obnoviť predvolené" })}
-          </button>
-        </div>
+          </section>
+        ))}
       </div>
-    </>,
-    document.body,
+
+      <div className="v4-dash-settings-foot flex flex-col gap-3">
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-(--qs-text-3)">
+            {localizePhrase(language, { en: "Section density", sk: "Hustota sekcií" })}
+          </p>
+          <div className="flex gap-2">
+            {(["comfortable", "compact"] as SectionDensity[]).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                className={cn(
+                  "flex-1 rounded-lg border px-3 py-1.5 text-xs capitalize",
+                  density === mode
+                    ? "border-pollen/60 bg-pollen/15 text-pollen"
+                    : "border-(--qs-border) text-(--qs-text-3)",
+                )}
+                onClick={() => setDensity(mode)}
+              >
+                {localizePhrase(language, mode === "compact" ? { en: "Compact", sk: "Kompaktné" } : { en: "Cozy", sk: "Pohodlné" })}
+              </button>
+            ))}
+          </div>
+        </div>
+        <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm w-full" onClick={resetLayout}>
+          {localizePhrase(language, { en: "Reset to defaults", sk: "Obnoviť predvolené" })}
+        </button>
+      </div>
+    </HivePopoverShell>
   );
 }

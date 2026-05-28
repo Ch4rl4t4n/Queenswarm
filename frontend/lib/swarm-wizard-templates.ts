@@ -763,9 +763,9 @@ export const SWARM_WIZARD_TEMPLATES: SwarmWizardTemplate[] = [
   {
     id: "micro-saas-factory",
     name: "Micro-SaaS Factory",
-    tagline: "Landing + auth + Stripe + deploy recipe",
+    tagline: "Landing + auth + billing + deploy recipe",
     description:
-      "Product factory colony: MVP scope, landing draft, JWT auth pattern, Stripe checklist, docker deploy recipe — all simulate-first.",
+      "Product factory colony: MVP scope, landing draft, JWT auth pattern, billing checklist, docker deploy recipe — all simulate-first.",
     category: "virtual_company",
     swarmName: "Micro-SaaS Factory",
     swarmPurpose: "action",
@@ -809,7 +809,7 @@ export const SWARM_WIZARD_TEMPLATES: SwarmWizardTemplate[] = [
     routine: {
       name: "Micro-SaaS factory cycle",
       goalTemplate:
-        "Factory: MVP scope → landing → auth doc → Stripe checklist → deploy recipe (simulate).",
+        "Factory: MVP scope → landing → auth doc → billing checklist → deploy recipe (simulate).",
       scheduleKind: "cron",
       cronExpr: "0 14 * * 5",
     },

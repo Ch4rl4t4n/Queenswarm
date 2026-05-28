@@ -34,8 +34,6 @@ load_kv() {
   return 1
 }
 
-stripe_env=false
-[[ -n "$(load_kv .env.prod STRIPE_SECRET_KEY || true)" ]] && stripe_env=true
 slack_env=false
 [[ -n "$(load_kv .env.prod SLACK_WEBHOOK_URL || true)" ]] && slack_env=true
 solo_mode=false
@@ -82,9 +80,7 @@ print(json.dumps({
   "routines_active": ${routines},
   "dump_sleep_report": ${dump_available} == "true",
   "episodic_items": ${episodic_total},
-  "stripe_env_keys": ${stripe_env},
   "slack_webhook": ${slack_env},
-  "stripe_note": "Configure STRIPE_SECRET_KEY in Settings → Billing for skill checkout + micro-SaaS",
 }, indent=2))
 PY
   exit 0
@@ -112,7 +108,7 @@ echo
 
 echo "── Integrations / alerts ──"
 echo "  Slack webhook:       $([[ "$slack_env" == true ]] && echo '✓ set' || echo '○ empty (alerts → blackhole)')"
-echo "  Commercial (Stripe): DEFERRED — nie je v aktuálnom roadmap scope"
+echo "  Commercial checkout: REMOVED — not in current roadmap scope"
 echo
 
 echo "── Queen policy (operator-editable) ──"

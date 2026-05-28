@@ -4,6 +4,7 @@ import { pathnameMatchesRoute } from "./use-route-scoped-poll";
 
 describe("pathnameMatchesRoute", () => {
   it("matches overview aliases when active route is root", () => {
+    expect(pathnameMatchesRoute("/agentic-os", "/")).toBe(true);
     expect(pathnameMatchesRoute("/cockpit", "/")).toBe(true);
     expect(pathnameMatchesRoute("/dashboard", "/")).toBe(true);
     expect(pathnameMatchesRoute("/overview", "/")).toBe(true);

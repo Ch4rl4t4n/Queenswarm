@@ -1,11 +1,14 @@
 "use client";
 
-import { Factory, Loader2, RefreshCw } from "lucide-react";
+import { Factory } from "lucide-react";
 import Link from "next/link";
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState, type ReactNode } from "react";
 
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { V4Badge } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
+import { FACTORY_BLUEPRINT_PATH, FACTORY_CROSS_LINK_LABELS } from "@/lib/factory-content-factory-routes";
+import { cn } from "@/lib/utils";
 
 interface MicroSaasStep {
   id: string;
@@ -26,7 +29,6 @@ interface MicroSaasSnapshot {
   enabled: boolean;
   progress_pct: number;
   product_name: string;
-  stripe_ready: boolean;
   deploy_domain: string;
   steps: MicroSaasStep[];
   actions: MicroSaasAction[];
@@ -34,6 +36,8 @@ interface MicroSaasSnapshot {
 
 export interface ExecutionStudioMicroSaasFactoryPanelProps {
   onError: (message: string | null) => void;
+  /** Hide spawn row when the page header already exposes the same CTA (e.g. `/factory`). */
+  hideSpawnAction?: boolean;
 }
 
 function stepTone(status: string): "ok" | "warn" | "info" {
@@ -42,7 +46,44 @@ function stepTone(status: string): "ok" | "warn" | "info" {
   return "warn";
 }
 
-function ExecutionStudioMicroSaasFactoryPanelInner({ onError }: ExecutionStudioMicroSaasFactoryPanelProps) {
+function MicroSaasStatusRow({
+  title,
+  detail,
+  status,
+  className,
+  emphasis = false,
+}: {
+  title: string;
+  detail: string;
+  status: ReactNode;
+  className?: string;
+  emphasis?: boolean;
+}) {
+  return (
+    <li
+      className={cn(
+        "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-0.5 rounded bg-black/20 px-2 py-1.5",
+        className,
+      )}
+    >
+      <span
+        className={cn(
+          "col-start-1 row-start-1 min-w-0 text-(--qs-text)",
+          emphasis && "font-medium",
+        )}
+      >
+        {title}
+      </span>
+      <div className="col-start-2 row-start-1 shrink-0 self-start justify-self-end pt-px">{status}</div>
+      <p className="col-start-1 row-start-2 min-w-0 text-[11px] leading-snug text-(--qs-text-3)">{detail}</p>
+    </li>
+  );
+}
+
+function ExecutionStudioMicroSaasFactoryPanelInner({
+  onError,
+  hideSpawnAction = false,
+}: ExecutionStudioMicroSaasFactoryPanelProps) {
   const [snapshot, setSnapshot] = useState<MicroSaasSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -78,14 +119,7 @@ function ExecutionStudioMicroSaasFactoryPanelInner({ onError }: ExecutionStudioM
           <Factory className="size-4 text-cyan" aria-hidden />
           <h3 className="font-heading text-sm font-semibold text-(--qs-text)">Micro-SaaS Factory</h3>
         </div>
-        <button
-          type="button"
-          onClick={() => void load()}
-          className="rounded-md p-1 text-(--qs-text-3) hover:text-cyan"
-          aria-label="Refresh factory snapshot"
-        >
-          {loading ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-        </button>
+        <HiveRefreshButton busy={loading} onClick={() => void load()} />
       </div>
 
       {loading && !snapshot ? (
@@ -95,42 +129,44 @@ function ExecutionStudioMicroSaasFactoryPanelInner({ onError }: ExecutionStudioM
           <div className="flex flex-wrap gap-2 text-xs">
             <V4Badge tone="info">{snapshot.product_name}</V4Badge>
             <V4Badge tone={snapshot.progress_pct >= 75 ? "ok" : "warn"}>{snapshot.progress_pct}% ready</V4Badge>
-            {snapshot.stripe_ready ? <V4Badge tone="ok">Stripe</V4Badge> : null}
           </div>
 
           <ul className="space-y-1 text-xs">
             {snapshot.steps.map((step) => (
-              <li key={step.id} className="rounded bg-black/20 px-2 py-1">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-(--qs-text)">{step.label}</span>
-                  <V4Badge tone={stepTone(step.status)}>{step.status}</V4Badge>
-                </div>
-                <p className="mt-0.5 text-[11px] text-(--qs-text-3)">{step.detail}</p>
-              </li>
+              <MicroSaasStatusRow
+                key={step.id}
+                title={step.label}
+                detail={step.detail}
+                status={<V4Badge tone={stepTone(step.status)}>{step.status}</V4Badge>}
+              />
             ))}
-          </ul>
-
-          {snapshot.actions.length > 0 ? (
-            <ul className="space-y-2">
-              {snapshot.actions.map((action) => (
-                <li key={action.id} className="rounded border border-white/10 bg-black/20 p-2 text-xs">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-medium text-(--qs-text)">{action.label}</span>
-                    {action.href ? (
-                      <Link href={action.href} className="text-cyan hover:underline">
+            {snapshot.actions
+              .filter((action) => !(hideSpawnAction && action.id === "spawn_factory"))
+              .map((action) => (
+                <MicroSaasStatusRow
+                  key={action.id}
+                  title={action.label}
+                  detail={action.detail}
+                  emphasis
+                  className="border border-white/10"
+                  status={
+                    action.href ? (
+                      <Link href={action.href} className="qs-btn qs-btn--ghost qs-btn--sm shrink-0">
                         Open
                       </Link>
-                    ) : null}
-                  </div>
-                  <p className="mt-1 text-(--qs-text-3)">{action.detail}</p>
-                </li>
+                    ) : null
+                  }
+                />
               ))}
-            </ul>
-          ) : null}
+          </ul>
 
-          <Link href="/factory" className="text-xs text-cyan hover:underline">
-            Public factory blueprint →
-          </Link>
+          <div className="flex justify-end pt-1">
+            {!hideSpawnAction ? (
+              <Link href={FACTORY_BLUEPRINT_PATH} className="qs-btn qs-btn--primary qs-btn--sm shrink-0">
+                {FACTORY_CROSS_LINK_LABELS.toBlueprint}
+              </Link>
+            ) : null}
+          </div>
         </>
       ) : null}
     </div>

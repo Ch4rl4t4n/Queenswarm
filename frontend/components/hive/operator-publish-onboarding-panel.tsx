@@ -99,11 +99,12 @@ function OperatorPublishOnboardingPanelInner() {
         kicker="Publish lane"
         title="First live post — checklist"
         description={`${snapshot.progress_pct}% complete — simulate-first until OAuth + operator approve`}
-        actions={
+        hint={
           <InfoHint
             title={PUBLISH_ONBOARDING_HINT.title}
             description={PUBLISH_ONBOARDING_HINT.description}
             options={PUBLISH_ONBOARDING_HINT.options}
+            className="hive-inline-hint"
           />
         }
       />

@@ -1,16 +1,19 @@
 "use client";
 
-import { Mail, MessageSquare, Send } from "lucide-react";
+import { ChevronDown, Mail, MessageSquare, Send } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { HiveApiError, hiveDelete, hiveGet, hivePostJson } from "@/lib/api";
 import { Toggle } from "@/components/ui/toggle";
 import { V4Badge, V4Card } from "@/components/ui/v4";
+import { V4FormField, V4FormStack } from "@/components/ui/v4/v4-form-field";
 import type { NotificationChannelListRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
 type ChannelSlug = "email" | "sms" | "discord" | "teams" | "telegram";
+
+const CHANNEL_SLUGS: ChannelSlug[] = ["email", "sms", "discord", "teams", "telegram"];
 
 const EVENTS: Record<ChannelSlug, string> = {
   email: "task_complete · agent_error_digest · weekly_summary",
@@ -60,6 +63,7 @@ export function SettingsNotificationsPanel() {
   const [channels, setChannels] = useState<NotificationChannelListRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [openSlug, setOpenSlug] = useState<ChannelSlug | null>("email");
   const [drafts, setDrafts] = useState<
     Record<ChannelSlug, { enabled: boolean; settings: Record<string, unknown>; label?: string }>
   >({
@@ -74,7 +78,7 @@ export function SettingsNotificationsPanel() {
   const hydrateDraftsFromApi = useCallback((rows: NotificationChannelListRow[]) => {
     setDrafts((prev) => {
       const next = { ...prev };
-      for (const slug of ["email", "sms", "discord", "teams", "telegram"] as ChannelSlug[]) {
+      for (const slug of CHANNEL_SLUGS) {
         const row = rows.find((r) => r.channel_type === slug || r.id === slug);
         if (!row) {
           continue;
@@ -224,180 +228,192 @@ export function SettingsNotificationsPanel() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <p className="text-sm text-(--qs-text-3)">
         Delivery buckets sync to{" "}
         <span className="font-mono text-xs text-pollen">notification_prefs.delivery_channels</span> via{" "}
         <span className="font-mono text-xs text-pollen">/api/v1/notifications</span>.
       </p>
 
-      <div className="flex flex-col gap-4">
-        {(["email", "sms", "discord", "teams", "telegram"] as ChannelSlug[]).map((slug) => {
+      <div className="flex flex-col gap-2">
+        {CHANNEL_SLUGS.map((slug) => {
           const { Icon, title } = META[slug];
           const blob = drafts[slug];
           const row = channels.find((c) => c.channel_type === slug || c.id === slug);
           const configured = row?.is_active;
+          const open = openSlug === slug;
+          const panelId = `notif-channel-${slug}`;
 
           return (
-            <V4Card key={slug}>
-              <div className="v4-section-header-row">
-                <div className="min-w-0 flex-1">
-                  <h3>{title}</h3>
-                  <p className="desc">{EVENTS[slug]}</p>
-                </div>
-                <div className="v4-section-icon" aria-hidden>
-                  <Icon className="h-5 w-5" />
-                </div>
-              </div>
+            <V4Card key={slug} tight className={cn("overflow-hidden p-0", open && "v4-settings-notify-tab--open")}>
+              <button
+                type="button"
+                className="v4-settings-notify-tab"
+                aria-expanded={open}
+                aria-controls={panelId}
+                onClick={() => setOpenSlug((current) => (current === slug ? null : slug))}
+              >
+                <span className="v4-settings-notify-tab-icon" aria-hidden>
+                  <Icon className="h-4 w-4" />
+                </span>
+                <span className="min-w-0 flex-1 text-left">
+                  <h3 className="truncate text-sm font-semibold text-(--qs-text)">{title}</h3>
+                  <p className="mt-0.5 truncate text-xs text-(--qs-text-3)">{EVENTS[slug]}</p>
+                </span>
+                <span className="flex shrink-0 items-center gap-2">
+                  {configured ? (
+                    <V4Badge tone="ok" className="hidden sm:inline-flex">
+                      configured
+                    </V4Badge>
+                  ) : null}
+                  <V4Badge tone={blob.enabled ? "ok" : "info"} className="tabular-nums">
+                    {blob.enabled ? "On" : "Off"}
+                  </V4Badge>
+                  <span className={cn("v4-panel-collapsible-chevron", open && "v4-panel-collapsible-chevron--open")} aria-hidden>
+                    <ChevronDown className="h-4 w-4" />
+                  </span>
+                </span>
+              </button>
 
-              {configured ? (
-                <V4Badge tone="ok" className="mb-3">
-                  configured
-                </V4Badge>
-              ) : null}
+              {open ? (
+                <div id={panelId} className="v4-settings-notify-tab-body">
+                  {configured ? (
+                    <V4Badge tone="ok" className="mb-3 sm:hidden">
+                      configured
+                    </V4Badge>
+                  ) : null}
 
-              <div className="mb-3 flex items-center justify-between gap-3 text-[13px] text-[var(--qs-text)]">
-                <span>Enabled</span>
-                <Toggle
-                  checked={blob.enabled}
-                  disabled={busy}
-                  onChange={(next) =>
-                    setDrafts((d) => ({
-                      ...d,
-                      [slug]: { ...d[slug], enabled: next },
-                    }))
-                  }
-                  aria-label={`${title} channel enabled`}
-                />
-              </div>
-
-              {slug === "email" ? (
-                <div className="mb-3">
-                  <label className="qs-label" htmlFor={`notif-email-${slug}`}>
-                    Address
-                  </label>
-                  <input
-                    id={`notif-email-${slug}`}
-                    type="email"
-                    disabled={busy}
-                    value={String(blob.settings.address ?? "")}
-                    onChange={(e) =>
-                      setDrafts((d) => ({
-                        ...d,
-                        [slug]: { ...d[slug], settings: { ...d[slug].settings, address: e.target.value } },
-                      }))
-                    }
-                    className="qs-input"
-                  />
-                </div>
-              ) : null}
-
-              {slug === "sms" ? (
-                <div className="mb-3">
-                  <label className="qs-label" htmlFor={`notif-sms-${slug}`}>
-                    Phone (E.164)
-                  </label>
-                  <input
-                    id={`notif-sms-${slug}`}
-                    type="tel"
-                    disabled={busy}
-                    value={String(blob.settings.phone_e164 ?? "")}
-                    onChange={(e) =>
-                      setDrafts((d) => ({
-                        ...d,
-                        [slug]: { ...d[slug], settings: { ...d[slug].settings, phone_e164: e.target.value } },
-                      }))
-                    }
-                    placeholder="+4219…"
-                    className="qs-input"
-                  />
-                </div>
-              ) : null}
-
-              {slug === "discord" || slug === "teams" ? (
-                <div className="mb-3">
-                  <label className="qs-label" htmlFor={`notif-${slug}-${slug}`}>
-                    Webhook URL
-                  </label>
-                  <input
-                    id={`notif-${slug}-${slug}`}
-                    type="password"
-                    disabled={busy}
-                    value={String(blob.settings.webhook_url ?? "")}
-                    onChange={(e) =>
-                      setDrafts((d) => ({
-                        ...d,
-                        [slug]: { ...d[slug], settings: { ...d[slug].settings, webhook_url: e.target.value } },
-                      }))
-                    }
-                    className="qs-input"
-                    placeholder={slug === "teams" ? "https://outlook.office.com/webhook/…" : undefined}
-                  />
-                </div>
-              ) : null}
-
-              {slug === "telegram" ? (
-                <div className="v4-settings-notify-fields mb-3 grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className="qs-label" htmlFor={`tg-token-${slug}`}>
-                      Bot token
-                    </label>
-                    <input
-                      id={`tg-token-${slug}`}
-                      type="password"
+                  <div className="mb-3 flex items-center justify-between gap-3 text-[13px] text-(--qs-text)">
+                    <span>Enabled</span>
+                    <Toggle
+                      checked={blob.enabled}
                       disabled={busy}
-                      value={String(blob.settings.bot_token ?? "")}
-                      onChange={(e) =>
+                      onChange={(next) =>
                         setDrafts((d) => ({
                           ...d,
-                          [slug]: { ...d[slug], settings: { ...d[slug].settings, bot_token: e.target.value } },
+                          [slug]: { ...d[slug], enabled: next },
                         }))
                       }
-                      className="qs-input"
+                      aria-label={`${title} channel enabled`}
                     />
                   </div>
-                  <div>
-                    <label className="qs-label" htmlFor={`tg-chat-${slug}`}>
-                      Chat ID
-                    </label>
-                    <input
-                      id={`tg-chat-${slug}`}
-                      type="text"
-                      disabled={busy}
-                      value={String(blob.settings.chat_id ?? "")}
-                      onChange={(e) =>
-                        setDrafts((d) => ({
-                          ...d,
-                          [slug]: { ...d[slug], settings: { ...d[slug].settings, chat_id: e.target.value } },
-                        }))
-                      }
-                      className="qs-input"
-                    />
+
+                  <V4FormStack>
+                    {slug === "email" ? (
+                      <V4FormField label="Address" htmlFor={`notif-email-${slug}`}>
+                        <input
+                          id={`notif-email-${slug}`}
+                          type="email"
+                          disabled={busy}
+                          value={String(blob.settings.address ?? "")}
+                          onChange={(e) =>
+                            setDrafts((d) => ({
+                              ...d,
+                              [slug]: { ...d[slug], settings: { ...d[slug].settings, address: e.target.value } },
+                            }))
+                          }
+                          className="qs-input"
+                        />
+                      </V4FormField>
+                    ) : null}
+
+                    {slug === "sms" ? (
+                      <V4FormField label="Phone (E.164)" htmlFor={`notif-sms-${slug}`}>
+                        <input
+                          id={`notif-sms-${slug}`}
+                          type="tel"
+                          disabled={busy}
+                          value={String(blob.settings.phone_e164 ?? "")}
+                          onChange={(e) =>
+                            setDrafts((d) => ({
+                              ...d,
+                              [slug]: { ...d[slug], settings: { ...d[slug].settings, phone_e164: e.target.value } },
+                            }))
+                          }
+                          placeholder="+4219…"
+                          className="qs-input"
+                        />
+                      </V4FormField>
+                    ) : null}
+
+                    {slug === "discord" || slug === "teams" ? (
+                      <V4FormField label="Webhook URL" htmlFor={`notif-${slug}-${slug}`}>
+                        <input
+                          id={`notif-${slug}-${slug}`}
+                          type="password"
+                          disabled={busy}
+                          value={String(blob.settings.webhook_url ?? "")}
+                          onChange={(e) =>
+                            setDrafts((d) => ({
+                              ...d,
+                              [slug]: { ...d[slug], settings: { ...d[slug].settings, webhook_url: e.target.value } },
+                            }))
+                          }
+                          className="qs-input"
+                          placeholder={slug === "teams" ? "https://outlook.office.com/webhook/…" : undefined}
+                        />
+                      </V4FormField>
+                    ) : null}
+
+                    {slug === "telegram" ? (
+                      <div className="v4-settings-notify-fields grid gap-3 sm:grid-cols-2">
+                        <V4FormField label="Bot token" htmlFor={`tg-token-${slug}`}>
+                          <input
+                            id={`tg-token-${slug}`}
+                            type="password"
+                            disabled={busy}
+                            value={String(blob.settings.bot_token ?? "")}
+                            onChange={(e) =>
+                              setDrafts((d) => ({
+                                ...d,
+                                [slug]: { ...d[slug], settings: { ...d[slug].settings, bot_token: e.target.value } },
+                              }))
+                            }
+                            className="qs-input"
+                          />
+                        </V4FormField>
+                        <V4FormField label="Chat ID" htmlFor={`tg-chat-${slug}`}>
+                          <input
+                            id={`tg-chat-${slug}`}
+                            type="text"
+                            disabled={busy}
+                            value={String(blob.settings.chat_id ?? "")}
+                            onChange={(e) =>
+                              setDrafts((d) => ({
+                                ...d,
+                                [slug]: { ...d[slug], settings: { ...d[slug].settings, chat_id: e.target.value } },
+                              }))
+                            }
+                            className="qs-input"
+                          />
+                        </V4FormField>
+                      </div>
+                    ) : null}
+                  </V4FormStack>
+
+                  <div className="v4-settings-notify-actions mt-4 flex flex-wrap gap-2">
+                    <button type="button" disabled={busy} onClick={() => void saveChannel(slug)} className="qs-btn qs-btn--primary qs-btn--sm">
+                      Save channel
+                    </button>
+                    <button type="button" disabled={busy} onClick={() => void sendTest(slug)} className="qs-btn qs-btn--cyan qs-btn--sm">
+                      Send test
+                    </button>
+                    <button type="button" disabled={busy} onClick={() => void clearChannel(slug)} className="qs-btn qs-btn--danger qs-btn--sm">
+                      Clear
+                    </button>
                   </div>
+
+                  {testHints[slug] ? (
+                    <p
+                      className={cn(
+                        "mt-3 font-mono text-[11px]",
+                        testHints[slug]?.startsWith("✅") ? "text-(--qs-green)" : "text-(--qs-red)",
+                      )}
+                    >
+                      {testHints[slug]}
+                    </p>
+                  ) : null}
                 </div>
-              ) : null}
-
-              <div className="v4-settings-notify-actions mt-1 flex flex-wrap gap-2">
-                <button type="button" disabled={busy} onClick={() => void saveChannel(slug)} className="qs-btn qs-btn--primary qs-btn--sm">
-                  Save channel
-                </button>
-                <button type="button" disabled={busy} onClick={() => void sendTest(slug)} className="qs-btn qs-btn--cyan qs-btn--sm">
-                  Send test
-                </button>
-                <button type="button" disabled={busy} onClick={() => void clearChannel(slug)} className="qs-btn qs-btn--danger qs-btn--sm">
-                  Clear
-                </button>
-              </div>
-
-              {testHints[slug] ? (
-                <p
-                  className={cn(
-                    "font-mono text-[11px]",
-                    testHints[slug]?.startsWith("✅") ? "text-[var(--qs-green)]" : "text-[var(--qs-red)]",
-                  )}
-                >
-                  {testHints[slug]}
-                </p>
               ) : null}
             </V4Card>
           );

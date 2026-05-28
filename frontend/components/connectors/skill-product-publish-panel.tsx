@@ -14,7 +14,7 @@ interface SkillProductPublishPanelProps {
   className?: string;
 }
 
-/** Multi-channel publish checklist after skill export (GitHub, Gumroad, Cursor, Stripe). */
+/** Multi-channel publish checklist after skill export (GitHub, Gumroad, Cursor). */
 export function SkillProductPublishPanel({ bundle, className }: SkillProductPublishPanelProps): JSX.Element {
   const publish = bundle.publish;
 
@@ -70,7 +70,7 @@ export function SkillProductPublishPanel({ bundle, className }: SkillProductPubl
               ) : null}
             </div>
             <p className="text-xs text-(--qs-text-3)">{channel.description}</p>
-            <div className="mt-auto flex flex-wrap gap-2">
+            <div className="v4-dream-cycle-card-actions">
               {channel.action_url ? (
                 <a
                   href={channel.action_url}

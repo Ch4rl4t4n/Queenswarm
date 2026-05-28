@@ -1,11 +1,11 @@
-"""JWT-guarded swarm infrastructure diagnostics for operator consoles."""
+"""Dashboard-admin guarded swarm infrastructure diagnostics for operator consoles."""
 
 from __future__ import annotations
 
 import asyncio
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 import psutil
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select, text
@@ -14,7 +14,7 @@ from app.core.config import settings
 from app.core.llm_router import llm_concurrency_snapshot
 from app.core.logging import get_logger
 from app.core.readiness import collect_readiness_uncached
-from app.presentation.api.deps import JwtSubject
+from app.presentation.api.deps import DashboardSession, dashboard_admin_wall
 from app.application.services.llm_runtime_credentials import (
     provider_effective_anthropic,
     provider_effective_grok,
@@ -27,7 +27,11 @@ from app.core.celery_health import inspect_celery_workers
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/system", tags=["System"])
+router = APIRouter(
+    prefix="/system",
+    tags=["System"],
+    dependencies=[Depends(dashboard_admin_wall)],
+)
 
 
 class SystemStatusPayload(BaseModel):
@@ -187,7 +191,7 @@ def _celery_snapshot() -> dict[str, int | bool | str]:
     summary="Infrastructure snapshot (Redis/Celery/DB/LLM)",
     response_model=SystemStatusPayload,
 )
-async def read_system_status(_subject: JwtSubject) -> SystemStatusPayload:
+async def read_system_status(_session: DashboardSession) -> SystemStatusPayload:
     """Expose lightweight infra checks consumed by hive dashboards."""
 
     payload, _ = await collect_readiness_uncached()
@@ -253,7 +257,7 @@ async def read_system_status(_subject: JwtSubject) -> SystemStatusPayload:
 
 
 @router.post("/notify-test", summary="Smoke-test Slack + SMTP wiring", response_model=NotifyTestResponse)
-async def post_notify_test(_subject: JwtSubject) -> NotifyTestResponse:
+async def post_notify_test(_session: DashboardSession) -> NotifyTestResponse:
     """Trigger optional Slack/email notifications using ``settings``."""
 
     from app.core.notifications import notify_email, notify_slack

@@ -10,13 +10,13 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.main import app
-from app.presentation.api.deps import get_db, require_subject
+from app.presentation.api.deps import dashboard_admin_wall, get_db, require_dashboard_session
 from app.presentation.api.routers import workflows as workflows_router
 
 
 @pytest.fixture
 def workflow_auth_fixture() -> Generator[None, None, None]:
-    """JWT subject + DB session for workflow routes."""
+    """Dashboard admin auth + DB session for workflow routes."""
 
     mock_db = AsyncMock()
     mock_db.commit = AsyncMock()
@@ -25,7 +25,8 @@ def workflow_auth_fixture() -> Generator[None, None, None]:
     async def _db() -> AsyncIterator[AsyncMock]:
         yield mock_db
 
-    app.dependency_overrides[require_subject] = lambda: f"dash:{uuid.uuid4()}"
+    app.dependency_overrides[dashboard_admin_wall] = lambda: True
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": f"dash:{uuid.uuid4()}"}
     app.dependency_overrides[get_db] = _db
     try:
         yield
@@ -115,3 +116,18 @@ async def test_slice_to_kanban_route_returns_slices(
     body = resp.json()
     assert body["slice_count"] == 1
     assert body["idempotent_reuse"] is False
+
+
+@pytest.mark.asyncio
+async def test_slice_to_kanban_route_requires_dashboard_auth() -> None:
+    """Workflow route rejects missing dashboard authentication."""
+
+    workflow_id = uuid.uuid4()
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            f"/api/v1/workflows/{workflow_id}/slice-to-kanban",
+            json={"priority": 5},
+        )
+
+    assert resp.status_code == 401

@@ -323,11 +323,12 @@ function ExecutionStudioSocialPublishPanelInner({
         kicker="Multi-account · Phase C"
         title="Social publish — IG · FB · X · TikTok · Newsletter"
         description="Neobmedzené účty na platformu. Pripoj + Instagram / + X / + TikTok — každé OAuth pridá nový účet. Pri packu vyber „Publikuješ ako“."
-        actions={
+        hint={
           <InfoHint
             title={SOCIAL_PUBLISH_PANEL_HINT.title}
             description={SOCIAL_PUBLISH_PANEL_HINT.description}
             options={SOCIAL_PUBLISH_PANEL_HINT.options}
+            className="hive-inline-hint"
           />
         }
       />

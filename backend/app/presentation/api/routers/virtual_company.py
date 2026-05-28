@@ -329,7 +329,7 @@ async def virtual_company_start_first_run_session(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=marker.split(":", 1)[1],
             ) from exc
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=marker) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=marker) from exc
     except SQLAlchemyError as exc:
         await db.rollback()
         raise HTTPException(
@@ -363,7 +363,7 @@ async def virtual_company_build_department_swarm(
     except KeyError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     except SQLAlchemyError as exc:
         await db.rollback()
         raise HTTPException(
@@ -399,7 +399,7 @@ async def virtual_company_build_all_departments(
             include_sentinel=body.include_sentinel,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     except SQLAlchemyError as exc:
         await db.rollback()
         raise HTTPException(

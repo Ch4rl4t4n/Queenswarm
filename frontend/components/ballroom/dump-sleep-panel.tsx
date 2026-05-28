@@ -5,6 +5,7 @@ import { Loader2Icon, MoonStar, Upload } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { OvernightVoiceReportPlayer } from "@/components/hive/overnight-voice-report-player";
 import { HiveApiError, hiveGet } from "@/lib/api";
 import { hiveOverviewHref } from "@/lib/hive-home-route";
@@ -118,6 +119,7 @@ export function DumpSleepPanel(): JSX.Element | null {
       <V4CardHeader
         title="Dump & Sleep"
         description="Drop folder notes before bed — wake up to a verified morning briefing."
+        hint={sectionHintNode("dumpSleep")}
         actions={
           activeBatch ? (
             <V4Badge tone={statusTone(activeBatch.status)}>{activeBatch.status}</V4Badge>

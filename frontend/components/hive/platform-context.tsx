@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 
 import { hiveGet } from "@/lib/api";
 import { DASHBOARD_BOOT_STAGGER_MS } from "@/lib/dashboard-boot-stagger";
+import { SINGLE_ADMIN_MODE } from "@/lib/feature-flags";
 import type { DashboardOperatorMe } from "@/lib/hive-dashboard-session";
 import {
   applySoloModeOverrides,
@@ -60,9 +61,10 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
   const [tenantBranding, setTenantBranding] = useState<TenantBrandingBrief | null>(null);
 
   const applyMe = useCallback((me: DashboardOperatorMe) => {
-    const mode = normalizePlatformMode(me.platform_mode);
+    const activeSingleAdmin = Boolean((me as DashboardOperatorMe & { single_admin_mode?: boolean }).single_admin_mode ?? SINGLE_ADMIN_MODE);
+    const mode = activeSingleAdmin ? "internal" : normalizePlatformMode(me.platform_mode);
     const tier = String(me.subscription_tier ?? "free");
-    const admin = Boolean(me.is_admin);
+    const admin = activeSingleAdmin ? true : Boolean(me.is_admin);
     setPlatformMode(mode);
     setSubscriptionTier(tier);
     setIsAdmin(admin);
@@ -70,7 +72,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     setDisplayName(me.display_name ?? null);
     setEmail(me.email ?? null);
     setTenantBranding(me.tenant_branding ? resolveTenantBranding(me.tenant_branding) : null);
-    const activeSolo = Boolean(me.solo_mode ?? SOLO_MODE_BUILD_HINT);
+    const activeSolo = activeSingleAdmin ? true : Boolean(me.solo_mode ?? SOLO_MODE_BUILD_HINT);
     setSoloMode(activeSolo);
     if (me.platform_features && Object.keys(me.platform_features).length > 0) {
       setFeatures(me.platform_features);

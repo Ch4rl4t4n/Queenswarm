@@ -53,7 +53,6 @@ def test_phase3_catalog_contains_core_vendors() -> None:
         "telegram_bot_api",
         "discord_bot_api",
         "notion_workspace",
-        "stripe_billing",
         "venice_mcp",
         "monid_mcp",
         "composio_router",
@@ -67,9 +66,9 @@ def test_phase3_catalog_contains_core_vendors() -> None:
 def test_phase3_template_public_shape() -> None:
     """Dashboard projections stay JSON-stable."""
 
-    tpl = get_phase3_template("stripe_billing")
+    tpl = get_phase3_template("notion_workspace")
     payload = phase3_template_public_dict(tpl)
-    assert payload["template_id"] == "stripe_billing"
+    assert payload["template_id"] == "notion_workspace"
     assert payload["tool_count"] == len(payload["tools"])
     assert isinstance(payload["tools"], list)
 

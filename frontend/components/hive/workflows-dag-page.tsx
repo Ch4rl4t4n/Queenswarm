@@ -10,9 +10,15 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
-import { HivePageHeader } from "@/components/hive/hive-page-header";
-import { V4PageCanvas } from "@/components/ui/v4";
+import { HivePageShell } from "@/components/hive/hive-page-shell";
+import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
 import { COCKPIT_POLL_WORKFLOWS_MS } from "@/lib/cockpit-poll-profile";
+import {
+  EXECUTION_LANE_CROSS_LINK_LABELS,
+  JOBS_PATH,
+  TASKS_HUB_PATH,
+} from "@/lib/execution-lane-routes";
+import { hivePageShellError } from "@/lib/hive-page-error";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import { cn } from "@/lib/utils";
 
@@ -482,18 +488,10 @@ function WorkflowCard({
               {sliceBusy ? "Slicing…" : "⊞ Slice to Kanban"}
             </button>
             <Link
-              href="/tasks"
-              style={{
-                padding: "6px 14px",
-                borderRadius: 7,
-                border: "1px solid rgba(0,229,255,0.25)",
-                background: "transparent",
-                color: "#00E5FF",
-                fontSize: 12,
-                textDecoration: "none",
-              }}
+              href={TASKS_HUB_PATH}
+              className="qs-btn qs-btn--ghost qs-btn--sm shrink-0"
             >
-              Tasks queue →
+              {EXECUTION_LANE_CROSS_LINK_LABELS.toTasksHub}
             </Link>
             {canControl ? (
               <>
@@ -620,77 +618,55 @@ export default function WorkflowsDagPage(): JSX.Element {
   };
 
   return (
-    <V4PageCanvas className="gap-6">
-      <HivePageHeader
-        title="Workflows"
-        subtitle="DAG executions · auto-decomposed from tasks"
-        actions={
+    <HivePageShell
+      title="Workflows"
+      subtitle="DAG executions · auto-decomposed from tasks"
+      hintKey="workflows"
+      actions={
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+          <Link href={TASKS_HUB_PATH} className="qs-btn qs-btn--ghost qs-btn--sm">
+            {EXECUTION_LANE_CROSS_LINK_LABELS.toTasksHub}
+          </Link>
+          <Link href={JOBS_PATH} className="qs-btn qs-btn--ghost qs-btn--sm">
+            {EXECUTION_LANE_CROSS_LINK_LABELS.toAsyncJobs}
+          </Link>
           <Link href="/tasks/new" className="qs-btn qs-btn--primary w-full sm:w-auto">
             + New task
           </Link>
-        }
-      />
-
-      {listError ? (
-        <div
-          className="mb-4 flex flex-col gap-3 rounded-2xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger sm:flex-row sm:items-center sm:justify-between"
-          role="alert"
-        >
-          <span className="font-[family-name:var(--font-poppins)]">{listError}</span>
-          <button
-            type="button"
-            onClick={() => {
-              setLoading(true);
-              void loadWorkflows();
-            }}
-            className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-xl border border-danger/50 px-4 py-2 text-xs font-semibold text-danger hover:bg-danger/15 touch-manipulation"
-          >
-            Retry
-          </button>
         </div>
-      ) : null}
-
-      <div className="v4-subtab-row w-full max-w-full">
-        {(["all", "running", "completed", "failed"] as const).map((f) => {
-          const active = filter === f;
-          return (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setFilter(f)}
-              className={cn("v4-subtab min-h-[42px] touch-manipulation capitalize", active && "v4-subtab--active")}
-            >
-              {f} · {counts[f]}
-            </button>
-          );
-        })}
-      </div>
-
+      }
+      error={
+        listError
+          ? hivePageShellError(listError, {
+              onDismiss: () => setListError(null),
+              onRetry: () => {
+                setLoading(true);
+                void loadWorkflows();
+              },
+              retryBusy: loading,
+            })
+          : null
+      }
+      subnav={
+        <div className="v4-subtab-row w-full max-w-full">
+          {(["all", "running", "completed", "failed"] as const).map((f) => {
+            const active = filter === f;
+            return (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFilter(f)}
+                className={cn("v4-subtab min-h-[42px] touch-manipulation capitalize", active && "v4-subtab--active")}
+              >
+                {f} · {counts[f]}
+              </button>
+            );
+          })}
+        </div>
+      }
+    >
       {loading ? (
-        <div style={{ textAlign: "center", padding: 60, color: "#5a5a7a" }}>Loading workflows…</div>
-      ) : listError && workflows.length === 0 ? (
-        <div
-          style={{
-            textAlign: "center",
-            padding: 48,
-            background: "#140814",
-            border: "1px solid rgba(255,51,102,0.35)",
-            borderRadius: 14,
-          }}
-        >
-          <div style={{ color: "#ffb8c8", fontWeight: 600, marginBottom: 8 }}>Workflow list unavailable</div>
-          <div style={{ color: "#5a5a7a", fontSize: 13, marginBottom: 16 }}>{listError}</div>
-          <button
-            type="button"
-            onClick={() => {
-              setLoading(true);
-              void loadWorkflows();
-            }}
-            className="qs-btn qs-btn--primary"
-          >
-            Retry load
-          </button>
-        </div>
+        <HivePanelSectionSkeleton label="Loading workflows" minHeightClass="min-h-[16rem]" />
       ) : filtered.length === 0 ? (
         <div
           style={{
@@ -703,18 +679,26 @@ export default function WorkflowsDagPage(): JSX.Element {
         >
           <div style={{ fontSize: 40, marginBottom: 12 }}>↗</div>
           <div style={{ color: "#e8e8f0", fontWeight: 600, marginBottom: 6 }}>
-            {filter === "all" ? "No workflows yet" : `No ${filter} workflows`}
+            {listError
+              ? "Workflow list unavailable"
+              : filter === "all"
+                ? "No workflows yet"
+                : `No ${filter} workflows`}
           </div>
           <div style={{ color: "#5a5a7a", fontSize: 13, marginBottom: 16 }}>
-            Create a task and the Auto-Workflow Breaker will decompose it into steps
+            {listError
+              ? "Retry from the banner above or create a task once the API is reachable."
+              : "Create a task and the Auto-Workflow Breaker will decompose it into steps"}
           </div>
-          <Link href="/tasks/new" className="qs-btn qs-btn--primary">
-            Create first task →
-          </Link>
+          {!listError ? (
+            <Link href="/tasks/new" className="qs-btn qs-btn--primary">
+              Create first task →
+            </Link>
+          ) : null}
         </div>
       ) : (
         filtered.map((wf) => <WorkflowCard key={wf.id} wf={wf} loadDetail={loadDetail} />)
       )}
-    </V4PageCanvas>
+    </HivePageShell>
   );
 }

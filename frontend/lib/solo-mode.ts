@@ -47,7 +47,6 @@ export const SOLO_CORE_FEATURES = new Set([
   "product_mission",
   "self_extending_tool_marketplace",
   "bee_gamification",
-  "leaderboard",
   "design_system",
 ]);
 

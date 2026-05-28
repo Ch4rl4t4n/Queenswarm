@@ -22,7 +22,7 @@ from starlette.responses import Response
 
 from app.common.http.rate_limit import rate_limited_http_exception, rate_limit_unavailable_http_exception
 from app.common.http.security_headers import apply_no_store_cache_headers
-from app.presentation.api.deps import DashboardAdmin, DashboardSession, DbSession, JwtSubject, require_dashboard_user_with_tenant_role
+from app.presentation.api.deps import DashboardAdmin, DashboardSession, DbSession, require_dashboard_user_with_tenant_role
 from app.core.config import settings
 from app.core.llm_router import _openai_key_looks_configured
 from app.core.jwt_tokens import (
@@ -630,6 +630,7 @@ class MeDetailResponse(BaseModel):
     subscription_tier: str = "free"
     platform_features: dict[str, bool] = Field(default_factory=dict)
     solo_mode: bool = False
+    single_admin_mode: bool = False
     tenant_branding: TenantBrandingBrief | None = None
 
 
@@ -716,6 +717,7 @@ def _serialize_me(
     subscription_tier: str = "free",
     platform_features: dict[str, bool] | None = None,
     solo_mode: bool = False,
+    single_admin_mode: bool = False,
     tenant_branding: dict[str, Any] | None = None,
 ) -> MeDetailResponse:
     """Map ORM rows to public profile envelope."""
@@ -742,6 +744,7 @@ def _serialize_me(
         subscription_tier=str(subscription_tier),
         platform_features=dict(platform_features or {}),
         solo_mode=bool(solo_mode),
+        single_admin_mode=bool(single_admin_mode),
         tenant_branding=TenantBrandingBrief.model_validate(tenant_branding) if tenant_branding else None,
     )
 
@@ -787,6 +790,7 @@ async def dashboard_me_detail(sess: DashboardSession, db: DbSession) -> MeDetail
         platform_features=platform_features,
         tenant_branding=tenant_branding,
         solo_mode=bool(settings.solo_mode_enabled),
+        single_admin_mode=bool(settings.single_admin_mode),
     )
 
 
@@ -940,7 +944,7 @@ async def dashboard_change_password(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid current password.")
     if secrets.compare_digest(body.current_password, body.new_password):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="New password must differ from current password.",
         )
 
@@ -994,7 +998,7 @@ async def dashboard_patch_profile(
         mutated = True
     if not mutated:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Provide at least one mutable field.",
         )
     try:
@@ -1256,7 +1260,7 @@ class LLMProvidersStatus(BaseModel):
     "/integrations/llm-providers",
     summary="Reveal which LiteLLM routes are live (env + optional dashboard vault)",
 )
-async def integrations_llm_status(_subject: JwtSubject) -> LLMProvidersStatus:
+async def integrations_llm_status(_session: DashboardSession) -> LLMProvidersStatus:
     grok_eff = provider_effective_grok()
     anth_eff = provider_effective_anthropic()
     open_eff = provider_effective_openai()
@@ -1304,7 +1308,7 @@ async def vault_set_llm_provider_secret(
         await db.commit()
     except ValueError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(
@@ -1349,7 +1353,7 @@ async def vault_clear_llm_provider_secret(
         await db.commit()
     except ValueError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(
@@ -1666,7 +1670,7 @@ async def create_dashboard_api_credential_route(
         if "already exists" in lowered:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail) from exc
         if "maximum" in lowered and "api keys" in lowered:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=detail) from exc
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=detail) from exc
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=detail) from exc
     except SQLAlchemyError:
         await db.rollback()

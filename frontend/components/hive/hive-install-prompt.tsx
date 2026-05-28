@@ -2,10 +2,11 @@
 
 import { Download, Share, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
 import { MEDIA_QUERIES } from "@/lib/breakpoints";
+import { useModalA11y } from "@/lib/use-modal-a11y";
 import {
   bumpVisitCount,
   dismissInstallPrompt,
@@ -28,6 +29,19 @@ export function HiveInstallPrompt(): JSX.Element | null {
   const [visible, setVisible] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [iosHint, setIosHint] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const onDismiss = (): void => {
+    dismissInstallPrompt(localStorage);
+    setVisible(false);
+  };
+
+  useModalA11y({
+    open: visible,
+    onClose: onDismiss,
+    containerRef: panelRef,
+    lockScroll: false,
+  });
 
   const evaluate = useCallback(() => {
     if (typeof window === "undefined") {
@@ -67,11 +81,6 @@ export function HiveInstallPrompt(): JSX.Element | null {
     };
   }, [evaluate]);
 
-  const onDismiss = (): void => {
-    dismissInstallPrompt(localStorage);
-    setVisible(false);
-  };
-
   const onInstall = async (): Promise<void> => {
     if (!deferredPrompt) {
       onDismiss();
@@ -91,8 +100,10 @@ export function HiveInstallPrompt(): JSX.Element | null {
 
   return (
     <div
+      ref={panelRef}
       data-hive-install-prompt
       role="dialog"
+      aria-modal="false"
       aria-labelledby="hive-install-title"
       className="hive-install-prompt fixed inset-x-3 z-[190] mx-auto max-w-lg rounded-2xl border border-pollen/35 bg-[#0a0a12]/95 p-4 shadow-[0_0_32px_rgb(255_184_0/0.18)] backdrop-blur-lg lg:hidden"
       style={{

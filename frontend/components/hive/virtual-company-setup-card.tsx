@@ -163,8 +163,6 @@ export function VirtualCompanySetupCard({ onChanged }: VirtualCompanySetupCardPr
     return sr.provisioned >= sr.provisioned_total;
   }, [checklist?.super_routers]);
 
-  const marketingFirstRunDone = checklist?.first_run?.marketing_ops_completed ?? false;
-
   const firstRunCount = checklist?.first_run?.completed_count ?? 0;
   const firstRunTotal = checklist?.first_run?.playbooks_total ?? 6;
 

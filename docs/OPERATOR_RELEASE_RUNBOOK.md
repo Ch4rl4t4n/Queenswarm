@@ -1,6 +1,6 @@
 # Operator Release Runbook — solo + audit gates
 
-Checklist pred každým prod release a týždenný audit. **Bez Stripe** (solo mode).
+Checklist pred každým prod release a týždenný audit. **Bez payment-vendor checkoutu** (solo mode).
 
 ---
 
@@ -39,9 +39,13 @@ docker compose -p queenswarm_prod \
 ```bash
 ./scripts/operator-release-gate.sh
 ./scripts/operator-pending-status.sh | jq .
+
+# Whole-App UI Reorder (extended visual + IA invariants) — before major UI releases:
+WHOLE_APP_EXTENDED_GATE=1 PLAYWRIGHT_WORKERS=2 SKIP_HEALTH_CHECK=1 ./scripts/whole-app-ui-release-gate.sh
 ```
 
-Očakávané: **OPERATOR RELEASE GATE: PASS** (health, API routes, exposure audit).
+Očakávané: **OPERATOR RELEASE GATE: PASS** (health, API routes, exposure audit).  
+Whole-App UI: **WHOLE-APP UI RELEASE GATE: PASS** — see `docs/WHOLE_APP_UI_RELEASE_RUNBOOK.md`.
 
 ---
 
@@ -116,6 +120,7 @@ Pred prechodom na Phase B (approval inbox):
 
 ## Súvisiace
 
+- `docs/WHOLE_APP_UI_RELEASE_RUNBOOK.md` — Whole-App UI gate, tag, visual QA
 - `docs/SOLO_OPERATOR_TRIO_GUIDE.md`
 - `docs/SOLO_OPERATOR_MODE.md`
 - `docs/OPERATOR_QUICKSTART.md`

@@ -6,13 +6,13 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
-from app.presentation.api.deps import DashboardRecipeWriter, DbSession, JwtSubject
+from app.presentation.api.deps import DashboardRecipeWriter, DashboardSession, DbSession, dashboard_admin_wall
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.infrastructure.persistence.models.agent import Agent
@@ -41,17 +41,21 @@ from app.application.services.workflow_breaker.breaker import WorkflowBreakerSer
 from app.worker.tasks import run_sub_swarm_workflow_cycle_task
 
 logger = get_logger(__name__)
-router = APIRouter(prefix="/operator", tags=["Operator"])
+router = APIRouter(
+    prefix="/operator",
+    tags=["Operator"],
+    dependencies=[Depends(dashboard_admin_wall)],
+)
 
 _ERROR_HTTP_MAP: dict[str, int] = {
     "missing_session": status.HTTP_500_INTERNAL_SERVER_ERROR,
     "swarm_not_found": status.HTTP_404_NOT_FOUND,
     "workflow_not_found": status.HTTP_404_NOT_FOUND,
     "task_not_found": status.HTTP_404_NOT_FOUND,
-    "no_agents": status.HTTP_422_UNPROCESSABLE_ENTITY,
-    "task_swarm_mismatch": status.HTTP_422_UNPROCESSABLE_ENTITY,
-    "routing_failed": status.HTTP_422_UNPROCESSABLE_ENTITY,
-    "invalid_workflow_plan": status.HTTP_422_UNPROCESSABLE_ENTITY,
+    "no_agents": status.HTTP_422_UNPROCESSABLE_CONTENT,
+    "task_swarm_mismatch": status.HTTP_422_UNPROCESSABLE_CONTENT,
+    "routing_failed": status.HTTP_422_UNPROCESSABLE_CONTENT,
+    "invalid_workflow_plan": status.HTTP_422_UNPROCESSABLE_CONTENT,
     "budget_exceeded": status.HTTP_429_TOO_MANY_REQUESTS,
     "step_timeout": status.HTTP_504_GATEWAY_TIMEOUT,
 }
@@ -60,7 +64,7 @@ _ERROR_HTTP_MAP: dict[str, int] = {
 def _operator_execution_http_exception(*, code: str, detail: str | None, traces: list[str]) -> HTTPException:
     """Translate operator execution failures to stable HTTP responses."""
 
-    status_code = _ERROR_HTTP_MAP.get(code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+    status_code = _ERROR_HTTP_MAP.get(code, status.HTTP_422_UNPROCESSABLE_CONTENT)
     payload = {
         "code": code,
         "detail": detail,
@@ -244,7 +248,7 @@ async def _auto_slice_intake_kanban(
     status_code=status.HTTP_201_CREATED,
     summary="Run Auto Workflow Breaker, enqueue task, optionally execute",
 )
-async def operator_intake_task(body: OperatorIntakeRequest, db: DbSession, _subject: JwtSubject) -> OperatorIntakeResponse:
+async def operator_intake_task(body: OperatorIntakeRequest, db: DbSession, _session: DashboardSession) -> OperatorIntakeResponse:
     swarm_id = await _resolve_target_swarm_id(db, body.swarm_id, body.target_lane)
     breaker = WorkflowBreakerService()
     try:
@@ -257,10 +261,10 @@ async def operator_intake_task(body: OperatorIntakeRequest, db: DbSession, _subj
         )
     except ValidationError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors())
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=exc.errors())
     except ValueError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(
@@ -291,7 +295,7 @@ async def operator_intake_task(body: OperatorIntakeRequest, db: DbSession, _subj
         )
     except TaskUpsertViolationError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(
@@ -322,7 +326,7 @@ async def operator_intake_task(body: OperatorIntakeRequest, db: DbSession, _subj
                     swarm_id=swarm_id,
                     workflow_id=plan.workflow_id,
                     hive_task_id=task_row.id,
-                    requested_by_subject=_subject,
+                    requested_by_subject=str(_session.get("sub", "dashboard_admin")),
                 )
                 await db.commit()
             except SQLAlchemyError:
@@ -412,7 +416,7 @@ async def operator_intake_task(body: OperatorIntakeRequest, db: DbSession, _subj
 async def operator_preview_decomposition(
     body: OperatorPreviewDecompositionRequest,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> PreviewDecompositionResponse:
     breaker = WorkflowBreakerService()
     try:
@@ -429,10 +433,10 @@ async def operator_preview_decomposition(
         return out
     except ValidationError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors())
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=exc.errors())
     except ValueError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(
@@ -510,7 +514,7 @@ async def operator_save_recipe_draft(
     response_model=SwarmRestartAck,
     summary="Reset bees stuck in ERROR back to IDLE",
 )
-async def restart_failed_swarm_operators(swarm_id: uuid.UUID, db: DbSession, _subject: JwtSubject) -> SwarmRestartAck:
+async def restart_failed_swarm_operators(swarm_id: uuid.UUID, db: DbSession, _session: DashboardSession) -> SwarmRestartAck:
     swarm = await db.get(SubSwarm, swarm_id)
     if swarm is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sub-swarm not found.")
@@ -546,7 +550,7 @@ async def human_approve_workflow_step(
     step_id: uuid.UUID,
     body: HumanStepOverride,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> dict[str, Any]:
     try:
         step = await db.get(WorkflowStep, step_id)
@@ -557,9 +561,10 @@ async def human_approve_workflow_step(
 
     stamp = datetime.now(tz=UTC).isoformat()
     merged = dict(step.result or {})
+    reviewer_sub = str(_session.get("sub", "dashboard_admin"))
     merged["human_override"] = {
         "note": body.note,
-        "subject": _subject,
+        "subject": reviewer_sub,
         "ts": stamp,
     }
     step.result = merged
@@ -578,7 +583,7 @@ async def human_approve_workflow_step(
         swarm_id="",
         task_id=str(step_id),
         workflow_id=str(workflow_id),
-        reviewer_sub=_subject,
+        reviewer_sub=reviewer_sub,
     )
     return {"ok": True, "step_id": str(step.id), "status": step.status.value}
 
@@ -590,7 +595,7 @@ async def human_approve_workflow_step(
 async def pause_operator_workflow(
     workflow_id: uuid.UUID,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> dict[str, Any]:
     """Set workflow to ``paused`` so :func:`prepare_sub_swarm_context` stops before stepping."""
 
@@ -622,7 +627,7 @@ async def pause_operator_workflow(
         swarm_id="",
         task_id="",
         workflow_id=str(workflow_id),
-        subject=_subject,
+        subject=str(_session.get("sub", "dashboard_admin")),
     )
     return {"ok": True, "workflow_id": str(workflow_id), "status": WorkflowStatus.PAUSED.value}
 
@@ -634,7 +639,7 @@ async def pause_operator_workflow(
 async def cancel_operator_workflow(
     workflow_id: uuid.UUID,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> dict[str, Any]:
     """Mark workflow cancelled, skip pending/running steps, and cancel bound tasks."""
 
@@ -669,18 +674,18 @@ async def cancel_operator_workflow(
         swarm_id="",
         task_id="",
         workflow_id=str(workflow_id),
-        subject=_subject,
+        subject=str(_session.get("sub", "dashboard_admin")),
     )
     return {"ok": True, "workflow_id": str(workflow_id), "status": WorkflowStatus.CANCELLED.value}
 
 
 @router.get("/plugins", summary="List hive plugin modules exposed to Neon UI")
-async def list_plugins(_subject: JwtSubject) -> dict[str, Any]:
+async def list_plugins(_session: DashboardSession) -> dict[str, Any]:
     return plugin_manifest()
 
 
 @router.post("/plugins/reload", summary="Notify workers/UI that plugin configuration hot-reloaded")
-async def reload_plugins(_subject: JwtSubject) -> dict[str, Any]:
+async def reload_plugins(_session: DashboardSession) -> dict[str, Any]:
     gen = bump_plugin_generation()
     logger.info(
         "operator.plugins_reload",
@@ -688,7 +693,7 @@ async def reload_plugins(_subject: JwtSubject) -> dict[str, Any]:
         swarm_id="",
         task_id="",
         reload_generation=gen,
-        operator_sub=_subject,
+        operator_sub=str(_session.get("sub", "dashboard_admin")),
     )
     return {"reload_generation": gen, "manifest": plugin_manifest()}
 
@@ -696,7 +701,7 @@ async def reload_plugins(_subject: JwtSubject) -> dict[str, Any]:
 @router.get("/costs/summary", summary="Aggregate hive LLM spend by day/model")
 async def operator_cost_summary(
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
     days: int = Query(default=30, ge=1, le=365),
 ) -> dict[str, Any]:
     cutoff = datetime.now(tz=UTC) - timedelta(days=days)

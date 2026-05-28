@@ -56,7 +56,7 @@ def upgrade() -> None:
             "name": _NAME,
             "description": (
                 "Ballroom playbook: niche → verified workflow → skill export → publish on GitHub, "
-                "Gumroad, and optional Stripe."
+                "Gumroad, and optional premium unlock."
             ),
             "tags": tags_json,
             "template": template_json,

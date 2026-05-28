@@ -13,6 +13,7 @@ export interface FeatureSpec {
 }
 
 export const PLATFORM_FEATURE_CATALOG: Record<string, FeatureSpec> = {
+  operator_cockpit: { internal: true, commercial: true },
   dashboard: { internal: true, commercial: true },
   swarms: { internal: true, commercial: true },
   agents: { internal: true, commercial: true },
@@ -22,7 +23,6 @@ export const PLATFORM_FEATURE_CATALOG: Record<string, FeatureSpec> = {
   integrations: { internal: true, commercial: true },
   ballroom: { internal: true, commercial: true, minTier: "pro" },
   costs: { internal: true, commercial: true },
-  leaderboard: { internal: true, commercial: true, minTier: "pro" },
   manual: { internal: true, commercial: true },
   settings: { internal: true, commercial: true },
   monitoring: { internal: "admin", commercial: false },
@@ -73,6 +73,8 @@ const TIER_RANK: Record<string, number> = {
 };
 
 export const ROUTE_FEATURE_KEYS: Record<string, string> = {
+  "/agentic-os": "operator_cockpit",
+  "/cockpit": "operator_cockpit",
   "/": "dashboard",
   "/swarms": "swarms",
   "/agents": "agents",
@@ -84,7 +86,6 @@ export const ROUTE_FEATURE_KEYS: Record<string, string> = {
   "/ballroom": "ballroom",
   "/settings/costs": "costs",
   "/costs": "costs",
-  "/leaderboard": "leaderboard",
   "/manual": "manual",
   "/monitoring": "monitoring",
   "/workflows": "workflows",
@@ -97,7 +98,6 @@ export const ROUTE_FEATURE_KEYS: Record<string, string> = {
   "/hive-mind": "knowledge",
   "/outputs": "knowledge",
   "/learning": "knowledge",
-  "/settings/billing": "billing_settings",
   "/settings/team": "team_rbac",
   "/settings/sharing": "sharing_settings",
   "/settings/llm-keys": "llm_keys_settings",

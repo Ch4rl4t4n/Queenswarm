@@ -87,7 +87,7 @@ function DreamReportCard({ row, onInfo }: DreamReportCardProps): JSX.Element {
         <span className="text-cyan">{row.items_deduplicated}</span>
       </p>
 
-      <div className="mt-auto flex flex-wrap gap-2">
+      <div className="v4-dream-cycle-card-actions">
         <button
           type="button"
           className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"

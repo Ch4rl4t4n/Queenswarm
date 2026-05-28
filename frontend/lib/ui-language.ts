@@ -25,19 +25,21 @@ export function coerceUiLanguage(value: string | null | undefined): UiLanguage {
 }
 
 /** UI labels, nav, and function names — always English. */
-export function resolveLocalizedLabel(value: MaybeLocalizedString, _lang: UiLanguage): string {
+export function resolveLocalizedLabel(value: MaybeLocalizedString, lang: UiLanguage): string {
+  void lang;
   if (typeof value === "string") {
     return value;
   }
   return value.en;
 }
 
-/** Section descriptions, hints, and manual prose — respects language toggle. */
+/** Section descriptions, hints, and manual prose — English only. */
 export function resolveLocalizedDescription(value: MaybeLocalizedString, lang: UiLanguage): string {
+  void lang;
   if (typeof value === "string") {
     return value;
   }
-  return lang === "sk" ? value.sk : value.en;
+  return value.en;
 }
 
 /** @deprecated Use resolveLocalizedLabel or resolveLocalizedDescription explicitly. */
@@ -46,11 +48,12 @@ export function resolveLocalizedString(value: MaybeLocalizedString, lang: UiLang
 }
 
 export function resolveLocalizedStringList(value: MaybeLocalizedStringList | undefined, lang: UiLanguage): string[] | undefined {
+  void lang;
   if (!value) {
     return undefined;
   }
   if (Array.isArray(value)) {
     return value;
   }
-  return lang === "sk" ? value.sk : value.en;
+  return value.en;
 }

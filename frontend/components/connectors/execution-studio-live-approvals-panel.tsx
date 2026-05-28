@@ -287,38 +287,48 @@ function ExecutionStudioLiveApprovalsPanelInner({
       {browserFallback ? (
         <div className="qs-bubble shrink-0 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-(--qs-text)">Browser harness fallback</p>
               <p className="mt-1 text-xs text-(--qs-text-3)">{browserFallback.description}</p>
+              <p className="mt-2 font-mono text-[10px] text-(--qs-text-4)">
+                Role: {browserFallback.supervisor_role} · {browserFallback.execute_api ?? browserFallback.sessions_api}
+              </p>
             </div>
-            <V4Badge tone={browserFallback.enabled ? "ok" : "warn"}>
-              {browserFallback.enabled ? "Harness ON" : "Harness off"}
-            </V4Badge>
-          </div>
-          <p className="mt-2 font-mono text-[10px] text-(--qs-text-4)">
-            Role: {browserFallback.supervisor_role} · {browserFallback.execute_api ?? browserFallback.sessions_api}
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              className="qs-btn qs-btn--ghost qs-btn--sm gap-2"
-              disabled={browserBusy || !browserFallback.enabled}
-              onClick={() => void runBrowserFallback()}
-            >
-              {browserBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Zap className="h-4 w-4" aria-hidden />}
-              Test browser fallback
-            </button>
-            {liveRequiresApproval ? (
-              <button
-                type="button"
-                className="qs-btn qs-btn--primary qs-btn--sm gap-2"
-                disabled={browserBusy || !browserFallback.enabled}
-                onClick={() => void runBrowserLiveConfirm()}
-              >
-                {browserBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Shield className="h-4 w-4" aria-hidden />}
-                Confirm live browser step
-              </button>
-            ) : null}
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              <V4Badge tone={browserFallback.enabled ? "ok" : "warn"}>
+                {browserFallback.enabled ? "Harness ON" : "Harness off"}
+              </V4Badge>
+              <div className="flex flex-wrap justify-end gap-2">
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--ghost qs-btn--sm gap-2"
+                  disabled={browserBusy || !browserFallback.enabled}
+                  onClick={() => void runBrowserFallback()}
+                >
+                  {browserBusy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Zap className="h-4 w-4" aria-hidden />
+                  )}
+                  Test browser fallback
+                </button>
+                {liveRequiresApproval ? (
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--primary qs-btn--sm gap-2"
+                    disabled={browserBusy || !browserFallback.enabled}
+                    onClick={() => void runBrowserLiveConfirm()}
+                  >
+                    {browserBusy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Shield className="h-4 w-4" aria-hidden />
+                    )}
+                    Confirm live browser step
+                  </button>
+                ) : null}
+              </div>
+            </div>
           </div>
           {browserResult ? <p className="mt-2 text-xs text-(--qs-text-3)">{browserResult}</p> : null}
         </div>

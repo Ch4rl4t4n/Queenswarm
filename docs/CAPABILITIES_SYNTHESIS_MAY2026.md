@@ -74,7 +74,7 @@ Zdroje: RoundtableSpace / levelsio / Hermes-style bookmarky, 32 YouTube videí, 
 | **Life OS + Business OS bundle** | Ráno brief + stalled + publish + trading v jednom preset | ✅ Partial — Operator Loop; doplniť Swarm Builder bundle |
 | **Public Trading Transparency** | Verejný dashboard P&L (paper first) | ✅ Medium — read-only snapshot, no secrets |
 | **Faceless Media Agency in a Box** | White-label publish lane pre klientov | ✅ Medium — multi-tenant onboarding už čiastočne |
-| **Micro-SaaS Factory** | Swarm postaví landing + Stripe + deploy | ⚠️ Lower — veľký scope; fáza 2+ |
+| **Micro-SaaS Factory** | Swarm postaví landing + monetization lane + deploy | ⚠️ Lower — veľký scope; fáza 2+ |
 | **Skill Marketplace 2.0** | Performance fee na overených recipes | ✅ Medium — billing flags existujú |
 
 ---

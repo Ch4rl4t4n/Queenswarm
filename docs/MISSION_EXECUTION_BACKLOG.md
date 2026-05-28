@@ -9,11 +9,11 @@ Living backlog aligned with May 2026 business plan. Synced to **Settings → Cap
 
 | Phase | Dev status | Operator gate |
 |-------|------------|---------------|
-| **Phase 0** | ✅ Shipped (wizard, gates, Pro checkout UX, widgets) | `./scripts/mission-phase0-audit.sh` |
+| **Phase 0** | ✅ Shipped (wizard, gates, widgets) | `./scripts/mission-phase0-audit.sh` |
 | **Phase 1** | ✅ Shipped (time saved, UGC magnets, skill UGC, badges, recipe match) | `./scripts/mission-phase1-audit.sh` |
 | **Phase 2** | ✅ Shipped (enterprise checkout, HA/DR evidence, sub-swarm mind) | `./scripts/mission-phase2-audit.sh` |
 | **Performance** | ✅ Shipped (cockpit bundle, WS delta, virtual roster) | `docs/PERFORMANCE_COCKPIT.md` |
-| **Operator P0** | ⏳ Hetzner closure + SCV first run (Stripe **out of scope** — solo mode) | `docs/OPERATOR_QUICKSTART.md` |
+| **Operator P0** | ⏳ Hetzner closure + SCV first run | `docs/OPERATOR_QUICKSTART.md` |
 | **Launch readiness** | ✅ Automated gates green · ⏳ human P0 | `./scripts/operator-pending-status.sh` |
 
 ## North Star
@@ -34,7 +34,6 @@ Realistic Year-1 targets (solo): **20–50k € ARR**, 50–150 Pro subscribers.
 
 | Týždeň | Položka | Status |
 |--------|---------|--------|
-| 1 | Stripe live checkout | ❌ **Removed from roadmap** — solo operator; billing code stays dormant |
 | 1 | Pro tier feature gates | ✅ |
 | 1 | Authenticated prod walkthrough | ✅ Automated — `operator-launch-gate.sh` |
 | 2 | Exec Assistant wizard | ✅ |
@@ -44,7 +43,6 @@ Realistic Year-1 targets (solo): **20–50k € ARR**, 50–150 Pro subscribers.
 | 4 | Lead Waterfall + Content Flywheel | ✅ |
 | 4 | Foragers production launch | ✅ |
 | — | Built-in plugin persistent toggle | ✅ |
-| — | Pro subscription checkout UX | ✅ |
 
 ### Fáza 1 — Marketplace + stickiness ✅ DEV COMPLETE
 
@@ -60,7 +58,6 @@ Realistic Year-1 targets (solo): **20–50k € ARR**, 50–150 Pro subscribers.
 
 | Položka | Priorita | Status |
 |---------|----------|--------|
-| Customer self-serve tier upgrade (full matrix) | P2 | ✅ Pro + Enterprise Stripe checkout |
 | White-label + enterprise compliance UI | P1 | ✅ `/settings/enterprise` |
 | Sub-swarm local hive mind UI | P1 | ✅ swarm board + local mind panel |
 | Bee gamification (pollen leaderboard, badges) | P1 | ✅ Phase 1 + dashboard chips |
@@ -154,7 +151,6 @@ Doc: `docs/HARNESS_SELF_MAINTAINING_ANALYSIS.md`
 |---------|----------|-------|
 | HA + DR validated profile (quarterly chaos) | P2 | ✅ DR + chaos evidence — `./scripts/dr-drill.sh` + `./scripts/ha-chaos-smoke.sh` |
 | Hetzner abuse closure | P0 | Operator — AbuseID 11B0286:23 |
-| Stripe live checkout | — | **Out of scope** (solo operator) |
 
 ### Post-launch — Phase 7 (after Operator P0)
 
@@ -209,7 +205,7 @@ Doc: `docs/SOLO_OPERATOR_TRIO_GUIDE.md`
 | Monitoring gate | `./scripts/monitoring-gate.sh` | Alertmanager smoke + pattern alerts |
 | After deploy | `./scripts/audit-host-exposure.sh` | No public DB/redis ports |
 | Weekly | `./scripts/audit-disk-cleanup.sh` | Disk hygiene (dry-run) |
-| Operator gate check | `./scripts/operator-gates-audit.sh` | Walkthrough + routes (Stripe optional) |
+| Operator gate check | `./scripts/operator-gates-audit.sh` | Walkthrough + routes |
 | **Operator launch (all-in-one)** | `./scripts/operator-launch-gate.sh` | Readiness + gates + API + **prod browser** + responsive E2E |
 | Prod browser walkthrough | `./scripts/prod-browser-walkthrough-gate.sh` | Playwright on queenswarm.love (public + JWT shell) |
 | Prod command center | `./scripts/prod-command-center-gate.sh` | Disk/memory + compose container count |
@@ -229,7 +225,6 @@ Doc: `docs/SOLO_OPERATOR_TRIO_GUIDE.md`
 | Agent wizard | `/agents/new` + tenant templates |
 | Manager templates | `backend/app/domain/agents/managers/registry.py` |
 | Workflow templates | `backend/app/domain/workflows/templates.py` |
-| Billing / Stripe code | `settings/billing`, webhook route |
 | Platform feature matrix | `/settings/platform` admin |
 | Dreaming | `DreamerService` in Knowledge hub |
 | Foragers | `/foragers` (flag off) |

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Hexagon, LayoutDashboard, ListTodo, Mic, Plug, Users } from "lucide-react";
 import type { JSX } from "react";
 
+import { isAgenticOsRoute } from "@/lib/cross-route-naming";
 import { hubEcosystemLanes, type HubEcosystemPreset } from "@/lib/hub-ecosystem-lanes";
 import { hiveOverviewHref } from "@/lib/hive-home-route";
 import { useCenterActiveInScrollRow } from "@/lib/hooks/use-center-active-in-scroll-row";
@@ -30,8 +31,8 @@ interface HubEcosystemStripProps {
 
 function laneIsActive(pathname: string, href: string): boolean {
   const base = href.split("#")[0] ?? href;
-  if (base === "/" || base === "/cockpit" || base === "/dashboard") {
-    return pathname === base;
+  if (isAgenticOsRoute(base) || base === "/dashboard") {
+    return isAgenticOsRoute(pathname) || pathname === base;
   }
   return pathname === base || pathname.startsWith(`${base}/`);
 }

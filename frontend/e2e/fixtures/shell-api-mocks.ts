@@ -1,5 +1,7 @@
 import type { Page } from "@playwright/test";
 
+import { resolvePlatformFeaturesFallback } from "../../lib/platform-features";
+
 const STUB_AGENT = {
   id: "a1111111-1111-4111-8111-111111111111",
   name: "Scout Bee",
@@ -70,7 +72,7 @@ const STUB_OPERATOR_COCKPIT = {
       { id: "morning_check", label: "Morning check", detail: "Trio cycle", kind: "action", action: "start_day", href: null },
     ],
   },
-  links: { advanced_dashboard: "/dashboard" },
+  links: { cockpit: "/agentic-os" },
 };
 
 const STUB_INNOVATION_LAB = {
@@ -271,6 +273,55 @@ const STUB_FORAGERS_OVERVIEW = {
   configurations: [],
 };
 
+const STUB_PLATFORM_FEATURES = {
+  ...resolvePlatformFeaturesFallback({
+    platformMode: "commercial",
+    isAdmin: true,
+    subscriptionTier: "free",
+  }),
+  /** E2E: enterprise settings route + cross-links (commercial free tier otherwise blocks). */
+  enterprise_workspace: true,
+  /** E2E: legacy `/external-projects` → integrations external tab must stay addressable. */
+  external_projects: true,
+  connectors: true,
+  plugins: true,
+  /** E2E: `/factory` blueprint lane (commercial profile otherwise blocks route). */
+  skills_export_factory: true,
+  /** E2E: `/foragers` More-menu route (pro tier otherwise blocks). */
+  foragers: true,
+  /** E2E: `/jobs` async poll console (internal-only feature on commercial). */
+  jobs: true,
+};
+
+const STUB_ENTERPRISE_CONFIG = {
+  tenant_id: "00000000-0000-4000-8000-000000000001",
+  tenant_name: "Playwright Hive",
+  white_label: {
+    brand_name: "QueenSwarm",
+    logo_url: null,
+    accent_hex: "#FFB800",
+    hide_platform_branding: false,
+    custom_domain: null,
+    custom_domain_status: "pending",
+  },
+  compliance: {
+    data_retention_days: 365,
+    compliance_contact_email: "compliance@queenswarm.love",
+    soc2_attestation_url: null,
+    monthly_audit_export: false,
+    dedicated_hive_note: null,
+  },
+  ha_profile: {
+    ha_mode_enabled: false,
+    redis_failover_configured: false,
+    postgres_replica_configured: false,
+    backup_drill_script_available: true,
+    profile_label: "Standard hive",
+    readiness_pct: 72,
+  },
+  custom_branding_allowed: true,
+};
+
 const STUB_OPERATOR_ME = {
   id: "dash:00000000-0000-4000-8000-000000000001",
   email: "operator@queenswarm.love",
@@ -279,9 +330,11 @@ const STUB_OPERATOR_ME = {
   twofa_pending: false,
   backup_codes_remaining: 0,
   is_admin: true,
-  platform_mode: "internal",
-  subscription_tier: "pro",
-  platform_features: {},
+  single_admin_mode: false,
+  platform_mode: "commercial",
+  subscription_tier: "free",
+  solo_mode: false,
+  platform_features: STUB_PLATFORM_FEATURES,
   scopes: ["dash:admin", "dash:operator", "dash:read"],
 };
 
@@ -291,8 +344,8 @@ const STUB_BILLING_USAGE = {
   tenant_id: "00000000-0000-4000-8000-000000000001",
   tier: "free",
   status: "active",
-  stripe_customer_id: null,
-  stripe_subscription_id: null,
+  billing_customer_id: null,
+  billing_subscription_id: null,
   usage: {
     monthly_tokens: 1200,
     monthly_supervisor_sessions: 2,
@@ -315,6 +368,8 @@ const STUB_BILLING_PLANS = {
   current_tier: "free",
   checkout_ready: false,
   message: "stub",
+  pro_price_eur_cents: 2900,
+  enterprise_price_eur_cents: 9900,
   plans: [
     {
       tier: "free",
@@ -323,9 +378,37 @@ const STUB_BILLING_PLANS = {
         monthly_tokens_hard: 100000,
         monthly_supervisor_sessions_hard: 50,
         monthly_external_calls_hard: 500,
+        max_agents_hard: 10,
+        max_swarms_hard: 3,
         storage_mb_hard: 512,
       },
       features: { ballroom: true },
+    },
+    {
+      tier: "pro",
+      label: "Pro hive",
+      limits: {
+        monthly_tokens_hard: 500000,
+        monthly_supervisor_sessions_hard: 200,
+        monthly_external_calls_hard: 2000,
+        max_agents_hard: 50,
+        max_swarms_hard: 10,
+        storage_mb_hard: 2048,
+      },
+      features: { ballroom: true, premium_recipes: true },
+    },
+    {
+      tier: "enterprise",
+      label: "Enterprise hive",
+      limits: {
+        monthly_tokens_hard: 2000000,
+        monthly_supervisor_sessions_hard: 1000,
+        monthly_external_calls_hard: 10000,
+        max_agents_hard: 200,
+        max_swarms_hard: 50,
+        storage_mb_hard: 10240,
+      },
+      features: { ballroom: true, premium_recipes: true, admin_accounts: true },
     },
   ],
 };
@@ -358,7 +441,7 @@ const STUB_SKILLS_CATALOG = {
 };
 
 const STUB_SKILL_UNLOCKS = {
-  stripe_checkout_ready: false,
+  checkout_available: false,
   unlocked_recipe_ids: [] as string[],
   premium_price_eur_cents_default: 1900,
 };
@@ -377,6 +460,25 @@ const STUB_RECIPE_PATTERN_STACKS = [
     pattern_labels: ["Memory", "Prioritization", "Reflection", "Planning"],
   },
 ];
+
+const STUB_SWARMS_OVERVIEW = {
+  generated_at: new Date().toISOString(),
+  hive_sync_interval_sec: 300,
+  kpis: {
+    colonies_total: 0,
+    colonies_active: 0,
+    colonies_paused: 0,
+    total_bees: 0,
+    bees_working: 0,
+    bees_idle: 0,
+    pollen_pool: 0,
+    avg_sync_drift_sec: 0,
+    last_global_tick_sec: null,
+  },
+  colonies: [],
+  waggle_feed: [],
+  hive_sync: [],
+};
 
 const STUB_SWARM_BOARD = {
   sub_swarms: [],
@@ -857,37 +959,11 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
-    if (path.startsWith("billing/stripe-config")) {
-      if (route.request().method() === "GET") {
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({
-            checkout_ready: false,
-            webhook_ready: false,
-            secret_key_masked: null,
-            webhook_secret_masked: null,
-            secret_key_source: "none",
-            webhook_secret_source: "none",
-            webhook_url: "https://queenswarm.love/api/v1/billing/stripe/webhook",
-            env_fallback_active: false,
-          }),
-        });
-        return;
-      }
+    if (path.startsWith("settings/enterprise/config")) {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({
-          checkout_ready: true,
-          webhook_ready: true,
-          secret_key_masked: "••••••••cdef",
-          webhook_secret_masked: "••••••••7890",
-          secret_key_source: "vault",
-          webhook_secret_source: "vault",
-          webhook_url: "https://queenswarm.love/api/v1/billing/stripe/webhook",
-          env_fallback_active: false,
-        }),
+        body: JSON.stringify(STUB_ENTERPRISE_CONFIG),
       });
       return;
     }
@@ -928,7 +1004,7 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ providers: [{ id: "stripe", label: "Stripe" }] }),
+        body: JSON.stringify({ providers: [{ id: "billing", label: "Billing" }] }),
       });
       return;
     }
@@ -1037,6 +1113,15 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify([]),
+      });
+      return;
+    }
+
+    if (path.startsWith("dashboard/swarms-overview")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_SWARMS_OVERVIEW),
       });
       return;
     }
@@ -1236,6 +1321,11 @@ export async function installShellApiMocks(page: Page): Promise<void> {
     }
 
     if (path === "foragers" || path.startsWith("foragers?")) {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
+      return;
+    }
+
+    if (path === "workflows" || path.startsWith("workflows?")) {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
       return;
     }

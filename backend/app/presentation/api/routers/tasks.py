@@ -1,4 +1,4 @@
-"""Task backlog ledger (JWT guarded)."""
+"""Task backlog ledger (dashboard-admin guarded)."""
 
 from __future__ import annotations
 
@@ -7,11 +7,11 @@ import json
 import uuid
 from urllib.parse import quote
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.presentation.api.deps import DbSession, JwtSubject
+from app.presentation.api.deps import DashboardSession, DbSession, dashboard_admin_wall
 from app.infrastructure.persistence.models.enums import TaskStatus
 from app.infrastructure.persistence.models.task import Task
 from app.common.schemas.task import TaskCreateRequest, TaskPatchRequest, TaskSnapshot
@@ -27,7 +27,10 @@ from app.application.services.task_ledger import (
 
 _logger = get_logger(__name__)
 
-router = APIRouter(tags=["Tasks"])
+router = APIRouter(
+    tags=["Tasks"],
+    dependencies=[Depends(dashboard_admin_wall)],
+)
 
 
 @router.post(
@@ -39,7 +42,7 @@ router = APIRouter(tags=["Tasks"])
 async def enqueue_task(
     body: TaskCreateRequest,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> TaskSnapshot:
     """Create a pending task row anchored to optional swarm/workflow lineage."""
 
@@ -58,7 +61,7 @@ async def enqueue_task(
         await db.refresh(entity)
     except TaskUpsertViolationError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(
@@ -76,7 +79,7 @@ async def enqueue_task(
 )
 async def list_recent_tasks(
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
     swarm_id: uuid.UUID | None = Query(default=None, description="Filter by sub-swarm anchor."),
     workflow_id: uuid.UUID | None = Query(default=None),
     agent_id: uuid.UUID | None = Query(default=None, description="Filter rows assigned to a bee."),
@@ -130,7 +133,7 @@ def _task_output_text_and_format(task: Task) -> tuple[str, str]:
 async def download_task_result(
     task_id: uuid.UUID,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> StreamingResponse:
     """Stream CSV/JSON/Markdown/XLSX/text derived from the persisted task result."""
 
@@ -222,7 +225,7 @@ async def download_task_result(
 async def get_task_snapshot(
     task_id: uuid.UUID,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> TaskSnapshot:
     """Return a backlog row with roster metadata for pollinator telemetry."""
 
@@ -249,13 +252,13 @@ async def patch_existing_task(
     task_id: uuid.UUID,
     body: TaskPatchRequest,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> TaskSnapshot:
     """Update operator-visible fields emitted after LangGraph completions."""
 
     if body.status is None and body.result is None and body.error_msg is None:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Provide at least one mutable field.",
         )
 

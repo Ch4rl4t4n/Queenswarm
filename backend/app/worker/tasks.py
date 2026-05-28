@@ -302,6 +302,9 @@ def execute_agent_task(
 def dynamic_agent_schedule_tick_task() -> dict[str, Any]:
     """Scan ``AgentConfig`` rows and enqueue due universal runs."""
 
+    if not settings.dynamic_agent_scheduler_enabled:
+        return {"status": "skipped", "reason": "dynamic_agent_scheduler_disabled"}
+
     async def _tick() -> dict[str, int]:
         queued = 0
         inspected = 0
@@ -767,6 +770,9 @@ def run_supervisor_routines_tick_task() -> dict[str, int]:
 def paper_trading_tick_task() -> dict[str, object]:
     """Run paper trading bee across eligible external projects."""
 
+    if not settings.paper_trading_enabled:
+        return {"status": "skipped", "reason": "paper_trading_disabled"}
+
     async def _run() -> dict[str, object]:
         from app.application.services.paper_trading_service import run_paper_trading_tick_all
 
@@ -781,6 +787,9 @@ def paper_trading_tick_task() -> dict[str, object]:
 @celery_app.task(name="hive.manager_peer_review_sweep", queue="hive")
 def manager_peer_review_sweep_task() -> dict[str, object]:
     """Sample 10 % of completed sessions; emit info health-notes by alternate managers."""
+
+    if not settings.manager_peer_review_enabled:
+        return {"status": "skipped", "reason": "manager_peer_review_disabled"}
 
     async def _run() -> dict[str, object]:
         from app.application.services.manager_peer_review import sweep_peer_reviews
@@ -797,6 +806,9 @@ def manager_peer_review_sweep_task() -> dict[str, object]:
 def recipe_warmup_task() -> dict[str, object]:
     """Nightly warmup of top-N verified recipes into Chroma cache (cheap, read-only)."""
 
+    if not settings.recipe_warmup_enabled:
+        return {"status": "skipped", "reason": "recipe_warmup_disabled"}
+
     async def _run() -> dict[str, object]:
         from app.application.services.recipe_warmup import warmup_top_recipes
 
@@ -811,6 +823,9 @@ def recipe_warmup_task() -> dict[str, object]:
 @celery_app.task(name="hive.pollen_reroster_sweep", queue="hive")
 def pollen_reroster_sweep_task() -> dict[str, object]:
     """Flag under-performing worker bees (advisory only; writes health notes)."""
+
+    if not settings.pollen_reroster_enabled:
+        return {"status": "skipped", "reason": "pollen_reroster_disabled"}
 
     async def _run() -> dict[str, object]:
         from app.application.services.pollen_reroster import run_pollen_reroster_sweep
@@ -903,6 +918,19 @@ def run_execution_studio_weekly_rollup_tick_task() -> dict[str, object]:
     return asyncio.run(_run())
 
 
+@celery_app.task(name="hive.grok_control_plane_execute_run", queue="hive")
+def grok_control_plane_execute_run_task(tenant_id: str, run_id: str, execute_commands: bool = False) -> dict[str, str]:
+    """Execute one approved Grok Control Plane run."""
+
+    async def _run() -> dict[str, str]:
+        from app.application.services.grok_control_plane import execute_grok_run
+
+        run = await execute_grok_run(tenant_id=tenant_id, run_id=run_id, execute_commands=execute_commands)
+        return {"run_id": run.id, "status": run.status}
+
+    return asyncio.run(_run())
+
+
 __all__ = [
     "dynamic_agent_schedule_tick_task",
     "echo_hive_pulse",
@@ -916,6 +944,7 @@ __all__ = [
     "run_supervisor_audit_digest_tick_task",
     "run_supervisor_audit_rollup_email_tick_task",
     "run_execution_studio_weekly_rollup_tick_task",
+    "grok_control_plane_execute_run_task",
     "run_tenant_audit_retention_tick_task",
     "run_sub_swarm_workflow_cycle_task",
 ]

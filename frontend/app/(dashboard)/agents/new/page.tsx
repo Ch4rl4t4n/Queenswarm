@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { PencilIcon, XIcon } from "lucide-react";
 
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { HiveModalShell } from "@/components/hive/hive-modal-shell";
 import { HiveApiError, hiveDelete, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { InfoHint } from "@/components/hive/info-hint";
@@ -135,23 +136,23 @@ function TemplateEditorModal({
   onChange,
   onSubmit,
 }: TemplateModalProps) {
-  if (!open) return null;
   const title = mode === "create" ? "Create template" : "Edit template";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4" onClick={onClose} role="presentation">
-      <div
-        role="dialog"
-        aria-label={title}
-        className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-cyan/30 bg-[#070d16] p-5 shadow-[0_0_40px_rgba(0,255,255,0.12)]"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[#fafafa]">{title}</h2>
-          <button type="button" onClick={onClose} className="rounded-lg border border-white/15 px-3 py-1.5 text-xs text-zinc-300 hover:border-white/30">
-            Close
-          </button>
-        </div>
+    <HiveModalShell
+      open={open}
+      onClose={onClose}
+      labelledBy="template-editor-title"
+      panelClassName="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-cyan/30 bg-[#070d16] p-5 shadow-[0_0_40px_rgba(0,255,255,0.12)]"
+    >
+      <div className="mb-4 flex items-center justify-between">
+        <h2 id="template-editor-title" className="text-lg font-semibold text-[#fafafa]">
+          {title}
+        </h2>
+        <button type="button" onClick={onClose} className="rounded-lg border border-white/15 px-3 py-1.5 text-xs text-zinc-300 hover:border-white/30">
+          Close
+        </button>
+      </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <section className="space-y-3 rounded-xl border border-white/10 bg-black/25 p-3">
@@ -269,8 +270,7 @@ function TemplateEditorModal({
             {saving ? "Saving…" : mode === "create" ? "Create template" : "Save changes"}
           </button>
         </div>
-      </div>
-    </div>
+    </HiveModalShell>
   );
 }
 
@@ -580,7 +580,7 @@ function NewAgentWizardInner() {
 
       {step === "template" ? (
         <div className="space-y-4">
-          <div className="v4-template-library-banner flex items-center justify-between gap-3 rounded-[var(--qs-radius-lg)] qs-rim bg-[var(--qs-surface)] px-4 py-4 backdrop-blur-sm">
+          <div className="v4-template-library-banner flex items-center justify-between gap-3 rounded-(--qs-radius-lg) qs-rim bg-(--qs-surface) px-4 py-4 backdrop-blur-sm">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-(--qs-text)">Template library</p>
               <p className="text-xs text-(--qs-text-3)">Create segments for your team and reuse them in one click.</p>

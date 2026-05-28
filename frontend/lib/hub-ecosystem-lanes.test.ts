@@ -6,7 +6,7 @@ describe("hubEcosystemLanes", () => {
   it("ballroom preset links integrations supervisor hivemind", () => {
     const labels = hubEcosystemLanes("ballroom").map((lane) => lane.label);
     expect(labels).toEqual(["Integrations", "Supervisor", "HiveMind"]);
-    expect(hubEcosystemLanes("ballroom")[0]?.href).toBe("/integrations#ecosystem");
+    expect(hubEcosystemLanes("ballroom")[0]?.href).toBe("/integrations?tab=active#ecosystem");
   });
 
   it("agents preset includes tasks and ballroom", () => {
@@ -17,7 +17,7 @@ describe("hubEcosystemLanes", () => {
 
   it("tasks preset includes supervisor and integrations ecosystem anchor", () => {
     const lanes = hubEcosystemLanes("tasks");
-    expect(lanes[0]?.href).toBe("/integrations#ecosystem");
+    expect(lanes[0]?.href).toBe("/integrations?tab=active#ecosystem");
     expect(lanes.map((lane) => lane.label)).toContain("Supervisor");
   });
 

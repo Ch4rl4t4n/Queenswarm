@@ -162,7 +162,7 @@ async def connectors_vault_upsert(
     try:
         payload = body.to_payload()
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     await vault_upsert_credential(db, slug=body.slug, user_id=uid, payload=payload, label=body.label)
     return {"ok": "true", "slug": body.slug.strip().lower()}
 
@@ -210,7 +210,7 @@ async def connectors_oauth_refresh(
         payload, raw = await exchange_refresh_token(env)
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
             headers=no_store_cache_headers(),
         ) from exc
@@ -442,7 +442,7 @@ async def phase3_instantiate_connector(
     try:
         return await svc.create_row(db, dashboard_user_id=uid, body=create)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
 
 @router.get("/phase3/obsidian/status", summary="Obsidian vault → Chroma sync telemetry")

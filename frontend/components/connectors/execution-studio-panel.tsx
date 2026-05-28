@@ -2,15 +2,18 @@
 
 import {
   BookOpen,
+  Lightbulb,
   Plug,
   RefreshCw,
   Rocket,
   Zap,
 } from "lucide-react";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ExecutionStudioSupervisorContext } from "@/components/connectors/execution-studio-supervisor-context";
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import type {
   ActivityTelemetry,
   MediaRegistry,
@@ -18,10 +21,17 @@ import type {
 } from "@/components/connectors/execution-studio-analytics-panel";
 import type { SuperRouterSnapshot } from "@/components/connectors/execution-studio-super-routers-panel";
 import { VirtualCompanySetupCard } from "@/components/hive/virtual-company-setup-card";
+import { HiveSubnavRow } from "@/components/hive/hive-subnav-row";
 import { V4CardHeader } from "@/components/ui/v4";
 import type { StudioNotifications } from "@/components/connectors/execution-studio-notifications-panel";
 import { HiveApiError, hiveGet } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import {
+  executionStudioSectionFromQuery,
+  executionStudioWorkspaceFromHash,
+  integrationsScrollTargetFromHash,
+  type ExecutionStudioWorkspaceSection,
+} from "@/lib/integrations-routes";
+import { scrollBehaviorForMotion } from "@/lib/motion-preferences";
 import type {
   BrowserFallbackLane,
   PendingApprovalsSnapshot,
@@ -112,6 +122,17 @@ const ExecutionStudioManualPanel = dynamic(
   {
     ssr: false,
     loading: () => <div className="space-y-4" aria-hidden><div className="qs-bubble min-h-[6rem] animate-pulse bg-white/5 p-4" /></div>,
+  },
+);
+
+const ExecutionStudioInnovationPanel = dynamic(
+  () =>
+    import("@/components/connectors/execution-studio-innovation-panel").then((m) => ({
+      default: m.ExecutionStudioInnovationPanel,
+    })),
+  {
+    ssr: false,
+    loading: () => <div className="qs-bubble shrink-0 min-h-[8rem] animate-pulse bg-white/5 p-4" aria-hidden />,
   },
 );
 
@@ -331,6 +352,15 @@ interface StudioOverview {
 
 type StudioPanelView = "workspace" | "manual";
 
+const WORKSPACE_SECTIONS: { id: ExecutionStudioWorkspaceSection; label: string; icon: typeof Rocket }[] = [
+  { id: "overview", label: "Overview", icon: Rocket },
+  { id: "publish", label: "Publish", icon: Zap },
+  { id: "lanes", label: "Lanes", icon: Plug },
+  { id: "innovation", label: "Innovation", icon: Lightbulb },
+  { id: "stack", label: "Connections", icon: RefreshCw },
+  { id: "analytics", label: "Analytics", icon: BookOpen },
+];
+
 interface ExecutionStudioPanelProps {
   onOpenMarketplace?: () => void;
   onOpenHub?: () => void;
@@ -343,11 +373,13 @@ function modeLabel(mode: ExecutionMode): string {
 }
 
 export function ExecutionStudioPanel({ onOpenMarketplace, onOpenHub }: ExecutionStudioPanelProps) {
+  const searchParams = useSearchParams();
   const [overview, setOverview] = useState<StudioOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [executeResult, setExecuteResult] = useState<string | null>(null);
   const [panelView, setPanelView] = useState<StudioPanelView>("workspace");
+  const [workspaceSection, setWorkspaceSection] = useState<ExecutionStudioWorkspaceSection>("overview");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -366,11 +398,47 @@ export function ExecutionStudioPanel({ onOpenMarketplace, onOpenHub }: Execution
     void load();
   }, [load]);
 
+  useEffect(() => {
+    const hash = typeof window !== "undefined" ? window.location.hash : "";
+    const fromQuery = executionStudioSectionFromQuery(searchParams.get("section"));
+    const fromHash = executionStudioWorkspaceFromHash(hash);
+    const section = fromQuery ?? fromHash;
+    if (section) {
+      setPanelView("workspace");
+      setWorkspaceSection(section);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (panelView !== "workspace") {
+      return;
+    }
+    const targetId = integrationsScrollTargetFromHash(typeof window !== "undefined" ? window.location.hash : "");
+    if (!targetId) {
+      return;
+    }
+    const behavior = scrollBehaviorForMotion();
+    const attemptScroll = (retries: number): void => {
+      const el = document.getElementById(targetId);
+      if (el) {
+        el.scrollIntoView({ behavior, block: "start" });
+        return;
+      }
+      if (retries > 0) {
+        window.setTimeout(() => attemptScroll(retries - 1), 100);
+      }
+    };
+    window.setTimeout(() => attemptScroll(24), 80);
+  }, [panelView, workspaceSection]);
+
   const stats = overview?.stats ?? {};
   const activeCount = stats.active ?? 0;
   const pendingCount = (stats.needs_credentials ?? 0) + (stats.ready_to_test ?? 0);
 
-  const pendingLiveActions = overview?.pending_approvals?.live_actions ?? [];
+  const pendingLiveActions = useMemo(
+    () => overview?.pending_approvals?.live_actions ?? [],
+    [overview?.pending_approvals?.live_actions],
+  );
 
   const supervisorSessionIds = useMemo(
     () =>
@@ -387,10 +455,7 @@ export function ExecutionStudioPanel({ onOpenMarketplace, onOpenHub }: Execution
         title="Execution Studio"
         description="Connect external apps, govern draft → simulate → live execution, and wire tools into supervisor tasks."
         actions={
-          <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-2" disabled={loading} onClick={() => void load()}>
-            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} aria-hidden />
-            Refresh
-          </button>
+          <HiveRefreshButton busy={loading} onClick={() => void load()} />
         }
       />
 
@@ -405,27 +470,21 @@ export function ExecutionStudioPanel({ onOpenMarketplace, onOpenHub }: Execution
 
       <VirtualCompanySetupCard onChanged={() => void load()} />
 
-      <div className="v4-subtab-row w-full max-w-full shrink-0">
-        <button
-          type="button"
-          className={cn("v4-subtab gap-2", panelView === "workspace" && "v4-subtab--active")}
-          onClick={() => setPanelView("workspace")}
-        >
-          <Rocket className="h-3.5 w-3.5" aria-hidden />
-          Workspace
-        </button>
-        <button
-          type="button"
-          className={cn("v4-subtab gap-2", panelView === "manual" && "v4-subtab--active")}
-          onClick={() => setPanelView("manual")}
-        >
-          <BookOpen className="h-3.5 w-3.5" aria-hidden />
-          Manual
-          {overview?.manual?.section_count ? (
-            <span className="rounded-full bg-white/10 px-1.5 py-0.5 font-mono text-[10px]">{overview.manual.section_count}</span>
-          ) : null}
-        </button>
-      </div>
+      <HiveSubnavRow
+        items={[
+          { id: "workspace", label: "Workspace", icon: Rocket },
+          {
+            id: "manual",
+            label: "Manual",
+            icon: BookOpen,
+            badge: overview?.manual?.section_count || undefined,
+          },
+        ]}
+        activeId={panelView}
+        onChange={(id) => setPanelView(id as StudioPanelView)}
+        ariaLabel="Execution Studio views"
+        menuKey="execution-studio-panel"
+      />
 
       <ExecutionStudioSupervisorContext sessionIds={supervisorSessionIds} />
 
@@ -448,6 +507,16 @@ export function ExecutionStudioPanel({ onOpenMarketplace, onOpenHub }: Execution
 
       {panelView === "workspace" ? (
       <>
+      <HiveSubnavRow
+        items={WORKSPACE_SECTIONS.map(({ id, label, icon }) => ({ id, label, icon }))}
+        activeId={workspaceSection}
+        onChange={(id) => setWorkspaceSection(id as ExecutionStudioWorkspaceSection)}
+        ariaLabel="Execution Studio workspace sections"
+        menuKey="execution-studio-workspace"
+      />
+
+      {workspaceSection === "overview" ? (
+      <>
       <div className="grid shrink-0 gap-3 md:grid-cols-3">
         <article className="v4-dream-cycle-card p-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-(--qs-text-3)">Ready</p>
@@ -465,7 +534,11 @@ export function ExecutionStudioPanel({ onOpenMarketplace, onOpenHub }: Execution
           <p className="mt-1 text-xs text-(--qs-text-3)">{modeLabel(overview?.policy.default_mode ?? "simulate")}</p>
         </article>
       </div>
+      </>
+      ) : null}
 
+      {workspaceSection === "publish" ? (
+      <>
       <ExecutionStudioPublishQueuePanel onError={setError} />
 
       <ExecutionStudioSocialPublishPanel onError={setError} onOpenHub={onOpenHub} />
@@ -475,7 +548,11 @@ export function ExecutionStudioPanel({ onOpenMarketplace, onOpenHub }: Execution
       <ExecutionStudioTradingContentHybridPanel onError={setError} />
 
       <ExecutionStudioTradingCockpitPanel onError={setError} />
+      </>
+      ) : null}
 
+      {workspaceSection === "lanes" ? (
+      <>
       <ExecutionStudioLiveLanePanel onError={setError} />
 
       <ExecutionStudioMediaAgencyPanel onError={setError} />
@@ -483,16 +560,6 @@ export function ExecutionStudioPanel({ onOpenMarketplace, onOpenHub }: Execution
       <ExecutionStudioMicroSaasFactoryPanel onError={setError} />
 
       <ExecutionStudioSkillForgePanel onError={setError} />
-
-      <ExecutionStudioAnalyticsPanel
-        activityTelemetry={overview?.activity_telemetry}
-        recentActivity={overview?.recent_activity}
-        mediaRegistry={overview?.media_registry}
-        onError={setError}
-        onReloadOverview={load}
-      />
-
-      <ExecutionStudioSuperRoutersPanel superRouters={overview?.super_routers} />
 
       {overview?.codebase ? (
         <ExecutionStudioCodebaseLanePanel
@@ -506,6 +573,20 @@ export function ExecutionStudioPanel({ onOpenMarketplace, onOpenHub }: Execution
           onExecuteResult={setExecuteResult}
         />
       ) : null}
+      </>
+      ) : null}
+
+      {workspaceSection === "analytics" ? (
+      <>
+      <ExecutionStudioAnalyticsPanel
+        activityTelemetry={overview?.activity_telemetry}
+        recentActivity={overview?.recent_activity}
+        mediaRegistry={overview?.media_registry}
+        onError={setError}
+        onReloadOverview={load}
+      />
+
+      <ExecutionStudioSuperRoutersPanel superRouters={overview?.super_routers} />
 
       {overview?.policy ? (
         <ExecutionStudioPolicyPanel
@@ -523,16 +604,26 @@ export function ExecutionStudioPanel({ onOpenMarketplace, onOpenHub }: Execution
         onError={setError}
         onReloadOverview={load}
       />
+      </>
+      ) : null}
 
+      {workspaceSection === "innovation" ? <ExecutionStudioInnovationPanel /> : null}
+
+      {workspaceSection === "stack" ? (
+      <>
       <div className="flex shrink-0 flex-wrap gap-2">
-        <button type="button" className="qs-btn qs-btn--primary qs-btn--sm gap-2" onClick={onOpenMarketplace}>
-          <Plug className="h-4 w-4" aria-hidden />
-          Add connection
-        </button>
-        <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-2" onClick={onOpenHub}>
-          <Zap className="h-4 w-4" aria-hidden />
-          Connector hub
-        </button>
+        {onOpenMarketplace ? (
+          <button type="button" className="qs-btn qs-btn--primary qs-btn--sm gap-2" onClick={onOpenMarketplace}>
+            <Plug className="h-4 w-4" aria-hidden />
+            Add connection
+          </button>
+        ) : null}
+        {onOpenHub ? (
+          <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-2" onClick={onOpenHub}>
+            <Zap className="h-4 w-4" aria-hidden />
+            Connector hub
+          </button>
+        ) : null}
       </div>
 
       <ExecutionStudioStackPanel
@@ -546,6 +637,8 @@ export function ExecutionStudioPanel({ onOpenMarketplace, onOpenHub }: Execution
         onExecuteResult={setExecuteResult}
         onReloadOverview={load}
       />
+      </>
+      ) : null}
       </>
       ) : null}
     </div>

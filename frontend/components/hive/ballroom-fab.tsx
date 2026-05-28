@@ -21,7 +21,7 @@ export function BallroomFab({ hidden = false }: { hidden?: boolean } = {}): JSX.
 
   return createPortal(
     <div className="fab-ballroom-shell" data-testid="ballroom-fab">
-      <Link href="/ballroom" className="fab-ballroom pointer-events-auto text-sm" title="Open Ballroom (Ctrl+B)">
+      <Link href="/ballroom" className="fab-ballroom pointer-events-auto text-sm" title="Open Ballroom">
         <MicIcon className="h-4 w-4 shrink-0" aria-hidden />
         <span className="hidden sm:inline">Open Ballroom</span>
         <span className="inline sm:hidden">Ballroom</span>

@@ -89,7 +89,7 @@ cat >"${OUT_DIR}/README.txt" <<EOF
 Queenswarm operator handoff pack (${STAMP})
 
 Automated slice complete. Manual steps:
-1. Stripe — add keys to .env.prod → ./scripts/operator-p0-close.sh
+1. Checkout lane removed — no payment-vendor key setup required.
 2. Hetzner — ./scripts/operator-hetzner-send-prep.sh (send draft to abuse@hetzner.com)
 3. See docs/OPERATOR_P0_CLOSE.md
 

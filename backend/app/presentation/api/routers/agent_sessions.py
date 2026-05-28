@@ -1337,7 +1337,7 @@ async def preview_supervisor_session_playbook(
     try:
         steps = build_playbook_steps(session_row=row, sub_agents=subs)
     except SessionPlaybookNotReadyError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     return SessionPlaybookPreviewView(
         session_id=session_id,
         suggested_name=suggest_playbook_name(goal=str(row.goal or ""), session_id=session_id),
@@ -1396,10 +1396,10 @@ async def save_supervisor_session_playbook_route(
         await db.commit()
     except SessionPlaybookNotReadyError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     except SessionPlaybookNotVerifiedError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     except RecipeWriteConflictError as exc:
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
@@ -1616,7 +1616,7 @@ async def resume_session_checkpoint(
     try:
         updated, snapshot, requeued = await resume_session_from_last_checkpoint(db, session_row=row)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     summary_after = dict(updated.context_summary or {})
     tenant_id = _require_tenant_id(sess)
     await write_supervisor_session_audit_log(

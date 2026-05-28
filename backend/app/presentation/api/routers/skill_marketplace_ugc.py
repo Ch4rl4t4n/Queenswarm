@@ -25,7 +25,7 @@ from app.common.schemas.skill_marketplace_ugc import (
 )
 from app.core.logging import get_logger
 from app.infrastructure.persistence.models.dashboard_user import DashboardUser
-from app.presentation.api.deps import DbSession, JwtSubject, dashboard_admin_wall, require_dashboard_user_with_tenant_role
+from app.presentation.api.deps import DashboardSession, DbSession, dashboard_admin_wall, require_dashboard_user_with_tenant_role
 
 logger = get_logger(__name__)
 
@@ -38,7 +38,7 @@ def _ensure_ugc_enabled() -> None:
 
 
 @router.get("/config", response_model=SkillMarketplaceConfigResponse, summary="UGC marketplace policy")
-async def marketplace_config(_subject: JwtSubject) -> SkillMarketplaceConfigResponse:
+async def marketplace_config(_session: DashboardSession) -> SkillMarketplaceConfigResponse:
     """Expose price tiers and platform cut for submit UI."""
 
     payload = build_marketplace_config()

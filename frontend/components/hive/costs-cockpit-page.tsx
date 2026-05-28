@@ -1,13 +1,22 @@
 import Link from "next/link";
 import nextDynamic from "next/dynamic";
-import { DollarSignIcon, TargetIcon } from "lucide-react";
+import { DollarSignIcon } from "lucide-react";
 
 import { DashboardSectionSkeleton } from "@/components/hive/colony-console-skeleton";
+import { CostsTierLimitsKpi } from "@/components/hive/costs-tier-limits-kpi";
 import { HivePageHeader } from "@/components/hive/hive-page-header";
 import { V4Card, V4CardHeader, V4Stat } from "@/components/ui/v4";
 import { aggregateSpendByModel, consolidateDailySpend } from "@/lib/cost-aggregates";
 import { hiveServerRawJson } from "@/lib/hive-server";
 import type { AgentRow, OperatorCostSummary, TaskRow } from "@/lib/hive-types";
+
+const CostsBillingSection = nextDynamic(
+  () =>
+    import("@/components/hive/costs-billing-section").then((mod) => ({
+      default: mod.CostsBillingSection,
+    })),
+  { loading: () => <DashboardSectionSkeleton className="min-h-[320px]" /> },
+);
 
 const SpendTrendChart = nextDynamic(
   () => import("@/components/hive/spend-trend-chart").then((mod) => ({ default: mod.SpendTrendChart })),
@@ -49,8 +58,8 @@ export async function CostsCockpitPage(): Promise<JSX.Element> {
           title="Costs"
           subtitle="Per LLM · per agent · per swarm · Prometheus CostGovernor"
           actions={
-            <Link href="/settings/billing" className="qs-btn qs-btn--ghost qs-btn--sm text-xs uppercase">
-              Configure caps
+            <Link href="/settings/enterprise" className="qs-btn qs-btn--ghost qs-btn--sm text-xs uppercase">
+              Open enterprise settings
             </Link>
           }
         />
@@ -60,6 +69,10 @@ export async function CostsCockpitPage(): Promise<JSX.Element> {
         <p className="text-sm text-(--qs-red)">
           Operator ledger unavailable · try INTERNAL_BACKEND_ORIGIN / proxy JWT.
         </p>
+        <div className="v4-stat-grid max-lg:grid-cols-1">
+          <CostsTierLimitsKpi />
+        </div>
+        <CostsBillingSection />
       </div>
     );
   }
@@ -92,8 +105,8 @@ export async function CostsCockpitPage(): Promise<JSX.Element> {
         title="Costs"
         subtitle="Per LLM · per agent · per swarm · Prometheus CostGovernor"
         actions={
-          <Link href="/settings/billing" className="qs-btn qs-btn--ghost qs-btn--sm text-xs uppercase">
-            Configure caps
+          <Link href="/settings/enterprise" className="qs-btn qs-btn--ghost qs-btn--sm text-xs uppercase">
+            Open enterprise settings
           </Link>
         }
       />
@@ -127,7 +140,7 @@ export async function CostsCockpitPage(): Promise<JSX.Element> {
           icon={DollarSignIcon}
           foot="Rolling LiteLLM burn"
         />
-        <V4Stat label="Billing caps" value="Settings" icon={TargetIcon} iconTone="purple" foot="Soft/hard limits per tier" />
+        <CostsTierLimitsKpi />
       </div>
 
       <UnifiedSavingsPanel />
@@ -209,6 +222,8 @@ export async function CostsCockpitPage(): Promise<JSX.Element> {
           })}
         </ul>
       </V4Card>
+
+      <CostsBillingSection />
     </div>
   );
 }

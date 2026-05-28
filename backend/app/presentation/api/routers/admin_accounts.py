@@ -28,6 +28,7 @@ from app.application.services.admin_accounts import (
 )
 from app.core.logging import get_logger
 from app.presentation.api.deps import DashboardAdmin, DashboardSession, DbSession
+from app.presentation.api.error_payloads import unprocessable_error
 from app.presentation.api.routers.dashboard_session import _current_dashboard_user
 
 logger = get_logger(__name__)
@@ -251,7 +252,7 @@ async def bulk_patch_accounts(
     """Activate/deactivate users or align primary tenant mode/tier for many accounts."""
 
     if body.is_active is None and body.platform_mode is None and body.tier is None:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No patch fields provided.")
+        raise unprocessable_error(code="admin_accounts_patch_empty", message="No patch fields provided.")
 
     actor = await _current_dashboard_user(sess, db)
     try:
@@ -266,7 +267,7 @@ async def bulk_patch_accounts(
         await db.commit()
     except ValueError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise unprocessable_error(code="admin_accounts_bulk_invalid", message=str(exc)) from exc
     except SQLAlchemyError as exc:
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Persist failure.") from exc
@@ -366,7 +367,7 @@ async def bootstrap_commercial_demo_account(
             env_password=(body.password or os.environ.get("QS_BOOTSTRAP_PASSWORD", "")).strip(),
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise unprocessable_error(code="commercial_demo_password_invalid", message=str(exc)) from exc
 
     demo_kwargs: dict[str, Any] = {
         "password": password,
@@ -383,7 +384,7 @@ async def bootstrap_commercial_demo_account(
         await db.commit()
     except ValueError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise unprocessable_error(code="commercial_demo_bootstrap_invalid", message=str(exc)) from exc
     except SQLAlchemyError as exc:
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Persist failure.") from exc
@@ -497,7 +498,7 @@ async def patch_tenant(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except ValueError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise unprocessable_error(code="admin_tenant_patch_invalid", message=str(exc)) from exc
     except SQLAlchemyError as exc:
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Persist failure.") from exc

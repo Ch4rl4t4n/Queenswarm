@@ -104,7 +104,7 @@ async def list_orchestrator_results(
     try:
         since_dt = parse_since_iso(since)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
     tag_filter = normalize_tag_filter(tags)
     rows = await list_external_results(

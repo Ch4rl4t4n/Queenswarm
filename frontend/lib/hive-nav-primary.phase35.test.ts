@@ -7,6 +7,7 @@ describe("hive-nav-primary Phase 3.5 IA coverage", () => {
   it("includes required cockpit destinations", () => {
     const consolidated = HIVE_NAV_PRIMARY.some((item) => item.href === "/integrations");
     const routeRequirements: readonly string[] = [
+      consolidated ? "/apps-tools" : "/factory",
       consolidated ? "/integrations" : "/connectors",
       consolidated ? "/knowledge" : "/hive-mind",
       "/tasks",

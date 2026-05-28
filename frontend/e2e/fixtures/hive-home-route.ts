@@ -17,11 +17,11 @@ function cpEnabled(): boolean {
 }
 
 export function e2eHiveHomePath(): string {
-  return cpEnabled() ? "/cockpit" : "/dashboard";
+  return cpEnabled() ? "/agentic-os" : "/dashboard";
 }
 
 export function e2eHiveHomeHeading(): RegExp {
-  return cpEnabled() ? /Hive Cockpit|Cockpit/i : /^Dashboard$/i;
+  return cpEnabled() ? /Agentic OS/i : /^Dashboard$/i;
 }
 
 /** Advanced ColonyConsole — always `/dashboard`. */

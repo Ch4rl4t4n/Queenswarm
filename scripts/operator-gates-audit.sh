@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Operator-only gates — Stripe keys, enterprise price, walkthrough doc, Hetzner script.
+# Operator-only gates — walkthrough docs, Hetzner script, monitoring readiness.
 # Read-only; no mutations. Dev phases 0–2 can pass while this still warns.
 #
 # Usage: ./scripts/operator-gates-audit.sh
@@ -44,67 +44,14 @@ echo "env: ${ENV_FILE}"
 echo "hive: ${HIVE_BASE}"
 echo
 
-echo "[1] Stripe live checkout (Pro + Enterprise + skills)"
-if [[ ! -f "$ENV_FILE" ]]; then
-  bad "${ENV_FILE} missing"
-else
-  secret="$(load_kv "$ENV_FILE" STRIPE_SECRET_KEY || true)"
-  webhook="$(load_kv "$ENV_FILE" STRIPE_WEBHOOK_SECRET || true)"
-  pro_price="$(load_kv "$ENV_FILE" STRIPE_PRO_PRICE_ID || true)"
-  ent_price="$(load_kv "$ENV_FILE" STRIPE_ENTERPRISE_PRICE_ID || true)"
-
-  if [[ -n "${secret// }" && "${secret}" == sk_* ]]; then
-    ok "STRIPE_SECRET_KEY present"
-  else
-    note "STRIPE_SECRET_KEY missing — checkout disabled"
-  fi
-  if [[ -n "${webhook// }" && "${webhook}" == whsec_* ]]; then
-    ok "STRIPE_WEBHOOK_SECRET present"
-  else
-    note "STRIPE_WEBHOOK_SECRET missing — webhooks will fail"
-  fi
-  if [[ -n "${pro_price// }" ]]; then
-    ok "STRIPE_PRO_PRICE_ID set"
-  else
-    note "STRIPE_PRO_PRICE_ID unset — Pro uses dynamic price_data fallback"
-  fi
-  if [[ -n "${ent_price// }" ]]; then
-    ok "STRIPE_ENTERPRISE_PRICE_ID set"
-  else
-    note "STRIPE_ENTERPRISE_PRICE_ID unset — Enterprise uses dynamic price_data fallback"
-  fi
-fi
+echo "[1] Billing runtime sunset"
+ok "Checkout endpoints/scripts removed from active operator gates."
 echo
 
-echo "[2] Checkout routes (unauthenticated — expect 401 on POST)"
-if command -v curl >/dev/null 2>&1; then
-  for spec in \
-    "POST:/api/v1/billing/pro-checkout" \
-    "POST:/api/v1/billing/enterprise-checkout" \
-    "POST:/api/v1/billing/stripe/webhook"; do
-    method="${spec%%:*}"
-    path="${spec#*:}"
-    code="$(curl -sS -o /dev/null -w '%{http_code}' -X "${method}" --connect-timeout 5 --max-time 10 "${HIVE_BASE}${path}" 2>/dev/null || echo 000)"
-    case "$code" in
-      401|403|400|503) ok "${path} (${code})" ;;
-      404|000) bad "${path} missing (${code})" ;;
-      *) note "${path} returned ${code}" ;;
-    esac
-  done
-else
-  note "curl not available"
-fi
-echo
-
-echo "[3] Operator scripts + docs"
+echo "[2] Operator scripts + docs"
 for path in \
-  scripts/finish-stripe-setup.sh \
-  scripts/stripe-prod-setup.sh \
   scripts/hetzner-abuse-reply.sh \
-  scripts/operator-stripe-prep.sh \
-  scripts/operator-stripe-login.sh \
   scripts/operator-p0-close.sh \
-  scripts/verify-stripe-live.sh \
   scripts/operator-hetzner-send-prep.sh \
   scripts/operator-pending-status.sh \
   scripts/alertmanager-smoke.sh \
@@ -198,15 +145,7 @@ else
 fi
 echo
 
-echo "[4] Finish-stripe readiness"
-if [[ -x scripts/finish-stripe-setup.sh ]] && [[ -x scripts/stripe-prod-setup.sh ]]; then
-  ok "finish-stripe-setup.sh + stripe-prod-setup.sh executable"
-else
-  bad "Stripe setup scripts not executable"
-fi
-echo
-
-echo "[5] Monitoring — Alertmanager + pattern alerts"
+echo "[3] Monitoring — Alertmanager + pattern alerts"
 if [[ -x scripts/alertmanager-smoke.sh ]]; then
   if ./scripts/alertmanager-smoke.sh >/dev/null 2>&1; then
     ok "alertmanager-smoke.sh passed"
@@ -240,7 +179,6 @@ if [[ "$fail" -gt 0 ]]; then
   exit 1
 fi
 if [[ "$warn" -gt 0 ]]; then
-  echo "Operator action: add Stripe keys → ./scripts/operator-p0-close.sh"
   echo "Hetzner: ./scripts/operator-hetzner-send-prep.sh · docs/OPERATOR_P0_CLOSE.md"
 fi
 exit 0

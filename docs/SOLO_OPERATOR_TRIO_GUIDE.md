@@ -209,6 +209,6 @@ Skontroluj že `MICRO_SAAS_FACTORY_ENABLED=true` (solo preset od mája 2026 ho z
 
 - `docs/SOLO_OPERATOR_MODE.md` — lockdown, IP, feature flags
 - `docs/OPERATOR_RELEASE_RUNBOOK.md` — deploy + audit gates + týždenný checklist
-- `docs/OPERATOR_QUICKSTART.md` — P0 release gates (solo: bez Stripe)
+- `docs/OPERATOR_QUICKSTART.md` — P0 release gates (solo: bez payment-vendor checkoutu)
 - `docs/PRODUCTION_AUTOMATION_PHASES.md` — Instagram / produkčné publish (budúce fázy)
 - `docs/ROADMAP.md` — Fáza 7 Hermes-competitive

@@ -1,11 +1,12 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { HiveModalShell } from "@/components/hive/hive-modal-shell";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveDelete, hiveGet, hivePostJson } from "@/lib/api";
 import type { ApiKeyCreated, ApiKeyListItem } from "@/lib/hive-dashboard-session";
@@ -51,6 +52,8 @@ export function SettingsApiKeysPanel() {
   const [newSourceName, setNewSourceName] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [minted, setMinted] = useState<ApiKeyCreated | null>(null);
+  const createCancelRef = useRef<HTMLButtonElement>(null);
+  const mintedDismissRef = useRef<HTMLButtonElement>(null);
 
   const apisByProvider = useMemo(() => {
     const map = new Map<string, ExternalApiStoredRow[]>();
@@ -446,42 +449,52 @@ export function SettingsApiKeysPanel() {
         </button>
       </V4Card>
 
-      {createOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4" role="dialog" aria-modal>
-          <div className="w-full max-w-md rounded-xl border border-(--qs-border) bg-(--qs-surface-2) p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-(--qs-text)">New script slug</h3>
-            <input placeholder="slug e.g. ci_main" value={newSourceName} disabled={busy} onChange={(e) => setNewSourceName(e.target.value)} className="qs-input mt-4 font-mono text-sm" />
-            <input placeholder="optional note" value={newLabel} disabled={busy} onChange={(e) => setNewLabel(e.target.value)} className="qs-input mt-3 text-sm" />
-            <div className="mt-6 flex justify-end gap-3">
-              <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => setCreateOpen(false)}>
-                Cancel
-              </button>
-              <button type="button" disabled={busy} onClick={() => void createScriptKey()} className="qs-btn qs-btn--primary qs-btn--sm">
-                Mint
-              </button>
-            </div>
-          </div>
+      <HiveModalShell
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        panelClassName="w-full max-w-md rounded-xl border border-(--qs-border) bg-(--qs-surface-2) p-6 shadow-lg"
+        labelledBy="script-key-create-title"
+        initialFocusRef={createCancelRef}
+      >
+        <h3 id="script-key-create-title" className="text-lg font-semibold text-(--qs-text)">
+          New script slug
+        </h3>
+        <input placeholder="slug e.g. ci_main" value={newSourceName} disabled={busy} onChange={(e) => setNewSourceName(e.target.value)} className="qs-input mt-4 font-mono text-sm" />
+        <input placeholder="optional note" value={newLabel} disabled={busy} onChange={(e) => setNewLabel(e.target.value)} className="qs-input mt-3 text-sm" />
+        <div className="mt-6 flex justify-end gap-3">
+          <button ref={createCancelRef} type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => setCreateOpen(false)}>
+            Cancel
+          </button>
+          <button type="button" disabled={busy} onClick={() => void createScriptKey()} className="qs-btn qs-btn--primary qs-btn--sm">
+            Mint
+          </button>
         </div>
-      ) : null}
+      </HiveModalShell>
 
-      {minted ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4" role="dialog" aria-modal>
-          <div className="w-full max-w-lg rounded-xl border border-pollen/35 bg-(--qs-surface-2) p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-pollen">Save this token once</h3>
-            <pre className="mt-4 max-h-40 overflow-auto break-all rounded-lg border border-(--qs-border) bg-[rgba(7,3,15,0.5)] p-3 font-mono text-xs text-(--qs-text)">
-              {minted.plaintext}
-            </pre>
-            <div className="mt-6 flex gap-3">
-              <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => copyPlaintext()}>
-                Copy
-              </button>
-              <button type="button" className="qs-btn qs-btn--primary qs-btn--sm" onClick={() => setMinted(null)}>
-                Stored safely
-              </button>
-            </div>
-          </div>
+      <HiveModalShell
+        open={minted !== null}
+        onClose={() => setMinted(null)}
+        panelClassName="w-full max-w-lg rounded-xl border border-pollen/35 bg-(--qs-surface-2) p-6 shadow-lg"
+        labelledBy="script-key-minted-title"
+        zIndexClass="z-[60]"
+        backdropClassName="bg-black/80"
+        initialFocusRef={mintedDismissRef}
+      >
+        <h3 id="script-key-minted-title" className="text-lg font-semibold text-pollen">
+          Save this token once
+        </h3>
+        <pre className="mt-4 max-h-40 overflow-auto break-all rounded-lg border border-(--qs-border) bg-[rgba(7,3,15,0.5)] p-3 font-mono text-xs text-(--qs-text)">
+          {minted?.plaintext}
+        </pre>
+        <div className="mt-6 flex gap-3">
+          <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => copyPlaintext()}>
+            Copy
+          </button>
+          <button ref={mintedDismissRef} type="button" className="qs-btn qs-btn--primary qs-btn--sm" onClick={() => setMinted(null)}>
+            Stored safely
+          </button>
         </div>
-      ) : null}
+      </HiveModalShell>
 
       <ConfirmModal
         open={deleteTarget !== null}

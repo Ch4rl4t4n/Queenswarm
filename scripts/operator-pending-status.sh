@@ -35,13 +35,6 @@ load_kv() {
   return 1
 }
 
-stripe_key_ok() {
-  local key="$1" prefix="$2"
-  local val
-  val="$(load_kv "$ENV_FILE" "$key" || true)"
-  [[ -n "${val// }" && "$val" == ${prefix}* ]]
-}
-
 latest_report_passed() {
   local glob="$1"
   local latest
@@ -51,18 +44,6 @@ latest_report_passed() {
 }
 
 mkdir -p "$REPORT_DIR"
-
-stripe_secret=false
-stripe_webhook=false
-stripe_pro_price=false
-stripe_ent_price=false
-if [[ -f "$ENV_FILE" ]]; then
-  stripe_key_ok STRIPE_SECRET_KEY sk_ && stripe_secret=true
-  stripe_key_ok STRIPE_WEBHOOK_SECRET whsec_ && stripe_webhook=true
-  [[ -n "$(load_kv "$ENV_FILE" STRIPE_PRO_PRICE_ID || true)" ]] && stripe_pro_price=true
-  [[ -n "$(load_kv "$ENV_FILE" STRIPE_ENTERPRISE_PRICE_ID || true)" ]] && stripe_ent_price=true
-fi
-stripe_ready=$([[ "$stripe_secret" == true && "$stripe_webhook" == true ]] && echo true || echo false)
 
 walkthrough_auto=false
 if latest_report_passed "reports/walkthrough/walkthrough-*.json"; then
@@ -146,14 +127,12 @@ if latest_report_passed "reports/operator/command-center-*.json"; then
   command_center_gate=true
 fi
 
-manual_browser_qa="complete_except_stripe_and_hetzner_send"
+manual_browser_qa="complete_except_hetzner_send"
 if [[ "$command_center_gate" != true || "$prod_browser_walkthrough" != true || "$prod_session_walkthrough" != true ]]; then
   manual_browser_qa="rerun_operator_launch_gate"
 fi
 
-manual_stripe_checkout="pending"
 manual_hetzner_send="pending"
-[[ "$stripe_ready" == true ]] && manual_stripe_checkout="keys_ready_run_finish_stripe_setup"
 if [[ "$hetzner_sent" == true ]]; then
   manual_hetzner_send="sent"
 elif [[ "$hetzner_draft" == true ]]; then
@@ -182,12 +161,9 @@ cat >"$JSON_OUT" <<EOF
     "pattern_alert_rules_file": true,
     "grafana_dashboard": "queenswarm-agentic-patterns"
   },
-  "stripe": {
-    "secret_key": ${stripe_secret},
-    "webhook_secret": ${stripe_webhook},
-    "pro_price_id": ${stripe_pro_price},
-    "enterprise_price_id": ${stripe_ent_price},
-    "ready_for_finish_setup": ${stripe_ready}
+  "checkout": {
+    "status": "removed",
+    "setup_required": false
   },
   "harness": {
     "post_merge_webhook_enabled": ${harness_github_webhook},
@@ -211,7 +187,6 @@ cat >"$JSON_OUT" <<EOF
   },
   "operator_manual": {
     "browser_walkthrough_sections_1_9": "${manual_browser_qa}",
-    "stripe_live_checkout": "${manual_stripe_checkout}",
     "hetzner_abuse_email": "${manual_hetzner_send}"
   },
   "next_commands": [

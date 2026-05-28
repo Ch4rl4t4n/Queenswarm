@@ -13,9 +13,6 @@ Checklist before declaring a rollout complete on `queenswarm.love`.
 ```bash
 # Full gate (local pytest + prod E2E)
 PLAYWRIGHT_BASE_URL=https://queenswarm.love ./scripts/production-signoff-gate.sh
-
-# After Stripe keys are in .env.prod
-STRICT_STRIPE=1 PLAYWRIGHT_BASE_URL=https://queenswarm.love ./scripts/production-signoff-gate.sh
 ```
 
 Remote hive smoke (``PLAYWRIGHT_BASE_URL``) skips API mocks and runs:
@@ -25,7 +22,7 @@ Remote hive smoke (``PLAYWRIGHT_BASE_URL``) skips API mocks and runs:
 - Desktop Ballroom FAB visibility
 - Desktop sidebar-only shell (no `#hive-search` duplicate)
 
-Stripe-off UX tests (skills/billing banners) run locally with API mocks only.
+Local UX tests run with API mocks only.
 
 ## Manual QA
 
@@ -45,38 +42,14 @@ Stripe-off UX tests (skills/billing banners) run locally with API mocks only.
 
 ### Phase 14 surfaces
 
-- [ ] `/integrations` → Skills tab: banner when Stripe off; checkout disabled gracefully
+- [ ] `/integrations` → Skills tab loads without checkout controls
 - [ ] Foragers API returns 401 without JWT (not 404)
 - [ ] Paper trading summary returns 401 without JWT (not 404)
-
-### Stripe (when keys configured)
-
-1. Add to `.env.prod`:
-   - `STRIPE_SECRET_KEY`
-   - `STRIPE_WEBHOOK_SECRET`
-2. Stripe Dashboard → Webhooks → `https://queenswarm.love/api/v1/billing/stripe/webhook`
-   - Event: `checkout.session.completed`
-3. One command (validate → deploy → strict sign-off):
-
-```bash
-./scripts/finish-stripe-setup.sh
-```
-
-Or step-by-step:
-
-```bash
-POST_DEPLOY_HEALTH=1 ./scripts/deploy-prod.sh
-./scripts/stripe-prod-setup.sh
-STRICT_STRIPE=1 PLAYWRIGHT_BASE_URL=https://queenswarm.love ./scripts/production-signoff-gate.sh
-```
-
-4. Complete one premium skill checkout end-to-end
 
 ## Known blockers
 
 | Item | Status |
 |------|--------|
-| Stripe keys in `.env.prod` | Required for live checkout |
 | Backend coverage 80% | **Done** — sign-off gate uses `--cov-fail-under=80` |
 
 ## Rollback

@@ -12,22 +12,18 @@ Use this when two Cursor agents work the same repo session. **Do not edit the sa
 | Pro tier gates + upgrade banner | ✅ Shipped | Agent A |
 | Swarm Builder CTA on dashboard | ✅ Shipped | Agent A |
 | Capabilities Atlas (live + roadmap) | ✅ Shipped | Agent A |
-| Pro subscription checkout UX | ✅ Shipped (`/billing/pro-checkout`, billing panel) | Agent A |
 | Rapid loop dashboard widget | ✅ Shipped + verified | Agent B |
 | Dreaming nightly summary card | ✅ Shipped + verified | Agent B |
 | Swarm Builder entry on dashboard | ✅ Shipped | Agent B |
 | Foragers production launch | ✅ Pro-gated (internal + commercial Pro) | Agent B |
 | Built-in plugin persistent toggle | ✅ PATCH + Integrations HiveSwitch | Agent B |
-| Stripe live checkout | ⏳ Operator — keys + STRIPE_PRO_PRICE_ID in `.env.prod` | **You (human)** |
 | Authenticated prod walkthrough | ⏳ Manual QA | **You (human)** |
 
 ---
 
 ## Agent A — DONE (maintenance only)
 
-Wizard + Pro checkout track complete. Optional after Stripe keys:
-
-- End-to-end Pro upgrade verification (commercial Free → Stripe → tier unlock)
+Wizard track complete.
 
 **Do not re-edit** `swarm-builder-wizard.tsx` unless fixing bugs.
 
@@ -57,6 +53,5 @@ Dashboard learning loop + integrations verified:
 ```bash
 ./scripts/mission-phase0-audit.sh
 ./scripts/mission-phase1-audit.sh
-./scripts/finish-stripe-setup.sh   # after STRIPE_* + STRIPE_PRO_PRICE_ID in .env.prod
 # Manual: docs/AUTHENTICATED_PROD_WALKTHROUGH.md
 ```

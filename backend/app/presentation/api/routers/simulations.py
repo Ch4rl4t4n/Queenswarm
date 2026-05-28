@@ -1,13 +1,13 @@
-"""Simulation audit ledger (JWT guarded — ops + compliance)."""
+"""Simulation audit ledger (dashboard-admin guarded — ops + compliance)."""
 
 from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.presentation.api.deps import DbSession, JwtSubject
+from app.presentation.api.deps import DashboardSession, DbSession, dashboard_admin_wall
 from app.infrastructure.persistence.models.enums import SimulationResult
 from app.common.schemas.simulations_audit import (
     SimulationAuditItem,
@@ -22,7 +22,10 @@ from app.application.services.simulation_audit import (
 )
 from app.core.config import settings
 
-router = APIRouter(tags=["Simulations"])
+router = APIRouter(
+    tags=["Simulations"],
+    dependencies=[Depends(dashboard_admin_wall)],
+)
 
 
 def _ensure_simulations_enabled() -> None:
@@ -40,7 +43,7 @@ def _ensure_simulations_enabled() -> None:
 )
 async def list_simulation_audits(
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
     task_id: uuid.UUID | None = Query(default=None, description="Filter by hive backlog lineage."),
     result_type: SimulationResult | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
@@ -71,7 +74,7 @@ async def list_simulation_audits(
 async def get_simulation_audit(
     simulation_id: uuid.UUID,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ):
     """Return stdout/stderr-capable detail for compliance review."""
 
@@ -97,7 +100,7 @@ async def get_simulation_audit(
 async def create_simulation_audit(
     body: SimulationCreateRequest,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ):
     """Create ledger metadata after Docker sandbox execution."""
 
@@ -119,7 +122,7 @@ async def create_simulation_audit(
         await db.refresh(row)
     except SimulationAuditError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(

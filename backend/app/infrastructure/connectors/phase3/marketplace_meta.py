@@ -73,13 +73,6 @@ TEMPLATE_MARKETPLACE_META: dict[str, dict[str, Any]] = {
             "Research and content agents search pages, append blocks, and export structured notes into HiveMind recipes."
         ),
     },
-    "stripe_billing": {
-        "cost_tier": "medium",
-        "latency_tier": "balanced",
-        "agent_usage": (
-            "Billing lane inspects customers, subscriptions, and invoices — never mutates money without explicit guardrails."
-        ),
-    },
     "venice_mcp": {
         "cost_tier": "medium",
         "latency_tier": "balanced",

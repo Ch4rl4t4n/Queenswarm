@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Loader2, RefreshCw, Target } from "lucide-react";
+import { Loader2, Target } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { usePlatform } from "@/components/hive/platform-context";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
@@ -117,9 +118,7 @@ function SoloDailyPlanPanelInner({ compact = false }: { compact?: boolean }): JS
               {trioBusy ? <Loader2 className="size-3 animate-spin" /> : null}
               Run 3 Bees
             </button>
-            <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void load()}>
-              <RefreshCw className="size-3" aria-hidden />
-            </button>
+            <HiveRefreshButton busy={loading} onClick={() => void load()} />
           </div>
         }
       />

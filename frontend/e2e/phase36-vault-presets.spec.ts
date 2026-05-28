@@ -37,15 +37,15 @@ test.describe("Phase 3.6 vault vendor presets", () => {
     await expect(page.locator("#qs-vault-token-endpoint")).toHaveValue("https://oauth2.googleapis.com/token");
   });
 
-  test("Stripe preset switches to API key flow", async ({ page }) => {
+  test("Notion preset switches to API key flow", async ({ page }) => {
     test.setTimeout(120_000);
     await page.goto("/connectors", { waitUntil: "load", timeout: 90_000 });
     await page.waitForTimeout(500);
     if (assertOrSkipOnLoginRedirect(page, ["/connectors", "/integrations"])) {
       return;
     }
-    await page.getByRole("button", { name: "Stripe Billing", exact: true }).click();
-    await expect(page.locator("#qs-vault-connector-slug")).toHaveValue("stripe_billing");
+    await page.getByRole("button", { name: "Notion", exact: true }).click();
+    await expect(page.locator("#qs-vault-connector-slug")).toHaveValue("notion_workspace");
     await expect(page.getByRole("button", { name: "API key", exact: true })).toBeVisible();
   });
 });

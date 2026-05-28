@@ -24,6 +24,7 @@ PublishAuditKind = Literal[
     "scheduled_simulate",
     "scheduled_live_auto",
     "tiktok_publish_status",
+    "social_rollback_receipt",
 ]
 
 _EVENT_TYPE_BY_KIND: dict[str, str] = {
@@ -35,6 +36,7 @@ _EVENT_TYPE_BY_KIND: dict[str, str] = {
     "scheduled_simulate": "publish_scheduled_simulate",
     "scheduled_live_auto": "publish_scheduled_live_auto",
     "tiktok_publish_status": "publish_tiktok_status",
+    "social_rollback_receipt": "publish_social_rollback_receipt",
 }
 
 
@@ -76,6 +78,7 @@ def _kind_from_event_type(event_type: str) -> str:
         "publish_scheduled_simulate": "scheduled_simulate",
         "publish_scheduled_live_auto": "scheduled_live_auto",
         "publish_tiktok_status": "tiktok_publish_status",
+        "publish_social_rollback_receipt": "social_rollback_receipt",
     }
     return mapping.get(normalized, normalized.removeprefix("publish_"))
 

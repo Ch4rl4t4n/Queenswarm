@@ -45,10 +45,10 @@ export default defineConfig({
           env: {
             ...process.env,
             PORT: devPort,
-            NEXT_PUBLIC_LEADERBOARD_ENABLED: "true",
             NEXT_PUBLIC_ADVANCED_MONITORING_ENABLED: "true",
             NEXT_PUBLIC_SIMULATIONS_ENABLED: "true",
             NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED: "true",
+            NEXT_PUBLIC_PHASE70_CONSOLIDATED_NAV_ENABLED: "true",
           },
           url: `${baseURL}/login`,
           timeout: 240_000,

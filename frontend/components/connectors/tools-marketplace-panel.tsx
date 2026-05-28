@@ -479,7 +479,7 @@ export function ToolsMarketplacePanel({ onJumpToActive }: ToolsMarketplacePanelP
     const operatorHint = socialConnectorOperatorHint(entry.templateId);
 
     return (
-      <article key={entry.key} className="v4-dream-cycle-card flex flex-col gap-3">
+      <article key={entry.key} className="v4-dream-cycle-card flex h-full flex-col gap-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 space-y-1">
             <p className="inline-flex items-center gap-2 text-sm font-semibold text-(--qs-text)">
@@ -531,7 +531,7 @@ export function ToolsMarketplacePanel({ onJumpToActive }: ToolsMarketplacePanelP
         ) : null}
 
         {showConnect ? (
-          <div className="mt-auto flex flex-wrap items-center gap-2">
+          <div className="v4-dream-cycle-card-actions">
             <button
               type="button"
               className="qs-btn qs-btn--primary qs-btn--sm"
@@ -563,15 +563,7 @@ export function ToolsMarketplacePanel({ onJumpToActive }: ToolsMarketplacePanelP
                   value={credentialDraft}
                   onChange={(event) => setCredentialDraft(event.target.value)}
                 />
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    className="qs-btn qs-btn--primary qs-btn--sm"
-                    disabled={rowBusy}
-                    onClick={() => void saveCredentials(entry, connector)}
-                  >
-                    {rowBusy ? "Saving…" : "Save credentials"}
-                  </button>
+                <div className="v4-dream-cycle-card-actions">
                   <button
                     type="button"
                     className="qs-btn qs-btn--ghost qs-btn--sm"
@@ -581,6 +573,14 @@ export function ToolsMarketplacePanel({ onJumpToActive }: ToolsMarketplacePanelP
                     }}
                   >
                     Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--primary qs-btn--sm"
+                    disabled={rowBusy}
+                    onClick={() => void saveCredentials(entry, connector)}
+                  >
+                    {rowBusy ? "Saving…" : "Save credentials"}
                   </button>
                 </div>
               </div>
@@ -595,18 +595,7 @@ export function ToolsMarketplacePanel({ onJumpToActive }: ToolsMarketplacePanelP
               </div>
             ) : null}
 
-            <div className="mt-auto flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                className="qs-btn qs-btn--ghost qs-btn--sm"
-                disabled={rowBusy || entry.auth_type === "oauth2"}
-                onClick={() => {
-                  setConfiguringSlug(entry.slug);
-                  setCredentialDraft("");
-                }}
-              >
-                Configure
-              </button>
+            <div className="v4-dream-cycle-card-actions">
               <button
                 type="button"
                 className="qs-btn qs-btn--ghost qs-btn--sm"
@@ -630,6 +619,17 @@ export function ToolsMarketplacePanel({ onJumpToActive }: ToolsMarketplacePanelP
                 onClick={() => void deleteConnection(entry, connector)}
               >
                 {deleteBusy ? "Deleting…" : "Delete"}
+              </button>
+              <button
+                type="button"
+                className="qs-btn qs-btn--primary qs-btn--sm"
+                disabled={rowBusy || entry.auth_type === "oauth2"}
+                onClick={() => {
+                  setConfiguringSlug(entry.slug);
+                  setCredentialDraft("");
+                }}
+              >
+                Configure
               </button>
             </div>
           </>

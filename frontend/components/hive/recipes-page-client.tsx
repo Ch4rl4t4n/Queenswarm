@@ -207,19 +207,21 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
           <dd className="mt-1 truncate font-mono text-[10px] text-(--qs-text-3)">{recipe.id.slice(0, 8)}…</dd>
         </div>
       </dl>
-      <button
-        type="button"
-        className="qs-btn qs-btn--ghost qs-btn--sm w-full sm:w-fit"
-        disabled={exportBusyId === recipe.id}
-        onClick={() => void exportRecipe(recipe.id, recipe.name)}
-      >
-        {exportBusyId === recipe.id ? (
-          <Loader2Icon className="h-3.5 w-3.5 animate-spin" aria-hidden />
-        ) : (
-          <DownloadIcon className="h-3.5 w-3.5" aria-hidden />
-        )}
-        Export skill
-      </button>
+      <div className="v4-dream-cycle-card-actions">
+        <button
+          type="button"
+          className="qs-btn qs-btn--primary qs-btn--sm"
+          disabled={exportBusyId === recipe.id}
+          onClick={() => void exportRecipe(recipe.id, recipe.name)}
+        >
+          {exportBusyId === recipe.id ? (
+            <Loader2Icon className="h-3.5 w-3.5 animate-spin" aria-hidden />
+          ) : (
+            <DownloadIcon className="h-3.5 w-3.5" aria-hidden />
+          )}
+          Export skill
+        </button>
+      </div>
     </article>
   );
 

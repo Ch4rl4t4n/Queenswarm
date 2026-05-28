@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { HiveModalShell } from "@/components/hive/hive-modal-shell";
 import { cn } from "@/lib/utils";
 
 const SWARM_COLORS = ["#00E5FF", "#FFB800", "#FF00AA", "#00FF88", "#A855F7", "#F97316"] as const;
@@ -41,10 +42,6 @@ export function SwarmsNewColonyDialog({ open, onClose, onCreated }: SwarmsNewCol
     system_prompt: "",
     custom_role: "",
   });
-
-  if (!open) {
-    return null;
-  }
 
   async function handleCreate(): Promise<void> {
     if (!form.name.trim()) {
@@ -104,93 +101,91 @@ export function SwarmsNewColonyDialog({ open, onClose, onCreated }: SwarmsNewCol
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[220] flex items-center justify-center bg-[rgba(5,5,16,0.82)] p-4"
-      role="dialog"
-      aria-modal
-      onClick={onClose}
-      onKeyDown={(e) => e.key === "Escape" && onClose()}
+    <HiveModalShell
+      open={open}
+      onClose={onClose}
+      labelledBy="swarms-new-colony-title"
+      zIndexClass="z-[220]"
+      backdropClassName="bg-[rgba(5,5,16,0.82)]"
+      panelClassName="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-(--qs-radius-lg) border border-[rgba(253,185,39,0.28)] bg-(--qs-surface) p-6 shadow-[0_12px_40px_rgba(0,0,0,0.5)]"
     >
-      <div
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[var(--qs-radius-lg)] border border-[rgba(253,185,39,0.28)] bg-[var(--qs-surface)] p-6 shadow-[0_12px_40px_rgba(0,0,0,0.5)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-6 flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold text-(--qs-text)">New colony</h2>
-            <p className="mt-1 text-sm text-(--qs-text-3)">Stand up a local hive mind partition before assigning bees.</p>
-          </div>
-          <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" aria-label="Close" onClick={onClose}>
-            <X className="h-4 w-4" aria-hidden />
-          </button>
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div>
+          <h2 id="swarms-new-colony-title" className="text-lg font-semibold text-(--qs-text)">
+            New colony
+          </h2>
+          <p className="mt-1 text-sm text-(--qs-text-3)">Stand up a local hive mind partition before assigning bees.</p>
         </div>
-
-        <label className="qs-label">Colony name</label>
-        <input
-          value={form.name}
-          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          placeholder="e.g. Alpha · Onboarding Lab"
-          className="qs-input mt-2 w-full"
-        />
-
-        <p className="qs-label mt-5">Role lane</p>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          {SWARM_ROLE_PRESETS.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => setForm((f) => ({ ...f, role: p.id }))}
-              className={cn(
-                "rounded-[var(--qs-radius-sm)] border px-3 py-2 text-left transition",
-                form.role === p.id
-                  ? "border-[rgba(253,185,39,0.45)] bg-[rgba(253,185,39,0.08)] text-pollen"
-                  : "border-(--qs-border) bg-white/[0.02] text-(--qs-text-3) hover:border-(--qs-border-2)",
-              )}
-            >
-              <div className="text-sm font-semibold">{p.label}</div>
-              <div className="mt-1 text-[11px] opacity-80">{p.desc}</div>
-            </button>
-          ))}
-        </div>
-
-        {form.role === "custom" ? (
-          <>
-            <label className="qs-label mt-5">Custom role name</label>
-            <input
-              value={form.custom_role}
-              onChange={(e) => setForm((f) => ({ ...f, custom_role: e.target.value }))}
-              placeholder="e.g. Content Writer"
-              className="qs-input mt-2 w-full"
-            />
-          </>
-        ) : null}
-
-        <label className="qs-label mt-5">Accent color</label>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {SWARM_COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              aria-label={`Color ${c}`}
-              onClick={() => setForm((f) => ({ ...f, color: c }))}
-              className={cn(
-                "h-8 w-8 rounded-full border-2 transition",
-                form.color === c ? "border-white scale-110" : "border-transparent opacity-70 hover:opacity-100",
-              )}
-              style={{ backgroundColor: c }}
-            />
-          ))}
-        </div>
-
-        <div className="mt-6 flex flex-wrap justify-end gap-2">
-          <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={onClose}>
-            Cancel
-          </button>
-          <button type="button" className="qs-btn qs-btn--primary qs-btn--sm" disabled={busy} onClick={() => void handleCreate()}>
-            {busy ? "Creating…" : "Create colony"}
-          </button>
-        </div>
+        <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" aria-label="Close" onClick={onClose}>
+          <X className="h-4 w-4" aria-hidden />
+        </button>
       </div>
-    </div>
+
+      <label className="qs-label">Colony name</label>
+      <input
+        value={form.name}
+        onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+        placeholder="e.g. Alpha · Onboarding Lab"
+        className="qs-input mt-2 w-full"
+      />
+
+      <p className="qs-label mt-5">Role lane</p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {SWARM_ROLE_PRESETS.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => setForm((f) => ({ ...f, role: p.id }))}
+            className={cn(
+              "rounded-(--qs-radius-sm) border px-3 py-2 text-left transition",
+              form.role === p.id
+                ? "border-[rgba(253,185,39,0.45)] bg-[rgba(253,185,39,0.08)] text-pollen"
+                : "border-(--qs-border) bg-white/[0.02] text-(--qs-text-3) hover:border-(--qs-border-2)",
+            )}
+          >
+            <div className="text-sm font-semibold">{p.label}</div>
+            <div className="mt-1 text-[11px] opacity-80">{p.desc}</div>
+          </button>
+        ))}
+      </div>
+
+      {form.role === "custom" ? (
+        <>
+          <label className="qs-label mt-5">Custom role name</label>
+          <input
+            value={form.custom_role}
+            onChange={(e) => setForm((f) => ({ ...f, custom_role: e.target.value }))}
+            placeholder="e.g. Content Writer"
+            className="qs-input mt-2 w-full"
+          />
+        </>
+      ) : null}
+
+      <label className="qs-label mt-5">Accent color</label>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {SWARM_COLORS.map((c) => (
+          <button
+            key={c}
+            type="button"
+            aria-label={`Color ${c}`}
+            onClick={() => setForm((f) => ({ ...f, color: c }))}
+            className={cn(
+              "h-8 w-8 rounded-full border-2 transition",
+              form.color === c ? "border-white scale-110" : "border-transparent opacity-70 hover:opacity-100",
+            )}
+            style={{ backgroundColor: c }}
+          />
+        ))}
+      </div>
+
+      <div className="mt-6 flex flex-wrap justify-end gap-2">
+        <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={onClose}>
+          Cancel
+        </button>
+        <button type="button" className="qs-btn qs-btn--primary qs-btn--sm" disabled={busy} onClick={() => void handleCreate()}>
+          {busy ? "Creating…" : "Create colony"}
+        </button>
+      </div>
+    </HiveModalShell>
   );
 }

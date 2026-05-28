@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 from app.core.config import Settings
 
-VendorFamily = Literal["google", "microsoft", "github", "notion", "stripe", "meta", "x", "tiktok"]
+VendorFamily = Literal["google", "microsoft", "github", "notion", "meta", "x", "tiktok"]
 
 
 @dataclass(frozen=True)
@@ -93,16 +93,6 @@ OAUTH_SURFACES: dict[str, OAuthSurfaceSpec] = {
         scopes=(),
         notion_owner_user=True,
     ),
-    "stripe_billing": OAuthSurfaceSpec(
-        provider_key="stripe_billing",
-        template_id="stripe_billing",
-        label="Stripe",
-        vendor_family="stripe",
-        authorize_url="https://connect.stripe.com/oauth/authorize",
-        token_url="https://connect.stripe.com/oauth/token",
-        scopes=("read_write",),
-        uses_pkce=False,
-    ),
     "instagram_graph": OAuthSurfaceSpec(
         provider_key="instagram_graph",
         template_id="instagram_graph_api",
@@ -167,8 +157,6 @@ def _family_configured(settings: Settings, family: VendorFamily) -> bool:
         return bool(settings.oauth_github_client_id.strip() and settings.oauth_github_client_secret.strip())
     if family == "notion":
         return bool(settings.oauth_notion_client_id.strip() and settings.oauth_notion_client_secret.strip())
-    if family == "stripe":
-        return bool(settings.oauth_stripe_client_id.strip() and settings.oauth_stripe_client_secret.strip())
     if family == "meta":
         return bool(settings.oauth_meta_client_id.strip() and settings.oauth_meta_client_secret.strip())
     if family == "x":
@@ -211,8 +199,6 @@ def client_credentials_for_family(settings: Settings, family: VendorFamily) -> t
         return settings.oauth_github_client_id.strip(), settings.oauth_github_client_secret.strip()
     if family == "notion":
         return settings.oauth_notion_client_id.strip(), settings.oauth_notion_client_secret.strip()
-    if family == "stripe":
-        return settings.oauth_stripe_client_id.strip(), settings.oauth_stripe_client_secret.strip()
     if family == "meta":
         return settings.oauth_meta_client_id.strip(), settings.oauth_meta_client_secret.strip()
     if family == "x":

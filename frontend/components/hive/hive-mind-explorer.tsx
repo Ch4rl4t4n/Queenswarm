@@ -10,6 +10,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { CollapsibleLazyPanel } from "@/components/hive/collapsible-lazy-panel";
 import { HiveMindConstellationGraph } from "@/components/hive/hive-mind-constellation-graph";
 import { HiveMindDeliverableModal } from "@/components/hive/hive-mind-deliverable-modal";
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { HiveMindIngestPanel } from "@/components/hive/hivemind-ingest-panel";
 import { InfoHint } from "@/components/hive/info-hint";
 import { HivePageHeader } from "@/components/hive/hive-page-header";
@@ -221,10 +222,7 @@ export function HiveMindExplorer({ showHeader = true, variant = "default", filte
         <div className="flex flex-col gap-5">
           <HiveMindIngestPanel windowHours={24} />
           <div className="v4-hivemind-toolbar flex flex-wrap justify-start gap-2">
-            <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-2" disabled={loading} onClick={() => void loadGraph()}>
-              <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} aria-hidden />
-              Refresh graph
-            </button>
+            <HiveRefreshButton busy={loading} label="Refresh graph" onClick={() => void loadGraph()} />
             <button type="button" className="qs-btn qs-btn--primary qs-btn--sm gap-2" onClick={() => void handleExportZip()}>
               <Download className="h-3.5 w-3.5" aria-hidden />
               Export ZIP

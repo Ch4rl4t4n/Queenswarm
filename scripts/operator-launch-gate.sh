@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Operator launch gate — one command before manual walkthrough + Stripe.
+# Operator launch gate — one command before manual walkthrough.
 #
 # Runs: mission readiness → operator gates → prod walkthrough (auto dashboard + user JWT) → evidence JSON.
 # Does NOT mutate prod (read-only curls + local Playwright unless SKIP_E2E=1).
@@ -106,6 +106,6 @@ if grep -qE '^SOLO_MODE_ENABLED=(true|1|yes)' "$ENV_FILE" 2>/dev/null; then
   echo "Solo mode — next: ./scripts/operator-full-app-audit.sh + UI walkthrough checklist"
 else
   echo "Manual operator steps (human-only):"
-  echo "  • Stripe keys → ./scripts/operator-p0-close.sh"
+  echo "  • Checkout lane removed (no payment-vendor keys required)"
   echo "  • Hetzner abuse reply → ./scripts/operator-hetzner-send-prep.sh"
 fi

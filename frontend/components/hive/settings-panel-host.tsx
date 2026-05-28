@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState, type ComponentType } from "react";
 
+import { HiveSubnavContent } from "@/components/hive/hive-subnav-stack";
 import { RoutePulseLoading } from "@/components/hive/route-pulse-loading";
 import {
   DEFAULT_SETTINGS_PANEL,
@@ -74,7 +75,7 @@ export function SettingsPanelHost() {
   const slots = useMemo(() => mounted, [mounted]);
 
   return (
-    <div className="min-w-0">
+    <>
       {slots.map((slug) => (
         <div
           key={slug}
@@ -82,9 +83,15 @@ export function SettingsPanelHost() {
           aria-hidden={slug !== active}
           data-settings-panel={slug}
         >
-          <SettingsPanelSlot slug={slug} />
+          {slug === "harness" ? (
+            <SettingsPanelSlot slug={slug} />
+          ) : (
+            <HiveSubnavContent>
+              <SettingsPanelSlot slug={slug} />
+            </HiveSubnavContent>
+          )}
         </div>
       ))}
-    </div>
+    </>
   );
 }

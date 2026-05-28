@@ -128,7 +128,7 @@ Analýza **potvrdzuje smer** Queenswarmu. Konkurencia rieši jednotlivé body (g
 | **P2** | Unified Savings Dashboard | 3–4 dni | 0 | Marketing ROI | `/costs` + time-saved existujú |
 | **P2** | Voice Overnight Swarm Report | 2–3 dni | STT/TTS API | Wow moment | Ballroom voice hotové |
 
-**Operator P0 (Stripe + Hetzner) zostáva pred revenue launch** — product P0 vyššie môže ísť paralelne na `main` za feature flags.
+**Operator P0 (commercial lane + Hetzner) zostáva pred revenue launch** — product P0 vyššie môže ísť paralelne na `main` za feature flags.
 
 ---
 
