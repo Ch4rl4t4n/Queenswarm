@@ -149,7 +149,7 @@ test.describe("Responsive shell — authenticated cockpit", () => {
       return;
     }
 
-    await expect(page.getByRole("heading", { name: "Costs" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Costs", level: 2 })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("link", { name: /Tier limits — view plan comparison/i })).toHaveAttribute(
       "href",
       "#billing-plans",
@@ -312,7 +312,7 @@ test.describe("Responsive shell — authenticated cockpit", () => {
       }
 
       await assertNoHorizontalOverflow(page);
-      await expect(page.getByRole("heading", { name: /verified simulation vault/i })).toBeVisible({
+      await expect(page.getByRole("heading", { name: "Simulations", exact: true })).toBeVisible({
         timeout: 15_000,
       });
     });

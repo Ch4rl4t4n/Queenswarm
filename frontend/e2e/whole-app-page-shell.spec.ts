@@ -84,7 +84,8 @@ test.describe("Whole-App page shell — zone headers", () => {
 
     for (const route of routes) {
       await page.goto(route.path, { waitUntil: "domcontentloaded", timeout: 60_000 });
-      const shell = page.getByTestId("hive-page-shell");
+      await expect(page).toHaveURL(new RegExp(route.path.replace("/", "\\/")), { timeout: 45_000 });
+      const shell = page.getByTestId("hive-page-shell").first();
       await expect(shell).toBeVisible({ timeout: 45_000 });
       await expect(shell.locator("h1")).toHaveText(route.title);
     }
