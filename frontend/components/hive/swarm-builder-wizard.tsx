@@ -36,7 +36,6 @@ import {
 } from "@/lib/virtual-company-departments";
 import { profileContextLine, type VirtualCompanyProfile } from "@/lib/virtual-company-api";
 import { VirtualCompanyProfilePanel } from "@/components/hive/virtual-company-profile-panel";
-import { cn } from "@/lib/utils";
 
 type WizardStep = "pick" | "review" | "building" | "done";
 
@@ -403,7 +402,7 @@ export function SwarmBuilderWizard(): JSX.Element {
               Pro plan required — this template creates {template.agents.length} agents.
             </p>
           ) : null}
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap justify-end gap-2">
             <button
               type="button"
               className="qs-btn qs-btn--primary qs-btn--sm"

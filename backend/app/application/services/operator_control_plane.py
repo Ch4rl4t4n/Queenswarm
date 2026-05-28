@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from datetime import UTC, datetime
 from typing import Any, Literal
@@ -17,6 +18,7 @@ from app.infrastructure.persistence.models.tenant import Tenant
 
 TrustLane = Literal["auto", "simulate", "live"]
 OperatorLoopPhase = Literal["morning", "evening", "anytime"]
+CockpitSnapshotScope = Literal["core", "modules", "full"]
 
 
 class OperatorLoopActionOut(BaseModel):
@@ -55,10 +57,21 @@ async def _compose_operator_loop_snapshot(
     dashboard_user_id: uuid.UUID,
     tenant: Tenant | None,
     phase: OperatorLoopPhase,
+    lite: bool = False,
 ) -> OperatorLoopSnapshotOut:
     """Compose loop snapshot when the full Operator Loop module is deployed."""
 
     try:
+        if lite:
+            from app.application.services.operator_loop import compose_operator_loop_lite
+
+            return await compose_operator_loop_lite(
+                db,
+                tenant_id=tenant_id,
+                dashboard_user_id=dashboard_user_id,
+                tenant=tenant,
+                phase=phase,
+            )
         from app.application.services.operator_loop import compose_operator_loop_snapshot
 
         return await compose_operator_loop_snapshot(
@@ -130,7 +143,6 @@ FEATURE_MODULE_IDS: tuple[str, ...] = (
     "bee_hotline",
     "trust_autopilot",
     "factory_spark",
-    "hive_oracle",
     "context_teleport",
     "regret_simulator",
     "swarm_immune_system",
@@ -141,6 +153,7 @@ FEATURE_MODULE_IDS: tuple[str, ...] = (
     "zero_ui_mode",
     "proof_of_hive",
     "hive_innovation_lab",
+    "grok_control_plane",
 )
 
 
@@ -213,6 +226,7 @@ class OperatorCockpitSnapshotOut(BaseModel):
     icm_tools: dict[str, Any] = Field(default_factory=dict)
     links: dict[str, str] = Field(default_factory=dict)
     operator_loop: dict[str, Any] = Field(default_factory=dict)
+    grok_control_plane: dict[str, Any] = Field(default_factory=dict)
 
 
 class OperatorContextOut(BaseModel):
@@ -289,13 +303,6 @@ def _feature_modules_catalog() -> list[FeatureModuleOut]:
             enabled=enabled and settings.micro_saas_factory_enabled,
         ),
         FeatureModuleOut(
-            id="hive_oracle",
-            label="Hive Oracle",
-            status="live",
-            summary="Predictive warnings before swarm failure.",
-            enabled=enabled and settings.hive_oracle_enabled,
-        ),
-        FeatureModuleOut(
             id="context_teleport",
             label="Context Teleport",
             status="live",
@@ -364,6 +371,13 @@ def _feature_modules_catalog() -> list[FeatureModuleOut]:
             status="live",
             summary="Brainstorm features → approve → auto-implement via Maintainer.",
             enabled=enabled and settings.hive_innovation_lab_enabled,
+        ),
+        FeatureModuleOut(
+            id="grok_control_plane",
+            label="Grok Control Plane",
+            status="beta",
+            summary="Plan-first Grok runs with approvals, queue, and artifacts.",
+            enabled=enabled and settings.grok_control_plane_enabled,
         ),
     ]
 
@@ -456,8 +470,14 @@ async def compose_operator_cockpit_snapshot(
     dashboard_user_id: uuid.UUID,
     tenant: Tenant | None,
     phase: Literal["morning", "evening", "anytime"] = "morning",
+    scope: CockpitSnapshotScope = "core",
 ) -> OperatorCockpitSnapshotOut:
-    """Assemble unified control plane from existing verified subsystems."""
+    """Assemble unified control plane from existing verified subsystems.
+
+    ``core`` — fast path for Overview / Command / ICM / Fleet tabs (skips futurist modules).
+    ``modules`` — lazy load for Modules tab only.
+    ``full`` — legacy all-in-one snapshot.
+    """
 
     if not settings.operator_control_plane_enabled:
         return OperatorCockpitSnapshotOut(
@@ -466,33 +486,60 @@ async def compose_operator_cockpit_snapshot(
             phase=phase,
         )
 
-    loop = await _compose_operator_loop_snapshot(
-        db,
-        tenant_id=tenant_id,
-        dashboard_user_id=dashboard_user_id,
-        tenant=tenant,
-        phase=phase,
-    )
-    trio = await _get_solo_trio_status(db, tenant_id=tenant_id)
-    daily = await _compose_solo_daily_plan(
-        db,
-        tenant_id=tenant_id,
-        dashboard_user_id=dashboard_user_id,
-        tenant=tenant,
-        max_items=5,
-    )
-    fleet = await _load_swarm_fleet(db, tenant_id=tenant_id)
+    if scope == "modules":
+        return await _compose_operator_cockpit_modules_snapshot(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=dashboard_user_id,
+            tenant=tenant,
+            phase=phase,
+        )
 
-    innovation_pending = 0
-    if settings.hive_innovation_lab_enabled:
-        from app.application.services.hive_innovation_lab import count_pending_innovation_proposals
+    async def _innovation_pending_count() -> int:
+        if settings.hive_innovation_lab_enabled:
+            from app.application.services.hive_innovation_lab import count_pending_innovation_proposals
 
-        innovation_pending = await count_pending_innovation_proposals(db, tenant_id=tenant_id)
+            return await count_pending_innovation_proposals(db, tenant_id=tenant_id)
+        return 0
+
+    use_core_fast_path = scope == "core"
+
+    if use_core_fast_path:
+        from app.application.services.grok_control_plane import compose_grok_control_plane_snapshot
+
+        loop, trio, fleet, innovation_pending, grok_snapshot = await asyncio.gather(
+            _compose_operator_loop_snapshot(
+                db,
+                tenant_id=tenant_id,
+                dashboard_user_id=dashboard_user_id,
+                tenant=tenant,
+                phase=phase,
+                lite=True,
+            ),
+            _get_solo_trio_status(db, tenant_id=tenant_id),
+            _load_swarm_fleet(db, tenant_id=tenant_id),
+            _innovation_pending_count(),
+            compose_grok_control_plane_snapshot(tenant_id=tenant_id),
+        )
+    else:
+        from app.application.services.grok_control_plane import compose_grok_control_plane_snapshot
+
+        loop = await _compose_operator_loop_snapshot(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=dashboard_user_id,
+            tenant=tenant,
+            phase=phase,
+            lite=False,
+        )
+        trio = await _get_solo_trio_status(db, tenant_id=tenant_id)
+        fleet = await _load_swarm_fleet(db, tenant_id=tenant_id)
+        innovation_pending = await _innovation_pending_count()
+        grok_snapshot = await compose_grok_control_plane_snapshot(tenant_id=tenant_id)
 
     from app.application.services.ambient_forager import compose_ambient_forager_snapshot
     from app.application.services.context_teleport import compose_context_teleport_snapshot
     from app.application.services.evolutionary_recipes import compose_evolutionary_recipes_snapshot
-    from app.application.services.hive_oracle import _warning_dicts, compose_hive_oracle_snapshot
     from app.application.services.intent_crystallizer import compose_intent_crystallizer_snapshot
     from app.application.services.operator_icm_tools import compose_icm_tools_snapshot
     from app.application.services.operator_telegram_gateway import compose_zero_ui_status
@@ -501,40 +548,53 @@ async def compose_operator_cockpit_snapshot(
     from app.application.services.regret_simulator import compose_regret_simulator_snapshot
     from app.application.services.swarm_immune_system import compose_swarm_immune_snapshot
 
-    oracle_snap = await compose_hive_oracle_snapshot(
-        db,
-        tenant_id=tenant_id,
-        dashboard_user_id=dashboard_user_id,
-        loop_actions=loop.actions,
-        fleet=fleet,
-        trio=trio,
-        loop=loop.model_dump(mode="json"),
-        innovation_pending=innovation_pending,
-        include_synthesis=False,
-    )
-    oracle = _warning_dicts(oracle_snap.warnings)
+    oracle: list[dict[str, str]] = []
+    oracle_snap_payload: dict[str, Any] = {"enabled": False}
 
     zero_ui = compose_zero_ui_status(tenant=tenant)
     proofs = compose_recent_proof_receipts(tenant, limit=6)
-    teleport = await compose_context_teleport_snapshot(session=db, tenant=tenant)
-    regret = await compose_regret_simulator_snapshot(
-        db,
-        tenant_id=tenant_id,
-        dashboard_user_id=dashboard_user_id,
-        tenant=tenant,
-    )
-    ambient = await compose_ambient_forager_snapshot(
-        db,
-        tenant=tenant,
-        dashboard_user_id=dashboard_user_id,
-    )
-    parallel = await compose_parallel_hive_view_snapshot(
-        db,
-        tenant_id=tenant_id,
-        dashboard_user_id=dashboard_user_id,
-    )
     immune = compose_swarm_immune_snapshot(fleet=fleet)
-    evolutionary = await compose_evolutionary_recipes_snapshot(db, tenant_id=tenant_id)
+
+    include_heavy = scope == "full"
+    daily: dict[str, Any] = {}
+    teleport: dict[str, Any] = {"enabled": False}
+    regret: dict[str, Any] = {"enabled": False}
+    ambient: dict[str, Any] = {"enabled": False}
+    parallel: dict[str, Any] = {"enabled": False}
+    evolutionary: dict[str, Any] = {"enabled": False}
+
+    if include_heavy:
+        daily = (await _compose_solo_daily_plan(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=dashboard_user_id,
+            tenant=tenant,
+            max_items=5,
+        )).model_dump(mode="json")
+        teleport = (await compose_context_teleport_snapshot(session=db, tenant=tenant)).model_dump(mode="json")
+        regret = (
+            await compose_regret_simulator_snapshot(
+                db,
+                tenant_id=tenant_id,
+                dashboard_user_id=dashboard_user_id,
+                tenant=tenant,
+            )
+        ).model_dump(mode="json")
+        ambient = (
+            await compose_ambient_forager_snapshot(
+                db,
+                tenant=tenant,
+                dashboard_user_id=dashboard_user_id,
+            )
+        ).model_dump(mode="json")
+        parallel = (
+            await compose_parallel_hive_view_snapshot(
+                db,
+                tenant_id=tenant_id,
+                dashboard_user_id=dashboard_user_id,
+            )
+        ).model_dump(mode="json")
+        evolutionary = (await compose_evolutionary_recipes_snapshot(db, tenant_id=tenant_id)).model_dump(mode="json")
 
     return OperatorCockpitSnapshotOut(
         enabled=True,
@@ -543,7 +603,7 @@ async def compose_operator_cockpit_snapshot(
         now_actions=_cockpit_actions_from_loop(loop.actions),
         swarm_fleet=fleet,
         trio=trio,
-        daily_plan=daily.model_dump(mode="json"),
+        daily_plan=daily,
         oracle_warnings=oracle,
         feature_modules=_feature_modules_catalog(),
         innovation_lab={
@@ -561,23 +621,19 @@ async def compose_operator_cockpit_snapshot(
             },
         },
         proof_of_hive=proofs.model_dump(mode="json"),
-        hive_oracle={
-            **oracle_snap.model_dump(mode="json"),
-            "href_full": "/oracle",
-        },
+        hive_oracle=oracle_snap_payload,
         intent_crystallizer=compose_intent_crystallizer_snapshot().model_dump(mode="json"),
-        context_teleport=teleport.model_dump(mode="json"),
-        regret_simulator=regret.model_dump(mode="json"),
-        ambient_forager=ambient.model_dump(mode="json"),
-        parallel_hive_view=parallel.model_dump(mode="json"),
+        context_teleport=teleport,
+        regret_simulator=regret,
+        ambient_forager=ambient,
+        parallel_hive_view=parallel,
         swarm_immune_system=immune.model_dump(mode="json"),
-        evolutionary_recipes=evolutionary.model_dump(mode="json"),
+        evolutionary_recipes=evolutionary,
         icm_tools=compose_icm_tools_snapshot().model_dump(mode="json"),
         operator_loop=loop.model_dump(mode="json"),
+        grok_control_plane=grok_snapshot.model_dump(mode="json"),
         links={
             "cockpit": "/cockpit",
-            "oracle": "/oracle",
-            "advanced_dashboard": "/dashboard",
             "agents": "/agents",
             "swarms": "/swarms",
             "factory": "/factory",
@@ -585,7 +641,64 @@ async def compose_operator_cockpit_snapshot(
             "knowledge": "/knowledge",
             "execution_studio": "/integrations?tab=studio",
             "settings_harness": "/settings/harness",
+            "grok_control_plane": "/cockpit#grok",
         },
+    )
+
+
+async def _compose_operator_cockpit_modules_snapshot(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    dashboard_user_id: uuid.UUID,
+    tenant: Tenant | None,
+    phase: Literal["morning", "evening", "anytime"],
+) -> OperatorCockpitSnapshotOut:
+    """Lazy snapshot for Modules tab — futurist module compositors only."""
+
+    from app.application.services.ambient_forager import compose_ambient_forager_snapshot
+    from app.application.services.context_teleport import compose_context_teleport_snapshot
+    from app.application.services.evolutionary_recipes import compose_evolutionary_recipes_snapshot
+    from app.application.services.parallel_hive_view import compose_parallel_hive_view_snapshot
+    from app.application.services.regret_simulator import compose_regret_simulator_snapshot
+
+    daily = await _compose_solo_daily_plan(
+        db,
+        tenant_id=tenant_id,
+        dashboard_user_id=dashboard_user_id,
+        tenant=tenant,
+        max_items=5,
+    )
+    teleport = await compose_context_teleport_snapshot(session=db, tenant=tenant)
+    regret = await compose_regret_simulator_snapshot(
+        db,
+        tenant_id=tenant_id,
+        dashboard_user_id=dashboard_user_id,
+        tenant=tenant,
+    )
+    ambient = await compose_ambient_forager_snapshot(
+        db,
+        tenant=tenant,
+        dashboard_user_id=dashboard_user_id,
+    )
+    parallel = await compose_parallel_hive_view_snapshot(
+        db,
+        tenant_id=tenant_id,
+        dashboard_user_id=dashboard_user_id,
+    )
+    evolutionary = await compose_evolutionary_recipes_snapshot(db, tenant_id=tenant_id)
+
+    return OperatorCockpitSnapshotOut(
+        enabled=True,
+        generated_at=datetime.now(tz=UTC),
+        phase=phase,
+        daily_plan=daily.model_dump(mode="json"),
+        feature_modules=_feature_modules_catalog(),
+        context_teleport=teleport.model_dump(mode="json"),
+        regret_simulator=regret.model_dump(mode="json"),
+        ambient_forager=ambient.model_dump(mode="json"),
+        parallel_hive_view=parallel.model_dump(mode="json"),
+        evolutionary_recipes=evolutionary.model_dump(mode="json"),
     )
 
 

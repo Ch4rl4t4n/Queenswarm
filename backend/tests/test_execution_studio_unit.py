@@ -28,10 +28,10 @@ def test_infer_risk_tier_publish_post() -> None:
     )
 
 
-def test_infer_risk_tier_financial_stripe() -> None:
-    """Stripe slug maps to financial tier."""
+def test_infer_risk_tier_financial_billing_slug() -> None:
+    """Billing slugs map to financial tier."""
 
-    assert infer_risk_tier(connector_slug="stripe_billing", method="GET", tool_name="list_invoices") == "financial"
+    assert infer_risk_tier(connector_slug="billing_provider", method="GET", tool_name="list_invoices") == "financial"
 
 
 def test_studio_policy_defaults() -> None:

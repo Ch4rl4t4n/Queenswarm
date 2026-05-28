@@ -10,7 +10,7 @@ export function pathnameMatchesRoute(pathname: string, route: string): boolean {
   const norm = (pathname.split("#")[0] ?? "/").replace(/\/$/, "") || "/";
   const base = route.replace(/\/$/, "") || "/";
   if (base === "/") {
-    return norm === "/" || norm === "/cockpit" || norm === "/dashboard" || norm === "/overview";
+    return norm === "/" || norm === "/agentic-os" || norm === "/cockpit" || norm === "/dashboard" || norm === "/overview";
   }
   return norm === base || norm.startsWith(`${base}/`);
 }

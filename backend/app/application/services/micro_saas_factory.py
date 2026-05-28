@@ -10,7 +10,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.enterprise_workspace import get_white_label_config
-from app.application.services.skill_checkout import stripe_checkout_ready
 from app.application.services.virtual_company_profile import profile_from_tenant
 from app.core.config import settings
 from app.infrastructure.connectors.dynamic.service import DynamicConnectorService
@@ -33,9 +32,9 @@ MICRO_SAAS_BLUEPRINT: tuple[dict[str, str], ...] = (
         "detail": "Dashboard JWT + tenant RBAC — extend for product users later.",
     },
     {
-        "id": "stripe",
-        "label": "Stripe checkout",
-        "detail": "Checkout Session for Pro/Enterprise or skill unlock pattern.",
+        "id": "monetization",
+        "label": "Monetization lane",
+        "detail": "Billing stack is handled outside Queenswarm runtime.",
     },
     {
         "id": "deploy",
@@ -77,7 +76,6 @@ class MicroSaasSnapshotOut(BaseModel):
     generated_at: datetime
     progress_pct: int = 0
     product_name: str = "Micro-SaaS MVP"
-    stripe_ready: bool = False
     deploy_domain: str = ""
     steps: list[MicroSaasStepOut] = Field(default_factory=list)
     blueprint: list[dict[str, str]] = Field(default_factory=list)
@@ -113,7 +111,7 @@ def build_public_micro_saas_blueprint() -> MicroSaasPublicBlueprintOut:
             "frontend": "Next.js 15 App Router",
             "backend": "FastAPI + LangGraph",
             "auth": "JWT dashboard sessions",
-            "billing": "Stripe Checkout",
+            "billing": "External billing provider (operator managed)",
             "deploy": "Docker Compose → K8s ready",
         },
         disclaimer="Blueprint only — simulate and verify each lane before live traffic.",
@@ -142,7 +140,7 @@ async def compose_micro_saas_factory_snapshot(
 
     landing_done = bool(brand and brand not in {"Queenswarm", "Queenswarm Solo"})
     auth_done = True
-    stripe_done = stripe_checkout_ready()
+    monetization_done = True
 
     github_active = False
     if tenant is not None:
@@ -164,10 +162,10 @@ async def compose_micro_saas_factory_snapshot(
             detail="Dashboard JWT + tenant RBAC shipped in platform.",
         ),
         MicroSaasStepOut(
-            id="stripe",
-            label="Stripe checkout",
-            status="done" if stripe_done else "pending",
-            detail="Platform Stripe keys configured." if stripe_done else "Configure STRIPE_SECRET_KEY for checkout.",
+            id="monetization",
+            label="Monetization lane",
+            status="done" if monetization_done else "pending",
+            detail="Handled outside Queenswarm runtime.",
         ),
         MicroSaasStepOut(
             id="deploy",
@@ -193,16 +191,6 @@ async def compose_micro_saas_factory_snapshot(
                 detail="Virtual Company profile or Settings → Enterprise white-label.",
                 priority="high",
                 href="/integrations?tab=virtual-company",
-            ),
-        )
-    if not stripe_done:
-        actions.append(
-            MicroSaasActionOut(
-                id="stripe",
-                label="Wire Stripe checkout",
-                detail="Use existing Pro/Enterprise checkout pattern — env keys only.",
-                priority="medium",
-                href="/settings/billing",
             ),
         )
     if not github_active:
@@ -231,7 +219,6 @@ async def compose_micro_saas_factory_snapshot(
         generated_at=datetime.now(tz=UTC),
         progress_pct=progress_pct,
         product_name=product_name,
-        stripe_ready=stripe_done,
         deploy_domain=str(settings.domain or ""),
         steps=steps,
         blueprint=[dict(row) for row in MICRO_SAAS_BLUEPRINT],

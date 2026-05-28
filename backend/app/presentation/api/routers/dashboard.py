@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 
-from app.presentation.api.deps import DbSession, JwtSubject, require_dashboard_user_with_tenant_role
+from app.presentation.api.deps import DashboardSession, DbSession, dashboard_admin_wall, require_dashboard_user_with_tenant_role
 from app.infrastructure.persistence.models.agent import Agent
 from app.infrastructure.persistence.models.agent_config import AgentConfig
 from app.infrastructure.persistence.models.enums import TaskStatus
@@ -24,13 +24,17 @@ from app.application.services.unified_savings import build_unified_savings_paylo
 from app.application.services.dashboard_workflows import build_workflows_dashboard_payload
 from app.application.services.hive_tier import resolve_hive_tier
 
-router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
+router = APIRouter(
+    prefix="/dashboard",
+    tags=["Dashboard"],
+    dependencies=[Depends(dashboard_admin_wall)],
+)
 
 
 @router.get("/cockpit")
 async def dashboard_cockpit(
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
     agents_limit: int = Query(default=96, ge=1, le=200),
     tasks_limit: int = Query(default=10, ge=1, le=50),
 ) -> dict[str, object]:
@@ -44,7 +48,7 @@ async def dashboard_cockpit(
 
 
 @router.get("/summary")
-async def dashboard_summary(db: DbSession, _subject: JwtSubject) -> dict[str, object]:
+async def dashboard_summary(db: DbSession, _session: DashboardSession) -> dict[str, object]:
     """Return minimal counts grouped by hive tier plus task backlog."""
 
     agent_total = await db.scalar(select(func.count()).select_from(Agent))
@@ -85,7 +89,7 @@ async def dashboard_summary(db: DbSession, _subject: JwtSubject) -> dict[str, ob
 @router.get("/task-queue")
 async def dashboard_task_queue(
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
     limit: int = Query(default=100, ge=1, le=200),
 ) -> dict[str, object]:
     """Backlog queue with workflow step progress for operator task boards."""
@@ -96,7 +100,7 @@ async def dashboard_task_queue(
 @router.get("/workflows")
 async def dashboard_workflows(
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
     limit: int = Query(default=50, ge=1, le=100),
     focus: uuid.UUID | None = Query(
         default=None,
@@ -113,21 +117,21 @@ async def dashboard_workflows(
 
 
 @router.get("/swarm-board")
-async def dashboard_swarm_board(db: DbSession, _subject: JwtSubject) -> dict[str, object]:
+async def dashboard_swarm_board(db: DbSession, _session: DashboardSession) -> dict[str, object]:
     """Sub-swarm telemetry cards and cross-swarm task handoff feed for operator UI."""
 
     return await build_swarm_board_payload(db)
 
 
 @router.get("/swarms-overview")
-async def dashboard_swarms_overview(db: DbSession, _subject: JwtSubject) -> dict[str, object]:
+async def dashboard_swarms_overview(db: DbSession, _session: DashboardSession) -> dict[str, object]:
     """Colonies table, KPI tiles, waggle feed, and hive sync rows for the Swarms page."""
 
     return await build_swarms_overview_payload(db)
 
 
 @router.get("/foragers-overview")
-async def dashboard_foragers_overview(db: DbSession, _subject: JwtSubject) -> dict[str, object]:
+async def dashboard_foragers_overview(db: DbSession, _session: DashboardSession) -> dict[str, object]:
     """KPI tiles, configuration table rows, and auto-spawn rules for the Foragers page."""
 
     return await build_foragers_overview_payload(db)
@@ -148,7 +152,7 @@ async def dashboard_rapid_loop(
 @router.get("/time-saved")
 async def dashboard_time_saved(
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
     window_days: int = Query(default=30, ge=1, le=90),
 ) -> dict[str, object]:
     """Verified workflow ROI — hours saved by template/recipe/custom."""

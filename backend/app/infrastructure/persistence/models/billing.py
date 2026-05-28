@@ -32,8 +32,8 @@ class TenantSubscription(Base, TenantScopedMixin):
     )
     tier: Mapped[str] = mapped_column(String(32), nullable=False, default="free", index=True)
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="active", index=True)
-    stripe_customer_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
-    stripe_subscription_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    billing_customer_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    billing_subscription_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
     billing_cycle_anchor: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     period_end_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     limits_override: Mapped[dict[str, Any]] = mapped_column(

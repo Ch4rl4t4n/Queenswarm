@@ -99,7 +99,7 @@ async def _validate_share_target(
         if scoped_task_count == 0:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Swarm not scoped to tenant.")
         return
-    raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unsupported resource type.")
+    raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Unsupported resource type.")
 
 
 def _serialize_share(row: PublicShareLink) -> ShareView:
@@ -146,7 +146,7 @@ async def create_share_link(
     tenant_id = principal["tenant_id"]
     user_id = principal["user"].id
     if body.resource_type not in _ALLOWED_RESOURCE_TYPES:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unsupported resource type.")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Unsupported resource type.")
     await _validate_share_target(
         db=db,
         tenant_id=tenant_id,
@@ -274,7 +274,7 @@ async def get_public_share_payload(share_token: str, db: DbSession) -> PublicSha
             "local_memory": dict(swarm.local_memory or {}),
         }
     else:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unsupported share type.")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Unsupported share type.")
 
     row.access_count = int(row.access_count or 0) + 1
     await db.commit()

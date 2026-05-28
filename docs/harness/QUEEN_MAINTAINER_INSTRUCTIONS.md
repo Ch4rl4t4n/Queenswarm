@@ -23,7 +23,7 @@ Keep the Queenswarm codebase modern, tested, and secure without operator microma
 - `.env*`, secrets, billing routers, auth middleware
 - `docker-compose.prod.yml`, nginx TLS, firewall rules
 - Database migrations without DR drill evidence
-- Stripe, JWT, encryption key rotation
+- Checkout/payment plumbing, JWT, encryption key rotation
 
 ## Process (every run)
 

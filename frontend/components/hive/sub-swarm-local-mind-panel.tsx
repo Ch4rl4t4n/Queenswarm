@@ -1,9 +1,10 @@
 "use client";
 
-import { Loader2Icon, RadioIcon, RefreshCwIcon } from "lucide-react";
+import { Loader2Icon, RadioIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { V4Badge, V4Chip } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import type { SubSwarmLocalMindDetail } from "@/lib/hive-types";
@@ -89,10 +90,12 @@ export function SubSwarmLocalMindPanel({ swarmId, onSynced }: SubSwarmLocalMindP
           <span className="font-mono text-cyan">{formatSyncDue(mind.sync_due_in_sec)}</span>
         </p>
 
-        <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm mt-3 gap-2" disabled={syncBusy} onClick={() => void ackSync()}>
-          {syncBusy ? <Loader2Icon className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <RefreshCwIcon className="h-3.5 w-3.5" aria-hidden />}
-          Record global sync
-        </button>
+        <HiveRefreshButton
+          className="mt-3"
+          busy={syncBusy}
+          label="Record global sync"
+          onClick={() => void ackSync()}
+        />
       </div>
 
       <div className="rounded-xl border border-(--qs-border) bg-white/[0.02] p-4">

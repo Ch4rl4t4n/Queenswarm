@@ -91,7 +91,7 @@ export function VirtualCompanySetupCard({ onChanged }: VirtualCompanySetupCardPr
         fetchOAuthSetupGuide(),
       ]);
       setChecklist(c);
-      setOauthProviders(o.providers ?? []);
+      setOauthProviders(Array.isArray(o?.providers) ? o.providers : []);
       setOauthGuide(g);
     } catch {
       /* non-fatal — card hides when checklist unavailable */
@@ -133,25 +133,31 @@ export function VirtualCompanySetupCard({ onChanged }: VirtualCompanySetupCardPr
     window.history.replaceState({}, "", `${url.pathname}${url.search}`);
   }, [reload, onChanged]);
 
+  const connectors = useMemo(() => checklist?.connectors ?? [], [checklist?.connectors]);
+  const oauthProviderRows = useMemo(
+    () => (Array.isArray(oauthProviders) ? oauthProviders : []),
+    [oauthProviders],
+  );
+
   const connectorsInstalled = useMemo(() => {
-    if (!checklist?.connectors.length) {
+    if (connectors.length === 0) {
       return false;
     }
-    return checklist.connectors.every((row) => row.installed);
-  }, [checklist?.connectors]);
+    return connectors.every((row) => row.installed);
+  }, [connectors]);
 
   const oauthPending = useMemo(() => {
-    if (!checklist?.connectors.length) {
+    if (connectors.length === 0) {
       return false;
     }
-    return checklist.connectors.some((row) => row.installed && !row.installed_active);
-  }, [checklist?.connectors]);
+    return connectors.some((row) => row.installed && !row.installed_active);
+  }, [connectors]);
 
   const connectorsConnected = checklist?.oauth_progress?.connected ?? 0;
   const connectorsTotal = checklist?.oauth_progress?.total ?? 3;
-  const notionActive = checklist?.connectors.some((row) => row.slug === "notion_workspace" && row.installed_active) ?? false;
-  const githubActive = checklist?.connectors.some((row) => row.slug === "github_rest" && row.installed_active) ?? false;
-  const gmailActive = checklist?.connectors.some((row) => row.slug === "gmail_workspace" && row.installed_active) ?? false;
+  const notionActive = connectors.some((row) => row.slug === "notion_workspace" && row.installed_active);
+  const githubActive = connectors.some((row) => row.slug === "github_rest" && row.installed_active);
+  const gmailActive = connectors.some((row) => row.slug === "gmail_workspace" && row.installed_active);
   const coreConnectorsReady = notionActive && githubActive;
   const gmailOnlyPending = coreConnectorsReady && !gmailActive;
 
@@ -163,15 +169,13 @@ export function VirtualCompanySetupCard({ onChanged }: VirtualCompanySetupCardPr
     return sr.provisioned >= sr.provisioned_total;
   }, [checklist?.super_routers]);
 
-  const marketingFirstRunDone = checklist?.first_run?.marketing_ops_completed ?? false;
-
   const firstRunCount = checklist?.first_run?.completed_count ?? 0;
   const firstRunTotal = checklist?.first_run?.playbooks_total ?? 6;
 
   const allFirstRunsDone = checklist?.first_run?.all_department_first_runs_completed ?? false;
 
   const isFirstRunCompleted = (templateId: string): boolean =>
-    checklist?.first_run?.completed_templates.includes(templateId) ?? false;
+    checklist?.first_run?.completed_templates?.includes(templateId) ?? false;
 
   const copyRedirectUri = (): void => {
     const uri = oauthGuide?.redirect_uri;
@@ -218,12 +222,13 @@ GITHUB_PAT=
   };
 
   const oauthConfigured = useMemo(() => {
-    return oauthProviders.filter((row) => FREE_OAUTH_KEYS.includes(row.provider_key as (typeof FREE_OAUTH_KEYS)[number]))
+    return oauthProviderRows
+      .filter((row) => FREE_OAUTH_KEYS.includes(row.provider_key as (typeof FREE_OAUTH_KEYS)[number]))
       .every((row) => row.configured);
-  }, [oauthProviders]);
+  }, [oauthProviderRows]);
 
   const marketingSwarmBuilt = useMemo(
-    () => checklist?.swarms?.built_templates.includes("marketing-ops") ?? false,
+    () => checklist?.swarms?.built_templates?.includes("marketing-ops") ?? false,
     [checklist?.swarms?.built_templates],
   );
 
@@ -236,8 +241,11 @@ GITHUB_PAT=
   }, [checklist?.swarms]);
 
   const oauthRows = useMemo(
-    () => oauthProviders.filter((row) => FREE_OAUTH_KEYS.includes(row.provider_key as (typeof FREE_OAUTH_KEYS)[number])),
-    [oauthProviders],
+    () =>
+      oauthProviderRows.filter((row) =>
+        FREE_OAUTH_KEYS.includes(row.provider_key as (typeof FREE_OAUTH_KEYS)[number]),
+      ),
+    [oauthProviderRows],
   );
 
   const oauthConnectRows = useMemo(() => {

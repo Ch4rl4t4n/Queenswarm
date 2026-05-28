@@ -123,17 +123,6 @@ export const VAULT_VENDOR_PRESETS: readonly VaultVendorPreset[] = [
     probeSuggestion: "https://api.notion.com/v1/users/me",
   },
   {
-    id: "stripe",
-    phase3TemplateId: "stripe_billing",
-    slug: "stripe_billing",
-    label: "Stripe Billing",
-    kind: "api_key",
-    tokenEndpoint: null,
-    docsUrl: "https://stripe.com/docs/keys",
-    scopesHint: "Restricted secret key — seal as API key; rotate in Stripe Dashboard.",
-    probeSuggestion: "https://api.stripe.com/v1/balance",
-  },
-  {
     id: "instagram_graph",
     phase3TemplateId: "instagram_graph_api",
     slug: "instagram_graph",

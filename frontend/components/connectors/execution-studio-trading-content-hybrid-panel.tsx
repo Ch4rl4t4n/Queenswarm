@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { GitBranch, Loader2, RefreshCw } from "lucide-react";
+import { GitBranch } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { V4Badge } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -76,14 +77,7 @@ function ExecutionStudioTradingContentHybridPanelInner({
           <GitBranch className="size-4 text-pollen" aria-hidden />
           <h3 className="font-heading text-sm font-semibold text-(--qs-text)">Trading + Content Hybrid</h3>
         </div>
-        <button
-          type="button"
-          onClick={() => void load()}
-          className="rounded-md p-1 text-(--qs-text-3) hover:text-cyan"
-          aria-label="Refresh hybrid snapshot"
-        >
-          {loading ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-        </button>
+        <HiveRefreshButton busy={loading} onClick={() => void load()} />
       </div>
 
       {loading && !snapshot ? (

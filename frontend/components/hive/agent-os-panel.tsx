@@ -2,12 +2,12 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Brain, Loader2, RefreshCw } from "lucide-react";
+import { Brain, Loader2 } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
-import { cn } from "@/lib/utils";
 
 interface AgentOsAction {
   id: string;
@@ -105,10 +105,7 @@ function AgentOsPanelInner() {
             Analysis: {snapshot.last_analysis.consensus}
           </V4Badge>
         ) : null}
-        <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void load()}>
-          <RefreshCw className={cn("size-4", loading && "animate-spin")} aria-hidden />
-          Refresh
-        </button>
+        <HiveRefreshButton busy={loading} onClick={() => void load()} />
       </div>
 
       {snapshot.behavioral_proposals.proposals.length > 0 ? (

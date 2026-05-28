@@ -10,7 +10,7 @@ import {
 describe("settings-panel-registry", () => {
   it("parses known settings slugs from pathname", () => {
     expect(parseSettingsPanelSlug("/settings/harness")).toBe("harness");
-    expect(parseSettingsPanelSlug("/settings/billing/extra")).toBe("billing");
+    expect(parseSettingsPanelSlug("/settings/security/extra")).toBe("security");
   });
 
   it("returns null for unknown or non-settings paths", () => {
@@ -25,6 +25,6 @@ describe("settings-panel-registry", () => {
   it("matches catch-all panels and dedicated routes like costs", () => {
     expect(isSettingsNavSectionActive("/settings/harness", "/settings/harness")).toBe(true);
     expect(isSettingsNavSectionActive("/settings/costs", "/settings/costs")).toBe(true);
-    expect(isSettingsNavSectionActive("/settings/billing", "/settings/security")).toBe(false);
+    expect(isSettingsNavSectionActive("/settings/security", "/settings/costs")).toBe(false);
   });
 });

@@ -1,0 +1,74 @@
+---
+description: Mandatory section header pattern — title, description, inline hint
+globs: frontend/**/*.{tsx,ts}
+alwaysApply: false
+---
+
+# Section headers (mandatory)
+
+Every **section**, **panel**, **tool block**, and **page** in Queenswarm MUST follow this vertical order:
+
+1. **Title** — section / tool / page name (`h1` page, `h2`/`h3` card)
+2. **Description** — one line: what the operator can do here
+3. **Inline hint `(i)`** — immediately after description text, vertically centered
+4. **Content** — forms, tables, sub-nav, actions
+
+## NEVER
+
+- Put the hint in `actions`, top-right corner, or next to the title alone
+- Wrap description + hint in `flex-wrap` / `inline-flex` (hint drops to new line)
+- Ship a user-facing section without a hint (add to registry first)
+- Use raw `InfoHint` without `hive-inline-hint` on section descriptions
+
+## ALWAYS
+
+| Layer | Component | Hint |
+|-------|-----------|------|
+| Page | `HivePageHeader` + `info={hivePageHintProps("…")}` | inline after subtitle |
+| Card | `V4CardHeader` + `hint={sectionHintNode("…")}` | inline after `description` |
+| Nested block in card | `HiveSubsectionHeader` + `hintKey` | inline after description |
+| Integrations hub tab | `HiveSubnavRow` + `INTEGRATIONS_HUB_SECTIONS` | one sub-section per card (`?tab=hub&hubSection=`) |
+| Registry | `frontend/lib/section-hints.ts` | title, description, options[], manualHref |
+
+## Hint content
+
+Each registry entry needs:
+
+- **title** — matches section name
+- **description** — 1–2 sentences explaining purpose
+- **options** — 3–5 bullet strings (configuration, flows, guardrails)
+- **manualHref** — deep link to `/manual#…` when section exists in manual
+
+## Form fields (exception)
+
+Label-adjacent hints on individual inputs (slug, auth type) are OK — that is **field** help, not **section** help. Section header still required above the form block.
+
+## Code examples
+
+```tsx
+// Page
+<HivePageHeader title="Swarms" subtitle="Colony control plane…" info={hivePageHintProps("swarms")} />
+
+// Card
+<V4CardHeader
+  title="Swarm Fleet"
+  description="Always-on routines — pause/resume without losing bees."
+  hint={sectionHintNode("fleet")}
+  actions={<HiveRefreshButton busy={loading} onClick={() => void load()} />}
+/>
+
+// Nested tool inside card
+<HiveSubsectionHeader
+  tone="cyan"
+  title="Link Drop"
+  description="URL → structured brief (read-only fetch)."
+  hintKey="icmLinkDrop"
+/>
+```
+
+## New sections checklist
+
+1. Add entry to `SECTION_HINTS` in `lib/section-hints.ts`
+2. Wire `hint` / `hintKey` / `info` on the header component
+3. Keep real action buttons in `actions` only — never the hint
+4. Use `HiveRefreshButton` from `@/components/hive/hive-refresh-button` for all **data refresh** actions (icon + label, `busy` while loading)

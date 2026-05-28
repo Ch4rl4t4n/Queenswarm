@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUp, ChevronDown, MicIcon, MicOffIcon, RefreshCw, X } from "lucide-react";
+import { ArrowUp, ChevronDown, MicIcon, MicOffIcon, X } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Filters, type ChatFilter } from "@/components/ballroom/filters";
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { GrokLiveVoiceButton } from "@/components/ballroom/grok-live-voice-chat";
 import { V4Badge, V4Card } from "@/components/ui/v4";
 import { HiveApiError, hiveDelete, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
@@ -49,11 +50,6 @@ interface BallroomSessionListItem {
   title?: string | null;
   preview?: string | null;
   pinned?: boolean;
-}
-
-interface VoiceSynthesizeResponse {
-  audio_base64?: string;
-  content_type?: string;
 }
 
 interface VoiceProviderPreferences {
@@ -457,7 +453,7 @@ export function BallroomPanel({
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     }
     historyTrackRef.current?.scrollTo({ left: 0, top: 0, behavior: "auto" });
-  }, []);
+  }, [historyTrackRef]);
 
   useEffect(() => {
     if (messages.length === 0) {
@@ -586,42 +582,6 @@ export function BallroomPanel({
       });
     }
   }, [appendBubble]);
-
-  const playTts = useCallback(
-    async (text: string, voiceLabel: string) => {
-      if (mutedRef.current) {
-        return;
-      }
-      setSpeaking(voiceLabel);
-      try {
-        const tts = await hivePostJson<VoiceSynthesizeResponse>("ballroom/voice/synthesize", {
-          text,
-          preferred_tts_provider: voicePrefs.tts_provider,
-          latency_mode: voicePrefs.latency_mode,
-          tts_voice_id: voicePrefs.tts_voice_id,
-          tts_language: voicePrefs.tts_language,
-          tts_tone: voicePrefs.tts_tone,
-        });
-        const blob = tts.audio_base64;
-        const contentType = tts.content_type ?? "audio/mpeg";
-        if (!blob) {
-          throw new Error("missing_audio");
-        }
-        if (audioRef.current) {
-          audioRef.current.pause();
-        }
-        const player = new Audio(`data:${contentType};base64,${blob}`);
-        audioRef.current = player;
-        player.onended = () => setSpeaking(null);
-        await player.play();
-        return;
-      } catch (exc) {
-        setError(exc instanceof Error ? exc.message : "server_tts_failed");
-      }
-      setSpeaking(null);
-    },
-    [voicePrefs.latency_mode, voicePrefs.tts_language, voicePrefs.tts_provider, voicePrefs.tts_tone, voicePrefs.tts_voice_id],
-  );
 
   const wsUrlFromSessionCapsule = useCallback((capsule: SessionCapsule, bearerToken: string | null): string => {
     if (typeof window === "undefined") {
@@ -1181,13 +1141,13 @@ export function BallroomPanel({
     "qs-btn qs-btn--ghost h-9 min-w-[132px] justify-center px-3 text-[12px] sm:h-10 sm:min-w-[148px] sm:px-4 sm:text-[13px]";
   const topRowClass = "flex flex-wrap items-center justify-end gap-3";
   const panelShellClass =
-    "flex h-[min(62dvh,620px)] min-h-[340px] max-h-[620px] flex-col self-stretch overflow-hidden rounded-[var(--qs-radius-lg)] lg:h-[min(64dvh,700px)] lg:min-h-[420px] lg:max-h-[700px]";
+    "flex h-[min(62dvh,620px)] min-h-[340px] max-h-[620px] flex-col self-stretch overflow-hidden rounded-(--qs-radius-lg) lg:h-[min(64dvh,700px)] lg:min-h-[420px] lg:max-h-[700px]";
   const chatStatusLabel = error ? "WS ERROR" : connected ? "LIVE STREAM" : sessionBound ? "STREAM CONNECTING" : "IDLE";
   const participantsTopBubble = (
-    <div className="flex min-w-[220px] max-w-full items-center gap-2 rounded-xl border border-[var(--qs-border)] bg-[var(--qs-surface-2)]/80 px-2 py-1.5">
+    <div className="flex min-w-[220px] max-w-full items-center gap-2 rounded-xl border border-(--qs-border) bg-(--qs-surface-2)/80 px-2 py-1.5">
       <div className="hive-scrollbar flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
         {sessionAgents.length === 0 ? (
-          <span className="px-1 text-[10px] text-[var(--qs-text-3)]">No participants</span>
+          <span className="px-1 text-[10px] text-(--qs-text-3)">No participants</span>
         ) : (
           sessionAgents.map((row) => {
             const color = accentForName(row.name);
@@ -1199,7 +1159,7 @@ export function BallroomPanel({
                 title={row.name}
                 className={cn(
                   "flex h-8 w-8 shrink-0 items-center justify-center rounded-md border",
-                  isSpeaking ? "border-transparent" : "border-[var(--qs-border)]",
+                  isSpeaking ? "border-transparent" : "border-(--qs-border)",
                 )}
                 style={isSpeaking ? ({ borderColor: `${color}66`, background: `${color}12` } satisfies CSSProperties) : undefined}
               >
@@ -1213,10 +1173,10 @@ export function BallroomPanel({
         className={cn(
           "shrink-0 rounded-md border px-2 py-1 font-mono text-[10px]",
           error
-            ? "border-[var(--qs-red)]/35 bg-[var(--qs-red)]/10 text-[var(--qs-red)]"
+            ? "border-(--qs-red)/35 bg-(--qs-red)/10 text-(--qs-red)"
             : connected
               ? "border-[#00FF88]/35 bg-[#00FF88]/10 text-[#00FF88]"
-              : "border-[var(--qs-border)] text-[var(--qs-text-3)]",
+              : "border-(--qs-border) text-(--qs-text-3)",
         )}
       >
         {chatStatusLabel}
@@ -1270,14 +1230,7 @@ export function BallroomPanel({
                     <p className="text-xs text-(--qs-text-3)">{sessionMetaLine}</p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-(--qs-border) bg-black/55 text-zinc-300 hover:border-(--qs-border-2) hover:text-pollen touch-manipulation"
-                  aria-label="Refresh chat"
-                  onClick={refreshChat}
-                >
-                  <RefreshCw className="h-4 w-4" aria-hidden />
-                </button>
+                <HiveRefreshButton label="Refresh chat" onClick={refreshChat} />
               </div>
               <div className="v4-ballroom-session-toolbar">
                 <div className="v4-ballroom-session-toolbar__left">
@@ -1529,12 +1482,12 @@ export function BallroomPanel({
   }
 
   return (
-    <div className="flex min-h-0 flex-col gap-[var(--qs-gap)] pb-2">
+    <div className="flex min-h-0 flex-col gap-(--qs-gap) pb-2">
       {showHeader ? (
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="font-(family-name:--font-poppins) text-[22px] font-bold text-[var(--qs-text)]">Ballroom</h1>
-            <p className="mt-0.5 text-[13px] text-[var(--qs-text-3)]">Voice + text session with the swarm</p>
+            <h1 className="font-(family-name:--font-poppins) text-[22px] font-bold text-(--qs-text)">Ballroom</h1>
+            <p className="mt-0.5 text-[13px] text-(--qs-text-3)">Voice + text session with the swarm</p>
           </div>
           <div className={topRowClass}>
             <Link href={integrationsTabHref("active", "ecosystem")} className={toolbarButtonClass}>
@@ -1544,7 +1497,7 @@ export function BallroomPanel({
               type="button"
               className={cn(
                 toolbarButtonClass,
-                muted && "!border-[var(--qs-red)] !text-[var(--qs-red)]",
+                muted && "!border-(--qs-red) !text-(--qs-red)",
               )}
               onClick={() => setMuted((v) => !v)}
             >
@@ -1563,9 +1516,7 @@ export function BallroomPanel({
                 Reconnect stream
               </button>
             ) : null}
-            <button type="button" className={toolbarButtonClass} onClick={refreshChat}>
-              Refresh chat
-            </button>
+            <HiveRefreshButton className={toolbarButtonClass} label="Refresh chat" onClick={refreshChat} />
             {!sessionBound ? (
               <button type="button" className={toolbarButtonClass} disabled={starting} onClick={() => void startSession()}>
                 {starting ? "Connecting…" : "Start session"}
@@ -1587,7 +1538,7 @@ export function BallroomPanel({
             type="button"
             className={cn(
               toolbarButtonClass,
-              muted && "!border-[var(--qs-red)] !text-[var(--qs-red)]",
+              muted && "!border-(--qs-red) !text-(--qs-red)",
             )}
             onClick={() => setMuted((v) => !v)}
           >
@@ -1606,9 +1557,7 @@ export function BallroomPanel({
               Reconnect stream
             </button>
           ) : null}
-          <button type="button" className={toolbarButtonClass} onClick={refreshChat}>
-            Refresh chat
-          </button>
+          <HiveRefreshButton className={toolbarButtonClass} label="Refresh chat" onClick={refreshChat} />
           {!sessionBound ? (
             <button type="button" className={toolbarButtonClass} disabled={starting} onClick={() => void startSession()}>
               {starting ? "Connecting…" : "Start session"}
@@ -1624,14 +1573,14 @@ export function BallroomPanel({
 
       <div className="grid min-h-0 flex-1 grid-cols-1 items-stretch gap-3 lg:grid-cols-[minmax(0,260px)_minmax(0,1fr)] [&>.qs-card]:mt-0!">
         <aside className={cn("qs-card order-2 p-0 lg:order-1", panelShellClass)}>
-          <div className="flex items-center justify-center border-b border-[var(--qs-border)] px-3 py-3">
-            <p className="text-center text-[11px] uppercase tracking-widest text-[var(--qs-text-3)]">Chat history</p>
+          <div className="flex items-center justify-center border-b border-(--qs-border) px-3 py-3">
+            <p className="text-center text-[11px] uppercase tracking-widest text-(--qs-text-3)">Chat history</p>
           </div>
           {historyExpanded && recentSessions.length > 0 ? (
-            <div className="border-b border-[var(--qs-border)] px-2 py-3">
+            <div className="border-b border-(--qs-border) px-2 py-3">
               <button
                 type="button"
-                className="w-full rounded-md border border-[var(--qs-red)]/45 bg-[var(--qs-red)]/5 px-3 py-2 text-center text-[12px] font-semibold text-[var(--qs-red)] transition hover:bg-[var(--qs-red)]/15"
+                className="w-full rounded-md border border-(--qs-red)/45 bg-(--qs-red)/5 px-3 py-2 text-center text-[12px] font-semibold text-(--qs-red) transition hover:bg-(--qs-red)/15"
                 onClick={() => void clearAllHistory()}
               >
                 🗑 Clear all history ({recentSessions.length})
@@ -1640,7 +1589,7 @@ export function BallroomPanel({
           ) : null}
           <div ref={historyTrackRef} className="v4-chat-history-track hive-scrollbar px-2 py-3">
             {recentSessions.length === 0 ? (
-              <p className="px-2 py-3 text-center text-[11px] text-[var(--qs-text-3)]">No recent sessions yet.</p>
+              <p className="px-2 py-3 text-center text-[11px] text-(--qs-text-3)">No recent sessions yet.</p>
             ) : (
               visibleRecentSessions.map((row) => {
                 const active = sessionLabel === row.session_id;
@@ -1655,14 +1604,14 @@ export function BallroomPanel({
                     className={cn(
                       "rounded-md border px-3 py-2.5 text-left transition",
                       active
-                        ? "border-[var(--qs-cyan)]/45 bg-[var(--qs-cyan)]/10"
-                        : "border-[var(--qs-border)] bg-[var(--qs-surface-2)] hover:border-[var(--qs-cyan)]/35",
+                        ? "border-(--qs-cyan)/45 bg-(--qs-cyan)/10"
+                        : "border-(--qs-border) bg-(--qs-surface-2) hover:border-(--qs-cyan)/35",
                     )}
                   >
                     <button type="button" className="w-full text-left" onClick={() => openSessionFromHistory(row.session_id)}>
                       <div className="flex items-center justify-between gap-2">
-                        <p className="truncate text-[14px] font-semibold text-[var(--qs-text)]">{title}</p>
-                        {when ? <p className="shrink-0 text-[12px] text-[var(--qs-text-3)]">{when}</p> : null}
+                        <p className="truncate text-[14px] font-semibold text-(--qs-text)">{title}</p>
+                        {when ? <p className="shrink-0 text-[12px] text-(--qs-text-3)">{when}</p> : null}
                       </div>
                     </button>
                     {active ? (
@@ -1673,7 +1622,7 @@ export function BallroomPanel({
                           "rounded border px-1.5 py-0.5 text-[10px] transition",
                           row.pinned
                             ? "border-[#FFB800]/45 bg-[#FFB800]/12 text-[#FFB800]"
-                            : "border-[var(--qs-border)] text-[var(--qs-text-3)] hover:text-[var(--qs-cyan)]",
+                            : "border-(--qs-border) text-(--qs-text-3) hover:text-(--qs-cyan)",
                         )}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1684,7 +1633,7 @@ export function BallroomPanel({
                       </button>
                       <button
                         type="button"
-                        className="rounded border border-[var(--qs-border)] px-1.5 py-0.5 text-[10px] text-[var(--qs-text-3)] transition hover:text-[var(--qs-cyan)]"
+                        className="rounded border border-(--qs-border) px-1.5 py-0.5 text-[10px] text-(--qs-text-3) transition hover:text-(--qs-cyan)"
                         onClick={(e) => {
                           e.stopPropagation();
                           void renameSession(row.session_id, row.title);
@@ -1694,7 +1643,7 @@ export function BallroomPanel({
                       </button>
                       <button
                         type="button"
-                        className="rounded border border-[var(--qs-red)]/45 px-1.5 py-0.5 text-[10px] text-[var(--qs-red)] transition hover:bg-[var(--qs-red)]/10"
+                        className="rounded border border-(--qs-red)/45 px-1.5 py-0.5 text-[10px] text-(--qs-red) transition hover:bg-(--qs-red)/10"
                         onClick={(e) => {
                           e.stopPropagation();
                           void deleteSessionFromHistory(row.session_id);
@@ -1709,11 +1658,11 @@ export function BallroomPanel({
               })
             )}
           </div>
-          <div className="border-t border-[var(--qs-border)] px-2 py-3">
+          <div className="border-t border-(--qs-border) px-2 py-3">
             <button
               type="button"
               disabled={recentSessions.length <= HISTORY_COLLAPSED_LIMIT}
-              className="w-full rounded-md border border-[var(--qs-border)] bg-[var(--qs-surface-2)] px-3 py-2 text-center text-[12px] font-semibold text-[var(--qs-text-3)] transition hover:border-[var(--qs-cyan)]/45 hover:text-[var(--qs-cyan)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded-md border border-(--qs-border) bg-(--qs-surface-2) px-3 py-2 text-center text-[12px] font-semibold text-(--qs-text-3) transition hover:border-(--qs-cyan)/45 hover:text-(--qs-cyan) disabled:cursor-not-allowed disabled:opacity-50"
               onClick={() => setHistoryExpanded((v) => !v)}
             >
               {recentSessions.length <= HISTORY_COLLAPSED_LIMIT
@@ -1728,7 +1677,7 @@ export function BallroomPanel({
         <section className={cn("qs-card order-1 mt-0! p-0 lg:order-2", panelShellClass)}>
           <div ref={messageScrollRef} className="hive-scrollbar flex flex-1 flex-col gap-3 overflow-y-auto p-3">
             {messages.length === 0 ? (
-              <div className="flex flex-1 flex-col items-center justify-center py-16 text-center text-[var(--qs-text-3)]">
+              <div className="flex flex-1 flex-col items-center justify-center py-16 text-center text-(--qs-text-3)">
                 <div className="mb-3 text-5xl opacity-80">🎙</div>
                 <p className="text-sm">{emptyLaneHint}</p>
               </div>
@@ -1762,7 +1711,7 @@ export function BallroomPanel({
                       <div
                         className={cn(
                           "rounded-xl border px-3 py-2 text-[13px] leading-snug text-[#cccce0]",
-                          isUser ? "rounded-br-sm border-[#FFB800]/30 bg-[#FFB800]/[0.06]" : "rounded-bl-sm border-[var(--qs-border)] bg-[var(--qs-surface-2)]",
+                          isUser ? "rounded-br-sm border-[#FFB800]/30 bg-[#FFB800]/[0.06]" : "rounded-bl-sm border-(--qs-border) bg-(--qs-surface-2)",
                         )}
                       >
                         <LinkifyText text={msg.text} className="whitespace-pre-wrap" />
@@ -1774,7 +1723,7 @@ export function BallroomPanel({
             )}
             <div ref={bottomAnchorRef} className="h-px w-full shrink-0" aria-hidden />
           </div>
-          <footer className="flex items-end gap-2.5 border-t border-[var(--qs-border)] px-3 py-3 sm:px-[var(--qs-pad)]">
+          <footer className="flex items-end gap-2.5 border-t border-(--qs-border) px-3 py-3 sm:px-(--qs-pad)">
             <div className="flex min-w-0 flex-1 flex-col gap-2">
               <Filters
                 disabled={!sessionBound || starting || readOnlyReplay}
@@ -1800,7 +1749,7 @@ export function BallroomPanel({
                     : sessionBound ? "Message Orchestrator…"
                     : "Click Voice Chat or Start session…"
                 }
-                className="qs-input h-11 flex-1 rounded-[var(--qs-radius-sm)]"
+                className="qs-input h-11 flex-1 rounded-(--qs-radius-sm)"
               />
             </div>
             <GrokLiveVoiceButton

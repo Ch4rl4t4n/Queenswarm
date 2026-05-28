@@ -8,8 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.presentation.api.deps import get_db, require_subject
-from app.core.jwt_tokens import create_access_token
+from app.presentation.api.deps import dashboard_admin_wall, get_db, require_dashboard_session
 from app.main import app
 from app.worker.celery_app import celery_app
 
@@ -40,7 +39,8 @@ async def test_get_job_requires_auth(restore_app_overrides: None) -> None:
 
 @pytest.mark.asyncio
 async def test_get_job_returns_success_blob(restore_app_overrides: None) -> None:
-    app.dependency_overrides[require_subject] = lambda: "pytest"
+    app.dependency_overrides[dashboard_admin_wall] = lambda: True
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:operator"}
     app.dependency_overrides[get_db] = mock_ledger_lookup_db
     mock_ar = MagicMock()
     mock_ar.state = "SUCCESS"
@@ -48,13 +48,10 @@ async def test_get_job_returns_success_blob(restore_app_overrides: None) -> None
     mock_ar.successful.return_value = True
     mock_ar.result = {"ok": True, "swarm_id": "11111111-1111-1111-1111-111111111111"}
 
-    token, _ = create_access_token(subject="pytest")
-    headers = {"Authorization": f"Bearer {token}"}
-
     with patch.object(celery_app, "AsyncResult", return_value=mock_ar):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/api/v1/jobs/task-uuid-1", headers=headers)
+            response = await client.get("/api/v1/jobs/task-uuid-1")
 
     assert response.status_code == 200
     data = response.json()
@@ -67,7 +64,8 @@ async def test_get_job_returns_success_blob(restore_app_overrides: None) -> None
 
 @pytest.mark.asyncio
 async def test_get_job_failure_surfaces_error(restore_app_overrides: None) -> None:
-    app.dependency_overrides[require_subject] = lambda: "pytest"
+    app.dependency_overrides[dashboard_admin_wall] = lambda: True
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:operator"}
     app.dependency_overrides[get_db] = mock_ledger_lookup_db
     mock_ar = MagicMock()
     mock_ar.state = "FAILURE"
@@ -75,13 +73,10 @@ async def test_get_job_failure_surfaces_error(restore_app_overrides: None) -> No
     mock_ar.successful.return_value = False
     mock_ar.result = RuntimeError("worker blew up")
 
-    token, _ = create_access_token(subject="pytest")
-    headers = {"Authorization": f"Bearer {token}"}
-
     with patch.object(celery_app, "AsyncResult", return_value=mock_ar):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/api/v1/jobs/task-uuid-2", headers=headers)
+            response = await client.get("/api/v1/jobs/task-uuid-2")
 
     assert response.status_code == 200
     body = response.json()

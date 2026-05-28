@@ -1,18 +1,21 @@
-"""Poll Celery result backend for deferred swarm workflow runs."""
+"""Poll Celery result backend for deferred swarm workflow runs (dashboard-admin)."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.presentation.api.deps import DbSession, JwtSubject
+from app.presentation.api.deps import DashboardSession, DbSession, dashboard_admin_wall
 from app.core.logging import get_logger
 from app.infrastructure.persistence.models.hive_async_workflow_run import HiveAsyncWorkflowRun
 from app.common.schemas.hive_jobs import HiveAsyncJobStatusResponse, HivePostgresLedgerBrief
 from app.application.services.hive_async_workflow_run_ledger import fetch_hive_async_workflow_run
 from app.worker.celery_app import celery_app
 
-router = APIRouter(tags=["Hive jobs"])
+router = APIRouter(
+    tags=["Hive jobs"],
+    dependencies=[Depends(dashboard_admin_wall)],
+)
 logger = get_logger(__name__)
 
 
@@ -47,7 +50,7 @@ def _brief_from_row(row: HiveAsyncWorkflowRun | None) -> HivePostgresLedgerBrief
 async def get_hive_async_job_snapshot(
     celery_task_id: str,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> HiveAsyncJobStatusResponse:
     """Return Celery AsyncResult telemetry mirrored with optional Postgres audit rows."""
 

@@ -4,24 +4,26 @@ import { hiveMobileRouteMeta } from "./hive-mobile-meta";
 import { OPERATOR_CONTROL_PLANE_ENABLED } from "./feature-flags";
 
 describe("hiveMobileRouteMeta", () => {
-  it("returns dashboard meta for root", () => {
+  it("returns Agentic OS meta for root when CP enabled", () => {
     const m = hiveMobileRouteMeta("/");
     if (OPERATOR_CONTROL_PLANE_ENABLED) {
-      expect(m.kicker).toBe("Cockpit");
-      expect(m.pageTitleSuffix).toBe("Cockpit");
+      expect(m.kicker).toBe("Agentic OS");
+      expect(m.pageTitleSuffix).toBe("Agentic OS");
     } else {
       expect(m.kicker).toBe("Dashboard");
       expect(m.staticSubtitle).toContain("roster");
     }
   });
 
-  it("returns cockpit meta under /cockpit when CP enabled", () => {
+  it("returns Agentic OS meta under /agentic-os and legacy /cockpit when CP enabled", () => {
     if (!OPERATOR_CONTROL_PLANE_ENABLED) {
       return;
     }
-    const m = hiveMobileRouteMeta("/cockpit");
-    expect(m.kicker).toBe("Cockpit");
-    expect(m.pageTitleSuffix).toBe("Cockpit");
+    for (const path of ["/agentic-os", "/cockpit"]) {
+      const m = hiveMobileRouteMeta(path);
+      expect(m.kicker).toBe("Agentic OS");
+      expect(m.pageTitleSuffix).toBe("Agentic OS");
+    }
   });
 
   it("returns dashboard hub meta under /dashboard", () => {
@@ -95,6 +97,17 @@ describe("hiveMobileRouteMeta", () => {
     expect(hiveMobileRouteMeta("/settings/llm-keys").pageTitleSuffix).toBe("LLM & Voice");
   });
 
+  it("returns secondary route mobile titles", () => {
+    expect(hiveMobileRouteMeta("/foragers").pageTitleSuffix).toBe("Foragers");
+    expect(hiveMobileRouteMeta("/apps-tools/mcp-ops-studio").pageTitleSuffix).toBe("MCP Ops Studio");
+    expect(hiveMobileRouteMeta("/settings/billing").pageTitleSuffix).toBe("Costs");
+  });
+
+  it("returns apps-tools and manual meta when consolidated", () => {
+    expect(hiveMobileRouteMeta("/apps-tools").kicker).toBe("Apps & Tools");
+    expect(hiveMobileRouteMeta("/manual").kicker).toBe("Manual");
+  });
+
   it("fallbacks to QueenSwarm for unknown routes", () => {
     expect(hiveMobileRouteMeta("/unknown/route").kicker).toBe("QueenSwarm");
   });
@@ -105,7 +118,7 @@ describe("hiveMobileRouteMeta", () => {
   });
 
   it("supports legacy mode metadata when consolidated nav is disabled", () => {
-    const rootKicker = OPERATOR_CONTROL_PLANE_ENABLED ? "Cockpit" : "Dashboard";
+    const rootKicker = OPERATOR_CONTROL_PLANE_ENABLED ? "Agentic OS" : "Dashboard";
     expect(hiveMobileRouteMeta("/", false).kicker).toBe(rootKicker);
     expect(hiveMobileRouteMeta("/tasks", false).kicker).toBe("Tasks");
     expect(hiveMobileRouteMeta("/overview", false).kicker).toBe("QueenSwarm");

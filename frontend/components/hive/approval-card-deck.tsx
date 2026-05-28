@@ -157,7 +157,7 @@ export function ApprovalCardDeck({
             {current.meta ? (
               <p className="mt-3 font-mono text-[11px] text-(--qs-text-3)">{current.meta}</p>
             ) : null}
-            <div className="mt-4 flex flex-wrap gap-2 border-t border-(--qs-border) pt-4">
+            <div className="v4-dream-cycle-card-actions border-t border-(--qs-border) pt-4">
               <button
                 type="button"
                 className="qs-btn qs-btn--ghost qs-btn--sm min-w-[5.5rem]"

@@ -43,10 +43,11 @@ function NavGlyph({ label, Icon, active }: NavGlyphProps) {
 interface HiveBottomNavProps {
   onMore: () => void;
   pathname: string;
+  moreOpen?: boolean;
 }
 
 /** Primary thumb targets — subset of nav + overflow sheet. */
-export function HiveBottomNav({ onMore, pathname }: HiveBottomNavProps) {
+export function HiveBottomNav({ onMore, pathname, moreOpen = false }: HiveBottomNavProps) {
   const { language } = useUiLanguage();
   const { features } = usePlatform();
   const items = hiveBottomNavItems(filterNavByFeatures(HIVE_NAV_PRIMARY, features));
@@ -69,7 +70,7 @@ export function HiveBottomNav({ onMore, pathname }: HiveBottomNavProps) {
               key={href}
               href={href}
               prefetch
-              className="flex min-w-0 flex-1 justify-center touch-manipulation outline-none focus:outline-none focus-visible:outline-none"
+              className="flex min-w-0 flex-1 justify-center touch-manipulation rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-pollen/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#08080f]"
               aria-current={active ? "page" : undefined}
             >
               <NavGlyph label={localizeNavLabel(label, language)} Icon={Icon} active={active} />
@@ -78,9 +79,10 @@ export function HiveBottomNav({ onMore, pathname }: HiveBottomNavProps) {
         })}
         <button
           type="button"
-          className="flex min-w-0 flex-1 justify-center touch-manipulation"
+          className="flex min-w-0 flex-1 justify-center touch-manipulation rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-pollen/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#08080f]"
           onClick={onMore}
           aria-haspopup="dialog"
+          aria-expanded={moreOpen}
         >
           <NavGlyph label={localizePhrase(language, { en: "More", sk: "Viac" })} Icon={EllipsisVerticalIcon} active={false} />
         </button>

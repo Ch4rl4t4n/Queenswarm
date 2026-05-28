@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
-from app.presentation.api.deps import DbSession, JwtSubject
+from app.presentation.api.deps import DashboardSession, DbSession, dashboard_admin_wall
 from app.infrastructure.persistence.models.task import Task
 from app.infrastructure.persistence.models.workflow import Workflow
 from app.common.schemas.workflow_breaker import (
@@ -34,7 +34,7 @@ from app.application.services.tracer_bullet_kanban import (
 from app.application.services.workflow_breaker.breaker import WorkflowBreakerService
 from app.domain.workflows.executor import WorkflowExecutionFailedError, WorkflowExecutor
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(dashboard_admin_wall)])
 
 
 @router.post(
@@ -46,7 +46,7 @@ router = APIRouter()
 async def decompose_workflow(
     body: DecomposeWorkflowRequest,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> DecomposeWorkflowResponse:
     """Kick off LLM decomposition persisted for LangGraph supervisors."""
 
@@ -64,13 +64,13 @@ async def decompose_workflow(
     except ValidationError as exc:
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=exc.errors(),
         )
     except ValueError as exc:
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         )
     except SQLAlchemyError:
@@ -94,7 +94,7 @@ async def decompose_workflow(
 )
 async def list_workflows(
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
     task_id: uuid.UUID | None = Query(default=None, description="Filter workflows linked to a backlog row."),
     skip: int = Query(default=0, ge=0, le=50_000),
     limit: int = Query(default=20, ge=1, le=100),
@@ -123,7 +123,7 @@ async def list_workflows(
 async def execute_workflow_route(
     workflow_id: uuid.UUID,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> ExecutionResultResponse:
     """Execute all steps sequentially (simulation + guardrails + LLM evaluator)."""
 
@@ -154,7 +154,7 @@ async def execute_workflow_route(
 async def get_workflow_detail(
     workflow_id: uuid.UUID,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> WorkflowDetailResponse:
     """Return a workflow plus ordered ``WorkflowStep`` projections."""
 
@@ -194,7 +194,7 @@ async def slice_workflow_to_kanban_route(
     workflow_id: uuid.UUID,
     body: SliceToKanbanRequest,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> SliceToKanbanResponse:
     """Tracer bullet pattern: parent backlog row + one child slice per breaker step."""
 
@@ -218,7 +218,7 @@ async def slice_workflow_to_kanban_route(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     except TaskUpsertViolationError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(

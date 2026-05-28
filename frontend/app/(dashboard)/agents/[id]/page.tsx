@@ -142,17 +142,17 @@ export default function AgentDetailPage(): JSX.Element {
 
   if (!id) {
     return (
-      <p className="p-10 text-center font-mono text-sm text-[var(--qs-red)]">Invalid agent id</p>
+      <p className="p-10 text-center font-mono text-sm text-(--qs-red)">Invalid agent id</p>
     );
   }
 
   if (loading) {
-    return <p className="p-10 text-center font-mono text-sm text-[var(--qs-text-3)]">Loading agent…</p>;
+    return <p className="p-10 text-center font-mono text-sm text-(--qs-text-3)">Loading agent…</p>;
   }
 
   if (loadErr || !agent) {
     return (
-      <div className="p-10 text-center font-mono text-sm text-[var(--qs-red)]">
+      <div className="p-10 text-center font-mono text-sm text-(--qs-red)">
         {loadErr ?? "Agent not found"}
       </div>
     );
@@ -191,7 +191,7 @@ export default function AgentDetailPage(): JSX.Element {
 
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex flex-wrap items-center gap-3">
-            <h1 className="font-[family-name:var(--font-poppins)] text-[22px] font-bold text-[var(--qs-text)]">
+            <h1 className="font-[family-name:var(--font-poppins)] text-[22px] font-bold text-(--qs-text)">
               {agent.name}
             </h1>
             <span
@@ -207,7 +207,7 @@ export default function AgentDetailPage(): JSX.Element {
               {agent.status}
             </span>
           </div>
-          <p className="mb-3 text-[13px] text-[var(--qs-text-3)]">
+          <p className="mb-3 text-[13px] text-(--qs-text-3)">
             {agent.role.replaceAll("_", " ")} · ◈ {(agent.pollen_points ?? 0).toLocaleString()} pollen
           </p>
           <div className="v4-agent-detail-actions flex flex-wrap gap-2">
@@ -243,10 +243,10 @@ export default function AgentDetailPage(): JSX.Element {
           ].map((s) => (
             <div
               key={s.label}
-              className="min-w-[92px] rounded-[10px] border border-[var(--qs-border)] bg-[var(--qs-surface)] px-4 py-3 text-center"
+              className="min-w-[92px] rounded-[10px] border border-(--qs-border) bg-(--qs-surface) px-4 py-3 text-center"
             >
-              <div className="mb-1 text-[11px] text-[var(--qs-text-3)]">{s.label}</div>
-              <div className="font-mono text-sm font-semibold text-[var(--qs-text)]">{String(s.value)}</div>
+              <div className="mb-1 text-[11px] text-(--qs-text-3)">{s.label}</div>
+              <div className="font-mono text-sm font-semibold text-(--qs-text)">{String(s.value)}</div>
             </div>
           ))}
         </div>
@@ -267,15 +267,15 @@ export default function AgentDetailPage(): JSX.Element {
 
       {tab === "overview" && (
         <div className="grid gap-4 lg:grid-cols-2">
-          <div className="qs-card rounded-[var(--qs-radius)]">
+          <div className="qs-card rounded-(--qs-radius)">
             <p className="qs-label mb-3">System prompt</p>
-            <pre className="font-mono text-xs leading-relaxed text-[var(--qs-text-2)] whitespace-pre-wrap">
+            <pre className="font-mono text-xs leading-relaxed text-(--qs-text-2) whitespace-pre-wrap">
               {config?.system_prompt || "No system prompt configured"}
             </pre>
           </div>
-          <div className="qs-card rounded-[var(--qs-radius)]">
+          <div className="qs-card rounded-(--qs-radius)">
             <p className="qs-label mb-3">Last result</p>
-            <pre className="max-h-[220px] overflow-auto font-mono text-xs leading-relaxed text-[var(--qs-text-2)] whitespace-pre-wrap">
+            <pre className="max-h-[220px] overflow-auto font-mono text-xs leading-relaxed text-(--qs-text-2) whitespace-pre-wrap">
               {config?.last_run_result
                 ? typeof config.last_run_result === "string"
                   ? config.last_run_result.slice(0, 800)
@@ -288,9 +288,9 @@ export default function AgentDetailPage(): JSX.Element {
 
       {tab === "config" &&
         (config ? (
-          <div className="qs-card rounded-[var(--qs-radius)]">
+          <div className="qs-card rounded-(--qs-radius)">
             <div className="mb-5 flex items-center justify-between gap-4">
-              <span className="font-[family-name:var(--font-poppins)] text-[15px] font-semibold text-[var(--qs-text)]">
+              <span className="font-[family-name:var(--font-poppins)] text-[15px] font-semibold text-(--qs-text)">
                 Agent configuration
               </span>
               <button
@@ -353,9 +353,9 @@ export default function AgentDetailPage(): JSX.Element {
             </div>
           </div>
         ) : (
-          <div className="qs-card rounded-[var(--qs-radius)] text-[var(--qs-text-3)]">
+          <div className="qs-card rounded-(--qs-radius) text-(--qs-text-3)">
             No saved config row — create or open the{" "}
-            <button type="button" className="text-[var(--qs-cyan)] underline" onClick={() => router.push(`/agents/${id}/edit`)}>
+            <button type="button" className="text-(--qs-cyan) underline" onClick={() => router.push(`/agents/${id}/edit`)}>
               full editor
             </button>
             .
@@ -363,12 +363,12 @@ export default function AgentDetailPage(): JSX.Element {
         ))}
 
       {tab === "tasks" && (
-        <div className="qs-card rounded-[var(--qs-radius)]">
-          <p className="mb-4 font-[family-name:var(--font-poppins)] text-[15px] font-semibold text-[var(--qs-text)]">
+        <div className="qs-card rounded-(--qs-radius)">
+          <p className="mb-4 font-[family-name:var(--font-poppins)] text-[15px] font-semibold text-(--qs-text)">
             Task history
           </p>
           {tasks.length === 0 ? (
-            <p className="py-12 text-center text-[var(--qs-text-3)]">No tasks yet — try Run now</p>
+            <p className="py-12 text-center text-(--qs-text-3)">No tasks yet — try Run now</p>
           ) : (
             <ul className="flex flex-col gap-2">
               {tasks.map((task: TaskRow) => {
@@ -384,7 +384,7 @@ export default function AgentDetailPage(): JSX.Element {
                 return (
                   <li
                     key={task.id}
-                    className="flex flex-wrap items-center gap-3 rounded-lg border border-[var(--qs-border)] bg-[var(--qs-surface-2)] px-3 py-3"
+                    className="flex flex-wrap items-center gap-3 rounded-lg border border-(--qs-border) bg-(--qs-surface-2) px-3 py-3"
                   >
                     <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: tc }} />
                     <span className="min-w-0 flex-1 text-[13px] text-[#cccce0]">{task.title || "Untitled"}</span>
@@ -398,7 +398,7 @@ export default function AgentDetailPage(): JSX.Element {
                     >
                       {task.status}
                     </span>
-                    <span className="font-mono text-[11px] text-[var(--qs-text-3)]">
+                    <span className="font-mono text-[11px] text-(--qs-text-3)">
                       {task.created_at ? new Date(task.created_at).toLocaleString("sk-SK") : ""}
                     </span>
                   </li>

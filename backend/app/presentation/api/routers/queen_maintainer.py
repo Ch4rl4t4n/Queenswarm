@@ -30,6 +30,7 @@ from app.application.services.rbac import has_permission
 from app.core.config import settings
 from app.infrastructure.persistence.models.supervisor_routine import SupervisorRoutine
 from app.presentation.api.deps import DbSession, require_dashboard_user_with_tenant_role
+from app.presentation.api.error_payloads import forbidden_error, unprocessable_error
 
 router = APIRouter(prefix="/queen-maintainer", tags=["Queen Maintainer"])
 
@@ -61,7 +62,7 @@ class QueenMaintainerPrDraftBody(BaseModel):
 def _ensure_admin(principal: dict[str, Any]) -> None:
     role = str(principal.get("tenant_role") or "guest")
     if role not in {"owner", "admin"} or not has_permission(role=role, permission="settings:view"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin tenant role required.")
+        raise forbidden_error(code="admin_role_required", message="Admin tenant role required.")
 
 
 @router.get("/tech-health", summary="Read-only tech health report")
@@ -81,7 +82,7 @@ async def queen_maintainer_settings(
     _ensure_admin(principal)
     tenant_id = principal.get("tenant_id")
     if tenant_id is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+        raise forbidden_error(code="tenant_context_missing", message="Tenant context missing.")
 
     row = await db.scalar(
         select(SupervisorRoutine).where(
@@ -113,7 +114,7 @@ async def update_queen_maintainer_settings(
         )
     tenant_id = principal.get("tenant_id")
     if tenant_id is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+        raise forbidden_error(code="tenant_context_missing", message="Tenant context missing.")
 
     subject = f"dashboard:{principal['user'].id}"
     row = await ensure_queen_maintainer_routine(
@@ -143,7 +144,7 @@ async def run_queen_maintainer_now(
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Feature disabled.")
     tenant_id = principal.get("tenant_id")
     if tenant_id is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+        raise forbidden_error(code="tenant_context_missing", message="Tenant context missing.")
 
     subject = f"dashboard:{principal['user'].id}"
     row = await ensure_queen_maintainer_routine(
@@ -179,9 +180,10 @@ async def queen_maintainer_pr_draft(
     _ensure_admin(principal)
     allowed, blocked = validate_changed_paths(body.changed_paths)
     if not allowed:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={"blocked_paths": blocked, "message": "Maintainer denylist blocked one or more paths."},
+        raise unprocessable_error(
+            code="maintainer_denylist_blocked",
+            message="Maintainer denylist blocked one or more paths.",
+            details={"blocked_paths": blocked},
         )
     branch = build_branch_name(slug=body.slug)
     result = await create_github_pr_if_configured(
@@ -229,6 +231,6 @@ async def queen_maintainer_github_webhook(
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
     except ValueError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise unprocessable_error(code="github_webhook_payload_invalid", message=str(exc)) from exc
 
     return result

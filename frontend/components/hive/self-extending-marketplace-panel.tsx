@@ -87,7 +87,7 @@ export function SelfExtendingMarketplacePanel({ snapshot }: SelfExtendingMarketp
           {installable} installable
         </V4Badge>
       </div>
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="v4-dream-cycle-card-actions">
         <button
           type="button"
           className={cn("qs-btn qs-btn--ghost qs-btn--sm", scanBusy && "opacity-60")}
@@ -97,7 +97,7 @@ export function SelfExtendingMarketplacePanel({ snapshot }: SelfExtendingMarketp
           {scanBusy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <RefreshCw className="size-4" aria-hidden />}
           Rescan
         </button>
-        <Link href="/integrations#tools" className="qs-btn qs-btn--ghost qs-btn--sm">
+        <Link href="/integrations#tools" className="qs-btn qs-btn--primary qs-btn--sm">
           Open Tool Hub
         </Link>
       </div>
@@ -113,27 +113,27 @@ export function SelfExtendingMarketplacePanel({ snapshot }: SelfExtendingMarketp
             return (
               <li
                 key={`${item.kind}-${item.target}`}
-                className="rounded-lg border border-(--qs-border) bg-black/20 p-3 text-sm"
+                className="flex flex-col gap-3 rounded-lg border border-(--qs-border) bg-black/20 p-3 text-sm"
               >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Sparkles className="size-4 text-cyan" aria-hidden />
-                      <span className="font-semibold text-(--qs-text)">
-                        {item.template_title ?? item.target}
-                      </span>
-                      {item.installed ? <V4Badge tone="ok">Installed</V4Badge> : <V4Badge tone="warn">Gap</V4Badge>}
-                    </div>
-                    {item.template_summary ? (
-                      <p className="mt-2 text-xs text-(--qs-muted)">{item.template_summary}</p>
-                    ) : (
-                      <p className="mt-2 text-(--qs-muted)">{item.rationale}</p>
-                    )}
-                    {item.skill_doc_hint ? (
-                      <p className="mt-2 font-mono text-[10px] text-(--qs-muted)">Skill hint: {item.skill_doc_hint}</p>
-                    ) : null}
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Sparkles className="size-4 text-cyan" aria-hidden />
+                    <span className="font-semibold text-(--qs-text)">
+                      {item.template_title ?? item.target}
+                    </span>
+                    {item.installed ? <V4Badge tone="ok">Installed</V4Badge> : <V4Badge tone="warn">Gap</V4Badge>}
                   </div>
-                  {!item.installed ? (
+                  {item.template_summary ? (
+                    <p className="mt-2 text-xs text-(--qs-muted)">{item.template_summary}</p>
+                  ) : (
+                    <p className="mt-2 text-(--qs-muted)">{item.rationale}</p>
+                  )}
+                  {item.skill_doc_hint ? (
+                    <p className="mt-2 font-mono text-[10px] text-(--qs-muted)">Skill hint: {item.skill_doc_hint}</p>
+                  ) : null}
+                </div>
+                {!item.installed ? (
+                  <div className="v4-dream-cycle-card-actions">
                     <button
                       type="button"
                       className="qs-btn qs-btn--primary qs-btn--sm shrink-0 gap-1"
@@ -143,8 +143,8 @@ export function SelfExtendingMarketplacePanel({ snapshot }: SelfExtendingMarketp
                       {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <PlugIcon className="size-4" aria-hidden />}
                       Install preset
                     </button>
-                  ) : null}
-                </div>
+                  </div>
+                ) : null}
               </li>
             );
           })}

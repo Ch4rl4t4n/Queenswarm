@@ -173,10 +173,10 @@ else
   fail "missing /oracle page"
 fi
 
-if [[ -f frontend/components/hive/hive-oracle-panel.tsx ]]; then
-  pass "hive-oracle-panel.tsx"
+if [[ -f frontend/app/\(dashboard\)/agentic-os/page.tsx ]]; then
+  pass "agentic-os route page"
 else
-  fail "missing oracle panel"
+  fail "missing /agentic-os page"
 fi
 
 if [[ -f backend/app/application/services/intent_crystallizer.py ]]; then

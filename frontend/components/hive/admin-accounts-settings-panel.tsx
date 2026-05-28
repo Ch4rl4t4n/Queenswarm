@@ -7,7 +7,6 @@ import {
   KeyRoundIcon,
   Loader2Icon,
   PlusIcon,
-  RefreshCwIcon,
   SearchIcon,
   SendIcon,
   ShieldIcon,
@@ -15,17 +14,18 @@ import {
   UserCogIcon,
   XIcon,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { HiveModalShell } from "@/components/hive/hive-modal-shell";
 import { usePlatform } from "@/components/hive/platform-context";
 import { AdminPublishOnboardingOverview } from "@/components/hive/admin-publish-onboarding-overview";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
 import { HiveSwitch } from "@/components/ui/hive-switch";
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveFetchRaw, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
 import { profileKeyFor } from "@/lib/platform-features";
-import { cn } from "@/lib/utils";
 
 export interface AdminAccountMembership {
   tenant_id: string;
@@ -571,24 +571,14 @@ export function AdminAccountsSettingsPanel() {
       </V4Card>
 
       <V4Card className="overflow-hidden p-0">
-        <div className="relative border-b border-(--qs-border) px-4 py-4 md:px-6">
-          <button
-            type="button"
-            aria-label="Refresh accounts"
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-[12px] border border-(--qs-border) text-(--qs-text-3) hover:border-(--qs-border-2) hover:text-pollen touch-manipulation md:right-6"
-            disabled={loading}
-            onClick={() => void load()}
-          >
-            <RefreshCwIcon className={cn("h-5 w-5", loading && "animate-spin")} aria-hidden />
-          </button>
-          <div className="pr-12">
-            <V4CardHeader
-              as="h2"
-              kicker="Admin · CMS"
-              title="Account management"
-              description="Účty, tier, platform mode, reset hesla — štandardné CMS operácie."
-            />
-          </div>
+        <div className="border-b border-(--qs-border) px-4 py-4 md:px-6">
+          <V4CardHeader
+            as="h2"
+            kicker="Admin · CMS"
+            title="Account management"
+            description="Účty, tier, platform mode, reset hesla — štandardné CMS operácie."
+            actions={<HiveRefreshButton busy={loading} onClick={() => void load()} />}
+          />
         </div>
 
         <div className="border-b border-(--qs-border) px-4 py-3 md:px-6">
@@ -1098,8 +1088,15 @@ export function AdminAccountsSettingsPanel() {
       </V4Card>
 
       {createOpen ? (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4">
-          <V4Card className="w-full max-w-md space-y-4 p-5">
+        <HiveModalShell
+          open
+          onClose={() => setCreateOpen(false)}
+          ariaLabel="New account"
+          zIndexClass="z-[70]"
+          backdropClassName="bg-black/70"
+          panelClassName="w-full max-w-md"
+        >
+          <V4Card className="space-y-4 p-5">
             <V4CardHeader as="h3" title="New account" description="Vytvorí user + personal tenant." />
             <label className="block text-xs text-(--qs-text-3)">
               Email
@@ -1178,12 +1175,19 @@ export function AdminAccountsSettingsPanel() {
               </button>
             </div>
           </V4Card>
-        </div>
+        </HiveModalShell>
       ) : null}
 
       {resetUserId ? (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4">
-          <V4Card className="w-full max-w-md space-y-4 p-5">
+        <HiveModalShell
+          open
+          onClose={() => setResetUserId(null)}
+          ariaLabel="Reset password"
+          zIndexClass="z-[70]"
+          backdropClassName="bg-black/70"
+          panelClassName="w-full max-w-md"
+        >
+          <V4Card className="space-y-4 p-5">
             <V4CardHeader as="h3" title="Reset password" description="Nové heslo pre vybraný účet." />
             <label className="block text-xs text-(--qs-text-3)">
               New password
@@ -1212,12 +1216,20 @@ export function AdminAccountsSettingsPanel() {
               </button>
             </div>
           </V4Card>
-        </div>
+        </HiveModalShell>
       ) : null}
 
       {auditUserId ? (
-        <div className="fixed inset-0 z-[75] flex justify-end bg-black/60">
-          <div className="flex h-full w-full max-w-md flex-col border-l border-(--qs-border) bg-[#050510] shadow-2xl">
+        <HiveModalShell
+          open
+          onClose={() => setAuditUserId(null)}
+          ariaLabel="Audit trail"
+          align="drawer-right"
+          zIndexClass="z-[75]"
+          backdropClassName="bg-black/60"
+          panelClassName="flex h-full w-full max-w-md flex-col border-l border-(--qs-border) bg-[#050510] shadow-2xl"
+        >
+          <div className="flex h-full flex-col">
             <div className="flex items-start justify-between gap-3 border-b border-(--qs-border) px-4 py-4">
               <div>
                 <p className="text-xs uppercase tracking-wide text-cyan">Audit trail</p>
@@ -1278,12 +1290,19 @@ export function AdminAccountsSettingsPanel() {
               )}
             </div>
           </div>
-        </div>
+        </HiveModalShell>
       ) : null}
 
       {demoResult ? (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4">
-          <V4Card className="w-full max-w-md space-y-4 p-5">
+        <HiveModalShell
+          open
+          onClose={() => setDemoResult(null)}
+          ariaLabel="Commercial demo ready"
+          zIndexClass="z-[70]"
+          backdropClassName="bg-black/70"
+          panelClassName="w-full max-w-md"
+        >
+          <V4Card className="space-y-4 p-5">
             <V4CardHeader
               as="h3"
               title="Commercial demo ready"
@@ -1325,7 +1344,7 @@ export function AdminAccountsSettingsPanel() {
               </button>
             </div>
           </V4Card>
-        </div>
+        </HiveModalShell>
       ) : null}
     </div>
   );

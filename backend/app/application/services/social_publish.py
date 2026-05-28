@@ -190,10 +190,24 @@ def normalize_social_channel(raw: str) -> SocialChannelId | None:
     return aliases.get(lowered)
 
 
-def compose_social_caption(*, body: str, hashtags: list[str], cta: str, max_len: int = 2200) -> str:
+def compose_social_caption(
+    *,
+    body: str,
+    hashtags: list[str],
+    cta: str,
+    max_len: int = 2200,
+    hook_override: str = "",
+) -> str:
     """Build caption/text from publish pack fields."""
 
-    parts: list[str] = [body.strip()]
+    parts: list[str] = []
+    hook = hook_override.strip()
+    if hook:
+        parts.append(hook)
+    body_clean = body.strip()
+    if body_clean:
+        if not hook or body_clean.lower() != hook.lower():
+            parts.append(body_clean)
     if cta.strip():
         parts.append(cta.strip())
     if hashtags:
@@ -212,11 +226,16 @@ def build_social_publish_arguments(
 ) -> tuple[str, dict[str, Any]]:
     """Return primary tool name + JSON body for connector invoke."""
 
+    best_hook = ""
+    best_hook_raw = structured.get("best_hook_variant")
+    if isinstance(best_hook_raw, dict):
+        best_hook = str(best_hook_raw.get("hook") or "").strip()
     caption = compose_social_caption(
         body=str(structured.get("body") or ""),
         hashtags=[str(t) for t in structured.get("hashtags") or []],
         cta=str(structured.get("cta") or ""),
         max_len=280 if channel == "twitter" else 2200,
+        hook_override=best_hook,
     )
     media_url = str(structured.get("media_url") or "").strip() or None
     meta = _CHANNEL_REGISTRY[channel]

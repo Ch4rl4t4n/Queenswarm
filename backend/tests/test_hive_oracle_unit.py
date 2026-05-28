@@ -42,7 +42,7 @@ def test_oracle_publish_backlog_warning() -> None:
             label="Approve 2 publish pack(s)",
             detail="",
             priority="high",
-            href="/integrations?tab=studio#publish-queue",
+            href="/integrations?tab=studio&section=publish#publish-queue",
         ),
     ]
     warnings = derive_heuristic_warnings(

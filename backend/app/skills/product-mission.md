@@ -8,7 +8,7 @@ source: queenswarm.love
 
 # Product Mission — Revenue Swarm
 
-Purpose: Turn a niche idea into a sellable digital product (skill, plugin, addon, template) using the hive, then package it for **GitHub, Gumroad, and optional Stripe**.
+Purpose: Turn a niche idea into a sellable digital product (skill, plugin, addon, template) using the hive, then package it for **GitHub, Gumroad, and optional in-app unlock**.
 
 ## When to use
 
@@ -34,7 +34,7 @@ Purpose: Turn a niche idea into a sellable digital product (skill, plugin, addon
 ### 4. Publish everywhere
 - **GitHub**: push folder to `queenswarm/skills` (or own repo).
 - **Gumroad**: paste LISTING.md, upload zip, set price.
-- **Queenswarm Stripe** (optional): tag recipe `premium-9` for in-app unlock.
+- **Queenswarm Premium** (optional): tag recipe `premium-9` for in-app unlock.
 
 ### 5. Launch copy
 - One-line hook + 3 bullets + install command `npx skills add queenswarm/{slug}`.
@@ -43,7 +43,7 @@ Purpose: Turn a niche idea into a sellable digital product (skill, plugin, addon
 
 1) Niche summary  
 2) Workflow steps (verified)  
-3) Export checklist (GitHub / Gumroad / Cursor / Stripe)  
+3) Export checklist (GitHub / Gumroad / Cursor / Premium unlock)  
 4) Listing title + short + long description  
 5) Suggested price (EUR)
 

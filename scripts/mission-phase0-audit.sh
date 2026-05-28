@@ -32,9 +32,7 @@ echo
 echo "[2] Env file (presence only — no secret values)"
 if [[ -f "$ENV_FILE" ]]; then ok "${ENV_FILE} exists"; else bad "${ENV_FILE} missing"; fi
 if [[ -f "$ENV_FILE" ]]; then
-  grep -qE '^STRIPE_SECRET_KEY=sk_' "$ENV_FILE" && ok "STRIPE_SECRET_KEY looks set" || note "STRIPE_SECRET_KEY not set (Stripe blocked)"
-  grep -qE '^STRIPE_WEBHOOK_SECRET=whsec_' "$ENV_FILE" && ok "STRIPE_WEBHOOK_SECRET looks set" || note "STRIPE_WEBHOOK_SECRET not set"
-  grep -qE '^STRIPE_ENTERPRISE_PRICE_ID=price_' "$ENV_FILE" && ok "STRIPE_ENTERPRISE_PRICE_ID looks set" || note "STRIPE_ENTERPRISE_PRICE_ID not set (Enterprise dynamic fallback)"
+  note "Checkout env checks removed (in-app checkout disabled)."
   grep -qE '^POSTGRES_PASSWORD=' "$ENV_FILE" && ok "POSTGRES_PASSWORD present" || bad "POSTGRES_PASSWORD missing"
 fi
 echo

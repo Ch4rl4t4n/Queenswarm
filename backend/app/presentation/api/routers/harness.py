@@ -151,7 +151,7 @@ async def harness_intelligence_apply(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except SelfExtendingUnsupportedProposalError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     except KeyError as exc:
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
@@ -204,7 +204,7 @@ async def harness_slack_trainer_feedback(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except SlackHarnessTrainerValidationError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
     slack_notified = await notify_trainer_confirmation(
         feedback_preview=body.feedback,
@@ -320,7 +320,7 @@ async def harness_lsp_bridge_resolve(
     except LspBridgeDisabledError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except LspBridgeToolError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
 
 @router.post("/lsp-bridge/file-symbols", summary="List symbols in one repo file")
@@ -335,7 +335,7 @@ async def harness_lsp_bridge_file_symbols(
     except LspBridgeDisabledError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except LspBridgeToolError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
 
 @router.post("/lsp-bridge/find-references", summary="Find references to a symbol")
@@ -350,7 +350,7 @@ async def harness_lsp_bridge_find_references(
     except LspBridgeDisabledError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except LspBridgeToolError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
 
 @router.post("/lsp-bridge/invoke", summary="Generic LSP MCP tool invoke (harness)")
@@ -365,7 +365,7 @@ async def harness_lsp_bridge_invoke(
     except LspBridgeDisabledError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except LspBridgeToolError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
 
 class RubricApplyRequest(BaseModel):
@@ -415,7 +415,7 @@ async def harness_rubric_templates_apply(
     try:
         merged = merge_rubric_into_criteria(body.base_criteria, body.template_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     return {"evaluation_criteria": merged}
 
 
@@ -429,7 +429,7 @@ async def harness_rubric_templates_evaluate(
 
     _require_rubric_templates_enabled()
     if get_rubric_template(body.template_id) is None:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown rubric template.")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Unknown rubric template.")
     try:
         return await evaluate_text_with_rubric(
             db,
@@ -438,7 +438,7 @@ async def harness_rubric_templates_evaluate(
             swarm_id=str(principal.get("tenant_id") or ""),
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
 
 __all__ = ["router"]

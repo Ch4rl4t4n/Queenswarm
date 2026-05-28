@@ -1,10 +1,11 @@
 "use client";
 
-import { ActivityIcon, BellIcon, ContainerIcon, Loader2Icon, RefreshCwIcon, ServerIcon } from "lucide-react";
+import { ActivityIcon, BellIcon, ContainerIcon, Loader2Icon, ServerIcon } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useCallback, useState } from "react";
 
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { usePlatform } from "@/components/hive/platform-context";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
@@ -311,7 +312,7 @@ export function CommandCenterSettingsPanel() {
             as="h2"
             kicker="Admin · ops"
             title="Command center"
-            description="Server load, RAM, disk, databázy, queue, LLM a billing prepojenia — live snapshot."
+            description="Server load, RAM, disk, databázy, queue, and LLM prepojenia — live snapshot."
           />
           <div className="flex flex-wrap items-center gap-2">
             <V4Badge tone={snapshot.summary.dependencies_ok ? "ok" : "err"}>
@@ -320,10 +321,7 @@ export function CommandCenterSettingsPanel() {
             <V4Badge tone={snapshot.summary.llm_routes_ok ? "ok" : "warn"}>
               {snapshot.summary.llm_routes_ok ? "llm ready" : "llm missing"}
             </V4Badge>
-            <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-2" onClick={() => void load()}>
-              <RefreshCwIcon className="h-4 w-4" aria-hidden />
-              Refresh
-            </button>
+            <HiveRefreshButton onClick={() => void load()} />
             <button
               type="button"
               className="qs-btn qs-btn--ghost qs-btn--sm gap-2"
@@ -517,16 +515,12 @@ export function CommandCenterSettingsPanel() {
           <Link href="/settings/llm-keys" className="text-cyan hover:underline">
             Settings → AI · LLM & Voice
           </Link>
-          {" · "}
-          <Link href="/settings/billing" className="text-cyan hover:underline">
-            Billing / Stripe
-          </Link>
         </div>
       </V4Card>
 
       <V4Card className="overflow-hidden p-0">
         <div className="px-4 py-4 md:px-6">
-          <V4CardHeader as="h3" title="Integrations & billing" description="Stripe, voice, observability flags." />
+          <V4CardHeader as="h3" title="Integrations" description="Voice and observability flags." />
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             {integrations.map((row) => (
               <div

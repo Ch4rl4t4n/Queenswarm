@@ -1,6 +1,6 @@
 import nextDynamic from "next/dynamic";
-import { redirect } from "next/navigation";
 
+import { LegacyRouteRedirect } from "@/components/hive/legacy-route-redirect";
 import { SettingsPanelSkeleton } from "@/components/hive/settings-panel-skeleton";
 import { PHASE70_CONSOLIDATED_NAV_ENABLED, RECIPES_ENABLED } from "@/lib/feature-flags";
 
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 export default function RecipesPage() {
   if (PHASE70_CONSOLIDATED_NAV_ENABLED) {
-    redirect("/knowledge#recipes");
+    return <LegacyRouteRedirect target="/knowledge#recipes" label="Redirecting to Knowledge…" />;
   }
 
   if (!RECIPES_ENABLED) {

@@ -24,7 +24,6 @@ _GOAL_CONNECTOR_HINTS: tuple[tuple[str, str], ...] = (
     ("notion", "notion_workspace"),
     ("github", "github_rest"),
     ("gitlab", "gitlab_rest"),
-    ("stripe", "stripe_billing"),
     ("gmail", "gmail_workspace"),
     ("calendar", "google_calendar"),
     ("discord", "discord_guild"),

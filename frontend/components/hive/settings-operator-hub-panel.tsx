@@ -1,10 +1,12 @@
 "use client";
 
-import { Loader2, RefreshCw, Settings2 } from "lucide-react";
+import { Loader2, Settings2 } from "lucide-react";
 import Link from "next/link";
 import { memo, useCallback, useEffect, useState } from "react";
 
 import { SettingsOperatorTrustedAutoPanel } from "@/components/hive/settings-operator-trusted-auto-panel";
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
+import { V4AdvancedPanel } from "@/components/ui/v4/v4-advanced-panel";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 
@@ -219,7 +221,11 @@ function SettingsOperatorHubPanelInner(): JSX.Element | null {
         ))}
       </div>
 
-      <section className="mt-6 space-y-2">
+      <V4AdvancedPanel
+        title="Advanced lane & OAuth"
+        description="Env kill switches, live lane prep, publish onboarding, social OAuth, and trusted autopilot."
+      >
+      <section className="space-y-2">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-(--qs-text-3)">Env kill switches</h3>
         <ul className="space-y-2">
           {snapshot.env_flags.map((flag) => (
@@ -395,15 +401,13 @@ function SettingsOperatorHubPanelInner(): JSX.Element | null {
         </section>
       ) : null}
 
-      <section className="mt-6 rounded-lg border border-(--qs-border) bg-black/10 p-4">
+      <section className="rounded-lg border border-(--qs-border) bg-black/10 p-4">
         <SettingsOperatorTrustedAutoPanel />
       </section>
+      </V4AdvancedPanel>
 
       <div className="mt-4 flex justify-end">
-        <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void load()}>
-          <RefreshCw className="size-4" aria-hidden />
-          Refresh
-        </button>
+        <HiveRefreshButton onClick={() => void load()} />
       </div>
     </V4Card>
   );

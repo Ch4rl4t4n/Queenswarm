@@ -243,7 +243,7 @@ async def create_llm_operator_key(
         await db.commit()
     except ValueError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(
@@ -333,7 +333,7 @@ async def delete_llm_operator_key(
         await db.commit()
     except ValueError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(

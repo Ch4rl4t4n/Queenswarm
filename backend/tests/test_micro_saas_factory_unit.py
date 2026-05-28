@@ -41,7 +41,6 @@ async def test_compose_micro_saas_factory_snapshot_progress() -> None:
 
     with (
         patch("app.application.services.micro_saas_factory.settings") as mock_settings,
-        patch("app.application.services.micro_saas_factory.stripe_checkout_ready", return_value=True),
         patch(
             "app.application.services.micro_saas_factory.DynamicConnectorService",
         ) as connector_cls,

@@ -64,7 +64,7 @@ async def preview_platform_feature_profile(
         overrides = await load_policy_overrides(db)
         return preview_features_for_profile(profile_key, policy_overrides=overrides)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
 
 @router.patch("", summary="Update platform feature matrix cells")

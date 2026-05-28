@@ -9,6 +9,13 @@
 #   QUEENSWARM_SSH_HOST=... QUEENSWARM_REMOTE_DIR=/opt/queenswarm ./scripts/sync-and-deploy-prod.sh
 set -euo pipefail
 
+if [[ "${ALLOW_NON_CANONICAL_DEPLOY:-0}" != "1" ]]; then
+  echo "sync-and-deploy-prod.sh is non-canonical and blocked by default." >&2
+  echo "Use ./scripts/deploy-prod.sh on target host (preferred guarded path)." >&2
+  echo "If you intentionally need this legacy flow, set ALLOW_NON_CANONICAL_DEPLOY=1." >&2
+  exit 1
+fi
+
 HOST="${QUEENSWARM_SSH_HOST:-46.224.120.151}"
 SSH_USER="${QUEENSWARM_SSH_USER:-root}"
 KEY="${QUEENSWARM_SSH_PRIVATE_KEY:-$HOME/.ssh/queenswarm_prod_ed25519}"

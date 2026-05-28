@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { ExternalLink, Loader2, RefreshCw, TrendingUp, Wallet } from "lucide-react";
+import { ExternalLink, Loader2, TrendingUp, Wallet } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { HiveApiError, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { cn } from "@/lib/utils";
 
@@ -278,10 +279,7 @@ function ExecutionStudioTradingCockpitPanelInner({ onError }: ExecutionStudioTra
         title="Trading Cockpit"
         description="Paper + real prediction markets — capital, venue, agent principles, live P&L."
         actions={
-          <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-2" disabled={loading} onClick={() => void load()}>
-            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} aria-hidden />
-            Refresh
-          </button>
+          <HiveRefreshButton busy={loading} onClick={() => void load()} />
         }
       />
 

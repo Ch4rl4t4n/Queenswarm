@@ -127,33 +127,31 @@ function ExecutionStudioCodebaseLanePanelInner({
           </p>
           <div className="space-y-2">
             {pendingProposals?.map((proposal) => (
-              <article key={proposal.id} className="qs-bubble-inner p-3">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-(--qs-text)">{proposal.title}</p>
-                    <p className="mt-1 text-xs text-(--qs-text-3)">{proposal.goal_excerpt || proposal.description}</p>
-                    <p className="mt-1 font-mono text-[10px] text-(--qs-text-4)">
-                      {proposal.proposed_by_role} · {proposal.risk_level}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      className="qs-btn qs-btn--primary qs-btn--sm"
-                      disabled={proposalBusyId === proposal.id}
-                      onClick={() => void reviewProposal(proposal.id, "approve")}
-                    >
-                      Approve
-                    </button>
-                    <button
-                      type="button"
-                      className="qs-btn qs-btn--ghost qs-btn--sm"
-                      disabled={proposalBusyId === proposal.id}
-                      onClick={() => void reviewProposal(proposal.id, "reject")}
-                    >
-                      Reject
-                    </button>
-                  </div>
+              <article key={proposal.id} className="qs-bubble-inner flex flex-col gap-3 p-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-(--qs-text)">{proposal.title}</p>
+                  <p className="mt-1 text-xs text-(--qs-text-3)">{proposal.goal_excerpt || proposal.description}</p>
+                  <p className="mt-1 font-mono text-[10px] text-(--qs-text-4)">
+                    {proposal.proposed_by_role} · {proposal.risk_level}
+                  </p>
+                </div>
+                <div className="v4-dream-cycle-card-actions">
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--ghost qs-btn--sm"
+                    disabled={proposalBusyId === proposal.id}
+                    onClick={() => void reviewProposal(proposal.id, "reject")}
+                  >
+                    Reject
+                  </button>
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--primary qs-btn--sm"
+                    disabled={proposalBusyId === proposal.id}
+                    onClick={() => void reviewProposal(proposal.id, "approve")}
+                  >
+                    Approve
+                  </button>
                 </div>
               </article>
             ))}

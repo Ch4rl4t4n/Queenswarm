@@ -7,7 +7,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.presentation.api.deps import DbSession, JwtSubject, RecipeMutationSubject
+from app.presentation.api.deps import DashboardSession, DbSession, RecipeMutationSubject
 from app.core.config import settings
 from app.domain.learning.imitation_engine import record_imitation_event, select_top_k_exemplars
 from app.domain.learning.reflection_loop import persist_task_reflection, run_post_task_reflection
@@ -86,7 +86,7 @@ def _ensure_recipes_enabled() -> None:
 async def allocate_rewards(
     body: PollenAllocateRequest,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> PollenAllocateResponse:
     """Partition hive pollen using signals and optional performance fusion."""
 
@@ -129,7 +129,7 @@ async def allocate_rewards(
 )
 async def list_exemplars(
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
     role: AgentRole = Query(description="Bee specialization to rank."),
     copier_agent_id: uuid.UUID | None = Query(
         default=None,
@@ -176,7 +176,7 @@ async def list_exemplars(
 )
 async def list_verified_pollen_leaderboard(
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
     limit: int = Query(default=20, ge=1, le=100),
     swarm_id: uuid.UUID | None = Query(default=None, description="Optional sub-swarm filter."),
 ) -> list[VerifiedPollenLeaderboardRow]:
@@ -203,7 +203,7 @@ async def list_verified_pollen_leaderboard(
     response_model=list[BeeBadgeCatalogItem],
     summary="Earnable bee badge catalog",
 )
-async def bee_badge_catalog(_subject: JwtSubject) -> list[BeeBadgeCatalogItem]:
+async def bee_badge_catalog(_session: DashboardSession) -> list[BeeBadgeCatalogItem]:
     """Return static badge definitions for tooltips and onboarding."""
 
     _ensure_bee_gamification_enabled()
@@ -217,7 +217,7 @@ async def bee_badge_catalog(_subject: JwtSubject) -> list[BeeBadgeCatalogItem]:
 )
 async def list_bee_badge_profiles(
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
     limit: int = Query(default=16, ge=1, le=48),
 ) -> list[BeeBadgeProfile]:
     """Rank bees by earned badges and verified pollen."""
@@ -241,7 +241,7 @@ async def list_bee_badge_profiles(
 async def create_imitation_edge(
     body: ImitationCopyRequest,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> dict[str, str]:
     """Persist copier → exemplar edges for analytics."""
 
@@ -270,7 +270,7 @@ async def create_imitation_edge(
 async def create_reflection(
     body: ReflectionCreate,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> dict[str, str]:
     """Manual LearningLog entry (operators or service bees)."""
 
@@ -300,7 +300,7 @@ async def create_reflection(
 async def reflect_after_task(
     body: TaskReflectionRequest,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> dict[str, str]:
     """Emit a structured insight after LangGraph / swarm task execution."""
 
@@ -330,7 +330,7 @@ async def reflect_after_task(
 )
 async def learning_recipe_search(
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
     q: str = Query(min_length=1),
     limit: int = Query(default=10, ge=1, le=50),
 ):
@@ -342,7 +342,7 @@ async def learning_recipe_search(
             db,
             query=q,
             limit=limit,
-            task_id=_subject,
+            task_id=str(_session.get("sub", "dashboard_operator")),
         )
     except SQLAlchemyError:
         raise HTTPException(
@@ -421,7 +421,7 @@ def _ensure_pending_review_enabled() -> None:
 )
 async def pending_review_stats(
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> PendingReviewStats:
     """Return badge counts for operator dashboards."""
 
@@ -442,7 +442,7 @@ async def pending_review_stats(
 )
 async def list_pending_review(
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
     status_filter: PendingReviewStatus | None = Query(
         default=PendingReviewStatus.PENDING,
         alias="status",
@@ -472,7 +472,7 @@ async def resolve_pending_review(
     item_id: uuid.UUID,
     body: PendingReviewResolveRequest,
     db: DbSession,
-    subject: JwtSubject,
+    session: DashboardSession,
 ) -> PendingReviewItemRow:
     """Operator decision — releases or blocks low-confidence outcomes."""
 
@@ -482,7 +482,7 @@ async def resolve_pending_review(
             db,
             item_id=item_id,
             action=body.action,
-            operator_subject=subject,
+            operator_subject=str(session.get("sub", "dashboard_operator")),
             note=body.note,
         )
         if row is None:
@@ -491,7 +491,7 @@ async def resolve_pending_review(
         await db.refresh(row)
     except ValueError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(

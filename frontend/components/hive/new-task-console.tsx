@@ -100,22 +100,6 @@ function laneUi(lane: TargetLane): { label: string; badgeClass: string } {
   return all[lane];
 }
 
-function lanePillActive(lane: TargetLane): string {
-  const map: Record<TargetLane, string> = {
-    scout: "qs-pill--active-cyan",
-    eval: "qs-pill--active-amber",
-    sim: "qs-pill--active-magenta",
-    action: "qs-pill--active-green",
-  };
-  return map[lane];
-}
-
-function priorityPillActive(p: PriorityLevel): string {
-  if (p === "low") return "qs-pill--active-cyan";
-  if (p === "normal") return "qs-pill--active-green";
-  return "qs-pill--active-amber";
-}
-
 function previewConnectorFromRole(prevRole: string, dashedTail: boolean): string {
   if (dashedTail) {
     return "mx-0.5 h-px min-w-[1.25rem] shrink-0 border-t border-dotted border-zinc-600 opacity-80";

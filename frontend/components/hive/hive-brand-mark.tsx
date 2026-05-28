@@ -36,7 +36,7 @@ export function HiveBrandMark({ onNavigate, compact = false, className }: HiveBr
         ) : null}
         <span
           className={cn(
-            "truncate font-[family-name:var(--font-poppins)] font-bold tracking-tight text-[var(--qs-text)]",
+            "truncate font-[family-name:var(--font-poppins)] font-bold tracking-tight text-(--qs-text)",
             compact ? "text-sm" : "text-[17px]",
           )}
           style={brand.accent_hex ? { color: brand.accent_hex } : undefined}
@@ -44,7 +44,7 @@ export function HiveBrandMark({ onNavigate, compact = false, className }: HiveBr
           {brand.brand_name}
         </span>
       </div>
-      <span className="mt-0.5 block truncate text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--qs-text-3)]">
+      <span className="mt-0.5 block truncate text-[10px] font-medium uppercase tracking-[0.18em] text-(--qs-text-3)">
         {brand.tagline}
       </span>
     </Link>

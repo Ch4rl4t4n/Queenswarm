@@ -78,7 +78,7 @@ ENV_FILE="$ENV_FILE" COMPOSE_PROJECT="$COMPOSE_PROJECT" "${ROOT}/scripts/deploy-
 
 echo
 echo "Done. Verify:"
-echo "  Settings → Billing (Stripe config)"
+echo "  Settings → Billing (checkout disabled banner)"
 echo "  Knowledge → Marketplace / Lead magnets"
 echo "  /factory · Media Agency panel"
 echo "  ./scripts/operator-solo-status.sh"

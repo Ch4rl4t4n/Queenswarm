@@ -1,1 +1,1 @@
-export { default } from "@/components/hive/route-pulse-loading-page";
+export { default } from "@/components/hive/hive-page-route-loading-page";

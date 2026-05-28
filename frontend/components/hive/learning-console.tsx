@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { QsSelect } from "@/components/ui/qs-select";
-import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
+import { V4Card, V4CardHeader } from "@/components/ui/v4";
 import { RecipeSemanticHitRow } from "@/components/hive/recipe-cosine-match-panel";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import type { AgentRow, RecipeMatchConfigPayload, RecipeSemanticHit } from "@/lib/hive-types";

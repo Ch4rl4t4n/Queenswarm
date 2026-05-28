@@ -21,7 +21,7 @@ function classifyStatus(status: string): Exclude<TaskBucket, "all"> {
   return "pending";
 }
 
-function stripeClass(taskType: string, swarmId: string | null | undefined, bucket: TaskBucket): string {
+function laneAccentClass(taskType: string, swarmId: string | null | undefined, bucket: TaskBucket): string {
   const hay = `${taskType} ${swarmId ?? ""}`.toUpperCase();
   if (hay.includes("ACTION") || hay.includes("EXEC")) return "bg-success";
   if (hay.includes("EVAL")) return "bg-pollen";
@@ -33,7 +33,7 @@ function stripeClass(taskType: string, swarmId: string | null | undefined, bucke
 }
 
 function progressHueClass(taskType: string, swarmId: string | null | undefined, bucket: TaskBucket): string {
-  const s = stripeClass(taskType, swarmId, bucket);
+  const s = laneAccentClass(taskType, swarmId, bucket);
   if (s.includes("pollen")) return "text-pollen";
   if (s.includes("success")) return "text-success";
   if (s.includes("alert")) return "text-alert";
@@ -130,7 +130,7 @@ export function TasksQueueSection({ tasks }: TasksQueueSectionProps) {
         {filtered.map((t) => {
           const b = classifyStatus(t.status);
           const pct = pctFor(t.id, b);
-          const strip = stripeClass(t.task_type, t.swarm_id, b);
+          const strip = laneAccentClass(t.task_type, t.swarm_id, b);
           return (
             <article
               key={t.id}

@@ -292,6 +292,8 @@ async def archive_verified_publish_pack(
     structured["verified"] = verified
     if hook_variants:
         structured["hook_variants"] = hook_variants
+        structured["best_hook_variant"] = hook_variants[0]
+        structured["best_hook_confidence"] = float(hook_variants[0].get("confidence") or 0.0)
     if pack.media_url:
         structured["media_kind"] = classify_publish_media_url(pack.media_url) or "unknown"
 

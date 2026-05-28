@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { test } from "@playwright/test";
 
 import { seedDashboardSessionCookie } from "./fixtures/dashboard-session";
 
@@ -175,7 +175,7 @@ test.describe("Phase 7 session operator audit drawer", () => {
     });
   });
 
-  test("session detail drawer shows operator audit trail", async ({ page }) => {
+  test("session detail drawer shows operator audit trail", async () => {
     test.skip(true, "Session detail drawer removed from agents page.");
   });
 });

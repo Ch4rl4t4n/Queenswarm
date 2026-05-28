@@ -12,7 +12,9 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
-import { HivePageHeader } from "@/components/hive/hive-page-header";
+import { HivePageShell } from "@/components/hive/hive-page-shell";
+import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { SwarmsColoniesGrid } from "@/components/hive/swarms-colonies-grid";
 import { SwarmsNewColonyDialog } from "@/components/hive/swarms-new-colony-dialog";
 import { SubSwarmLocalMindPanel } from "@/components/hive/sub-swarm-local-mind-panel";
@@ -24,10 +26,10 @@ import {
   V4IconAgents,
   V4IconPollen,
   V4IconSwarms,
-  V4PageCanvas,
   V4Stat,
 } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
+import { hivePageShellError } from "@/lib/hive-page-error";
 import { COCKPIT_POLL_BOARD_MS } from "@/lib/cockpit-poll-profile";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import type { SwarmsOverviewColony, SwarmsOverviewPayload, WaggleFeedItem } from "@/lib/hive-types";
@@ -145,72 +147,70 @@ export function SwarmsPageClient() {
     });
   }
 
-  if (err && !data) {
-    return (
-      <V4PageCanvas>
-        <V4Card>
-          <p className="text-sm text-(--qs-red)">{err}</p>
-        </V4Card>
-      </V4PageCanvas>
-    );
-  }
-
   const kpis = data?.kpis;
   const syncMin = Math.max(1, Math.round((data?.hive_sync_interval_sec ?? 300) / 60));
   const liveCount = kpis?.colonies_active ?? 0;
 
-  return (
-    <V4PageCanvas>
-      <HivePageHeader
+  if (!data) {
+    return (
+      <HivePageShell
         title="Swarms"
-        subtitle={`Colony control plane — decentralized sub-hives with local memory, global sync every ${syncMin} min.`}
-        status={
-          <span className="v4-status-pill inline-flex">
-            <span className="hive-pulse-dot" aria-hidden />
-            {liveCount} {liveCount === 1 ? "Colony" : "Colonies"} live
-          </span>
-        }
-        actions={
-          <>
-            <div className="page-actions-row flex w-full flex-wrap gap-2">
-              <button
-                type="button"
-                className="qs-btn qs-btn--ghost qs-btn--sm min-w-0 flex-1 gap-2"
-                disabled={busy === "sync-ack"}
-                onClick={() => void hiveSyncAckAll()}
-              >
-                <RefreshCw className={cn("h-4 w-4 shrink-0", busy === "sync-ack" && "animate-spin")} aria-hidden />
-                Hive sync ACK
-              </button>
-              <button
-                type="button"
-                className="qs-btn qs-btn--ghost qs-btn--sm min-w-0 flex-1 gap-2"
-                disabled={busy === "wake-all"}
-                onClick={() => void wakeAllBees()}
-              >
-                <Sparkles className="h-4 w-4 shrink-0" aria-hidden />
-                Wake all bees
-              </button>
-            </div>
-            <Link
-              href="/swarms/new"
-              className="qs-btn qs-btn--primary qs-btn--sm page-actions-primary w-full gap-2"
-            >
-              <Sparkles className="h-4 w-4 shrink-0" aria-hidden />
-              Swarm Builder
-            </Link>
-            <button
-              type="button"
-              className="qs-btn qs-btn--ghost qs-btn--sm w-full gap-2"
-              onClick={() => setCreateOpen(true)}
-            >
-              <Plus className="h-4 w-4 shrink-0" aria-hidden />
-              New colony
-            </button>
-          </>
-        }
-      />
+        subtitle="Colony control plane"
+        hintKey="swarms"
+        error={hivePageShellError(err, () => setErr(null))}
+      >
+        <HivePanelSectionSkeleton label="Loading swarms overview" minHeightClass="min-h-[20rem]" />
+      </HivePageShell>
+    );
+  }
 
+  return (
+    <HivePageShell
+      title="Swarms"
+      subtitle={`Colony control plane — decentralized sub-hives with local memory, global sync every ${syncMin} min.`}
+      hintKey="swarms"
+      error={hivePageShellError(err, () => setErr(null))}
+      status={
+        <span className="v4-status-pill inline-flex">
+          <span className="hive-pulse-dot" aria-hidden />
+          {liveCount} {liveCount === 1 ? "Colony" : "Colonies"} live
+        </span>
+      }
+      actions={
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className="qs-btn qs-btn--ghost qs-btn--sm gap-2"
+            disabled={busy === "sync-ack"}
+            onClick={() => void hiveSyncAckAll()}
+          >
+            <RefreshCw className={cn("h-4 w-4 shrink-0", busy === "sync-ack" && "animate-spin")} aria-hidden />
+            Hive sync ACK
+          </button>
+          <button
+            type="button"
+            className="qs-btn qs-btn--ghost qs-btn--sm gap-2"
+            disabled={busy === "wake-all"}
+            onClick={() => void wakeAllBees()}
+          >
+            <Sparkles className="h-4 w-4 shrink-0" aria-hidden />
+            Wake all bees
+          </button>
+          <button
+            type="button"
+            className="qs-btn qs-btn--ghost qs-btn--sm gap-2"
+            onClick={() => setCreateOpen(true)}
+          >
+            <Plus className="h-4 w-4 shrink-0" aria-hidden />
+            New colony
+          </button>
+          <Link href="/swarms/new" className="qs-btn qs-btn--primary qs-btn--sm gap-2">
+            <Sparkles className="h-4 w-4 shrink-0" aria-hidden />
+            Swarm Builder
+          </Link>
+        </div>
+      }
+    >
       <V4Card tight className="border-(--qs-cyan)/30 bg-(--qs-cyan)/[0.04]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
@@ -295,6 +295,7 @@ export function SwarmsPageClient() {
         <V4CardHeader
           title="Colonies"
           description="Each colony is a decentralized SubSwarm running LangGraph locally; Maynard-Cross pollen rewards apply."
+          hint={sectionHintNode("swarmsColonies")}
           actions={
             data?.colonies.length ? (
               <span className="v4-field-label tabular-nums">All colonies ({data.colonies.length})</span>
@@ -325,7 +326,7 @@ export function SwarmsPageClient() {
         )}
 
         {openColonyId ? (
-          <div className="mt-4 rounded-[var(--qs-radius-sm)] border border-(--qs-border) bg-white/[0.02] p-4">
+          <div className="mt-4 rounded-(--qs-radius-sm) border border-(--qs-border) bg-white/[0.02] p-4">
             {(() => {
               const colony = data?.colonies.find((c) => c.id === openColonyId);
               if (!colony) return null;
@@ -338,14 +339,14 @@ export function SwarmsPageClient() {
                         {colony.member_count} bees · {colony.lane_label} lane · queen {colony.queen_label}
                       </p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Link href={`/agents/new?swarm_id=${encodeURIComponent(colony.id)}`} className="qs-btn qs-btn--ghost qs-btn--sm">
-                        Assign bee
-                      </Link>
-                      <Link href="/agents" className="qs-btn qs-btn--ghost qs-btn--sm">
-                        View roster
-                      </Link>
-                    </div>
+                  <div className="v4-dream-cycle-card-actions">
+                    <Link href={`/agents/new?swarm_id=${encodeURIComponent(colony.id)}`} className="qs-btn qs-btn--ghost qs-btn--sm">
+                      Assign bee
+                    </Link>
+                    <Link href="/agents" className="qs-btn qs-btn--primary qs-btn--sm">
+                      View roster
+                    </Link>
+                  </div>
                   </div>
                   <SwarmHealthNotesPanel swarmId={colony.id} onChanged={() => void reload()} />
                   <SubSwarmLocalMindPanel swarmId={colony.id} onSynced={() => void reload()} />
@@ -361,6 +362,7 @@ export function SwarmsPageClient() {
           <V4CardHeader
             title="Waggle dance feed"
             description="Realtime cross-swarm signals — backed by hive tasks topic."
+            hint={sectionHintNode("swarmsWaggleFeed")}
             as="h3"
             actions={<V4Badge tone="purple">live</V4Badge>}
           />
@@ -437,6 +439,6 @@ export function SwarmsPageClient() {
           void reload();
         }}
       />
-    </V4PageCanvas>
+    </HivePageShell>
   );
 }

@@ -129,7 +129,7 @@ async def submit_marketplace_listing(
 
     if price_eur_cents not in ALLOWED_UGC_PRICE_TIERS_CENTS:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"price_eur_cents must be one of {list(ALLOWED_UGC_PRICE_TIERS_CENTS)}.",
         )
 
@@ -137,9 +137,9 @@ async def submit_marketplace_listing(
     if recipe is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recipe not found.")
     if recipe.verified_at is None:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Recipe must be verified.")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Recipe must be verified.")
     if recipe.is_deprecated:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Deprecated recipes cannot be listed.")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Deprecated recipes cannot be listed.")
 
     exec_result = await session.execute(
         select(SkillMarketplaceListing).where(
@@ -254,7 +254,7 @@ async def review_marketplace_listing(
         )
         return listing
 
-    raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="action must be approve or reject.")
+    raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="action must be approve or reject.")
 
 
 async def withdraw_marketplace_listing(

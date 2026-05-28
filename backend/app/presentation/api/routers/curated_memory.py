@@ -107,7 +107,7 @@ async def seed_brain_pack(
             overwrite=body.overwrite,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     await db.commit()
     return BrainPackSeedResponse(seeded_kinds=seeded, skipped_kinds=skipped)
 
@@ -153,7 +153,7 @@ async def upsert_curated_file(
     try:
         out = await service.upsert(tenant_id=tenant_id, kind=kind, content_md=body.content_md, user_id=user_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     await db.commit()
     return CuratedMemoryResponse(
         tenant_id=out.tenant_id,

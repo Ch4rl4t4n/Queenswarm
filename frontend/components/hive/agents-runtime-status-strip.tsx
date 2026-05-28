@@ -6,6 +6,7 @@ import { Loader2Icon, RefreshCw } from "lucide-react";
 import useSWR from "swr";
 
 import { V4Badge, V4Card, V4CardHeader, V4Stat, V4IconBolt } from "@/components/ui/v4";
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { hiveGet } from "@/lib/api";
 import { COCKPIT_POLL_BOARD_MS } from "@/lib/cockpit-poll-profile";
 import { useSwrVisiblePollOptions } from "@/lib/hooks/use-swr-refresh-interval";
@@ -27,6 +28,7 @@ export function AgentsRuntimeStatusStrip(): JSX.Element {
         kicker="Phase 6.0"
         title="Hybrid runtime"
         description="In-process sessions run under the API worker; durable sessions enqueue Celery sub-agent steps."
+        hint={sectionHintNode("agentsRuntime")}
       />
       {isLoading && !data ? (
         <div className="mt-4 flex items-center gap-2 text-sm text-(--qs-text-3)">

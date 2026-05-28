@@ -97,7 +97,7 @@ function SkillLatticeMarketCard({ skill }: { skill: HarnessSkillRow }): JSX.Elem
 
       <p className="font-mono text-[11px] text-(--qs-text-3)">{skill.slug}</p>
 
-      <div className="mt-auto flex flex-wrap gap-2">
+      <div className="v4-dream-cycle-card-actions">
         {skill.reference_mode ? <V4Badge tone="info">reference mode</V4Badge> : null}
         <V4Badge tone="purple">skill</V4Badge>
       </div>
@@ -149,13 +149,16 @@ function HarnessPatternMarketCard({ row }: { row: HarnessPatternRow }): JSX.Elem
         {row.forced_reflection ? <V4Badge tone="info">reflection</V4Badge> : null}
       </div>
 
-      <div className="mt-auto flex flex-wrap gap-1.5">
-        <Link href={sessionHref} className="qs-btn qs-btn--primary qs-btn--sm">
-          Open session
-        </Link>
-        <Link href={sessionHref} className="inline-flex items-center gap-1 text-xs text-pollen hover:underline">
+      <div className="v4-dream-cycle-card-actions">
+        <Link
+          href={sessionHref}
+          className="inline-flex items-center gap-1 text-xs text-pollen hover:underline"
+        >
           <ExternalLink className="h-3.5 w-3.5" aria-hidden />
           Supervisor lane
+        </Link>
+        <Link href={sessionHref} className="qs-btn qs-btn--primary qs-btn--sm">
+          Open session
         </Link>
       </div>
     </article>

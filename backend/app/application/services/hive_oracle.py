@@ -15,6 +15,13 @@ from app.core.config import settings
 
 logger = structlog.get_logger(__name__)
 
+STUDIO_PUBLISH_QUEUE_HREF = "/integrations?tab=studio&section=publish#publish-queue"
+STUDIO_TRADING_COCKPIT_HREF = "/integrations?tab=studio&section=publish#trading-cockpit"
+HARNES_OPERATOR_HUB_HREF = "/settings/harness#operator-hub"
+COCKPIT_OVERVIEW_HREF = "/cockpit#overview"
+COCKPIT_FLEET_HREF = "/cockpit#swarm-fleet"
+COCKPIT_INNOVATION_HREF = "/cockpit#innovation-lab"
+
 OracleSeverity = Literal["low", "medium", "high", "critical"]
 OracleHorizon = Literal["today", "week"]
 
@@ -91,7 +98,7 @@ def derive_heuristic_warnings(
                 id="trio_unbound",
                 severity="medium",
                 message=f"My 3 Bees {bound}/3 bound — morning cycle may skip lanes.",
-                fix_href="/settings/harness",
+                fix_href=HARNES_OPERATOR_HUB_HREF,
                 confidence_pct=90,
             ),
         )
@@ -103,7 +110,7 @@ def derive_heuristic_warnings(
                 id="immune_quarantine",
                 severity="high",
                 message=f"{len(quarantined)} routine(s) in immune quarantine — review before autopilot.",
-                fix_href="/cockpit#swarm-fleet",
+                fix_href=COCKPIT_FLEET_HREF,
                 confidence_pct=95,
             ),
         )
@@ -115,7 +122,7 @@ def derive_heuristic_warnings(
                 id="immune_watch",
                 severity="medium",
                 message=f"{len(watch)} routine(s) on immune watch — failure streak detected.",
-                fix_href="/cockpit#swarm-fleet",
+                fix_href=COCKPIT_FLEET_HREF,
                 confidence_pct=80,
             ),
         )
@@ -127,7 +134,7 @@ def derive_heuristic_warnings(
                     id="publish_backlog",
                     severity="high",
                     message=action.label,
-                    fix_href=action.href or "/integrations?tab=studio#publish-queue",
+                    fix_href=action.href or STUDIO_PUBLISH_QUEUE_HREF,
                     confidence_pct=92,
                 ),
             )
@@ -141,7 +148,7 @@ def derive_heuristic_warnings(
                 id="overnight_stalled",
                 severity="medium",
                 message=f"{stalled} overnight signal(s) stalled — Dump Sleep may need attention.",
-                fix_href="/knowledge",
+                fix_href=COCKPIT_OVERVIEW_HREF,
                 confidence_pct=78,
             ),
         )
@@ -154,7 +161,7 @@ def derive_heuristic_warnings(
                 id="publish_onboarding_gap",
                 severity="medium" if progress >= 60 else "high",
                 message=f"Publish onboarding {progress}% — live lane blocked until complete.",
-                fix_href="/settings/harness",
+                fix_href=HARNES_OPERATOR_HUB_HREF,
                 confidence_pct=88,
             ),
         )
@@ -167,7 +174,7 @@ def derive_heuristic_warnings(
                 id="trading_halted",
                 severity="high",
                 message="Paper trading halted — review risk limits before next session.",
-                fix_href="/integrations?tab=studio#trading-cockpit",
+                fix_href=STUDIO_TRADING_COCKPIT_HREF,
                 confidence_pct=94,
             ),
         )
@@ -178,7 +185,7 @@ def derive_heuristic_warnings(
                 id="innovation_pending",
                 severity="low" if innovation_pending == 1 else "medium",
                 message=f"{innovation_pending} Innovation Lab proposal(s) awaiting review.",
-                fix_href="/cockpit#innovation-lab",
+                fix_href=COCKPIT_INNOVATION_HREF,
                 confidence_pct=100,
             ),
         )
@@ -192,7 +199,7 @@ def derive_heuristic_warnings(
                 id="fleet_paused",
                 severity="medium",
                 message=f"{len(inactive_autopilot)} autopilot routines paused — swarm throughput reduced.",
-                fix_href="/cockpit#swarm-fleet",
+                fix_href=COCKPIT_FLEET_HREF,
                 confidence_pct=85,
             ),
         )

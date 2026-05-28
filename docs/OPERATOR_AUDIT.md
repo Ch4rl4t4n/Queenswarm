@@ -50,7 +50,6 @@ Route and feature inventory for **platform_mode** gating (`internal` operator hi
 | Route | Feature key | Internal | Commercial |
 |-------|-------------|----------|------------|
 | `/settings/security` | `settings` | KEEP | KEEP |
-| `/settings/billing` | `billing_settings` | HIDE | KEEP |
 | `/settings/team` | `team_rbac` | HIDE | KEEP |
 | `/settings/sharing` | `sharing_settings` | HIDE | KEEP |
 | `/settings/llm-keys` | `llm_keys_settings` | KEEP | KEEP |

@@ -27,6 +27,8 @@ Next.js 15 App Router · TypeScript strict · Tailwind v4 · shadcn/ui · Framer
 | Green | `#00FF88` | Verified |
 | Red | `#FF3366` | Blocked |
 
+**Form spacing:** label → control **6px** (`V4FormField` / `.v4-form-field`); field → field **16px** (`V4FormStack` / `.v4-form-stack`). Labels use `.v4-field-label` (uppercase 11px).
+
 Fonts: Space Grotesk (headings), JetBrains Mono (data/code). Hexagonal cards, glow proportional to value.
 
 ## Responsive shell (critical)
@@ -64,6 +66,17 @@ cd frontend && npm run test
 ```
 
 Playwright E2E for user-visible flows.
+
+## Section headers (mandatory)
+
+Every page, card, and tool block: **Title → Description → inline `(i)` hint → content**.
+
+- Page: `HivePageHeader` + `hivePageHintProps()`
+- Card: `V4CardHeader` + `hint={sectionHintNode("key")}`
+- Nested: `HiveSubsectionHeader` + `hintKey`
+- Registry: `lib/section-hints.ts` — add before shipping new UI
+
+See `.cursor/rules/queenswarm-section-headers.mdc` for full rules.
 
 ## Platform features
 

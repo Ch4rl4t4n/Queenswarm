@@ -222,7 +222,6 @@ export function QueenDashboardChrome({
 
   const showSwarmSignals = showWaggle || showWorkflows;
   const showInsights = showPerformanceTier || showRecentTasks;
-  const showLearningInsights = showRapidLoop || showDreamingSummary || showPatternExplorer;
 
   return (
     <V4PageCanvas className={dashboardPageDensityClass(density)}>

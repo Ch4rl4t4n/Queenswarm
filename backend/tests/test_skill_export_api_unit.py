@@ -11,9 +11,8 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.core.config import settings
-from app.core.jwt_tokens import create_access_token
 from app.main import app
-from app.presentation.api.deps import get_db, require_dashboard_user_with_tenant_role, require_subject
+from app.presentation.api.deps import get_db, require_dashboard_session, require_dashboard_user_with_tenant_role
 from app.infrastructure.persistence.models.recipe import Recipe
 
 
@@ -55,7 +54,7 @@ async def test_export_skill_when_recipe_missing_returns_404(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     del tenant_auth_fixture
-    app.dependency_overrides[require_subject] = lambda: "pytest"
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:pytest"}
     monkeypatch.setattr(settings, "recipes_enabled", True)
 
     async def mock_db() -> AsyncIterator[AsyncMock]:
@@ -64,15 +63,12 @@ async def test_export_skill_when_recipe_missing_returns_404(
         yield session
 
     app.dependency_overrides[get_db] = mock_db
-    token, _ = create_access_token(subject="pytest")
-    headers = {"Authorization": f"Bearer {token}"}
     missing = uuid.uuid4()
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             f"/api/v1/recipes/{missing}/export-skill",
-            headers=headers,
         )
 
     assert response.status_code == 404
@@ -85,7 +81,7 @@ async def test_export_skill_when_recipe_present_returns_bundle(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     del tenant_auth_fixture
-    app.dependency_overrides[require_subject] = lambda: "pytest"
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:pytest"}
     monkeypatch.setattr(settings, "recipes_enabled", True)
 
     rid = uuid.uuid4()
@@ -111,14 +107,11 @@ async def test_export_skill_when_recipe_present_returns_bundle(
         yield session
 
     app.dependency_overrides[get_db] = mock_db
-    token, _ = create_access_token(subject="pytest")
-    headers = {"Authorization": f"Bearer {token}"}
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             f"/api/v1/recipes/{rid}/export-skill",
-            headers=headers,
         )
 
     assert response.status_code == 200
@@ -135,7 +128,7 @@ async def test_skills_catalog_returns_builtin_and_recipes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     del tenant_auth_fixture
-    app.dependency_overrides[require_subject] = lambda: "pytest"
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:pytest"}
     monkeypatch.setattr(settings, "recipes_enabled", True)
 
     async def mock_db() -> AsyncIterator[AsyncMock]:
@@ -146,12 +139,10 @@ async def test_skills_catalog_returns_builtin_and_recipes(
         yield session
 
     app.dependency_overrides[get_db] = mock_db
-    token, _ = create_access_token(subject="pytest")
-    headers = {"Authorization": f"Bearer {token}"}
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.get("/api/v1/recipes/skills-catalog", headers=headers)
+        response = await client.get("/api/v1/recipes/skills-catalog")
 
     assert response.status_code == 200
     body = response.json()

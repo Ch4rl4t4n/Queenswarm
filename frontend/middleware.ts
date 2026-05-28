@@ -5,15 +5,22 @@ import { QS_ACCESS, QS_REFRESH } from "@/lib/auth-cookies";
 import { isLikelyValidDashboardAccessToken } from "@/lib/dashboard-access-jwt";
 
 function controlPlaneHome(): string {
+  const singleAdmin = process.env.NEXT_PUBLIC_SINGLE_ADMIN_MODE;
+  if (singleAdmin !== undefined) {
+    const normSingleAdmin = singleAdmin.trim().toLowerCase();
+    if (["1", "true", "yes", "on"].includes(normSingleAdmin)) {
+      return "/agentic-os";
+    }
+  }
   const raw = process.env.NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED;
   if (raw === undefined) {
-    return "/cockpit";
+    return "/agentic-os";
   }
   const norm = raw.trim().toLowerCase();
   if (["0", "false", "no", "off"].includes(norm)) {
     return "/dashboard";
   }
-  return "/cockpit";
+  return "/agentic-os";
 }
 
 /** Paths that bypass auth gates; gated routes rely on HttpOnly ``qs_dashboard_at`` cookie (see ``attachDashboardTokenCookies``). */
@@ -68,6 +75,13 @@ export function middleware(request: NextRequest) {
     (pathname.startsWith("/login") || pathname.startsWith("/verify-2fa"))
   ) {
     return NextResponse.redirect(new URL(controlPlaneHome(), request.url));
+  }
+
+  if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) {
+    const home = controlPlaneHome();
+    if (home === "/agentic-os") {
+      return NextResponse.redirect(new URL("/agentic-os", request.url));
+    }
   }
 
   if (pathname.startsWith("/api/auth")) {

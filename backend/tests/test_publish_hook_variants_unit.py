@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.application.services.publish_hook_variants import generate_publish_hook_variants
+from app.application.services.publish_hook_variants import generate_publish_hook_variants, score_publish_hook_variant
 
 
 def test_generate_publish_hook_variants_from_title() -> None:
@@ -25,6 +25,7 @@ def test_generate_publish_hook_variants_tiktok_pov() -> None:
     )
     styles = {v["style"] for v in variants}
     assert "pov" in styles
+    assert all("score" in v and "confidence" in v for v in variants)
 
 
 def test_generate_publish_hook_variants_deduplicates() -> None:
@@ -35,3 +36,19 @@ def test_generate_publish_hook_variants_deduplicates() -> None:
         max_variants=8,
     )
     assert len(variants) <= 8
+    if len(variants) >= 2:
+        assert variants[0]["score"] >= variants[1]["score"]
+
+
+def test_score_publish_hook_variant_thread_weight_for_twitter() -> None:
+    thread_score, _ = score_publish_hook_variant(
+        channel="twitter",
+        style="thread",
+        hook="🧵 Quick thread on what changed",
+    )
+    curiosity_score, _ = score_publish_hook_variant(
+        channel="twitter",
+        style="curiosity",
+        hook="Most teams miss this pattern",
+    )
+    assert thread_score >= curiosity_score

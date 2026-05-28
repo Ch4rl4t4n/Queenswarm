@@ -12,6 +12,10 @@ interface CollapsibleLazyPanelProps {
   readonly hint?: string;
   readonly meta?: string;
   readonly hashKey?: string;
+  /** When true, panel stays open with a static header (no collapse toggle). */
+  readonly expanded?: boolean;
+  /** Initial open state when collapsible (ignored when `expanded` is true). */
+  readonly defaultOpen?: boolean;
   /** `card` = standalone V4Card; `embedded` = compact row inside a parent card. */
   readonly variant?: "card" | "embedded";
   readonly className?: string;
@@ -36,11 +40,18 @@ export function CollapsibleLazyPanel({
   onOpenChange,
   children,
   lazyContent,
+  expanded = false,
+  defaultOpen = false,
 }: CollapsibleLazyPanelProps): JSX.Element {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(expanded || defaultOpen);
   const panelId = id ? `${id}-panel` : undefined;
 
   useEffect(() => {
+    if (expanded) {
+      setOpen(true);
+      onOpenChange?.(true);
+      return;
+    }
     if (!hashKey) {
       return;
     }
@@ -53,9 +64,12 @@ export function CollapsibleLazyPanel({
     syncFromHash();
     window.addEventListener("hashchange", syncFromHash);
     return () => window.removeEventListener("hashchange", syncFromHash);
-  }, [hashKey, onOpenChange]);
+  }, [expanded, hashKey, onOpenChange]);
 
   function toggle(): void {
+    if (expanded) {
+      return;
+    }
     setOpen((value) => {
       const next = !value;
       onOpenChange?.(next);
@@ -63,7 +77,17 @@ export function CollapsibleLazyPanel({
     });
   }
 
-  const trigger = (
+  const trigger = expanded ? (
+    <div className={cn("flex w-full min-w-0 items-center justify-between gap-3", variant === "card" ? "py-2.5" : "px-1 py-2.5")}>
+      <span className="flex min-w-0 items-center gap-3">
+        <span className="truncate text-sm font-semibold text-(--qs-text-1)">{title}</span>
+        {hint ? (
+          <span className="hidden truncate text-xs text-(--qs-text-3) sm:inline">{hint}</span>
+        ) : null}
+      </span>
+      {meta ? <span className="shrink-0 text-xs tabular-nums text-(--qs-text-3)">{meta}</span> : null}
+    </div>
+  ) : (
     <button
       type="button"
       className={cn(
@@ -92,7 +116,7 @@ export function CollapsibleLazyPanel({
     </button>
   );
 
-  const resolvedBody = open ? (lazyContent ? lazyContent() : children) : null;
+  const resolvedBody = open || expanded ? (lazyContent ? lazyContent() : children) : null;
 
   const body =
     resolvedBody != null && panelId ? (

@@ -129,8 +129,8 @@ export interface BillingUsageSnapshot {
   tenant_id: string;
   tier: string;
   status: string;
-  stripe_customer_id: string | null;
-  stripe_subscription_id: string | null;
+  billing_customer_id: string | null;
+  billing_subscription_id: string | null;
   usage: Record<string, number>;
   limits: Record<string, number>;
   usage_health: Record<
@@ -163,17 +163,6 @@ export interface BillingPlansPayload {
   enterprise_checkout_ready?: boolean;
   enterprise_price_eur_cents?: number;
   message: string;
-}
-
-export interface StripeConfigStatus {
-  checkout_ready: boolean;
-  webhook_ready: boolean;
-  secret_key_masked: string | null;
-  webhook_secret_masked: string | null;
-  secret_key_source: string;
-  webhook_secret_source: string;
-  webhook_url: string;
-  env_fallback_active: boolean;
 }
 
 export interface PublicShareRow {
@@ -692,28 +681,9 @@ export interface LeadMagnetSharePackResponse extends LeadMagnetLandingResponse {
 }
 
 export interface SkillUnlockStatusResponse {
-  stripe_checkout_ready: boolean;
+  checkout_available: boolean;
   unlocked_recipe_ids: string[];
   premium_price_eur_cents_default: number;
-}
-
-export interface SkillCheckoutResponse {
-  status: string;
-  recipe_id: string;
-  slug: string;
-  purchase_id?: string | null;
-  checkout_url?: string | null;
-  amount_eur_cents?: string | null;
-  message?: string | null;
-}
-
-export interface SkillConfirmCheckoutResponse {
-  status: string;
-  checkout_session_id?: string | null;
-  recipe_id?: string | null;
-  purchase_id?: string | null;
-  payment_status?: string | null;
-  message?: string | null;
 }
 
 export interface VerifiedPollenLeaderboardRow {

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Final
 
-# Multi-tenant B2B platform only — NOT operator monetization (Stripe, marketplace, UGC stay on).
+# Multi-tenant B2B platform only — NOT operator monetization (checkout, marketplace, UGC stay on).
 SOLO_HIDDEN_FEATURES: Final[frozenset[str]] = frozenset(
     {
         "team_rbac",

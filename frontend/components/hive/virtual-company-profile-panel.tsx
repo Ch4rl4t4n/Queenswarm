@@ -193,10 +193,7 @@ export function VirtualCompanyProfilePanel({ onProfileChange }: VirtualCompanyPr
         </div>
       ) : null}
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button type="button" className="qs-btn qs-btn--primary qs-btn--sm" disabled={busy} onClick={() => void save()}>
-          {busy ? "Saving…" : "Save profile"}
-        </button>
+      <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
         <button
           type="button"
           className="qs-btn qs-btn--ghost qs-btn--sm"
@@ -211,6 +208,9 @@ export function VirtualCompanyProfilePanel({ onProfileChange }: VirtualCompanyPr
         <Link href="/settings/costs" className="qs-btn qs-btn--ghost qs-btn--sm">
           LLM routing
         </Link>
+        <button type="button" className="qs-btn qs-btn--primary qs-btn--sm" disabled={busy} onClick={() => void save()}>
+          {busy ? "Saving…" : "Save profile"}
+        </button>
       </div>
     </V4Card>
   );

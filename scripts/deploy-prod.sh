@@ -5,11 +5,13 @@
 # Env:
 #   ENV_FILE — default .env.prod
 #   AUTO_BOOTSTRAP_ENV=1 — when ENV_FILE is missing, create it from .env.prod.example
-#                          and overlay shared secrets from .env (default: 1)
-#   POST_DEPLOY_HEALTH=1 — run scripts/health-check.sh after compose
+#                          and overlay shared secrets from .env (default: 0)
+#   POST_DEPLOY_HEALTH=1 — run scripts/health-check.sh after compose (default: 1)
 #   POST_DEPLOY_SMOKE=1 — run scripts/smoke-edge.sh
 #   REQUIRE_VOICE_READY=1 — fail deploy when backend server-side voice prerequisites are missing
 #                           (VOICE_ENABLED + Grok/Deepgram/OpenAI for STT; Grok/OpenAI/ElevenLabs for TTS). Default: 1
+#   REQUIRE_SINGLE_ADMIN_SNAPSHOT=1 — when SINGLE_ADMIN_MODE=true, require fresh pre-cutover snapshot marker.
+#   SINGLE_ADMIN_SNAPSHOT_MAX_AGE_HOURS=24 — max snapshot marker age allowed before deploy aborts.
 #   SMOKE_INSECURE_TLS=1 — forwarded to smoke-edge when POST_DEPLOY_SMOKE=1 (temporary cert mismatch only)
 #   DEPLOY_HA_PROFILE=1 — include docker compose profile "ha" (redis-replica)
 set -euo pipefail
@@ -18,22 +20,34 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 ENV_FILE="${ENV_FILE:-.env.prod}"
-AUTO_BOOTSTRAP_ENV="${AUTO_BOOTSTRAP_ENV:-1}"
-POST_DEPLOY_HEALTH="${POST_DEPLOY_HEALTH:-0}"
+AUTO_BOOTSTRAP_ENV="${AUTO_BOOTSTRAP_ENV:-0}"
+POST_DEPLOY_HEALTH="${POST_DEPLOY_HEALTH:-1}"
 POST_DEPLOY_SMOKE="${POST_DEPLOY_SMOKE:-0}"
 REQUIRE_VOICE_READY="${REQUIRE_VOICE_READY:-1}"
 DEPLOY_HA_PROFILE="${DEPLOY_HA_PROFILE:-0}"
+REQUIRE_SINGLE_ADMIN_SNAPSHOT="${REQUIRE_SINGLE_ADMIN_SNAPSHOT:-1}"
+SINGLE_ADMIN_SNAPSHOT_MAX_AGE_HOURS="${SINGLE_ADMIN_SNAPSHOT_MAX_AGE_HOURS:-24}"
+SINGLE_ADMIN_REQUIRED="${SINGLE_ADMIN_REQUIRED:-1}"
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   echo "Usage: ENV_FILE=.env.prod $0"
-  echo "  AUTO_BOOTSTRAP_ENV=1 — create missing .env.prod from .env.prod.example + shared keys from .env"
+  echo "  AUTO_BOOTSTRAP_ENV=1 — create missing .env.prod from .env.prod.example + shared keys from .env (default: 0)"
   echo "  POST_DEPLOY_HEALTH=1 — run ./scripts/health-check.sh after up"
   echo "  POST_DEPLOY_SMOKE=1 — ./scripts/smoke-edge.sh (optional SMOKE_INSECURE_TLS=1)"
   echo "  REQUIRE_VOICE_READY=1 — fail deploy when backend voice prerequisites are missing (default: 1)"
+  echo "  REQUIRE_SINGLE_ADMIN_SNAPSHOT=1 — require fresh single-admin cutover snapshot when SINGLE_ADMIN_MODE=true"
+  echo "  SINGLE_ADMIN_REQUIRED=1 — fail deploy when SINGLE_ADMIN_MODE is not enabled (default: 1)"
   echo "  DEPLOY_HA_PROFILE=1 — include --profile ha (redis replica for failover drills)"
   echo "Before first prod cutover: backup Postgres + named volumes; verify Let’s Encrypt paths in deploy/nginx/queenswarm.love.conf."
   exit 0
 fi
+
+is_truthy() {
+  local raw="${1:-}"
+  local norm
+  norm="$(printf '%s' "$raw" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+  [[ "$norm" == "1" || "$norm" == "true" || "$norm" == "yes" || "$norm" == "on" ]]
+}
 
 load_kv() {
   local file="$1" key="$2"
@@ -103,8 +117,29 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
+single_admin_mode="$(load_kv "$ENV_FILE" SINGLE_ADMIN_MODE || true)"
+if [[ "$SINGLE_ADMIN_REQUIRED" == "1" ]] && ! is_truthy "$single_admin_mode"; then
+  echo "SINGLE_ADMIN_REQUIRED=1 but SINGLE_ADMIN_MODE is not enabled in ${ENV_FILE}." >&2
+  echo "Set SINGLE_ADMIN_MODE=true (and SOLO_MODE_ENABLED=true) for canonical deploy path." >&2
+  exit 1
+fi
+if is_truthy "$single_admin_mode" && [[ "$REQUIRE_SINGLE_ADMIN_SNAPSHOT" == "1" ]]; then
+  snapshot_marker="${SINGLE_ADMIN_SNAPSHOT_MARKER:-${ROOT}/backups/single-admin-cutover/latest/.single-admin-snapshot.ok}"
+  if [[ ! -f "$snapshot_marker" ]]; then
+    echo "Missing single-admin cutover snapshot marker: ${snapshot_marker}" >&2
+    echo "Run ./scripts/snapshot-single-admin-cutover.sh before deploy." >&2
+    exit 1
+  fi
+  marker_age_minutes="$(find "$snapshot_marker" -mmin "+$((SINGLE_ADMIN_SNAPSHOT_MAX_AGE_HOURS * 60))" -print -quit | wc -l | tr -d ' ')"
+  if [[ "$marker_age_minutes" != "0" ]]; then
+    echo "Single-admin snapshot marker is older than ${SINGLE_ADMIN_SNAPSHOT_MAX_AGE_HOURS}h: ${snapshot_marker}" >&2
+    echo "Run ./scripts/snapshot-single-admin-cutover.sh again before deploy." >&2
+    exit 1
+  fi
+fi
+
 chmod +x "${ROOT}/scripts/validate-prod-env.sh"
-ENV_FILE="$ENV_FILE" "${ROOT}/scripts/validate-prod-env.sh"
+ENV_FILE="$ENV_FILE" SINGLE_ADMIN_REQUIRED="$SINGLE_ADMIN_REQUIRED" "${ROOT}/scripts/validate-prod-env.sh"
 
 RUN_CI_PREFLIGHT="${RUN_CI_PREFLIGHT:-1}"
 if [[ "${RUN_CI_PREFLIGHT}" == "1" ]]; then
@@ -119,6 +154,11 @@ cp_frontend="$(load_kv "$ENV_FILE" NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED ||
 if [[ -z "${cp_frontend}" && -n "${cp_backend}" ]]; then
   set_or_append_kv "$ENV_FILE" "NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED" "$cp_backend"
   echo "Synced NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED=${cp_backend} from backend flag."
+fi
+single_admin_frontend="$(load_kv "$ENV_FILE" NEXT_PUBLIC_SINGLE_ADMIN_MODE || true)"
+if [[ -z "${single_admin_frontend}" && -n "${single_admin_mode}" ]]; then
+  set_or_append_kv "$ENV_FILE" "NEXT_PUBLIC_SINGLE_ADMIN_MODE" "$single_admin_mode"
+  echo "Synced NEXT_PUBLIC_SINGLE_ADMIN_MODE=${single_admin_mode} from SINGLE_ADMIN_MODE."
 fi
 
 echo "Reminder: snapshot Postgres and named volumes (neo4j_data, postgres_data, prometheus_data, grafana_data) before major upgrades."

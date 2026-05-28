@@ -27,7 +27,7 @@ export function HiveOperatorNotificationCenter({ summary, className }: HiveOpera
     <div className={cn("hidden lg:block", className)}>
       <details className="group rounded-xl border border-[color:var(--qs-border)]/60 bg-black/30" open={open}>
         <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
-          <span className="flex min-w-0 items-center gap-2 text-xs font-semibold text-[var(--qs-text)]">
+          <span className="flex min-w-0 items-center gap-2 text-xs font-semibold text-(--qs-text)">
             <Bell className="h-4 w-4 shrink-0 text-pollen" aria-hidden />
             {localizePhrase(language, { en: "Notifications", sk: "Notifikácie" })}
           </span>
@@ -36,7 +36,7 @@ export function HiveOperatorNotificationCenter({ summary, className }: HiveOpera
               {badge}
             </span>
           ) : (
-            <span className="text-[10px] text-[var(--qs-text-4)]">
+            <span className="text-[10px] text-(--qs-text-4)">
               {localizePhrase(language, { en: "All clear", sk: "Všetko OK" })}
             </span>
           )}
@@ -85,7 +85,7 @@ export function HiveOperatorNotificationCenter({ summary, className }: HiveOpera
             </>
           ) : null}
           {snapshot.total === 0 ? (
-            <p className="text-[10px] text-[var(--qs-text-4)]">
+            <p className="text-[10px] text-(--qs-text-4)">
               {localizePhrase(language, {
                 en: "No pending operator actions.",
                 sk: "Žiadne čakajúce akcie operátora.",
@@ -103,8 +103,8 @@ function NotificationRow({ href, label, compact = false }: { href: string; label
     <Link
       href={href}
       className={cn(
-        "flex items-center justify-between gap-2 rounded-lg border border-[color:var(--qs-border)]/30 bg-black/20 px-2.5 py-2 text-[var(--qs-text-2)] hover:border-pollen/30 hover:text-pollen",
-        compact ? "ml-1 text-[10px] text-[var(--qs-text-3)]" : "text-[11px]",
+        "flex items-center justify-between gap-2 rounded-lg border border-[color:var(--qs-border)]/30 bg-black/20 px-2.5 py-2 text-(--qs-text-2) hover:border-pollen/30 hover:text-pollen",
+        compact ? "ml-1 text-[10px] text-(--qs-text-3)" : "text-[11px]",
       )}
     >
       <span className="truncate">{label}</span>

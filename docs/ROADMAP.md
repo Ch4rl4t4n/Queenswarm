@@ -1,12 +1,15 @@
 # Queenswarm Roadmap & Backlog
 
-Updated: 2026-05-26
+Updated: 2026-05-27
 
 Living backlog for **queenswarm.love** — ordered by impact. Status reflects production host as of last deploy.
+
+**Whole-App UI Reorder (active):** see [`docs/WHOLE_APP_UI_REORDER.md`](WHOLE_APP_UI_REORDER.md) — Phase 1 Global IA in progress.
 
 **Mission backlog (May 2026):** see `docs/MISSION_EXECUTION_BACKLOG.md` — **Phase 0–2 + perf dev complete**; operator gates remain.  
 **Parallel agents:** see `docs/PHASE0_AGENT_SPLIT.md`. Tomorrow operator checklist: `docs/TOMORROW_OPERATOR_RUNBOOK.md`.  
 **Latest synthesis (YouTube + X + Atlas):** [`docs/CAPABILITIES_SYNTHESIS_MAY2026.md`](CAPABILITIES_SYNTHESIS_MAY2026.md)
+**Agentic OS split blueprint:** [`docs/AGENTIC_OS_APPS_BLUEPRINT.md`](AGENTIC_OS_APPS_BLUEPRINT.md)
 
 ## Feature Implementation Guardrails (mandatory)
 
@@ -19,6 +22,88 @@ Living backlog for **queenswarm.love** — ordered by impact. Status reflects pr
 5. Gate script + tests before prod deploy  
 
 Perf playbook: [`docs/PERFORMANCE_COCKPIT.md`](PERFORMANCE_COCKPIT.md). Execution Studio panel split is the reference pattern.
+
+## In progress — Agentic OS / Apps split (safe migration)
+
+Objective: cleanly split platform into `Agentic OS / Swarm Core` and `Apps & Tools` workspaces without breaking existing flows.
+
+| Step | Scope | Status |
+|---|---|---|
+| A1 | IA aliases (`/agentic-os`, `/apps-tools`) | ✅ |
+| A2 | Primary nav split (`Agentic OS`, `Apps & Tools`, `Integrations`) | ✅ |
+| A3 | Route/nav regression tests + typecheck | ✅ |
+| B1 | Capability registry schema (backend) | ✅ |
+| B2 | Capability registry read API | ✅ |
+| C1 | Module extraction order + ownership map | ✅ |
+| C2 | Module route stubs + card index (compose-only) | ✅ |
+| C3 | Marketing workspace extraction (publish panels) | ✅ |
+| C4 | Trading workspace extraction (cockpit + hybrid + live lane) | ✅ |
+| C5 | Browser automation workspace extraction | ✅ |
+| C6 | Research workspace extraction | ✅ |
+| C7 | Content factory workspace extraction | ✅ |
+| C8 | Apps & Tools deep-link regression + route guard pass | ✅ |
+| D1 | Module policy packs (approval + cooldown + spend/time limits) | ✅ |
+| D2 | Policy pack indicators in module cards + detail drawer | ✅ |
+| D3 | Capability + policy consolidated module detail view | ✅ |
+| D4 | Cross-module dependencies graph strip + jump actions | ✅ |
+| D5 | Module-level UX polish pass (copy density + mobile scanability) | ✅ |
+| D6 | Accessibility pass for module detail overlays | ✅ |
+| D7 | Apps & Tools performance pass (data fetching consolidation) | ✅ |
+| D8 | Apps & Tools QA pass (overlay keyboard + reduced-motion E2E) | ✅ |
+| E1 | Module analytics hooks for usage + conversion funnels | ✅ |
+| E2 | Apps & Tools funnel snapshot API + index widget | ✅ |
+| E3 | Funnel time-window filters + card→details conversion delta | ✅ |
+| E4 | Top movers trend ranking + read-only next action hint | ✅ |
+| E5 | Analytics E2E smoke + optional module label enrichment | ✅ |
+| E6 | Persisted analytics preferences + compact mobile mode | ✅ |
+| E7 | Analytics preferences API smoke test + copy polish | ✅ |
+| E8 | Auth-smoke for analytics preferences + keyboard compact toggle smoke | ✅ |
+| E9 | Invalid-window payload smoke + tablet compact density regression | ✅ |
+| E10 | Persisted-window GET smoke + i18n-ready analytics copy map | ✅ |
+| E11 | Copy-map fallback unit tests + Slovak copy scaffold | ✅ |
+| E12 | Partial patch semantics smoke + compact reload persistence smoke | ✅ |
+| E13 | Strict compact_mode type smoke + window reload persistence smoke | ✅ |
+| E14 | Malformed window type smoke + dual-preference reload restore smoke | ✅ |
+| E15 | Non-object payload smoke + active window chip reload assertion | ✅ |
+| E16 | 422 detail-shape smoke + persisted all-window chip reload smoke | ✅ |
+| E17 | `window:null` semantics smoke + 24h-chip reload reactivation smoke | ✅ |
+| E18 | Numeric `compact_mode` detail-shape smoke + `all+compact` dual-reload restore | ✅ |
+| E19 | Float `compact_mode` detail-shape smoke + `all→7d→all` reload chip restore | ✅ |
+| E20 | Empty-string `window` detail-shape smoke + keyboard `7d` reload persistence | ✅ |
+| E21 | Whitespace `window` detail-shape smoke + keyboard `24h` reload persistence | ✅ |
+| E22 | Numeric `window` detail-shape smoke + keyboard `all` reload persistence | ✅ |
+| E23 | Boolean `window` detail-shape smoke + keyboard `all` re-activation persistence | ✅ |
+| E24 | Decimal `window` detail-shape smoke + keyboard `7d` re-activation persistence | ✅ |
+| E25 | Scientific-notation `window` detail-shape smoke + keyboard `24h` re-activation persistence | ✅ |
+| E26 | Negative numeric `window` detail-shape smoke + preselected `all` keyboard re-activation persistence | ✅ |
+| E27 | String-numeric `window` detail-shape smoke + preselected `7d` keyboard re-activation persistence | ✅ |
+| E28 | Uppercase-string `window` detail-shape smoke + preselected `24h` keyboard re-activation persistence | ✅ |
+| E29 | Mixed-case `window` detail-shape smoke + preselected `all` keyboard re-activation persistence | ✅ |
+| E30 | Paramized analytics validation matrix + helper-driven keyboard persistence matrix | ✅ |
+| E31 | Unavailable module card affordance + inline feedback smoke | ✅ |
+| E32 | Keyboard-visible unavailable/degraded hint parity + tab-order smoke | ✅ |
+| E33 | Read-only hint disclosure telemetry + keyboard disclosure smoke | ✅ |
+| E34 | UX hint interactions counter strip + non-regression smoke | ✅ |
+| E35 | Hint trend cue by window + compact-toggle non-regression smoke | ✅ |
+| E36 | MCP Ops + omni-publish capability contract drafts (registry/policy/module map) | ✅ |
+| E37 | MCP Ops route stubs/anchors + API smoke for policy detail and index contracts | ✅ |
+| E38 | MCP Ops UI cards with loading/empty/error states + keyboard action smoke | ✅ |
+| E39 | MCP Ops read-only backend snapshot hydration + API/E2E fallback smoke | ✅ |
+| E40 | MCP Ops freshness strip + retry telemetry + transient-5xx recovery smoke | ✅ |
+| E41 | MCP snapshot severity chip + analytics retry rollup + compact/readability smoke | ✅ |
+| E42 | Shared freshness thresholds + relative-time helper + 24h retry-spike recommendation | ✅ |
+| E43 | MCP retry anomaly badge + retry trend mini-strip + malformed-counter sanitization smoke | ✅ |
+| E44 | Retry sparkline bars + details action hint + API sanitization smoke for malformed counters | ✅ |
+| E45 | Retry anomaly acknowledge guard + ack telemetry + keyboard/reload persistence smoke | ✅ |
+| E46 | Clear acknowledgment control + acked-relative metadata + ack counter/order sanitization smoke | ✅ |
+| E47 | Ack scope toggle (window/global) + anomaly resurfaced telemetry + keyboard resurfacing smoke | ✅ |
+| E48 | Module-card quick ack reset + ack/resurfaced split strip + compact keyboard tab-order smoke | ✅ |
+| E49 | Scope chip persist + module-card ack-reset telemetry + malformed reset-counter sanitization smoke | ✅ |
+| E50 | MCP lifecycle density badge + recommendation telemetry context + compact keyboard transition smoke | ✅ |
+| E51 | Lifecycle-aware recommendation CTA + engagement telemetry + cross-window keyboard smoke | ✅ |
+| E52 | Lifecycle CTA cooldown hint + recommendation engagement strip + keyboard compact reload persistence smoke | ✅ |
+| E53 | Recommendation cooldown guard + cooldown-block telemetry + keyboard recovery smoke | ✅ |
+| E54 | Cooldown override affordance + override telemetry strip + keyboard confirm smoke | ✅ |
 
 ## Done recently
 
@@ -113,8 +198,6 @@ Business plays aligned with indie-hacker signals (Polymarket bot, faceless YouTu
 **Revenue model fit:** performance transparency + content + marketplace cut — not PayPal execution.
 
 ## P0 — Operator blockers
-
-> **Stripe / billing:** out of scope for solo operator deployment — code remains behind feature flags; no go-live planned. See `docs/SOLO_OPERATOR_MODE.md`.
 
 | # | Item | Owner | Notes |
 |---|------|-------|-------|
@@ -271,5 +354,5 @@ PLAYWRIGHT_BASE_URL=https://queenswarm.love ./scripts/prod-walkthrough-gate.sh
 - `docs/AUTHENTICATED_PROD_WALKTHROUGH.md` — operator session → playbook QA
 - `docs/ROUNDTABLESPACE_MAY2026_INSIGHTS.md` — market validation + Fáza 4 plan
 - `docs/HARNESS_SELF_MAINTAINING_ANALYSIS.md` — harness videos + Queen Maintainer
-- `docs/TOMORROW_OPERATOR_RUNBOOK.md` — audit + operator morning checklist (Stripe section optional / out of scope)
+- `docs/TOMORROW_OPERATOR_RUNBOOK.md` — audit + operator morning checklist
 - `docs/CAPABILITIES_SYNTHESIS_MAY2026.md` — YouTube + X + Atlas gap analysis (May 2026)

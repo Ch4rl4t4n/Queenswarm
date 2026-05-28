@@ -8,6 +8,7 @@ import { AgentListRow } from "@/components/hive/agents-list-row";
 import { AgentsVirtualList } from "@/components/hive/agents-virtual-list";
 import { HexAgentCard } from "@/components/hive/hex-agent-card";
 import { V4Card, V4CardHeader, V4Chip } from "@/components/ui/v4";
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { laneTabLabel, shouldVirtualizeAgentList, workerSwarmPillBucket } from "@/lib/agents-list-presenters";
 import type { AgentsSwarmFilter } from "@/lib/agent-hive-lane";
 import { isQueenAgent } from "@/lib/agent-hive-lane";
@@ -37,7 +38,7 @@ interface AgentsLiveSectionProps {
   /** Primary CTA for spawning — dashboard defaults to cockpit anchor. */
   spawnAgentHref?: string;
   title?: string;
-  description?: React.ReactNode;
+  description?: ReactNode;
   /** Full roster pages — windowed list instead of cap + "Show more". */
   virtualizeList?: boolean;
 }
@@ -52,7 +53,7 @@ export function AgentsLiveSection({
   description,
   virtualizeList = false,
 }: AgentsLiveSectionProps) {
-  const agents = Array.isArray(rawAgents) ? rawAgents : [];
+  const agents = useMemo(() => (Array.isArray(rawAgents) ? rawAgents : []), [rawAgents]);
   const [swarmFilter, setSwarmFilter] = useState<AgentsSwarmFilter>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [listExpanded, setListExpanded] = useState(false);
@@ -152,6 +153,7 @@ export function AgentsLiveSection({
             </>
           )
         }
+        hint={sectionHintNode("agentsRoster")}
         actions={
           <div className="flex w-full items-center justify-between gap-3">
             <Link href={spawnHref} className="qs-btn qs-btn--ghost qs-btn--sm shrink-0 gap-2">

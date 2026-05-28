@@ -148,6 +148,13 @@ class Settings(BaseSettings):
         default=str(_DEFAULT_PLUGIN_USER_DIR),
         description="Writable directory scanned for optional operator ``.py`` plugins.",
     )
+    allow_user_plugin_uploads: bool = Field(
+        default=False,
+        description=(
+            "Allow runtime upload of user Python plugins via /api/v1/plugins/upload. "
+            "Keep false in production unless explicitly operating in trusted admin-only environments."
+        ),
+    )
 
     # --- Bee-hive tuning (decentralized sub-swarms → global sync cadence)
     sub_swarm_size: int = Field(
@@ -569,6 +576,17 @@ class Settings(BaseSettings):
             "feature preset. Code remains for future commercial re-enable."
         ),
     )
+    single_admin_mode: bool = Field(
+        default=False,
+        description=(
+            "Strict single-operator deployment mode. Enforces one active admin user + one tenant "
+            "at startup and relaxes tenant RBAC checks for the sole operator."
+        ),
+    )
+    single_admin_email: str | None = Field(
+        default=None,
+        description="Optional keeper admin email used by single-admin cutover tooling.",
+    )
     hive_token_client_id: str | None = Field(
         default=None,
         description="HTTP Basic user for POST /api/v1/auth/token (pair with secret).",
@@ -576,6 +594,13 @@ class Settings(BaseSettings):
     hive_token_client_secret: str | None = Field(
         default=None,
         description="HTTP Basic password (≥32 chars). Leave empty to disable issuance.",
+    )
+    hive_token_allow_subject_override: bool = Field(
+        default=False,
+        description=(
+            "Allow POST /api/v1/auth/token callers to override JWT subject via request body. "
+            "When false, subject is always pinned to the authenticated hive_token_client_id."
+        ),
     )
     connector_vault_fernet_key: str | None = Field(
         default=None,
@@ -607,8 +632,6 @@ class Settings(BaseSettings):
     oauth_github_client_secret: str = Field(default="")
     oauth_notion_client_id: str = Field(default="")
     oauth_notion_client_secret: str = Field(default="")
-    oauth_stripe_client_id: str = Field(default="")
-    oauth_stripe_client_secret: str = Field(default="")
     oauth_meta_client_id: str = Field(default="", description="Meta (Facebook Login) app id for IG/FB social publish.")
     oauth_meta_client_secret: str = Field(default="", description="Meta app secret for IG/FB OAuth consent.")
     oauth_meta_config_id: str = Field(
@@ -739,6 +762,22 @@ class Settings(BaseSettings):
     agent_stale_sweep_enabled: bool = Field(
         default=True,
         description="Celery beat task marks RUNNING agents ERROR when last_active_at expires.",
+    )
+    dynamic_agent_scheduler_enabled: bool = Field(
+        default=True,
+        description="Enable periodic dynamic agent scheduler tick (enqueue due AgentConfig runs).",
+    )
+    recipe_warmup_enabled: bool = Field(
+        default=True,
+        description="Enable nightly recipe warmup beat task.",
+    )
+    manager_peer_review_enabled: bool = Field(
+        default=True,
+        description="Enable periodic manager peer-review sweep beat task.",
+    )
+    pollen_reroster_enabled: bool = Field(
+        default=True,
+        description="Enable daily pollen re-roster advisory beat task.",
     )
     agent_stale_timeout_sec: int = Field(
         default=600,
@@ -1104,7 +1143,7 @@ class Settings(BaseSettings):
     skill_export_premium_price_eur_cents: int = Field(
         default=1900,
         ge=100,
-        description="Default one-time Stripe price for premium verified skill export (EUR cents).",
+        description="Default one-time premium price for verified skill export (EUR cents).",
     )
     skill_marketplace_ugc_enabled: bool = Field(
         default=True,
@@ -1127,56 +1166,6 @@ class Settings(BaseSettings):
     enterprise_workspace_enabled: bool = Field(
         default=True,
         description="Enable white-label branding and enterprise compliance workspace UI.",
-    )
-    stripe_secret_key: str = Field(
-        default="",
-        description="Stripe secret API key for Checkout Sessions (env: STRIPE_SECRET_KEY).",
-    )
-    stripe_webhook_secret: str = Field(
-        default="",
-        description="Stripe webhook signing secret (env: STRIPE_WEBHOOK_SECRET).",
-    )
-    stripe_skills_success_url: str = Field(
-        default="https://queenswarm.love/integrations?tab=skills&purchase=success",
-        description="Redirect after successful skill checkout.",
-    )
-    stripe_skills_cancel_url: str = Field(
-        default="https://queenswarm.love/integrations?tab=skills&purchase=cancel",
-        description="Redirect when skill checkout is cancelled.",
-    )
-    stripe_pro_price_id: str = Field(
-        default="",
-        description="Stripe Price ID for Pro subscription (env: STRIPE_PRO_PRICE_ID). Preferred over dynamic price_data.",
-    )
-    stripe_pro_price_eur_cents: int = Field(
-        default=2900,
-        ge=100,
-        description="Fallback monthly Pro price in EUR cents when STRIPE_PRO_PRICE_ID is unset.",
-    )
-    stripe_pro_success_url: str = Field(
-        default="https://queenswarm.love/settings/billing?upgrade=success",
-        description="Redirect after successful Pro subscription checkout.",
-    )
-    stripe_pro_cancel_url: str = Field(
-        default="https://queenswarm.love/settings/billing?upgrade=cancel",
-        description="Redirect when Pro subscription checkout is cancelled.",
-    )
-    stripe_enterprise_price_id: str = Field(
-        default="",
-        description="Stripe Price ID for Enterprise subscription (env: STRIPE_ENTERPRISE_PRICE_ID).",
-    )
-    stripe_enterprise_price_eur_cents: int = Field(
-        default=9900,
-        ge=100,
-        description="Fallback monthly Enterprise price in EUR cents when STRIPE_ENTERPRISE_PRICE_ID is unset.",
-    )
-    stripe_enterprise_success_url: str = Field(
-        default="https://queenswarm.love/settings/billing?upgrade=enterprise-success",
-        description="Redirect after successful Enterprise subscription checkout.",
-    )
-    stripe_enterprise_cancel_url: str = Field(
-        default="https://queenswarm.love/settings/billing?upgrade=enterprise-cancel",
-        description="Redirect when Enterprise subscription checkout is cancelled.",
     )
     skill_publish_github_org: str = Field(
         default="queenswarm",
@@ -1536,6 +1525,146 @@ class Settings(BaseSettings):
     operator_control_plane_enabled: bool = Field(
         default=True,
         description="Unified Operator Control Plane — /operator/cockpit compose + act router.",
+    )
+    grok_control_plane_enabled: bool = Field(
+        default=True,
+        description="Enable Grok Control Plane in cockpit (plan/approve/execute).",
+    )
+    grok_cp_cli_enabled: bool = Field(
+        default=True,
+        description="Allow worker to call Grok CLI for plan generation.",
+    )
+    grok_cp_execute_commands: bool = Field(
+        default=False,
+        description="Allow worker to execute approved command profiles.",
+    )
+    grok_cp_cli_binary: str = Field(
+        default="grok",
+        description="Binary name/path for Grok CLI bridge.",
+    )
+    grok_cp_repo_root: str = Field(
+        default="/app",
+        description="Repository root for command execution in Grok runs.",
+    )
+    grok_cp_command_timeout_sec: int = Field(
+        default=240,
+        ge=30,
+        le=3600,
+        description="Per-command timeout for Grok Control Plane worker execution.",
+    )
+    grok_cp_failed_alert_threshold: int = Field(
+        default=3,
+        ge=1,
+        le=100,
+        description="Failed run count threshold for Grok health warning/escalation badges.",
+    )
+    grok_cp_allow_prod_deploy: bool = Field(
+        default=False,
+        description="Allow prod_deploy run mode in Grok Control Plane.",
+    )
+    grok_cp_require_approval_for_risk: str = Field(
+        default="medium,high,critical",
+        description="Comma-separated risk levels that require explicit operator approval.",
+    )
+    grok_cp_deny_command_patterns: str = Field(
+        default="rm -rf,shutdown,reboot,:(){:|:&};:,mkfs,dd if=,curl | sh",
+        description="Comma-separated forbidden shell snippets for Grok run commands.",
+    )
+    grok_cp_profile_read_only_commands: str = Field(
+        default="git status --short,git diff --stat",
+        description="Comma-separated allowlisted read-only command profile.",
+    )
+    grok_cp_profile_ci_quick_commands: str = Field(
+        default="git status --short,./scripts/ci-local.sh --quick",
+        description="Comma-separated allowlisted quick CI profile commands.",
+    )
+    grok_cp_profile_deploy_candidate_commands: str = Field(
+        default="git status --short,./scripts/validate-prod-env.sh",
+        description="Comma-separated allowlisted deploy-candidate profile commands.",
+    )
+    grok_cp_profile_prod_deploy_commands: str = Field(
+        default="git status --short,./scripts/deploy-prod.sh --dry-run",
+        description="Comma-separated allowlisted prod-deploy profile commands.",
+    )
+    grok_cp_dedup_hard_gate_enabled: bool = Field(
+        default=True,
+        description="Block new Grok run creation on high dedup overlap unless force override is set.",
+    )
+    grok_cp_dedup_reuse_threshold: float = Field(
+        default=0.62,
+        ge=0.05,
+        le=0.98,
+        description="Dedup score threshold above which recommendation is reuse and hard gate may block.",
+    )
+    grok_cp_dedup_hybrid_threshold: float = Field(
+        default=0.35,
+        ge=0.01,
+        le=0.95,
+        description="Dedup score threshold above which recommendation is hybrid.",
+    )
+    grok_cp_dedup_min_score_by_source: str = Field(
+        default="task:0.12,recipe:0.18,knowledge:0.16,grok_run:0.2",
+        description="Per-source minimal dedup score filter as source:threshold CSV.",
+    )
+    grok_cp_dedup_weight_by_source: str = Field(
+        default="task:1.0,recipe:1.1,knowledge:0.95,grok_run:1.15",
+        description="Per-source score weight multiplier as source:weight CSV.",
+    )
+    grok_cp_hivemind_review_alert_threshold: int = Field(
+        default=10,
+        ge=1,
+        le=200,
+        description="Pending low-confidence Grok HiveMind queue size threshold for operator escalation alerts.",
+    )
+    grok_cp_hivemind_review_alert_cooldown_sec: int = Field(
+        default=900,
+        ge=60,
+        le=86400,
+        description="Cooldown window between repeated Grok HiveMind review queue alerts.",
+    )
+    grok_cp_hivemind_review_alert_max_age_hours: int = Field(
+        default=24,
+        ge=1,
+        le=240,
+        description="Oldest pending low-confidence Grok HiveMind item age threshold (hours) for escalation.",
+    )
+    grok_cp_cost_cap_usd_24h: float = Field(
+        default=25.0,
+        ge=0.0,
+        le=100000.0,
+        description="Soft budget cap for estimated Grok execution cost over last 24h.",
+    )
+    grok_cp_estimated_cost_per_run: str = Field(
+        default="read_only:0.03,code_edit:0.12,code_edit_and_test:0.30,deploy_candidate:0.55,prod_deploy:0.80",
+        description="Per-run estimated cost map as run_mode:usd CSV for governance dashboard.",
+    )
+    grok_cp_timeout_alert_threshold_24h: int = Field(
+        default=3,
+        ge=1,
+        le=200,
+        description="Timeout breach threshold (exit code 124) in last 24h for governance escalation badge.",
+    )
+    grok_cp_risk_escalation_threshold_24h: int = Field(
+        default=6,
+        ge=1,
+        le=200,
+        description="High+critical Grok run count threshold in last 24h for governance escalation badge.",
+    )
+    grok_cp_escalation_dedup_enabled: bool = Field(
+        default=True,
+        description="Enable backend-side cooldown dedup gate for escalation runs.",
+    )
+    grok_cp_escalation_cooldown_sec: int = Field(
+        default=600,
+        ge=30,
+        le=86400,
+        description="Cooldown window for identical escalation_kind run creation.",
+    )
+    grok_cp_last_resumed_marker_ttl_hours: int = Field(
+        default=24,
+        ge=1,
+        le=720,
+        description="TTL window for showing persisted last resumed escalation marker in snapshot.",
     )
     operator_icm_tools_enabled: bool = Field(
         default=True,
@@ -2027,6 +2156,17 @@ class Settings(BaseSettings):
             return self
         if self.ballroom_capsule_backend != "redis":
             msg = "When SCALING_MODE_ENABLED=true, BALLROOM_CAPSULE_BACKEND must be 'redis'."
+            raise ValueError(msg)
+        return self
+
+    @model_validator(mode="after")
+    def single_admin_mode_requirements(self) -> Self:
+        """Apply strict consistency checks for one-operator deployments."""
+
+        if not self.single_admin_mode:
+            return self
+        if not self.solo_mode_enabled:
+            msg = "When SINGLE_ADMIN_MODE=true, SOLO_MODE_ENABLED must also be true."
             raise ValueError(msg)
         return self
 

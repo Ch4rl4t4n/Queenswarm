@@ -1,7 +1,6 @@
 /** Routes prefetched after idle — warms JS chunks for common operator navigation. */
 export const HIVE_IDLE_PREFETCH_ROUTES: readonly string[] = [
-  "/cockpit",
-  "/oracle",
+  "/agentic-os",
   "/agents",
   "/tasks",
   "/swarms",
@@ -29,7 +28,6 @@ export const HIVE_IDLE_PREFETCH_ROUTES: readonly string[] = [
   "/settings/command-center",
   "/settings/capabilities",
   "/settings/api-keys",
-  "/settings/billing",
   "/settings/enterprise",
   "/settings/sharing",
   "/settings/team",

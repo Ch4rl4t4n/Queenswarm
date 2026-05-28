@@ -2,12 +2,12 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { ArrowRight, Loader2, RefreshCw, Sunrise } from "lucide-react";
+import { ArrowRight, Loader2, Sunrise } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
-import { cn } from "@/lib/utils";
 
 interface OperatorLoopAction {
   id: string;
@@ -104,10 +104,7 @@ function OperatorLoopPanelInner() {
         <V4Badge tone={pending > 0 ? "warn" : "ok"}>{pending} publish pending</V4Badge>
         <V4Badge tone={onboardPct >= 100 ? "ok" : "warn"}>Onboarding {onboardPct}%</V4Badge>
         <V4Badge tone={pnl >= 0 ? "ok" : "err"}>Paper P&L ${pnl.toFixed(2)}</V4Badge>
-        <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void load()}>
-          <RefreshCw className={cn("size-4", loading && "animate-spin")} aria-hidden />
-          Refresh
-        </button>
+        <HiveRefreshButton busy={loading} onClick={() => void load()} />
       </div>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2">

@@ -18,6 +18,7 @@ from app.presentation.api.routers import learning as learning_router
 from app.presentation.api.routers import marketing as marketing_router
 from app.presentation.api.routers import operator as operator_router
 from app.presentation.api.routers import operator_control_plane as operator_control_plane_router
+from app.presentation.api.routers import grok_control_plane as grok_control_plane_router
 from app.presentation.api.routers import proof_of_hive as proof_of_hive_router
 from app.presentation.api.routers import operator_monitoring as operator_monitoring_router
 from app.presentation.api.routers import plugins_catalog as plugins_catalog_router
@@ -39,7 +40,6 @@ from app.presentation.api.routers import oauth_consent as oauth_consent_router
 from app.presentation.api.routers import settings_operator as settings_operator_router
 from app.presentation.api.routers import settings_team as settings_team_router
 from app.presentation.api.routers import settings_enterprise as settings_enterprise_router
-from app.presentation.api.routers import billing as billing_router
 from app.presentation.api.routers import shares as shares_router
 from app.presentation.api.routers import external_api as external_api_router
 from app.presentation.api.routers import tools_marketplace as tools_marketplace_router
@@ -107,7 +107,6 @@ api_v1.include_router(dashboard_router.router)
 api_v1.include_router(settings_team_router.router)
 api_v1.include_router(settings_operator_router.router)
 api_v1.include_router(settings_enterprise_router.router)
-api_v1.include_router(billing_router.router)
 api_v1.include_router(shares_router.router)
 api_v1.include_router(shares_router.public_router)
 api_v1.include_router(marketing_router.public_router)
@@ -129,6 +128,7 @@ api_v1.include_router(queen_maintainer_router.router)
 api_v1.include_router(virtual_company_router.router)
 api_v1.include_router(solo_operator_router.router)
 api_v1.include_router(operator_control_plane_router.router)
+api_v1.include_router(grok_control_plane_router.router)
 api_v1.include_router(proof_of_hive_router.router)
 api_v1.include_router(proof_of_hive_router.public_router)
 api_v1.include_router(episodic_memory_router.router)

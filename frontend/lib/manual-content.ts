@@ -104,9 +104,9 @@ export const APP_FUNCTION_GUIDE: FunctionInfoGroup[] = [
     items: [
       {
         id: "cockpit-home",
-        label: "Hive Cockpit",
+        label: "Agentic OS",
         description: "Solo Operator Control Plane — one entry for swarms, Factory, Innovation Lab, and verify-first actions.",
-        options: ["Start day / Trio cycle", "Bee Hotline routing", "Advanced dashboard link"],
+        options: ["Start day / Trio cycle", "Bee Hotline routing"],
       },
       {
         id: "dashboard-overview",
@@ -207,14 +207,75 @@ export const APP_FUNCTION_GUIDE: FunctionInfoGroup[] = [
     ],
   },
   {
+    id: "operator-cockpit",
+    title: "Agentic OS",
+    items: [
+      {
+        id: "cockpit-overview",
+        label: "Operator overview",
+        description:
+          "Daily command surface — prioritized actions, Oracle warnings, Trust Autopilot lanes, and Proof-of-Hive receipts.",
+        options: ["Start day (trio cycle)", "Refresh core snapshot", "Jump to Factory / Swarms / Agents"],
+      },
+      {
+        id: "cockpit-command",
+        label: "Command lane",
+        description: "Hotline, Intent Crystallizer, and Zero-UI Telegram — three ways to drive the hive without hunting panels.",
+        options: ["Natural language Hotline", "Crystallizer preview/launch", "Telegram /day /status /hotline"],
+      },
+      {
+        id: "bee-hotline",
+        label: "Bee Hotline",
+        description: "Plain-language request → routed Queen goal on the correct bee lane.",
+        options: ["One sentence operator intent", "Server action hotline", "No manual nav required"],
+      },
+      {
+        id: "intent-crystallizer",
+        label: "Intent Crystallizer",
+        description: "Free text → swarm templates, trust lane, and deep links before launching Queen.",
+        options: ["Preview plan", "Launch Queen goal", "Trust lane auto/simulate/live"],
+      },
+      {
+        id: "zero-ui-hive",
+        label: "Zero-UI Hive Mode",
+        description: "Telegram commands mirror Agentic OS — optional web UI after bot + webhook setup.",
+        options: ["Execution Studio notifications", "Webhook URL + secret", "/help command list"],
+      },
+      {
+        id: "icm-tools",
+        label: "ICM tools",
+        description: "Link drop, dialogue extract, and quick automations — capture intent without the swarm builder.",
+        options: ["URL → brief → Knowledge", "Transcript → harness/knowledge/recipe", "Quick automation presets"],
+      },
+      {
+        id: "swarm-fleet",
+        label: "Swarm Fleet",
+        description: "Always-on routines with pause/resume and immune watch/quarantine signals.",
+        options: ["Pause/resume routine", "Autopilot schedule", "Immune system recommendations"],
+      },
+      {
+        id: "cockpit-modules",
+        label: "Futurist modules",
+        description: "Lazy-loaded experimental modules — Regret, Teleport, Ambient, Parallel, Evolutionary Recipes.",
+        options: ["On-demand load", "Verified outcomes for recipes", "No duplicate swarms"],
+      },
+      {
+        id: "innovation-lab",
+        label: "Innovation Lab",
+        description: "Brainstorm → approve → Queen Maintainer PR-only implementation.",
+        options: ["Brainstorm proposal", "Approve/reject gate", "Implement via Maintainer"],
+      },
+    ],
+  },
+  {
     id: "ballroom",
     title: "Ballroom",
     items: [
       {
         id: "ballroom-realtime",
         label: "Realtime lane",
-        description: "Živá koordinácia počas incidentov a kritických deploy flowov.",
-        options: ["Rýchla operatíva", "Prepojenie na Supervisor sessions"],
+        description: "Live coordination during incidents and critical deploy flows.",
+        options: ["Fast ops lane", "Link to Supervisor sessions"],
       },
     ],
   },

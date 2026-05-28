@@ -28,7 +28,6 @@ export const UI_TRANSLATIONS_SK: Record<string, string> = {
   "Session cleared": "Relácia vyčistená",
   "Logged out": "Odhlásené",
   "Login screen": "Prihlasovacia obrazovka",
-  "Shortcuts · desktop": "Skratky · desktop",
   "Go to dashboard": "Prejsť na nástenku",
   "Voice + transcript": "Hlas + prepis",
   "syncing hive…": "synchronizujem hive…",

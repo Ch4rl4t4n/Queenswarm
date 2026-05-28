@@ -4,7 +4,8 @@
 # Usage:
 #   ./scripts/ci-local.sh              # full CI (backend + frontend + security)
 #   ./scripts/ci-local.sh --quick      # security + typecheck + CP gate (no e2e)
-#   ./scripts/ci-local.sh --frontend   # frontend job only
+#   ./scripts/ci-local.sh --whole-app     # Whole-App UI core release gate
+#   ./scripts/ci-local.sh --whole-app-extended  # responsive shell + visual snapshots
 #   ./scripts/ci-local.sh --backend    # backend job only
 #
 set -euo pipefail
@@ -33,6 +34,27 @@ run_backend() {
 run_security() {
   echo "== CI local: security =="
   SECURITY_STRICT=0 ./scripts/security-gates.sh
+  ./scripts/audit-single-admin-gate.sh
+}
+
+run_whole_app_gate() {
+  echo "== CI local: whole-app UI core gate =="
+  (
+    cd "${ROOT}/frontend"
+    npm ci
+    npx playwright install chromium --with-deps
+  )
+  SKIP_HEALTH_CHECK=1 PLAYWRIGHT_WORKERS=1 CI=true ./scripts/whole-app-ui-release-gate.sh
+}
+
+run_whole_app_extended() {
+  echo "== CI local: whole-app UI extended visual gate =="
+  (
+    cd "${ROOT}/frontend"
+    npm ci
+    npx playwright install chromium --with-deps
+  )
+  WHOLE_APP_EXTENDED_ONLY=1 PLAYWRIGHT_WORKERS=1 CI=true ./scripts/whole-app-ui-release-gate.sh
 }
 
 run_frontend() {
@@ -62,6 +84,12 @@ case "${MODE}" in
     ;;
   --frontend)
     run_frontend
+    ;;
+  --whole-app)
+    run_whole_app_gate
+    ;;
+  --whole-app-extended)
+    run_whole_app_extended
     ;;
   --security)
     run_security

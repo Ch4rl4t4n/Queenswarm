@@ -97,6 +97,54 @@ async def test_auth_token_exchange_embeds_scope_claim(restore_dependency_overrid
 
 
 @pytest.mark.asyncio
+async def test_auth_token_exchange_pins_subject_to_client_id_by_default(
+    restore_dependency_overrides: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app.dependency_overrides[hive_token_exchange_config] = lambda: HiveTokenExchangeConfig(
+        True,
+        "worker",
+        "x" * 32,
+    )
+    monkeypatch.setattr(settings, "hive_token_allow_subject_override", False)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/api/v1/auth/token",
+            auth=("worker", "x" * 32),
+            json={"subject": "attempted-override"},
+        )
+    assert response.status_code == 200
+    token = response.json()["access_token"]
+    payload = jose_jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
+    assert payload.get("sub") == "worker"
+
+
+@pytest.mark.asyncio
+async def test_auth_token_exchange_allows_subject_override_when_enabled(
+    restore_dependency_overrides: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app.dependency_overrides[hive_token_exchange_config] = lambda: HiveTokenExchangeConfig(
+        True,
+        "worker",
+        "x" * 32,
+    )
+    monkeypatch.setattr(settings, "hive_token_allow_subject_override", True)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/api/v1/auth/token",
+            auth=("worker", "x" * 32),
+            json={"subject": "bee-ci-runner"},
+        )
+    assert response.status_code == 200
+    token = response.json()["access_token"]
+    payload = jose_jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
+    assert payload.get("sub") == "bee-ci-runner"
+
+
+@pytest.mark.asyncio
 async def test_auth_token_exchange_when_rate_limited_returns_429(
     restore_dependency_overrides: None,
     monkeypatch: pytest.MonkeyPatch,

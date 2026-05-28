@@ -3,7 +3,7 @@
 import { LockIcon, LogOutIcon, XIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useRef } from "react";
 import { toast } from "sonner";
 
 import { HiveAccountIdentity } from "@/components/hive/hive-account-identity";
@@ -14,6 +14,7 @@ import { filterNavGroupsByFeatures } from "@/lib/platform-features";
 import { useRouteHash } from "@/lib/hooks/use-route-hash";
 import type { TenantListPayload } from "@/lib/hive-types";
 import { clearExecutionStudioPushOnLogout } from "@/lib/execution-studio-push-session-sync";
+import { useModalA11y } from "@/lib/use-modal-a11y";
 import { localizeNavLabel, localizePhrase } from "@/lib/ui-copy";
 import { cn } from "@/lib/utils";
 
@@ -45,24 +46,15 @@ export function HiveMoreSheet({ open, onClose, pathname, tenants }: HiveMoreShee
   const tenantList = tenants?.tenants ?? [];
   const currentTenant =
     tenantList.find((t) => t.id === tenants?.current_tenant_id) ?? tenantList[0] ?? null;
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open, onClose]);
+  useModalA11y({
+    open,
+    onClose,
+    containerRef: sheetRef,
+    initialFocusRef: closeRef,
+  });
 
   async function logout(): Promise<void> {
     try {
@@ -90,6 +82,7 @@ export function HiveMoreSheet({ open, onClose, pathname, tenants }: HiveMoreShee
         onClick={onClose}
       />
       <div
+        ref={sheetRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="hive-more-sheet-title"
@@ -98,6 +91,7 @@ export function HiveMoreSheet({ open, onClose, pathname, tenants }: HiveMoreShee
         <div className="relative flex flex-col items-center px-4 pt-3">
           <span className="mb-2 h-1 w-14 rounded-full bg-zinc-600" aria-hidden />
           <button
+            ref={closeRef}
             type="button"
             aria-label={localizePhrase(language, { en: "Close sheet", sk: "Zavrieť panel" })}
             className="absolute right-3 top-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] border border-[color:var(--qs-border)] text-zinc-400 hover:border-[color:var(--qs-border-2)] hover:text-pollen touch-manipulation"
@@ -127,6 +121,7 @@ export function HiveMoreSheet({ open, onClose, pathname, tenants }: HiveMoreShee
                         href={href}
                         prefetch
                         onClick={onClose}
+                        aria-current={active ? "page" : undefined}
                         className={cn(
                           "flex items-center gap-3 rounded-2xl px-4 py-3 font-[family-name:var(--font-poppins)] text-sm transition touch-manipulation min-h-[48px]",
                           active ? "bg-pollen/12 text-pollen shadow-[inset_0_0_0_1px_rgb(255_184_0/0.25)]" : "text-zinc-300 hover:bg-white/[0.04]",

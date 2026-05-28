@@ -255,7 +255,6 @@ ROUTE_FEATURE_KEYS: dict[str, str] = {
     "/hive-mind": "knowledge",
     "/outputs": "knowledge",
     "/learning": "knowledge",
-    "/settings/billing": "billing_settings",
     "/settings/team": "team_rbac",
     "/settings/sharing": "sharing_settings",
     "/settings/llm-keys": "llm_keys_settings",

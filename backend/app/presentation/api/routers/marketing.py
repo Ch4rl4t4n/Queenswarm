@@ -23,7 +23,7 @@ from app.common.schemas.ugc_content import (
     LeadMagnetLandingResponse,
     LeadMagnetSharePackResponse,
 )
-from app.presentation.api.deps import DbSession, JwtSubject, require_dashboard_user_with_tenant_role
+from app.presentation.api.deps import DbSession, require_dashboard_user_with_tenant_role
 
 public_router = APIRouter(prefix="/marketing", tags=["Marketing"])
 router = APIRouter(prefix="/marketing", tags=["Marketing"])
@@ -79,7 +79,7 @@ async def public_trading_transparency(db: DbSession) -> PublicTradingTransparenc
     summary="Public Micro-SaaS factory blueprint",
 )
 async def public_micro_saas_blueprint() -> MicroSaasPublicBlueprintOut:
-    """Public stack blueprint for landing + auth + stripe + deploy."""
+    """Public stack blueprint for landing + auth + billing + deploy."""
 
     return build_public_micro_saas_blueprint()
 

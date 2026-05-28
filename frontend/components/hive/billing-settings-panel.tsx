@@ -1,17 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check } from "lucide-react";
 
-import { EnterpriseUpgradeCheckoutButton } from "@/components/hive/enterprise-upgrade-checkout-button";
-import { ProUpgradeCheckoutButton } from "@/components/hive/pro-upgrade-checkout-button";
-import { StripeCheckoutSettingsPanel } from "@/components/hive/stripe-checkout-settings-panel";
 import { usePlatform } from "@/components/hive/platform-context";
 import { V4BarRow, V4Card, V4CardHeader, V4Stat } from "@/components/ui/v4";
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import type { BillingPlansPayload, BillingUsageSnapshot } from "@/lib/hive-types";
 import { integrationsTabHref } from "@/lib/integrations-routes";
+import {
+  billingPanelShowsCostCockpitLink,
+  billingUsageSectionTitle,
+  type BillingSettingsPanelVariant,
+} from "@/lib/billing-settings-copy";
 import { cn } from "@/lib/utils";
 
 const ENTERPRISE_HIGHLIGHTS = [
@@ -52,15 +54,17 @@ function healthLabel(row: { hard_exceeded: boolean; soft_exceeded: boolean }): s
   return "healthy";
 }
 
-export function BillingSettingsPanel() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+export interface BillingSettingsPanelProps {
+  /** `embedded` — nested under Settings → Costs (no duplicate page title / self-links). */
+  variant?: BillingSettingsPanelVariant;
+}
+
+export function BillingSettingsPanel({ variant = "standalone" }: BillingSettingsPanelProps) {
   const { platformMode, subscriptionTier } = usePlatform();
   const [usage, setUsage] = useState<BillingUsageSnapshot | null>(null);
   const [plans, setPlans] = useState<BillingPlansPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [upgradeNotice, setUpgradeNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -90,56 +94,6 @@ export function BillingSettingsPanel() {
   useEffect(() => {
     void load();
   }, [load]);
-
-  useEffect(() => {
-    const upgrade = searchParams.get("upgrade");
-    const sessionId = searchParams.get("session_id");
-
-    if (upgrade === "cancel" || upgrade === "enterprise-cancel") {
-      setUpgradeNotice("Checkout cancelled — no charges applied.");
-      router.replace("/settings/billing");
-      return;
-    }
-
-    const isProSuccess = upgrade === "success" && sessionId;
-    const isEnterpriseSuccess = upgrade === "enterprise-success" && sessionId;
-    if (!isProSuccess && !isEnterpriseSuccess) {
-      return;
-    }
-
-    const confirmPath = isEnterpriseSuccess
-      ? `/api/proxy/billing/enterprise-checkout/confirm?session_id=${encodeURIComponent(sessionId)}`
-      : `/api/proxy/billing/pro-checkout/confirm?session_id=${encodeURIComponent(sessionId)}`;
-
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await fetch(confirmPath, { cache: "no-store" });
-        const json = (await res.json().catch(() => ({}))) as { detail?: string; message?: string; status?: string };
-        if (cancelled) return;
-        if (!res.ok) {
-          setUpgradeNotice(json.detail ?? "Could not confirm subscription upgrade.");
-        } else if (json.status === "pending") {
-          setUpgradeNotice(json.message ?? "Payment processing — refresh in a moment.");
-        } else {
-          setUpgradeNotice(json.message ?? "Subscription upgraded.");
-          await load();
-        }
-      } catch {
-        if (!cancelled) {
-          setUpgradeNotice("Could not confirm upgrade — webhook may still apply shortly.");
-        }
-      } finally {
-        if (!cancelled) {
-          router.replace("/settings/billing");
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [load, router, searchParams]);
 
   const topMetrics = useMemo(() => {
     if (!usage) {
@@ -179,6 +133,8 @@ export function BillingSettingsPanel() {
 
   const proPriceLabel = fmtEurMonthly(plans?.pro_price_eur_cents ?? 2900);
   const enterprisePriceLabel = fmtEurMonthly(plans?.enterprise_price_eur_cents ?? 9900);
+  const usageSectionTitle = billingUsageSectionTitle(variant);
+  const showCostCockpitLink = billingPanelShowsCostCockpitLink(variant);
 
   if (loading) {
     return (
@@ -197,14 +153,6 @@ export function BillingSettingsPanel() {
 
   return (
     <div className="flex flex-col gap-6">
-      <StripeCheckoutSettingsPanel />
-
-      {upgradeNotice ? (
-        <V4Card tight>
-          <p className="text-sm text-(--qs-green)">{upgradeNotice}</p>
-        </V4Card>
-      ) : null}
-
       {isCommercialFree ? (
         <V4Card className="border-pollen/35 bg-pollen/[0.06]">
           <V4CardHeader
@@ -221,11 +169,12 @@ export function BillingSettingsPanel() {
             ))}
           </ul>
           <div className="flex flex-wrap items-center gap-3">
-            <ProUpgradeCheckoutButton
-              checkoutReady={Boolean(plans?.pro_checkout_ready)}
-              currentTier={usage?.tier ?? subscriptionTier}
-              priceLabel={proPriceLabel}
-            />
+            <p className="text-xs text-(--qs-text-3)">Self-serve checkout is not enabled on this deployment.</p>
+            {showCostCockpitLink ? (
+              <Link href="/settings/costs" className="qs-btn qs-btn--primary qs-btn--sm">
+                Open cost cockpit
+              </Link>
+            ) : null}
             <Link href="/swarms/new" className="qs-btn qs-btn--ghost qs-btn--sm">
               Preview Swarm Builder
             </Link>
@@ -249,40 +198,35 @@ export function BillingSettingsPanel() {
             ))}
           </ul>
           <div className="flex flex-wrap items-center gap-3">
-            <EnterpriseUpgradeCheckoutButton
-              checkoutReady={Boolean(plans?.enterprise_checkout_ready)}
-              currentTier={usage?.tier ?? subscriptionTier}
-              priceLabel={enterprisePriceLabel}
-            />
-            <Link href="/settings/enterprise" className="qs-btn qs-btn--ghost qs-btn--sm">
+            <p className="text-xs text-(--qs-text-3)">Enterprise checkout is not enabled on this deployment.</p>
+            <Link href="/settings/enterprise" className="qs-btn qs-btn--primary qs-btn--sm">
               Preview Enterprise workspace
             </Link>
+            {showCostCockpitLink ? (
+              <Link href="/settings/costs" className="qs-btn qs-btn--ghost qs-btn--sm">
+                Open cost cockpit
+              </Link>
+            ) : null}
           </div>
         </V4Card>
       ) : null}
 
       <V4Card>
         <V4CardHeader
-          title="Usage & Billing"
+          title={usageSectionTitle}
           description={
             <>
               Current plan: <span className="text-(--qs-amber)">{usage?.tier ?? "free"}</span> · status:{" "}
               <span className="text-(--qs-text-2)">{usage?.status ?? "active"}</span>
             </>
           }
+          hint={sectionHintNode("settingsBilling")}
           actions={
-            plans?.pro_checkout_ready && isCommercialFree ? (
-              <ProUpgradeCheckoutButton
-                checkoutReady
-                currentTier={usage?.tier}
-                priceLabel={proPriceLabel}
-                size="sm"
-              />
-            ) : plans?.checkout_ready ? (
+            plans?.checkout_ready ? (
               <button
                 type="button"
                 className="qs-btn qs-btn--primary qs-btn--sm"
-                onClick={() => router.push(integrationsTabHref("skills"))}
+                onClick={() => (window.location.href = integrationsTabHref("skills"))}
               >
                 Browse premium skills
               </button>
@@ -304,7 +248,11 @@ export function BillingSettingsPanel() {
       </div>
 
       <V4Card>
-        <V4CardHeader title="Soft/Hard limits" description="Usage health against tier soft and hard caps." />
+        <V4CardHeader
+          title="Soft/Hard limits"
+          description="Usage health against tier soft and hard caps."
+          hint={sectionHintNode("billingLimits")}
+        />
         <div className="flex flex-col gap-3">
           {Object.entries(usage?.usage_health ?? {}).map(([metric, row]) => (
             <div key={metric} className="rounded-(--qs-radius-sm) border border-(--qs-border) bg-white/2 p-3">
@@ -335,8 +283,12 @@ export function BillingSettingsPanel() {
         </div>
       </V4Card>
 
-      <V4Card>
-        <V4CardHeader title="Plan comparison" description="Tier limits and enabled features." />
+      <V4Card id="billing-plans">
+        <V4CardHeader
+          title="Plan comparison"
+          description="Tier limits and enabled features."
+          hint={sectionHintNode("billingPlans")}
+        />
         <div className="v4-settings-billing-plans grid gap-3 lg:grid-cols-3">
           {(plans?.plans ?? []).map((plan) => (
             <article
@@ -364,26 +316,8 @@ export function BillingSettingsPanel() {
               <p className="mt-2 text-xs text-(--qs-text-2)">
                 Features: {Object.entries(plan.features).filter(([, ok]) => ok).map(([name]) => name).join(", ")}
               </p>
-              {plan.tier === "pro" && isCommercialFree ? (
-                <div className="mt-3">
-                  <ProUpgradeCheckoutButton
-                    checkoutReady={Boolean(plans?.pro_checkout_ready)}
-                    currentTier={usage?.tier}
-                    priceLabel={proPriceLabel}
-                    size="sm"
-                  />
-                </div>
-              ) : null}
-              {plan.tier === "enterprise" && isCommercialPro ? (
-                <div className="mt-3">
-                  <EnterpriseUpgradeCheckoutButton
-                    checkoutReady={Boolean(plans?.enterprise_checkout_ready)}
-                    currentTier={usage?.tier}
-                    priceLabel={enterprisePriceLabel}
-                    size="sm"
-                  />
-                </div>
-              ) : null}
+              {plan.tier === "pro" && isCommercialFree ? <p className="mt-3 text-xs text-(--qs-text-3)">Upgrade flow removed.</p> : null}
+              {plan.tier === "enterprise" && isCommercialPro ? <p className="mt-3 text-xs text-(--qs-text-3)">Upgrade flow removed.</p> : null}
             </article>
           ))}
         </div>

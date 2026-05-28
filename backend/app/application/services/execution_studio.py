@@ -350,7 +350,7 @@ def infer_risk_tier(
     name = tool_name.strip().lower()
     perm = (required_permission or "").strip().lower()
 
-    if "stripe" in slug or "billing" in slug or perm == "tool:financial":
+    if "billing" in slug or perm == "tool:financial":
         return "financial"
     if any(token in name for token in ("publish", "post", "send", "create", "upload", "delete", "charge")):
         if meth in {"POST", "PUT", "PATCH", "DELETE"}:

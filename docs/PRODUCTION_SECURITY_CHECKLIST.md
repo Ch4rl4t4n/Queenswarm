@@ -81,7 +81,7 @@ UFW should show **DENY** for `6379`, `5432`, `7474`, `7687`, `9090`, `3030`, `80
 - [ ] `POSTGRES_PASSWORD`, `NEO4J_PASSWORD`, `SECRET_KEY` (≥64 chars in prod mode)
 - [ ] `CONNECTOR_VAULT_FERNET_KEY` set
 - [ ] `PRODUCTION_SECURITY_MODE=true`, `RATE_LIMIT_ENABLED=true`
-- [ ] JWT auth on all API routes except `/health`, `/metrics`, `/docs`, Stripe webhook
+- [ ] JWT auth on all API routes except `/health`, `/metrics`, `/docs`
 
 Generate missing secrets:
 

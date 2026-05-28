@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation";
-
+import { LegacyRouteRedirect } from "@/components/hive/legacy-route-redirect";
 import { OutputsInteractivePanel } from "@/components/hive/outputs-interactive-panel";
 import { HivePageHeader } from "@/components/hive/hive-page-header";
 import { PHASE70_CONSOLIDATED_NAV_ENABLED } from "@/lib/feature-flags";
@@ -11,7 +10,7 @@ export const dynamic = "force-dynamic";
 /** My Outputs — Postgres + disk + Chroma archive for completed missions (Phase 0.51). */
 export default async function OutputsPage() {
   if (PHASE70_CONSOLIDATED_NAV_ENABLED) {
-    redirect("/knowledge#outputs");
+    return <LegacyRouteRedirect target="/knowledge#outputs" label="Redirecting to Knowledge…" />;
   }
 
   const rows = await hiveServerRawJson<FinalDeliverableSummaryRow[]>("/outputs?limit=80");

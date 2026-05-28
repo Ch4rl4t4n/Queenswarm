@@ -266,7 +266,7 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
 
       <div
         className={cn(
-          "fixed right-0 top-0 z-50 flex h-full w-full max-w-2xl flex-col border-l border-[var(--qs-border)] bg-[var(--qs-surface)] shadow-2xl transition-transform duration-300 ease-out",
+          "fixed right-0 top-0 z-50 flex h-full w-full max-w-2xl flex-col border-l border-(--qs-border) bg-(--qs-surface) shadow-2xl transition-transform duration-300 ease-out",
           slideIn ? "translate-x-0" : "translate-x-full",
         )}
       >
@@ -392,7 +392,7 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
           ) : null}
         </div>
         {!loading && task?.agent_id ? (
-          <footer className="flex justify-end gap-2 border-t border-[var(--qs-border)] bg-[var(--qs-surface-2)] p-4">
+          <footer className="flex justify-end gap-2 border-t border-(--qs-border) bg-(--qs-surface-2) p-4">
             <button type="button" className="qs-btn qs-btn--cyan qs-btn--sm" onClick={() => void handleRerunAgent()}>
               Re-run agent
             </button>

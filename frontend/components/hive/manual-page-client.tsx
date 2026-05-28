@@ -1,9 +1,8 @@
 "use client";
 
-import { HivePageHeader } from "@/components/hive/hive-page-header";
+import { HivePageShell } from "@/components/hive/hive-page-shell";
 import { InfoHint } from "@/components/hive/info-hint";
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
-import { V4PageCanvas } from "@/components/ui/v4";
 import {
   functionGuideGroups,
   functionGuideHeading,
@@ -19,9 +18,12 @@ export function ManualPageClient(): JSX.Element {
   const guide = functionGuideGroups(language);
 
   return (
-    <V4PageCanvas className="gap-8">
-      <HivePageHeader title="Manual" subtitle={manualSubtitle(language)} />
-
+    <HivePageShell
+      title="Manual"
+      subtitle={manualSubtitle(language)}
+      hintKey="manual"
+      canvasClassName="gap-8"
+    >
       <section className="manual-section space-y-5 rounded-3xl border border-cyan/20 bg-[#070d17]/70 p-4 md:p-7">
         {sections.map((section) => (
           <article key={section.id} className="space-y-3 border-b border-zinc-800/80 pb-5 last:border-b-0 last:pb-0">
@@ -70,6 +72,6 @@ export function ManualPageClient(): JSX.Element {
           ))}
         </div>
       </section>
-    </V4PageCanvas>
+    </HivePageShell>
   );
 }

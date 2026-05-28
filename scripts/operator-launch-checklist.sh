@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Unified operator launch checklist — dev complete, human P0 remaining (read-only).
 #
-# Runs Stripe prep, harness env prep, Hetzner draft check, prod route probes, harness audit.
+# Runs harness env prep, Hetzner draft check, prod route probes, harness audit.
 # Does NOT mutate prod or .env.prod.
 #
 # Usage:
@@ -109,37 +109,7 @@ else
 fi
 echo
 
-echo "[B] Stripe live checkout (P0 — operator keys)"
-stripe_missing=0
-if val="$(load_kv "$ENV_FILE" STRIPE_SECRET_KEY || true)" && [[ -n "${val// }" && "$val" == sk_* ]]; then
-  ok "STRIPE_SECRET_KEY set"
-elif [[ -n "${val// }" ]]; then
-  bad "STRIPE_SECRET_KEY invalid prefix"
-else
-  note "STRIPE_SECRET_KEY missing — add to .env.prod"
-  stripe_missing=$((stripe_missing + 1))
-fi
-if val="$(load_kv "$ENV_FILE" STRIPE_WEBHOOK_SECRET || true)" && [[ -n "${val// }" && "$val" == whsec_* ]]; then
-  ok "STRIPE_WEBHOOK_SECRET set"
-elif [[ -n "${val// }" ]]; then
-  bad "STRIPE_WEBHOOK_SECRET invalid prefix"
-else
-  note "STRIPE_WEBHOOK_SECRET missing — add to .env.prod"
-  stripe_missing=$((stripe_missing + 1))
-fi
-if [[ -n "$(load_kv "$ENV_FILE" STRIPE_PRO_PRICE_ID || true)" ]]; then
-  ok "STRIPE_PRO_PRICE_ID set"
-else
-  note "STRIPE_PRO_PRICE_ID unset — dynamic EUR fallback may apply"
-fi
-if [[ "$stripe_missing" -eq 0 ]]; then
-  ok "Stripe ready for ./scripts/operator-p0-close.sh"
-else
-  note "Add Stripe keys → ./scripts/operator-stripe-prep.sh for details"
-fi
-echo
-
-echo "[C] Hetzner abuse closure (P0 — manual send)"
+echo "[B] Hetzner abuse closure (P0 — manual send)"
 hetzner_draft="$(ls -1 reports/hetzner/hetzner-reply-*.txt 2>/dev/null | tail -1 || true)"
 if [[ -n "$hetzner_draft" ]]; then
   ok "Hetzner reply draft: $(basename "$hetzner_draft")"
@@ -149,7 +119,7 @@ else
 fi
 echo
 
-echo "[D] Harness operator env (optional until launch features needed)"
+echo "[C] Harness operator env (optional until launch features needed)"
 check_bool_env QUEEN_MAINTAINER_ENABLED || true
 if check_bool_env QUEEN_MAINTAINER_POST_MERGE_WEBHOOK_ENABLED; then
   check_key_env QUEEN_MAINTAINER_GITHUB_WEBHOOK_SECRET || true
@@ -165,13 +135,13 @@ else
 fi
 echo
 
-echo "[E] Prod route probes (no JWT)"
+echo "[D] Prod route probes (no JWT)"
 probe_http "Health" "${HIVE_BASE}/health" "200"
 probe_http "Queen Maintainer tech-health (auth required)" "${HIVE_BASE}/api/v1/queen-maintainer/tech-health" "401"
 probe_http "GitHub webhook (503 until secret configured)" "${HIVE_BASE}/api/v1/queen-maintainer/github-webhook" "503" POST
 echo
 
-echo "[F] Host + alert pipeline"
+echo "[E] Host + alert pipeline"
 if ./scripts/audit-host-exposure.sh >/dev/null 2>&1; then
   ok "Host exposure audit"
 else
@@ -204,18 +174,7 @@ echo "== Checklist: pass=${pass} warn=${warn} fail=${fail} =="
   echo
   echo "## Human P0 — do in order"
   echo
-  echo "### 1. Stripe live checkout"
-  echo
-  echo "\`\`\`bash"
-  echo "./scripts/operator-stripe-prep.sh"
-  echo "# Add to .env.prod: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, price IDs"
-  echo "./scripts/operator-p0-close.sh"
-  echo "\`\`\`"
-  echo
-  echo "Stripe webhook URL: \`${HIVE_BASE}/api/v1/billing/stripe/webhook\`"
-  echo "Event: \`checkout.session.completed\`"
-  echo
-  echo "### 2. Hetzner abuse reply"
+  echo "### 1. Hetzner abuse reply"
   echo
   echo "\`\`\`bash"
   echo "./scripts/operator-hetzner-send-prep.sh"
@@ -223,7 +182,7 @@ echo "== Checklist: pass=${pass} warn=${warn} fail=${fail} =="
   echo "# Subject: Re: AbuseID 11B0286:23 — remediation completed"
   echo "\`\`\`"
   echo
-  echo "### 3. Harness env (after Stripe, before Maintainer automation)"
+  echo "### 2. Harness env (before Maintainer automation)"
   echo
   echo "\`\`\`bash"
   echo "./scripts/operator-harness-env-prep.sh"
@@ -240,7 +199,7 @@ echo "== Checklist: pass=${pass} warn=${warn} fail=${fail} =="
   echo "GitHub webhook: \`${HIVE_BASE}/api/v1/queen-maintainer/github-webhook\`"
   echo "Events: Pull requests (merged), optional push to main"
   echo
-  echo "### 4. Full launch gate (automated evidence)"
+  echo "### 3. Full launch gate (automated evidence)"
   echo
   echo "\`\`\`bash"
   echo "SKIP_E2E=1 SKIP_RESPONSIVE_E2E=1 ./scripts/operator-launch-gate.sh"
@@ -269,12 +228,6 @@ if [[ "$fail" -gt 0 ]]; then
   echo
   echo "INFRA BLOCKED: ${fail} hard failure(s) — see report above."
   exit 1
-fi
-
-if [[ "$stripe_missing" -gt 0 ]]; then
-  echo
-  echo "OPERATOR P0 PENDING: Stripe keys missing — see ${OUT_MD}"
-  exit 2
 fi
 
 echo

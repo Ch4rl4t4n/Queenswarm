@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { seedDashboardSessionCookie } from "./fixtures/dashboard-session";
+import { clearIntegrationsSubnavPrefs } from "./fixtures/execution-studio-api-mocks";
 import { installShellApiMocks } from "./fixtures/shell-api-mocks";
 
 const supervisorFlowEnabled = process.env.E2E_EXECUTION_STUDIO_SUPERVISOR === "1";
@@ -94,9 +95,12 @@ const SUPERVISOR_STUDIO_OVERVIEW = {
 };
 
 test.describe("Execution Studio supervisor failure chain", () => {
+  test.setTimeout(120_000);
+
   test.beforeEach(async ({ context, baseURL, page }) => {
     test.skip(!supervisorFlowEnabled, "Set E2E_EXECUTION_STUDIO_SUPERVISOR=1 to run supervisor flow checks.");
 
+    await clearIntegrationsSubnavPrefs(page);
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
     await installShellApiMocks(page);
 
@@ -127,7 +131,8 @@ test.describe("Execution Studio supervisor failure chain", () => {
     await page.goto("/integrations?tab=studio", { waitUntil: "domcontentloaded", timeout: 60_000 });
     await expect(page.getByText("Pending live confirmations")).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText("Confirm live connector")).toBeVisible();
-    await expect(page.getByText("Activity over time (hourly)")).toBeVisible();
-    await expect(page.getByText("Connector activity chart")).toBeVisible();
+    await page.goto("/integrations?tab=studio&section=analytics", { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await expect(page.getByText("Activity over time (hourly)")).toBeVisible({ timeout: 45_000 });
+    await expect(page.getByText("Connector activity chart")).toBeVisible({ timeout: 20_000 });
   });
 });

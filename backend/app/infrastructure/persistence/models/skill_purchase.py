@@ -1,4 +1,4 @@
-"""One-time skill export purchases (Stripe Checkout)."""
+"""One-time skill export purchases."""
 
 from __future__ import annotations
 
@@ -34,8 +34,8 @@ class SkillPurchase(Base):
         nullable=False,
         index=True,
     )
-    stripe_checkout_session_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
-    stripe_payment_intent_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    checkout_session_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    payment_intent_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     amount_cents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     currency: Mapped[str] = mapped_column(String(8), nullable=False, default="eur")

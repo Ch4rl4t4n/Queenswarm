@@ -124,7 +124,7 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
     () => hiveGet<SupervisorSessionRow[]>("agents/sessions?limit=40"),
     sessionsPoll,
   );
-  const sessions = Array.isArray(rawSessions) ? rawSessions : [];
+  const sessions = useMemo(() => (Array.isArray(rawSessions) ? rawSessions : []), [rawSessions]);
 
   const { data: rawRoutines = [], mutate: mutateRoutines } = useSWR<SupervisorRoutineRow[]>(
     "hive/agent-routines",

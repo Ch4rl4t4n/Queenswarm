@@ -34,13 +34,13 @@ if [[ "$failed" -eq 0 ]]; then
   fi
   echo
   if grep -qE '^SOLO_MODE_ENABLED=(true|1|yes)' "$ENV_FILE" 2>/dev/null; then
-    echo "Solo mode: commercial P0 (Stripe/billing) DEFERRED — focus on feature audit:"
+    echo "Solo mode: commercial checkout DEFERRED — focus on feature audit:"
     echo "  • ./scripts/operator-full-app-audit.sh"
     echo "  • ./scripts/operator-solo-readiness-audit.sh"
     echo "  • docs/AUTHENTICATED_PROD_WALKTHROUGH.md"
   else
     echo "Operator P0 remaining (human-only):"
-    echo "  • Stripe keys → ./scripts/operator-p0-close.sh"
+    echo "  • Checkout lane removed (no payment-vendor keys required)"
     echo "  • Hetzner email → ./scripts/operator-hetzner-send-prep.sh"
     echo "  • See docs/OPERATOR_P0_CLOSE.md"
   fi

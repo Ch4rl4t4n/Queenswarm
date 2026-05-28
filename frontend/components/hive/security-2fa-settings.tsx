@@ -1,12 +1,13 @@
 "use client";
 
 import { Download, ExternalLink, RefreshCw, ShieldCheck } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { HiveModalShell } from "@/components/hive/hive-modal-shell";
 import { SessionPolicySettingsCard } from "@/components/hive/session-policy-settings-card";
 import { Toggle } from "@/components/ui/toggle";
-import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
+import { V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import type {
   BackupCodesRegenerateResponse,
@@ -69,6 +70,28 @@ export function Security2FASettings() {
 
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [qrBusy, setQrBusy] = useState(false);
+  const enrollCancelRef = useRef<HTMLButtonElement>(null);
+  const disableCancelRef = useRef<HTMLButtonElement>(null);
+  const regenCancelRef = useRef<HTMLButtonElement>(null);
+  const freshCodesDismissRef = useRef<HTMLButtonElement>(null);
+
+  function closeEnrollDialog(): void {
+    setEnrollOpen(false);
+    setProvision(null);
+    setConfirmCode("");
+    setEnrollPhase("password");
+    setEnrollPassword("");
+  }
+
+  function closeDisableDialog(): void {
+    setDisableOpen(false);
+    setDisablePassword("");
+  }
+
+  function closeRegenDialog(): void {
+    setRegenOpen(false);
+    setRegenPassword("");
+  }
 
   const loadMe = useCallback(async () => {
     setProfileLoading(true);
@@ -409,7 +432,7 @@ export function Security2FASettings() {
             <span className="v4-field-label">New password</span>
             <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" className="qs-input" />
           </label>
-          <div className="pt-1">
+          <div className="v4-dream-cycle-card-actions pt-1">
             <button type="button" className="qs-btn qs-btn--primary qs-btn--sm disabled:opacity-40" disabled={passwordBusy} onClick={() => void submitPasswordChange()}>
               {passwordBusy ? "Saving..." : "Change password"}
             </button>
@@ -417,143 +440,147 @@ export function Security2FASettings() {
         </div>
       </V4Card>
 
-      {enrollOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal>
-          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border border-(--qs-border) bg-(--qs-surface-2) p-6 shadow-[var(--qs-glow-gold)]">
-            <h3 className="text-lg font-semibold text-[#fafafa]">
-              {enrollPhase === "password" ? "Confirm password" : "Scan QR and verify Authenticator"}
-            </h3>
-            {enrollPhase === "password" ? (
-              <>
-                <p className="mt-2 text-sm text-(--qs-text-3)">Enter your login password to generate the TOTP secret and show the QR code.</p>
-                <input type="password" value={enrollPassword} onChange={(e) => setEnrollPassword(e.target.value)} className="qs-input mt-4" autoComplete="current-password" />
-                <div className="mt-4 flex justify-end gap-2">
-                  <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => setEnrollOpen(false)}>
-                    Cancel
-                  </button>
-                  <button type="button" disabled={busy} className="qs-btn qs-btn--primary qs-btn--sm disabled:opacity-40" onClick={() => void submitEnrollPassword()}>
-                    Next
-                  </button>
-                </div>
-              </>
-            ) : null}
-            {enrollPhase === "scan" && provision ? (
-              <>
-                <p className="mt-3 text-sm text-(--qs-text-2)">
-                  Open your authenticator app, scan the QR, then enter the six-digit code below.
-                </p>
-                <div className="mt-5 grid place-items-center rounded-xl bg-white p-3">
-                  {qrBusy ? (
-                    <div className="flex h-40 w-40 items-center justify-center text-xs text-(--qs-text-3)">Building QR…</div>
-                  ) : qrDisplaySrc ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={qrDisplaySrc} alt="TOTP QR code" width={160} height={160} className="block h-40 w-40" />
-                  ) : (
-                    <div className="flex h-40 w-40 items-center px-3 text-center text-[11px] text-(--qs-text-3)">QR unavailable — use manual key below.</div>
-                  )}
-                </div>
-                <p className="mt-3 text-center font-mono text-xs text-pollen">{provision.secret_base32}</p>
-                <label className="mt-6 block">
-                  <span className="v4-field-label">Code from Authenticator (6 digits)</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    value={confirmCode}
-                    maxLength={6}
-                    placeholder="••••••"
-                    onChange={(e) => setConfirmCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    onKeyDown={(e) => {
-                      if (e.key !== "Enter" || busy) return;
-                      const raw = e.currentTarget.value.replace(/\D/g, "").slice(0, 6);
-                      if (raw.length >= 6) void submitConfirmTotp(raw);
-                    }}
-                    className="qs-input mt-2 w-full max-w-[200px] py-3 text-center font-mono text-xl tracking-[0.35em]"
-                  />
-                </label>
-                <div className="mt-4 flex flex-wrap justify-end gap-2">
-                  <button
-                    type="button"
-                    className="qs-btn qs-btn--ghost qs-btn--sm"
-                    onClick={() => {
-                      setEnrollOpen(false);
-                      setProvision(null);
-                      setConfirmCode("");
-                      setEnrollPhase("password");
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button type="button" disabled={busy || confirmCode.length < 6} className="qs-btn qs-btn--primary qs-btn--sm disabled:opacity-40" onClick={() => void submitConfirmTotp()}>
-                    Verify & enable 2FA
-                  </button>
-                </div>
-              </>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-
-      {disableOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-sm rounded-xl border border-(--qs-border) bg-(--qs-surface-2) p-6">
-            <h3 className="text-lg font-semibold text-[#fafafa]">Disable 2FA</h3>
-            <p className="mt-2 text-sm text-(--qs-text-3)">Enter your password to remove TOTP.</p>
-            <input type="password" value={disablePassword} onChange={(e) => setDisablePassword(e.target.value)} className="qs-input mt-4" />
+      <HiveModalShell
+        open={enrollOpen}
+        onClose={closeEnrollDialog}
+        panelClassName="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border border-(--qs-border) bg-(--qs-surface-2) p-6 shadow-(--qs-glow-gold)"
+        labelledBy="totp-enroll-title"
+        initialFocusRef={enrollCancelRef}
+        backdropClassName="bg-black/70"
+      >
+        <h3 id="totp-enroll-title" className="text-lg font-semibold text-[#fafafa]">
+          {enrollPhase === "password" ? "Confirm password" : "Scan QR and verify Authenticator"}
+        </h3>
+        {enrollPhase === "password" ? (
+          <>
+            <p className="mt-2 text-sm text-(--qs-text-3)">Enter your login password to generate the TOTP secret and show the QR code.</p>
+            <input type="password" value={enrollPassword} onChange={(e) => setEnrollPassword(e.target.value)} className="qs-input mt-4" autoComplete="current-password" />
             <div className="mt-4 flex justify-end gap-2">
-              <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => setDisableOpen(false)}>
+              <button ref={enrollCancelRef} type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={closeEnrollDialog}>
                 Cancel
               </button>
-              <button type="button" disabled={busy} className="qs-btn qs-btn--danger qs-btn--sm disabled:opacity-40" onClick={() => void submitDisable()}>
-                Disable
+              <button type="button" disabled={busy} className="qs-btn qs-btn--primary qs-btn--sm disabled:opacity-40" onClick={() => void submitEnrollPassword()}>
+                Next
               </button>
             </div>
-          </div>
-        </div>
-      ) : null}
-
-      {regenOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-sm rounded-xl border border-(--qs-border) bg-(--qs-surface-2) p-6">
-            <h3 className="text-lg font-semibold">Regenerate codes</h3>
-            <p className="mt-2 text-sm text-(--qs-text-3)">Old backup codes will stop working.</p>
-            <input type="password" value={regenPassword} onChange={(e) => setRegenPassword(e.target.value)} className="qs-input mt-4" />
-            <div className="mt-4 flex justify-end gap-2">
-              <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => setRegenOpen(false)}>
+          </>
+        ) : null}
+        {enrollPhase === "scan" && provision ? (
+          <>
+            <p className="mt-3 text-sm text-(--qs-text-2)">
+              Open your authenticator app, scan the QR, then enter the six-digit code below.
+            </p>
+            <div className="mt-5 grid place-items-center rounded-xl bg-white p-3">
+              {qrBusy ? (
+                <div className="flex h-40 w-40 items-center justify-center text-xs text-(--qs-text-3)">Building QR…</div>
+              ) : qrDisplaySrc ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={qrDisplaySrc} alt="TOTP QR code" width={160} height={160} className="block h-40 w-40" />
+              ) : (
+                <div className="flex h-40 w-40 items-center px-3 text-center text-[11px] text-(--qs-text-3)">QR unavailable — use manual key below.</div>
+              )}
+            </div>
+            <p className="mt-3 text-center font-mono text-xs text-pollen">{provision.secret_base32}</p>
+            <label className="mt-6 block">
+              <span className="v4-field-label">Code from Authenticator (6 digits)</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={confirmCode}
+                maxLength={6}
+                placeholder="••••••"
+                onChange={(e) => setConfirmCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter" || busy) return;
+                  const raw = e.currentTarget.value.replace(/\D/g, "").slice(0, 6);
+                  if (raw.length >= 6) void submitConfirmTotp(raw);
+                }}
+                className="qs-input mt-2 w-full max-w-[200px] py-3 text-center font-mono text-xl tracking-[0.35em]"
+              />
+            </label>
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <button ref={enrollCancelRef} type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={closeEnrollDialog}>
                 Cancel
               </button>
-              <button type="button" disabled={busy} className="qs-btn qs-btn--primary qs-btn--sm disabled:opacity-40" onClick={() => void submitRegenerate()}>
-                Generate
+              <button type="button" disabled={busy || confirmCode.length < 6} className="qs-btn qs-btn--primary qs-btn--sm disabled:opacity-40" onClick={() => void submitConfirmTotp()}>
+                Verify & enable 2FA
               </button>
             </div>
-          </div>
-        </div>
-      ) : null}
+          </>
+        ) : null}
+      </HiveModalShell>
 
-      {freshCodes?.length ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4">
-          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border border-pollen/35 bg-(--qs-surface-2) p-6">
-            <h3 className="text-lg font-semibold text-pollen">Save your codes</h3>
-            <p className="mt-2 text-sm text-(--qs-text-2)">Shown only now. Each code is single-use at sign-in.</p>
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              {freshCodes.map((c) => (
-                <div key={c} className="v4-backup-code">
-                  {c}
-                </div>
-              ))}
-            </div>
-            <div className="mt-6 flex flex-wrap gap-2">
-              <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm inline-flex items-center gap-1.5" onClick={() => downloadBackupCodes(freshCodes)}>
-                <Download className="h-3.5 w-3.5" aria-hidden />
-                Download .txt
-              </button>
-              <button type="button" className="qs-btn qs-btn--primary qs-btn--sm" onClick={() => setFreshCodes(null)}>
-                Got it
-              </button>
-            </div>
-          </div>
+      <HiveModalShell
+        open={disableOpen}
+        onClose={closeDisableDialog}
+        panelClassName="w-full max-w-sm rounded-xl border border-(--qs-border) bg-(--qs-surface-2) p-6"
+        labelledBy="totp-disable-title"
+        initialFocusRef={disableCancelRef}
+        backdropClassName="bg-black/70"
+      >
+        <h3 id="totp-disable-title" className="text-lg font-semibold text-[#fafafa]">Disable 2FA</h3>
+        <p className="mt-2 text-sm text-(--qs-text-3)">Enter your password to remove TOTP.</p>
+        <input type="password" value={disablePassword} onChange={(e) => setDisablePassword(e.target.value)} className="qs-input mt-4" />
+        <div className="mt-4 flex justify-end gap-2">
+          <button ref={disableCancelRef} type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={closeDisableDialog}>
+            Cancel
+          </button>
+          <button type="button" disabled={busy} className="qs-btn qs-btn--danger qs-btn--sm disabled:opacity-40" onClick={() => void submitDisable()}>
+            Disable
+          </button>
         </div>
-      ) : null}
+      </HiveModalShell>
+
+      <HiveModalShell
+        open={regenOpen}
+        onClose={closeRegenDialog}
+        panelClassName="w-full max-w-sm rounded-xl border border-(--qs-border) bg-(--qs-surface-2) p-6"
+        labelledBy="totp-regen-title"
+        initialFocusRef={regenCancelRef}
+        backdropClassName="bg-black/70"
+      >
+        <h3 id="totp-regen-title" className="text-lg font-semibold">Regenerate codes</h3>
+        <p className="mt-2 text-sm text-(--qs-text-3)">Old backup codes will stop working.</p>
+        <input type="password" value={regenPassword} onChange={(e) => setRegenPassword(e.target.value)} className="qs-input mt-4" />
+        <div className="mt-4 flex justify-end gap-2">
+          <button ref={regenCancelRef} type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={closeRegenDialog}>
+            Cancel
+          </button>
+          <button type="button" disabled={busy} className="qs-btn qs-btn--primary qs-btn--sm disabled:opacity-40" onClick={() => void submitRegenerate()}>
+            Generate
+          </button>
+        </div>
+      </HiveModalShell>
+
+      <HiveModalShell
+        open={Boolean(freshCodes?.length)}
+        onClose={() => setFreshCodes(null)}
+        panelClassName="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border border-pollen/35 bg-(--qs-surface-2) p-6"
+        labelledBy="totp-fresh-codes-title"
+        zIndexClass="z-[60]"
+        backdropClassName="bg-black/75"
+        initialFocusRef={freshCodesDismissRef}
+      >
+        <h3 id="totp-fresh-codes-title" className="text-lg font-semibold text-pollen">Save your codes</h3>
+        <p className="mt-2 text-sm text-(--qs-text-2)">Shown only now. Each code is single-use at sign-in.</p>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          {freshCodes?.map((c) => (
+            <div key={c} className="v4-backup-code">
+              {c}
+            </div>
+          ))}
+        </div>
+        <div className="mt-6 flex flex-wrap gap-2">
+          <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm inline-flex items-center gap-1.5" onClick={() => downloadBackupCodes(freshCodes ?? [])}>
+            <Download className="h-3.5 w-3.5" aria-hidden />
+            Download .txt
+          </button>
+          <button ref={freshCodesDismissRef} type="button" className="qs-btn qs-btn--primary qs-btn--sm" onClick={() => setFreshCodes(null)}>
+            Got it
+          </button>
+        </div>
+      </HiveModalShell>
     </div>
   );
 }

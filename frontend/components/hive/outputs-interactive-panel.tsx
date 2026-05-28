@@ -246,14 +246,7 @@ export function OutputsInteractivePanel({ initialItems }: OutputsInteractivePane
                   </div>
                 ) : null}
                 <p className="text-sm leading-relaxed text-(--qs-text-2)">{row.preview}</p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    className={cn("qs-btn qs-btn--sm", open ? "qs-btn--primary" : "qs-btn--ghost")}
-                    onClick={() => void toggleExpand(row.id)}
-                  >
-                    {open ? "Collapse" : "View full"}
-                  </button>
+                <div className="v4-dream-cycle-card-actions">
                   <button
                     type="button"
                     className="qs-btn qs-btn--ghost qs-btn--sm"
@@ -271,6 +264,13 @@ export function OutputsInteractivePanel({ initialItems }: OutputsInteractivePane
                     onClick={() => void onRegenerate(row.lineage_id)}
                   >
                     {regenBusyLineage === row.lineage_id ? "Regenerating…" : "Regenerate"}
+                  </button>
+                  <button
+                    type="button"
+                    className={cn("qs-btn qs-btn--sm", open ? "qs-btn--ghost" : "qs-btn--primary")}
+                    onClick={() => void toggleExpand(row.id)}
+                  >
+                    {open ? "Collapse" : "View full"}
                   </button>
                 </div>
                 {open && detail ? (

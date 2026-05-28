@@ -1,6 +1,6 @@
 # Queenswarm Solo operator mode — Queenswarm
 
-Režim pre **jediného operátora** (ty): plný admin prístup, **všetky revenue nástroje** (Stripe, marketplace, UGC, Factory, trading), žiadni hostia.
+Režim pre **jediného operátora** (ty): plný admin prístup, **všetky revenue nástroje** (marketplace, UGC, Factory, trading), žiadni hostia.
 
 ## Rýchly štart — `SOLO_MODE_ENABLED` (odporúčané)
 
@@ -9,7 +9,7 @@ Režim pre **jediného operátora** (ty): plný admin prístup, **všetky revenu
 chmod +x ./scripts/apply-solo-mode.sh
 ./scripts/apply-solo-mode.sh
 
-# Zapne revenue env + platform matrix (Stripe, marketplace, Factory, …)
+# Zapne revenue env + platform matrix (marketplace, Factory, …)
 ./scripts/operator-solo-revenue-full.sh
 ```
 
@@ -107,7 +107,7 @@ Stĺpec **„Prostredie“** = globálny kill-switch (vypne pre všetkých).
 | `knowledge` | Hive Mind / vault |
 | `integrations`, `connectors` | MCP / tools |
 | `settings`, `llm_keys_settings`, `api_keys_settings` | Konfigurácia |
-| `billing_settings` | Stripe — skill checkout, micro-SaaS |
+| `billing_settings` | Billing panel — checkout disabled |
 | `skills_marketplace`, `ugc_content_engine` | Predaj skills + lead magnety |
 | `skills_export_factory`, `product_mission` | Factory + product ship |
 | `bee_gamification`, `leaderboard` | Pollen / verified leaderboard |
@@ -179,7 +179,7 @@ Overenie:
 | **Forager cron** | `FORAGER_INTELLIGENCE_LOOP_ENABLED=true` | P1 |
 | **Slack alerts** | `SLACK_WEBHOOK_URL` | P2 |
 | **Slack harness trainer** | `SLACK_HARNESS_TRAINER_*` | P2 |
-| **Stripe** | Settings → Billing | P1 — skill checkout, micro-SaaS Factory |
+| **Billing panel** | Settings → Billing | P1 — premium tiers and usage visibility |
 | **Neo4j / Postgres** | už v `.env.prod` | hotové |
 | **Connector vault** | `CONNECTOR_VAULT_FERNET_KEY` | hotové ak deploy prešiel |
 
@@ -248,7 +248,7 @@ APPLY=1 ./scripts/operator-vc-manual-tokens.sh
 
 ## Čo NIE je potrebné pre solo mesiace
 
-- Stripe / billing go-live
+- Payment-vendor checkout go-live
 - Hetzner — hotové
 - Verejný marketing / UGC
 - Viac tenantov / commercial demo

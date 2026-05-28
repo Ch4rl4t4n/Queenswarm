@@ -102,13 +102,20 @@ function ExecutionStudioSkillForgePanelInner({ onError }: ExecutionStudioSkillFo
         kicker="HiveMind"
         title="Verified Skill Forge"
         description={`${forgeRows.length} pending critic-approved skill draft${forgeRows.length === 1 ? "" : "s"}`}
-        actions={<InfoHint title={SKILL_FORGE_HINT.title} description={SKILL_FORGE_HINT.description} options={SKILL_FORGE_HINT.options} />}
+        hint={
+          <InfoHint
+            title={SKILL_FORGE_HINT.title}
+            description={SKILL_FORGE_HINT.description}
+            options={SKILL_FORGE_HINT.options}
+            className="hive-inline-hint"
+          />
+        }
       />
       <ul className="space-y-3">
         {forgeRows.map((row) => (
           <li
             key={row.id}
-            className="v4-dream-cycle-card flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between"
+            className="v4-dream-cycle-card flex h-full flex-col gap-2 p-3"
           >
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-(--qs-text)">{row.title}</p>
@@ -118,15 +125,7 @@ function ExecutionStudioSkillForgePanelInner({ onError }: ExecutionStudioSkillFo
                 <V4Badge tone="info">{row.proposed_by_role}</V4Badge>
               </div>
             </div>
-            <div className="flex shrink-0 flex-wrap gap-2">
-              <button
-                type="button"
-                className={cn("qs-btn qs-btn--primary qs-btn--sm", busyId === row.id && "opacity-60")}
-                disabled={busyId !== null}
-                onClick={() => void review(row.id, "approve")}
-              >
-                Approve
-              </button>
+            <div className="v4-dream-cycle-card-actions">
               <button
                 type="button"
                 className={cn("qs-btn qs-btn--ghost qs-btn--sm", busyId === row.id && "opacity-60")}
@@ -135,13 +134,21 @@ function ExecutionStudioSkillForgePanelInner({ onError }: ExecutionStudioSkillFo
               >
                 Reject
               </button>
+              <button
+                type="button"
+                className={cn("qs-btn qs-btn--primary qs-btn--sm", busyId === row.id && "opacity-60")}
+                disabled={busyId !== null}
+                onClick={() => void review(row.id, "approve")}
+              >
+                Approve
+              </button>
             </div>
           </li>
         ))}
       </ul>
       <p className="mt-3 text-xs text-(--qs-muted)">
         All agent suggestions:{" "}
-        <Link href="/dashboard#agent-suggestions" className="text-(--qs-cyan) underline-offset-2 hover:underline">
+        <Link href="/agents#agent-suggestions" className="text-(--qs-cyan) underline-offset-2 hover:underline">
           Dashboard deck
         </Link>
       </p>

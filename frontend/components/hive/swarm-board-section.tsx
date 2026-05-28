@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRightIcon, RefreshCw, Search, Zap, Cpu, Activity } from "lucide-react";
+import { ChevronRightIcon, Search, Zap, Cpu, Activity } from "lucide-react";
 import useSWR from "swr";
 
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { useCockpitTelemetry } from "@/components/hive/cockpit-telemetry-provider";
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import {
   V4Badge,
   V4Card,
@@ -96,7 +98,7 @@ function SwarmCard({ card }: { card: SwarmBoardCard }) {
           <strong className="text-(--qs-text)">{formatAgo(card.last_sync_seconds_ago)}</strong>
         </span>
       </div>
-      <Link href="/#hive-live-swarm" className="mt-3 inline-flex items-center gap-0.5 text-xs font-semibold text-(--qs-cyan) hover:text-pollen">
+      <Link href="/swarms" className="mt-3 inline-flex items-center gap-0.5 text-xs font-semibold text-(--qs-cyan) hover:text-pollen">
         Open swarm
         <ChevronRightIcon className="h-3.5 w-3.5" aria-hidden />
       </Link>
@@ -141,10 +143,7 @@ export function SubSwarmsSection() {
           <h2>Sub-swarms</h2>
           <p className="desc">Decentralized swarms with local memory. Global sync roughly every {syncMin} min.</p>
         </div>
-        <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-2" onClick={() => window.location.reload()}>
-          <RefreshCw className="h-4 w-4" aria-hidden />
-          Resync
-        </button>
+        <HiveRefreshButton label="Resync" onClick={() => window.location.reload()} />
       </div>
       {data.sub_swarms.length === 0 ? (
         <div className="v4-empty text-sm">No sub-swarms in the database — run bootstrap (scripts/hive_seed.py).</div>
@@ -176,6 +175,7 @@ export function WaggleFeedCard() {
       <V4CardHeader
         title="Waggle dance feed"
         description="Signals across swarms — from hive tasks"
+        hint={sectionHintNode("swarmsWaggleFeed")}
         as="h3"
         actions={<V4Badge tone="purple">{data.waggle_feed.length} new</V4Badge>}
       />

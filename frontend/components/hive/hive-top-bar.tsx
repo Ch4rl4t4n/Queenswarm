@@ -14,6 +14,7 @@ export interface HiveTopBarProps {
 }
 
 /** @deprecated Returns null — not used in shell. */
-export function HiveTopBar(_props: HiveTopBarProps): null {
+export function HiveTopBar(props: HiveTopBarProps): null {
+  void props;
   return null;
 }

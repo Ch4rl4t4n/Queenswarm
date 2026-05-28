@@ -160,15 +160,6 @@ async def _exchange_authorization_code(
         payload = {"grant_type": "authorization_code", "code": code, "redirect_uri": redirect_uri}
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(spec.token_url, headers=headers, json=payload)
-    elif spec.vendor_family == "stripe":
-        form = {
-            "grant_type": "authorization_code",
-            "code": code,
-            "client_secret": csec,
-            "client_id": cid,
-        }
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(spec.token_url, data=form)
     elif spec.vendor_family == "x":
         if not code_verifier:
             msg = "x_oauth_requires_pkce_verifier"

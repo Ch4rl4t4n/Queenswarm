@@ -178,7 +178,7 @@ flowchart TD
 | **P1b** | GitHub PR workflow (denylist + pulls_create) | 3–4 d | ✅ |
 | **P2** | Event trigger post-merge + checkpoint resume | 3 d | ✅ post-merge webhook + checkpoint resume UI |
 
-**User estimate „1 týždeň P0“** → realisticky **P1a+b = 5–7 dní solo** po operator Stripe unblock.
+**User estimate „1 týždeň P0“** → realisticky **P1a+b = 5–7 dní solo** po operator unblocke deployment blockerov.
 
 ---
 

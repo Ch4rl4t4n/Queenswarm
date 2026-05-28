@@ -25,6 +25,7 @@ from app.infrastructure.persistence.models.tenant import (
     TenantAuditLog,
     TenantInvite,
 )
+from app.presentation.api.error_payloads import forbidden_error, unprocessable_error
 from app.presentation.api.deps import DbSession, require_dashboard_user_with_tenant_role
 from app.presentation.api.middleware.rate_limit import peer_ip_for_rate_limit
 
@@ -83,13 +84,19 @@ class UpdateMemberRoleBody(BaseModel):
 def _require_team_manage(principal: dict[str, Any]) -> None:
     role = str(principal.get("tenant_role") or "")
     if not has_permission(role=role, permission="team:manage"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Team management permission required.")
+        raise forbidden_error(
+            code="team_management_permission_required",
+            message="Team management permission required.",
+        )
 
 
 def _require_team_view(principal: dict[str, Any]) -> None:
     role = str(principal.get("tenant_role") or "")
     if not has_permission(role=role, permission="team:view"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Team visibility permission required.")
+        raise forbidden_error(
+            code="team_visibility_permission_required",
+            message="Team visibility permission required.",
+        )
 
 
 @router.get("/audit-logs", response_model=list[TenantAuditLogView], summary="List tenant-sensitive audit entries")
@@ -309,14 +316,14 @@ async def patch_supervisor_audit_digest_config(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
 
     if body.discord_webhook_url and not discord_webhook_url_ok(body.discord_webhook_url.strip()):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Discord webhook must be an https URL under discord.com (or discordapp.com) /api/webhooks/",
+        raise unprocessable_error(
+            code="discord_webhook_invalid",
+            message="Discord webhook must be an https URL under discord.com (or discordapp.com) /api/webhooks/",
         )
     if body.teams_webhook_url and not teams_webhook_url_ok(body.teams_webhook_url.strip()):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Teams webhook must be an https Office 365 or Power Automate incoming webhook URL.",
+        raise unprocessable_error(
+            code="teams_webhook_invalid",
+            message="Teams webhook must be an https Office 365 or Power Automate incoming webhook URL.",
         )
 
     tenant.operator_settings = merge_tenant_audit_digest_patch(
@@ -491,7 +498,7 @@ async def invite_team_member(
     tenant_id = principal["tenant_id"]
     role = normalize_tenant_role(body.role)
     if role not in VALID_TENANT_ROLES:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid role.")
+        raise unprocessable_error(code="tenant_role_invalid", message="Invalid role.")
     invite = TenantInvite(
         tenant_id=tenant_id,
         email=body.email.strip().lower(),
@@ -584,7 +591,7 @@ async def remove_team_member(
     if membership is None or membership.tenant_id != tenant_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Membership not found.")
     if membership.role == ROLE_OWNER and str(membership.dashboard_user_id) == str(principal["user"].id):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Owner cannot remove self.")
+        raise unprocessable_error(code="owner_self_removal_forbidden", message="Owner cannot remove self.")
     await db.delete(membership)
     await write_tenant_audit_log(
         db,

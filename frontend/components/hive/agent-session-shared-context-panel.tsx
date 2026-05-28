@@ -2,14 +2,13 @@
 
 import type { JSX } from "react";
 
-import { Loader2Icon, RefreshCwIcon } from "lucide-react";
+import { Loader2Icon } from "lucide-react";
 import useSWR from "swr";
 
 import { V4Badge } from "@/components/ui/v4";
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { HiveApiError, hiveGet } from "@/lib/api";
 import type { SupervisorSharedContextRow } from "@/lib/hive-types";
-import { cn } from "@/lib/utils";
-
 interface AgentSessionSharedContextPanelProps {
   sessionId: string;
 }
@@ -47,15 +46,7 @@ export function AgentSessionSharedContextPanel({ sessionId }: AgentSessionShared
           <p className="text-[11px] font-semibold uppercase tracking-wider text-cyan">Shared memory</p>
           <p className="mt-1 text-[11px] text-zinc-500">Hive Mind + graph retrieval via contract</p>
         </div>
-        <button
-          type="button"
-          className="qs-btn qs-btn--ghost qs-btn--xs gap-1"
-          disabled={isLoading}
-          onClick={() => void mutate()}
-        >
-          <RefreshCwIcon className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} aria-hidden />
-          Refresh
-        </button>
+        <HiveRefreshButton busy={isLoading} className="qs-btn--xs" onClick={() => void mutate()} />
       </div>
 
       {isLoading ? (

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { V4Badge } from "@/components/ui/v4";
+import { HiveModalShell, hiveModalBottomSheetPanelClass } from "@/components/hive/hive-modal-shell";
 import { HiveApiError, hiveGet } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -107,17 +108,15 @@ export function DreamReportInfoDialog({ cycleId, open, onOpenChange }: DreamRepo
   const report = detail?.dream_report ?? {};
 
   return (
-    <div
-      className="fixed inset-0 z-[72] flex items-end justify-center bg-black/75 p-0 sm:items-center sm:p-4"
-      onClick={() => onOpenChange(false)}
-      role="presentation"
+    <HiveModalShell
+      open
+      onClose={() => onOpenChange(false)}
+      labelledBy="dream-report-info-title"
+      align="bottom-sheet"
+      zIndexClass="z-[72]"
+      closeLabel="Close dream report"
+      panelClassName={cn(hiveModalBottomSheetPanelClass, "max-h-[min(92dvh,920px)] max-w-3xl")}
     >
-      <div
-        className="qs-bubble flex max-h-[min(92dvh,920px)] w-full max-w-3xl flex-col overflow-hidden rounded-t-(--qs-radius-lg) sm:rounded-(--qs-radius-lg)"
-        onClick={(event) => event.stopPropagation()}
-        role="dialog"
-        aria-labelledby="dream-report-info-title"
-      >
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-(--qs-border) px-4 py-4 sm:px-5">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -219,8 +218,7 @@ export function DreamReportInfoDialog({ cycleId, open, onOpenChange }: DreamRepo
             </>
           ) : null}
         </div>
-      </div>
-    </div>
+    </HiveModalShell>
   );
 }
 

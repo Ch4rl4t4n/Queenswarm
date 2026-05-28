@@ -23,7 +23,7 @@ export function buildProductMissionBrief(nicheHint?: string): string {
     "2) Decompose deliverable into 3–7 verified swarm workflow steps",
     "3) Simulate every step — block unverified outputs",
     "4) Package SKILL.md bundle + README + Gumroad LISTING.md",
-    "5) Publish plan: GitHub folder, Gumroad product, optional Queenswarm Stripe tag",
+    "5) Publish plan: GitHub folder, Gumroad product, optional Queenswarm premium tag",
     "",
     `Niche hint: ${niche}`,
     "Deliver: verified recipe in Recipe Library, ready for Integrations → Skills export.",

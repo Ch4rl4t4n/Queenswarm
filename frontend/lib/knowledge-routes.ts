@@ -1,6 +1,10 @@
 /** Knowledge hub tab routing — hash anchors for consolidated /knowledge hub. */
 
+import { resolvePrimarySubnavFromUrl, SUBNAV_MENU_KEYS } from "@/lib/subnav-order-preferences";
+
 export type KnowledgeTab = "hivemind" | "outputs" | "recipes" | "dreaming" | "memory" | "goals";
+
+const ALL_KNOWLEDGE_TABS: KnowledgeTab[] = ["hivemind", "outputs", "recipes", "dreaming", "memory", "goals"];
 
 const HASH_TO_TAB: Record<string, KnowledgeTab> = {
   hivemind: "hivemind",
@@ -25,4 +29,22 @@ export function knowledgeTabFromHash(hash: string): KnowledgeTab | null {
     return null;
   }
   return HASH_TO_TAB[key] ?? null;
+}
+
+/** Prefer hash tab; bare `/knowledge` → first tab in saved menu order. */
+export function resolveKnowledgeTab(params: {
+  hash?: string;
+  visibleTabIds?: readonly KnowledgeTab[];
+  fallback?: KnowledgeTab;
+}): KnowledgeTab {
+  const visible =
+    params.visibleTabIds && params.visibleTabIds.length > 0 ? params.visibleTabIds : ALL_KNOWLEDGE_TABS;
+  const legacy = params.fallback ?? visible[0] ?? "hivemind";
+  const fromHash = knowledgeTabFromHash(params.hash ?? "");
+  return resolvePrimarySubnavFromUrl({
+    menuKey: SUBNAV_MENU_KEYS.knowledgePrimary,
+    visibleIds: visible,
+    fromUrl: fromHash && visible.includes(fromHash) ? fromHash : null,
+    legacyDefaultId: legacy,
+  });
 }

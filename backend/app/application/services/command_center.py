@@ -6,14 +6,6 @@ import asyncio
 from datetime import UTC, datetime
 from typing import Any
 
-from app.application.services.skill_checkout import stripe_checkout_ready
-from app.application.services.stripe_runtime_credentials import (
-    mask_stripe_material,
-    stripe_effective_secret_key,
-    stripe_effective_webhook_secret,
-    stripe_secret_key_source,
-    stripe_webhook_secret_source,
-)
 from app.core.celery_health import inspect_celery_workers
 from app.core.config import settings
 from app.core.llm_router import llm_concurrency_snapshot
@@ -126,26 +118,16 @@ def _llm_provider_rows() -> list[dict[str, Any]]:
 
 
 def _integration_rows() -> list[dict[str, Any]]:
-    """Commercial + voice integration readiness."""
+    """Voice + observability integration readiness."""
 
-    stripe_secret = stripe_effective_secret_key()
-    stripe_webhook = stripe_effective_webhook_secret()
     return [
         {
-            "key": "stripe_checkout",
-            "label": "Stripe checkout",
+            "key": "billing_checkout",
+            "label": "Billing checkout",
             "category": "billing",
-            "ok": stripe_checkout_ready(),
-            "detail": mask_stripe_material(stripe_secret) if stripe_secret else "secret missing",
-            "source": stripe_secret_key_source(),
-        },
-        {
-            "key": "stripe_webhook",
-            "label": "Stripe webhook",
-            "category": "billing",
-            "ok": bool(stripe_webhook),
-            "detail": mask_stripe_material(stripe_webhook) if stripe_webhook else "webhook secret missing",
-            "source": stripe_webhook_secret_source(),
+            "ok": True,
+            "detail": "In-app checkout removed.",
+            "source": "removed",
         },
         {
             "key": "voice_enabled",
@@ -277,7 +259,7 @@ async def build_command_center_snapshot() -> dict[str, Any]:
         "summary": {
             "dependencies_ok": all(row["ok"] for row in _dependency_rows(readiness, celery_snapshot)),
             "llm_routes_ok": any(row["configured"] for row in llm_rows if row["provider"] in {"grok", "anthropic", "openai"}),
-            "integrations_ok": stripe_checkout_ready(),
+            "integrations_ok": True,
         },
     }
 

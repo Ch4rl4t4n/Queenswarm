@@ -1,4 +1,4 @@
-"""Premium skill marketplace policy helpers (no Stripe/DB imports)."""
+"""Premium skill marketplace policy helpers (no payment-vendor imports)."""
 
 from __future__ import annotations
 

@@ -6,13 +6,12 @@ import {
   HelpCircle,
   Layers,
   Loader2,
-  Map,
   Printer,
-  Rocket,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { CollapsibleLazyPanel } from "@/components/hive/collapsible-lazy-panel";
 import { InfoHint } from "@/components/hive/info-hint";
 import { ListPaginator, ViewportBoundedPanel } from "@/components/ui/list-paginator";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
@@ -36,6 +35,7 @@ import {
   downloadTextFile,
   printCapabilitiesPdf,
 } from "@/lib/platform-capabilities-export";
+import { CAPABILITIES_DENSITY_SECTIONS } from "@/lib/settings-panel-density";
 import { useGridTwoRowPageSize } from "@/lib/use-grid-two-row-page-size";
 import { usePaginatedSlice } from "@/lib/use-paginated-slice";
 import { cn } from "@/lib/utils";
@@ -129,7 +129,7 @@ function CapabilityCard({ cap }: { cap: PlatformCapability }): JSX.Element {
         {cap.status === "beta" ? <V4Badge tone="warn">beta</V4Badge> : null}
       </div>
 
-      <div className="mt-auto flex flex-wrap gap-1.5">
+      <div className="v4-dream-cycle-card-actions">
         <button
           type="button"
           className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
@@ -141,7 +141,7 @@ function CapabilityCard({ cap }: { cap: PlatformCapability }): JSX.Element {
         </button>
         <button
           type="button"
-          className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
+          className="qs-btn qs-btn--primary qs-btn--sm gap-1"
           disabled={busy !== null}
           onClick={() => void exportOne("md")}
         >
@@ -221,10 +221,10 @@ function PlannedCard({ item }: { item: PlannedCapability }): JSX.Element {
         <p className="font-mono text-[10px] text-cyan/80">Audit: {item.auditGate}</p>
       ) : null}
 
-      <div className="mt-auto flex flex-wrap gap-1.5">
+      <div className="v4-dream-cycle-card-actions">
         <button
           type="button"
-          className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
+          className="qs-btn qs-btn--primary qs-btn--sm gap-1"
           disabled={busy}
           onClick={() => void exportPlanned()}
         >
@@ -316,8 +316,8 @@ export function SettingsCapabilitiesPanel(): JSX.Element {
   }, []);
 
   return (
-    <div className="space-y-6">
-      <V4Card className="overflow-hidden p-0">
+    <div className="settings-panel-density space-y-4" data-testid="settings-capabilities-panel">
+      <V4Card className="overflow-hidden p-0" id={CAPABILITIES_DENSITY_SECTIONS[0]?.id}>
         <div className="border-b border-(--qs-border) px-4 py-4 md:px-6">
           <V4CardHeader
             as="h2"
@@ -369,74 +369,7 @@ export function SettingsCapabilitiesPanel(): JSX.Element {
         </div>
       </V4Card>
 
-      <V4Card className="border-pollen/25">
-        <V4CardHeader
-          as="h2"
-          kicker="Mission · máj 2026"
-          title="North Star & rollout"
-          description={MISSION_NORTH_STAR.tagline}
-        />
-        <dl className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2.5">
-            <dt className="text-[10px] font-semibold uppercase tracking-wide text-pollen">Metrika</dt>
-            <dd className="mt-1 text-sm text-(--qs-text)">{MISSION_NORTH_STAR.metric}</dd>
-          </div>
-          <div className="rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2.5">
-            <dt className="text-[10px] font-semibold uppercase tracking-wide text-pollen">Fáza 0</dt>
-            <dd className="mt-1 text-sm text-(--qs-text)">
-              {MISSION_NORTH_STAR.phase0Weeks} týždne · ~{MISSION_NORTH_STAR.phase0Hours} h
-            </dd>
-          </div>
-        </dl>
-        <p className="mt-3 text-xs text-(--qs-text-3)">
-          Detailný backlog: <code className="text-cyan">docs/MISSION_EXECUTION_BACKLOG.md</code> · zajtra:{" "}
-          <code className="text-cyan">docs/TOMORROW_OPERATOR_RUNBOOK.md</code>
-        </p>
-      </V4Card>
-
-      <V4Card id="capabilities-architecture" className="scroll-mt-28">
-        <V4CardHeader
-          as="h2"
-          kicker="Architecture map"
-          title="Backend + Frontend stack"
-          description="Tok od Next.js cockpit cez FastAPI až po dátové vrstvy a LLM router."
-          actions={
-            <span className="flex items-center gap-1.5 text-xs text-(--qs-text-3)">
-              <Map className="h-3.5 w-3.5" aria-hidden />
-              {PLATFORM_ARCHITECTURE_LAYERS.length} vrstiev
-            </span>
-          }
-        />
-        <div className="capabilities-arch-flow space-y-3">
-          {PLATFORM_ARCHITECTURE_LAYERS.map((layer, index) => (
-            <div key={layer.id} className="capabilities-arch-layer">
-              {index > 0 ? (
-                <div className="flex justify-center py-1" aria-hidden>
-                  <span className="text-lg text-pollen/70">↓</span>
-                </div>
-              ) : null}
-              <div className={cn("rounded-xl border p-4", LAYER_TONE[layer.tone])}>
-                <p className="text-[11px] font-semibold uppercase tracking-widest text-(--qs-text-2)">
-                  {layer.label}
-                </p>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {layer.nodes.map((node) => (
-                    <div
-                      key={node.id}
-                      className="rounded-lg border border-(--qs-border)/80 bg-black/30 px-3 py-2.5"
-                    >
-                      <p className="text-sm font-medium text-(--qs-text)">{node.label}</p>
-                      <p className="mt-1 text-[11px] leading-relaxed text-(--qs-text-3)">{node.detail}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </V4Card>
-
-      <V4Card>
+      <V4Card id={CAPABILITIES_DENSITY_SECTIONS[1]?.id}>
         <V4CardHeader
           as="h2"
           kicker={`${LIVE_PLATFORM_CAPABILITIES.length} live`}
@@ -491,67 +424,135 @@ export function SettingsCapabilitiesPanel(): JSX.Element {
         </ViewportBoundedPanel>
       </V4Card>
 
-      <V4Card>
-        <V4CardHeader
-          as="h2"
-          kicker="Roadmap"
-          title="Plánované features"
-          description="Priorita zapracovania (P0 = blocker) a očakávaný dopad na produkt."
-          actions={
-            <span className="flex items-center gap-1.5 text-xs text-(--qs-text-3)">
-              <Rocket className="h-3.5 w-3.5" aria-hidden />
-              {PLANNED_PLATFORM_CAPABILITIES.length} položiek
-            </span>
-          }
-        />
-        <p className="mb-4 flex items-start gap-2 rounded-lg border border-pollen/20 bg-pollen/[0.04] px-3 py-2 text-xs text-(--qs-text-3)">
-          <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-pollen" aria-hidden />
-          Fáza 0 = revenue + Exec Assistant wizard. P0 = blocker (Stripe, tier gates). Synced with{" "}
-          <code className="text-cyan">docs/MISSION_EXECUTION_BACKLOG.md</code>.
-        </p>
-
-        <div className="v4-subtab-row w-full max-w-full">
-          {phaseTabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              className={cn("v4-subtab shrink-0 gap-2", activePhase === tab.id && "v4-subtab--active")}
-              onClick={() => setActivePhase(tab.id)}
-            >
-              {tab.label}
-              <span className="rounded-full bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-(--qs-text-3)">
-                {tab.count}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-4 flex shrink-0 items-center justify-between gap-2">
-          <p className="v4-field-label">
-            {activePhase === "all" ? "All planned" : phaseTabs.find((t) => t.id === activePhase)?.label} (
-            {filteredPlanned.length})
-          </p>
-        </div>
-
-        <ViewportBoundedPanel
-          className="v4-recipe-catalog-panel mt-3"
-          footer={
-            <ListPaginator
-              page={plannedPagination.page}
-              totalPages={plannedPagination.totalPages}
-              totalItems={plannedPagination.totalItems}
-              pageSize={pageSize}
-              onPageChange={plannedPagination.setPage}
+      <CollapsibleLazyPanel
+        id="capabilities-mission"
+        hashKey="capabilities-mission"
+        title="North Star & rollout"
+        hint="Mission metric · Phase 0 timeline"
+        meta="Advanced"
+        lazyContent={() => (
+          <V4Card className="border-pollen/25 border-0 bg-transparent p-0 shadow-none">
+            <V4CardHeader
+              as="h2"
+              kicker="Mission · máj 2026"
+              title="North Star & rollout"
+              description={MISSION_NORTH_STAR.tagline}
             />
-          }
-        >
-          <div className="grid gap-3 md:grid-cols-2">
-            {plannedPagination.slice.map((item) => (
-              <PlannedCard key={item.id} item={item} />
+            <dl className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2.5">
+                <dt className="text-[10px] font-semibold uppercase tracking-wide text-pollen">Metrika</dt>
+                <dd className="mt-1 text-sm text-(--qs-text)">{MISSION_NORTH_STAR.metric}</dd>
+              </div>
+              <div className="rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2.5">
+                <dt className="text-[10px] font-semibold uppercase tracking-wide text-pollen">Fáza 0</dt>
+                <dd className="mt-1 text-sm text-(--qs-text)">
+                  {MISSION_NORTH_STAR.phase0Weeks} týždne · ~{MISSION_NORTH_STAR.phase0Hours} h
+                </dd>
+              </div>
+            </dl>
+            <p className="mt-3 text-xs text-(--qs-text-3)">
+              Detailný backlog: <code className="text-cyan">docs/MISSION_EXECUTION_BACKLOG.md</code> · zajtra:{" "}
+              <code className="text-cyan">docs/TOMORROW_OPERATOR_RUNBOOK.md</code>
+            </p>
+          </V4Card>
+        )}
+      />
+
+      <CollapsibleLazyPanel
+        id="capabilities-architecture"
+        hashKey="capabilities-architecture"
+        title="Backend + Frontend stack"
+        hint="Architecture map · data layers"
+        meta={`${PLATFORM_ARCHITECTURE_LAYERS.length} vrstiev`}
+        lazyContent={() => (
+          <div className="capabilities-arch-flow space-y-3">
+            {PLATFORM_ARCHITECTURE_LAYERS.map((layer, index) => (
+              <div key={layer.id} className="capabilities-arch-layer">
+                {index > 0 ? (
+                  <div className="flex justify-center py-1" aria-hidden>
+                    <span className="text-lg text-pollen/70">↓</span>
+                  </div>
+                ) : null}
+                <div className={cn("rounded-xl border p-4", LAYER_TONE[layer.tone])}>
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-(--qs-text-2)">
+                    {layer.label}
+                  </p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {layer.nodes.map((node) => (
+                      <div
+                        key={node.id}
+                        className="rounded-lg border border-(--qs-border)/80 bg-black/30 px-3 py-2.5"
+                      >
+                        <p className="text-sm font-medium text-(--qs-text)">{node.label}</p>
+                        <p className="mt-1 text-[11px] leading-relaxed text-(--qs-text-3)">{node.detail}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
-        </ViewportBoundedPanel>
-      </V4Card>
+        )}
+      />
+
+      <CollapsibleLazyPanel
+        id="capabilities-roadmap"
+        hashKey="capabilities-roadmap"
+        title="Plánované features"
+        hint="Roadmap · P0 blockers · rollout phases"
+        meta={`${PLANNED_PLATFORM_CAPABILITIES.length} položiek`}
+        lazyContent={() => (
+          <>
+            <p className="mb-4 flex items-start gap-2 rounded-lg border border-pollen/20 bg-pollen/[0.04] px-3 py-2 text-xs text-(--qs-text-3)">
+              <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-pollen" aria-hidden />
+              Fáza 0 = revenue + Exec Assistant wizard. P0 = operator blockers + tier gates. Synced with{" "}
+              <code className="text-cyan">docs/MISSION_EXECUTION_BACKLOG.md</code>.
+            </p>
+
+            <div className="v4-subtab-row w-full max-w-full">
+              {phaseTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  className={cn("v4-subtab shrink-0 gap-2", activePhase === tab.id && "v4-subtab--active")}
+                  onClick={() => setActivePhase(tab.id)}
+                >
+                  {tab.label}
+                  <span className="rounded-full bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-(--qs-text-3)">
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-4 flex shrink-0 items-center justify-between gap-2">
+              <p className="v4-field-label">
+                {activePhase === "all" ? "All planned" : phaseTabs.find((t) => t.id === activePhase)?.label} (
+                {filteredPlanned.length})
+              </p>
+            </div>
+
+            <ViewportBoundedPanel
+              className="v4-recipe-catalog-panel mt-3"
+              footer={
+                <ListPaginator
+                  page={plannedPagination.page}
+                  totalPages={plannedPagination.totalPages}
+                  totalItems={plannedPagination.totalItems}
+                  pageSize={pageSize}
+                  onPageChange={plannedPagination.setPage}
+                />
+              }
+            >
+              <div className="grid gap-3 md:grid-cols-2">
+                {plannedPagination.slice.map((item) => (
+                  <PlannedCard key={item.id} item={item} />
+                ))}
+              </div>
+            </ViewportBoundedPanel>
+          </>
+        )}
+      />
     </div>
   );
 }

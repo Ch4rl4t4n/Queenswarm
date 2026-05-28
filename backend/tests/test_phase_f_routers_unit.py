@@ -11,8 +11,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.presentation.api.deps import get_db
-from app.core.jwt_tokens import create_access_token
+from app.presentation.api.deps import dashboard_admin_wall, get_db, require_dashboard_session
 from app.main import app
 from app.models.enums import AgentRole, AgentStatus
 
@@ -40,15 +39,14 @@ async def test_register_agent_returns_410(restore_app_overrides: None) -> None:
     async def mock_db() -> AsyncIterator[AsyncMock]:
         yield AsyncMock()
 
+    app.dependency_overrides[dashboard_admin_wall] = lambda: True
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:operator"}
     app.dependency_overrides[get_db] = mock_db
-    token, _ = create_access_token(subject="pytest")
-    headers = {"Authorization": f"Bearer {token}"}
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         r = await client.post(
             "/api/v1/agents",
-            headers=headers,
             json={
                 "name": "bee-x",
                 "role": "learner",
@@ -93,15 +91,13 @@ async def test_list_agents_returns_rows(restore_app_overrides: None, monkeypatch
         session.scalars = AsyncMock(return_value=scalar_bundle)
         yield session
 
+    app.dependency_overrides[dashboard_admin_wall] = lambda: True
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:operator"}
     app.dependency_overrides[get_db] = mock_db
-    token, _ = create_access_token(subject="pytest")
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        r = await client.get(
-            "/api/v1/agents",
-            headers={"Authorization": f"Bearer {token}"},
-        )
+        r = await client.get("/api/v1/agents")
 
     assert r.status_code == 200
     assert r.json()[0]["name"] == "bee-z"
@@ -139,15 +135,13 @@ async def test_get_agent_returns_200(restore_app_overrides: None, monkeypatch: p
         session.scalar = AsyncMock(return_value=None)
         yield session
 
+    app.dependency_overrides[dashboard_admin_wall] = lambda: True
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:operator"}
     app.dependency_overrides[get_db] = mock_db
-    token, _ = create_access_token(subject="pytest")
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        r = await client.get(
-            f"/api/v1/agents/{aid}",
-            headers={"Authorization": f"Bearer {token}"},
-        )
+        r = await client.get(f"/api/v1/agents/{aid}")
 
     assert r.status_code == 200
     assert r.json()["id"] == str(aid)
@@ -193,14 +187,14 @@ async def test_patch_agent_returns_200(restore_app_overrides: None, monkeypatch:
         session.scalar = AsyncMock(return_value=None)
         yield session
 
+    app.dependency_overrides[dashboard_admin_wall] = lambda: True
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:operator"}
     app.dependency_overrides[get_db] = mock_db
-    token, _ = create_access_token(subject="pytest")
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         r = await client.patch(
             f"/api/v1/agents/{aid}",
-            headers={"Authorization": f"Bearer {token}"},
             json={"status": "running"},
         )
 

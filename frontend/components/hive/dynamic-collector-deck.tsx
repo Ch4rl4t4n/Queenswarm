@@ -45,7 +45,7 @@ export function DynamicCollectorDeck({
   const [activeTab, setActiveTab] = useState(defaultTabId ?? firstTab);
   const [index, setIndex] = useState(0);
 
-  const items = itemsByTab[activeTab] ?? [];
+  const items = useMemo(() => itemsByTab[activeTab] ?? [], [itemsByTab, activeTab]);
   const safeIndex = items.length ? Math.min(index, items.length - 1) : 0;
   const current = items[safeIndex];
   const behind = items.slice(safeIndex + 1, safeIndex + 3);
@@ -157,7 +157,9 @@ export function DynamicCollectorDeck({
               {current.meta ? (
                 <p className="mt-3 font-mono text-[11px] text-(--qs-text-3)">{current.meta}</p>
               ) : null}
-              {current.footer ? <div className="mt-4 border-t border-(--qs-border) pt-3">{current.footer}</div> : null}
+              {current.footer ? (
+                <div className="v4-dream-cycle-card-actions border-t border-(--qs-border) pt-3">{current.footer}</div>
+              ) : null}
             </article>
           ) : null}
         </div>

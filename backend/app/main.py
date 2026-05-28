@@ -9,9 +9,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
-from prometheus_fastapi_instrumentator import Instrumentator
+from prometheus_client import make_asgi_app
 
 from app import __version__
+from app.application.services.single_admin_mode import SingleAdminInvariantError, assert_single_admin_invariants
 from app.application.services.hive_waggle_relay import run_hive_waggle_relay_loop
 from app.core.chroma_client import ensure_collections
 from app.core.config import settings
@@ -50,13 +51,26 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     configure_observability()
     set_readiness_draining(False)
     await init_db()
+    if settings.single_admin_mode:
+        async with async_session() as single_admin_session:
+            try:
+                single_admin_snapshot = await assert_single_admin_invariants(single_admin_session)
+            except SingleAdminInvariantError as exc:
+                raise RuntimeError(str(exc)) from exc
+            await single_admin_session.commit()
+        hive_log.info(
+            "single_admin_mode.invariants_ok",
+            agent_id="api_lifespan",
+            swarm_id="global",
+            task_id="single_admin_boot",
+            keeper_user_id=single_admin_snapshot.get("keeper_user_id"),
+            keeper_tenant_id=single_admin_snapshot.get("keeper_tenant_id"),
+        )
     async with async_session() as session:
         from app.application.services.llm_runtime_credentials import refresh_llm_secret_cache
-        from app.application.services.stripe_runtime_credentials import refresh_stripe_secret_cache
         from app.domain.recipes.marketplace_seeds import load_premium_marketplace_seeds
 
         await refresh_llm_secret_cache(session)
-        await refresh_stripe_secret_cache(session)
         if settings.recipes_enabled:
             seeded = await load_premium_marketplace_seeds(session)
             if seeded:
@@ -222,7 +236,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-Instrumentator().instrument(app).expose(app)
+app.mount("/metrics", make_asgi_app())
 
 app.include_router(health_router.router, prefix="/health")
 app.include_router(api_v1, prefix="/api/v1")

@@ -10,6 +10,12 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends gcc libpq-dev curl ffmpeg git \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Grok CLI into backend/worker image so Grok Control Plane can execute real CLI plans.
+COPY install-grok.sh /tmp/install-grok.sh
+RUN chmod +x /tmp/install-grok.sh \
+    && /tmp/install-grok.sh \
+    && rm -f /tmp/install-grok.sh
+
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 

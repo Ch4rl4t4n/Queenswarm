@@ -68,7 +68,7 @@ FACTORY_RECIPE_SEEDS: tuple[dict[str, Any], ...] = (
         "name": "Product Mission — Revenue Swarm",
         "description": (
             "Ballroom playbook: niche → verified workflow → skill export → publish on GitHub, Gumroad, "
-            "and optional Stripe. Free factory template for operators."
+            "and optional premium unlock. Free factory template for operators."
         ),
         "seed_key": "PRODUCT_MISSION",
         "topic_tags": ["factory", "product", "monetize", "publish"],

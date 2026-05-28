@@ -267,7 +267,7 @@ def build_export_bundle(recipe: Recipe) -> SkillExportResponse:
 
     install_hint = (
         "Sell anywhere: push to GitHub, Gumroad, or Cursor skills folder. "
-        f"Bundle includes README.md + LISTING.md. In-app Stripe is optional — {install_command}"
+        f"Bundle includes README.md + LISTING.md. In-app checkout is optional — {install_command}"
     )
 
     logger.info(
@@ -321,7 +321,7 @@ async def build_skills_catalog(
         needle=None,
         limit=recipe_limit,
     )
-    from app.application.services.skill_checkout import tenant_has_skill_access
+    from app.application.services.skill_access import tenant_has_skill_access
     from app.application.services.skill_marketplace_ugc import load_approved_listings_map
 
     recipe_ids = [row.id for row in rows]

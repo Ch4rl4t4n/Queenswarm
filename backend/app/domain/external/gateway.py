@@ -131,7 +131,7 @@ def _payload_size_guard(payload: dict[str, Any], cfg: Settings) -> None:
         serialized = json.dumps(payload, default=str)
     except (TypeError, ValueError) as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="payload must serialize to JSON.",
         ) from exc
     if len(serialized) > cfg.external_integration_max_payload_chars:
@@ -264,7 +264,7 @@ async def register_external_project(
             detail="Slug already registered.",
         ) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     return ExternalProjectPublic.model_validate(row)
 
 

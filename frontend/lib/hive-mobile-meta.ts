@@ -1,4 +1,5 @@
 /** Route labels used by compact mobile chrome (hive header + titles). */
+import { AGENTIC_OS_PRODUCT_NAME } from "@/lib/cross-route-naming";
 import { OPERATOR_CONTROL_PLANE_ENABLED, PHASE70_CONSOLIDATED_NAV_ENABLED } from "@/lib/feature-flags";
 
 export interface MobileRouteMeta {
@@ -7,10 +8,10 @@ export interface MobileRouteMeta {
   staticSubtitle?: string;
 }
 
-const COCKPIT_ROUTE_META: MobileRouteMeta = {
-  kicker: "Cockpit",
+const AGENTIC_OS_ROUTE_META: MobileRouteMeta = {
+  kicker: AGENTIC_OS_PRODUCT_NAME,
   staticSubtitle: "Operator control plane · now actions",
-  pageTitleSuffix: "Cockpit",
+  pageTitleSuffix: AGENTIC_OS_PRODUCT_NAME,
 };
 
 function routeTable(consolidatedEnabled: boolean): { prefix: string; meta: MobileRouteMeta }[] {
@@ -18,7 +19,10 @@ function routeTable(consolidatedEnabled: boolean): { prefix: string; meta: Mobil
     ...(consolidatedEnabled
       ? [
           ...(OPERATOR_CONTROL_PLANE_ENABLED
-            ? [{ prefix: "/cockpit", meta: COCKPIT_ROUTE_META }]
+            ? [
+                { prefix: "/agentic-os", meta: AGENTIC_OS_ROUTE_META },
+                { prefix: "/cockpit", meta: AGENTIC_OS_ROUTE_META },
+              ]
             : []),
           { prefix: "/dashboard", meta: { kicker: "Dashboard", staticSubtitle: "Overview · monitoring · costs", pageTitleSuffix: "Dashboard" } },
           { prefix: "/overview", meta: { kicker: "Dashboard", staticSubtitle: "Overview · monitoring · costs", pageTitleSuffix: "Dashboard" } },
@@ -29,12 +33,28 @@ function routeTable(consolidatedEnabled: boolean): { prefix: string; meta: Mobil
           { prefix: "/learning", meta: { kicker: "Knowledge", staticSubtitle: "Learning alias · consolidated view", pageTitleSuffix: "Knowledge" } },
           { prefix: "/recipes", meta: { kicker: "Knowledge", staticSubtitle: "Recipes alias · consolidated view", pageTitleSuffix: "Knowledge" } },
           { prefix: "/integrations", meta: { kicker: "Integrations", staticSubtitle: "Connectors · plugins · external apps", pageTitleSuffix: "Integrations" } },
+          { prefix: "/apps-tools", meta: { kicker: "Apps & Tools", staticSubtitle: "Domain workspaces · factory · MCP", pageTitleSuffix: "Apps & Tools" } },
+          { prefix: "/apps-tools/marketing-automation", meta: { kicker: "Apps & Tools", staticSubtitle: "Publish queue · social distribution", pageTitleSuffix: "Marketing Automation" } },
+          { prefix: "/apps-tools/content-factory", meta: { kicker: "Apps & Tools", staticSubtitle: "White-label media · Micro-SaaS", pageTitleSuffix: "Content Factory" } },
+          { prefix: "/apps-tools/trading-automation", meta: { kicker: "Apps & Tools", staticSubtitle: "Trading cockpit · live lane", pageTitleSuffix: "Trading Automation" } },
+          { prefix: "/apps-tools/browser-automation", meta: { kicker: "Apps & Tools", staticSubtitle: "Operator-approved browser harness", pageTitleSuffix: "Browser Automation" } },
+          { prefix: "/apps-tools/research-workspace", meta: { kicker: "Apps & Tools", staticSubtitle: "Briefing-first research lane", pageTitleSuffix: "Research Workspace" } },
+          { prefix: "/apps-tools/mcp-ops-studio", meta: { kicker: "Apps & Tools", staticSubtitle: "MCP catalog · governed installs", pageTitleSuffix: "MCP Ops Studio" } },
+          { prefix: "/manual", meta: { kicker: "Manual", staticSubtitle: "Operator docs · app functions", pageTitleSuffix: "Manual" } },
+          { prefix: "/foragers", meta: { kicker: "Foragers", staticSubtitle: "Dynamic ingest workers · spawn flow", pageTitleSuffix: "Foragers" } },
+          { prefix: "/monitoring", meta: { kicker: "Monitoring", staticSubtitle: "Host pressure · queues · telemetry", pageTitleSuffix: "Monitoring" } },
+          { prefix: "/factory", meta: { kicker: "Apps & Tools", staticSubtitle: "Simulate-first MVP blueprint lane", pageTitleSuffix: "Micro-SaaS Factory" } },
           { prefix: "/connectors", meta: { kicker: "Integrations", staticSubtitle: "Connector hub alias · consolidated view", pageTitleSuffix: "Integrations" } },
           { prefix: "/external-projects", meta: { kicker: "Integrations", staticSubtitle: "External apps alias · consolidated view", pageTitleSuffix: "Integrations" } },
           { prefix: "/plugins", meta: { kicker: "Integrations", staticSubtitle: "Plugin catalog alias · consolidated view", pageTitleSuffix: "Integrations" } },
         ]
       : []),
     { prefix: "/settings/security", meta: { kicker: "Settings", staticSubtitle: "Security · 2FA · passwords", pageTitleSuffix: "Security" } },
+    { prefix: "/settings/billing", meta: { kicker: "Settings", staticSubtitle: "Legacy alias · redirects to Costs", pageTitleSuffix: "Costs" } },
+    { prefix: "/settings/team", meta: { kicker: "Settings", staticSubtitle: "Members · roles · invites", pageTitleSuffix: "Team & RBAC" } },
+    { prefix: "/settings/audit", meta: { kicker: "Settings", staticSubtitle: "Admin actions · overrides · exports", pageTitleSuffix: "Audit log" } },
+    { prefix: "/settings/sharing", meta: { kicker: "Settings", staticSubtitle: "Public links · embed · revoke", pageTitleSuffix: "Public sharing" } },
+    { prefix: "/settings/enterprise", meta: { kicker: "Settings", staticSubtitle: "SSO · SCIM · workspace policy", pageTitleSuffix: "Enterprise" } },
     { prefix: "/settings/api-keys", meta: { kicker: "Settings", staticSubtitle: "Dashboard API keys", pageTitleSuffix: "API keys" } },
     { prefix: "/settings/llm-keys", meta: { kicker: "Settings", staticSubtitle: "LLM routing · Grok vault · voice", pageTitleSuffix: "LLM & Voice" } },
     { prefix: "/settings/notifications", meta: { kicker: "Settings", staticSubtitle: "Alerts · channels", pageTitleSuffix: "Notifications" } },
@@ -42,7 +62,7 @@ function routeTable(consolidatedEnabled: boolean): { prefix: string; meta: Mobil
     { prefix: "/settings/harness", meta: { kicker: "Settings", staticSubtitle: "AI Layer · rules · skills · patterns", pageTitleSuffix: "Harness" } },
     { prefix: "/settings", meta: { kicker: "Settings", staticSubtitle: "Operator cockpit preferences", pageTitleSuffix: "Settings" } },
     { prefix: "/external-projects", meta: { kicker: "External", staticSubtitle: "MCP · REST · WebSocket bridges", pageTitleSuffix: "External projects" } },
-    { prefix: "/connectors", meta: { kicker: "Connectors", staticSubtitle: "Phase 3 MCP · Gmail to Stripe · vault sync", pageTitleSuffix: "Connectors" } },
+    { prefix: "/connectors", meta: { kicker: "Connectors", staticSubtitle: "Phase 3 MCP · Gmail to TikTok · vault sync", pageTitleSuffix: "Connectors" } },
     { prefix: "/hive-mind", meta: { kicker: "HiveMind", staticSubtitle: "Shared constellation · embeddings", pageTitleSuffix: "HiveMind" } },
     { prefix: "/outputs", meta: { kicker: "Outputs", staticSubtitle: "Archived deliverables · semantic search", pageTitleSuffix: "Outputs" } },
     { prefix: "/learning", meta: { kicker: "Learning", staticSubtitle: "Pollen · imitation · reflections", pageTitleSuffix: "Learning" } },
@@ -57,7 +77,6 @@ function routeTable(consolidatedEnabled: boolean): { prefix: string; meta: Mobil
     { prefix: "/swarms", meta: { kicker: "Swarms", staticSubtitle: "Colonies · purposes · pollen", pageTitleSuffix: "Swarms" } },
     { prefix: "/hierarchy", meta: { kicker: "Agents", staticSubtitle: "Hierarchy alias · graph view", pageTitleSuffix: "Agents" } },
     { prefix: "/settings/costs", meta: { kicker: "Settings", staticSubtitle: "Costs · spend · models · caps", pageTitleSuffix: "Costs" } },
-    { prefix: "/leaderboard", meta: { kicker: "Leaderboard", staticSubtitle: "Pollen prestige · colonies · recipes", pageTitleSuffix: "Leaderboard" } },
     { prefix: "/plugins", meta: { kicker: "Plugins", staticSubtitle: "Built-ins · operator uploads", pageTitleSuffix: "Plugins" } },
     { prefix: "/simulations", meta: { kicker: "Simulations", staticSubtitle: "Verified sandbox ledger", pageTitleSuffix: "Simulations" } },
     { prefix: "/recipes", meta: { kicker: "Recipes", staticSubtitle: "Library · semantic recall · tags", pageTitleSuffix: "Recipes" } },
@@ -82,7 +101,7 @@ function longestPrefixMeta(pathname: string, consolidatedEnabled: boolean): Mobi
 export function hiveMobileRouteMeta(pathname: string, consolidatedEnabled: boolean = PHASE70_CONSOLIDATED_NAV_ENABLED): MobileRouteMeta {
   if (pathname === "/") {
     if (OPERATOR_CONTROL_PLANE_ENABLED) {
-      return COCKPIT_ROUTE_META;
+      return AGENTIC_OS_ROUTE_META;
     }
     return { kicker: "Dashboard", staticSubtitle: "Live swarm roster", pageTitleSuffix: "Dashboard" };
   }
@@ -92,5 +111,5 @@ export function hiveMobileRouteMeta(pathname: string, consolidatedEnabled: boole
     return hit;
   }
 
-  return { kicker: "QueenSwarm", staticSubtitle: "Hive cockpit" };
+  return { kicker: "QueenSwarm", staticSubtitle: "Agentic OS hub" };
 }

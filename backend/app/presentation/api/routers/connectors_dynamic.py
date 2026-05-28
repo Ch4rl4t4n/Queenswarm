@@ -68,7 +68,7 @@ async def create_dynamic_connector(
     try:
         return await svc.create_row(db, dashboard_user_id=uid, body=body)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
 
 @router.patch("/{connector_id}", summary="Patch dashboard-owned connectors")
@@ -84,7 +84,7 @@ async def patch_dynamic_connector(
     try:
         return await svc.patch_row(db, connector_id=connector_id, dashboard_user_id=uid, body=body)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
 
 @router.delete("/{connector_id}", summary="Delete connector")
@@ -99,7 +99,7 @@ async def delete_dynamic_connector(
     try:
         await svc.delete_row(db, connector_id=connector_id, dashboard_user_id=uid)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -128,4 +128,4 @@ async def post_dynamic_connector_test(
     try:
         return await svc.test_upstream(db, connector_id=connector_id, dashboard_user_id=uid)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc

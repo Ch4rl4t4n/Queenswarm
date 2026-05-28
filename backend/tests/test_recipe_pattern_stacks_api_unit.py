@@ -9,14 +9,14 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.main import app
-from app.presentation.api.deps import require_subject
+from app.presentation.api.deps import require_dashboard_session
 
 
 @pytest.fixture
 def recipe_auth_fixture() -> Generator[None, None, None]:
-    """JWT subject for recipe catalog routes."""
+    """Dashboard session for recipe catalog routes."""
 
-    app.dependency_overrides[require_subject] = lambda: f"dash:{uuid.uuid4()}"
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": f"dash:{uuid.uuid4()}"}
     try:
         yield
     finally:

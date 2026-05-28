@@ -1,4 +1,4 @@
-"""Sub-swarm LangGraph supervisors (JWT guarded)."""
+"""Sub-swarm LangGraph supervisors (dashboard-admin guarded)."""
 
 from __future__ import annotations
 
@@ -7,12 +7,12 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from app.presentation.api.deps import DashboardSession, DbSession, JwtSubject
+from app.presentation.api.deps import DashboardSession, DbSession, dashboard_admin_wall
 from app.application.services.billing import assert_swarm_hard_limit
 from app.core.config import settings
 from app.infrastructure.persistence.models.agent import Agent
@@ -64,17 +64,20 @@ from app.application.services.manager_peer_review import (
 from app.application.services.hive_md_generator import generate_swarm_hive_md
 from app.common.schemas.skill_export import HiveMdResponse
 
-router = APIRouter(tags=["Swarms"])
+router = APIRouter(
+    tags=["Swarms"],
+    dependencies=[Depends(dashboard_admin_wall)],
+)
 
 _ERROR_HTTP_MAP: dict[str, int] = {
     "missing_session": status.HTTP_500_INTERNAL_SERVER_ERROR,
     "swarm_not_found": status.HTTP_404_NOT_FOUND,
     "workflow_not_found": status.HTTP_404_NOT_FOUND,
     "task_not_found": status.HTTP_404_NOT_FOUND,
-    "no_agents": status.HTTP_422_UNPROCESSABLE_ENTITY,
-    "task_swarm_mismatch": status.HTTP_422_UNPROCESSABLE_ENTITY,
-    "routing_failed": status.HTTP_422_UNPROCESSABLE_ENTITY,
-    "invalid_workflow_plan": status.HTTP_422_UNPROCESSABLE_ENTITY,
+    "no_agents": status.HTTP_422_UNPROCESSABLE_CONTENT,
+    "task_swarm_mismatch": status.HTTP_422_UNPROCESSABLE_CONTENT,
+    "routing_failed": status.HTTP_422_UNPROCESSABLE_CONTENT,
+    "invalid_workflow_plan": status.HTTP_422_UNPROCESSABLE_CONTENT,
     "budget_exceeded": status.HTTP_429_TOO_MANY_REQUESTS,
     "step_timeout": status.HTTP_504_GATEWAY_TIMEOUT,
 }
@@ -83,7 +86,7 @@ _ERROR_HTTP_MAP: dict[str, int] = {
 def _workflow_execution_http_exception(*, code: str, detail: str | None, traces: list[str]) -> HTTPException:
     """Translate sub-swarm execution failures to stable HTTP responses."""
 
-    status_code = _ERROR_HTTP_MAP.get(code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+    status_code = _ERROR_HTTP_MAP.get(code, status.HTTP_422_UNPROCESSABLE_CONTENT)
     payload = {
         "code": code,
         "detail": detail,
@@ -107,7 +110,7 @@ def _workflow_execution_http_exception(*, code: str, detail: str | None, traces:
 )
 async def list_sub_swarm_colonies(
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
     purpose: SwarmPurpose | None = Query(default=None),
     is_active: bool | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
@@ -181,7 +184,7 @@ async def create_sub_swarm_colony(
         await db.refresh(row)
     except SubSwarmCatalogError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     except IntegrityError:
         await db.rollback()
         raise HTTPException(
@@ -205,7 +208,7 @@ async def create_sub_swarm_colony(
 async def get_sub_swarm_hive_md(
     swarm_id: uuid.UUID,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> HiveMdResponse:
     """Auto-generate HIVE.md from swarm goals, rules, and local memory."""
 
@@ -244,7 +247,7 @@ async def get_sub_swarm_hive_md(
 async def get_sub_swarm_colony(
     swarm_id: uuid.UUID,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ):
     """Return a single colony row including sync telemetry."""
 
@@ -268,7 +271,7 @@ async def get_sub_swarm_colony(
 async def get_sub_swarm_local_mind(
     swarm_id: uuid.UUID,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> SubSwarmLocalMindDetail:
     """Return curated local_memory highlights and global sync countdown."""
 
@@ -296,13 +299,13 @@ async def patch_sub_swarm_colony(
     swarm_id: uuid.UUID,
     body: SubSwarmPatchRequest,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ):
     """Update naming, queen linkage, or pollen totals."""
 
     if body.clear_queen and body.queen_agent_id is not None:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Use clear_queen or queen_agent_id, not both.",
         )
 
@@ -315,7 +318,7 @@ async def patch_sub_swarm_colony(
         and body.total_pollen is None
     ):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Provide at least one mutable field.",
         )
 
@@ -338,7 +341,7 @@ async def patch_sub_swarm_colony(
         await db.refresh(row)
     except SubSwarmCatalogError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     except IntegrityError:
         await db.rollback()
         raise HTTPException(
@@ -362,7 +365,7 @@ async def patch_sub_swarm_colony(
 async def delete_sub_swarm_colony(
     swarm_id: uuid.UUID,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> dict[str, Any]:
     """Detach every bee, detach tasks; hard-delete when Celery ledger does not anchor the swarm.
 
@@ -468,7 +471,7 @@ async def run_workflow_through_sub_swarm(
     workflow_id: uuid.UUID,
     body: RunWorkflowOnSwarmRequest,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ):
     """Materialize breaker steps locally, invoke bees, broadcast waggle telemetry."""
 
@@ -488,7 +491,7 @@ async def run_workflow_through_sub_swarm(
                 swarm_id=swarm_id,
                 workflow_id=workflow_id,
                 hive_task_id=body.task_id,
-                requested_by_subject=_subject,
+                requested_by_subject=str(_session.get("sub", "dashboard_admin")),
             )
             await db.commit()
         except SQLAlchemyError:
@@ -551,7 +554,7 @@ async def run_workflow_through_sub_swarm(
 async def acknowledge_global_hive_sync(
     swarm_id: uuid.UUID,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> GlobalHiveSyncAck:
     """Stamp UTC ``last_global_sync_at`` after a colony merges with global state."""
 
@@ -577,7 +580,7 @@ async def acknowledge_global_hive_sync(
     "/{swarm_id}/wake",
     summary="Wake paused/offline bees inside a colony",
 )
-async def wake_swarm_colony(swarm_id: uuid.UUID, db: DbSession, _subject: JwtSubject) -> dict[str, Any]:
+async def wake_swarm_colony(swarm_id: uuid.UUID, db: DbSession, _session: DashboardSession) -> dict[str, Any]:
     """Flip idle-blocked agents back to IDLE so planners can resume dispatch."""
 
     colony = await fetch_sub_swarm(db, swarm_id)
@@ -607,7 +610,7 @@ async def wake_swarm_colony(swarm_id: uuid.UUID, db: DbSession, _subject: JwtSub
 async def get_swarm_health_notes(
     swarm_id: uuid.UUID,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
     limit: int = Query(10, ge=1, le=10),
 ) -> dict[str, Any]:
     """Return advisory notes about under-performance / duplicated work / missing tools."""
@@ -625,16 +628,16 @@ async def post_swarm_health_note(
     swarm_id: uuid.UUID,
     body: dict[str, Any],
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> dict[str, Any]:
     """Append an advisory note; capped at the 10 most recent entries per swarm."""
 
     message = str(body.get("message") or "").strip()
     if not message:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="message required")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="message required")
     severity_raw = str(body.get("severity") or "warn").lower()
     if severity_raw not in {"info", "warn", "error"}:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="severity must be info|warn|error")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="severity must be info|warn|error")
     source = str(body.get("source") or "operator").strip()[:64]
     manager_raw = body.get("manager_agent_id")
     manager_id: uuid.UUID | None = None
@@ -643,7 +646,7 @@ async def post_swarm_health_note(
             manager_id = uuid.UUID(str(manager_raw))
         except (TypeError, ValueError):
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="manager_agent_id must be a UUID",
             )
     metadata = body.get("metadata") if isinstance(body.get("metadata"), dict) else None
@@ -669,7 +672,7 @@ async def post_swarm_health_note(
 )
 async def run_recipe_warmup(
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
     top_n: int = Query(RECIPE_WARMUP_DEFAULT_N, ge=1, le=100),
 ) -> dict[str, Any]:
     """Touch + Chroma-query the top-N verified recipes. Read-only, no LLM cost.
@@ -716,7 +719,7 @@ async def bootstrap_sentinel_upgrade_routine(
 )
 async def run_peer_review_sweep(
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
     sample_ratio: float = Query(PEER_REVIEW_SAMPLE_RATIO, gt=0.0, le=1.0),
     lookback_hours: int = Query(PEER_REVIEW_LOOKBACK_HOURS, ge=1, le=168),
     max_reviews: int = Query(5, ge=1, le=20),
@@ -739,7 +742,7 @@ async def run_peer_review_sweep(
 )
 async def run_pollen_reroster(
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
     window_days: int = Query(DEFAULT_WINDOW_DAYS, ge=7, le=90),
     ratio_threshold: float = Query(DEFAULT_RATIO_THRESHOLD, gt=0.0, lt=1.0),
     write_notes: bool = Query(True),
@@ -767,7 +770,7 @@ async def run_pollen_reroster(
 async def delete_swarm_health_notes(
     swarm_id: uuid.UUID,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
     note_id: str | None = Query(None),
 ) -> dict[str, Any]:
     """Remove one note (by id) or clear them all; returns remaining count."""

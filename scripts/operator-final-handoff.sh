@@ -46,21 +46,13 @@ See latest handoff pack: \`${HANDOFF_DIR##*/}\`
 
 ## Human-only remaining (P0)
 
-### 1. Stripe live checkout
-
-\`\`\`bash
-./scripts/operator-stripe-prep.sh    # shows missing keys
-# Add to .env.prod: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, price IDs
-./scripts/operator-p0-close.sh
-\`\`\`
-
-### 2. Hetzner abuse reply
+### 1. Hetzner abuse reply
 
 \`\`\`bash
 ./scripts/operator-hetzner-send-prep.sh
 \`\`\`
 
-### 3. Harness env (GitHub webhook, Forager cron)
+### 2. Harness env (GitHub webhook, Forager cron)
 
 \`\`\`bash
 ./scripts/operator-harness-env-prep.sh
@@ -85,4 +77,4 @@ EOF
 echo "Wrote ${OUT_MD}"
 echo
 echo "== Operator final handoff: OK =="
-echo "Human steps: Stripe keys + Hetzner email (see ${OUT_MD})"
+echo "Human steps: Hetzner email + optional harness env (see ${OUT_MD})"

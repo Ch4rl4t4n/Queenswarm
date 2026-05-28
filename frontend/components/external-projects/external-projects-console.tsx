@@ -13,8 +13,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Copy, RefreshCw } from "lucide-react";
+import { Copy } from "lucide-react";
 
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { QsSelect } from "@/components/ui/qs-select";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import { V4Badge, V4Card, V4CardHeader, V4PageCanvas } from "@/components/ui/v4";
@@ -243,10 +244,7 @@ export function ExternalProjectsConsole() {
             lanes — mirrored into HiveMind vault audit stitches when enabled.
           </p>
         </div>
-        <button type="button" onClick={() => void refreshProjects()} className="qs-btn qs-btn--ghost gap-2">
-          <RefreshCw className="h-4 w-4" aria-hidden />
-          Refresh registry
-        </button>
+        <HiveRefreshButton label="Refresh registry" onClick={() => void refreshProjects()} />
       </header>
 
       {loadError ? (

@@ -1,9 +1,10 @@
 "use client";
 
-import { Building2, Loader2, RefreshCw } from "lucide-react";
+import { Building2 } from "lucide-react";
 import Link from "next/link";
 import { memo, useCallback, useEffect, useState } from "react";
 
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { V4Badge } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
 
@@ -81,14 +82,7 @@ function ExecutionStudioMediaAgencyPanelInner({ onError }: ExecutionStudioMediaA
           <Building2 className="size-4 text-[#FF00AA]" aria-hidden />
           <h3 className="font-heading text-sm font-semibold text-(--qs-text)">Media Agency in a Box</h3>
         </div>
-        <button
-          type="button"
-          onClick={() => void load()}
-          className="rounded-md p-1 text-(--qs-text-3) hover:text-cyan"
-          aria-label="Refresh media agency snapshot"
-        >
-          {loading ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-        </button>
+        <HiveRefreshButton busy={loading} onClick={() => void load()} />
       </div>
 
       {loading && !snapshot ? (

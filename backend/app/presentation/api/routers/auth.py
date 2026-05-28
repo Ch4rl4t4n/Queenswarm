@@ -128,8 +128,11 @@ async def exchange_machine_token(
             headers={"WWW-Authenticate": 'Basic realm="hive-m2m"'},
         )
 
+    requested_subject = body.subject.strip()
+    subject = requested_subject if settings.hive_token_allow_subject_override else exchange.client_id
+
     token, expires_in = create_access_token(
-        subject=body.subject.strip(),
+        subject=subject,
         expires_minutes=body.expires_minutes,
         scope=body.scope.strip() if body.scope else None,
     )
@@ -139,7 +142,9 @@ async def exchange_machine_token(
         agent_id="auth_router",
         swarm_id="",
         task_id="",
-        subject=body.subject.strip(),
+        subject=subject,
+        requested_subject=requested_subject,
+        subject_override=bool(settings.hive_token_allow_subject_override),
         expires_seconds=expires_in,
     )
 

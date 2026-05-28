@@ -106,7 +106,6 @@ for path in \
   "/api/v1/agents/sessions/${FAKE_SESSION_ID}/playbook/preview" \
   "/api/v1/agents/sessions/${FAKE_SESSION_ID}/playbook" \
   /api/v1/settings/team/session-playbook/config \
-  /api/v1/billing/plans \
   /api/v1/dashboard/rapid-loop \
   /api/v1/dashboard/time-saved \
   /api/v1/dashboard/cockpit \
@@ -118,7 +117,7 @@ done
 
 echo
 echo "[2/5] protected hub shells (redirect or auth, not 404)"
-for path in /agents /integrations /tasks /knowledge /ballroom /swarms/new /settings/billing /settings/capabilities /settings/enterprise; do
+for path in /agents /integrations /tasks /knowledge /ballroom /swarms/new /settings/security /settings/capabilities /settings/enterprise; do
   code="$(curl -sS -o /dev/null -w '%{http_code}' "${HIVE_BASE}${path}" || echo "000")"
   if [[ "$code" == "404" || "$code" == "000" ]]; then
     echo "FAIL ${path} HTTP ${code}" >&2

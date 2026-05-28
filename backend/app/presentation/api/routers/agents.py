@@ -1,4 +1,4 @@
-"""Autonomous bee registry (JWT guarded)."""
+"""Autonomous bee registry (dashboard-admin guarded)."""
 
 from __future__ import annotations
 
@@ -6,11 +6,11 @@ import uuid
 
 from typing import Any
 
-from fastapi import APIRouter, Body, HTTPException, Query, Response, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from app.presentation.api.deps import DashboardSession, DbSession, JwtSubject
+from app.presentation.api.deps import DashboardSession, DbSession, dashboard_admin_wall
 from app.common.http.rate_limit import rate_limited_http_exception
 from app.application.services.billing import assert_agent_hard_limit
 from app.infrastructure.persistence.models.agent import Agent
@@ -37,7 +37,10 @@ from app.application.services.agent_universal import enqueue_universal_agent_run
 from app.application.services.hive_tier import is_fixed_orchestrator_agent, resolve_hive_tier
 from app.worker.tasks import execute_universal_agent_task
 
-router = APIRouter(tags=["Agents"])
+router = APIRouter(
+    tags=["Agents"],
+    dependencies=[Depends(dashboard_admin_wall)],
+)
 
 
 def _tenant_id_from_session(sess: dict[str, Any]) -> uuid.UUID | None:
@@ -94,7 +97,7 @@ async def _to_agent_snapshot(db: DbSession, row: Agent) -> AgentSnapshot:
     "/pause-all",
     summary="Emergency pause for every idle or running bee",
 )
-async def pause_all_agents(db: DbSession, _subject: JwtSubject) -> dict[str, Any]:
+async def pause_all_agents(db: DbSession, _session: DashboardSession) -> dict[str, Any]:
     """Mark ``idle`` / ``running`` bees as ``paused``."""
 
     result = await db.execute(
@@ -111,7 +114,7 @@ async def pause_all_agents(db: DbSession, _subject: JwtSubject) -> dict[str, Any
     "/wake-all",
     summary="Return every paused bee to idle",
 )
-async def wake_all_agents(db: DbSession, _subject: JwtSubject) -> dict[str, Any]:
+async def wake_all_agents(db: DbSession, _session: DashboardSession) -> dict[str, Any]:
     """Operator reset — ``paused`` bees become ``idle``."""
 
     result = await db.execute(select(Agent).where(Agent.status == AgentStatus.PAUSED))
@@ -138,7 +141,7 @@ async def create_dynamic_agent(
     normalized = body.name.strip().lower()
     if normalized == "orchestrator":
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Orchestrator is fixed — use PATCH on its persisted config.",
         )
 
@@ -187,7 +190,7 @@ async def create_dynamic_agent(
         await db.refresh(cfg)
     except AgentCatalogError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     except IntegrityError:
         await db.rollback()
         raise HTTPException(
@@ -215,7 +218,7 @@ async def create_dynamic_agent(
 async def get_agent_config_row(
     agent_id: uuid.UUID,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> AgentConfigSnapshot:
     """Return prompt + tool JSON for the agent editor."""
 
@@ -237,7 +240,7 @@ async def upsert_agent_config_row(
     agent_id: uuid.UUID,
     body: AgentConfigUpsert,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> AgentConfigSnapshot:
     """Create or update prompt-driven configuration for an existing agent row."""
 
@@ -249,7 +252,7 @@ async def upsert_agent_config_row(
         payload["system_prompt"] = str(payload["system_prompt"]).strip()
     if not payload:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Provide at least one field to upsert.",
         )
 
@@ -313,7 +316,7 @@ async def upsert_agent_config_row(
 async def run_agent_now(
     agent_id: uuid.UUID,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
     overlay: UniversalAgentRunOverlay | None = Body(default=None),
 ) -> UniversalAgentRunQueued:
     """Enqueue :func:`execute_universal_agent_task` for operator-triggered runs."""
@@ -352,11 +355,11 @@ async def run_agent_now(
 async def register_agent(
     body: AgentCreateRequest,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ):
     """Hard-disabled — callers must POST ``/agents/dynamic`` with a hive tier."""
 
-    del body, db, _subject  # arity preserved for FastAPI OpenAPI stubs
+    del body, db, _session  # arity preserved for FastAPI OpenAPI stubs
     raise HTTPException(
         status_code=status.HTTP_410_GONE,
         detail="POST /agents is retired — use POST /agents/dynamic (manager/worker tiers).",
@@ -370,7 +373,7 @@ async def register_agent(
 )
 async def list_agent_registry(
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
     swarm_id: uuid.UUID | None = Query(default=None),
     role: AgentRole | None = Query(default=None),
     filter_status: AgentStatus | None = Query(default=None, alias="status"),
@@ -425,7 +428,7 @@ async def list_agent_registry(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Remove a manager or worker bee",
 )
-async def delete_agent(agent_id: uuid.UUID, db: DbSession, _subject: JwtSubject) -> Response:
+async def delete_agent(agent_id: uuid.UUID, db: DbSession, _session: DashboardSession) -> Response:
     """Orchestrator is immutable; cascades AgentConfig."""
 
     row = await fetch_agent(db, agent_id)
@@ -456,7 +459,7 @@ async def delete_agent(agent_id: uuid.UUID, db: DbSession, _subject: JwtSubject)
 async def get_agent(
     agent_id: uuid.UUID,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ):
     """Return agent telemetry for waggle-dance relays and imitation."""
 
@@ -481,13 +484,13 @@ async def patch_agent(
     agent_id: uuid.UUID,
     body: AgentPatchRequest,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ):
     """Update status, swarm membership, or performance fields."""
 
     if body.detach_from_swarm and body.swarm_id is not None:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Use detach_from_swarm or swarm_id, not both.",
         )
 
@@ -500,7 +503,7 @@ async def patch_agent(
         and body.pollen_points is None
     ):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Provide at least one mutable field.",
         )
 
@@ -532,7 +535,7 @@ async def patch_agent(
         await db.refresh(row)
     except AgentCatalogError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(
@@ -547,7 +550,7 @@ async def patch_agent(
     response_model=AgentSnapshot,
     summary="Pause bee execution (marks worker as paused)",
 )
-async def pause_agent(agent_id: uuid.UUID, db: DbSession, _subject: JwtSubject) -> AgentSnapshot:
+async def pause_agent(agent_id: uuid.UUID, db: DbSession, _session: DashboardSession) -> AgentSnapshot:
     """Operator guardrail — pause busy workers without losing swarm membership."""
 
     row = await fetch_agent(db, agent_id)
@@ -568,7 +571,7 @@ async def pause_agent(agent_id: uuid.UUID, db: DbSession, _subject: JwtSubject) 
         await db.refresh(row)
     except AgentCatalogError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(
@@ -583,7 +586,7 @@ async def pause_agent(agent_id: uuid.UUID, db: DbSession, _subject: JwtSubject) 
     response_model=AgentSnapshot,
     summary="Resume paused bee",
 )
-async def resume_agent(agent_id: uuid.UUID, db: DbSession, _subject: JwtSubject) -> AgentSnapshot:
+async def resume_agent(agent_id: uuid.UUID, db: DbSession, _session: DashboardSession) -> AgentSnapshot:
     """Return paused agents to idle so LangGraph supervisors can dispatch again."""
 
     row = await fetch_agent(db, agent_id)
@@ -604,7 +607,7 @@ async def resume_agent(agent_id: uuid.UUID, db: DbSession, _subject: JwtSubject)
         await db.refresh(row)
     except AgentCatalogError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(

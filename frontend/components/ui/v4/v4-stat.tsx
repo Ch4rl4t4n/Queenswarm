@@ -17,6 +17,10 @@ interface V4StatProps {
   trend?: { dir: "up" | "down"; text: string };
   valueVariant?: "gold" | "text";
   className?: string;
+  /** In-page or external URL — renders accessible link tile (e.g. `#billing-plans`). */
+  href?: string;
+  /** Overrides default `label: value` for link accessible name. */
+  linkLabel?: string;
 }
 
 const iconToneClass: Record<V4StatIconTone, string> = {
@@ -36,9 +40,23 @@ export function V4Stat({
   trend,
   valueVariant = "gold",
   className,
+  href,
+  linkLabel,
 }: V4StatProps) {
+  const Root = href ? "a" : "article";
+  const accessibleName =
+    href && linkLabel
+      ? linkLabel
+      : href
+        ? `${label}: ${typeof value === "string" || typeof value === "number" ? value : label}`
+        : undefined;
+
   return (
-    <article className={cn("v4-stat", className)}>
+    <Root
+      href={href}
+      className={cn("v4-stat", href && "v4-stat--link", className)}
+      aria-label={accessibleName}
+    >
       <div className="v4-stat-head">
         <span className="v4-stat-label">{label}</span>
         {Icon ? (
@@ -52,6 +70,6 @@ export function V4Stat({
         <div className={cn("v4-stat-trend", trend.dir === "down" && "v4-stat-trend--down")}>{trend.text}</div>
       ) : null}
       {foot ? <div className="v4-stat-foot">{foot}</div> : null}
-    </article>
+    </Root>
   );
 }

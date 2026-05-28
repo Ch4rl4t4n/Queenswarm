@@ -54,14 +54,12 @@ SKIP_E2E=1 SKIP_RESPONSIVE_E2E=1 ./scripts/operator-launch-gate.sh
 - [ ] Session **audit** tab in drawer — fanout events listed
 - [ ] **Playbook automation** toggle persists after reload
 
-## 7 — Phase 0 commercial (Swarm Builder + billing)
+## 7 — Phase 0 commercial (Swarm Builder)
 
 - [x] ~~`/swarms/new` — Exec Assistant template loads~~ — **automated**
 - [x] ~~`/swarms/new?template=lead-waterfall` — Lead Waterfall review~~ — **automated**
 - [x] ~~`/swarms/new?template=content-flywheel` — Content Flywheel review~~ — **automated**
-- [ ] Commercial Free tenant — Pro upgrade banner on wizard + `/settings/billing`
-- [x] ~~`/settings/billing` — plan comparison loads~~ — **automated** (shell)
-- [ ] After Stripe keys: **Upgrade to Pro** starts checkout (not disabled)
+- [ ] Commercial Free tenant — Pro upgrade banner on wizard
 
 ## 8 — Phase 1 stickiness (dashboard widgets)
 
@@ -78,7 +76,6 @@ SKIP_E2E=1 SKIP_RESPONSIVE_E2E=1 ./scripts/operator-launch-gate.sh
 - [x] ~~`/settings/enterprise` — white-label, compliance export, HA/DR drill card~~ — **automated** (shell)
 - [x] ~~Latest DR drill JSON visible in Enterprise panel~~ — **automated** (API `ha_profile.dr_drill`)
 - [x] ~~HA chaos evidence card~~ — **automated** (API `ha_profile.ha_chaos`)
-- [ ] Commercial Pro tenant — **Upgrade to Enterprise** on `/settings/billing` (not disabled after Stripe keys)
 - [ ] After Enterprise checkout: tier shows Enterprise, enterprise workspace unlocked
 - [ ] Sidebar brand mark reflects tenant branding (if configured)
 - [ ] `/dashboard` — colony loads via cockpit bundle (Network: single `/dashboard/cockpit` on boot)
@@ -98,8 +95,6 @@ SKIP_E2E=1 SKIP_RESPONSIVE_E2E=1 ./scripts/operator-launch-gate.sh
 | Auto-save (if on) | | |
 | Swarm Builder | | template: |
 | Lead Waterfall magnet | | |
-| Pro billing CTA | | |
-| Enterprise billing CTA | | |
 | Time saved ROI | | hours: |
 | Lead magnet | | template_id: |
 | DR drill evidence | | file: |
@@ -111,7 +106,6 @@ SKIP_E2E=1 SKIP_RESPONSIVE_E2E=1 ./scripts/operator-launch-gate.sh
 
 | Blocker | Action |
 |---------|--------|
-| Stripe checkout | P0 — keys in `.env.prod` |
 | 401 on all API | Refresh session / check `SECRET_KEY` |
 | Session drawer crash | Check browser console; file issue with session_id |
 

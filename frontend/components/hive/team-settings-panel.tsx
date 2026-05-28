@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { QsSelect } from "@/components/ui/qs-select";
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { V4Card, V4CardHeader } from "@/components/ui/v4";
 import type { TeamOverviewPayload } from "@/lib/hive-types";
 
@@ -136,11 +137,16 @@ export function TeamSettingsPanel() {
               permissions: {(data?.permissions ?? []).join(", ")}
             </>
           }
+          hint={sectionHintNode("settingsTeam")}
         />
       </V4Card>
 
       <V4Card>
-        <V4CardHeader title="Invite member" description="Send an email invite with a tenant role." />
+        <V4CardHeader
+          title="Invite member"
+          description="Send an email invite with a tenant role."
+          hint={sectionHintNode("teamInvite")}
+        />
         <div className="v4-settings-inline-form grid gap-3">
           <input
             value={inviteForm.email}
@@ -168,7 +174,11 @@ export function TeamSettingsPanel() {
       </V4Card>
 
       <V4Card>
-        <V4CardHeader title="Members" description="Active tenant memberships and roles." />
+        <V4CardHeader
+          title="Members"
+          description="Active tenant memberships and roles."
+          hint={sectionHintNode("teamMembers")}
+        />
         <div className="flex flex-col gap-2">
           {(data?.members ?? []).map((member) => (
             <div
@@ -200,7 +210,11 @@ export function TeamSettingsPanel() {
       </V4Card>
 
       <V4Card>
-        <V4CardHeader title="Pending invites" description="Outstanding invite tokens awaiting acceptance." />
+        <V4CardHeader
+          title="Pending invites"
+          description="Outstanding invite tokens awaiting acceptance."
+          hint={sectionHintNode("teamPendingInvites")}
+        />
         <div className="flex flex-col gap-2">
           {(data?.invites ?? []).length ? (
             data?.invites.map((invite) => (

@@ -2,18 +2,19 @@
 
 import type { JSX } from "react";
 
-import { RefreshCw, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
 
 import { ApprovalCardDeck, type ApprovalDeckItem } from "@/components/hive/approval-card-deck";
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { V4Badge, V4Card, V4CardHeader, V4Stat } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import { COCKPIT_POLL_BOARD_MS } from "@/lib/cockpit-poll-profile";
 import { useSwrVisiblePollOptions } from "@/lib/hooks/use-swr-refresh-interval";
 import type { AgentSuggestionRow, SwarmAutonomySummaryRow } from "@/lib/hive-types";
-import { cn } from "@/lib/utils";
 
 interface MemoryEvolutionProposal {
   id: string;
@@ -209,24 +210,14 @@ export function AgentsLearningLoopPanel(): JSX.Element {
   const highRiskPending = pendingSuggestions.filter((row) => row.risk_level === "high").length;
 
   return (
-    <V4Card id="agents-learning-loop" className="relative scroll-mt-28">
-      <button
-        type="button"
-        aria-label="Refresh learning loop"
-        className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-[12px] border border-(--qs-border) text-(--qs-text-3) hover:border-(--qs-border-2) hover:text-pollen touch-manipulation md:right-6 md:top-6"
-        disabled={refreshing}
-        onClick={() => void handleRefresh()}
-      >
-        <RefreshCw className={cn("h-5 w-5", refreshing && "animate-spin")} aria-hidden />
-      </button>
-
-      <div className="pr-12">
-        <V4CardHeader
-          kicker="Phase 6.0"
-          title="Learning loop"
-          description="Memory evolution and agent initiative — approve verified deltas before they commit to the hive mind."
-        />
-      </div>
+    <V4Card id="agents-learning-loop" className="scroll-mt-28">
+      <V4CardHeader
+        kicker="Phase 6.0"
+        title="Learning loop"
+        description="Memory evolution and agent initiative — approve verified deltas before they commit to the hive mind."
+        hint={sectionHintNode("agentsLearning")}
+        actions={<HiveRefreshButton busy={refreshing} onClick={() => void handleRefresh()} />}
+      />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <V4Badge tone="purple">

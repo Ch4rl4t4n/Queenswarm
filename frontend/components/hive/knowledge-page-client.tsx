@@ -7,9 +7,13 @@ import {
   GitBranch,
   Layers,
   Moon,
+  Network,
   Save,
+  Search,
+  Sparkles,
+  Waypoints,
 } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 
 import { AutoGraphifyPanel } from "@/components/hive/auto-graphify-panel";
 import { SelectiveRecallPanel } from "@/components/hive/selective-recall-panel";
@@ -20,7 +24,10 @@ import { EpisodicMemoryPanel } from "@/components/hive/episodic-memory-panel";
 import { DreamingConsole } from "@/components/hive/dreaming-console";
 import { GoalsPanel } from "@/components/hive/goals-panel";
 import { HiveMindExplorer } from "@/components/hive/hive-mind-explorer";
-import { HivePageHeader } from "@/components/hive/hive-page-header";
+import { HivePageShell } from "@/components/hive/hive-page-shell";
+import { HiveSectionSubnav } from "@/components/hive/hive-section-subnav";
+import { HiveSubnavContent } from "@/components/hive/hive-subnav-stack";
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { LearningConsole } from "@/components/hive/learning-console";
 import { MemoryEvolutionPanel } from "@/components/hive/memory-evolution-panel";
 import { OutputsInteractivePanel } from "@/components/hive/outputs-interactive-panel";
@@ -29,16 +36,21 @@ import {
   V4Card,
   V4CardHeader,
   V4SearchInput,
-  V4PageCanvas,
 } from "@/components/ui/v4";
 import { RECIPES_ENABLED } from "@/lib/feature-flags";
 import type { FinalDeliverableSummaryRow } from "@/lib/hive-types";
 import {
+  knowledgeHivemindSectionFromHash,
+  knowledgeHivemindSectionHref,
+  resolveKnowledgeHivemindSection,
+  type KnowledgeHivemindSection,
+} from "@/lib/knowledge-hivemind-routes";
+import {
   knowledgeTabFromHash,
   knowledgeTabHref,
+  resolveKnowledgeTab,
   type KnowledgeTab,
 } from "@/lib/knowledge-routes";
-import { cn } from "@/lib/utils";
 
 interface KnowledgePageClientProps {
   initialOutputs: FinalDeliverableSummaryRow[];
@@ -55,8 +67,25 @@ const TABS: { id: KnowledgeTab; label: string; icon: typeof GitBranch }[] = [
   { id: "goals", label: "Goals", icon: Flag },
 ];
 
+const HIVEMIND_SECTIONS: {
+  id: KnowledgeHivemindSection;
+  label: string;
+  icon: typeof Network;
+}[] = [
+  { id: "graphify", label: "Auto graphify", icon: Network },
+  { id: "shape", label: "Project shape", icon: Waypoints },
+  { id: "recall", label: "Selective recall", icon: Sparkles },
+  { id: "explorer", label: "Graph + search", icon: Search },
+  { id: "evolution", label: "Memory evolution", icon: GitBranch },
+];
+
 export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false }: KnowledgePageClientProps) {
-  const [tab, setTab] = useState<KnowledgeTab>("hivemind");
+  const tabIds = useMemo(() => TABS.map((item) => item.id), []);
+
+  const [tab, setTab] = useState<KnowledgeTab>(() => resolveKnowledgeTab({ visibleTabIds: tabIds }));
+  const [hivemindSection, setHivemindSection] = useState<KnowledgeHivemindSection>(() =>
+    resolveKnowledgeHivemindSection({ hash: typeof window !== "undefined" ? window.location.hash : "" }),
+  );
   const [filter, setFilter] = useState("");
 
   const selectTab = useCallback((next: KnowledgeTab) => {
@@ -65,101 +94,128 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
     window.history.replaceState(null, "", href);
   }, []);
 
+  const selectHivemindSection = useCallback((next: KnowledgeHivemindSection) => {
+    setTab("hivemind");
+    setHivemindSection(next);
+    window.history.replaceState(null, "", knowledgeHivemindSectionHref(next));
+  }, []);
+
   useEffect(() => {
     const syncFromHash = (): void => {
-      const fromHash = knowledgeTabFromHash(window.location.hash);
-      if (fromHash) {
-        setTab(fromHash);
-        requestAnimationFrame(() => {
-          document.getElementById(fromHash)?.scrollIntoView({ behavior: "smooth", block: "start" });
-        });
+      const hash = window.location.hash;
+      const hivemindFromHash = knowledgeHivemindSectionFromHash(hash);
+      if (hivemindFromHash) {
+        setTab("hivemind");
+        setHivemindSection(hivemindFromHash);
         return;
       }
-      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      const fromHash = knowledgeTabFromHash(hash);
+      if (fromHash) {
+        setTab(fromHash);
+        return;
+      }
+      const next = resolveKnowledgeTab({ visibleTabIds: tabIds });
+      setTab(next);
+      if (next === "hivemind") {
+        const hivemindNext = resolveKnowledgeHivemindSection({});
+        setHivemindSection(hivemindNext);
+        window.history.replaceState(null, "", knowledgeHivemindSectionHref(hivemindNext));
+        return;
+      }
+      window.history.replaceState(null, "", knowledgeTabHref(next));
     };
     syncFromHash();
     window.addEventListener("hashchange", syncFromHash);
     return () => window.removeEventListener("hashchange", syncFromHash);
-  }, []);
+  }, [tabIds]);
 
   return (
-    <V4PageCanvas>
-      {archiveSyncPending ? (
-        <p className="rounded-xl border border-alert/30 bg-alert/10 px-4 py-3 text-sm text-(--qs-text-2) lg:hidden">
-          Knowledge archive syncing — retrieval panels remain available.
-        </p>
+    <HivePageShell
+      title="Knowledge"
+      subtitle="One plane — HiveMind retrieval, outputs archive, recipes/learning, dreaming cycles, curated memory, goals."
+      hintKey="knowledge"
+      banner={
+        archiveSyncPending ? (
+          <p className="rounded-xl border border-alert/30 bg-alert/10 px-4 py-3 text-sm text-(--qs-text-2) lg:hidden">
+            Knowledge archive syncing — retrieval panels remain available.
+          </p>
+        ) : null
+      }
+      subnav={
+        <HiveSectionSubnav
+          primary={TABS.map(({ id, label, icon }) => ({ id, label, icon }))}
+          secondary={
+            tab === "hivemind"
+              ? HIVEMIND_SECTIONS.map(({ id, label, icon }) => ({ id, label, icon }))
+              : undefined
+          }
+          activePrimary={tab}
+          activeSecondary={tab === "hivemind" ? hivemindSection : undefined}
+          onPrimaryChange={(id) => selectTab(id as KnowledgeTab)}
+          onSecondaryChange={(id) => selectHivemindSection(id as KnowledgeHivemindSection)}
+          primaryAriaLabel="Knowledge sections"
+          secondaryAriaLabel="HiveMind sub-sections"
+          primaryMenuKey="knowledge-primary"
+          secondaryMenuKey="knowledge-hivemind"
+        />
+      }
+    >
+      <HiveSubnavContent>
+      {tab === "hivemind" && hivemindSection === "explorer" ? (
+        <V4Card>
+          <V4CardHeader
+            kicker="Knowledge command center"
+            title="Retrieval contract"
+            description="Unified lens for retrieval: contract context, output archive, recipe / dreaming loops."
+            hint={sectionHintNode("knowledgeRetrievalContract")}
+          />
+          <V4SearchInput
+            value={filter}
+            onChange={setFilter}
+            placeholder="Filter blocks · graph, archive, pollen, recipes…"
+            className="mb-4"
+          />
+          <div className="v4-cols-2">
+            <div className="v4-knowledge-contract v4-knowledge-contract--purple">
+              <span className="v4-label-kicker">Retrieval contract</span>
+              <p className="v4-knowledge-mono">customer_history + policy + last_3_tasks</p>
+              <p className="v4-knowledge-foot">Used by Queen for every new mission brief.</p>
+            </div>
+            <div className="v4-knowledge-contract v4-knowledge-contract--gold">
+              <span className="v4-label-kicker">Skill pack preset</span>
+              <p className="v4-knowledge-mono v4-knowledge-mono--purple">context + decide + tdd + diagnose</p>
+              <p className="v4-knowledge-foot">Active across Eval &amp; Action swarms.</p>
+            </div>
+          </div>
+        </V4Card>
       ) : null}
-      <HivePageHeader
-        title="Knowledge"
-        subtitle="One plane — HiveMind retrieval, outputs archive, recipes/learning, dreaming cycles, curated memory, goals."
-      />
-
-      <div className="v4-subtab-row w-full max-w-full">
-        {TABS.map((item) => {
-          const Icon = item.icon;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              className={cn("v4-subtab", tab === item.id && "v4-subtab--active")}
-              onClick={() => selectTab(item.id)}
-            >
-              <Icon className="h-3.5 w-3.5" aria-hidden />
-              {item.label}
-            </button>
-          );
-        })}
-      </div>
-
-      <V4Card>
-        <V4CardHeader
-          kicker="Knowledge command center"
-          title="Retrieval contract"
-          description="Unified lens for retrieval: contract context, output archive, recipe / dreaming loops."
-        />
-        <V4SearchInput
-          value={filter}
-          onChange={setFilter}
-          placeholder="Filter blocks · graph, archive, pollen, recipes…"
-          className="mb-4"
-        />
-        <div className="v4-cols-2">
-          <div className="v4-knowledge-contract v4-knowledge-contract--purple">
-            <span className="v4-label-kicker">Retrieval contract</span>
-            <p className="v4-knowledge-mono">customer_history + policy + last_3_tasks</p>
-            <p className="v4-knowledge-foot">Used by Queen for every new mission brief.</p>
-          </div>
-          <div className="v4-knowledge-contract v4-knowledge-contract--gold">
-            <span className="v4-label-kicker">Skill pack preset</span>
-            <p className="v4-knowledge-mono v4-knowledge-mono--purple">context + decide + tdd + diagnose</p>
-            <p className="v4-knowledge-foot">Active across Eval &amp; Action swarms.</p>
-          </div>
-        </div>
-      </V4Card>
 
       {tab === "hivemind" ? (
         <div id="hivemind" className="scroll-mt-28 space-y-6">
-          <AutoGraphifyPanel />
-          <ProjectShapeGraphPanel />
-          <SelectiveRecallPanel />
-          <V4Card>
-            <V4CardHeader
-              title="HiveMind · graph + vault + search"
-              description="Neo4j semantic graph · ChromaDB vector fallback · retrieval-aware prompting."
-              actions={
-                <div className="v4-hivemind-toolbar flex flex-wrap justify-start gap-2">
-                  <Link href="/tasks/new" className="qs-btn qs-btn--ghost qs-btn--sm">
-                    Quick ingest · task
-                  </Link>
-                  <Link href="/agents#sessions" className="qs-btn qs-btn--ghost qs-btn--sm">
-                    Quick ingest · supervisor
-                  </Link>
-                </div>
-              }
-            />
-            <HiveMindExplorer showHeader={false} variant="v4" filterHint={filter} />
-          </V4Card>
-          <MemoryEvolutionPanel />
+          {hivemindSection === "graphify" ? <AutoGraphifyPanel /> : null}
+          {hivemindSection === "shape" ? <ProjectShapeGraphPanel /> : null}
+          {hivemindSection === "recall" ? <SelectiveRecallPanel /> : null}
+          {hivemindSection === "explorer" ? (
+            <V4Card>
+              <V4CardHeader
+                title="HiveMind · graph + vault + search"
+                description="Neo4j semantic graph · ChromaDB vector fallback · retrieval-aware prompting."
+                hint={sectionHintNode("knowledgeExplorer")}
+                actions={
+                  <div className="v4-hivemind-toolbar flex flex-wrap justify-start gap-2">
+                    <Link href="/tasks/new" className="qs-btn qs-btn--ghost qs-btn--sm">
+                      Quick ingest · task
+                    </Link>
+                    <Link href="/agents#sessions" className="qs-btn qs-btn--ghost qs-btn--sm">
+                      Quick ingest · supervisor
+                    </Link>
+                  </div>
+                }
+              />
+              <HiveMindExplorer showHeader={false} variant="v4" filterHint={filter} />
+            </V4Card>
+          ) : null}
+          {hivemindSection === "evolution" ? <MemoryEvolutionPanel /> : null}
         </div>
       ) : null}
 
@@ -168,6 +224,7 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
           <V4CardHeader
             title="Outputs &amp; archive"
             description="Semantic archive search · regenerate · PDF / markdown export in one operator loop."
+            hint={sectionHintNode("knowledgeOutputs")}
           />
           <OutputsInteractivePanel initialItems={initialOutputs} />
         </V4Card>
@@ -207,6 +264,7 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
           <GoalsPanel />
         </div>
       ) : null}
-    </V4PageCanvas>
+      </HiveSubnavContent>
+    </HivePageShell>
   );
 }

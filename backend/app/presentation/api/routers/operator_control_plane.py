@@ -6,7 +6,7 @@ import uuid
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictBool
 
 from app.application.services.hive_innovation_lab import (
     InnovationBrainstormRequest,
@@ -15,6 +15,20 @@ from app.application.services.hive_innovation_lab import (
     implement_innovation_proposal,
     review_innovation_proposal,
 )
+from app.application.services.apps_tools_index_analytics import (
+    AppsToolsAnalyticsEventIn,
+    compose_apps_tools_index_analytics_snapshot,
+    persist_apps_tools_index_analytics_preferences,
+    record_apps_tools_index_event,
+)
+from app.application.services.apps_tools_index_snapshot import compose_apps_tools_index_snapshot
+from app.application.services.capability_registry import compose_capability_registry_snapshot
+from app.application.services.module_policy_packs import (
+    ModuleKey,
+    compose_module_policy_pack_snapshot,
+    get_module_policy_pack,
+)
+from app.application.services.mcp_ops_studio_snapshot import compose_mcp_ops_studio_snapshot
 from app.application.services.operator_control_plane import (
     OperatorActRequest,
     compose_operator_cockpit_snapshot,
@@ -49,6 +63,15 @@ class CrystallizeRequest(BaseModel):
     launch: bool = False
 
 
+class AppsToolsAnalyticsPreferencesPatch(BaseModel):
+    """Operator UI analytics preference patch payload."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    window: Literal["24h", "7d", "all"] | None = None
+    compact_mode: StrictBool | None = None
+
+
 def _require_owner_or_admin(principal: dict[str, Any]) -> None:
     role = str(principal.get("tenant_role") or "guest")
     if role not in {"owner", "admin"}:
@@ -65,6 +88,7 @@ def _reviewer_subject(principal: dict[str, Any]) -> str:
 async def operator_cockpit(
     db: DbSession,
     principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    scope: Literal["core", "modules", "full"] = "core",
 ) -> dict[str, Any]:
     tenant_id = principal.get("tenant_id")
     user = principal.get("user")
@@ -76,6 +100,7 @@ async def operator_cockpit(
         tenant_id=tenant_id,
         dashboard_user_id=user.id,
         tenant=tenant,
+        scope=scope,
     )
     return snapshot.model_dump(mode="json")
 
@@ -90,6 +115,149 @@ async def operator_context(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
     snapshot = await compose_operator_context(db, tenant_id=tenant_id)
     return snapshot.model_dump(mode="json")
+
+
+@router.get("/capabilities", summary="Read-only capability registry snapshot")
+async def operator_capabilities_registry(
+    include_disabled: bool = False,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return capability contracts for Agentic OS and Apps/Tools layers."""
+
+    if principal.get("tenant_id") is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    snapshot = compose_capability_registry_snapshot(include_disabled=include_disabled)
+    return snapshot.model_dump(mode="json")
+
+
+@router.get("/module-policy-packs", summary="Read-only module policy packs")
+async def operator_module_policy_packs(
+    include_disabled: bool = False,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return module-level policy packs for Apps & Tools workspace headers."""
+
+    if principal.get("tenant_id") is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    snapshot = compose_module_policy_pack_snapshot(include_disabled=include_disabled)
+    return snapshot.model_dump(mode="json")
+
+
+@router.get("/module-policy-packs/{module_key}", summary="Read-only policy pack by module key")
+async def operator_module_policy_pack_detail(
+    module_key: str,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return one policy pack for a specific Apps & Tools module."""
+
+    if principal.get("tenant_id") is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    allowed_keys: tuple[ModuleKey, ...] = (
+        "marketing_automation",
+        "mcp_ops_studio",
+        "trading_automation",
+        "browser_automation",
+        "content_factory",
+        "research_workspace",
+        "live_lane",
+    )
+    if module_key not in allowed_keys:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Module policy pack not found.")
+    pack = get_module_policy_pack(module_key=module_key)
+    if pack is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Module policy pack not found.")
+    return pack.model_dump(mode="json")
+
+
+@router.get("/apps-tools-index", summary="Unified Apps & Tools index snapshot")
+async def operator_apps_tools_index(
+    include_disabled: bool = False,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return Apps & Tools-only capability + policy metadata in one payload."""
+
+    if principal.get("tenant_id") is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    snapshot = compose_apps_tools_index_snapshot(include_disabled=include_disabled)
+    return snapshot.model_dump(mode="json")
+
+
+@router.get("/apps-tools/mcp-ops-studio/snapshot", summary="Read-only MCP Ops Studio snapshot")
+async def operator_mcp_ops_studio_snapshot(
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return section-card snapshot for MCP Ops Studio route."""
+
+    if principal.get("tenant_id") is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    snapshot = compose_mcp_ops_studio_snapshot()
+    return snapshot.model_dump(mode="json")
+
+
+@router.post("/apps-tools-index/events", summary="Record Apps & Tools index analytics event")
+async def operator_apps_tools_index_event(
+    body: AppsToolsAnalyticsEventIn,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Persist low-volume Apps & Tools UX funnel events for solo optimization."""
+
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found.")
+    out = record_apps_tools_index_event(
+        tenant,
+        dashboard_user_id=str(user.id),
+        payload=body,
+    )
+    await db.commit()
+    return {"ok": True, **out}
+
+
+@router.get("/apps-tools-index/analytics", summary="Read Apps & Tools index analytics snapshot")
+async def operator_apps_tools_index_analytics(
+    db: DbSession,
+    limit: int = 24,
+    window: Literal["24h", "7d", "all"] | None = None,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return tenant-scoped Apps & Tools funnel counters and recent events."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found.")
+    snapshot = compose_apps_tools_index_analytics_snapshot(tenant, limit=limit, window=window)
+    return snapshot.model_dump(mode="json")
+
+
+@router.patch("/apps-tools-index/analytics/preferences", summary="Persist Apps & Tools analytics UI preferences")
+async def operator_apps_tools_index_analytics_preferences(
+    body: AppsToolsAnalyticsPreferencesPatch,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Store widget preferences (window + compact mode) per tenant."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found.")
+    preferences = persist_apps_tools_index_analytics_preferences(
+        tenant,
+        window=body.window,
+        compact_mode=body.compact_mode,
+    )
+    await db.commit()
+    return {"ok": True, **preferences}
 
 
 @router.post("/act", summary="Execute typed control-plane action")
@@ -402,7 +570,7 @@ async def operator_link_drop(
         return {"ok": True, "brief": brief.model_dump(mode="json")}
     except ValueError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
 
 @router.post("/dialogue-extract", summary="ICM Dialogue Extract — goals/constraints/decisions")
@@ -506,7 +674,7 @@ async def operator_ballroom_transcript_text(
     text = format_ballroom_transcript_text(transcript)
     if len(text.strip()) < 40:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Ballroom transcript too short for dialogue extract (min 40 chars).",
         )
     return {
@@ -545,7 +713,7 @@ async def operator_dump_sleep_transcript_text(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dump batch not found.")
     if row.status != DumpSleepStatusORM.COMPLETED:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Dump batch must be completed before dialogue extract.",
         )
 
@@ -555,7 +723,7 @@ async def operator_dump_sleep_transcript_text(
     )
     if len(text.strip()) < 40:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Dump & Sleep content too short for dialogue extract (min 40 chars).",
         )
     return {
@@ -589,7 +757,7 @@ async def operator_session_recipe_draft(
     try:
         draft = await build_session_recipe_draft(db, tenant_id=tenant_id, session_id=session_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
     saved = await _persist_operator_recipe_draft(
         db,
@@ -632,10 +800,10 @@ async def operator_telegram_webhook(
     try:
         payload = await request.json()
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid JSON.") from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Invalid JSON.") from exc
 
     if not isinstance(payload, dict):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Expected object payload.")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Expected object payload.")
 
     await process_telegram_webhook(db, update=payload)
     return {"status": "ok"}

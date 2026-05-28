@@ -4,8 +4,8 @@ import { hiveOverviewHref, hiveOverviewLabel } from "@/lib/hive-home-route";
 import type { UiLanguage } from "@/lib/ui-language";
 
 const MANUAL_SUBTITLE: Record<UiLanguage, string> = {
-  en: "Complete guide for operating Queenswarm — function names stay in English; prose follows your language toggle.",
-  sk: "Kompletný návod na presné používanie celej aplikácie Queenswarm vrátane funkcií a možností nastavenia.",
+  en: "Complete guide for operating Queenswarm — every section in English with deep links from Info hints.",
+  sk: "Complete guide for operating Queenswarm — every section in English with deep links from Info hints.",
 };
 
 const FUNCTION_GUIDE_INTRO: Record<UiLanguage, string> = {
@@ -177,26 +177,59 @@ const FUNCTION_DESCRIPTIONS_EN: Record<string, { description: string; options: s
     description: "Manage LLM/STT/TTS API keys and explicit voice pipeline provider priority.",
     options: ["Grok/Deepgram/OpenAI for STT", "Grok/ElevenLabs/OpenAI for TTS", "Auto fallback on outage"],
   },
+  "cockpit-overview": {
+    description: "Daily command surface — prioritized actions, Oracle warnings, Trust Autopilot, Proof-of-Hive.",
+    options: ["Start day (trio cycle)", "Refresh core snapshot", "Factory / Swarms / Agents shortcuts"],
+  },
+  "cockpit-command": {
+    description: "Hotline, Intent Crystallizer, and Zero-UI Telegram command entry points.",
+    options: ["Natural language routing", "Crystallizer preview/launch", "Telegram webhook setup"],
+  },
+  "bee-hotline": {
+    description: "Plain-language operator request routed to the correct bee and Queen goal.",
+    options: ["One-sentence intent", "POST /operator/act hotline", "No panel hunting"],
+  },
+  "intent-crystallizer": {
+    description: "Structured plan from free text: templates, trust lane, deep links.",
+    options: ["Preview before launch", "Trust lane selection", "Queen goal creation"],
+  },
+  "zero-ui-hive": {
+    description: "Telegram commands mirror Agentic OS when bot token and webhook are configured.",
+    options: ["/day /status /hotline", "Execution Studio notifications", "HTTPS webhook URL"],
+  },
+  "icm-tools": {
+    description: "Link drop, dialogue extract, and quick automations for intent capture.",
+    options: ["URL brief ingest", "Transcript → harness/knowledge/recipe", "Verified presets"],
+  },
+  "swarm-fleet": {
+    description: "Always-on routines with pause/resume and immune system status.",
+    options: ["Pause/resume", "Autopilot schedules", "Watch/quarantine signals"],
+  },
+  "cockpit-modules": {
+    description: "Lazy-loaded futurist modules composed from existing subsystems.",
+    options: ["Regret simulator", "Context teleport", "Evolutionary recipes"],
+  },
+  "innovation-lab": {
+    description: "Brainstorm features; Maintainer implements approved ideas via PR only.",
+    options: ["Brainstorm", "Approve/reject", "Queue Maintainer"],
+  },
 };
 
 export function manualSubtitle(lang: UiLanguage): string {
-  return MANUAL_SUBTITLE[lang];
+  void lang;
+  return MANUAL_SUBTITLE.en;
 }
 
 export function manualSections(lang: UiLanguage): ManualSection[] {
-  if (lang === "en") {
-    return MANUAL_SECTIONS_EN.map((section) => localizeManualSection(section, "en"));
-  }
-  return APP_MANUAL_SECTIONS.map((section) => localizeManualSection(section, "sk"));
+  void lang;
+  return MANUAL_SECTIONS_EN.map((section) => localizeManualSection(section, "en"));
 }
 
 export function functionGuideGroups(lang: UiLanguage): FunctionInfoGroup[] {
+  void lang;
   return APP_FUNCTION_GUIDE.map((group) => ({
     ...group,
     items: group.items.map((item) => {
-      if (lang === "sk") {
-        return item;
-      }
       const en = FUNCTION_DESCRIPTIONS_EN[item.id];
       if (!en) {
         return item;
@@ -207,9 +240,11 @@ export function functionGuideGroups(lang: UiLanguage): FunctionInfoGroup[] {
 }
 
 export function functionGuideIntro(lang: UiLanguage): string {
-  return FUNCTION_GUIDE_INTRO[lang];
+  void lang;
+  return FUNCTION_GUIDE_INTRO.en;
 }
 
 export function functionGuideHeading(lang: UiLanguage): string {
-  return FUNCTION_GUIDE_HEADING[lang];
+  void lang;
+  return FUNCTION_GUIDE_HEADING.en;
 }

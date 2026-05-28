@@ -1,6 +1,6 @@
 import nextDynamic from "next/dynamic";
-import { redirect } from "next/navigation";
 
+import { LegacyRouteRedirect } from "@/components/hive/legacy-route-redirect";
 import { PHASE70_CONSOLIDATED_NAV_ENABLED } from "@/lib/feature-flags";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +13,7 @@ const HiveMindExplorer = nextDynamic(async () => {
 /** HiveMind / shared memory explorer (Neo4j + Chroma lane + Markdown vault mirrors). */
 export default function HiveMindPage() {
   if (PHASE70_CONSOLIDATED_NAV_ENABLED) {
-    redirect("/knowledge#hivemind");
+    return <LegacyRouteRedirect target="/knowledge#hivemind" label="Redirecting to Knowledge…" />;
   }
   return <HiveMindExplorer />;
 }

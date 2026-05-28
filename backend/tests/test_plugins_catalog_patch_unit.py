@@ -10,7 +10,7 @@ from httpx import ASGITransport, AsyncClient
 from app.application.services import plugin_hub as hub
 from app.core.config import settings
 from app.main import app
-from app.presentation.api.deps import require_subject
+from app.presentation.api.deps import dashboard_admin_wall, require_dashboard_session
 
 
 @pytest.fixture
@@ -34,7 +34,8 @@ def isolate_plugin_state(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
 
 @pytest.mark.asyncio
 async def test_plugins_patch_persists_builtin_toggle(restore_app_overrides: None) -> None:
-    app.dependency_overrides[require_subject] = lambda: "dash:operator"
+    app.dependency_overrides[dashboard_admin_wall] = lambda: True
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:operator"}
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -59,7 +60,8 @@ async def test_plugins_patch_persists_builtin_toggle(restore_app_overrides: None
 
 @pytest.mark.asyncio
 async def test_plugins_patch_when_unknown_builtin_returns_404(restore_app_overrides: None) -> None:
-    app.dependency_overrides[require_subject] = lambda: "dash:operator"
+    app.dependency_overrides[dashboard_admin_wall] = lambda: True
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:operator"}
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -69,3 +71,20 @@ async def test_plugins_patch_when_unknown_builtin_returns_404(restore_app_overri
             json={"enabled": True},
         )
     assert res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_plugins_upload_rejected_when_policy_disabled(restore_app_overrides: None) -> None:
+    app.dependency_overrides[dashboard_admin_wall] = lambda: True
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:operator"}
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.post(
+            "/api/v1/plugins/upload",
+            headers={"Authorization": "Bearer test-token"},
+            files={"file": ("demo.py", b"print('hi')", "text/x-python")},
+        )
+
+    assert res.status_code == 403
+    assert "disabled" in res.json().get("detail", "").lower()

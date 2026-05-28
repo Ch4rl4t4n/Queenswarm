@@ -222,7 +222,7 @@ NEWSLETTER_WORKFLOW: dict[str, Any] = {
 
 PRODUCT_MISSION_WORKFLOW: dict[str, Any] = {
     "name": "PRODUCT_MISSION",
-    "description": "Niche → swarm produce → verify → package → multi-channel listing (GitHub, Gumroad, Stripe).",
+    "description": "Niche → swarm produce → verify → package → multi-channel listing (GitHub, Gumroad, premium unlock).",
     "steps": [
         {
             "order": 1,

@@ -1,5 +1,12 @@
 # Queenswarm Changelog
 
+## Whole-App UI Reorder v4 — shippable (2026-05-28)
+
+- **bee:** Phases 1–13 complete — global IA, `HivePageShell`, settings simplification, modal/popover SSOT, responsive/a11y/performance passes, release gate v4.
+- **feat:** Billing consolidated under **Settings → Costs** (`/settings/billing` → `/settings/costs#billing-plans`).
+- **ops:** `scripts/whole-app-ui-release-gate.sh`, `scripts/tag-whole-app-ui-release.sh`, `docs/WHOLE_APP_UI_RELEASE_RUNBOOK.md`.
+- **test:** 11 core + 2 extended E2E specs; 18 unit contract files; tag `v2026.05-whole-app-ui`.
+
 ## Phase 7.0 hub completion + roadmap (2026-05-20)
 
 - **docs:** `docs/ROADMAP.md` — prioritized backlog P0–P4 with gate commands.
@@ -54,23 +61,23 @@
 - **feat:** improved empty state CTAs (connector hub + marketplace).
 - **test:** `lib/integrations-routes.test.ts` — query/hash tab resolution.
 
-## Stripe webhook hardening + production sign-off docs (2026-05-19)
+## Webhook hardening + production sign-off docs (2026-05-19)
 
-- **ops:** exempt `/api/v1/billing/stripe/webhook` from rate limiting (Stripe retry-safe).
+- **ops:** exempt legacy billing webhook endpoint from rate limiting (provider retry-safe).
 - **test:** add ASGI contract tests for public webhook path (503 without secret, 400 without signature).
 - **ops:** sign-off gate rejects JWT-gated webhook responses (401/404).
 - **test:** prod remote E2E smoke for desktop Ballroom FAB + sidebar-only shell (no API mocks).
-- **test:** local E2E for billing settings Stripe-off hint (`/settings/billing`).
+- **test:** local E2E for billing settings checkout-off hint (`/settings/billing`).
 - **docs:** add `docs/PRODUCTION_SIGNOFF.md` manual QA checklist for queenswarm.love rollout.
 
 ## Production sign-off gate + Phase 14 env baseline (2026-05-19)
 
-- **ops:** add `scripts/production-signoff-gate.sh` — orchestrates validate-prod-env, core-reliability, backend pytest, responsive/PWA E2E (prod or local), edge smoke, Stripe readiness check.
+- **ops:** add `scripts/production-signoff-gate.sh` — orchestrates validate-prod-env, core-reliability, backend pytest, responsive/PWA E2E (prod or local), edge smoke, checkout readiness check.
 - **docs:** publish `docs/STANDARD_FOR_FEATURE_DOCUMENTATION.md` (InfoHint + SK/EN manual baseline).
 - **docs:** extend `AUDIT_REPORT.md` with Phase 14.1–14.2 closure evidence.
-- **ops:** document Phase 14 feature flags + Stripe placeholders in `.env.prod.example`.
-- **ux:** skills marketplace shows clear banner + disabled checkout when Stripe is not configured (no silent 503).
-- **ops:** add `scripts/stripe-prod-setup.sh` for production Stripe webhook checklist.
+- **ops:** document Phase 14 feature flags + checkout placeholders in `.env.prod.example`.
+- **ux:** skills marketplace shows clear banner + disabled checkout when payment provider is not configured (no silent 503).
+- **ops:** add legacy payment provider setup checklist script for production webhook rollout.
 
 ## Responsive rollout — mobile/tablet shell + PWA (2026-05-19)
 
@@ -299,7 +306,7 @@
 
 ## Phase 10.3 — usage, billing & subscription foundation (2026-05-15)
 
-- **feat:** add tenant subscription persistence model (`tenant_subscriptions`) with billing-ready Stripe linkage fields (`stripe_customer_id`, `stripe_subscription_id`) and per-tenant limits/feature overrides.
+- **feat:** add tenant subscription persistence model (`tenant_subscriptions`) with legacy billing linkage fields and per-tenant limits/feature overrides.
 - **feat:** add tenant-scoped cost tracking foundation by attaching `tenant_id` to `cost_records` (enables per-tenant token/spend metering).
 - **feat:** add billing service layer (`app.application.services.billing`) with:
   - subscription bootstrap (`free` default),

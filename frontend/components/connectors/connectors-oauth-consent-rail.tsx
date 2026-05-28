@@ -1,6 +1,6 @@
 'use client'
 
-import { BookOpen, Calendar, CreditCard, Github, Instagram, Mail } from 'lucide-react'
+import { BookOpen, Calendar, Github, Instagram, Mail } from 'lucide-react'
 
 function XGlyph() {
   return (
@@ -26,8 +26,6 @@ function VendorGlyph({ providerKey }: { providerKey: string }) {
       return <Github className="h-5 w-5" aria-hidden />
     case 'notion_workspace':
       return <BookOpen className="h-5 w-5" aria-hidden />
-    case 'stripe_billing':
-      return <CreditCard className="h-5 w-5" aria-hidden />
     case 'instagram_graph':
       return <Instagram className="h-5 w-5 text-pollen" aria-hidden />
     case 'facebook_graph':
@@ -58,7 +56,7 @@ export function ConnectorsOAuthConsentRail({ catalog }: ConnectorsOAuthConsentRa
   return (
     <V4Card id="oauth-consent" glow className="scroll-mt-28">
       <V4CardHeader
-        title="Connect Gmail, Outlook, Calendar, GitHub, Notion, Stripe & social (Meta · X · TikTok)"
+        title="Connect Gmail, Outlook, Calendar, GitHub, Notion & social (Meta · X · TikTok)"
         description="One tap launches vendor consent in the browser. Queenswarm exchanges the authorization code server-side (PKCE for X/TikTok), seals tokens into the connector vault, and refreshes Dynamic Hub rows. Meta = Instagram/Facebook · X = tweet publish · TikTok = video publish."
         actions={
           <V4Badge tone="info">

@@ -14,7 +14,7 @@ from jose import JWTError, jwt
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 
-from app.presentation.api.deps import JwtSubject
+from app.presentation.api.deps import DashboardSession
 from app.core.config import settings
 from app.core.database import async_session
 from app.core.llm_router import LiteLLMRouter
@@ -1185,24 +1185,25 @@ async def _mint_ballroom_session_capsule() -> dict[str, object]:
 
 
 @_bb_router.post("/mission", status_code=status.HTTP_200_OK, summary="Seven-step Orchestrator ballroom mission")
-async def ballroom_run_seven_step_mission(body: BallroomMissionBody, subject: JwtSubject) -> dict[str, object]:
+async def ballroom_run_seven_step_mission(body: BallroomMissionBody, session: DashboardSession) -> dict[str, object]:
     """Run Orchestrator → Managers → Workers → Managers → Orchestrator (text + voice payloads)."""
 
     capsule_id = body.session_id or uuid.uuid4()
     _SESSION_CHANNELS.setdefault(capsule_id, set())
     await ballroom_redis.ballroom_ensure_capsule(capsule_id)
-    logger.info("ballroom.mission_started", actor=subject, session_id=str(capsule_id))
+    actor_sub = str(session.get("sub", "dashboard_operator"))
+    logger.info("ballroom.mission_started", actor=actor_sub, session_id=str(capsule_id))
     try:
         async with async_session() as session:
             payload = await run_seven_step_mission(
                 session,
                 user_brief=body.user_brief,
                 session_id=capsule_id,
-                hive_subject=subject,
+                hive_subject=actor_sub,
             )
             await session.commit()
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
 
@@ -1210,30 +1211,30 @@ async def ballroom_run_seven_step_mission(body: BallroomMissionBody, subject: Jw
 
 
 @_bb_router.post("/session", status_code=status.HTTP_201_CREATED)
-async def start_ballroom_session(_subject: JwtSubject) -> dict[str, object]:
+async def start_ballroom_session(_session: DashboardSession) -> dict[str, object]:
     """Mint ballroom capsule."""
 
-    logger.info("ballroom.session_started", actor=_subject)
+    logger.info("ballroom.session_started", actor=str(_session.get("sub", "dashboard_operator")))
     return await _mint_ballroom_session_capsule()
 
 
 @_bb_router.post("/start", status_code=status.HTTP_201_CREATED)
-async def start_ballroom_session_alias(_subject: JwtSubject) -> dict[str, object]:
+async def start_ballroom_session_alias(_session: DashboardSession) -> dict[str, object]:
     """Alias ballroom start CTA."""
 
-    logger.info("ballroom.start_via_alias", actor=_subject)
+    logger.info("ballroom.start_via_alias", actor=str(_session.get("sub", "dashboard_operator")))
     return await _mint_ballroom_session_capsule()
 
 
 @_bb_router.post("/message", status_code=status.HTTP_202_ACCEPTED, summary="Send Ballroom chat — agents reply asynchronously")
-async def ballroom_post_chat(body: BallroomChatMessageBody, subject: JwtSubject) -> dict[str, object]:
+async def ballroom_post_chat(body: BallroomChatMessageBody, session: DashboardSession) -> dict[str, object]:
     """Queue user text; responses stream as ballroom.transcript on the websocket."""
 
     _SESSION_CHANNELS.setdefault(body.session_id, set())
     await ballroom_redis.ballroom_ensure_capsule(body.session_id)
     logger.info(
         "ballroom.message_accepted",
-        actor=subject,
+        actor=str(session.get("sub", "dashboard_operator")),
         session_id=str(body.session_id),
         swarm_id=str(body.session_id),
         task_id=f"ballroom-chat-{body.session_id}",
@@ -1253,10 +1254,14 @@ async def ballroom_post_chat(body: BallroomChatMessageBody, subject: JwtSubject)
 
 
 @_bb_router.post("/voice/transcribe", status_code=status.HTTP_200_OK, summary="Transcribe operator voice chunk (STT)")
-async def ballroom_transcribe_voice(body: BallroomVoiceTranscribeBody, subject: JwtSubject) -> dict[str, object]:
+async def ballroom_transcribe_voice(body: BallroomVoiceTranscribeBody, session: DashboardSession) -> dict[str, object]:
     """Transcribe one voice chunk and optionally dispatch it as operator chat."""
 
-    logger.info("ballroom.voice_transcribe.request", actor=subject, session_id=str(body.session_id or "none"))
+    logger.info(
+        "ballroom.voice_transcribe.request",
+        actor=str(session.get("sub", "dashboard_operator")),
+        session_id=str(body.session_id or "none"),
+    )
     try:
         out = await transcribe_audio(
             audio_base64=body.audio_base64,
@@ -1297,10 +1302,10 @@ async def ballroom_transcribe_voice(body: BallroomVoiceTranscribeBody, subject: 
 
 
 @_bb_router.post("/voice/live-token", status_code=status.HTTP_200_OK, summary="Mint xAI Voice Agent client secret for live call")
-async def ballroom_voice_live_token(subject: JwtSubject) -> dict[str, object]:
+async def ballroom_voice_live_token(session: DashboardSession) -> dict[str, object]:
     """Return ephemeral token for browser → xAI realtime voice WebSocket (Grok-style live chat)."""
 
-    logger.info("ballroom.voice_live_token.request", actor=subject)
+    logger.info("ballroom.voice_live_token.request", actor=str(session.get("sub", "dashboard_operator")))
     try:
         token_body = await mint_voice_live_client_secret()
     except XaiVoiceLiveError as exc:
@@ -1317,10 +1322,10 @@ async def ballroom_voice_live_token(subject: JwtSubject) -> dict[str, object]:
 
 
 @_bb_router.post("/voice/synthesize", status_code=status.HTTP_200_OK, summary="Synthesize speech for ballroom reply (TTS)")
-async def ballroom_synthesize_voice(body: BallroomVoiceSynthesizeBody, subject: JwtSubject) -> dict[str, object]:
+async def ballroom_synthesize_voice(body: BallroomVoiceSynthesizeBody, session: DashboardSession) -> dict[str, object]:
     """Create TTS audio for one assistant/user-visible text."""
 
-    logger.info("ballroom.voice_synthesize.request", actor=subject)
+    logger.info("ballroom.voice_synthesize.request", actor=str(session.get("sub", "dashboard_operator")))
     try:
         out = await synthesize_speech(
             text=body.text,
@@ -1346,14 +1351,14 @@ async def ballroom_synthesize_voice(body: BallroomVoiceSynthesizeBody, subject: 
     status_code=status.HTTP_200_OK,
     summary="Inspect runtime Ballroom voice STT/TTS capabilities",
 )
-async def ballroom_voice_capabilities(_subject: JwtSubject) -> BallroomVoiceCapabilitiesResponse:
+async def ballroom_voice_capabilities(_session: DashboardSession) -> BallroomVoiceCapabilitiesResponse:
     """Expose effective voice pipeline capabilities for operator UX."""
 
     return _voice_capabilities()
 
 
 @_bb_router.get("/session/{session_id}")
-async def get_ballroom_session(session_id: uuid.UUID, _subject: JwtSubject) -> dict[str, object]:
+async def get_ballroom_session(session_id: uuid.UUID, _session: DashboardSession) -> dict[str, object]:
     """Return transcript capsule (Redis-backed operator view)."""
 
     try:
@@ -1364,7 +1369,7 @@ async def get_ballroom_session(session_id: uuid.UUID, _subject: JwtSubject) -> d
 
 
 @_bb_router.get("/sessions")
-async def list_ballroom_sessions(_subject: JwtSubject) -> dict[str, object]:
+async def list_ballroom_sessions(_session: DashboardSession) -> dict[str, object]:
     """Lightweight ballroom registry from Redis SCAN (bounded)."""
 
     rows: list[dict[str, object]] = []
@@ -1412,7 +1417,7 @@ async def list_ballroom_sessions(_subject: JwtSubject) -> dict[str, object]:
 async def update_ballroom_session_meta(
     session_id: uuid.UUID,
     body: BallroomSessionMetaBody,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> dict[str, object]:
     """Update display metadata (title/pin) for one session."""
 
@@ -1437,7 +1442,7 @@ async def update_ballroom_session_meta(
 async def apply_ballroom_session_prompt(
     session_id: uuid.UUID,
     body: BallroomChatPromptBody,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> dict[str, object]:
     """Apply a quick-prompt assignment brief to the active Ballroom session."""
 
@@ -1473,7 +1478,7 @@ async def apply_ballroom_session_prompt(
 
 
 @_bb_router.delete("/session/{session_id}/prompt", status_code=status.HTTP_200_OK)
-async def clear_ballroom_session_prompt(session_id: uuid.UUID, _subject: JwtSubject) -> dict[str, object]:
+async def clear_ballroom_session_prompt(session_id: uuid.UUID, _session: DashboardSession) -> dict[str, object]:
     """Remove the active session assignment brief."""
 
     try:
@@ -1494,7 +1499,7 @@ async def clear_ballroom_session_prompt(session_id: uuid.UUID, _subject: JwtSubj
 
 
 @_bb_router.delete("/session/{session_id}", status_code=status.HTTP_200_OK)
-async def delete_ballroom_session(session_id: uuid.UUID, _subject: JwtSubject) -> dict[str, object]:
+async def delete_ballroom_session(session_id: uuid.UUID, _session: DashboardSession) -> dict[str, object]:
     """Delete one session capsule from history."""
 
     await ballroom_redis.ballroom_delete_capsule(session_id)

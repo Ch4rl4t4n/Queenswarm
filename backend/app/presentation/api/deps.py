@@ -206,6 +206,15 @@ async def require_dashboard_user_with_tenant_role(
     if membership is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant membership missing.")
     role = str(getattr(membership, "role", "guest") or "guest").lower()
+    if settings.single_admin_mode:
+        # Single-admin mode guarantees exactly one operator; force full operator lane access.
+        if not bool(user.is_admin):
+            user.is_admin = True
+            await db.flush()
+        if role not in {"owner", "admin"}:
+            membership.role = "owner"
+            await db.flush()
+            role = "owner"
     set_current_tenant_id(str(tenant_id))
     return {
         "user": user,
@@ -223,6 +232,9 @@ def require_tenant_permission(permission: str):
     async def _dep(
         principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
     ) -> bool:
+        if settings.single_admin_mode:
+            _ = principal
+            return True
         role = str(principal.get("tenant_role") or "guest")
         if not has_permission(role=role, permission=permission):
             raise HTTPException(
@@ -238,6 +250,9 @@ async def require_dashboard_recipe_write(
     sess: dict[str, Any] = Depends(require_dashboard_session),
 ) -> dict[str, Any]:
     """Require admin dashboard tokens that include the Recipe Library write scope."""
+
+    if settings.single_admin_mode:
+        return sess
 
     raw_scope = sess.get("scope")
     if isinstance(raw_scope, str):
@@ -273,6 +288,13 @@ async def dashboard_admin_wall(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Malformed dashboard subject.")
 
     principal = await db.get(DashboardUser, resolved)
+    if settings.single_admin_mode:
+        if principal is None or not principal.is_active:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin scopes required.")
+        if not principal.is_admin:
+            principal.is_admin = True
+            await db.flush()
+        return True
     if principal is None or not principal.is_active or not principal.is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin scopes required.")
 

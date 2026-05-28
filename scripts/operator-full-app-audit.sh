@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Full application audit — production API smoke + UI walkthrough checklist (read-only).
 #
-# Covers every major solo feature area. Commercial surfaces (Stripe, billing, enterprise)
+# Covers every major solo feature area. Commercial surfaces (checkout, billing, enterprise)
 # are marked DEFERRED in solo mode — not failures.
 #
 # Usage:
@@ -230,7 +230,7 @@ Spolu prejdite každú oblasť. Označte ✓ keď funguje, ✗ keď nie.
 - [ ] Life OS routine 06:00 UTC
 
 ## DEFERRED (nie teraz)
-- Stripe / Billing / Enterprise workspace
+- Checkout / Billing / Enterprise workspace
 - Team RBAC / multi-account
 - Lead magnets / marketplace UGC
 

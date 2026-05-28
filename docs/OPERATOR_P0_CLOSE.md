@@ -9,7 +9,6 @@ Last automated run: see `reports/operator/OPERATOR_LAUNCH_CHECKLIST_*.md`
 | Dev Phase 0–6 + all P2 harness | ✅ Complete |
 | Automated walkthrough (API + browser + session + command center) | ✅ `operator-launch-gate.sh` |
 | HA/DR + host exposure | ✅ Evidence on disk |
-| **Stripe live checkout** | ❌ **Out of scope** — removed from roadmap (solo operator; see `docs/SOLO_OPERATOR_MODE.md`) |
 | **Hetzner abuse email** | ⏳ Draft ready — operator must send |
 | Harness automation (GitHub webhook, Forager cron) | ⏳ Optional — `./scripts/operator-harness-env-prep.sh` |
 
@@ -24,8 +23,6 @@ Last automated run: see `reports/operator/OPERATOR_LAUNCH_CHECKLIST_*.md`
 ```
 
 ## P0 order (human)
-
-> **Stripe:** not on the roadmap. Billing endpoints remain in code for future commercial use but require no operator action.
 
 ### 1. Hetzner (manual)
 
@@ -72,13 +69,6 @@ Then redeploy: `ENV_FILE=.env.prod ./scripts/deploy-prod.sh`
 SKIP_E2E=1 SKIP_RESPONSIVE_E2E=1 ./scripts/operator-launch-gate.sh
 ./scripts/operator-final-handoff.sh
 ```
-
-## Stripe (optional — not on roadmap)
-
-Legacy docs only if you later enable commercial billing:
-
-- `docs/OPERATOR_STRIPE_SETUP.md`
-- `docs/OPERATOR_STRIPE_DASHBOARD_WALKTHROUGH.md`
 
 ## References
 

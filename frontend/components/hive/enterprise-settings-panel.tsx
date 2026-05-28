@@ -132,12 +132,11 @@ export function EnterpriseSettingsPanel(): JSX.Element | null {
           description="White-label branding and compliance profile require Enterprise tier on commercial workspaces."
         />
         <p className="text-sm text-(--qs-text-3)">
-          Upgrade via{" "}
-          <Link href="/settings/billing" className="text-pollen hover:underline">
-            Billing
-          </Link>{" "}
-          or contact your operator for internal hive access.
+          Contact your operator to enable Enterprise workspace access for this tenant.
         </p>
+        <Link href="/settings/costs" className="qs-btn qs-btn--ghost qs-btn--sm mt-4 inline-flex">
+          View spend & plans
+        </Link>
       </V4Card>
     );
   }
@@ -326,6 +325,9 @@ export function EnterpriseSettingsPanel(): JSX.Element | null {
           </button>
           <Link href="/settings/audit" className="v4-btn v4-btn--ghost">
             Open audit log
+          </Link>
+          <Link href="/settings/costs" className="v4-btn v4-btn--ghost">
+            View spend cockpit
           </Link>
         </div>
       </V4Card>

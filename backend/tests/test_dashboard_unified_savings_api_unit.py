@@ -10,9 +10,9 @@ from httpx import ASGITransport, AsyncClient
 
 from app.main import app
 from app.presentation.api.deps import (
+    dashboard_admin_wall,
     require_dashboard_session,
     require_dashboard_user_with_tenant_role,
-    require_subject,
 )
 from app.presentation.api.routers import dashboard as dashboard_router
 
@@ -23,7 +23,7 @@ def unified_savings_auth_fixture() -> Generator[None, None, None]:
 
     actor = uuid.uuid4()
     tenant = uuid.uuid4()
-    app.dependency_overrides[require_subject] = lambda: f"dash:{actor}"
+    app.dependency_overrides[dashboard_admin_wall] = lambda: True
     app.dependency_overrides[require_dashboard_session] = lambda: {"sub": f"dash:{actor}"}
     app.dependency_overrides[require_dashboard_user_with_tenant_role] = lambda: {
         "tenant_id": tenant,

@@ -21,12 +21,12 @@ import {
   FolderTree,
   Hash,
   Loader2Icon,
-  RefreshCw,
 } from "lucide-react";
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 
 import { CollapsibleLazyPanel } from "@/components/hive/collapsible-lazy-panel";
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { usePlatform } from "@/components/hive/platform-context";
 import { V4Badge, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
@@ -336,10 +336,7 @@ export function ProjectShapeGraphPanel(): JSX.Element | null {
         actions={
           <div className="flex items-center gap-2">
             <FolderTree className="h-4 w-4 text-(--qs-green)" aria-hidden />
-            <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-1" disabled={loading} onClick={() => void load()}>
-              <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} aria-hidden />
-              Refresh
-            </button>
+            <HiveRefreshButton busy={loading} onClick={() => void load()} />
           </div>
         }
       />

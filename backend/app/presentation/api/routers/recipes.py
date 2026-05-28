@@ -7,7 +7,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.presentation.api.deps import DbSession, JwtSubject, RecipeMutationSubject, require_dashboard_user_with_tenant_role
+from app.presentation.api.deps import DashboardSession, DbSession, RecipeMutationSubject, require_dashboard_user_with_tenant_role
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.infrastructure.persistence.models.recipe import Recipe
@@ -29,12 +29,9 @@ from app.application.services.recipe_write import (
     delete_recipe_entry,
     update_recipe_entry,
 )
-from app.application.services.skill_checkout import (
+from app.application.services.skill_access import (
     assert_skill_export_allowed,
-    confirm_skill_checkout_session,
-    create_skill_checkout_session,
     list_tenant_skill_unlocks,
-    stripe_checkout_ready,
 )
 from app.application.services.skill_export import build_skills_catalog, export_recipe_skill
 from app.application.services.recipe_marketplace_beta import (
@@ -43,10 +40,6 @@ from app.application.services.recipe_marketplace_beta import (
 )
 from app.common.schemas.skill_export import SkillCatalogResponse, SkillExportResponse
 from app.common.schemas.skill_marketplace import (
-    SkillCheckoutRequest,
-    SkillCheckoutResponse,
-    SkillConfirmCheckoutRequest,
-    SkillConfirmCheckoutResponse,
     SkillUnlockStatusResponse,
 )
 
@@ -76,7 +69,7 @@ def _ensure_leaderboard_enabled() -> None:
     response_model=RecipeMatchConfigResponse,
     summary="Recipe cosine match thresholds for UI",
 )
-async def recipe_match_config(_subject: JwtSubject) -> RecipeMatchConfigResponse:
+async def recipe_match_config(_session: DashboardSession) -> RecipeMatchConfigResponse:
     """Expose imitation-engine similarity gate (default 0.85) and hybrid weights."""
 
     _ensure_recipes_enabled()
@@ -88,7 +81,7 @@ async def recipe_match_config(_subject: JwtSubject) -> RecipeMatchConfigResponse
     response_model=RecipeMarketplaceBetaSnapshotOut,
     summary="Recipe marketplace beta snapshot",
 )
-async def recipe_marketplace_beta_snapshot(db: DbSession, _subject: JwtSubject) -> RecipeMarketplaceBetaSnapshotOut:
+async def recipe_marketplace_beta_snapshot(db: DbSession, _session: DashboardSession) -> RecipeMarketplaceBetaSnapshotOut:
     """UGC marketplace counts + config for recipes hub beta panel."""
 
     _ensure_recipes_enabled()
@@ -103,7 +96,7 @@ async def recipe_marketplace_beta_snapshot(db: DbSession, _subject: JwtSubject) 
 )
 async def semantic_recipe_search(
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
     q: str = Query(
         min_length=1,
         description="Natural-language cue matched against Recipe Library embeddings.",
@@ -114,7 +107,12 @@ async def semantic_recipe_search(
 
     _ensure_recipes_enabled()
     try:
-        return await search_recipes_semantic(db, query=q, limit=limit, task_id=_subject)
+        return await search_recipes_semantic(
+            db,
+            query=q,
+            limit=limit,
+            task_id=str(_session.get("sub", "dashboard_operator")),
+        )
     except SQLAlchemyError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -182,7 +180,7 @@ async def create_recipe(
     "/pattern-stacks",
     summary="Orchestration template pattern stacks",
 )
-async def recipe_pattern_stacks(_subject: JwtSubject) -> list[dict[str, object]]:
+async def recipe_pattern_stacks(_session: DashboardSession) -> list[dict[str, object]]:
     """Return canonical orchestration templates and their agentic pattern stacks."""
 
     _ensure_recipes_enabled()
@@ -196,7 +194,7 @@ async def recipe_pattern_stacks(_subject: JwtSubject) -> list[dict[str, object]]
 )
 async def list_recipes(
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
     q: str | None = Query(default=None, description="Filter by name/description (ilike)."),
     verified_only: bool = Query(
         default=False,
@@ -263,7 +261,7 @@ async def get_skill_unlock_status(
     db: DbSession,
     principal: dict = Depends(require_dashboard_user_with_tenant_role),
 ) -> SkillUnlockStatusResponse:
-    """Return Stripe readiness and unlocked premium recipe ids for the active tenant."""
+    """Return unlocked premium recipe ids."""
 
     _ensure_recipes_enabled()
     tenant_id = principal.get("tenant_id")
@@ -277,96 +275,10 @@ async def get_skill_unlock_status(
             detail="Persistence rejected skill unlock query.",
         )
     return SkillUnlockStatusResponse(
-        stripe_checkout_ready=stripe_checkout_ready(),
+        checkout_available=False,
         unlocked_recipe_ids=[str(rid) for rid in unlocked],
         premium_price_eur_cents_default=int(settings.skill_export_premium_price_eur_cents),
     )
-
-
-@router.post(
-    "/skills/checkout",
-    response_model=SkillCheckoutResponse,
-    summary="Start Stripe checkout for premium skill export",
-)
-async def start_skill_checkout(
-    body: SkillCheckoutRequest,
-    db: DbSession,
-    principal: dict = Depends(require_dashboard_user_with_tenant_role),
-) -> SkillCheckoutResponse:
-    """Create a Stripe Checkout Session to unlock premium verified skill export."""
-
-    _ensure_recipes_enabled()
-    tenant_id = principal.get("tenant_id")
-    user = principal.get("user")
-    if tenant_id is None or user is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
-    user_uuid = user.id
-
-    try:
-        row = await db.get(Recipe, body.recipe_id)
-        if row is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recipe not found.")
-        payload = await create_skill_checkout_session(
-            db,
-            tenant_id=tenant_id,
-            dashboard_user_id=user_uuid,
-            recipe=row,
-        )
-        await db.commit()
-    except HTTPException:
-        await db.rollback()
-        raise
-    except SQLAlchemyError:
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Persistence rejected skill checkout.",
-        )
-
-    return SkillCheckoutResponse(
-        status=payload.get("status", "unknown"),
-        recipe_id=str(payload.get("recipe_id", body.recipe_id)),
-        slug=str(payload.get("slug", "")),
-        purchase_id=payload.get("purchase_id"),
-        checkout_url=payload.get("checkout_url"),
-        amount_eur_cents=payload.get("amount_eur_cents"),
-        message=payload.get("message"),
-    )
-
-
-@router.post(
-    "/skills/confirm-checkout",
-    response_model=SkillConfirmCheckoutResponse,
-    summary="Confirm Stripe checkout after success redirect",
-)
-async def confirm_skill_checkout(
-    body: SkillConfirmCheckoutRequest,
-    db: DbSession,
-    principal: dict = Depends(require_dashboard_user_with_tenant_role),
-) -> SkillConfirmCheckoutResponse:
-    """Finalize premium skill unlock when webhook delivery is delayed."""
-
-    _ensure_recipes_enabled()
-    tenant_id = principal.get("tenant_id")
-    if tenant_id is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
-    try:
-        payload = await confirm_skill_checkout_session(
-            db,
-            tenant_id=tenant_id,
-            checkout_session_id=body.checkout_session_id,
-        )
-        await db.commit()
-    except HTTPException:
-        await db.rollback()
-        raise
-    except SQLAlchemyError:
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Persistence rejected skill checkout confirmation.",
-        )
-    return SkillConfirmCheckoutResponse.model_validate(payload)
 
 
 @router.post(
@@ -377,7 +289,7 @@ async def confirm_skill_checkout(
 async def export_recipe_as_skill(
     recipe_id: uuid.UUID,
     db: DbSession,
-    subject: JwtSubject,
+    session: DashboardSession,
     request: Request,
     principal: dict = Depends(require_dashboard_user_with_tenant_role),
 ) -> SkillExportResponse:
@@ -413,7 +325,7 @@ async def export_recipe_as_skill(
         recipe_id=str(recipe_id),
         slug=bundle.meta.slug,
         verified=bundle.meta.verified,
-        operator_subject=subject,
+        operator_subject=str(session.get("sub", "dashboard_operator")),
         client_host=request.client.host if request.client else None,
     )
     return bundle
@@ -427,7 +339,7 @@ async def export_recipe_as_skill(
 async def get_recipe(
     recipe_id: uuid.UUID,
     db: DbSession,
-    _subject: JwtSubject,
+    _session: DashboardSession,
 ) -> RecipeCatalogItem:
     """Return a single leaderboard row."""
 

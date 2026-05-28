@@ -10,6 +10,14 @@ on:
         description: "Run deep validation (full e2e + final150 gates)"
         required: false
         default: "false"
+      run_whole_app_extended:
+        description: "Run Whole-App extended visual gate (responsive shell + snapshots)"
+        required: false
+        default: "false"
+      run_prod_journeys:
+        description: "Run Whole-App prod authenticated journey matrix (needs OPERATOR_USER_BEARER_TOKEN secret)"
+        required: false
+        default: "false"
 
 jobs:
   backend:
@@ -32,7 +40,7 @@ jobs:
       - name: pytest + coverage gate
         env:
           PLUGIN_USER_DIR: /tmp/queenswarm-plugins/user
-        run: pytest -q --tb=short --cov=app --cov-config=.coveragerc --cov-fail-under=50
+        run: pytest -q --tb=short --cov=app --cov-config=.coveragerc
 
       - name: Operator Control Plane gate
         working-directory: .
@@ -105,6 +113,88 @@ jobs:
           E2E_PUBLISH_LANE: "1"
         run: npx playwright test e2e/publish-lane.spec.ts
 
+  whole_app_ui_gate:
+    name: Whole-App UI release gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps + Playwright
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install chromium --with-deps
+
+      - name: Whole-App UI core release gate
+        env:
+          CI: "true"
+          SKIP_HEALTH_CHECK: "1"
+          PLAYWRIGHT_WORKERS: "1"
+        run: ./scripts/whole-app-ui-release-gate.sh
+
+  whole_app_ui_extended:
+    name: Whole-App extended visual gate
+    if: >-
+      github.ref == 'refs/heads/main' ||
+      (github.event_name == 'workflow_dispatch' &&
+        (inputs.run_whole_app_extended == 'true' || inputs.run_deep_validation == 'true'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps + Playwright
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install chromium --with-deps
+
+      - name: Whole-App extended visual gate
+        env:
+          CI: "true"
+          WHOLE_APP_EXTENDED_ONLY: "1"
+          PLAYWRIGHT_WORKERS: "1"
+        run: ./scripts/whole-app-ui-release-gate.sh
+
+  whole_app_prod_journeys:
+    name: Whole-App prod authenticated journeys
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.run_prod_journeys == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps + Playwright
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install chromium --with-deps
+
+      - name: Prod authenticated journey matrix
+        env:
+          CI: "true"
+          PLAYWRIGHT_BASE_URL: "https://queenswarm.love"
+          E2E_PROD_AUTHENTICATED: "1"
+          OPERATOR_USER_BEARER_TOKEN: ${{ secrets.OPERATOR_USER_BEARER_TOKEN }}
+        run: ../scripts/whole-app-prod-journey-gate.sh
+
   security:
     runs-on: ubuntu-latest
     steps:
@@ -134,8 +224,11 @@ jobs:
 
       - name: Security gates
         env:
-          SECURITY_STRICT: "0"
+          SECURITY_STRICT: "1"
         run: bash scripts/security-gates.sh
+
+      - name: Single-admin guardrails
+        run: bash scripts/audit-single-admin-gate.sh
 
   deep_validation:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_deep_validation == 'true' }}

@@ -10,10 +10,11 @@ import {
 import type { MouseEventHandler } from 'react'
 import { useCallback, useEffect, useState } from 'react'
 
+import { HiveRefreshButton } from '@/components/hive/hive-refresh-button'
 import { QsSelect } from '@/components/ui/qs-select'
 import { ConnectorsOAuthConsentRail } from '@/components/connectors/connectors-oauth-consent-rail'
 import { ConnectorsVaultPanel } from '@/components/connectors/connectors-vault-panel'
-import { Phase3TemplateInspector } from '@/components/connectors/phase3-template-inspector'
+import { Phase3TemplatesGrid } from '@/components/connectors/phase3-templates-grid'
 import { InfoHint } from '@/components/hive/info-hint'
 import { ListPaginator, ViewportBoundedPanel } from '@/components/ui/list-paginator'
 import { V4Badge, V4Card, V4CardHeader } from '@/components/ui/v4'
@@ -28,7 +29,6 @@ import {
   buildManifestJsonFromTemplate,
   extractPhase3FromCatalog,
   orderedPhase3Categories,
-  phase3CategoryLabel,
   phase3CategoryShortLabel,
   phase3ProvisionCoverage,
   type ObsidianVaultStatusPayload,
@@ -38,6 +38,7 @@ import {
 import { extractOAuthConsentCatalog, type OAuthConsentCatalogSlice } from '@/lib/connectors-oauth-catalog'
 import { useGridTwoRowPageSize } from '@/lib/use-grid-two-row-page-size'
 import { usePaginatedSlice } from '@/lib/use-paginated-slice'
+import type { IntegrationsHubSection } from '@/lib/integrations-hub-routes'
 import { cn } from '@/lib/utils'
 
 interface ConnectorsEnvelope {
@@ -64,9 +65,15 @@ async function reloadConnectors(): Promise<DynamicConnectorPayload[]> {
 
 interface ConnectorsConsoleProps {
   embedded?: boolean
+  /** When set (Integrations hub sub-nav), render only this block. */
+  hubSection?: Exclude<IntegrationsHubSection, 'tools'>
 }
 
-export function ConnectorsConsole({ embedded = false }: ConnectorsConsoleProps) {
+function showHubBlock(active: Exclude<IntegrationsHubSection, 'tools'>, hubSection?: Exclude<IntegrationsHubSection, 'tools'>): boolean {
+  return !hubSection || hubSection === active
+}
+
+export function ConnectorsConsole({ embedded = false, hubSection }: ConnectorsConsoleProps) {
   const [rows, setRows] = useState<DynamicConnectorPayload[]>([])
   const [loadErr, setLoadErr] = useState<string | null>(null)
   const [phase3Slice, setPhase3Slice] = useState<Phase3CatalogSlice | null>(null)
@@ -90,8 +97,6 @@ export function ConnectorsConsole({ embedded = false }: ConnectorsConsoleProps) 
   const [phase3Overview, setPhase3Overview] = useState<Phase3IntegrationOverviewPayload | null>(null)
   const [overviewErr, setOverviewErr] = useState<string | null>(null)
   const [overviewBusy, setOverviewBusy] = useState(false)
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
-  const [testingConnectorId, setTestingConnectorId] = useState<string | null>(null)
 
   const rosterPageSize = useGridTwoRowPageSize({ columns: 2 })
   const rosterPagination = usePaginatedSlice(rows, rosterPageSize, `${rows.length}|${rosterPageSize}`)
@@ -245,14 +250,13 @@ export function ConnectorsConsole({ embedded = false }: ConnectorsConsoleProps) 
   }
 
   async function handleTest(connId: string) {
-    setTestingConnectorId(connId)
     try {
       await hivePostJson<Record<string, unknown>>(`connectors/dynamic/${encodeURIComponent(connId)}/test`, {})
       await mutateRow()
       setRows(await reloadConnectors())
       await refreshPhase3Overview()
-    } finally {
-      setTestingConnectorId(null)
+    } catch {
+      setLoadErr('Connector test failed.')
     }
   }
 
@@ -326,15 +330,6 @@ export function ConnectorsConsole({ embedded = false }: ConnectorsConsoleProps) 
 
   const phase3Coverage = phase3Slice ? phase3ProvisionCoverage(phase3Slice.templates, rows.map((r) => r.slug)) : []
 
-  const selectedPhase3Tpl =
-    phase3Slice?.templates.find((t) => t.template_id === selectedTemplateId) ?? null
-  const overviewMatchRow = phase3Overview?.templates.find((t) => t.template_id === selectedTemplateId)
-  const inspectorHubRow =
-    overviewMatchRow?.hub_row ??
-    (selectedPhase3Tpl
-      ? rows.find((r) => r.slug.trim().toLowerCase() === selectedPhase3Tpl.suggested_slug.trim().toLowerCase()) ?? null
-      : null)
-
   const pulse = phase3Overview
     ? phase3OverviewCoverageScore(phase3Overview.templates)
     : {
@@ -345,7 +340,7 @@ export function ConnectorsConsole({ embedded = false }: ConnectorsConsoleProps) 
 
   const shell = (
     <>
-      {loadErr ? (
+      {loadErr && showHubBlock('roster', hubSection) ? (
         <div className="rounded-xl border border-(--qs-red)/35 bg-(--qs-red)/10 px-4 py-3 text-sm text-danger" role="status">
           {loadErr}{' '}
           <button
@@ -363,7 +358,7 @@ export function ConnectorsConsole({ embedded = false }: ConnectorsConsoleProps) 
         </div>
       ) : null}
 
-      {oauthFlash ? (
+      {oauthFlash && showHubBlock('oauth', hubSection) ? (
         <div
           className={
             oauthFlash.kind === 'success'
@@ -379,11 +374,11 @@ export function ConnectorsConsole({ embedded = false }: ConnectorsConsoleProps) 
         </div>
       ) : null}
 
-      <ConnectorsVaultPanel />
+      {showHubBlock('vault', hubSection) ? <ConnectorsVaultPanel /> : null}
 
-      <ConnectorsOAuthConsentRail catalog={oauthCatalog} />
+      {showHubBlock('oauth', hubSection) ? <ConnectorsOAuthConsentRail catalog={oauthCatalog} /> : null}
 
-      {phase3Slice ? (
+      {showHubBlock('templates', hubSection) && phase3Slice ? (
         <V4Card className="space-y-4 phase3-templates-card">
           <V4CardHeader
             title="Phase 3 templates"
@@ -404,19 +399,10 @@ export function ConnectorsConsole({ embedded = false }: ConnectorsConsoleProps) 
           <div className="phase3-templates-stats flex flex-wrap items-center gap-2">
             <V4Badge tone="info">{pulse.provisioned}/{pulse.total} rostered</V4Badge>
             <V4Badge tone="ok">{pulse.active} active</V4Badge>
-            <button
-              type="button"
-              disabled={overviewBusy}
-              onClick={() => void refreshPhase3Overview()}
-              className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5 touch-manipulation"
-            >
-              {overviewBusy ? <Loader2Icon className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <RefreshCw className="h-3.5 w-3.5" aria-hidden />}
-              Refresh
-            </button>
+            <HiveRefreshButton busy={overviewBusy} onClick={() => void refreshPhase3Overview()} />
           </div>
 
-          <div className="v4-connectors-split min-w-0 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,300px)] xl:gap-6 xl:items-start">
-          <div className="space-y-3">
+          <div className="min-w-0 space-y-3">
             <div className="phase3-category-bubble-grid" role="tablist" aria-label="Phase 3 categories">
               {orderedPhase3Categories(phase3Slice.grouped).map((category) => {
                 const tpls = phase3Slice.grouped[category] ?? []
@@ -445,120 +431,24 @@ export function ConnectorsConsole({ embedded = false }: ConnectorsConsoleProps) 
             </div>
 
             {phase3OpenCategory && (phase3Slice.grouped[phase3OpenCategory]?.length ?? 0) > 0 ? (
-              <div className="phase3-templates-scroll">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-(--qs-text-3)">
-                  {phase3CategoryLabel(phase3OpenCategory)}
-                </p>
-                <div className="phase3-templates-grid">
-                  {(phase3Slice.grouped[phase3OpenCategory] ?? []).map((tpl) => {
-                    const covered = phase3Coverage.find((row) => row.template_id === tpl.template_id)?.provisioned
-                    return (
-                      <article key={tpl.template_id} className="phase3-template-card flex flex-col gap-2">
-                        <header className="space-y-0.5">
-                          <h3 className="text-sm font-semibold leading-tight text-pollen">{tpl.title}</h3>
-                          <p className="line-clamp-2 text-[10px] leading-relaxed text-(--qs-text-3)">{tpl.summary}</p>
-                        </header>
-                        <dl className="grid grid-cols-2 gap-1 text-[10px] text-(--qs-text-3)">
-                          <div>
-                            <dt className="v4-field-label text-[9px]">Auth</dt>
-                            <dd className="text-(--qs-text)">{tpl.auth_type}</dd>
-                          </div>
-                          <div>
-                            <dt className="v4-field-label text-[9px]">Tools</dt>
-                            <dd className="text-(--qs-text)">{tpl.tool_count}</dd>
-                          </div>
-                          <div className="col-span-2">
-                            <dd className={covered ? 'text-(--qs-green)' : 'text-(--qs-magenta)'}>
-                              {covered ? 'In roster' : 'Not provisioned'}
-                            </dd>
-                          </div>
-                        </dl>
-                        <div className="mt-auto flex flex-wrap gap-1 pt-1">
-                          <button
-                            type="button"
-                            className="qs-btn qs-btn--ghost qs-btn--sm text-[10px]"
-                            onClick={() => setSelectedTemplateId(tpl.template_id)}
-                          >
-                            Panel
-                          </button>
-                          <a
-                            href={tpl.documentation_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="qs-btn qs-btn--ghost qs-btn--sm text-[10px]"
-                          >
-                            Docs
-                          </a>
-                          <button
-                            type="button"
-                            className="qs-btn qs-btn--ghost qs-btn--sm text-[10px]"
-                            onClick={() => applyPhase3Template(tpl)}
-                          >
-                            Prefill
-                          </button>
-                          <button
-                            type="button"
-                            disabled={instantiatingId === tpl.template_id}
-                            className="qs-btn qs-btn--primary qs-btn--sm text-[10px]"
-                            onClick={() => void provisionFromPhase3Template(tpl)}
-                          >
-                            {instantiatingId === tpl.template_id ? '…' : 'Provision'}
-                          </button>
-                        </div>
-                      </article>
-                    )
-                  })}
-                </div>
-              </div>
+              <Phase3TemplatesGrid
+                category={phase3OpenCategory}
+                templates={phase3Slice.grouped[phase3OpenCategory] ?? []}
+                coverage={phase3Coverage}
+                instantiatingId={instantiatingId}
+                onPrefill={applyPhase3Template}
+                onProvision={(tpl) => void provisionFromPhase3Template(tpl)}
+              />
             ) : null}
           </div>
-
-          <div className="relative hidden xl:block">
-            {selectedPhase3Tpl ? (
-              <Phase3TemplateInspector
-                layout="rail"
-                tpl={selectedPhase3Tpl}
-                hubRow={inspectorHubRow}
-                onClose={() => setSelectedTemplateId(null)}
-                onPrefill={applyPhase3Template}
-                onProvision={(tplInst) => void provisionFromPhase3Template(tplInst)}
-                onTestHub={(id) => void handleTest(id)}
-                provisioning={instantiatingId === selectedPhase3Tpl.template_id}
-                testingId={testingConnectorId}
-              />
-            ) : (
-              <div className="v4-learning-panel sticky top-28 space-y-2 p-3 text-xs text-(--qs-text-3)">
-                <p className="v4-field-label text-pollen text-[10px]">Power panel</p>
-                <p>Pick a template → <span className="text-(--qs-text)">Panel</span> for MCP tools, probe, and provision.</p>
-              </div>
-            )}
-          </div>
-          </div>
-
-          {selectedPhase3Tpl ? (
-            <>
-              <button
-                type="button"
-                className="fixed inset-0 z-[55] bg-black/65 xl:hidden"
-                aria-label="Close template inspector"
-                onClick={() => setSelectedTemplateId(null)}
-              />
-              <Phase3TemplateInspector
-                layout="sheet"
-                tpl={selectedPhase3Tpl}
-                hubRow={inspectorHubRow}
-                onClose={() => setSelectedTemplateId(null)}
-                onPrefill={applyPhase3Template}
-                onProvision={(tplInst) => void provisionFromPhase3Template(tplInst)}
-                onTestHub={(id) => void handleTest(id)}
-                provisioning={instantiatingId === selectedPhase3Tpl.template_id}
-                testingId={testingConnectorId}
-              />
-            </>
-          ) : null}
         </V4Card>
       ) : null}
 
+      {showHubBlock('templates', hubSection) && !phase3Slice ? (
+        <p className="text-sm text-(--qs-text-3)">Loading Phase 3 template catalog…</p>
+      ) : null}
+
+      {showHubBlock('obsidian', hubSection) ? (
       <V4Card>
         <V4CardHeader
           title="Obsidian vault → HiveMind"
@@ -569,10 +459,7 @@ export function ConnectorsConsole({ embedded = false }: ConnectorsConsoleProps) 
             </>
           }
           actions={
-            <button type="button" onClick={() => void refreshObsidianStatus()} className="qs-btn qs-btn--ghost qs-btn--sm gap-2">
-              <RefreshCw className="h-4 w-4" aria-hidden />
-              Refresh telemetry
-            </button>
+            <HiveRefreshButton label="Refresh telemetry" onClick={() => void refreshObsidianStatus()} />
           }
         />
 
@@ -617,7 +504,10 @@ export function ConnectorsConsole({ embedded = false }: ConnectorsConsoleProps) 
           </button>
         </div>
       </V4Card>
+      ) : null}
 
+      {showHubBlock('roster', hubSection) ? (
+      <>
       <V4Card glow>
         <V4CardHeader
           title="Add new connector"
@@ -642,7 +532,7 @@ export function ConnectorsConsole({ embedded = false }: ConnectorsConsoleProps) 
             <input
               type="text"
               value={slug}
-              placeholder="stripe_pro"
+              placeholder="billing_provider"
               onChange={(evt) => setSlug(evt.target.value)}
               className="qs-input font-mono"
             />
@@ -652,7 +542,7 @@ export function ConnectorsConsole({ embedded = false }: ConnectorsConsoleProps) 
             <input
               type="text"
               value={displayName}
-              placeholder="Stripe Pro · Billing"
+              placeholder="Billing provider"
               onChange={(evt) => setDisplayName(evt.target.value)}
               className="qs-input"
             />
@@ -776,7 +666,7 @@ export function ConnectorsConsole({ embedded = false }: ConnectorsConsoleProps) 
                 </div>
               </dl>
 
-              <footer className="mt-auto flex w-full flex-wrap gap-1.5 pt-1">
+              <footer className="v4-dream-cycle-card-actions pt-1">
                 <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm text-[11px]" onClick={() => void handleTest(conn.id)}>
                   Test · 2500ms
                 </button>
@@ -802,6 +692,8 @@ export function ConnectorsConsole({ embedded = false }: ConnectorsConsoleProps) 
         </ViewportBoundedPanel>
         ) : null}
       </V4Card>
+      </>
+      ) : null}
 
     </>
   )
@@ -829,7 +721,7 @@ export function ConnectorsConsole({ embedded = false }: ConnectorsConsoleProps) 
         <p className="text-base text-(--qs-text-3)">
           Persist manifests in Postgres, seal secrets via hive Fernet blobs, hydrate Redis manifests (TTL 300s), rate-limit outbound
           calls per slug, trip breakers automatically, then surface tools to Ballroom orchestration queues. Phase 3 adds curated Gmail,
-          Outlook, Calendar, GitHub, GitLab, Slack, Telegram, Discord, Notion, and Stripe manifests — plus Obsidian vault embeddings into
+          Outlook, Calendar, GitHub, GitLab, Slack, Telegram, Discord, and Notion manifests — plus Obsidian vault embeddings into
           HiveMind when enabled.
         </p>
         <div className="flex flex-wrap gap-3 pt-2 text-sm">

@@ -24,11 +24,11 @@ Gate: `./scripts/audit-operator-control-plane-gate.sh`
 
 | Phase | Dev | Operator gate |
 |-------|-----|---------------|
-| **Phase 0** — wizard, gates, widgets | ✅ Shipped | Stripe keys + walkthrough |
+| **Phase 0** — wizard, gates, widgets | ✅ Shipped | walkthrough |
 | **Phase 1** — marketplace, ROI, UGC | ✅ Shipped | `./scripts/mission-phase1-audit.sh` |
 | **Phase 2** — enterprise, sub-swarm mind | ✅ Shipped | `./scripts/mission-phase2-audit.sh` |
 | **Performance cockpit** — bundle, WS delta | ✅ Shipped | `docs/PERFORMANCE_COCKPIT.md` |
-| **Operator P0** — Stripe + Hetzner send | ⏳ Pending (human-only) | `docs/OPERATOR_QUICKSTART.md` |
+| **Operator P0** — Hetzner send | ⏳ Pending (human-only) | `docs/OPERATOR_QUICKSTART.md` |
 | **Phase 4** — RoundtableSpace edge | ✅ Shipped | `docs/ROUNDTABLESPACE_MAY2026_INSIGHTS.md` |
 | **Phase 5** — Agentic design patterns | ✅ Shipped | `./scripts/mission-phase5-patterns-audit.sh` |
 | **Phase 6** — Harness & Queen Maintainer | ✅ Dev complete | `./scripts/mission-phase6-harness-snapshot-audit.sh` |
@@ -63,12 +63,10 @@ Backlog source: `docs/MISSION_EXECUTION_BACKLOG.md` · in-app atlas: `/settings/
 | Operator P0 gates | `./scripts/operator-gates-audit.sh` |
 | Hetzner abuse reply | `./scripts/hetzner-abuse-reply.sh` → `reports/hetzner/hetzner-reply-*.txt` |
 | Operator pending status | `./scripts/operator-pending-status.sh` |
-| Stripe prep checklist | `./scripts/operator-stripe-prep.sh` |
 | **Final handoff bundle** | `./scripts/operator-final-handoff.sh` |
-| **Operator P0 close (Stripe go-live)** | `./scripts/operator-p0-close.sh` |
+| **Operator P0 close** | `./scripts/operator-p0-close.sh` |
 | **Next single action** | `./scripts/operator-next.sh` |
 | Hetzner send prep | `./scripts/operator-hetzner-send-prep.sh` |
-| Stripe live checkout | `./scripts/operator-p0-close.sh` after keys in `.env.prod` |
 | P0 close checklist | `docs/OPERATOR_P0_CLOSE.md` |
 
 See **`docs/ROADMAP.md`** and **`docs/MISSION_EXECUTION_BACKLOG.md`**.

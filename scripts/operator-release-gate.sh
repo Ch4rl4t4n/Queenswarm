@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Operator release gate — solo trio + publish pack + core health (no Stripe).
+# Operator release gate — solo trio + publish pack + core health.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from datetime import UTC, datetime
 from typing import Any, Literal
@@ -12,7 +13,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.services.morning_hive_brief import compose_morning_hive_brief
 from app.application.services.morning_publish_pipeline import compose_morning_publish_pipeline_snapshot
 from app.application.services.publish_operator_onboarding import compose_publish_onboarding_snapshot
-from app.application.services.trading_cockpit import compose_trading_cockpit_snapshot
+from app.application.services.hive_oracle import (
+    COCKPIT_OVERVIEW_HREF,
+    HARNES_OPERATOR_HUB_HREF,
+    STUDIO_PUBLISH_QUEUE_HREF,
+    STUDIO_TRADING_COCKPIT_HREF,
+)
+from app.application.services.trading_cockpit import (
+    compose_trading_cockpit_action_signals,
+    compose_trading_cockpit_snapshot,
+)
 from app.core.config import settings
 from app.infrastructure.persistence.models.tenant import Tenant
 
@@ -97,7 +107,7 @@ def _derive_actions(
                 label=f"Approve {pending} publish pack(s)",
                 detail="Publish Queue — simulate-only approval before social live.",
                 priority="high",
-                href="/integrations?tab=studio#publish-queue",
+                href=STUDIO_PUBLISH_QUEUE_HREF,
             ),
         )
 
@@ -112,7 +122,7 @@ def _derive_actions(
                 label=f"Publish onboarding {progress}%",
                 detail="Complete OAuth + simulate steps before first live post.",
                 priority="high" if progress < 60 else "medium",
-                href="/settings/harness",
+                href=HARNES_OPERATOR_HUB_HREF,
             ),
         )
 
@@ -124,7 +134,7 @@ def _derive_actions(
                 label="Trading agent halted",
                 detail=str(perf.get("halt_reason") or "Daily stop-loss — review Trading Cockpit."),
                 priority="high",
-                href="/integrations?tab=studio#trading-cockpit",
+                href=STUDIO_TRADING_COCKPIT_HREF,
             ),
         )
     elif (trading.get("config") or {}).get("default_mode") == "paper":
@@ -134,7 +144,7 @@ def _derive_actions(
                 label="Run paper trading tick",
                 detail="Evaluate watchlist signals in paper mode (no real money).",
                 priority="medium",
-                href="/integrations?tab=studio#trading-cockpit",
+                href=STUDIO_TRADING_COCKPIT_HREF,
             ),
         )
 
@@ -145,7 +155,7 @@ def _derive_actions(
                 label="Triage stalled projects",
                 detail=f"{overnight.get('stalled_signals')} signals from overnight dump.",
                 priority="medium",
-                href="/knowledge",
+                href=COCKPIT_OVERVIEW_HREF,
             ),
         )
 
@@ -161,6 +171,67 @@ def _derive_actions(
         )
 
     return actions[:8]
+
+
+async def compose_operator_loop_lite(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    dashboard_user_id: uuid.UUID,
+    tenant: Tenant | None,
+    phase: OperatorLoopPhase = "morning",
+) -> OperatorLoopSnapshotOut:
+    """Fast operator loop for Cockpit core — parallel I/O, skips morning brief."""
+
+    overnight, publish_pipeline_snap, publish_onboarding, trading = await asyncio.gather(
+        _load_overnight_summary(db, tenant_id=tenant_id),
+        compose_morning_publish_pipeline_snapshot(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=dashboard_user_id,
+            include_brief=False,
+        ),
+        compose_publish_onboarding_snapshot(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=dashboard_user_id,
+            tenant=tenant,
+        ),
+        compose_trading_cockpit_action_signals(
+            db,
+            dashboard_user_id=dashboard_user_id,
+            tenant=tenant,
+        ),
+    )
+    publish_pipeline = publish_pipeline_snap.model_dump()
+    onboard_dump = publish_onboarding.model_dump()
+
+    actions = _derive_actions(
+        overnight=overnight,
+        publish_pipeline=publish_pipeline,
+        publish_onboarding=onboard_dump,
+        trading=trading,
+    )
+
+    return OperatorLoopSnapshotOut(
+        enabled=bool(settings.operator_loop_enabled),
+        generated_at=datetime.now(tz=UTC),
+        phase=phase,
+        overnight=overnight,
+        morning_brief={},
+        publish_pipeline=publish_pipeline,
+        publish_onboarding=onboard_dump,
+        trading=trading,
+        actions=actions,
+        links={
+            "ballroom": "/ballroom",
+            "execution_studio": "/integrations?tab=studio",
+            "publish_queue": STUDIO_PUBLISH_QUEUE_HREF,
+            "trading_cockpit": STUDIO_TRADING_COCKPIT_HREF,
+            "knowledge": "/knowledge",
+            "settings_harness": "/settings/harness",
+        },
+    )
 
 
 async def compose_operator_loop_snapshot(
@@ -218,12 +289,12 @@ async def compose_operator_loop_snapshot(
         links={
             "ballroom": "/ballroom",
             "execution_studio": "/integrations?tab=studio",
-            "publish_queue": "/integrations?tab=studio#publish-queue",
-            "trading_cockpit": "/integrations?tab=studio#trading-cockpit",
+            "publish_queue": STUDIO_PUBLISH_QUEUE_HREF,
+            "trading_cockpit": STUDIO_TRADING_COCKPIT_HREF,
             "knowledge": "/knowledge",
             "settings_harness": "/settings/harness",
         },
     )
 
 
-__all__ = ["OperatorLoopSnapshotOut", "compose_operator_loop_snapshot"]
+__all__ = ["OperatorLoopSnapshotOut", "compose_operator_loop_lite", "compose_operator_loop_snapshot"]

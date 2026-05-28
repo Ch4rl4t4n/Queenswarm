@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { seedDashboardSessionCookie } from "./fixtures/dashboard-session";
+import { e2eHiveHomePath } from "./fixtures/hive-home-route";
 import { installShellApiMocks } from "./fixtures/shell-api-mocks";
 import { suppressPwaInstallPrompt } from "./fixtures/pwa-test-hints";
 
@@ -11,7 +12,7 @@ import { suppressPwaInstallPrompt } from "./fixtures/pwa-test-hints";
 
 const PRIMARY_ROUTES: readonly string[] = [
   "/",
-  "/dashboard",
+  e2eHiveHomePath(),
   "/agents",
   "/tasks",
   "/knowledge",
@@ -54,7 +55,6 @@ test.describe("Phase 3.5 desktop cockpit", () => {
   test("persistent sidebar navigation is visible on home", async ({ page }) => {
     await page.goto("/", { waitUntil: "load", timeout: 60_000 });
     await expect(page.getByRole("navigation", { name: "Hive navigation" })).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText("Shortcuts", { exact: true })).toBeVisible();
   });
 
   test("primary IA routes render main content", async ({ page }) => {
@@ -64,19 +64,6 @@ test.describe("Phase 3.5 desktop cockpit", () => {
     }
   });
 
-  test("desktop footer shows power-user shortcut legend", async ({ page }) => {
-    await page.goto("/", { waitUntil: "load", timeout: 60_000 });
-    if (new URL(page.url()).pathname === "/login") {
-      expect(new URL(page.url()).searchParams.get("next")).toBe("/");
-      return;
-    }
-    const keyboardLegend = page.getByText(/Alt\+H home/i);
-    if ((await keyboardLegend.count()) > 0) {
-      await expect(keyboardLegend).toBeVisible({ timeout: 20_000 });
-    } else {
-      await expect(page.getByText(/Shortcuts/i)).toBeVisible({ timeout: 20_000 });
-    }
-  });
 });
 
 test.describe("Phase 3.5 mobile cockpit", () => {

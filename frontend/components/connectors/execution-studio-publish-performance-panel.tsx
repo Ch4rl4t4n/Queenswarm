@@ -1,12 +1,11 @@
 "use client";
 
-import { BarChart3, Loader2, RefreshCw } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { V4Badge } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
-import { cn } from "@/lib/utils";
-
 interface PublishChannelStats {
   channel: string;
   simulate_ok: number;
@@ -95,10 +94,7 @@ function ExecutionStudioPublishPerformancePanelInner({ onError }: ExecutionStudi
             Last {snapshot.window_days} days — simulate rate, live posts, channel breakdown.
           </p>
         </div>
-        <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void load()}>
-          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} aria-hidden />
-          Refresh
-        </button>
+        <HiveRefreshButton busy={loading} onClick={() => void load()} />
       </div>
 
       <div className="flex flex-wrap gap-2 font-mono text-[10px]">
