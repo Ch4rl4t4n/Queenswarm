@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -20,13 +20,18 @@ export function V4AdvancedPanel({
   defaultOpen = false,
 }: V4AdvancedPanelProps) {
   const [open, setOpen] = useState(defaultOpen);
+  const baseId = useId();
+  const triggerId = `${baseId}-trigger`;
+  const regionId = `${baseId}-region`;
 
   return (
     <section className="v4-card v4-card-interactive overflow-hidden p-0">
       <button
         type="button"
+        id={triggerId}
         className="flex w-full items-center justify-between gap-3 px-6 py-4 text-left transition hover:bg-white/[0.04]"
         aria-expanded={open}
+        aria-controls={open ? regionId : undefined}
         onClick={() => setOpen((v) => !v)}
       >
         <div>
@@ -35,7 +40,16 @@ export function V4AdvancedPanel({
         </div>
         <ChevronDown className={cn("h-5 w-5 shrink-0 text-(--qs-text-3) transition", open && "rotate-180")} aria-hidden />
       </button>
-      {open ? <div className="border-t border-(--qs-border) px-6 py-5">{children}</div> : null}
+      {open ? (
+        <div
+          id={regionId}
+          role="region"
+          aria-labelledby={triggerId}
+          className="border-t border-(--qs-border) px-6 py-5"
+        >
+          {children}
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -177,6 +177,10 @@ test.describe("Operator hub settings", () => {
     if ((await advancedToggle.getAttribute("aria-expanded")) !== "true") {
       await advancedToggle.click();
     }
+    await expect(advancedToggle).toHaveAttribute("aria-expanded", "true");
+    const controlsId = await advancedToggle.getAttribute("aria-controls");
+    expect(controlsId).toBeTruthy();
+    await expect(page.locator(`#${controlsId}`)).toHaveAttribute("role", "region");
     await expect(hub.getByText("Publish lane onboarding 36%")).toBeVisible();
     await expect(hub.getByText("Social OAuth readiness")).toBeVisible();
     await expect(hub.getByText("Env keys: 0/4")).toBeVisible();
