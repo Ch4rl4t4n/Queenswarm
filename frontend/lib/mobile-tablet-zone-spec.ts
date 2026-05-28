@@ -11,7 +11,9 @@ export interface MobileTabletRouteSpec {
   mobileTitle: string;
   /** Expected hive-page-shell h1 when route uses HivePageShell. */
   shellTitle?: string;
-  /** Fallback heading when page uses HivePageHeader only. */
+  /** Expected panel h2 inside nested shell content (e.g. Settings → Costs). */
+  panelHeading?: string | RegExp;
+  /** Fallback heading when page uses HivePageHeader only (legacy). */
   contentHeading?: string | RegExp;
   /** Requires operator control plane feature flag. */
   requiresCp?: boolean;
@@ -42,14 +44,14 @@ export const MOBILE_TABLET_SECONDARY_ROUTE_SPECS: MobileTabletRouteSpec[] = [
   { path: "/simulations", mobileTitle: "Simulations", shellTitle: "Simulations" },
   { path: "/tasks/new", mobileTitle: "New task", shellTitle: "New task" },
   { path: "/agents/new", mobileTitle: "New agent", shellTitle: "New agent" },
-  { path: "/settings/costs", mobileTitle: "Costs", contentHeading: /^Costs$/ },
+  { path: "/settings/costs", mobileTitle: "Costs", shellTitle: "Settings", panelHeading: /^Costs$/ },
   { path: "/settings/harness", mobileTitle: "Harness", shellTitle: "Settings" },
   { path: "/settings/capabilities", mobileTitle: "Capabilities", shellTitle: "Settings" },
-  { path: "/settings/llm-keys", mobileTitle: "LLM & Voice", contentHeading: /Grok \(xAI\)/i },
-  { path: "/settings/notifications", mobileTitle: "Notifications", contentHeading: /^Email$/ },
-  { path: "/settings/api-keys", mobileTitle: "API keys", contentHeading: /External data APIs/i },
-  { path: "/settings/audit", mobileTitle: "Audit log", contentHeading: /^Audit log$/ },
-  { path: "/settings/sharing", mobileTitle: "Public sharing", contentHeading: /^Public sharing$/ },
+  { path: "/settings/llm-keys", mobileTitle: "LLM & Voice", shellTitle: "Settings", panelHeading: /Grok \(xAI\)/i },
+  { path: "/settings/notifications", mobileTitle: "Notifications", shellTitle: "Settings", panelHeading: /^Email$/ },
+  { path: "/settings/api-keys", mobileTitle: "API keys", shellTitle: "Settings", panelHeading: /External data APIs/i },
+  { path: "/settings/audit", mobileTitle: "Audit log", shellTitle: "Settings", panelHeading: /^Audit log$/ },
+  { path: "/settings/sharing", mobileTitle: "Public sharing", shellTitle: "Settings", panelHeading: /^Public sharing$/ },
   { path: "/apps-tools/marketing-automation", mobileTitle: "Marketing Automation", shellTitle: "Marketing Automation" },
   { path: "/apps-tools/content-factory", mobileTitle: "Content Factory", shellTitle: "Content Factory" },
   { path: "/apps-tools/trading-automation", mobileTitle: "Trading Automation", shellTitle: "Trading Automation" },

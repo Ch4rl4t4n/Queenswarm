@@ -1,7 +1,7 @@
 # Whole-App UI Reorder
 
 Updated: 2026-05-28  
-**Status: Phase 1–21 complete** — v1–v10 + gate v5 shipped · Phase 21 observability shell on prod pending deploy.
+**Status: Phase 1–22 complete** — v1–v10 + gate v5 shipped · Phase 21–22 on prod pending deploy.
 
 ## Ciele
 
@@ -150,6 +150,14 @@ Updated: 2026-05-28
 | **21** | 21.1 Monitoring + Simulations → HivePageShell + error/loading + E2E | GLOBAL UI | ✅ |
 
 **21.1 deliverables:** `monitoring-page-client.tsx`, `simulations-page-client.tsx` HivePageShell, cross-links (Agentic OS, Tasks, Workflows), performance spec + mobile-tablet shellTitle, page-shell E2E observability group.
+
+## v13 backlog (settings a11y + mobile matrix)
+
+| Fáza | Task | Typ | Status |
+|------|------|-----|--------|
+| **22** | 22.1 Settings nested headings — Costs h2 + mobile-tablet panelHeading SSOT + a11y E2E | GLOBAL UI | ✅ |
+
+**22.1 deliverables:** `costs-cockpit-page.tsx` V4CardHeader (h2), `mobile-tablet-zone-spec` panelHeading for all settings panels, single-h1 a11y test on `/settings/costs`.
 
 - Pred zmenou: audit existujúceho kódu.
 - Po zmeně: unit + relevant E2E, deploy, health check.

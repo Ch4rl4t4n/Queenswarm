@@ -4,7 +4,6 @@ import { DollarSignIcon } from "lucide-react";
 
 import { DashboardSectionSkeleton } from "@/components/hive/colony-console-skeleton";
 import { CostsTierLimitsKpi } from "@/components/hive/costs-tier-limits-kpi";
-import { HivePageHeader } from "@/components/hive/hive-page-header";
 import { V4Card, V4CardHeader, V4Stat } from "@/components/ui/v4";
 import { aggregateSpendByModel, consolidateDailySpend } from "@/lib/cost-aggregates";
 import { hiveServerRawJson } from "@/lib/hive-server";
@@ -54,15 +53,17 @@ export async function CostsCockpitPage(): Promise<JSX.Element> {
   if (!summary) {
     return (
       <div className="flex flex-col gap-6">
-        <HivePageHeader
-          title="Costs"
-          subtitle="Per LLM · per agent · per swarm · Prometheus CostGovernor"
-          actions={
-            <Link href="/settings/enterprise" className="qs-btn qs-btn--ghost qs-btn--sm text-xs uppercase">
-              Open enterprise settings
-            </Link>
-          }
-        />
+        <V4Card tight>
+          <V4CardHeader
+            title="Costs"
+            description="Per LLM · per agent · per swarm · Prometheus CostGovernor"
+            actions={
+              <Link href="/settings/enterprise" className="qs-btn qs-btn--ghost qs-btn--sm text-xs uppercase">
+                Open enterprise settings
+              </Link>
+            }
+          />
+        </V4Card>
         <p className="rounded-xl border border-alert/30 bg-alert/10 px-4 py-3 text-sm text-(--qs-text-2) lg:hidden">
           Spend ledger syncing — charts appear once the operator API responds.
         </p>
@@ -101,15 +102,17 @@ export async function CostsCockpitPage(): Promise<JSX.Element> {
 
   return (
     <div className="flex flex-col gap-6">
-      <HivePageHeader
-        title="Costs"
-        subtitle="Per LLM · per agent · per swarm · Prometheus CostGovernor"
-        actions={
-          <Link href="/settings/enterprise" className="qs-btn qs-btn--ghost qs-btn--sm text-xs uppercase">
-            Open enterprise settings
-          </Link>
-        }
-      />
+      <V4Card tight>
+        <V4CardHeader
+          title="Costs"
+          description="Per LLM · per agent · per swarm · Prometheus CostGovernor"
+          actions={
+            <Link href="/settings/enterprise" className="qs-btn qs-btn--ghost qs-btn--sm text-xs uppercase">
+              Open enterprise settings
+            </Link>
+          }
+        />
+      </V4Card>
 
       <div className="v4-stat-grid">
         <V4Stat

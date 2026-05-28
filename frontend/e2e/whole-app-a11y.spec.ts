@@ -97,6 +97,15 @@ test.describe("Whole-App a11y — panels and subnav", () => {
     await expect(sectionsNav.getByRole("link", { name: "LLM & voice" })).toBeFocused({ timeout: 5_000 });
   });
 
+  test("settings costs route exposes single page h1", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await gotoShellRoute(page, "/settings/costs");
+
+    await expect(page.getByTestId("hive-page-shell").locator("h1")).toHaveText("Settings");
+    await expect(page.locator("h1")).toHaveCount(1);
+    await expect(page.getByRole("heading", { name: "Costs", level: 2 })).toBeVisible({ timeout: 15_000 });
+  });
+
   test("info hint dialog closes on Escape", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await gotoShellRoute(page, "/swarms");

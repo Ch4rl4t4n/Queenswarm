@@ -24,6 +24,11 @@ async function assertRouteLoaded(
     const shell = page.getByTestId("hive-page-shell");
     if ((await shell.count()) > 0) {
       await expect(shell.locator("h1")).toHaveText(spec.shellTitle);
+      if (spec.panelHeading) {
+        await expect(page.getByRole("heading", { name: spec.panelHeading }).first()).toBeVisible({
+          timeout: 15_000,
+        });
+      }
       return;
     }
   }
