@@ -1077,9 +1077,9 @@ function OperatorCockpitPanelInner() {
             {snapshot.swarm_fleet.slice(0, 12).map((row) => (
               <li
                 key={row.routine_id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2 text-sm"
+                className="flex flex-col gap-2 rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2 text-sm"
               >
-                <div>
+                <div className="min-w-0">
                   <span className="font-medium text-(--qs-text)">{row.name}</span>
                   <p className="text-xs text-(--qs-muted)">
                     {row.schedule_kind} · {row.autopilot ? "autopilot" : "manual"}
