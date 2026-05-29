@@ -3,7 +3,7 @@ export { V4AdvancedPanel } from "@/components/ui/v4/v4-advanced-panel";
 export { V4Badge, type V4BadgeTone } from "@/components/ui/v4/v4-badge";
 export { V4BallroomParticipants } from "@/components/ui/v4/v4-ballroom-participants";
 export { V4BarRow } from "@/components/ui/v4/v4-bar-row";
-export { V4Card, V4CardHeader } from "@/components/ui/v4/v4-card";
+export { V4Card, V4CardHeader, type V4CardHeaderIcon } from "@/components/ui/v4/v4-card";
 export { V4Chip } from "@/components/ui/v4/v4-chip";
 export { V4PageCanvas } from "@/components/ui/v4/v4-page-canvas";
 export { V4QueenMission } from "@/components/ui/v4/v4-queen-mission";

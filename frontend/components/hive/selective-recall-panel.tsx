@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2Icon } from "lucide-react";
+import { Brain, Loader2Icon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -94,6 +94,8 @@ export function SelectiveRecallPanel(): JSX.Element | null {
   return (
     <V4Card className="v4-card-interactive border-(--qs-magenta)/25">
       <V4CardHeader
+        leadingIcon={Brain}
+        leadingIconTone="purple"
         title="Selective recall"
         description="Graph-neighbour RAG with similarity pruning — injects less tokens into supervisor prompts."
       />
