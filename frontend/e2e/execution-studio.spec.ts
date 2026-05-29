@@ -57,6 +57,26 @@ test.describe("Execution Studio tab", () => {
     await expect(telemetry.getByText("Recent activity")).toBeVisible({ timeout: 20_000 });
   });
 
+  test("mobile browser fallback actions stay within the card", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openExecutionStudioTab(page);
+
+    const confirm = page.getByRole("button", { name: /Confirm live browser step/i });
+    await expect(confirm).toBeVisible({ timeout: 20_000 });
+
+    // Buttons must stack full-width on mobile, not overflow the card to the right.
+    const withinViewport = await confirm.evaluate((btn) => {
+      const r = btn.getBoundingClientRect();
+      return r.left >= -1 && r.right <= window.innerWidth + 1;
+    });
+    expect(withinViewport).toBe(true);
+
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+    );
+    expect(overflow).toBe(false);
+  });
+
   test("manual tab loads sections", async ({ page }) => {
     await openExecutionStudioTab(page);
     await page.getByRole("button", { name: /Manual/i }).click();
