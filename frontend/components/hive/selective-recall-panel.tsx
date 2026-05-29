@@ -1,6 +1,6 @@
 "use client";
 
-import { Brain, Loader2Icon } from "lucide-react";
+import { Loader2Icon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -96,7 +96,6 @@ export function SelectiveRecallPanel(): JSX.Element | null {
       <V4CardHeader
         title="Selective recall"
         description="Graph-neighbour RAG with similarity pruning — injects less tokens into supervisor prompts."
-        actions={<Brain className="h-4 w-4 text-(--qs-magenta)" aria-hidden />}
       />
 
       {loading ? (

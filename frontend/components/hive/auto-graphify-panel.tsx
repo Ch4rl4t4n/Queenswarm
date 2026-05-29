@@ -1,6 +1,6 @@
 "use client";
 
-import { GitBranch, Loader2Icon, Upload } from "lucide-react";
+import { Loader2Icon, Upload } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
 import { usePlatform } from "@/components/hive/platform-context";
@@ -114,7 +114,6 @@ export function AutoGraphifyPanel(): JSX.Element | null {
       <V4CardHeader
         title="Auto-Graphify"
         description="Upload a project folder — mirror to vault, embed vectors, and create Neo4j document nodes."
-        actions={<GitBranch className="h-4 w-4 text-cyan" aria-hidden />}
       />
 
       <div className="space-y-4">

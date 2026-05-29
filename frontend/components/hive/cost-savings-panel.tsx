@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2Icon, PiggyBank } from "lucide-react";
+import { Loader2Icon } from "lucide-react";
 import { useCallback, useState } from "react";
 
 import { usePlatform } from "@/components/hive/platform-context";
@@ -56,7 +56,6 @@ export function CostSavingsPanel(): JSX.Element | null {
       <V4CardHeader
         title="LLM cost savings"
         description="Estimated spend avoided vs quality-first routing baseline"
-        actions={<PiggyBank className="h-4 w-4 text-(--qs-green)" aria-hidden />}
       />
 
       {loading ? (
