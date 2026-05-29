@@ -180,6 +180,35 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     });
   }
 
+  test("mobile content bottom padding clears the floating Ballroom FAB", async ({ page, context, baseURL }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
+
+    const onShell = await gotoShellRoute(page, "/settings/harness");
+    if (!onShell) {
+      return;
+    }
+
+    const fab = page.getByTestId("ballroom-fab");
+    await expect(fab).toBeVisible({ timeout: 15_000 });
+
+    const clearance = await page.evaluate(() => {
+      const main = document.querySelector<HTMLElement>('[data-hive-shell="canvas"]');
+      const fabEl = document.querySelector<HTMLElement>('[data-testid="ballroom-fab"]');
+      if (!main || !fabEl) {
+        return null;
+      }
+      const padBottom = parseFloat(getComputedStyle(main).paddingBottom);
+      const fabFromBottom = window.innerHeight - fabEl.getBoundingClientRect().top;
+      return { padBottom, fabFromBottom };
+    });
+    expect(clearance).not.toBeNull();
+    if (clearance) {
+      // Bottom content padding must lift the last content clear of the floating FAB.
+      expect(clearance.padBottom).toBeGreaterThanOrEqual(clearance.fabFromBottom);
+    }
+  });
+
   test("mobile integrations status badges stay within card bounds", async ({ page, context, baseURL }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
