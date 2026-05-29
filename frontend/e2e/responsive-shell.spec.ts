@@ -180,6 +180,56 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     });
   }
 
+  test("mobile marketplace custom-connection form does not overlap active integrations", async ({
+    page,
+    context,
+    baseURL,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
+
+    const onShell = await gotoShellRoute(page, "/integrations?tab=active");
+    if (!onShell) {
+      return;
+    }
+
+    const marketplaceCard = page.locator("#marketplace-preview");
+    await expect(marketplaceCard).toBeVisible({ timeout: 15_000 });
+
+    const customConnection = marketplaceCard.getByRole("button", { name: /Custom connection/i });
+    await expect(customConnection).toBeVisible({ timeout: 15_000 });
+    await customConnection.click();
+
+    // Form expands — the paginated marketplace shell must drop its height cap so
+    // content cannot overflow the capped box and overlap the Active integrations card.
+    await expect(page.getByText("Create custom connection")).toBeVisible({ timeout: 10_000 });
+
+    const shellStyle = await page.evaluate(() => {
+      const shell = document.querySelector<HTMLElement>(".v4-marketplace-shell.v4-marketplace-shell--paginated");
+      if (!shell) {
+        return null;
+      }
+      const cs = getComputedStyle(shell);
+      return { maxHeight: cs.maxHeight, overflowY: cs.overflowY };
+    });
+    expect(shellStyle).not.toBeNull();
+    if (shellStyle) {
+      expect(shellStyle.maxHeight).toBe("none");
+      expect(["auto", "scroll"]).not.toContain(shellStyle.overflowY);
+    }
+
+    // And no visual overlap with the Active integrations card below.
+    const noOverlap = await page.evaluate(() => {
+      const shell = document.querySelector<HTMLElement>(".v4-marketplace-shell");
+      const active = document.querySelector<HTMLElement>("#active-integrations");
+      if (!shell || !active) {
+        return true;
+      }
+      return shell.getBoundingClientRect().bottom <= active.getBoundingClientRect().top + 1;
+    });
+    expect(noOverlap).toBe(true);
+  });
+
   test("mobile content bottom padding clears the floating Ballroom FAB", async ({ page, context, baseURL }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");

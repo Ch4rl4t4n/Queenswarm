@@ -1686,7 +1686,16 @@
     padding-right: 2px;
   }
 
-  .v4-marketplace-shell--paginated {
+  /* Doubled class raises specificity above the responsive `.v4-marketplace-shell`
+     max-height rules so the paginated (catalog/form) view never caps its height —
+     otherwise content overflows the capped box and overlaps the next section. */
+  /* Doubled class raises specificity above the responsive `.v4-marketplace-shell`
+     max-height rules so the paginated (catalog/form) view never caps its height —
+     otherwise content overflows the capped box and overlaps the next section. */
+  /* Doubled class raises specificity above the responsive `.v4-marketplace-shell`
+     max-height rules so the paginated (catalog/form) view never caps its height —
+     otherwise content overflows the capped box and overlaps the next section. */
+  .v4-marketplace-shell.v4-marketplace-shell--paginated {
     max-height: none;
     overflow: visible;
   }
