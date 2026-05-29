@@ -180,6 +180,33 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     });
   }
 
+  test("mobile integrations status badges stay within card bounds", async ({ page, context, baseURL }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
+
+    const onShell = await gotoShellRoute(page, "/integrations");
+    if (!onShell) {
+      return;
+    }
+
+    await assertNoHorizontalOverflow(page);
+
+    const firstCard = page.locator(".v4-int-card").first();
+    await expect(firstCard).toBeVisible({ timeout: 15_000 });
+
+    const withinBounds = await firstCard.evaluate((card) => {
+      const badge = card.querySelector<HTMLElement>(".v4-badge");
+      if (!badge) {
+        return true;
+      }
+      const cardRect = card.getBoundingClientRect();
+      const badgeRect = badge.getBoundingClientRect();
+      // Badge must not bleed past the card's right/left padding edge.
+      return badgeRect.right <= cardRect.right + 1 && badgeRect.left >= cardRect.left - 1;
+    });
+    expect(withinBounds).toBe(true);
+  });
+
   test("mobile subnav centers the selected section in the scroll row", async ({ page, context, baseURL }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");

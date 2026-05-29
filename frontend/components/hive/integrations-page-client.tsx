@@ -655,16 +655,18 @@ export function IntegrationsPageClient({
                 {activeCards.map((card) => (
                   <article key={card.id} className="v4-int-card">
                     <div className="v4-int-head">
-                      <div className="flex items-start gap-3">
+                      <div className="flex min-w-0 flex-1 items-start gap-3">
                         <div className="v4-int-logo">
                           <IntegrationIcon iconKey={card.status === "error" ? "alert" : card.iconKey} />
                         </div>
                         <div className="min-w-0">
                           <p className="v4-int-name">{card.title}</p>
-                          <p className="v4-int-meta">{card.meta}</p>
+                          <p className="v4-int-meta truncate">{card.meta}</p>
                         </div>
                       </div>
-                      <V4Badge tone={statusTone(card.status)}>{card.status}</V4Badge>
+                      <V4Badge tone={statusTone(card.status)} className="shrink-0 whitespace-nowrap">
+                        {card.status}
+                      </V4Badge>
                     </div>
                     <div className="v4-int-foot">
                       {card.status === "error" ? (
