@@ -294,6 +294,8 @@ const STUB_PLATFORM_FEATURES = {
   jobs: true,
   /** E2E: integrations Execution Studio tab (`?tab=studio`). */
   execution_studio: true,
+  /** E2E: Ballroom Dump & Sleep panel (pro tier otherwise blocks). */
+  dump_sleep: true,
 };
 
 const STUB_ENTERPRISE_CONFIG = {

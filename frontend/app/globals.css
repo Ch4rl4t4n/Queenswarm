@@ -2653,6 +2653,8 @@
       flex: 1 1 auto;
       min-height: 0;
       max-height: none;
+      /* Single mobile scroll surface — let the page canvas own the scroll. */
+      overflow: visible;
     }
 
     .v4-chat-shell--v4 .v4-chat-side {
@@ -2663,6 +2665,10 @@
 
     .v4-chat-shell--v4 .v4-chat-body {
       min-height: 0;
+      /* Avoid a nested scroll container that traps touch + paints an
+         overlapping scrollbar over the voice/empty area on mobile. */
+      overflow: visible;
+      overscroll-behavior: auto;
     }
 
     .v4-chat-wrap {

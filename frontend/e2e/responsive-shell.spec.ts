@@ -148,6 +148,38 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     await expect(moreButton).toHaveAttribute("aria-controls", "hive-more-sheet");
   });
 
+  for (const viewport of VIEWPORTS.filter((v) => v.name !== "desktop")) {
+    test(`${viewport.name} ballroom shows Dump & Sleep without scroll trap`, async ({ page, context, baseURL }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
+
+      const onShell = await gotoShellRoute(page, "/ballroom");
+      if (!onShell) {
+        return;
+      }
+
+      await assertNoHorizontalOverflow(page);
+
+      const dumpSleep = page.getByRole("heading", { name: "Dump & Sleep", exact: true });
+      await expect(dumpSleep).toBeVisible({ timeout: 15_000 });
+
+      // The Dump & Sleep card must not be collapsed to a clipped sliver — its
+      // interactive content (upload + queue CTA) has to stay reachable.
+      await expect(page.getByText(/Folder dump/i)).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByRole("button", { name: /Queue overnight swarm/i })).toBeVisible({
+        timeout: 10_000,
+      });
+
+      // Mobile chat body must not be a nested scroll container (single page scroll),
+      // otherwise it traps touch + paints an overlapping scrollbar over the voice area.
+      const bodyOverflow = await page
+        .locator(".v4-chat-body")
+        .first()
+        .evaluate((el) => getComputedStyle(el).getPropertyValue("overflow-y"));
+      expect(["auto", "scroll"]).not.toContain(bodyOverflow);
+    });
+  }
+
   test("desktop dashboard has no duplicate top search bar", async ({ page, context, baseURL }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");

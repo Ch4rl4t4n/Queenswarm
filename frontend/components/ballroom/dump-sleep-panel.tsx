@@ -115,7 +115,7 @@ export function DumpSleepPanel(): JSX.Element | null {
   }
 
   return (
-    <V4Card className="v4-card-interactive border-pollen/30">
+    <V4Card className="v4-card-interactive shrink-0 border-pollen/30">
       <V4CardHeader
         title="Dump & Sleep"
         description="Drop folder notes before bed — wake up to a verified morning briefing."
