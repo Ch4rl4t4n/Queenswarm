@@ -180,6 +180,42 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     });
   }
 
+  test("mobile subnav centers the selected section in the scroll row", async ({ page, context, baseURL }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
+
+    const onShell = await gotoShellRoute(page, "/integrations");
+    if (!onShell) {
+      return;
+    }
+
+    const row = page.getByRole("navigation", { name: "Integration sections" });
+    await expect(row).toBeVisible({ timeout: 15_000 });
+
+    // Pick a far tab that starts off-centre, select it, then assert it auto-centres.
+    const plugins = row.getByRole("button", { name: /Plugins/i });
+    await expect(plugins).toBeVisible();
+    await plugins.click();
+    await expect(plugins).toHaveClass(/v4-subtab--active/);
+
+    // Allow the smooth scroll to settle.
+    await page.waitForTimeout(500);
+
+    const centred = await row.evaluate((container) => {
+      const active = container.querySelector<HTMLElement>(".v4-subtab--active");
+      if (!active) {
+        return false;
+      }
+      const c = container.getBoundingClientRect();
+      const a = active.getBoundingClientRect();
+      const activeCenter = a.left + a.width / 2;
+      const containerCenter = c.left + c.width / 2;
+      // Centred within a quarter of the row width (generous tolerance for edge clamping).
+      return Math.abs(activeCenter - containerCenter) <= c.width / 4;
+    });
+    expect(centred).toBe(true);
+  });
+
   test("desktop dashboard has no duplicate top search bar", async ({ page, context, baseURL }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
