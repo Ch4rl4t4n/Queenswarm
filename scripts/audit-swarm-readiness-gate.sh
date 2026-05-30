@@ -90,6 +90,7 @@ WEEK1_SKILLS=(
 WEEK2_SKILLS=(
   stripe-checkout-webhooks
   seo-audit-playbook
+  ga4-analytics-playbook
   email-drip-sequences
 )
 for slug in "${WEEK1_SKILLS[@]}" "${WEEK2_SKILLS[@]}"; do
