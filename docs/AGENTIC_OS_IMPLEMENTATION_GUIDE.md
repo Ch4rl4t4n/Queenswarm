@@ -30,6 +30,7 @@ Queenswarm/
 │   ├── infrastructure/connectors/phase3/
 │   └── presentation/api/routers/commerce_webhooks.py
 ├── frontend/lib/swarm-wizard-templates.ts
+├── packages/agentic-os/                  # TS event contracts + gate previews (Node/n8n)
 ├── docs/curated_memory_templates/operator_harness_instructions.md.example
 ├── .cursor/skills/queenswarm-operator-gate/SKILL.md
 └── scripts/audit-swarm-readiness-gate.sh
