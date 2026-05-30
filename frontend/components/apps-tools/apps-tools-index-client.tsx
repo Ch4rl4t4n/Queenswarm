@@ -377,6 +377,11 @@ const MODULE_SECTION_DEEP_LINKS: Record<
     { label: "Social publish", href: "/apps-tools/marketing-automation?section=publish#social-publish" },
     { label: "Performance", href: "/apps-tools/marketing-automation?section=performance#publish-performance" },
   ],
+  ecommerce_workspace: [
+    { label: "Order events", href: "/apps-tools/ecommerce-automation?section=orders" },
+    { label: "Webhook setup", href: "/apps-tools/ecommerce-automation?section=setup" },
+    { label: "Connectors", href: "/integrations?tab=connectors" },
+  ],
   mcp_ops_studio: [
     { label: "Catalog", href: "/apps-tools/mcp-ops-studio?section=catalog#mcp-catalog" },
     { label: "Install queue", href: "/apps-tools/mcp-ops-studio?section=install#mcp-install" },

@@ -92,6 +92,12 @@ pytest backend/tests/test_agentic_gates_unit.py \
 
 ---
 
+## Week 3 (started)
+
+- **GET /api/v1/commerce/order-events** — JWT-protected list of recent webhook events
+- **Apps & Tools → E-commerce Ops** — `/apps-tools/ecommerce-automation`
+- Redis sorted-set index for newest-first listing
+
 ## Week 3+ priorities
 
 1. Deploy + enable audit WARN flags

@@ -7,6 +7,7 @@ import { HiveApiError, hiveGet } from "@/lib/api";
 
 export type AppsToolsPolicyModuleKey =
   | "marketing_automation"
+  | "ecommerce_workspace"
   | "mcp_ops_studio"
   | "trading_automation"
   | "browser_automation"

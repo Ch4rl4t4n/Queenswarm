@@ -8,12 +8,21 @@ from typing import Any, Literal
 import structlog
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.core.redis_client import CHANNEL_SWARM_EVENTS, get_json, publish_event, set_json
+from app.core.redis_client import (
+    CHANNEL_SWARM_EVENTS,
+    get_json,
+    publish_event,
+    set_json,
+    zset_increment,
+    zset_top,
+)
 
 logger = structlog.get_logger(__name__)
 
 COMMERCE_EVENT_KEY_PREFIX = "commerce:order_event:v1"
+COMMERCE_EVENT_INDEX_KEY = "commerce:order_event:index:v1"
 COMMERCE_EVENT_TTL_SEC = 7 * 24 * 3600
+COMMERCE_EVENT_INDEX_TTL_SEC = 8 * 24 * 3600
 CommerceProvider = Literal["stripe", "shopify"]
 
 
@@ -85,6 +94,48 @@ def normalize_stripe_event(body: dict[str, Any]) -> CommerceOrderEvent | None:
     )
 
 
+def _index_member(provider: CommerceProvider, event_id: str) -> str:
+    """Sorted-set member for recent-event index."""
+
+    return f"{provider}:{event_id}"
+
+
+def _parse_index_member(member: str) -> tuple[CommerceProvider, str] | None:
+    """Split index member into provider and event_id."""
+
+    if ":" not in member:
+        return None
+    provider_raw, event_id = member.split(":", 1)
+    if provider_raw not in {"stripe", "shopify"} or not event_id.strip():
+        return None
+    return provider_raw, event_id
+
+
+async def list_recent_commerce_order_events(*, limit: int = 50) -> list[CommerceOrderEvent]:
+    """Return recent normalized commerce events (newest first) from Redis index."""
+
+    capped = max(1, min(limit, 200))
+    rows = await zset_top(COMMERCE_EVENT_INDEX_KEY, limit=capped)
+    events: list[CommerceOrderEvent] = []
+    for member, _score in rows:
+        parsed = _parse_index_member(member)
+        if parsed is None:
+            continue
+        provider, event_id = parsed
+        raw = await get_json(_event_storage_key(provider, event_id))
+        if raw is None:
+            continue
+        try:
+            events.append(CommerceOrderEvent.model_validate(raw))
+        except ValueError:
+            logger.warning(
+                "commerce_order_sync_list_invalid_record",
+                provider=provider,
+                event_id=event_id,
+            )
+    return events
+
+
 async def ingest_commerce_order_event(event: CommerceOrderEvent) -> bool:
     """Persist event idempotently and fan out to swarm_events. Returns False if duplicate."""
 
@@ -101,6 +152,12 @@ async def ingest_commerce_order_event(event: CommerceOrderEvent) -> bool:
 
     record = event.model_dump()
     await set_json(key, record, ttl=COMMERCE_EVENT_TTL_SEC)
+    await zset_increment(
+        COMMERCE_EVENT_INDEX_KEY,
+        _index_member(event.provider, event.event_id),
+        float(datetime.now(UTC).timestamp()),
+        ttl_sec=COMMERCE_EVENT_INDEX_TTL_SEC,
+    )
 
     await publish_event(
         CHANNEL_SWARM_EVENTS,
@@ -130,5 +187,6 @@ async def ingest_commerce_order_event(event: CommerceOrderEvent) -> bool:
 __all__ = [
     "CommerceOrderEvent",
     "ingest_commerce_order_event",
+    "list_recent_commerce_order_events",
     "normalize_stripe_event",
 ]

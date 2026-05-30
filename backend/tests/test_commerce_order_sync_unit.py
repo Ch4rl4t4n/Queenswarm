@@ -9,6 +9,7 @@ import pytest
 from app.application.services.commerce_order_sync import (
     CommerceOrderEvent,
     ingest_commerce_order_event,
+    list_recent_commerce_order_events,
     normalize_stripe_event,
 )
 
@@ -44,13 +45,15 @@ def test_normalize_stripe_event_when_checkout_completed_then_fields() -> None:
 async def test_ingest_commerce_order_event_when_new_then_publishes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """First ingest persists and publishes swarm event."""
+    """First ingest persists, indexes, and publishes swarm event."""
 
     get_json = AsyncMock(return_value=None)
     set_json = AsyncMock()
+    zset_increment = AsyncMock(return_value=1.0)
     publish = AsyncMock()
     monkeypatch.setattr("app.application.services.commerce_order_sync.get_json", get_json)
     monkeypatch.setattr("app.application.services.commerce_order_sync.set_json", set_json)
+    monkeypatch.setattr("app.application.services.commerce_order_sync.zset_increment", zset_increment)
     monkeypatch.setattr("app.application.services.commerce_order_sync.publish_event", publish)
 
     event = CommerceOrderEvent(
@@ -61,7 +64,30 @@ async def test_ingest_commerce_order_event_when_new_then_publishes(
     )
     assert await ingest_commerce_order_event(event) is True
     set_json.assert_awaited_once()
+    zset_increment.assert_awaited_once()
     publish.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_list_recent_commerce_order_events_when_indexed_then_ordered(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """List hydrates events from index members newest-first."""
+
+    zset_top = AsyncMock(return_value=[("stripe:evt_2", 2.0), ("stripe:evt_1", 1.0)])
+    get_json = AsyncMock(
+        side_effect=[
+            {"provider": "stripe", "event_id": "evt_2", "event_type": "checkout.session.completed"},
+            {"provider": "stripe", "event_id": "evt_1", "event_type": "payment_intent.succeeded"},
+        ]
+    )
+    monkeypatch.setattr("app.application.services.commerce_order_sync.zset_top", zset_top)
+    monkeypatch.setattr("app.application.services.commerce_order_sync.get_json", get_json)
+
+    events = await list_recent_commerce_order_events(limit=10)
+    assert len(events) == 2
+    assert events[0].event_id == "evt_2"
+    assert events[1].event_id == "evt_1"
 
 
 @pytest.mark.asyncio

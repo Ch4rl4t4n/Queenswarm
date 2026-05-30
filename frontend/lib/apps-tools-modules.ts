@@ -3,6 +3,7 @@ export type AppsToolsModuleStatus = "live" | "beta" | "stub";
 export interface AppsToolsModuleDef {
   moduleKey:
     | "marketing_automation"
+    | "ecommerce_workspace"
     | "mcp_ops_studio"
     | "trading_automation"
     | "browser_automation"
@@ -25,6 +26,15 @@ export const APPS_TOOLS_MODULES: AppsToolsModuleDef[] = [
     status: "live",
     href: "/apps-tools/marketing-automation",
     capabilityKeys: ["apps.marketing.publish_pipeline.v1", "apps.marketing.omni_publish.compose.v1"],
+  },
+  {
+    moduleKey: "ecommerce_workspace",
+    slug: "ecommerce-automation",
+    title: "E-commerce Ops",
+    summary: "Shopify + Stripe order sync, webhook queue, and eshop-ops swarm workspace.",
+    status: "beta",
+    href: "/apps-tools/ecommerce-automation",
+    capabilityKeys: ["apps.ecommerce.shopify_sync.v1", "apps.ecommerce.stripe_checkout.v1"],
   },
   {
     moduleKey: "mcp_ops_studio",

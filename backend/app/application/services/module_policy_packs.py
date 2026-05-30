@@ -11,6 +11,7 @@ from app.core.config import settings
 
 ModuleKey = Literal[
     "marketing_automation",
+    "ecommerce_workspace",
     "mcp_ops_studio",
     "trading_automation",
     "browser_automation",
@@ -66,6 +67,19 @@ def _module_policy_catalog() -> list[ModulePolicyPackOut]:
             notes=[
                 "Live publish is always simulation-first until explicit operator confirmation.",
                 "Trusted auto-live still requires minimum successful simulate history.",
+            ],
+        ),
+        ModulePolicyPackOut(
+            module_key="ecommerce_workspace",
+            label="E-commerce Ops",
+            enabled=bool(settings.execution_studio_enabled),
+            risk_tier="financial",
+            requires_approval=True,
+            spend_cap_usd_24h=float(settings.daily_budget_usd),
+            time_limit_sec=max(1, int(settings.dynamic_connector_tool_timeout_ms / 1000)),
+            notes=[
+                "Shopify/Stripe live mutations require operator approval (real-money-risk-gate).",
+                "Webhook ingress is verify-first; order sync is idempotent by event_id.",
             ],
         ),
         ModulePolicyPackOut(
