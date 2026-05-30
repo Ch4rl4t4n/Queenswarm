@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import json
 import time
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -44,6 +45,8 @@ async def test_process_stripe_webhook_when_valid_event_then_ingests(monkeypatch:
     secret = "whsec_unit_test"
     monkeypatch.setattr(mod.settings, "commerce_webhooks_enabled", True)
     monkeypatch.setattr(mod.settings, "stripe_webhook_secret", secret)
+    ingest = AsyncMock(return_value=True)
+    monkeypatch.setattr(mod, "ingest_commerce_order_event", ingest)
     body = json.dumps({"id": "evt_1", "type": "checkout.session.completed", "data": {"object": {"id": "cs_1"}}})
     payload = body.encode()
     timestamp = int(time.time())

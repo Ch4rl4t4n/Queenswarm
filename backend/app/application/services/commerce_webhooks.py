@@ -11,6 +11,7 @@ from typing import Any
 import structlog
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.application.services.commerce_order_sync import ingest_commerce_order_event, normalize_stripe_event
 from app.core.config import settings
 
 logger = structlog.get_logger(__name__)
@@ -122,12 +123,27 @@ async def process_stripe_webhook_event(
             ingested=False,
         )
 
+    normalized = normalize_stripe_event(body)
+    if normalized is None:
+        return CommerceWebhookResult(
+            ok=True,
+            event_type=event_type,
+            event_id=event_id,
+            message="Event verified but could not normalize for order sync.",
+            ingested=False,
+        )
+
+    newly_ingested = await ingest_commerce_order_event(normalized)
     return CommerceWebhookResult(
         ok=True,
         event_type=event_type,
         event_id=event_id,
-        message="Event verified — queue for HiveMind order sync (operator review).",
-        ingested=True,
+        message=(
+            "Event ingested for HiveMind order sync."
+            if newly_ingested
+            else "Duplicate event — idempotent ack."
+        ),
+        ingested=newly_ingested,
     )
 
 
