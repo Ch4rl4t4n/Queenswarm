@@ -10,6 +10,7 @@ import structlog
 from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.services.agentic_gates import evaluate_real_money_gate
 from app.core.config import settings
 from app.core.redis_client import sliding_window_reserve
 from app.infrastructure.persistence.models.external_project import ExternalProject
@@ -20,6 +21,17 @@ PredictionVenue = Literal["polymarket", "kalshi"]
 PREDICTION_VENUES: frozenset[str] = frozenset({"polymarket", "kalshi"})
 
 _RATE_PREFIX = "queenswarm:prediction_markets:live"
+
+
+def _payload_operator_confirmed(payload: dict[str, Any]) -> bool:
+    """Return True when payload explicitly confirms operator approval for live money."""
+
+    raw = payload.get("operator_confirmed")
+    if raw is True:
+        return True
+    if isinstance(raw, str):
+        return raw.strip().lower() in {"1", "true", "yes", "on"}
+    return False
 
 
 def resolve_venue(project_settings: dict[str, Any]) -> str:
@@ -195,6 +207,22 @@ async def execute_live_prediction_trade(
             "reason": "risk_limit",
             "detail": f"Notional ${notional:.2f} exceeds max_order_usd={max_usd}.",
             "venue": venue,
+        }
+
+    operator_confirmed = _payload_operator_confirmed(payload)
+    money_gate = evaluate_real_money_gate(
+        operator_confirmed=operator_confirmed,
+        action=f"prediction_markets:{venue}:live_order",
+        paper_mode=False,
+        position_size_ok=notional <= max_usd if max_usd > 0 else True,
+    )
+    if not money_gate.allowed:
+        return {
+            "status": "blocked",
+            "reason": money_gate.error_code or "real_money_gate",
+            "detail": money_gate.message or "Real-money gate blocked live order.",
+            "venue": venue,
+            "gate": money_gate.gate.value,
         }
 
     try:

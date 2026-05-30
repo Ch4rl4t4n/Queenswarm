@@ -65,3 +65,37 @@ async def test_execute_live_blocked_when_flag_off(monkeypatch) -> None:
     )
     assert out["status"] == "blocked"
     assert out["reason"] == "live_trading_disabled"
+
+
+@pytest.mark.asyncio
+async def test_execute_live_blocked_without_operator_confirm(monkeypatch) -> None:
+    """Live execution requires operator_confirmed via real-money-risk-gate."""
+
+    monkeypatch.setattr(
+        "app.application.services.prediction_market_trading.settings",
+        SimpleNamespace(
+            prediction_markets_enabled=True,
+            prediction_markets_live_trading_enabled=True,
+            prediction_markets_max_order_usd=2500,
+        ),
+    )
+    async def _rate_ok(*_args: object, **_kwargs: object) -> tuple[bool, str]:
+        return True, ""
+
+    monkeypatch.setattr(
+        "app.application.services.prediction_market_trading.check_prediction_market_rate_limit",
+        _rate_ok,
+    )
+
+    project = SimpleNamespace(
+        id=uuid4(),
+        owner_dashboard_user_id=uuid4(),
+    )
+    out = await execute_live_prediction_trade(
+        SimpleNamespace(),
+        project=project,  # type: ignore[arg-type]
+        payload={"market_ticker": "KX", "count": 1, "yes_price": 50},
+        project_settings={"venue": "kalshi", "trading_mode": "real", "connector_slug": "kalshi_trading"},
+    )
+    assert out["status"] == "blocked"
+    assert out["reason"] == "real_money_approval_required"
