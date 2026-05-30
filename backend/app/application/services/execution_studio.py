@@ -120,6 +120,12 @@ CONNECTION_PACKS: tuple[dict[str, Any], ...] = (
         "template_ids": ("composio_router", "nango_hub", "merge_agent_handler", "apify_store"),
     },
     {
+        "id": "ecommerce",
+        "label": "E-commerce",
+        "description": "Shopify catalog/orders + Stripe Checkout — financial tier, simulate-first.",
+        "template_ids": ("shopify_admin_api", "stripe_rest_api", "apify_store", "notion_workspace"),
+    },
+    {
         "id": "devtools",
         "label": "Devtools",
         "description": "Repos and automation for engineering execution lanes.",
@@ -350,7 +356,7 @@ def infer_risk_tier(
     name = tool_name.strip().lower()
     perm = (required_permission or "").strip().lower()
 
-    if "billing" in slug or perm == "tool:financial":
+    if "billing" in slug or "stripe" in slug or "shopify" in slug or perm == "tool:financial":
         return "financial"
     if any(token in name for token in ("publish", "post", "send", "create", "upload", "delete", "charge")):
         if meth in {"POST", "PUT", "PATCH", "DELETE"}:
@@ -703,14 +709,25 @@ async def execute_studio_tool(
             and risk in {"write", "publish", "financial"}
             and not operator_confirmed
         ):
-            return {
-                "ok": False,
-                "error": "approval_required",
-                "mode": "live",
-                "risk_tier": risk,
-                "preview": preview,
-                "message": "Live write/publish/financial actions require operator approval.",
-            }
+            from app.application.services.agentic_gates import evaluate_live_execution_gate
+
+            gate = evaluate_live_execution_gate(
+                mode=resolved_mode,
+                risk_tier=risk,
+                operator_confirmed=operator_confirmed,
+                live_requires_approval=policy["live_requires_approval"],
+                connector_slug=connector_slug,
+            )
+            if not gate.allowed:
+                return {
+                    "ok": False,
+                    "error": gate.error_code or "approval_required",
+                    "mode": "live",
+                    "risk_tier": risk,
+                    "preview": preview,
+                    "message": gate.message or "Live write/publish/financial actions require operator approval.",
+                    "gate": gate.gate.value,
+                }
 
     if resolved_mode == "live" and operator_confirmed:
         from app.application.services.execution_studio_confirm_guard import (

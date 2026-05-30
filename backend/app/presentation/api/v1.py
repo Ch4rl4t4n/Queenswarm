@@ -9,6 +9,7 @@ from app.presentation.api.routers import agents as agents_router
 from app.presentation.api.routers import agent_sessions as agent_sessions_router
 from app.presentation.api.routers import auth as auth_router
 from app.presentation.api.routers import connectors as connectors_router
+from app.presentation.api.routers import commerce_webhooks as commerce_webhooks_router
 from app.presentation.api.routers import connectors_dynamic as connectors_dynamic_router
 from app.presentation.api.routers import dashboard as dashboard_router
 from app.presentation.api.routers import dashboard_session as dashboard_session_router
@@ -93,6 +94,7 @@ async def api_v1_health() -> dict[str, str]:
 api_v1.include_router(auth_router.router, prefix="/auth")
 api_v1.include_router(dashboard_session_router.router, prefix="/auth")
 api_v1.include_router(connectors_router.router, prefix="/connectors")
+api_v1.include_router(commerce_webhooks_router.router)
 api_v1.include_router(tools_marketplace_router.router)
 api_v1.include_router(execution_studio_router.router)
 api_v1.include_router(oauth_consent_router.router)

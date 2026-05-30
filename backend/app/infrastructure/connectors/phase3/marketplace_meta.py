@@ -207,6 +207,24 @@ TEMPLATE_MARKETPLACE_META: dict[str, dict[str, Any]] = {
             "Seal API Key ID + private PEM in Vault; simulate-first for order_create."
         ),
     },
+    "shopify_admin_api": {
+        "cost_tier": "medium",
+        "latency_tier": "balanced",
+        "service_homepage": "https://shopify.dev",
+        "agent_usage": (
+            "E-shop catalog + order monitoring via Admin REST API. "
+            "Read products/orders freely; order mutations require operator approval."
+        ),
+    },
+    "stripe_rest_api": {
+        "cost_tier": "high",
+        "latency_tier": "balanced",
+        "service_homepage": "https://stripe.com",
+        "agent_usage": (
+            "Checkout Sessions and PaymentIntents — financial tier. "
+            "Pair with /commerce/webhooks/stripe for payment event ingest."
+        ),
+    },
 }
 
 

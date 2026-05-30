@@ -59,6 +59,8 @@ def test_phase3_catalog_contains_core_vendors() -> None:
         "apify_store",
         "nango_hub",
         "merge_agent_handler",
+        "shopify_admin_api",
+        "stripe_rest_api",
     ):
         assert needle in ids
 

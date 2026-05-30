@@ -1,0 +1,56 @@
+---
+name: your-skill-slug
+description: Guides agents through [workflow]. Use when [specific triggers]. NOT for [exclusions].
+version: 1.0.0
+priority: 70
+roles: [researcher, orchestrator]
+keywords: [keyword1, keyword2]
+source: queenswarm.love
+reference_mode: false
+references: []
+---
+
+# Your Skill Title
+
+Purpose: One sentence — what verified outcome this skill produces.
+
+## When to use
+
+- Trigger condition A
+- Trigger condition B
+
+## When NOT to use
+
+- Exclusion A
+
+## Workflow (max 7 steps)
+
+1. Step one — explicit action
+2. Step two — connector or HiveMind call
+3. Gate — operator-approval-gate if live/financial/publish
+4. Simulate / verify
+5. Reflect → recipe save
+
+## Required gates
+
+| Action | Gate skill |
+|--------|------------|
+| Live publish | `social-simulate-first` + `operator-approval-gate` |
+| Live payment | `real-money-risk-gate` |
+| Code change | `research-to-pr-proposal` → Queen Maintainer |
+
+## Output format
+
+Structured fields the agent must emit (YAML or markdown table).
+
+## Guardrails
+
+- Simulate-first default
+- Multi-tenant: always tag `firm_id`
+- Never bypass Execution Studio policy
+
+## Verification checklist
+
+- [ ] Simulation evidence attached
+- [ ] Risk tier labeled
+- [ ] Operator approve if live

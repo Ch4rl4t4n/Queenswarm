@@ -1172,6 +1172,97 @@ _PHASE3_RAW: tuple[Phase3ConnectorTemplate, ...] = (
         ),
     ),
     Phase3ConnectorTemplate(
+        template_id="shopify_admin_api",
+        category="billing",
+        title="Shopify · Admin API",
+        summary=(
+            "Read products and orders; mutate catalog only after operator approval. "
+            "Set base_url to https://{shop}.myshopify.com/admin/api/2024-10 when instantiating."
+        ),
+        documentation_url="https://shopify.dev/docs/api/admin-rest",
+        suggested_slug="shopify_admin",
+        auth_type="bearer_token",
+        base_url="https://example.myshopify.com/admin/api/2024-10",
+        suggested_manager_slugs=("execution_operations", "research_intelligence"),
+        tools=(
+            {
+                "name": "products_list",
+                "path": "/products.json",
+                "method": "GET",
+                "description": "List products — pass limit, status as unused query args.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "product_get",
+                "path": "/products/{product_id}.json",
+                "method": "GET",
+                "description": "Fetch one product by ID.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "orders_list",
+                "path": "/orders.json",
+                "method": "GET",
+                "description": "List orders for fulfillment monitoring.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "orders_update",
+                "path": "/orders/{order_id}.json",
+                "method": "PUT",
+                "description": "Update order — operator-confirmed live only.",
+                "required_permission": "tool:write",
+                "cost_tier": "high",
+                "latency_tier": "balanced",
+            },
+        ),
+    ),
+    Phase3ConnectorTemplate(
+        template_id="stripe_rest_api",
+        category="billing",
+        title="Stripe · REST API",
+        summary=(
+            "Customers, Checkout Sessions, PaymentIntents — financial tier. "
+            "Inbound webhooks via POST /api/v1/commerce/webhooks/stripe (separate from this connector)."
+        ),
+        documentation_url="https://docs.stripe.com/api",
+        suggested_slug="stripe_rest",
+        auth_type="bearer_token",
+        base_url="https://api.stripe.com",
+        suggested_manager_slugs=("execution_operations", "review_quality"),
+        tools=(
+            {
+                "name": "customers_list",
+                "path": "/v1/customers",
+                "method": "GET",
+                "description": "List customers — limit as unused query arg.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "checkout_sessions_create",
+                "path": "/v1/checkout/sessions",
+                "method": "POST",
+                "description": "Create Checkout Session — financial gate + operator confirm for live.",
+                "required_permission": "tool:financial",
+                "cost_tier": "high",
+                "latency_tier": "balanced",
+            },
+            {
+                "name": "payment_intents_create",
+                "path": "/v1/payment_intents",
+                "method": "POST",
+                "description": "Create PaymentIntent — live requires real-money-risk-gate.",
+                "required_permission": "tool:financial",
+                "cost_tier": "high",
+                "latency_tier": "balanced",
+            },
+        ),
+    ),
+    Phase3ConnectorTemplate(
         template_id="resend_email_api",
         category="email",
         title="Resend · Transactional Email",

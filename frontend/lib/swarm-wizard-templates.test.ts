@@ -54,7 +54,16 @@ describe("swarm-wizard-templates", () => {
   it("finance-ops and digital-ops are buildable scout swarms", () => {
     expect(getSwarmWizardTemplate("finance-ops")?.comingSoon).not.toBe(true);
     expect(getSwarmWizardTemplate("digital-ops")?.comingSoon).not.toBe(true);
+    expect(getSwarmWizardTemplate("eshop-ops")?.comingSoon).not.toBe(true);
     expect(getSwarmWizardTemplate("rnd-dev")?.comingSoon).not.toBe(true);
+  });
+
+  it("eshop-ops includes Shopify and order monitoring bees", () => {
+    const template = getSwarmWizardTemplate("eshop-ops");
+    expect(template?.agents.map((a) => a.name)).toEqual(
+      expect.arrayContaining(["E-shop Manager", "Order Monitor Bee", "Product Research Bee"]),
+    );
+    expect(template?.routine?.name).toMatch(/e-shop/i);
   });
 
   it("life-os template is buildable with overnight routine", () => {

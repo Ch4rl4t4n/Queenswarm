@@ -10,6 +10,7 @@ export type SwarmWizardTemplateId =
   | "lead-waterfall"
   | "finance-ops"
   | "digital-ops"
+  | "eshop-ops"
   | "rnd-dev"
   | "product-ship"
   | "sentinel-radar"
@@ -80,7 +81,7 @@ export const SWARM_WIZARD_TEMPLATES: SwarmWizardTemplate[] = [
         name: "Marketing Manager",
         hiveTier: "manager",
         systemPrompt:
-          `You are the marketing department manager. Plan campaigns, enforce brand voice, and route publish steps through Execution Studio (simulate first).${EXEC}`,
+          `You are the marketing department manager. Plan campaigns per firm_id, enforce brand voice, route publish through simulate-first queue. Use multi-tenant-content-calendar skill.${EXEC}`,
         tools: DEPT_TOOLS,
       },
       {
@@ -98,6 +99,13 @@ export const SWARM_WIZARD_TEMPLATES: SwarmWizardTemplate[] = [
         tools: DEPT_TOOLS,
       },
       {
+        name: "Calendar Orchestrator Bee",
+        hiveTier: "worker",
+        systemPrompt:
+          `Maintain per-firm content calendars in Notion. Tag every row with firm_id — never cross-mix brands.${EXEC}`,
+        tools: DEPT_TOOLS,
+      },
+      {
         name: "Publish Pack Bee",
         hiveTier: "worker",
         systemPrompt:
@@ -108,9 +116,59 @@ export const SWARM_WIZARD_TEMPLATES: SwarmWizardTemplate[] = [
     routine: {
       name: "Marketing ops cycle",
       goalTemplate:
-        "Run marketing ops: 3 researched topics, 1 verified long-form draft, 5 social snippets in Notion simulate mode, Gmail drafts staged for approval.",
+        "Run marketing ops for each active firm_id: 3 researched topics, 1 verified long-form draft, 5 social snippets in Notion simulate mode, calendar updated, Gmail drafts staged for approval.",
       scheduleKind: "cron",
       cronExpr: "0 9 * * 1,3,5",
+    },
+  },
+  {
+    id: "eshop-ops",
+    name: "E-shop Ops",
+    tagline: "Research → listings → orders → Stripe webhooks",
+    description:
+      "Full e-commerce ops swarm: competitor scrape, Shopify catalog/order sync, Stripe Checkout simulate-first, Apify intel. Financial mutations require operator approval.",
+    category: "virtual_company",
+    swarmName: "E-shop Ops",
+    swarmPurpose: "action",
+    estimatedMinutes: 14,
+    timeSavedHoursPerWeek: 14,
+    accentHex: "#00E5FF",
+    agents: [
+      {
+        name: "E-shop Manager",
+        hiveTier: "manager",
+        systemPrompt:
+          `Supervise e-shop ops across one or more storefronts. Default simulate; live Shopify/Stripe only after real-money-risk-gate approval.${EXEC}`,
+        tools: DEPT_TOOLS,
+      },
+      {
+        name: "Product Research Bee",
+        hiveTier: "worker",
+        systemPrompt:
+          `Competitor scrape + pricing intel via Apify and browser harness. Store verified briefs in Notion and HiveMind.${EXEC}`,
+        tools: DEPT_TOOLS,
+      },
+      {
+        name: "Listing Writer Bee",
+        hiveTier: "worker",
+        systemPrompt:
+          `Draft SEO listings and A/B copy variants. Stage in Notion; sync to Shopify products_list simulate mode only.${EXEC}`,
+        tools: DEPT_TOOLS,
+      },
+      {
+        name: "Order Monitor Bee",
+        hiveTier: "worker",
+        systemPrompt:
+          `Poll Shopify orders_list; correlate with Stripe webhook events. Flag anomalies for operator review — never refund without approval.${EXEC}`,
+        tools: DEPT_TOOLS,
+      },
+    ],
+    routine: {
+      name: "E-shop ops tick",
+      goalTemplate:
+        "E-shop ops: competitor brief, 2 listing drafts, orders snapshot from Shopify, payment events summary from webhook queue (simulate).",
+      scheduleKind: "cron",
+      cronExpr: "0 11 * * 1-5",
     },
   },
   {

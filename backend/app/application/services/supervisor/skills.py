@@ -7,11 +7,48 @@ from pathlib import Path
 import re
 
 DEFAULT_ROLE_SKILLS: dict[str, list[str]] = {
-    "researcher": ["context", "multi-step-reasoning", "decision-frameworks", "execution-studio"],
-    "coder": ["tdd", "self-review-loop", "tool-use-orchestration", "execution-studio"],
-    "browser_operator": ["context", "tool-use-orchestration", "decision-frameworks"],
-    "critic": ["grill-me", "self-review-loop", "diagnose"],
-    "designer": ["context", "decision-frameworks", "self-review-loop"],
+    "orchestrator": [
+        "operator-approval-gate",
+        "full-swarm-autonomy",
+        "agent-initiative-proposals",
+        "research-to-pr-proposal",
+    ],
+    "researcher": [
+        "context",
+        "multi-step-reasoning",
+        "decision-frameworks",
+        "execution-studio",
+        "competitor-scrape-analyze",
+        "research-to-pr-proposal",
+    ],
+    "coder": [
+        "tdd",
+        "self-review-loop",
+        "tool-use-orchestration",
+        "execution-studio",
+        "research-to-pr-proposal",
+        "skill-authoring-template",
+    ],
+    "browser_operator": [
+        "context",
+        "tool-use-orchestration",
+        "decision-frameworks",
+        "competitor-scrape-analyze",
+    ],
+    "critic": [
+        "grill-me",
+        "self-review-loop",
+        "diagnose",
+        "operator-approval-gate",
+        "real-money-risk-gate",
+    ],
+    "designer": [
+        "context",
+        "decision-frameworks",
+        "self-review-loop",
+        "marketing-campaign-playbook",
+        "social-simulate-first",
+    ],
 }
 
 

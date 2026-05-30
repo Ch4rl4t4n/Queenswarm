@@ -99,16 +99,16 @@ export const VIRTUAL_COMPANY_DEPARTMENTS: VirtualCompanyDepartment[] = [
   {
     id: "digital",
     label: "E-commerce / Digital",
-    tagline: "UX research, conversion ideas, analytics read — hive-first",
+    tagline: "Shopify + Stripe + competitor research — simulate-first",
     status: "active",
-    templateId: "digital-ops",
+    templateId: "eshop-ops",
     execution: {
       default_mode: "simulate",
       live_requires_approval: true,
       free_first_routing: true,
       manager_slug: "research_intelligence",
       super_router_preset: "solo_app_actions",
-      suggested_connectors: ["notion_workspace"],
+      suggested_connectors: ["shopify_admin", "stripe_rest", "notion_workspace", "apify_store"],
     },
   },
   {

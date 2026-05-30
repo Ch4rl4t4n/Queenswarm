@@ -1432,6 +1432,14 @@ class Settings(BaseSettings):
         le=2000,
         description="Max live publishes across all channels per operator per rate window.",
     )
+    commerce_webhooks_enabled: bool = Field(
+        default=False,
+        description="Enable /commerce/webhooks/stripe ingress for e-shop order/payment events.",
+    )
+    stripe_webhook_secret: str = Field(
+        default="",
+        description="Stripe webhook signing secret (whsec_...) — never log or expose.",
+    )
     social_publish_rate_limit_window_sec: float = Field(
         default=86400.0,
         gt=0,

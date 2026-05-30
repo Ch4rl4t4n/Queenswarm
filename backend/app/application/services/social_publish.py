@@ -626,25 +626,21 @@ async def run_social_publish(
             row=row,
         )
     if mode == "live" and not effective_confirmed:
-        reason_messages = {
-            "trusted_auto_global_off": "Live publish requires operator_confirmed=true (trusted auto disabled globally).",
-            "live_disabled": "Live social publish disabled.",
-            "tenant_missing": "Tenant context required for live publish.",
-            "trusted_auto_tenant_off": "Enable trusted auto-publish in Social publish settings or confirm manually.",
-            "channel_manual_mode": "Channel is manual mode — click Live with confirmation.",
-            "pack_not_simulated": "Run Simulate on this pack before live (or auto-live).",
-            "insufficient_channel_simulates": (
-                "Channel needs more successful simulates before auto-live — keep using manual Live or lower threshold."
-            ),
-        }
+        from app.application.services.agentic_gates import evaluate_social_publish_gate
         from app.application.services.trust_autopilot_notify import notify_live_publish_gate
 
+        gate = evaluate_social_publish_gate(
+            mode=mode,
+            operator_confirmed=operator_confirmed,
+            effective_confirmed=effective_confirmed,
+            confirm_reason=confirm_reason,
+        )
         await notify_live_publish_gate(
             session,
             row=row,
             dashboard_user_id=dashboard_user_id,
             channel=channel,
-            reason=confirm_reason,
+            reason=confirm_reason or gate.error_code or "approval_required",
         )
         return SocialPublishResultOut(
             ok=False,
@@ -654,7 +650,7 @@ async def run_social_publish(
             connector_slug=connector_slug,
             tool_name=tool_name,
             preview=preview,
-            message=reason_messages.get(confirm_reason, "Live publish requires operator_confirmed=true."),
+            message=gate.message or "Live publish requires operator_confirmed=true.",
         )
 
     if mode == "live":
