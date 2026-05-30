@@ -33,8 +33,9 @@ echo
 
 secret="${STRIPE_WEBHOOK_SECRET:-}"
 if [[ -z "${secret// }" ]]; then
-  if val="$(grep -E '^STRIPE_WEBHOOK_SECRET=' "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '\r"'); then
-    [[ -n "${val// }" ]] && secret="$val"
+  val="$(grep -E '^STRIPE_WEBHOOK_SECRET=' "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '\r"' || true)"
+  if [[ -n "${val// }" ]]; then
+    secret="$val"
   fi
 fi
 
