@@ -1263,6 +1263,46 @@ _PHASE3_RAW: tuple[Phase3ConnectorTemplate, ...] = (
         ),
     ),
     Phase3ConnectorTemplate(
+        template_id="ga4_data_api",
+        category="devtools",
+        title="Google Analytics 4 · Data API",
+        summary=(
+            "Run GA4 reports and realtime metrics for e-shop and marketing attribution. "
+            "OAuth2 with analytics.readonly scope; property ID in path (properties/123456789)."
+        ),
+        documentation_url="https://developers.google.com/analytics/devguides/reporting/data/v1",
+        suggested_slug="ga4_data",
+        auth_type="oauth2",
+        base_url="https://analyticsdata.googleapis.com/v1beta",
+        suggested_manager_slugs=("execution_operations", "research_intelligence", "content_creation"),
+        tools=(
+            {
+                "name": "run_report",
+                "path": "/properties/{property_id}:runReport",
+                "method": "POST",
+                "description": "Run GA4 report — pass dateRanges, dimensions, metrics in JSON body.",
+                "cost_tier": "low",
+                "latency_tier": "balanced",
+            },
+            {
+                "name": "run_realtime_report",
+                "path": "/properties/{property_id}:runRealtimeReport",
+                "method": "POST",
+                "description": "Realtime active users and events for live campaign monitoring.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "get_metadata",
+                "path": "/properties/{property_id}/metadata",
+                "method": "GET",
+                "description": "List available dimensions and metrics for property.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+        ),
+    ),
+    Phase3ConnectorTemplate(
         template_id="resend_email_api",
         category="email",
         title="Resend · Transactional Email",

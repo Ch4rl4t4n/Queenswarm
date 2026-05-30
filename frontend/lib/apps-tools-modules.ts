@@ -34,7 +34,11 @@ export const APPS_TOOLS_MODULES: AppsToolsModuleDef[] = [
     summary: "Shopify + Stripe order sync, webhook queue, and eshop-ops swarm workspace.",
     status: "beta",
     href: "/apps-tools/ecommerce-automation",
-    capabilityKeys: ["apps.ecommerce.shopify_sync.v1", "apps.ecommerce.stripe_checkout.v1"],
+    capabilityKeys: [
+      "apps.ecommerce.shopify_sync.v1",
+      "apps.ecommerce.stripe_checkout.v1",
+      "apps.marketing.ga4_analytics.v1",
+    ],
   },
   {
     moduleKey: "mcp_ops_studio",

@@ -225,6 +225,15 @@ TEMPLATE_MARKETPLACE_META: dict[str, dict[str, Any]] = {
             "Pair with /commerce/webhooks/stripe for payment event ingest."
         ),
     },
+    "ga4_data_api": {
+        "cost_tier": "low",
+        "latency_tier": "balanced",
+        "service_homepage": "https://analytics.google.com",
+        "agent_usage": (
+            "GA4 runReport + realtime for e-shop conversion and campaign attribution. "
+            "Read-only — pair with marketing-campaign-playbook and eshop-ops swarms."
+        ),
+    },
 }
 
 

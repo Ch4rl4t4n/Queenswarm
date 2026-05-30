@@ -367,6 +367,22 @@ def _capability_catalog() -> list[CapabilityContractOut]:
             sla_hint_sec=90,
             tags=["apps", "ecommerce", "stripe", "payments"],
         ),
+        CapabilityContractOut(
+            capability_key="apps.marketing.ga4_analytics.v1",
+            label="GA4 analytics reports",
+            owner_module="marketing_automation",
+            surface="apps_tools",
+            summary="GA4 runReport and realtime metrics for campaign and e-shop attribution.",
+            status="beta",
+            risk_tier="read",
+            requires_approval=False,
+            input_schema_ref="schemas/apps.marketing.ga4.input.v1.json",
+            output_schema_ref="schemas/apps.marketing.ga4.output.v1.json",
+            enabled=bool(settings.execution_studio_enabled),
+            dependency_keys=["integrations.connector.invoke.v1"],
+            sla_hint_sec=60,
+            tags=["apps", "marketing", "ga4", "analytics"],
+        ),
     ]
 
 
