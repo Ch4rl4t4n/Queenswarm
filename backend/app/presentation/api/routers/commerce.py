@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query, status
+import uuid
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.application.services.commerce_order_sync import (
     CommerceOrderEvent,
     list_recent_commerce_order_events,
 )
 from app.core.config import settings
-from app.presentation.api.deps import DashboardSession
+from app.presentation.api.deps import DbSession, require_dashboard_user_with_tenant_role
 
 router = APIRouter(prefix="/commerce", tags=["Commerce"])
 
@@ -28,13 +31,22 @@ def _ensure_commerce_read_enabled() -> None:
     response_model=list[CommerceOrderEvent],
 )
 async def get_commerce_order_events(
-    _session: DashboardSession,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
     limit: int = Query(default=50, ge=1, le=200),
+    firm_id: str | None = Query(default=None, max_length=64),
 ) -> list[CommerceOrderEvent]:
-    """Return idempotent Stripe/Shopify events ingested via webhook lane (newest first)."""
+    """Return idempotent Stripe/Shopify events (Postgres audit, Redis fallback)."""
 
     _ensure_commerce_read_enabled()
-    return await list_recent_commerce_order_events(limit=limit)
+    tenant_raw = principal.get("tenant_id")
+    tenant_id = uuid.UUID(str(tenant_raw)) if tenant_raw else None
+    return await list_recent_commerce_order_events(
+        limit=limit,
+        session=db,
+        tenant_id=tenant_id,
+        firm_id=firm_id,
+    )
 
 
 __all__ = ["router"]

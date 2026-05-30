@@ -6,6 +6,7 @@ from fastapi import APIRouter, Header, HTTPException, Request, status
 
 from app.application.services.commerce_webhooks import process_stripe_webhook_event
 from app.core.config import settings
+from app.presentation.api.deps import DbSession
 
 router = APIRouter(prefix="/commerce/webhooks", tags=["Commerce webhooks"])
 
@@ -17,6 +18,7 @@ router = APIRouter(prefix="/commerce/webhooks", tags=["Commerce webhooks"])
 )
 async def stripe_webhook_ingress(
     request: Request,
+    db: DbSession,
     stripe_signature: str | None = Header(default=None, alias="Stripe-Signature"),
 ) -> dict[str, str | bool | None]:
     """Accept Stripe webhook events — verify signature, normalize for order sync."""
@@ -28,9 +30,11 @@ async def stripe_webhook_ingress(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing Stripe-Signature header.")
 
     payload = await request.body()
-    result = await process_stripe_webhook_event(payload, signature_header=stripe_signature)
+    result = await process_stripe_webhook_event(payload, signature_header=stripe_signature, session=db)
     if not result.ok:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.message)
+
+    await db.commit()
 
     return {
         "ok": result.ok,

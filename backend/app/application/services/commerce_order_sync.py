@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime
 from typing import Any, Literal
 
 import structlog
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import desc, or_, select
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.redis_client import (
     CHANNEL_SWARM_EVENTS,
@@ -111,8 +115,128 @@ def _parse_index_member(member: str) -> tuple[CommerceProvider, str] | None:
     return provider_raw, event_id
 
 
-async def list_recent_commerce_order_events(*, limit: int = 50) -> list[CommerceOrderEvent]:
-    """Return recent normalized commerce events (newest first) from Redis index."""
+def _row_to_event(row: Any) -> CommerceOrderEvent:
+    """Map ORM row to pydantic event."""
+
+    ingested = row.ingested_at
+    ingested_iso = ingested.isoformat() if isinstance(ingested, datetime) else str(ingested)
+    return CommerceOrderEvent(
+        provider=row.provider,
+        event_id=row.event_id,
+        event_type=row.event_type,
+        object_id=row.object_id or "",
+        amount_cents=row.amount_cents,
+        currency=row.currency,
+        customer_id=row.customer_id,
+        order_status=row.order_status,
+        raw_type=row.event_type,
+        ingested_at=ingested_iso,
+        payload_summary=dict(row.payload_summary or {}),
+    )
+
+
+async def persist_commerce_order_event_audit(
+    session: AsyncSession,
+    event: CommerceOrderEvent,
+    *,
+    tenant_id: uuid.UUID | None = None,
+    firm_id: str | None = None,
+) -> bool:
+    """Persist event to Postgres for long-term audit. Returns False on duplicate."""
+
+    from app.infrastructure.persistence.models.commerce_order_event import CommerceOrderEventORM
+
+    try:
+        ingested_dt = datetime.fromisoformat(event.ingested_at.replace("Z", "+00:00"))
+    except ValueError:
+        ingested_dt = datetime.now(tz=UTC)
+
+    row = CommerceOrderEventORM(
+        tenant_id=tenant_id,
+        firm_id=firm_id,
+        provider=event.provider,
+        event_id=event.event_id,
+        event_type=event.event_type,
+        object_id=event.object_id,
+        amount_cents=event.amount_cents,
+        currency=event.currency,
+        customer_id=event.customer_id,
+        order_status=event.order_status,
+        ingested_at=ingested_dt,
+        payload_summary=dict(event.payload_summary or {}),
+    )
+    session.add(row)
+    try:
+        await session.flush()
+    except IntegrityError:
+        await session.rollback()
+        logger.info(
+            "commerce_order_audit_duplicate",
+            provider=event.provider,
+            event_id=event.event_id,
+        )
+        return False
+    except SQLAlchemyError as exc:
+        await session.rollback()
+        logger.warning(
+            "commerce_order_audit_persist_failed",
+            provider=event.provider,
+            event_id=event.event_id,
+            error=str(exc),
+        )
+        return False
+    return True
+
+
+async def list_commerce_order_events_from_db(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID | None = None,
+    firm_id: str | None = None,
+    limit: int = 50,
+) -> list[CommerceOrderEvent]:
+    """List recent commerce events from Postgres audit table."""
+
+    from app.infrastructure.persistence.models.commerce_order_event import CommerceOrderEventORM
+
+    capped = max(1, min(limit, 200))
+    stmt = select(CommerceOrderEventORM).order_by(desc(CommerceOrderEventORM.ingested_at)).limit(capped)
+    if tenant_id is not None:
+        stmt = stmt.where(
+            or_(
+                CommerceOrderEventORM.tenant_id == tenant_id,
+                CommerceOrderEventORM.tenant_id.is_(None),
+            ),
+        )
+    if firm_id:
+        stmt = stmt.where(CommerceOrderEventORM.firm_id == firm_id.strip())
+
+    try:
+        rows = list((await session.scalars(stmt)).all())
+    except SQLAlchemyError as exc:
+        logger.warning("commerce_order_audit_list_failed", error=str(exc))
+        return []
+    return [_row_to_event(row) for row in rows]
+
+
+async def list_recent_commerce_order_events(
+    *,
+    limit: int = 50,
+    session: AsyncSession | None = None,
+    tenant_id: uuid.UUID | None = None,
+    firm_id: str | None = None,
+) -> list[CommerceOrderEvent]:
+    """Return recent events — Postgres when session provided, else Redis index."""
+
+    if session is not None:
+        db_events = await list_commerce_order_events_from_db(
+            session,
+            tenant_id=tenant_id,
+            firm_id=firm_id,
+            limit=limit,
+        )
+        if db_events:
+            return db_events
 
     capped = max(1, min(limit, 200))
     rows = await zset_top(COMMERCE_EVENT_INDEX_KEY, limit=capped)
@@ -136,7 +260,13 @@ async def list_recent_commerce_order_events(*, limit: int = 50) -> list[Commerce
     return events
 
 
-async def ingest_commerce_order_event(event: CommerceOrderEvent) -> bool:
+async def ingest_commerce_order_event(
+    event: CommerceOrderEvent,
+    *,
+    session: AsyncSession | None = None,
+    tenant_id: uuid.UUID | None = None,
+    firm_id: str | None = None,
+) -> bool:
     """Persist event idempotently and fan out to swarm_events. Returns False if duplicate."""
 
     key = _event_storage_key(event.provider, event.event_id)
@@ -174,6 +304,14 @@ async def ingest_commerce_order_event(event: CommerceOrderEvent) -> bool:
         },
     )
 
+    if session is not None:
+        await persist_commerce_order_event_audit(
+            session,
+            event,
+            tenant_id=tenant_id,
+            firm_id=firm_id,
+        )
+
     logger.info(
         "commerce_order_sync_ingested",
         provider=event.provider,
@@ -187,6 +325,8 @@ async def ingest_commerce_order_event(event: CommerceOrderEvent) -> bool:
 __all__ = [
     "CommerceOrderEvent",
     "ingest_commerce_order_event",
+    "list_commerce_order_events_from_db",
     "list_recent_commerce_order_events",
     "normalize_stripe_event",
+    "persist_commerce_order_event_audit",
 ]

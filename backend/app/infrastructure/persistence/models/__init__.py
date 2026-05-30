@@ -20,6 +20,10 @@ _EXPORTABLE: dict[str, tuple[str, str]] = {
     "TenantSubscription": ("app.infrastructure.persistence.models.billing", "TenantSubscription"),
     "BudgetPeriod": ("app.infrastructure.persistence.models.enums", "BudgetPeriod"),
     "ConnectorVaultEntry": ("app.infrastructure.persistence.models.connector_vault_entry", "ConnectorVaultEntry"),
+    "CommerceOrderEventORM": (
+        "app.infrastructure.persistence.models.commerce_order_event",
+        "CommerceOrderEventORM",
+    ),
     "DashboardUser": ("app.infrastructure.persistence.models.dashboard_user", "DashboardUser"),
     "DynamicConnector": ("app.infrastructure.persistence.models.dynamic_connector", "DynamicConnector"),
     "ExternalProject": ("app.infrastructure.persistence.models.external_project", "ExternalProject"),
@@ -121,6 +125,7 @@ _MODEL_PACKAGES: tuple[str, ...] = (
     "app.infrastructure.persistence.models.goal",
     "app.infrastructure.persistence.models.operator_external_api",
     "app.infrastructure.persistence.models.connector_vault_entry",
+    "app.infrastructure.persistence.models.commerce_order_event",
     "app.infrastructure.persistence.models.dynamic_connector",
     "app.infrastructure.persistence.models.external_project",
     "app.infrastructure.persistence.models.supervisor_session",

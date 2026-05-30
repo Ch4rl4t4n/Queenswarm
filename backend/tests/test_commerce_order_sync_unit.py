@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -11,6 +11,7 @@ from app.application.services.commerce_order_sync import (
     ingest_commerce_order_event,
     list_recent_commerce_order_events,
     normalize_stripe_event,
+    persist_commerce_order_event_audit,
 )
 
 
@@ -88,6 +89,25 @@ async def test_list_recent_commerce_order_events_when_indexed_then_ordered(
     assert len(events) == 2
     assert events[0].event_id == "evt_2"
     assert events[1].event_id == "evt_1"
+
+
+@pytest.mark.asyncio
+async def test_persist_commerce_order_event_audit_when_new_then_true() -> None:
+    """Postgres audit row persists on first insert."""
+
+    session = AsyncMock()
+    session.add = MagicMock()
+    session.flush = AsyncMock()
+    session.rollback = AsyncMock()
+
+    event = CommerceOrderEvent(
+        provider="stripe",
+        event_id="evt_db_1",
+        event_type="checkout.session.completed",
+    )
+    assert await persist_commerce_order_event_audit(session, event) is True
+    session.add.assert_called_once()
+    session.flush.assert_awaited_once()
 
 
 @pytest.mark.asyncio

@@ -6,10 +6,12 @@ import hashlib
 import hmac
 import json
 import time
+import uuid
 from typing import Any
 
 import structlog
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.commerce_order_sync import ingest_commerce_order_event, normalize_stripe_event
 from app.core.config import settings
@@ -76,6 +78,9 @@ async def process_stripe_webhook_event(
     payload: bytes,
     *,
     signature_header: str,
+    session: AsyncSession | None = None,
+    tenant_id: uuid.UUID | None = None,
+    firm_id: str | None = None,
 ) -> CommerceWebhookResult:
     """Verify and normalize a Stripe webhook event for downstream HiveMind ingest."""
 
@@ -133,7 +138,12 @@ async def process_stripe_webhook_event(
             ingested=False,
         )
 
-    newly_ingested = await ingest_commerce_order_event(normalized)
+    newly_ingested = await ingest_commerce_order_event(
+        normalized,
+        session=session,
+        tenant_id=tenant_id,
+        firm_id=firm_id,
+    )
     return CommerceWebhookResult(
         ok=True,
         event_type=event_type,
