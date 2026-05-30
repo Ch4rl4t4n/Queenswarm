@@ -166,6 +166,53 @@ SWARM_WIZARD_SPECS: dict[str, SwarmWizardSpec] = {
             cron_expr="0 10 * * 2",
         ),
     ),
+    "eshop-ops": SwarmWizardSpec(
+        template_id="eshop-ops",
+        name="E-shop Ops",
+        swarm_name="E-shop Ops",
+        purpose=SwarmPurpose.ACTION,
+        description=(
+            "E-commerce ops: competitor scrape, Shopify catalog/order sync, "
+            "Stripe Checkout simulate-first, webhook order queue."
+        ),
+        accent_hex="#00E5FF",
+        category="virtual_company",
+        department_id="digital",
+        manager_slug="execution_operations",
+        super_router_preset="solo_app_actions",
+        agents=(
+            _AgentSpec(
+                "E-shop Manager",
+                "manager",
+                _exec("Supervise e-shop ops across storefronts. Default simulate; live Shopify/Stripe only after real-money-risk-gate."),
+                DEPT_TOOLS,
+            ),
+            _AgentSpec(
+                "Product Research Bee",
+                "worker",
+                _exec("Competitor scrape + pricing intel via Apify. Store verified briefs in Notion and HiveMind."),
+                DEPT_TOOLS,
+            ),
+            _AgentSpec(
+                "Listing Writer Bee",
+                "worker",
+                _exec("Draft SEO listings. Stage in Notion; Shopify products_list simulate mode only."),
+                DEPT_TOOLS,
+            ),
+            _AgentSpec(
+                "Order Monitor Bee",
+                "worker",
+                _exec("Poll Shopify orders_list; correlate Stripe webhook events. Never refund without approval."),
+                DEPT_TOOLS,
+            ),
+        ),
+        routine=_RoutineSpec(
+            "E-shop ops tick",
+            "E-shop ops: competitor brief, 2 listing drafts, orders snapshot, payment events from webhook queue (simulate).",
+            "cron",
+            cron_expr="0 11 * * 1-5",
+        ),
+    ),
     "rnd-dev": SwarmWizardSpec(
         template_id="rnd-dev",
         name="R&D / Development",
