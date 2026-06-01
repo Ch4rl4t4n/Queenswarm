@@ -91,4 +91,32 @@ class TaskLineageResponse(BaseModel):
     children: list[TaskSnapshot] = Field(default_factory=list)
 
 
-__all__ = ["TaskCreateRequest", "TaskLineageResponse", "TaskPatchRequest", "TaskSnapshot"]
+class TaskWorkspaceFileOut(BaseModel):
+    """Deliverable or archive file linked to a kanban task."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    deliverable_id: uuid.UUID
+    title: str
+    slug: str
+    archive_relpath: str | None = None
+    preview: str = ""
+
+
+class TaskWorkspaceResponse(BaseModel):
+    """Workspace files for a mission kanban task drawer."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    task_id: uuid.UUID
+    files: list[TaskWorkspaceFileOut] = Field(default_factory=list)
+
+
+__all__ = [
+    "TaskCreateRequest",
+    "TaskLineageResponse",
+    "TaskPatchRequest",
+    "TaskSnapshot",
+    "TaskWorkspaceFileOut",
+    "TaskWorkspaceResponse",
+]

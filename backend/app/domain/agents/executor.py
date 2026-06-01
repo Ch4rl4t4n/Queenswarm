@@ -242,11 +242,16 @@ async def tool_rss(url: str, max_items: int = 5) -> str:
 async def tool_scrape_url(client: httpx.AsyncClient, url: str) -> str:
     """Naive HTML → text extraction."""
 
+    from app.application.services.prompt_injection_guard import sanitize_untrusted_text
+
     try:
         response = await client.get(url, follow_redirects=True, timeout=15.0)
         parser = _TextExtractor()
         parser.feed(response.text)
         blob = " ".join(parser._parts)[:2000]  # noqa: SLF001
+        safe, scan = sanitize_untrusted_text(blob or "(empty body)")
+        if scan.blocked:
+            return safe
         return blob or "(empty body)"
     except Exception as exc:  # noqa: BLE001
         return f"scrape error: {exc}"

@@ -9,12 +9,21 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.presentation.api.deps import DashboardSession, DbSession, dashboard_admin_wall
 from app.infrastructure.persistence.models.enums import TaskStatus
 from app.infrastructure.persistence.models.task import Task
-from app.common.schemas.task import TaskCreateRequest, TaskLineageResponse, TaskPatchRequest, TaskSnapshot
+from app.infrastructure.persistence.models.task_final_deliverable import TaskFinalDeliverable
+from app.common.schemas.task import (
+    TaskCreateRequest,
+    TaskLineageResponse,
+    TaskPatchRequest,
+    TaskSnapshot,
+    TaskWorkspaceFileOut,
+    TaskWorkspaceResponse,
+)
 from app.application.services.mission_kanban import MissionKanbanNotFoundError, fetch_task_lineage
 from app.core.logging import get_logger
 from app.application.services.task_presenter import attach_agent_labels, build_task_snapshot
@@ -244,6 +253,55 @@ async def get_task_lineage(
         parent=lineage.parent,
         children=lineage.children,
     )
+
+
+@router.get(
+    "/{task_id}/workspace",
+    response_model=TaskWorkspaceResponse,
+    summary="List deliverable files linked to a task",
+)
+async def get_task_workspace(
+    task_id: uuid.UUID,
+    db: DbSession,
+    _session: DashboardSession,
+) -> TaskWorkspaceResponse:
+    """Return archived deliverables for Hermes-style per-task workspace panel."""
+
+    try:
+        row = await fetch_task(db, task_id)
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected lookup.",
+        )
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found.")
+
+    stmt = (
+        select(TaskFinalDeliverable)
+        .where(TaskFinalDeliverable.source_task_id == task_id)
+        .order_by(TaskFinalDeliverable.created_at.desc())
+        .limit(20)
+    )
+    try:
+        deliverables = list((await db.scalars(stmt)).all())
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected workspace lookup.",
+        )
+
+    files = [
+        TaskWorkspaceFileOut(
+            deliverable_id=item.id,
+            title=item.title,
+            slug=item.slug,
+            archive_relpath=item.archive_relpath,
+            preview=(item.markdown_body or "").replace("\n", " ").strip()[:180],
+        )
+        for item in deliverables
+    ]
+    return TaskWorkspaceResponse(task_id=task_id, files=files)
 
 
 @router.get(

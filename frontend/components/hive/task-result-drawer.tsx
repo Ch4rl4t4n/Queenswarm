@@ -3,7 +3,7 @@
 import { HiveApiError, hiveFetchRaw, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
 import { COCKPIT_POLL_TASK_DRAWER_MS } from "@/lib/cockpit-poll-profile";
 import { useDocumentVisible } from "@/lib/hooks/use-document-visible";
-import type { TaskLineageResponse, TaskRow } from "@/lib/hive-types";
+import type { TaskLineageResponse, TaskRow, TaskWorkspaceResponse } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 import { useCallback, useEffect, useState } from "react";
 
@@ -133,6 +133,7 @@ function LiveStatusPoller({
 export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JSX.Element | null {
   const [task, setTask] = useState<TaskDrawerDetail | null>(null);
   const [lineage, setLineage] = useState<TaskLineageResponse | null>(null);
+  const [workspace, setWorkspace] = useState<TaskWorkspaceResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [drawerError, setDrawerError] = useState<string | null>(null);
   const [slideIn, setSlideIn] = useState(false);
@@ -144,6 +145,7 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
     if (!taskId) {
       setTask(null);
       setLineage(null);
+      setWorkspace(null);
       setSlideIn(false);
       return;
     }
@@ -153,10 +155,12 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
     Promise.all([
       hiveGet<TaskDrawerDetail>(`tasks/${encodeURIComponent(taskId)}`),
       hiveGet<TaskLineageResponse>(`tasks/${encodeURIComponent(taskId)}/lineage`).catch(() => null),
+      hiveGet<TaskWorkspaceResponse>(`tasks/${encodeURIComponent(taskId)}/workspace`).catch(() => null),
     ])
-      .then(([detail, tree]) => {
+      .then(([detail, tree, files]) => {
         setTask(detail);
         setLineage(tree);
+        setWorkspace(files);
         setLoading(false);
         requestAnimationFrame(() => setSlideIn(true));
       })
@@ -385,6 +389,36 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
               ) : null}
               {lineage?.children?.length ? (
                 <LineageSection title="Children" rows={lineage.children} onOpen={onClose} />
+              ) : null}
+              {workspace?.files?.length ? (
+                <div>
+                  <p className="qs-meta-label mb-2 text-zinc-500">
+                    Workspace ({workspace.files.length} file{workspace.files.length === 1 ? "" : "s"})
+                  </p>
+                  <ul className="space-y-2">
+                    {workspace.files.map((file) => (
+                      <li
+                        key={file.deliverable_id}
+                        className="rounded-lg border border-[color:var(--qs-border)] bg-black/35 px-3 py-2 text-sm"
+                      >
+                        <a
+                          href={`/api/proxy/outputs/${encodeURIComponent(file.deliverable_id)}/markdown.md`}
+                          className="font-medium text-cyan hover:underline"
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {file.title}
+                        </a>
+                        {file.archive_relpath ? (
+                          <p className="mt-1 font-mono text-[10px] text-zinc-600">{file.archive_relpath}</p>
+                        ) : null}
+                        {file.preview ? (
+                          <p className="mt-1 line-clamp-2 text-xs text-zinc-500">{file.preview}</p>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ) : null}
               <TaskOperatorThread
                 notes={operatorNotes}

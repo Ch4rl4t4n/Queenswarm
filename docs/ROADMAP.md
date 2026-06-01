@@ -34,10 +34,16 @@ Living backlog for **queenswarm.love** — ordered by impact. Status reflects pr
 | OW11 | EN cleanup — Dreaming, Factory, Settings capabilities atlas | ✅ |
 | OW12 | Mission Kanban (Hermes-style): Triage→Done columns, dispatch, lineage drawer | ✅ |
 | OW13 | Skill bundles one-click, solo Mission Control nav, task operator thread | ✅ |
+| OW14 | Instant mission search (⌘K palette) + live Knowledge search | ✅ |
+| OW15 | Prompt injection guard on scrape ingest + task workspace files | ✅ |
 
 **OW12 note:** `/tasks` defaults to **Mission Kanban board** — triage + Dispatch now runs Workflow Breaker + tracer slices. Sessions remain the execution engine; kanban is the visibility layer.
 
 **OW13 note:** Solo mode promotes **Mission Control** (`/tasks`) to first sidebar slot. Skill bundle chips launch triage+dispatch. Task drawer supports operator thread notes via `PATCH /tasks/{id}` `operator_note`.
+
+**OW14 note:** `GET /solo-operator/mission-search` — debounced live search. **⌘K / Ctrl+K** opens global command palette from any dashboard route.
+
+**OW15 note:** Scrape tool runs `prompt_injection_guard` before returning text to LLM. Task drawer shows linked deliverables via `GET /tasks/{id}/workspace`.
 
 ## Four-Lane Solo Operator (optional background automation)
 

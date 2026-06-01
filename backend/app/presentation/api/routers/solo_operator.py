@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.application.services.publish_operator_onboarding import compose_publish_onboarding_snapshot
 from app.application.services.hive_session_search import search_supervisor_sessions
+from app.application.services.mission_operator_search import search_mission_operator
 from app.application.services.morning_hive_brief import compose_morning_hive_brief
 from app.application.services.morning_publish_pipeline import (
     compose_morning_publish_pipeline_snapshot,
@@ -307,6 +308,28 @@ async def session_search(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
     hits = await search_supervisor_sessions(db, tenant_id=tenant_id, query=q, limit=limit)
     return {"query": q, "count": len(hits), "hits": hits}
+
+
+@router.get("/mission-search", summary="Unified Mission Control search (sessions + tasks)")
+async def mission_search(
+    db: DbSession,
+    q: str = Query(..., min_length=2, max_length=200),
+    session_limit: int = Query(12, ge=1, le=30),
+    task_limit: int = Query(12, ge=1, le=30),
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Hermes-style instant search across supervisor sessions and kanban tasks."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    return await search_mission_operator(
+        db,
+        tenant_id=tenant_id,
+        query=q,
+        session_limit=session_limit,
+        task_limit=task_limit,
+    )
 
 
 class FourLaneBootstrapRequest(BaseModel):

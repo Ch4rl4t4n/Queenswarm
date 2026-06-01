@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw, Send } from "lucide-react";
+import { RefreshCw, Search, Send } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -220,6 +220,14 @@ export function MissionKanbanPanel({ onOpenTask }: MissionKanbanPanelProps): JSX
             >
               <RefreshCw className={cn("h-3.5 w-3.5", busy && "animate-spin")} aria-hidden />
               Refresh
+            </button>
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent("hive:open-command-palette"))}
+              className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
+            >
+              <Search className="h-3.5 w-3.5" aria-hidden />
+              ⌘K Search
             </button>
             <button
               type="button"

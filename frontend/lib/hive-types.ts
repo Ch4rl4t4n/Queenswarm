@@ -460,6 +460,19 @@ export interface TaskLineageResponse {
   children: TaskRow[];
 }
 
+export interface TaskWorkspaceFile {
+  deliverable_id: string;
+  title: string;
+  slug: string;
+  archive_relpath?: string | null;
+  preview?: string;
+}
+
+export interface TaskWorkspaceResponse {
+  task_id: string;
+  files: TaskWorkspaceFile[];
+}
+
 /** Celery / Postgres mirrored async workflow poll (`GET /jobs/{id}`). */
 export interface HiveAsyncJobStatusPayload {
   celery_task_id: string;

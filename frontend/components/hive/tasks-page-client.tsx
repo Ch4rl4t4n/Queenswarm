@@ -12,8 +12,9 @@ import {
   Zap,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
+import { useSearchParams } from "next/navigation";
 
 import { HivePageShell } from "@/components/hive/hive-page-shell";
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
@@ -173,6 +174,14 @@ export function TasksPageClient() {
   const [viewMode, setViewMode] = useState<ViewMode>("board");
   const filterScrollRef = useCenterActiveInScrollRow(filter);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const taskParam = searchParams.get("task");
+    if (taskParam) {
+      setSelectedTaskId(taskParam);
+    }
+  }, [searchParams]);
 
   const reload = useCallback(async () => {
     try {
