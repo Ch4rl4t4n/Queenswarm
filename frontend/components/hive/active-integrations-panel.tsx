@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -17,6 +18,7 @@ import {
 import { useGridTwoRowPageSize } from "@/lib/use-grid-two-row-page-size";
 import { usePaginatedSlice } from "@/lib/use-paginated-slice";
 import type { IntegrationsTab } from "@/lib/integrations-routes";
+import { integrationsTabHref } from "@/lib/integrations-routes";
 import { cn } from "@/lib/utils";
 
 export type IntegrationCardStatus = "connected" | "error" | "rate_limited";
@@ -213,9 +215,9 @@ export function ActiveIntegrationsPanel({
           </p>
           <div className="flex flex-wrap justify-center gap-2">
             {hasHubTab ? (
-              <button type="button" className="qs-btn qs-btn--primary qs-btn--sm" onClick={onOpenHub}>
+              <Link href={integrationsTabHref("hub")} className="qs-btn qs-btn--ghost qs-btn--sm">
                 Open connector hub
-              </button>
+              </Link>
             ) : null}
             {hasMarketplaceTab ? (
               <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={onOpenMarketplace}>
@@ -298,13 +300,12 @@ export function ActiveIntegrationsPanel({
                       Retry
                     </button>
                   ) : null}
-                  <button
-                    type="button"
-                    className="qs-btn qs-btn--primary qs-btn--sm min-w-[5.5rem]"
-                    onClick={() => onOpen(card.targetTab)}
+                  <Link
+                    href={integrationsTabHref(card.targetTab)}
+                    className="qs-btn qs-btn--ghost qs-btn--sm min-w-[5.5rem]"
                   >
                     Open
-                  </button>
+                  </Link>
                 </div>
               </footer>
             </article>

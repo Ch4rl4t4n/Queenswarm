@@ -241,7 +241,7 @@ export function CommandCenterSettingsPanel() {
   if (!allowed) {
     return (
       <V4Card>
-        <V4CardHeader title="Command center" description="Dostupné len pre admin v internal tenante." />
+        <V4CardHeader title="Command center" description="Available only to admin in the internal tenant." />
       </V4Card>
     );
   }
@@ -312,7 +312,7 @@ export function CommandCenterSettingsPanel() {
             as="h2"
             kicker="Admin · ops"
             title="Command center"
-            description="Server load, RAM, disk, databázy, queue, and LLM prepojenia — live snapshot."
+            description="Server load, RAM, disk, databases, queue, and LLM connections — live snapshot."
           />
           <div className="flex flex-wrap items-center gap-2">
             <V4Badge tone={snapshot.summary.dependencies_ok ? "ok" : "err"}>
@@ -370,7 +370,7 @@ export function CommandCenterSettingsPanel() {
 
         {host.resource_pressure ? (
           <div className="mx-4 mb-4 rounded-xl border border-(--qs-red)/30 bg-(--qs-red)/10 px-4 py-3 text-xs text-(--qs-red) md:mx-6">
-            Resource pressure: {host.resource_pressure_reason || "high_load"} — zváž throttle simulácií / LLM slotov.
+            Resource pressure: {host.resource_pressure_reason || "high_load"} — consider throttling simulations / LLM slots.
           </div>
         ) : null}
 
@@ -482,7 +482,7 @@ export function CommandCenterSettingsPanel() {
         <>
       <V4Card className="overflow-hidden p-0">
         <div className="border-b border-(--qs-border) px-4 py-4 md:px-6">
-          <V4CardHeader as="h3" title="LLM & API routes" description="Credentials, ktoré celá aplikácia využíva (env + vault)." />
+          <V4CardHeader as="h3" title="LLM & API routes" description="Credentials the application uses (env + vault)." />
         </div>
         <div className="overflow-x-auto hive-scrollbar">
           <table className="w-full min-w-[640px] border-collapse text-sm">
@@ -511,7 +511,7 @@ export function CommandCenterSettingsPanel() {
           </table>
         </div>
         <div className="border-t border-(--qs-border)/70 px-4 py-3 text-xs text-(--qs-text-3) md:px-6">
-          Upraviť kľúče:{" "}
+          Edit keys:{" "}
           <Link href="/settings/llm-keys" className="text-cyan hover:underline">
             Settings → AI · LLM & Voice
           </Link>

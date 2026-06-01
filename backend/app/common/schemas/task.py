@@ -76,4 +76,14 @@ class TaskSnapshot(BaseModel):
     )
 
 
-__all__ = ["TaskCreateRequest", "TaskPatchRequest", "TaskSnapshot"]
+class TaskLineageResponse(BaseModel):
+    """Parent/children tree for mission kanban task drawer."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    task: TaskSnapshot
+    parent: TaskSnapshot | None = None
+    children: list[TaskSnapshot] = Field(default_factory=list)
+
+
+__all__ = ["TaskCreateRequest", "TaskLineageResponse", "TaskPatchRequest", "TaskSnapshot"]

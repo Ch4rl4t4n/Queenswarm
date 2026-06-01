@@ -198,8 +198,14 @@ class FourLaneOut(BaseModel):
     manual_anchor: str
     routine: FourLaneRoutineOut
     foragers: list[FourLaneForagerOut] = Field(default_factory=list)
-    approve_href: str
-    sessions_href: str
+    open_href: str
+    open_label: str
+    pending_digest_count: int = 0
+    promote_ready_count: int = 0
+    first_promote_session_id: str | None = None
+    # Deprecated aliases — kept for older clients
+    approve_href: str = ""
+    sessions_href: str = ""
 
 
 class FourLaneSnapshotOut(BaseModel):
@@ -217,35 +223,35 @@ class FourLaneSnapshotOut(BaseModel):
 LANE_META: dict[FourLaneId, dict[str, str]] = {
     "marketing_najman": {
         "label": "Najman Marketing",
-        "description": "Ročná kampaň — competitor intel, CZ digest, simulate publish.",
-        "operator_hint": "Po–St–Pi 9:00 digest · schválenie → Tasks / publish queue.",
+        "description": "Annual campaign — competitor intel, CZ digest, simulate-first publish.",
+        "operator_hint": "Mon/Wed/Fri 9:00 digest · approve in Digest Inbox below → Tasks.",
         "manual_anchor": "four-lanes-marketing",
-        "approve_href": "/agents#sessions",
-        "sessions_href": "/agents?filter=running#sessions",
+        "open_href": "/agents#sessions",
+        "open_label": "Sessions",
     },
     "tech_scv": {
         "label": "Tech SCV",
-        "description": "Denne 3 návrhy vylepšení platformy → Innovation Lab → Maintainer PR.",
-        "operator_hint": "Denne 7:30 digest · Approve → Implement → GitHub PR.",
+        "description": "Daily platform improvement proposals → Innovation Lab → Maintainer PR.",
+        "operator_hint": "Daily 7:30 digest · review proposals in Innovation Lab (not Approve on this card).",
         "manual_anchor": "four-lanes-tech",
-        "approve_href": "/agentic-os#innovation",
-        "sessions_href": "/integrations?tab=studio#codebase",
+        "open_href": "/integrations?tab=studio&section=innovation#innovation-lab",
+        "open_label": "Innovation Lab",
     },
     "eshop_research": {
         "label": "E-shop Research",
-        "description": "beebrdy.cz benchmark, UX hypotézy, SEO clustery.",
-        "operator_hint": "Ut–Št 10:00 digest · schválenie → redesign brief.",
+        "description": "beebrdy.cz benchmark, UX hypotheses, SEO clusters.",
+        "operator_hint": "Tue/Thu 10:00 digest · approve in Digest Inbox below → redesign brief.",
         "manual_anchor": "four-lanes-eshop",
-        "approve_href": "/agents#sessions",
-        "sessions_href": "/knowledge#hivemind",
+        "open_href": "/knowledge#hivemind",
+        "open_label": "HiveMind",
     },
     "automation": {
         "label": "Automation Factory",
-        "description": "Schválené návrhy → rutiny, tasky, Maintainer — manuálny trigger.",
-        "operator_hint": "Spusti po schválení z ostatných lane · žiadny auto-cron.",
+        "description": "Approved proposals → routines, tasks, Maintainer — manual trigger only.",
+        "operator_hint": "Run after approving marketing/e-shop digests · no auto-cron.",
         "manual_anchor": "four-lanes-automation",
-        "approve_href": "/tasks",
-        "sessions_href": "/agentic-os#innovation",
+        "open_href": "/tasks",
+        "open_label": "Tasks",
     },
 }
 
@@ -599,6 +605,23 @@ async def compose_four_lane_snapshot(
     )
     lanes: list[FourLaneOut] = []
     active_count = 0
+
+    from app.application.services.solo_operator_digest_inbox import compose_four_lane_digest_inbox
+
+    inbox = await compose_four_lane_digest_inbox(db, tenant_id=tenant_id, limit=40)
+    pending_by_lane: dict[str, int] = {lid: 0 for lid in FOUR_LANE_IDS}
+    promote_by_lane: dict[str, int] = {lid: 0 for lid in FOUR_LANE_IDS}
+    first_promote: dict[str, str] = {}
+    for item in inbox.items:
+        lid = str(item.lane_id)
+        if item.session_status in {"needs_input", "paused"} or (
+            item.promote_ready and item.task_id is None
+        ):
+            pending_by_lane[lid] = pending_by_lane.get(lid, 0) + 1
+        if item.promote_ready and item.task_id is None:
+            promote_by_lane[lid] = promote_by_lane.get(lid, 0) + 1
+            first_promote.setdefault(lid, item.session_id)
+
     for lane_id in FOUR_LANE_IDS:
         meta = LANE_META[lane_id]
         routine_row = next(
@@ -645,6 +668,7 @@ async def compose_four_lane_snapshot(
             last_run_at=last_session.created_at if last_session else None,
         )
         foragers = await _lane_foragers_snapshot(db, tenant_id=tenant_id, lane_id=lane_id)
+        open_href = meta["open_href"]
         lanes.append(
             FourLaneOut(
                 lane_id=lane_id,
@@ -654,8 +678,13 @@ async def compose_four_lane_snapshot(
                 manual_anchor=meta["manual_anchor"],
                 routine=routine_out,
                 foragers=foragers,
-                approve_href=meta["approve_href"],
-                sessions_href=meta["sessions_href"],
+                open_href=open_href,
+                open_label=meta["open_label"],
+                pending_digest_count=pending_by_lane.get(lane_id, 0),
+                promote_ready_count=promote_by_lane.get(lane_id, 0),
+                first_promote_session_id=first_promote.get(lane_id),
+                approve_href=open_href,
+                sessions_href=open_href,
             ),
         )
 
@@ -770,6 +799,51 @@ async def set_four_lane_active(
     }
 
 
+async def trigger_automation_lane(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+) -> dict[str, Any]:
+    """Manually run the automation factory routine (simulate-first checklist)."""
+
+    from app.application.services.supervisor.routine_service import trigger_supervisor_routine_now
+    from app.core.config import settings
+
+    if not settings.routines_enabled:
+        return {"ok": False, "error": "routines_disabled"}
+
+    routines = await _load_tenant_routines(db, tenant_id=tenant_id)
+    routine = next(
+        (
+            r
+            for r in routines
+            if _lane_from_payload(dict(r.context_payload or {})) == "automation"
+            and not _is_queen_maintainer_routine(r.name)
+        ),
+        None,
+    )
+    if routine is None:
+        return {"ok": False, "error": "lane_routine_not_found", "lane_id": "automation"}
+
+    routine.is_active = True
+    session_id = await trigger_supervisor_routine_now(db, routine=routine)
+    await db.flush()
+    logger.info(
+        "solo_four_lanes.automation_triggered",
+        agent_id="four_lane_automation",
+        swarm_id="automation",
+        task_id=str(session_id),
+    )
+    return {
+        "ok": True,
+        "lane_id": "automation",
+        "routine_id": str(routine.id),
+        "session_id": str(session_id),
+        "sessions_href": f"/agents?session={session_id}#sessions",
+        "tasks_href": "/tasks",
+    }
+
+
 __all__ = [
     "FOUR_LANE_IDS",
     "FourLaneId",
@@ -779,4 +853,5 @@ __all__ = [
     "ensure_four_lane_bootstrap",
     "pause_legacy_routines",
     "set_four_lane_active",
+    "trigger_automation_lane",
 ]

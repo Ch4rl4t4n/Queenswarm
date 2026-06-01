@@ -46,11 +46,23 @@ Updated: 2026-05-29
 
 ## Daily operator loop (5 minutes)
 
+Operator: **Jakub Chvostek** (Queenswarm) helping **Najman family** client web/social work.
+
 1. Open **[Agentic OS → Lanes](/agentic-os#lanes)**
 2. Review overnight forager ingest in **Knowledge → HiveMind**
-3. Open **Agents → Sessions** — approve marketing/e-shop digests
-4. Open **Innovation** tab — approve/implement tech proposals
+3. **Agents → Sessions** — auto-approve ON for routine digests; manual only for critical PR/billing
+4. **Innovation** tab — approve/implement tech proposals (Lane B)
 5. **Clear filtered** stuck `running` sessions if count > 10
+
+## Weekly rhythm (Jakub · Najman client)
+
+| Day | Focus |
+|-----|--------|
+| Mon AM | Lanes + Digest inbox → Najman marketing digest → Tasks |
+| Wed | Same + Innovation (Tech SCV proposals) |
+| Tue/Thu | E-shop research digest (beebrdy.cz) |
+| Fri | Run Automation Factory if A/C items approved |
+| Daily | 2 min Sessions + Tasks priority |
 
 ## Bootstrap (once)
 

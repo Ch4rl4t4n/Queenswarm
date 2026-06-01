@@ -22,7 +22,11 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/external-apis", tags=["External APIs"])
 
+_RESEARCH_PROVIDERS = frozenset({"tavily", "serper"})
+
 _SUPPORTED_PROVIDERS: dict[str, dict[str, Any]] = {
+    "tavily": {"label": "Tavily Search", "base_url": "https://api.tavily.com"},
+    "serper": {"label": "Serper (Google JSON)", "base_url": "https://google.serper.dev"},
     "alpaca": {"label": "Alpaca Markets", "base_url": "https://paper-api.alpaca.markets"},
     "twitter": {"label": "Twitter / X API"},
     "yahoo": {"label": "Yahoo Finance"},
@@ -61,6 +65,8 @@ class ExternalApiCreateBody(BaseModel):
     model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
 
     provider: Literal[
+        "tavily",
+        "serper",
         "alpaca",
         "twitter",
         "yahoo",
@@ -206,6 +212,115 @@ async def delete_operator_external_api(
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Could not delete external API row.",
+        ) from None
+
+    return {"status": "deleted"}
+
+
+ResearchProviderLiteral = Literal["tavily", "serper"]
+
+
+class ResearchKeyUpsertBody(BaseModel):
+    """Single-field research search API key."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    api_key: str = Field(..., min_length=8, max_length=512)
+
+
+@router.get("/research-keys/status", summary="Tavily/Serper configuration status (masked)")
+async def research_keys_status(sess: DashboardSession, db: DbSession) -> dict[str, Any]:
+    """Return whether research search keys are configured."""
+
+    _ = _dashboard_user_id(sess)
+    from app.application.services.research_runtime_credentials import research_key_status
+
+    return {"providers": await research_key_status(db)}
+
+
+@router.put("/research-keys/{provider}", summary="Upsert Tavily or Serper API key")
+async def upsert_research_key(
+    provider: ResearchProviderLiteral,
+    body: ResearchKeyUpsertBody,
+    sess: DashboardSession,
+    db: DbSession,
+) -> dict[str, Any]:
+    """Persist a research search key for the active operator (encrypted vault)."""
+
+    from app.application.services.research_runtime_credentials import _RESEARCH_LABEL
+
+    uid = _dashboard_user_id(sess)
+    principal = await db.get(DashboardUser, uid)
+    if principal is None or not principal.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive operator.")
+
+    if provider not in _RESEARCH_PROVIDERS:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Unknown provider.")
+
+    stmt = select(OperatorExternalApi).where(
+        OperatorExternalApi.user_id == uid,
+        OperatorExternalApi.provider == provider,
+    )
+    existing_rows = list((await db.scalars(stmt)).all())
+    for row in existing_rows:
+        await db.delete(row)
+
+    ciphertext = encrypt_credentials_blob({"api_key": body.api_key.strip()})
+    row = OperatorExternalApi(
+        user_id=uid,
+        provider=provider,
+        label=_RESEARCH_LABEL,
+        ciphertext=ciphertext,
+        base_url=_SUPPORTED_PROVIDERS[provider].get("base_url"),
+        is_active=True,
+    )
+    db.add(row)
+    try:
+        await db.commit()
+        await db.refresh(row)
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Could not persist research key.",
+        ) from None
+
+    logger.info(
+        "external_apis.research_key_upserted",
+        agent_id=str(uid),
+        swarm_id="",
+        task_id="",
+        provider=provider,
+    )
+    return {"status": "saved", "provider": provider, "id": str(row.id)}
+
+
+@router.delete("/research-keys/{provider}", summary="Remove vault-stored Tavily or Serper key")
+async def delete_research_key(
+    provider: ResearchProviderLiteral,
+    sess: DashboardSession,
+    db: DbSession,
+) -> dict[str, str]:
+    """Delete operator vault rows for a research provider (env fallback may remain)."""
+
+    uid = _dashboard_user_id(sess)
+    stmt = select(OperatorExternalApi).where(
+        OperatorExternalApi.user_id == uid,
+        OperatorExternalApi.provider == provider,
+    )
+    rows = list((await db.scalars(stmt)).all())
+    if not rows:
+        return {"status": "not_found"}
+
+    try:
+        for row in rows:
+            await db.delete(row)
+        await db.commit()
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Could not delete research key.",
         ) from None
 
     return {"status": "deleted"}

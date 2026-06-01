@@ -285,10 +285,10 @@ async def tool_grokipedia(client: httpx.AsyncClient, slug: str) -> str:
         return f'grokipedia error: {exc}'
 
 
-async def tool_serper_search(client: httpx.AsyncClient, query: str) -> str:
+async def tool_serper_search(client: httpx.AsyncClient, query: str, *, api_key: str | None = None) -> str:
     """Serper.dev Google-lite JSON snippets when ``SERPER_API_KEY`` provisions."""
 
-    key = os.getenv('SERPER_API_KEY', '').strip()
+    key = (api_key or os.getenv('SERPER_API_KEY', '')).strip()
     if not key:
         return 'serper_search skipped — export SERPER_API_KEY for paid JSON search.'
     try:
@@ -312,10 +312,10 @@ async def tool_serper_search(client: httpx.AsyncClient, query: str) -> str:
         return f'serper error: {exc}'
 
 
-async def tool_tavily_search(client: httpx.AsyncClient, query: str) -> str:
+async def tool_tavily_search(client: httpx.AsyncClient, query: str, *, api_key: str | None = None) -> str:
     """Tavily answer-style search when ``TAVILY_API_KEY`` is present."""
 
-    key=os.getenv('TAVILY_API_KEY','').strip()
+    key = (api_key or os.getenv('TAVILY_API_KEY', '')).strip()
     if not key:
         return 'tavily_search skipped — export TAVILY_API_KEY.'
     try:
@@ -712,6 +712,8 @@ async def run_tool_bundle(
             tenant_uuid = None
     router_invoke_plan = ctx_payload.get("router_invoke_plan")
     router_plan_dict = dict(router_invoke_plan) if isinstance(router_invoke_plan, dict) else None
+    research_keys_raw = ctx_payload.get("research_keys")
+    research_keys = dict(research_keys_raw) if isinstance(research_keys_raw, dict) else {}
 
     async with httpx.AsyncClient(timeout=20.0) as client:
         pending: dict[str, Any] = {}
@@ -765,6 +767,15 @@ async def run_tool_bundle(
                     router_invoke_plan=router_plan_dict,
                 )
                 continue
+
+            if label_name == "tavily_search":
+                vault_key = research_keys.get("tavily")
+                if isinstance(vault_key, str) and vault_key.strip():
+                    merged_kwargs["api_key"] = vault_key.strip()
+            elif label_name == "serper_search":
+                vault_key = research_keys.get("serper")
+                if isinstance(vault_key, str) and vault_key.strip():
+                    merged_kwargs["api_key"] = vault_key.strip()
 
             pending[f"{label_name}:{unique_tag}"] = tool_fn(client, **merged_kwargs)
 
@@ -882,6 +893,13 @@ async def execute_universal_agent(
                     "router_slugs": list(router_plan.router_slugs),
                     "max_cost_tier": router_plan.max_cost_tier,
                 }
+    except ImportError:
+        pass
+
+    try:
+        from app.application.services.research_runtime_credentials import resolve_research_keys
+
+        executor_payload["research_keys"] = await resolve_research_keys(session)
     except ImportError:
         pass
 

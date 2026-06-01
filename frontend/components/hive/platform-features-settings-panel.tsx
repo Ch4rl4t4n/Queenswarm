@@ -343,7 +343,7 @@ export function PlatformFeaturesSettingsPanel() {
           await loadPreview();
         }
       } catch (error) {
-        const msg = error instanceof HiveApiError ? error.message : "Uloženie zlyhalo.";
+        const msg = error instanceof HiveApiError ? error.message : "Save failed.";
         toast.error(msg);
         await load();
       } finally {
@@ -382,10 +382,10 @@ export function PlatformFeaturesSettingsPanel() {
       <V4Card>
         <V4CardHeader
           title="Platform features"
-          description="Táto sekcia je dostupná len pre admin účet v internal (operator) tenante."
+          description="Available only to the admin account in the internal (operator) tenant."
         />
         <p className="px-4 pb-4 text-sm text-(--qs-text-3)">
-          Prihlás sa ako admin a prepni na operator workspace.
+          Sign in as admin and switch to the operator workspace.
         </p>
       </V4Card>
     );

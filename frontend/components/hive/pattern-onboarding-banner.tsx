@@ -93,8 +93,8 @@ export function PatternOnboardingBanner({ data }: PatternOnboardingBannerProps):
         ) : null}
 
         <div className="flex flex-wrap gap-2">
-          <Link href={onboarding.cta_path} className="qs-btn qs-btn--primary qs-btn--sm">
-            {onboarding.has_patterned_sessions ? "Run another mission" : "Start supervisor session"}
+          <Link href="/agents#sessions" className="qs-btn qs-btn--ghost qs-btn--sm">
+            {onboarding.has_patterned_sessions ? "Open session composer" : "Open Agents — new session"}
           </Link>
           <Link href="/settings/harness" className="qs-btn qs-btn--ghost qs-btn--sm">
             Pattern catalog

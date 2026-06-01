@@ -185,7 +185,7 @@ export function TaskQueueSection() {
             </V4Chip>
           ))}
         </div>
-        <Link href="/tasks/new" className="qs-btn qs-btn--primary qs-btn--sm w-full justify-center gap-2">
+        <Link href="/tasks/new" className="qs-btn qs-btn--ghost qs-btn--sm w-full justify-center gap-2">
           <Plus className="h-4 w-4 shrink-0" aria-hidden />
           New task
         </Link>

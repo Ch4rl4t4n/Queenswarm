@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Loader2, Pause, Play, RefreshCw, Rocket } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Loader2, ListTodo, Pause, Play, RefreshCw, Rocket, Zap } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -26,8 +27,15 @@ export interface FourLaneRow {
   operator_hint: string;
   manual_anchor: string;
   routine: FourLaneRoutine;
-  approve_href: string;
-  sessions_href: string;
+  open_href: string;
+  open_label: string;
+  pending_digest_count: number;
+  promote_ready_count: number;
+  first_promote_session_id: string | null;
+  /** @deprecated use open_href */
+  approve_href?: string;
+  /** @deprecated use open_href */
+  sessions_href?: string;
   foragers: Array<{ name: string | null; is_active: boolean; forager_id: string | null }>;
 }
 
@@ -43,7 +51,12 @@ interface SoloOperatorFourLanesPanelProps {
   onMutate?: () => void;
 }
 
+function scrollToDigestInbox(): void {
+  document.getElementById("digest-inbox")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function SoloOperatorFourLanesPanelInner({ onMutate }: SoloOperatorFourLanesPanelProps) {
+  const router = useRouter();
   const [data, setData] = useState<FourLaneSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -102,6 +115,56 @@ function SoloOperatorFourLanesPanelInner({ onMutate }: SoloOperatorFourLanesPane
     [onMutate, reload],
   );
 
+  const promoteDigest = useCallback(
+    async (laneId: string, sessionId: string) => {
+      setBusy(`promote-${laneId}`);
+      try {
+        const result = await hivePostJson<{ ok: boolean; task_id?: string; tasks_href?: string }>(
+          `solo-operator/four-lanes/digest-inbox/${encodeURIComponent(sessionId)}/promote`,
+          { approve_first: true },
+        );
+        if (result.ok) {
+          toast.success("Digest approved and promoted to Tasks.");
+          await reload();
+          onMutate?.();
+          if (result.tasks_href) {
+            router.push(result.tasks_href);
+          }
+        }
+      } catch (e) {
+        toast.error(e instanceof HiveApiError ? e.message : "Approve failed");
+      } finally {
+        setBusy(null);
+      }
+    },
+    [onMutate, reload, router],
+  );
+
+  const runAutomationFactory = useCallback(async () => {
+    setBusy("automation");
+    try {
+      const result = await hivePostJson<{
+        ok: boolean;
+        session_id?: string;
+        sessions_href?: string;
+      }>("solo-operator/four-lanes/automation/trigger", {});
+      if (result.ok && result.session_id) {
+        toast.success("Automation Factory session queued.");
+        await reload();
+        onMutate?.();
+        if (result.sessions_href) {
+          router.push(result.sessions_href);
+        }
+      }
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Automation trigger failed");
+    } finally {
+      setBusy(null);
+    }
+  }, [onMutate, reload, router]);
+
+  const resolveOpenHref = (lane: FourLaneRow): string => lane.open_href || lane.sessions_href || lane.approve_href || "/agents";
+
   if (loading && !data) {
     return (
       <div className="flex min-h-32 items-center justify-center gap-2 text-sm text-(--qs-muted)">
@@ -116,7 +179,7 @@ function SoloOperatorFourLanesPanelInner({ onMutate }: SoloOperatorFourLanesPane
       <V4CardHeader
         kicker="Solo operator"
         title="Four Lanes"
-        description="Four parallel missions — marketing, tech SCV, e-shop, automation. Pause legacy sprawl; approve digests only."
+        description="Optional background cron digests — not your primary workflow. Approve digests in the inbox below when they arrive."
         hint={<InlineSectionHintKey hintKey="fourLanes" />}
         actions={
           <div className="flex flex-wrap gap-2">
@@ -131,7 +194,7 @@ function SoloOperatorFourLanesPanelInner({ onMutate }: SoloOperatorFourLanesPane
             </button>
             <button
               type="button"
-              className="qs-btn qs-btn--primary qs-btn--sm gap-1.5"
+              className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
               disabled={busy === "bootstrap"}
               onClick={() => void bootstrap()}
             >
@@ -148,7 +211,7 @@ function SoloOperatorFourLanesPanelInner({ onMutate }: SoloOperatorFourLanesPane
       {data ? (
         <p className="mb-4 text-xs text-(--qs-muted)">
           {data.active_lane_count} active lane routines · {data.legacy_paused_count} legacy routines paused ·{" "}
-          <Link href="/manual#four-lanes" className="text-cyan underline">
+          <Link href="/manual#background-automation" className="text-cyan underline">
             Full manual →
           </Link>
         </p>
@@ -156,7 +219,14 @@ function SoloOperatorFourLanesPanelInner({ onMutate }: SoloOperatorFourLanesPane
       <ul className="space-y-3">
         {(data?.lanes ?? []).map((lane) => {
           const isAutomation = lane.lane_id === "automation";
+          const isDigestLane = lane.lane_id === "marketing_najman" || lane.lane_id === "eshop_research";
           const active = lane.routine.is_active;
+          const openHref = resolveOpenHref(lane);
+          const openLabel = lane.open_label || "Open";
+          const canPromote = Boolean(
+            isDigestLane && lane.promote_ready_count > 0 && lane.first_promote_session_id,
+          );
+
           return (
             <li
               key={lane.lane_id}
@@ -172,6 +242,12 @@ function SoloOperatorFourLanesPanelInner({ onMutate }: SoloOperatorFourLanesPane
                     ) : (
                       <span className="text-[10px] text-(--qs-text-3)">manual trigger</span>
                     )}
+                    {isDigestLane && lane.pending_digest_count === 0 ? (
+                      <span className="text-[10px] text-(--qs-text-3)">No digest waiting</span>
+                    ) : null}
+                    {isDigestLane && lane.pending_digest_count > 0 ? (
+                      <V4Badge tone="warn">{lane.pending_digest_count} in inbox</V4Badge>
+                    ) : null}
                   </div>
                   <p className="mt-1 text-xs leading-relaxed text-(--qs-text-2)">{lane.description}</p>
                   <p className="mt-2 text-[11px] text-(--qs-muted)">{lane.operator_hint}</p>
@@ -183,30 +259,86 @@ function SoloOperatorFourLanesPanelInner({ onMutate }: SoloOperatorFourLanesPane
                   ) : null}
                 </div>
                 <div className="flex flex-wrap gap-2 shrink-0">
-                  {!isAutomation ? (
-                    <button
-                      type="button"
-                      className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
-                      disabled={busy === lane.lane_id}
-                      onClick={() => void toggleLane(lane.lane_id, !active)}
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
+                    disabled={busy === lane.lane_id}
+                    onClick={() => void toggleLane(lane.lane_id, !active)}
+                  >
+                    {active ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                    {active ? "Pause" : "Resume"}
+                  </button>
+
+                  {isAutomation ? (
+                    <>
+                      <button
+                        type="button"
+                        className="qs-btn qs-btn--primary qs-btn--sm gap-1"
+                        disabled={busy === "automation"}
+                        onClick={() => void runAutomationFactory()}
+                      >
+                        {busy === "automation" ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                        ) : (
+                          <Zap className="h-3.5 w-3.5" aria-hidden />
+                        )}
+                        Run factory
+                      </button>
+                      <Link href={openHref} className="qs-btn qs-btn--ghost qs-btn--sm">
+                        {openLabel}
+                      </Link>
+                    </>
+                  ) : canPromote ? (
+                    <>
+                      <button
+                        type="button"
+                        className="qs-btn qs-btn--primary qs-btn--sm gap-1"
+                        disabled={busy === `promote-${lane.lane_id}`}
+                        onClick={() =>
+                          void promoteDigest(lane.lane_id, lane.first_promote_session_id as string)
+                        }
+                      >
+                        {busy === `promote-${lane.lane_id}` ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                        ) : (
+                          <ListTodo className="h-3.5 w-3.5" aria-hidden />
+                        )}
+                        Approve → Task
+                      </button>
+                      <button
+                        type="button"
+                        className="qs-btn qs-btn--ghost qs-btn--sm"
+                        onClick={scrollToDigestInbox}
+                      >
+                        Digest inbox
+                      </button>
+                    </>
+                  ) : isDigestLane ? (
+                    <p
+                      className="qs-btn qs-btn--ghost qs-btn--sm cursor-default opacity-60"
+                      role="status"
+                      title="Digest runs on cron — check Digest Inbox below when it arrives"
                     >
-                      {active ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                      {active ? "Pause" : "Resume"}
-                    </button>
+                      No digest yet
+                    </p>
+                  ) : (
+                    <Link href={openHref} className="qs-btn qs-btn--ghost qs-btn--sm">
+                      {openLabel.startsWith("Open") ? openLabel : `Open ${openLabel}`}
+                    </Link>
+                  )}
+
+                  {isDigestLane && canPromote ? (
+                    <Link href={openHref} className="qs-btn qs-btn--ghost qs-btn--sm">
+                      {openLabel}
+                    </Link>
                   ) : null}
-                  <Link href={lane.approve_href} className="qs-btn qs-btn--primary qs-btn--sm">
-                    Approve
-                  </Link>
-                  <Link href={lane.sessions_href} className="qs-btn qs-btn--ghost qs-btn--sm">
-                    Open
-                  </Link>
                 </div>
               </div>
             </li>
           );
         })}
       </ul>
-      <FourLaneDigestInboxPanel />
+      <FourLaneDigestInboxPanel onPromoted={() => void reload()} />
     </V4Card>
   );
 }

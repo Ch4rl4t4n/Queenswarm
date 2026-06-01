@@ -357,6 +357,7 @@ async def test_dashboard_refresh_rejects_expired_2fa_session(
         is_admin=False,
         totp_secret="SECRET",
         totp_verified_at=datetime.now(tz=UTC),
+        active_tenant_id=None,
     )
 
     class _FakeDb:

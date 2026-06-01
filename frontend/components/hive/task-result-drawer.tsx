@@ -1,9 +1,9 @@
 "use client";
 
-import { HiveApiError, hiveFetchRaw, hiveGet, hivePostJson } from "@/lib/api";
+import { HiveApiError, hiveFetchRaw, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
 import { COCKPIT_POLL_TASK_DRAWER_MS } from "@/lib/cockpit-poll-profile";
 import { useDocumentVisible } from "@/lib/hooks/use-document-visible";
-import type { TaskRow } from "@/lib/hive-types";
+import type { TaskLineageResponse, TaskRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 import { useCallback, useEffect, useState } from "react";
 
@@ -20,7 +20,10 @@ interface TaskResultDrawerProps {
 
 function displayStatus(status: string | undefined): string {
   const raw = (status ?? "").toLowerCase();
-  if (raw === "pending") return "queued";
+  if (raw === "pending") return "todo";
+  if (raw === "triage") return "triage";
+  if (raw === "ready") return "ready";
+  if (raw === "blocked") return "blocked";
   return raw || "loading";
 }
 
@@ -129,6 +132,7 @@ function LiveStatusPoller({
 
 export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JSX.Element | null {
   const [task, setTask] = useState<TaskDrawerDetail | null>(null);
+  const [lineage, setLineage] = useState<TaskLineageResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [drawerError, setDrawerError] = useState<string | null>(null);
   const [slideIn, setSlideIn] = useState(false);
@@ -137,15 +141,20 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
   useEffect(() => {
     if (!taskId) {
       setTask(null);
+      setLineage(null);
       setSlideIn(false);
       return;
     }
     setSlideIn(false);
     setDrawerError(null);
     setLoading(true);
-    hiveGet<TaskDrawerDetail>(`tasks/${encodeURIComponent(taskId)}`)
-      .then((d) => {
-        setTask(d);
+    Promise.all([
+      hiveGet<TaskDrawerDetail>(`tasks/${encodeURIComponent(taskId)}`),
+      hiveGet<TaskLineageResponse>(`tasks/${encodeURIComponent(taskId)}/lineage`).catch(() => null),
+    ])
+      .then(([detail, tree]) => {
+        setTask(detail);
+        setLineage(tree);
         setLoading(false);
         requestAnimationFrame(() => setSlideIn(true));
       })
@@ -172,7 +181,11 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
   const outputText = normalizeOutput(result);
 
   const statusKey = (task?.status ?? "").toLowerCase();
-  const isWorking = statusKey === "pending" || statusKey === "running";
+  const isWorking =
+    statusKey === "pending" ||
+    statusKey === "running" ||
+    statusKey === "ready" ||
+    statusKey === "triage";
 
   async function handleDownload(): Promise<void> {
     if (!taskId) return;
@@ -244,6 +257,19 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
       window.alert(e instanceof HiveApiError ? e.message : "Re-run failed");
     }
   }
+
+  async function handlePatchStatus(status: string): Promise<void> {
+    if (!taskId) return;
+    try {
+      const next = await hivePatchJson<TaskDrawerDetail>(`tasks/${encodeURIComponent(taskId)}`, { status });
+      setTask(next);
+    } catch (e) {
+      window.alert(e instanceof HiveApiError ? e.message : "Status update failed");
+    }
+  }
+
+  const taskText =
+    task?.payload && typeof task.payload.task_text === "string" ? task.payload.task_text : null;
 
   const badgeStatus = displayStatus(task?.status);
   const statusColor: Record<string, string> = {
@@ -324,6 +350,25 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
             <p className="font-[family-name:var(--font-poppins)] text-sm text-danger">{drawerError}</p>
           ) : null}
 
+          {!loading && task ? (
+            <div className="mb-6 space-y-4">
+              {taskText ? (
+                <div>
+                  <p className="qs-meta-label mb-2 text-zinc-500">Description</p>
+                  <pre className="whitespace-pre-wrap rounded-xl border border-[color:var(--qs-border)] bg-black/40 p-3 text-xs text-zinc-300">
+                    {taskText}
+                  </pre>
+                </div>
+              ) : null}
+              {lineage?.parent ? (
+                <LineageSection title="Parent" rows={[lineage.parent]} onOpen={onClose} />
+              ) : null}
+              {lineage?.children?.length ? (
+                <LineageSection title="Children" rows={lineage.children} onOpen={onClose} />
+              ) : null}
+            </div>
+          ) : null}
+
           {!loading && task && isWorking ? (
             <LiveStatusPoller taskId={taskId} onRefresh={pollComplete} />
           ) : null}
@@ -391,14 +436,69 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
             </div>
           ) : null}
         </div>
-        {!loading && task?.agent_id ? (
-          <footer className="flex justify-end gap-2 border-t border-(--qs-border) bg-(--qs-surface-2) p-4">
-            <button type="button" className="qs-btn qs-btn--cyan qs-btn--sm" onClick={() => void handleRerunAgent()}>
-              Re-run agent
-            </button>
+        {!loading && task ? (
+          <footer className="flex flex-wrap justify-end gap-2 border-t border-(--qs-border) bg-(--qs-surface-2) p-4">
+            {statusKey !== "blocked" && statusKey !== "completed" ? (
+              <button
+                type="button"
+                className="qs-btn qs-btn--ghost qs-btn--sm"
+                onClick={() => void handlePatchStatus("blocked")}
+              >
+                Block
+              </button>
+            ) : null}
+            {statusKey === "blocked" ? (
+              <button
+                type="button"
+                className="qs-btn qs-btn--ghost qs-btn--sm"
+                onClick={() => void handlePatchStatus("pending")}
+              >
+                Unblock
+              </button>
+            ) : null}
+            {statusKey !== "completed" ? (
+              <button
+                type="button"
+                className="qs-btn qs-btn--ghost qs-btn--sm"
+                onClick={() => void handlePatchStatus("completed")}
+              >
+                Complete
+              </button>
+            ) : null}
+            {task.agent_id ? (
+              <button type="button" className="qs-btn qs-btn--cyan qs-btn--sm" onClick={() => void handleRerunAgent()}>
+                Re-run agent
+              </button>
+            ) : null}
           </footer>
         ) : null}
       </div>
     </>
+  );
+}
+
+function LineageSection({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: TaskRow[];
+  onOpen?: () => void;
+}): JSX.Element {
+  return (
+    <div>
+      <p className="qs-meta-label mb-2 text-zinc-500">{title}</p>
+      <ul className="space-y-2">
+        {rows.map((row) => (
+          <li
+            key={row.id}
+            className="rounded-lg border border-[color:var(--qs-border)] bg-black/35 px-3 py-2 text-sm text-zinc-300"
+          >
+            <span className="text-[#fafafa]">{row.title}</span>
+            <span className="ml-2 text-xs uppercase text-zinc-500">{row.status}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

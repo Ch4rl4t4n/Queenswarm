@@ -171,7 +171,7 @@ export function BillingSettingsPanel({ variant = "standalone" }: BillingSettings
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-xs text-(--qs-text-3)">Self-serve checkout is not enabled on this deployment.</p>
             {showCostCockpitLink ? (
-              <Link href="/settings/costs" className="qs-btn qs-btn--primary qs-btn--sm">
+              <Link href="/settings/costs" className="qs-btn qs-btn--ghost qs-btn--sm">
                 Open cost cockpit
               </Link>
             ) : null}
@@ -199,7 +199,7 @@ export function BillingSettingsPanel({ variant = "standalone" }: BillingSettings
           </ul>
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-xs text-(--qs-text-3)">Enterprise checkout is not enabled on this deployment.</p>
-            <Link href="/settings/enterprise" className="qs-btn qs-btn--primary qs-btn--sm">
+            <Link href="/settings/enterprise" className="qs-btn qs-btn--ghost qs-btn--sm">
               Preview Enterprise workspace
             </Link>
             {showCostCockpitLink ? (
@@ -223,13 +223,9 @@ export function BillingSettingsPanel({ variant = "standalone" }: BillingSettings
           hint={sectionHintNode("settingsBilling")}
           actions={
             plans?.checkout_ready ? (
-              <button
-                type="button"
-                className="qs-btn qs-btn--primary qs-btn--sm"
-                onClick={() => (window.location.href = integrationsTabHref("skills"))}
-              >
-                Browse premium skills
-              </button>
+              <Link href={integrationsTabHref("skills")} className="qs-btn qs-btn--ghost qs-btn--sm">
+                Open skills marketplace
+              </Link>
             ) : null
           }
         />

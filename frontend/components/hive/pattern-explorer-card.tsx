@@ -127,7 +127,7 @@ function PatternSessionMarketCard({ session }: { session: PatternExplorerSession
           <ExternalLink className="h-3.5 w-3.5" aria-hidden />
           Supervisor lane
         </Link>
-        <Link href={sessionHref} className="qs-btn qs-btn--primary qs-btn--sm gap-1">
+        <Link href={sessionHref} className="qs-btn qs-btn--ghost qs-btn--sm gap-1">
           Open session
         </Link>
       </div>

@@ -77,7 +77,7 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     await expect(fab).toBeHidden({ timeout: 10_000 });
   });
 
-  test("mobile hides Ballroom FAB above bottom nav only on tablet/mobile", async ({ page, context, baseURL }) => {
+  test("mobile shows New session FAB above bottom nav", async ({ page, context, baseURL }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
 
@@ -86,8 +86,9 @@ test.describe("Responsive shell — authenticated cockpit", () => {
       return;
     }
 
-    const fab = page.getByTestId("ballroom-fab");
+    const fab = page.getByTestId("session-fab");
     await expect(fab).toBeVisible({ timeout: 15_000 });
+    await expect(fab.getByRole("link", { name: /New session/i })).toBeVisible();
     const box = await fab.boundingBox();
     expect(box).not.toBeNull();
     if (box) {
@@ -230,7 +231,7 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     expect(noOverlap).toBe(true);
   });
 
-  test("mobile content bottom padding clears the floating Ballroom FAB", async ({ page, context, baseURL }) => {
+  test("mobile content bottom padding clears the floating session FAB", async ({ page, context, baseURL }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
 
@@ -239,12 +240,12 @@ test.describe("Responsive shell — authenticated cockpit", () => {
       return;
     }
 
-    const fab = page.getByTestId("ballroom-fab");
+    const fab = page.getByTestId("session-fab");
     await expect(fab).toBeVisible({ timeout: 15_000 });
 
     const clearance = await page.evaluate(() => {
       const main = document.querySelector<HTMLElement>('[data-hive-shell="canvas"]');
-      const fabEl = document.querySelector<HTMLElement>('[data-testid="ballroom-fab"]');
+      const fabEl = document.querySelector<HTMLElement>('[data-testid="session-fab"]');
       if (!main || !fabEl) {
         return null;
       }

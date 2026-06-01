@@ -184,8 +184,8 @@ function SettingsOperatorHubPanelInner(): JSX.Element | null {
           ) : null}
           <div className="mt-3 flex flex-wrap gap-2">
             {snapshot.next_action.ui_link ? (
-              <Link href={snapshot.next_action.ui_link} className="qs-btn qs-btn--primary qs-btn--sm">
-                Open in app
+              <Link href={snapshot.next_action.ui_link} className="qs-btn qs-btn--ghost qs-btn--sm">
+                Open in app →
               </Link>
             ) : null}
             <span className="self-center text-xs text-(--qs-text-3)">{snapshot.next_action.doc}</span>
@@ -195,7 +195,7 @@ function SettingsOperatorHubPanelInner(): JSX.Element | null {
 
       {snapshot.daily_plan?.enabled && snapshot.daily_plan.items.length > 0 ? (
         <section className="mt-4 space-y-2">
-          <h3 className="text-sm font-semibold text-(--qs-text)">Dnešný plán (solo)</h3>
+          <h3 className="text-sm font-semibold text-(--qs-text)">Today&apos;s plan (solo)</h3>
           <ol className="space-y-1 text-xs">
             {snapshot.daily_plan.items.slice(0, 5).map((item, idx) => (
               <li key={item.id} className="flex flex-wrap items-center gap-2 rounded bg-black/20 px-2 py-1">

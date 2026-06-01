@@ -177,7 +177,7 @@ export function TasksQueueSection({ tasks }: TasksQueueSectionProps) {
 export function TasksNewTaskActions() {
   return (
     <div className="flex items-center gap-2">
-      <Link href="/tasks/new" className="qs-btn qs-btn--primary">
+      <Link href="/tasks/new" className="qs-btn qs-btn--ghost">
         + New task
       </Link>
       <InfoHint

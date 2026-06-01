@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { OAuthConnectButton } from "@/components/connectors/oauth-connect-button";
+import { usePlatform } from "@/components/hive/platform-context";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import {
   applySoloBootstrap,
@@ -76,6 +77,7 @@ export interface VirtualCompanySetupCardProps {
 
 /** Virtual Company free-first setup checklist for Execution Studio. */
 export function VirtualCompanySetupCard({ onChanged }: VirtualCompanySetupCardProps): JSX.Element | null {
+  const { soloMode } = usePlatform();
   const [checklist, setChecklist] = useState<BootstrapChecklist | null>(null);
   const [oauthGuide, setOauthGuide] = useState<OAuthSetupGuide | null>(null);
   const [oauthProviders, setOauthProviders] = useState<OAuthProviderRow[]>([]);
@@ -285,6 +287,10 @@ GITHUB_PAT=
   }
 
   if (!checklist) {
+    return null;
+  }
+
+  if (soloMode) {
     return null;
   }
 

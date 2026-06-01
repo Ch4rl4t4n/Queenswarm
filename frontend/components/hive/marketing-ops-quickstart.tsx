@@ -16,13 +16,13 @@ export interface MarketingOpsQuickstartProps {
 const STEPS = [
   {
     icon: BookOpen,
-    title: "Connect Notion OAuth",
+    title: "Open Studio · connect Notion",
     detail: "Integrations → Execution Studio → Connect Notion. Required for simulate publish.",
     href: "/integrations?tab=studio",
   },
   {
     icon: Mail,
-    title: "Connect Gmail (optional)",
+    title: "Open Studio · connect Gmail (optional)",
     detail: "Enables outreach drafts — still simulate-first until you approve live.",
     href: "/integrations?tab=studio",
   },

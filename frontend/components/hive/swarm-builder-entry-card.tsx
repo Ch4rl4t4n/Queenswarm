@@ -22,8 +22,8 @@ export function SwarmBuilderEntryCard(): JSX.Element {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          <Link href="/swarms/new?template=exec-assistant" className="qs-btn qs-btn--primary qs-btn--sm">
-            Exec Assistant
+          <Link href="/swarms/new?template=exec-assistant" className="qs-btn qs-btn--ghost qs-btn--sm">
+            Open Exec Assistant
           </Link>
           <Link href="/swarms/new?template=lead-waterfall" className="qs-btn qs-btn--ghost qs-btn--sm">
             Lead Waterfall

@@ -1466,7 +1466,7 @@ export function AppsToolsIndexClient() {
                 <div className="grid gap-2">
                   <Link
                     href={activeModuleDef.href}
-                    className="qs-btn qs-btn--primary qs-btn--sm justify-start"
+                    className="qs-btn qs-btn--ghost qs-btn--sm justify-start"
                     onClick={() =>
                       trackEvent("module_section_quick_link", {
                         moduleKey: activeModuleDef.moduleKey,

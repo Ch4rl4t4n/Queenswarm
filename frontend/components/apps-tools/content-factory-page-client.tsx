@@ -95,7 +95,7 @@ export function ContentFactoryPageClient() {
           <Link href="/integrations?tab=studio&section=lanes#media-agency" className="qs-btn qs-btn--ghost qs-btn--sm">
             Open legacy studio lane
           </Link>
-          <Link href={FACTORY_BLUEPRINT_PATH} className="qs-btn qs-btn--primary qs-btn--sm">
+          <Link href={FACTORY_BLUEPRINT_PATH} className="qs-btn qs-btn--ghost qs-btn--sm">
             {FACTORY_CROSS_LINK_LABELS.toBlueprint}
           </Link>
         </div>

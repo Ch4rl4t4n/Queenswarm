@@ -10,12 +10,14 @@ import { AgentsLearningLoopPanel } from "@/components/hive/agents-learning-loop-
 import { AgentsPageRoster } from "@/components/hive/agents-page-roster";
 import { AgentsRuntimeStatusStrip } from "@/components/hive/agents-runtime-status-strip";
 import { AgentsSessionsPanel } from "@/components/hive/agents-sessions-panel";
+import { FirstRunWizardPanel } from "@/components/hive/first-run-wizard-panel";
 import { BeeRoleTypesSection } from "@/components/hive/bee-role-types-section";
 import { HierarchyGraphCollapsible } from "@/components/hive/hierarchy-graph-collapsible";
 import { HivePageShell } from "@/components/hive/hive-page-shell";
 import { HiveSubnavRow } from "@/components/hive/hive-subnav-row";
 import { HiveSubnavContent } from "@/components/hive/hive-subnav-stack";
 import { HubEcosystemStrip } from "@/components/hive/hub-ecosystem-strip";
+import { usePlatform } from "@/components/hive/platform-context";
 import { hiveGet } from "@/lib/api";
 import { hivePageShellAgentsSync } from "@/lib/hive-page-error";
 import { COCKPIT_PERF } from "@/lib/cockpit-performance-budget";
@@ -48,6 +50,7 @@ function readEcosystemSectionFromLocation(): AgentsEcosystemSection {
 }
 
 export function AgentsPageClient({ initialAgents, rosterSyncPending = false }: AgentsPageClientProps) {
+  const { soloMode } = usePlatform();
   const [section, setSection] = useState<AgentsEcosystemSection>(readEcosystemSectionFromLocation);
 
   const pollOptions = useRouteScopedPollOptions(COCKPIT_POLL_BOARD_MS, "/agents");
@@ -126,10 +129,17 @@ export function AgentsPageClient({ initialAgents, rosterSyncPending = false }: A
       hintKey="agents"
       error={shellSyncAlert}
       status={
-        <Link href="/agents/new" className="qs-btn qs-btn--primary qs-btn--sm shrink-0 gap-2">
-          <Plus className="h-4 w-4 shrink-0" aria-hidden />
-          Spawn agent
-        </Link>
+        soloMode ? (
+          <Link href="/agents/new" className="qs-btn qs-btn--ghost qs-btn--sm shrink-0 gap-2">
+            <Plus className="h-4 w-4 shrink-0" aria-hidden />
+            Add agent bee
+          </Link>
+        ) : (
+          <Link href="/agents/new" className="qs-btn qs-btn--primary qs-btn--sm shrink-0 gap-2">
+            <Plus className="h-4 w-4 shrink-0" aria-hidden />
+            Spawn agent
+          </Link>
+        )
       }
       actions={
         <div className="flex flex-wrap items-center gap-2">
@@ -155,6 +165,7 @@ export function AgentsPageClient({ initialAgents, rosterSyncPending = false }: A
       }
     >
       <HiveSubnavContent className="space-y-6">
+        {section === "sessions" ? <FirstRunWizardPanel /> : null}
         {section === "roles" ? <BeeRoleTypesSection agents={rosterAgents} /> : null}
         {section === "runtime" ? <AgentsRuntimeStatusStrip /> : null}
         {section === "context" ? <AgentsContextGraphStrip expanded /> : null}

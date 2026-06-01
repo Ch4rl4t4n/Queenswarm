@@ -15,6 +15,7 @@ import {
   Rocket,
   Sparkles,
 } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -566,18 +567,10 @@ export function IntegrationsPageClient({
       }
       actions={
         hasHubTab ? (
-          <button
-            type="button"
-            className="qs-btn qs-btn--primary qs-btn--sm gap-2"
-            onClick={() => {
-              setHubSection("roster");
-              setTab("hub");
-              window.history.replaceState(null, "", integrationsHubSectionHref("roster"));
-            }}
-          >
+          <Link href={integrationsHubSectionHref("roster")} className="qs-btn qs-btn--ghost qs-btn--sm gap-2">
             <Plus className="h-4 w-4" aria-hidden />
             Add connector
-          </button>
+          </Link>
         ) : null
       }
       subnav={

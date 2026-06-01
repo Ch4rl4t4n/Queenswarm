@@ -340,6 +340,12 @@ export interface SupervisorControlSummaryRow {
   durable_queued_sub_agents?: number;
 }
 
+export interface SupervisorSessionsControlRow {
+  auto_approve_enabled: boolean;
+  auto_approve_enabled_source: "deployment" | "tenant";
+  mode_label: "auto" | "manual";
+}
+
 export interface SwarmAutonomySummaryRow {
   tenant_id: string;
   autonomy_mode: string;
@@ -435,6 +441,8 @@ export interface TaskRow {
   swarm_id?: string | null;
   agent_id?: string | null;
   agent_name?: string | null;
+  parent_task_id?: string | null;
+  workflow_id?: string | null;
   payload?: Record<string, unknown>;
   result?: Record<string, unknown> | null;
   created_at?: string | null;
@@ -444,6 +452,12 @@ export interface TaskRow {
   confidence_score?: number | null;
   cost_usd?: number | null;
   output_format?: string | null;
+}
+
+export interface TaskLineageResponse {
+  task: TaskRow;
+  parent: TaskRow | null;
+  children: TaskRow[];
 }
 
 /** Celery / Postgres mirrored async workflow poll (`GET /jobs/{id}`). */

@@ -28,7 +28,7 @@ interface DigestInboxSnapshot {
   items: DigestInboxItem[];
 }
 
-function FourLaneDigestInboxPanelInner() {
+function FourLaneDigestInboxPanelInner({ onPromoted }: { onPromoted?: () => void }) {
   const [data, setData] = useState<DigestInboxSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -61,8 +61,9 @@ function FourLaneDigestInboxPanelInner() {
           approve_first: true,
         });
         if (result.ok) {
-          toast.success("Digest → task vytvorený");
+          toast.success("Digest promoted to Tasks.");
           await reload();
+          onPromoted?.();
         }
       } catch (e) {
         toast.error(e instanceof HiveApiError ? e.message : "Promote failed");
@@ -70,7 +71,7 @@ function FourLaneDigestInboxPanelInner() {
         setBusy(null);
       }
     },
-    [reload],
+    [onPromoted, reload],
   );
 
   return (
@@ -78,7 +79,7 @@ function FourLaneDigestInboxPanelInner() {
       <V4CardHeader
         kicker="Approve → Task"
         title="Digest Inbox"
-        description="Schválené digesty z lane A/C jedným klikom do Tasks. Tech SCV → Innovation Lab."
+        description="Approve marketing/e-shop digests below → one-click promote to Tasks. Tech SCV → Innovation Lab."
         hint={<InlineSectionHintKey hintKey="fourLaneDigestInbox" />}
       />
       {loading && !data ? (
@@ -89,14 +90,17 @@ function FourLaneDigestInboxPanelInner() {
       ) : null}
       {data ? (
         <p className="mb-3 text-xs text-(--qs-muted)">
-          {data.pending_count} čaká na review ·{" "}
+          {data.pending_count} waiting for review ·{" "}
           <Link href="/agents#sessions" className="text-cyan underline">
-            Všetky sessions →
+            All sessions →
           </Link>
         </p>
       ) : null}
       {!data?.items.length && !loading ? (
-        <p className="text-sm text-(--qs-text-2)">Žiadne nové digesty — lane rutiny bežia podľa cronu.</p>
+        <p className="text-sm text-(--qs-text-2)">
+          No new digests — lane routines run on cron. Approve buttons on lane cards activate when a digest
+          lands here.
+        </p>
       ) : null}
       <ul className="space-y-2">
         {(data?.items ?? []).map((item) => (
@@ -125,8 +129,8 @@ function FourLaneDigestInboxPanelInner() {
                   Session
                 </Link>
                 {item.lane_id === "tech_scv" ? (
-                  <Link href="/agentic-os#innovation" className="qs-btn qs-btn--primary qs-btn--sm">
-                    Innovation
+                  <Link href="/agentic-os#innovation" className="qs-btn qs-btn--ghost qs-btn--sm">
+                    Open Innovation Lab
                   </Link>
                 ) : item.promote_ready && !item.task_id ? (
                   <button

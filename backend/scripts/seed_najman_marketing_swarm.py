@@ -77,7 +77,7 @@ HARNESS_BLOCK = """\
 
 **firm_id:** `najman`
 **Jazyk:** čeština (veřejný obsah, blog, social)
-**Schvalovatelé:** operátor + Katka Najmanová — simulate vždy před live
+**Schvalovatelé:** Jakub Chvostek (operátor platformy) + Katka Najmanová (klient) — simulate vždy před live
 
 ### Značka
 Rodinné včelařství Najman · Hostivice · šlechtitelský chov včely kraňské

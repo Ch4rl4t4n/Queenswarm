@@ -70,10 +70,12 @@ export function integrationsScrollTargetFromHash(hash: string): string | null {
     || key === "live-lane"
     || key === "media-agency"
     || key === "micro-saas-factory"
+    || key === "codebase-pending"
+    || key === "todobase-pending"
     || key === "execution-studio"
     || key === "innovation-lab"
   ) {
-    return key;
+    return key === "todobase-pending" ? "codebase-pending" : key;
   }
   return null;
 }
@@ -127,7 +129,7 @@ export function executionStudioWorkspaceFromHash(hash: string): ExecutionStudioW
   ) {
     return "publish";
   }
-  if (key === "live-lane" || key === "media-agency" || key === "micro-saas-factory") {
+  if (key === "live-lane" || key === "media-agency" || key === "micro-saas-factory" || key === "codebase-pending" || key === "todobase-pending") {
     return "lanes";
   }
   if (key === "execution-studio") {

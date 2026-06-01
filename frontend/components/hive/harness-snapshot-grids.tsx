@@ -157,7 +157,7 @@ function HarnessPatternMarketCard({ row }: { row: HarnessPatternRow }): JSX.Elem
           <ExternalLink className="h-3.5 w-3.5" aria-hidden />
           Supervisor lane
         </Link>
-        <Link href={sessionHref} className="qs-btn qs-btn--primary qs-btn--sm">
+        <Link href={sessionHref} className="qs-btn qs-btn--ghost qs-btn--sm">
           Open session
         </Link>
       </div>

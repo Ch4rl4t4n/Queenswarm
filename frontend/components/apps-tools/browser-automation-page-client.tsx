@@ -143,8 +143,8 @@ export function BrowserAutomationPageClient() {
           <Link href="/integrations?tab=studio&section=lanes#live-lane" className="qs-btn qs-btn--ghost qs-btn--sm">
             Open legacy studio lane
           </Link>
-          <Link href="/integrations?tab=hub&hubSection=roster" className="qs-btn qs-btn--primary qs-btn--sm">
-            Manage connectors
+          <Link href="/integrations?tab=hub&hubSection=roster" className="qs-btn qs-btn--ghost qs-btn--sm">
+            Open connector hub
           </Link>
         </div>
       }

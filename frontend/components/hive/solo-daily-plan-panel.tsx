@@ -105,8 +105,8 @@ function SoloDailyPlanPanelInner({ compact = false }: { compact?: boolean }): JS
     <V4Card id="solo-daily-plan" className={cn(compact && "border-pollen/30 bg-pollen/5")}>
       <V4CardHeader
         kicker="Solo"
-        title="Dnešný plán"
-        description="Max 3–5 akcií — PO, marketing, trading, ops. Simulate-first."
+        title="Today's plan"
+        description="Max 3–5 actions — PO, marketing, trading, ops. Simulate-first."
         actions={
           <div className="flex gap-2">
             <button

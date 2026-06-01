@@ -11,9 +11,34 @@ Living backlog for **queenswarm.love** — ordered by impact. Status reflects pr
 **Latest synthesis (YouTube + X + Atlas):** [`docs/CAPABILITIES_SYNTHESIS_MAY2026.md`](CAPABILITIES_SYNTHESIS_MAY2026.md)
 **Agentic OS split blueprint:** [`docs/AGENTIC_OS_APPS_BLUEPRINT.md`](AGENTIC_OS_APPS_BLUEPRINT.md)
 
-## Four-Lane Solo Operator (canonical — May 2026)
+## Operator Workflow UX (P0 — May 2026)
 
-**Replaces** automatic Virtual Company 16-routine sprawl for solo tenants.
+**Problem:** UI offers many parallel paths (Agentic OS, Swarms, Four Lanes, ICM, Fleet…) without one guided workflow. Operators cannot start multi-project work reliably.
+
+**Canonical doc:** [`docs/OPERATOR_CANONICAL_WORKFLOW.md`](OPERATOR_CANONICAL_WORKFLOW.md) · UI manual: `/manual#canonical-workflow`
+
+**Rule:** **Agents → New supervisor session** is the only primary launch path. Everything else is optional automation or advanced.
+
+| Step | Scope | Status |
+|------|-------|--------|
+| OW1 | Canonical workflow manual (SK/EN) + `/manual` sections 0–7 | ✅ |
+| OW2 | Agents panel workflow banner + section hints | ✅ |
+| OW3 | Mobile: primary FAB → New session (not cockpit maze) | ✅ |
+| OW4 | Demote secondary panels behind „Advanced“ accordion | ✅ |
+| OW5 | First-run wizard: LLM keys → brief → first session | ✅ |
+| OW6 | Remove Four Lanes as „daily start“ from cockpit hero | ✅ |
+| OW7 | Goal template picker per project type (redesign, campaign, research) | ✅ |
+| OW8 | First-run banner on Agentic OS Overview + residual nav-only demotions | ✅ |
+| OW9 | Research search keys (Tavily/Serper) inline in Settings + executor wiring | ✅ |
+| OW10 | Grok panel EN-only + Tier-3 nav demotions (swarms, builder entry solo hide) | ✅ |
+| OW11 | EN cleanup — Dreaming, Factory, Settings capabilities atlas | ✅ |
+| OW12 | Mission Kanban (Hermes-style): Triage→Done columns, dispatch, lineage drawer | ✅ |
+
+**OW12 note:** `/tasks` defaults to **Mission Kanban board** — triage + Dispatch now runs Workflow Breaker + tracer slices. Sessions remain the execution engine; kanban is the visibility layer.
+
+## Four-Lane Solo Operator (optional background automation)
+
+Background cron digests — **not** the primary operator workflow. See **Operator Workflow UX** above.
 
 | Lane | ID | Schedule | Output |
 |------|-----|----------|--------|

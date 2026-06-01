@@ -27,6 +27,7 @@ from app.application.services.solo_operator_four_lanes import (
     ensure_four_lane_bootstrap,
     pause_legacy_routines,
     set_four_lane_active,
+    trigger_automation_lane,
 )
 from app.application.services.solo_operator_trio import (
     TrioLaneId,
@@ -252,6 +253,48 @@ async def solo_session_presets(
     }
 
 
+@router.get("/first-run", summary="Solo first-run wizard checklist (LLM → brief → session)")
+async def solo_first_run(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.solo_operator_first_run import compose_solo_first_run
+
+    snapshot = await compose_solo_first_run(
+        db,
+        tenant_id=tenant_id,
+        dashboard_user_id=user.id,
+    )
+    return snapshot.model_dump(mode="json")
+
+
+class FirstRunStarterBriefRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+@router.post("/first-run/starter-brief", summary="Apply starter PROJECT brief to curated Instructions")
+async def solo_first_run_starter_brief(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    _body: FirstRunStarterBriefRequest | None = None,
+) -> dict[str, Any]:
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.solo_operator_first_run import apply_starter_project_brief
+
+    return await apply_starter_project_brief(
+        db,
+        tenant_id=tenant_id,
+        dashboard_user_id=user.id,
+    )
+
+
 @router.get("/session-search", summary="Search past supervisor sessions")
 async def session_search(
     db: DbSession,
@@ -410,6 +453,25 @@ async def solo_four_lane_set_active(
     )
     if not result.get("ok"):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(result.get("error")))
+    await db.commit()
+    return result
+
+
+@router.post(
+    "/four-lanes/automation/trigger",
+    summary="Manually run Automation Factory lane (approved items → tasks checklist)",
+)
+async def solo_four_lanes_automation_trigger(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    result = await trigger_automation_lane(db, tenant_id=tenant_id)
+    if not result.get("ok"):
+        code = status.HTTP_403_FORBIDDEN if result.get("error") == "routines_disabled" else status.HTTP_404_NOT_FOUND
+        raise HTTPException(status_code=code, detail=str(result.get("error")))
     await db.commit()
     return result
 

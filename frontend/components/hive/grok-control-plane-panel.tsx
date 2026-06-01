@@ -190,40 +190,40 @@ const ARTIFACT_KIND_OPTIONS = ["all", "context", "plan", "command_log", "summary
 const TEMPLATE_PAGE_SIZE = 8;
 const ESCALATION_COOLDOWN_MS = 10 * 60 * 1000;
 const MANUAL_HINT_OPTIONS = [
-  "read_only: audit a mapovanie bez zásahu do súborov.",
-  "code_edit: menšie zmeny v konkrétnom scope.",
-  "code_edit_and_test: bezpečný default pre väčšinu vývoja.",
-  "deploy_candidate: release kandidát bez priameho production deploy kroku.",
-  "prod_deploy: iba po approvals + explicitných guardrails.",
-  "Risk low/medium: bežné zmeny; high/critical: povinné schválenie.",
+  "read_only: audit and map without touching files.",
+  "code_edit: small changes in a narrow scope.",
+  "code_edit_and_test: safe default for most development.",
+  "deploy_candidate: release candidate without a direct production deploy step.",
+  "prod_deploy: only after approvals + explicit guardrails.",
+  "Risk low/medium: routine changes; high/critical: approval required.",
 ];
 const DEFAULT_CONTEXT_SOURCES = ["tasks", "swarms", "recipes", "knowledge", "grok_history"];
 
 const RUN_MODE_GUIDE: Array<{ mode: GrokRun["run_mode"]; when: string; execution: string }> = [
   {
     mode: "read_only",
-    when: "Audit, analýza root-cause, zber kontextu pred implementáciou.",
+    when: "Audit, root-cause analysis, context gathering before implementation.",
     execution: "Start (plan-only)",
   },
   {
     mode: "code_edit",
-    when: "Malý fix alebo izolovaná úprava v 1-2 moduloch.",
-    execution: "Start (with commands) po overení scope a profilu.",
+    when: "Small fix or isolated change in 1–2 modules.",
+    execution: "Start (with commands) after verifying scope and profile.",
   },
   {
     mode: "code_edit_and_test",
-    when: "Štandardný vývoj: implementácia + verifikácia testami/lintom.",
-    execution: "Preferovaný default pre väčšinu taskov.",
+    when: "Standard development: implementation + test/lint verification.",
+    execution: "Preferred default for most tasks.",
   },
   {
     mode: "deploy_candidate",
-    when: "Príprava release kandidáta, smoke check a deployment artefaktov.",
-    execution: "Najprv plan-only, potom command run po schválení.",
+    when: "Prepare a release candidate, smoke check, and deployment artifacts.",
+    execution: "Plan-only first, then command run after approval.",
   },
   {
     mode: "prod_deploy",
-    when: "Priamy produkčný zásah s jasným rollback plánom.",
-    execution: "Len pri explicitnom schválení a zapnutých guardrails.",
+    when: "Direct production change with a clear rollback plan.",
+    execution: "Only with explicit approval and guardrails enabled.",
   },
 ];
 
@@ -245,7 +245,7 @@ const GROK_PRESETS: GrokPreset[] = [
   {
     id: "readonly-audit",
     label: "Read-only audit",
-    objective: "Audituj auth a API guardrails, identifikuj riziká a navrhni fixy bez zásahu do kódu.",
+    objective: "Audit auth and API guardrails, identify risks, and propose fixes without code changes.",
     scopePaths: "backend/app/presentation/api,backend/app/core",
     runMode: "read_only",
     riskLevel: "low",
@@ -254,7 +254,7 @@ const GROK_PRESETS: GrokPreset[] = [
   {
     id: "safe-fix",
     label: "Safe bugfix + tests",
-    objective: "Oprav regresiu v API route a over cez cielené testy a lint.",
+    objective: "Fix the API route regression and verify with targeted tests and lint.",
     scopePaths: "backend/app/presentation/api,backend/tests",
     runMode: "code_edit_and_test",
     riskLevel: "medium",
@@ -263,7 +263,7 @@ const GROK_PRESETS: GrokPreset[] = [
   {
     id: "release-candidate",
     label: "Release candidate",
-    objective: "Priprav release kandidáta vrátane changelog summary, test evidence a deploy checklistu.",
+    objective: "Prepare a release candidate with changelog summary, test evidence, and deploy checklist.",
     scopePaths: "backend,frontend,scripts",
     runMode: "deploy_candidate",
     riskLevel: "high",
@@ -273,7 +273,7 @@ const GROK_PRESETS: GrokPreset[] = [
     id: "publish-template-pack",
     label: "Publish template pack",
     objective:
-      "Vytvor Grok template pack pre publish lane (audit/fix/release/security), pridaj acceptance criteria a anti-dup odporucania pre kazdu sablonu.",
+      "Create a Grok template pack for the publish lane (audit/fix/release/security), add acceptance criteria and anti-dup guidance per template.",
     scopePaths:
       "backend/app/application/services/grok_control_plane.py,frontend/components/hive/grok-control-plane-panel.tsx,docs",
     runMode: "code_edit_and_test",
@@ -284,7 +284,7 @@ const GROK_PRESETS: GrokPreset[] = [
     id: "publish-variant-generator",
     label: "Publish variants",
     objective:
-      "Vygeneruj 3-5 publish variantov pre X/Telegram/Notion/Webhook, zachovaj core message, uprav CTA podla kanala a navrhni scoring pre auto-vyber.",
+      "Generate 3–5 publish variants for X/Telegram/Notion/Webhook, keep the core message, tune CTAs per channel, and propose scoring for auto-selection.",
     scopePaths:
       "backend/app/application/services/social_publish.py,backend/app/application/services/publish_pack.py,frontend/components/connectors/execution-studio-social-publish-panel.tsx",
     runMode: "code_edit_and_test",
@@ -295,7 +295,7 @@ const GROK_PRESETS: GrokPreset[] = [
     id: "publish-pipeline-governance",
     label: "Publish governance",
     objective:
-      "Over publish pipeline guardrails: approval gates, rollback receipts, audit events a fail-fast spravanie pre multi-target orchestration.",
+      "Verify publish pipeline guardrails: approval gates, rollback receipts, audit events, and fail-fast behavior for multi-target orchestration.",
     scopePaths:
       "backend/app/application/services/social_publish_pipeline.py,backend/app/application/services/publish_audit.py,backend/app/presentation/api/routers/social_publish.py",
     runMode: "code_edit_and_test",
@@ -322,7 +322,7 @@ function resumedRunExpirySuffix(value: unknown): string {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
     return "";
   }
-  return ` · expiruje za ${Math.ceil(value)}h`;
+  return ` · expires in ${Math.ceil(value)}h`;
 }
 
 function trendIcon(value: "up" | "down" | "flat" | undefined): string {
@@ -1048,27 +1048,26 @@ export function GrokControlPlanePanel() {
         <V4CardHeader
           kicker="Operator manual"
           title="How Grok Build works in this environment"
-          description="Grok Control Plane je riadený workflow pre plánovanie a vykonanie technických taskov s guardrails, approvals a audit trailom."
+          description="Governed workflow for planning and executing technical tasks with guardrails, approvals, and audit trail."
         />
         <div className="space-y-3 text-sm text-(--qs-muted)">
           <p>
-            Použi Grok panel, keď chceš bezpečne spustiť technický task end-to-end: najprv vytvoríš run intake
-            (objective, scope, mode, risk, command profile), potom run schváliš/spustíš a sleduješ kroky, eventy a
-            artefakty.
+            Use the Grok panel when you need to run a technical task end-to-end safely: create a run intake (objective,
+            scope, mode, risk, command profile), approve/start the run, then watch steps, events, and artifacts.
           </p>
           <div className="rounded-lg border border-(--qs-border) bg-black/20 p-3">
-            <p className="font-semibold text-(--qs-text)">Odporúčaný workflow</p>
+            <p className="font-semibold text-(--qs-text)">Recommended workflow</p>
             <ol className="mt-2 space-y-1 pl-4 text-xs">
-              <li>1) Zadaj konkrétny objective (čo sa má zmeniť a ako overiť výsledok).</li>
-              <li>2) Obmedz scope paths na minimálnu potrebnú časť repozitára.</li>
-              <li>3) Vyber run mode podľa typu úlohy (nižšie) a risk level podľa dopadu.</li>
-              <li>4) Pre nové alebo citlivé tasky začni vždy cez Start (plan-only).</li>
-              <li>5) Až potom použi Start (with commands), sleduj Steps/Events/Artifacts.</li>
-              <li>6) Pri neúspechu použi Re-run as new alebo Re-run + start commands.</li>
+              <li>1) Set a concrete objective (what changes and how to verify).</li>
+              <li>2) Limit scope paths to the smallest necessary repo area.</li>
+              <li>3) Pick run mode by task type (below) and risk level by impact.</li>
+              <li>4) For new or sensitive tasks, always start with Start (plan-only).</li>
+              <li>5) Then use Start (with commands); watch Steps/Events/Artifacts.</li>
+              <li>6) On failure, use Re-run as new or Re-run + start commands.</li>
             </ol>
           </div>
           <div className="rounded-lg border border-(--qs-border) bg-black/20 p-3">
-            <p className="font-semibold text-(--qs-text)">Run mode mapovanie</p>
+            <p className="font-semibold text-(--qs-text)">Run mode guide</p>
             <ul className="mt-2 space-y-1 text-xs">
               {RUN_MODE_GUIDE.map((row) => (
                 <li key={row.mode}>
@@ -1079,7 +1078,7 @@ export function GrokControlPlanePanel() {
             </ul>
           </div>
           <div className="rounded-lg border border-(--qs-border) bg-black/20 p-3">
-            <p className="font-semibold text-(--qs-text)">Príklady taskov a nastavení (one-click)</p>
+            <p className="font-semibold text-(--qs-text)">Example tasks (one-click presets)</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {GROK_PRESETS.map((preset) => (
                 <button
@@ -1093,7 +1092,7 @@ export function GrokControlPlanePanel() {
               ))}
             </div>
             <p className="mt-2 text-xs">
-              Guardrails rešpektujú command profiles, deny patterns a approval pravidlá zo snapshotu nižšie.
+              Guardrails follow command profiles, deny patterns, and approval rules from the snapshot below.
             </p>
           </div>
         </div>
@@ -1102,15 +1101,15 @@ export function GrokControlPlanePanel() {
       <V4Card>
         <V4CardHeader
           kicker="HiveMind review queue"
-          title="Nízka dôvera vyžaduje schválenie"
-          description="Auto-priority zápisy s nízkou dôverou sa zaparkujú pred plným trustom."
+          title="Low confidence requires approval"
+          description="Auto-priority writes with low confidence are parked before full trust."
           actions={
             <div className="flex items-center gap-1">
               <V4Badge tone={reviewQueueMeta.slaBreached ? "err" : reviewQueueMeta.count > 0 ? "warn" : "ok"}>
-                čaká {reviewQueueMeta.count}
+                pending {reviewQueueMeta.count}
               </V4Badge>
               <V4Badge tone={reviewQueueMeta.slaBreached ? "err" : "info"}>
-                najstaršia {Math.round(reviewQueueMeta.oldestPendingAgeHours * 10) / 10}h / SLA {reviewQueueMeta.slaHours}h
+                oldest {Math.round(reviewQueueMeta.oldestPendingAgeHours * 10) / 10}h / SLA {reviewQueueMeta.slaHours}h
               </V4Badge>
             </div>
           }
@@ -1124,7 +1123,7 @@ export function GrokControlPlanePanel() {
               onClick={() => void runEscalation("review_queue_sla")}
             >
               {busy === "escalate-review_queue_sla" ? <Loader2 className="size-3 animate-spin" aria-hidden /> : null}
-              Eskalácia na 1 klik
+              Escalate (one click)
             </button>
           ) : null}
           {resolvedReviewResume ? (
@@ -1133,13 +1132,13 @@ export function GrokControlPlanePanel() {
               className="qs-btn qs-btn--ghost qs-btn--sm"
               onClick={() => setSelectedRunId(resolvedReviewResume.runId)}
             >
-              Obnovený run {resolvedReviewResume.runId.slice(0, 8)}…
+              Resumed run {resolvedReviewResume.runId.slice(0, 8)}…
               {resumedRunExpirySuffix((resolvedReviewResume as { remainingTtlHours?: unknown }).remainingTtlHours)}
             </button>
           ) : null}
         </div>
         {reviewQueue.length === 0 ? (
-          <p className="text-xs text-(--qs-muted)">Queue je čistá. Žiadne nízko-dôverné položky nečakajú na review.</p>
+          <p className="text-xs text-(--qs-muted)">Queue is clear — no low-confidence items waiting for review.</p>
         ) : (
           <ul className="space-y-2">
             {reviewQueue.map((item) => (
@@ -1179,7 +1178,7 @@ export function GrokControlPlanePanel() {
       <V4Card>
         <V4CardHeader
           kicker="Production governance"
-          title="Eskalácie nákladov, timeoutov a rizika"
+          title="Cost, timeout, and risk escalations"
           description="24h guardrail snapshot pre Grok execution lane."
           actions={
             <div className="flex items-center gap-1">
@@ -1218,7 +1217,7 @@ export function GrokControlPlanePanel() {
               onClick={() => void runEscalation("governance_cost")}
             >
               {busy === "escalate-governance_cost" ? <Loader2 className="size-3 animate-spin" aria-hidden /> : null}
-              Eskalovať cost cap
+              Escalate cost cap
             </button>
           ) : null}
           {snapshot.governance?.timeout_escalated ? (
@@ -1229,7 +1228,7 @@ export function GrokControlPlanePanel() {
               onClick={() => void runEscalation("governance_timeout")}
             >
               {busy === "escalate-governance_timeout" ? <Loader2 className="size-3 animate-spin" aria-hidden /> : null}
-              Eskalovať timeouty
+              Escalate timeouts
             </button>
           ) : null}
           {snapshot.governance?.risk_escalated ? (
@@ -1240,7 +1239,7 @@ export function GrokControlPlanePanel() {
               onClick={() => void runEscalation("governance_risk")}
             >
               {busy === "escalate-governance_risk" ? <Loader2 className="size-3 animate-spin" aria-hidden /> : null}
-              Eskalovať objem rizika
+              Escalate risk volume
             </button>
           ) : null}
           {resolvedGovernanceResume ? (
@@ -1249,7 +1248,7 @@ export function GrokControlPlanePanel() {
               className="qs-btn qs-btn--ghost qs-btn--sm"
               onClick={() => setSelectedRunId(resolvedGovernanceResume.runId)}
             >
-              Obnovený run {resolvedGovernanceResume.runId.slice(0, 8)}…
+              Resumed run {resolvedGovernanceResume.runId.slice(0, 8)}…
               {resumedRunExpirySuffix((resolvedGovernanceResume as { remainingTtlHours?: unknown }).remainingTtlHours)}
             </button>
           ) : null}
@@ -1269,7 +1268,7 @@ export function GrokControlPlanePanel() {
         <V4CardHeader
           kicker="Browser execution lane"
           title="Guarded browser/computer-use fallback"
-          description="Spusti browser fallback z Grok panela s draft/simulate/live guardrails."
+          description="Run browser fallback from the Grok panel with draft/simulate/live guardrails."
           actions={<V4Badge tone={browserMode === "live" ? "warn" : "info"}>{browserMode}</V4Badge>}
         />
         <div className="grid gap-2">
@@ -1313,13 +1312,13 @@ export function GrokControlPlanePanel() {
             onClick={() => void runBrowserLaneStep()}
           >
             {busy === "browser-step" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Play className="size-4" aria-hidden />}
-            Spusti browser krok
+            Run browser step
           </button>
           {browserResult ? <p className="text-xs text-(--qs-muted)">{browserResult}</p> : null}
         </div>
         {browserAudit.length > 0 ? (
           <div className="mt-3 space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-wider text-(--qs-muted)">Audit trail (posledné)</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-(--qs-muted)">Audit trail (recent)</p>
             <ul className="space-y-1">
               {browserAudit.map((row) => (
                 <li key={`${row.at}-${row.event_type}-${row.message.slice(0, 12)}`} className="rounded border border-(--qs-border) bg-black/20 px-2 py-1.5 text-xs">
@@ -1336,7 +1335,7 @@ export function GrokControlPlanePanel() {
         <V4CardHeader
           kicker="Template library"
           title="Create, edit, archive and reuse run templates"
-          description="Samostatné menu na správu veľkého počtu šablón. Karty sú kompaktné, aby sa ich naraz zmestilo 6-8."
+          description="Dedicated library for many templates. Cards are compact so 6–8 fit on screen."
           actions={
             <button
               type="button"
@@ -1355,7 +1354,7 @@ export function GrokControlPlanePanel() {
               value={templateName}
               onChange={(event) => setTemplateName(event.target.value)}
               className="qs-input"
-              placeholder="Template name (napr. API bugfix fastlane)"
+              placeholder="Template name (e.g. API bugfix fastlane)"
             />
             <input
               type="text"
@@ -1479,7 +1478,7 @@ export function GrokControlPlanePanel() {
           actions={
             <InfoHint
               title="Grok Build quick guide"
-              description="Grok Control Plane riadi technické tasky cez plan-first intake, approval gates a audit artefakty. Začni runom v narrow scope a podľa rizika vyber plan-only alebo command execution."
+              description="Grok Control Plane runs technical tasks via plan-first intake, approval gates, and audit artifacts. Start with a narrow scope; pick plan-only or command execution by risk."
               options={MANUAL_HINT_OPTIONS}
               manualHref="/manual#cockpit-overview"
               manualLabel="Open operator manual →"
@@ -1553,7 +1552,7 @@ export function GrokControlPlanePanel() {
               })}
             </div>
             <p className="mt-2 text-[11px] text-(--qs-muted)">
-              Grok dostane tieto zdroje ako context pack, aby sa sústredil na high-impact úlohy bez duplicít.
+              Grok receives these sources as a context pack to focus on high-impact work without duplicates.
             </p>
           </div>
           <button

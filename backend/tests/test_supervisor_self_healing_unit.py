@@ -72,6 +72,21 @@ def test_is_approval_required_when_critical_goal_then_true() -> None:
     assert "keyword" in reason.lower()
 
 
+def test_is_approval_required_when_social_intel_drop_verdict_phrase_then_false() -> None:
+    """Social intel Grok gate prose must not false-positive on keyword 'drop'."""
+
+    raw = (
+        "Social intel forager 'X Intel': drop verdict=false, tag hivemind-candidate. "
+        "Simulate-first only."
+    )
+    required, reason = is_approval_required(
+        goal=f"=== MISSION ===\nbilling admin\n=== END CONTEXT ===\n{raw}",
+        toolset=[],
+        context_summary={"raw_goal": raw, "approval_required": True},
+    )
+    assert required is False, reason
+
+
 def test_evaluate_meta_reasoning_when_issues_present_then_score_drops() -> None:
     """Meta-reasoning score reflects unresolved issues and adaptation guidance."""
 

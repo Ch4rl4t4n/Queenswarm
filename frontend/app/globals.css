@@ -1181,7 +1181,35 @@
     }
   }
 
-  /** Hive Control V4 — floating Ballroom CTA (all viewports; portal to body) */
+  /** Hive Control V4 — floating session CTA (mobile/tablet; portal to body) */
+  .fab-session-shell {
+    pointer-events: none;
+    position: fixed;
+    z-index: 120;
+    bottom: calc(5.4rem + env(safe-area-inset-bottom, 0px));
+    right: 1rem;
+  }
+
+  .fab-session {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    background: var(--qs-grad-primary);
+    color: #1a0e2e;
+    font-weight: 600;
+    border-radius: 999px;
+    box-shadow: 0 12px 32px rgba(253, 185, 39, 0.35), 0 0 0 1px rgba(253, 185, 39, 0.5);
+    transition: transform 0.2s ease;
+    text-decoration: none;
+    animation: fab-ballroom-glow-pulse 2.5s ease-in-out infinite;
+  }
+
+  .fab-session:hover {
+    transform: translateY(-3px) scale(1.02);
+  }
+
+  /** Hive Control V4 — floating Ballroom CTA (desktop; portal to body) */
   .fab-ballroom-shell {
     pointer-events: none;
     position: fixed;

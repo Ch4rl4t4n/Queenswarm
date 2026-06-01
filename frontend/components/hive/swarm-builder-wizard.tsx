@@ -435,38 +435,25 @@ export function SwarmBuilderWizard(): JSX.Element {
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {template.prdKanban ? (
-                  <button
-                    type="button"
-                    className="qs-btn qs-btn--primary qs-btn--sm"
-                    onClick={() =>
-                      router.push(
-                        buildPrdKanbanTasksUrl({
-                          template: template.id,
-                          swarmId: result.swarmId,
-                        } satisfies PrdKanbanLaunchParams),
-                      )
-                    }
+                  <Link
+                    href={buildPrdKanbanTasksUrl({
+                      template: template.id,
+                      swarmId: result.swarmId,
+                    } satisfies PrdKanbanLaunchParams)}
+                    className="qs-btn qs-btn--ghost qs-btn--sm"
                   >
-                    Start PRD → Kanban
-                  </button>
+                    Open PRD task setup
+                  </Link>
                 ) : null}
-                <button
-                  type="button"
-                  className="qs-btn qs-btn--primary qs-btn--sm"
-                  onClick={() => router.push("/integrations?tab=studio")}
-                >
+                <Link href="/agents#sessions" className="qs-btn qs-btn--ghost qs-btn--sm">
+                  Open sessions
+                </Link>
+                <Link href="/integrations?tab=studio" className="qs-btn qs-btn--ghost qs-btn--sm">
                   Open Execution Studio
-                </button>
-                <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => router.push("/swarms")}>
+                </Link>
+                <Link href="/swarms" className="qs-btn qs-btn--ghost qs-btn--sm">
                   Open swarms
-                </button>
-                <button
-                  type="button"
-                  className="qs-btn qs-btn--ghost qs-btn--sm"
-                  onClick={() => router.push("/agents#sessions")}
-                >
-                  Run supervisor
-                </button>
+                </Link>
               </div>
             </div>
           </div>

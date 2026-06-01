@@ -15,6 +15,7 @@ import { AgentSessionReportDialog } from "@/components/hive/agent-session-report
 import { InfoHint } from "@/components/hive/info-hint";
 import { VoiceSessionControls } from "@/components/hive/voice-session-controls";
 import { usePlatform } from "@/components/hive/platform-context";
+import { HiveSwitch } from "@/components/ui/hive-switch";
 import { QsSelect } from "@/components/ui/qs-select";
 import {
   V4Badge,
@@ -24,7 +25,7 @@ import {
   V4IconBolt,
   V4Stat,
 } from "@/components/ui/v4";
-import { HiveApiError, hiveDelete, hiveGet, hivePostJson } from "@/lib/api";
+import { HiveApiError, hiveDelete, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
 import { COCKPIT_POLL_BOARD_MS } from "@/lib/cockpit-poll-profile";
 import { integrationsTabHref } from "@/lib/integrations-routes";
 import { useRouteScopedPollOptions } from "@/lib/hooks/use-route-scoped-poll";
@@ -32,10 +33,12 @@ import type {
   SupervisorControlSummaryRow,
   SupervisorRoutineRow,
   SupervisorSessionRow,
+  SupervisorSessionsControlRow,
 } from "@/lib/hive-types";
 import type { SoloSessionPreset, SoloSessionPresetsResponse } from "@/lib/solo-session-presets";
 import { SOLO_PRESET_LANE_LABEL } from "@/lib/solo-session-presets";
 import { runtimeModeLabel, sessionGoalPreview, sessionStatusTone, supervisorSessionBallroomHref, isActiveSupervisorSession } from "@/lib/supervisor-session";
+import { focusSessionGoalComposer } from "@/lib/operator-canonical-ui";
 import {
   playbookRecipeIdFromContext,
   playbookWasAutoSavedOnReview,
@@ -110,6 +113,7 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
   const [deleteBusy, setDeleteBusy] = useState<string | null>(null);
   const [clearAllBusy, setClearAllBusy] = useState(false);
   const [reportSessionId, setReportSessionId] = useState<string | null>(null);
+  const [policyBusy, setPolicyBusy] = useState(false);
 
   const closeReportDialog = useCallback(() => {
     setReportSessionId(null);
@@ -151,6 +155,12 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
     sessionsPoll,
   );
 
+  const { data: sessionsControl, mutate: mutateSessionsControl } = useSWR<SupervisorSessionsControlRow>(
+    "hive/agent-sessions-control-policy",
+    () => hiveGet<SupervisorSessionsControlRow>("agents/sessions/control-policy"),
+    { revalidateOnFocus: true },
+  );
+
   const { data: soloPresets } = useSWR<SoloSessionPresetsResponse>(
     soloMode ? "hive/solo-session-presets" : null,
     () => hiveGet<SoloSessionPresetsResponse>("solo-operator/session-presets"),
@@ -165,6 +175,22 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
     setSessionRetrieval(preset.retrieval_contract || "customer_history+policy+last_3_tasks");
     setActivePresetId(preset.id);
   }
+
+  const prepareFirstSession = useCallback((): void => {
+    focusSessionGoalComposer();
+    const firstPreset = soloPresets?.presets?.[0];
+    if (firstPreset) {
+      applySessionPreset(firstPreset);
+      toast.message("Quick-start preset applied — review the goal, then Create session.");
+      return;
+    }
+    if (goal.trim().length < 4) {
+      setGoal(
+        "PROJECT: Discovery phase\n\nGoal: Audit current site UX, SEO, and speed from public sources.\nConstraints: Simulate only · Critic APPROVE before final.\nDone: Report max 1500 words.",
+      );
+      toast.message("Starter goal template filled — edit below, then Create session.");
+    }
+  }, [goal, soloPresets?.presets]);
 
   useEffect(() => {
     if (!soloMode || !soloPresets?.presets?.length) {
@@ -183,6 +209,69 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
   async function refreshSessionsAndSummary(): Promise<void> {
     await Promise.all([mutate(), mutateSummary()]);
   }
+
+  const refreshSessionsAndSummaryStable = useCallback(async (): Promise<void> => {
+    await Promise.all([mutate(), mutateSummary()]);
+  }, [mutate, mutateSummary]);
+
+  const patchSessionsControlPolicy = useCallback(
+    async (autoApproveEnabled: boolean) => {
+      setPolicyBusy(true);
+      try {
+        const updated = await hivePatchJson<SupervisorSessionsControlRow>("agents/sessions/control-policy", {
+          auto_approve_enabled: autoApproveEnabled,
+        });
+        await mutateSessionsControl(updated, { revalidate: false });
+        await refreshSessionsAndSummaryStable();
+        toast.success(
+          autoApproveEnabled
+            ? "Auto approve enabled — eligible sessions are approved automatically."
+            : "Manual mode — sessions wait for your approval.",
+        );
+      } catch (e) {
+        const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Policy update failed";
+        toast.error(msg);
+      } finally {
+        setPolicyBusy(false);
+      }
+    },
+    [mutateSessionsControl, refreshSessionsAndSummaryStable],
+  );
+
+  useEffect(() => {
+    if (!sessionsControl?.auto_approve_enabled) {
+      return;
+    }
+    const pending = sessions.filter((session) => session.status === "needs_input");
+    if (pending.length === 0) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const result = await hivePostJson<{ approved_count: number; skipped_critical: number }>(
+          "agents/sessions/auto-approve-pending",
+          {},
+        );
+        if (cancelled) {
+          return;
+        }
+        if (result.approved_count > 0) {
+          await refreshSessionsAndSummaryStable();
+          toast.success(`Auto-approved ${result.approved_count} session(s).`);
+        }
+        if (result.skipped_critical > 0) {
+          toast.message(`${result.skipped_critical} critical session(s) still need manual approve.`);
+        }
+      } catch (e) {
+        const msg = e instanceof HiveApiError ? e.message : "Auto-approve failed";
+        toast.error(msg);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessions, sessionsControl?.auto_approve_enabled, refreshSessionsAndSummaryStable]);
 
   const filteredSessions = useMemo(() => {
     const q = sessionQuery.trim().toLowerCase();
@@ -271,10 +360,10 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
     }
     const filterHint =
       sessionStatusFilter !== "all" || sessionQuery.trim()
-        ? " z aktuálneho filtra"
+        ? " from current filter"
         : "";
     const confirmed = window.confirm(
-      `Vymazať ${targets.length} session${targets.length === 1 ? "" : "s"}${filterHint}? Táto akcia sa nedá vrátiť.`,
+      `Delete ${targets.length} session${targets.length === 1 ? "" : "s"}${filterHint}? This cannot be undone.`,
     );
     if (!confirmed) {
       return;
@@ -288,7 +377,7 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
       if (isFullList) {
         const result = await hiveDelete<{ deleted_count: number }>("agents/sessions");
         await refreshSessionsAndSummary();
-        toast.success(`Vymazaných ${result.deleted_count} sessions.`);
+        toast.success(`Deleted ${result.deleted_count} sessions.`);
         return;
       }
       let deletedCount = 0;
@@ -303,7 +392,7 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
       }
       await refreshSessionsAndSummary();
       if (deletedCount > 0) {
-        toast.success(`Vymazaných ${deletedCount} sessions.`);
+        toast.success(`Deleted ${deletedCount} sessions.`);
       }
     } catch (e) {
       const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Clear all failed";
@@ -521,7 +610,7 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
       {soloMode && soloPresets?.presets?.length ? (
         <div className={isV4 ? "mt-4" : "mt-3"}>
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-(--qs-text-3)">
-            Solo quick-start
+            Goal templates
           </p>
           <div className="flex flex-wrap gap-2">
             {soloPresets.presets.map((preset) => (
@@ -541,6 +630,23 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
           </div>
         </div>
       ) : null}
+
+      <div
+        className={
+          isV4
+            ? "mt-4 rounded-xl border border-[#FFB800]/35 bg-[#FFB800]/5 p-3 text-sm text-zinc-200"
+            : "mt-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-zinc-200"
+        }
+      >
+        <p className="font-medium text-[#FFB800]">Primary workflow</p>
+        <p className="mt-1 text-xs leading-relaxed text-zinc-300">
+          1) Brief in Knowledge → 2) Goal below → 3) durable + Create → 4) Info report → 5) Tasks or next phase.
+          Swarms and Agentic OS are not the start.
+        </p>
+        <Link href="/manual#canonical-workflow" className="mt-2 inline-block text-xs font-medium text-cyan underline">
+          Full step-by-step manual →
+        </Link>
+      </div>
 
       <div
         className={
@@ -606,6 +712,20 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
           value={sessionQuery}
           onChange={(event) => setSessionQuery(event.target.value)}
         />
+        <label
+          className="flex shrink-0 items-center justify-between gap-2 rounded-lg border border-(--qs-border) bg-black/25 px-3 py-2 text-xs text-(--qs-text-2) md:min-w-[11.5rem]"
+          title="Auto approve approves needs_input sessions automatically. Critical actions (billing, live PR) stay manual."
+        >
+          <span className="whitespace-nowrap font-medium">
+            {sessionsControl?.auto_approve_enabled ? "Auto approve" : "Manual"}
+          </span>
+          <HiveSwitch
+            checked={Boolean(sessionsControl?.auto_approve_enabled)}
+            disabled={policyBusy}
+            aria-label="Toggle auto approve for supervisor sessions"
+            onCheckedChange={(checked) => void patchSessionsControlPolicy(checked)}
+          />
+        </label>
         <QsSelect
           className="w-full min-w-0 md:w-40 md:shrink-0"
           value={sessionStatusFilter}
@@ -657,15 +777,10 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
               <button
                 type="button"
                 className="qs-btn qs-btn--primary qs-btn--sm mt-4 gap-1.5"
-                onClick={() => {
-                  const input = document.querySelector<HTMLInputElement>(
-                    'input[placeholder="Session goal — e.g. investigate onboarding drop-off…"]',
-                  );
-                  input?.focus();
-                }}
+                onClick={prepareFirstSession}
               >
                 <Plus className="h-3.5 w-3.5" aria-hidden />
-                Create first session
+                Prepare first session
               </button>
             ) : (
               <button

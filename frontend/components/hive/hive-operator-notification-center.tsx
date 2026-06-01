@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
 import { formatHiveNotificationBadge } from "@/lib/hooks/use-hive-notification-badge";
 import { useOperatorPendingSnapshot } from "@/lib/hooks/use-operator-pending-snapshot";
-import { studioPendingActionHref, supervisorSessionHref } from "@/lib/operator-pending-events";
+import { studioPendingActionHref, studioPendingApprovalsHref, supervisorSessionHref } from "@/lib/operator-pending-events";
 import { localizePhrase } from "@/lib/ui-copy";
 import type { DashboardSummary } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
@@ -64,12 +64,20 @@ export function HiveOperatorNotificationCenter({ summary, className }: HiveOpera
           {snapshot.studioPending > 0 ? (
             <>
               <NotificationRow
-                href="/integrations?tab=studio"
+                href={studioPendingApprovalsHref(snapshot.studio)}
                 label={localizePhrase(language, {
                   en: `${snapshot.studioPending} Execution Studio approvals`,
                   sk: `${snapshot.studioPending} Execution Studio schválení`,
                 })}
               />
+              {(snapshot.studio.codebase_pending ?? 0) > 0 && snapshot.studio.live_actions.length === 0 ? (
+                <p className="ml-1 text-[10px] text-(--qs-text-4)">
+                  {localizePhrase(language, {
+                    en: "SCV codebase proposals — open Lanes tab",
+                    sk: "SCV codebase návrhy — záložka Lanes",
+                  })}
+                </p>
+              ) : null}
               {snapshot.studio.live_actions.slice(0, 3).map((action) => (
                 <NotificationRow
                   key={`${action.type}-${action.connector_slug ?? "browser"}-${action.message ?? ""}`}

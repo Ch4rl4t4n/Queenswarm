@@ -1005,6 +1005,20 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("external-apis/research-keys/status")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          providers: {
+            tavily: { configured: false, masked: null },
+            serper: { configured: false, masked: null },
+          },
+        }),
+      });
+      return;
+    }
+
     if (path.startsWith("external-apis/providers")) {
       await route.fulfill({
         status: 200,

@@ -240,7 +240,7 @@ export function QueenDashboardChrome({
 
       {soloMode ? <SoloDailyPlanPanel compact /> : null}
 
-      {showSwarmBuilderEntry ? <SwarmBuilderEntryCard /> : null}
+      {showSwarmBuilderEntry && !soloMode ? <SwarmBuilderEntryCard /> : null}
 
       {showLeadMagnets ? <LeadMagnetPanel compact /> : null}
 

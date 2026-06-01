@@ -102,11 +102,11 @@ export function MarketingAutomationPageClient() {
       error={error ? { message: error, onDismiss: () => setError(null) } : null}
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          <Link href={integrationsHubOAuthHref()} className="qs-btn qs-btn--primary qs-btn--sm">
-            Connect social accounts
+          <Link href={integrationsHubOAuthHref()} className="qs-btn qs-btn--ghost qs-btn--sm">
+            Open connector hub (OAuth)
           </Link>
           <Link href="/integrations?tab=studio&section=publish#social-publish" className="qs-btn qs-btn--ghost qs-btn--sm">
-            Open legacy studio view
+            Open publish workspace
           </Link>
         </div>
       }

@@ -8,6 +8,7 @@ import {
   Rocket,
   Zap,
 } from "lucide-react";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -27,6 +28,7 @@ import type { StudioNotifications } from "@/components/connectors/execution-stud
 import { HiveApiError, hiveGet } from "@/lib/api";
 import {
   executionStudioSectionFromQuery,
+  executionStudioSectionHref,
   executionStudioWorkspaceFromHash,
   integrationsScrollTargetFromHash,
   type ExecutionStudioWorkspaceSection,
@@ -381,8 +383,10 @@ export function ExecutionStudioPanel({ onOpenMarketplace, onOpenHub }: Execution
   const [panelView, setPanelView] = useState<StudioPanelView>("workspace");
   const [workspaceSection, setWorkspaceSection] = useState<ExecutionStudioWorkspaceSection>("overview");
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const data = await hiveGet<StudioOverview>("execution-studio/overview");
@@ -390,8 +394,31 @@ export function ExecutionStudioPanel({ onOpenMarketplace, onOpenHub }: Execution
     } catch (exc) {
       setError(exc instanceof HiveApiError ? exc.message : "Failed to load Execution Studio.");
     } finally {
-      setLoading(false);
+      if (!opts?.silent) {
+        setLoading(false);
+      }
     }
+  }, []);
+
+  const handleProposalReviewed = useCallback((proposalId: string) => {
+    setOverview((prev) => {
+      if (!prev?.pending_codebase_proposals) {
+        return prev;
+      }
+      const next = prev.pending_codebase_proposals.filter((row) => row.id !== proposalId);
+      const pendingApprovals = prev.pending_approvals
+        ? {
+            ...prev.pending_approvals,
+            codebase_pending: Math.max(0, (prev.pending_approvals.codebase_pending ?? next.length) - 1),
+            count: Math.max(0, (prev.pending_approvals.count ?? 0) - 1),
+          }
+        : prev.pending_approvals;
+      return {
+        ...prev,
+        pending_codebase_proposals: next,
+        pending_approvals: pendingApprovals,
+      };
+    });
   }, []);
 
   useEffect(() => {
@@ -438,6 +465,20 @@ export function ExecutionStudioPanel({ onOpenMarketplace, onOpenHub }: Execution
   const pendingLiveActions = useMemo(
     () => overview?.pending_approvals?.live_actions ?? [],
     [overview?.pending_approvals?.live_actions],
+  );
+
+  const codebasePendingCount = Math.max(
+    overview?.pending_approvals?.codebase_pending ?? 0,
+    overview?.pending_codebase_proposals?.length ?? 0,
+  );
+
+  const workspaceNavItems = useMemo(
+    () =>
+      WORKSPACE_SECTIONS.map((section) => ({
+        ...section,
+        badge: section.id === "lanes" && codebasePendingCount > 0 ? codebasePendingCount : undefined,
+      })),
+    [codebasePendingCount],
   );
 
   const supervisorSessionIds = useMemo(
@@ -508,7 +549,7 @@ export function ExecutionStudioPanel({ onOpenMarketplace, onOpenHub }: Execution
       {panelView === "workspace" ? (
       <>
       <HiveSubnavRow
-        items={WORKSPACE_SECTIONS.map(({ id, label, icon }) => ({ id, label, icon }))}
+        items={workspaceNavItems.map(({ id, label, icon, badge }) => ({ id, label, icon, badge }))}
         activeId={workspaceSection}
         onChange={(id) => setWorkspaceSection(id as ExecutionStudioWorkspaceSection)}
         ariaLabel="Execution Studio workspace sections"
@@ -517,6 +558,24 @@ export function ExecutionStudioPanel({ onOpenMarketplace, onOpenHub }: Execution
 
       {workspaceSection === "overview" ? (
       <>
+      {codebasePendingCount > 0 ? (
+        <div className="qs-bubble qs-bubble--tint-amber shrink-0 flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-pollen">
+              {codebasePendingCount} pending SCV codebase proposals
+            </p>
+            <p className="mt-1 text-xs text-(--qs-text-3)">
+              Not live connector steps — open <strong>Lanes</strong> → Approve or Reject each proposal.
+            </p>
+          </div>
+          <Link
+            href={executionStudioSectionHref("lanes", "codebase-pending")}
+            className="qs-btn qs-btn--primary qs-btn--sm shrink-0"
+          >
+            Open Lanes
+          </Link>
+        </div>
+      ) : null}
       <div className="grid shrink-0 gap-3 md:grid-cols-3">
         <article className="v4-dream-cycle-card p-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-(--qs-text-3)">Ready</p>
@@ -566,11 +625,12 @@ export function ExecutionStudioPanel({ onOpenMarketplace, onOpenHub }: Execution
           codebase={overview.codebase}
           policy={overview.policy}
           pendingProposals={overview.pending_codebase_proposals}
+          pendingProposalsTotal={overview.pending_approvals?.codebase_pending}
           loading={loading}
           onPolicyUpdate={(policy) => setOverview((prev) => (prev ? { ...prev, policy } : prev))}
           onError={setError}
           onReloadOverview={load}
-          onExecuteResult={setExecuteResult}
+          onProposalReviewed={handleProposalReviewed}
         />
       ) : null}
       </>

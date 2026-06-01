@@ -32,6 +32,12 @@ from app.application.services.recipe_write import (
     create_recipe_entry,
 )
 from app.application.services.sub_swarm.runner import run_sub_swarm_workflow_cycle
+from app.application.services.mission_kanban import (
+    MissionKanbanNotFoundError,
+    MissionKanbanStateError,
+    create_mission_triage_task,
+    dispatch_mission_triage_task,
+)
 from app.application.services.task_ledger import TaskUpsertViolationError, create_task_record
 from app.application.services.tracer_bullet_kanban import (
     TracerBulletKanbanNotFoundError,
@@ -173,6 +179,44 @@ class OperatorSaveRecipeResponse(BaseModel):
     recipe_id: uuid.UUID
 
 
+class MissionKanbanTriageRequest(BaseModel):
+    """Park a high-level prompt on the mission kanban triage column."""
+
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+
+    task_text: str = Field(..., min_length=8, max_length=50_000)
+    title: str | None = Field(default=None, min_length=3, max_length=500)
+    priority: int = Field(default=5, ge=1, le=99)
+    swarm_id: uuid.UUID | None = None
+    target_lane: Literal["scout", "eval", "sim", "action"] | None = None
+
+
+class MissionKanbanTriageResponse(BaseModel):
+    task_id: uuid.UUID
+    title: str
+    status: TaskStatus
+
+
+class MissionKanbanDispatchRequest(BaseModel):
+    """Decompose a triage task via workflow breaker and optionally execute."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    swarm_id: uuid.UUID | None = None
+    target_lane: Literal["scout", "eval", "sim", "action"] | None = None
+    start_execution: bool = True
+    defer_to_worker: bool = True
+    execution_payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class MissionKanbanDispatchResponse(BaseModel):
+    workflow_id: uuid.UUID
+    task_id: uuid.UUID
+    child_count: int
+    celery_task_id: str | None = None
+    execution: Literal["queued", "inline", "skipped"]
+
+
 async def _resolve_target_swarm_id(
     db: DbSession,
     explicit: uuid.UUID | None,
@@ -240,6 +284,100 @@ async def _auto_slice_intake_kanban(
             reason=str(exc),
         )
         return None
+
+
+@router.post(
+    "/mission-kanban/triage",
+    response_model=MissionKanbanTriageResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Park a big prompt on the mission kanban triage column",
+)
+async def mission_kanban_triage(
+    body: MissionKanbanTriageRequest,
+    db: DbSession,
+    _session: DashboardSession,
+) -> MissionKanbanTriageResponse:
+    """Create a triage backlog row without running workflow breaker yet."""
+
+    swarm_id = await _resolve_target_swarm_id(db, body.swarm_id, body.target_lane)
+    try:
+        result = await create_mission_triage_task(
+            db,
+            task_text=body.task_text,
+            title=body.title,
+            priority=body.priority,
+            swarm_id=swarm_id,
+        )
+        await db.commit()
+    except TaskUpsertViolationError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to create triage task.",
+        )
+    return MissionKanbanTriageResponse(
+        task_id=result.task.id,
+        title=result.task.title,
+        status=result.task.status,
+    )
+
+
+@router.post(
+    "/mission-kanban/dispatch/{task_id}",
+    response_model=MissionKanbanDispatchResponse,
+    summary="Dispatch triage task — decompose, slice children, optionally execute",
+)
+async def mission_kanban_dispatch(
+    task_id: uuid.UUID,
+    body: MissionKanbanDispatchRequest,
+    db: DbSession,
+    session: DashboardSession,
+) -> MissionKanbanDispatchResponse:
+    """Run workflow breaker on a triage row and materialize child kanban slices."""
+
+    swarm_id = await _resolve_target_swarm_id(db, body.swarm_id, body.target_lane)
+    try:
+        result = await dispatch_mission_triage_task(
+            db,
+            task_id=task_id,
+            swarm_id=swarm_id,
+            start_execution=body.start_execution,
+            defer_to_worker=body.defer_to_worker,
+            execution_payload=body.execution_payload,
+            requested_by=str(session.get("sub", "dashboard_admin")),
+        )
+        await db.commit()
+    except MissionKanbanNotFoundError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    except MissionKanbanStateError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
+    except ValueError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Mission kanban dispatch failed.",
+        )
+    except RuntimeError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        )
+    return MissionKanbanDispatchResponse(
+        workflow_id=result.workflow_id,
+        task_id=result.parent.id,
+        child_count=result.child_count,
+        celery_task_id=result.celery_task_id,
+        execution=result.execution,
+    )
 
 
 @router.post(

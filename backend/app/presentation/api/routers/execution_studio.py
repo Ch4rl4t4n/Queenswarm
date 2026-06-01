@@ -186,6 +186,14 @@ class StudioProposalReviewBody(BaseModel):
     decision: Literal["approve", "reject"]
 
 
+class StudioBulkProposalReviewBody(BaseModel):
+    """Bulk approve/reject pending codebase execution proposals."""
+
+    model_config = ConfigDict(extra="ignore")
+    decision: Literal["approve", "reject"]
+    limit: int = Field(default=50, ge=1, le=100)
+
+
 @router.get("/overview", summary="Execution Studio connections and policy snapshot")
 async def studio_overview(
     sess: DashboardSession,
@@ -683,4 +691,39 @@ async def studio_review_proposal(
         "id": str(reviewed.id),
         "status": reviewed.status,
         "handoff": handoff,
+    }
+
+
+@router.post("/proposals/bulk-review", summary="Bulk approve/reject codebase execution proposals")
+async def studio_bulk_review_proposals(
+    body: StudioBulkProposalReviewBody,
+    sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("connectors:edit")),
+) -> dict[str, Any]:
+    """Bulk governance for SCV codebase lane — rejects duplicate auto-initiative spam."""
+
+    _assert_enabled()
+    from app.application.services.execution_studio_handoff import CODEBASE_PROPOSAL_TYPE
+    from app.application.services.supervisor.initiative import bulk_review_agent_suggestions
+
+    tenant = await _tenant_from_session(sess, db)
+    pending = await list_pending_codebase_proposals(db, tenant_id=tenant.id, limit=body.limit)
+    if not pending:
+        return {"processed": 0, "skipped": 0, "errors": []}
+
+    suggestion_ids = [row.id for row in pending]
+    result = await bulk_review_agent_suggestions(
+        db,
+        tenant_id=tenant.id,
+        decision="approved" if body.decision == "approve" else "rejected",
+        reviewer_subject=f"dashboard:{_subject_uuid(sess)}",
+        suggestion_ids=suggestion_ids,
+        include_high_risk=True,
+        limit=body.limit,
+    )
+    await db.commit()
+    return {
+        **result,
+        "proposal_type": CODEBASE_PROPOSAL_TYPE,
     }

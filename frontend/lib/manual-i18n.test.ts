@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { OPERATOR_CONTROL_PLANE_ENABLED } from "@/lib/feature-flags";
 import { hiveOverviewHref } from "@/lib/hive-home-route";
 import { interpolateManualHomeTokens, manualSections } from "@/lib/manual-i18n";
 
@@ -14,11 +13,9 @@ describe("interpolateManualHomeTokens", () => {
 });
 
 describe("manualSections", () => {
-  it("uses CP-aware home route in quick-start checklist", () => {
-    const section = manualSections("en").find((s) => s.id === "quick-start");
-    expect(section?.checklist?.[0]).toContain(hiveOverviewHref());
-    if (OPERATOR_CONTROL_PLANE_ENABLED) {
-      expect(section?.checklist?.[0]).toContain("/agentic-os");
-    }
+  it("includes deep links on canonical workflow checklist steps", () => {
+    const section = manualSections("en").find((s) => s.id === "canonical-workflow");
+    expect(section?.checklist?.[0]?.href).toBe("/knowledge#memory");
+    expect(section?.checklist?.[1]?.href).toBe("/agents#sessions");
   });
 });

@@ -164,16 +164,16 @@ export function DreamingConsole(): JSX.Element {
             <div>
               <h3 className="text-base font-semibold text-(--qs-text)">Memory + Dreaming</h3>
               <p className="mt-1 text-xs text-(--qs-text-3)">
-                Automatický proces učenia — supervisor sessions → vzory, chyby, Dream Report v HiveMind.
+                Automated learning — supervisor sessions → patterns, failures, Dream Report in HiveMind.
               </p>
             </div>
             <InfoHint
-              title="Čo je Memory + Dreaming?"
-              description="Automatický proces učenia. Systém prečíta minulé supervisor sessions, nájde užitočné vzory a chyby, a uloží zhrnutie do HiveMind ako Dream Report."
+              title="What is Memory + Dreaming?"
+              description="Automated learning. The system reads past supervisor sessions, finds useful patterns and mistakes, and saves a summary to HiveMind as a Dream Report."
               options={[
-                "Učí sa bez manuálneho zásahu",
-                "Všetko je oddelené podľa tenantu",
-                "Nové poznatky nájdeš v Knowledge sekcii",
+                "Learns without manual intervention",
+                "Everything is tenant-scoped",
+                "New insights appear in Knowledge",
               ]}
             />
           </div>
@@ -183,12 +183,12 @@ export function DreamingConsole(): JSX.Element {
               <span className="v4-field-label inline-flex items-center gap-2">
                 Frequency (hours)
                 <InfoHint
-                  title="Frekvencia Dreaming behu"
-                  description="Určuje, ako často sa spustí automatické učenie. Menšie číslo znamená častejšie učenie, ale aj vyššiu spotrebu výpočtu."
+                  title="Dreaming frequency"
+                  description="How often automatic learning runs. Lower values mean more frequent runs and higher compute use."
                   options={[
-                    "24 = raz denne (odporúčané)",
-                    "1-8 = častejšie učenie pri aktívnej prevádzke",
-                    "168 = raz týždenne pri nízkej aktivite",
+                    "24 = once daily (recommended)",
+                    "1–8 = more frequent during active operations",
+                    "168 = once weekly for low activity",
                   ]}
                 />
               </span>
@@ -213,11 +213,11 @@ export function DreamingConsole(): JSX.Element {
               </button>
               <InfoHint
                 title="Run Dreaming now"
-                description="Ručné okamžité spustenie. Použi ho po väčších zmenách alebo po sérii incidentov, aby si hneď získal nový Dream Report."
+                description="Manual one-shot run. Use after major changes or a series of incidents to get a fresh Dream Report immediately."
                 options={[
-                  "Spustí sa jednorazový job",
-                  "Nečaká na plánovaný čas",
-                  "Výsledok sa objaví v Latest Dream Reports",
+                  "Queues a single Celery job",
+                  "Does not wait for the scheduled time",
+                  "Results appear under Latest Dream Reports",
                 ]}
               />
             </div>
@@ -232,11 +232,11 @@ export function DreamingConsole(): JSX.Element {
           <div className="mb-3 flex items-center gap-2">
             <InfoHint
               title="Latest Dream Reports"
-              description="Prehľad posledných behov Dreaming. Každá karta ukazuje, koľko dát systém spracoval a koľko duplicít zlúčil."
+              description="Overview of recent Dreaming runs. Each card shows how much data was processed and how many duplicates were merged."
               options={[
-                "status: stav behu (completed/failed)",
-                "consolidated: počet nových konsolidovaných poznatkov",
-                "dedup: počet odstránených duplicitných signálov",
+                "status: run state (completed/failed)",
+                "consolidated: count of new consolidated insights",
+                "dedup: count of removed duplicate signals",
               ]}
             />
           </div>

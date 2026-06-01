@@ -56,6 +56,7 @@ async def create_task_record(
     swarm_id: uuid.UUID | None,
     workflow_id: uuid.UUID | None,
     parent_task_id: uuid.UUID | None,
+    status: TaskStatus = TaskStatus.PENDING,
 ) -> Task:
     """Hydrate ORM backlog row respecting guardrailed ancestry."""
 
@@ -74,7 +75,7 @@ async def create_task_record(
         swarm_id=swarm_id,
         workflow_id=workflow_id,
         parent_task_id=parent_task_id,
-        status=TaskStatus.PENDING,
+        status=status,
     )
     session.add(entry)
     await session.flush()

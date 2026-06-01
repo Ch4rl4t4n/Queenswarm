@@ -14,7 +14,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.presentation.api.deps import DashboardSession, DbSession, dashboard_admin_wall
 from app.infrastructure.persistence.models.enums import TaskStatus
 from app.infrastructure.persistence.models.task import Task
-from app.common.schemas.task import TaskCreateRequest, TaskPatchRequest, TaskSnapshot
+from app.common.schemas.task import TaskCreateRequest, TaskLineageResponse, TaskPatchRequest, TaskSnapshot
+from app.application.services.mission_kanban import MissionKanbanNotFoundError, fetch_task_lineage
 from app.core.logging import get_logger
 from app.application.services.task_presenter import attach_agent_labels, build_task_snapshot
 from app.application.services.task_ledger import (
@@ -214,6 +215,34 @@ async def download_task_result(
         body,
         media_type="text/plain; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{safe_name}.{ext}"'},
+    )
+
+
+@router.get(
+    "/{task_id}/lineage",
+    response_model=TaskLineageResponse,
+    summary="Fetch task parent/children for mission kanban drawer",
+)
+async def get_task_lineage(
+    task_id: uuid.UUID,
+    db: DbSession,
+    _session: DashboardSession,
+) -> TaskLineageResponse:
+    """Return parent and child snapshots for hierarchical kanban tasks."""
+
+    try:
+        lineage = await fetch_task_lineage(db, task_id)
+    except MissionKanbanNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found.")
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected lineage lookup.",
+        )
+    return TaskLineageResponse(
+        task=lineage.task,
+        parent=lineage.parent,
+        children=lineage.children,
     )
 
 

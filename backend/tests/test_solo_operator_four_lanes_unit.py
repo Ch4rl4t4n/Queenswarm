@@ -12,6 +12,7 @@ from app.application.services.solo_operator_four_lanes import (
     ensure_four_lane_bootstrap,
     pause_legacy_routines,
     set_four_lane_active,
+    trigger_automation_lane,
 )
 from app.infrastructure.persistence.models.supervisor_routine import SupervisorRoutine
 
@@ -77,6 +78,7 @@ async def test_pause_legacy_routines_when_forager_evaluator_then_keeps_active(
 
 
 @pytest.mark.asyncio
+async def test_set_four_lane_active_when_routine_missing_then_not_ok() -> None:
     db = AsyncMock()
     tenant_id = uuid.uuid4()
 
@@ -94,6 +96,58 @@ async def test_pause_legacy_routines_when_forager_evaluator_then_keeps_active(
         active=False,
     )
     assert result["ok"] is False
+
+
+@pytest.mark.asyncio
+async def test_trigger_automation_lane_when_routines_disabled_then_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = AsyncMock()
+    tenant_id = uuid.uuid4()
+    monkeypatch.setattr(
+        "app.core.config.settings.routines_enabled",
+        False,
+    )
+
+    result = await trigger_automation_lane(db, tenant_id=tenant_id)
+    assert result == {"ok": False, "error": "routines_disabled"}
+
+
+@pytest.mark.asyncio
+async def test_trigger_automation_lane_when_lane_found_then_starts_session(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = AsyncMock()
+    tenant_id = uuid.uuid4()
+    session_id = uuid.uuid4()
+    automation = _routine(name="Four Lane · Automation queue", lane="automation", active=False)
+
+    async def _load(_db, *, tenant_id: uuid.UUID):  # noqa: ANN001, ARG001
+        return [automation]
+
+    async def _trigger(_db, *, routine: SupervisorRoutine):  # noqa: ANN001
+        assert routine is automation
+        return session_id
+
+    monkeypatch.setattr(
+        "app.core.config.settings.routines_enabled",
+        True,
+    )
+    monkeypatch.setattr(
+        "app.application.services.solo_operator_four_lanes._load_tenant_routines",
+        _load,
+    )
+    monkeypatch.setattr(
+        "app.application.services.supervisor.routine_service.trigger_supervisor_routine_now",
+        _trigger,
+    )
+    db.flush = AsyncMock()
+
+    result = await trigger_automation_lane(db, tenant_id=tenant_id)
+    assert result["ok"] is True
+    assert result["lane_id"] == "automation"
+    assert result["session_id"] == str(session_id)
+    assert automation.is_active is True
 
 
 @pytest.mark.asyncio
