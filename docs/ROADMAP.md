@@ -1,6 +1,6 @@
 # Queenswarm Roadmap & Backlog
 
-Updated: 2026-05-28
+Updated: 2026-06-01
 
 Living backlog for **queenswarm.love** — ordered by impact. Status reflects production host as of last deploy.
 
@@ -10,6 +10,30 @@ Living backlog for **queenswarm.love** — ordered by impact. Status reflects pr
 **Parallel agents:** see `docs/PHASE0_AGENT_SPLIT.md`. Tomorrow operator checklist: `docs/TOMORROW_OPERATOR_RUNBOOK.md`.  
 **Latest synthesis (YouTube + X + Atlas):** [`docs/CAPABILITIES_SYNTHESIS_MAY2026.md`](CAPABILITIES_SYNTHESIS_MAY2026.md)
 **Agentic OS split blueprint:** [`docs/AGENTIC_OS_APPS_BLUEPRINT.md`](AGENTIC_OS_APPS_BLUEPRINT.md)
+
+## Four-Lane Solo Operator (canonical — May 2026)
+
+**Replaces** automatic Virtual Company 16-routine sprawl for solo tenants.
+
+| Lane | ID | Schedule | Output |
+|------|-----|----------|--------|
+| Najman Marketing | `marketing_najman` | Po/St/Pi 09:00 | CZ digest → Tasks/publish |
+| Tech SCV | `tech_scv` | Daily 07:30 + Maintainer weekly | Innovation Lab → GitHub PR |
+| E-shop Research | `eshop_research` | Ut/Št 10:00 | beebrdy benchmark brief |
+| Automation Factory | `automation` | Manual | Approved → tasks/routines |
+
+| Step | Scope | Status |
+|------|-------|--------|
+| FL1 | Backend `solo_operator_four_lanes` + API | ✅ |
+| FL2 | Agentic OS → **Lanes** panel (bootstrap/pause/resume) | ✅ |
+| FL3 | Provision script + Najman seed integration | ✅ |
+| FL4 | Manual + section hints | ✅ |
+| FL5 | Unified digest inbox (report → task one-click) | ✅ |
+| FL6 | Disable VC auto-bootstrap for `SOLO_MODE` new tenants | ✅ |
+
+Doc: [`docs/SOLO_OPERATOR_FOUR_LANE.md`](SOLO_OPERATOR_FOUR_LANE.md) · UI: `/agentic-os#lanes` · `./scripts/operator-four-lane-provision.sh`
+
+**Deprecated for solo:** Virtual Company department routines (Sales, Finance, Bank PO, generic E-shop ops), My 3 Bees as primary control model.
 
 ## Feature Implementation Guardrails (mandatory)
 

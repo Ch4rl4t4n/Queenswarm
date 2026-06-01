@@ -5,7 +5,7 @@ import type { JSX } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2, Info, Play, Plus, RefreshCw } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
 
@@ -110,6 +110,19 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
   const [deleteBusy, setDeleteBusy] = useState<string | null>(null);
   const [clearAllBusy, setClearAllBusy] = useState(false);
   const [reportSessionId, setReportSessionId] = useState<string | null>(null);
+
+  const closeReportDialog = useCallback(() => {
+    setReportSessionId(null);
+  }, []);
+
+  const handleReportOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) {
+        closeReportDialog();
+      }
+    },
+    [closeReportDialog],
+  );
 
   const sessionsPoll = useRouteScopedPollOptions(COCKPIT_POLL_BOARD_MS, "/agents");
   const routinesPoll = useRouteScopedPollOptions(COCKPIT_POLL_BOARD_MS * 1.5, "/agents");
@@ -857,11 +870,7 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
       <AgentSessionReportDialog
         sessionId={reportSessionId}
         open={reportSessionId !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setReportSessionId(null);
-          }
-        }}
+        onOpenChange={handleReportOpenChange}
       />
 
       <div className={isV4 ? "v4-routines-panel mt-6" : "mt-6 rounded-2xl border border-[color:var(--qs-border)] bg-black/30 p-4"}>

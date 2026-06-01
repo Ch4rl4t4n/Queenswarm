@@ -15,6 +15,19 @@ from app.application.services.morning_publish_pipeline import (
     compose_morning_publish_pipeline_snapshot,
     run_morning_publish_pipeline,
 )
+from app.application.services.solo_operator_digest_inbox import (
+    DigestInboxOut,
+    compose_four_lane_digest_inbox,
+    promote_digest_session_to_task,
+)
+from app.application.services.solo_operator_four_lanes import (
+    FourLaneId,
+    FourLaneSnapshotOut,
+    compose_four_lane_snapshot,
+    ensure_four_lane_bootstrap,
+    pause_legacy_routines,
+    set_four_lane_active,
+)
 from app.application.services.solo_operator_trio import (
     TrioLaneId,
     get_solo_trio_status,
@@ -251,6 +264,154 @@ async def session_search(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
     hits = await search_supervisor_sessions(db, tenant_id=tenant_id, query=q, limit=limit)
     return {"query": q, "count": len(hits), "hits": hits}
+
+
+class FourLaneBootstrapRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    pause_legacy: bool = Field(default=True, description="Pause non-four-lane routines.")
+
+
+class FourLaneActiveRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    active: bool = Field(description="Enable or pause the lane routine.")
+
+
+class DigestPromoteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str | None = Field(default=None, max_length=500)
+    approve_first: bool = Field(default=True, description="Approve session before creating task.")
+
+
+@router.get(
+    "/four-lanes/digest-inbox",
+    response_model=DigestInboxOut,
+    summary="Unified digest inbox for four-lane sessions",
+)
+async def solo_four_lanes_digest_inbox(
+    db: DbSession,
+    limit: int = Query(20, ge=1, le=50),
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> DigestInboxOut:
+    """Pending marketing/e-shop/tech digests with promote-ready flag."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    return await compose_four_lane_digest_inbox(db, tenant_id=tenant_id, limit=limit)
+
+
+@router.post(
+    "/four-lanes/digest-inbox/{session_id}/promote",
+    summary="Approve digest and create task in one step",
+)
+async def solo_four_lanes_digest_promote(
+    session_id: uuid.UUID,
+    body: DigestPromoteRequest,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    subject = f"dashboard:{user.id}"
+    result = await promote_digest_session_to_task(
+        db,
+        tenant_id=tenant_id,
+        session_id=session_id,
+        reviewer_subject=subject,
+        title=body.title,
+        approve_first=body.approve_first,
+    )
+    if not result.get("ok"):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(result.get("error")))
+    await db.commit()
+    return result
+
+
+@router.get(
+    "/four-lanes",
+    response_model=FourLaneSnapshotOut,
+    summary="Four-lane solo operator control snapshot",
+)
+async def solo_four_lanes_snapshot(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> FourLaneSnapshotOut:
+    """Return marketing / tech SCV / e-shop / automation lane status."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    return await compose_four_lane_snapshot(db, tenant_id=tenant_id)
+
+
+@router.post(
+    "/four-lanes/bootstrap",
+    summary="Bootstrap four-lane operator model (pause legacy + ensure lanes)",
+)
+async def solo_four_lanes_bootstrap(
+    body: FourLaneBootstrapRequest,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    subject = f"dashboard:{user.id}"
+    result = await ensure_four_lane_bootstrap(
+        db,
+        tenant_id=tenant_id,
+        created_by_subject=subject,
+        pause_legacy=body.pause_legacy,
+    )
+    await db.commit()
+    return result
+
+
+@router.post(
+    "/four-lanes/pause-legacy",
+    summary="Pause all routines not tagged with four_lane_id",
+)
+async def solo_four_lanes_pause_legacy(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    result = await pause_legacy_routines(db, tenant_id=tenant_id)
+    await db.commit()
+    return result
+
+
+@router.patch(
+    "/four-lanes/{lane_id}/active",
+    summary="Pause or resume one four-lane routine",
+)
+async def solo_four_lane_set_active(
+    lane_id: FourLaneId,
+    body: FourLaneActiveRequest,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    result = await set_four_lane_active(
+        db,
+        tenant_id=tenant_id,
+        lane_id=lane_id,
+        active=body.active,
+    )
+    if not result.get("ok"):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(result.get("error")))
+    await db.commit()
+    return result
 
 
 __all__ = ["router"]

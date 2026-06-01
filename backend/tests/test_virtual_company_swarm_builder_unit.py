@@ -15,6 +15,19 @@ from app.application.services.virtual_company_swarm_builder import (
 
 
 @pytest.mark.asyncio
+async def test_build_department_swarm_blocked_in_solo_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.application.services import virtual_company_swarm_builder as mod
+    from app.core import config
+
+    monkeypatch.setattr(config.settings, "solo_mode_enabled", True)
+    tenant = MagicMock()
+    tenant.operator_settings = {}
+    db = AsyncMock()
+    with pytest.raises(ValueError, match="SOLO_MODE"):
+        await mod.build_department_swarm(db, tenant=tenant, template_id="marketing-ops")
+
+
+@pytest.mark.asyncio
 async def test_build_department_swarm_idempotent_when_exists(monkeypatch: pytest.MonkeyPatch) -> None:
     from app.application.services import virtual_company_swarm_builder as mod
 

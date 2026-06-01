@@ -7,6 +7,7 @@ export type CockpitSectionHint = SectionHint;
 export type CockpitHintKey = Extract<
   SectionHintKey,
   | "overview"
+  | "fourLanes"
   | "command"
   | "beeHotline"
   | "intentCrystallizer"

@@ -16,6 +16,7 @@ import {
   Rocket,
   Terminal,
   Users,
+  Waypoints,
 } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -45,6 +46,14 @@ import { useRouteScopedPollOptions } from "@/lib/hooks/use-route-scoped-poll";
 const GrokControlPlanePanel = dynamic(
   () => import("@/components/hive/grok-control-plane-panel").then((mod) => ({ default: mod.GrokControlPlanePanel })),
   { loading: () => <HivePanelSectionSkeleton label="Loading Grok control plane" /> },
+);
+
+const SoloOperatorFourLanesPanel = dynamic(
+  () =>
+    import("@/components/hive/solo-operator-four-lanes-panel").then((mod) => ({
+      default: mod.SoloOperatorFourLanesPanel,
+    })),
+  { loading: () => <HivePanelSectionSkeleton label="Loading four lanes" /> },
 );
 
 const InnovationLabPanel = dynamic(
@@ -203,6 +212,7 @@ const COCKPIT_SECTIONS: {
   icon: typeof Gauge;
 }[] = [
   { id: "overview", label: "Overview", icon: Gauge },
+  { id: "lanes", label: "Lanes", icon: Waypoints },
   { id: "command", label: "Command", icon: MessageSquare },
   { id: "grok", label: "Grok", icon: Terminal },
   { id: "icm", label: "ICM tools", icon: Link2 },
@@ -734,6 +744,8 @@ function OperatorCockpitPanelInner() {
           )}
         </V4Card>
       ) : null}
+
+      {section === "lanes" ? <SoloOperatorFourLanesPanel onMutate={() => void load({ silent: true })} /> : null}
 
       {section === "command" ? (
         <V4Card>

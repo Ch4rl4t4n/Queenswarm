@@ -70,6 +70,46 @@ export const APP_MANUAL_SECTIONS: ManualSection[] = [
     ],
   },
   {
+    id: "four-lanes",
+    title: "7. Four Lanes (solo operator)",
+    paragraphs: [
+      "SK: Štyri paralelné misie nahradzujú Virtual Company chaos: Najman marketing, Tech SCV, E-shop research, Automation factory.",
+      "EN: Four parallel missions replace Virtual Company sprawl: Najman marketing, Tech SCV, E-shop research, Automation factory.",
+      "SK: Otvor Agentic OS → Lanes, raz spusti Bootstrap lanes (pozastaví legacy rutiny), potom denne len Approve digestov.",
+      "EN: Open Agentic OS → Lanes, run Bootstrap lanes once (pauses legacy routines), then daily Approve digests only.",
+    ],
+    checklist: [
+      "SK: Lane A — Po/St/Pi marketing digest + competitor forager → Agents → Approve.",
+      "EN: Lane A — Mon/Wed/Fri marketing digest + competitor forager → Agents → Approve.",
+      "SK: Lane B — denne Tech SCV → Innovation Lab → Implement → GitHub PR merge.",
+      "EN: Lane B — daily Tech SCV → Innovation Lab → Implement → merge GitHub PR.",
+      "SK: Lane C — Ut/Št e-shop research pre beebrdy.cz → Knowledge / redesign brief.",
+      "EN: Lane C — Tue/Thu e-shop research for beebrdy.cz → Knowledge / redesign brief.",
+      "SK: Lane D — Automation: manuálne po schválení A/B/C → Tasks / rutiny.",
+      "EN: Lane D — Automation: manual after A/B/C approval → Tasks / routines.",
+      "SK: Full doc: docs/SOLO_OPERATOR_FOUR_LANE.md",
+      "EN: Full doc: docs/SOLO_OPERATOR_FOUR_LANE.md",
+    ],
+  },
+  {
+    id: "digest-inbox",
+    title: "7b. Digest Inbox (approve → task)",
+    paragraphs: [
+      "SK: V Agentic OS → Lanes nájdeš Digest Inbox — zoznam digestov z lane A/C bez prepojeného tasku.",
+      "EN: In Agentic OS → Lanes, Digest Inbox lists lane A/C digests without a linked task yet.",
+      "SK: Tlačidlo → Task schváli session a vytvorí položku v Tasks s excerptom (simulate-first).",
+      "EN: The → Task button approves the session and creates a Tasks row with the excerpt (simulate-first).",
+      "SK: Tech SCV (lane B) riešiš cez Innovation Lab, nie cez task promote.",
+      "EN: Tech SCV (lane B) is handled via Innovation Lab, not task promote.",
+    ],
+    checklist: [
+      "SK: API GET /solo-operator/four-lanes/digest-inbox",
+      "EN: API GET /solo-operator/four-lanes/digest-inbox",
+      "SK: API POST /solo-operator/four-lanes/digest-inbox/{session_id}/promote",
+      "EN: API POST /solo-operator/four-lanes/digest-inbox/{session_id}/promote",
+    ],
+  },
+  {
     id: "voice-providers",
     title: "6. Voice providers (SK/EN)",
     paragraphs: [
@@ -210,6 +250,25 @@ export const APP_FUNCTION_GUIDE: FunctionInfoGroup[] = [
     id: "operator-cockpit",
     title: "Agentic OS",
     items: [
+      {
+        id: "cockpit-four-lanes",
+        label: "Four Lanes",
+        description:
+          "Solo operator control — four parallel missions with pause/resume, bootstrap, and approve links. Replaces 16-routine Virtual Company sprawl.",
+        options: [
+          "Bootstrap lanes — pause legacy + bind marketing/tech/eshop/automation",
+          "Pause/Resume per lane",
+          "Digest Inbox — approve → task one-click",
+          "Approve → Agents sessions or Innovation Lab",
+        ],
+      },
+      {
+        id: "cockpit-digest-inbox",
+        label: "Digest Inbox",
+        description:
+          "Queue of four-lane digest sessions — review excerpt, open session, promote to Tasks (marketing/e-shop).",
+        options: ["→ Task one-click", "Tech SCV → Innovation Lab"],
+      },
       {
         id: "cockpit-overview",
         label: "Operator overview",

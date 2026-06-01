@@ -2,10 +2,11 @@
 
 import { resolvePrimarySubnavFromUrl, SUBNAV_MENU_KEYS } from "@/lib/subnav-order-preferences";
 
-export type CockpitSection = "overview" | "command" | "grok" | "icm" | "fleet" | "modules" | "innovation";
+export type CockpitSection = "overview" | "lanes" | "command" | "grok" | "icm" | "fleet" | "modules" | "innovation";
 
 const ALL_COCKPIT_SECTIONS: CockpitSection[] = [
   "overview",
+  "lanes",
   "command",
   "grok",
   "icm",
@@ -16,7 +17,8 @@ const ALL_COCKPIT_SECTIONS: CockpitSection[] = [
 
 const HASH_TO_SECTION: Record<string, CockpitSection> = {
   overview: "overview",
-  command: "command",
+  lanes: "lanes",
+  "four-lanes": "lanes",
   grok: "grok",
   "grok-control-plane": "grok",
   icm: "icm",

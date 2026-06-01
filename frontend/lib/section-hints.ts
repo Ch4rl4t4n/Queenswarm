@@ -154,6 +154,31 @@ export const SECTION_HINTS = {
     ],
     manualHref: "/manual#cockpit-overview",
   },
+  fourLanes: {
+    title: "Four Lanes",
+    description:
+      "Solo operator control surface: four parallel missions replace Virtual Company routine sprawl. Bootstrap once to pause legacy routines and bind marketing, tech SCV, e-shop, and automation lanes.",
+    options: [
+      "Lane A — Najman marketing digest (Po/St/Pi) + competitor forager.",
+      "Lane B — Tech SCV daily upgrades → Innovation Lab → Queen Maintainer PR.",
+      "Lane C — E-shop research (Ut/Št) for beebrdy.cz benchmark + SEO.",
+      "Lane D — Automation factory: manual trigger after you approve digests.",
+      "Bootstrap lanes — pauses non-lane routines; safe to re-run (idempotent).",
+    ],
+    manualHref: "/manual#four-lanes",
+  },
+  fourLaneDigestInbox: {
+    title: "Digest Inbox",
+    description:
+      "Unified queue of four-lane digest sessions. Review excerpt, open session, or promote marketing/e-shop digests to Tasks in one click.",
+    options: [
+      "→ Task — approves session + creates backlog row with digest excerpt (simulate-first).",
+      "Tech SCV lane — use Innovation tab for upgrade proposals, not task promote.",
+      "Pending count — sessions in needs_input or completed without linked task.",
+      "Full loop doc: /manual#digest-inbox",
+    ],
+    manualHref: "/manual#digest-inbox",
+  },
   command: {
     title: "Command lane",
     description:
