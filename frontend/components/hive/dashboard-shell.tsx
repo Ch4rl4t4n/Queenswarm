@@ -9,6 +9,7 @@ import { DashboardSettingsPanel } from "@/components/hive/dashboard-settings-pan
 import { HiveBottomNav } from "@/components/hive/hive-bottom-nav";
 import { OperatorShellFab } from "@/components/hive/operator-shell-fab";
 import { HiveCommandPaletteHost } from "@/components/hive/hive-command-palette-host";
+import { OperatorMissionFeedProvider } from "@/components/hive/operator-mission-feed-provider";
 import { HiveMobileHeader } from "@/components/hive/hive-mobile-header";
 import { SkipToMainLink } from "@/components/hive/skip-to-main-link";
 import { HiveMobileHeaderActionsProvider } from "@/components/hive/hive-mobile-header-actions";
@@ -105,6 +106,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
 
   return (
     <PlatformProvider>
+      <OperatorMissionFeedProvider>
       <IdleRoutePrefetcher />
       <HotRouteChunkWarmer />
       <DashboardLayoutProvider>
@@ -200,6 +202,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
         </div>
         </HiveMobileHeaderActionsProvider>
       </DashboardLayoutProvider>
+      </OperatorMissionFeedProvider>
     </PlatformProvider>
   );
 }

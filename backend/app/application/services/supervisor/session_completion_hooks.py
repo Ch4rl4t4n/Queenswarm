@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.application.services.mission_session_index import index_supervisor_session_best_effort
 from app.application.services.operator_mission_feed import push_mission_feed_event
 from app.core.logging import get_logger
@@ -10,13 +12,13 @@ from app.infrastructure.persistence.models.supervisor_session import SupervisorS
 _logger = get_logger(__name__)
 
 
-async def on_supervisor_session_completed(session: SupervisorSession) -> None:
+async def on_supervisor_session_completed(session: SupervisorSession, *, db: AsyncSession | None = None) -> None:
     """Best-effort semantic index + in-app notification when a session finishes."""
 
     if str(session.status or "").lower() != "completed":
         return
 
-    await index_supervisor_session_best_effort(session)
+    await index_supervisor_session_best_effort(session, db=db)
 
     tenant_id = session.tenant_id
     if tenant_id is None:

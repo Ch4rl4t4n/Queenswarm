@@ -753,7 +753,7 @@ def run_supervisor_sub_agent_step_task(
                     on_supervisor_session_completed,
                 )
 
-                await on_supervisor_session_completed(sup)
+                await on_supervisor_session_completed(sup, db=session)
                 await append_event(
                     session,
                     supervisor_session=sup,

@@ -5,6 +5,8 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.chroma_client import (
     SUPERVISOR_SESSIONS_COLLECTION,
     delete_documents_by_ids,
@@ -33,7 +35,11 @@ def _session_index_document(session: SupervisorSession) -> str:
     return "\n".join(parts)[:6000]
 
 
-async def index_supervisor_session_best_effort(session: SupervisorSession) -> str | None:
+async def index_supervisor_session_best_effort(
+    session: SupervisorSession,
+    *,
+    db: AsyncSession | None = None,
+) -> str | None:
     """Upsert a completed session into the vector index (Postgres pgvector or Chroma)."""
 
     if str(session.status or "").lower() != "completed":
@@ -79,6 +85,11 @@ async def index_supervisor_session_best_effort(session: SupervisorSession) -> st
         return None
 
     logger_ctx.info("mission_session_index.upserted", vector_id=doc_id)
+    if db is not None:
+        ctx = dict(session.context_summary or {})
+        ctx["mission_index_vector_id"] = doc_id
+        session.context_summary = ctx
+        await db.flush()
     return doc_id
 
 

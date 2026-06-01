@@ -4,8 +4,8 @@ import { Bell, ChevronRight } from "lucide-react";
 import Link from "next/link";
 
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
+import { useOperatorMissionFeedContext } from "@/components/hive/operator-mission-feed-provider";
 import { formatHiveNotificationBadge } from "@/lib/hooks/use-hive-notification-badge";
-import { useOperatorMissionFeed } from "@/lib/hooks/use-operator-mission-feed";
 import { useOperatorPendingSnapshot } from "@/lib/hooks/use-operator-pending-snapshot";
 import { studioPendingActionHref, studioPendingApprovalsHref, supervisorSessionHref } from "@/lib/operator-pending-events";
 import { localizePhrase } from "@/lib/ui-copy";
@@ -21,7 +21,7 @@ interface HiveOperatorNotificationCenterProps {
 export function HiveOperatorNotificationCenter({ summary, className }: HiveOperatorNotificationCenterProps) {
   const { language } = useUiLanguage();
   const snapshot = useOperatorPendingSnapshot(summary?.tasks.pending ?? 0);
-  const missionFeed = useOperatorMissionFeed(true);
+  const missionFeed = useOperatorMissionFeedContext();
   const badge = formatHiveNotificationBadge(snapshot.total + missionFeed.unread);
   const open = snapshot.total + missionFeed.unread > 0;
 

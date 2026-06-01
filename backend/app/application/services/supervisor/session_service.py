@@ -297,7 +297,7 @@ async def retry_sub_agent_step(
                     on_supervisor_session_completed,
                 )
 
-                await on_supervisor_session_completed(session_row)
+                await on_supervisor_session_completed(session_row, db=db)
         await db.flush()
         return sub_agent
 
@@ -346,7 +346,7 @@ async def resume_inprocess_sub_agents_after_approval(
                 on_supervisor_session_completed,
             )
 
-            await on_supervisor_session_completed(session_row)
+            await on_supervisor_session_completed(session_row, db=db)
             await append_event(
                 db,
                 supervisor_session=session_row,
@@ -575,7 +575,7 @@ async def create_supervisor_session(
                 on_supervisor_session_completed,
             )
 
-            await on_supervisor_session_completed(session_row)
+            await on_supervisor_session_completed(session_row, db=db)
             await append_event(
                 db,
                 supervisor_session=session_row,

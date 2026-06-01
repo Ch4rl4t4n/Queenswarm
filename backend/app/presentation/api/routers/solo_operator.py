@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.application.services.publish_operator_onboarding import compose_publish_onboarding_snapshot
 from app.application.services.hive_session_search import search_supervisor_sessions
 from app.application.services.mission_operator_search import search_mission_operator
+from app.application.services.mission_session_backfill import backfill_mission_session_index
 from app.application.services.operator_mission_feed import (
     list_mission_feed_events,
     mark_mission_feed_read,
@@ -334,6 +335,31 @@ async def mission_search(
         session_limit=session_limit,
         task_limit=task_limit,
     )
+
+
+class MissionSearchBackfillRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    limit: int = Field(default=120, ge=1, le=500, description="Max completed sessions to scan.")
+
+
+@router.post(
+    "/mission-search/backfill",
+    summary="Backfill semantic index for completed supervisor sessions",
+)
+async def mission_search_backfill(
+    body: MissionSearchBackfillRequest,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Index historical completed sessions for semantic ⌘K recall (idempotent)."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    result = await backfill_mission_session_index(db, tenant_id=tenant_id, limit=body.limit)
+    await db.commit()
+    return {"ok": True, **result}
 
 
 class FourLaneBootstrapRequest(BaseModel):

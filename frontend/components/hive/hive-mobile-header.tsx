@@ -1,8 +1,9 @@
 "use client";
 
 import { BellIcon, MenuIcon } from "lucide-react";
-import Link from "next/link";
+import { useState } from "react";
 
+import { HiveMobileNotificationSheet } from "@/components/hive/hive-mobile-notification-sheet";
 import { useHiveMobileHeaderTrailing } from "@/components/hive/hive-mobile-header-actions";
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
 import { useHiveNotificationBadge } from "@/lib/hooks/use-hive-notification-badge";
@@ -25,8 +26,10 @@ export function HiveMobileHeader({ pathname, summary, className, onOpenNav }: Hi
   const badge = useHiveNotificationBadge(summary);
   const trailing = useHiveMobileHeaderTrailing();
   const chrome = mobileChromeTitleForPath(pathname);
+  const [notifOpen, setNotifOpen] = useState(false);
 
   return (
+    <>
     <header
       data-testid="hive-mobile-header"
       className={cn(
@@ -60,8 +63,9 @@ export function HiveMobileHeader({ pathname, summary, className, onOpenNav }: Hi
 
         <div className="flex shrink-0 items-center gap-1.5 justify-self-end">
           {trailing}
-          <Link
-            href="/settings/notifications"
+          <button
+            type="button"
+            data-testid="hive-mobile-notifications-bell"
             aria-label={
               badge
                 ? localizePhrase(language, {
@@ -71,6 +75,7 @@ export function HiveMobileHeader({ pathname, summary, className, onOpenNav }: Hi
                 : localizePhrase(language, { en: "Notifications", sk: "Notifikácie" })
             }
             className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[color:var(--qs-border)] bg-black/55 text-zinc-300 hover:border-[color:var(--qs-border-2)] hover:text-pollen touch-manipulation"
+            onClick={() => setNotifOpen(true)}
           >
             <BellIcon className="h-[20px] w-[20px]" strokeWidth={2} aria-hidden />
             {badge ? (
@@ -78,9 +83,15 @@ export function HiveMobileHeader({ pathname, summary, className, onOpenNav }: Hi
                 {badge}
               </span>
             ) : null}
-          </Link>
+          </button>
         </div>
       </div>
     </header>
+    <HiveMobileNotificationSheet
+      open={notifOpen}
+      onClose={() => setNotifOpen(false)}
+      summary={summary}
+    />
+    </>
   );
 }

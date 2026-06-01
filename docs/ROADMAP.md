@@ -38,6 +38,7 @@ Living backlog for **queenswarm.love** — ordered by impact. Status reflects pr
 | OW15 | Prompt injection guard on scrape ingest + task workspace files | ✅ |
 | OW16 | pg_trgm mission search indexes + injection guard on all external tools + search cache | ✅ |
 | OW17 | Session semantic index + mission feed notifications + 3-checkpoint injection guard | ✅ |
+| OW18 | Session index backfill API + mobile notification sheet + shared feed provider | ✅ |
 
 **OW12 note:** `/tasks` defaults to **Mission Kanban board** — triage + Dispatch now runs Workflow Breaker + tracer slices. Sessions remain the execution engine; kanban is the visibility layer.
 
@@ -50,6 +51,8 @@ Living backlog for **queenswarm.love** — ordered by impact. Status reflects pr
 **OW16 note:** Migration `0057` adds GIN trigram indexes on supervisor goals, task titles, and sub-agent output. All external fetch/search tools (`scrape`, `wikipedia`, `grokipedia`, `serper`, `tavily`, `jina_reader`, `web_search`) pass through injection guard. Mission search uses 15s TTL cache per tenant+query.
 
 **OW17 note:** Completed sessions index into `supervisor_sessions` vector collection for semantic ⌘K recall. Redis mission feed powers sidebar toasts + `GET /solo-operator/mission-feed`. Injection guard checkpoints: operator input (422), external tools (sanitize), agent output (report sanitize).
+
+**OW18 note:** `POST /solo-operator/mission-search/backfill` idempotently indexes historical completed sessions. Mobile/tablet bell opens mission feed sheet; `OperatorMissionFeedProvider` dedupes polling. `mission_index_vector_id` persisted on session context after index.
 
 ## Four-Lane Solo Operator (optional background automation)
 
