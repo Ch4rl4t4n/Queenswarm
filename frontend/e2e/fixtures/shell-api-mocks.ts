@@ -1340,6 +1340,33 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("solo-operator/mission-feed")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ events: [], unread: 0, total: 0 }),
+      });
+      return;
+    }
+
+    if (path.startsWith("solo-operator/mission-search/backfill-auto")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, auto_skipped: true, reason: "tenant_backfill_recent" }),
+      });
+      return;
+    }
+
+    if (path.startsWith("solo-operator/mission-search")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ query: "", sessions: [], tasks: [], total: 0 }),
+      });
+      return;
+    }
+
     if (path.startsWith("swarms?") || path === "swarms") {
       await route.fulfill({
         status: 200,

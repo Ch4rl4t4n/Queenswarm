@@ -6,6 +6,7 @@ import {
   useOperatorMissionFeed,
   type MissionFeedEvent,
 } from "@/lib/hooks/use-operator-mission-feed";
+import { useMissionSearchAutoBackfill } from "@/lib/hooks/use-mission-search-auto-backfill";
 
 export interface OperatorMissionFeedContextValue {
   events: MissionFeedEvent[];
@@ -28,6 +29,7 @@ const OperatorMissionFeedContext = createContext<OperatorMissionFeedContextValue
 /** Single poll loop shared by sidebar + mobile notification chrome. */
 export function OperatorMissionFeedProvider({ children }: { children: ReactNode }): JSX.Element {
   const feed = useOperatorMissionFeed(true);
+  useMissionSearchAutoBackfill(true);
   return (
     <OperatorMissionFeedContext.Provider value={feed}>{children}</OperatorMissionFeedContext.Provider>
   );

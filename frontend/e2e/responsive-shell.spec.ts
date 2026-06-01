@@ -644,4 +644,20 @@ test.describe("Responsive shell — authenticated cockpit", () => {
       });
     }
   }
+
+  test("mobile notification bell opens mission feed sheet", async ({ page, context, baseURL }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
+    await maybeInstallShellApiMocks(page);
+
+    const onShell = await gotoShellRoute(page, "/tasks");
+    if (!onShell) {
+      return;
+    }
+
+    await expect(page.getByTestId("hive-mobile-notifications-bell")).toBeVisible({ timeout: 15_000 });
+    await page.getByTestId("hive-mobile-notifications-bell").click();
+    await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Notification settings")).toBeVisible();
+  });
 });

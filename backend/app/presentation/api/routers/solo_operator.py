@@ -11,7 +11,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.application.services.publish_operator_onboarding import compose_publish_onboarding_snapshot
 from app.application.services.hive_session_search import search_supervisor_sessions
 from app.application.services.mission_operator_search import search_mission_operator
-from app.application.services.mission_session_backfill import backfill_mission_session_index
+from app.application.services.mission_session_backfill import (
+    backfill_mission_session_index,
+    maybe_auto_backfill_mission_session_index,
+)
 from app.application.services.operator_mission_feed import (
     list_mission_feed_events,
     mark_mission_feed_read,
@@ -360,6 +363,25 @@ async def mission_search_backfill(
     result = await backfill_mission_session_index(db, tenant_id=tenant_id, limit=body.limit)
     await db.commit()
     return {"ok": True, **result}
+
+
+@router.post(
+    "/mission-search/backfill-auto",
+    summary="One-shot auto backfill on dashboard boot (Redis-guarded per tenant)",
+)
+async def mission_search_backfill_auto(
+    body: MissionSearchBackfillRequest,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Index historical sessions once per tenant/month — safe to call on every login."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    result = await maybe_auto_backfill_mission_session_index(db, tenant_id=tenant_id, limit=body.limit)
+    await db.commit()
+    return result
 
 
 class FourLaneBootstrapRequest(BaseModel):
