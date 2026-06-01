@@ -9,9 +9,11 @@ import uuid
 
 from app.application.services.mission_session_backfill import backfill_mission_session_index
 from app.core.database import async_session
+from app.infrastructure.persistence.models import load_all_models
 
 
 async def _run(*, tenant_id: uuid.UUID, limit: int) -> None:
+    load_all_models()
     async with async_session() as session:
         result = await backfill_mission_session_index(session, tenant_id=tenant_id, limit=limit)
         await session.commit()
