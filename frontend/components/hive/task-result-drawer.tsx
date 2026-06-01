@@ -136,6 +136,8 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
   const [loading, setLoading] = useState(false);
   const [drawerError, setDrawerError] = useState<string | null>(null);
   const [slideIn, setSlideIn] = useState(false);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [noteBusy, setNoteBusy] = useState(false);
   const pollComplete = useCallback((next: TaskDrawerDetail) => setTask(next), []);
 
   useEffect(() => {
@@ -268,8 +270,26 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
     }
   }
 
+  async function handleSendNote(): Promise<void> {
+    const text = noteDraft.trim();
+    if (!taskId || text.length < 1) return;
+    setNoteBusy(true);
+    try {
+      const next = await hivePatchJson<TaskDrawerDetail>(`tasks/${encodeURIComponent(taskId)}`, {
+        operator_note: text,
+      });
+      setTask(next);
+      setNoteDraft("");
+    } catch (e) {
+      window.alert(e instanceof HiveApiError ? e.message : "Could not save note");
+    } finally {
+      setNoteBusy(false);
+    }
+  }
+
   const taskText =
     task?.payload && typeof task.payload.task_text === "string" ? task.payload.task_text : null;
+  const operatorNotes = parseOperatorNotes(task?.payload);
 
   const badgeStatus = displayStatus(task?.status);
   const statusColor: Record<string, string> = {
@@ -366,6 +386,13 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
               {lineage?.children?.length ? (
                 <LineageSection title="Children" rows={lineage.children} onOpen={onClose} />
               ) : null}
+              <TaskOperatorThread
+                notes={operatorNotes}
+                draft={noteDraft}
+                busy={noteBusy}
+                onDraftChange={setNoteDraft}
+                onSend={() => void handleSendNote()}
+              />
             </div>
           ) : null}
 
@@ -499,6 +526,78 @@ function LineageSection({
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function parseOperatorNotes(payload?: Record<string, unknown>): { text: string; at: string }[] {
+  const raw = payload?.operator_notes;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((entry): entry is { text: string; at: string } => {
+      return (
+        typeof entry === "object" &&
+        entry !== null &&
+        typeof (entry as { text?: unknown }).text === "string" &&
+        typeof (entry as { at?: unknown }).at === "string"
+      );
+    })
+    .slice(-20);
+}
+
+function TaskOperatorThread({
+  notes,
+  draft,
+  busy,
+  onDraftChange,
+  onSend,
+}: {
+  notes: { text: string; at: string }[];
+  draft: string;
+  busy: boolean;
+  onDraftChange: (value: string) => void;
+  onSend: () => void;
+}): JSX.Element {
+  return (
+    <div>
+      <p className="qs-meta-label mb-2 text-zinc-500">Task thread</p>
+      {notes.length ? (
+        <ul className="mb-3 max-h-40 space-y-2 overflow-y-auto hive-scrollbar">
+          {notes.map((note, idx) => (
+            <li
+              key={`${note.at}-${idx}`}
+              className="rounded-lg border border-[color:var(--qs-border)] bg-black/35 px-3 py-2 text-xs text-zinc-300"
+            >
+              <p className="whitespace-pre-wrap text-zinc-200">{note.text}</p>
+              <p className="mt-1 text-[10px] text-zinc-600">{new Date(note.at).toLocaleString()}</p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mb-3 text-xs text-zinc-600">Add context or instructions for this task.</p>
+      )}
+      <div className="flex gap-2">
+        <input
+          value={draft}
+          onChange={(e) => onDraftChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              onSend();
+            }
+          }}
+          placeholder="Message this task…"
+          className="min-w-0 flex-1 rounded-xl border border-[color:var(--qs-border)] bg-black/45 px-3 py-2 text-sm text-[#fafafa] placeholder:text-zinc-500 focus:border-pollen/35 focus:outline-none"
+        />
+        <button
+          type="button"
+          disabled={busy || draft.trim().length === 0}
+          onClick={onSend}
+          className="qs-btn qs-btn--cyan qs-btn--sm shrink-0"
+        >
+          Send
+        </button>
+      </div>
     </div>
   );
 }

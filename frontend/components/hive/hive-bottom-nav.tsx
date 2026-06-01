@@ -6,7 +6,7 @@ import Link from "next/link";
 
 import { usePlatform } from "@/components/hive/platform-context";
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
-import { HIVE_NAV_PRIMARY, hiveBottomNavItems, isNavItemActive } from "@/lib/hive-nav-primary";
+import { applySoloMissionControlNav, HIVE_NAV_PRIMARY, hiveBottomNavItems, isNavItemActive } from "@/lib/hive-nav-primary";
 import { filterNavByFeatures } from "@/lib/platform-features";
 import { localizeNavLabel, localizePhrase } from "@/lib/ui-copy";
 import { cn } from "@/lib/utils";
@@ -49,8 +49,10 @@ interface HiveBottomNavProps {
 /** Primary thumb targets — subset of nav + overflow sheet. */
 export function HiveBottomNav({ onMore, pathname, moreOpen = false }: HiveBottomNavProps) {
   const { language } = useUiLanguage();
-  const { features } = usePlatform();
-  const items = hiveBottomNavItems(filterNavByFeatures(HIVE_NAV_PRIMARY, features));
+  const { features, soloMode } = usePlatform();
+  const items = hiveBottomNavItems(
+    filterNavByFeatures(applySoloMissionControlNav(HIVE_NAV_PRIMARY, soloMode), features),
+  );
 
   return (
     <nav

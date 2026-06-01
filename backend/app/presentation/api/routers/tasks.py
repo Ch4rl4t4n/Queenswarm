@@ -285,7 +285,7 @@ async def patch_existing_task(
 ) -> TaskSnapshot:
     """Update operator-visible fields emitted after LangGraph completions."""
 
-    if body.status is None and body.result is None and body.error_msg is None:
+    if body.status is None and body.result is None and body.error_msg is None and body.operator_note is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Provide at least one mutable field.",
@@ -302,6 +302,7 @@ async def patch_existing_task(
             status=body.status,
             result=body.result,
             error_msg=body.error_msg,
+            operator_note=body.operator_note,
         )
         await db.commit()
         await db.refresh(row)

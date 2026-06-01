@@ -130,6 +130,30 @@ async def test_apply_task_updates_merges_fields() -> None:
 
 
 @pytest.mark.asyncio
+async def test_apply_task_updates_appends_operator_note() -> None:
+    """Operator notes append to payload.operator_notes for mission kanban thread."""
+
+    session = AsyncMock()
+    session.flush = AsyncMock()
+    row = Task(title="t", task_type=TaskType.REPORT, priority=1, payload={"mission_kanban": True})
+
+    await apply_task_updates(
+        session,
+        row,
+        status=None,
+        result=None,
+        error_msg=None,
+        operator_note="Check SEO keywords before publish",
+    )
+
+    notes = row.payload.get("operator_notes")
+    assert isinstance(notes, list)
+    assert len(notes) == 1
+    assert notes[0]["text"] == "Check SEO keywords before publish"
+    assert "at" in notes[0]
+
+
+@pytest.mark.asyncio
 async def test_apply_task_updates_sets_error_msg() -> None:
     session = AsyncMock()
     session.flush = AsyncMock()

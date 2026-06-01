@@ -13,6 +13,7 @@ import { HiveOperatorNotificationCenter } from "@/components/hive/hive-operator-
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
 import { hiveGet } from "@/lib/api";
 import {
+  applySoloMissionControlNav,
   HIVE_NAV_PRIMARY,
   HIVE_SIDEBAR_SECONDARY,
   isNavItemActive,
@@ -360,9 +361,9 @@ export function HiveSidebar({
   tenantSwitching,
 }: HiveSidebarProps) {
   const { language } = useUiLanguage();
-  const { features } = usePlatform();
+  const { features, soloMode } = usePlatform();
   const prefetchRoute = useRoutePrefetch();
-  const primaryItems = filterNavByFeatures(HIVE_NAV_PRIMARY, features);
+  const primaryItems = filterNavByFeatures(applySoloMissionControlNav(HIVE_NAV_PRIMARY, soloMode), features);
   const secondaryItems = filterNavByFeatures(HIVE_SIDEBAR_SECONDARY, features);
   const [counts, setCounts] = useState<SidebarNavCounts>({ swarms: null, foragers: null });
 

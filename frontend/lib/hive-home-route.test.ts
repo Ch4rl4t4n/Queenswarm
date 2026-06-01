@@ -8,6 +8,8 @@ describe("hive-home-route", () => {
     if (OPERATOR_CONTROL_PLANE_ENABLED) {
       expect(hiveOverviewHref()).toBe("/agentic-os");
       expect(hiveOverviewLabel()).toBe("Agentic OS");
+      expect(hiveOverviewHref({ soloMode: true })).toBe("/tasks");
+      expect(hiveOverviewLabel({ soloMode: true })).toBe("Mission Control");
     } else {
       expect(hiveOverviewHref()).toBe("/dashboard");
       expect(hiveOverviewLabel()).toBe("Dashboard");

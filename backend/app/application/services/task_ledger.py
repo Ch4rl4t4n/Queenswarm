@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -121,6 +122,7 @@ async def apply_task_updates(
     status: TaskStatus | None,
     result: dict[str, Any] | None,
     error_msg: str | None,
+    operator_note: str | None = None,
 ) -> Task:
     """Merge partial operator patches into an existing backlog row."""
 
@@ -130,6 +132,14 @@ async def apply_task_updates(
         row.result = result
     if error_msg is not None:
         row.error_msg = error_msg
+    if operator_note is not None:
+        text = operator_note.strip()
+        if text:
+            payload = dict(row.payload or {})
+            notes = list(payload.get("operator_notes") or [])
+            notes.append({"text": text, "at": datetime.now(tz=UTC).isoformat()})
+            payload["operator_notes"] = notes[-50:]
+            row.payload = payload
     await session.flush()
     return row
 

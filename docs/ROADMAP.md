@@ -33,8 +33,11 @@ Living backlog for **queenswarm.love** — ordered by impact. Status reflects pr
 | OW10 | Grok panel EN-only + Tier-3 nav demotions (swarms, builder entry solo hide) | ✅ |
 | OW11 | EN cleanup — Dreaming, Factory, Settings capabilities atlas | ✅ |
 | OW12 | Mission Kanban (Hermes-style): Triage→Done columns, dispatch, lineage drawer | ✅ |
+| OW13 | Skill bundles one-click, solo Mission Control nav, task operator thread | ✅ |
 
 **OW12 note:** `/tasks` defaults to **Mission Kanban board** — triage + Dispatch now runs Workflow Breaker + tracer slices. Sessions remain the execution engine; kanban is the visibility layer.
+
+**OW13 note:** Solo mode promotes **Mission Control** (`/tasks`) to first sidebar slot. Skill bundle chips launch triage+dispatch. Task drawer supports operator thread notes via `PATCH /tasks/{id}` `operator_note`.
 
 ## Four-Lane Solo Operator (optional background automation)
 

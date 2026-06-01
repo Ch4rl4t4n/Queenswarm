@@ -33,6 +33,11 @@ class TaskPatchRequest(BaseModel):
     status: TaskStatus | None = None
     result: dict[str, Any] | None = None
     error_msg: str | None = Field(default=None, max_length=8000)
+    operator_note: str | None = Field(
+        default=None,
+        max_length=4000,
+        description="Append an operator note to payload.operator_notes (mission kanban thread).",
+    )
 
 
 class TaskSnapshot(BaseModel):

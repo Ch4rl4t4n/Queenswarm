@@ -13,6 +13,7 @@ import {
   filterMissionKanbanTasks,
   uniqueAssignees,
 } from "@/lib/mission-kanban";
+import { MISSION_KANBAN_BUNDLES } from "@/lib/mission-kanban-bundles";
 import { cn } from "@/lib/utils";
 
 interface MissionKanbanDispatchResponse {
@@ -74,6 +75,33 @@ export function MissionKanbanPanel({ onOpenTask }: MissionKanbanPanelProps): JSX
     () => tasks.filter((t) => t.status.toLowerCase() === "triage").length,
     [tasks],
   );
+
+  async function handleLaunchBundle(bundleId: string): Promise<void> {
+    const bundle = MISSION_KANBAN_BUNDLES.find((b) => b.id === bundleId);
+    if (!bundle) return;
+    setBusy(true);
+    try {
+      const triage = await hivePostJson<MissionKanbanTriageResponse>("operator/mission-kanban/triage", {
+        task_text: bundle.taskText,
+        title: bundle.label,
+        priority: 7,
+      });
+      if (bundle.autoDispatch) {
+        const res = await hivePostJson<MissionKanbanDispatchResponse>(
+          `operator/mission-kanban/dispatch/${encodeURIComponent(triage.task_id)}`,
+          { start_execution: true, defer_to_worker: true },
+        );
+        toast.success(`${bundle.label} dispatched · ${res.child_count} child slices`);
+      } else {
+        toast.success(`${bundle.label} added to Triage — review then Dispatch.`);
+      }
+      await reload();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Bundle launch failed");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function handleAddTask(): Promise<void> {
     const text = newTitle.trim();
@@ -238,6 +266,24 @@ export function MissionKanbanPanel({ onOpenTask }: MissionKanbanPanelProps): JSX
           >
             + Add
           </button>
+        </div>
+
+        <div className="mt-3">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Skill bundles</p>
+          <div className="flex flex-wrap gap-2">
+            {MISSION_KANBAN_BUNDLES.map((bundle) => (
+              <button
+                key={bundle.id}
+                type="button"
+                disabled={busy}
+                title={bundle.hint}
+                onClick={() => void handleLaunchBundle(bundle.id)}
+                className="rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 text-xs text-purple-200 transition hover:border-purple-400/50 hover:bg-purple-500/20"
+              >
+                {bundle.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
