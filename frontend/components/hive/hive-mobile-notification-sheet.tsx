@@ -28,7 +28,7 @@ export function HiveMobileNotificationSheet({
   const missionFeed = useOperatorMissionFeedContext();
   const snapshot = useOperatorPendingSnapshot(summary?.tasks.pending ?? 0);
 
-  useModalA11y({ open, onClose, panelRef });
+  useModalA11y({ open, onClose, containerRef: panelRef });
 
   useEffect(() => {
     if (open) {
