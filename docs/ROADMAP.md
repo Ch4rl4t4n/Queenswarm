@@ -36,6 +36,7 @@ Living backlog for **queenswarm.love** — ordered by impact. Status reflects pr
 | OW13 | Skill bundles one-click, solo Mission Control nav, task operator thread | ✅ |
 | OW14 | Instant mission search (⌘K palette) + live Knowledge search | ✅ |
 | OW15 | Prompt injection guard on scrape ingest + task workspace files | ✅ |
+| OW16 | pg_trgm mission search indexes + injection guard on all external tools + search cache | ✅ |
 
 **OW12 note:** `/tasks` defaults to **Mission Kanban board** — triage + Dispatch now runs Workflow Breaker + tracer slices. Sessions remain the execution engine; kanban is the visibility layer.
 
@@ -44,6 +45,8 @@ Living backlog for **queenswarm.love** — ordered by impact. Status reflects pr
 **OW14 note:** `GET /solo-operator/mission-search` — debounced live search. **⌘K / Ctrl+K** opens global command palette from any dashboard route.
 
 **OW15 note:** Scrape tool runs `prompt_injection_guard` before returning text to LLM. Task drawer shows linked deliverables via `GET /tasks/{id}/workspace`.
+
+**OW16 note:** Migration `0057` adds GIN trigram indexes on supervisor goals, task titles, and sub-agent output. All external fetch/search tools (`scrape`, `wikipedia`, `grokipedia`, `serper`, `tavily`, `jina_reader`, `web_search`) pass through injection guard. Mission search uses 15s TTL cache per tenant+query.
 
 ## Four-Lane Solo Operator (optional background automation)
 

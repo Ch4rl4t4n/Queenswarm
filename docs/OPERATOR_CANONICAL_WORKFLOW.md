@@ -12,6 +12,8 @@ Ostatné panely (Four Lanes, Swarm Fleet, ICM, Futurist modules…) sú **volite
 | Pojem | Čo to je | Používaš denne? |
 |-------|----------|-----------------|
 | **Supervisor session** | „Urob túto vec teraz“ — researcher, critic, designer… | **ÁNO — hlavné tlačidlo** |
+| **Mission Control** (`/tasks`) | Kanban Triage→Done, dispatch, lineage, workspace | **ÁNO — prehľad misií** |
+| **⌘K / Ctrl+K** | Globálne hľadanie session + task | **ÁNO — rýchly skok** |
 | **Task** | Sledovanie deliverable po schválení | Áno |
 | **Curated memory** | Brief projektov + pravidlá pre Queen | Raz + pri novom projekte |
 | **Routine** | Opakovaný cron (týždenný review) | Niekedy |
@@ -19,7 +21,31 @@ Ostatné panely (Four Lanes, Swarm Fleet, ICM, Futurist modules…) sú **volite
 | **Four Lanes** | 4 automatické digesty | Voliteľné |
 | **Sub-swarm** | Trvalá kolónia v DB (včely) | **Nemusíš** — infraštruktúra |
 
-**Štart práce = Agents → Nová session s cieľom.** Nie Swarm Builder, nie Agentic OS Lanes.
+**Štart práce = Agents → Nová session s cieľom** alebo **Mission Control → Triage → Dispatch**. Nie Swarm Builder, nie Agentic OS Lanes.
+
+---
+
+## 1.5 Mission Control (Hermes-style Kanban)
+
+URL: `/tasks` (solo režim: prvá položka v sidebar **Mission Control**)
+
+| Stĺpec | Význam |
+|--------|--------|
+| **Triage** | Nové nápady / neštruktúrované požiadavky |
+| **Ready** | Pripravené na dispatch |
+| **In progress** | Beží session / swarm |
+| **Blocked** | Čaká na vstup operátora |
+| **Review** | Critic / simulate gate |
+| **Done** | Overené deliverable |
+
+**Rýchle akcie:**
+
+- **Skill bundle chips** — Content week, Landing page, Research sprint, Campaign brief (triage + dispatch jedným klikom)
+- **Dispatch** — spustí Workflow Breaker + tracer slices (execution engine = supervisor session)
+- **Task drawer** — Parents/Children lineage, operator notes, workspace súbory
+- **⌘K / Ctrl+K** — globálne hľadanie session + task (aj z Knowledge search panelu)
+
+**Pravidlo:** Kanban je **visibility layer** — skutočná práca stále beží cez **Agents → Sessions**. Kanban nenahradzuje session engine.
 
 ---
 
@@ -125,7 +151,15 @@ Over critic review a excerpt.
 ### Krok 6 — Ďalšia fáza alebo Task
 
 - **Fáza 2:** nová session s odkazom na fázu 1 („pokračuj z reportu S-XXXX“)  
-- **Task:** manuálne v Tasks alebo Digest inbox → **→ Task**
+- **Task:** manuálne v Tasks alebo Digest inbox → **→ Task**  
+- **Mission Control:** presuň task medzi stĺpcami, pridaj operator note, otvor workspace deliverables
+
+### Alternatíva — Mission Control first
+
+1. `/tasks` → **Triage** — napíš krátky popis alebo vyber **skill bundle**  
+2. **Dispatch now** — systém vytvorí session + task lineage  
+3. Sleduj stĺpce **In progress → Review → Done**  
+4. **⌘K** — nájdi starú session alebo task podľa kľúčového slova
 
 ### Paralelne viac projektov
 
@@ -137,10 +171,11 @@ Nemiešaj do jedného promptu 5 projektov.
 ## 3. Denný loop (5 minút)
 
 1. **Email/Telegram** — denný prehľad (hotové / beží / manuálne)  
-2. **Agents → Sessions** — filter **completed** — nové reporty  
-3. **Info** na session — prečítaj, schváli ak treba  
-4. **Tasks** — čo je priorita dnes  
-5. **Nová session** — ďalšia fáza projektu  
+2. **Mission Control** (`/tasks`) — kanban stĺpce, blocked/review  
+3. **Agents → Sessions** — filter **completed** — nové reporty  
+4. **Info** na session — prečítaj, schváli ak treba  
+5. **⌘K** — rýchly skok na task alebo session  
+6. **Nová session** alebo **Dispatch** — ďalšia fáza projektu  
 
 **Nepoužívaj:** Agentic OS ako prvý krok. **Nepoužívaj:** Swarm Builder pre bežnú prácu.
 
@@ -151,7 +186,8 @@ Nemiešaj do jedného promptu 5 projektov.
 | Sekcia | Použitie | Frekvencia |
 |--------|----------|------------|
 | **Agents** | Spúšťanie session, approve, reporty | **Denne** |
-| **Tasks** | Deliverables, priority | Denne |
+| **Mission Control** | Kanban, dispatch, lineage, workspace | **Denne** |
+| **Tasks** | Deliverables, priority (table view) | Denne |
 | **Knowledge** | Briefs, HiveMind, výstupy | Denne / týždenne |
 | **Settings** | LLM, 2FA, notifikácie | Zriedka |
 | **Integrations** | Tavily, OAuth publish | Pri potrebe |

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 import uuid
 from typing import Any
 
@@ -10,6 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.hive_session_search import search_supervisor_sessions
 from app.infrastructure.persistence.models.task import Task
+
+_CACHE_TTL_SEC = 15.0
+_search_cache: dict[tuple[str, str], tuple[float, dict[str, Any]]] = {}
 
 
 async def search_mission_tasks(
@@ -68,6 +72,12 @@ async def search_mission_operator(
     if len(needle) < 2:
         return {"query": needle, "sessions": [], "tasks": [], "total": 0}
 
+    cache_key = (str(tenant_id), needle.lower())
+    now = time.monotonic()
+    cached = _search_cache.get(cache_key)
+    if cached is not None and now - cached[0] < _CACHE_TTL_SEC:
+        return cached[1]
+
     sessions = await search_supervisor_sessions(
         db,
         tenant_id=tenant_id,
@@ -80,12 +90,18 @@ async def search_mission_operator(
         query=needle,
         limit=task_limit,
     )
-    return {
+    payload = {
         "query": needle,
         "sessions": sessions,
         "tasks": tasks,
         "total": len(sessions) + len(tasks),
     }
+    _search_cache[cache_key] = (now, payload)
+    if len(_search_cache) > 256:
+        stale = [key for key, (ts, _) in _search_cache.items() if now - ts >= _CACHE_TTL_SEC]
+        for key in stale:
+            _search_cache.pop(key, None)
+    return payload
 
 
 __all__ = ["search_mission_operator", "search_mission_tasks"]
