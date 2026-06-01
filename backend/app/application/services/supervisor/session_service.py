@@ -293,6 +293,11 @@ async def retry_sub_agent_step(
             if not pending:
                 session_row.status = "completed"
                 session_row.completed_at = datetime.now(tz=UTC)
+                from app.application.services.supervisor.session_completion_hooks import (
+                    on_supervisor_session_completed,
+                )
+
+                await on_supervisor_session_completed(session_row)
         await db.flush()
         return sub_agent
 
@@ -337,6 +342,11 @@ async def resume_inprocess_sub_agents_after_approval(
         if not pending:
             session_row.status = "completed"
             session_row.completed_at = datetime.now(tz=UTC)
+            from app.application.services.supervisor.session_completion_hooks import (
+                on_supervisor_session_completed,
+            )
+
+            await on_supervisor_session_completed(session_row)
             await append_event(
                 db,
                 supervisor_session=session_row,
@@ -561,6 +571,11 @@ async def create_supervisor_session(
         if session_row.status not in {"needs_input", "paused", "stopped"}:
             session_row.status = "completed"
             session_row.completed_at = datetime.now(tz=UTC)
+            from app.application.services.supervisor.session_completion_hooks import (
+                on_supervisor_session_completed,
+            )
+
+            await on_supervisor_session_completed(session_row)
             await append_event(
                 db,
                 supervisor_session=session_row,

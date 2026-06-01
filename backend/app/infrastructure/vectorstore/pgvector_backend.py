@@ -23,6 +23,7 @@ _DEFAULT_COLLECTIONS = (
     "agent_memories",
     "task_deliverables",
     "hive_mind",
+    "supervisor_sessions",
 )
 
 

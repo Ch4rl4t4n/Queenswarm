@@ -42,9 +42,12 @@ logger = get_logger(__name__)
 def _guard_external_tool_output(blob: str, *, tool: str) -> str:
     """Checkpoint 2/3 — sanitize untrusted web/search tool output before LLM ingest."""
 
-    from app.application.services.prompt_injection_guard import sanitize_untrusted_text
+    from app.application.services.prompt_injection_guard import (
+        InjectionCheckpoint,
+        sanitize_untrusted_text,
+    )
 
-    safe, scan = sanitize_untrusted_text(blob)
+    safe, scan = sanitize_untrusted_text(blob, checkpoint=InjectionCheckpoint.EXTERNAL_TOOL)
     if scan.blocked:
         logger.warning(
             "prompt_injection_guard.tool_output_blocked",

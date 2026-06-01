@@ -36,6 +36,10 @@ from app.application.services.supervisor.session_report import (
     build_supervisor_session_report_markdown,
     build_supervisor_session_report_pdf,
 )
+from app.application.services.prompt_injection_guard import (
+    PromptInjectionViolationError,
+    guard_operator_input,
+)
 from app.application.services.recipe_write import RecipeWriteConflictError, RecipeWritePayloadTooLargeError
 
 from app.application.services.supervisor.checkpoint_resume import (
@@ -746,9 +750,13 @@ async def create_agent_session(
             detail="Supervisor dynamic sub-agents are disabled.",
         )
     try:
+        guarded_goal = guard_operator_input(body.goal, field="goal")
+    except PromptInjectionViolationError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    try:
         created = await create_supervisor_session(
             db,
-            goal=body.goal,
+            goal=guarded_goal,
             created_by_subject=str(sess.get("sub") or "")[:512] or None,
             runtime_mode=body.runtime_mode,
             roles=body.roles,

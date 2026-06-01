@@ -11,6 +11,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.application.services.publish_operator_onboarding import compose_publish_onboarding_snapshot
 from app.application.services.hive_session_search import search_supervisor_sessions
 from app.application.services.mission_operator_search import search_mission_operator
+from app.application.services.operator_mission_feed import (
+    list_mission_feed_events,
+    mark_mission_feed_read,
+)
 from app.application.services.morning_hive_brief import compose_morning_hive_brief
 from app.application.services.morning_publish_pipeline import (
     compose_morning_publish_pipeline_snapshot,
@@ -497,6 +501,39 @@ async def solo_four_lanes_automation_trigger(
         raise HTTPException(status_code=code, detail=str(result.get("error")))
     await db.commit()
     return result
+
+
+class MissionFeedDismissRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    event_ids: list[str] = Field(..., min_length=1, max_length=50)
+
+
+@router.get("/mission-feed", summary="In-app mission completion feed for notification center")
+async def solo_mission_feed(
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    limit: int = Query(20, ge=1, le=50),
+) -> dict[str, Any]:
+    """Recent task/session completions surfaced in the sidebar notification center."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    events = await list_mission_feed_events(tenant_id, limit=limit)
+    unread = sum(1 for row in events if not row.get("read"))
+    return {"events": events, "unread": unread, "total": len(events)}
+
+
+@router.post("/mission-feed/dismiss", summary="Mark mission feed events as read")
+async def solo_mission_feed_dismiss(
+    body: MissionFeedDismissRequest,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    updated = await mark_mission_feed_read(tenant_id, body.event_ids)
+    return {"updated": updated}
 
 
 __all__ = ["router"]

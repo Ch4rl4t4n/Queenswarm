@@ -126,6 +126,7 @@ async def apply_task_updates(
 ) -> Task:
     """Merge partial operator patches into an existing backlog row."""
 
+    prior_status = row.status
     if status is not None:
         row.status = status
     if result is not None:
@@ -141,6 +142,23 @@ async def apply_task_updates(
             payload["operator_notes"] = notes[-50:]
             row.payload = payload
     await session.flush()
+
+    if (
+        status == TaskStatus.COMPLETED
+        and prior_status != TaskStatus.COMPLETED
+        and row.tenant_id is not None
+    ):
+        from app.application.services.operator_mission_feed import push_mission_feed_event
+
+        await push_mission_feed_event(
+            tenant_id=row.tenant_id,
+            kind="task_completed",
+            title="Mission task completed",
+            body=row.title,
+            href=f"/tasks?task={row.id}",
+            entity_id=str(row.id),
+        )
+
     return row
 
 

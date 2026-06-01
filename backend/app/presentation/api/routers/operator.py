@@ -38,6 +38,10 @@ from app.application.services.mission_kanban import (
     create_mission_triage_task,
     dispatch_mission_triage_task,
 )
+from app.application.services.prompt_injection_guard import (
+    PromptInjectionViolationError,
+    guard_operator_input,
+)
 from app.application.services.task_ledger import TaskUpsertViolationError, create_task_record
 from app.application.services.tracer_bullet_kanban import (
     TracerBulletKanbanNotFoundError,
@@ -299,11 +303,16 @@ async def mission_kanban_triage(
 ) -> MissionKanbanTriageResponse:
     """Create a triage backlog row without running workflow breaker yet."""
 
+    try:
+        guarded_text = guard_operator_input(body.task_text, field="task_text")
+    except PromptInjectionViolationError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+
     swarm_id = await _resolve_target_swarm_id(db, body.swarm_id, body.target_lane)
     try:
         result = await create_mission_triage_task(
             db,
-            task_text=body.task_text,
+            task_text=guarded_text,
             title=body.title,
             priority=body.priority,
             swarm_id=swarm_id,

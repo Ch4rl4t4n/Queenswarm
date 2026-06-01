@@ -52,6 +52,7 @@ class ChromaVectorBackend:
             _COLLECTION_AGENT_MEMORIES,
             _COLLECTION_TASK_DELIVERABLES,
             _COLLECTION_HIVE_MIND,
+            "supervisor_sessions",
         ):
             await client.get_or_create_collection(name=name)
 

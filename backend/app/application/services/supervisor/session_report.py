@@ -10,6 +10,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from app.application.services.prompt_injection_guard import guard_agent_output
+
 _EMOJI_RE = re.compile(
     "["
     "\U0001F300-\U0001FAFF"
@@ -51,7 +53,7 @@ def _sub_agent_output_rows(session: dict[str, Any]) -> list[tuple[str, str, str]
     for sub in session.get("sub_agents") or []:
         if not isinstance(sub, dict):
             continue
-        output = str(sub.get("last_output") or "").strip()
+        output = guard_agent_output(str(sub.get("last_output") or "").strip())
         if not output:
             continue
         rows.append((str(sub.get("role", "?")), str(sub.get("status", "?")), output))

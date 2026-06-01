@@ -84,6 +84,10 @@ async def search_mission_operator(
         query=needle,
         limit=session_limit,
     )
+    sessions = _merge_session_hits(
+        sessions,
+        await _semantic_session_hits(tenant_id=tenant_id, query=needle, limit=session_limit),
+    )
     tasks = await search_mission_tasks(
         db,
         tenant_id=tenant_id,
@@ -102,6 +106,40 @@ async def search_mission_operator(
         for key in stale:
             _search_cache.pop(key, None)
     return payload
+
+
+async def _semantic_session_hits(
+    *,
+    tenant_id: uuid.UUID,
+    query: str,
+    limit: int,
+) -> list[dict[str, Any]]:
+    """Best-effort vector recall — empty when embedder/index unavailable."""
+
+    from app.application.services.mission_session_index import search_supervisor_sessions_semantic
+
+    return await search_supervisor_sessions_semantic(
+        tenant_id=tenant_id,
+        query=query,
+        limit=limit,
+    )
+
+
+def _merge_session_hits(
+    lexical: list[dict[str, Any]],
+    semantic: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Dedupe session hits — lexical first, semantic fills gaps."""
+
+    seen: set[str] = set()
+    merged: list[dict[str, Any]] = []
+    for row in [*lexical, *semantic]:
+        sid = str(row.get("session_id") or "")
+        if not sid or sid in seen:
+            continue
+        seen.add(sid)
+        merged.append(row)
+    return merged
 
 
 __all__ = ["search_mission_operator", "search_mission_tasks"]

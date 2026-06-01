@@ -749,6 +749,11 @@ def run_supervisor_sub_agent_step_task(
             if not remaining and sup.status not in {"needs_input", "stopped"}:
                 sup.status = "completed"
                 sup.completed_at = datetime.now(tz=UTC)
+                from app.application.services.supervisor.session_completion_hooks import (
+                    on_supervisor_session_completed,
+                )
+
+                await on_supervisor_session_completed(sup)
                 await append_event(
                     session,
                     supervisor_session=sup,

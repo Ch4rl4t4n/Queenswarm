@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
 import { formatHiveNotificationBadge } from "@/lib/hooks/use-hive-notification-badge";
+import { useOperatorMissionFeed } from "@/lib/hooks/use-operator-mission-feed";
 import { useOperatorPendingSnapshot } from "@/lib/hooks/use-operator-pending-snapshot";
 import { studioPendingActionHref, studioPendingApprovalsHref, supervisorSessionHref } from "@/lib/operator-pending-events";
 import { localizePhrase } from "@/lib/ui-copy";
@@ -20,8 +21,9 @@ interface HiveOperatorNotificationCenterProps {
 export function HiveOperatorNotificationCenter({ summary, className }: HiveOperatorNotificationCenterProps) {
   const { language } = useUiLanguage();
   const snapshot = useOperatorPendingSnapshot(summary?.tasks.pending ?? 0);
-  const badge = formatHiveNotificationBadge(snapshot.total);
-  const open = snapshot.total > 0;
+  const missionFeed = useOperatorMissionFeed(true);
+  const badge = formatHiveNotificationBadge(snapshot.total + missionFeed.unread);
+  const open = snapshot.total + missionFeed.unread > 0;
 
   return (
     <div className={cn("hidden lg:block", className)}>
@@ -43,6 +45,24 @@ export function HiveOperatorNotificationCenter({ summary, className }: HiveOpera
         </summary>
 
         <div className="space-y-2 border-t border-[color:var(--qs-border)]/40 px-3 py-2.5">
+          {missionFeed.events.filter((ev) => !ev.read).length > 0 ? (
+            <>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-pollen">
+                {localizePhrase(language, { en: "Mission updates", sk: "Mission updates" })}
+              </p>
+              {missionFeed.events
+                .filter((ev) => !ev.read)
+                .slice(0, 5)
+                .map((ev) => (
+                  <NotificationRow
+                    key={ev.id}
+                    href={ev.href}
+                    label={`${ev.title}: ${ev.body}`}
+                    onNavigate={() => void missionFeed.dismiss([ev.id])}
+                  />
+                ))}
+            </>
+          ) : null}
           {snapshot.tasksPending > 0 ? (
             <NotificationRow
               href="/tasks"
@@ -92,7 +112,7 @@ export function HiveOperatorNotificationCenter({ summary, className }: HiveOpera
               ))}
             </>
           ) : null}
-          {snapshot.total === 0 ? (
+          {snapshot.total === 0 && missionFeed.unread === 0 ? (
             <p className="text-[10px] text-(--qs-text-4)">
               {localizePhrase(language, {
                 en: "No pending operator actions.",
@@ -106,10 +126,21 @@ export function HiveOperatorNotificationCenter({ summary, className }: HiveOpera
   );
 }
 
-function NotificationRow({ href, label, compact = false }: { href: string; label: string; compact?: boolean }) {
+function NotificationRow({
+  href,
+  label,
+  compact = false,
+  onNavigate,
+}: {
+  href: string;
+  label: string;
+  compact?: boolean;
+  onNavigate?: () => void;
+}) {
   return (
     <Link
       href={href}
+      onClick={() => onNavigate?.()}
       className={cn(
         "flex items-center justify-between gap-2 rounded-lg border border-[color:var(--qs-border)]/30 bg-black/20 px-2.5 py-2 text-(--qs-text-2) hover:border-pollen/30 hover:text-pollen",
         compact ? "ml-1 text-[10px] text-(--qs-text-3)" : "text-[11px]",

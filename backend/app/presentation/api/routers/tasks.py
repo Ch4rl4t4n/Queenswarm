@@ -25,6 +25,10 @@ from app.common.schemas.task import (
     TaskWorkspaceResponse,
 )
 from app.application.services.mission_kanban import MissionKanbanNotFoundError, fetch_task_lineage
+from app.application.services.prompt_injection_guard import (
+    PromptInjectionViolationError,
+    guard_operator_input,
+)
 from app.core.logging import get_logger
 from app.application.services.task_presenter import attach_agent_labels, build_task_snapshot
 from app.application.services.task_ledger import (
@@ -352,6 +356,12 @@ async def patch_existing_task(
     row = await fetch_task(db, task_id)
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found.")
+
+    if body.operator_note is not None:
+        try:
+            guard_operator_input(body.operator_note, field="operator_note")
+        except PromptInjectionViolationError as exc:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
     try:
         await apply_task_updates(
