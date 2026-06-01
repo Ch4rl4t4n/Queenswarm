@@ -88,6 +88,8 @@ class SkillCatalogBuiltinItem(BaseModel):
     version: str
     roles: list[str] = Field(default_factory=list)
     keywords: list[str] = Field(default_factory=list)
+    summary: str = ""
+    agent_usage: str = ""
     kind: str = "builtin"
 
 

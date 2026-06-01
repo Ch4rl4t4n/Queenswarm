@@ -167,6 +167,7 @@ function SettingsOperatorHubPanelInner(): JSX.Element | null {
         kicker="Operator"
         title="Autonomy & live lane hub"
         description="Shipped modules, env kill switches, and live prep — configure via env + Connector Vault (no secrets here)."
+        actions={<HiveRefreshButton busy={loading} onClick={() => void load()} />}
       />
 
       {snapshot.next_action ? (
@@ -213,18 +214,20 @@ function SettingsOperatorHubPanelInner(): JSX.Element | null {
         </section>
       ) : null}
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        {snapshot.modules.map((mod) => (
-          <V4Badge key={mod.id} tone={mod.enabled ? "ok" : "info"}>
-            {mod.label}
-          </V4Badge>
-        ))}
-      </div>
+      <section className="operator-hub-modules mt-4">
+        <div className="operator-hub-module-bubbles flex flex-wrap gap-2">
+          {snapshot.modules.map((mod) => (
+            <V4Badge key={mod.id} tone={mod.enabled ? "ok" : "info"}>
+              {mod.label}
+            </V4Badge>
+          ))}
+        </div>
 
-      <V4AdvancedPanel
-        title="Advanced lane & OAuth"
-        description="Env kill switches, live lane prep, publish onboarding, social OAuth, and trusted autopilot."
-      >
+        <V4AdvancedPanel
+          className="operator-hub-advanced-panel"
+          title="Advanced lane & OAuth"
+          description="Env kill switches, live lane prep, publish onboarding, social OAuth, and trusted autopilot."
+        >
       <section className="space-y-2">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-(--qs-text-3)">Env kill switches</h3>
         <ul className="space-y-2">
@@ -405,10 +408,8 @@ function SettingsOperatorHubPanelInner(): JSX.Element | null {
         <SettingsOperatorTrustedAutoPanel />
       </section>
       </V4AdvancedPanel>
+      </section>
 
-      <div className="mt-4 flex justify-end">
-        <HiveRefreshButton onClick={() => void load()} />
-      </div>
     </V4Card>
   );
 }

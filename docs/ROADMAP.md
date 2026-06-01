@@ -35,6 +35,21 @@ Doc: [`docs/SOLO_OPERATOR_FOUR_LANE.md`](SOLO_OPERATOR_FOUR_LANE.md) · UI: `/ag
 
 **Deprecated for solo:** Virtual Company department routines (Sales, Finance, Bank PO, generic E-shop ops), My 3 Bees as primary control model.
 
+## Social Intel Swarm (May 2026)
+
+YouTube + X scrape → delta cursors → truth gate → HiveMind. Powers Tech SCV lane foragers.
+
+| Step | Scope | Status |
+|------|-------|--------|
+| SI1 | Scraper + `intel_source_cursors` migration | ✅ |
+| SI2 | Celery daily tick + forager scrape/sources API | ✅ |
+| SI3 | `social-intel-evaluator` skill + seed script | ✅ |
+| SI4 | Integrations hub UI refactor (category catalog shell) | ✅ |
+| SI5 | Curated memory 16k default / 24k DB ceiling | ✅ |
+| SI6 | X OAuth fix + vault tenant binding | ✅ |
+
+Doc: [`docs/SOCIAL_INTEL_SWARM_SETUP.md`](SOCIAL_INTEL_SWARM_SETUP.md) · `./scripts/operator-social-intel-provision.sh`
+
 ## Feature Implementation Guardrails (mandatory)
 
 **Every new feature must follow** [`docs/FEATURE_IMPLEMENTATION_GUARDRAILS.md`](FEATURE_IMPLEMENTATION_GUARDRAILS.md) before merge:

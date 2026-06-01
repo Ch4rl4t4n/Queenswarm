@@ -270,7 +270,7 @@ test.describe("Responsive shell — authenticated cockpit", () => {
 
     await assertNoHorizontalOverflow(page);
 
-    const firstCard = page.locator(".v4-int-card").first();
+    const firstCard = page.locator(".active-integration-card, .hub-catalog-card").first();
     await expect(firstCard).toBeVisible({ timeout: 15_000 });
 
     const withinBounds = await firstCard.evaluate((card) => {

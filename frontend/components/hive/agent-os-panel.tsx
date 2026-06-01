@@ -90,6 +90,7 @@ function AgentOsPanelInner() {
         kicker="Autonomy layer"
         title="Agent OS"
         description="Cross-swarm learning, imitation v2, overnight behavioral proposals."
+        actions={<HiveRefreshButton busy={loading} onClick={() => void load()} />}
       />
       {err ? <p className="mb-3 text-sm text-(--qs-red)">{err}</p> : null}
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -105,7 +106,6 @@ function AgentOsPanelInner() {
             Analysis: {snapshot.last_analysis.consensus}
           </V4Badge>
         ) : null}
-        <HiveRefreshButton busy={loading} onClick={() => void load()} />
       </div>
 
       {snapshot.behavioral_proposals.proposals.length > 0 ? (

@@ -100,6 +100,13 @@ def build_beat_schedule() -> dict[str, dict[str, Any]]:
             ),
             "options": {"queue": "hive"},
         }
+    if settings.social_intel_scrape_enabled:
+        interval_h = int(settings.social_intel_tick_interval_hours)
+        schedule["hive-social-intel-tick"] = {
+            "task": "hive.social_intel_daily_tick",
+            "schedule": timedelta(hours=interval_h),
+            "options": {"queue": "hive"},
+        }
     if settings.execution_studio_weekly_rollup_enabled and settings.execution_studio_enabled:
         schedule["hive-execution-studio-weekly-rollup"] = {
             "task": "hive.execution_studio_weekly_rollup_tick",

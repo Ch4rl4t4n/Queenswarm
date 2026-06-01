@@ -89,6 +89,7 @@ async def vault_upsert_credential(
     user_id: uuid.UUID,
     payload: CredentialPayload,
     label: str | None = None,
+    tenant_id: uuid.UUID | None = None,
 ) -> ConnectorVaultEntry:
     """Seal ``payload`` and upsert ``slug`` keyed row for dashboard ``user_id``."""
 
@@ -105,6 +106,7 @@ async def vault_upsert_credential(
             credential_kind=payload.kind,
             encrypted_payload=enc_blob,
             dashboard_user_id=user_id,
+            tenant_id=tenant_id,
             label=(label.strip()[:256] if isinstance(label, str) and label.strip() else None),
         )
         db.add(row)
@@ -121,6 +123,8 @@ async def vault_upsert_credential(
     existing.credential_kind = payload.kind
     existing.encrypted_payload = enc_blob
     existing.dashboard_user_id = user_id
+    if tenant_id is not None:
+        existing.tenant_id = tenant_id
     if isinstance(label, str) and label.strip():
         existing.label = label.strip()[:256]
     await db.commit()

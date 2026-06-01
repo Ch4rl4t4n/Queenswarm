@@ -484,6 +484,16 @@ class Settings(BaseSettings):
         le=500,
         description="Upper bound for /api/v1/hive-mind/graph node snapshots.",
     )
+    curated_memory_max_chars: int = Field(
+        default=16_000,
+        ge=4000,
+        le=24_000,
+        description=(
+            "Max characters per curated memory file (mission/soul/instructions). "
+            "16000 is a practical default — enough for rich Instructions without "
+            "blowing Queen prompt token budget across all five files."
+        ),
+    )
     hive_mind_max_query_hits_vector: int = Field(
         default=6,
         ge=1,
@@ -1375,6 +1385,28 @@ class Settings(BaseSettings):
         ge=0,
         le=59,
         description="UTC minute for daily Forager Intelligence Loop Celery beat tick.",
+    )
+    social_intel_scrape_enabled: bool = Field(
+        default=True,
+        description="Schedule periodic YouTube/X forager scrape + HiveMind ingest via Celery beat.",
+    )
+    social_intel_tick_interval_hours: int = Field(
+        default=4,
+        ge=1,
+        le=24,
+        description="Hours between social intel forager scrape ticks (YouTube + X delta ingest).",
+    )
+    social_intel_cron_hour: int = Field(
+        default=7,
+        ge=0,
+        le=23,
+        description="Legacy UTC hour anchor when social_intel_tick_interval_hours is unset (deprecated).",
+    )
+    social_intel_cron_minute: int = Field(
+        default=30,
+        ge=0,
+        le=59,
+        description="UTC minute for daily social intel forager scrape tick.",
     )
     self_extending_tool_marketplace_enabled: bool = Field(
         default=True,

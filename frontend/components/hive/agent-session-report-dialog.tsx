@@ -4,7 +4,7 @@ import type { JSX } from "react";
 
 import { Download, ExternalLink, Info, Loader2Icon, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AgentSessionEventLog } from "@/components/hive/agent-session-event-log";
@@ -35,6 +35,8 @@ function shortSessionId(id: string): string {
   return `S-${id.replace(/-/g, "").slice(-4).toUpperCase()}`;
 }
 
+const ACTIVE_SESSION_STATUSES = new Set(["running", "queued", "needs_input"]);
+
 /** Operator report — timeline, sub-agent outputs, export bundle. */
 export function AgentSessionReportDialog({ sessionId, open, onOpenChange }: AgentSessionReportDialogProps): JSX.Element | null {
   const [session, setSession] = useState<SupervisorSessionRow | null>(null);
@@ -42,42 +44,68 @@ export function AgentSessionReportDialog({ sessionId, open, onOpenChange }: Agen
   const [loading, setLoading] = useState(false);
   const [exportBusy, setExportBusy] = useState<string | null>(null);
   const [recipeBusy, setRecipeBusy] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const onOpenChangeRef = useRef(onOpenChange);
+  onOpenChangeRef.current = onOpenChange;
+
+  const loadReport = useCallback(
+    async (targetSessionId: string, options?: { initial?: boolean }) => {
+      const isInitial = options?.initial ?? false;
+      const scrollTop = scrollRef.current?.scrollTop ?? 0;
+      if (isInitial) {
+        setLoading(true);
+        setSession(null);
+        setEvents([]);
+      }
+      try {
+        const [sessionBody, eventBody] = await Promise.all([
+          hiveGet<SupervisorSessionRow>(`agents/sessions/${encodeURIComponent(targetSessionId)}`),
+          hiveGet<SupervisorSessionEventRow[]>(`agents/sessions/${encodeURIComponent(targetSessionId)}/events?limit=200`),
+        ]);
+        setSession(sessionBody);
+        setEvents(Array.isArray(eventBody) ? eventBody : []);
+        if (!isInitial && scrollRef.current) {
+          scrollRef.current.scrollTop = scrollTop;
+        }
+      } catch (err) {
+        toast.error(err instanceof HiveApiError ? err.message : "Session report unavailable");
+        onOpenChangeRef.current(false);
+      } finally {
+        if (isInitial) {
+          setLoading(false);
+        }
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!open || !sessionId) {
+      setSession(null);
+      setEvents([]);
+      setLoading(false);
+    }
+  }, [open, sessionId]);
 
   useEffect(() => {
     if (!open || !sessionId) {
       return;
     }
-    let cancelled = false;
-    setLoading(true);
-    setSession(null);
-    setEvents([]);
-    void Promise.all([
-      hiveGet<SupervisorSessionRow>(`agents/sessions/${encodeURIComponent(sessionId)}`),
-      hiveGet<SupervisorSessionEventRow[]>(`agents/sessions/${encodeURIComponent(sessionId)}/events?limit=200`),
-    ])
-      .then(([sessionBody, eventBody]) => {
-        if (cancelled) {
-          return;
-        }
-        setSession(sessionBody);
-        setEvents(Array.isArray(eventBody) ? eventBody : []);
-      })
-      .catch((err) => {
-        if (cancelled) {
-          return;
-        }
-        toast.error(err instanceof HiveApiError ? err.message : "Session report unavailable");
-        onOpenChange(false);
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, onOpenChange, sessionId]);
+    void loadReport(sessionId, { initial: true });
+  }, [open, sessionId, loadReport]);
+
+  useEffect(() => {
+    if (!open || !sessionId || !session) {
+      return;
+    }
+    if (!ACTIVE_SESSION_STATUSES.has(session.status)) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      void loadReport(sessionId);
+    }, 8000);
+    return () => window.clearInterval(timer);
+  }, [loadReport, open, session, sessionId]);
 
   const eventsBySubAgent = useMemo(() => {
     const map = new Map<string, SupervisorSessionEventRow[]>();
@@ -184,7 +212,7 @@ export function AgentSessionReportDialog({ sessionId, open, onOpenChange }: Agen
           </button>
         </header>
 
-        <div className="hive-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5">
+        <div ref={scrollRef} className="hive-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5">
           {loading ? (
             <div className="flex items-center gap-2 py-8 text-sm text-(--qs-text-3)">
               <Loader2Icon className="h-4 w-4 animate-spin text-pollen" aria-hidden />

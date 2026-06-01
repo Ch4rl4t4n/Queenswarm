@@ -86,3 +86,35 @@ export const APPS_TOOLS_MODULES: AppsToolsModuleDef[] = [
     capabilityKeys: ["apps.research.briefing.v1"],
   },
 ];
+
+const MODULE_AGENT_USAGE: Record<AppsToolsModuleDef["moduleKey"], string> = {
+  marketing_automation:
+    "Publish lanes compose social packs and push approved items through omni-publish capabilities when the workspace is live.",
+  ecommerce_workspace:
+    "Eshop-ops swarms sync Shopify and Stripe order events, then route webhook payloads into automation lanes.",
+  mcp_ops_studio:
+    "Agents discover MCP manifests, install connectors, and run health checks before supervisor lanes bind tools.",
+  trading_automation:
+    "Trading cockpit lanes invoke guarded execution capabilities with policy gates before any live handoff.",
+  browser_automation:
+    "Operator-approved browser sessions run live-lane automations with explicit approval guardrails per action.",
+  content_factory:
+    "Media agency and micro-SaaS factory lanes generate assets via content-factory capabilities in sequence.",
+  research_workspace:
+    "Research bees extract briefings and transcripts into swarm decisions via structured research capabilities.",
+};
+
+/** Operator-facing copy for the “How agents use this” block on module cards. */
+export function appsToolsModuleAgentUsage(module: AppsToolsModuleDef): string {
+  return MODULE_AGENT_USAGE[module.moduleKey];
+}
+
+export const APPS_TOOLS_MODULE_CATEGORY: Record<AppsToolsModuleDef["moduleKey"], string> = {
+  marketing_automation: "marketing",
+  ecommerce_workspace: "commerce",
+  mcp_ops_studio: "mcp",
+  trading_automation: "trading",
+  browser_automation: "browser",
+  content_factory: "content",
+  research_workspace: "research",
+};

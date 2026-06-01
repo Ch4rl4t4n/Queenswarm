@@ -14,7 +14,8 @@ import { HiveRefreshButton } from '@/components/hive/hive-refresh-button'
 import { QsSelect } from '@/components/ui/qs-select'
 import { ConnectorsOAuthConsentRail } from '@/components/connectors/connectors-oauth-consent-rail'
 import { ConnectorsVaultPanel } from '@/components/connectors/connectors-vault-panel'
-import { Phase3TemplatesGrid } from '@/components/connectors/phase3-templates-grid'
+import { Phase3TemplatesPanel } from '@/components/connectors/phase3-templates-panel'
+import type { Phase3TemplateConfig } from '@/components/connectors/phase3-templates-grid'
 import { InfoHint } from '@/components/hive/info-hint'
 import { ListPaginator, ViewportBoundedPanel } from '@/components/ui/list-paginator'
 import { V4Badge, V4Card, V4CardHeader } from '@/components/ui/v4'
@@ -28,8 +29,6 @@ import type { DynamicConnectorPayload } from '@/lib/connectors-types'
 import {
   buildManifestJsonFromTemplate,
   extractPhase3FromCatalog,
-  orderedPhase3Categories,
-  phase3CategoryShortLabel,
   phase3ProvisionCoverage,
   type ObsidianVaultStatusPayload,
   type Phase3CatalogSlice,
@@ -79,7 +78,6 @@ export function ConnectorsConsole({ embedded = false, hubSection }: ConnectorsCo
   const [phase3Slice, setPhase3Slice] = useState<Phase3CatalogSlice | null>(null)
   const [oauthCatalog, setOauthCatalog] = useState<OAuthConsentCatalogSlice | null>(null)
   const [oauthFlash, setOauthFlash] = useState<{ kind: 'success' | 'error'; message: string } | null>(null)
-  const [phase3OpenCategory, setPhase3OpenCategory] = useState<string | null>('email')
   const [instantiatingId, setInstantiatingId] = useState<string | null>(null)
   const [obsidianStatus, setObsidianStatus] = useState<ObsidianVaultStatusPayload | null>(null)
   const [obsidianBusy, setObsidianBusy] = useState(false)
@@ -281,27 +279,39 @@ export function ConnectorsConsole({ embedded = false, hubSection }: ConnectorsCo
     }
   }, [])
 
-  function applyPhase3Template(tpl: Phase3TemplatePublic) {
-    setSlug(tpl.suggested_slug)
-    setDisplayName(tpl.title)
-    setBaseUrl(tpl.base_url ?? '')
+  function applyPhase3Template(tpl: Phase3TemplatePublic, config?: Phase3TemplateConfig) {
+    const slugValue = config?.slug.trim() || tpl.suggested_slug
+    const displayValue = config?.displayName.trim() || tpl.title
+    const baseValue = config?.baseUrl.trim() || tpl.base_url || ''
+    setSlug(slugValue)
+    setDisplayName(displayValue)
+    setBaseUrl(baseValue)
     setAuthType(tpl.auth_type as (typeof AUTH_OPTIONS)[number])
     setManifest(buildManifestJsonFromTemplate(tpl.tools))
     setSecretBlob('')
     setLoadErr(null)
   }
 
-  async function provisionFromPhase3Template(tpl: Phase3TemplatePublic) {
+  async function provisionFromPhase3Template(tpl: Phase3TemplatePublic, config?: Phase3TemplateConfig) {
+    const slugValue = config?.slug.trim() || tpl.suggested_slug
+    const displayValue = config?.displayName.trim() || tpl.title
+    const baseValue = config?.baseUrl.trim() || tpl.base_url || ''
     setInstantiatingId(tpl.template_id)
     setLoadErr(null)
     try {
-      await hivePostJson<DynamicConnectorPayload>('connectors/phase3/instantiate', {
+      const created = await hivePostJson<DynamicConnectorPayload>('connectors/phase3/instantiate', {
         template_id: tpl.template_id,
-        slug: tpl.suggested_slug,
-        display_name: tpl.title,
+        slug: slugValue,
+        display_name: displayValue,
       })
+      if (baseValue && baseValue !== (tpl.base_url ?? '')) {
+        await hivePatchJson<DynamicConnectorPayload>(`connectors/dynamic/${created.id}`, {
+          base_url: baseValue,
+        })
+      }
       setRows(await reloadConnectors())
       await refreshPhase3Overview()
+      applyPhase3Template(tpl, config)
     } catch (err: unknown) {
       const msg =
         err instanceof HiveApiError
@@ -379,69 +389,18 @@ export function ConnectorsConsole({ embedded = false, hubSection }: ConnectorsCo
       {showHubBlock('oauth', hubSection) ? <ConnectorsOAuthConsentRail catalog={oauthCatalog} /> : null}
 
       {showHubBlock('templates', hubSection) && phase3Slice ? (
-        <V4Card className="space-y-4 phase3-templates-card">
-          <V4CardHeader
-            title="Phase 3 templates"
-            description="MCP manifests — OAuth connect above, or pick a category bubble and provision."
-            actions={
-              <p className="font-mono text-[10px] text-(--qs-text-3)">
-                {phase3Coverage.filter((c) => c.provisioned).length}/{phase3Coverage.length} provisioned
-              </p>
-            }
-          />
-
-          {overviewErr ? (
-            <p className="rounded-xl border border-magenta/35 bg-magenta/10 px-3 py-2 text-xs text-magenta" role="status">
-              {overviewErr}
-            </p>
-          ) : null}
-
-          <div className="phase3-templates-stats flex flex-wrap items-center gap-2">
-            <V4Badge tone="info">{pulse.provisioned}/{pulse.total} rostered</V4Badge>
-            <V4Badge tone="ok">{pulse.active} active</V4Badge>
-            <HiveRefreshButton busy={overviewBusy} onClick={() => void refreshPhase3Overview()} />
-          </div>
-
-          <div className="min-w-0 space-y-3">
-            <div className="phase3-category-bubble-grid" role="tablist" aria-label="Phase 3 categories">
-              {orderedPhase3Categories(phase3Slice.grouped).map((category) => {
-                const tpls = phase3Slice.grouped[category] ?? []
-                if (!tpls.length) return null
-                const active = phase3OpenCategory === category
-                const provisionedInCat = tpls.filter((tpl) =>
-                  phase3Coverage.find((row) => row.template_id === tpl.template_id)?.provisioned,
-                ).length
-                return (
-                  <button
-                    key={category}
-                    type="button"
-                    role="tab"
-                    aria-selected={active}
-                    className={cn('phase3-category-bubble', active && 'phase3-category-bubble--active')}
-                    onClick={() => setPhase3OpenCategory(category)}
-                  >
-                    <span className="phase3-category-bubble__label">{phase3CategoryShortLabel(category)}</span>
-                    <V4Badge tone={active ? 'gold' : 'info'}>{tpls.length}</V4Badge>
-                    {provisionedInCat > 0 ? (
-                      <span className="phase3-category-bubble__dot" aria-label={`${provisionedInCat} provisioned`} />
-                    ) : null}
-                  </button>
-                )
-              })}
-            </div>
-
-            {phase3OpenCategory && (phase3Slice.grouped[phase3OpenCategory]?.length ?? 0) > 0 ? (
-              <Phase3TemplatesGrid
-                category={phase3OpenCategory}
-                templates={phase3Slice.grouped[phase3OpenCategory] ?? []}
-                coverage={phase3Coverage}
-                instantiatingId={instantiatingId}
-                onPrefill={applyPhase3Template}
-                onProvision={(tpl) => void provisionFromPhase3Template(tpl)}
-              />
-            ) : null}
-          </div>
-        </V4Card>
+        <Phase3TemplatesPanel
+          embedded
+          phase3Slice={phase3Slice}
+          connectorRows={rows}
+          instantiatingId={instantiatingId}
+          overviewBusy={overviewBusy}
+          overviewErr={overviewErr}
+          pulse={pulse}
+          onRefresh={() => void refreshPhase3Overview()}
+          onPrefill={applyPhase3Template}
+          onProvision={(tpl, config) => void provisionFromPhase3Template(tpl, config)}
+        />
       ) : null}
 
       {showHubBlock('templates', hubSection) && !phase3Slice ? (

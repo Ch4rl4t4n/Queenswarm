@@ -67,7 +67,7 @@ export interface HiveIaNavItem {
   iaZone?: HiveIaZone;
 }
 
-/** Operator Control Plane — canonical primary rail (8 items, 5 zones). */
+/** Operator Control Plane — canonical primary rail (9 items, 5 zones). */
 export const CANONICAL_PRIMARY_CP: HiveIaPrimarySpec[] = [
   {
     href: "/agentic-os",
@@ -103,6 +103,14 @@ export const CANONICAL_PRIMARY_CP: HiveIaPrimarySpec[] = [
     bottomNav: true,
     section: "agents",
     featureKey: "agents",
+  },
+  {
+    href: "/foragers",
+    label: "Foragers",
+    Icon: Sparkles,
+    iaZone: "agentic_os",
+    section: "agents",
+    featureKey: "foragers",
   },
   {
     href: "/apps-tools",
@@ -144,7 +152,6 @@ export const CANONICAL_PRIMARY_CP_HREFS: readonly string[] = CANONICAL_PRIMARY_C
 
 /** Routes that must appear in mobile More menu but not primary rail. */
 export const CANONICAL_MORE_ONLY_HREFS: readonly string[] = [
-  "/foragers",
   "/factory",
   "/apps-tools/content-factory",
   "/workflows",

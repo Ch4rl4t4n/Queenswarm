@@ -133,6 +133,25 @@ class ForagerTriggerResponse(BaseModel):
 
     forager_id: str
     ingested: int
+    scraped: int = 0
+    routine_triggered: bool
+    routine_session_id: str | None
+    status: str
+
+
+class ForagerAppendSourcesRequest(BaseModel):
+    """Append YouTube channels or X accounts to one forager."""
+
+    platform: str = Field(pattern="^(youtube|x|twitter)$")
+    sources: list[str] = Field(min_length=1, max_length=200)
+
+
+class ForagerScrapeResponse(BaseModel):
+    """Dedicated scrape + ingest summary."""
+
+    forager_id: str
+    scraped: int
+    ingested: int
     routine_triggered: bool
     routine_session_id: str | None
     status: str
@@ -368,6 +387,65 @@ async def trigger_forager(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Forager not found.")
     await db.commit()
     return ForagerTriggerResponse.model_validate(out)
+
+
+@router.post("/{id}/scrape", response_model=ForagerScrapeResponse, summary="Scrape YouTube/X sources and ingest")
+async def scrape_forager(
+    id: uuid.UUID,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> ForagerScrapeResponse:
+    """Run platform scraper for one forager, ingest to Knowledge, trigger evaluator routine."""
+
+    _require_forager_write(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.social_intel_runner import run_social_intel_forager
+
+    dashboard_user = principal.get("user")
+    operator_id = getattr(dashboard_user, "id", None)
+    out = await run_social_intel_forager(
+        db,
+        tenant_id=tenant_id,
+        forager_id=id,
+        trigger_evaluator=True,
+        operator_user_id=operator_id,
+    )
+    if out.get("status") == "not_found":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Forager not found.")
+    await db.commit()
+    return ForagerScrapeResponse.model_validate(out)
+
+
+@router.post("/{id}/sources", response_model=ForagerResponse, summary="Append monitored channels or accounts")
+async def append_forager_sources(
+    id: uuid.UUID,
+    body: ForagerAppendSourcesRequest,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> ForagerResponse:
+    """Append unique YouTube channels or X handles (e.g. from Queen prompt)."""
+
+    _require_forager_write(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.social_intel_runner import append_forager_sources as append_sources
+
+    platform = "youtube" if body.platform == "youtube" else "x"
+    row = await append_sources(
+        db,
+        tenant_id=tenant_id,
+        forager_id=id,
+        platform=platform,
+        sources=body.sources,
+    )
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Forager not found.")
+    await db.commit()
+    await db.refresh(row)
+    return ForagerResponse.model_validate(row, from_attributes=True)
 
 
 __all__ = ["router"]

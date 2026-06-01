@@ -4,7 +4,6 @@ import { CANONICAL_PRIMARY_CP_HREFS } from "@/lib/hive-ia-canonical";
 import { HIVE_PAGE_ZONE_SPECS } from "@/lib/hive-page-zone-spec";
 import {
   canonicalAgenticOsLabels,
-  criticalJourneyMoreMenuCoverage,
   criticalJourneyPrimaryRouteCoverage,
   HIVE_CRITICAL_JOURNEY_SPECS,
   hiveCriticalJourneyCount,
@@ -37,6 +36,7 @@ describe("hive-critical-journeys-spec", () => {
     expect(labels).toContain("Swarms");
     expect(labels).toContain("Tasks");
     expect(labels).toContain("Agents");
+    expect(labels).toContain("Foragers");
   });
 
   it("tracks verified primary routes touched by journeys", () => {
@@ -46,7 +46,7 @@ describe("hive-critical-journeys-spec", () => {
     expect(covered).toContain("/knowledge");
   });
 
-  it("includes foragers in more-menu coverage", () => {
-    expect(criticalJourneyMoreMenuCoverage()).toContain("/foragers");
+  it("includes foragers on primary sidebar rail", () => {
+    expect(CANONICAL_PRIMARY_CP_HREFS).toContain("/foragers");
   });
 });

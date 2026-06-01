@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePutJson } from "@/lib/api";
+import { CURATED_MEMORY_MAX_CHARS } from "@/lib/curated-memory-limits";
 
 const INSTRUCTIONS_KIND = "instructions";
 
@@ -64,12 +65,14 @@ export function BehavioralMemoryPanel(): JSX.Element {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={12}
-            maxLength={8000}
+            maxLength={CURATED_MEMORY_MAX_CHARS}
             className="qs-input min-h-[240px] font-mono text-xs leading-relaxed"
             placeholder={"# Behavioral instructions\n\n- Always verify before reporting to the user\n- Prefer concise morning briefings\n- Flag stalled projects in magenta tone"}
           />
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs text-(--qs-text-3)">{draft.length}/8000</span>
+            <span className="text-xs text-(--qs-text-3)">
+              {draft.length}/{CURATED_MEMORY_MAX_CHARS}
+            </span>
             <button
               type="button"
               disabled={busy}

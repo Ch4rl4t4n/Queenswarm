@@ -595,6 +595,8 @@ export interface SkillCatalogBuiltinItem {
   version: string;
   roles: string[];
   keywords: string[];
+  summary?: string;
+  agent_usage?: string;
   kind: "builtin";
 }
 

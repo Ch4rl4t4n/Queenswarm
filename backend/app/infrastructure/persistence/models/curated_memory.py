@@ -12,6 +12,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
 
+# Hard DB ceiling — must match Alembic migration ck_curated_memory_char_count_max.
+CURATED_MEMORY_DB_CHAR_CEILING = 24_000
+
 
 class CuratedFileKindORM(StrEnum):
     """Persisted curated memory kinds."""
@@ -29,7 +32,10 @@ class CuratedMemoryORM(Base):
     __tablename__ = "curated_memory"
     __table_args__ = (
         UniqueConstraint("tenant_id", "kind", name="uq_curated_memory_tenant_kind"),
-        CheckConstraint("char_count <= 8000", name="ck_curated_memory_char_count_max"),
+        CheckConstraint(
+            f"char_count <= {CURATED_MEMORY_DB_CHAR_CEILING}",
+            name="ck_curated_memory_char_count_max",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

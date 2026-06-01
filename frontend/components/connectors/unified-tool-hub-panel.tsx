@@ -1,18 +1,29 @@
 "use client";
 
 import type { JSX } from "react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { DynamicCollectorDeck,
-  type CollectorCardItem,
-  type CollectorTab,
-} from "@/components/hive/dynamic-collector-deck";
+import { HubCategoryCatalogShell } from "@/components/connectors/hub-category-catalog-shell";
 import { sectionHintNode } from "@/components/hive/inline-section-hint";
-import { V4Badge, V4CardHeader } from "@/components/ui/v4";
+import { ListPaginator, ViewportBoundedPanel } from "@/components/ui/list-paginator";
+import { V4Badge } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
+import {
+  extractPhase3FromCatalog,
+  orderedPhase3Categories,
+  phase3CategoryLabel,
+  phase3CategoryShortLabel,
+  type Phase3CatalogSlice,
+} from "@/lib/connectors-phase3";
+import { useGridTwoRowPageSize } from "@/lib/use-grid-two-row-page-size";
+import { usePaginatedSlice } from "@/lib/use-paginated-slice";
+import { cn } from "@/lib/utils";
 
 type CostTier = "low" | "medium" | "high";
 type LatencyTier = "fast" | "balanced" | "slow";
+
+type ToolFilterId = "all" | "ranked" | "low_cost" | "fast";
 
 interface ToolRegistryRow {
   connector_slug: string;
@@ -39,9 +50,6 @@ interface FeaturedPresetRow {
   installed: boolean;
   featured?: boolean;
   mcp_preset?: boolean;
-  cost_tier?: CostTier | null;
-  latency_tier?: LatencyTier | null;
-  tool_hints?: Array<{ name: string; cost_tier?: CostTier; latency_tier?: LatencyTier }>;
 }
 
 interface ToolHubOverviewResponse {
@@ -55,6 +63,17 @@ interface ToolHubOverviewResponse {
   };
   goal?: string | null;
 }
+
+interface ToolRowView extends ToolRegistryRow {
+  categoryKey: string;
+}
+
+const TOOL_FILTERS: { id: ToolFilterId; label: string }[] = [
+  { id: "all", label: "All tools" },
+  { id: "ranked", label: "Ranked" },
+  { id: "low_cost", label: "Low cost" },
+  { id: "fast", label: "Fast" },
+];
 
 function costLabel(tier: CostTier | null | undefined): string {
   if (tier === "low") return "Low cost";
@@ -82,21 +101,43 @@ function latencyTone(tier: LatencyTier | null | undefined): "ok" | "warn" | "err
   return "warn";
 }
 
-export function UnifiedToolHubPanel(): JSX.Element {
+function matchesToolFilter(row: ToolRegistryRow, filter: ToolFilterId): boolean {
+  if (filter === "ranked") return (row.score ?? 0) > 0;
+  if (filter === "low_cost") return row.cost_tier === "low";
+  if (filter === "fast") return row.latency_tier === "fast";
+  return true;
+}
+
+interface UnifiedToolHubPanelProps {
+  embedded?: boolean;
+}
+
+/** Unified Tool Hub — category bubble menu + numbered page grid (no collector deck). */
+export function UnifiedToolHubPanel({ embedded = true }: UnifiedToolHubPanelProps): JSX.Element {
   const [overview, setOverview] = useState<ToolHubOverviewResponse | null>(null);
+  const [phase3Slice, setPhase3Slice] = useState<Phase3CatalogSlice | null>(null);
   const [goal, setGoal] = useState("");
+  const [toolFilter, setToolFilter] = useState<ToolFilterId>("all");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async (searchGoal?: string): Promise<void> => {
     setError(null);
+    setLoading(true);
     try {
       const query = searchGoal?.trim() ? `?goal=${encodeURIComponent(searchGoal.trim())}` : "";
-      const payload = await hiveGet<ToolHubOverviewResponse>(`tools/hub/overview${query}`);
+      const [payload, catalog] = await Promise.all([
+        hiveGet<ToolHubOverviewResponse>(`tools/hub/overview${query}`),
+        hiveGet<unknown>("connectors/catalog").catch(() => null),
+      ]);
       setOverview(payload);
+      setPhase3Slice(catalog ? extractPhase3FromCatalog(catalog) : null);
     } catch (exc) {
       const detail = exc instanceof HiveApiError ? exc.message : "Tool Hub unavailable.";
       setError(detail);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -107,67 +148,104 @@ export function UnifiedToolHubPanel(): JSX.Element {
   const venice = overview?.venice_preset ?? null;
   const registry = useMemo(() => overview?.registry ?? [], [overview?.registry]);
 
-  const filteredRegistry = useMemo(() => {
+  const slugCategoryMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const tpl of phase3Slice?.templates ?? []) {
+      map.set(tpl.suggested_slug.trim().toLowerCase(), tpl.category);
+    }
+    for (const preset of overview?.featured_presets ?? []) {
+      if (preset.slug && preset.category) {
+        map.set(preset.slug.trim().toLowerCase(), preset.category);
+      }
+    }
+    return map;
+  }, [overview?.featured_presets, phase3Slice?.templates]);
+
+  const toolsWithCategory = useMemo((): ToolRowView[] => {
     const needle = goal.trim().toLowerCase();
-    if (!needle) return registry;
-    return registry.filter(
-      (row) =>
-        row.tool_name.toLowerCase().includes(needle) ||
-        row.connector_slug.toLowerCase().includes(needle) ||
-        row.description.toLowerCase().includes(needle),
-    );
-  }, [goal, registry]);
+    return registry
+      .filter((row) => {
+        if (!needle) return true;
+        return (
+          row.tool_name.toLowerCase().includes(needle) ||
+          row.connector_slug.toLowerCase().includes(needle) ||
+          row.connector_display_name.toLowerCase().includes(needle) ||
+          row.description.toLowerCase().includes(needle)
+        );
+      })
+      .map((row) => ({
+        ...row,
+        categoryKey: slugCategoryMap.get(row.connector_slug.trim().toLowerCase()) ?? "connectors_other",
+      }));
+  }, [goal, registry, slugCategoryMap]);
 
-  const toolTabs: CollectorTab[] = useMemo(() => {
-    const ranked = filteredRegistry.filter((row) => (row.score ?? 0) > 0);
-    const lowCost = filteredRegistry.filter((row) => row.cost_tier === "low");
-    const fast = filteredRegistry.filter((row) => row.latency_tier === "fast");
-    return [
-      { id: "all", label: "All tools", count: filteredRegistry.length, tone: "info" },
-      { id: "ranked", label: "Ranked", count: ranked.length, tone: "gold" },
-      { id: "low_cost", label: "Low cost", count: lowCost.length, tone: "ok" },
-      { id: "fast", label: "Fast", count: fast.length, tone: "purple" },
-    ];
-  }, [filteredRegistry]);
+  const groupedTools = useMemo(() => {
+    const grouped: Record<string, ToolRowView[]> = {};
+    for (const row of toolsWithCategory) {
+      const bucket = grouped[row.categoryKey] ?? [];
+      bucket.push(row);
+      grouped[row.categoryKey] = bucket;
+    }
+    for (const key of Object.keys(grouped)) {
+      grouped[key]?.sort((a, b) => (b.score ?? 0) - (a.score ?? 0) || a.tool_name.localeCompare(b.tool_name));
+    }
+    return grouped;
+  }, [toolsWithCategory]);
 
-  const toolItemsByTab = useMemo(() => {
-    const toCard = (row: ToolRegistryRow): CollectorCardItem => ({
-      id: `${row.connector_slug}:${row.tool_name}`,
-      title: row.tool_name,
-      body: row.description,
-      meta: `${row.connector_slug} · ${row.method} ${row.path}`,
-      badge:
-        typeof row.score === "number" && row.score > 0
-          ? `score ${row.score.toFixed(2)}`
-          : row.cost_tier
-            ? costLabel(row.cost_tier)
-            : "tool",
-      badgeTone:
-        typeof row.score === "number" && row.score > 0
-          ? "ok"
-          : costTone(row.cost_tier ?? undefined),
-      footer: (
-        <div className="flex flex-wrap gap-2">
-          {row.cost_tier ? <V4Badge tone={costTone(row.cost_tier)}>{costLabel(row.cost_tier)}</V4Badge> : null}
-          {row.latency_tier ? (
-            <V4Badge tone={latencyTone(row.latency_tier)}>{latencyLabel(row.latency_tier)}</V4Badge>
-          ) : null}
-          <V4Badge tone="info">{row.connector_display_name || row.connector_slug}</V4Badge>
-        </div>
+  const categoryOrder = useMemo(() => {
+    const connectorCats = orderedPhase3Categories(
+      Object.fromEntries(
+        Object.entries(groupedTools).filter(([key]) => key !== "connectors_other"),
       ),
-    });
+    );
+    return groupedTools.connectors_other?.length ? [...connectorCats, "connectors_other"] : connectorCats;
+  }, [groupedTools]);
 
-    const ranked = filteredRegistry.filter((row) => (row.score ?? 0) > 0);
-    const lowCost = filteredRegistry.filter((row) => row.cost_tier === "low");
-    const fast = filteredRegistry.filter((row) => row.latency_tier === "fast");
+  const [openCategory, setOpenCategory] = useState<string | null>(categoryOrder[0] ?? null);
 
+  useEffect(() => {
+    if (openCategory && categoryOrder.includes(openCategory)) {
+      return;
+    }
+    setOpenCategory(categoryOrder[0] ?? null);
+  }, [categoryOrder, openCategory]);
+
+  useEffect(() => {
+    setToolFilter(goal.trim() ? "ranked" : "all");
+  }, [goal]);
+
+  const categoryTools = useMemo(() => {
+    const base = openCategory ? (groupedTools[openCategory] ?? []) : [];
+    return base.filter((row) => matchesToolFilter(row, toolFilter));
+  }, [groupedTools, openCategory, toolFilter]);
+
+  const pageSize = useGridTwoRowPageSize({ columns: 2 });
+  const pagination = usePaginatedSlice(
+    categoryTools,
+    pageSize,
+    `${openCategory}|${toolFilter}|${goal}|${pageSize}|${categoryTools.length}`,
+  );
+
+  const catalogCategories = useMemo(
+    () =>
+      categoryOrder.map((categoryKey) => ({
+        id: categoryKey,
+        label: categoryKey === "connectors_other" ? "Other" : phase3CategoryShortLabel(categoryKey),
+        count: groupedTools[categoryKey]?.length ?? 0,
+        showDot: (groupedTools[categoryKey] ?? []).some((row) => row.is_active),
+      })),
+    [categoryOrder, groupedTools],
+  );
+
+  const filterCounts = useMemo(() => {
+    const base = openCategory ? (groupedTools[openCategory] ?? []) : [];
     return {
-      all: filteredRegistry.map(toCard),
-      ranked: ranked.map(toCard),
-      low_cost: lowCost.map(toCard),
-      fast: fast.map(toCard),
+      all: base.length,
+      ranked: base.filter((row) => matchesToolFilter(row, "ranked")).length,
+      low_cost: base.filter((row) => matchesToolFilter(row, "low_cost")).length,
+      fast: base.filter((row) => matchesToolFilter(row, "fast")).length,
     };
-  }, [filteredRegistry]);
+  }, [groupedTools, openCategory]);
 
   async function installVenice(): Promise<void> {
     if (!venice) return;
@@ -187,100 +265,183 @@ export function UnifiedToolHubPanel(): JSX.Element {
     }
   }
 
+  const categoryLabel =
+    openCategory === "connectors_other"
+      ? "Other connectors"
+      : openCategory
+        ? phase3CategoryLabel(openCategory)
+        : "Tools";
+
   return (
-    <div className="space-y-6">
-      <V4CardHeader
-        as="h3"
-        title="Unified Tool Hub"
-        description="Orchestrated MCP registry with cost and latency hints — supervisor lanes pick tools by goal overlap."
-        hint={sectionHintNode("integrationsHubTools")}
-      />
-
-      {error ? (
-        <p className="rounded-xl border border-(--qs-red)/35 bg-(--qs-red)/10 px-3 py-2 text-xs text-(--qs-red)">{error}</p>
-      ) : null}
-
+    <div className="hub-tool-registry-wrap min-w-0 space-y-4">
       {venice ? (
-        <article className="v4-dream-cycle-card qs-bubble--tint-cyan flex flex-col gap-3">
+        <article className="hub-tool-featured qs-bubble--tint-cyan flex flex-col gap-3 rounded-xl border border-cyan/25 bg-cyan/5 p-4">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-(--qs-cyan)">Featured MCP preset</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-cyan">Featured MCP preset</p>
               <p className="text-sm font-semibold text-(--qs-text)">{venice.title}</p>
             </div>
             <V4Badge tone={venice.installed ? "ok" : "warn"}>{venice.installed ? "installed" : "not installed"}</V4Badge>
           </div>
           <p className="text-xs text-(--qs-text-3)">{venice.summary}</p>
-          <div className="flex flex-wrap gap-2">
-            {venice.cost_tier ? <V4Badge tone={costTone(venice.cost_tier)}>{costLabel(venice.cost_tier)}</V4Badge> : null}
-            {venice.latency_tier ? (
-              <V4Badge tone={latencyTone(venice.latency_tier)}>{latencyLabel(venice.latency_tier)}</V4Badge>
-            ) : null}
-            <V4Badge tone="info">{venice.tool_count} tools</V4Badge>
-          </div>
-          {venice.tool_hints?.length ? (
-            <div className="flex flex-wrap gap-1.5">
-              {venice.tool_hints.slice(0, 6).map((hint) => (
-                <span
-                  key={hint.name}
-                  className="qs-bubble-inner rounded-md px-2 py-0.5 font-mono text-[10px] text-(--qs-text-3)"
-                >
-                  {hint.name}
-                </span>
-              ))}
-            </div>
-          ) : null}
           {!venice.installed ? (
-            <div className="v4-dream-cycle-card-actions">
-              <button
-                type="button"
-                className="qs-btn qs-btn--primary qs-btn--sm"
-                disabled={busyId === venice.id}
-                onClick={() => void installVenice()}
-              >
-                {busyId === venice.id ? "Installing Venice…" : "Install Venice MCP preset"}
-              </button>
-            </div>
+            <button
+              type="button"
+              className="qs-btn qs-btn--primary qs-btn--sm self-start"
+              disabled={busyId === venice.id}
+              onClick={() => void installVenice()}
+            >
+              {busyId === venice.id ? "Installing Venice…" : "Install Venice MCP preset"}
+            </button>
           ) : (
-            <p className="text-[11px] text-(--qs-green)">Venice connector ready — add bearer token in hub and test connection.</p>
+            <p className="text-[11px] text-(--qs-green)">Venice connector ready — seal bearer token in Vault and test.</p>
           )}
         </article>
       ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <label className="flex flex-1 flex-col gap-1">
-          <span className="v4-field-label">Goal filter</span>
-          <input
-            type="search"
-            className="qs-input"
-            placeholder="e.g. search knowledge, generate image, TTS briefing"
-            value={goal}
-            onChange={(event) => setGoal(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") void load(goal);
-            }}
-          />
-        </label>
-        <button type="button" className="qs-btn qs-btn--secondary qs-btn--sm" onClick={() => void load(goal)}>
-          Rank by goal
-        </button>
-      </div>
-
-      {overview ? (
-        <p className="font-mono text-[11px] text-(--qs-text-3)">
-          {overview.totals.installed_tools} active tools · {overview.totals.active_presets} installed presets
-        </p>
-      ) : null}
-
-      <DynamicCollectorDeck
-        tabs={toolTabs}
-        itemsByTab={toolItemsByTab}
-        defaultTabId={goal.trim() ? "ranked" : "all"}
-        emptyLabel={
+      <HubCategoryCatalogShell
+        embedded={embedded}
+        className="hub-tool-registry-card"
+        title="Unified Tool Hub"
+        description="Orchestrated MCP registry with cost and latency hints — supervisor lanes pick tools by goal overlap."
+        hint={sectionHintNode("integrationsHubTools")}
+        stats={
           overview
-            ? "No tools in this collector — adjust goal filter or install a preset."
-            : "Loading registry…"
+            ? [
+                { label: `${overview.totals.installed_tools} active tools`, tone: "info" },
+                { label: `${overview.totals.active_presets} installed presets`, tone: "ok" },
+              ]
+            : undefined
         }
-      />
+        error={error}
+        refreshBusy={loading}
+        onRefresh={() => void load(goal)}
+        categories={catalogCategories}
+        openCategory={openCategory}
+        onCategoryChange={setOpenCategory}
+        sectionLabel={categoryLabel}
+        sectionCount={categoryTools.length}
+        sectionItemLabel="tools"
+      >
+        <div className="hub-tool-registry-toolbar min-w-0 space-y-3">
+          <div className="hub-tool-goal-filter flex flex-col gap-3 sm:flex-row sm:items-end">
+            <label className="flex min-w-0 flex-1 flex-col gap-1">
+              <span className="v4-field-label">Goal filter</span>
+              <input
+                type="search"
+                className="qs-input"
+                placeholder="e.g. search knowledge, generate image, TTS briefing"
+                value={goal}
+                onChange={(event) => setGoal(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") void load(goal);
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              className="qs-btn qs-btn--secondary qs-btn--sm shrink-0"
+              onClick={() => void load(goal)}
+            >
+              Rank by goal
+            </button>
+          </div>
+
+          <div className="hub-tool-filter-row flex flex-wrap gap-2" role="tablist" aria-label="Tool filters">
+            {TOOL_FILTERS.map((filter) => {
+              const active = toolFilter === filter.id;
+              const count = filterCounts[filter.id];
+              return (
+                <button
+                  key={filter.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  className={cn("hub-category-bubble hub-tool-filter-bubble", active && "hub-category-bubble--active")}
+                  onClick={() => setToolFilter(filter.id)}
+                >
+                  <span className="hub-category-bubble__label">{filter.label}</span>
+                  <V4Badge tone={active ? "gold" : "info"}>{count}</V4Badge>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {loading && !overview ? (
+          <p className="v4-dream-empty">Loading registry…</p>
+        ) : categoryTools.length === 0 ? (
+          <p className="v4-dream-empty">No tools in this category — adjust goal filter or install a Phase 3 template.</p>
+        ) : (
+          <ViewportBoundedPanel
+            className="v4-recipe-catalog-panel"
+            footer={
+              <ListPaginator
+                page={pagination.page}
+                totalPages={pagination.totalPages}
+                totalItems={pagination.totalItems}
+                pageSize={pageSize}
+                onPageChange={pagination.setPage}
+              />
+            }
+          >
+            <div className="hub-catalog-grid">
+              {pagination.slice.map((row) => (
+                <article key={`${row.connector_slug}:${row.tool_name}`} className="hub-catalog-card hub-tool-card">
+                  <header className="hub-catalog-card__head">
+                    <p className="hub-catalog-card__title">{row.tool_name}</p>
+                    <p className="hub-catalog-card__summary">{row.description}</p>
+                  </header>
+                  <div className="hub-catalog-card__manifest">
+                    <p className="hub-catalog-card__manifest-label">MCP manifest</p>
+                    <p className="hub-catalog-card__manifest-meta">
+                      {row.connector_slug}
+                      <span aria-hidden> · </span>
+                      {row.method} {row.path}
+                    </p>
+                    <div className="hub-catalog-card__status-row">
+                      <p
+                        className={cn(
+                          "hub-catalog-card__status",
+                          row.is_active
+                            ? "hub-catalog-card__status--ok"
+                            : "hub-catalog-card__status--pending",
+                        )}
+                      >
+                        {row.is_active ? "Live in registry" : "Registered · inactive"}
+                      </p>
+                      {typeof row.score === "number" && row.score > 0 ? (
+                        <V4Badge tone="gold">score {row.score.toFixed(2)}</V4Badge>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {row.cost_tier ? <V4Badge tone={costTone(row.cost_tier)}>{costLabel(row.cost_tier)}</V4Badge> : null}
+                    {row.latency_tier ? (
+                      <V4Badge tone={latencyTone(row.latency_tier)}>{latencyLabel(row.latency_tier)}</V4Badge>
+                    ) : null}
+                    <V4Badge tone="info">{row.connector_display_name || row.connector_slug}</V4Badge>
+                  </div>
+                  <footer className="hub-catalog-card__foot">
+                    <span className="text-[11px] font-mono text-(--qs-text-3)">{row.connector_slug}</span>
+                    <div className="hub-catalog-card__actions">
+                      <Link href="/integrations?tab=hub&hubSection=roster" className="qs-btn qs-btn--ghost qs-btn--sm">
+                        Roster
+                      </Link>
+                      <Link
+                        href="/integrations?tab=hub&hubSection=templates"
+                        className="qs-btn qs-btn--primary qs-btn--sm min-w-[5.5rem]"
+                      >
+                        Templates
+                      </Link>
+                    </div>
+                  </footer>
+                </article>
+              ))}
+            </div>
+          </ViewportBoundedPanel>
+        )}
+      </HubCategoryCatalogShell>
     </div>
   );
 }

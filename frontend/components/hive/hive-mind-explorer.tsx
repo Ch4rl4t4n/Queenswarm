@@ -221,7 +221,7 @@ export function HiveMindExplorer({ showHeader = true, variant = "default", filte
       <>
         <div className="flex flex-col gap-5">
           <HiveMindIngestPanel windowHours={24} />
-          <div className="v4-hivemind-toolbar flex flex-wrap justify-start gap-2">
+          <div className="v4-hivemind-toolbar flex flex-wrap items-center justify-end gap-2">
             <HiveRefreshButton busy={loading} label="Refresh graph" onClick={() => void loadGraph()} />
             <button type="button" className="qs-btn qs-btn--primary qs-btn--sm gap-2" onClick={() => void handleExportZip()}>
               <Download className="h-3.5 w-3.5" aria-hidden />

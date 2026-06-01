@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import get_logger
 from app.infrastructure.connectors.dynamic.service import DynamicConnectorService
+from app.infrastructure.connectors.secure_vault import vault_load_envelope
 
 logger = get_logger(__name__)
 
@@ -37,15 +38,23 @@ async def _read_x_access_token(
     *,
     dashboard_user_id: uuid.UUID,
 ) -> str | None:
+    """Resolve OAuth access token from hub secrets or connector vault fallback."""
+
     svc = DynamicConnectorService()
     row = await svc.fetch_by_slug(session, slug="twitter_api_v2")
-    if row is None:
-        return None
-    secrets = svc._secrets_dict(row)  # noqa: SLF001
-    if not _connector_token_ok(str(row.auth_type or ""), secrets):
-        return None
-    token = str(secrets.get("oauth2_access_token") or secrets.get("access_token") or "").strip()
-    return token or None
+    if row is not None:
+        secrets = svc._secrets_dict(row)  # noqa: SLF001
+        if _connector_token_ok(str(row.auth_type or ""), secrets):
+            token = str(secrets.get("oauth2_access_token") or secrets.get("access_token") or "").strip()
+            if token:
+                return token
+
+    envelope = await vault_load_envelope(session, slug="twitter_api_v2", user_id=dashboard_user_id)
+    if envelope is not None and envelope.kind == "oauth2":
+        token = str(envelope.oauth2_access_token or "").strip()
+        if token:
+            return token
+    return None
 
 
 async def fetch_x_user_profile(*, access_token: str) -> tuple[str, str]:

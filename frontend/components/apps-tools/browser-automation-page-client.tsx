@@ -130,8 +130,10 @@ export function BrowserAutomationPageClient() {
       title="Browser Automation"
       subtitle="Operator-approved browser harness lane with live confirmations, fallback checks, and innovation handoff."
       status={
-        <div className="hidden items-center gap-2 lg:flex">
-          <ModulePolicyPackPill moduleKey="browser_automation" />
+        <div className="flex items-center gap-2">
+          <span className="max-lg:hidden">
+            <ModulePolicyPackPill moduleKey="browser_automation" />
+          </span>
           <HiveRefreshButton busy={loading} onClick={() => void load()} />
         </div>
       }

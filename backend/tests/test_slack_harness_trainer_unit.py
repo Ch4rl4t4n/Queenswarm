@@ -80,7 +80,7 @@ def test_merge_instructions_append_raises_when_preamble_too_large() -> None:
     existing = "x" * 8001
     block = format_slack_feedback_block(feedback="tiny", author="a", source="dashboard")
     with pytest.raises(SlackHarnessTrainerValidationError):
-        merge_instructions_append(existing, block)
+        merge_instructions_append(existing, block, max_chars=8000)
 
 
 @pytest.mark.asyncio

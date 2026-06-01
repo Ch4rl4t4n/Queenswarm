@@ -74,10 +74,10 @@ export const HIVE_CRITICAL_JOURNEY_SPECS: HiveCriticalJourneySpec[] = [
     viewport: "desktop",
   },
   {
-    id: "mobile-more-foragers",
-    title: "Mobile More → Foragers",
-    description: "Overflow menu reaches Foragers (moved off primary rail).",
-    viewport: "mobile",
+    id: "desktop-sidebar-foragers",
+    title: "Desktop sidebar → Foragers",
+    description: "Primary rail includes Foragers for social intel data collectors.",
+    viewport: "desktop",
     requiresCp: true,
   },
   {
@@ -108,7 +108,7 @@ export function criticalJourneyPrimaryRouteCoverage(): readonly string[] {
 
 /** More-menu-only routes exercised by mobile overflow journey. */
 export function criticalJourneyMoreMenuCoverage(): readonly string[] {
-  return CANONICAL_MORE_ONLY_HREFS.filter((href) => href === "/foragers" || href === "/factory");
+  return CANONICAL_MORE_ONLY_HREFS.filter((href) => href === "/factory");
 }
 
 export function canonicalAgenticOsLabels(): readonly string[] {

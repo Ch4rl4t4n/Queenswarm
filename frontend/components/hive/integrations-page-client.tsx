@@ -32,6 +32,11 @@ import {
 } from "@/lib/integrations-hub-routes";
 import { useSetHiveMobileHeaderTrailing } from "@/components/hive/hive-mobile-header-actions";
 import { IntegrationsEcosystemLane } from "@/components/hive/integrations-ecosystem-lane";
+import {
+  ActiveIntegrationsPanel,
+  type IntegrationCard,
+  type IntegrationCardStatus,
+} from "@/components/hive/active-integrations-panel";
 import { usePlatform } from "@/components/hive/platform-context";
 import { PluginsUserUploader } from "@/components/hive/plugins-user-uploader";
 import { HiveSwitch } from "@/components/ui/hive-switch";
@@ -42,7 +47,6 @@ import {
   V4IconBolt,
   V4IconCoin,
   V4IconCpu,
-  type V4BadgeTone,
 } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
 import type { DynamicConnectorPayload } from "@/lib/connectors-types";
@@ -93,10 +97,6 @@ const SkillsMarketplacePanel = dynamic(
   { ssr: false },
 );
 
-type IntegrationCardStatus = "connected" | "error" | "rate_limited";
-
-type IntegrationCardKind = "plugin" | "connector" | "external" | "system";
-
 export interface PluginInstalledRow {
   id: string;
   title?: string;
@@ -121,17 +121,6 @@ export interface IntegrationsInitialPayload {
   externalProjects: ExternalProjectRow[];
   plugins: PluginInstalledRow[];
   reloadGeneration?: number;
-}
-
-interface IntegrationCard {
-  id: string;
-  title: string;
-  meta: string;
-  status: IntegrationCardStatus;
-  kind: IntegrationCardKind;
-  targetTab: IntegrationsTab;
-  slug?: string;
-  iconKey: string;
 }
 
 interface IntegrationsPageClientProps {
@@ -172,12 +161,6 @@ const SUPPLEMENTAL_PLUGINS: PluginInstalledRow[] = [
     source: "builtin",
   },
 ];
-
-function statusTone(status: IntegrationCardStatus): V4BadgeTone {
-  if (status === "connected") return "ok";
-  if (status === "rate_limited") return "warn";
-  return "err";
-}
 
 function pluginStatus(plugin: PluginInstalledRow): IntegrationCardStatus {
   const normalized = String(plugin.status ?? "").toLowerCase();
@@ -223,31 +206,41 @@ function buildActiveCards(payload: IntegrationsInitialPayload): IntegrationCard[
     id: `plugin-${plugin.id}`,
     title: plugin.title ?? plugin.name ?? plugin.id,
     meta: formatPluginMeta(plugin),
+    description: plugin.description ?? formatPluginMeta(plugin),
     status: pluginStatus(plugin),
     kind: "plugin",
     targetTab: "plugins",
     iconKey: iconKeyForPlugin(plugin.id),
+    categoryKey: "plugins",
   }));
 
   const connectorCards: IntegrationCard[] = payload.connectors.map((conn) => ({
     id: `connector-${conn.id}`,
     title: conn.display_name,
     meta: `${conn.slug} · ${conn.auth_type}`,
+    description: conn.is_active
+      ? `${conn.display_name} is active in the connector hub.`
+      : `${conn.display_name} is provisioned but needs credentials or OAuth connect.`,
     status: conn.is_active ? "connected" : "error",
     kind: "connector",
     targetTab: "hub",
     slug: conn.slug,
     iconKey: "plug",
+    categoryKey: "connectors_other",
   }));
 
   const externalCards: IntegrationCard[] = payload.externalProjects.map((project) => ({
     id: `external-${project.id}`,
     title: project.display_name,
     meta: `${project.slug} · ${project.project_kind}`,
+    description: project.is_active
+      ? `${project.display_name} bridge is active for cross-repo orchestration.`
+      : `${project.display_name} bridge is registered but inactive.`,
     status: project.is_active ? "connected" : "error",
     kind: "external",
     targetTab: "external",
     iconKey: "layers",
+    categoryKey: "external",
   }));
 
   return [...pluginCards, ...connectorCards, ...externalCards];
@@ -617,84 +610,20 @@ export function IntegrationsPageClient({
             <ToolsMarketplacePanel onJumpToActive={jumpToActiveIntegrations} />
           </V4Card>
 
-          <V4Card id="active-integrations" className="scroll-mt-28">
-            <V4CardHeader
-              title="Active integrations"
-              description="Unified health snapshot across hub, bridges, and plugins."
-              hint={sectionHintNode("integrationsActive")}
-              actions={
-                <V4Badge tone="ok">
-                  {healthyCount} / {activeCards.length} healthy
-                </V4Badge>
-              }
+          <V4Card id="active-integrations" className="scroll-mt-28 hub-section-card hub-section-card--flush">
+            <ActiveIntegrationsPanel
+              cards={activeCards}
+              healthyCount={healthyCount}
+              refreshing={refreshing}
+              retryingId={retryingId}
+              hasHubTab={hasHubTab}
+              hasMarketplaceTab={hasMarketplaceTab}
+              onRefresh={refreshPulse}
+              onRetry={retryCard}
+              onOpen={selectTab}
+              onOpenHub={() => selectTab("hub")}
+              onOpenMarketplace={() => selectTab("marketplace")}
             />
-            {!activeCards.length ? (
-              <div className="v4-learning-panel flex flex-col items-center gap-3 p-6 text-center">
-                <p className="text-sm text-(--qs-text-3)">
-                  No integrations connected yet. Install a marketplace template or provision a connector in the hub.
-                </p>
-                <div className="flex flex-wrap justify-center gap-2">
-                  {hasHubTab ? (
-                    <button type="button" className="qs-btn qs-btn--primary qs-btn--sm" onClick={() => selectTab("hub")}>
-                      Open connector hub
-                    </button>
-                  ) : null}
-                  {hasMarketplaceTab ? (
-                    <button
-                      type="button"
-                      className="qs-btn qs-btn--ghost qs-btn--sm"
-                      onClick={() => selectTab("marketplace")}
-                    >
-                      Browse marketplace
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            ) : (
-              <div className="v4-cols-3">
-                {activeCards.map((card) => (
-                  <article key={card.id} className="v4-int-card">
-                    <div className="v4-int-head">
-                      <div className="flex min-w-0 flex-1 items-start gap-3">
-                        <div className="v4-int-logo">
-                          <IntegrationIcon iconKey={card.status === "error" ? "alert" : card.iconKey} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="v4-int-name">{card.title}</p>
-                          <p className="v4-int-meta truncate">{card.meta}</p>
-                        </div>
-                      </div>
-                      <V4Badge tone={statusTone(card.status)} className="shrink-0 whitespace-nowrap">
-                        {card.status}
-                      </V4Badge>
-                    </div>
-                    <div className="v4-int-foot">
-                      {card.status === "error" ? (
-                        <button
-                          type="button"
-                          className="qs-btn qs-btn--ghost qs-btn--sm gap-2"
-                          disabled={retryingId === card.id}
-                          onClick={() => void retryCard(card)}
-                        >
-                          <RefreshCw
-                            className={cn("h-3.5 w-3.5", retryingId === card.id && "animate-spin")}
-                            aria-hidden
-                          />
-                          Retry
-                        </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        className="qs-btn qs-btn--primary qs-btn--sm"
-                        onClick={() => selectTab(card.targetTab)}
-                      >
-                        Open
-                      </button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
           </V4Card>
         </HiveSubnavContent>
       ) : null}
@@ -722,8 +651,12 @@ export function IntegrationsPageClient({
           </V4Card>
 
           {hubSection === "tools" ? (
-            <V4Card id="hub-tools" className="scroll-mt-28">
-              <UnifiedToolHubPanel />
+            <V4Card id="hub-tools" className="scroll-mt-28 hub-section-card hub-section-card--flush">
+              <UnifiedToolHubPanel embedded />
+            </V4Card>
+          ) : hubSection === "templates" ? (
+            <V4Card id="hub-templates" className="scroll-mt-28 hub-section-card hub-section-card--flush">
+              <ConnectorsConsole embedded hubSection={hubSection} />
             </V4Card>
           ) : (
             <V4Card id={`hub-${hubSection}`} className="scroll-mt-28">

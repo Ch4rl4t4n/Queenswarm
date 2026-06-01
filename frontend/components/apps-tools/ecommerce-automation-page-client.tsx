@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { ModulePolicyPackPill } from "@/components/apps-tools/module-policy-pack-pill";
 import { HivePageShell } from "@/components/hive/hive-page-shell";
+import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { HiveSubnavRow } from "@/components/hive/hive-subnav-row";
 import { HiveApiError, hiveGet } from "@/lib/api";
 
@@ -60,17 +61,17 @@ export function EcommerceAutomationPageClient() {
     <HivePageShell
       title="E-commerce Ops"
       subtitle="Shopify + Stripe order sync, webhook queue, and eshop-ops swarm handoff — simulate-first, operator approval for live mutations."
-      status={<ModulePolicyPackPill moduleKey="ecommerce_workspace" />}
+      status={
+        <div className="flex items-center gap-2">
+          <ModulePolicyPackPill moduleKey="ecommerce_workspace" />
+          <HiveRefreshButton busy={loading} onClick={() => void loadEvents()} />
+        </div>
+      }
       error={error ? { message: error, onDismiss: () => setError(null) } : null}
       actions={
-        <div className="flex flex-wrap items-center gap-2">
-          <Link href="/integrations?tab=connectors" className="qs-btn qs-btn--ghost qs-btn--sm">
-            Connectors
-          </Link>
-          <button type="button" className="qs-btn qs-btn--primary qs-btn--sm" onClick={() => void loadEvents()}>
-            Refresh
-          </button>
-        </div>
+        <Link href="/integrations?tab=connectors" className="qs-btn qs-btn--ghost qs-btn--sm">
+          Connectors
+        </Link>
       }
       subnav={
         <HiveSubnavRow

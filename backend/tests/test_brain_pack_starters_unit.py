@@ -25,8 +25,11 @@ def test_starter_kinds_cover_all_brain_pack_slots() -> None:
 def test_starter_content_under_char_limit() -> None:
     """Each starter template must fit curated memory upsert limit."""
 
+    from app.core.config import settings
+
+    limit = settings.curated_memory_max_chars
     for kind, content in BRAIN_PACK_STARTERS.items():
-        assert len(content) <= 8000, f"{kind.value} exceeds 8000 chars"
+        assert len(content) <= limit, f"{kind.value} exceeds {limit} chars"
 
 
 @pytest.mark.asyncio

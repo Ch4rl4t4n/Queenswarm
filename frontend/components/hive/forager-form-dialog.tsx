@@ -9,7 +9,7 @@ import { HiveApiError, hivePostJson, hivePutJson } from "@/lib/api";
 import type { ForagerRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
-type ForagerSourceType = "youtube" | "rss" | "free_api" | "custom";
+type ForagerSourceType = "youtube" | "twitter" | "rss" | "free_api" | "custom";
 
 interface AgentTemplateLite {
   id: string;
@@ -54,6 +54,7 @@ const SCHEDULE_PRESET_OPTIONS = SCHEDULE_PRESETS.map((preset) => ({
 const SOURCE_TYPE_OPTIONS = [
   { value: "rss", label: "RSS" },
   { value: "youtube", label: "YouTube" },
+  { value: "twitter", label: "X (Twitter)" },
   { value: "free_api", label: "Free API" },
   { value: "custom", label: "Custom" },
 ] as const;
@@ -111,6 +112,7 @@ function joinMultiline(items: unknown): string {
 
 function inferIcon(sourceType: ForagerSourceType): string {
   if (sourceType === "youtube") return "📺";
+  if (sourceType === "twitter") return "𝕏";
   if (sourceType === "rss") return "📰";
   if (sourceType === "free_api") return "📡";
   return "🛠️";
@@ -147,6 +149,7 @@ export function ForagerFormDialog({
   );
   const [form, setForm] = useState<ForagerFormState>(createEmptyForm());
   const [configChannels, setConfigChannels] = useState("");
+  const [configAccounts, setConfigAccounts] = useState("");
   const [configFeeds, setConfigFeeds] = useState("");
   const [configQueries, setConfigQueries] = useState("");
   const [configEndpoint, setConfigEndpoint] = useState("");
@@ -166,6 +169,7 @@ export function ForagerFormDialog({
     if (!editingForager) {
       setForm(createEmptyForm());
       setConfigChannels("");
+      setConfigAccounts("");
       setConfigFeeds("https://example.com/feed.xml");
       setConfigQueries("");
       setConfigEndpoint("");
@@ -190,6 +194,7 @@ export function ForagerFormDialog({
       runtime_mode: "durable",
     });
     setConfigChannels(joinMultiline((editingForager.source_config || {}).channels));
+    setConfigAccounts(joinMultiline((editingForager.source_config || {}).accounts));
     setConfigFeeds(joinMultiline((editingForager.source_config || {}).feeds));
     setConfigQueries(joinMultiline((editingForager.source_config || {}).search_queries));
     setConfigEndpoint(String((editingForager.source_config || {}).endpoint || ""));
@@ -200,6 +205,15 @@ export function ForagerFormDialog({
       return {
         channels: splitMultiline(configChannels),
         search_queries: splitMultiline(configQueries),
+        backfill_limit: 50,
+        delta_limit: 20,
+      };
+    }
+    if (form.source_type === "twitter") {
+      return {
+        accounts: splitMultiline(configAccounts),
+        backfill_limit: 50,
+        delta_limit: 20,
       };
     }
     if (form.source_type === "rss") {
@@ -226,6 +240,7 @@ export function ForagerFormDialog({
     try {
       const parsed = parseJsonField(form.source_config_json, {});
       setConfigChannels(joinMultiline(parsed.channels));
+      setConfigAccounts(joinMultiline(parsed.accounts));
       setConfigFeeds(joinMultiline(parsed.feeds));
       setConfigQueries(joinMultiline(parsed.search_queries));
       setConfigEndpoint(String(parsed.endpoint || ""));
@@ -423,6 +438,22 @@ export function ForagerFormDialog({
               onChange={(event) => setConfigQueries(event.target.value)}
               className="mt-1 w-full resize-y rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-xs text-zinc-100 outline-none focus:border-[color:var(--qs-border-2)]"
             />
+          </div>
+        ) : null}
+
+        {form.source_type === "twitter" ? (
+          <div className="mt-3 rounded-xl border border-white/10 bg-black/25 p-3">
+            <label className="text-xs text-zinc-400">X accounts (one per line — @handle or profile URL)</label>
+            <textarea
+              rows={4}
+              value={configAccounts}
+              onChange={(event) => setConfigAccounts(event.target.value)}
+              placeholder={"@naval\nhttps://x.com/sama"}
+              className="mt-1 w-full resize-y rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-xs text-zinc-100 outline-none focus:border-[color:var(--qs-border-2)]"
+            />
+            <p className="mt-2 text-[11px] text-zinc-500">
+              Requires X OAuth Connect in Integrations → Hub. Delta scrape runs every 4 hours (Celery beat).
+            </p>
           </div>
         ) : null}
 

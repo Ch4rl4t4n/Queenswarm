@@ -58,6 +58,10 @@ _EXPORTABLE: dict[str, tuple[str, str]] = {
     "HiveAsyncRunLifecycle": ("app.infrastructure.persistence.models.enums", "HiveAsyncRunLifecycle"),
     "HiveAsyncWorkflowRun": ("app.infrastructure.persistence.models.hive_async_workflow_run", "HiveAsyncWorkflowRun"),
     "HiveLlmSecret": ("app.infrastructure.persistence.models.hive_llm_secret", "HiveLlmSecret"),
+    "IntelSourceCursorORM": (
+        "app.infrastructure.persistence.models.intel_source_cursor",
+        "IntelSourceCursorORM",
+    ),
     "ImitationEvent": ("app.infrastructure.persistence.models.reward", "ImitationEvent"),
     "KnowledgeItem": ("app.infrastructure.persistence.models.knowledge", "KnowledgeItem"),
     "LearningLog": ("app.infrastructure.persistence.models.knowledge", "LearningLog"),
@@ -101,6 +105,7 @@ _MODEL_PACKAGES: tuple[str, ...] = (
     "app.infrastructure.persistence.models.agent_suggestion",
     "app.infrastructure.persistence.models.agent_template",
     "app.infrastructure.persistence.models.forager",
+    "app.infrastructure.persistence.models.intel_source_cursor",
     "app.infrastructure.persistence.models.recipe",
     "app.infrastructure.persistence.models.workflow",
     "app.infrastructure.persistence.models.task",

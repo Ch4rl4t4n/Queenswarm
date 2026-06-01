@@ -94,25 +94,28 @@ def format_slack_feedback_block(*, feedback: str, author: str | None, source: st
     return "\n".join(lines).rstrip() + "\n"
 
 
-def merge_instructions_append(existing: str, block: str, *, max_chars: int = 8000) -> str:
+def merge_instructions_append(existing: str, block: str, *, max_chars: int | None = None) -> str:
     """Append a feedback block and trim oldest Slack sections when over budget."""
 
+    from app.core.config import settings
+
+    budget = max_chars if max_chars is not None else settings.curated_memory_max_chars
     base = (existing or "").rstrip()
     merged = f"{base}\n\n{block}".strip() if base else block.strip()
-    if len(merged) <= max_chars:
+    if len(merged) <= budget:
         return merged
     sections = _SLACK_BLOCK_HEADER.split(merged)
     if len(sections) <= 1:
-        msg = f"Behavioral instructions would exceed {max_chars} characters — edit in Settings harness."
+        msg = f"Behavioral instructions would exceed {budget} characters — edit in Settings harness."
         raise SlackHarnessTrainerValidationError(msg)
     # Keep preamble (sections[0]) and drop oldest Slack blocks from the tail until within budget.
     preamble = sections[0].rstrip()
     slack_chunks = sections[1:]
-    while slack_chunks and len(_rejoin_slack_sections(preamble, slack_chunks)) > max_chars:
+    while slack_chunks and len(_rejoin_slack_sections(preamble, slack_chunks)) > budget:
         slack_chunks.pop(0)
     trimmed = _rejoin_slack_sections(preamble, slack_chunks)
-    if len(trimmed) > max_chars:
-        msg = f"Behavioral instructions would exceed {max_chars} characters — edit in Settings harness."
+    if len(trimmed) > budget:
+        msg = f"Behavioral instructions would exceed {budget} characters — edit in Settings harness."
         raise SlackHarnessTrainerValidationError(msg)
     return trimmed
 
