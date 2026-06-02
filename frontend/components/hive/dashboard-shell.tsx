@@ -175,7 +175,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
               tabIndex={-1}
               className={cn(
                 "relative mx-auto w-full min-w-0 flex-1",
-                "px-4 pt-4 pb-[calc(var(--qs-shell-bottom-nav-h)+7rem+env(safe-area-inset-bottom))]",
+                "px-4 pt-4 pb-[var(--qs-shell-mobile-scroll-pad)]",
                 "md:px-5 md:pt-5",
                 "lg:max-w-[1400px] lg:px-9 lg:pt-8 lg:pb-16",
                 pathname.startsWith("/ballroom") &&

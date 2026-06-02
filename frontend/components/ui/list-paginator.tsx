@@ -41,7 +41,7 @@ export function ListPaginator({
   return (
     <div
       className={cn(
-        "v4-viewport-panel-footer flex flex-wrap items-center justify-between gap-3",
+        "v4-viewport-panel-footer flex flex-col items-stretch gap-3 max-lg:gap-2.5 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between",
         className,
       )}
     >

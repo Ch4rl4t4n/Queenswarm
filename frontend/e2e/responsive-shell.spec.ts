@@ -237,6 +237,34 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     expect(noOverlap).toBe(true);
   });
 
+  test("mobile integrations scroll tail clears session FAB", async ({ page, context, baseURL }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
+
+    const onShell = await gotoShellRoute(page, "/integrations?tab=marketplace");
+    if (!onShell) {
+      return;
+    }
+
+    const fab = page.getByTestId("session-fab");
+    await expect(fab).toBeVisible({ timeout: 15_000 });
+
+    const cleared = await page.evaluate(() => {
+      const main = document.querySelector<HTMLElement>('[data-hive-shell="canvas"]');
+      const fabEl = document.querySelector<HTMLElement>('[data-testid="session-fab"] .fab-session');
+      if (!main || !fabEl) {
+        return null;
+      }
+      window.scrollTo(0, document.documentElement.scrollHeight);
+      const padBottom = parseFloat(getComputedStyle(main).paddingBottom);
+      const mainRect = main.getBoundingClientRect();
+      const contentBottom = mainRect.bottom - padBottom;
+      const fabTop = fabEl.getBoundingClientRect().top;
+      return contentBottom <= fabTop - 4;
+    });
+    expect(cleared).toBe(true);
+  });
+
   test("mobile content bottom padding clears the floating session FAB", async ({ page, context, baseURL }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
