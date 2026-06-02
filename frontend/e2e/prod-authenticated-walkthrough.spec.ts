@@ -59,6 +59,22 @@ test.describe("Prod authenticated walkthrough", () => {
     await expect(hub.getByText("Social OAuth readiness")).toBeVisible();
   });
 
+  test("Four Cs readiness audit loads on prod harness rules overview", async ({ page }) => {
+    await gotoShellRoute(page, "/settings/harness#rules");
+    await expect(page.getByRole("heading", { name: /Four Cs readiness/i })).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText(/Context/i).first()).toBeVisible();
+    await expect(page.getByText(/Manual → Four Cs/i)).toBeVisible();
+  });
+
+  test("Innovation Lab shell loads on prod cockpit", async ({ page }) => {
+    await gotoShellRoute(page, "/agentic-os#innovation");
+    await expect(page.getByRole("heading", { name: /Brainstorm → approve/i })).toBeVisible({
+      timeout: 60_000,
+    });
+    await expect(page.getByPlaceholder(/Telegram inbound/i)).toBeVisible();
+    await expect(page.getByRole("link", { name: /Manual → Viability gate/i })).toBeVisible();
+  });
+
   test("agents sessions tab shell loads", async ({ page }) => {
     await gotoShellRoute(page, "/agents");
     const sessionsTab = page.getByRole("tab", { name: /sessions/i }).or(page.getByRole("link", { name: /sessions/i }));

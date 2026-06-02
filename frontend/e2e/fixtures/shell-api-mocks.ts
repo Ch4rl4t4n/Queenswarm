@@ -149,7 +149,16 @@ const STUB_INNOVATION_VIABILITY = {
 
 const STUB_INNOVATION_LAB = {
   enabled: true,
-  proposals: [],
+  proposals: [
+    {
+      id: "00000000-0000-4000-8000-000000000099",
+      title: "Innovation: E2E viability smoke",
+      status: "pending",
+      risk_level: "medium",
+      feature_modules: ["hive_innovation_lab"],
+      implementation_plan_md: "# Plan\n".repeat(20),
+    },
+  ],
 };
 
 const STUB_RAPID_LOOP = {
@@ -367,6 +376,8 @@ const STUB_PLATFORM_FEATURES = {
   execution_studio: true,
   /** E2E: Ballroom Dump & Sleep panel (pro tier otherwise blocks). */
   dump_sleep: true,
+  /** E2E: Settings → Harness AI layer dashboard. */
+  ai_harness_dashboard: true,
 };
 
 const STUB_ENTERPRISE_CONFIG = {

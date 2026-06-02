@@ -71,7 +71,7 @@ async def compose_four_cs_audit(
     ctx_actions: list[str] = []
     ctx_score = 20
     if tenant_id is not None:
-        bundle = await CuratedMemoryService(session).get_bundle(tenant_id)
+        bundle = await CuratedMemoryService(db=session).get_bundle(tenant_id)
         instr = str(bundle.get("instructions") or "").strip()
         if len(instr) >= 200:
             ctx_score += 35
