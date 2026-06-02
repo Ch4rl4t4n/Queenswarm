@@ -1839,34 +1839,54 @@
     min-height: 0;
   }
 
-  .v4-recipe-catalog-panel .v4-viewport-panel-body {
-    overflow: hidden;
-    flex: none;
+  @media (min-width: 1024px) {
+    .v4-recipe-catalog-panel .v4-viewport-panel-body {
+      overflow: hidden;
+      flex: none;
+    }
   }
 
-  @media (max-width: 767px) {
+  /*
+   * Mobile/tablet — single document scroll surface.
+   * Nested viewport/marketplace/session panels must not trap touch scroll.
+   */
+  @media (max-width: 1023px) {
     .v4-viewport-panel {
-      max-height: min(30rem, calc(100dvh - 11rem));
-      min-height: min(16rem, calc(100dvh - 16rem));
+      max-height: none;
+      min-height: 0;
+      overflow: visible;
     }
-  }
 
-  @media (min-width: 768px) and (max-width: 1023px) {
-    .v4-viewport-panel {
-      max-height: min(34rem, calc(100dvh - 12rem));
-      min-height: min(18rem, calc(100dvh - 18rem));
+    .v4-viewport-panel-body,
+    .v4-viewport-panel-body.overflow-y-auto {
+      overflow: visible;
+      flex: none;
+      min-height: 0;
+      overscroll-behavior: auto;
     }
-  }
 
-  @media (max-width: 767px) {
+    .v4-recipe-catalog-panel.v4-viewport-panel,
+    .v4-recipe-catalog-panel .v4-viewport-panel-body {
+      max-height: none;
+      overflow: visible;
+    }
+
     .v4-marketplace-shell {
-      max-height: min(36rem, calc(100dvh - 8.5rem));
+      max-height: none;
+      overflow: visible;
     }
-  }
 
-  @media (min-width: 768px) and (max-width: 1023px) {
-    .v4-marketplace-shell {
-      max-height: min(40rem, calc(100dvh - 10rem));
+    .v4-marketplace-body-scroll {
+      max-height: none;
+      overflow: visible;
+      overscroll-behavior: auto;
+    }
+
+    .v4-sessions-list-scroll,
+    .v4-routines-list-scroll {
+      max-height: none;
+      overflow: visible;
+      overscroll-behavior: auto;
     }
   }
 

@@ -19,6 +19,51 @@ const STUB_SUMMARY = {
   pollen_total: 12,
 };
 
+const STUB_ROUTINES = [
+  {
+    id: "r1111111-1111-4111-8111-111111111111",
+    name: "Memory Dreaming",
+    goal_template: "Run nightly memory consolidation and dream cycle synthesis.",
+    schedule_kind: "interval",
+    interval_seconds: 86_400,
+    cron_expr: null,
+    runtime_mode: "durable",
+    roles: ["researcher", "critic"],
+    retrieval_contract: "policy+last_3_tasks",
+    skills: ["context", "diagnose"],
+    context_payload: {},
+    status: "scheduled",
+    is_active: true,
+    created_by_subject: "dash:test",
+    last_run_at: new Date(Date.now() - 86_400_000).toISOString(),
+    next_run_at: new Date().toISOString(),
+    last_error: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: "r2222222-2222-4222-8222-222222222222",
+    name: "Daily monitoring",
+    goal_template: "Generate daily monitoring summary for operator review.",
+    schedule_kind: "interval",
+    interval_seconds: 3_600,
+    cron_expr: null,
+    runtime_mode: "durable",
+    roles: ["researcher"],
+    retrieval_contract: "policy",
+    skills: ["context"],
+    context_payload: {},
+    status: "scheduled",
+    is_active: true,
+    created_by_subject: "dash:test",
+    last_run_at: null,
+    next_run_at: new Date().toISOString(),
+    last_error: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+];
+
 const STUB_TASK_QUEUE = {
   generated_at: new Date().toISOString(),
   tasks: [],
@@ -1595,7 +1640,7 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         await route.fallback();
         return;
       }
-      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(STUB_ROUTINES) });
       return;
     }
 

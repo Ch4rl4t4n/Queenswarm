@@ -101,7 +101,7 @@ interface ViewportBoundedPanelProps {
   scrollable?: boolean;
 }
 
-/** Fixed viewport-height panel — content stays within the current screen. */
+/** Fixed viewport-height panel — content stays within the current screen (desktop). */
 export function ViewportBoundedPanel({
   children,
   footer,
@@ -109,8 +109,13 @@ export function ViewportBoundedPanel({
   scrollable = false,
 }: ViewportBoundedPanelProps): JSX.Element {
   return (
-    <div className={cn("v4-viewport-panel", className)}>
-      <div className={cn("v4-viewport-panel-body hive-scrollbar", scrollable && "overflow-y-auto")}>{children}</div>
+    <div className={cn("v4-viewport-panel", className)} data-hive-viewport-panel="">
+      <div
+        className={cn("v4-viewport-panel-body hive-scrollbar", scrollable && "overflow-y-auto")}
+        data-hive-viewport-panel-body=""
+      >
+        {children}
+      </div>
       {footer}
     </div>
   );

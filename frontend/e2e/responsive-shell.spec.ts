@@ -237,6 +237,37 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     expect(noOverlap).toBe(true);
   });
 
+  test("mobile catalog panels use page scroll not nested trap", async ({ page, context, baseURL }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
+
+    const onShell = await gotoShellRoute(page, "/integrations?tab=marketplace");
+    if (!onShell) {
+      return;
+    }
+
+    await expect(page.locator("#marketplace-preview")).toBeVisible({ timeout: 15_000 });
+
+    const panelOverflow = await page.evaluate(() => {
+      const body = document.querySelector<HTMLElement>("[data-hive-viewport-panel-body]");
+      if (!body) {
+        return null;
+      }
+      return getComputedStyle(body).overflowY;
+    });
+    expect(panelOverflow).not.toBeNull();
+    if (panelOverflow) {
+      expect(["auto", "scroll"]).not.toContain(panelOverflow);
+    }
+
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    const scrolled = await page.evaluate(() => {
+      const tallEnough = document.documentElement.scrollHeight > window.innerHeight + 40;
+      return tallEnough ? window.scrollY > 0 : true;
+    });
+    expect(scrolled).toBe(true);
+  });
+
   test("mobile integrations scroll tail clears session FAB", async ({ page, context, baseURL }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
