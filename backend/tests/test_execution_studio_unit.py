@@ -101,7 +101,15 @@ def test_studio_policy_codebase_defaults() -> None:
     policy = studio_policy(None)
     assert policy["codebase_default_mode"] == "simulate"
     assert policy["live_codebase_requires_approval"] is True
+    assert policy["codebase_auto_approve_enabled"] is False
     assert policy["codebase_pr_only"] is True
+
+
+def test_merge_studio_policy_codebase_auto_approve() -> None:
+    """Tenant can enable SCV proposal auto-approve."""
+
+    merged = merge_studio_policy_patch({}, {"codebase_auto_approve_enabled": True})
+    assert merged["execution_studio"]["codebase_auto_approve_enabled"] is True
 
 
 @pytest.mark.asyncio

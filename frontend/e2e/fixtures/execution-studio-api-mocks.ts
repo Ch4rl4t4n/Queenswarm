@@ -9,6 +9,7 @@ export const STUB_EXECUTION_STUDIO_OVERVIEW = {
     simulate_allows_read_calls: true,
     codebase_default_mode: "simulate",
     live_codebase_requires_approval: true,
+    codebase_auto_approve_enabled: false,
     codebase_pr_only: true,
   },
   stats: { active: 1, needs_credentials: 0, ready_to_test: 0, inactive: 0 },

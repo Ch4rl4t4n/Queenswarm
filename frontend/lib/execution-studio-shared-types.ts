@@ -8,6 +8,7 @@ export interface StudioPolicy {
   simulate_allows_read_calls: boolean;
   codebase_default_mode: ExecutionMode;
   live_codebase_requires_approval: boolean;
+  codebase_auto_approve_enabled: boolean;
   codebase_pr_only: boolean;
 }
 

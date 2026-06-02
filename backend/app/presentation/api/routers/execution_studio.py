@@ -91,6 +91,7 @@ class StudioPolicyPatch(BaseModel):
     simulate_allows_read_calls: bool | None = None
     codebase_default_mode: Literal["draft", "simulate", "live"] | None = None
     live_codebase_requires_approval: bool | None = None
+    codebase_auto_approve_enabled: bool | None = None
 
 
 class StudioNotificationsPatch(BaseModel):

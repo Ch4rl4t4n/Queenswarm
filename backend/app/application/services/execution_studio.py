@@ -190,6 +190,7 @@ def studio_policy(tenant: Tenant | None) -> dict[str, Any]:
         "simulate_allows_read_calls": bool(bucket.get("simulate_allows_read_calls", True)),
         "codebase_default_mode": _normalize_mode(str(bucket.get("codebase_default_mode") or mode)),
         "live_codebase_requires_approval": bool(bucket.get("live_codebase_requires_approval", True)),
+        "codebase_auto_approve_enabled": bool(bucket.get("codebase_auto_approve_enabled", False)),
         "codebase_pr_only": True,
     }
 
@@ -338,6 +339,8 @@ def merge_studio_policy_patch(operator_settings: dict[str, Any] | None, patch: d
         bucket["codebase_default_mode"] = _normalize_mode(str(patch["codebase_default_mode"]))
     if "live_codebase_requires_approval" in patch:
         bucket["live_codebase_requires_approval"] = bool(patch["live_codebase_requires_approval"])
+    if "codebase_auto_approve_enabled" in patch:
+        bucket["codebase_auto_approve_enabled"] = bool(patch["codebase_auto_approve_enabled"])
     root["execution_studio"] = bucket
     return root
 

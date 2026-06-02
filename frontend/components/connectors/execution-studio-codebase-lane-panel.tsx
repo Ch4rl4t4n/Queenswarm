@@ -5,6 +5,7 @@ import Link from "next/link";
 import { memo, useCallback, useState } from "react";
 import { toast } from "sonner";
 
+import { ScvPendingProposalsPanel } from "@/components/connectors/scv-pending-proposals-panel";
 import { HiveSwitch } from "@/components/ui/hive-switch";
 import { QsSelect } from "@/components/ui/qs-select";
 import { V4Badge } from "@/components/ui/v4";
@@ -171,61 +172,19 @@ function ExecutionStudioCodebaseLanePanelInner({
   return (
     <>
       {(pendingProposals?.length ?? 0) > 0 ? (
-        <div id="codebase-pending" className="qs-bubble qs-bubble--tint-amber shrink-0 space-y-3 p-4">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <div>
-              <p className="text-sm font-semibold text-(--qs-text)">Pending SCV proposals</p>
-              <p className="mt-1 text-xs text-(--qs-text-3)">
-                Research → approval → SCV / Queen Maintainer handoff. Showing {pendingProposals?.length ?? 0}
-                {(pendingProposalsTotal ?? 0) > (pendingProposals?.length ?? 0)
-                  ? ` of ${pendingProposalsTotal} total`
-                  : ""}
-                .
-              </p>
-            </div>
-            {(pendingProposals?.length ?? 0) > 1 ? (
-              <button
-                type="button"
-                className="qs-btn qs-btn--ghost qs-btn--sm shrink-0"
-                disabled={bulkDismissBusy || proposalBusyId !== null}
-                onClick={() => void dismissAllPending()}
-              >
-                {bulkDismissBusy ? "Dismissing…" : "Dismiss all shown"}
-              </button>
-            ) : null}
-          </div>
-          <div className="space-y-2">
-            {pendingProposals?.map((proposal) => (
-              <article key={proposal.id} className="qs-bubble-inner flex flex-col gap-3 p-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-(--qs-text)">{proposal.title}</p>
-                  <p className="mt-1 text-xs text-(--qs-text-3)">{proposal.goal_excerpt || proposal.description}</p>
-                  <p className="mt-1 font-mono text-[10px] text-(--qs-text-4)">
-                    {proposal.proposed_by_role} · {proposal.risk_level}
-                  </p>
-                </div>
-                <div className="v4-dream-cycle-card-actions">
-                  <button
-                    type="button"
-                    className="qs-btn qs-btn--ghost qs-btn--sm"
-                    disabled={proposalBusyId !== null}
-                    onClick={() => void reviewProposal(proposal.id, "reject")}
-                  >
-                    {proposalBusyId === proposal.id ? "Working…" : "Reject"}
-                  </button>
-                  <button
-                    type="button"
-                    className="qs-btn qs-btn--primary qs-btn--sm"
-                    disabled={proposalBusyId !== null}
-                    onClick={() => void reviewProposal(proposal.id, "approve")}
-                  >
-                    {proposalBusyId === proposal.id ? "Working…" : "Approve"}
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
+        <ScvPendingProposalsPanel
+          pendingProposals={pendingProposals ?? []}
+          pendingProposalsTotal={pendingProposalsTotal}
+          policy={policy}
+          codebase={codebase}
+          policyBusy={policyBusy}
+          proposalBusyId={proposalBusyId}
+          bulkDismissBusy={bulkDismissBusy}
+          onPatchPolicy={patchPolicy}
+          onReview={reviewProposal}
+          onDismissAll={dismissAllPending}
+          onReloadOverview={onReloadOverview}
+        />
       ) : null}
 
       <div className="qs-bubble qs-bubble--tint-cyan shrink-0 space-y-3 p-4">

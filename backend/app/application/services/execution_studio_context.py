@@ -75,6 +75,7 @@ def _policy_from_tenant(tenant: Tenant | None) -> dict[str, Any]:
         "simulate_allows_read_calls": bool(bucket.get("simulate_allows_read_calls", True)),
         "codebase_default_mode": codebase_mode,
         "live_codebase_requires_approval": bool(bucket.get("live_codebase_requires_approval", True)),
+        "codebase_auto_approve_enabled": bool(bucket.get("codebase_auto_approve_enabled", False)),
         "codebase_pr_only": True,
     }
 
