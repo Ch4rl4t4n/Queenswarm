@@ -70,6 +70,13 @@ export const WHOLE_APP_EXTENDED_E2E_SPECS: readonly string[] = [
   "responsive-visual.spec.ts",
 ] as const;
 
+/** Harness self-improvement smoke (Four Cs + Innovation viability) — set E2E_HARNESS_SELF_IMPROVE=1. */
+export const HARNESS_SELF_IMPROVE_E2E_SPECS: readonly string[] = [
+  "harness-self-improve-smoke.spec.ts",
+] as const;
+
+export const HARNESS_SELF_IMPROVE_E2E_ENV = "E2E_HARNESS_SELF_IMPROVE" as const;
+
 export interface HiveReleaseGateInvariant {
   id: string;
   description: string;
@@ -133,4 +140,8 @@ export function wholeAppUnitTestFileCount(): number {
 
 export function wholeAppExtendedE2eSpecCount(): number {
   return WHOLE_APP_EXTENDED_E2E_SPECS.length;
+}
+
+export function harnessSelfImproveE2eSpecCount(): number {
+  return HARNESS_SELF_IMPROVE_E2E_SPECS.length;
 }

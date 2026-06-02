@@ -91,6 +91,18 @@ if [[ "$SKIP_CORE" != "1" ]]; then
       fail "e2e/${spec}"
     fi
   done
+
+  echo ""
+  echo "--- harness self-improve E2E (Four Cs + Innovation viability) ---"
+  HARNESS_E2E_SPECS=(harness-self-improve-smoke.spec.ts)
+  for spec in "${HARNESS_E2E_SPECS[@]}"; do
+    echo "  · e2e/${spec}"
+    if (cd "$FRONTEND" && CI=1 E2E_HARNESS_SELF_IMPROVE=1 npx playwright test "e2e/${spec}" --workers="${PLAYWRIGHT_WORKERS:-1}"); then
+      pass "e2e/${spec}"
+    else
+      fail "e2e/${spec}"
+    fi
+  done
 fi
 
 if [[ "$RUN_EXTENDED" == "1" ]]; then

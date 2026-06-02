@@ -31,6 +31,7 @@ for script in \
   audit-operator-hub-settings-gate.sh \
   audit-operator-control-plane-gate.sh \
   operator-automation-ladder-audit.sh \
+  audit-harness-self-improve-gate.sh \
   audit-phase-e-publish-gate.sh \
   operator-publish-simulate-gate.sh \
   operator-live-publish-gate.sh \
@@ -40,6 +41,12 @@ for script in \
   echo "--- $script ---"
   if [[ "$script" == "audit-operator-hub-settings-gate.sh" ]]; then
     if E2E_OPERATOR_HUB=1 ./scripts/"$script"; then
+      pass "$script (with E2E)"
+    else
+      fail "$script"
+    fi
+  elif [[ "$script" == "audit-harness-self-improve-gate.sh" ]]; then
+    if E2E_HARNESS_SELF_IMPROVE=1 ./scripts/"$script"; then
       pass "$script (with E2E)"
     else
       fail "$script"

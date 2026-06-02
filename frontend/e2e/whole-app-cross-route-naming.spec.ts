@@ -27,7 +27,7 @@ test.describe("Whole-App cross-route naming", () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/swarms", { waitUntil: "domcontentloaded", timeout: 60_000 });
 
-    const nav = page.locator('nav[aria-label="Hive navigation"]');
+    const nav = page.locator(".hive-sidebar-rail--desktop nav[aria-label='Hive navigation']");
     await expect(nav.getByText("Agentic OS", { exact: true })).toBeVisible({ timeout: 45_000 });
     await expect(nav.getByText("Cockpit", { exact: true })).toHaveCount(0);
   });

@@ -6,6 +6,7 @@ import type { JSX } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { SuperToolRouterPanel } from "@/components/connectors/super-tool-router-panel";
+import { MarketplaceCatalogCard } from "@/components/connectors/marketplace-catalog-card";
 import { InfoHint } from "@/components/hive/info-hint";
 import { ListPaginator, ViewportBoundedPanel } from "@/components/ui/list-paginator";
 import { QsSelect } from "@/components/ui/qs-select";
@@ -251,6 +252,11 @@ export function ToolsMarketplacePanel({ onJumpToActive }: ToolsMarketplacePanelP
 
   const templateEntries = useMemo(() => rows.map(templateToEntry), [rows]);
 
+  const activeIntegrationCount = useMemo(
+    () => Object.values(connectorsBySlug).filter((connector) => connector.is_active).length,
+    [connectorsBySlug],
+  );
+
   const tabCounts = useMemo(() => {
     const counts: Record<string, number> = { all: templateEntries.length };
     for (const entry of templateEntries) {
@@ -466,7 +472,7 @@ export function ToolsMarketplacePanel({ onJumpToActive }: ToolsMarketplacePanelP
     );
   }
 
-  function renderConnectionCard(entry: ConnectionEntry): JSX.Element {
+  function renderConnectionCard(entry: ConnectionEntry, globalIndex: number): JSX.Element {
     const connector = connectorsBySlug[entry.slug.trim().toLowerCase()] ?? null;
     const status = connectionStatus(entry, connector);
     const isConfiguring = configuringSlug === entry.slug;
@@ -478,11 +484,56 @@ export function ToolsMarketplacePanel({ onJumpToActive }: ToolsMarketplacePanelP
     const docUrl = entry.serviceHomepage || entry.documentationUrl;
     const operatorHint = socialConnectorOperatorHint(entry.templateId);
 
+    const configureBlock =
+      connector && isConfiguring && entry.auth_type !== "oauth2" ? (
+        <div className="space-y-2 rounded-xl border border-(--qs-border) bg-black/25 p-3">
+          <label className="v4-field-label" htmlFor={`cred-${entry.key}`}>
+            {authFieldLabel(entry.auth_type)}
+          </label>
+          <input
+            id={`cred-${entry.key}`}
+            type="password"
+            autoComplete="off"
+            className="qs-input w-full font-mono text-xs"
+            placeholder={`Paste ${authFieldLabel(entry.auth_type).toLowerCase()}…`}
+            value={credentialDraft}
+            onChange={(event) => setCredentialDraft(event.target.value)}
+          />
+          <div className="hub-catalog-card__actions">
+            <button
+              type="button"
+              className="qs-btn qs-btn--ghost qs-btn--sm"
+              onClick={() => {
+                setConfiguringSlug(null);
+                setCredentialDraft("");
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="qs-btn qs-btn--primary qs-btn--sm"
+              disabled={rowBusy}
+              onClick={() => void saveCredentials(entry, connector)}
+            >
+              {rowBusy ? "Saving…" : "Save credentials"}
+            </button>
+          </div>
+        </div>
+      ) : connector && isConfiguring && entry.auth_type === "oauth2" ? (
+        <div className="rounded-xl border border-(--qs-border) bg-black/25 p-3 text-xs text-(--qs-text-3)">
+          OAuth connectors need consent flow in the connector hub.
+          <Link href="/integrations?tab=hub#oauth-consent" className="ml-1 text-pollen underline">
+            Open hub → OAuth
+          </Link>
+        </div>
+      ) : null;
+
     return (
-      <article key={entry.key} className="v4-dream-cycle-card flex h-full flex-col gap-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 space-y-1">
-            <p className="inline-flex items-center gap-2 text-sm font-semibold text-(--qs-text)">
+      <div key={entry.key} className="flex h-full flex-col gap-3">
+        <MarketplaceCatalogCard
+          title={
+            <span className="inline-flex flex-wrap items-center gap-2">
               {entry.title}
               {operatorHint ? (
                 <InfoHint
@@ -491,150 +542,93 @@ export function ToolsMarketplacePanel({ onJumpToActive }: ToolsMarketplacePanelP
                   options={operatorHint.options}
                 />
               ) : null}
-            </p>
-            {entry.category ? (
-              <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-(--qs-text-3)">
-                {categoryLabel(entry.category)}
-              </p>
-            ) : null}
-          </div>
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-            {!entry.fromTemplate ? <V4Badge tone="info">custom</V4Badge> : null}
-            <V4Badge tone={status.tone}>{status.label}</V4Badge>
-          </div>
-        </div>
-
-        <p className="text-xs leading-relaxed text-(--qs-text-3)">{entry.summary}</p>
-
-        <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-3 py-2">
-          <p className="v4-field-label text-[10px] text-cyan-300/90">How agents use this</p>
-          <p className="mt-1 text-xs leading-relaxed text-(--qs-text-2)">{entry.agentUsage}</p>
-        </div>
-
-        <p className="font-mono text-[11px] text-(--qs-text-3)">
-          {entry.slug} · {entry.auth_type}
-          {typeof entry.tool_count === "number" ? ` · ${entry.tool_count} tools` : ""}
-        </p>
-
-        {renderTierBadges(entry)}
-
-        {docUrl ? (
-          <a
-            href={docUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs text-pollen hover:underline"
-          >
-            <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-            Provider docs &amp; pricing
-          </a>
-        ) : null}
-
-        {showConnect ? (
-          <div className="v4-dream-cycle-card-actions">
-            <button
-              type="button"
-              className="qs-btn qs-btn--primary qs-btn--sm"
-              disabled={rowBusy}
-              onClick={() => void connect(entry)}
-            >
-              {rowBusy ? "Connecting…" : "Connect"}
-            </button>
-          </div>
-        ) : connector ? (
-          <>
-            {connector.last_tested_at ? (
-              <p className="text-[11px] text-(--qs-text-3)">
-                Last test: {new Date(connector.last_tested_at).toLocaleString()}
-              </p>
-            ) : null}
-
-            {isConfiguring && entry.auth_type !== "oauth2" ? (
-              <div className="space-y-2 rounded-xl border border-(--qs-border) bg-black/25 p-3">
-                <label className="v4-field-label" htmlFor={`cred-${entry.key}`}>
-                  {authFieldLabel(entry.auth_type)}
-                </label>
-                <input
-                  id={`cred-${entry.key}`}
-                  type="password"
-                  autoComplete="off"
-                  className="qs-input w-full font-mono text-xs"
-                  placeholder={`Paste ${authFieldLabel(entry.auth_type).toLowerCase()}…`}
-                  value={credentialDraft}
-                  onChange={(event) => setCredentialDraft(event.target.value)}
-                />
-                <div className="v4-dream-cycle-card-actions">
-                  <button
-                    type="button"
-                    className="qs-btn qs-btn--ghost qs-btn--sm"
-                    onClick={() => {
-                      setConfiguringSlug(null);
-                      setCredentialDraft("");
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="qs-btn qs-btn--primary qs-btn--sm"
-                    disabled={rowBusy}
-                    onClick={() => void saveCredentials(entry, connector)}
-                  >
-                    {rowBusy ? "Saving…" : "Save credentials"}
-                  </button>
-                </div>
-              </div>
-            ) : null}
-
-            {isConfiguring && entry.auth_type === "oauth2" ? (
-              <div className="rounded-xl border border-(--qs-border) bg-black/25 p-3 text-xs text-(--qs-text-3)">
-                OAuth connectors need consent flow in the connector hub.
-                <Link href="/integrations?tab=hub#oauth-consent" className="ml-1 text-pollen underline">
-                  Open hub → OAuth
-                </Link>
-              </div>
-            ) : null}
-
-            <div className="v4-dream-cycle-card-actions">
-              <button
-                type="button"
-                className="qs-btn qs-btn--ghost qs-btn--sm"
-                disabled={testBusy}
-                onClick={() => void testConnection(entry, connector)}
+            </span>
+          }
+          indexLabel={`#${globalIndex + 1}`}
+          kicker={entry.category ? categoryLabel(entry.category) : undefined}
+          statusBadge={
+            <>
+              {!entry.fromTemplate ? <V4Badge tone="info">custom</V4Badge> : null}
+              <V4Badge tone={status.tone}>{status.label}</V4Badge>
+            </>
+          }
+          summary={entry.summary}
+          manifestLabel="How agents use this"
+          manifestBody={entry.agentUsage}
+          metaLine={
+            <>
+              {entry.slug} · {entry.auth_type}
+              {typeof entry.tool_count === "number" ? ` · ${entry.tool_count} tools` : ""}
+            </>
+          }
+          badges={renderTierBadges(entry)}
+          docLink={
+            docUrl ? (
+              <a
+                href={docUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-pollen hover:underline"
               >
-                {testBusy ? "Testing…" : "Test"}
-              </button>
-              <button
-                type="button"
-                className="qs-btn qs-btn--ghost qs-btn--sm"
-                disabled={toggleBusy}
-                onClick={() => void toggleActive(entry, connector)}
-              >
-                {toggleBusy ? "…" : connector.is_active ? "Pause" : "Activate"}
-              </button>
-              <button
-                type="button"
-                className="qs-btn qs-btn--ghost qs-btn--sm text-(--qs-red)"
-                disabled={deleteBusy}
-                onClick={() => void deleteConnection(entry, connector)}
-              >
-                {deleteBusy ? "Deleting…" : "Delete"}
-              </button>
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                Provider docs &amp; pricing
+              </a>
+            ) : undefined
+          }
+          footMeta={connector?.last_tested_at ? `Last test ${new Date(connector.last_tested_at).toLocaleString()}` : undefined}
+          actions={
+            showConnect ? (
               <button
                 type="button"
                 className="qs-btn qs-btn--primary qs-btn--sm"
-                disabled={rowBusy || entry.auth_type === "oauth2"}
-                onClick={() => {
-                  setConfiguringSlug(entry.slug);
-                  setCredentialDraft("");
-                }}
+                disabled={rowBusy}
+                onClick={() => void connect(entry)}
               >
-                Configure
+                {rowBusy ? "Connecting…" : "Connect"}
               </button>
-            </div>
-          </>
-        ) : null}
-      </article>
+            ) : connector ? (
+              <>
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--ghost qs-btn--sm"
+                  disabled={testBusy}
+                  onClick={() => void testConnection(entry, connector)}
+                >
+                  {testBusy ? "Testing…" : "Test"}
+                </button>
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--ghost qs-btn--sm"
+                  disabled={toggleBusy}
+                  onClick={() => void toggleActive(entry, connector)}
+                >
+                  {toggleBusy ? "…" : connector.is_active ? "Pause" : "Activate"}
+                </button>
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--ghost qs-btn--sm text-(--qs-red)"
+                  disabled={deleteBusy}
+                  onClick={() => void deleteConnection(entry, connector)}
+                >
+                  {deleteBusy ? "Deleting…" : "Delete"}
+                </button>
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--primary qs-btn--sm"
+                  disabled={rowBusy || entry.auth_type === "oauth2"}
+                  onClick={() => {
+                    setConfiguringSlug(entry.slug);
+                    setCredentialDraft("");
+                  }}
+                >
+                  Configure
+                </button>
+              </>
+            ) : null
+          }
+        />
+        {configureBlock}
+      </div>
     );
   }
 
@@ -680,9 +674,13 @@ export function ToolsMarketplacePanel({ onJumpToActive }: ToolsMarketplacePanelP
         >
           Super Routers
         </button>
+        <span className="ml-auto shrink-0 font-mono text-[11px] text-(--qs-text-3)">
+          Active integrations{" "}
+          <span className="rounded-full bg-pollen/15 px-2 py-0.5 font-semibold text-pollen">{activeIntegrationCount}</span>
+        </span>
         {onJumpToActive ? (
-          <button type="button" className="v4-subtab shrink-0 gap-2 ml-auto text-pollen" onClick={onJumpToActive}>
-            Active integrations ↓
+          <button type="button" className="v4-subtab shrink-0 gap-2 text-pollen" onClick={onJumpToActive}>
+            Jump ↓
           </button>
         ) : null}
       </div>
@@ -815,15 +813,17 @@ export function ToolsMarketplacePanel({ onJumpToActive }: ToolsMarketplacePanelP
       </div>
 
       <div className="flex shrink-0 items-center justify-between gap-2">
-        <p className="v4-field-label">
+        <p className="v4-field-label uppercase tracking-[0.08em]">
           {activeTab === "all" ? "All templates" : categoryLabel(activeTab)} ({visibleTemplateEntries.length})
         </p>
       </div>
 
       {customEntries.length ? (
         <div className="space-y-3">
-          <p className="v4-field-label">Your connections ({customEntries.length})</p>
-          <div className="grid gap-3 md:grid-cols-2">{customEntries.map((entry) => renderConnectionCard(entry))}</div>
+          <p className="v4-field-label uppercase tracking-[0.08em]">Your connections ({customEntries.length})</p>
+          <div className="hub-catalog-grid">
+            {customEntries.map((entry, idx) => renderConnectionCard(entry, idx))}
+          </div>
         </div>
       ) : null}
 
@@ -840,8 +840,10 @@ export function ToolsMarketplacePanel({ onJumpToActive }: ToolsMarketplacePanelP
             />
           }
         >
-          <div className="grid gap-3 md:grid-cols-2">
-            {templatePagination.slice.map((entry) => renderConnectionCard(entry))}
+          <div className="hub-catalog-grid">
+            {templatePagination.slice.map((entry, idx) =>
+              renderConnectionCard(entry, (templatePagination.page - 1) * templatePageSize + idx),
+            )}
           </div>
         </ViewportBoundedPanel>
       ) : !rows.length && error ? null : (

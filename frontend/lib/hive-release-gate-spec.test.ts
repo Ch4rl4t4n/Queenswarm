@@ -9,10 +9,13 @@ import {
   WHOLE_APP_EXTENDED_E2E_SPECS,
   WHOLE_APP_E2E_SPECS,
   WHOLE_APP_PROD_E2E_SPECS,
+  HARNESS_SELF_IMPROVE_E2E_SPECS,
+  HARNESS_SELF_IMPROVE_E2E_ENV,
   WHOLE_APP_UI_RELEASE_TAG,
   WHOLE_APP_UNIT_TEST_FILES,
   wholeAppE2eSpecCount,
   wholeAppExtendedE2eSpecCount,
+  harnessSelfImproveE2eSpecCount,
   wholeAppUnitTestFileCount,
 } from "@/lib/hive-release-gate-spec";
 
@@ -62,6 +65,9 @@ describe("hive-release-gate-spec", () => {
     expect(wholeAppExtendedE2eSpecCount()).toBe(WHOLE_APP_EXTENDED_E2E_SPECS.length);
     expect(WHOLE_APP_EXTENDED_E2E_SPECS).toContain("responsive-visual.spec.ts");
     expect(WHOLE_APP_PROD_E2E_SPECS).toContain("whole-app-prod-journeys.spec.ts");
+    expect(harnessSelfImproveE2eSpecCount()).toBe(HARNESS_SELF_IMPROVE_E2E_SPECS.length);
+    expect(HARNESS_SELF_IMPROVE_E2E_SPECS).toContain("harness-self-improve-smoke.spec.ts");
+    expect(HARNESS_SELF_IMPROVE_E2E_ENV).toBe("E2E_HARNESS_SELF_IMPROVE");
   });
 
   it("defines shippable release tag aligned with gate version", () => {

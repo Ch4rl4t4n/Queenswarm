@@ -16,7 +16,7 @@ test.describe("Whole-App IA — primary sidebar order", () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/settings/security", { waitUntil: "domcontentloaded", timeout: 60_000 });
 
-    const nav = page.locator('nav[aria-label="Hive navigation"]');
+    const nav = page.locator(".hive-sidebar-rail--desktop nav[aria-label='Hive navigation']");
     await expect(nav).toBeVisible({ timeout: 45_000 });
 
     const labels = await nav.locator(".hive-nav-label").allTextContents();
