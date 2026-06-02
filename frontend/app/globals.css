@@ -6168,6 +6168,18 @@
   @media (max-width: 1023px) {
     .hive-mobile-header-title {
       max-width: 100%;
+      display: flex;
+      justify-content: center;
+    }
+
+    .hive-mobile-header-brand {
+      width: auto;
+      max-width: 100%;
+    }
+
+    .hive-mobile-header-brand span.font-bold {
+      font-size: 15px;
+      letter-spacing: -0.02em;
     }
 
     .settings-subnav-disclosure .v4-subtab-row {

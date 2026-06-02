@@ -10,19 +10,27 @@ import { cn } from "@/lib/utils";
 interface HiveBrandMarkProps {
   readonly onNavigate?: () => void;
   readonly compact?: boolean;
+  /** Hide tagline row — mobile sticky header shows brand name only. */
+  readonly showTagline?: boolean;
   readonly className?: string;
 }
 
 /** Sidebar / mobile hive brand — respects tenant white-label when configured. */
-export function HiveBrandMark({ onNavigate, compact = false, className }: HiveBrandMarkProps): JSX.Element {
+export function HiveBrandMark({
+  onNavigate,
+  compact = false,
+  showTagline = true,
+  className,
+}: HiveBrandMarkProps): JSX.Element {
   const { tenantBranding, soloMode } = usePlatform();
   const brand = resolveTenantBranding(tenantBranding);
 
   return (
     <Link
       href={hiveOverviewHref({ soloMode })}
+      aria-label={`${brand.brand_name} home`}
       className={cn(
-        "flex w-full min-w-0 flex-col items-center justify-center text-center",
+        "flex w-full min-w-0 flex-col items-center justify-center text-center touch-manipulation",
         compact ? "px-2" : "px-10",
         className,
       )}
@@ -44,9 +52,11 @@ export function HiveBrandMark({ onNavigate, compact = false, className }: HiveBr
           {brand.brand_name}
         </span>
       </div>
-      <span className="mt-0.5 block truncate text-[10px] font-medium uppercase tracking-[0.18em] text-(--qs-text-3)">
-        {brand.tagline}
-      </span>
+      {showTagline ? (
+        <span className="mt-0.5 block truncate text-[10px] font-medium uppercase tracking-[0.18em] text-(--qs-text-3)">
+          {brand.tagline}
+        </span>
+      ) : null}
     </Link>
   );
 }

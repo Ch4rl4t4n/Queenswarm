@@ -5,9 +5,12 @@
 
 import { HIVE_PAGE_ZONE_SPECS } from "@/lib/hive-page-zone-spec";
 
+/** Sticky mobile header brand — home link on all routes (see HiveMobileHeader). */
+export const MOBILE_HEADER_HOME_BRAND = "QueenSwarm";
+
 export interface MobileTabletRouteSpec {
   path: string;
-  /** Expected sticky mobile header title (pageTitleSuffix or kicker). */
+  /** @deprecated Header shows MOBILE_HEADER_HOME_BRAND; kept for route docs / legacy tests. */
   mobileTitle: string;
   /** Expected hive-page-shell h1 when route uses HivePageShell. */
   shellTitle?: string;

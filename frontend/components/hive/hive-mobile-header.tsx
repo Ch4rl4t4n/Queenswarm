@@ -3,12 +3,12 @@
 import { BellIcon, MenuIcon } from "lucide-react";
 import { useState } from "react";
 
+import { HiveBrandMark } from "@/components/hive/hive-brand-mark";
 import { HiveMobileNotificationSheet } from "@/components/hive/hive-mobile-notification-sheet";
 import { useHiveMobileHeaderTrailing } from "@/components/hive/hive-mobile-header-actions";
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
 import { useHiveNotificationBadge } from "@/lib/hooks/use-hive-notification-badge";
 import type { DashboardSummary } from "@/lib/hive-types";
-import { mobileChromeTitleForPath } from "@/lib/mobile-tablet-chrome";
 import { localizePhrase } from "@/lib/ui-copy";
 import { cn } from "@/lib/utils";
 
@@ -20,12 +20,11 @@ interface HiveMobileHeaderProps {
   onOpenNav?: () => void;
 }
 
-/** Mobile / tablet sticky strip — hamburger, contextual title, notification bell. */
-export function HiveMobileHeader({ pathname, summary, className, onOpenNav }: HiveMobileHeaderProps) {
+/** Mobile / tablet sticky strip — hamburger, home brand, notification bell. */
+export function HiveMobileHeader({ pathname: _pathname, summary, className, onOpenNav }: HiveMobileHeaderProps) {
   const { language } = useUiLanguage();
   const badge = useHiveNotificationBadge(summary);
   const trailing = useHiveMobileHeaderTrailing();
-  const chrome = mobileChromeTitleForPath(pathname);
   const [notifOpen, setNotifOpen] = useState(false);
 
   return (
@@ -52,13 +51,8 @@ export function HiveMobileHeader({ pathname, summary, className, onOpenNav }: Hi
           <span className="h-11 w-11 shrink-0" aria-hidden />
         )}
 
-        <div className="hive-mobile-header-title min-w-0 px-1 text-center" data-testid="hive-mobile-header-title">
-          <p className="truncate font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-medium uppercase tracking-[0.14em] text-(--qs-text-3)">
-            {chrome.kicker}
-          </p>
-          <p className="truncate font-[family-name:var(--font-hive-display)] text-sm font-semibold leading-tight text-(--qs-text)">
-            {chrome.title}
-          </p>
+        <div className="hive-mobile-header-title min-w-0 px-1" data-testid="hive-mobile-header-title">
+          <HiveBrandMark compact showTagline={false} className="hive-mobile-header-brand mx-auto w-auto" />
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5 justify-self-end">

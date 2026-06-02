@@ -5,7 +5,6 @@ import {
   MOBILE_TABLET_ZONE_ROUTE_SPECS,
   mobileTabletRouteSpecCount,
 } from "@/lib/mobile-tablet-zone-spec";
-import { mobileChromeTitleForPath } from "@/lib/mobile-tablet-chrome";
 
 describe("mobile-tablet-zone-spec", () => {
   it("includes zone and secondary route matrices", () => {
@@ -16,10 +15,9 @@ describe("mobile-tablet-zone-spec", () => {
     );
   });
 
-  it("secondary routes resolve mobile chrome titles", () => {
+  it("secondary routes define shell titles for mobile QA matrix", () => {
     for (const spec of MOBILE_TABLET_SECONDARY_ROUTE_SPECS) {
-      const chrome = mobileChromeTitleForPath(spec.path);
-      expect(chrome.title).toBe(spec.mobileTitle);
+      expect(spec.shellTitle ?? spec.contentHeading).toBeTruthy();
     }
   });
 });

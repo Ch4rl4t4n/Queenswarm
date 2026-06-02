@@ -190,6 +190,6 @@ test.describe("Whole-App critical journeys — mobile", () => {
     await expect(page).toHaveURL(/\/foragers/, { timeout: 45_000 });
 
     await assertShellTitle(page, "Foragers");
-    await expect(page.getByTestId("hive-mobile-header-title")).toContainText("Foragers");
+    await expect(page.getByTestId("hive-mobile-header-title")).toContainText("QueenSwarm");
   });
 });

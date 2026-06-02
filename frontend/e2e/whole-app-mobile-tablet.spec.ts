@@ -2,7 +2,11 @@ import { expect, test } from "@playwright/test";
 
 import { seedDashboardSessionCookie } from "./fixtures/dashboard-session";
 import { maybeInstallShellApiMocks } from "./fixtures/shell-api-mocks";
-import { MOBILE_TABLET_SECONDARY_ROUTE_SPECS, MOBILE_TABLET_ZONE_ROUTE_SPECS } from "../lib/mobile-tablet-zone-spec";
+import {
+  MOBILE_HEADER_HOME_BRAND,
+  MOBILE_TABLET_SECONDARY_ROUTE_SPECS,
+  MOBILE_TABLET_ZONE_ROUTE_SPECS,
+} from "../lib/mobile-tablet-zone-spec";
 import { OPERATOR_CONTROL_PLANE_ENABLED } from "../lib/feature-flags";
 import { DESKTOP_MIN_PX, MOBILE_MAX_PX, TABLET_MIN_PX } from "../lib/breakpoints";
 
@@ -66,7 +70,7 @@ test.describe("Whole-App mobile/tablet — zone chrome", () => {
         await page.goto(spec.path, { waitUntil: "domcontentloaded", timeout: 60_000 });
 
         await expect(page.getByTestId("hive-mobile-header")).toBeVisible({ timeout: 45_000 });
-        await expect(page.getByTestId("hive-mobile-header-title")).toContainText(spec.mobileTitle);
+        await expect(page.getByTestId("hive-mobile-header-title")).toContainText(MOBILE_HEADER_HOME_BRAND);
 
         const bottomNav = page.getByRole("navigation", { name: "Primary mobile navigation" });
         await expect(bottomNav).toBeVisible();
@@ -89,7 +93,7 @@ test.describe("Whole-App mobile/tablet — zone chrome", () => {
         await page.goto(spec.path, { waitUntil: "domcontentloaded", timeout: 60_000 });
 
         await expect(page.getByTestId("hive-mobile-header")).toBeVisible({ timeout: 45_000 });
-        await expect(page.getByTestId("hive-mobile-header-title")).toContainText(spec.mobileTitle);
+        await expect(page.getByTestId("hive-mobile-header-title")).toContainText(MOBILE_HEADER_HOME_BRAND);
         await expect(page.getByRole("navigation", { name: "Primary mobile navigation" })).toBeVisible();
 
         await assertRouteLoaded(page, spec);
