@@ -22,7 +22,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "${POSTGRES_PUBLISH_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PUBLISH_PORT:-5432}:5432"
     mem_limit: 1536m
     cpus: 1.0
     healthcheck:
@@ -42,7 +42,7 @@ services:
     volumes:
       - redis_data:/data
     ports:
-      - "${REDIS_PUBLISH_PORT:-6379}:6379"
+      - "127.0.0.1:${REDIS_PUBLISH_PORT:-6379}:6379"
     mem_limit: 448m
     cpus: "0.5"
     healthcheck:
@@ -65,8 +65,8 @@ services:
     volumes:
       - neo4j_data:/data
     ports:
-      - "${NEO4J_HTTP_PORT:-7474}:7474"
-      - "${NEO4J_BOLT_PORT:-7687}:7687"
+      - "127.0.0.1:${NEO4J_HTTP_PORT:-7474}:7474"
+      - "127.0.0.1:${NEO4J_BOLT_PORT:-7687}:7687"
     mem_limit: 1536m
     cpus: "1.0"
     healthcheck:

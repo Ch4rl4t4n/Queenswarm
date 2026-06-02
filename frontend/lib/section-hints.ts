@@ -29,9 +29,21 @@ export const SECTION_HINTS = {
       "HiveMind tab — graphify, project shape, selective recall, Ingest URL (YouTube/web), explorer search, memory evolution.",
       "Wiki Layer tab — 3 zones (raw / wiki / instructions), Gardener bee, retrieval tier, Obsidian export.",
       "Outputs — Ballroom deliverables and archive with interactive replay.",
-      "Recipes & dreaming — verified workflows and overnight consolidation loops.",
+      "Recipes & dreaming — verified workflows, **Schedule routine** (L3), overnight consolidation.",
     ],
     manualHref: "/manual#knowledge",
+  },
+  knowledgeRecipes: {
+    title: "Recipe Library",
+    description:
+      "Verified workflow catalog — semantic search, skill export, and one-click **Schedule routine** (Automation Ladder L3).",
+    options: [
+      "Schedule routine — cron/interval/event from any verified recipe card.",
+      "Enable webhook — optional L4 Make/n8n middleware on same routine.",
+      "Export skill — download SKILL.md bundle for external harnesses.",
+      "Semantic search — Chroma cosine recall across catalog.",
+    ],
+    manualHref: "/manual#automation-ladder",
   },
   cockpit: {
     title: "Agentic OS (optional — not the first step)",

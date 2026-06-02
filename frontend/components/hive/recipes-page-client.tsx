@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { DownloadIcon, Loader2Icon, SearchIcon } from "lucide-react";
+import { DownloadIcon, Loader2Icon, SearchIcon, CalendarClock } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { RecipeScheduleRoutineDialog } from "@/components/hive/recipe-schedule-routine-dialog";
 import { HivePageHeader } from "@/components/hive/hive-page-header";
 import {
   RecipeCosineThresholdBanner,
@@ -38,6 +39,7 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedPatterns, setSelectedPatterns] = useState<string[]>([]);
   const [exportBusyId, setExportBusyId] = useState<string | null>(null);
+  const [scheduleRecipe, setScheduleRecipe] = useState<RecipeRow | null>(null);
 
   const exportRecipe = useCallback(async (recipeId: string, recipeName: string) => {
     setExportBusyId(recipeId);
@@ -207,7 +209,17 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
           <dd className="mt-1 truncate font-mono text-[10px] text-(--qs-text-3)">{recipe.id.slice(0, 8)}…</dd>
         </div>
       </dl>
-      <div className="v4-dream-cycle-card-actions">
+      <div className="v4-dream-cycle-card-actions flex flex-wrap gap-2">
+        <button
+          type="button"
+          className="qs-btn qs-btn--ghost qs-btn--sm"
+          disabled={!recipe.verified_at}
+          title={recipe.verified_at ? "Schedule as cloud routine (L3)" : "Verify recipe before scheduling"}
+          onClick={() => setScheduleRecipe(recipe)}
+        >
+          <CalendarClock className="h-3.5 w-3.5" aria-hidden />
+          Schedule routine
+        </button>
         <button
           type="button"
           className="qs-btn qs-btn--primary qs-btn--sm"
@@ -375,6 +387,15 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
           <p className="v4-dream-empty mt-4">No semantic hits — tweak wording.</p>
         ) : null}
       </V4Card>
+
+      {scheduleRecipe ? (
+        <RecipeScheduleRoutineDialog
+          recipeId={scheduleRecipe.id}
+          recipeName={scheduleRecipe.name}
+          open
+          onClose={() => setScheduleRecipe(null)}
+        />
+      ) : null}
     </V4PageCanvas>
   );
 }

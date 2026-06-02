@@ -319,6 +319,7 @@ export const APP_MANUAL_SECTIONS: ManualSection[] = [
       `**L5 Goal mode** — [Knowledge → Goals](${MANUAL_HREFS.knowledgeGoals}): Queen GoalOrchestrator iterates until done/budget. Multi-step projects without pressing Enter each turn.`,
       `**Hybrid rule:** judgment/research → Queenswarm. Deterministic pipes (Stripe→accounting) → n8n/Make — never burn LLM tokens on dumb sync.`,
       `Env: \`ROUTINES_ENABLED=true\`, \`SUPERVISOR_ROUTINE_WEBHOOK_ENABLED=true\`. Audit: \`./scripts/operator-automation-ladder-audit.sh\`.`,
+      `**Make / n8n middleware (L4)** — upstream SaaS (Fireflies, Calendly, Stripe) sends webhook to Make → Make HTTP module POSTs to Queenswarm routine URL with body \`{"text":"{{summary}}","source":"fireflies"}\` and header \`X-Queenswarm-Webhook-Token\`. Optional \`X-Queenswarm-Webhook-Source\` for audit. Never expose JWT to Make — rotate token per routine.`,
     ],
     checklist: [
       { text: "L1 — preset + Pattern preview → Create session", href: MANUAL_HREFS.agentsSessions, linkLabel: "Agents" },

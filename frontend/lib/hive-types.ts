@@ -566,6 +566,26 @@ export interface RecipeMatchConfigPayload {
   hybrid_graph_weight: number;
 }
 
+/** Schedule verified recipe as supervisor routine (`POST /recipes/{id}/routine`). */
+export interface RecipeRoutineCreateBody {
+  name?: string | null;
+  schedule_kind?: "interval" | "cron" | "event";
+  interval_seconds?: number | null;
+  cron_expr?: string | null;
+  runtime_mode?: "inprocess" | "durable";
+  enable_webhook?: boolean;
+}
+
+export interface RecipeRoutineCreateResponse {
+  routine_id: string;
+  routine_name: string;
+  recipe_id: string;
+  schedule_kind: string;
+  roles: string[];
+  webhook_url: string | null;
+  webhook_token: string | null;
+}
+
 /** Skill export bundle (`POST /recipes/{id}/export-skill`). */
 export interface SkillExportFile {
   path: string;

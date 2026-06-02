@@ -13,6 +13,7 @@ from httpx import ASGITransport, AsyncClient
 from app.core.config import settings
 from app.main import app
 from app.presentation.api.deps import get_db, require_dashboard_session, require_dashboard_user_with_tenant_role
+from app.application.services.supervisor.routine_webhook import enable_routine_webhook
 from app.presentation.api.routers import agent_sessions as agent_sessions_router
 
 
@@ -601,4 +602,80 @@ async def test_pattern_preview_when_router_disabled_then_empty_payload(
     body = res.json()
     assert body["router_enabled"] is False
     assert body["agentic_patterns"] == {}
+
+
+@pytest.mark.asyncio
+async def test_routine_webhook_ingress_when_valid_token_then_queues_session(
+    restore_app_overrides: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Public webhook ingress spawns session without JWT."""
+
+    routine = _mk_routine()
+    token, payload = enable_routine_webhook(context_payload={})
+    routine.context_payload = payload
+    session_id = uuid.uuid4()
+
+    async def mock_db() -> AsyncIterator[SimpleNamespace]:
+        async def _scalar(_stmt):  # noqa: ANN001
+            return routine
+
+        async def _commit() -> None:
+            return None
+
+        yield SimpleNamespace(scalar=_scalar, commit=_commit)
+
+    async def _fake_handle(*args, **kwargs):  # noqa: ANN002, ANN003
+        del args, kwargs
+        return session_id
+
+    app.dependency_overrides[get_db] = mock_db
+    monkeypatch.setattr(settings, "routines_enabled", True)
+    monkeypatch.setattr(settings, "supervisor_routine_webhook_enabled", True)
+    monkeypatch.setattr(agent_sessions_router, "handle_routine_webhook", _fake_handle)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.post(
+            f"/api/v1/agents/routines/{routine.id}/webhook",
+            json={"text": "Meeting ended — follow up with ACME", "source": "fireflies"},
+            headers={"X-Queenswarm-Webhook-Token": token},
+        )
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["session_id"] == str(session_id)
+    assert body["status"] == "queued"
+
+
+@pytest.mark.asyncio
+async def test_routine_webhook_ingress_when_invalid_token_then_401(
+    restore_app_overrides: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Webhook rejects bad bearer token."""
+
+    routine = _mk_routine()
+    token, payload = enable_routine_webhook(context_payload={})
+    routine.context_payload = payload
+
+    async def mock_db() -> AsyncIterator[SimpleNamespace]:
+        async def _scalar(_stmt):  # noqa: ANN001
+            return routine
+
+        yield SimpleNamespace(scalar=_scalar, commit=lambda: None)
+
+    app.dependency_overrides[get_db] = mock_db
+    monkeypatch.setattr(settings, "routines_enabled", True)
+    monkeypatch.setattr(settings, "supervisor_routine_webhook_enabled", True)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.post(
+            f"/api/v1/agents/routines/{routine.id}/webhook",
+            json={"text": "ignored"},
+            headers={"X-Queenswarm-Webhook-Token": "wrong-token"},
+        )
+
+    assert res.status_code == 401
 

@@ -354,6 +354,10 @@ verify_production_edge
 verify_voice_readiness
 
 if [[ "${SKIP_HOST_EXPOSURE_AUDIT:-0}" != "1" ]]; then
+  if docker compose -p queenswarm ps -q 2>/dev/null | grep -q .; then
+    echo "Stopping legacy compose project 'queenswarm' (duplicate data-plane on 0.0.0.0)…"
+    docker compose -p queenswarm -f "${ROOT}/docker-compose.yml" down --remove-orphans || true
+  fi
   echo "Running audit-host-exposure.sh …"
   "${ROOT}/scripts/audit-host-exposure.sh"
 fi
