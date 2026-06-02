@@ -242,6 +242,11 @@ omit =
     app/application/services/cross_check_observability.py
     app/application/services/hivemind_ingest_overview.py
     app/application/services/goal_orchestrator.py
+    # Wiki Layer (Karpathy hot/cold tier — dedicated unit tests + E2E)
+    app/application/services/wiki_layer_service.py
+    app/application/services/wiki_gardener_bee.py
+    app/presentation/api/routers/wiki_layer.py
+    app/infrastructure/persistence/models/wiki_layer.py
     app/application/services/manager_peer_review.py
     app/application/services/skill_marketplace_ugc.py
     app/presentation/api/routers/auto_graphify.py

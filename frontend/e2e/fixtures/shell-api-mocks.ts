@@ -1270,6 +1270,37 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("memory/wiki-layer/")) {
+      const stubOverview = {
+        zones: {
+          raw: { count: 0, items: [], description: "Raw sources" },
+          wiki: { count: 0, char_count: 0, pages: [], description: "Compiled wiki" },
+          instructions: { char_count: 0, preview: "", description: "Instructions" },
+        },
+        curated_prefix_chars: 0,
+        wiki_chars: 0,
+        settings: { retrieval_tier: "wiki_only", feature_enabled: true, telemetry: {} },
+      };
+      if (path === "memory/wiki-layer/overview") {
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(stubOverview) });
+        return;
+      }
+      if (path === "memory/wiki-layer/settings") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ retrieval_tier: "wiki_only", feature_enabled: true, telemetry: {} }),
+        });
+        return;
+      }
+      if (path === "memory/wiki-layer/gardener/latest") {
+        await route.fulfill({ status: 200, contentType: "application/json", body: "null" });
+        return;
+      }
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({}) });
+      return;
+    }
+
     if (path.startsWith("hive-mind/project-shape")) {
       await route.fulfill({
         status: 200,
