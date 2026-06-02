@@ -109,7 +109,7 @@ export function ViewportBoundedPanel({
   scrollable = false,
 }: ViewportBoundedPanelProps): JSX.Element {
   return (
-    <div className={cn("v4-viewport-panel", className)} data-hive-viewport-panel="">
+    <div className={cn("v4-viewport-panel v4-viewport-panel--page-scroll", className)} data-hive-viewport-panel="">
       <div
         className={cn("v4-viewport-panel-body hive-scrollbar", scrollable && "overflow-y-auto")}
         data-hive-viewport-panel-body=""

@@ -1701,17 +1701,6 @@
     flex-shrink: 0;
   }
 
-  .v4-sessions-list-scroll {
-    display: flex;
-    max-height: min(26.5rem, 52vh);
-    flex-direction: column;
-    gap: 8px;
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    padding-right: 2px;
-  }
-
   /* Execution Studio — full page flow; avoid nested clip + wheel zoom traps. */
   .v4-execution-studio-shell {
     display: flex;
@@ -1741,11 +1730,11 @@
   /* Marketplace — fixed viewport shell; catalog scrolls internally (like sessions list). */
   .v4-marketplace-shell {
     display: flex;
-    max-height: min(42rem, calc(100dvh - 11rem));
     flex-direction: column;
     gap: 12px;
     min-height: 0;
-    overflow: hidden;
+    max-height: none;
+    overflow: visible;
   }
 
   .v4-marketplace-body-scroll {
@@ -1754,9 +1743,9 @@
     flex: 1 1 auto;
     flex-direction: column;
     gap: 12px;
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    max-height: none;
+    overflow: visible;
+    overscroll-behavior: auto;
     padding-right: 2px;
   }
 
@@ -1776,10 +1765,10 @@
 
   .v4-viewport-panel {
     display: flex;
-    max-height: min(36rem, calc(100dvh - 14rem));
-    min-height: min(20rem, calc(100dvh - 22rem));
+    max-height: none;
+    min-height: 0;
     flex-direction: column;
-    overflow: hidden;
+    overflow: visible;
     border-radius: var(--qs-radius-sm);
     border: var(--qs-bubble-border-width) solid var(--qs-border);
     background: var(--qs-surface);
@@ -1788,16 +1777,20 @@
   }
 
   .v4-viewport-panel-body {
-    flex: 1 1 auto;
+    flex: none;
     min-height: 0;
-    overflow-x: auto;
-    overflow-y: hidden;
-    overscroll-behavior: contain;
+    min-width: 0;
+    overflow: visible;
+    overscroll-behavior: auto;
     padding: 12px;
   }
 
   .v4-viewport-panel-body.overflow-y-auto {
+    flex: 1 1 auto;
+    max-height: min(36rem, calc(100dvh - 14rem));
+    overflow-x: auto;
     overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .v4-viewport-panel-footer {
@@ -1833,71 +1826,26 @@
     }
   }
 
-  /* Recipe catalog — exactly two grid rows, pagination only (no inner scroll). */
+  .v4-viewport-panel--page-scroll,
   .v4-recipe-catalog-panel.v4-viewport-panel {
     max-height: none;
     min-height: 0;
+    overflow: visible;
   }
 
-  @media (min-width: 1024px) {
-    .v4-recipe-catalog-panel .v4-viewport-panel-body {
-      overflow: hidden;
-      flex: none;
-    }
+  .v4-viewport-panel--page-scroll .v4-viewport-panel-body,
+  .v4-recipe-catalog-panel .v4-viewport-panel-body {
+    overflow: visible;
+    flex: none;
   }
 
-  /*
-   * Mobile/tablet — single document scroll surface.
-   * Nested viewport/marketplace/session panels must not trap touch scroll.
-   */
-  @media (max-width: 1023px) {
-    .v4-viewport-panel {
-      max-height: none;
-      min-height: 0;
-      overflow: visible;
-    }
-
-    .v4-viewport-panel-body,
-    .v4-viewport-panel-body.overflow-y-auto {
-      overflow: visible;
-      flex: none;
-      min-height: 0;
-      overscroll-behavior: auto;
-    }
-
-    .v4-recipe-catalog-panel.v4-viewport-panel,
-    .v4-recipe-catalog-panel .v4-viewport-panel-body {
-      max-height: none;
-      overflow: visible;
-    }
-
-    .v4-marketplace-shell {
-      max-height: none;
-      overflow: visible;
-    }
-
-    .v4-marketplace-body-scroll {
-      max-height: none;
-      overflow: visible;
-      overscroll-behavior: auto;
-    }
-
-    .v4-sessions-list-scroll,
-    .v4-routines-list-scroll {
-      max-height: none;
-      overflow: visible;
-      overscroll-behavior: auto;
-    }
-  }
-
-  .v4-routines-list-scroll {
+  .v4-sessions-list-scroll {
     display: flex;
-    max-height: min(11rem, 24vh);
+    max-height: none;
     flex-direction: column;
     gap: 8px;
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    overflow: visible;
+    overscroll-behavior: auto;
     padding-right: 2px;
   }
 
@@ -1952,6 +1900,62 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+    min-width: 0;
+  }
+
+  .v4-routines-create-card {
+    min-width: 0;
+  }
+
+  .v4-routines-create-form {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+  }
+
+  .v4-routines-create-form .qs-input {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .v4-routines-create-form__submit {
+    min-width: 0;
+    width: 100%;
+  }
+
+  @media (min-width: 768px) {
+    .v4-routines-create-form {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .v4-routines-create-form__interval {
+      grid-column: 1;
+    }
+
+    .v4-routines-create-form__submit {
+      grid-column: 2;
+      justify-self: end;
+      width: auto;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .v4-routines-create-form {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(5.5rem, 6.75rem) auto;
+      align-items: stretch;
+    }
+
+    .v4-routines-create-form__interval {
+      grid-column: auto;
+    }
+
+    .v4-routines-create-form__submit {
+      grid-column: auto;
+      justify-self: stretch;
+      width: auto;
+      white-space: nowrap;
+    }
   }
 
   .v4-routine-catalog-card {
@@ -1965,15 +1969,6 @@
 
     .hub-catalog-grid:has(.v4-routine-catalog-card) {
       grid-template-columns: 1fr;
-    }
-  }
-
-  @media (min-width: 768px) {
-    .v4-routines-form {
-      display: grid;
-      grid-template-columns: 1fr 1fr 100px auto;
-      gap: 8px;
-      align-items: stretch;
     }
   }
 

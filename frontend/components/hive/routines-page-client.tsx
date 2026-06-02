@@ -162,7 +162,7 @@ export function RoutinesPageClient(): JSX.Element {
         />
       </div>
 
-      <V4Card>
+      <V4Card className="v4-routines-create-card min-w-0">
         <V4CardHeader
           kicker="New routine"
           title="Create supervisor routine"
@@ -173,39 +173,38 @@ export function RoutinesPageClient(): JSX.Element {
             </V4Badge>
           }
         />
-        <div className="v4-routines-form grid gap-3">
+        <div className="v4-routines-create-form">
           <input
-            className="qs-input w-full min-w-0"
+            className="qs-input v4-routines-create-form__name"
             placeholder="Routine name"
             value={routineName}
             onChange={(event) => setRoutineName(event.target.value)}
           />
           <input
-            className="qs-input w-full min-w-0"
+            className="qs-input v4-routines-create-form__goal"
             placeholder="Goal template"
             value={routineGoal}
             onChange={(event) => setRoutineGoal(event.target.value)}
           />
-          <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-            <input
-              className="qs-input w-full min-w-0"
-              type="number"
-              min={60}
-              step={60}
-              aria-label="Interval seconds"
-              value={routineInterval}
-              onChange={(event) => setRoutineInterval(Number(event.target.value || 3600))}
-            />
-            <button
-              type="button"
-              className="qs-btn qs-btn--primary qs-btn--sm w-full justify-center gap-2 sm:w-auto"
-              disabled={createBusy}
-              onClick={() => void createRoutine()}
-            >
-              <Plus className="h-4 w-4 shrink-0" aria-hidden />
-              {createBusy ? "Creating…" : "Create routine"}
-            </button>
-          </div>
+          <input
+            className="qs-input v4-routines-create-form__interval"
+            type="number"
+            min={60}
+            step={60}
+            aria-label="Interval seconds"
+            placeholder="Interval (s)"
+            value={routineInterval}
+            onChange={(event) => setRoutineInterval(Number(event.target.value || 3600))}
+          />
+          <button
+            type="button"
+            className="qs-btn qs-btn--primary qs-btn--sm v4-routines-create-form__submit justify-center gap-2"
+            disabled={createBusy}
+            onClick={() => void createRoutine()}
+          >
+            <Plus className="h-4 w-4 shrink-0" aria-hidden />
+            {createBusy ? "Creating…" : "Create routine"}
+          </button>
         </div>
       </V4Card>
 
