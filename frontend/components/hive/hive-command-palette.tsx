@@ -83,7 +83,12 @@ export function HiveCommandPalette({ open, onClose }: HiveCommandPaletteProps): 
                       className="block rounded-lg px-3 py-2 transition hover:bg-white/5"
                     >
                       <p className="text-sm font-medium text-[#fafafa]">{hit.title}</p>
-                      <p className="text-[11px] uppercase text-zinc-500">{hit.status}</p>
+                      <p className="text-[11px] uppercase text-zinc-500">
+                        {hit.status}
+                        {hit.match_source.includes("semantic") ? (
+                          <span className="ml-2 normal-case text-data">· vector match</span>
+                        ) : null}
+                      </p>
                     </Link>
                   </li>
                 ))}
@@ -103,7 +108,12 @@ export function HiveCommandPalette({ open, onClose }: HiveCommandPaletteProps): 
                       className="block rounded-lg px-3 py-2 transition hover:bg-white/5"
                     >
                       <p className="text-sm font-medium text-[#fafafa]">{hit.goal_excerpt}</p>
-                      <p className="line-clamp-2 font-mono text-[11px] text-zinc-500">{hit.snippet}</p>
+                      <p className="line-clamp-2 font-mono text-[11px] text-zinc-500">
+                        {hit.snippet}
+                        {hit.match_source.includes("semantic") ? (
+                          <span className="ml-1 text-data">· vector</span>
+                        ) : null}
+                      </p>
                     </Link>
                   </li>
                 ))}

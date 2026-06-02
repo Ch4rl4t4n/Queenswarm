@@ -58,7 +58,13 @@ Living backlog for **queenswarm.love** — ordered by impact. Status reflects pr
 
 **OW19 note:** `POST /solo-operator/mission-search/backfill-auto` runs once per tenant per 30 days (Redis) on dashboard boot. Frontend staggers call via `useMissionSearchAutoBackfill`. Playwright covers `#hive-mobile-notifications-bell` sheet.
 
-**OW20 note:** Foragers page — **Results / Task / Delete** row actions; **Add rule** spawn dialog; progress tooltip + deep link. `POST /foragers/{id}/promote-task` → Mission Kanban triage. Morning brief includes forager KPI cards. Mission feed events fan out to Web Push (Execution Studio subscription store). Kanban **Done** triggers pollen confetti.
+**OW20 note:** Foragers page — **Results / Task / Delete** row actions; **Add rule** spawn dialog; progress tooltip + deep link. `POST /foragers/{id}/promote-task` → Mission Kanban triage. Morning brief includes forager KPI cards. Mission feed events fan out to Web Push (Execution Studio subscription store). Kanban **Done** triggers pollen confetti. Task edit/remove + bulk clear Done column. Solo home → **Mission Control** (`/tasks`).
+
+| Step | Scope | Status |
+|------|-------|--------|
+| OW21 | ⌘K Chroma re-rank (sessions + tasks via deliverables) + backend EN notifications | ✅ |
+
+**OW21 note:** `search_mission_operator` merges lexical + vector hits and re-ranks by `relevance_score`. Task semantic recall maps Chroma `task_deliverables` → kanban rows. Trust autopilot + Telegram gateway notifications are EN-only.
 
 ## Four-Lane Solo Operator (optional background automation)
 
