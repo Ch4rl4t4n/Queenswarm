@@ -70,6 +70,11 @@ from app.application.services.supervisor.initiative import (
     review_agent_suggestion_with_handoff,
 )
 from app.application.services.supervisor.autonomy import compile_swarm_autonomy_snapshot
+from app.application.services.supervisor.pattern_router import (
+    build_pattern_prompt_block,
+    pattern_skill_slugs,
+    select_patterns_for_task,
+)
 from app.application.services.supervisor.sub_agent_job import (
     build_sub_agent_job_snapshot,
     extract_celery_task_id,
@@ -115,6 +120,24 @@ class SupervisorSessionCreateBody(BaseModel):
     roles: list[str] | None = None
     retrieval_contract: str | None = Field(default=None, max_length=200)
     skills: list[str] | None = None
+
+
+class PatternPreviewBody(BaseModel):
+    """Goal + roles preview for Pattern Router before session create."""
+
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+
+    goal: str = Field(..., min_length=1, max_length=4000)
+    roles: list[str] | None = None
+
+
+class PatternPreviewView(BaseModel):
+    """Heuristic Pattern Router preview (no session persisted)."""
+
+    router_enabled: bool
+    agentic_patterns: dict[str, Any] = Field(default_factory=dict)
+    suggested_skill_slugs: list[str] = Field(default_factory=list)
+    pattern_prompt_preview: str = ""
 
 
 class SubAgentSessionView(BaseModel):
@@ -803,6 +826,40 @@ async def create_agent_session(
     hydrated = await get_supervisor_session(db, created.id)
     assert hydrated is not None
     return _serialize_session(hydrated)
+
+
+@router.post(
+    "/sessions/pattern-preview",
+    response_model=PatternPreviewView,
+    summary="Preview Pattern Router selection for a goal (no session created)",
+)
+async def preview_session_patterns(
+    body: PatternPreviewBody,
+    _sess: DashboardSession,
+    _: bool = Depends(require_tenant_permission("supervisor:view")),
+) -> PatternPreviewView:
+    """Return heuristic agentic patterns and suggested skill slugs for operator UI."""
+
+    if not settings.supervisor_pattern_router_enabled:
+        return PatternPreviewView(router_enabled=False)
+
+    try:
+        guarded_goal = guard_operator_input(body.goal, field="goal")
+    except PromptInjectionViolationError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+
+    roles = list(body.roles or ["researcher", "critic"])
+    selection = select_patterns_for_task(
+        goal=guarded_goal,
+        roles=roles,
+        forced_reflection=settings.supervisor_forced_reflection_enabled,
+    )
+    return PatternPreviewView(
+        router_enabled=True,
+        agentic_patterns=selection.to_dict(),
+        suggested_skill_slugs=pattern_skill_slugs(selection),
+        pattern_prompt_preview=build_pattern_prompt_block(selection)[:2000],
+    )
 
 
 @router.get(

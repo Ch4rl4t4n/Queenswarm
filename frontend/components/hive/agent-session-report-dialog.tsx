@@ -9,10 +9,12 @@ import { toast } from "sonner";
 
 import { AgentSessionEventLog } from "@/components/hive/agent-session-event-log";
 import { HiveModalShell } from "@/components/hive/hive-modal-shell";
+import { SessionPatternSkillsPanel } from "@/components/hive/session-pattern-skills-panel";
 import { SubAgentSessionCard } from "@/components/hive/sub-agent-session-card";
 import { V4Badge } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import type { SupervisorSessionEventRow, SupervisorSessionRow } from "@/lib/hive-types";
+import { extractSessionPatternSkills } from "@/lib/session-pattern-skills";
 import { sessionGoalPreview } from "@/lib/supervisor-session";
 import { cn } from "@/lib/utils";
 
@@ -119,6 +121,11 @@ export function AgentSessionReportDialog({ sessionId, open, onOpenChange }: Agen
     }
     return map;
   }, [events]);
+
+  const patternSkillsSnapshot = useMemo(
+    () => (session ? extractSessionPatternSkills(session) : null),
+    [session],
+  );
 
   async function saveSessionRecipe(): Promise<void> {
     if (!sessionId || !session) {
@@ -250,6 +257,15 @@ export function AgentSessionReportDialog({ sessionId, open, onOpenChange }: Agen
                   </p>
                 ) : null}
               </section>
+
+              {patternSkillsSnapshot?.routerEnabled ? (
+                <section className="space-y-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-(--qs-text-3)">
+                    Pattern Router
+                  </p>
+                  <SessionPatternSkillsPanel snapshot={patternSkillsSnapshot} variant="full" />
+                </section>
+              ) : null}
 
               {(session.sub_agents ?? []).length > 0 ? (
                 <section className="space-y-2">

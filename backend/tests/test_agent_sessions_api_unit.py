@@ -551,3 +551,54 @@ async def test_session_playbook_preview_when_session_ready_then_returns_metadata
     assert body["sub_agent_count"] == 2
     assert body["suggested_name"].startswith("playbook_")
 
+
+@pytest.mark.asyncio
+async def test_pattern_preview_when_router_enabled_then_returns_patterns(
+    restore_app_overrides: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Pattern preview returns heuristic stack without creating a session."""
+
+    monkeypatch.setattr(settings, "supervisor_pattern_router_enabled", True)
+    monkeypatch.setattr(settings, "supervisor_forced_reflection_enabled", True)
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:test"}
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.post(
+            "/api/v1/agents/sessions/pattern-preview",
+            json={"goal": "Plan and build parallel research workflow", "roles": ["researcher", "critic"]},
+            headers={"Authorization": "Bearer x"},
+        )
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["router_enabled"] is True
+    assert "planning" in body["agentic_patterns"]["primary"]
+    assert isinstance(body["suggested_skill_slugs"], list)
+    assert body["pattern_prompt_preview"]
+
+
+@pytest.mark.asyncio
+async def test_pattern_preview_when_router_disabled_then_empty_payload(
+    restore_app_overrides: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Pattern preview short-circuits when supervisor Pattern Router is off."""
+
+    monkeypatch.setattr(settings, "supervisor_pattern_router_enabled", False)
+    app.dependency_overrides[require_dashboard_session] = lambda: {"sub": "dash:test"}
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.post(
+            "/api/v1/agents/sessions/pattern-preview",
+            json={"goal": "Any goal text here"},
+            headers={"Authorization": "Bearer x"},
+        )
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["router_enabled"] is False
+    assert body["agentic_patterns"] == {}
+

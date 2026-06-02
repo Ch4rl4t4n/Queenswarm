@@ -275,6 +275,39 @@ export const APP_MANUAL_SECTIONS: ManualSection[] = [
     ],
   },
   {
+    id: "pattern-router",
+    title: "Pattern Router — agentic design patterns per session",
+    paragraphs: [
+      `On every **Create session**, Queenswarm runs the **Pattern Router** — a heuristic stack of Kashef-style agentic patterns (planning, RAG, guardrails, reflection, …) chosen from your goal text and sub-agent roles.`,
+      `You see the selection in three places: **live preview** under the goal field (before Create), **badges on each session row**, and the full breakdown in **Info → Session report → Pattern Router**.`,
+      `Patterns map to **skill hints** (e.g. reflection → \`self-review-loop\`) merged with your requested skill pack. Final per-role skills appear after spawn in the report.`,
+      `Optional **LLM refinement** (\`SUPERVISOR_PATTERN_ROUTER_LLM_ENABLED\`) re-ranks patterns; badge shows \`LLM-refined\` vs \`heuristic-v1\`. **Forced reflection** keeps Critic → Revise → Validate before verified output.`,
+      `Tenant-wide catalog and recent usage: [Settings → Harness → Pattern Explorer](${MANUAL_HREFS.settingsHarness}). Full pattern list: \`docs/QUEENSWARM_DESIGN_PATTERNS.md\`.`,
+    ],
+    checklist: [
+      {
+        text: "Write a specific goal — keywords steer parallelization, tool use, HITL, exploration.",
+        href: MANUAL_HREFS.agentsSessions,
+        linkLabel: "Agents sessions",
+      },
+      {
+        text: "Check preview badges before Create — adjust goal or roles if the stack looks wrong.",
+        href: MANUAL_HREFS.agentsSessions,
+        linkLabel: "Goal preview",
+      },
+      {
+        text: "After run — Info report shows resolved skills by role + pattern rationale.",
+        href: MANUAL_HREFS.agentsSessions,
+        linkLabel: "Session report",
+      },
+      {
+        text: "Harness Pattern Explorer — catalog + 24h usage across sessions.",
+        href: MANUAL_HREFS.settingsHarness,
+        linkLabel: "Pattern Explorer",
+      },
+    ],
+  },
+  {
     id: "agent-workflows",
     title: "Agent workflow catalog (when to use which lane)",
     paragraphs: [
@@ -485,6 +518,18 @@ export const APP_FUNCTION_GUIDE: FunctionInfoGroup[] = [
           "Gmail simulate_only — no live send",
         ],
         href: MANUAL_HREFS.agentsLeadGenLane,
+      },
+      {
+        id: "pattern-router",
+        label: "Pattern Router visibility",
+        description:
+          "Live preview under goal + session row badges + Info report — shows which agentic patterns and skills were selected.",
+        options: [
+          "Preview before Create session",
+          "Primary/secondary pattern badges per row",
+          "Resolved skills by sub-agent role in report",
+        ],
+        href: MANUAL_HREFS.manualPatternRouter,
       },
     ],
   },

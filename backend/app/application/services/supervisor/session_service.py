@@ -566,6 +566,27 @@ async def create_supervisor_session(
             },
         )
 
+    if pattern_selection is not None and sub_agents:
+        by_role: dict[str, list[str]] = {}
+        all_skills: list[str] = []
+        for sub in sub_agents:
+            sm = dict(sub.short_memory or {})
+            raw_skills = sm.get("skills")
+            role_skills = (
+                [str(slug).strip() for slug in raw_skills if str(slug).strip()]
+                if isinstance(raw_skills, list)
+                else []
+            )
+            if role_skills:
+                by_role[str(sub.role)] = role_skills
+                for slug in role_skills:
+                    if slug not in all_skills:
+                        all_skills.append(slug)
+        base_summary["resolved_skills_by_role"] = by_role
+        base_summary["resolved_skill_slugs"] = all_skills
+        base_summary["pattern_suggested_skills"] = pattern_skill_slugs(pattern_selection)
+        session_row.context_summary = base_summary
+
     await append_event(
         db,
         supervisor_session=session_row,

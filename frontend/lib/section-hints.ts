@@ -372,14 +372,14 @@ export const SECTION_HINTS = {
   agentsSessions: {
     title: "Supervisor sessions",
     description:
-      "Live and historical Queen/supervisor runs — approve merges, kill stuck agents, export session reports. Quick presets include Lead Gen Lane (simulate outreach).",
+      "Live and historical Queen/supervisor runs — approve merges, kill stuck agents, export session reports. Pattern Router preview under goal + badges on each row show selected patterns/skills.",
     options: [
+      "Pattern Router preview — live stack before Create session.",
+      "Session row badges — primary patterns + resolved skills.",
+      "Info report — full Pattern Router block with rationale.",
       "Lead Gen Lane preset — ICP → scout ≤10 → outreach drafts (simulate).",
-      "Session search — filter by goal, status, swarm.",
-      "Merge ready — human approve before publish lane.",
-      "Report dialog — Session → Recipe when verified.",
     ],
-    manualHref: "/manual#lead-gen-lane",
+    manualHref: "/manual#pattern-router",
   },
   agentsRoster: {
     title: "Active roster",
@@ -689,10 +689,11 @@ export const SECTION_HINTS = {
     description: "Live counts for skills, MCP tools, tech health, and supervisor feature flags.",
     options: [
       "Tech health — composite score from harness freshness checks.",
-      "Pattern Router — supervisor lane picks agentic design patterns.",
+      "Pattern Router — goal → agentic pattern stack + skill hints (see Agents session preview).",
+      "Pattern Explorer — catalog + recent session selections.",
       "Forced reflection — post-task learning loop gate.",
     ],
-    manualHref: "/manual#harness",
+    manualHref: "/manual#pattern-router",
   },
   harnessRulesMonitoring: {
     title: "Pattern monitoring",

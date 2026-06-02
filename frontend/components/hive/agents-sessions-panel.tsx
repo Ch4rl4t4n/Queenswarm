@@ -13,6 +13,7 @@ import { BrowserHarnessPanel } from "@/components/hive/browser-harness-panel";
 import { AgentsPanelSkeleton } from "@/components/hive/agents-panel-skeleton";
 import { AgentSessionReportDialog } from "@/components/hive/agent-session-report-dialog";
 import { InfoHint } from "@/components/hive/info-hint";
+import { SessionPatternSkillsPanel } from "@/components/hive/session-pattern-skills-panel";
 import { VoiceSessionControls } from "@/components/hive/voice-session-controls";
 import { usePlatform } from "@/components/hive/platform-context";
 import { HiveSwitch } from "@/components/ui/hive-switch";
@@ -39,6 +40,11 @@ import type { SoloSessionPreset, SoloSessionPresetsResponse } from "@/lib/solo-s
 import { SOLO_PRESET_LANE_LABEL } from "@/lib/solo-session-presets";
 import { runtimeModeLabel, sessionGoalPreview, sessionStatusTone, supervisorSessionBallroomHref, isActiveSupervisorSession } from "@/lib/supervisor-session";
 import { focusSessionGoalComposer } from "@/lib/operator-canonical-ui";
+import {
+  extractSessionPatternSkills,
+  patternPreviewToSnapshot,
+  type PatternPreviewPayload,
+} from "@/lib/session-pattern-skills";
 import {
   playbookRecipeIdFromContext,
   playbookWasAutoSavedOnReview,
@@ -114,6 +120,9 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
   const [clearAllBusy, setClearAllBusy] = useState(false);
   const [reportSessionId, setReportSessionId] = useState<string | null>(null);
   const [policyBusy, setPolicyBusy] = useState(false);
+  const [debouncedGoal, setDebouncedGoal] = useState("");
+  const [patternPreviewBusy, setPatternPreviewBusy] = useState(false);
+  const [patternPreview, setPatternPreview] = useState<PatternPreviewPayload | null>(null);
 
   const closeReportDialog = useCallback(() => {
     setReportSessionId(null);
@@ -205,6 +214,49 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
       applySessionPreset(match);
     }
   }, [soloMode, soloPresets, searchParams, activePresetId]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedGoal(goal.trim());
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [goal]);
+
+  useEffect(() => {
+    if (debouncedGoal.length < 4) {
+      setPatternPreview(null);
+      return;
+    }
+    let cancelled = false;
+    setPatternPreviewBusy(true);
+    void hivePostJson<PatternPreviewPayload>("agents/sessions/pattern-preview", {
+      goal: debouncedGoal,
+      roles: sessionRoles,
+    })
+      .then((payload) => {
+        if (!cancelled) {
+          setPatternPreview(payload);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPatternPreview(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setPatternPreviewBusy(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedGoal, sessionRoles]);
+
+  const patternPreviewSnapshot = useMemo(
+    () => patternPreviewToSnapshot(patternPreview),
+    [patternPreview],
+  );
 
   async function refreshSessionsAndSummary(): Promise<void> {
     await Promise.all([mutate(), mutateSummary()]);
@@ -695,6 +747,16 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
         </button>
       </div>
 
+      {debouncedGoal.length >= 4 ? (
+        <div className={isV4 ? "mt-3" : "mt-2"}>
+          {patternPreviewBusy && !patternPreview ? (
+            <p className="text-xs text-(--qs-text-4)">Previewing Pattern Router…</p>
+          ) : (
+            <SessionPatternSkillsPanel snapshot={patternPreviewSnapshot} variant="preview" />
+          )}
+        </div>
+      ) : null}
+
       <div className={isV4 ? "mt-4" : "mt-3"}>
         <VoiceSessionControls
           compact
@@ -816,6 +878,10 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
                   <p className="v4-session-goal text-sm font-medium text-(--qs-text)" title={session.goal}>
                     {sessionGoalPreview(session.goal)}
                   </p>
+                  <SessionPatternSkillsPanel
+                    snapshot={extractSessionPatternSkills(session)}
+                    variant="compact"
+                  />
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <span className="text-xs text-(--qs-text-3)">
@@ -894,6 +960,10 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
                     <p className="mt-1 text-xs text-zinc-500">
                       {runtimeModeLabel(session.runtime_mode)} · {session.status} · {(session.sub_agents ?? []).length} sub-agents
                     </p>
+                    <SessionPatternSkillsPanel
+                      snapshot={extractSessionPatternSkills(session)}
+                      variant="compact"
+                    />
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <span className={`qs-pill qs-pill--active-${sessionStatusTone(session.status)}`}>{session.status}</span>
