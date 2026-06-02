@@ -15,7 +15,7 @@ interface HiveRefreshButtonProps {
   type?: "button" | "submit";
 }
 
-/** Standard refresh control — icon + label, ghost sm, aligned padding app-wide. */
+/** Standard refresh control — top-right of panels; icon-only ≤1023px, icon + label on desktop. */
 export function HiveRefreshButton({
   onClick,
   disabled = false,
@@ -28,14 +28,16 @@ export function HiveRefreshButton({
     <button
       type={type}
       className={cn(
-        "hive-refresh-btn qs-btn qs-btn--ghost qs-btn--sm shrink-0 gap-1.5 touch-manipulation",
+        "hive-refresh-btn qs-btn qs-btn--ghost qs-btn--sm shrink-0 touch-manipulation",
         className,
       )}
       disabled={disabled || busy}
       onClick={onClick}
+      aria-label={label}
+      title={label}
     >
       <RefreshCw className={cn("size-4 shrink-0", busy && "animate-spin")} aria-hidden />
-      {label}
+      <span className="hive-refresh-btn__label">{label}</span>
     </button>
   );
 }

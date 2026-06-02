@@ -33,14 +33,15 @@ export const SECTION_HINTS = {
     manualHref: "/manual#knowledge",
   },
   cockpit: {
-    title: "Agentic OS",
+    title: "Agentic OS (optional — not the first step)",
     description:
-      "Daily operator entry point: prioritized actions, command lanes, ICM tools, swarm fleet, and innovation lab.",
+      "Advanced automation: Innovation Lab, Four Lanes digests, Hotline. Start each day in Agents, not here.",
     options: [
-      "Overview — start day, trust autopilot lanes, proof-of-hive receipts, action queue.",
-      "Command / ICM / Fleet — hotline, crystallizer, quick automations, supervisor routines.",
+      "Four Lanes — cron digests (optional)",
+      "Innovation Lab — tech proposals → PR",
+      "Manual: /manual#background-automation",
     ],
-    manualHref: "/manual#cockpit-overview",
+    manualHref: "/manual#background-automation",
   },
   appsTools: {
     title: "Apps & Tools",
@@ -54,15 +55,16 @@ export const SECTION_HINTS = {
     manualHref: "/manual#apps-tools",
   },
   agents: {
-    title: "Agents control plane",
+    title: "Agents — primary control",
     description:
-      "Supervisor sessions, bee role catalog, hybrid runtime status, context graph, learning loop, active roster, and hierarchy topology.",
+      "Launch all work here: New supervisor session → structured PROJECT goal → durable → Info report. Swarms and Agentic OS are not the start.",
     options: [
-      "Bee roles — archetype templates and spawn paths.",
-      "Supervisor — live session review and control.",
-      "Hierarchy — swarm ↔ bee topology graph.",
+      "Session goal — Goal → Context → Constraints → Done",
+      "Auto-approve ON for solo · durable for large projects",
+      "Info → PDF report when completed",
+      "Manual: /manual#canonical-workflow",
     ],
-    manualHref: "/manual#agents",
+    manualHref: "/manual#canonical-workflow",
   },
   integrations: {
     title: "Integrations hub",
@@ -133,12 +135,13 @@ export const SECTION_HINTS = {
   manual: {
     title: "Operator manual",
     description:
-      "Searchable hive playbook: cockpit flows, agent roles, integrations, publish guardrails, and troubleshooting.",
+      "Single canonical workflow step-by-step plus settings reference. Start at section 0.",
     options: [
-      "Deep links — every hint popup links back here.",
-      "Phase gates — what is live vs simulate-only on this tenant.",
+      "0. Canonical workflow — Agents → session",
+      "5. Settings reference",
+      "docs/OPERATOR_CANONICAL_WORKFLOW.md",
     ],
-    manualHref: "/manual",
+    manualHref: "/manual#canonical-workflow",
   },
 
   // —— Cockpit cards ——
@@ -153,6 +156,31 @@ export const SECTION_HINTS = {
       "Refresh — reloads core snapshot without heavy futurist modules.",
     ],
     manualHref: "/manual#cockpit-overview",
+  },
+  fourLanes: {
+    title: "Four Lanes (optional)",
+    description:
+      "Background cron digests — open via Agentic OS → Show advanced tools → Lanes. Not your daily start; use Agents → Sessions for projects.",
+    options: [
+      "Lane A — Najman marketing digest (Po/St/Pi) + competitor forager.",
+      "Lane B — Tech SCV daily upgrades → Innovation Lab → Queen Maintainer PR.",
+      "Lane C — E-shop research (Ut/Št) for beebrdy.cz benchmark + SEO.",
+      "Lane D — Automation factory: manual trigger after you approve digests.",
+      "Bootstrap lanes — pauses non-lane routines; safe to re-run (idempotent).",
+    ],
+    manualHref: "/manual#four-lanes",
+  },
+  fourLaneDigestInbox: {
+    title: "Digest Inbox",
+    description:
+      "Unified queue of four-lane digest sessions. Review excerpt, open session, or promote marketing/e-shop digests to Tasks in one click.",
+    options: [
+      "→ Task — approves session + creates backlog row with digest excerpt (simulate-first).",
+      "Tech SCV lane — use Innovation tab for upgrade proposals, not task promote.",
+      "Pending count — sessions in needs_input or completed without linked task.",
+      "Full loop doc: /manual#digest-inbox",
+    ],
+    manualHref: "/manual#digest-inbox",
   },
   command: {
     title: "Command lane",

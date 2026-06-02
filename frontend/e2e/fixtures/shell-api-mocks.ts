@@ -27,6 +27,22 @@ const STUB_TASK_QUEUE = {
   completed_today_count: 0,
 };
 
+const STUB_MISSION_KANBAN_TASK_ID = "22222222-2222-4222-8222-222222222222";
+
+const STUB_MISSION_KANBAN_TASKS = [
+  {
+    id: STUB_MISSION_KANBAN_TASK_ID,
+    title: "Content week",
+    status: "completed",
+    task_type: "agent_run",
+    priority: 5,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    agent_name: null,
+    payload: { task_text: "Launch content week for queenswarm.love (simulate-first)." },
+  },
+];
+
 const STUB_COCKPIT_BUNDLE = {
   generated_at: new Date().toISOString(),
   revision: 1,
@@ -49,7 +65,7 @@ const STUB_OPERATOR_COCKPIT = {
   now_actions: [
     {
       id: "start_day",
-      label: "Spusti deň",
+      label: "Start day",
       detail: "Trio cycle + morning brief pipeline (verify-first).",
       priority: "high",
       href: null,
@@ -425,6 +441,7 @@ const STUB_SKILLS_CATALOG = {
       title: "Grill me",
       version: "1.0.0",
       keywords: ["review", "critique"],
+      roles: ["supervisor"],
     },
   ],
   recipes: [
@@ -449,6 +466,67 @@ const STUB_SKILL_UNLOCKS = {
   checkout_available: false,
   unlocked_recipe_ids: [] as string[],
   premium_price_eur_cents_default: 1900,
+};
+
+const STUB_APPS_TOOLS_INDEX = {
+  generated_at: new Date().toISOString(),
+  version: "v1",
+  workspaces: [
+    {
+      module_key: "marketing_automation",
+      label: "Marketing Automation",
+      layer: "apps_tools",
+      summary: "Campaign publishing and distribution workflows.",
+      status: "live",
+      enabled: true,
+      capability_keys: ["apps.marketing.publish_pipeline.v1"],
+    },
+  ],
+  capabilities: [
+    {
+      capability_key: "apps.marketing.publish_pipeline.v1",
+      label: "Marketing publish pipeline",
+      owner_module: "marketing_automation",
+      surface: "apps_tools",
+      summary: "Generate and orchestrate multi-channel publish packs.",
+      status: "live",
+      version: "v1",
+      risk_tier: "publish",
+      requires_approval: true,
+      input_schema_ref: "schemas/apps.marketing.publish_pipeline.input.v1.json",
+      output_schema_ref: "schemas/apps.marketing.publish_pipeline.output.v1.json",
+      enabled: true,
+      sla_hint_sec: 180,
+      dependency_keys: ["integrations.connector.invoke.v1"],
+      tags: ["apps", "marketing", "publish"],
+    },
+  ],
+  policies: [
+    {
+      module_key: "marketing_automation",
+      label: "Marketing Automation",
+      enabled: true,
+      risk_tier: "publish",
+      requires_approval: true,
+      cooldown_sec: null,
+      spend_cap_usd_24h: 10,
+      time_limit_sec: 12,
+      rate_limit_window_sec: 86400,
+      rate_limit_max_global: 30,
+      notes: ["Live publish is simulation-first."],
+    },
+  ],
+};
+
+const STUB_APPS_TOOLS_ANALYTICS = {
+  window: "24h",
+  compact_mode: false,
+  last_event_at: new Date().toISOString(),
+  total_events: 0,
+  counters: {},
+  module_funnel: [],
+  top_movers: [],
+  recommendation: null,
 };
 
 const STUB_RECIPE_PATTERN_STACKS = [
@@ -1005,6 +1083,20 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("external-apis/research-keys/status")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          providers: {
+            tavily: { configured: false, masked: null },
+            serper: { configured: false, masked: null },
+          },
+        }),
+      });
+      return;
+    }
+
     if (path.startsWith("external-apis/providers")) {
       await route.fulfill({
         status: 200,
@@ -1178,6 +1270,37 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("memory/wiki-layer/")) {
+      const stubOverview = {
+        zones: {
+          raw: { count: 0, items: [], description: "Raw sources" },
+          wiki: { count: 0, char_count: 0, pages: [], description: "Compiled wiki" },
+          instructions: { char_count: 0, preview: "", description: "Instructions" },
+        },
+        curated_prefix_chars: 0,
+        wiki_chars: 0,
+        settings: { retrieval_tier: "wiki_only", feature_enabled: true, telemetry: {} },
+      };
+      if (path === "memory/wiki-layer/overview") {
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(stubOverview) });
+        return;
+      }
+      if (path === "memory/wiki-layer/settings") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ retrieval_tier: "wiki_only", feature_enabled: true, telemetry: {} }),
+        });
+        return;
+      }
+      if (path === "memory/wiki-layer/gardener/latest") {
+        await route.fulfill({ status: 200, contentType: "application/json", body: "null" });
+        return;
+      }
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({}) });
+      return;
+    }
+
     if (path.startsWith("hive-mind/project-shape")) {
       await route.fulfill({
         status: 200,
@@ -1326,6 +1449,33 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("solo-operator/mission-feed")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ events: [], unread: 0, total: 0 }),
+      });
+      return;
+    }
+
+    if (path.startsWith("solo-operator/mission-search/backfill-auto")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, auto_skipped: true, reason: "tenant_backfill_recent" }),
+      });
+      return;
+    }
+
+    if (path.startsWith("solo-operator/mission-search")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ query: "", sessions: [], tasks: [], total: 0 }),
+      });
+      return;
+    }
+
     if (path.startsWith("swarms?") || path === "swarms") {
       await route.fulfill({
         status: 200,
@@ -1392,6 +1542,24 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("external/projects")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([]),
+      });
+      return;
+    }
+
+    if (path === "plugins" || path.startsWith("plugins?")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ installed: [], reload_generation: 1 }),
+      });
+      return;
+    }
+
     if (path.startsWith("system/status")) {
       await route.fulfill({
         status: 200,
@@ -1424,8 +1592,61 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
-    if (path.startsWith("tasks?")) {
-      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
+    if (path === "tasks" || path.startsWith("tasks?")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_MISSION_KANBAN_TASKS),
+      });
+      return;
+    }
+
+    if (path === "operator/apps-tools-index" || path.startsWith("operator/apps-tools-index?")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_APPS_TOOLS_INDEX),
+      });
+      return;
+    }
+
+    if (path.startsWith("operator/apps-tools-index/analytics")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_APPS_TOOLS_ANALYTICS),
+      });
+      return;
+    }
+
+    if (path.startsWith("tasks/")) {
+      const method = route.request().method();
+      if (method === "DELETE") {
+        await route.fulfill({ status: 204, body: "" });
+        return;
+      }
+      if (method === "PATCH") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ ...STUB_MISSION_KANBAN_TASKS[0], title: "Content week (edited)" }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_MISSION_KANBAN_TASKS[0]),
+      });
+      return;
+    }
+
+    if (path === "tasks/bulk-cancel") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ cancelled: 1, skipped_running: 0, not_found: 0 }),
+      });
       return;
     }
 

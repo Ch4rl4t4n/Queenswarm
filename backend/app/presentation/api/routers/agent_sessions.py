@@ -36,6 +36,10 @@ from app.application.services.supervisor.session_report import (
     build_supervisor_session_report_markdown,
     build_supervisor_session_report_pdf,
 )
+from app.application.services.prompt_injection_guard import (
+    PromptInjectionViolationError,
+    guard_operator_input,
+)
 from app.application.services.recipe_write import RecipeWriteConflictError, RecipeWritePayloadTooLargeError
 
 from app.application.services.supervisor.checkpoint_resume import (
@@ -77,6 +81,11 @@ from app.application.services.session_cost_guardian import (
     DEFAULT_SESSION_CAP_USD,
     DEFAULT_WARN_RATIO,
     measure_session_cost,
+)
+from app.application.services.supervisor_session_control import (
+    auto_approve_pending_supervisor_sessions,
+    merge_supervisor_sessions_patch,
+    serialize_supervisor_sessions_control_view,
 )
 from app.core.config import settings
 from app.core.jwt_tokens import parse_dashboard_user_subject
@@ -366,6 +375,31 @@ class SupervisorControlSummaryView(BaseModel):
     inprocess_active_sessions: int = 0
     durable_active_sessions: int = 0
     durable_queued_sub_agents: int = 0
+
+
+class SupervisorSessionsControlView(BaseModel):
+    """Tenant policy for supervisor session approval (auto vs manual)."""
+
+    auto_approve_enabled: bool
+    auto_approve_enabled_source: Literal["deployment", "tenant"]
+    mode_label: Literal["auto", "manual"]
+
+
+class SupervisorSessionsControlPatchBody(BaseModel):
+    """Patch body for supervisor sessions control policy."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    auto_approve_enabled: bool | None = None
+
+
+class SupervisorSessionsAutoApproveResult(BaseModel):
+    """Bulk auto-approve outcome."""
+
+    ok: bool
+    approved_count: int
+    session_ids: list[str]
+    skipped_critical: int
 
 
 class AgentSuggestionView(BaseModel):
@@ -716,9 +750,13 @@ async def create_agent_session(
             detail="Supervisor dynamic sub-agents are disabled.",
         )
     try:
+        guarded_goal = guard_operator_input(body.goal, field="goal")
+    except PromptInjectionViolationError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    try:
         created = await create_supervisor_session(
             db,
-            goal=body.goal,
+            goal=guarded_goal,
             created_by_subject=str(sess.get("sub") or "")[:512] or None,
             runtime_mode=body.runtime_mode,
             roles=body.roles,
@@ -865,6 +903,83 @@ async def get_agent_sessions_summary(
     """Return aggregate counters for supervisor sessions and routines."""
 
     return await compute_supervisor_summary(db)
+
+
+@router.get(
+    "/sessions/control-policy",
+    response_model=SupervisorSessionsControlView,
+    summary="Supervisor session approval policy (auto vs manual)",
+)
+async def get_supervisor_sessions_control_policy(
+    sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("supervisor:view")),
+) -> SupervisorSessionsControlView:
+    """Return tenant auto-approve vs manual review policy for supervisor sessions."""
+
+    tenant_id = _require_tenant_id(sess)
+    tenant = await db.get(Tenant, tenant_id)
+    payload = serialize_supervisor_sessions_control_view(tenant)
+    return SupervisorSessionsControlView(**payload)
+
+
+@router.patch(
+    "/sessions/control-policy",
+    response_model=SupervisorSessionsControlView,
+    summary="Update supervisor session approval policy",
+)
+async def patch_supervisor_sessions_control_policy(
+    body: SupervisorSessionsControlPatchBody,
+    sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("supervisor:run")),
+) -> SupervisorSessionsControlView:
+    """Persist auto-approve toggle; when enabling, bulk-approve eligible pending sessions."""
+
+    if not settings.light_control_plane_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Light control plane is disabled.",
+        )
+    tenant_id = _require_tenant_id(sess)
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found.")
+    patch = body.model_dump(exclude_unset=True)
+    if not patch:
+        payload = serialize_supervisor_sessions_control_view(tenant)
+        return SupervisorSessionsControlView(**payload)
+    tenant.operator_settings = merge_supervisor_sessions_patch(tenant.operator_settings, patch)
+    await db.flush()
+    if patch.get("auto_approve_enabled") is True:
+        await auto_approve_pending_supervisor_sessions(db, tenant_id=tenant_id)
+    await db.commit()
+    refreshed = await db.get(Tenant, tenant_id)
+    payload = serialize_supervisor_sessions_control_view(refreshed)
+    return SupervisorSessionsControlView(**payload)
+
+
+@router.post(
+    "/sessions/auto-approve-pending",
+    response_model=SupervisorSessionsAutoApproveResult,
+    summary="Auto-approve all eligible needs_input sessions",
+)
+async def post_supervisor_sessions_auto_approve_pending(
+    sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("supervisor:run")),
+) -> SupervisorSessionsAutoApproveResult:
+    """Approve pending sessions when tenant auto-approve policy is enabled."""
+
+    if not settings.light_control_plane_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Light control plane is disabled.",
+        )
+    tenant_id = _require_tenant_id(sess)
+    result = await auto_approve_pending_supervisor_sessions(db, tenant_id=tenant_id)
+    await db.commit()
+    return SupervisorSessionsAutoApproveResult(**result)
 
 
 @router.get(

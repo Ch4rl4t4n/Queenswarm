@@ -19,9 +19,11 @@ interface RecallSettings {
 
 interface RecallPreview {
   recall_mode: string;
+  retrieval_tier?: string;
   characters: number;
   char_budget: number;
   hive_mind_prompt_block: string;
+  wiki_telemetry?: Record<string, number | string>;
 }
 
 const MODE_OPTIONS = [
@@ -158,6 +160,7 @@ export function SelectiveRecallPanel(): JSX.Element | null {
                 <V4Badge tone="ok">{preview.characters} chars</V4Badge>
                 <V4Badge tone="info">budget {preview.char_budget}</V4Badge>
                 <V4Badge tone="warn">{preview.recall_mode}</V4Badge>
+                {preview.retrieval_tier ? <V4Badge tone="purple">{preview.retrieval_tier}</V4Badge> : null}
               </div>
               <pre className="max-h-48 overflow-auto whitespace-pre-wrap font-mono text-xs text-(--qs-text-2)">
                 {preview.hive_mind_prompt_block || "(empty recall block)"}

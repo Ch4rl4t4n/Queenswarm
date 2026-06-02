@@ -11,6 +11,17 @@ export const FORAGERS_PATH = "/foragers";
 export const AGENTS_HUB_PATH = "/agents";
 export const KNOWLEDGE_HIVEMIND_HREF = "/knowledge#hivemind";
 
+/** HiveMind explorer deep-link filtered to one forager's ingested knowledge. */
+export function foragerKnowledgeHref(params: { foragerId: string; searchQuery?: string }): string {
+  const q = new URLSearchParams();
+  q.set("forager", params.foragerId.trim());
+  const label = params.searchQuery?.trim();
+  if (label) {
+    q.set("q", label);
+  }
+  return `/knowledge?${q.toString()}#explorer`;
+}
+
 /** Operator-facing cross-link labels — keep UI + E2E in sync. */
 export const EXECUTION_LANE_CROSS_LINK_LABELS = {
   toTasksHub: "Tasks hub",

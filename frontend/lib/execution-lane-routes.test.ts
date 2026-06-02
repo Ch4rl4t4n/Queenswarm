@@ -9,6 +9,7 @@ import {
   TASKS_HUB_LANE_LINKS,
   TASKS_HUB_PATH,
   WORKFLOWS_PATH,
+  foragerKnowledgeHref,
 } from "@/lib/execution-lane-routes";
 
 describe("execution-lane-routes", () => {
@@ -34,5 +35,12 @@ describe("execution-lane-routes", () => {
     expect(EXECUTION_LANE_CROSS_LINK_LABELS.toTasksHub).toBe("Tasks hub");
     expect(EXECUTION_LANE_CROSS_LINK_LABELS.toWorkflows).toBe("Workflows");
     expect(EXECUTION_LANE_CROSS_LINK_LABELS.toAsyncJobs).toBe("Jobs");
+  });
+
+  it("builds forager HiveMind deep links", () => {
+    expect(foragerKnowledgeHref({ foragerId: "abc-123" })).toBe("/knowledge?forager=abc-123#explorer");
+    expect(foragerKnowledgeHref({ foragerId: "abc-123", searchQuery: "X Intel" })).toBe(
+      "/knowledge?forager=abc-123&q=X+Intel#explorer",
+    );
   });
 });

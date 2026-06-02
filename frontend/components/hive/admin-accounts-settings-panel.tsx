@@ -242,7 +242,7 @@ export function AdminAccountsSettingsPanel() {
       try {
         const updated = await hivePatchJson<AdminAccountRow>(`operator/accounts/${userId}`, patch);
         setItems((prev) => prev.map((row) => (row.user_id === userId ? updated : row)));
-        toast.success("Účet aktualizovaný");
+        toast.success("Account updated");
       } catch (error) {
         const msg = error instanceof HiveApiError ? error.message : "Update failed.";
         toast.error(msg);
@@ -260,7 +260,7 @@ export function AdminAccountsSettingsPanel() {
       try {
         await hivePatchJson(`operator/accounts/tenants/${tenantId}`, patch);
         await load();
-        toast.success("Tenant / tier uložený");
+        toast.success("Tenant / tier saved");
       } catch (error) {
         const msg = error instanceof HiveApiError ? error.message : "Tenant update failed.";
         toast.error(msg);
@@ -283,7 +283,7 @@ export function AdminAccountsSettingsPanel() {
         platform_mode: createMode,
         tier: createTier,
       });
-      toast.success("Účet vytvorený");
+      toast.success("Account created");
       setCreateOpen(false);
       setCreateEmail("");
       setCreatePassword("");
@@ -308,7 +308,7 @@ export function AdminAccountsSettingsPanel() {
         password: resetPassword,
         disable_totp: resetDisableTotp,
       });
-      toast.success("Heslo resetované");
+      toast.success("Password reset");
       setResetUserId(null);
       setResetPassword("");
       await load();
@@ -368,7 +368,7 @@ export function AdminAccountsSettingsPanel() {
         "operator/accounts/bulk",
         patch,
       );
-      toast.success(`Bulk hotový · users ${result.updated_users} · tenants ${result.updated_tenants}`);
+      toast.success(`Bulk complete · users ${result.updated_users} · tenants ${result.updated_tenants}`);
       setSelectedIds(new Set());
       setBulkActive("");
       setBulkMode("");
@@ -435,7 +435,7 @@ export function AdminAccountsSettingsPanel() {
       .map((row) => accountProfileRecord(row, primaryMembership(row)));
     try {
       await copyText(JSON.stringify(profiles, null, 2));
-      toast.success(`Skopírovaných ${profiles.length} profilov`);
+      toast.success(`Copied ${profiles.length} profiles`);
     } catch {
       toast.error("Copy failed — skontroluj clipboard permissions.");
     }
@@ -448,7 +448,7 @@ export function AdminAccountsSettingsPanel() {
         tier: "pro",
       });
       setDemoResult(result);
-      toast.success("Commercial demo workspace pripravený");
+      toast.success("Commercial demo workspace ready");
       await load();
       await loadDemoStatus();
     } catch (error) {
@@ -463,7 +463,7 @@ export function AdminAccountsSettingsPanel() {
     setBusyId("demo-preview");
     try {
       await hivePostJson("operator/accounts/commercial-demo/grant-preview-access", {});
-      toast.success("Preview prístup udelený — prepni tenant v sidebar-e");
+      toast.success("Preview access granted — switch tenant in the sidebar");
       await loadDemoStatus();
     } catch (error) {
       const msg = error instanceof HiveApiError ? error.message : "Preview grant failed.";
@@ -485,7 +485,7 @@ export function AdminAccountsSettingsPanel() {
   if (!allowed) {
     return (
       <V4Card>
-        <V4CardHeader title="Accounts CMS" description="Dostupné len pre admin v internal tenante." />
+        <V4CardHeader title="Accounts CMS" description="Available only to admin accounts in the internal tenant." />
       </V4Card>
     );
   }
@@ -499,7 +499,7 @@ export function AdminAccountsSettingsPanel() {
             as="h2"
             kicker="Commercial preview"
             title="Demo workspace"
-            description="Zákaznícky surface pre QA — bootstrap, potom prepni tenant v sidebar-e."
+            description="Customer-facing surface for QA — bootstrap, then switch tenant in the sidebar."
           />
           <div className="flex flex-wrap items-center gap-2">
             {demoStatus?.ready && !demoStatus.preview_access ? (
@@ -564,8 +564,9 @@ export function AdminAccountsSettingsPanel() {
           </div>
         ) : (
           <p className="mt-4 text-sm text-(--qs-text-3)">
-            Demo ešte neexistuje. Bootstrap vytvorí <span className="font-mono text-cyan">{demoStatus?.email ?? "demo@queenswarm.love"}</span>{" "}
-            v tenante <span className="font-mono text-cyan">commercial-demo</span> (pro tier).
+            Demo does not exist yet. Bootstrap will create{" "}
+            <span className="font-mono text-cyan">{demoStatus?.email ?? "demo@queenswarm.love"}</span> in tenant{" "}
+            <span className="font-mono text-cyan">commercial-demo</span> (pro tier).
           </p>
         )}
       </V4Card>
@@ -576,7 +577,7 @@ export function AdminAccountsSettingsPanel() {
             as="h2"
             kicker="Admin · CMS"
             title="Account management"
-            description="Účty, tier, platform mode, reset hesla — štandardné CMS operácie."
+            description="Accounts, tier, platform mode, password reset — standard CMS operations."
             actions={<HiveRefreshButton busy={loading} onClick={() => void load()} />}
           />
         </div>
@@ -619,7 +620,7 @@ export function AdminAccountsSettingsPanel() {
             </button>
           </div>
           <p className="v4-admin-toolbar-summary mt-3 text-xs text-(--qs-text-3)">
-            {total} účtov · {summary.active} active · {summary.admins} admin · {summary.commercial} commercial
+            {total} accounts · {summary.active} active · {summary.admins} admin · {summary.commercial} commercial
           </p>
         </div>
 
@@ -695,7 +696,7 @@ export function AdminAccountsSettingsPanel() {
                     onChange={(e) => toggleSelectAll(e.target.checked)}
                   />
                 </th>
-                <th className="px-3 py-3">Účet</th>
+                <th className="px-3 py-3">Account</th>
                 <th className="px-3 py-3">Profile</th>
                 <th className="px-3 py-3">Stav</th>
                 <th className="px-3 py-3">Tenant / mode</th>
@@ -715,7 +716,7 @@ export function AdminAccountsSettingsPanel() {
               ) : items.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-6 py-8 text-center text-(--qs-text-3)">
-                    Žiadne účty
+                    No accounts
                   </td>
                 </tr>
               ) : (
@@ -765,7 +766,7 @@ export function AdminAccountsSettingsPanel() {
                               className="qs-btn qs-btn--ghost qs-btn--xs gap-1"
                               onClick={() => {
                                 void copyText(profilePayload(row, membership)).then(() =>
-                                  toast.success("Profile skopírovaný"),
+                                  toast.success("Profile copied"),
                                 );
                               }}
                             >
@@ -910,7 +911,7 @@ export function AdminAccountsSettingsPanel() {
                 <Loader2Icon className="h-5 w-5 animate-spin text-pollen" aria-hidden />
               </div>
             ) : items.length === 0 ? (
-              <p className="px-4 py-8 text-center text-(--qs-text-3)">Žiadne účty</p>
+              <p className="px-4 py-8 text-center text-(--qs-text-3)">No accounts</p>
             ) : (
               items.map((row) => {
                 const membership = primaryMembership(row);
@@ -1049,7 +1050,7 @@ export function AdminAccountsSettingsPanel() {
                           className="qs-btn qs-btn--ghost qs-btn--sm col-span-2 gap-1"
                           onClick={() => {
                             void copyText(profilePayload(row, membership)).then(() =>
-                              toast.success("Profile skopírovaný"),
+                              toast.success("Profile copied"),
                             );
                           }}
                         >
@@ -1097,7 +1098,7 @@ export function AdminAccountsSettingsPanel() {
           panelClassName="w-full max-w-md"
         >
           <V4Card className="space-y-4 p-5">
-            <V4CardHeader as="h3" title="New account" description="Vytvorí user + personal tenant." />
+            <V4CardHeader as="h3" title="New account" description="Creates user + personal tenant." />
             <label className="block text-xs text-(--qs-text-3)">
               Email
               <input
@@ -1188,7 +1189,7 @@ export function AdminAccountsSettingsPanel() {
           panelClassName="w-full max-w-md"
         >
           <V4Card className="space-y-4 p-5">
-            <V4CardHeader as="h3" title="Reset password" description="Nové heslo pre vybraný účet." />
+            <V4CardHeader as="h3" title="Reset password" description="New password for the selected account." />
             <label className="block text-xs text-(--qs-text-3)">
               New password
               <input
@@ -1265,7 +1266,7 @@ export function AdminAccountsSettingsPanel() {
                   <Loader2Icon className="h-5 w-5 animate-spin text-pollen" aria-hidden />
                 </div>
               ) : auditLogs.length === 0 ? (
-                <p className="text-sm text-(--qs-text-3)">Žiadne audit záznamy pre tento účet.</p>
+                <p className="text-sm text-(--qs-text-3)">No audit records for this account.</p>
               ) : (
                 <div className="space-y-3">
                   {auditLogs.map((log) => (
@@ -1306,7 +1307,7 @@ export function AdminAccountsSettingsPanel() {
             <V4CardHeader
               as="h3"
               title="Commercial demo ready"
-              description="Prihlás sa týmto účtom a prepni tenant v sidebar-e pre customer preview."
+              description="Sign in with this account and switch tenant in the sidebar for customer preview."
             />
             <div className="space-y-2 rounded-lg border border-(--qs-border) bg-black/35 p-3 font-mono text-xs text-(--qs-text-2)">
               <p>email: {demoResult.email}</p>
@@ -1333,7 +1334,7 @@ export function AdminAccountsSettingsPanel() {
                       null,
                       2,
                     ),
-                  ).then(() => toast.success("Credentials skopírované"));
+                  ).then(() => toast.success("Credentials copied"));
                 }}
               >
                 <CopyIcon className="h-4 w-4" aria-hidden />

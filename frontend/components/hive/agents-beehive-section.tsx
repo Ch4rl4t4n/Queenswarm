@@ -59,8 +59,8 @@ export function AgentsBeehiveSection({ agents }: AgentsBeehiveSectionProps) {
           <Link href="/simulations" className="qs-btn qs-btn--ghost qs-btn--sm text-xs uppercase">
             Open simulation
           </Link>
-          <Link href="/agents" className="qs-btn qs-btn--primary qs-btn--sm text-xs uppercase">
-            + Invite agent
+          <Link href="/agents" className="qs-btn qs-btn--ghost qs-btn--sm text-xs uppercase">
+            Open Agents
           </Link>
         </div>
       </div>

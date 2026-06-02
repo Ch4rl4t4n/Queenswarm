@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { SettingsResearchKeysInline } from "@/components/hive/settings-research-keys-inline";
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { HiveModalShell } from "@/components/hive/hive-modal-shell";
@@ -237,6 +238,8 @@ export function SettingsApiKeysPanel() {
         </p>
       ) : null}
 
+      <SettingsResearchKeysInline />
+
       <V4Card>
         <V4CardHeader
           title="External data APIs"
@@ -313,7 +316,7 @@ export function SettingsApiKeysPanel() {
           className="qs-btn qs-btn--ghost qs-btn--sm mt-4 w-full sm:w-auto"
           onClick={() => document.getElementById("ext-cred-form")?.scrollIntoView({ behavior: "smooth", block: "start" })}
         >
-          + New API connector
+          Add credentials below
         </button>
 
         <div id="ext-cred-form" className="mt-4 rounded-xl border border-(--qs-border) bg-[rgba(7,3,15,0.35)] p-4">

@@ -70,7 +70,7 @@ export function ResearchWorkspacePageClient() {
       error={error ? { message: error, onDismiss: () => setError(null) } : null}
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          <Link href="/knowledge#hivemind" className="qs-btn qs-btn--primary qs-btn--sm">
+          <Link href="/knowledge#hivemind" className="qs-btn qs-btn--ghost qs-btn--sm">
             Open HiveMind
           </Link>
           <Link href="/agentic-os#icm" className="qs-btn qs-btn--ghost qs-btn--sm">

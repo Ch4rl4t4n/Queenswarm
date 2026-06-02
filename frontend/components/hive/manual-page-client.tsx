@@ -1,7 +1,10 @@
 "use client";
 
+import Link from "next/link";
+
 import { HivePageShell } from "@/components/hive/hive-page-shell";
 import { InfoHint } from "@/components/hive/info-hint";
+import { ManualOpenLink, ManualRichText } from "@/components/hive/manual-rich-text";
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
 import {
   functionGuideGroups,
@@ -10,6 +13,7 @@ import {
   manualSections,
   manualSubtitle,
 } from "@/lib/manual-i18n";
+import type { ManualChecklistItem } from "@/lib/manual-content";
 
 /** Manual — function names in English; prose follows Settings language toggle. */
 export function ManualPageClient(): JSX.Element {
@@ -26,17 +30,22 @@ export function ManualPageClient(): JSX.Element {
     >
       <section className="manual-section space-y-5 rounded-3xl border border-cyan/20 bg-[#070d17]/70 p-4 md:p-7">
         {sections.map((section) => (
-          <article key={section.id} className="space-y-3 border-b border-zinc-800/80 pb-5 last:border-b-0 last:pb-0">
+          <article key={section.id} id={section.id} className="space-y-3 border-b border-zinc-800/80 pb-5 last:border-b-0 last:pb-0 scroll-mt-24">
             <h2 className="text-lg font-semibold text-zinc-100">{section.title}</h2>
-            {section.paragraphs.map((paragraph) => (
+            {section.paragraphs.map((paragraph: string) => (
               <p key={paragraph} className="text-sm leading-relaxed text-zinc-300">
-                {paragraph}
+                <ManualRichText text={paragraph} />
               </p>
             ))}
             {section.checklist?.length ? (
-              <ol className="list-decimal space-y-1 pl-5 text-sm text-zinc-300">
-                {section.checklist.map((item) => (
-                  <li key={item}>{item}</li>
+              <ol className="list-decimal space-y-2 pl-5 text-sm text-zinc-300">
+                {section.checklist.map((item: ManualChecklistItem) => (
+                  <li key={`${section.id}-${item.text}`} className="leading-relaxed">
+                    <ManualRichText text={item.text} />
+                    {item.href ? (
+                      <ManualOpenLink href={item.href} label={item.linkLabel ?? "Open"} />
+                    ) : null}
+                  </li>
                 ))}
               </ol>
             ) : null}
@@ -60,11 +69,25 @@ export function ManualPageClient(): JSX.Element {
                     key={item.id}
                     className="manual-func-item flex flex-col gap-3 rounded-xl border border-zinc-800 bg-[#060b12] p-3 sm:flex-row sm:items-start sm:justify-between"
                   >
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-zinc-100">{item.label}</p>
                       <p className="mt-1 text-xs leading-relaxed text-zinc-400">{item.description}</p>
+                      {item.href ? (
+                        <Link
+                          href={item.href}
+                          className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-cyan hover:text-pollen"
+                        >
+                          Open in app
+                          <span aria-hidden>→</span>
+                        </Link>
+                      ) : null}
                     </div>
-                    <InfoHint title={item.label} description={item.description} options={item.options} />
+                    <InfoHint
+                      title={item.label}
+                      description={item.description}
+                      options={item.options}
+                      manualHref={item.href}
+                    />
                   </div>
                 ))}
               </div>

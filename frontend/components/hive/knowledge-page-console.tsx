@@ -70,7 +70,7 @@ export function KnowledgePageConsole({ initialOutputs, recipesEnabled }: Knowled
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href="/agents#sessions" className="qs-btn qs-btn--ghost qs-btn--sm">
-              Start retrieval session
+              Open supervisor sessions
             </Link>
             <Link href="/tasks/new" className="qs-btn qs-btn--ghost qs-btn--sm">
               New task

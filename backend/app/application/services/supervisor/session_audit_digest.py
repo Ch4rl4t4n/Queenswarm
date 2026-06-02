@@ -11,6 +11,7 @@ import structlog
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.services.operator_work_digest import compose_operator_work_digest
 from app.application.services.supervisor.session_audit_digest_config import (
     effective_digest_window_hours,
     get_tenant_audit_digest_config,
@@ -20,7 +21,7 @@ from app.application.services.supervisor.session_audit_digest_config import (
 from app.application.services.rbac import ROLE_ADMIN, ROLE_OWNER
 from app.application.services.supervisor.session_audit import SUPERVISOR_SESSION_TARGET_TYPE
 from app.core.config import settings
-from app.core.notifications import notify_discord, notify_email, notify_slack, notify_teams
+from app.core.notifications import notify_discord, notify_email, notify_slack, notify_teams, notify_telegram
 from app.infrastructure.persistence.models.dashboard_user import DashboardUser
 from app.infrastructure.persistence.models.tenant import DashboardUserTenantMembership, Tenant, TenantAuditLog
 
@@ -270,33 +271,58 @@ async def send_supervisor_audit_digest_for_tenant(
 
     hours = window_hours or effective_digest_window_hours(tenant)
     since = datetime.now(tz=UTC) - timedelta(hours=hours)
+    generated_at = datetime.now(tz=UTC)
+
+    work = await compose_operator_work_digest(
+        db,
+        tenant_id=tenant_id,
+        tenant_name=tenant.name,
+        window_hours=hours,
+        generated_at=generated_at,
+    )
+    body = str(work["email_text"])
+    attachment = str(work["markdown"]).encode("utf-8")
 
     rows = await list_supervisor_audit_rows_since(db, tenant_id=tenant_id, since=since)
-    if not rows:
+    if not rows and int(work.get("session_count") or 0) == 0:
         return {"tenant_id": str(tenant_id), "sent": False, "reason": "no_activity"}
 
     recipients = await list_tenant_audit_digest_recipients(db, tenant_id=tenant_id)
-    generated_at = datetime.now(tz=UTC)
-    body = build_supervisor_audit_digest_markdown(
-        tenant_name=tenant.name,
-        window_hours=hours,
-        rows=rows,
-        generated_at=generated_at,
-    )
-    attachment = body.encode("utf-8")
 
     sent_count = 0
     if recipients:
+        subject = f"Queenswarm · Daily work digest · {tenant.name}"
+        needs = int(work.get("needs_count") or 0)
+        done = int(work.get("done_count") or 0)
+        running = int(work.get("running_count") or 0)
+        if needs > 0:
+            subject = f"Queenswarm · {needs} require manual approval · {tenant.name}"
+        elif done > 0:
+            subject = f"Queenswarm · {done} completed reports · {tenant.name}"
+        elif running > 0:
+            subject = f"Queenswarm · {running} sessions in progress · {tenant.name}"
         for recipient in recipients:
             ok = await notify_email(
-                subject=f"Supervisor audit digest · {tenant.name}",
+                subject=subject,
                 body=body,
                 to_email=recipient,
                 attachment_bytes=attachment,
-                attachment_filename=f"supervisor-audit-digest-{generated_at.date().isoformat()}.md",
+                attachment_filename=f"queenswarm-work-digest-{generated_at.date().isoformat()}.md",
             )
             if ok:
                 sent_count += 1
+
+    telegram_sent = False
+    studio = dict((tenant.operator_settings or {}).get("execution_studio") or {})
+    notifications = studio.get("notifications") if isinstance(studio.get("notifications"), dict) else {}
+    tg_token = notifications.get("telegram_bot_token") if isinstance(notifications, dict) else None
+    tg_chat = notifications.get("telegram_chat_id") if isinstance(notifications, dict) else None
+    if isinstance(tg_token, str) and isinstance(tg_chat, str) and tg_token.strip() and str(tg_chat).strip():
+        telegram_sent = await notify_telegram(
+            str(work["telegram"]),
+            bot_token=tg_token.strip(),
+            chat_id=str(tg_chat).strip(),
+        )
 
     slack_webhook = get_tenant_audit_digest_config(tenant).get("slack_webhook_url")
     slack_sent = await send_supervisor_audit_digest_slack(
@@ -325,10 +351,10 @@ async def send_supervisor_audit_digest_for_tenant(
         webhook_url=teams_webhook,
     )
 
-    if not recipients and not slack_sent and not discord_sent and not teams_sent:
+    if not recipients and not slack_sent and not discord_sent and not teams_sent and not telegram_sent:
         return {"tenant_id": str(tenant_id), "sent": False, "reason": "no_delivery_channels"}
 
-    if mark_scheduled_sent and (sent_count > 0 or slack_sent or discord_sent or teams_sent):
+    if mark_scheduled_sent and (sent_count > 0 or slack_sent or discord_sent or teams_sent or telegram_sent):
         await mark_tenant_digest_sent(db, tenant=tenant, sent_at=generated_at)
 
     logger.info(
@@ -339,16 +365,20 @@ async def send_supervisor_audit_digest_for_tenant(
         slack_sent=slack_sent,
         discord_sent=discord_sent,
         teams_sent=teams_sent,
+        telegram_sent=telegram_sent,
+        session_count=int(work.get("session_count") or 0),
         action_count=len(rows),
     )
     return {
         "tenant_id": str(tenant_id),
-        "sent": sent_count > 0 or slack_sent or discord_sent or teams_sent,
+        "sent": sent_count > 0 or slack_sent or discord_sent or teams_sent or telegram_sent,
         "recipients": recipients,
         "sent_count": sent_count,
         "slack_sent": slack_sent,
         "discord_sent": discord_sent,
         "teams_sent": teams_sent,
+        "telegram_sent": telegram_sent,
+        "session_count": int(work.get("session_count") or 0),
         "action_count": len(rows),
     }
 

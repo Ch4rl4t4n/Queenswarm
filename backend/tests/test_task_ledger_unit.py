@@ -7,9 +7,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.models.enums import TaskStatus, TaskType
-from app.models.task import Task
-from app.services.task_ledger import (
+from app.infrastructure.persistence.models.enums import TaskStatus, TaskType
+from app.infrastructure.persistence.models.task import Task
+from app.application.services.task_ledger import (
     TaskUpsertViolationError,
     apply_task_updates,
     create_task_record,
@@ -130,6 +130,30 @@ async def test_apply_task_updates_merges_fields() -> None:
 
 
 @pytest.mark.asyncio
+async def test_apply_task_updates_appends_operator_note() -> None:
+    """Operator notes append to payload.operator_notes for mission kanban thread."""
+
+    session = AsyncMock()
+    session.flush = AsyncMock()
+    row = Task(title="t", task_type=TaskType.REPORT, priority=1, payload={"mission_kanban": True})
+
+    await apply_task_updates(
+        session,
+        row,
+        status=None,
+        result=None,
+        error_msg=None,
+        operator_note="Check SEO keywords before publish",
+    )
+
+    notes = row.payload.get("operator_notes")
+    assert isinstance(notes, list)
+    assert len(notes) == 1
+    assert notes[0]["text"] == "Check SEO keywords before publish"
+    assert "at" in notes[0]
+
+
+@pytest.mark.asyncio
 async def test_apply_task_updates_sets_error_msg() -> None:
     session = AsyncMock()
     session.flush = AsyncMock()
@@ -138,4 +162,77 @@ async def test_apply_task_updates_sets_error_msg() -> None:
     await apply_task_updates(session, row, status=None, result=None, error_msg="timeout")
 
     assert row.error_msg == "timeout"
+
+
+@pytest.mark.asyncio
+async def test_apply_task_updates_edits_title_and_task_text() -> None:
+    session = AsyncMock()
+    session.flush = AsyncMock()
+    row = Task(title="Old", task_type=TaskType.AGENT_RUN, priority=5, payload={"task_text": "before"})
+
+    await apply_task_updates(
+        session,
+        row,
+        status=None,
+        result=None,
+        error_msg=None,
+        title="New title",
+        task_text="after prompt",
+        priority=7,
+    )
+
+    assert row.title == "New title"
+    assert row.payload["task_text"] == "after prompt"
+    assert row.priority == 7
+
+
+@pytest.mark.asyncio
+async def test_cancel_task_record_sets_cancelled() -> None:
+    from app.application.services.task_ledger import cancel_task_record
+
+    session = AsyncMock()
+    session.flush = AsyncMock()
+    row = Task(title="t", task_type=TaskType.REPORT, priority=1, payload={})
+    row.status = TaskStatus.TRIAGE
+
+    await cancel_task_record(session, row)
+
+    assert row.status == TaskStatus.CANCELLED
+    session.flush.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_bulk_cancel_task_records_skips_running(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.application.services.task_ledger import bulk_cancel_task_records
+
+    done = Task(title="done", task_type=TaskType.REPORT, priority=1, payload={})
+    done.id = uuid.uuid4()
+    done.status = TaskStatus.COMPLETED
+
+    running = Task(title="run", task_type=TaskType.REPORT, priority=1, payload={})
+    running.id = uuid.uuid4()
+    running.status = TaskStatus.RUNNING
+
+    session = AsyncMock()
+    session.flush = AsyncMock()
+
+    async def fake_fetch(_session: AsyncMock, task_id: uuid.UUID) -> Task | None:
+        if task_id == done.id:
+            return done
+        if task_id == running.id:
+            return running
+        return None
+
+    monkeypatch.setattr("app.application.services.task_ledger.fetch_task", fake_fetch)
+
+    cancelled, skipped, not_found = await bulk_cancel_task_records(
+        session,
+        [done.id, running.id, uuid.uuid4()],
+    )
+
+    assert cancelled == 1
+    assert skipped == 1
+    assert not_found == 1
+    assert done.status == TaskStatus.CANCELLED
+    assert running.status == TaskStatus.RUNNING
     session.flush.assert_awaited_once()

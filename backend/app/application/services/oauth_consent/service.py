@@ -119,7 +119,11 @@ def _build_authorize_url(
         params["owner"] = "user"
     if spec.vendor_family in {"google", "microsoft"}:
         params["nonce"] = nonce
-    query = urlencode(params)
+    if spec.vendor_family == "x":
+        # X authorize rejects ``+``-joined scopes from default urlencode — use %20.
+        query = urlencode(params, quote_via=quote)
+    else:
+        query = urlencode(params)
     return f"{spec.authorize_url}?{query}"
 
 
@@ -566,7 +570,18 @@ async def complete_oauth_callback(
     )
 
     try:
-        await vault_upsert_credential(db, slug=vault_slug, user_id=uid, payload=cred, label=spec.label)
+        from app.infrastructure.persistence.models.dashboard_user import DashboardUser
+
+        dashboard_user = await db.get(DashboardUser, uid)
+        tenant_id = dashboard_user.active_tenant_id if dashboard_user is not None else None
+        await vault_upsert_credential(
+            db,
+            slug=vault_slug,
+            user_id=uid,
+            payload=cred,
+            label=spec.label,
+            tenant_id=tenant_id,
+        )
     except Exception as exc:  # noqa: BLE001 — redirect operator with error
         latency_ms = int((time.perf_counter() - started) * 1000)
         await _mirror_audit(

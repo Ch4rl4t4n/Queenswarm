@@ -128,9 +128,9 @@ OAUTH_SURFACES: dict[str, OAuthSurfaceSpec] = {
         template_id="twitter_api_v2",
         label="X (Twitter) · API v2",
         vendor_family="x",
-        authorize_url="https://twitter.com/i/oauth2/authorize",
+        authorize_url="https://x.com/i/oauth2/authorize",
         token_url="https://api.twitter.com/2/oauth2/token",
-        scopes=("tweet.read", "tweet.write", "users.read", "offline.access"),
+        scopes=("tweet.read", "users.read", "offline.access"),
         uses_pkce=True,
     ),
     "tiktok_content": OAuthSurfaceSpec(

@@ -53,12 +53,12 @@ def _resolve_telegram_credentials(tenant: Tenant | None) -> tuple[str, str]:
 ZeroUiPriority = Literal["critical", "simulate", "info"]
 
 TELEGRAM_COMMANDS_HELP: tuple[str, ...] = (
-    "/day — Spusti deň (trio cycle)",
+    "/day — Start day (trio cycle)",
     "/status — Cockpit snapshot",
     "/hotline <text> — Bee Hotline → Queen goal",
     "/factory <text> — Factory Spark",
     "/crystal <text> — Intent Crystallizer",
-    "/help — Príkazy",
+    "/help — Commands",
 )
 
 
@@ -195,10 +195,10 @@ def parse_telegram_command(text: str) -> TelegramCommandParseOut:
 def format_telegram_help() -> str:
     """Help text for Telegram commands."""
 
-    lines = ["🐝 *Zero-UI Hive Mode*", "", "Príkazy:"]
+    lines = ["🐝 *Zero-UI Hive Mode*", "", "Commands:"]
     lines.extend(f"• {row}" for row in TELEGRAM_COMMANDS_HELP)
     lines.append("")
-    lines.append("Plain text (8+ znakov) → Bee Hotline.")
+    lines.append("Plain text (8+ chars) → Bee Hotline.")
     return "\n".join(lines)
 
 
@@ -340,7 +340,7 @@ async def handle_telegram_update(
             agent_id="operator_telegram_gateway",
             task_id=str(chat_id),
         )
-        return "Neznámy chat — nastav Telegram v Execution Studio notifications."
+        return "Unknown chat — configure Telegram in Execution Studio notifications."
 
     tenant, dashboard_user_id = resolved
     parsed = parse_telegram_command(text_raw)

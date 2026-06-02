@@ -38,6 +38,25 @@ from app.infrastructure.persistence.models.task import Task
 
 logger = get_logger(__name__)
 
+
+def _guard_external_tool_output(blob: str, *, tool: str) -> str:
+    """Checkpoint 2/3 — sanitize untrusted web/search tool output before LLM ingest."""
+
+    from app.application.services.prompt_injection_guard import (
+        InjectionCheckpoint,
+        sanitize_untrusted_text,
+    )
+
+    safe, scan = sanitize_untrusted_text(blob, checkpoint=InjectionCheckpoint.EXTERNAL_TOOL)
+    if scan.blocked:
+        logger.warning(
+            "prompt_injection_guard.tool_output_blocked",
+            agent_id="executor",
+            tool=tool,
+            matched_pattern=scan.matched_pattern,
+        )
+    return safe
+
 load_all_models()
 
 
@@ -171,7 +190,7 @@ async def tool_web_search(client: httpx.AsyncClient, query: str) -> str:
         for item in topics:
             if isinstance(item, dict) and item.get("Text"):
                 lines.append(str(item["Text"]))
-        return "\n".join(lines) or "(no instant results)"
+        return _guard_external_tool_output("\n".join(lines) or "(no instant results)", tool="web_search")
     except Exception as exc:  # noqa: BLE001
         return f"web_search error: {exc}"
 
@@ -247,7 +266,7 @@ async def tool_scrape_url(client: httpx.AsyncClient, url: str) -> str:
         parser = _TextExtractor()
         parser.feed(response.text)
         blob = " ".join(parser._parts)[:2000]  # noqa: SLF001
-        return blob or "(empty body)"
+        return _guard_external_tool_output(blob or "(empty body)", tool="scrape_url")
     except Exception as exc:  # noqa: BLE001
         return f"scrape error: {exc}"
 
@@ -260,7 +279,7 @@ async def tool_wikipedia(client: httpx.AsyncClient, topic: str) -> str:
         response = await client.get(f"https://en.wikipedia.org/api/rest_v1/page/summary/{slug}")
         data = response.json()
         extract = str(data.get("extract", f"No Wikipedia article found for: {topic}"))[:1500]
-        return extract
+        return _guard_external_tool_output(extract, tool="wikipedia")
     except Exception as exc:  # noqa: BLE001
         return f"wikipedia error: {exc}"
 
@@ -280,15 +299,15 @@ async def tool_grokipedia(client: httpx.AsyncClient, slug: str) -> str:
         parser=_TextExtractor()
         parser.feed(response.text)
         blob = ' '.join(parser._parts)[:2200]
-        return blob or f'(empty grokipedia body for {slug})'
+        return _guard_external_tool_output(blob or f'(empty grokipedia body for {slug})', tool="grokipedia")
     except Exception as exc:  # noqa: BLE001
         return f'grokipedia error: {exc}'
 
 
-async def tool_serper_search(client: httpx.AsyncClient, query: str) -> str:
+async def tool_serper_search(client: httpx.AsyncClient, query: str, *, api_key: str | None = None) -> str:
     """Serper.dev Google-lite JSON snippets when ``SERPER_API_KEY`` provisions."""
 
-    key = os.getenv('SERPER_API_KEY', '').strip()
+    key = (api_key or os.getenv('SERPER_API_KEY', '')).strip()
     if not key:
         return 'serper_search skipped — export SERPER_API_KEY for paid JSON search.'
     try:
@@ -307,15 +326,15 @@ async def tool_serper_search(client: httpx.AsyncClient, query: str) -> str:
                 link=str(hit.get('link',''))
                 snippet=str(hit.get('snippet',''))[:200]
                 lines.append(f'- {title} :: {snippet} ({link})')
-        return '\n'.join(lines) or '(serper empty)'
+        return _guard_external_tool_output('\n'.join(lines) or '(serper empty)', tool="serper_search")
     except Exception as exc:  # noqa: BLE001
         return f'serper error: {exc}'
 
 
-async def tool_tavily_search(client: httpx.AsyncClient, query: str) -> str:
+async def tool_tavily_search(client: httpx.AsyncClient, query: str, *, api_key: str | None = None) -> str:
     """Tavily answer-style search when ``TAVILY_API_KEY`` is present."""
 
-    key=os.getenv('TAVILY_API_KEY','').strip()
+    key = (api_key or os.getenv('TAVILY_API_KEY', '')).strip()
     if not key:
         return 'tavily_search skipped — export TAVILY_API_KEY.'
     try:
@@ -331,7 +350,7 @@ async def tool_tavily_search(client: httpx.AsyncClient, query: str) -> str:
             for row in results[:5]:
                 if isinstance(row, dict):
                     lines.append(str(row.get('content') or row.get('url') or row))
-        return '\n'.join(lines)[:2500] or '(tavily empty)'
+        return _guard_external_tool_output('\n'.join(lines)[:2500] or '(tavily empty)', tool="tavily_search")
     except Exception as exc:  # noqa: BLE001
         return f'tavily error: {exc}'
 
@@ -348,7 +367,7 @@ async def tool_jina_reader(client: httpx.AsyncClient, reader_url: str) -> str:
     assembled=f'https://r.jina.ai/{reader_url.strip()}'
     try:
         response = await client.get(assembled, headers=headers, timeout=min(20.0, hive_settings.dynamic_connector_tool_timeout_ms / 1000.0))
-        return response.text[:4000]
+        return _guard_external_tool_output(response.text[:4000], tool="jina_reader")
     except Exception as exc:  # noqa: BLE001
         return f'jina_reader error: {exc}'
 
@@ -712,6 +731,8 @@ async def run_tool_bundle(
             tenant_uuid = None
     router_invoke_plan = ctx_payload.get("router_invoke_plan")
     router_plan_dict = dict(router_invoke_plan) if isinstance(router_invoke_plan, dict) else None
+    research_keys_raw = ctx_payload.get("research_keys")
+    research_keys = dict(research_keys_raw) if isinstance(research_keys_raw, dict) else {}
 
     async with httpx.AsyncClient(timeout=20.0) as client:
         pending: dict[str, Any] = {}
@@ -765,6 +786,15 @@ async def run_tool_bundle(
                     router_invoke_plan=router_plan_dict,
                 )
                 continue
+
+            if label_name == "tavily_search":
+                vault_key = research_keys.get("tavily")
+                if isinstance(vault_key, str) and vault_key.strip():
+                    merged_kwargs["api_key"] = vault_key.strip()
+            elif label_name == "serper_search":
+                vault_key = research_keys.get("serper")
+                if isinstance(vault_key, str) and vault_key.strip():
+                    merged_kwargs["api_key"] = vault_key.strip()
 
             pending[f"{label_name}:{unique_tag}"] = tool_fn(client, **merged_kwargs)
 
@@ -882,6 +912,13 @@ async def execute_universal_agent(
                     "router_slugs": list(router_plan.router_slugs),
                     "max_cost_tier": router_plan.max_cost_tier,
                 }
+    except ImportError:
+        pass
+
+    try:
+        from app.application.services.research_runtime_credentials import resolve_research_keys
+
+        executor_payload["research_keys"] = await resolve_research_keys(session)
     except ImportError:
         pass
 

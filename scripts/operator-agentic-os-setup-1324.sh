@@ -39,7 +39,7 @@ fi
 echo
 
 echo "[2/4] Connector Vault — Shopify + Stripe + GA4"
-"$ROOT/scripts/operator-agentic-os-vault-prep.sh"
+INSTALL="${INSTALL:-1}" "$ROOT/scripts/operator-agentic-os-vault-prep.sh"
 echo
 
 echo "[4/4] Swarm Builder — E-shop Ops + Marketing Ops"

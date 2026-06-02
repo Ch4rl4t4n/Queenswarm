@@ -1,6 +1,7 @@
 "use client";
 
 import { useOperatorPendingSnapshot } from "@/lib/hooks/use-operator-pending-snapshot";
+import { useOperatorMissionFeedContext } from "@/components/hive/operator-mission-feed-provider";
 import type { DashboardSummary } from "@/lib/hive-types";
 
 /** Format badge count for header/sidebar (cap at 9+). */
@@ -14,5 +15,6 @@ export function formatHiveNotificationBadge(total: number): string | null {
  */
 export function useHiveNotificationBadge(summary: DashboardSummary | null): string | null {
   const snapshot = useOperatorPendingSnapshot(summary?.tasks.pending ?? 0);
-  return formatHiveNotificationBadge(snapshot.total);
+  const missionFeed = useOperatorMissionFeedContext();
+  return formatHiveNotificationBadge(snapshot.total + missionFeed.unread);
 }

@@ -44,16 +44,16 @@ export function FactoryPageClient(): JSX.Element {
   return (
     <HivePageShell
       title="Micro-SaaS Factory"
-      subtitle="Scope → landing → auth → monetization lane → deploy. Simulate-first mini aplikácie pre solo operátora."
+      subtitle="Scope → landing → auth → monetization lane → deploy. Simulate-first mini apps for solo operators."
       hintKey="factory"
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <Link href={contentFactoryMicroSaasHref()} className="qs-btn qs-btn--ghost qs-btn--sm">
             {FACTORY_CROSS_LINK_LABELS.toContentFactoryModule}
           </Link>
-          <Link href="/swarms/new?template=micro-saas-factory" className="qs-btn qs-btn--primary qs-btn--sm gap-2">
+          <Link href="/swarms/new?template=micro-saas-factory" className="qs-btn qs-btn--ghost qs-btn--sm gap-2">
             <Factory className="size-4" aria-hidden />
-            Spawn factory swarm
+            Open factory template
           </Link>
         </div>
       }
@@ -62,7 +62,7 @@ export function FactoryPageClient(): JSX.Element {
       <ExecutionStudioMicroSaasFactoryPanel onError={setPanelErr} hideSpawnAction />
 
       <V4Card>
-        <h2 className="font-heading text-sm font-semibold text-(--qs-text)">Blueprint fázy</h2>
+        <h2 className="font-heading text-sm font-semibold text-(--qs-text)">Blueprint phases</h2>
         {loading ? (
           <p className="mt-3 flex items-center gap-2 text-sm text-(--qs-muted)">
             <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -70,7 +70,7 @@ export function FactoryPageClient(): JSX.Element {
           </p>
         ) : !blueprint?.enabled ? (
           <p className="mt-3 text-sm text-(--qs-text-3)">
-            Factory nie je zapnuté — nastav <code className="font-mono text-cyan">MICRO_SAAS_FACTORY_ENABLED=true</code> a
+            Factory is disabled — set <code className="font-mono text-cyan">MICRO_SAAS_FACTORY_ENABLED=true</code> and
             redeploy.
           </p>
         ) : (

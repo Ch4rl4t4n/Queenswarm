@@ -46,7 +46,7 @@ function toCard(item: EpisodicMemoryItemRow): CollectorCardItem {
     footer: item.session_id ? (
       <Link
         href={`/agents?session=${encodeURIComponent(item.session_id)}`}
-        className="qs-btn qs-btn--primary qs-btn--sm"
+        className="qs-btn qs-btn--ghost qs-btn--sm"
       >
         Open session {item.session_id.slice(0, 8)}…
       </Link>

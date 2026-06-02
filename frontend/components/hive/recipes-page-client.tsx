@@ -232,8 +232,8 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
           title="Recipe Library"
           subtitle="Verified workflows · Chroma semantic recall · topic + pattern stack facets"
           actions={
-            <Link href="/tasks/new" className="qs-btn qs-btn--primary qs-btn--sm">
-              Run mission
+            <Link href="/agents#sessions" className="qs-btn qs-btn--ghost qs-btn--sm">
+              Open supervisor sessions
             </Link>
           }
         />
@@ -243,8 +243,8 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
             title="Saved recipes"
             description="Verified workflow catalog with semantic recall."
             actions={
-              <Link href="/tasks/new" className="qs-btn qs-btn--primary qs-btn--sm">
-                Run mission
+              <Link href="/agents#sessions" className="qs-btn qs-btn--ghost qs-btn--sm">
+                Open supervisor sessions
               </Link>
             }
           />

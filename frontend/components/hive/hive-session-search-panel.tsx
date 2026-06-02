@@ -1,85 +1,58 @@
 "use client";
 
 import Link from "next/link";
-import { Loader2, Search } from "lucide-react";
-import { useCallback, useState } from "react";
 
 import { V4Card, V4CardHeader } from "@/components/ui/v4";
-import { HiveApiError, hiveGet } from "@/lib/api";
+import { useMissionSearch } from "@/lib/use-mission-search";
 
-interface SessionHit {
-  session_id: string;
-  status: string;
-  goal_excerpt: string;
-  created_at: string | null;
-  hivemind_verify_status?: string;
-  match_source: string;
-  snippet: string;
-}
-
-/** Hermes Tier-2 style search across supervisor sessions. */
+/** Hermes-style live search across supervisor sessions and kanban tasks. */
 export function HiveSessionSearchPanel() {
-  const [query, setQuery] = useState("");
-  const [hits, setHits] = useState<SessionHit[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-
-  const search = useCallback(async () => {
-    const q = query.trim();
-    if (q.length < 2) return;
-    setBusy(true);
-    try {
-      const body = await hiveGet<{ hits: SessionHit[] }>(
-        `solo-operator/session-search?q=${encodeURIComponent(q)}&limit=15`,
-      );
-      setHits(body.hits);
-      setErr(null);
-    } catch (e) {
-      setErr(e instanceof HiveApiError ? e.message : "Search failed");
-      setHits([]);
-    } finally {
-      setBusy(false);
-    }
-  }, [query]);
+  const { query, setQuery, result, busy, error } = useMissionSearch(300);
 
   return (
     <V4Card>
       <V4CardHeader
         kicker="Session memory"
-        title="Hive session search"
-        description="Full-text search across supervisor goals and sub-agent summaries — swarm-wide, not single chat."
+        title="Hive mission search"
+        description="Live search across supervisor goals, sub-agent summaries, and kanban tasks."
       />
-      <div className="flex gap-2">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") void search();
-          }}
-          placeholder="e.g. sentinel, maintainer, stalled project…"
-          className="qs-input flex-1 text-sm"
-        />
-        <button type="button" className="qs-btn qs-btn--primary qs-btn--sm" disabled={busy} onClick={() => void search()}>
-          {busy ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" aria-hidden />}
-          Search
-        </button>
-      </div>
-      {err ? <p className="mt-2 text-sm text-(--qs-red)">{err}</p> : null}
-      <ul className="mt-4 space-y-2">
-        {hits.map((hit) => (
-          <li key={hit.session_id} className="rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2 text-sm">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="e.g. landing page, sentinel, content week…"
+        className="qs-input w-full text-sm"
+      />
+      {busy ? <p className="mt-2 text-xs text-pollen">Searching…</p> : null}
+      {error ? <p className="mt-2 text-sm text-(--qs-red)">{error}</p> : null}
+
+      {result.tasks.length ? (
+        <ul className="mt-4 space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Tasks</p>
+          {result.tasks.map((hit) => (
+            <li key={hit.task_id} className="rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2 text-sm">
+              <Link href={`/tasks?task=${hit.task_id}`} className="font-semibold text-cyan hover:underline">
+                {hit.title}
+              </Link>
+              <p className="text-xs text-(--qs-muted)">{hit.status}</p>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {result.sessions.length ? (
+        <ul className="mt-4 space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Sessions</p>
+          {result.sessions.map((hit) => (
+            <li key={hit.session_id} className="rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2 text-sm">
               <Link href={`/agents?session=${hit.session_id}`} className="font-mono text-xs text-cyan hover:underline">
                 {hit.session_id.slice(0, 8)}…
               </Link>
-              <span className="font-mono text-xs text-(--qs-muted)">{hit.status}</span>
-            </div>
-            <p className="mt-1 font-semibold text-(--qs-text)">{hit.goal_excerpt}</p>
-            <p className="mt-1 text-xs text-(--qs-muted)">{hit.match_source}</p>
-            <p className="mt-1 line-clamp-3 font-mono text-xs text-(--qs-text-3)">{hit.snippet}</p>
-          </li>
-        ))}
-      </ul>
+              <p className="mt-1 font-semibold text-(--qs-text)">{hit.goal_excerpt}</p>
+              <p className="line-clamp-3 font-mono text-xs text-(--qs-text-3)">{hit.snippet}</p>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </V4Card>
   );
 }

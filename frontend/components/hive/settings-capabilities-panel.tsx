@@ -64,9 +64,9 @@ const PRIORITY_TONE: Record<PlannedCapability["priority"], string> = {
 };
 
 const IMPACT_LABEL: Record<PlannedCapability["impact"], string> = {
-  high: "Vysoký dopad",
-  medium: "Stredný dopad",
-  low: "Nízky dopad",
+  high: "High impact",
+  medium: "Medium impact",
+  low: "Low impact",
 };
 
 function CapabilityCard({ cap }: { cap: PlatformCapability }): JSX.Element {
@@ -115,7 +115,7 @@ function CapabilityCard({ cap }: { cap: PlatformCapability }): JSX.Element {
       <p className="text-xs leading-relaxed text-(--qs-text-3)">{cap.summary}</p>
 
       <div className="rounded-xl bg-cyan-500/5 px-3 py-2">
-        <p className="v4-field-label text-[10px] text-cyan-300/90">Ako funguje</p>
+        <p className="v4-field-label text-[10px] text-cyan-300/90">How it works</p>
         <p className="mt-1 text-xs leading-relaxed text-(--qs-text-2)">{cap.howItWorks}</p>
       </div>
 
@@ -198,7 +198,7 @@ function PlannedCard({ item }: { item: PlannedCapability }): JSX.Element {
       <p className="text-xs leading-relaxed text-(--qs-text-3)">{item.summary}</p>
 
       <div className="rounded-xl bg-pollen-500/5 px-3 py-2">
-        <p className="v4-field-label text-[10px] text-pollen/90">Prečo</p>
+        <p className="v4-field-label text-[10px] text-pollen/90">Why</p>
         <p className="mt-1 text-xs leading-relaxed text-(--qs-text-2)">{item.rationale}</p>
       </div>
 
@@ -206,7 +206,7 @@ function PlannedCard({ item }: { item: PlannedCapability }): JSX.Element {
 
       <p className="font-mono text-[11px] text-(--qs-text-3)">
         {IMPACT_LABEL[item.impact]}
-        {item.week ? ` · týždeň ${item.week}` : ""}
+        {item.week ? ` · week ${item.week}` : ""}
         {item.owner ? ` · ${item.owner}` : ""}
       </p>
 
@@ -290,10 +290,10 @@ export function SettingsCapabilitiesPanel(): JSX.Element {
       if (kind === "pdf") {
         const ok = printCapabilitiesPdf();
         if (!ok) {
-          toast.error("Povoľ popup okno pre export PDF.");
+          toast.error("Allow pop-ups to export PDF.");
           return;
         }
-        toast.success("Otvorený tlačový dialóg — ulož ako PDF");
+        toast.success("Print dialog opened — save as PDF");
         return;
       }
       if (kind === "md") {
@@ -309,7 +309,7 @@ export function SettingsCapabilitiesPanel(): JSX.Element {
           "text/plain;charset=utf-8",
         );
       }
-      toast.success(`Atlas exportovaný (${kind.toUpperCase()})`);
+      toast.success(`Atlas exported (${kind.toUpperCase()})`);
     } finally {
       setExportBusy(null);
     }
@@ -323,7 +323,7 @@ export function SettingsCapabilitiesPanel(): JSX.Element {
             as="h2"
             kicker="Settings · Atlas"
             title="Platform capabilities"
-            description="Kompletný prehľad live featur, architektúry BE/FE a roadmapu s exportom do PDF a textu."
+            description="Full overview of live features, BE/FE architecture, and roadmap with PDF and text export."
           />
           <div className="mt-4 flex flex-wrap gap-2">
             <button
@@ -373,12 +373,12 @@ export function SettingsCapabilitiesPanel(): JSX.Element {
         <V4CardHeader
           as="h2"
           kicker={`${LIVE_PLATFORM_CAPABILITIES.length} live`}
-          title="Funkčné features"
-          description="Každá položka má hint, popis prínosu a export TXT/MD."
+          title="Live features"
+          description="Each item has a hint, value summary, and TXT/MD export."
           actions={
             <span className="flex items-center gap-1.5 text-xs text-(--qs-text-3)">
               <Layers className="h-3.5 w-3.5" aria-hidden />
-              {grouped.length} sekcií
+              {grouped.length} sections
             </span>
           }
         />
@@ -434,24 +434,24 @@ export function SettingsCapabilitiesPanel(): JSX.Element {
           <V4Card className="border-pollen/25 border-0 bg-transparent p-0 shadow-none">
             <V4CardHeader
               as="h2"
-              kicker="Mission · máj 2026"
+              kicker="Mission · May 2026"
               title="North Star & rollout"
               description={MISSION_NORTH_STAR.tagline}
             />
             <dl className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2.5">
-                <dt className="text-[10px] font-semibold uppercase tracking-wide text-pollen">Metrika</dt>
+                <dt className="text-[10px] font-semibold uppercase tracking-wide text-pollen">Metric</dt>
                 <dd className="mt-1 text-sm text-(--qs-text)">{MISSION_NORTH_STAR.metric}</dd>
               </div>
               <div className="rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2.5">
-                <dt className="text-[10px] font-semibold uppercase tracking-wide text-pollen">Fáza 0</dt>
+                <dt className="text-[10px] font-semibold uppercase tracking-wide text-pollen">Phase 0</dt>
                 <dd className="mt-1 text-sm text-(--qs-text)">
-                  {MISSION_NORTH_STAR.phase0Weeks} týždne · ~{MISSION_NORTH_STAR.phase0Hours} h
+                  {MISSION_NORTH_STAR.phase0Weeks} weeks · ~{MISSION_NORTH_STAR.phase0Hours} h
                 </dd>
               </div>
             </dl>
             <p className="mt-3 text-xs text-(--qs-text-3)">
-              Detailný backlog: <code className="text-cyan">docs/MISSION_EXECUTION_BACKLOG.md</code> · zajtra:{" "}
+              Full backlog: <code className="text-cyan">docs/MISSION_EXECUTION_BACKLOG.md</code> · runbook:{" "}
               <code className="text-cyan">docs/TOMORROW_OPERATOR_RUNBOOK.md</code>
             </p>
           </V4Card>
@@ -463,7 +463,7 @@ export function SettingsCapabilitiesPanel(): JSX.Element {
         hashKey="capabilities-architecture"
         title="Backend + Frontend stack"
         hint="Architecture map · data layers"
-        meta={`${PLATFORM_ARCHITECTURE_LAYERS.length} vrstiev`}
+        meta={`${PLATFORM_ARCHITECTURE_LAYERS.length} layers`}
         lazyContent={() => (
           <div className="capabilities-arch-flow space-y-3">
             {PLATFORM_ARCHITECTURE_LAYERS.map((layer, index) => (
@@ -498,14 +498,14 @@ export function SettingsCapabilitiesPanel(): JSX.Element {
       <CollapsibleLazyPanel
         id="capabilities-roadmap"
         hashKey="capabilities-roadmap"
-        title="Plánované features"
+        title="Planned features"
         hint="Roadmap · P0 blockers · rollout phases"
-        meta={`${PLANNED_PLATFORM_CAPABILITIES.length} položiek`}
+        meta={`${PLANNED_PLATFORM_CAPABILITIES.length} items`}
         lazyContent={() => (
           <>
             <p className="mb-4 flex items-start gap-2 rounded-lg border border-pollen/20 bg-pollen/[0.04] px-3 py-2 text-xs text-(--qs-text-3)">
               <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-pollen" aria-hidden />
-              Fáza 0 = revenue + Exec Assistant wizard. P0 = operator blockers + tier gates. Synced with{" "}
+              Phase 0 = revenue + Exec Assistant wizard. P0 = operator blockers + tier gates. Synced with{" "}
               <code className="text-cyan">docs/MISSION_EXECUTION_BACKLOG.md</code>.
             </p>
 

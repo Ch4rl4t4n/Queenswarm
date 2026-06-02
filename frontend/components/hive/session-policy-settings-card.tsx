@@ -11,6 +11,7 @@ import { HiveApiError, hivePatchJson } from "@/lib/api";
 import type { SessionPolicyDraft, SessionPolicySnapshot, SessionPolicySource } from "@/lib/session-policy-types";
 import { draftFromSessionPolicy, patchFromDraft } from "@/lib/session-policy-types";
 import {
+  format2faSessionTtl,
   formatAccessTtl,
   formatOAuthStateTtl,
   formatRateLimit,
@@ -25,6 +26,7 @@ const SOURCE_OPTIONS = [
 
 const ACCESS_MINUTES_OPTIONS = [5, 15, 30, 60, 120, 240] as const;
 const REFRESH_DAYS_OPTIONS = [1, 7, 14, 30, 90, 180] as const;
+const TWO_FA_SESSION_HOURS_OPTIONS = [1, 4, 8, 12, 24, 72, 168, 0] as const;
 const RATE_REQUESTS_OPTIONS = [100, 600, 1200, 2400, 6000] as const;
 const RATE_WINDOW_OPTIONS = [60, 120, 300] as const;
 const OAUTH_TTL_OPTIONS = [300, 600, 900, 1800, 3600] as const;
@@ -56,6 +58,10 @@ export function SessionPolicySettingsCard({ policy, onSaved }: SessionPolicySett
       draft.access_token_source === "tenant" ? draft.access_token_minutes : policy.access_token_minutes_deployment;
     const refreshDays =
       draft.refresh_token_source === "tenant" ? draft.refresh_token_days : policy.refresh_token_days_deployment;
+    const twoFaHours =
+      draft.dashboard_2fa_session_source === "tenant"
+        ? draft.dashboard_2fa_session_max_hours
+        : policy.dashboard_2fa_session_max_hours_deployment;
     const rateEnabled =
       draft.rate_limit_source === "tenant" ? draft.rate_limit_enabled : policy.rate_limit_enabled_deployment;
     const rateRequests =
@@ -69,6 +75,7 @@ export function SessionPolicySettingsCard({ policy, onSaved }: SessionPolicySett
     return {
       accessMinutes,
       refreshDays,
+      twoFaHours,
       rateEnabled,
       rateRequests,
       rateWindow,
@@ -106,6 +113,74 @@ export function SessionPolicySettingsCard({ policy, onSaved }: SessionPolicySett
         <p className="text-sm text-(--qs-text-3)">Loading session policy…</p>
       ) : (
         <div className="mt-2 space-y-0">
+          {policy.two_fa_enabled ? (
+            <div className="v4-session-policy-row">
+              <div className="min-w-0 flex-1 space-y-3">
+                <div>
+                  <p className="font-medium text-(--qs-text)">2FA re-verification (Authenticator)</p>
+                  <p className="text-sm text-(--qs-text-3)">
+                    Effective {format2faSessionTtl(effectivePreview.twoFaHours)} · source{" "}
+                    <span className="font-mono text-(--qs-text-2)">
+                      {sourceLabel(draft.dashboard_2fa_session_source)}
+                    </span>
+                  </p>
+                  <p className="mt-1 text-xs text-(--qs-text-3)">
+                    After a successful Google Authenticator check, password-only login works until this window expires.
+                  </p>
+                </div>
+                {policy.editable ? (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <label className="grid gap-1.5">
+                      <span className="v4-field-label">When to apply</span>
+                      <QsSelect
+                        aria-label="2FA session source"
+                        value={draft.dashboard_2fa_session_source}
+                        options={[...SOURCE_OPTIONS]}
+                        onValueChange={(value) =>
+                          setDraft((current) =>
+                            current
+                              ? {
+                                  ...current,
+                                  dashboard_2fa_session_source: value as SessionPolicySource,
+                                  dashboard_2fa_session_max_hours: nearestSelectValue(
+                                    current.dashboard_2fa_session_max_hours,
+                                    TWO_FA_SESSION_HOURS_OPTIONS,
+                                  ),
+                                }
+                              : current,
+                          )
+                        }
+                      />
+                    </label>
+                    {draft.dashboard_2fa_session_source === "tenant" ? (
+                      <label className="grid gap-1.5">
+                        <span className="v4-field-label">Re-prompt interval</span>
+                        <QsSelect
+                          aria-label="2FA session custom hours"
+                          value={String(draft.dashboard_2fa_session_max_hours)}
+                          options={TWO_FA_SESSION_HOURS_OPTIONS.map((hours) => ({
+                            value: String(hours),
+                            label: format2faSessionTtl(hours),
+                          }))}
+                          onValueChange={(value) =>
+                            setDraft((current) =>
+                              current
+                                ? { ...current, dashboard_2fa_session_max_hours: Number(value) }
+                                : current,
+                            )
+                          }
+                        />
+                      </label>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+              <V4Badge tone="warn" className="shrink-0 tabular-nums">
+                {format2faSessionTtl(effectivePreview.twoFaHours)}
+              </V4Badge>
+            </div>
+          ) : null}
+
           <div className="v4-session-policy-row">
             <div className="min-w-0 flex-1 space-y-3">
               <div>

@@ -9,17 +9,35 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.presentation.api.deps import DashboardSession, DbSession, dashboard_admin_wall
 from app.infrastructure.persistence.models.enums import TaskStatus
 from app.infrastructure.persistence.models.task import Task
-from app.common.schemas.task import TaskCreateRequest, TaskPatchRequest, TaskSnapshot
+from app.infrastructure.persistence.models.task_final_deliverable import TaskFinalDeliverable
+from app.common.schemas.task import (
+    TaskBulkCancelRequest,
+    TaskBulkCancelResponse,
+    TaskCreateRequest,
+    TaskLineageResponse,
+    TaskPatchRequest,
+    TaskSnapshot,
+    TaskWorkspaceFileOut,
+    TaskWorkspaceResponse,
+)
+from app.application.services.mission_kanban import MissionKanbanNotFoundError, fetch_task_lineage
+from app.application.services.prompt_injection_guard import (
+    PromptInjectionViolationError,
+    guard_operator_input,
+)
 from app.core.logging import get_logger
 from app.application.services.task_presenter import attach_agent_labels, build_task_snapshot
 from app.application.services.task_ledger import (
     TaskUpsertViolationError,
     apply_task_updates,
+    bulk_cancel_task_records,
+    cancel_task_record,
     create_task_record,
     fetch_task,
     iter_recent_tasks,
@@ -218,6 +236,83 @@ async def download_task_result(
 
 
 @router.get(
+    "/{task_id}/lineage",
+    response_model=TaskLineageResponse,
+    summary="Fetch task parent/children for mission kanban drawer",
+)
+async def get_task_lineage(
+    task_id: uuid.UUID,
+    db: DbSession,
+    _session: DashboardSession,
+) -> TaskLineageResponse:
+    """Return parent and child snapshots for hierarchical kanban tasks."""
+
+    try:
+        lineage = await fetch_task_lineage(db, task_id)
+    except MissionKanbanNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found.")
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected lineage lookup.",
+        )
+    return TaskLineageResponse(
+        task=lineage.task,
+        parent=lineage.parent,
+        children=lineage.children,
+    )
+
+
+@router.get(
+    "/{task_id}/workspace",
+    response_model=TaskWorkspaceResponse,
+    summary="List deliverable files linked to a task",
+)
+async def get_task_workspace(
+    task_id: uuid.UUID,
+    db: DbSession,
+    _session: DashboardSession,
+) -> TaskWorkspaceResponse:
+    """Return archived deliverables for Hermes-style per-task workspace panel."""
+
+    try:
+        row = await fetch_task(db, task_id)
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected lookup.",
+        )
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found.")
+
+    stmt = (
+        select(TaskFinalDeliverable)
+        .where(TaskFinalDeliverable.source_task_id == task_id)
+        .order_by(TaskFinalDeliverable.created_at.desc())
+        .limit(20)
+    )
+    try:
+        deliverables = list((await db.scalars(stmt)).all())
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected workspace lookup.",
+        )
+
+    files = [
+        TaskWorkspaceFileOut(
+            deliverable_id=item.id,
+            title=item.title,
+            slug=item.slug,
+            archive_relpath=item.archive_relpath,
+            preview=(item.markdown_body or "").replace("\n", " ").strip()[:180],
+        )
+        for item in deliverables
+    ]
+    return TaskWorkspaceResponse(task_id=task_id, files=files)
+
+
+@router.get(
     "/{task_id}",
     response_model=TaskSnapshot,
     summary="Fetch backlog detail",
@@ -256,7 +351,15 @@ async def patch_existing_task(
 ) -> TaskSnapshot:
     """Update operator-visible fields emitted after LangGraph completions."""
 
-    if body.status is None and body.result is None and body.error_msg is None:
+    if (
+        body.status is None
+        and body.result is None
+        and body.error_msg is None
+        and body.operator_note is None
+        and body.title is None
+        and body.task_text is None
+        and body.priority is None
+    ):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Provide at least one mutable field.",
@@ -266,6 +369,24 @@ async def patch_existing_task(
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found.")
 
+    if body.operator_note is not None:
+        try:
+            guard_operator_input(body.operator_note, field="operator_note")
+        except PromptInjectionViolationError as exc:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+
+    if body.task_text is not None:
+        try:
+            guard_operator_input(body.task_text, field="task_text")
+        except PromptInjectionViolationError as exc:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+
+    if body.title is not None:
+        try:
+            guard_operator_input(body.title, field="title")
+        except PromptInjectionViolationError as exc:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+
     try:
         await apply_task_updates(
             db,
@@ -273,6 +394,10 @@ async def patch_existing_task(
             status=body.status,
             result=body.result,
             error_msg=body.error_msg,
+            operator_note=body.operator_note,
+            title=body.title,
+            task_text=body.task_text,
+            priority=body.priority,
         )
         await db.commit()
         await db.refresh(row)
@@ -284,6 +409,63 @@ async def patch_existing_task(
         )
     lbl = await attach_agent_labels(db, [row])
     return build_task_snapshot(row, agent_label=lbl.get(row.agent_id))
+
+
+@router.post(
+    "/bulk-cancel",
+    response_model=TaskBulkCancelResponse,
+    summary="Bulk remove tasks from mission kanban (cancel)",
+)
+async def bulk_cancel_existing_tasks(
+    body: TaskBulkCancelRequest,
+    db: DbSession,
+    _session: DashboardSession,
+) -> TaskBulkCancelResponse:
+    """Cancel multiple backlog rows; running tasks are skipped."""
+
+    try:
+        cancelled, skipped_running, not_found = await bulk_cancel_task_records(db, body.task_ids)
+        await db.commit()
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected bulk task removal.",
+        )
+    return TaskBulkCancelResponse(
+        cancelled=cancelled,
+        skipped_running=skipped_running,
+        not_found=not_found,
+    )
+
+
+@router.delete(
+    "/{task_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove task from mission kanban (cancel)",
+)
+async def delete_existing_task(
+    task_id: uuid.UUID,
+    db: DbSession,
+    _session: DashboardSession,
+) -> None:
+    """Cancel a backlog row so it disappears from operator kanban lists."""
+
+    row = await fetch_task(db, task_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found.")
+    try:
+        await cancel_task_record(db, row)
+        await db.commit()
+    except TaskUpsertViolationError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected task removal.",
+        )
 
 
 __all__ = ["router"]

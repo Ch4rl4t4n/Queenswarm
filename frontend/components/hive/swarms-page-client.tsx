@@ -204,9 +204,9 @@ export function SwarmsPageClient() {
             <Plus className="h-4 w-4 shrink-0" aria-hidden />
             New colony
           </button>
-          <Link href="/swarms/new" className="qs-btn qs-btn--primary qs-btn--sm gap-2">
+          <Link href="/swarms/new" className="qs-btn qs-btn--ghost qs-btn--sm gap-2">
             <Sparkles className="h-4 w-4 shrink-0" aria-hidden />
-            Swarm Builder
+            Open Swarm Builder
           </Link>
         </div>
       }
@@ -343,8 +343,8 @@ export function SwarmsPageClient() {
                     <Link href={`/agents/new?swarm_id=${encodeURIComponent(colony.id)}`} className="qs-btn qs-btn--ghost qs-btn--sm">
                       Assign bee
                     </Link>
-                    <Link href="/agents" className="qs-btn qs-btn--primary qs-btn--sm">
-                      View roster
+                    <Link href="/agents" className="qs-btn qs-btn--ghost qs-btn--sm">
+                      Open roster
                     </Link>
                   </div>
                   </div>

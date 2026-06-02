@@ -106,7 +106,7 @@ export function TasksListPanel({ tasks, onOpenTask }: TasksListPanelProps): JSX.
             </button>
           ))}
         </div>
-        <Link href="/tasks/new" className="qs-btn qs-btn--primary gap-2">
+        <Link href="/tasks/new" className="qs-btn qs-btn--ghost gap-2">
           <Plus className="h-4 w-4" aria-hidden />+ New task
         </Link>
       </div>

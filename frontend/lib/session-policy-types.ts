@@ -20,6 +20,9 @@ export interface SessionPolicySnapshot {
   refresh_token_source: SessionPolicySource;
   refresh_token_days_custom: number | null;
   refresh_token_days_deployment: number;
+  dashboard_2fa_session_source: SessionPolicySource;
+  dashboard_2fa_session_max_hours_custom: number | null;
+  dashboard_2fa_session_max_hours_deployment: number;
   rate_limit_source: SessionPolicySource;
   rate_limit_enabled_custom: boolean | null;
   rate_limit_requests_custom: number | null;
@@ -46,6 +49,8 @@ export interface SessionPolicyPatch {
   oauth_pkce_source?: SessionPolicySource;
   oauth_pkce_enabled?: boolean;
   oauth_state_ttl_sec?: number;
+  dashboard_2fa_session_source?: SessionPolicySource;
+  dashboard_2fa_session_max_hours?: number;
 }
 
 export interface SessionPolicyDraft {
@@ -53,6 +58,8 @@ export interface SessionPolicyDraft {
   access_token_minutes: number;
   refresh_token_source: SessionPolicySource;
   refresh_token_days: number;
+  dashboard_2fa_session_source: SessionPolicySource;
+  dashboard_2fa_session_max_hours: number;
   rate_limit_source: SessionPolicySource;
   rate_limit_enabled: boolean;
   rate_limit_requests: number;
@@ -68,6 +75,9 @@ export function draftFromSessionPolicy(policy: SessionPolicySnapshot): SessionPo
     access_token_minutes: policy.access_token_minutes_custom ?? policy.access_token_expire_minutes,
     refresh_token_source: policy.refresh_token_source,
     refresh_token_days: policy.refresh_token_days_custom ?? policy.refresh_token_expire_days,
+    dashboard_2fa_session_source: policy.dashboard_2fa_session_source,
+    dashboard_2fa_session_max_hours:
+      policy.dashboard_2fa_session_max_hours_custom ?? policy.dashboard_2fa_session_max_hours,
     rate_limit_source: policy.rate_limit_source,
     rate_limit_enabled: policy.rate_limit_enabled_custom ?? policy.rate_limit_enabled,
     rate_limit_requests: policy.rate_limit_requests_custom ?? policy.rate_limit_requests,
@@ -91,5 +101,8 @@ export function patchFromDraft(draft: SessionPolicyDraft): SessionPolicyPatch {
     oauth_pkce_source: draft.oauth_pkce_source,
     oauth_pkce_enabled: draft.oauth_pkce_source === "tenant" ? draft.oauth_pkce_enabled : undefined,
     oauth_state_ttl_sec: draft.oauth_pkce_source === "tenant" ? draft.oauth_state_ttl_sec : undefined,
+    dashboard_2fa_session_source: draft.dashboard_2fa_session_source,
+    dashboard_2fa_session_max_hours:
+      draft.dashboard_2fa_session_source === "tenant" ? draft.dashboard_2fa_session_max_hours : undefined,
   };
 }

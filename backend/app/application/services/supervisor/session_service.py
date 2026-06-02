@@ -32,6 +32,7 @@ from app.application.services.supervisor.spawner import (
 from app.application.services.supervisor.shared_context import SharedContextService
 from app.application.services.supervisor.autonomy import update_session_autonomy_state
 from app.application.services.curated_memory_service import CuratedMemoryService
+from app.application.services.wiki_layer_service import WikiLayerService, load_wiki_config
 from app.application.services.execution_studio_context import (
     augment_skill_slugs_for_execution,
     enrich_supervisor_session_summary,
@@ -293,6 +294,11 @@ async def retry_sub_agent_step(
             if not pending:
                 session_row.status = "completed"
                 session_row.completed_at = datetime.now(tz=UTC)
+                from app.application.services.supervisor.session_completion_hooks import (
+                    on_supervisor_session_completed,
+                )
+
+                await on_supervisor_session_completed(session_row, db=db)
         await db.flush()
         return sub_agent
 
@@ -337,6 +343,11 @@ async def resume_inprocess_sub_agents_after_approval(
         if not pending:
             session_row.status = "completed"
             session_row.completed_at = datetime.now(tz=UTC)
+            from app.application.services.supervisor.session_completion_hooks import (
+                on_supervisor_session_completed,
+            )
+
+            await on_supervisor_session_completed(session_row, db=db)
             await append_event(
                 db,
                 supervisor_session=session_row,
@@ -376,17 +387,36 @@ async def create_supervisor_session(
     contract = retrieval_contract.strip() if isinstance(retrieval_contract, str) else ""
     contract = contract if settings.retrieval_contract_enabled else ""
     queen_prompt_prefix = ""
+    wiki_prompt_block = ""
     if tenant_id is not None:
         curated_service = CuratedMemoryService(db=db)
         queen_prompt_prefix = curated_service.render_prompt_prefix(await curated_service.get_bundle(tenant_id))
+        if settings.wiki_layer_enabled:
+            wiki_service = WikiLayerService(db=db)
+            wiki_prompt_block = await wiki_service.render_wiki_prompt_block(tenant_id)
+            if not wiki_prompt_block.strip():
+                pages = await wiki_service.list_wiki_pages(tenant_id)
+                if not pages:
+                    await wiki_service.run_gardener(tenant_id)
+                    wiki_prompt_block = await wiki_service.render_wiki_prompt_block(tenant_id)
+            await wiki_service.record_prompt_telemetry(
+                tenant_id,
+                curated_prefix_chars=len(queen_prompt_prefix),
+                wiki_chars=len(wiki_prompt_block),
+                rag_chunks=0,
+                raw_fallback_hits=0,
+            )
         logger.debug(
             "supervisor.curated_prefix.loaded",
             agent_id="supervisor",
             swarm_id="",
             task_id="",
             prefix_length=len(queen_prompt_prefix),
+            wiki_length=len(wiki_prompt_block),
         )
-    goal_for_prompt = f"{queen_prompt_prefix}\n\n{goal_clean}" if queen_prompt_prefix else goal_clean
+    prefix_parts = [part for part in (queen_prompt_prefix, wiki_prompt_block) if part.strip()]
+    combined_prefix = "\n\n".join(prefix_parts)
+    goal_for_prompt = f"{combined_prefix}\n\n{goal_clean}" if combined_prefix else goal_clean
 
     base_summary: dict[str, object] = {
         "requested_roles": norm_roles,
@@ -402,6 +432,7 @@ async def create_supervisor_session(
         "swarm_full_autonomy_enabled": settings.swarm_full_autonomy_enabled,
         "intelligence_layer_version": "phase9-v4",
         "curated_prompt_prefix": queen_prompt_prefix,
+        "wiki_prompt_block": wiki_prompt_block,
         "raw_goal": goal_clean,
     }
     if context_seed:
@@ -561,6 +592,11 @@ async def create_supervisor_session(
         if session_row.status not in {"needs_input", "paused", "stopped"}:
             session_row.status = "completed"
             session_row.completed_at = datetime.now(tz=UTC)
+            from app.application.services.supervisor.session_completion_hooks import (
+                on_supervisor_session_completed,
+            )
+
+            await on_supervisor_session_completed(session_row, db=db)
             await append_event(
                 db,
                 supervisor_session=session_row,

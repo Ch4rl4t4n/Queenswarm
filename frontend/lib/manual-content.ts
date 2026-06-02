@@ -1,8 +1,16 @@
+import { MANUAL_HREFS } from "@/lib/manual-routes";
+
+export interface ManualChecklistItem {
+  text: string;
+  href?: string;
+  linkLabel?: string;
+}
+
 export interface ManualSection {
   id: string;
   title: string;
   paragraphs: string[];
-  checklist?: string[];
+  checklist?: ManualChecklistItem[];
 }
 
 export interface FunctionInfoItem {
@@ -10,6 +18,7 @@ export interface FunctionInfoItem {
   label: string;
   description: string;
   options: string[];
+  href?: string;
 }
 
 export interface FunctionInfoGroup {
@@ -20,84 +29,247 @@ export interface FunctionInfoGroup {
 
 export const APP_MANUAL_SECTIONS: ManualSection[] = [
   {
-    id: "quick-start",
-    title: "1. Quick Start",
+    id: "canonical-workflow",
+    title: "0. Canonical workflow (the only primary path)",
     paragraphs: [
-      "Po prihlásení začni v {HOME_LABEL}, skontroluj stav aplikácie a až potom spúšťaj nové sessions.",
-      "Prvý Supervisor flow štandardne spúšťaj cez Agents a viaž ho na konkrétny cieľ, obmedzenia a jasný výsledok.",
+      `Start Queenswarm via [Agents → Sessions](${MANUAL_HREFS.agentsSessions}) with a structured goal. [Swarms](${MANUAL_HREFS.swarms}), Four Lanes, and [Agentic OS](${MANUAL_HREFS.agenticOs}) are optional — not how you launch a major project.`,
+      `Each major project = its own session (3–5 in parallel). Keep project briefs in [Knowledge → Curated memory](${MANUAL_HREFS.knowledgeCurated}).`,
+      "Full doc: docs/OPERATOR_CANONICAL_WORKFLOW.md",
     ],
     checklist: [
-      "Prihlás sa cez /login a potvrď, že si na {HOME_ROUTE}.",
-      "Otvor Agents a spusti prvú Supervisor session s jedným cieľom.",
-      "V Tasks založ súvisiaci task, aby bol výsledok trackovaný.",
-      "V Knowledge over existujúce výstupy (retrieval-first).",
-      "Ak ide o incident, otvor Ballroom a koordinuj rozhodnutia realtime.",
+      {
+        text: "Knowledge — write PROJECT brief (goal, deliverables, language, simulate-first).",
+        href: MANUAL_HREFS.knowledgeCurated,
+        linkLabel: "Curated memory",
+      },
+      {
+        text: "Agents — Session goal (Goal → Context → Constraints → Done).",
+        href: MANUAL_HREFS.agentsSessions,
+        linkLabel: "Agents",
+      },
+      {
+        text: "Runtime durable · Roles researcher + designer + critic · Create session.",
+        href: MANUAL_HREFS.agents,
+      },
+      {
+        text: "When done — Info → report. Next phase = new session or Tasks.",
+        href: MANUAL_HREFS.tasks,
+        linkLabel: "Tasks",
+      },
     ],
   },
   {
-    id: "main-sections",
-    title: "2. Hlavné sekcie",
+    id: "setup-once",
+    title: "1. One-time setup",
     paragraphs: [
-      "{HOME_LABEL} je command center, Agents riadi Supervisor a sessions, Tasks pokrýva execution/routines, Knowledge drží kontext a výstupy, Integrations spravuje konektory a Ballroom je realtime operačný kanál.",
-      "Foragers sekcia slúži na správu dátových zberačov (YouTube/RSS/API), ich periodicitu, ingest do HiveMind a spawn agentov z forager konfigurácie.",
-      "Settings obsahuje bezpečnostné, tímové, billing a integračné nastavenia pre tenant.",
+      `Before first session: [LLM keys](${MANUAL_HREFS.settingsLlmKeys}), optional Tavily ([Settings → API keys](${MANUAL_HREFS.settingsApiKeys}#research-keys)), [2FA](${MANUAL_HREFS.settingsSecurity}), [Auto-approve](${MANUAL_HREFS.agentsSessions}) ON.`,
+      `Set [2FA re-verification to 4 hours](${MANUAL_HREFS.settingsSecurity}) — password-only login within the window.`,
+    ],
+    checklist: [
+      {
+        text: "Log in via /login and confirm you land on {HOME_ROUTE} ({HOME_LABEL}).",
+      },
+      {
+        text: "Settings → AI · LLM keys — Grok/Claude/GPT, Test each key.",
+        href: MANUAL_HREFS.settingsLlmKeys,
+        linkLabel: "LLM keys",
+      },
+      {
+        text: "Settings → Security — 2FA + Session policy (4h re-verification).",
+        href: MANUAL_HREFS.settingsSecurity,
+        linkLabel: "Security",
+      },
+      {
+        text: "Agents — Auto-approve on for solo mode.",
+        href: MANUAL_HREFS.agentsSessions,
+        linkLabel: "Agents",
+      },
+      {
+        text: "Execution Studio → Notifications — email/Telegram digest.",
+        href: MANUAL_HREFS.integrationsStudioNotifications,
+        linkLabel: "Notifications",
+      },
     ],
   },
   {
-    id: "best-practices",
-    title: "3. Najlepšie praktiky",
+    id: "start-project",
+    title: "2. Start a project (step by step)",
     paragraphs: [
-      "Prompty píš v tvare Goal → Context → Constraints → Done.",
-      "Najprv hľadaj v Knowledge, potom spúšťaj nový výpočet. Ušetríš tokeny aj čas.",
-      "Používaj routines iba pre opakované procesy a začínaj konzervatívnou frekvenciou.",
+      `Open [Agents → Sessions](${MANUAL_HREFS.agentsSessions}). Paste a structured goal — not a one-liner. Use durable runtime for redesign, campaigns, analysis.`,
+      "Goal template: PROJECT + numbered deliverables + Critic APPROVE + Simulate only.",
+    ],
+    checklist: [
+      {
+        text: "1) Brief in Knowledge  2) Goal in Agents  3) durable + roles  4) Create  5) Info report  6) Task or phase 2.",
+        href: MANUAL_HREFS.agentsSessions,
+      },
+      {
+        text: "Parallel work: one session per project — never mix multiple projects in one prompt.",
+        href: MANUAL_HREFS.knowledgeCurated,
+        linkLabel: "Brief first",
+      },
     ],
   },
   {
-    id: "scenarios",
-    title: "4. Bežné scenáre",
+    id: "daily-loop",
+    title: "3. Daily loop (5 min)",
     paragraphs: [
-      "Ranný check: {HOME_LABEL} → Agents needs_input → Tasks priority → Integrations stav → Knowledge posledné outputs.",
-      "Produkčný incident: potvrď symptóm, spusti Supervisor session, koordinuj v Ballroom, záver zapíš do Knowledge.",
+      `Email/Telegram digest → [Agents completed sessions](${MANUAL_HREFS.agentsSessions}) → Info report → [Tasks priority](${MANUAL_HREFS.tasks}) → new session for next phase.`,
+      `[Agentic OS](${MANUAL_HREFS.agenticOs}), Swarm Fleet, and Swarm Builder are not your first step of the day.`,
+    ],
+    checklist: [
+      {
+        text: "Read the work digest email (not the technical audit log).",
+        href: MANUAL_HREFS.integrationsStudioNotifications,
+        linkLabel: "Digest settings",
+      },
+      {
+        text: "Approved reports → Tasks or follow-up session.",
+        href: MANUAL_HREFS.tasks,
+        linkLabel: "Tasks",
+      },
+      {
+        text: "Stuck running > 10 → delete in Agents (filter + clear).",
+        href: MANUAL_HREFS.agentsSessions,
+        linkLabel: "Agents",
+      },
+    ],
+  },
+  {
+    id: "sections-map",
+    title: "4. Section map — what to use",
+    paragraphs: [
+      `Daily: [Agents](${MANUAL_HREFS.agents}), [Tasks](${MANUAL_HREFS.tasks}), [Knowledge](${MANUAL_HREFS.knowledge}), [Settings](${MANUAL_HREFS.settingsSecurity}) (rare). Weekly/optional: [Agentic OS](${MANUAL_HREFS.agenticOs}), [Integrations](${MANUAL_HREFS.integrations}). Ignore in solo: legacy VC swarms.`,
+    ],
+    checklist: [
+      { text: "Agents — launch and reports (PRIMARY).", href: MANUAL_HREFS.agentsSessions },
+      { text: "Tasks — deliverables and priorities.", href: MANUAL_HREFS.tasks },
+      { text: "Knowledge — briefs + HiveMind.", href: MANUAL_HREFS.knowledge },
+      { text: "Four Lanes — automated digests only (optional).", href: MANUAL_HREFS.agenticOsLanes, linkLabel: "Four Lanes" },
+      { text: "Ballroom — incidents (rare).", href: MANUAL_HREFS.ballroom },
+    ],
+  },
+  {
+    id: "settings-reference",
+    title: "5. Settings reference",
+    paragraphs: [
+      `[Security](${MANUAL_HREFS.settingsSecurity}) — 2FA, session TTL, 2FA re-verification window. [LLM keys](${MANUAL_HREFS.settingsLlmKeys}) — required for sessions. [AI harness](${MANUAL_HREFS.settingsHarness}) — curated memory briefs. [Execution Studio notifications](${MANUAL_HREFS.integrationsStudioNotifications}) — email/Telegram.`,
+      `[Agents panel](${MANUAL_HREFS.agentsSessions}) — Auto-approve, runtime (inprocess/durable), roles, routines.`,
+    ],
+    checklist: [
+      {
+        text: "Auto-approve ON = routine without manual clicks; critical actions stay manual.",
+        href: MANUAL_HREFS.agentsSessions,
+        linkLabel: "Agents",
+      },
+      {
+        text: "durable runtime = long projects; inprocess = quick short tasks.",
+        href: MANUAL_HREFS.agents,
+      },
+      {
+        text: "Session policy 4h custom = Authenticator only once every 4 hours.",
+        href: MANUAL_HREFS.settingsSecurity,
+        linkLabel: "Security",
+      },
+    ],
+  },
+  {
+    id: "background-automation",
+    title: "6. Optional automation (not the main path)",
+    paragraphs: [
+      `[Four Lanes](${MANUAL_HREFS.agenticOsLanes}) — 4 cron digests, bootstrap once, then approve. [Foragers](${MANUAL_HREFS.foragers}) — intel into HiveMind. [Tasks → Routines](${MANUAL_HREFS.tasks}) — repeat the same goal template.`,
+      "Sub-swarms in DB are bee infrastructure — you do not need a new swarm per project.",
+    ],
+    checklist: [
+      {
+        text: "Four Lanes doc: docs/SOLO_OPERATOR_FOUR_LANE.md",
+        href: MANUAL_HREFS.agenticOsLanes,
+        linkLabel: "Four Lanes",
+      },
+      {
+        text: "Digest Inbox → Task for marketing/e-shop digests only.",
+        href: MANUAL_HREFS.agenticOsLanes,
+        linkLabel: "Digest inbox",
+      },
+      {
+        text: "Tech proposals → Innovation Lab, not Four Lanes.",
+        href: MANUAL_HREFS.integrationsStudioInnovation,
+        linkLabel: "Innovation Lab",
+      },
     ],
   },
   {
     id: "troubleshooting",
-    title: "5. Troubleshooting",
+    title: "7. Troubleshooting",
     paragraphs: [
-      "Redirect na login často znamená expirovanú session cookie alebo chýbajúci auth token.",
-      "401 je autentifikácia, 403 je RBAC/permission guard, 404 býva route/proxy drift.",
-      "Pri routine failoch najprv over active flag, interval, worker/beat zdravie a posledný error detail.",
+      `Session failed → [LLM keys](${MANUAL_HREFS.settingsLlmKeys}). Empty report → still running. needs_input → [approve or auto-approve](${MANUAL_HREFS.agentsSessions}). Too many UI options → follow [sections 0–3](${MANUAL_HREFS.manualCanonical}) of this manual.`,
+    ],
+    checklist: [
+      {
+        text: "Login redirect → session expired, sign in again.",
+        href: MANUAL_HREFS.login,
+        linkLabel: "Login",
+      },
+      { text: "401 auth · 403 permission · 404 route drift.", href: MANUAL_HREFS.settingsSecurity },
     ],
   },
   {
     id: "voice-providers",
-    title: "6. Voice providers (SK/EN)",
+    title: "8. Voice providers (optional)",
     paragraphs: [
-      "SK: V Settings -> AI + Voice keys vies ulozit Grok/Deepgram/OpenAI (STT) a Grok/ElevenLabs/OpenAI (TTS) kluce priamo v aplikacii bez hardcode v deploy suboroch.",
-      "SK: V bloku Preferred voice provider nastavis prioritu STT a TTS (Auto alebo explicitny provider). Pri chybe sa automaticky pouzije server fallback.",
-      "EN: In Settings -> AI + Voice keys you can store Grok/Deepgram/OpenAI (STT) and Grok/ElevenLabs/OpenAI (TTS) keys directly in the app without hardcoding deploy files.",
-      "EN: In Preferred voice provider, choose STT/TTS priority (Auto or explicit provider). On failures, server-side fallback is applied automatically.",
-      "SK: V Advanced voice nastaveniach upravis VAD threshold (citlivost zachytenia hlasu), Silence duration (kedy sa veta odosle po tichu) a Voice profile/tone/language pre Grok TTS.",
-      "EN: In Advanced voice settings you can tune VAD threshold (speech detection sensitivity), Silence duration (when utterance is committed), and Voice profile/tone/language for Grok TTS.",
-      "SK: V Ballroom chate su quick templates (Brainstorm/Code review/Daily sync) a @AgentName mention pre cielenie odpovede na konkretneho agenta.",
-      "EN: Ballroom chat now includes quick templates (Brainstorm/Code review/Daily sync) and @AgentName mentions to target specific agents.",
-      "SK: Voice panel zobrazuje cas nahravania + orientacny odhad voice costu s varovanim pri dlhej relacii.",
-      "EN: Voice panel now shows capture time + rough voice cost estimate with a long-session warning.",
-      "SK: Voice ma hard cap pre jednu session (auto-stop), aby sa drzal nizky load a plynuly chat.",
-      "EN: Voice has a per-session hard cap (auto-stop) to keep load low and chat responsive.",
+      `In [Settings → AI + Voice keys](${MANUAL_HREFS.settingsLlmKeys}) store Grok/Deepgram/OpenAI (STT) and Grok/ElevenLabs/OpenAI (TTS) keys.`,
+      `Choose STT/TTS priority in the same panel. On failures, server-side fallback applies automatically.`,
+      `[Ballroom](${MANUAL_HREFS.ballroom}) chat includes quick templates and @AgentName mentions.`,
     ],
     checklist: [
-      "SK: Ulož API kľúče, otestuj provider tlačidlom Test, potom nastav preferenciu STT/TTS.",
-      "SK: Over v Ballroom, že hlasový vstup ide cez server a odpoveď Orchestratora príde aj ako audio.",
-      "EN: Save API keys, test each provider with Test, then select STT/TTS preference.",
-      "EN: Verify in Ballroom that voice input is processed server-side and Orchestrator replies as audio.",
-      "SK: Ak je odozva pomala, prepni Response mode na Fast, zníž Silence duration (napr. 400-600 ms) a jemne zníž VAD threshold.",
-      "EN: If responses feel slow, switch Response mode to Fast, reduce Silence duration (e.g. 400-600 ms), and slightly lower VAD threshold.",
+      {
+        text: "Save API keys, test each provider, then select STT/TTS preference.",
+        href: MANUAL_HREFS.settingsLlmKeys,
+        linkLabel: "Voice keys",
+      },
+      {
+        text: "Verify in Ballroom that voice input is processed server-side.",
+        href: MANUAL_HREFS.ballroom,
+        linkLabel: "Ballroom",
+      },
+      {
+        text: "If slow, switch Response mode to Fast and tune VAD / silence in Advanced voice.",
+        href: MANUAL_HREFS.settingsLlmKeys,
+      },
     ],
   },
 ];
 
 export const APP_FUNCTION_GUIDE: FunctionInfoGroup[] = [
+  {
+    id: "canonical",
+    title: "0. Canonical workflow (always start here)",
+    items: [
+      {
+        id: "canonical-session",
+        label: "Agents → New session",
+        description:
+          "Primary path: write a PROJECT goal, durable runtime, researcher+critic, Create → Info report → Tasks or phase 2.",
+        options: [
+          "Goal → Context → Constraints → Done",
+          "One project = one session",
+          "Manual #canonical-workflow",
+        ],
+      },
+      {
+        id: "canonical-knowledge",
+        label: "Knowledge → Curated memory",
+        description: "Project brief before the first session — Queen injects it into every run.",
+        options: ["instructions / mission", "PROJECT blocks", "Export .md backup"],
+      },
+      {
+        id: "canonical-tasks",
+        label: "Tasks",
+        description: "Deliverables after an approved report — not how you start work.",
+        options: ["Priority", "Link from session promote", "Weekly review"],
+      },
+    ],
+  },
   {
     id: "dashboard",
     title: "Dashboard",
@@ -112,13 +284,13 @@ export const APP_FUNCTION_GUIDE: FunctionInfoGroup[] = [
         id: "dashboard-overview",
         label: "Live dashboard",
         description: "Advanced ColonyConsole — full Queen dashboard with agents, tasks, and live swarm network.",
-        options: ["Otvorenie detailov swarms/costs/monitoring", "Rýchla orientácia pred akciou"],
+        options: ["Open swarms/costs/monitoring details", "Quick orientation before action"],
       },
       {
         id: "dashboard-monitoring",
         label: "Monitoring",
-        description: "Diagnostika host pressure, queues a telemetrie.",
-        options: ["Sledovanie driftu výkonu", "Kontrola incident signálov"],
+        description: "Host pressure, queues, and telemetry diagnostics.",
+        options: ["Track performance drift", "Review incident signals"],
       },
     ],
   },
@@ -129,20 +301,26 @@ export const APP_FUNCTION_GUIDE: FunctionInfoGroup[] = [
       {
         id: "agents-session",
         label: "Supervisor sessions",
-        description: "Riadenie session lifecycle: running, needs_input, completed.",
-        options: ["Approve/Reject krokov", "Kontrola session výstupu", "Follow-up inštrukcie"],
+        description:
+          "Primary OS control. Launch projects here — not via Swarm Builder or Agentic OS Lanes.",
+        options: [
+          "Create session — structured goal",
+          "Auto-approve ON (solo)",
+          "Info → PDF report",
+          "durable runtime for large projects",
+        ],
       },
       {
         id: "agents-spawn",
         label: "Spawn agent",
-        description: "Vytvorenie nového agenta v rámci swarm orchestration.",
-        options: ["Definícia roly", "Zaradenie do swarm lane", "Inicializačné nastavenia"],
+        description: "Create a new agent within swarm orchestration.",
+        options: ["Define role", "Assign swarm lane", "Initial settings"],
       },
       {
         id: "agents-foragers",
         label: "Foragers",
-        description: "Dynamické ingest workers s napojením na routines, HiveMind a spawn flow.",
-        options: ["CRUD foragerov", "Source/filter konfigurácia", "Manual ingest a spawn agenta"],
+        description: "Dynamic ingest workers wired to routines, HiveMind, and spawn flow.",
+        options: ["Forager CRUD", "Source/filter config", "Manual ingest and agent spawn"],
       },
     ],
   },
@@ -153,14 +331,14 @@ export const APP_FUNCTION_GUIDE: FunctionInfoGroup[] = [
       {
         id: "tasks-new",
         label: "New task",
-        description: "Založenie novej úlohy pre execution pipeline.",
-        options: ["Priority", "Popis a cieľ", "Priradenie k workflow/session"],
+        description: "Create a new task for the execution pipeline.",
+        options: ["Priority", "Goal description", "Link to workflow/session"],
       },
       {
         id: "tasks-routines",
         label: "Routines",
-        description: "Periodické automatizované task flows.",
-        options: ["Interval/schedule", "Aktivácia/deaktivácia", "Kontrola posledného behu"],
+        description: "Scheduled automated task flows.",
+        options: ["Interval/schedule", "Enable/disable", "Last run review"],
       },
     ],
   },
@@ -171,19 +349,19 @@ export const APP_FUNCTION_GUIDE: FunctionInfoGroup[] = [
       {
         id: "knowledge-hivemind",
         label: "HiveMind retrieval",
-        description: "Vyhľadávanie existujúceho kontextu a historických výstupov.",
-        options: ["Filter podľa témy", "Reuse predchádzajúcich riešení"],
+        description: "Search existing context and historical outputs.",
+        options: ["Filter by topic", "Reuse prior solutions"],
       },
       {
         id: "knowledge-outputs",
         label: "Outputs archive",
-        description: "Archivácia a opakované použitie doručených výstupov.",
-        options: ["Kontrola kvality výsledku", "Väzba na ďalšie tasky"],
+        description: "Archive and reuse delivered outputs.",
+        options: ["Quality review", "Link to follow-up tasks"],
       },
       {
         id: "knowledge-dreaming",
         label: "Memory + Dreaming",
-        description: "Automatická konsolidácia lessons learned zo supervisor sessionov do HiveMind.",
+        description: "Auto-consolidate lessons from supervisor sessions into HiveMind.",
         options: ["Enable/disable", "Frequency", "Manual trigger + Dream Reports"],
       },
     ],
@@ -195,14 +373,14 @@ export const APP_FUNCTION_GUIDE: FunctionInfoGroup[] = [
       {
         id: "integrations-connectors",
         label: "Dynamic Connector Hub",
-        description: "Správa konektorov, auth stavu a testovania pripojení.",
+        description: "Manage connectors, auth state, and connection tests.",
         options: ["Connector create/update", "Connection test", "Vault sync"],
       },
       {
         id: "integrations-marketplace",
         label: "Tools Marketplace",
-        description: "Inštalácia API toolov a ich sprístupnenie supervisor lanes.",
-        options: ["One-click install", "Katalóg dostupných nástrojov"],
+        description: "Install API tools and expose them to supervisor lanes.",
+        options: ["One-click install", "Browse tool catalog"],
       },
     ],
   },
@@ -210,6 +388,24 @@ export const APP_FUNCTION_GUIDE: FunctionInfoGroup[] = [
     id: "operator-cockpit",
     title: "Agentic OS",
     items: [
+      {
+        id: "cockpit-four-lanes",
+        label: "Four Lanes (optional)",
+        description:
+          "Automated cron digests in the background. Not a replacement for Agents sessions on major projects.",
+        options: [
+          "Bootstrap once",
+          "Digest Inbox approve → task",
+          "Manual #background-automation",
+        ],
+      },
+      {
+        id: "cockpit-digest-inbox",
+        label: "Digest Inbox",
+        description:
+          "Queue of four-lane digest sessions — review excerpt, open session, promote to Tasks (marketing/e-shop).",
+        options: ["→ Task one-click", "Tech SCV → Innovation Lab"],
+      },
       {
         id: "cockpit-overview",
         label: "Operator overview",
@@ -286,26 +482,26 @@ export const APP_FUNCTION_GUIDE: FunctionInfoGroup[] = [
       {
         id: "settings-security",
         label: "Security",
-        description: "2FA, auth guardy a bezpečnostné pravidlá účtu.",
-        options: ["TOTP setup", "Session bezpečnosť", "Auth preference"],
+        description: "2FA, auth guards, and account security rules.",
+        options: ["TOTP setup", "Session security", "Auth preference"],
       },
       {
         id: "settings-team",
         label: "Team RBAC",
-        description: "Role-based access control pre členov tenantu.",
+        description: "Role-based access control for tenant members.",
         options: ["Role assignment", "Permission governance", "Access revocation"],
       },
       {
         id: "settings-billing",
         label: "Billing/Usage",
-        description: "Rozpočty, usage signály a nákladové limity.",
-        options: ["Sledovanie spend", "Budget alerts", "Usage review"],
+        description: "Budgets, usage signals, and cost limits.",
+        options: ["Spend tracking", "Budget alerts", "Usage review"],
       },
       {
         id: "settings-voice-providers",
         label: "AI + Voice keys",
-        description: "Správa API kľúčov pre LLM/STT/TTS a explicitná priorita providerov pre voice pipeline.",
-        options: ["Grok/Deepgram/OpenAI pre STT", "Grok/ElevenLabs/OpenAI pre TTS", "Auto fallback pri vypadku"],
+        description: "Manage LLM/STT/TTS API keys and voice pipeline provider priority.",
+        options: ["Grok/Deepgram/OpenAI for STT", "Grok/ElevenLabs/OpenAI for TTS", "Auto fallback on outage"],
       },
     ],
   },

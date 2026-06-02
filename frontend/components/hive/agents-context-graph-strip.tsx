@@ -175,7 +175,7 @@ function ContextGraphExpandedBody({
       />
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Link href="/knowledge" className="qs-btn qs-btn--primary qs-btn--sm">
+        <Link href="/knowledge" className="qs-btn qs-btn--ghost qs-btn--sm">
           Open vault
         </Link>
         {focusSessionLabel ? <V4Badge tone="info">focus · {focusSessionLabel}</V4Badge> : null}

@@ -22,6 +22,8 @@ RATE_REQUESTS_MIN = 10
 RATE_REQUESTS_MAX = 10_000
 OAUTH_TTL_MIN = 60
 OAUTH_TTL_MAX = 7200
+TWO_FA_SESSION_HOURS_MIN = 0
+TWO_FA_SESSION_HOURS_MAX = 720
 
 
 def _policy_bucket(operator_settings: dict[str, Any] | None) -> dict[str, Any]:
@@ -111,10 +113,21 @@ def resolve_effective_session_policy(tenant: Tenant | None) -> dict[str, Any]:
                 maximum=OAUTH_TTL_MAX,
             )
 
+    two_fa_session_hours = settings.dashboard_2fa_session_max_hours
+    if (
+        _field_source(bucket, "dashboard_2fa_session") == "tenant"
+        and bucket.get("dashboard_2fa_session_max_hours") is not None
+    ):
+        two_fa_session_hours = _clamp_int(
+            int(bucket["dashboard_2fa_session_max_hours"]),
+            minimum=TWO_FA_SESSION_HOURS_MIN,
+            maximum=TWO_FA_SESSION_HOURS_MAX,
+        )
+
     return {
         "access_token_expire_minutes": access_minutes,
         "refresh_token_expire_days": refresh_days,
-        "dashboard_2fa_session_max_hours": settings.dashboard_2fa_session_max_hours,
+        "dashboard_2fa_session_max_hours": two_fa_session_hours,
         "rate_limit_enabled": rate_enabled,
         "rate_limit_requests": rate_requests,
         "rate_limit_window_sec": rate_window,
@@ -139,6 +152,8 @@ def merge_tenant_session_policy_patch(
     oauth_pkce_source: PolicySource | None = None,
     oauth_pkce_enabled: bool | None = None,
     oauth_state_ttl_sec: int | None = None,
+    dashboard_2fa_session_source: PolicySource | None = None,
+    dashboard_2fa_session_max_hours: int | None = None,
 ) -> dict[str, Any]:
     """Apply partial session policy patch and return updated operator_settings root."""
 
@@ -183,6 +198,14 @@ def merge_tenant_session_policy_patch(
             minimum=OAUTH_TTL_MIN,
             maximum=OAUTH_TTL_MAX,
         )
+    if dashboard_2fa_session_source is not None:
+        bucket["dashboard_2fa_session_source"] = dashboard_2fa_session_source
+    if dashboard_2fa_session_max_hours is not None:
+        bucket["dashboard_2fa_session_max_hours"] = _clamp_int(
+            dashboard_2fa_session_max_hours,
+            minimum=TWO_FA_SESSION_HOURS_MIN,
+            maximum=TWO_FA_SESSION_HOURS_MAX,
+        )
 
     root[SESSION_POLICY_KEY] = bucket
     return root
@@ -215,6 +238,9 @@ def serialize_session_policy_view(tenant: Tenant | None, *, editable: bool) -> d
         "oauth_state_ttl_sec_custom": bucket.get("oauth_state_ttl_sec"),
         "oauth_pkce_enabled_deployment": True,
         "oauth_state_ttl_sec_deployment": settings.oauth_state_ttl_sec,
+        "dashboard_2fa_session_source": _field_source(bucket, "dashboard_2fa_session"),
+        "dashboard_2fa_session_max_hours_custom": bucket.get("dashboard_2fa_session_max_hours"),
+        "dashboard_2fa_session_max_hours_deployment": settings.dashboard_2fa_session_max_hours,
         "editable": editable,
     }
 

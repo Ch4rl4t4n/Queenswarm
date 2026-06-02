@@ -104,7 +104,7 @@ export function TradingAutomationPageClient() {
           <Link href="/integrations?tab=studio&section=publish#trading-cockpit" className="qs-btn qs-btn--ghost qs-btn--sm">
             Open legacy studio view
           </Link>
-          <Link href="/integrations?tab=studio&section=lanes#live-lane" className="qs-btn qs-btn--primary qs-btn--sm">
+          <Link href="/integrations?tab=studio&section=lanes#live-lane" className="qs-btn qs-btn--ghost qs-btn--sm">
             Open live-lane prep
           </Link>
         </div>

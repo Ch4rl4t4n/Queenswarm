@@ -1,6 +1,6 @@
 # Queenswarm Roadmap & Backlog
 
-Updated: 2026-05-28
+Updated: 2026-06-01
 
 Living backlog for **queenswarm.love** — ordered by impact. Status reflects production host as of last deploy.
 
@@ -10,6 +10,100 @@ Living backlog for **queenswarm.love** — ordered by impact. Status reflects pr
 **Parallel agents:** see `docs/PHASE0_AGENT_SPLIT.md`. Tomorrow operator checklist: `docs/TOMORROW_OPERATOR_RUNBOOK.md`.  
 **Latest synthesis (YouTube + X + Atlas):** [`docs/CAPABILITIES_SYNTHESIS_MAY2026.md`](CAPABILITIES_SYNTHESIS_MAY2026.md)
 **Agentic OS split blueprint:** [`docs/AGENTIC_OS_APPS_BLUEPRINT.md`](AGENTIC_OS_APPS_BLUEPRINT.md)
+
+## Operator Workflow UX (P0 — May 2026)
+
+**Problem:** UI offers many parallel paths (Agentic OS, Swarms, Four Lanes, ICM, Fleet…) without one guided workflow. Operators cannot start multi-project work reliably.
+
+**Canonical doc:** [`docs/OPERATOR_CANONICAL_WORKFLOW.md`](OPERATOR_CANONICAL_WORKFLOW.md) · UI manual: `/manual#canonical-workflow`
+
+**Rule:** **Agents → New supervisor session** is the only primary launch path. Everything else is optional automation or advanced.
+
+| Step | Scope | Status |
+|------|-------|--------|
+| OW1 | Canonical workflow manual (SK/EN) + `/manual` sections 0–7 | ✅ |
+| OW2 | Agents panel workflow banner + section hints | ✅ |
+| OW3 | Mobile: primary FAB → New session (not cockpit maze) | ✅ |
+| OW4 | Demote secondary panels behind „Advanced“ accordion | ✅ |
+| OW5 | First-run wizard: LLM keys → brief → first session | ✅ |
+| OW6 | Remove Four Lanes as „daily start“ from cockpit hero | ✅ |
+| OW7 | Goal template picker per project type (redesign, campaign, research) | ✅ |
+| OW8 | First-run banner on Agentic OS Overview + residual nav-only demotions | ✅ |
+| OW9 | Research search keys (Tavily/Serper) inline in Settings + executor wiring | ✅ |
+| OW10 | Grok panel EN-only + Tier-3 nav demotions (swarms, builder entry solo hide) | ✅ |
+| OW11 | EN cleanup — Dreaming, Factory, Settings capabilities atlas | ✅ |
+| OW12 | Mission Kanban (Hermes-style): Triage→Done columns, dispatch, lineage drawer | ✅ |
+| OW13 | Skill bundles one-click, solo Mission Control nav, task operator thread | ✅ |
+| OW14 | Instant mission search (⌘K palette) + live Knowledge search | ✅ |
+| OW15 | Prompt injection guard on scrape ingest + task workspace files | ✅ |
+| OW16 | pg_trgm mission search indexes + injection guard on all external tools + search cache | ✅ |
+| OW17 | Session semantic index + mission feed notifications + 3-checkpoint injection guard | ✅ |
+| OW18 | Session index backfill API + mobile notification sheet + shared feed provider | ✅ |
+| OW19 | Auto backfill on dashboard boot + mobile bell E2E | ✅ |
+| OW20 | Forager auto-spawn UI + digest→task + progress drill-down + brief KPIs + mission push + kanban confetti | ✅ |
+
+**OW12 note:** `/tasks` defaults to **Mission Kanban board** — triage + Dispatch now runs Workflow Breaker + tracer slices. Sessions remain the execution engine; kanban is the visibility layer.
+
+**OW13 note:** Solo mode promotes **Mission Control** (`/tasks`) to first sidebar slot. Skill bundle chips launch triage+dispatch. Task drawer supports operator thread notes via `PATCH /tasks/{id}` `operator_note`.
+
+**OW14 note:** `GET /solo-operator/mission-search` — debounced live search. **⌘K / Ctrl+K** opens global command palette from any dashboard route.
+
+**OW15 note:** Scrape tool runs `prompt_injection_guard` before returning text to LLM. Task drawer shows linked deliverables via `GET /tasks/{id}/workspace`.
+
+**OW16 note:** Migration `0057` adds GIN trigram indexes on supervisor goals, task titles, and sub-agent output. All external fetch/search tools (`scrape`, `wikipedia`, `grokipedia`, `serper`, `tavily`, `jina_reader`, `web_search`) pass through injection guard. Mission search uses 15s TTL cache per tenant+query.
+
+**OW17 note:** Completed sessions index into `supervisor_sessions` vector collection for semantic ⌘K recall. Redis mission feed powers sidebar toasts + `GET /solo-operator/mission-feed`. Injection guard checkpoints: operator input (422), external tools (sanitize), agent output (report sanitize).
+
+**OW18 note:** `POST /solo-operator/mission-search/backfill` idempotently indexes historical completed sessions. Mobile/tablet bell opens mission feed sheet; `OperatorMissionFeedProvider` dedupes polling. `mission_index_vector_id` persisted on session context after index.
+
+**OW19 note:** `POST /solo-operator/mission-search/backfill-auto` runs once per tenant per 30 days (Redis) on dashboard boot. Frontend staggers call via `useMissionSearchAutoBackfill`. Playwright covers `#hive-mobile-notifications-bell` sheet.
+
+**OW20 note:** Foragers page — **Results / Task / Delete** row actions; **Add rule** spawn dialog; progress tooltip + deep link. `POST /foragers/{id}/promote-task` → Mission Kanban triage. Morning brief includes forager KPI cards. Mission feed events fan out to Web Push (Execution Studio subscription store). Kanban **Done** triggers pollen confetti. Task edit/remove + bulk clear Done column. Solo home → **Mission Control** (`/tasks`).
+
+| Step | Scope | Status |
+|------|-------|--------|
+| OW21 | ⌘K Chroma re-rank (sessions + tasks via deliverables) + backend EN notifications | ✅ |
+
+**OW21 note:** `search_mission_operator` merges lexical + vector hits and re-ranks by `relevance_score`. Task semantic recall maps Chroma `task_deliverables` → kanban rows. Trust autopilot + Telegram gateway notifications are EN-only.
+
+## Four-Lane Solo Operator (optional background automation)
+
+Background cron digests — **not** the primary operator workflow. See **Operator Workflow UX** above.
+
+| Lane | ID | Schedule | Output |
+|------|-----|----------|--------|
+| Najman Marketing | `marketing_najman` | Po/St/Pi 09:00 | CZ digest → Tasks/publish |
+| Tech SCV | `tech_scv` | Daily 07:30 + Maintainer weekly | Innovation Lab → GitHub PR |
+| E-shop Research | `eshop_research` | Ut/Št 10:00 | beebrdy benchmark brief |
+| Automation Factory | `automation` | Manual | Approved → tasks/routines |
+
+| Step | Scope | Status |
+|------|-------|--------|
+| FL1 | Backend `solo_operator_four_lanes` + API | ✅ |
+| FL2 | Agentic OS → **Lanes** panel (bootstrap/pause/resume) | ✅ |
+| FL3 | Provision script + Najman seed integration | ✅ |
+| FL4 | Manual + section hints | ✅ |
+| FL5 | Unified digest inbox (report → task one-click) | ✅ |
+| FL6 | Disable VC auto-bootstrap for `SOLO_MODE` new tenants | ✅ |
+
+Doc: [`docs/SOLO_OPERATOR_FOUR_LANE.md`](SOLO_OPERATOR_FOUR_LANE.md) · UI: `/agentic-os#lanes` · `./scripts/operator-four-lane-provision.sh`
+
+**Deprecated for solo:** Virtual Company department routines (Sales, Finance, Bank PO, generic E-shop ops), My 3 Bees as primary control model.
+
+## Social Intel Swarm (May 2026)
+
+YouTube + X scrape → delta cursors → truth gate → HiveMind. Powers Tech SCV lane foragers.
+
+| Step | Scope | Status |
+|------|-------|--------|
+| SI1 | Scraper + `intel_source_cursors` migration | ✅ |
+| SI2 | Celery daily tick + forager scrape/sources API | ✅ |
+| SI3 | `social-intel-evaluator` skill + seed script | ✅ |
+| SI4 | Integrations hub UI refactor (category catalog shell) | ✅ |
+| SI5 | Curated memory 16k default / 24k DB ceiling | ✅ |
+| SI6 | X OAuth fix + vault tenant binding | ✅ |
+
+Doc: [`docs/SOCIAL_INTEL_SWARM_SETUP.md`](SOCIAL_INTEL_SWARM_SETUP.md) · `./scripts/operator-social-intel-provision.sh`
 
 ## Feature Implementation Guardrails (mandatory)
 

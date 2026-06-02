@@ -12,7 +12,15 @@ from app.application.services.solo_session_presets import (
 
 @pytest.mark.parametrize(
     "preset_id",
-    ["bank-po-brief", "bank-po-backlog", "marketing-draft", "paper-trading-review"],
+    [
+        "bank-po-brief",
+        "bank-po-backlog",
+        "marketing-draft",
+        "paper-trading-review",
+        "web-redesign-discovery",
+        "marketing-campaign",
+        "competitor-research",
+    ],
 )
 def test_get_solo_session_preset_when_known_returns_row(preset_id: str) -> None:
     row = get_solo_session_preset(preset_id)
@@ -31,5 +39,5 @@ def test_list_solo_session_presets_includes_bank_po(monkeypatch: pytest.MonkeyPa
 
     monkeypatch.setattr(config.settings, "solo_mode_enabled", True)
     presets = list_solo_session_presets()
-    assert len(presets) >= 4
+    assert len(presets) >= 7
     assert any(row.id == "bank-po-brief" for row in presets)

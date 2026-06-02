@@ -94,6 +94,7 @@ function OperatorLoopPanelInner() {
         kicker="Daily command center"
         title="Operator Loop"
         description="Overnight dump, morning brief, publish queue, and paper trading — one snapshot."
+        actions={<HiveRefreshButton busy={loading} onClick={() => void load()} />}
       />
       {err ? <p className="mb-3 text-sm text-(--qs-red)">{err}</p> : null}
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -104,7 +105,6 @@ function OperatorLoopPanelInner() {
         <V4Badge tone={pending > 0 ? "warn" : "ok"}>{pending} publish pending</V4Badge>
         <V4Badge tone={onboardPct >= 100 ? "ok" : "warn"}>Onboarding {onboardPct}%</V4Badge>
         <V4Badge tone={pnl >= 0 ? "ok" : "err"}>Paper P&L ${pnl.toFixed(2)}</V4Badge>
-        <HiveRefreshButton busy={loading} onClick={() => void load()} />
       </div>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2">

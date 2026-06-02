@@ -118,15 +118,57 @@ def _user_has_verified_totp(user: DashboardUser) -> bool:
     return totp_secret is not None and totp_verified_at is not None
 
 
-def _2fa_session_reverify_required(user: DashboardUser, auth_at_epoch: int | None) -> bool:
+def _2fa_session_reverify_required(
+    user: DashboardUser,
+    auth_at_epoch: int | None,
+    *,
+    max_hours: int,
+) -> bool:
     """Return True when refresh must be rejected until password+TOTP sign-in."""
 
     if not _is_2fa_login_challenge_enabled() or not _user_has_verified_totp(user):
         return False
-    max_hours = settings.dashboard_2fa_session_max_hours
     if max_hours <= 0 or auth_at_epoch is None:
         return False
     elapsed_sec = datetime.now(tz=UTC).timestamp() - float(auth_at_epoch)
+    return elapsed_sec > max_hours * 3600
+
+
+def _totp_last_auth_at(user: DashboardUser) -> datetime | None:
+    """Return last successful Authenticator verification timestamp."""
+
+    prefs = dict(user.notification_prefs or {})
+    raw = prefs.get("totp_last_auth_at")
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(raw.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
+
+
+def _stamp_totp_last_auth_at(user: DashboardUser, *, when: datetime | None = None) -> None:
+    """Persist successful TOTP verification for sliding login window."""
+
+    prefs = dict(user.notification_prefs or {})
+    prefs["totp_last_auth_at"] = (when or datetime.now(tz=UTC)).isoformat()
+    user.notification_prefs = prefs
+
+
+def _totp_login_challenge_required(user: DashboardUser, *, max_hours: int) -> bool:
+    """Return True when password login must still collect Authenticator code."""
+
+    if not _user_has_verified_totp(user):
+        return False
+    if max_hours <= 0:
+        return False
+    last_auth = _totp_last_auth_at(user)
+    if last_auth is None:
+        return True
+    elapsed_sec = (datetime.now(tz=UTC) - last_auth).total_seconds()
     return elapsed_sec > max_hours * 3600
 
 
@@ -372,10 +414,19 @@ async def dashboard_login(body: LoginRequest, db: DbSession, request: Request, r
         )
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials.")
 
+    tenant = await ensure_default_tenant_for_user(db, user=user)
+    session_policy = resolve_effective_session_policy(tenant)
+    max_2fa_hours = int(session_policy["dashboard_2fa_session_max_hours"])
+
     # Challenge TOTP only when enrollment is finished (Authenticator confirmed once).
     # Pending rows (`totp_secret` set, `totp_verified_at` null) must still reach the dashboard
     # to scan the QR — password-only gate here; legacy `totp_required` alone must not trap users on OTP UX.
-    if _is_2fa_login_challenge_enabled() and user.totp_secret is not None and user.totp_verified_at is not None:
+    if (
+        _is_2fa_login_challenge_enabled()
+        and user.totp_secret is not None
+        and user.totp_verified_at is not None
+        and _totp_login_challenge_required(user, max_hours=max_2fa_hours)
+    ):
         pre, _ttl = create_pre_2fa_token(user_id=user.id, email=user.email)
         apply_no_store_cache_headers(response)
         return LoginResponse(
@@ -385,7 +436,8 @@ async def dashboard_login(body: LoginRequest, db: DbSession, request: Request, r
             message="Enter your 2FA code",
         )
 
-    bundle_dict = await _issue_pair(db, user)
+    preserved_auth_at = _totp_last_auth_at(user) if _user_has_verified_totp(user) else None
+    bundle_dict = await _issue_pair(db, user, auth_at=preserved_auth_at)
     try:
         # Persist tenant bootstrap/active_tenant mutations performed during token issue.
         await _commit_if_supported(db)
@@ -449,6 +501,7 @@ async def dashboard_verify_totp(body: Verify2FARequest, db: DbSession, response:
         prefs["totp_backup_last_used_at"] = datetime.now(tz=UTC).isoformat()
         user.notification_prefs = prefs
 
+    _stamp_totp_last_auth_at(user)
     user.totp_verified_at = datetime.now(tz=UTC)
     try:
         await db.commit()
@@ -509,7 +562,10 @@ async def dashboard_refresh(body: RefreshRequest, db: DbSession, response: Respo
     if user is None or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Inactive operator.")
 
-    if _2fa_session_reverify_required(user, auth_at_epoch):
+    tenant = await db.get(Tenant, user.active_tenant_id) if user.active_tenant_id is not None else None
+    max_2fa_hours = int(resolve_effective_session_policy(tenant)["dashboard_2fa_session_max_hours"])
+
+    if _2fa_session_reverify_required(user, auth_at_epoch, max_hours=max_2fa_hours):
         await revoke_dashboard_refresh(cleaned)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -828,6 +884,9 @@ class SessionPolicyResponse(BaseModel):
     oauth_state_ttl_sec_custom: int | None = None
     oauth_pkce_enabled_deployment: bool = True
     oauth_state_ttl_sec_deployment: int
+    dashboard_2fa_session_source: Literal["deployment", "tenant"] = "deployment"
+    dashboard_2fa_session_max_hours_custom: int | None = None
+    dashboard_2fa_session_max_hours_deployment: int
 
 
 class SessionPolicyPatchBody(BaseModel):
@@ -846,6 +905,8 @@ class SessionPolicyPatchBody(BaseModel):
     oauth_pkce_source: Literal["deployment", "tenant"] | None = None
     oauth_pkce_enabled: bool | None = None
     oauth_state_ttl_sec: int | None = Field(default=None, ge=60, le=7200)
+    dashboard_2fa_session_source: Literal["deployment", "tenant"] | None = None
+    dashboard_2fa_session_max_hours: int | None = Field(default=None, ge=0, le=720)
 
 
 def _session_policy_editable(principal: dict[str, Any]) -> bool:
@@ -899,6 +960,8 @@ async def dashboard_session_policy_patch(
         oauth_pkce_source=body.oauth_pkce_source,
         oauth_pkce_enabled=body.oauth_pkce_enabled,
         oauth_state_ttl_sec=body.oauth_state_ttl_sec,
+        dashboard_2fa_session_source=body.dashboard_2fa_session_source,
+        dashboard_2fa_session_max_hours=body.dashboard_2fa_session_max_hours,
     )
     await db.commit()
     await db.refresh(tenant)
@@ -1466,6 +1529,7 @@ async def profile_totp_confirm(
     if not totp_verify(user.totp_secret, body.code):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid OTP.")
     was_new = user.totp_verified_at is None
+    _stamp_totp_last_auth_at(user)
     user.totp_verified_at = datetime.now(tz=UTC)
     user.totp_required = True
     backup_codes: list[str] | None = None

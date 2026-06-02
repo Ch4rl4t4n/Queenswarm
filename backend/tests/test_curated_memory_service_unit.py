@@ -15,14 +15,17 @@ from app.infrastructure.persistence.models.curated_memory import CuratedFileKind
 
 @pytest.mark.asyncio
 async def test_upsert_rejects_oversize_content() -> None:
-    """Reject payloads over 8000 characters."""
+    """Reject payloads over configured curated memory limit."""
+
+    from app.core.config import settings
 
     service = CuratedMemoryService(db=SimpleNamespace())
-    with pytest.raises(ValueError, match="8000"):
+    over = settings.curated_memory_max_chars + 1
+    with pytest.raises(ValueError, match=str(settings.curated_memory_max_chars)):
         await service.upsert(
             tenant_id=uuid4(),
             kind=CuratedFileKind.MISSION,
-            content_md="x" * 8001,
+            content_md="x" * over,
             user_id=uuid4(),
         )
 

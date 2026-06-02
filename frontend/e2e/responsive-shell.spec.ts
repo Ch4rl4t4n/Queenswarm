@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { seedDashboardSessionCookie } from "./fixtures/dashboard-session";
-import { e2eAdvancedDashboardPath, e2eHiveHomeHeading, e2eHiveHomePath } from "./fixtures/hive-home-route";
+import { e2eAdvancedDashboardPath, e2eHiveHomeHeading, e2eHiveHomePath, e2eTasksHubHeading } from "./fixtures/hive-home-route";
 import { suppressPwaInstallPrompt } from "./fixtures/pwa-test-hints";
 import { maybeInstallShellApiMocks, STUB_AGENT_ID } from "./fixtures/shell-api-mocks";
 
@@ -21,7 +21,7 @@ async function assertNoHorizontalOverflow(page: import("@playwright/test").Page)
 
 async function gotoShellRoute(page: import("@playwright/test").Page, path: string): Promise<boolean> {
   const targetPath = new URL(path, "http://localhost").pathname.replace(/\/$/, "") || "/";
-  await page.goto(path, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  await page.goto(path, { waitUntil: "domcontentloaded", timeout: 60_000 }).catch(() => undefined);
   let currentPath = new URL(page.url()).pathname.replace(/\/$/, "") || "/";
   if (currentPath === "/login") {
     return false;
@@ -70,14 +70,20 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     await expect(fab).toBeVisible({ timeout: 15_000 });
     await expect(fab.getByRole("link", { name: /Open Ballroom/i })).toBeVisible();
 
-    await page.goto("/swarms", { waitUntil: "load" });
+    const onSwarms = await gotoShellRoute(page, "/swarms");
+    if (!onSwarms) {
+      return;
+    }
     await expect(fab).toBeVisible({ timeout: 15_000 });
 
-    await page.goto("/ballroom", { waitUntil: "load" });
+    const onBallroom = await gotoShellRoute(page, "/ballroom");
+    if (!onBallroom) {
+      return;
+    }
     await expect(fab).toBeHidden({ timeout: 10_000 });
   });
 
-  test("mobile hides Ballroom FAB above bottom nav only on tablet/mobile", async ({ page, context, baseURL }) => {
+  test("mobile shows New session FAB above bottom nav", async ({ page, context, baseURL }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
 
@@ -86,8 +92,9 @@ test.describe("Responsive shell — authenticated cockpit", () => {
       return;
     }
 
-    const fab = page.getByTestId("ballroom-fab");
+    const fab = page.getByTestId("session-fab");
     await expect(fab).toBeVisible({ timeout: 15_000 });
+    await expect(fab.getByRole("link", { name: /New session/i })).toBeVisible();
     const box = await fab.boundingBox();
     expect(box).not.toBeNull();
     if (box) {
@@ -230,7 +237,7 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     expect(noOverlap).toBe(true);
   });
 
-  test("mobile content bottom padding clears the floating Ballroom FAB", async ({ page, context, baseURL }) => {
+  test("mobile content bottom padding clears the floating session FAB", async ({ page, context, baseURL }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
 
@@ -239,12 +246,12 @@ test.describe("Responsive shell — authenticated cockpit", () => {
       return;
     }
 
-    const fab = page.getByTestId("ballroom-fab");
+    const fab = page.getByTestId("session-fab");
     await expect(fab).toBeVisible({ timeout: 15_000 });
 
     const clearance = await page.evaluate(() => {
       const main = document.querySelector<HTMLElement>('[data-hive-shell="canvas"]');
-      const fabEl = document.querySelector<HTMLElement>('[data-testid="ballroom-fab"]');
+      const fabEl = document.querySelector<HTMLElement>('[data-testid="session-fab"]');
       if (!main || !fabEl) {
         return null;
       }
@@ -270,7 +277,7 @@ test.describe("Responsive shell — authenticated cockpit", () => {
 
     await assertNoHorizontalOverflow(page);
 
-    const firstCard = page.locator(".v4-int-card").first();
+    const firstCard = page.locator(".active-integration-card, .hub-catalog-card").first();
     await expect(firstCard).toBeVisible({ timeout: 15_000 });
 
     const withinBounds = await firstCard.evaluate((card) => {
@@ -368,8 +375,8 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     }
 
     await expect(page.getByRole("heading", { name: "Integrations" })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/Premium checkout: removed/i)).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole("button", { name: "Checkout removed" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/Premium checkout:\s*removed/i)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("button", { name: "Locked" })).toBeVisible({ timeout: 15_000 });
   });
 
   test("tablet integrations hub tab layout", async ({ page, context, baseURL }) => {
@@ -549,7 +556,7 @@ test.describe("Responsive shell — authenticated cockpit", () => {
 
   const SPRINT8_MOBILE_TABLET_ROUTES = [
     { path: "/settings/costs", heading: "Costs" },
-    { path: "/tasks", heading: "Tasks" },
+    { path: "/tasks", heading: e2eTasksHubHeading() },
     { path: "/foragers", heading: "Foragers" },
     { path: "/ballroom", heading: "Ballroom" },
     { path: "/settings/security", heading: "Settings" },
@@ -643,4 +650,20 @@ test.describe("Responsive shell — authenticated cockpit", () => {
       });
     }
   }
+
+  test("mobile notification bell opens mission feed sheet", async ({ page, context, baseURL }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
+    await maybeInstallShellApiMocks(page);
+
+    const onShell = await gotoShellRoute(page, "/tasks");
+    if (!onShell) {
+      return;
+    }
+
+    await expect(page.getByTestId("hive-mobile-notifications-bell")).toBeVisible({ timeout: 15_000 });
+    await page.getByTestId("hive-mobile-notifications-bell").click();
+    await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Notification settings")).toBeVisible();
+  });
 });

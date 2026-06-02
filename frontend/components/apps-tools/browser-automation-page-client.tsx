@@ -130,8 +130,10 @@ export function BrowserAutomationPageClient() {
       title="Browser Automation"
       subtitle="Operator-approved browser harness lane with live confirmations, fallback checks, and innovation handoff."
       status={
-        <div className="hidden items-center gap-2 lg:flex">
-          <ModulePolicyPackPill moduleKey="browser_automation" />
+        <div className="flex items-center gap-2">
+          <span className="max-lg:hidden">
+            <ModulePolicyPackPill moduleKey="browser_automation" />
+          </span>
           <HiveRefreshButton busy={loading} onClick={() => void load()} />
         </div>
       }
@@ -141,8 +143,8 @@ export function BrowserAutomationPageClient() {
           <Link href="/integrations?tab=studio&section=lanes#live-lane" className="qs-btn qs-btn--ghost qs-btn--sm">
             Open legacy studio lane
           </Link>
-          <Link href="/integrations?tab=hub&hubSection=roster" className="qs-btn qs-btn--primary qs-btn--sm">
-            Manage connectors
+          <Link href="/integrations?tab=hub&hubSection=roster" className="qs-btn qs-btn--ghost qs-btn--sm">
+            Open connector hub
           </Link>
         </div>
       }

@@ -340,6 +340,12 @@ export interface SupervisorControlSummaryRow {
   durable_queued_sub_agents?: number;
 }
 
+export interface SupervisorSessionsControlRow {
+  auto_approve_enabled: boolean;
+  auto_approve_enabled_source: "deployment" | "tenant";
+  mode_label: "auto" | "manual";
+}
+
 export interface SwarmAutonomySummaryRow {
   tenant_id: string;
   autonomy_mode: string;
@@ -435,6 +441,8 @@ export interface TaskRow {
   swarm_id?: string | null;
   agent_id?: string | null;
   agent_name?: string | null;
+  parent_task_id?: string | null;
+  workflow_id?: string | null;
   payload?: Record<string, unknown>;
   result?: Record<string, unknown> | null;
   created_at?: string | null;
@@ -444,6 +452,25 @@ export interface TaskRow {
   confidence_score?: number | null;
   cost_usd?: number | null;
   output_format?: string | null;
+}
+
+export interface TaskLineageResponse {
+  task: TaskRow;
+  parent: TaskRow | null;
+  children: TaskRow[];
+}
+
+export interface TaskWorkspaceFile {
+  deliverable_id: string;
+  title: string;
+  slug: string;
+  archive_relpath?: string | null;
+  preview?: string;
+}
+
+export interface TaskWorkspaceResponse {
+  task_id: string;
+  files: TaskWorkspaceFile[];
 }
 
 /** Celery / Postgres mirrored async workflow poll (`GET /jobs/{id}`). */
@@ -595,6 +622,8 @@ export interface SkillCatalogBuiltinItem {
   version: string;
   roles: string[];
   keywords: string[];
+  summary?: string;
+  agent_usage?: string;
   kind: "builtin";
 }
 
@@ -1355,6 +1384,10 @@ export interface ForagersOverviewConfiguration {
   schedule_label: string;
   last_run_seconds_ago: number | null;
   items_count: number;
+  run_progress_pct: number;
+  progress_kind?: string;
+  progress_detail?: string;
+  progress_href?: string | null;
   status: "ok" | "warn" | "paused" | "error";
   is_active: boolean;
 }

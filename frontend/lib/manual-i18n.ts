@@ -1,11 +1,12 @@
 import type { FunctionInfoGroup, ManualSection } from "@/lib/manual-content";
 import { APP_FUNCTION_GUIDE, APP_MANUAL_SECTIONS } from "@/lib/manual-content";
 import { hiveOverviewHref, hiveOverviewLabel } from "@/lib/hive-home-route";
+import { MANUAL_FUNCTION_HREFS } from "@/lib/manual-routes";
 import type { UiLanguage } from "@/lib/ui-language";
 
 const MANUAL_SUBTITLE: Record<UiLanguage, string> = {
-  en: "Complete guide for operating Queenswarm — every section in English with deep links from Info hints.",
-  sk: "Complete guide for operating Queenswarm — every section in English with deep links from Info hints.",
+  en: "Single canonical workflow first — then optional automation. Full doc: docs/OPERATOR_CANONICAL_WORKFLOW.md",
+  sk: "Single canonical workflow first — then optional automation. Full doc: docs/OPERATOR_CANONICAL_WORKFLOW.md",
 };
 
 const FUNCTION_GUIDE_INTRO: Record<UiLanguage, string> = {
@@ -25,101 +26,26 @@ export function interpolateManualHomeTokens(text: string): string {
     .replaceAll("{HOME_LABEL}", hiveOverviewLabel());
 }
 
-function localizeManualSection(section: ManualSection, lang: UiLanguage): ManualSection {
-  return {
-    ...section,
-    paragraphs: pickTaggedLines(section.paragraphs, lang).map(interpolateManualHomeTokens),
-    checklist: section.checklist
-      ? pickTaggedLines(section.checklist, lang).map(interpolateManualHomeTokens)
-      : undefined,
-  };
-}
-
-/** Pick lines tagged with SK:/EN: prefixes inside mixed manual sections. */
-function pickTaggedLines(lines: string[], lang: UiLanguage): string[] {
-  const prefix = lang === "sk" ? "SK:" : "EN:";
-  const other = lang === "sk" ? "EN:" : "SK:";
-  const tagged = lines.filter((line) => line.startsWith(prefix));
-  if (tagged.length > 0) {
-    return tagged.map((line) => line.slice(prefix.length).trim());
-  }
-  if (lines.some((line) => line.startsWith(other))) {
-    return [];
-  }
-  return lines;
-}
-
-const MANUAL_SECTIONS_EN: ManualSection[] = [
-  {
-    id: "quick-start",
-    title: "1. Quick Start",
-    paragraphs: [
-      "After login, start on {HOME_LABEL}, verify app health, then launch new sessions.",
-      "Run your first Supervisor flow via Agents with a single goal, constraints, and a clear done definition.",
-    ],
-    checklist: [
-      "Sign in via /login and confirm you land on {HOME_ROUTE}.",
-      "Open Agents and start a Supervisor session with one goal.",
-      "Create a related task in Tasks so outcomes stay tracked.",
-      "Review existing outputs in Knowledge (retrieval-first).",
-      "For incidents, open Ballroom and coordinate decisions in realtime.",
-    ],
-  },
-  {
-    id: "main-sections",
-    title: "2. Main sections",
-    paragraphs: [
-      "{HOME_LABEL} is the command center; Agents runs Supervisor sessions; Tasks covers execution and routines; Knowledge holds context and outputs; Integrations manages connectors; Ballroom is the realtime ops lane.",
-      "Foragers manages data collectors (YouTube/RSS/API), schedules, HiveMind ingest, and agent spawn from forager config.",
-      "Settings holds security, team, billing, and integration configuration for the tenant.",
-    ],
-  },
-  {
-    id: "best-practices",
-    title: "3. Best practices",
-    paragraphs: [
-      "Write prompts as Goal → Context → Constraints → Done.",
-      "Search Knowledge before running new compute — saves tokens and time.",
-      "Use routines only for repeatable processes; start with conservative frequency.",
-    ],
-  },
-  {
-    id: "scenarios",
-    title: "4. Common scenarios",
-    paragraphs: [
-      "Morning check: {HOME_LABEL} → Agents needs_input → Tasks priority → Integrations status → Knowledge latest outputs.",
-      "Production incident: confirm symptom, start Supervisor session, coordinate in Ballroom, write conclusion to Knowledge.",
-    ],
-  },
-  {
-    id: "troubleshooting",
-    title: "5. Troubleshooting",
-    paragraphs: [
-      "Redirect to login often means expired session cookie or missing auth token.",
-      "401 is authentication; 403 is RBAC/permission guard; 404 is often route/proxy drift.",
-      "For routine failures check active flag, interval, worker/beat health, and last error detail.",
-    ],
-  },
-  {
-    id: "voice-providers",
-    title: "6. Voice providers (SK/EN)",
-    paragraphs: pickTaggedLines(APP_MANUAL_SECTIONS.find((s) => s.id === "voice-providers")?.paragraphs ?? [], "en"),
-    checklist: pickTaggedLines(APP_MANUAL_SECTIONS.find((s) => s.id === "voice-providers")?.checklist ?? [], "en"),
-  },
-];
-
 const FUNCTION_DESCRIPTIONS_EN: Record<string, { description: string; options: string[] }> = {
+  "canonical-session": {
+    description: "Primary path: structured PROJECT goal, durable runtime, Create → Info report → Tasks or phase 2.",
+    options: ["Goal → Context → Constraints → Done", "One project = one session", "/manual#canonical-workflow"],
+  },
+  "canonical-knowledge": {
+    description: "Project briefs before first session — Queen injects into every new run.",
+    options: ["instructions / mission", "PROJECT blocks", "Export .md backup"],
+  },
+  "canonical-tasks": {
+    description: "Track deliverables after approved reports — not how you start work.",
+    options: ["Priority", "Promote from digest inbox", "Weekly review"],
+  },
+  "agents-session": {
+    description: "Primary OS control — launch projects here, not via Swarm Builder or Agentic OS Lanes.",
+    options: ["Create session", "Auto-approve ON", "Info → PDF", "durable for large projects"],
+  },
   "dashboard-overview": {
     description: "Realtime swarm status, health signals, and active flows.",
     options: ["Open swarms/costs/monitoring details", "Quick orientation before action"],
-  },
-  "dashboard-monitoring": {
-    description: "Host pressure, queues, and telemetry diagnostics.",
-    options: ["Track performance drift", "Review incident signals"],
-  },
-  "agents-session": {
-    description: "Supervisor session lifecycle: running, needs_input, completed.",
-    options: ["Approve/Reject steps", "Review session output", "Follow-up instructions"],
   },
   "agents-spawn": {
     description: "Create a new agent within swarm orchestration.",
@@ -216,13 +142,19 @@ const FUNCTION_DESCRIPTIONS_EN: Record<string, { description: string; options: s
 };
 
 export function manualSubtitle(lang: UiLanguage): string {
-  void lang;
-  return MANUAL_SUBTITLE.en;
+  return MANUAL_SUBTITLE[lang];
 }
 
 export function manualSections(lang: UiLanguage): ManualSection[] {
   void lang;
-  return MANUAL_SECTIONS_EN.map((section) => localizeManualSection(section, "en"));
+  return APP_MANUAL_SECTIONS.map((section) => ({
+    ...section,
+    paragraphs: section.paragraphs.map(interpolateManualHomeTokens),
+    checklist: section.checklist?.map((item) => ({
+      ...item,
+      text: interpolateManualHomeTokens(item.text),
+    })),
+  }));
 }
 
 export function functionGuideGroups(lang: UiLanguage): FunctionInfoGroup[] {
@@ -231,20 +163,19 @@ export function functionGuideGroups(lang: UiLanguage): FunctionInfoGroup[] {
     ...group,
     items: group.items.map((item) => {
       const en = FUNCTION_DESCRIPTIONS_EN[item.id];
+      const href = MANUAL_FUNCTION_HREFS[item.id] ?? item.href;
       if (!en) {
-        return item;
+        return href ? { ...item, href } : item;
       }
-      return { ...item, description: en.description, options: en.options };
+      return { ...item, description: en.description, options: en.options, href };
     }),
   }));
 }
 
 export function functionGuideIntro(lang: UiLanguage): string {
-  void lang;
-  return FUNCTION_GUIDE_INTRO.en;
+  return FUNCTION_GUIDE_INTRO[lang];
 }
 
 export function functionGuideHeading(lang: UiLanguage): string {
-  void lang;
-  return FUNCTION_GUIDE_HEADING.en;
+  return FUNCTION_GUIDE_HEADING[lang];
 }

@@ -25,13 +25,13 @@ describe("hive-ia-canonical", () => {
     expect(hrefs).toEqual([...CANONICAL_PRIMARY_CP_HREFS]);
   });
 
-  it("places Factory and Foragers in More menu only for CP", () => {
+  it("places Factory in More menu only for CP (Foragers on primary rail)", () => {
     if (!OPERATOR_CONTROL_PLANE_ENABLED) {
       return;
     }
     const primary = new Set(buildHiveNavPrimary(true).map((item) => item.href));
     expect(primary.has("/factory")).toBe(false);
-    expect(primary.has("/foragers")).toBe(false);
+    expect(primary.has("/foragers")).toBe(true);
     const groups = buildCanonicalNavGroups({
       consolidatedEnabled: true,
       operatorControlPlane: true,

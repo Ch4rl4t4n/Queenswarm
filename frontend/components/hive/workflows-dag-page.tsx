@@ -630,7 +630,7 @@ export default function WorkflowsDagPage(): JSX.Element {
           <Link href={JOBS_PATH} className="qs-btn qs-btn--ghost qs-btn--sm">
             {EXECUTION_LANE_CROSS_LINK_LABELS.toAsyncJobs}
           </Link>
-          <Link href="/tasks/new" className="qs-btn qs-btn--primary w-full sm:w-auto">
+          <Link href="/tasks/new" className="qs-btn qs-btn--ghost w-full sm:w-auto">
             + New task
           </Link>
         </div>
@@ -691,7 +691,7 @@ export default function WorkflowsDagPage(): JSX.Element {
               : "Create a task and the Auto-Workflow Breaker will decompose it into steps"}
           </div>
           {!listError ? (
-            <Link href="/tasks/new" className="qs-btn qs-btn--primary">
+            <Link href="/tasks/new" className="qs-btn qs-btn--ghost">
               Create first task →
             </Link>
           ) : null}

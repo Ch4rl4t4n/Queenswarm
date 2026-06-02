@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePutJson } from "@/lib/api";
+import { CURATED_MEMORY_MAX_CHARS } from "@/lib/curated-memory-limits";
 
 const KINDS = [
   { key: "mission", label: "Mission" },
@@ -76,9 +77,13 @@ export function CuratedMemoryPanel() {
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         rows={14}
+        maxLength={CURATED_MEMORY_MAX_CHARS}
         className="qs-input min-h-[280px] font-mono text-xs leading-relaxed"
         placeholder="Markdown for Queen context bootstrap…"
       />
+      <div className="mt-2 text-xs text-(--qs-text-3)">
+        {draft.length}/{CURATED_MEMORY_MAX_CHARS} characters
+      </div>
       <div className="mt-3 flex justify-end">
         <button type="button" className="qs-btn qs-btn--primary qs-btn--sm" disabled={busy} onClick={() => void save()}>
           {busy ? "Saving…" : "Save file"}

@@ -4,14 +4,17 @@ import dynamic from "next/dynamic";
 import {
   Eye,
   GitBranch,
+  LayoutGrid,
+  List,
   Plus,
   RefreshCw,
   Shield,
   Zap,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
+import { useSearchParams } from "next/navigation";
 
 import { HivePageShell } from "@/components/hive/hive-page-shell";
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
@@ -27,8 +30,10 @@ import {
   V4Chip,
   type V4BadgeTone,
 } from "@/components/ui/v4";
+import { usePlatform } from "@/components/hive/platform-context";
 import { HiveApiError, hiveGet } from "@/lib/api";
 import { hivePageShellError } from "@/lib/hive-page-error";
+import { hiveMissionControlPageTitle } from "@/lib/hive-home-route";
 import {
   AGENTS_HUB_PATH,
   EXECUTION_LANE_CROSS_LINK_LABELS,
@@ -40,13 +45,25 @@ import { useCenterActiveInScrollRow } from "@/lib/hooks/use-center-active-in-scr
 import { COCKPIT_POLL_BOARD_MS } from "@/lib/cockpit-poll-profile";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import { SIMULATIONS_ENABLED } from "@/lib/feature-flags";
+import { cn } from "@/lib/utils";
 import type { DashboardSummaryPayload, TaskQueueItem, TaskQueueResponse } from "@/lib/hive-types";
 
 type FilterTab = "all" | "running" | "pending" | "done";
+type ViewMode = "board" | "table";
 
 const TaskResultDrawer = dynamic(
   () => import("@/components/hive/task-result-drawer").then((mod) => mod.TaskResultDrawer),
   { ssr: false },
+);
+
+const MissionKanbanPanel = dynamic(
+  () => import("@/components/hive/mission-kanban-panel").then((mod) => mod.MissionKanbanPanel),
+  {
+    ssr: false,
+    loading: () => (
+      <HivePanelSectionSkeleton label="Loading mission kanban" minHeightClass="min-h-[24rem]" />
+    ),
+  },
 );
 
 const LANE_CARDS = [
@@ -151,13 +168,32 @@ function buildTierRows(summary: DashboardSummaryPayload | null): { label: string
 }
 
 export function TasksPageClient() {
+  const { soloMode } = usePlatform();
+  const pageTitle = hiveMissionControlPageTitle({ soloMode });
   const [queue, setQueue] = useState<TaskQueueResponse | null>(null);
   const [summary, setSummary] = useState<DashboardSummaryPayload | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState<FilterTab>("all");
+  const [viewMode, setViewMode] = useState<ViewMode>("board");
   const filterScrollRef = useCenterActiveInScrollRow(filter);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [drawerEdit, setDrawerEdit] = useState(false);
+  const [kanbanRefresh, setKanbanRefresh] = useState(0);
+  const searchParams = useSearchParams();
+
+  const openTask = useCallback((taskId: string, opts?: { edit?: boolean }) => {
+    setSelectedTaskId(taskId);
+    setDrawerEdit(opts?.edit ?? false);
+  }, []);
+
+  useEffect(() => {
+    const taskParam = searchParams.get("task");
+    if (taskParam) {
+      setSelectedTaskId(taskParam);
+      setDrawerEdit(false);
+    }
+  }, [searchParams]);
 
   const reload = useCallback(async () => {
     try {
@@ -210,7 +246,7 @@ export function TasksPageClient() {
   if (!queue) {
     return (
       <HivePageShell
-        title="Tasks"
+        title={pageTitle}
         subtitle="Mission queue · workflows · async jobs"
         hintKey="tasks"
         error={hivePageShellError(err, () => setErr(null))}
@@ -223,7 +259,7 @@ export function TasksPageClient() {
   return (
     <HivePageShell
       canvasClassName="gap-6"
-      title="Tasks"
+      title={pageTitle}
       subtitle={
         <>
           <span className="text-(--qs-text-2)">{activeCount} active</span>
@@ -231,13 +267,48 @@ export function TasksPageClient() {
           <span>{queue?.pending_count ?? 0} pending</span>
           {" · "}
           <span>{queue?.completed_today_count ?? 0} completed today</span>
+          {" · "}
+          <span className="text-data">Mission Kanban</span>
         </>
       }
       hintKey="tasks"
       error={hivePageShellError(err, () => setErr(null))}
-      status={<HiveRefreshButton busy={busy} label="Sync" onClick={() => void syncNow()} />}
+      status={
+        <div className="flex items-center gap-2">
+          <Link href="/tasks/new" className="qs-btn qs-btn--ghost qs-btn--sm hidden gap-1.5 lg:inline-flex">
+            <Plus className="h-3.5 w-3.5" aria-hidden />
+            New task
+          </Link>
+          <div className="hidden gap-1 lg:flex">
+            <button
+              type="button"
+              className={cn("qs-btn qs-btn--ghost qs-btn--sm gap-1.5", viewMode === "board" && "border-pollen/40 text-pollen")}
+              onClick={() => setViewMode("board")}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
+              Board
+            </button>
+            <button
+              type="button"
+              className={cn("qs-btn qs-btn--ghost qs-btn--sm gap-1.5", viewMode === "table" && "border-pollen/40 text-pollen")}
+              onClick={() => setViewMode("table")}
+            >
+              <List className="h-3.5 w-3.5" aria-hidden />
+              Table
+            </button>
+          </div>
+          <HiveRefreshButton busy={busy} label="Sync" onClick={() => void syncNow()} />
+        </div>
+      }
     >
       <HubEcosystemStrip preset="tasks" />
+
+      {viewMode === "board" ? (
+        <MissionKanbanPanel onOpenTask={openTask} refreshSignal={kanbanRefresh} />
+      ) : null}
+
+      {viewMode === "table" ? (
+        <>
 
       <div className="v4-mobile-card-slider v4-mobile-card-slider--cols-3">
         {topLanes.map((lane) => {
@@ -291,7 +362,7 @@ export function TasksPageClient() {
               Done
             </V4Chip>
           </div>
-          <Link href="/tasks/new" className="qs-btn qs-btn--primary qs-btn--sm w-full justify-center gap-2">
+          <Link href="/tasks/new" className="qs-btn qs-btn--ghost qs-btn--sm w-full justify-center gap-2">
             <Plus className="h-4 w-4 shrink-0" aria-hidden />
             New task
           </Link>
@@ -456,8 +527,18 @@ export function TasksPageClient() {
           </div>
         </V4Card>
       </div>
+        </>
+      ) : null}
 
-      <TaskResultDrawer onClose={() => setSelectedTaskId(null)} taskId={selectedTaskId} />
+      <TaskResultDrawer
+        onClose={() => {
+          setSelectedTaskId(null);
+          setDrawerEdit(false);
+        }}
+        taskId={selectedTaskId}
+        initialEdit={drawerEdit}
+        onMutated={() => setKanbanRefresh((value) => value + 1)}
+      />
     </HivePageShell>
   );
 }

@@ -22,6 +22,8 @@ Jeden prepínač **`SOLO_MODE_ENABLED=true`** v `.env.prod`:
 
 **My 3 Bees + Brain Pack:** návod `docs/SOLO_OPERATOR_TRIO_GUIDE.md` · Instagram/publish koncept `docs/PRODUCTION_AUTOMATION_PHASES.md`
 
+**Kanonický operátorský workflow (P0):** `docs/OPERATOR_CANONICAL_WORKFLOW.md` · UI `/manual#canonical-workflow`
+
 Voliteľné moduly (foragers, simulations, …) sú v solo **default ON** pre admina; vypneš v **Settings → Platform → stĺpec Prostredie**.
 
 ---

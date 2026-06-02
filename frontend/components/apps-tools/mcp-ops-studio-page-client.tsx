@@ -152,7 +152,7 @@ export function McpOpsStudioPageClient() {
       status={<ModulePolicyPackPill moduleKey="mcp_ops_studio" />}
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          <Link href="/integrations?tab=hub&hubSection=roster" className="qs-btn qs-btn--primary qs-btn--sm">
+          <Link href="/integrations?tab=hub&hubSection=roster" className="qs-btn qs-btn--ghost qs-btn--sm">
             Open Integrations Hub
           </Link>
           <Link href="/apps-tools" className="qs-btn qs-btn--ghost qs-btn--sm">

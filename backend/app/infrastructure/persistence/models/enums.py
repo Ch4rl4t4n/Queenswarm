@@ -42,8 +42,11 @@ class SwarmPurpose(str, Enum):
 class TaskStatus(str, Enum):
     """Lifecycle of atomic execution units surfaced to operators."""
 
+    TRIAGE = "triage"
     PENDING = "pending"
+    READY = "ready"
     RUNNING = "running"
+    BLOCKED = "blocked"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"

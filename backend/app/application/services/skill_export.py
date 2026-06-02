@@ -13,7 +13,7 @@ from app.application.services.hive_md_generator import generate_recipe_hive_md, 
 from app.application.services.recipe_catalog import list_recipe_catalog_rows
 from app.application.services.skill_marketplace_policy import is_premium_recipe, resolve_skill_price_cents
 from app.application.services.skill_publish_assets import build_listing_md, build_publish_guide, build_readme_md
-from app.application.services.supervisor.skills import SkillLibrary
+from app.application.services.supervisor.skills import SkillLibrary, SkillSnippet
 from app.common.schemas.skill_export import (
     SkillCatalogBuiltinItem,
     SkillCatalogRecipeItem,
@@ -289,6 +289,28 @@ def build_export_bundle(recipe: Recipe) -> SkillExportResponse:
     )
 
 
+def _builtin_skill_summary(snippet: SkillSnippet) -> str:
+    """First descriptive line from skill body for marketplace cards."""
+
+    for line in snippet.body.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        return stripped[:280]
+    roles = ", ".join(snippet.roles or []) or "supervisor lanes"
+    return f"Built-in hive skill loaded by {roles}."
+
+
+def _builtin_skill_agent_usage(snippet: SkillSnippet) -> str:
+    """Operator-facing copy for how bees apply this skill shard."""
+
+    roles = ", ".join(snippet.roles or []) or "supervisor"
+    keywords = ", ".join((snippet.keywords or [])[:5])
+    if keywords:
+        return f"Queen and {roles} bees inject this shard when tasks match: {keywords}."
+    return f"Supervisor SkillLibrary loads `{snippet.slug}` for {roles} during planning and execution."
+
+
 async def build_skills_catalog(
     session: AsyncSession,
     *,
@@ -311,6 +333,8 @@ async def build_skills_catalog(
                 version=snippet.version,
                 roles=list(snippet.roles or []),
                 keywords=list(snippet.keywords or []),
+                summary=_builtin_skill_summary(snippet),
+                agent_usage=_builtin_skill_agent_usage(snippet),
             ),
         )
 

@@ -10,6 +10,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import get_logger
+from app.core.config import settings
 from app.domain.memory.curated import CuratedFileKind, CuratedMemoryFile
 from app.infrastructure.persistence.models.curated_memory import CuratedFileKindORM, CuratedMemoryORM
 
@@ -28,6 +29,12 @@ class CuratedMemoryService:
     def __init__(self, *, db: AsyncSession) -> None:
         self._db = db
 
+    @staticmethod
+    def max_chars_per_file() -> int:
+        """Return configured per-file character limit."""
+
+        return int(settings.curated_memory_max_chars)
+
     async def get(self, tenant_id: uuid.UUID, kind: CuratedFileKind) -> CuratedMemoryFile | None:
         """Return one curated memory file for tenant/kind."""
 
@@ -45,8 +52,9 @@ class CuratedMemoryService:
 
         safe_content = content_md or ""
         char_count = len(safe_content)
-        if char_count > 8000:
-            msg = "Curated memory content exceeds 8000 characters."
+        limit = self.max_chars_per_file()
+        if char_count > limit:
+            msg = f"Curated memory content exceeds {limit} characters."
             raise ValueError(msg)
         if self._looks_like_secret(safe_content):
             msg = "Curated memory content appears to include a secret-shaped token."

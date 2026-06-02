@@ -92,6 +92,33 @@ export function buildHiveNavPrimary(consolidatedEnabled: boolean): HiveNavItem[]
 
 export const HIVE_NAV_PRIMARY: HiveNavItem[] = buildHiveNavPrimary(PHASE70_CONSOLIDATED_NAV_ENABLED);
 
+/** Solo operator: promote Tasks to first rail slot as Mission Control (OW13). */
+export function applySoloMissionControlNav(primary: HiveNavItem[], soloMode: boolean): HiveNavItem[] {
+  if (!soloMode || !OPERATOR_CONTROL_PLANE_ENABLED) {
+    return primary;
+  }
+  const tasksIdx = primary.findIndex((item) => item.href === "/tasks");
+  if (tasksIdx < 0) {
+    return primary;
+  }
+  const relabeled = primary.map((item) =>
+    item.href === "/tasks" ? { ...item, label: "Mission Control", bottomNav: true } : item,
+  );
+  if (tasksIdx === 0) {
+    return relabeled;
+  }
+  const copy = [...relabeled];
+  const [tasks] = copy.splice(tasksIdx, 1);
+  return [tasks, ...copy];
+}
+
+export function buildHiveNavPrimaryForContext(
+  consolidatedEnabled: boolean,
+  soloMode: boolean,
+): HiveNavItem[] {
+  return applySoloMissionControlNav(buildHiveNavPrimary(consolidatedEnabled), soloMode);
+}
+
 /** Grouped shortcuts for the mobile More sheet (dense overview). */
 export function buildHiveNavGroups(consolidatedEnabled: boolean): { title: string; items: HiveNavItem[] }[] {
   return buildCanonicalNavGroups({

@@ -23,6 +23,7 @@ export interface StudioPendingActionRef {
   type: "browser" | "external";
   connector_slug?: string;
   tool_name?: string | null;
+  supervisor_session_id?: string | null;
 }
 
 /** DOM id / URL hash for a pending live action row in Execution Studio. */
@@ -35,6 +36,30 @@ export function studioPendingActionHash(action: StudioPendingActionRef): string 
 
 export function studioPendingActionHref(action: StudioPendingActionRef): string {
   return `/integrations?tab=studio#${studioPendingActionHash(action)}`;
+}
+
+/** Deep link when badge counts codebase proposals (no live browser/connector step). */
+export function studioCodebasePendingHref(): string {
+  return "/integrations?tab=studio&section=lanes#codebase-pending";
+}
+
+/** Prefer live-action hash; fall back to codebase proposals lane. */
+export function studioPendingApprovalsHref(studio: {
+  count?: number;
+  codebase_pending?: number;
+  live_actions?: StudioPendingActionRef[];
+}): string {
+  const firstLive = studio.live_actions?.[0];
+  if (firstLive) {
+    if (firstLive.supervisor_session_id) {
+      return supervisorSessionHref(firstLive.supervisor_session_id);
+    }
+    return studioPendingActionHref(firstLive);
+  }
+  if ((studio.codebase_pending ?? 0) > 0) {
+    return studioCodebasePendingHref();
+  }
+  return "/integrations?tab=studio&section=lanes";
 }
 
 /** Notify sidebar badge + notification center to refetch pending snapshot immediately. */

@@ -7,7 +7,9 @@ import { useCallback, useEffect, useState } from "react";
 import { DashboardLayoutProvider } from "@/components/hive/dashboard-layout-provider";
 import { DashboardSettingsPanel } from "@/components/hive/dashboard-settings-panel";
 import { HiveBottomNav } from "@/components/hive/hive-bottom-nav";
-import { BallroomFab } from "@/components/hive/ballroom-fab";
+import { OperatorShellFab } from "@/components/hive/operator-shell-fab";
+import { HiveCommandPaletteHost } from "@/components/hive/hive-command-palette-host";
+import { OperatorMissionFeedProvider } from "@/components/hive/operator-mission-feed-provider";
 import { HiveMobileHeader } from "@/components/hive/hive-mobile-header";
 import { SkipToMainLink } from "@/components/hive/skip-to-main-link";
 import { HiveMobileHeaderActionsProvider } from "@/components/hive/hive-mobile-header-actions";
@@ -104,6 +106,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
 
   return (
     <PlatformProvider>
+      <OperatorMissionFeedProvider>
       <IdleRoutePrefetcher />
       <HotRouteChunkWarmer />
       <DashboardLayoutProvider>
@@ -187,17 +190,19 @@ export function DashboardShell({ children }: DashboardShellProps) {
               pathname={pathname}
               moreOpen={moreOpen}
             />
-            <BallroomFab hidden={mobileDrawerOpen || moreOpen} />
+            <OperatorShellFab hidden={mobileDrawerOpen || moreOpen} />
             <HiveMoreSheet
               open={moreOpen}
               onClose={() => setMoreOpen(false)}
               pathname={pathname}
               tenants={SINGLE_ADMIN_MODE ? null : tenants}
             />
+            <HiveCommandPaletteHost />
           </div>
         </div>
         </HiveMobileHeaderActionsProvider>
       </DashboardLayoutProvider>
+      </OperatorMissionFeedProvider>
     </PlatformProvider>
   );
 }

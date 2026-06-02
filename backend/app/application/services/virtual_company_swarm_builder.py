@@ -16,6 +16,7 @@ from app.application.services.virtual_company_profile import (
     profile_context_block,
     profile_from_tenant,
 )
+from app.core.config import settings
 from app.infrastructure.persistence.models.agent_config import AgentConfig
 from app.infrastructure.persistence.models.enums import AgentRole, AgentStatus, SwarmPurpose
 from app.infrastructure.persistence.models.swarm import SubSwarm
@@ -27,6 +28,18 @@ EXECUTION_PROMPT_SUFFIX = (
 )
 DEPT_TOOLS: tuple[str, ...] = ("hive_memory_search", "task_list", "mcp_invoke")
 SENTINEL_TOOLS: tuple[str, ...] = ("hive_memory_search", "task_list")
+
+
+def assert_virtual_company_build_allowed() -> None:
+    """Block VC department sprawl when solo four-lane model is active."""
+
+    if settings.solo_mode_enabled:
+        msg = (
+            "Virtual Company department build is disabled in SOLO_MODE. "
+            "Use POST /solo-operator/four-lanes/bootstrap or ./scripts/operator-four-lane-provision.sh."
+        )
+        raise ValueError(msg)
+
 
 HiveTier = Literal["manager", "worker"]
 ScheduleKind = Literal["interval", "cron"]
@@ -485,6 +498,7 @@ async def build_department_swarm(
 ) -> dict[str, Any]:
     """Build one wizard swarm + agents + optional routine (idempotent)."""
 
+    assert_virtual_company_build_allowed()
     key = template_id.strip().lower()
     spec = SWARM_WIZARD_SPECS.get(key)
     if spec is None:

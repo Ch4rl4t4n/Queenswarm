@@ -27,7 +27,7 @@ describe("hive-nav-primary", () => {
       expect(hrefs).toContain("/swarms");
       expect(hrefs).toContain("/apps-tools");
       expect(hrefs).not.toContain("/factory");
-      expect(hrefs).not.toContain("/foragers");
+      expect(hrefs).toContain("/foragers");
       expect(hrefs).not.toContain("/settings/security");
     }
   });

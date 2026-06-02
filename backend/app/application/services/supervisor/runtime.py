@@ -51,6 +51,24 @@ _CRITICAL_ACTION_KEYWORDS: tuple[str, ...] = (
     "admin",
 )
 
+_CRITICAL_KEYWORD_SAFE_PHRASES: tuple[str, ...] = (
+    "drop verdict",
+    "drop claims",
+    "drop claim",
+    "drop when",
+    "verdict=false",
+    "verdict = false",
+)
+
+
+def _haystack_for_critical_keyword_scan(haystack: str) -> str:
+    """Strip known safe prose before critical keyword matching."""
+
+    text = haystack.lower()
+    for phrase in _CRITICAL_KEYWORD_SAFE_PHRASES:
+        text = text.replace(phrase, " ")
+    return text
+
 
 @dataclass(slots=True)
 class SelfHealingResult:
@@ -266,8 +284,9 @@ def is_approval_required(*, goal: str, toolset: list[str], context_summary: dict
         live_tokens = ("github_rest", "open pr", "create pr", "pull request", "merge to main", "live pr")
         if any(token in haystack for token in live_tokens):
             return True, "Maintainer live PR requires operator session approval."
+    sanitized = _haystack_for_critical_keyword_scan(haystack)
     for keyword in _CRITICAL_ACTION_KEYWORDS:
-        if keyword in haystack:
+        if keyword in sanitized:
             return True, f"Critical action keyword detected: {keyword}"
     return False, ""
 
@@ -692,6 +711,10 @@ async def run_sub_agent_inprocess(
             "browser_session_id": str(browser_session_id) if browser_session_id else None,
             "discovered_tools": discovered_tools[:8],
         }
+        from app.application.services.supervisor_session_control import maybe_auto_approve_supervisor_session
+
+        if await maybe_auto_approve_supervisor_session(db, session_row=supervisor_session):
+            return
         return
 
     if not healing.resolved:
@@ -733,6 +756,10 @@ async def run_sub_agent_inprocess(
             "browser_session_id": str(browser_session_id) if browser_session_id else None,
             "discovered_tools": discovered_tools[:8],
         }
+        from app.application.services.supervisor_session_control import maybe_auto_approve_supervisor_session
+
+        if await maybe_auto_approve_supervisor_session(db, session_row=supervisor_session):
+            return
         return
 
     sub_agent.last_output = result_msg

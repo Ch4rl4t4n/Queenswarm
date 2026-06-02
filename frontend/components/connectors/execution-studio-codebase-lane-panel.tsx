@@ -3,6 +3,7 @@
 import { Code2, Loader2, Wrench } from "lucide-react";
 import Link from "next/link";
 import { memo, useCallback, useState } from "react";
+import { toast } from "sonner";
 
 import { HiveSwitch } from "@/components/ui/hive-switch";
 import { QsSelect } from "@/components/ui/qs-select";
@@ -19,26 +20,29 @@ export interface ExecutionStudioCodebaseLanePanelProps {
   codebase: CodebaseLane;
   policy: StudioPolicy;
   pendingProposals: PendingProposal[] | undefined;
+  pendingProposalsTotal?: number;
   loading: boolean;
   onPolicyUpdate: (policy: StudioPolicy) => void;
   onError: (message: string | null) => void;
-  onReloadOverview: () => Promise<void>;
-  onExecuteResult: (message: string | null) => void;
+  onReloadOverview: (opts?: { silent?: boolean }) => Promise<void>;
+  onProposalReviewed: (proposalId: string) => void;
 }
 
 function ExecutionStudioCodebaseLanePanelInner({
   codebase,
   policy,
   pendingProposals,
+  pendingProposalsTotal,
   loading,
   onPolicyUpdate,
   onError,
   onReloadOverview,
-  onExecuteResult,
+  onProposalReviewed,
 }: ExecutionStudioCodebaseLanePanelProps) {
   const [policyBusy, setPolicyBusy] = useState(false);
   const [maintainerBusy, setMaintainerBusy] = useState(false);
   const [proposalBusyId, setProposalBusyId] = useState<string | null>(null);
+  const [bulkDismissBusy, setBulkDismissBusy] = useState(false);
   const [lastSessionId, setLastSessionId] = useState<string | null>(null);
 
   const patchPolicy = useCallback(
@@ -62,25 +66,70 @@ function ExecutionStudioCodebaseLanePanelInner({
       setProposalBusyId(proposalId);
       onError(null);
       try {
-        const out = await hivePostJson<{ handoff?: { session_id?: string }; status: string }>(
-          `execution-studio/proposals/${encodeURIComponent(proposalId)}/review`,
-          { decision },
-        );
-        if (out.handoff?.session_id) setLastSessionId(out.handoff.session_id);
-        onExecuteResult(
-          decision === "approve"
-            ? "Proposal approved — Queen Maintainer handoff queued."
-            : "Proposal rejected.",
-        );
-        await onReloadOverview();
+        const out = await hivePostJson<{
+          handoff?: { ok?: boolean; session_id?: string; error?: string; message?: string; skipped?: boolean };
+          status: string;
+        }>(`execution-studio/proposals/${encodeURIComponent(proposalId)}/review`, { decision });
+        onProposalReviewed(proposalId);
+        if (decision === "reject") {
+          toast.success("Proposal rejected.");
+        } else if (out.handoff?.session_id) {
+          setLastSessionId(out.handoff.session_id);
+          toast.success("Approved — Queen Maintainer session queued.", {
+            description: "Open session below or check Agents → Sessions.",
+          });
+        } else if (out.handoff?.ok === false) {
+          const reason = out.handoff.error ?? out.handoff.message ?? "handoff_blocked";
+          toast.message("Approved — Maintainer handoff blocked", {
+            description:
+              reason === "daily_limit_reached"
+                ? "Daily Maintainer run limit reached. Proposal is approved; run Maintainer manually tomorrow or raise the limit in Settings."
+                : String(reason),
+          });
+        } else {
+          toast.success("Proposal approved.");
+        }
+        await onReloadOverview({ silent: true });
       } catch (exc) {
-        onError(exc instanceof HiveApiError ? exc.message : "Proposal review failed.");
+        const msg = exc instanceof HiveApiError ? exc.message : "Proposal review failed.";
+        onError(msg);
+        toast.error(msg);
       } finally {
         setProposalBusyId(null);
       }
     },
-    [onError, onExecuteResult, onReloadOverview],
+    [onError, onProposalReviewed, onReloadOverview],
   );
+
+  const dismissAllPending = useCallback(async () => {
+    const count = pendingProposals?.length ?? 0;
+    if (count === 0) {
+      return;
+    }
+    const total = pendingProposalsTotal ?? count;
+    const confirmed = window.confirm(
+      `Reject all ${count} proposals shown here${total > count ? ` (${total} total pending in hive)` : ""}? Duplicate auto-generated SCV handoffs can be cleared safely.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+    setBulkDismissBusy(true);
+    onError(null);
+    try {
+      const out = await hivePostJson<{ processed: number; skipped: number }>(
+        "execution-studio/proposals/bulk-review",
+        { decision: "reject", limit: 50 },
+      );
+      toast.success(`Dismissed ${out.processed} proposal(s).`);
+      await onReloadOverview({ silent: true });
+    } catch (exc) {
+      const msg = exc instanceof HiveApiError ? exc.message : "Bulk dismiss failed.";
+      onError(msg);
+      toast.error(msg);
+    } finally {
+      setBulkDismissBusy(false);
+    }
+  }, [onError, onReloadOverview, pendingProposals?.length, pendingProposalsTotal]);
 
   const runMaintainer = useCallback(async () => {
     setMaintainerBusy(true);
@@ -92,14 +141,16 @@ function ExecutionStudioCodebaseLanePanelInner({
         {},
       );
       setLastSessionId(out.session_id);
-      onExecuteResult(out.message ?? `Maintainer session ${out.session_id} queued.`);
+      toast.success(out.message ?? `Maintainer session ${out.session_id} queued.`);
       await onReloadOverview();
     } catch (exc) {
-      onError(exc instanceof HiveApiError ? exc.message : "Maintainer run failed.");
+      const msg = exc instanceof HiveApiError ? exc.message : "Maintainer run failed.";
+      onError(msg);
+      toast.error(msg);
     } finally {
       setMaintainerBusy(false);
     }
-  }, [onError, onExecuteResult, onReloadOverview]);
+  }, [onError, onReloadOverview]);
 
   const toggleMaintainerRoutine = useCallback(
     async (enabled: boolean) => {
@@ -120,11 +171,29 @@ function ExecutionStudioCodebaseLanePanelInner({
   return (
     <>
       {(pendingProposals?.length ?? 0) > 0 ? (
-        <div className="qs-bubble qs-bubble--tint-amber shrink-0 space-y-3 p-4">
-          <p className="text-sm font-semibold text-(--qs-text)">Pending SCV proposals</p>
-          <p className="text-xs text-(--qs-text-3)">
-            Research → approval → SCV / Queen Maintainer handoff. See Manual tab for full process.
-          </p>
+        <div id="codebase-pending" className="qs-bubble qs-bubble--tint-amber shrink-0 space-y-3 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold text-(--qs-text)">Pending SCV proposals</p>
+              <p className="mt-1 text-xs text-(--qs-text-3)">
+                Research → approval → SCV / Queen Maintainer handoff. Showing {pendingProposals?.length ?? 0}
+                {(pendingProposalsTotal ?? 0) > (pendingProposals?.length ?? 0)
+                  ? ` of ${pendingProposalsTotal} total`
+                  : ""}
+                .
+              </p>
+            </div>
+            {(pendingProposals?.length ?? 0) > 1 ? (
+              <button
+                type="button"
+                className="qs-btn qs-btn--ghost qs-btn--sm shrink-0"
+                disabled={bulkDismissBusy || proposalBusyId !== null}
+                onClick={() => void dismissAllPending()}
+              >
+                {bulkDismissBusy ? "Dismissing…" : "Dismiss all shown"}
+              </button>
+            ) : null}
+          </div>
           <div className="space-y-2">
             {pendingProposals?.map((proposal) => (
               <article key={proposal.id} className="qs-bubble-inner flex flex-col gap-3 p-3">
@@ -139,18 +208,18 @@ function ExecutionStudioCodebaseLanePanelInner({
                   <button
                     type="button"
                     className="qs-btn qs-btn--ghost qs-btn--sm"
-                    disabled={proposalBusyId === proposal.id}
+                    disabled={proposalBusyId !== null}
                     onClick={() => void reviewProposal(proposal.id, "reject")}
                   >
-                    Reject
+                    {proposalBusyId === proposal.id ? "Working…" : "Reject"}
                   </button>
                   <button
                     type="button"
                     className="qs-btn qs-btn--primary qs-btn--sm"
-                    disabled={proposalBusyId === proposal.id}
+                    disabled={proposalBusyId !== null}
                     onClick={() => void reviewProposal(proposal.id, "approve")}
                   >
-                    Approve
+                    {proposalBusyId === proposal.id ? "Working…" : "Approve"}
                   </button>
                 </div>
               </article>

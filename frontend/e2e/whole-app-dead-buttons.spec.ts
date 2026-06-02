@@ -81,10 +81,10 @@ test.describe("Whole-App dead-button audit — legacy routes", () => {
     await expect(page.getByText("Module index")).toBeVisible({ timeout: 30_000 });
 
     const marketingCard = page.locator("article").filter({
-      has: page.getByRole("heading", { name: "Marketing Automation" }),
+      has: page.getByText("Marketing Automation", { exact: true }),
     });
     await expect(marketingCard).toBeVisible({ timeout: 30_000 });
-    await marketingCard.getByRole("link", { name: "Open module" }).click();
+    await marketingCard.getByRole("link", { name: "Configure" }).click();
     await expect(page).toHaveURL(/\/apps-tools\/marketing-automation/, { timeout: 45_000 });
   });
 
@@ -139,9 +139,11 @@ test.describe("Whole-App dead-button audit — legacy routes", () => {
     await expect(page).toHaveURL(/\/tasks/, { timeout: 45_000 });
     await expect(page.getByRole("heading", { level: 1, name: "Tasks" })).toBeVisible({ timeout: 30_000 });
 
+    await page.getByRole("button", { name: "Table" }).click();
+
     const workflowsLink = EXECUTION_LANE_CROSS_LINKS.find((row) => row.from === "/tasks" && row.to === "/workflows");
     expect(workflowsLink).toBeDefined();
-    await page.getByRole("link", { name: EXECUTION_LANE_CROSS_LINK_LABELS.toWorkflows }).first().click();
+    await page.locator("main").getByRole("link", { name: EXECUTION_LANE_CROSS_LINK_LABELS.toWorkflows }).first().click();
     await expect(page).toHaveURL(/\/workflows/, { timeout: 45_000 });
   });
 
@@ -158,7 +160,7 @@ test.describe("Whole-App dead-button audit — legacy routes", () => {
 
     const toForagers = AGENTS_LANE_CROSS_LINKS.find((row) => row.from === "/agents");
     expect(toForagers).toBeDefined();
-    await page.getByRole("link", { name: EXECUTION_LANE_CROSS_LINK_LABELS.toForagers }).click();
+    await page.locator("main").getByRole("link", { name: EXECUTION_LANE_CROSS_LINK_LABELS.toForagers }).click();
     await expect(page).toHaveURL(/\/foragers/, { timeout: 45_000 });
   });
 });

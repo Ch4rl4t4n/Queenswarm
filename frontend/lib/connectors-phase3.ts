@@ -43,6 +43,9 @@ export const PHASE3_CATEGORY_ORDER = [
   "chat",
   "knowledge",
   "billing",
+  "ai",
+  "social",
+  "trading",
   "vault",
 ] as const;
 
@@ -60,6 +63,12 @@ export function phase3CategoryLabel(category: string): string {
       return "Knowledge bases";
     case "billing":
       return "Billing";
+    case "ai":
+      return "AI & media";
+    case "social":
+      return "Social publish";
+    case "trading":
+      return "Trading & markets";
     case "vault":
       return "Vault sync";
     default:
@@ -82,6 +91,12 @@ export function phase3CategoryShortLabel(category: string): string {
       return "Knowledge";
     case "billing":
       return "Billing";
+    case "ai":
+      return "AI";
+    case "social":
+      return "Social";
+    case "trading":
+      return "Trading";
     case "vault":
       return "Vault";
     default:
@@ -90,7 +105,7 @@ export function phase3CategoryShortLabel(category: string): string {
 }
 
 /** Stable ordering: known lanes first, then any unexpected backend categories. */
-export function orderedPhase3Categories(grouped: Record<string, Phase3TemplatePublic[]>): string[] {
+export function orderedPhase3Categories(grouped: Record<string, unknown[]>): string[] {
   const keys = Object.keys(grouped);
   const primary = PHASE3_CATEGORY_ORDER.filter((c) => keys.includes(c));
   const tail = keys.filter((k) => !PHASE3_CATEGORY_ORDER.includes(k as (typeof PHASE3_CATEGORY_ORDER)[number])).sort();

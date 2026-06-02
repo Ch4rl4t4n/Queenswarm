@@ -1,14 +1,16 @@
 "use client";
 
-import { Pencil, Play, Plus, RefreshCw } from "lucide-react";
+import { ExternalLink, ListTodo, Pencil, Play, Plus, RefreshCw, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { ForagerFormDialog } from "@/components/hive/forager-form-dialog";
+import { ForagerSpawnRuleDialog } from "@/components/hive/forager-spawn-rule-dialog";
 import { HivePageShell } from "@/components/hive/hive-page-shell";
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import {
   V4Badge,
   V4Card,
@@ -20,12 +22,11 @@ import {
   V4IconPollen,
   V4Stat,
 } from "@/components/ui/v4";
-import { HiveApiError, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
-import { hivePageShellError } from "@/lib/hive-page-error";
 import {
   AGENTS_HUB_PATH,
   EXECUTION_LANE_CROSS_LINK_LABELS,
   KNOWLEDGE_HIVEMIND_HREF,
+  foragerKnowledgeHref,
 } from "@/lib/execution-lane-routes";
 import { COCKPIT_POLL_BOARD_MS } from "@/lib/cockpit-poll-profile";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
@@ -36,6 +37,8 @@ import type {
   ForagersSpawnRule,
 } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
+import { HiveApiError, hiveDelete, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
+import { hivePageShellError } from "@/lib/hive-page-error";
 
 type FilterKey = "all" | "active" | "paused" | "errors";
 
@@ -107,6 +110,34 @@ function SpawnRuleToggle({
   );
 }
 
+function ForagerProgressCell({
+  pct,
+  detail,
+  href,
+}: {
+  pct: number;
+  detail?: string;
+  href?: string | null;
+}): JSX.Element {
+  const clamped = Math.max(0, Math.min(100, pct));
+  const inner = (
+    <div className="v4-progress-cell" title={detail || undefined}>
+      <div className="v4-progress-track">
+        <div className="v4-progress-fill" style={{ width: `${clamped}%` }} />
+      </div>
+      <span className="v4-progress-pct">{clamped}%</span>
+    </div>
+  );
+  if (href) {
+    return (
+      <Link href={href} className="block transition hover:opacity-90" title={detail || "Open progress detail"}>
+        {inner}
+      </Link>
+    );
+  }
+  return inner;
+}
+
 export function ForagersPageClient() {
   const [data, setData] = useState<ForagersOverviewPayload | null>(null);
   const [foragers, setForagers] = useState<ForagerRow[]>([]);
@@ -116,7 +147,9 @@ export function ForagersPageClient() {
   const [busy, setBusy] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterKey>("all");
   const [formOpen, setFormOpen] = useState(false);
+  const [spawnRuleOpen, setSpawnRuleOpen] = useState(false);
   const [editingForager, setEditingForager] = useState<ForagerRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ForagersOverviewConfiguration | null>(null);
 
   const canManage = tenantRole === "owner" || tenantRole === "admin";
 
@@ -197,6 +230,29 @@ export function ForagersPageClient() {
         active.map((row) => hivePostJson(`foragers/${encodeURIComponent(row.id)}/trigger`, { records: [] })),
       );
       toast.success(`Triggered ${active.length} forager${active.length === 1 ? "" : "s"}`);
+      await reload();
+    });
+  }
+
+  async function promoteToTask(row: ForagersOverviewConfiguration) {
+    if (!canManage) return;
+    await withBusy(`task-${row.id}`, async () => {
+      const res = await hivePostJson<{ ok: boolean; task_id?: string; title?: string }>(
+        `foragers/${encodeURIComponent(row.id)}/promote-task`,
+        { title: `Forager digest · ${row.source_name}` },
+      );
+      toast.success(res.title ? `${res.title} → Triage` : "Digest task created in Mission Kanban");
+      await reload();
+    });
+  }
+
+  async function confirmDeleteForager() {
+    if (!canManage || !deleteTarget) return;
+    const target = deleteTarget;
+    setDeleteTarget(null);
+    await withBusy(`delete-${target.id}`, async () => {
+      await hiveDelete<void>(`foragers/${encodeURIComponent(target.id)}`);
+      toast.success(`Deleted ${target.source_name}`);
       await reload();
     });
   }
@@ -355,7 +411,7 @@ export function ForagersPageClient() {
         />
         <ResponsiveTable
           table={
-            <table className="v4-data-table min-w-[920px]">
+            <table className="v4-data-table min-w-[1120px]">
               <thead>
                 <tr>
                   <th>Source</th>
@@ -363,6 +419,7 @@ export function ForagersPageClient() {
                   <th>Schedule</th>
                   <th>Last run</th>
                   <th>Items</th>
+                  <th>Progress</th>
                   <th>Status</th>
                   <th aria-label="Actions" />
                 </tr>
@@ -370,7 +427,7 @@ export function ForagersPageClient() {
               <tbody>
                 {!visibleRows.length ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-sm text-(--qs-text-3)">
+                    <td colSpan={8} className="py-12 text-center text-sm text-(--qs-text-3)">
                       {configurations.length
                         ? "No foragers match this filter."
                         : "No foragers yet — create one with New forager."}
@@ -389,10 +446,38 @@ export function ForagersPageClient() {
                       <td className="text-(--qs-text-3)">{formatAgo(row.last_run_seconds_ago)}</td>
                       <td>{row.items_count}</td>
                       <td>
+                        <ForagerProgressCell
+                          pct={row.run_progress_pct ?? 0}
+                          detail={row.progress_detail}
+                          href={
+                            row.progress_href ??
+                            foragerKnowledgeHref({ foragerId: row.id, searchQuery: row.source_name })
+                          }
+                        />
+                      </td>
+                      <td>
                         <V4Badge tone={statusTone(row.status)}>{row.status}</V4Badge>
                       </td>
                       <td>
                         <div className="flex flex-wrap justify-end gap-2">
+                          <Link
+                            href={foragerKnowledgeHref({ foragerId: row.id, searchQuery: row.source_name })}
+                            className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
+                            title="View ingested items in HiveMind"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                            Results
+                          </Link>
+                          <button
+                            type="button"
+                            className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
+                            disabled={!canManage || busy === `task-${row.id}`}
+                            onClick={() => void promoteToTask(row)}
+                            title="Create Mission Kanban triage task from harvest"
+                          >
+                            <ListTodo className="h-3.5 w-3.5" aria-hidden />
+                            Task
+                          </button>
                           <button
                             type="button"
                             className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
@@ -410,6 +495,15 @@ export function ForagersPageClient() {
                           >
                             <Pencil className="h-3.5 w-3.5" aria-hidden />
                             Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="qs-btn qs-btn--danger qs-btn--sm gap-1.5"
+                            disabled={!canManage || busy === `delete-${row.id}`}
+                            onClick={() => setDeleteTarget(row)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                            Delete
                           </button>
                         </div>
                       </td>
@@ -438,8 +532,33 @@ export function ForagersPageClient() {
                     <V4Badge tone="purple">{row.source_type}</V4Badge>
                     <span>{formatAgo(row.last_run_seconds_ago)}</span>
                     <span>{row.items_count} items</span>
+                    <span>{row.run_progress_pct ?? 0}% done</span>
                   </div>
-                  <div className="flex gap-2">
+                  <ForagerProgressCell
+                    pct={row.run_progress_pct ?? 0}
+                    detail={row.progress_detail}
+                    href={
+                      row.progress_href ??
+                      foragerKnowledgeHref({ foragerId: row.id, searchQuery: row.source_name })
+                    }
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      href={foragerKnowledgeHref({ foragerId: row.id, searchQuery: row.source_name })}
+                      className="qs-btn qs-btn--ghost qs-btn--sm flex-1 gap-1.5"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                      Results
+                    </Link>
+                    <button
+                      type="button"
+                      className="qs-btn qs-btn--ghost qs-btn--sm flex-1 gap-1.5"
+                      disabled={!canManage || busy === `task-${row.id}`}
+                      onClick={() => void promoteToTask(row)}
+                    >
+                      <ListTodo className="h-3.5 w-3.5" aria-hidden />
+                      Task
+                    </button>
                     <button
                       type="button"
                       className="qs-btn qs-btn--ghost qs-btn--sm flex-1 gap-1.5"
@@ -458,6 +577,15 @@ export function ForagersPageClient() {
                       <Pencil className="h-3.5 w-3.5" aria-hidden />
                       Edit
                     </button>
+                    <button
+                      type="button"
+                      className="qs-btn qs-btn--danger qs-btn--sm flex-1 gap-1.5"
+                      disabled={!canManage || busy === `delete-${row.id}`}
+                      onClick={() => setDeleteTarget(row)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                      Delete
+                    </button>
                   </div>
                 </article>
               ))
@@ -471,7 +599,7 @@ export function ForagersPageClient() {
           title="Auto-spawn rules"
           description="When a forager finds X items matching a query, spawn a ScoutBee in target swarm."
           actions={
-            <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-2" disabled={!canManage} onClick={openCreate}>
+            <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-2" disabled={!canManage} onClick={() => setSpawnRuleOpen(true)}>
               <Plus className="h-4 w-4" aria-hidden />
               Add rule
             </button>
@@ -505,6 +633,16 @@ export function ForagersPageClient() {
         </div>
       </V4Card>
 
+      <ForagerSpawnRuleDialog
+        open={spawnRuleOpen}
+        onOpenChange={setSpawnRuleOpen}
+        foragers={foragers}
+        configurations={configurations}
+        templates={templates}
+        canManage={canManage}
+        onSaved={() => void reload()}
+      />
+
       <ForagerFormDialog
         open={formOpen}
         onOpenChange={setFormOpen}
@@ -512,6 +650,20 @@ export function ForagersPageClient() {
         templates={templates}
         canManage={canManage}
         onSaved={() => void reload()}
+      />
+
+      <ConfirmModal
+        open={deleteTarget != null}
+        title="Delete forager?"
+        message={
+          deleteTarget
+            ? `Remove "${deleteTarget.source_name}" and stop its schedule. Items already in HiveMind are kept.`
+            : ""
+        }
+        confirmLabel="Delete"
+        danger
+        onConfirm={() => void confirmDeleteForager()}
+        onCancel={() => setDeleteTarget(null)}
       />
     </HivePageShell>
   );

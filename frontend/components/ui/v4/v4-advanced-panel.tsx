@@ -10,6 +10,7 @@ interface V4AdvancedPanelProps {
   description?: string;
   children: ReactNode;
   defaultOpen?: boolean;
+  className?: string;
 }
 
 /** Collapsible “Advanced” block — spawn forms & power-user controls. */
@@ -18,6 +19,7 @@ export function V4AdvancedPanel({
   description = "Spawn managers/workers and tune hive internals.",
   children,
   defaultOpen = false,
+  className,
 }: V4AdvancedPanelProps) {
   const [open, setOpen] = useState(defaultOpen);
   const baseId = useId();
@@ -25,7 +27,7 @@ export function V4AdvancedPanel({
   const regionId = `${baseId}-region`;
 
   return (
-    <section className="v4-card v4-card-interactive overflow-hidden p-0">
+    <section className={cn("v4-card v4-card-interactive overflow-hidden p-0", className)}>
       <button
         type="button"
         id={triggerId}

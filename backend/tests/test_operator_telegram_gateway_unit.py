@@ -88,4 +88,4 @@ async def test_handle_telegram_update_unknown_chat() -> None:
                 db,
                 update={"message": {"chat": {"id": 999}, "text": "/status"}},
             )
-    assert "Neznámy chat" in reply
+    assert "Unknown chat" in reply

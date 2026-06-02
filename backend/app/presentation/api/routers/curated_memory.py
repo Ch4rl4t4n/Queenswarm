@@ -70,6 +70,16 @@ async def export_brain_pack(
     return {"markdown": service.render_brain_pack_export(bundle)}
 
 
+@router.get("/limits", summary="Curated memory per-file character limits")
+async def get_curated_limits() -> dict[str, int]:
+    """Return configured limits for UI counters."""
+
+    return {
+        "max_chars_per_file": CuratedMemoryService.max_chars_per_file(),
+        "db_char_ceiling": 24_000,
+    }
+
+
 @router.get("", summary="List all curated files for active tenant")
 async def get_curated_bundle(
     db: DbSession,

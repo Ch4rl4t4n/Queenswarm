@@ -4,7 +4,7 @@ import { GitBranch, Loader2Icon, Upload } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
 import { usePlatform } from "@/components/hive/platform-context";
-import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
+import { V4Badge, V4Card, V4CardHeader, V4FormField, V4FormStack } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 
@@ -110,18 +110,19 @@ export function AutoGraphifyPanel(): JSX.Element | null {
   }
 
   return (
-    <V4Card className="v4-card-interactive border-cyan/25">
+    <V4Card className="auto-graphify-panel v4-card-interactive border-cyan/25">
       <V4CardHeader
+        as="h3"
         leadingIcon={GitBranch}
         leadingIconTone="cyan"
         title="Auto-Graphify"
         description="Upload a project folder — mirror to vault, embed vectors, and create Neo4j document nodes."
       />
 
-      <div className="space-y-4">
-        <label className="block space-y-2 text-sm">
-          <span className="text-(--qs-text-2)">Folder label</span>
+      <V4FormStack className="auto-graphify-panel__form">
+        <V4FormField label="Folder label" htmlFor="auto-graphify-folder-label">
           <input
+            id="auto-graphify-folder-label"
             type="text"
             value={folderLabel}
             onChange={(e) => setFolderLabel(e.target.value)}
@@ -129,34 +130,36 @@ export function AutoGraphifyPanel(): JSX.Element | null {
             className="qs-input w-full"
             disabled={busy}
           />
-        </label>
+        </V4FormField>
 
-        <label className="block space-y-2 text-sm">
-          <span className="text-(--qs-text-2)">Files (.md, .txt, .json…)</span>
+        <V4FormField label="Files (.md, .txt, .json…)" htmlFor="auto-graphify-files">
           <input
+            id="auto-graphify-files"
             ref={inputRef}
             type="file"
             multiple
             accept=".md,.txt,.markdown,.json,.csv,.yaml,.yml,.py,.html,.xml,.log"
-            className="block w-full text-sm text-(--qs-text-2) file:mr-3 file:rounded-lg file:border-0 file:bg-pollen/15 file:px-3 file:py-2 file:text-xs file:uppercase file:text-pollen"
+            className="auto-graphify-panel__file-input"
             disabled={busy}
           />
-        </label>
+        </V4FormField>
 
-        <button
-          type="button"
-          className="qs-btn qs-btn--primary qs-btn--sm inline-flex items-center gap-2"
-          disabled={busy}
-          onClick={() => void onSubmit()}
-        >
-          {busy ? <Loader2Icon className="h-4 w-4 animate-spin" aria-hidden /> : <Upload className="h-4 w-4" aria-hidden />}
-          Queue graphify
-        </button>
+        <div className="auto-graphify-panel__actions">
+          <button
+            type="button"
+            className="qs-btn qs-btn--primary qs-btn--sm inline-flex items-center gap-2"
+            disabled={busy}
+            onClick={() => void onSubmit()}
+          >
+            {busy ? <Loader2Icon className="h-4 w-4 animate-spin" aria-hidden /> : <Upload className="h-4 w-4" aria-hidden />}
+            Queue graphify
+          </button>
+        </div>
 
-        {hint ? <p className="text-sm text-(--qs-text-3)">{hint}</p> : null}
+        {hint ? <p className="auto-graphify-panel__hint text-sm text-(--qs-text-3)">{hint}</p> : null}
 
         {activeBatch ? (
-          <div className="space-y-2 rounded-xl border border-(--qs-border) bg-(--qs-surface-2)/40 p-3">
+          <div className="auto-graphify-panel__status space-y-2 rounded-xl border border-(--qs-border) bg-(--qs-surface-2)/40 p-4">
             <div className="flex flex-wrap items-center gap-2">
               <V4Badge tone={statusTone(activeBatch.status)}>{activeBatch.status}</V4Badge>
               <V4Badge tone="info">{activeBatch.items_ingested} docs</V4Badge>
@@ -170,7 +173,7 @@ export function AutoGraphifyPanel(): JSX.Element | null {
             ) : null}
           </div>
         ) : null}
-      </div>
+      </V4FormStack>
     </V4Card>
   );
 }

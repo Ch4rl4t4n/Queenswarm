@@ -13,17 +13,25 @@ from app.application.services.supervisor.session_report import (
 
 
 def test_build_supervisor_session_report_markdown_includes_sections() -> None:
-    """Markdown report includes audit, context history, and timeline sections."""
+    """Markdown report includes audit, context history, timeline, and deliverables."""
 
     session_id = uuid.uuid4()
     generated_at = datetime(2026, 5, 19, 12, 0, tzinfo=UTC)
     body = build_supervisor_session_report_markdown(
         session_id=session_id,
         session={
-            "goal": "Investigate latency",
+            "goal": "Wrapped mission block",
+            "context_summary": {"raw_goal": "Investigate latency"},
             "status": "running",
             "runtime_mode": "durable",
-            "sub_agents": [{"role": "researcher", "status": "running", "runtime_mode": "durable"}],
+            "sub_agents": [
+                {
+                    "role": "researcher",
+                    "status": "completed",
+                    "runtime_mode": "durable",
+                    "last_output": "Latency root cause: cache miss storm.",
+                },
+            ],
         },
         audit_rows=[{"created_at": generated_at, "action": "supervisor_session_create", "payload": {}}],
         event_rows=[{"occurred_at": generated_at, "event_type": "session_started", "message": "Started"}],
@@ -39,6 +47,10 @@ def test_build_supervisor_session_report_markdown_includes_sections() -> None:
     assert "Operator audit" in body
     assert "Context history" in body
     assert "Session timeline" in body
+    assert "Deliverables (sub-agent outputs)" in body
+    assert "Latency root cause: cache miss storm." in body
+    assert "Investigate latency" in body
+    assert "Wrapped mission block" not in body
     assert "supervisor_session_create" in body
 
 
@@ -60,7 +72,7 @@ def test_build_supervisor_session_report_html_escapes_goal() -> None:
 
 
 def test_build_supervisor_session_report_pdf_returns_pdf_magic_bytes() -> None:
-    """PDF builder returns a valid PDF document header."""
+    """PDF builder returns a valid PDF document header and includes deliverables."""
 
     session_id = uuid.uuid4()
     generated_at = datetime(2026, 5, 19, 12, 0, tzinfo=UTC)
@@ -70,7 +82,14 @@ def test_build_supervisor_session_report_pdf_returns_pdf_magic_bytes() -> None:
             "goal": "Latency investigation",
             "status": "running",
             "runtime_mode": "durable",
-            "sub_agents": [{"role": "researcher", "status": "running", "runtime_mode": "durable"}],
+            "sub_agents": [
+                {
+                    "role": "researcher",
+                    "status": "running",
+                    "runtime_mode": "durable",
+                    "last_output": "Detailed findings from researcher bee.",
+                },
+            ],
         },
         audit_rows=[{"created_at": generated_at, "action": "supervisor_session_create", "payload": {}}],
         event_rows=[{"occurred_at": generated_at, "event_type": "session_started", "message": "Started"}],
@@ -78,4 +97,4 @@ def test_build_supervisor_session_report_pdf_returns_pdf_magic_bytes() -> None:
         generated_at=generated_at,
     )
     assert payload.startswith(b"%PDF")
-    assert len(payload) > 500
+    assert len(payload) > 1500

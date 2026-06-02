@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   BookOpen,
+  BookMarked,
   Flag,
   GitBranch,
   Layers,
@@ -13,6 +14,7 @@ import {
   Sparkles,
   Waypoints,
 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useState, useEffect, useCallback, useMemo } from "react";
 
 import { AutoGraphifyPanel } from "@/components/hive/auto-graphify-panel";
@@ -32,6 +34,7 @@ import { LearningConsole } from "@/components/hive/learning-console";
 import { MemoryEvolutionPanel } from "@/components/hive/memory-evolution-panel";
 import { OutputsInteractivePanel } from "@/components/hive/outputs-interactive-panel";
 import { RecipesPageClient } from "@/components/hive/recipes-page-client";
+import { WikiLayerPanel } from "@/components/hive/wiki-layer-panel";
 import {
   V4Card,
   V4CardHeader,
@@ -64,6 +67,7 @@ const TABS: { id: KnowledgeTab; label: string; icon: typeof GitBranch }[] = [
   { id: "recipes", label: "Recipes · Learning", icon: BookOpen },
   { id: "dreaming", label: "Dreaming", icon: Moon },
   { id: "memory", label: "Curated memory", icon: Layers },
+  { id: "wiki", label: "Wiki Layer", icon: BookMarked },
   { id: "goals", label: "Goals", icon: Flag },
 ];
 
@@ -80,6 +84,10 @@ const HIVEMIND_SECTIONS: {
 ];
 
 export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false }: KnowledgePageClientProps) {
+  const searchParams = useSearchParams();
+  const foragerId = searchParams.get("forager")?.trim() ?? "";
+  const foragerSearchQ = searchParams.get("q")?.trim() ?? "";
+
   const tabIds = useMemo(() => TABS.map((item) => item.id), []);
 
   const [tab, setTab] = useState<KnowledgeTab>(() => resolveKnowledgeTab({ visibleTabIds: tabIds }));
@@ -99,6 +107,17 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
     setHivemindSection(next);
     window.history.replaceState(null, "", knowledgeHivemindSectionHref(next));
   }, []);
+
+  useEffect(() => {
+    if (!foragerId) {
+      return;
+    }
+    setTab("hivemind");
+    setHivemindSection("explorer");
+    if (foragerSearchQ) {
+      setFilter(foragerSearchQ);
+    }
+  }, [foragerId, foragerSearchQ]);
 
   useEffect(() => {
     const syncFromHash = (): void => {
@@ -132,7 +151,7 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
   return (
     <HivePageShell
       title="Knowledge"
-      subtitle="One plane — HiveMind retrieval, outputs archive, recipes/learning, dreaming cycles, curated memory, goals."
+      subtitle="One plane — HiveMind retrieval, outputs archive, recipes/learning, dreaming cycles, curated memory, wiki layer, goals."
       hintKey="knowledge"
       banner={
         archiveSyncPending ? (
@@ -178,8 +197,8 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
           <div className="v4-cols-2">
             <div className="v4-knowledge-contract v4-knowledge-contract--purple">
               <span className="v4-label-kicker">Retrieval contract</span>
-              <p className="v4-knowledge-mono">customer_history + policy + last_3_tasks</p>
-              <p className="v4-knowledge-foot">Used by Queen for every new mission brief.</p>
+              <p className="v4-knowledge-mono">wiki_only · deep_raw · default_v2</p>
+              <p className="v4-knowledge-foot">Hot tier = curated + wiki. Cold tier = raw forager scrape (deep research).</p>
             </div>
             <div className="v4-knowledge-contract v4-knowledge-contract--gold">
               <span className="v4-label-kicker">Skill pack preset</span>
@@ -212,7 +231,13 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
                   </div>
                 }
               />
-              <HiveMindExplorer showHeader={false} variant="v4" filterHint={filter} />
+              <HiveMindExplorer
+                showHeader={false}
+                variant="v4"
+                filterHint={filter}
+                initialSearchQ={foragerSearchQ || (foragerId ? `forager:${foragerId}` : "")}
+                autoSearchOnMount={Boolean(foragerId)}
+              />
             </V4Card>
           ) : null}
           {hivemindSection === "evolution" ? <MemoryEvolutionPanel /> : null}
@@ -256,6 +281,12 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
           <OperatorBrainPackPanel />
           <HiveSessionSearchPanel />
           <EpisodicMemoryPanel />
+        </div>
+      ) : null}
+
+      {tab === "wiki" ? (
+        <div id="wiki" className="scroll-mt-28">
+          <WikiLayerPanel />
         </div>
       ) : null}
 

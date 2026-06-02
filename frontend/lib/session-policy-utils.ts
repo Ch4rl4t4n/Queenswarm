@@ -28,6 +28,26 @@ export function formatOAuthStateTtl(seconds: number): string {
   return `Redis state TTL ${minutes} min`;
 }
 
+export function format2faSessionTtl(hours: number): string {
+  if (hours <= 0) {
+    return "Password only (no re-prompt)";
+  }
+  if (hours === 1) {
+    return "1 hour";
+  }
+  if (hours < 24) {
+    return `${hours} hours`;
+  }
+  if (hours === 24) {
+    return "24 hours";
+  }
+  if (hours % 24 === 0) {
+    const days = hours / 24;
+    return days === 1 ? "1 day" : `${days} days`;
+  }
+  return `${hours} hours`;
+}
+
 export function nearestSelectValue(current: number, options: readonly number[]): number {
   return options.reduce((best, candidate) =>
     Math.abs(candidate - current) < Math.abs(best - current) ? candidate : best,

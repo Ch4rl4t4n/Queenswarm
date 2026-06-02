@@ -108,10 +108,10 @@ test.describe("Whole-App critical journeys — desktop", () => {
     await assertShellTitle(page, "Apps & Tools");
 
     const marketingCard = page.locator("article").filter({
-      has: page.getByRole("heading", { name: "Marketing Automation" }),
+      has: page.getByText("Marketing Automation", { exact: true }),
     });
     await expect(marketingCard).toBeVisible({ timeout: 30_000 });
-    await marketingCard.getByRole("link", { name: "Open module" }).click();
+    await marketingCard.getByRole("link", { name: "Configure" }).click();
     await expect(page).toHaveURL(/\/apps-tools\/marketing-automation/, { timeout: 45_000 });
     await assertShellTitle(page, "Marketing Automation");
   });
@@ -152,7 +152,9 @@ test.describe("Whole-App critical journeys — desktop", () => {
     await gotoShellRoute(page, "/tasks");
     await assertShellTitle(page, "Tasks");
 
-    await page.getByRole("link", { name: "New task" }).first().click();
+    const newTask = page.getByRole("link", { name: "New task" }).first();
+    await expect(newTask).toBeVisible({ timeout: 20_000 });
+    await newTask.click();
     await expect(page).toHaveURL(/\/tasks\/new/, { timeout: 15_000 });
     await expect(page.getByRole("heading", { name: "New task" })).toBeVisible({ timeout: 20_000 });
   });

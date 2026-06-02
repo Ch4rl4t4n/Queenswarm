@@ -145,6 +145,7 @@ async def test_dashboard_login_success_sets_no_store_headers(
         password_hash=hash_dashboard_password("CorrectSecret-123"),
         totp_secret=None,
         totp_verified_at=None,
+        notification_prefs={},
     )
 
     async def mock_db() -> AsyncIterator[SimpleNamespace]:
@@ -156,6 +157,12 @@ async def test_dashboard_login_success_sets_no_store_headers(
 
     app.dependency_overrides[get_db] = mock_db
     monkeypatch.setattr(settings, "rate_limit_enabled", False)
+    fake_tenant = SimpleNamespace(id=uuid.uuid4(), slug="hive", name="Hive", operator_settings={})
+    monkeypatch.setattr(
+        dashboard_session_router,
+        "ensure_default_tenant_for_user",
+        AsyncMock(return_value=fake_tenant),
+    )
     monkeypatch.setattr(
         dashboard_session_router,
         "_issue_pair",
@@ -194,6 +201,7 @@ async def test_dashboard_login_when_totp_required_sets_no_store_headers(
         password_hash=hash_dashboard_password("CorrectSecret-123"),
         totp_secret="totp-secret",
         totp_verified_at=object(),
+        notification_prefs={},
     )
 
     async def mock_db() -> AsyncIterator[SimpleNamespace]:
@@ -206,6 +214,12 @@ async def test_dashboard_login_when_totp_required_sets_no_store_headers(
     app.dependency_overrides[get_db] = mock_db
     monkeypatch.setattr(settings, "rate_limit_enabled", False)
     monkeypatch.setattr(settings, "enable_2fa", True)
+    fake_tenant = SimpleNamespace(id=uuid.uuid4(), slug="hive", name="Hive", operator_settings={})
+    monkeypatch.setattr(
+        dashboard_session_router,
+        "ensure_default_tenant_for_user",
+        AsyncMock(return_value=fake_tenant),
+    )
     monkeypatch.setattr(
         dashboard_session_router,
         "create_pre_2fa_token",
@@ -293,16 +307,25 @@ async def test_dashboard_refresh_success_sets_no_store_headers(
     restore_app_overrides: None,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    tenant_id = uuid.uuid4()
     user = SimpleNamespace(
         id=uuid.uuid4(),
         email="admin@queenswarm.love",
         is_active=True,
         is_admin=False,
+        active_tenant_id=tenant_id,
+        totp_secret=None,
+        totp_verified_at=None,
     )
+    fake_tenant = SimpleNamespace(id=tenant_id, slug="hive", name="Hive", operator_settings={})
 
     class _FakeDb:
-        async def get(self, *_args, **_kwargs):
-            return user
+        async def get(self, model, pk):  # noqa: ANN001
+            if pk == user.id:
+                return user
+            if pk == tenant_id:
+                return fake_tenant
+            return None
 
     async def mock_db() -> AsyncIterator[_FakeDb]:
         yield _FakeDb()
@@ -357,6 +380,7 @@ async def test_dashboard_refresh_rejects_expired_2fa_session(
         is_admin=False,
         totp_secret="SECRET",
         totp_verified_at=datetime.now(tz=UTC),
+        active_tenant_id=None,
     )
 
     class _FakeDb:

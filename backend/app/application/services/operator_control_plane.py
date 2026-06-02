@@ -443,7 +443,7 @@ def _cockpit_actions_from_loop(actions: list[OperatorLoopActionOut]) -> list[Ope
     out: list[OperatorCockpitActionOut] = [
         OperatorCockpitActionOut(
             id="start_day",
-            label="Spusti deň",
+            label="Start day",
             detail="Trio cycle + morning brief pipeline (verify-first).",
             priority="high",
             action="start_day",

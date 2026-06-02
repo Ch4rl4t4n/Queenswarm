@@ -77,15 +77,62 @@ SOLO_SESSION_PRESETS: dict[str, SoloSessionPresetOut] = {
         label="Trading — paper review",
         lane="trading",
         goal=(
-            "Paper trading cockpit review (žiadne live peniaze).\n\n"
-            "Prečítaj posledný paper trading stav a navrhni:\n"
-            "- 3 pozorovania z posledných signálov\n"
-            "- 1 risk flag ak existuje\n"
-            "- odporúčanie: hold / adjust paper params / skip\n\n"
-            "Simulate-first; live trading explicitne zakázané bez operátorského OK."
+            "Paper trading cockpit review (no live money).\n\n"
+            "Read the latest paper trading state and propose:\n"
+            "- 3 observations from recent signals\n"
+            "- 1 risk flag if any\n"
+            "- recommendation: hold / adjust paper params / skip\n\n"
+            "Simulate-first; live trading forbidden without explicit operator OK."
         ),
         roles=["researcher", "critic"],
         skills=["context", "execution-studio"],
+    ),
+    "web-redesign-discovery": SoloSessionPresetOut(
+        id="web-redesign-discovery",
+        label="Web redesign — discovery",
+        lane="ops",
+        goal=(
+            "PROJECT: Web Redesign — Phase 1 Discovery (verify-first).\n\n"
+            "Deliverables:\n"
+            "1. Audit current site UX, SEO, and speed from public sources.\n"
+            "2. Benchmark 5 competitors.\n"
+            "3. Proposed IA (max 12 pages) + MVP priorities.\n"
+            "4. Three homepage concept outlines (text).\n\n"
+            "Output: English report, max 1500 words.\n"
+            "Critic APPROVE before final. Simulate only."
+        ),
+        roles=["researcher", "designer", "critic"],
+        skills=["context", "decide", "tdd"],
+    ),
+    "marketing-campaign": SoloSessionPresetOut(
+        id="marketing-campaign",
+        label="Marketing — campaign brief",
+        lane="marketing",
+        goal=(
+            "PROJECT: Marketing campaign brief (simulate-first).\n\n"
+            "Deliverables:\n"
+            "1. Audience + positioning (1 paragraph each)\n"
+            "2. Channel plan (3 channels max)\n"
+            "3. Content calendar skeleton (2 weeks)\n"
+            "4. Draft publish pack JSON for simulate queue\n\n"
+            "No live posts. Critic verify before recommending approve."
+        ),
+        skills=["context", "execution-studio", "publish_pack"],
+    ),
+    "competitor-research": SoloSessionPresetOut(
+        id="competitor-research",
+        label="Research — competitor intel",
+        lane="ops",
+        goal=(
+            "PROJECT: Competitor research sprint (verify-first).\n\n"
+            "Deliverables:\n"
+            "1. Top 5 competitors — product, pricing signal, positioning\n"
+            "2. Gap analysis vs our offer\n"
+            "3. 5 actionable recommendations ranked by impact\n\n"
+            "Public sources only. Critic APPROVE. Simulate only."
+        ),
+        roles=["researcher", "critic"],
+        skills=["context", "decide", "tdd"],
     ),
 }
 

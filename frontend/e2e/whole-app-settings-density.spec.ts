@@ -15,7 +15,7 @@ test.describe("Whole-App Settings — panel density", () => {
 
     const panel = page.getByTestId("settings-capabilities-panel");
     await expect(panel).toBeVisible({ timeout: 45_000 });
-    await expect(panel.getByRole("heading", { name: "Funkčné features" })).toBeVisible();
+    await expect(panel.getByRole("heading", { name: "Live features" })).toBeVisible();
 
     const missionToggle = panel.getByRole("button", { name: /North Star & rollout/i });
     await expect(missionToggle).toHaveAttribute("aria-expanded", "false");

@@ -120,13 +120,13 @@ async def notify_publish_pack_simulate_ready(
     structured = _structured(row)
     channel = str(structured.get("channel") or "instagram")
     body_preview = str(structured.get("body") or row.markdown_body or "")[:160]
-    detail = f"{row.title}\nKanál: {channel}\n{body_preview}"
+    detail = f"{row.title}\nChannel: {channel}\n{body_preview}"
 
     result = await _send_trust_ping(
         db,
         dashboard_user_id=dashboard_user_id,
         priority="simulate",
-        title="Publish pack — schváľ v queue",
+        title="Publish pack — approve in queue",
         detail=detail,
         href=_publish_queue_href(deliverable_id=row.id),
     )
@@ -152,8 +152,8 @@ async def notify_publish_queue_approved(
         db,
         dashboard_user_id=dashboard_user_id,
         priority="info",
-        title="Publish pack schválený",
-        detail=f"{row.title} · {channel} — ďalší krok Social publish (Simulate).",
+        title="Publish pack approved",
+        detail=f"{row.title} · {channel} — next step: Social publish (Simulate).",
         href=_social_publish_href(deliverable_id=row.id),
     )
 
@@ -174,7 +174,7 @@ async def notify_social_simulate_ready_for_live(
         db,
         dashboard_user_id=dashboard_user_id,
         priority="simulate",
-        title="Simulate OK — live vyžaduje potvrdenie",
+        title="Simulate OK — live requires confirmation",
         detail=f"{row.title} · {channel}",
         href=_social_publish_href(deliverable_id=row.id),
     )
@@ -194,13 +194,13 @@ async def notify_live_publish_gate(
     """🔴 Ping when live publish blocked until operator confirms."""
 
     reason_labels = {
-        "trusted_auto_global_off": "Zapni trusted auto alebo potvrď Live v UI.",
-        "trusted_auto_tenant_off": "Trusted auto vypnuté — potvrď Live manuálne.",
-        "channel_manual_mode": "Kanál je v manual mode — potvrď Live.",
-        "pack_not_simulated": "Najprv spusti Simulate na tomto packu.",
-        "insufficient_channel_simulates": "Potrebné viac úspešných simulácií pred auto-live.",
+        "trusted_auto_global_off": "Enable trusted auto or confirm Live in the UI.",
+        "trusted_auto_tenant_off": "Trusted auto is off — confirm Live manually.",
+        "channel_manual_mode": "Channel is in manual mode — confirm Live.",
+        "pack_not_simulated": "Run Simulate on this pack first.",
+        "insufficient_channel_simulates": "More successful simulates required before auto-live.",
     }
-    detail = reason_labels.get(reason, "Live publish vyžaduje explicitné potvrdenie operátora.")
+    detail = reason_labels.get(reason, "Live publish requires explicit operator confirmation.")
 
     return await _send_trust_ping(
         db,

@@ -16,13 +16,18 @@ import {
   Rocket,
   Terminal,
   Users,
+  Waypoints,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { FirstRunSetupBanner } from "@/components/hive/first-run-setup-banner";
 import { HivePageShell } from "@/components/hive/hive-page-shell";
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
 import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
+import { usePlatform } from "@/components/hive/platform-context";
 import { HiveSectionSubnav } from "@/components/hive/hive-section-subnav";
 import { HiveSubnavContent } from "@/components/hive/hive-subnav-stack";
 import { HiveSubsectionHeader } from "@/components/hive/hive-subsection-header";
@@ -41,10 +46,24 @@ import {
   type CockpitSection,
 } from "@/lib/cockpit-routes";
 import { useRouteScopedPollOptions } from "@/lib/hooks/use-route-scoped-poll";
+import {
+  cockpitNavSections,
+  isCockpitAdvancedSection,
+  visibleCockpitSections,
+} from "@/lib/operator-canonical-ui";
+import { cn } from "@/lib/utils";
 
 const GrokControlPlanePanel = dynamic(
   () => import("@/components/hive/grok-control-plane-panel").then((mod) => ({ default: mod.GrokControlPlanePanel })),
   { loading: () => <HivePanelSectionSkeleton label="Loading Grok control plane" /> },
+);
+
+const SoloOperatorFourLanesPanel = dynamic(
+  () =>
+    import("@/components/hive/solo-operator-four-lanes-panel").then((mod) => ({
+      default: mod.SoloOperatorFourLanesPanel,
+    })),
+  { loading: () => <HivePanelSectionSkeleton label="Loading four lanes" /> },
 );
 
 const InnovationLabPanel = dynamic(
@@ -203,6 +222,7 @@ const COCKPIT_SECTIONS: {
   icon: typeof Gauge;
 }[] = [
   { id: "overview", label: "Overview", icon: Gauge },
+  { id: "lanes", label: "Lanes", icon: Waypoints },
   { id: "command", label: "Command", icon: MessageSquare },
   { id: "grok", label: "Grok", icon: Terminal },
   { id: "icm", label: "ICM tools", icon: Link2 },
@@ -214,6 +234,27 @@ const COCKPIT_SECTIONS: {
 const COCKPIT_SECTION_IDS: CockpitSection[] = COCKPIT_SECTIONS.map((row) => row.id);
 
 function OperatorCockpitPanelInner() {
+  const { soloMode } = usePlatform();
+  const visibleSectionIds = useMemo(
+    () => visibleCockpitSections(soloMode, COCKPIT_SECTION_IDS),
+    [soloMode],
+  );
+  const cockpitNavSplit = useMemo(
+    () => cockpitNavSections(soloMode, COCKPIT_SECTION_IDS),
+    [soloMode],
+  );
+  const primaryCockpitNav = useMemo(
+    () => COCKPIT_SECTIONS.filter((row) => cockpitNavSplit.primary.includes(row.id)),
+    [cockpitNavSplit.primary],
+  );
+  const advancedCockpitNav = useMemo(
+    () => COCKPIT_SECTIONS.filter((row) => cockpitNavSplit.advanced.includes(row.id)),
+    [cockpitNavSplit.advanced],
+  );
+  const visibleCockpitNav = useMemo(
+    () => COCKPIT_SECTIONS.filter((row) => visibleSectionIds.includes(row.id)),
+    [visibleSectionIds],
+  );
   const [snapshot, setSnapshot] = useState<OperatorCockpitSnapshot | null>(() =>
     readCockpitCoreCache<OperatorCockpitSnapshot>(),
   );
@@ -233,8 +274,9 @@ function OperatorCockpitPanelInner() {
   >([]);
   const searchParams = useSearchParams();
   const [section, setSection] = useState<CockpitSection>(() =>
-    resolveCockpitSection({ visibleIds: COCKPIT_SECTION_IDS }),
+    resolveCockpitSection({ visibleIds: visibleSectionIds }),
   );
+  const [advancedNavOpen, setAdvancedNavOpen] = useState(() => isCockpitAdvancedSection(section, soloMode));
   const [modulesHydrated, setModulesHydrated] = useState(false);
   const [modulesLoading, setModulesLoading] = useState(false);
 
@@ -302,18 +344,24 @@ function OperatorCockpitPanelInner() {
   useEffect(() => {
     const syncFromHash = (): void => {
       const fromHash = cockpitSectionFromHash(window.location.hash);
-      if (fromHash) {
+      if (fromHash && visibleSectionIds.includes(fromHash)) {
         setSection(fromHash);
         return;
       }
-      const next = resolveCockpitSection({ visibleIds: COCKPIT_SECTION_IDS });
+      const next = resolveCockpitSection({ visibleIds: visibleSectionIds });
       setSection(next);
       window.history.replaceState(null, "", cockpitSectionHref(next));
     };
     syncFromHash();
     window.addEventListener("hashchange", syncFromHash);
     return () => window.removeEventListener("hashchange", syncFromHash);
-  }, []);
+  }, [visibleSectionIds]);
+
+  useEffect(() => {
+    if (isCockpitAdvancedSection(section, soloMode)) {
+      setAdvancedNavOpen(true);
+    }
+  }, [section, soloMode]);
 
   useEffect(() => {
     const ballroomSession = searchParams.get("ballroom_session")?.trim();
@@ -521,14 +569,64 @@ function OperatorCockpitPanelInner() {
     }
   }, []);
 
+  const showAdvancedSecondary = soloMode && advancedNavOpen && advancedCockpitNav.length > 0;
+  const showExpandAdvanced = soloMode && !advancedNavOpen && advancedCockpitNav.length > 0;
+  const primaryActiveId = cockpitNavSplit.primary.includes(section) ? section : "";
+  const advancedActiveId = cockpitNavSplit.advanced.includes(section) ? section : "";
+
   const cockpitSubnav = (
-    <HiveSectionSubnav
-      primary={COCKPIT_SECTIONS.map(({ id, label, icon }) => ({ id, label, icon }))}
-      activePrimary={section}
-      onPrimaryChange={(id) => selectSection(id as CockpitSection)}
-      primaryAriaLabel="Agentic OS sections"
-      primaryMenuKey="cockpit-primary"
-    />
+    <div className="flex flex-col gap-3">
+      <HiveSectionSubnav
+        primary={
+          soloMode
+            ? primaryCockpitNav.map(({ id, label, icon }) => ({ id, label, icon }))
+            : visibleCockpitNav.map(({ id, label, icon }) => ({ id, label, icon }))
+        }
+        secondary={
+          showAdvancedSecondary
+            ? advancedCockpitNav.map(({ id, label, icon }) => ({ id, label, icon }))
+            : undefined
+        }
+        activePrimary={soloMode ? primaryActiveId : section}
+        activeSecondary={showAdvancedSecondary ? advancedActiveId : undefined}
+        onPrimaryChange={(id) => selectSection(id as CockpitSection)}
+        onSecondaryChange={(id) => selectSection(id as CockpitSection)}
+        primaryAriaLabel="Agentic OS sections"
+        secondaryAriaLabel="Advanced Agentic OS tools"
+        primaryMenuKey="cockpit-primary"
+        secondaryMenuKey="cockpit-advanced"
+      />
+      {showExpandAdvanced ? (
+        <button
+          type="button"
+          className="qs-btn qs-btn--ghost qs-btn--sm w-fit gap-1.5"
+          aria-expanded={false}
+          onClick={() => {
+            setAdvancedNavOpen(true);
+            selectSection(advancedCockpitNav[0]?.id ?? "command");
+          }}
+        >
+          <ChevronDown className="size-4 shrink-0" aria-hidden />
+          Show advanced tools
+        </button>
+      ) : null}
+      {soloMode && advancedNavOpen ? (
+        <button
+          type="button"
+          className={cn("qs-btn qs-btn--ghost qs-btn--sm w-fit gap-1.5")}
+          aria-expanded
+          onClick={() => {
+            setAdvancedNavOpen(false);
+            if (isCockpitAdvancedSection(section, soloMode)) {
+              selectSection("overview");
+            }
+          }}
+        >
+          <ChevronUp className="size-4 shrink-0" aria-hidden />
+          Hide advanced tools
+        </button>
+      ) : null}
+    </div>
   );
 
   if (loading && !snapshot) {
@@ -565,7 +663,11 @@ function OperatorCockpitPanelInner() {
   return (
     <HivePageShell
       title="Agentic OS"
-      subtitle="One entry point for bees, swarms, and factory."
+      subtitle={
+        soloMode
+          ? "Optional automation & innovation — start daily work in Agents"
+          : "One entry point for bees, swarms, and factory."
+      }
       hintKey="cockpit"
       subnav={cockpitSubnav}
       error={shellError}
@@ -573,6 +675,19 @@ function OperatorCockpitPanelInner() {
       <HiveSubnavContent>
       {section === "overview" ? (
         <V4Card>
+          {soloMode ? <FirstRunSetupBanner /> : null}
+          {soloMode ? (
+            <div className="mb-4 rounded-lg border border-pollen/35 bg-pollen/5 p-3 text-xs leading-relaxed text-(--qs-text-2)">
+              <p className="font-semibold text-pollen">Optional — not your daily start</p>
+              <p className="mt-1">
+                Primary workflow:{" "}
+                <Link href="/agents#sessions" className="font-medium text-cyan underline">
+                  Agents → Sessions
+                </Link>
+                . Four Lanes run on cron; Innovation Lab is for tech SCV proposals.
+              </p>
+            </div>
+          ) : null}
           <V4CardHeader
             kicker="Control Plane"
             title="Operator overview"
@@ -581,24 +696,33 @@ function OperatorCockpitPanelInner() {
             actions={refreshButton}
           />
           <div className="mb-4 flex flex-wrap gap-2">
+            <Link href="/agents#sessions" className="qs-btn qs-btn--primary qs-btn--sm gap-1">
+              Open Agents
+            </Link>
             <button
               type="button"
-              className="qs-btn qs-btn--primary qs-btn--sm gap-1"
+              className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
               disabled={busy === "start_day"}
               onClick={() => void runAction("start_day")}
             >
               {busy === "start_day" ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
               Start day
             </button>
-            <Link href={snapshot.links.factory ?? "/factory"} className="qs-btn qs-btn--ghost qs-btn--sm gap-1">
-              <Rocket className="size-4" /> Factory
-            </Link>
-            <Link href={snapshot.links.swarms ?? "/swarms"} className="qs-btn qs-btn--ghost qs-btn--sm">
-              Swarms
-            </Link>
-            <Link href={snapshot.links.agents ?? "/agents"} className="qs-btn qs-btn--ghost qs-btn--sm">
-              Agents
-            </Link>
+            {!soloMode ? (
+              <Link href={snapshot.links.factory ?? "/factory"} className="qs-btn qs-btn--ghost qs-btn--sm gap-1">
+                <Rocket className="size-4" /> Factory
+              </Link>
+            ) : null}
+            {!soloMode ? (
+              <Link href={snapshot.links.swarms ?? "/swarms"} className="qs-btn qs-btn--ghost qs-btn--sm">
+                Swarms
+              </Link>
+            ) : null}
+            {soloMode ? (
+              <Link href="/agentic-os#lanes" className="qs-btn qs-btn--ghost qs-btn--sm">
+                Four Lanes (optional)
+              </Link>
+            ) : null}
           </div>
 
           {snapshot.trust_autopilot?.enabled ? (
@@ -660,7 +784,7 @@ function OperatorCockpitPanelInner() {
             <div className="mb-4 rounded-lg border border-[#00FF8833] bg-[#00FF8808] p-3" id="proof-of-hive">
               <p className="text-xs font-semibold uppercase tracking-wider text-[#00FF88]">Proof-of-Hive</p>
               <p className="mt-1 text-xs text-(--qs-muted)">
-                Shareable verify receipts — HMAC podpis, verify-first outcomes.
+                Shareable verify receipts — HMAC signature, verify-first outcomes.
               </p>
               {snapshot.proof_of_hive.receipts.length === 0 ? (
                 <p className="mt-2 text-[11px] text-(--qs-muted)">
@@ -734,6 +858,8 @@ function OperatorCockpitPanelInner() {
           )}
         </V4Card>
       ) : null}
+
+      {section === "lanes" ? <SoloOperatorFourLanesPanel onMutate={() => void load({ silent: true })} /> : null}
 
       {section === "command" ? (
         <V4Card>

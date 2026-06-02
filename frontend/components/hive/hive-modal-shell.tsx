@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, type ReactNode, type RefObject } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { createPortal } from "react-dom";
 
 import { useModalA11y } from "@/lib/use-modal-a11y";
 import { cn } from "@/lib/utils";
@@ -63,6 +64,11 @@ export function HiveModalShell({
   closeLabel = "Close dialog",
 }: HiveModalShellProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useModalA11y({
     open,
@@ -76,7 +82,7 @@ export function HiveModalShell({
     return null;
   }
 
-  return (
+  const modal = (
     <div
       className={cn("fixed inset-0 flex", hiveModalOverlayAlignClass(align), zIndexClass, overlayClassName)}
       role="presentation"
@@ -102,4 +108,10 @@ export function HiveModalShell({
       </div>
     </div>
   );
+
+  if (!mounted || typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(modal, document.body);
 }

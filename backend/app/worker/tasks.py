@@ -623,6 +623,11 @@ def run_supervisor_sub_agent_step_task(
                     payload={"reason": approval_reason},
                     level="warning",
                 )
+                from app.application.services.supervisor_session_control import maybe_auto_approve_supervisor_session
+
+                if await maybe_auto_approve_supervisor_session(session, session_row=sup):
+                    await session.commit()
+                    return {"ok": True, "reason": "auto_approved", "sub_agent_session_id": str(sub.id)}
                 await session.commit()
                 return {"ok": False, "reason": "approval_required", "sub_agent_session_id": str(sub.id)}
 
@@ -664,6 +669,11 @@ def run_supervisor_sub_agent_step_task(
                     payload=dict(healing.needs_input_request or {}),
                     level="warning",
                 )
+                from app.application.services.supervisor_session_control import maybe_auto_approve_supervisor_session
+
+                if await maybe_auto_approve_supervisor_session(session, session_row=sup):
+                    await session.commit()
+                    return {"ok": True, "reason": "auto_approved", "sub_agent_session_id": str(sub.id)}
                 await session.commit()
                 return {"ok": False, "reason": "needs_input", "sub_agent_session_id": str(sub.id)}
 
@@ -739,6 +749,11 @@ def run_supervisor_sub_agent_step_task(
             if not remaining and sup.status not in {"needs_input", "stopped"}:
                 sup.status = "completed"
                 sup.completed_at = datetime.now(tz=UTC)
+                from app.application.services.supervisor.session_completion_hooks import (
+                    on_supervisor_session_completed,
+                )
+
+                await on_supervisor_session_completed(sup, db=session)
                 await append_event(
                     session,
                     supervisor_session=sup,

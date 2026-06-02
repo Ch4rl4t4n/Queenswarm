@@ -19,6 +19,29 @@ from app.infrastructure.persistence.models.forager import ForagerORM
 from app.infrastructure.persistence.models.knowledge import KnowledgeItem
 from app.infrastructure.persistence.models.supervisor_routine import SupervisorRoutine
 
+_SOCIAL_INTEL_SOURCE_TYPES = frozenset({"youtube", "twitter", "x"})
+
+
+def _social_intel_routine_goal(forager: ForagerORM) -> str:
+    """Goal template for YouTube/X foragers with mandatory Grok verification."""
+
+    return (
+        f"Social intel forager '{forager.name}' ({forager.source_type}): "
+        "For each Knowledge item tagged pending-grok-verification from this forager: "
+        "(1) summarize in 3 bullets, (2) run Grok truth arbiter (xai/grok-3-mini) on EVERY factual "
+        "claim — drop verdict=false, (3) score tech/business fit, (4) write HiveMind insight ONLY "
+        "when Grok confirms true+high/medium or partial+medium — tag hivemind-candidate, social-intel. "
+        "Use skill social-intel-evaluator."
+    )
+
+
+def _routine_skills_for_forager(forager: ForagerORM) -> list[str]:
+    """Skills injected into supervisor routine for one forager."""
+
+    if forager.source_type in _SOCIAL_INTEL_SOURCE_TYPES:
+        return ["hivemind", "retrieval", "social-intel-evaluator"]
+    return ["hivemind", "retrieval"]
+
 
 class ForagerService:
     """CRUD + orchestration helper for foragers within one tenant."""
@@ -288,12 +311,30 @@ class ForagerService:
             return {
                 "forager_id": str(row.id),
                 "ingested": 0,
+                "scraped": 0,
                 "routine_triggered": False,
                 "routine_session_id": None,
                 "status": "inactive",
             }
 
         payload_records = list(records or [])
+        scraped_count = 0
+        if not payload_records and row.source_type in {"youtube", "twitter", "x"}:
+            from app.application.services.social_intel_runner import scrape_forager_sources
+
+            scraped = await scrape_forager_sources(self._db, forager=row)
+            scraped_count = len(scraped)
+            default_tags = [
+                str(tag).strip()
+                for tag in list((row.filter_config or {}).get("default_tags") or [])
+                if str(tag).strip()
+            ]
+            from app.application.services.social_intel_scraper import scraped_item_to_ingest_record
+
+            payload_records = [
+                scraped_item_to_ingest_record(item, default_tags=default_tags) for item in scraped
+            ]
+
         if not payload_records:
             fallback_content = str((row.source_config or {}).get("seed_content") or "").strip()
             if fallback_content:
@@ -326,6 +367,7 @@ class ForagerService:
         return {
             "forager_id": str(row.id),
             "ingested": int(ingested),
+            "scraped": scraped_count,
             "routine_triggered": triggered,
             "routine_session_id": routine_session_id,
             "status": "triggered",
@@ -365,18 +407,23 @@ class ForagerService:
             "filters": dict(forager.filter_config or {}),
         }
         if forager.supervisor_routine_id is None:
+            goal = (
+                _social_intel_routine_goal(forager)
+                if forager.source_type in _SOCIAL_INTEL_SOURCE_TYPES
+                else f"Run forager '{forager.name}' source='{forager.source_type}' and update HiveMind."
+            )
             routine = await create_supervisor_routine(
                 self._db,
                 name=f"Forager · {forager.name}",
-                goal_template=f"Run forager '{forager.name}' source='{forager.source_type}' and update HiveMind.",
+                goal_template=goal,
                 created_by_subject=created_by_subject,
                 schedule_kind=schedule_kind if schedule_kind in {"interval", "cron", "event"} else "interval",
                 interval_seconds=int(interval_seconds) if isinstance(interval_seconds, int) else None,
                 cron_expr=str(cron_expr).strip() if cron_expr else None,
                 runtime_mode=runtime_mode if runtime_mode in {"inprocess", "durable"} else "durable",
-                roles=["researcher"],
+                roles=["researcher", "critic"],
                 retrieval_contract="forager-ingest",
-                skills=["hivemind", "retrieval"],
+                skills=_routine_skills_for_forager(forager),
                 context_payload=context_payload,
                 tenant_id=tenant_id,
             )
@@ -394,7 +441,12 @@ class ForagerService:
             )
             return
         routine.name = f"Forager · {forager.name}"
-        routine.goal_template = f"Run forager '{forager.name}' source='{forager.source_type}' and update HiveMind."
+        routine.goal_template = (
+            _social_intel_routine_goal(forager)
+            if forager.source_type in _SOCIAL_INTEL_SOURCE_TYPES
+            else f"Run forager '{forager.name}' source='{forager.source_type}' and update HiveMind."
+        )
+        routine.skills = _routine_skills_for_forager(forager)
         routine.schedule_kind = schedule_kind if schedule_kind in {"interval", "cron", "event"} else "interval"
         routine.interval_seconds = int(interval_seconds) if isinstance(interval_seconds, int) else routine.interval_seconds
         routine.cron_expr = str(cron_expr).strip() if cron_expr else None

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@/lib/mcp-ops-observability";
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
 import { HiveModalShell, hiveModalBottomSheetPanelClass } from "@/components/hive/hive-modal-shell";
+import { AppsToolsModuleGrid } from "@/components/apps-tools/apps-tools-module-grid";
 import { resolveAppsToolsAnalyticsCopy } from "@/lib/apps-tools-analytics-copy";
 import { APPS_TOOLS_MODULES } from "@/lib/apps-tools-modules";
 import { contentFactoryAgencyHref, contentFactoryMicroSaasHref } from "@/lib/factory-content-factory-routes";
@@ -117,18 +118,6 @@ type AppsToolsFunnelEvent =
 type RetryAnomalyAckScope = "window" | "global";
 type RetryLifecycleState = "active" | "suppressed" | "resurfaced";
 
-const STATUS_LABEL: Record<(typeof APPS_TOOLS_MODULES)[number]["status"], string> = {
-  live: "Live",
-  beta: "Beta",
-  stub: "Stub",
-};
-
-const STATUS_CLASS: Record<(typeof APPS_TOOLS_MODULES)[number]["status"], string> = {
-  live: "border-emerald-400/45 bg-emerald-400/10 text-emerald-100",
-  beta: "border-cyan-400/45 bg-cyan-400/10 text-cyan-100",
-  stub: "border-amber-400/45 bg-amber-400/10 text-amber-100",
-};
-
 function riskTone(riskTier: PolicyRiskTier): string {
   if (riskTier === "financial") return "border-red-400/45 bg-red-400/10 text-red-100";
   if (riskTier === "publish") return "border-amber-400/45 bg-amber-400/10 text-amber-100";
@@ -136,26 +125,11 @@ function riskTone(riskTier: PolicyRiskTier): string {
   return "border-emerald-400/45 bg-emerald-400/10 text-emerald-100";
 }
 
-function compactApprovalLabel(requiresApproval: boolean): string {
-  return requiresApproval ? "approval gate" : "auto allowed";
-}
-
 function formatRateWindow(seconds: number): string {
   if (seconds < 3600) {
     return `${Math.max(1, Math.round(seconds / 60))}m`;
   }
   return `${Math.max(1, Math.round(seconds / 3600))}h`;
-}
-
-function compactGovernanceSummary(policy: ModulePolicyPack): string {
-  const parts = [compactApprovalLabel(policy.requires_approval)];
-  if (policy.cooldown_sec) {
-    parts.push(`cooldown ${policy.cooldown_sec}s`);
-  }
-  if (policy.rate_limit_max_global && policy.rate_limit_window_sec) {
-    parts.push(`${policy.rate_limit_max_global}/${formatRateWindow(policy.rate_limit_window_sec)}`);
-  }
-  return parts.join(" · ");
 }
 
 function formatEventLabel(event: AppsToolsFunnelEvent): string {
@@ -881,6 +855,38 @@ export function AppsToolsIndexClient() {
     }
   }, [isLifecycleRecommendationCooldownActive, lifecycleOverrideConfirmArmed]);
 
+  const mcpModuleHeaderExtras = useMemo(() => {
+    const badges: ReactNode[] = [];
+    if (retryLifecycleLabel) {
+      badges.push(
+        <span
+          key="lifecycle"
+          className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+            retryLifecycleState === "resurfaced"
+              ? "border-red-300/45 bg-red-300/10 text-red-100"
+              : retryLifecycleState === "suppressed"
+                ? "border-cyan-300/45 bg-cyan-300/10 text-cyan-100"
+                : "border-magenta-300/45 bg-magenta-300/10 text-magenta-100"
+          }`}
+        >
+          {copy.mcpRetryLifecycleBadgePrefix} {retryLifecycleLabel}
+        </span>,
+      );
+    }
+    if (showRetryAnomaly) {
+      badges.push(
+        <span
+          key="anomaly"
+          className="rounded-full border border-magenta-300/45 bg-magenta-300/10 px-2 py-0.5 text-[11px] font-medium text-magenta-100"
+        >
+          {copy.mcpRetryAnomalyBadge}
+        </span>,
+      );
+    }
+    if (badges.length === 0) return undefined;
+    return <>{badges}</>;
+  }, [copy.mcpRetryAnomalyBadge, copy.mcpRetryLifecycleBadgePrefix, retryLifecycleLabel, retryLifecycleState, showRetryAnomaly]);
+
   return (
     <>
       {!loading && analyticsSnapshot ? (
@@ -1248,193 +1254,39 @@ export function AppsToolsIndexClient() {
           ) : null}
         </section>
       ) : null}
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
-        {loading
-          ? APPS_TOOLS_MODULES.map((moduleDef) => (
-              <article
-                key={`skeleton-${moduleDef.slug}`}
-                className="rounded-2xl border border-white/12 bg-white/[0.03] p-4"
-                aria-hidden
-              >
-                <div className="h-4 w-40 animate-pulse rounded bg-white/15" />
-                <div className="mt-3 h-3 w-full animate-pulse rounded bg-white/10" />
-                <div className="mt-2 h-3 w-4/5 animate-pulse rounded bg-white/10" />
-                <div className="mt-4 h-8 w-28 animate-pulse rounded bg-white/10" />
-              </article>
-            ))
-          : APPS_TOOLS_MODULES.map((moduleDef) => {
-          const policy = policyByModule[moduleDef.moduleKey];
-          const workspace = workspaceByModule[moduleDef.moduleKey];
-          const moduleCapabilities = capabilitiesByModule[moduleDef.moduleKey] ?? [];
-          const moduleUnavailable = moduleDef.status === "stub" || workspace?.enabled === false;
-          const moduleDegraded = !moduleUnavailable && moduleDef.status === "beta";
-          const unavailableHintId = `${moduleDef.slug}-availability-hint`;
-          const degradedHintId = `${moduleDef.slug}-degraded-hint`;
-          return (
-            <article
-              key={moduleDef.slug}
-              className="rounded-2xl border border-white/12 bg-white/[0.03] p-4 focus-within:border-cyan-300/55 focus-within:ring-2 focus-within:ring-cyan-300/25"
-            >
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <h3 className="text-sm font-semibold text-white/95">{moduleDef.title}</h3>
-                <div className="flex flex-wrap items-center justify-end gap-1">
-                  {moduleDef.moduleKey === "mcp_ops_studio" && retryLifecycleLabel ? (
-                    <span
-                      className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-                        retryLifecycleState === "resurfaced"
-                          ? "border-red-300/45 bg-red-300/10 text-red-100"
-                          : retryLifecycleState === "suppressed"
-                            ? "border-cyan-300/45 bg-cyan-300/10 text-cyan-100"
-                            : "border-magenta-300/45 bg-magenta-300/10 text-magenta-100"
-                      }`}
-                    >
-                      {copy.mcpRetryLifecycleBadgePrefix} {retryLifecycleLabel}
-                    </span>
-                  ) : null}
-                  {moduleDef.moduleKey === "mcp_ops_studio" && showRetryAnomaly ? (
-                    <span className="rounded-full border border-magenta-300/45 bg-magenta-300/10 px-2 py-0.5 text-[11px] font-medium text-magenta-100">
-                      {copy.mcpRetryAnomalyBadge}
-                    </span>
-                  ) : null}
-                  <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${STATUS_CLASS[moduleDef.status]}`}>
-                    {STATUS_LABEL[moduleDef.status]}
-                  </span>
-                </div>
-              </div>
-              <p className="line-clamp-2 text-sm text-white/75">{moduleDef.summary}</p>
-              <p className="mt-3 text-xs text-cyan-100/85">
-                Primary capability: <span className="font-mono">{moduleDef.capabilityKeys[0]}</span>
-              </p>
-              {policy ? (
-                <div className="mt-3 space-y-2">
-                  <p className="text-[11px] text-white/70">{compactGovernanceSummary(policy)}</p>
-                  <div className="flex flex-wrap gap-2 text-[11px]">
-                  <span className={`rounded-full border px-2 py-0.5 ${riskTone(policy.risk_tier)}`}>
-                    {policy.risk_tier}
-                  </span>
-                  <span className="rounded-full border border-white/20 bg-white/5 px-2 py-0.5 text-white/80">
-                    {compactApprovalLabel(policy.requires_approval)}
-                  </span>
-                  {policy.cooldown_sec ? (
-                    <span className="rounded-full border border-white/20 bg-white/5 px-2 py-0.5 text-white/80">
-                      cooldown {policy.cooldown_sec}s
-                    </span>
-                  ) : null}
-                  {moduleCapabilities.length > 0 ? (
-                    <span className="rounded-full border border-white/20 bg-white/5 px-2 py-0.5 text-white/80">
-                      {moduleCapabilities.length} capabilities
-                    </span>
-                  ) : null}
-                </div>
-                </div>
-              ) : null}
-              <div className="mt-3 flex flex-wrap gap-2">
-                {moduleDef.moduleKey === "mcp_ops_studio" && isRetryAnomalySuppressed ? (
-                  <button
-                    type="button"
-                    className="qs-btn qs-btn--ghost qs-btn--sm"
-                    onClick={() => clearRetryAnomalyAcknowledgment("module_card")}
-                  >
-                    {copy.mcpRetryAnomalyCardResetCta}
-                  </button>
-                ) : null}
-                {moduleUnavailable ? (
-                  <button
-                    type="button"
-                    className="qs-btn qs-btn--primary qs-btn--sm cursor-not-allowed opacity-60"
-                    disabled
-                    aria-disabled="true"
-                    aria-describedby={unavailableHintId}
-                  >
-                    Module unavailable
-                  </button>
-                ) : (
-                  <Link
-                    href={moduleDef.href}
-                    className="qs-btn qs-btn--primary qs-btn--sm"
-                    aria-describedby={moduleDegraded ? degradedHintId : undefined}
-                    onClick={() =>
-                      trackEvent("module_card_open", {
-                        moduleKey: moduleDef.moduleKey,
-                        href: moduleDef.href,
-                        source: "module_card",
-                      })}
-                  >
-                    Open module
-                  </Link>
-                )}
-                {policy ? (
-                  <button
-                    type="button"
-                    className="qs-btn qs-btn--ghost qs-btn--sm"
-                    onClick={() => {
-                      trackEvent("module_details_open", {
-                        moduleKey: moduleDef.moduleKey,
-                        source: "module_card",
-                      });
-                      setActiveModuleKey(moduleDef.moduleKey);
-                    }}
-                  >
-                    Module details
-                  </button>
-                ) : null}
-              </div>
-              {moduleUnavailable ? (
-                <p id={unavailableHintId} className="mt-2 text-xs text-amber-100/85">
-                  This module is not available yet. Capability contract is visible, but execution is disabled.
-                </p>
-              ) : null}
-              {moduleUnavailable ? (
-                <details
-                  className="mt-2"
-                  onToggle={(event) => {
-                    if (!event.currentTarget.open) {
-                      return;
-                    }
-                    trackEvent("module_availability_hint_open", {
-                      moduleKey: moduleDef.moduleKey,
-                      source: "availability_hint",
-                    });
-                  }}
-                >
-                  <summary className="inline-flex cursor-pointer items-center rounded-md px-1 text-xs font-medium text-amber-100/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/55 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050510]">
-                    Availability hint
-                  </summary>
-                  <p className="mt-1 text-xs text-white/70">
-                    Execution entry stays disabled until this workspace becomes live, but governance and contract signals stay visible for planning.
-                  </p>
-                </details>
-              ) : null}
-              {moduleDegraded ? (
-                <p id={degradedHintId} className="mt-2 text-xs text-cyan-100/85">
-                  Beta module is available with guarded execution paths. Validate policy details before critical runs.
-                </p>
-              ) : null}
-              {moduleDegraded ? (
-                <details
-                  className="mt-2"
-                  onToggle={(event) => {
-                    if (!event.currentTarget.open) {
-                      return;
-                    }
-                    trackEvent("module_beta_hint_open", {
-                      moduleKey: moduleDef.moduleKey,
-                      source: "beta_hint",
-                    });
-                  }}
-                >
-                  <summary className="inline-flex cursor-pointer items-center rounded-md px-1 text-xs font-medium text-cyan-100/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/55 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050510]">
-                    Beta readiness hint
-                  </summary>
-                  <p className="mt-1 text-xs text-white/70">
-                    Use module details to verify approvals, cooldown, and limits before enabling higher-risk automation flows.
-                  </p>
-                </details>
-              ) : null}
-            </article>
-          );
-        })}
-      </div>
+      <AppsToolsModuleGrid
+        loading={loading}
+        policyByModule={policyByModule}
+        workspaceByModule={workspaceByModule}
+        capabilitiesByModule={capabilitiesByModule}
+        headerExtras={mcpModuleHeaderExtras ? { mcp_ops_studio: mcpModuleHeaderExtras } : undefined}
+        showMcpAnomalyReset={isRetryAnomalySuppressed}
+        onMcpAnomalyReset={() => clearRetryAnomalyAcknowledgment("module_card")}
+        mcpAnomalyResetLabel={copy.mcpRetryAnomalyCardResetCta}
+        onOpenDetails={(moduleKey) => {
+          trackEvent("module_details_open", {
+            moduleKey,
+            source: "module_card",
+          });
+          setActiveModuleKey(moduleKey);
+        }}
+        onTrackModuleOpen={(moduleDef) =>
+          trackEvent("module_card_open", {
+            moduleKey: moduleDef.moduleKey,
+            href: moduleDef.href,
+            source: "module_card",
+          })}
+        onTrackAvailabilityHint={(moduleKey) =>
+          trackEvent("module_availability_hint_open", {
+            moduleKey,
+            source: "availability_hint",
+          })}
+        onTrackBetaHint={(moduleKey) =>
+          trackEvent("module_beta_hint_open", {
+            moduleKey,
+            source: "beta_hint",
+          })}
+      />
 
       {activeModuleDef ? (
         <HiveModalShell
@@ -1614,7 +1466,7 @@ export function AppsToolsIndexClient() {
                 <div className="grid gap-2">
                   <Link
                     href={activeModuleDef.href}
-                    className="qs-btn qs-btn--primary qs-btn--sm justify-start"
+                    className="qs-btn qs-btn--ghost qs-btn--sm justify-start"
                     onClick={() =>
                       trackEvent("module_section_quick_link", {
                         moduleKey: activeModuleDef.moduleKey,
