@@ -468,6 +468,28 @@ const STUB_SKILL_UNLOCKS = {
   premium_price_eur_cents_default: 1900,
 };
 
+const STUB_RECIPES_CATALOG = [
+  {
+    id: "11111111-1111-4111-8111-111111111111",
+    name: "Lead Gen Lane",
+    description: "ICP to outreach drafts",
+    verified_at: new Date().toISOString(),
+    topic_tags: ["lead", "outreach"],
+    pattern_labels: ["planning"],
+    success_count: 12,
+    fail_count: 1,
+    avg_pollen_earned: 42,
+  },
+];
+
+const STUB_RECIPE_MATCH_CONFIG = {
+  match_threshold: 0.85,
+  min_search_similarity: 0.5,
+  hybrid_scoring_enabled: true,
+  hybrid_vector_weight: 0.7,
+  hybrid_graph_weight: 0.3,
+};
+
 const STUB_APPS_TOOLS_INDEX = {
   generated_at: new Date().toISOString(),
   version: "v1",
@@ -1056,6 +1078,68 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_RECIPE_PATTERN_STACKS),
+      });
+      return;
+    }
+
+    if (/^recipes\/[^/]+\/routine$/.test(path)) {
+      if (route.request().method() === "POST") {
+        await route.fulfill({
+          status: 201,
+          contentType: "application/json",
+          body: JSON.stringify({
+            routine_id: "22222222-2222-4222-8222-222222222222",
+            routine_name: "recipe-lead-gen-lane",
+            recipe_id: "11111111-1111-4111-8111-111111111111",
+            schedule_kind: "cron",
+            roles: ["researcher", "critic"],
+            webhook_url: null,
+            webhook_token: null,
+          }),
+        });
+        return;
+      }
+    }
+
+    if (path.startsWith("recipes/marketplace-beta")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: false,
+          generated_at: new Date().toISOString(),
+          approved_count: 0,
+          pending_count: 0,
+          total_listings: 0,
+          config: {},
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("recipes/search")) {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
+      return;
+    }
+
+    if (path.startsWith("recipes/match-config")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_RECIPE_MATCH_CONFIG),
+      });
+      return;
+    }
+
+    if (path === "recipes") {
+      if (route.request().method() !== "GET") {
+        await route.fallback();
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_RECIPES_CATALOG),
       });
       return;
     }

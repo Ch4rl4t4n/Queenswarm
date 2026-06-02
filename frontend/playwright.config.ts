@@ -49,6 +49,7 @@ export default defineConfig({
             NEXT_PUBLIC_SIMULATIONS_ENABLED: "true",
             NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED: "true",
             NEXT_PUBLIC_PHASE70_CONSOLIDATED_NAV_ENABLED: "true",
+            NEXT_PUBLIC_RECIPES_ENABLED: "true",
           },
           url: `${baseURL}/login`,
           timeout: 240_000,

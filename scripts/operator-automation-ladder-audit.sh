@@ -41,14 +41,18 @@ for f in \
   backend/app/application/services/supervisor/routine_webhook.py \
   backend/app/application/services/supervisor/recipe_routine.py \
   frontend/components/hive/automation-ladder-panel.tsx \
+  frontend/components/hive/recipe-schedule-routine-dialog.tsx \
   frontend/lib/automation-ladder.ts; do
   [[ -f "$f" ]] && pass "file $f" || fail_msg "missing $f"
 done
 
 grep -q 'automation-ladder' frontend/lib/manual-content.ts && pass "manual #automation-ladder" || fail_msg "manual section missing"
 grep -q 'automationLadder' frontend/lib/section-hints.ts && pass "section hint automationLadder" || fail_msg "section hint missing"
+grep -q 'knowledgeRecipes' frontend/lib/section-hints.ts && pass "section hint knowledgeRecipes" || fail_msg "knowledgeRecipes hint missing"
+grep -q 'recipe-schedule-routine' frontend/components/hive/recipes-page-client.tsx && pass "Schedule routine UI button" || fail_msg "Schedule routine button missing"
 grep -q 'recipe_id}/routine' backend/app/presentation/api/routers/recipes.py && pass "Recipe→Routine API route" || fail_msg "Recipe→Routine route missing"
 grep -q '/routines/{routine_id}/webhook' backend/app/presentation/api/routers/agent_sessions.py && pass "Routine webhook API route" || fail_msg "webhook route missing"
+[[ -f frontend/e2e/automation-ladder-journeys.spec.ts ]] && pass "E2E automation-ladder-journeys.spec.ts" || fail_msg "E2E spec missing"
 
 # Optional live probe
 DOMAIN="$(load_kv DOMAIN)"

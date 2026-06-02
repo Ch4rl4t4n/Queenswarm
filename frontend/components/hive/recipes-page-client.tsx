@@ -213,6 +213,7 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
         <button
           type="button"
           className="qs-btn qs-btn--ghost qs-btn--sm"
+          data-testid="recipe-schedule-routine"
           disabled={!recipe.verified_at}
           title={recipe.verified_at ? "Schedule as cloud routine (L3)" : "Verify recipe before scheduling"}
           onClick={() => setScheduleRecipe(recipe)}
