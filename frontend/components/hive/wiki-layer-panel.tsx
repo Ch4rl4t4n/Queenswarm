@@ -4,6 +4,7 @@ import { BookMarked, Download, Flower2, Loader2Icon, RefreshCw } from "lucide-re
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { QsSelect } from "@/components/ui/qs-select";
 import { V4Badge, V4Card, V4CardHeader, V4FormField, V4FormStack } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
@@ -172,32 +173,38 @@ export function WikiLayerPanel(): JSX.Element {
         <V4CardHeader
           title="Wiki Layer"
           description="Karpathy-style hot/cold tier — compiled wiki every prompt; raw sources for deep research only."
+          hint={sectionHintNode("knowledgeWikiLayer")}
           actions={
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                className="qs-btn qs-btn--ghost qs-btn--sm"
+                className="qs-btn qs-btn--ghost qs-btn--sm inline-flex items-center gap-1"
                 disabled={busy}
                 onClick={() => void exportVault()}
               >
                 <Download className="size-3.5" aria-hidden />
                 Obsidian export
+                {sectionHintNode("knowledgeWikiObsidian")}
               </button>
               <button
                 type="button"
-                className="qs-btn qs-btn--primary qs-btn--sm"
+                className="qs-btn qs-btn--primary qs-btn--sm inline-flex items-center gap-1"
                 disabled={busy}
                 onClick={() => void runGardener()}
               >
                 {busy ? <Loader2Icon className="size-3.5 animate-spin" aria-hidden /> : <RefreshCw className="size-3.5" aria-hidden />}
                 Run Wiki Gardener
+                {sectionHintNode("knowledgeWikiGardener")}
               </button>
             </div>
           }
         />
 
         <V4FormStack>
-          <V4FormField label="Retrieval tier">
+          <V4FormField
+            label="Retrieval tier"
+            footer={sectionHintNode("knowledgeWikiRetrievalTier")}
+          >
             <QsSelect
               value={settings?.retrieval_tier ?? "wiki_only"}
               options={TIER_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
@@ -217,6 +224,14 @@ export function WikiLayerPanel(): JSX.Element {
             ) : null}
           </p>
         ) : null}
+      </V4Card>
+
+      <V4Card className="border-none bg-transparent shadow-none">
+        <V4CardHeader
+          title="Memory zones"
+          description="What the Queen sees (hot) vs cold storage — char counts refresh after each Gardener run."
+          hint={sectionHintNode("knowledgeWikiZones")}
+        />
       </V4Card>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -280,7 +295,7 @@ export function WikiLayerPanel(): JSX.Element {
       </div>
 
       <V4Card>
-        <V4CardHeader title="Token telemetry" description="Verify wiki layer saves tokens vs raw RAG fallback." />
+        <V4CardHeader title="Token telemetry" description="Verify wiki layer saves tokens vs raw RAG fallback." hint={sectionHintNode("knowledgeWikiTelemetry")} />
         <dl className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
           <TelemetryStat label="Curated prefix" value={telemetry.curated_prefix_chars} />
           <TelemetryStat label="Wiki block" value={telemetry.wiki_chars ?? overview?.wiki_chars} />

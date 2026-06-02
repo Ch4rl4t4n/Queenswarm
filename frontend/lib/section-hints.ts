@@ -24,9 +24,10 @@ export const SECTION_HINTS = {
   knowledge: {
     title: "Knowledge plane",
     description:
-      "Unified retrieval surface: HiveMind graph, verified outputs archive, recipes, dreaming cycles, curated memory, and goal tracking.",
+      "Unified retrieval surface: HiveMind graph, verified outputs archive, recipes, dreaming cycles, curated memory, Wiki Layer (Karpathy hot/cold tiers), and goal tracking.",
     options: [
       "HiveMind tab — graphify, project shape, selective recall, explorer search, memory evolution.",
+      "Wiki Layer tab — 3 zones (raw / wiki / instructions), Gardener bee, retrieval tier, Obsidian export.",
       "Outputs — Ballroom deliverables and archive with interactive replay.",
       "Recipes & dreaming — verified workflows and overnight consolidation loops.",
     ],
@@ -402,13 +403,15 @@ export const SECTION_HINTS = {
   // —— Knowledge ——
   knowledgeRetrievalContract: {
     title: "Retrieval contract",
-    description: "Queen bootstrap context: customer history, policy snippets, and last tasks injected on every new mission.",
+    description:
+      "Queen bootstrap context: curated memory prefix, Wiki Layer block (when enabled), customer history, policy snippets, and last tasks injected on every new mission.",
     options: [
-      "Purple block — active retrieval contract string.",
+      "wiki_only — hot tier only: curated prefix + Gardener wiki pages (default, lowest token cost).",
+      "deep_raw — hot + cold: adds HiveMind raw RAG chunks for deep recall (higher cost).",
+      "Purple block — active retrieval contract string in selective recall preview.",
       "Gold block — skill pack preset (context + decide + tdd + diagnose).",
-      "Filter box — narrows explorer blocks below.",
     ],
-    manualHref: "/manual#knowledge",
+    manualHref: "/manual#wiki-layer",
   },
   knowledgeExplorer: {
     title: "HiveMind explorer",
@@ -429,6 +432,73 @@ export const SECTION_HINTS = {
       "Export — PDF or markdown with proof metadata.",
     ],
     manualHref: "/manual#outputs",
+  },
+  knowledgeWikiLayer: {
+    title: "Wiki Layer (Karpathy tiers)",
+    description:
+      "Hot/cold memory split: curated instructions + Gardener-maintained wiki pages go to the Queen prompt; raw HiveMind chunks stay in the cold zone unless you switch to deep_raw.",
+    options: [
+      "3 zones — raw (cold vault), wiki (Gardener pages), instructions (curated behavioral memory).",
+      "Default tier wiki_only — fastest prompts, ~fewer tokens; deep_raw adds raw RAG when you need full recall.",
+      "Auto Gardener — Celery sweep every 5 min consolidates verified outputs into wiki pages.",
+      "Manual: /manual#wiki-layer",
+    ],
+    manualHref: "/manual#wiki-layer",
+  },
+  knowledgeWikiZones: {
+    title: "Three memory zones",
+    description:
+      "Visual breakdown of what the Queen sees vs what stays in cold storage. Char counts update after each Gardener run.",
+    options: [
+      "Raw zone — unfiltered HiveMind chunks, forager dumps, session logs (cold; skipped when wiki_only).",
+      "Wiki zone — four Gardener pages: operator-context, project-briefs, forager-insights, verified-recipes.",
+      "Instructions zone — Settings → AI · harness curated memory (always injected first).",
+    ],
+    manualHref: "/manual#wiki-layer",
+  },
+  knowledgeWikiRetrievalTier: {
+    title: "Retrieval tier switch",
+    description:
+      "Controls how much context is injected into every new Queen session. Change takes effect on the next session bootstrap.",
+    options: [
+      "wiki_only — curated prefix + wiki pages only; HiveMind raw RAG is skipped (recommended solo default).",
+      "deep_raw — wiki_only content plus full HiveMind vector/graph retrieval for complex cross-project recall.",
+      "Telemetry row — last prompt char counts for curated, wiki, and raw blocks.",
+    ],
+    manualHref: "/manual#wiki-layer",
+  },
+  knowledgeWikiGardener: {
+    title: "Wiki Gardener bee",
+    description:
+      "Background bee that sweeps verified outputs, recipes, and forager intel into consolidated wiki pages. Runs automatically every 5 minutes via Celery beat.",
+    options: [
+      "Run Gardener now — immediate sweep without waiting for the 5 min tick.",
+      "Pollen reward — Gardener earns pollen when pages are updated with verified content.",
+      "First session — if no wiki pages exist, Queen auto-triggers one Gardener run before prompt assembly.",
+    ],
+    manualHref: "/manual#wiki-layer",
+  },
+  knowledgeWikiObsidian: {
+    title: "Obsidian export",
+    description:
+      "Download the current wiki pages as a Markdown vault zip — compatible with Obsidian, Logseq, or any local note app.",
+    options: [
+      "Includes all four Gardener pages with frontmatter (slug, version, updated_at).",
+      "Read-only export — does not sync changes back to Queenswarm.",
+      "Use for offline review, sharing briefs, or backup before major curated memory edits.",
+    ],
+    manualHref: "/manual#wiki-layer",
+  },
+  knowledgeWikiTelemetry: {
+    title: "Prompt token telemetry",
+    description:
+      "Live char counts from the last Queen bootstrap — shows how much each zone contributed to the assembled prompt.",
+    options: [
+      "curated_prefix_chars — behavioral instructions from Settings harness.",
+      "wiki_chars — combined Gardener wiki pages injected in hot tier.",
+      "raw_chars — cold-zone RAG only counted when retrieval_tier is deep_raw.",
+    ],
+    manualHref: "/manual#wiki-layer",
   },
 
   // —— Integrations ——

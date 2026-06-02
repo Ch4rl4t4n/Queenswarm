@@ -4,6 +4,7 @@ import { Brain, Loader2Icon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { usePlatform } from "@/components/hive/platform-context";
 import { QsSelect } from "@/components/ui/qs-select";
 import { V4Badge, V4Card, V4CardHeader, V4FormField, V4FormStack } from "@/components/ui/v4";
@@ -99,7 +100,8 @@ export function SelectiveRecallPanel(): JSX.Element | null {
         leadingIcon={Brain}
         leadingIconTone="purple"
         title="Selective recall"
-        description="Graph-neighbour RAG with similarity pruning — injects less tokens into supervisor prompts."
+        description="Graph-neighbour RAG with similarity pruning — injects less tokens into supervisor prompts. Preview shows active Wiki Layer retrieval_tier."
+        hint={sectionHintNode("knowledgeRetrievalContract")}
       />
 
       {loading ? (

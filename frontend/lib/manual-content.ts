@@ -38,7 +38,7 @@ export const APP_MANUAL_SECTIONS: ManualSection[] = [
     ],
     checklist: [
       {
-        text: "Knowledge — write PROJECT brief (goal, deliverables, language, simulate-first).",
+        text: "Knowledge — write PROJECT brief (goal, deliverables, language, simulate-first). Optional: verify Wiki Layer tier after brief.",
         href: MANUAL_HREFS.knowledgeCurated,
         linkLabel: "Curated memory",
       },
@@ -144,9 +144,51 @@ export const APP_MANUAL_SECTIONS: ManualSection[] = [
     checklist: [
       { text: "Agents — launch and reports (PRIMARY).", href: MANUAL_HREFS.agentsSessions },
       { text: "Tasks — deliverables and priorities.", href: MANUAL_HREFS.tasks },
-      { text: "Knowledge — briefs + HiveMind.", href: MANUAL_HREFS.knowledge },
+      {
+        text: "Knowledge — briefs + HiveMind + Wiki Layer hot tier.",
+        href: MANUAL_HREFS.knowledgeWiki,
+        linkLabel: "Wiki Layer",
+      },
       { text: "Four Lanes — automated digests only (optional).", href: MANUAL_HREFS.agenticOsLanes, linkLabel: "Four Lanes" },
       { text: "Ballroom — incidents (rare).", href: MANUAL_HREFS.ballroom },
+    ],
+  },
+  {
+    id: "wiki-layer",
+    title: "Wiki Layer — hot/cold memory (Karpathy tiers)",
+    paragraphs: [
+      `Open [Knowledge → Wiki Layer](${MANUAL_HREFS.knowledgeWiki}). Three zones split what the Queen reads every prompt vs what stays in cold storage: **instructions** (curated harness), **wiki** (Gardener-compiled pages), **raw** (HiveMind chunks / forager dumps).`,
+      `Default retrieval tier is **wiki_only** — fastest and cheapest: curated prefix + four Gardener wiki pages. Switch to **deep_raw** when you need full HiveMind vector/graph recall across projects (higher token cost).`,
+      `The **Wiki Gardener** bee runs automatically every **5 minutes** (Celery beat). It consolidates verified outputs, recipes, and forager intel into wiki pages: operator-context, project-briefs, forager-insights, verified-recipes. Click **Run Wiki Gardener** for an immediate sweep.`,
+      `**Obsidian export** downloads a Markdown vault zip for offline review. **Token telemetry** shows char counts from the last Queen bootstrap — verify wiki_only saves tokens vs deep_raw.`,
+      `Env flags (operator): WIKI_LAYER_ENABLED, WIKI_LAYER_GARDENER_SWEEP_ENABLED, WIKI_LAYER_GARDENER_INTERVAL_SEC (default 300).`,
+    ],
+    checklist: [
+      {
+        text: "Write project brief in Curated memory (instructions zone) before first session.",
+        href: MANUAL_HREFS.knowledgeCurated,
+        linkLabel: "Curated memory",
+      },
+      {
+        text: "Keep wiki_only for daily solo work; deep_raw only for cross-project deep recall.",
+        href: MANUAL_HREFS.knowledgeWiki,
+        linkLabel: "Retrieval tier",
+      },
+      {
+        text: "After major deliverables — Run Gardener or wait 5 min tick to refresh wiki pages.",
+        href: MANUAL_HREFS.knowledgeWiki,
+        linkLabel: "Gardener",
+      },
+      {
+        text: "Selective recall preview (HiveMind tab) shows active retrieval_tier in contract block.",
+        href: MANUAL_HREFS.knowledge,
+        linkLabel: "HiveMind",
+      },
+      {
+        text: "Export Obsidian vault before large curated memory edits (backup).",
+        href: MANUAL_HREFS.knowledgeWiki,
+        linkLabel: "Obsidian export",
+      },
     ],
   },
   {
@@ -258,9 +300,16 @@ export const APP_FUNCTION_GUIDE: FunctionInfoGroup[] = [
       },
       {
         id: "canonical-knowledge",
-        label: "Knowledge → Curated memory",
-        description: "Project brief before the first session — Queen injects it into every run.",
-        options: ["instructions / mission", "PROJECT blocks", "Export .md backup"],
+        label: "Knowledge → Curated memory + Wiki Layer",
+        description:
+          "Project brief before the first session — Queen injects curated memory (instructions zone) plus Gardener wiki pages (hot tier) into every run.",
+        options: [
+          "Curated memory — instructions / mission / PROJECT blocks",
+          "Wiki Layer — wiki_only (default) or deep_raw tier",
+          "Gardener — auto every 5 min, manual Run for immediate refresh",
+          "Export .md backup from curated memory or Obsidian zip from Wiki tab",
+        ],
+        href: MANUAL_HREFS.knowledgeWiki,
       },
       {
         id: "canonical-tasks",
@@ -349,8 +398,42 @@ export const APP_FUNCTION_GUIDE: FunctionInfoGroup[] = [
       {
         id: "knowledge-hivemind",
         label: "HiveMind retrieval",
-        description: "Search existing context and historical outputs.",
-        options: ["Filter by topic", "Reuse prior solutions"],
+        description: "Search existing context and historical outputs. Raw zone feeds deep_raw tier; skipped when wiki_only.",
+        options: ["Filter by topic", "Reuse prior solutions", "Selective recall shows retrieval_tier"],
+        href: MANUAL_HREFS.knowledge,
+      },
+      {
+        id: "knowledge-wiki",
+        label: "Wiki Layer",
+        description:
+          "Karpathy hot/cold tiers — compiled wiki pages in every Queen prompt; raw HiveMind optional via deep_raw.",
+        options: [
+          "3 zones — raw / wiki / instructions",
+          "wiki_only vs deep_raw switch",
+          "Gardener bee — 5 min Celery sweep",
+          "Obsidian vault export",
+          "Token telemetry per zone",
+        ],
+        href: MANUAL_HREFS.knowledgeWiki,
+      },
+      {
+        id: "knowledge-wiki-gardener",
+        label: "Wiki Gardener",
+        description:
+          "Background bee that sweeps verified outputs into four wiki pages. Earns pollen on verified updates.",
+        options: [
+          "Auto tick every 5 minutes",
+          "Run Wiki Gardener — immediate sweep",
+          "Pages: operator-context, project-briefs, forager-insights, verified-recipes",
+        ],
+        href: MANUAL_HREFS.knowledgeWiki,
+      },
+      {
+        id: "knowledge-wiki-obsidian",
+        label: "Obsidian export",
+        description: "Download wiki pages as Markdown zip — frontmatter with slug, version, updated_at.",
+        options: ["Read-only export", "Obsidian / Logseq compatible", "Backup before curated edits"],
+        href: MANUAL_HREFS.knowledgeWiki,
       },
       {
         id: "knowledge-outputs",

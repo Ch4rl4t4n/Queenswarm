@@ -6,6 +6,7 @@ describe("MANUAL_HREFS", () => {
   it("maps canonical workflow destinations to in-app paths", () => {
     expect(MANUAL_HREFS.agentsSessions).toBe("/agents#sessions");
     expect(MANUAL_HREFS.knowledgeCurated).toBe("/knowledge#memory");
+    expect(MANUAL_HREFS.knowledgeWiki).toBe("/knowledge#wiki");
     expect(MANUAL_HREFS.settingsSecurity).toBe("/settings/security");
   });
 });
