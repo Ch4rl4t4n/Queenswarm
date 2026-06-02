@@ -153,7 +153,7 @@ test.describe("Publish lane panels", () => {
     const publishQueue = page.locator("#publish-queue");
     await expect(publishQueue).toBeVisible({ timeout: 45_000 });
     await expect(publishQueue.getByText("Launch post")).toBeVisible();
-    await publishQueue.getByRole("button", { name: /View details/i }).click();
+    await publishQueue.getByRole("button", { name: /^Details$/i }).click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await expect(page.getByRole("dialog").locator("img[alt='Launch post']")).toBeVisible();
     await expect(page.locator("#social-publish")).toBeVisible();
