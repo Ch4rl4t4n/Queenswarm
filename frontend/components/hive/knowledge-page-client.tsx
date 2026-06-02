@@ -33,6 +33,7 @@ import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { LearningConsole } from "@/components/hive/learning-console";
 import { MemoryEvolutionPanel } from "@/components/hive/memory-evolution-panel";
 import { OutputsInteractivePanel } from "@/components/hive/outputs-interactive-panel";
+import { RecipesPageClient } from "@/components/hive/recipes-page-client";
 import { WikiLayerPanel } from "@/components/hive/wiki-layer-panel";
 import {
   V4Card,

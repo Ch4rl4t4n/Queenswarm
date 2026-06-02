@@ -196,8 +196,10 @@ class HiveMindService:
         if not cfg.hive_mind_enabled or not relevance_to_current_task.strip():
             return ""
 
-        tier = normalize_retrieval_tier(
-            retrieval_tier if retrieval_tier is not None else "wiki_only",
+        tier: RetrievalTier = (
+            normalize_retrieval_tier(retrieval_tier)
+            if retrieval_tier is not None
+            else "deep_raw"
         )
         mode = normalize_recall_mode(
             recall_mode
