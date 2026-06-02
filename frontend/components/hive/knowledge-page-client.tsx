@@ -34,6 +34,7 @@ import { LearningConsole } from "@/components/hive/learning-console";
 import { MemoryEvolutionPanel } from "@/components/hive/memory-evolution-panel";
 import { OutputsInteractivePanel } from "@/components/hive/outputs-interactive-panel";
 import { RecipesPageClient } from "@/components/hive/recipes-page-client";
+import { ResearchBeePanel } from "@/components/hive/research-bee-panel";
 import { WikiLayerPanel } from "@/components/hive/wiki-layer-panel";
 import {
   V4Card,
@@ -79,6 +80,7 @@ const HIVEMIND_SECTIONS: {
   { id: "graphify", label: "Auto graphify", icon: Network },
   { id: "shape", label: "Project shape", icon: Waypoints },
   { id: "recall", label: "Selective recall", icon: Sparkles },
+  { id: "ingest", label: "Ingest URL", icon: BookOpen },
   { id: "explorer", label: "Graph + search", icon: Search },
   { id: "evolution", label: "Memory evolution", icon: GitBranch },
 ];
@@ -95,6 +97,7 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
     resolveKnowledgeHivemindSection({ hash: typeof window !== "undefined" ? window.location.hash : "" }),
   );
   const [filter, setFilter] = useState("");
+  const [ingestError, setIngestError] = useState<string | null>(null);
 
   const selectTab = useCallback((next: KnowledgeTab) => {
     setTab(next);
@@ -151,7 +154,7 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
   return (
     <HivePageShell
       title="Knowledge"
-      subtitle="One plane — HiveMind retrieval, outputs archive, recipes/learning, dreaming cycles, curated memory, wiki layer, goals."
+      subtitle="One plane — HiveMind retrieval, Ingest URL, outputs archive, recipes/learning, dreaming, curated memory, wiki layer, goals."
       hintKey="knowledge"
       banner={
         archiveSyncPending ? (
@@ -214,6 +217,14 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
           {hivemindSection === "graphify" ? <AutoGraphifyPanel /> : null}
           {hivemindSection === "shape" ? <ProjectShapeGraphPanel /> : null}
           {hivemindSection === "recall" ? <SelectiveRecallPanel /> : null}
+          {hivemindSection === "ingest" ? (
+            <div id="research-bee" className="scroll-mt-28 space-y-3">
+              {ingestError ? (
+                <p className="rounded-xl border border-(--qs-red)/30 bg-(--qs-red)/10 px-4 py-3 text-sm">{ingestError}</p>
+              ) : null}
+              <ResearchBeePanel onError={setIngestError} />
+            </div>
+          ) : null}
           {hivemindSection === "explorer" ? (
             <V4Card>
               <V4CardHeader

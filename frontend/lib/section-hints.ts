@@ -26,7 +26,7 @@ export const SECTION_HINTS = {
     description:
       "Unified retrieval surface: HiveMind graph, verified outputs archive, recipes, dreaming cycles, curated memory, Wiki Layer (Karpathy hot/cold tiers), and goal tracking.",
     options: [
-      "HiveMind tab — graphify, project shape, selective recall, explorer search, memory evolution.",
+      "HiveMind tab — graphify, project shape, selective recall, Ingest URL (YouTube/web), explorer search, memory evolution.",
       "Wiki Layer tab — 3 zones (raw / wiki / instructions), Gardener bee, retrieval tier, Obsidian export.",
       "Outputs — Ballroom deliverables and archive with interactive replay.",
       "Recipes & dreaming — verified workflows and overnight consolidation loops.",
@@ -499,6 +499,41 @@ export const SECTION_HINTS = {
       "raw_chars — cold-zone RAG only counted when retrieval_tier is deep_raw.",
     ],
     manualHref: "/manual#wiki-layer",
+  },
+  knowledgeIngestRouter: {
+    title: "Ingest Router + Research Bee",
+    description:
+      "Unified ingest lane: YouTube URL → transcript bee, https article → Research Bee fetch, paste → structured brief. Never injects raw transcript into Queen prompt — persist goes to HiveMind raw, Gardener compiles wiki.",
+    options: [
+      "YouTube — auto-detect watch/youtu.be/shorts URLs, fetch captions (no Data API quota).",
+      "Web URL — public https only; SSRF-safe HTML text extract.",
+      "Persist + Run Gardener — optional immediate forager-insights wiki refresh.",
+      "Manual: /manual#ingest-router",
+    ],
+    manualHref: "/manual#ingest-router",
+  },
+  knowledgeYouTubeIngest: {
+    title: "YouTube transcript ingest",
+    description:
+      "Drop any public YouTube link — YouTubeTranscriptBee pulls captions/auto-transcript, Research Bee structures summary + key points.",
+    options: [
+      "Requires captions or auto-generated transcript on the video.",
+      "Tags: forager:youtube, youtube_transcript — Gardener picks up in forager-insights.",
+      "Pair with wiki_only tier — hot wiki, cold raw until deep_raw.",
+    ],
+    manualHref: "/manual#ingest-router",
+  },
+  knowledgeSkillHotTier: {
+    title: "Skill Hot Tier (Karpathy)",
+    description:
+      "On each new Queen session, only verified recipes that token-match the session goal are injected — never the full Recipe Library dump.",
+    options: [
+      "SKILL_HOT_TIER_ENABLED — default on; max 3 recipes per session.",
+      "Complements Wiki Layer verified-recipes page (static compile) with dynamic goal match.",
+      "Inspired by Karpathy modular skills — our skills = verified recipes + harness.",
+      "Manual: /manual#skill-hot-tier",
+    ],
+    manualHref: "/manual#skill-hot-tier",
   },
 
   // —— Integrations ——

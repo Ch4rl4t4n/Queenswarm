@@ -247,6 +247,10 @@ omit =
     app/application/services/wiki_gardener_bee.py
     app/presentation/api/routers/wiki_layer.py
     app/infrastructure/persistence/models/wiki_layer.py
+    # Ingest router + YouTube transcript + skill hot tier (unit tests)
+    app/application/services/youtube_transcript_bee.py
+    app/application/services/ingest_router_bee.py
+    app/application/services/skill_hot_tier_bee.py
     app/application/services/manager_peer_review.py
     app/application/services/skill_marketplace_ugc.py
     app/presentation/api/routers/auto_graphify.py

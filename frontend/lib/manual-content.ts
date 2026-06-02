@@ -192,6 +192,61 @@ export const APP_MANUAL_SECTIONS: ManualSection[] = [
     ],
   },
   {
+    id: "ingest-router",
+    title: "Ingest Router — YouTube, web URL, paste",
+    paragraphs: [
+      `Open [Knowledge → HiveMind → Ingest URL](${MANUAL_HREFS.knowledgeIngest}). **IngestRouterBee** picks the right bee: YouTube links → **YouTubeTranscriptBee** (captions, no Data API quota), other https URLs → **Research Bee** HTML extract, paste → structured brief.`,
+      `Output is always a **structured brief** (summary, key points, tags) — never a raw transcript dump into the Queen prompt. Enable **Persist** to write HiveMind raw zone; enable **Run Wiki Gardener** to immediately refresh \`forager-insights\` wiki page.`,
+      `YouTube videos need captions or auto-transcript. Tags \`forager:youtube\` + \`youtube_transcript\` help Gardener consolidate intel alongside channel foragers.`,
+      `Env: \`YOUTUBE_TRANSCRIPT_BEE_ENABLED=true\` (default), \`RESEARCH_BEE_MAX_CHARS\`.`,
+    ],
+    checklist: [
+      {
+        text: "Paste YouTube URL → Ingest & generate brief → persist + Gardener.",
+        href: MANUAL_HREFS.knowledgeIngest,
+        linkLabel: "Ingest URL",
+      },
+      {
+        text: "Verify brief landed in Wiki Layer raw zone, then forager-insights after Gardener.",
+        href: MANUAL_HREFS.knowledgeWiki,
+        linkLabel: "Wiki Layer",
+      },
+      {
+        text: "Channel monitoring still uses Foragers + YOUTUBE_API_KEY for delta scrape.",
+        href: MANUAL_HREFS.foragers,
+        linkLabel: "Foragers",
+      },
+    ],
+  },
+  {
+    id: "skill-hot-tier",
+    title: "Skill Hot Tier — Karpathy skills × Wiki Layer",
+    paragraphs: [
+      `Inspired by [Karpathy's Skills](https://www.youtube.com/watch?v=pCqpuHA8kHM) — load **only relevant** skill modules per task, not the entire library. In Queenswarm: **verified recipes** = skills; **SkillHotTierBee** token-matches session goal → injects top 3 recipe summaries into Queen prompt alongside Wiki Layer.`,
+      `Static compile: Wiki Gardener \`verified-recipes\` page (hot tier, all tenants). Dynamic compile: **Skill Hot Tier** per session goal (marketing digest goal → marketing recipes only).`,
+      `This avoids prompt bloat from dumping every SKILL.md / recipe into context — same philosophy as \`wiki_only\` skipping raw RAG.`,
+      `Env: \`SKILL_HOT_TIER_ENABLED=true\`, \`SKILL_HOT_TIER_MAX_RECIPES=3\`, \`SKILL_HOT_TIER_MIN_SCORE=0.12\`.`,
+      `Not imported from Claude Code plugins — native hive bees with pollen + simulate guardrails.`,
+    ],
+    checklist: [
+      {
+        text: "Verify recipes in Recipe Library before expecting hot-tier matches.",
+        href: MANUAL_HREFS.knowledgeRecipes,
+        linkLabel: "Recipes",
+      },
+      {
+        text: "Write structured session goals with domain keywords (marketing, digest, e-shop…).",
+        href: MANUAL_HREFS.agentsSessions,
+        linkLabel: "Agents",
+      },
+      {
+        text: "Pair with Wiki Layer wiki_only — hot skills + hot wiki, cold raw.",
+        href: MANUAL_HREFS.knowledgeWiki,
+        linkLabel: "Wiki Layer",
+      },
+    ],
+  },
+  {
     id: "settings-reference",
     title: "5. Settings reference",
     paragraphs: [
@@ -434,6 +489,37 @@ export const APP_FUNCTION_GUIDE: FunctionInfoGroup[] = [
         description: "Download wiki pages as Markdown zip — frontmatter with slug, version, updated_at.",
         options: ["Read-only export", "Obsidian / Logseq compatible", "Backup before curated edits"],
         href: MANUAL_HREFS.knowledgeWiki,
+      },
+      {
+        id: "knowledge-ingest",
+        label: "Ingest URL (Research Bee)",
+        description:
+          "IngestRouterBee — YouTube transcript, web URL, or paste → structured brief → optional HiveMind + Gardener.",
+        options: [
+          "YouTube watch/youtu.be/shorts auto-route",
+          "Persist to raw zone + trigger Gardener",
+          "Never raw dump to Queen prompt",
+        ],
+        href: MANUAL_HREFS.knowledgeIngest,
+      },
+      {
+        id: "knowledge-youtube-ingest",
+        label: "YouTube transcript bee",
+        description: "On-demand video URL → captions/auto-transcript → brief. No YouTube Data API quota.",
+        options: ["Requires captions on video", "Tags forager:youtube", "Gardener → forager-insights"],
+        href: MANUAL_HREFS.knowledgeIngest,
+      },
+      {
+        id: "knowledge-skill-hot-tier",
+        label: "Skill Hot Tier",
+        description:
+          "Karpathy-style dynamic skill load — goal-matched verified recipes injected per Queen session.",
+        options: [
+          "Max 3 recipes per session",
+          "Token overlap scoring",
+          "Complements Wiki verified-recipes page",
+        ],
+        href: MANUAL_HREFS.manualSkillHotTier,
       },
       {
         id: "knowledge-outputs",

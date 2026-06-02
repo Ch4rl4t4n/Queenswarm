@@ -1852,6 +1852,32 @@ class Settings(BaseSettings):
         le=120_000,
         description="Max extracted characters per research bee brief.",
     )
+    youtube_transcript_bee_enabled: bool = Field(
+        default=True,
+        description="Route YouTube URLs through transcript bee (no Data API quota).",
+    )
+    skill_hot_tier_enabled: bool = Field(
+        default=True,
+        description="Karpathy-style skill hot tier — inject only goal-matched verified recipes into Queen prompt.",
+    )
+    skill_hot_tier_max_recipes: int = Field(
+        default=3,
+        ge=1,
+        le=8,
+        description="Max verified recipes in skill hot tier block per session.",
+    )
+    skill_hot_tier_pool_size: int = Field(
+        default=24,
+        ge=8,
+        le=64,
+        description="Verified recipe pool scanned for skill hot tier matching.",
+    )
+    skill_hot_tier_min_score: float = Field(
+        default=0.12,
+        ge=0.05,
+        le=1.0,
+        description="Minimum token overlap score to include a recipe in hot tier.",
+    )
     media_agency_in_a_box_enabled: bool = Field(
         default=True,
         description="P2 #84 — faceless media agency white-label publish lane snapshot.",

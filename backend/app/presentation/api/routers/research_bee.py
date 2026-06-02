@@ -24,6 +24,10 @@ class ResearchBriefRequest(BaseModel):
     content_text: str | None = Field(default=None, max_length=120_000)
     title_hint: str | None = Field(default=None, max_length=200)
     persist: bool = False
+    trigger_gardener: bool = Field(
+        default=False,
+        description="After persist, run Wiki Gardener sweep so forager-insights wiki updates immediately.",
+    )
 
 
 def _require_enabled() -> None:
@@ -38,6 +42,8 @@ async def research_bee_status() -> dict[str, bool | int]:
     return {
         "enabled": bool(settings.research_bee_enabled),
         "max_chars": int(settings.research_bee_max_chars),
+        "youtube_transcript_bee_enabled": bool(settings.youtube_transcript_bee_enabled),
+        "skill_hot_tier_enabled": bool(settings.skill_hot_tier_enabled),
     }
 
 
@@ -62,6 +68,7 @@ async def create_research_brief(
             content_text=body.content_text,
             title_hint=body.title_hint,
             persist=body.persist,
+            trigger_gardener=body.trigger_gardener,
         )
         await db.commit()
         return brief

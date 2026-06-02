@@ -74,6 +74,10 @@ class ResearchBriefOut(BaseModel):
     persisted: bool = False
     knowledge_item_id: str | None = None
     markdown: str = ""
+    ingest_route: str = "paste"
+    video_id: str | None = None
+    transcript_language: str | None = None
+    gardener_triggered: bool = False
 
 
 class _HtmlTextExtractor(HTMLParser):
@@ -240,8 +244,11 @@ async def compose_research_brief(
     content_text: str | None = None,
     title_hint: str | None = None,
     persist: bool = False,
+    trigger_gardener: bool = False,
 ) -> ResearchBriefOut:
     """Fetch or accept text, structure brief, optionally persist to HiveMind."""
+
+    from app.application.services.ingest_router_bee import resolve_ingest_source
 
     if not settings.research_bee_enabled:
         return ResearchBriefOut(
@@ -253,39 +260,39 @@ async def compose_research_brief(
             summary="",
         )
 
-    url = (source_url or "").strip()
-    pasted = (content_text or "").strip()
     max_chars = int(settings.research_bee_max_chars)
-
-    if url and pasted:
-        raise ValueError("Provide either source_url or content_text, not both.")
-    if not url and not pasted:
-        raise ValueError("Provide source_url or content_text.")
-
-    if url:
-        raw = await fetch_url_text(url, max_chars=max_chars)
-        source_type = SOURCE_URL
-        source_label = url[:500]
-    else:
-        raw = pasted[:max_chars]
-        source_type = SOURCE_PDF_TEXT if pasted.lower().startswith("%pdf") else SOURCE_PASTE
-        source_label = title_hint or ("Pasted document" if source_type == SOURCE_PASTE else "PDF text")
+    resolved = await resolve_ingest_source(
+        source_url=source_url,
+        content_text=content_text,
+        title_hint=title_hint,
+        max_chars=max_chars,
+    )
 
     brief = build_structured_brief(
-        raw_text=raw,
-        source_type=source_type,
-        source_label=source_label,
-        title_hint=title_hint,
+        raw_text=resolved.raw_text,
+        source_type=resolved.source_type,
+        source_label=resolved.source_label,
+        title_hint=resolved.title_hint,
+    )
+    brief = brief.model_copy(
+        update={
+            "ingest_route": resolved.ingest_route,
+            "video_id": resolved.video_id,
+            "transcript_language": resolved.transcript_language,
+        },
     )
 
     if persist and brief.summary:
-        tags = list(dict.fromkeys(["research_bee", *brief.topic_tags]))[:16]
+        tag_seed = ["research_bee", *brief.topic_tags]
+        if resolved.ingest_route == "youtube":
+            tag_seed = ["research_bee", "forager:youtube", "youtube_transcript", *brief.topic_tags]
+        tags = list(dict.fromkeys(tag_seed))[:16]
         row = KnowledgeItem(
             tenant_id=tenant_id,
-            source_url=url or None,
-            source_type="research_bee",
+            source_url=(source_url or "").strip() or None,
+            source_type=resolved.source_type,
             content_text=brief.markdown,
-            confidence_score=0.82,
+            confidence_score=0.88 if resolved.ingest_route == "youtube" else 0.82,
             topic_tags=tags,
             decay_factor=1.0,
             scraped_at=datetime.now(tz=UTC),
@@ -299,8 +306,16 @@ async def compose_research_brief(
             agent_id="research_bee",
             swarm_id=str(tenant_id),
             task_id=str(row.id),
-            source_type=source_type,
+            source_type=resolved.source_type,
+            ingest_route=resolved.ingest_route,
         )
+
+        if trigger_gardener and settings.wiki_layer_enabled:
+            from app.application.services.wiki_layer_service import WikiLayerService
+
+            wiki = WikiLayerService(db=session)
+            await wiki.run_gardener(tenant_id, agent_id="ingest-router-bee")
+            brief = brief.model_copy(update={"gardener_triggered": True})
 
     return brief
 

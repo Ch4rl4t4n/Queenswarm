@@ -6,6 +6,7 @@ export type KnowledgeHivemindSection =
   | "graphify"
   | "shape"
   | "recall"
+  | "ingest"
   | "explorer"
   | "evolution";
 
@@ -13,6 +14,7 @@ const ALL_HIVEMIND_SECTIONS: KnowledgeHivemindSection[] = [
   "graphify",
   "shape",
   "recall",
+  "ingest",
   "explorer",
   "evolution",
 ];
@@ -21,6 +23,8 @@ const HASH_TO_SECTION: Record<string, KnowledgeHivemindSection> = {
   graphify: "graphify",
   shape: "shape",
   recall: "recall",
+  ingest: "ingest",
+  "research-bee": "ingest",
   explorer: "explorer",
   evolution: "evolution",
   hivemind: "explorer",

@@ -32,6 +32,7 @@ from app.application.services.supervisor.spawner import (
 from app.application.services.supervisor.shared_context import SharedContextService
 from app.application.services.supervisor.autonomy import update_session_autonomy_state
 from app.application.services.curated_memory_service import CuratedMemoryService
+from app.application.services.skill_hot_tier_bee import render_skill_hot_tier_block
 from app.application.services.wiki_layer_service import WikiLayerService, load_wiki_config
 from app.application.services.execution_studio_context import (
     augment_skill_slugs_for_execution,
@@ -399,6 +400,9 @@ async def create_supervisor_session(
                 if not pages:
                     await wiki_service.run_gardener(tenant_id)
                     wiki_prompt_block = await wiki_service.render_wiki_prompt_block(tenant_id)
+            skill_hot_block = await render_skill_hot_tier_block(db, tenant_id=tenant_id, goal=goal_clean)
+            if skill_hot_block.strip():
+                wiki_prompt_block = "\n\n".join(part for part in (wiki_prompt_block, skill_hot_block) if part.strip())
             await wiki_service.record_prompt_telemetry(
                 tenant_id,
                 curated_prefix_chars=len(queen_prompt_prefix),
