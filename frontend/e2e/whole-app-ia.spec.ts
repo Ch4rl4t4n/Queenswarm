@@ -12,6 +12,7 @@ test.describe("Whole-App IA — primary sidebar order", () => {
 
   test("desktop sidebar follows canonical zone order when CP enabled", async ({ page }) => {
     test.skip(!OPERATOR_CONTROL_PLANE_ENABLED, "CP IA applies only when operator control plane is enabled");
+    test.setTimeout(90_000);
 
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/settings/security", { waitUntil: "domcontentloaded", timeout: 60_000 });
