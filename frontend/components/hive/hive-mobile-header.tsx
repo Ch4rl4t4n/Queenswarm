@@ -1,7 +1,7 @@
 "use client";
 
 import { BellIcon, MenuIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { HiveBrandMark } from "@/components/hive/hive-brand-mark";
 import { HiveMobileNotificationSheet } from "@/components/hive/hive-mobile-notification-sheet";
@@ -18,14 +18,26 @@ interface HiveMobileHeaderProps {
   className?: string;
   /** Opens primary navigation drawer (&lt; lg). */
   onOpenNav?: () => void;
+  /** Notifies shell when mobile notification sheet opens/closes (hides FAB). */
+  onNotificationsOpenChange?: (open: boolean) => void;
 }
 
 /** Mobile / tablet sticky strip — hamburger, home brand, notification bell. */
-export function HiveMobileHeader({ pathname: _pathname, summary, className, onOpenNav }: HiveMobileHeaderProps) {
+export function HiveMobileHeader({
+  pathname: _pathname,
+  summary,
+  className,
+  onOpenNav,
+  onNotificationsOpenChange,
+}: HiveMobileHeaderProps) {
   const { language } = useUiLanguage();
   const badge = useHiveNotificationBadge(summary);
   const trailing = useHiveMobileHeaderTrailing();
   const [notifOpen, setNotifOpen] = useState(false);
+
+  useEffect(() => {
+    onNotificationsOpenChange?.(notifOpen);
+  }, [notifOpen, onNotificationsOpenChange]);
 
   return (
     <>

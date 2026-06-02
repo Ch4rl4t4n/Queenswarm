@@ -47,6 +47,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
   const [tenantSwitching, setTenantSwitching] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   useDashboardSessionRefresh();
 
@@ -167,6 +168,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
               pathname={pathname}
               summary={summary}
               onOpenNav={() => setMobileDrawerOpen(true)}
+              onNotificationsOpenChange={setNotificationsOpen}
             />
 
             <main
@@ -190,7 +192,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
               pathname={pathname}
               moreOpen={moreOpen}
             />
-            <OperatorShellFab hidden={mobileDrawerOpen || moreOpen} />
+            <OperatorShellFab hidden={mobileDrawerOpen || moreOpen || notificationsOpen} />
             <HiveMoreSheet
               open={moreOpen}
               onClose={() => setMoreOpen(false)}

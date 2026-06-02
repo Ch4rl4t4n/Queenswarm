@@ -4,6 +4,10 @@
  * More-menu routes (`/workflows`, `/jobs`) stay reachable from the Tasks hub and each other.
  */
 
+import { ROUTINES_CROSS_LINK_LABELS, ROUTINES_PATH } from "@/lib/routines-routes";
+
+export { ROUTINES_CROSS_LINK_LABELS, ROUTINES_PATH };
+
 export const TASKS_HUB_PATH = "/tasks";
 export const WORKFLOWS_PATH = "/workflows";
 export const JOBS_PATH = "/jobs";
@@ -37,5 +41,5 @@ export const TASKS_HUB_LANE_LINKS = [
   { href: "/tasks/new", label: "New task" },
   { href: WORKFLOWS_PATH, label: EXECUTION_LANE_CROSS_LINK_LABELS.toWorkflows },
   { href: JOBS_PATH, label: EXECUTION_LANE_CROSS_LINK_LABELS.toAsyncJobs },
-  { href: AGENTS_HUB_PATH, label: "Routines" },
+  { href: ROUTINES_PATH, label: "Routines" },
 ] as const;

@@ -43,7 +43,7 @@ export function HiveMobileNotificationSheet({
   const unreadMission = missionFeed.events.filter((ev) => !ev.read);
 
   return (
-    <div className="fixed inset-0 z-[60] lg:hidden" role="presentation">
+    <div className="fixed inset-0 z-[130] lg:hidden" role="presentation">
       <button
         type="button"
         className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
@@ -156,7 +156,12 @@ export function HiveMobileNotificationSheet({
           ) : null}
 
           {unreadMission.length === 0 && snapshot.total === 0 ? (
-            <p className="py-6 text-center text-sm text-(--qs-text-4)">No pending operator actions.</p>
+            <p
+              data-testid="hive-mobile-notifications-empty"
+              className="pt-16 pb-10 text-center text-sm leading-relaxed text-(--qs-text-4)"
+            >
+              No pending operator actions.
+            </p>
           ) : null}
 
           <Link

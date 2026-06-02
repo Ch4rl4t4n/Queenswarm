@@ -78,6 +78,7 @@ export const ROUTE_FEATURE_KEYS: Record<string, string> = {
   "/": "dashboard",
   "/swarms": "swarms",
   "/agents": "agents",
+  "/routines": "agents",
   "/foragers": "foragers",
   "/tasks": "tasks",
   "/factory": "skills_export_factory",

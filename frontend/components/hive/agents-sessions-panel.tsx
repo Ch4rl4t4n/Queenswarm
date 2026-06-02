@@ -4,7 +4,7 @@ import type { JSX } from "react";
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle2, Info, Play, Plus, RefreshCw } from "lucide-react";
+import { CheckCircle2, CalendarClock, Info, Play, Plus, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
@@ -14,7 +14,6 @@ import { AgentsPanelSkeleton } from "@/components/hive/agents-panel-skeleton";
 import { AgentSessionReportDialog } from "@/components/hive/agent-session-report-dialog";
 import { AutomationLadderPanel } from "@/components/hive/automation-ladder-panel";
 import { InfoHint } from "@/components/hive/info-hint";
-import { RoutineWebhookControls } from "@/components/hive/routine-webhook-controls";
 import { SessionPatternSkillsPanel } from "@/components/hive/session-pattern-skills-panel";
 import { VoiceSessionControls } from "@/components/hive/voice-session-controls";
 import { usePlatform } from "@/components/hive/platform-context";
@@ -31,10 +30,10 @@ import {
 import { HiveApiError, hiveDelete, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
 import { COCKPIT_POLL_BOARD_MS } from "@/lib/cockpit-poll-profile";
 import { integrationsTabHref } from "@/lib/integrations-routes";
+import { ROUTINES_PATH } from "@/lib/routines-routes";
 import { useRouteScopedPollOptions } from "@/lib/hooks/use-route-scoped-poll";
 import type {
   SupervisorControlSummaryRow,
-  SupervisorRoutineRow,
   SupervisorSessionRow,
   SupervisorSessionsControlRow,
 } from "@/lib/hive-types";
@@ -112,10 +111,6 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [reviewBusy, setReviewBusy] = useState<string | null>(null);
-  const [routineName, setRoutineName] = useState("");
-  const [routineGoal, setRoutineGoal] = useState("");
-  const [routineInterval, setRoutineInterval] = useState(3600);
-  const [routineBusy, setRoutineBusy] = useState(false);
   const [sessionQuery, setSessionQuery] = useState("");
   const [sessionStatusFilter, setSessionStatusFilter] = useState<SessionStatusFilter>("all");
   const [deleteBusy, setDeleteBusy] = useState<string | null>(null);
@@ -140,7 +135,6 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
   );
 
   const sessionsPoll = useRouteScopedPollOptions(COCKPIT_POLL_BOARD_MS, "/agents");
-  const routinesPoll = useRouteScopedPollOptions(COCKPIT_POLL_BOARD_MS * 1.5, "/agents");
 
   const {
     data: rawSessions = [],
@@ -154,12 +148,6 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
   );
   const sessions = useMemo(() => (Array.isArray(rawSessions) ? rawSessions : []), [rawSessions]);
 
-  const { data: rawRoutines = [], mutate: mutateRoutines } = useSWR<SupervisorRoutineRow[]>(
-    "hive/agent-routines",
-    () => hiveGet<SupervisorRoutineRow[]>("agents/routines?limit=40"),
-    routinesPoll,
-  );
-  const routines = Array.isArray(rawRoutines) ? rawRoutines : [];
   const { data: summary, mutate: mutateSummary } = useSWR<SupervisorControlSummaryRow>(
     "hive/agent-sessions-summary",
     () => hiveGet<SupervisorControlSummaryRow>("agents/sessions/summary"),
@@ -492,47 +480,6 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
       toast.error(msg);
     } finally {
       setReviewBusy(null);
-    }
-  }
-
-  async function createRoutine(): Promise<void> {
-    if (routineName.trim().length < 2 || routineGoal.trim().length < 4) {
-      toast.error("Routine name/goal is too short.");
-      return;
-    }
-    setRoutineBusy(true);
-    try {
-      await hivePostJson("agents/routines", {
-        name: routineName.trim(),
-        goal_template: routineGoal.trim(),
-        schedule_kind: "interval",
-        interval_seconds: Math.max(60, routineInterval),
-        runtime_mode: "durable",
-        roles: ["researcher", "critic"],
-        retrieval_contract: "customer_history+policy+last_3_tasks",
-        skills: ["context", "diagnose"],
-      });
-      setRoutineName("");
-      setRoutineGoal("");
-      setRoutineInterval(3600);
-      await mutateRoutines();
-      toast.success("Routine created.");
-    } catch (e) {
-      const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Routine create failed";
-      toast.error(msg);
-    } finally {
-      setRoutineBusy(false);
-    }
-  }
-
-  async function triggerRoutine(routineId: string): Promise<void> {
-    try {
-      await hivePostJson(`agents/routines/${routineId}/trigger`, {});
-      toast.success("Routine triggered.");
-      await Promise.all([mutate(), mutateRoutines()]);
-    } catch (e) {
-      const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Routine trigger failed";
-      toast.error(msg);
     }
   }
 
@@ -1065,75 +1012,25 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
       />
 
       <div className={isV4 ? "v4-routines-panel mt-6" : "mt-6 rounded-2xl border border-[color:var(--qs-border)] bg-black/30 p-4"}>
-        {isV4 ? (
-          <div className="v4-routines-panel__head">
-            <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <CalendarClock className="h-4 w-4 shrink-0 text-cyan" aria-hidden />
               <h3 className="text-sm font-semibold text-(--qs-text)">Routines</h3>
               <V4Badge tone="gold" className="shrink-0">
-                {routines.filter((r) => r.is_active).length} active
+                {summary?.active_routines ?? 0} active
               </V4Badge>
             </div>
             <p className="mt-2 text-xs leading-relaxed text-(--qs-text-3)">
-              Recurring supervisor sessions via Celery schedule tick.
+              Recurring supervisor schedules, webhooks (L4), and Celery ticks now live in the dedicated Routines hub.
+            </p>
+            <p className="mt-1 text-xs text-(--qs-text-3)">
+              {summary?.routines_total ?? 0} total · {summary?.due_routines ?? 0} due
             </p>
           </div>
-        ) : (
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h3 className="text-sm font-semibold text-(--qs-text)">Routines</h3>
-              <p className="mt-1 text-xs text-(--qs-text-3)">Recurring supervisor sessions via Celery schedule tick.</p>
-            </div>
-            <InfoHint
-              title="Routines"
-              description="Periodic Supervisor sessions triggered by schedule interval."
-              options={["Create routine", "Trigger now", "Status monitoring"]}
-            />
-          </div>
-        )}
-        {!isV4 ? (
-          <p className="mt-1 text-xs text-zinc-500">Recurring supervisor sessions via Celery schedule tick.</p>
-        ) : null}
-        <div className={isV4 ? "v4-routines-form mt-4" : "mt-3 grid gap-2 md:grid-cols-[1fr_1fr_100px_auto]"}>
-          <input className="qs-input w-full min-w-0" placeholder="Routine name" value={routineName} onChange={(e) => setRoutineName(e.target.value)} />
-          <input className="qs-input w-full min-w-0" placeholder="Goal template" value={routineGoal} onChange={(e) => setRoutineGoal(e.target.value)} />
-          <input
-            className="qs-input w-full min-w-0"
-            type="number"
-            min={60}
-            step={60}
-            value={routineInterval}
-            onChange={(e) => setRoutineInterval(Number(e.target.value || 3600))}
-          />
-          <button
-            type="button"
-            className="qs-btn qs-btn--primary qs-btn--sm w-full justify-center gap-2 md:w-auto"
-            disabled={routineBusy}
-            onClick={() => void createRoutine()}
-          >
-            <Plus className="h-4 w-4 shrink-0" aria-hidden />
-            {routineBusy ? "Creating…" : "Create"}
-          </button>
-        </div>
-        <div className="v4-routines-list-scroll hive-scrollbar mt-3">
-          {routines.map((routine) => (
-            <div
-              key={routine.id}
-              className={
-                isV4
-                  ? "v4-session-row"
-                  : "flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-800 bg-black/25 p-3"
-              }
-            >
-              <p className="text-xs text-(--qs-text-2)">
-                <span className="font-semibold text-(--qs-text)">{routine.name}</span> · every {routine.interval_seconds ?? 0}s · {routine.status}
-              </p>
-              <RoutineWebhookControls routineId={routine.id} routineName={routine.name} />
-              <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void triggerRoutine(routine.id)}>
-                Run now
-              </button>
-            </div>
-          ))}
-          {!routines.length ? <p className="text-xs text-(--qs-text-3)">No routines configured.</p> : null}
+          <Link href={ROUTINES_PATH} className="qs-btn qs-btn--primary qs-btn--sm shrink-0 gap-1.5">
+            Open Routines
+          </Link>
         </div>
       </div>
     </Shell>

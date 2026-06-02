@@ -1934,6 +1934,20 @@
     gap: 12px;
   }
 
+  .v4-routine-catalog-card {
+    padding-bottom: 0.5rem;
+  }
+
+  @media (max-width: 1023px) {
+    .v4-routine-catalog-card .v4-routine-webhook-panel {
+      margin-top: 0.25rem;
+    }
+
+    .hub-catalog-grid:has(.v4-routine-catalog-card) {
+      grid-template-columns: 1fr;
+    }
+  }
+
   @media (min-width: 768px) {
     .v4-routines-form {
       display: grid;

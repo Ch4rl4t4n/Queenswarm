@@ -10,6 +10,7 @@ import {
   Brain,
   Briefcase,
   Cable,
+  CalendarClock,
   ClipboardList,
   Factory,
   FileText,
@@ -74,7 +75,6 @@ export const CANONICAL_PRIMARY_CP: HiveIaPrimarySpec[] = [
     label: "Agentic OS",
     Icon: Zap,
     iaZone: "agentic_os",
-    bottomNav: true,
     section: "overview",
     featureKey: "operator_cockpit",
   },
@@ -94,6 +94,15 @@ export const CANONICAL_PRIMARY_CP: HiveIaPrimarySpec[] = [
     bottomNav: true,
     section: "execution",
     featureKey: "tasks",
+  },
+  {
+    href: "/routines",
+    label: "Routines",
+    Icon: CalendarClock,
+    iaZone: "agentic_os",
+    bottomNav: true,
+    section: "execution",
+    featureKey: "agents",
   },
   {
     href: "/agents",
@@ -297,6 +306,7 @@ export function buildCanonicalNavGroups(options: {
       items: [
         { href: "/tasks", label: consolidatedEnabled ? "Tasks hub" : "Tasks", Icon: ListTodo, section: "execution", iaZone: "agentic_os" },
         { href: "/tasks/new", label: "New task", Icon: ClipboardList, section: "execution", iaZone: "agentic_os" },
+        { href: "/routines", label: "Routines", Icon: CalendarClock, section: "execution", iaZone: "agentic_os" },
         { href: "/workflows", label: "Workflows", Icon: GitBranch, section: "execution", iaZone: "agentic_os" },
         ...(simulationsEnabled
           ? [{ href: "/simulations", label: "Simulations", Icon: FlaskConical, section: "execution" as const, iaZone: "agentic_os" as const }]

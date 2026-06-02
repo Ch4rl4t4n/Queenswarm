@@ -43,6 +43,7 @@ function routeTable(consolidatedEnabled: boolean): { prefix: string; meta: Mobil
           { prefix: "/apps-tools/mcp-ops-studio", meta: { kicker: "Apps & Tools", staticSubtitle: "MCP catalog · governed installs", pageTitleSuffix: "MCP Ops Studio" } },
           { prefix: "/manual", meta: { kicker: "Manual", staticSubtitle: "Operator docs · app functions", pageTitleSuffix: "Manual" } },
           { prefix: "/foragers", meta: { kicker: "Foragers", staticSubtitle: "Dynamic ingest workers · spawn flow", pageTitleSuffix: "Foragers" } },
+          { prefix: "/routines", meta: { kicker: "Routines", staticSubtitle: "Supervisor schedules · webhooks · L3/L4", pageTitleSuffix: "Routines" } },
           { prefix: "/monitoring", meta: { kicker: "Monitoring", staticSubtitle: "Host pressure · queues · telemetry", pageTitleSuffix: "Monitoring" } },
           { prefix: "/factory", meta: { kicker: "Apps & Tools", staticSubtitle: "Simulate-first MVP blueprint lane", pageTitleSuffix: "Micro-SaaS Factory" } },
           { prefix: "/connectors", meta: { kicker: "Integrations", staticSubtitle: "Connector hub alias · consolidated view", pageTitleSuffix: "Integrations" } },

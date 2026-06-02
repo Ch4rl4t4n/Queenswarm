@@ -17,6 +17,7 @@ export type HivePageHintKey =
       | "swarms"
       | "factory"
       | "tasks"
+      | "routines"
       | "dashboard"
       | "manual"
     >
@@ -33,6 +34,7 @@ export const HIVE_PAGE_HINTS = {
   swarms: sectionHintProps("swarms"),
   factory: sectionHintProps("factory"),
   tasks: sectionHintProps("tasks"),
+  routines: sectionHintProps("routines"),
   workflows: sectionHintProps("agentsWorkflows"),
   dashboard: sectionHintProps("dashboard"),
   manual: sectionHintProps("manual"),

@@ -17,6 +17,7 @@ import { V4Badge, V4Card, V4CardHeader, V4Chip, V4PageCanvas } from "@/component
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import type { RecipeMatchConfigPayload, RecipeRow, RecipeSemanticHit, SkillExportResponse } from "@/lib/hive-types";
 import { DEFAULT_RECIPE_MATCH_CONFIG } from "@/lib/recipe-match-utils";
+import { ROUTINES_PATH } from "@/lib/routines-routes";
 import { downloadSkillExportBundle } from "@/lib/skill-export-utils";
 import { useGridTwoRowPageSize } from "@/lib/use-grid-two-row-page-size";
 import { usePaginatedSlice } from "@/lib/use-paginated-slice";
@@ -245,9 +246,14 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
           title="Recipe Library"
           subtitle="Verified workflows · Chroma semantic recall · topic + pattern stack facets"
           actions={
-            <Link href="/agents#sessions" className="qs-btn qs-btn--ghost qs-btn--sm">
-              Open supervisor sessions
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <Link href={ROUTINES_PATH} className="qs-btn qs-btn--ghost qs-btn--sm">
+                Open Routines
+              </Link>
+              <Link href="/agents#sessions" className="qs-btn qs-btn--ghost qs-btn--sm">
+                Open supervisor sessions
+              </Link>
+            </div>
           }
         />
       ) : (
@@ -256,9 +262,14 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
             title="Saved recipes"
             description="Verified workflow catalog with semantic recall."
             actions={
-              <Link href="/agents#sessions" className="qs-btn qs-btn--ghost qs-btn--sm">
-                Open supervisor sessions
-              </Link>
+              <div className="flex flex-wrap gap-2">
+                <Link href={ROUTINES_PATH} className="qs-btn qs-btn--ghost qs-btn--sm">
+                  Open Routines
+                </Link>
+                <Link href="/agents#sessions" className="qs-btn qs-btn--ghost qs-btn--sm">
+                  Open supervisor sessions
+                </Link>
+              </div>
             }
           />
         </V4Card>

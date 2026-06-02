@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Hexagon, LayoutDashboard, ListTodo, Mic, Plug, Users } from "lucide-react";
+import { Hexagon, LayoutDashboard, ListTodo, Mic, Plug, Users, CalendarClock } from "lucide-react";
 import type { JSX } from "react";
 
 import { isAgenticOsRoute } from "@/lib/cross-route-naming";
@@ -18,6 +18,7 @@ const PRESET_KICKER: Record<
   ballroom: { icon: Mic, label: "Ecosystem", href: "/ballroom" },
   agents: { icon: Users, label: "Ecosystem", href: "/agents" },
   tasks: { icon: ListTodo, label: "Ecosystem", href: "/tasks" },
+  routines: { icon: CalendarClock, label: "Ecosystem", href: "/routines" },
   knowledge: { icon: Hexagon, label: "Ecosystem", href: "/knowledge" },
   dashboard: { icon: LayoutDashboard, label: "Ecosystem", href: hiveOverviewHref() },
   integrations: { icon: Plug, label: "Ecosystem", href: "/integrations" },

@@ -179,7 +179,7 @@ async function installSupervisorControlMocks(page: Page): Promise<{ setStatus: (
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
   });
 
-  await page.route(/\/api\/proxy\/agents\/routines(\?limit=40)?$/, async (route) => {
+  await page.route(/\/api\/proxy\/agents\/routines(\?limit=(40|120))?$/, async (route) => {
     if (route.request().method() !== "GET") {
       await route.fallback();
       return;
@@ -296,9 +296,12 @@ test.describe("Phase 6.1 supervisor control plane + routines", () => {
     await dismissSessionDetailDrawerIfOpen(page);
     await dismissInteractDrawerIfOpen(page);
 
-    await page.locator("#sessions .v4-routines-panel").getByPlaceholder("Routine name").fill("daily-monitoring");
-    await page.locator("#sessions .v4-routines-panel").getByPlaceholder("Goal template").fill("Generate daily monitoring summary");
-    await page.locator("#sessions .v4-routines-panel").getByRole("button", { name: "Create", exact: true }).click({ force: true });
+    await page.goto("/routines", { waitUntil: "load", timeout: 90_000 });
+    await expect(page.getByRole("heading", { name: "Routines" })).toBeVisible({ timeout: 15_000 });
+
+    await page.getByPlaceholder("Routine name").fill("daily-monitoring");
+    await page.getByPlaceholder("Goal template").fill("Generate daily monitoring summary");
+    await page.getByRole("button", { name: "Create routine", exact: true }).click({ force: true });
 
     await expect(page.getByText(/daily-monitoring/i).first()).toBeVisible();
     await page.getByRole("button", { name: "Run now" }).first().click({ force: true });
@@ -361,7 +364,7 @@ test.describe("Phase 6.1 supervisor create smoke", () => {
       });
     });
 
-    await page.route(/\/api\/proxy\/agents\/routines(\?limit=40)?$/, async (route) => {
+    await page.route(/\/api\/proxy\/agents\/routines(\?limit=(40|120))?$/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",

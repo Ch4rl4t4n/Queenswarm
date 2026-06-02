@@ -40,6 +40,7 @@ export const MOBILE_TABLET_ZONE_ROUTE_SPECS: MobileTabletRouteSpec[] = [
  */
 export const MOBILE_TABLET_SECONDARY_ROUTE_SPECS: MobileTabletRouteSpec[] = [
   { path: "/foragers", mobileTitle: "Foragers", shellTitle: "Foragers" },
+  { path: "/routines", mobileTitle: "Routines", shellTitle: "Routines" },
   { path: "/factory", mobileTitle: "Micro-SaaS Factory", shellTitle: "Micro-SaaS Factory" },
   { path: "/jobs", mobileTitle: "Jobs", shellTitle: "Async workflow jobs" },
   { path: "/workflows", mobileTitle: "Workflows", shellTitle: "Workflows" },

@@ -11,6 +11,7 @@ import { QsSelect } from "@/components/ui/qs-select";
 import { V4Badge } from "@/components/ui/v4";
 import { HiveApiError, hivePostJson } from "@/lib/api";
 import type { RecipeRoutineCreateBody, RecipeRoutineCreateResponse } from "@/lib/hive-types";
+import { ROUTINES_PATH } from "@/lib/routines-routes";
 import { cn } from "@/lib/utils";
 
 const SCHEDULE_KIND_OPTIONS = [
@@ -150,8 +151,8 @@ export function RecipeScheduleRoutineDialog({
             </div>
           ) : null}
           <div className="flex flex-wrap gap-2 pt-1">
-            <Link href="/agents#sessions" className="qs-btn qs-btn--primary qs-btn--sm">
-              Open Agents → routines
+            <Link href={ROUTINES_PATH} className="qs-btn qs-btn--primary qs-btn--sm">
+              Open Routines
             </Link>
             <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={handleClose}>
               Close

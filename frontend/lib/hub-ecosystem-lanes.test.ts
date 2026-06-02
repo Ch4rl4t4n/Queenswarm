@@ -15,10 +15,15 @@ describe("hubEcosystemLanes", () => {
     expect(labels).toContain("Ballroom");
   });
 
-  it("tasks preset includes supervisor and integrations ecosystem anchor", () => {
+  it("tasks preset includes routines and integrations ecosystem anchor", () => {
     const lanes = hubEcosystemLanes("tasks");
     expect(lanes[0]?.href).toBe("/integrations?tab=active#ecosystem");
-    expect(lanes.map((lane) => lane.label)).toContain("Supervisor");
+    expect(lanes.map((lane) => lane.label)).toContain("Routines");
+  });
+
+  it("routines preset links supervisor recipes tasks integrations", () => {
+    const labels = hubEcosystemLanes("routines").map((lane) => lane.label);
+    expect(labels).toEqual(["Supervisor", "Recipes", "Tasks", "Integrations"]);
   });
 
   it("dashboard preset links agents tasks integrations ballroom", () => {

@@ -157,6 +157,7 @@ export function sectionForPath(pathname: string): string {
   if (
     normalized.startsWith("/execution") ||
     normalized.startsWith("/tasks") ||
+    normalized.startsWith("/routines") ||
     normalized.startsWith("/factory") ||
     normalized.startsWith("/workflows") ||
     normalized.startsWith("/jobs") ||

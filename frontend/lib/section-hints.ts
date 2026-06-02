@@ -134,6 +134,17 @@ export const SECTION_HINTS = {
     ],
     manualHref: "/manual#tasks",
   },
+  routines: {
+    title: "Routines",
+    description:
+      "Always-on supervisor schedules (L3) with optional webhook ingress (L4). Create interval routines or schedule from verified recipes.",
+    options: [
+      "Create routine — name, goal template, interval seconds.",
+      "Webhook (L4) — Make/n8n POST with X-Queenswarm token.",
+      "Recipe → Routine — schedule verified workflows from Recipe Library.",
+    ],
+    manualHref: "/manual#tasks-routines",
+  },
   dashboard: {
     title: "Queen Dashboard",
     description:

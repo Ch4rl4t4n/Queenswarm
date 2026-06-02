@@ -1,15 +1,17 @@
 /** Cross-hub ecosystem shortcut presets for consolidated Phase 7.0 navigation. */
 
 import type { LucideIcon } from "lucide-react";
-import { Brain, ListTodo, Mic, Plug, Users } from "lucide-react";
+import { Brain, CalendarClock, ListTodo, Mic, Plug, ScrollText, Users } from "lucide-react";
 
 import { integrationsTabHref } from "@/lib/integrations-routes";
 import { knowledgeTabHref } from "@/lib/knowledge-routes";
+import { ROUTINES_PATH } from "@/lib/routines-routes";
 
 export type HubEcosystemPreset =
   | "ballroom"
   | "agents"
   | "tasks"
+  | "routines"
   | "knowledge"
   | "dashboard"
   | "integrations";
@@ -44,6 +46,18 @@ const HIVEMIND: HubEcosystemLane = {
   icon: Brain,
 };
 
+const ROUTINES: HubEcosystemLane = {
+  label: "Routines",
+  href: ROUTINES_PATH,
+  icon: CalendarClock,
+};
+
+const RECIPES: HubEcosystemLane = {
+  label: "Recipes",
+  href: "/recipes",
+  icon: ScrollText,
+};
+
 const TASKS: HubEcosystemLane = {
   label: "Tasks",
   href: "/tasks",
@@ -62,9 +76,11 @@ export function hubEcosystemLanes(preset: HubEcosystemPreset): readonly HubEcosy
     case "ballroom":
       return [INTEGRATIONS, SUPERVISOR, HIVEMIND];
     case "agents":
-      return [INTEGRATIONS, HIVEMIND, BALLROOM, TASKS];
+      return [INTEGRATIONS, ROUTINES, HIVEMIND, BALLROOM, TASKS];
     case "tasks":
-      return [INTEGRATIONS, SUPERVISOR, BALLROOM, HIVEMIND];
+      return [INTEGRATIONS, ROUTINES, BALLROOM, HIVEMIND];
+    case "routines":
+      return [SUPERVISOR, RECIPES, TASKS, INTEGRATIONS];
     case "knowledge":
       return [INTEGRATIONS, SUPERVISOR, BALLROOM, TASKS];
     case "dashboard":
