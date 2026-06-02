@@ -5227,6 +5227,17 @@
     white-space: nowrap;
   }
 
+  /* Tailwind visibility utilities must win over .v4-badge display. */
+  .v4-badge.hidden {
+    display: none;
+  }
+
+  @media (min-width: 640px) {
+    .v4-badge.sm\:hidden {
+      display: none;
+    }
+  }
+
   .v4-badge--ok {
     background: rgba(91, 227, 178, 0.12);
     color: var(--qs-green);

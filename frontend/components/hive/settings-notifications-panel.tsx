@@ -262,7 +262,7 @@ export function SettingsNotificationsPanel() {
                 </span>
                 <span className="flex shrink-0 items-center gap-2">
                   {configured ? (
-                    <V4Badge tone="ok" className="hidden sm:inline-flex">
+                    <V4Badge tone="ok" className="shrink-0 whitespace-nowrap">
                       configured
                     </V4Badge>
                   ) : null}
@@ -277,12 +277,6 @@ export function SettingsNotificationsPanel() {
 
               {open ? (
                 <div id={panelId} className="v4-settings-notify-tab-body">
-                  {configured ? (
-                    <V4Badge tone="ok" className="mb-3 sm:hidden">
-                      configured
-                    </V4Badge>
-                  ) : null}
-
                   <div className="mb-3 flex items-center justify-between gap-3 text-[13px] text-(--qs-text)">
                     <span>Enabled</span>
                     <Toggle

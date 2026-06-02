@@ -288,25 +288,14 @@ function ExecutionStudioLiveApprovalsPanelInner({
         <div className="qs-bubble shrink-0 p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
             <div className="min-w-0 flex-1">
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-semibold text-(--qs-text)">Browser harness fallback</p>
-                <V4Badge
-                  tone={browserFallback.enabled ? "ok" : "warn"}
-                  className="shrink-0 whitespace-nowrap sm:hidden"
-                >
-                  {browserFallback.enabled ? "Harness ON" : "Harness off"}
-                </V4Badge>
-              </div>
+              <p className="text-sm font-semibold text-(--qs-text)">Browser harness fallback</p>
               <p className="mt-1 text-xs text-(--qs-text-3)">{browserFallback.description}</p>
               <p className="mt-2 break-all font-mono text-[10px] text-(--qs-text-4)">
                 Role: {browserFallback.supervisor_role} · {browserFallback.execute_api ?? browserFallback.sessions_api}
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:shrink-0 sm:items-end">
-              <V4Badge
-                tone={browserFallback.enabled ? "ok" : "warn"}
-                className="hidden shrink-0 whitespace-nowrap sm:inline-flex"
-              >
+              <V4Badge tone={browserFallback.enabled ? "ok" : "warn"} className="shrink-0 whitespace-nowrap">
                 {browserFallback.enabled ? "Harness ON" : "Harness off"}
               </V4Badge>
               <div className="flex flex-wrap gap-2 sm:justify-end">
