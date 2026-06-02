@@ -35,7 +35,9 @@ function NavGlyph({ label, Icon, active }: NavGlyphProps) {
       >
         <Icon aria-hidden className="h-[21px] w-[21px]" strokeWidth={active ? 2.35 : 1.9} />
       </span>
-      <span className="max-w-[68px] truncate text-center leading-normal pb-px">{label}</span>
+      <span className="max-w-[4.75rem] text-center text-[9px] font-semibold leading-tight line-clamp-2 sm:max-w-[5.25rem] sm:text-[10px]">
+        {label}
+      </span>
     </span>
   );
 }

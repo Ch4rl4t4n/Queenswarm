@@ -3583,15 +3583,15 @@
     }
 
     .v4-card-header-top {
-      flex-direction: row;
-      align-items: flex-start;
-      gap: 10px;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
     }
 
     .v4-card-header-leading-row {
       gap: 10px;
-      min-width: 0;
-      flex: 1;
+      width: 100%;
+      flex: none;
     }
 
     .v4-card-header-title {
@@ -3601,26 +3601,46 @@
     .v4-card-header h2,
     .v4-card-header h3 {
       line-height: 1.25;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
+      word-break: normal;
     }
 
     .v4-card-header-desc {
       font-size: 13px;
       line-height: 1.55;
       padding-block: 2px;
-      overflow-wrap: anywhere;
-      word-break: break-word;
+      overflow-wrap: break-word;
+      word-break: normal;
     }
 
     .v4-card-header-actions {
       display: flex;
-      flex-wrap: nowrap;
-      justify-content: flex-end;
+      flex-wrap: wrap;
+      justify-content: flex-start;
       align-items: flex-start;
       gap: 8px;
-      width: auto;
+      width: 100%;
       flex-shrink: 0;
-      margin-left: auto;
+      margin-left: 0;
+    }
+  }
+
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .v4-card-header-top {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+    }
+
+    .v4-card-header-leading-row {
+      width: 100%;
+      flex: none;
+    }
+
+    .v4-card-header-actions {
+      width: 100%;
+      margin-left: 0;
+      justify-content: flex-start;
     }
   }
 
