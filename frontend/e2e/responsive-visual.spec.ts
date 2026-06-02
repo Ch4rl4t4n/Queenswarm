@@ -25,6 +25,7 @@ const SNAPSHOT_ROUTES: SnapshotRoute[] = [
   { path: e2eHiveHomePath(), slug: "dashboard", heading: e2eHiveHomeHeading() },
   { path: "/swarms", slug: "swarms", heading: /swarms/i },
   { path: "/tasks", slug: "tasks", heading: e2eTasksHubHeading() },
+  { path: "/routines", slug: "routines", heading: "Routines", headingExact: true },
   { path: "/agents", slug: "agents", heading: "Agents", headingExact: true },
   { path: "/knowledge", slug: "knowledge", heading: "Knowledge" },
   { path: "/settings/costs", slug: "costs", heading: "Costs", headingExact: true },

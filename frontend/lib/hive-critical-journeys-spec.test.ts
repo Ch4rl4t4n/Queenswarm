@@ -35,6 +35,7 @@ describe("hive-critical-journeys-spec", () => {
     expect(labels).toContain("Agentic OS");
     expect(labels).toContain("Swarms");
     expect(labels).toContain("Tasks");
+    expect(labels).toContain("Routines");
     expect(labels).toContain("Agents");
     expect(labels).toContain("Foragers");
   });

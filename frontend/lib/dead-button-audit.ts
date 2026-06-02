@@ -28,6 +28,7 @@ export const VERIFIED_PRIMARY_ROUTES = [
   "/agentic-os",
   "/swarms",
   "/tasks",
+  "/routines",
   "/agents",
   "/apps-tools",
   "/integrations",

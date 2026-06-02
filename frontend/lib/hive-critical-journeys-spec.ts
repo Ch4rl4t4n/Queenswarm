@@ -32,7 +32,7 @@ export const HIVE_CRITICAL_JOURNEY_SPECS: HiveCriticalJourneySpec[] = [
   {
     id: "agentic-os-sidebar-loop",
     title: "Agentic OS sidebar loop",
-    description: "Primary rail navigates Swarms → Tasks → Agents with unified HivePageShell titles.",
+    description: "Primary rail navigates Swarms → Tasks → Routines → Agents with unified HivePageShell titles.",
     viewport: "desktop",
     requiresCp: true,
   },
@@ -101,6 +101,7 @@ export function criticalJourneyPrimaryRouteCoverage(): readonly string[] {
     "/settings/api-keys",
     "/apps-tools/marketing-automation",
     "/foragers",
+    "/routines",
     "/cockpit",
   ]);
   return VERIFIED_PRIMARY_ROUTES.filter((href) => fromJourneys.has(href));

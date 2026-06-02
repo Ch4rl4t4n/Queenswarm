@@ -20,6 +20,7 @@ export const HIVE_PAGE_ZONE_SPECS: HivePageZoneSpec[] = [
   { path: "/agentic-os", title: "Agentic OS", hintKey: "cockpit", hasSubnav: true },
   { path: "/swarms", title: "Swarms", hintKey: "swarms", hasSubnav: false },
   { path: "/tasks", title: "Tasks", hintKey: "tasks", hasSubnav: false },
+  { path: "/routines", title: "Routines", hintKey: "routines", hasSubnav: false },
   { path: "/agents", title: "Agents", hintKey: "agents", hasSubnav: true },
   { path: "/apps-tools", title: "Apps & Tools", hintKey: "appsTools", hasSubnav: false },
   { path: "/integrations", title: "Integrations", hintKey: "integrations", hasSubnav: true },

@@ -6,6 +6,7 @@ import {
   FORAGERS_PATH,
   JOBS_PATH,
   KNOWLEDGE_HIVEMIND_HREF,
+  ROUTINES_PATH,
   TASKS_HUB_LANE_LINKS,
   TASKS_HUB_PATH,
   WORKFLOWS_PATH,
@@ -27,7 +28,7 @@ describe("execution-lane-routes", () => {
       "/tasks/new",
       WORKFLOWS_PATH,
       JOBS_PATH,
-      AGENTS_HUB_PATH,
+      ROUTINES_PATH,
     ]);
   });
 

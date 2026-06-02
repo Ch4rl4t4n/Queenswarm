@@ -19,7 +19,7 @@ describe("hive-page-zone-spec", () => {
     expect(paths).toContain("/integrations");
     expect(paths).toContain("/knowledge");
     expect(paths).toContain("/ballroom");
-    expect(paths.filter((p) => p.startsWith("/agentic-os") || ["/swarms", "/tasks", "/agents"].includes(p))).toHaveLength(4);
+    expect(paths.filter((p) => p.startsWith("/agentic-os") || ["/swarms", "/tasks", "/routines", "/agents"].includes(p))).toHaveLength(5);
   });
 
   it("maps every zone spec hintKey to HIVE_PAGE_HINTS", () => {
