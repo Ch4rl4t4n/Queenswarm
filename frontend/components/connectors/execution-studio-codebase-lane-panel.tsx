@@ -43,7 +43,6 @@ function ExecutionStudioCodebaseLanePanelInner({
   const [policyBusy, setPolicyBusy] = useState(false);
   const [maintainerBusy, setMaintainerBusy] = useState(false);
   const [proposalBusyId, setProposalBusyId] = useState<string | null>(null);
-  const [bulkDismissBusy, setBulkDismissBusy] = useState(false);
   const [lastSessionId, setLastSessionId] = useState<string | null>(null);
 
   const patchPolicy = useCallback(
@@ -102,36 +101,6 @@ function ExecutionStudioCodebaseLanePanelInner({
     [onError, onProposalReviewed, onReloadOverview],
   );
 
-  const dismissAllPending = useCallback(async () => {
-    const count = pendingProposals?.length ?? 0;
-    if (count === 0) {
-      return;
-    }
-    const total = pendingProposalsTotal ?? count;
-    const confirmed = window.confirm(
-      `Reject all ${count} proposals shown here${total > count ? ` (${total} total pending in hive)` : ""}? Duplicate auto-generated SCV handoffs can be cleared safely.`,
-    );
-    if (!confirmed) {
-      return;
-    }
-    setBulkDismissBusy(true);
-    onError(null);
-    try {
-      const out = await hivePostJson<{ processed: number; skipped: number }>(
-        "execution-studio/proposals/bulk-review",
-        { decision: "reject", limit: 50 },
-      );
-      toast.success(`Dismissed ${out.processed} proposal(s).`);
-      await onReloadOverview({ silent: true });
-    } catch (exc) {
-      const msg = exc instanceof HiveApiError ? exc.message : "Bulk dismiss failed.";
-      onError(msg);
-      toast.error(msg);
-    } finally {
-      setBulkDismissBusy(false);
-    }
-  }, [onError, onReloadOverview, pendingProposals?.length, pendingProposalsTotal]);
-
   const runMaintainer = useCallback(async () => {
     setMaintainerBusy(true);
     onError(null);
@@ -179,10 +148,8 @@ function ExecutionStudioCodebaseLanePanelInner({
           codebase={codebase}
           policyBusy={policyBusy}
           proposalBusyId={proposalBusyId}
-          bulkDismissBusy={bulkDismissBusy}
           onPatchPolicy={patchPolicy}
           onReview={reviewProposal}
-          onDismissAll={dismissAllPending}
           onReloadOverview={onReloadOverview}
         />
       ) : null}
