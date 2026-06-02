@@ -67,6 +67,9 @@ export const APP_MANUAL_SECTIONS: ManualSection[] = [
     ],
     checklist: [
       {
+        text: "Log in via /login and confirm you land on {HOME_ROUTE} ({HOME_LABEL}).",
+      },
+      {
         text: "Settings → AI · LLM keys — Grok/Claude/GPT, Test each key.",
         href: MANUAL_HREFS.settingsLlmKeys,
         linkLabel: "LLM keys",
