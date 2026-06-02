@@ -388,6 +388,7 @@ const STUB_COST_SUMMARY = {
 };
 
 const STUB_FORAGERS_OVERVIEW = {
+  policy: { auto_spawn_auto_approve_enabled: false },
   kpis: {
     foragers_total: 0,
     foragers_paused: 0,

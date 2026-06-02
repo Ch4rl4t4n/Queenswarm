@@ -10,8 +10,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.application.services.forager_spawn_policy import forager_spawn_policy
 from app.application.services.social_intel_runner import _source_keys_for_forager
 from app.core.tenant_context import get_current_tenant_uuid
+from app.infrastructure.persistence.models.tenant import Tenant
 from app.infrastructure.persistence.models.agent import Agent
 from app.infrastructure.persistence.models.agent_config import AgentConfig
 from app.infrastructure.persistence.models.agent_template import AgentTemplateORM
@@ -489,8 +491,13 @@ async def build_foragers_overview_payload(session: AsyncSession) -> dict[str, An
 
     trend = _trend_pct(items_24h, items_prev_24h)
 
+    tenant: Tenant | None = None
+    if tenant_id is not None:
+        tenant = await session.get(Tenant, tenant_id)
+
     return {
         "generated_at": now.isoformat(),
+        "policy": forager_spawn_policy(tenant),
         "kpis": {
             "foragers_total": len(foragers),
             "foragers_active": active_n,

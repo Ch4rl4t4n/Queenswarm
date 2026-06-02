@@ -1,21 +1,20 @@
 "use client";
 
-import { ExternalLink, ListTodo, Pencil, Play, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { ForagerConfigurationsPanel } from "@/components/hive/forager-configurations-panel";
 import { ForagerFormDialog } from "@/components/hive/forager-form-dialog";
 import { ForagerSpawnRuleDialog } from "@/components/hive/forager-spawn-rule-dialog";
 import { HivePageShell } from "@/components/hive/hive-page-shell";
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
-import { ResponsiveTable } from "@/components/ui/responsive-table";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import {
   V4Badge,
   V4Card,
   V4CardHeader,
-  V4Chip,
   V4IconAgents,
   V4IconForagers,
   V4IconKnowledge,
@@ -26,7 +25,6 @@ import {
   AGENTS_HUB_PATH,
   EXECUTION_LANE_CROSS_LINK_LABELS,
   KNOWLEDGE_HIVEMIND_HREF,
-  foragerKnowledgeHref,
 } from "@/lib/execution-lane-routes";
 import { COCKPIT_POLL_BOARD_MS } from "@/lib/cockpit-poll-profile";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
@@ -34,13 +32,12 @@ import type {
   ForagerRow,
   ForagersOverviewConfiguration,
   ForagersOverviewPayload,
+  ForagersSpawnPolicy,
   ForagersSpawnRule,
 } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 import { HiveApiError, hiveDelete, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
 import { hivePageShellError } from "@/lib/hive-page-error";
-
-type FilterKey = "all" | "active" | "paused" | "errors";
 
 interface AgentTemplateLite {
   id: string;
@@ -60,31 +57,6 @@ function formatCount(n: number): string {
 function formatChunks(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
   return String(n);
-}
-
-function formatAgo(sec: number | null): string {
-  if (sec == null) return "never";
-  if (sec < 60) return `${sec}s ago`;
-  const m = Math.floor(sec / 60);
-  if (m < 90) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 48) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
-}
-
-function statusTone(status: ForagersOverviewConfiguration["status"]): "ok" | "warn" | "err" | "purple" {
-  if (status === "ok") return "ok";
-  if (status === "warn") return "warn";
-  if (status === "error") return "err";
-  return "purple";
-}
-
-function matchesFilter(row: ForagersOverviewConfiguration, filter: FilterKey): boolean {
-  if (filter === "all") return true;
-  if (filter === "active") return row.is_active && row.status !== "error";
-  if (filter === "paused") return !row.is_active || row.status === "paused";
-  if (filter === "errors") return row.status === "error";
-  return true;
 }
 
 function SpawnRuleToggle({
@@ -110,34 +82,6 @@ function SpawnRuleToggle({
   );
 }
 
-function ForagerProgressCell({
-  pct,
-  detail,
-  href,
-}: {
-  pct: number;
-  detail?: string;
-  href?: string | null;
-}): JSX.Element {
-  const clamped = Math.max(0, Math.min(100, pct));
-  const inner = (
-    <div className="v4-progress-cell" title={detail || undefined}>
-      <div className="v4-progress-track">
-        <div className="v4-progress-fill" style={{ width: `${clamped}%` }} />
-      </div>
-      <span className="v4-progress-pct">{clamped}%</span>
-    </div>
-  );
-  if (href) {
-    return (
-      <Link href={href} className="block transition hover:opacity-90" title={detail || "Open progress detail"}>
-        {inner}
-      </Link>
-    );
-  }
-  return inner;
-}
-
 export function ForagersPageClient() {
   const [data, setData] = useState<ForagersOverviewPayload | null>(null);
   const [foragers, setForagers] = useState<ForagerRow[]>([]);
@@ -145,11 +89,13 @@ export function ForagersPageClient() {
   const [tenantRole, setTenantRole] = useState("guest");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [filter, setFilter] = useState<FilterKey>("all");
   const [formOpen, setFormOpen] = useState(false);
   const [spawnRuleOpen, setSpawnRuleOpen] = useState(false);
   const [editingForager, setEditingForager] = useState<ForagerRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ForagersOverviewConfiguration | null>(null);
+  const [spawnPolicy, setSpawnPolicy] = useState<ForagersSpawnPolicy>({
+    auto_spawn_auto_approve_enabled: false,
+  });
 
   const canManage = tenantRole === "owner" || tenantRole === "admin";
 
@@ -162,6 +108,11 @@ export function ForagersPageClient() {
         hiveGet<AgentTemplateLite[]>("agent-templates"),
       ]);
       setData(overview);
+      setSpawnPolicy(
+        overview.policy ?? {
+          auto_spawn_auto_approve_enabled: false,
+        },
+      );
       setForagers(rows);
       setTenantRole(String(team.tenant_role || "guest"));
       setTemplates(templateRows);
@@ -177,21 +128,7 @@ export function ForagersPageClient() {
   const kpis = data?.kpis;
   const configurations = useMemo(() => data?.configurations ?? [], [data?.configurations]);
   const spawnRules = data?.spawn_rules ?? [];
-
-  const filterCounts = useMemo(
-    () => ({
-      all: configurations.length,
-      active: configurations.filter((row) => matchesFilter(row, "active")).length,
-      paused: configurations.filter((row) => matchesFilter(row, "paused")).length,
-      errors: configurations.filter((row) => matchesFilter(row, "errors")).length,
-    }),
-    [configurations],
-  );
-
-  const visibleRows = useMemo(
-    () => configurations.filter((row) => matchesFilter(row, filter)),
-    [configurations, filter],
-  );
+  const foragersById = useMemo(() => new Map(foragers.map((row) => [row.id, row])), [foragers]);
 
   async function withBusy<T>(key: string, fn: () => Promise<T>): Promise<T | undefined> {
     setBusy(key);
@@ -253,6 +190,15 @@ export function ForagersPageClient() {
     await withBusy(`delete-${target.id}`, async () => {
       await hiveDelete<void>(`foragers/${encodeURIComponent(target.id)}`);
       toast.success(`Deleted ${target.source_name}`);
+      await reload();
+    });
+  }
+
+  async function toggleForagerActive(row: ForagersOverviewConfiguration, enabled: boolean) {
+    if (!canManage) return;
+    await withBusy(`toggle-${row.id}`, async () => {
+      await hivePostJson(`foragers/${encodeURIComponent(row.id)}/toggle`, { enabled });
+      toast.success(enabled ? `${row.source_name} resumed` : `${row.source_name} paused`);
       await reload();
     });
   }
@@ -392,205 +338,20 @@ export function ForagersPageClient() {
         <V4CardHeader
           title="Forager configurations"
           description="YouTube / RSS / API · periodicity · HiveMind ingest · auto-spawn rules."
-          actions={
-            <div className="v4-chip-scroll v4-foragers-filter-chips">
-              <V4Chip active={filter === "all"} count={filterCounts.all} onClick={() => setFilter("all")}>
-                All
-              </V4Chip>
-              <V4Chip active={filter === "active"} count={filterCounts.active} onClick={() => setFilter("active")}>
-                Active
-              </V4Chip>
-              <V4Chip active={filter === "paused"} count={filterCounts.paused} onClick={() => setFilter("paused")}>
-                Paused
-              </V4Chip>
-              <V4Chip active={filter === "errors"} count={filterCounts.errors} onClick={() => setFilter("errors")}>
-                Errors
-              </V4Chip>
-            </div>
-          }
         />
-        <ResponsiveTable
-          table={
-            <table className="v4-data-table min-w-[1120px]">
-              <thead>
-                <tr>
-                  <th>Source</th>
-                  <th>Type</th>
-                  <th>Schedule</th>
-                  <th>Last run</th>
-                  <th>Items</th>
-                  <th>Progress</th>
-                  <th>Status</th>
-                  <th aria-label="Actions" />
-                </tr>
-              </thead>
-              <tbody>
-                {!visibleRows.length ? (
-                  <tr>
-                    <td colSpan={8} className="py-12 text-center text-sm text-(--qs-text-3)">
-                      {configurations.length
-                        ? "No foragers match this filter."
-                        : "No foragers yet — create one with New forager."}
-                    </td>
-                  </tr>
-                ) : (
-                  visibleRows.map((row) => (
-                    <tr key={row.id}>
-                      <td>
-                        <div className="v4-task-name">{row.source_name}</div>
-                      </td>
-                      <td>
-                        <V4Badge tone="purple">{row.source_type}</V4Badge>
-                      </td>
-                      <td className="font-mono text-xs text-(--qs-text-2)">{row.schedule_label}</td>
-                      <td className="text-(--qs-text-3)">{formatAgo(row.last_run_seconds_ago)}</td>
-                      <td>{row.items_count}</td>
-                      <td>
-                        <ForagerProgressCell
-                          pct={row.run_progress_pct ?? 0}
-                          detail={row.progress_detail}
-                          href={
-                            row.progress_href ??
-                            foragerKnowledgeHref({ foragerId: row.id, searchQuery: row.source_name })
-                          }
-                        />
-                      </td>
-                      <td>
-                        <V4Badge tone={statusTone(row.status)}>{row.status}</V4Badge>
-                      </td>
-                      <td>
-                        <div className="flex flex-wrap justify-end gap-2">
-                          <Link
-                            href={foragerKnowledgeHref({ foragerId: row.id, searchQuery: row.source_name })}
-                            className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
-                            title="View ingested items in HiveMind"
-                          >
-                            <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-                            Results
-                          </Link>
-                          <button
-                            type="button"
-                            className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
-                            disabled={!canManage || busy === `task-${row.id}`}
-                            onClick={() => void promoteToTask(row)}
-                            title="Create Mission Kanban triage task from harvest"
-                          >
-                            <ListTodo className="h-3.5 w-3.5" aria-hidden />
-                            Task
-                          </button>
-                          <button
-                            type="button"
-                            className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
-                            disabled={!canManage || busy === `run-${row.id}`}
-                            onClick={() => void triggerRun(row.id)}
-                          >
-                            <Play className="h-3.5 w-3.5" aria-hidden />
-                            Run
-                          </button>
-                          <button
-                            type="button"
-                            className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
-                            disabled={!canManage}
-                            onClick={() => openEdit(row.id)}
-                          >
-                            <Pencil className="h-3.5 w-3.5" aria-hidden />
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            className="qs-btn qs-btn--danger qs-btn--sm gap-1.5"
-                            disabled={!canManage || busy === `delete-${row.id}`}
-                            onClick={() => setDeleteTarget(row)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          }
-          cards={
-            !visibleRows.length ? (
-              <p className="py-8 text-center text-sm text-(--qs-text-3)">
-                {configurations.length ? "No foragers match this filter." : "No foragers yet — create one with New forager."}
-              </p>
-            ) : (
-              visibleRows.map((row) => (
-                <article key={row.id} className="v4-mobile-card-row">
-                  <div className="v4-mobile-card-row__head">
-                    <div className="min-w-0">
-                      <div className="v4-task-name">{row.source_name}</div>
-                      <div className="text-xs text-(--qs-text-3)">{row.schedule_label}</div>
-                    </div>
-                    <V4Badge tone={statusTone(row.status)}>{row.status}</V4Badge>
-                  </div>
-                  <div className="v4-mobile-card-row__meta">
-                    <V4Badge tone="purple">{row.source_type}</V4Badge>
-                    <span>{formatAgo(row.last_run_seconds_ago)}</span>
-                    <span>{row.items_count} items</span>
-                    <span>{row.run_progress_pct ?? 0}% done</span>
-                  </div>
-                  <ForagerProgressCell
-                    pct={row.run_progress_pct ?? 0}
-                    detail={row.progress_detail}
-                    href={
-                      row.progress_href ??
-                      foragerKnowledgeHref({ foragerId: row.id, searchQuery: row.source_name })
-                    }
-                  />
-                  <div className="flex flex-wrap gap-2">
-                    <Link
-                      href={foragerKnowledgeHref({ foragerId: row.id, searchQuery: row.source_name })}
-                      className="qs-btn qs-btn--ghost qs-btn--sm flex-1 gap-1.5"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-                      Results
-                    </Link>
-                    <button
-                      type="button"
-                      className="qs-btn qs-btn--ghost qs-btn--sm flex-1 gap-1.5"
-                      disabled={!canManage || busy === `task-${row.id}`}
-                      onClick={() => void promoteToTask(row)}
-                    >
-                      <ListTodo className="h-3.5 w-3.5" aria-hidden />
-                      Task
-                    </button>
-                    <button
-                      type="button"
-                      className="qs-btn qs-btn--ghost qs-btn--sm flex-1 gap-1.5"
-                      disabled={!canManage || busy === `run-${row.id}`}
-                      onClick={() => void triggerRun(row.id)}
-                    >
-                      <Play className="h-3.5 w-3.5" aria-hidden />
-                      Run
-                    </button>
-                    <button
-                      type="button"
-                      className="qs-btn qs-btn--ghost qs-btn--sm flex-1 gap-1.5"
-                      disabled={!canManage}
-                      onClick={() => openEdit(row.id)}
-                    >
-                      <Pencil className="h-3.5 w-3.5" aria-hidden />
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="qs-btn qs-btn--danger qs-btn--sm flex-1 gap-1.5"
-                      disabled={!canManage || busy === `delete-${row.id}`}
-                      onClick={() => setDeleteTarget(row)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                      Delete
-                    </button>
-                  </div>
-                </article>
-              ))
-            )
-          }
+        <ForagerConfigurationsPanel
+          configurations={configurations}
+          foragersById={foragersById}
+          policy={spawnPolicy}
+          canManage={canManage}
+          busy={busy}
+          onPolicyChange={setSpawnPolicy}
+          onReload={reload}
+          onRun={triggerRun}
+          onPromoteTask={promoteToTask}
+          onEdit={openEdit}
+          onDelete={setDeleteTarget}
+          onToggleActive={toggleForagerActive}
         />
       </V4Card>
 

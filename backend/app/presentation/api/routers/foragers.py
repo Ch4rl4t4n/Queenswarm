@@ -10,7 +10,12 @@ from starlette.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.application.services.forager_service import ForagerService
+from app.application.services.forager_spawn_policy import (
+    forager_spawn_policy,
+    merge_forager_spawn_policy_patch,
+)
 from app.application.services.rbac import has_permission
+from app.infrastructure.persistence.models.tenant import Tenant
 from app.presentation.api.deps import DbSession, require_dashboard_user_with_tenant_role
 
 router = APIRouter(prefix="/foragers", tags=["Foragers"])
@@ -122,6 +127,22 @@ class ForagerToggleRequest(BaseModel):
     enabled: bool
 
 
+class ForagerSpawnPolicyView(BaseModel):
+    """Tenant forager auto-spawn approval policy."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    auto_spawn_auto_approve_enabled: bool
+
+
+class ForagerSpawnPolicyPatch(BaseModel):
+    """Partial patch for forager spawn approval policy."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    auto_spawn_auto_approve_enabled: bool | None = None
+
+
 class ForagerTriggerRequest(BaseModel):
     """Manual trigger payload for ingest + routine execution."""
 
@@ -167,6 +188,58 @@ def _require_forager_write(principal: dict[str, Any]) -> None:
     role = str(principal.get("tenant_role") or "guest")
     if role not in {"owner", "admin"}:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Owner or admin tenant role required.")
+
+
+async def _tenant_from_principal(db: DbSession, principal: dict[str, Any]) -> Tenant:
+    """Load tenant row for policy mutations."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found.")
+    return tenant
+
+
+@router.get(
+    "/spawn-control-policy",
+    response_model=ForagerSpawnPolicyView,
+    summary="Forager auto-spawn approval policy (auto vs manual)",
+)
+async def get_forager_spawn_control_policy(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> ForagerSpawnPolicyView:
+    """Return tenant auto-spawn vs manual review policy for forager harvests."""
+
+    _require_forager_read(principal)
+    tenant = await _tenant_from_principal(db, principal)
+    payload = forager_spawn_policy(tenant)
+    return ForagerSpawnPolicyView(**payload)
+
+
+@router.patch(
+    "/spawn-control-policy",
+    response_model=ForagerSpawnPolicyView,
+    summary="Update forager auto-spawn approval policy",
+)
+async def patch_forager_spawn_control_policy(
+    body: ForagerSpawnPolicyPatch,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> ForagerSpawnPolicyView:
+    """Persist auto-spawn approval toggle for forager configurations."""
+
+    _require_forager_write(principal)
+    tenant = await _tenant_from_principal(db, principal)
+    patch = body.model_dump(exclude_unset=True)
+    if patch:
+        tenant.operator_settings = merge_forager_spawn_policy_patch(tenant.operator_settings, patch)
+        await db.commit()
+        await db.refresh(tenant)
+    payload = forager_spawn_policy(tenant)
+    return ForagerSpawnPolicyView(**payload)
 
 
 @router.get("", response_model=list[ForagerResponse], summary="List foragers for tenant")

@@ -1432,8 +1432,13 @@ export interface ForagersSpawnRule {
   enabled: boolean;
 }
 
+export interface ForagersSpawnPolicy {
+  auto_spawn_auto_approve_enabled: boolean;
+}
+
 export interface ForagersOverviewPayload {
   generated_at: string;
+  policy: ForagersSpawnPolicy;
   kpis: ForagersOverviewKpis;
   configurations: ForagersOverviewConfiguration[];
   spawn_rules: ForagersSpawnRule[];
