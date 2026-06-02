@@ -54,6 +54,30 @@ grep -q 'recipe_id}/routine' backend/app/presentation/api/routers/recipes.py && 
 grep -q '/routines/{routine_id}/webhook' backend/app/presentation/api/routers/agent_sessions.py && pass "Routine webhook API route" || fail_msg "webhook route missing"
 [[ -f frontend/e2e/automation-ladder-journeys.spec.ts ]] && pass "E2E automation-ladder-journeys.spec.ts" || fail_msg "E2E spec missing"
 
+# Harness self-improvement (Innovation viability + Four Cs + Maintainer safety)
+MAINTAINER="$(load_kv QUEEN_MAINTAINER_ENABLED)"
+INNOVATION="$(load_kv HIVE_INNOVATION_LAB_ENABLED)"
+[[ "$MAINTAINER" == "true" ]] && pass "QUEEN_MAINTAINER_ENABLED=true (PR-only self-improve)" || warn "QUEEN_MAINTAINER_ENABLED not true"
+[[ "$INNOVATION" == "true" || -z "$INNOVATION" ]] && pass "HIVE_INNOVATION_LAB_ENABLED ok" || warn "HIVE_INNOVATION_LAB_ENABLED=false"
+
+for f in \
+  backend/app/application/services/innovation_viability_gate.py \
+  backend/app/application/services/harness_four_cs_audit.py \
+  backend/app/application/services/queen_maintainer/pre_tool_denylist.py \
+  frontend/components/hive/four-cs-audit-panel.tsx \
+  frontend/components/hive/innovation-viability-banner.tsx; do
+  [[ -f "$f" ]] && pass "file $f" || fail_msg "missing $f"
+done
+
+grep -q 'four-cs-audit' backend/app/presentation/api/routers/harness.py && pass "GET /harness/four-cs-audit" || fail_msg "four-cs-audit route missing"
+grep -q 'viability' backend/app/presentation/api/routers/operator_control_plane.py && pass "Innovation viability API" || fail_msg "viability route missing"
+grep -q 'harness-four-cs' frontend/lib/manual-content.ts && pass "manual #harness-four-cs" || fail_msg "manual four-cs missing"
+grep -q 'innovation-viability' frontend/lib/manual-content.ts && pass "manual #innovation-viability" || fail_msg "manual viability missing"
+grep -q 'maintainer-safety' frontend/lib/manual-content.ts && pass "manual #maintainer-safety" || fail_msg "manual maintainer-safety missing"
+grep -q 'harnessFourCs' frontend/lib/section-hints.ts && pass "section hint harnessFourCs" || fail_msg "harnessFourCs hint missing"
+grep -q 'innovationViability' frontend/lib/section-hints.ts && pass "section hint innovationViability" || fail_msg "innovationViability hint missing"
+grep -q 'Approve &amp; queue' frontend/components/hive/innovation-lab-panel.tsx && pass "Approve & queue UI" || fail_msg "Approve & queue button missing"
+
 # Optional live probe
 DOMAIN="$(load_kv DOMAIN)"
 DOMAIN="${DOMAIN:-queenswarm.love}"

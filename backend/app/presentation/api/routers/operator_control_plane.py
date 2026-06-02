@@ -52,6 +52,8 @@ class InnovationReviewRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     decision: Literal["approved", "rejected"]
+    queue_maintainer: bool = False
+    acknowledge_high_risk: bool = False
 
 
 class CrystallizeRequest(BaseModel):
@@ -429,17 +431,49 @@ async def innovation_review(
     if tenant_id is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
     try:
-        proposal = await review_innovation_proposal(
+        result = await review_innovation_proposal(
             db,
             tenant_id=tenant_id,
             proposal_id=proposal_id,
             decision=body.decision,
             reviewer_subject=_reviewer_subject(principal),
+            queue_maintainer=body.queue_maintainer and body.decision == "approved",
+            acknowledge_high_risk=body.acknowledge_high_risk,
+            tenant=await db.get(Tenant, tenant_id),
         )
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     await db.commit()
-    return proposal.model_dump(mode="json")
+    if isinstance(result, dict):
+        return result
+    return result.model_dump(mode="json")
+
+
+@router.get(
+    "/innovation-lab/proposals/{proposal_id}/viability",
+    summary="Viability gate for Innovation Lab → Maintainer handoff",
+)
+async def innovation_viability(
+    proposal_id: uuid.UUID,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    acknowledge_high_risk: bool = False,
+) -> dict[str, Any]:
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    try:
+        from app.application.services.hive_innovation_lab import assess_proposal_viability
+
+        viability = await assess_proposal_viability(
+            db,
+            tenant_id=tenant_id,
+            proposal_id=proposal_id,
+            acknowledge_high_risk=acknowledge_high_risk,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return viability.model_dump(mode="json")
 
 
 @router.post(
@@ -450,6 +484,7 @@ async def innovation_implement(
     proposal_id: uuid.UUID,
     db: DbSession,
     principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    acknowledge_high_risk: bool = False,
 ) -> dict[str, Any]:
     _require_owner_or_admin(principal)
     tenant_id = principal.get("tenant_id")
@@ -463,6 +498,7 @@ async def innovation_implement(
         tenant=tenant,
         proposal_id=proposal_id,
         reviewer_subject=_reviewer_subject(principal),
+        acknowledge_high_risk=acknowledge_high_risk,
     )
     await db.commit()
     return result

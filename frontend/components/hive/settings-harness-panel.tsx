@@ -10,6 +10,7 @@ import { usePlatform } from "@/components/hive/platform-context";
 import { hiveGet, hivePostJson, HiveApiError } from "@/lib/api";
 import type { HarnessIntelligenceScanPayload, HarnessSnapshotPayload } from "@/lib/hive-types";
 import { BehavioralMemoryPanel } from "@/components/hive/behavioral-memory-panel";
+import { FourCsAuditPanel } from "@/components/hive/four-cs-audit-panel";
 import {
   HarnessMcpToolGrid,
   HarnessPatternGrid,
@@ -93,7 +94,9 @@ export function SettingsHarnessPanel({ section }: SettingsHarnessPanelProps): JS
 
   if (section === "overview") {
     return (
-      <V4Card id="rules-overview" className="scroll-mt-28">
+      <div className="space-y-6">
+        <FourCsAuditPanel />
+        <V4Card id="rules-overview" className="scroll-mt-28">
         <V4CardHeader
           kicker="AI Layer"
           title="Harness visibility"
@@ -125,6 +128,7 @@ export function SettingsHarnessPanel({ section }: SettingsHarnessPanelProps): JS
           ) : null}
         </div>
       </V4Card>
+      </div>
     );
   }
 

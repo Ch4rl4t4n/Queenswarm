@@ -1,10 +1,16 @@
 "use client";
 
-import { Lightbulb, Loader2, Sparkles } from "lucide-react";
+import { AlertTriangle, Lightbulb, Loader2, Sparkles } from "lucide-react";
+import Link from "next/link";
 import { memo, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import {
+  InnovationViabilityBanner,
+  type ViabilityPayload,
+} from "@/components/hive/innovation-viability-banner";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
+import { MANUAL_HREFS } from "@/lib/manual-routes";
 
 export interface InnovationProposal {
   id: string;
@@ -25,6 +31,9 @@ function InnovationLabPanelInner({ onMutate }: InnovationLabPanelProps) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [brainstorm, setBrainstorm] = useState("");
+  const [viabilityById, setViabilityById] = useState<Record<string, ViabilityPayload>>({});
+  const [viabilityLoadingId, setViabilityLoadingId] = useState<string | null>(null);
+  const [highRiskAck, setHighRiskAck] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -38,9 +47,34 @@ function InnovationLabPanelInner({ onMutate }: InnovationLabPanelProps) {
     }
   }, []);
 
+  const loadViability = useCallback(async (id: string, acknowledgeHighRisk: boolean) => {
+    setViabilityLoadingId(id);
+    try {
+      const query = acknowledgeHighRisk ? "?acknowledge_high_risk=true" : "";
+      const row = await hiveGet<ViabilityPayload>(
+        `operator/innovation-lab/proposals/${id}/viability${query}`,
+      );
+      setViabilityById((prev) => ({ ...prev, [id]: row }));
+      return row;
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Viability check failed");
+      return null;
+    } finally {
+      setViabilityLoadingId(null);
+    }
+  }, []);
+
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    for (const p of proposals) {
+      if (p.status === "pending" || p.status === "approved") {
+        void loadViability(p.id, highRiskAck[p.id] ?? false);
+      }
+    }
+  }, [proposals, highRiskAck, loadViability]);
 
   const submitBrainstorm = useCallback(async () => {
     const prompt = brainstorm.trim();
@@ -63,11 +97,39 @@ function InnovationLabPanelInner({ onMutate }: InnovationLabPanelProps) {
   }, [brainstorm, load, onMutate]);
 
   const reviewProposal = useCallback(
-    async (id: string, decision: "approved" | "rejected") => {
+    async (id: string, decision: "approved" | "rejected", queueMaintainer = false) => {
+      const proposal = proposals.find((p) => p.id === id);
+      const needsAck = proposal?.risk_level === "high" && queueMaintainer;
+      const ack = highRiskAck[id] ?? false;
+      if (needsAck && !ack) {
+        toast.error("Acknowledge high risk before queueing Maintainer.");
+        return;
+      }
       setBusy(id);
       try {
-        await hivePostJson(`operator/innovation-lab/proposals/${id}/review`, { decision });
-        toast.success(decision === "approved" ? "Approved" : "Rejected");
+        const result = await hivePostJson<{
+          ok?: boolean;
+          error?: string;
+          viability?: ViabilityPayload;
+        }>(`operator/innovation-lab/proposals/${id}/review`, {
+          decision,
+          queue_maintainer: queueMaintainer && decision === "approved",
+          acknowledge_high_risk: ack,
+        });
+        if (result.error === "viability_blocked") {
+          toast.error("Viability gate blocked — fix blockers below.");
+          if (result.viability) {
+            setViabilityById((prev) => ({ ...prev, [id]: result.viability! }));
+          }
+          return;
+        }
+        toast.success(
+          queueMaintainer && decision === "approved"
+            ? "Approved — Queen Maintainer queued (PR-only)."
+            : decision === "approved"
+              ? "Approved"
+              : "Rejected",
+        );
         await load();
         onMutate?.();
       } catch (e) {
@@ -76,17 +138,31 @@ function InnovationLabPanelInner({ onMutate }: InnovationLabPanelProps) {
         setBusy(null);
       }
     },
-    [load, onMutate],
+    [highRiskAck, load, onMutate, proposals],
   );
 
   const implementProposal = useCallback(
     async (id: string) => {
+      const proposal = proposals.find((p) => p.id === id);
+      const ack = highRiskAck[id] ?? false;
+      if (proposal?.risk_level === "high" && !ack) {
+        toast.error("Acknowledge high risk before Implement.");
+        return;
+      }
       setBusy(`impl-${id}`);
       try {
-        const result = await hivePostJson<{ ok: boolean }>(
-          `operator/innovation-lab/proposals/${id}/implement`,
+        const query = ack ? "?acknowledge_high_risk=true" : "";
+        const result = await hivePostJson<{ ok: boolean; error?: string; viability?: ViabilityPayload }>(
+          `operator/innovation-lab/proposals/${id}/implement${query}`,
           {},
         );
+        if (result.error === "viability_blocked") {
+          toast.error("Viability gate blocked — fix blockers below.");
+          if (result.viability) {
+            setViabilityById((prev) => ({ ...prev, [id]: result.viability! }));
+          }
+          return;
+        }
         if (result.ok) {
           toast.success("Queen Maintainer queued — PR-only implementation.");
           await load();
@@ -100,7 +176,7 @@ function InnovationLabPanelInner({ onMutate }: InnovationLabPanelProps) {
         setBusy(null);
       }
     },
-    [load, onMutate],
+    [highRiskAck, load, onMutate, proposals],
   );
 
   if (loading) {
@@ -114,6 +190,12 @@ function InnovationLabPanelInner({ onMutate }: InnovationLabPanelProps) {
 
   return (
     <>
+      <p className="mb-3 text-xs text-(--qs-text-3)">
+        Safe self-improvement: brainstorm → approve → viability gate → Queen Maintainer PR only.{" "}
+        <Link href={MANUAL_HREFS.manualInnovationViability} className="text-cyan underline-offset-2 hover:underline">
+          Manual → Viability gate
+        </Link>
+      </p>
       <div className="mb-4 space-y-2">
         <textarea
           value={brainstorm}
@@ -136,55 +218,97 @@ function InnovationLabPanelInner({ onMutate }: InnovationLabPanelProps) {
         <p className="text-xs text-(--qs-muted)">No proposals yet.</p>
       ) : (
         <ul className="space-y-3">
-          {proposals.map((p) => (
-            <li key={p.id} className="rounded-lg border border-(--qs-border) bg-black/20 p-3">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <p className="text-sm font-medium text-(--qs-text)">{p.title}</p>
-                  <p className="mt-1 text-xs text-(--qs-muted)">
-                    {p.status} · risk {p.risk_level} · {p.feature_modules.join(", ")}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {p.status === "pending" ? (
-                    <>
+          {proposals.map((p) => {
+            const viability = viabilityById[p.id] ?? null;
+            const isHighRisk = p.risk_level === "high";
+            const ack = highRiskAck[p.id] ?? false;
+            const canQueue = viability?.ok !== false;
+
+            return (
+              <li key={p.id} className="rounded-lg border border-(--qs-border) bg-black/20 p-3">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium text-(--qs-text)">{p.title}</p>
+                    <p className="mt-1 text-xs text-(--qs-muted)">
+                      {p.status} · risk {p.risk_level} · {p.feature_modules.join(", ")}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {p.status === "pending" ? (
+                      <>
+                        <button
+                          type="button"
+                          className="qs-btn qs-btn--primary qs-btn--sm"
+                          disabled={busy === p.id}
+                          onClick={() => void reviewProposal(p.id, "approved", false)}
+                        >
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          className="qs-btn qs-btn--primary qs-btn--sm gap-1"
+                          disabled={busy === p.id || !canQueue}
+                          title={canQueue ? "Approve and queue Maintainer in one step" : "Fix viability blockers first"}
+                          onClick={() => void reviewProposal(p.id, "approved", true)}
+                        >
+                          <Sparkles className="size-3.5" aria-hidden />
+                          Approve &amp; queue
+                        </button>
+                        <button
+                          type="button"
+                          className="qs-btn qs-btn--ghost qs-btn--sm"
+                          disabled={busy === p.id}
+                          onClick={() => void reviewProposal(p.id, "rejected")}
+                        >
+                          Reject
+                        </button>
+                      </>
+                    ) : null}
+                    {p.status === "approved" ? (
                       <button
                         type="button"
-                        className="qs-btn qs-btn--primary qs-btn--sm"
-                        disabled={busy === p.id}
-                        onClick={() => void reviewProposal(p.id, "approved")}
+                        className="qs-btn qs-btn--primary qs-btn--sm gap-1"
+                        disabled={busy === `impl-${p.id}` || !canQueue}
+                        onClick={() => void implementProposal(p.id)}
                       >
-                        Approve
+                        <Sparkles className="size-3.5" /> Implement
                       </button>
-                      <button
-                        type="button"
-                        className="qs-btn qs-btn--ghost qs-btn--sm"
-                        disabled={busy === p.id}
-                        onClick={() => void reviewProposal(p.id, "rejected")}
-                      >
-                        Reject
-                      </button>
-                    </>
-                  ) : null}
-                  {p.status === "approved" ? (
-                    <button
-                      type="button"
-                      className="qs-btn qs-btn--primary qs-btn--sm gap-1"
-                      disabled={busy === `impl-${p.id}`}
-                      onClick={() => void implementProposal(p.id)}
-                    >
-                      <Sparkles className="size-3.5" /> Implement
-                    </button>
-                  ) : null}
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-              {p.implementation_plan_md ? (
-                <pre className="mt-2 max-h-32 overflow-auto font-mono text-[10px] text-(--qs-text-3)">
-                  {p.implementation_plan_md.slice(0, 800)}
-                </pre>
-              ) : null}
-            </li>
-          ))}
+
+                {isHighRisk && (p.status === "pending" || p.status === "approved") ? (
+                  <label className="mt-2 flex cursor-pointer items-start gap-2 text-xs text-pollen">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={ack}
+                      onChange={(e) => {
+                        const next = e.target.checked;
+                        setHighRiskAck((prev) => ({ ...prev, [p.id]: next }));
+                        void loadViability(p.id, next);
+                      }}
+                    />
+                    <span className="flex items-center gap-1">
+                      <AlertTriangle className="size-3.5 shrink-0" aria-hidden />I acknowledge high risk — Maintainer
+                      still PR-only with pre-tool denylist.
+                    </span>
+                  </label>
+                ) : null}
+
+                <InnovationViabilityBanner
+                  viability={viability}
+                  loading={viabilityLoadingId === p.id}
+                />
+
+                {p.implementation_plan_md ? (
+                  <pre className="mt-2 max-h-32 overflow-auto font-mono text-[10px] text-(--qs-text-3)">
+                    {p.implementation_plan_md.slice(0, 800)}
+                  </pre>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       )}
     </>

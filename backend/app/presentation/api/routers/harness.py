@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.application.services.forager_intelligence import run_intelligence_scan
 from app.application.services.forager_intelligence_v2 import ForagerV2SnapshotOut, compose_forager_v2_snapshot
+from app.application.services.harness_four_cs_audit import compose_four_cs_audit
 from app.application.services.harness_snapshot import build_harness_snapshot
 from app.application.services.pattern_explorer import build_pattern_explorer_payload
 from app.application.services.self_extending_marketplace import (
@@ -66,6 +67,20 @@ async def harness_snapshot(
 
     tenant_id = principal.get("tenant_id")
     return await build_harness_snapshot(db, tenant_id=tenant_id)
+
+
+@router.get("/four-cs-audit", summary="Four Cs readiness audit (context, connections, capabilities, cadence)")
+async def harness_four_cs_audit(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Read-only Nate Herk-style AI OS readiness score for operator harness."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    audit = await compose_four_cs_audit(db, tenant_id=tenant_id)
+    return audit.model_dump(mode="json")
 
 
 @router.get("/pattern-explorer", summary="Agentic pattern usage explorer")

@@ -64,7 +64,7 @@ async def test_innovation_lab_e2e_when_approved_then_queues_maintainer() -> None
     proposal_row.proposal_payload = {
         "source_prompt": "Add GA4 connector preset",
         "feature_modules": ["hive_innovation_lab"],
-        "implementation_plan_md": "# plan",
+        "implementation_plan_md": "# plan\n" + ("Safe implementation steps with tests. " * 5),
         "suggested_paths": ["backend/app/infrastructure/connectors/phase3/catalog.py"],
         "trust_lane": "simulate",
     }
@@ -110,6 +110,10 @@ async def test_innovation_lab_e2e_when_approved_then_queues_maintainer() -> None
             new_callable=AsyncMock,
         ) as mock_review,
         patch(
+            "app.application.services.hive_innovation_lab.assess_innovation_viability",
+            new_callable=AsyncMock,
+        ) as mock_viability,
+        patch(
             "app.application.services.execution_studio_handoff.create_codebase_execution_proposal",
             new_callable=AsyncMock,
             return_value=codebase_row,
@@ -121,8 +125,10 @@ async def test_innovation_lab_e2e_when_approved_then_queues_maintainer() -> None
         ),
     ):
         mock_settings.hive_innovation_lab_enabled = True
+        mock_settings.queen_maintainer_enabled = True
         mock_brainstorm.return_value = MagicMock(id=str(proposal_row.id), status="pending")
         mock_review.return_value = approved_row
+        mock_viability.return_value = MagicMock(ok=True, model_dump=lambda mode="json": {"ok": True})
 
         reviewed = await review_innovation_proposal(
             session,

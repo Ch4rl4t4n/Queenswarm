@@ -92,6 +92,61 @@ const STUB_OPERATOR_COCKPIT = {
   links: { cockpit: "/agentic-os" },
 };
 
+const STUB_FOUR_CS_AUDIT = {
+  overall_score: 72,
+  overall_status: "ok",
+  dimensions: [
+    {
+      id: "context",
+      label: "Context",
+      score: 70,
+      status: "ok",
+      signals: ["Curated instructions ~400 chars", "Wiki Layer enabled"],
+      actions: [],
+    },
+    {
+      id: "connections",
+      label: "Connections",
+      score: 65,
+      status: "warn",
+      signals: ["3 MCP tools registered", "Supervisor routines enabled"],
+      actions: ["Enable routine webhooks (L4)"],
+    },
+    {
+      id: "capabilities",
+      label: "Capabilities",
+      score: 80,
+      status: "ok",
+      signals: ["12 harness skills", "Queen Maintainer (PR-only)"],
+      actions: [],
+    },
+    {
+      id: "cadence",
+      label: "Cadence",
+      score: 55,
+      status: "warn",
+      signals: ["Maintainer runs today 0/3"],
+      actions: ["Schedule a verified recipe as routine"],
+    },
+  ],
+  maintainer_safety: [
+    { id: "force_push", label: "No git push --force" },
+    { id: "deploy_prod", label: "No direct deploy-prod / prod compose" },
+  ],
+};
+
+const STUB_INNOVATION_VIABILITY = {
+  ok: true,
+  status: "pass",
+  checks: [
+    { id: "innovation_lab", label: "Innovation Lab", status: "pass", detail: "Enabled" },
+    { id: "maintainer", label: "Queen Maintainer", status: "pass", detail: "Enabled (PR-only)" },
+    { id: "approved", label: "Operator approval", status: "pass", detail: "Approved" },
+    { id: "plan", label: "Implementation plan", status: "pass", detail: "Plan present" },
+  ],
+  blocked_reasons: [],
+};
+
 const STUB_INNOVATION_LAB = {
   enabled: true,
   proposals: [],
@@ -723,6 +778,24 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_INNOVATION_LAB),
+      });
+      return;
+    }
+
+    if (path.includes("operator/innovation-lab/proposals/") && path.endsWith("/viability")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_INNOVATION_VIABILITY),
+      });
+      return;
+    }
+
+    if (path === "harness/four-cs-audit" || path.startsWith("harness/four-cs-audit?")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_FOUR_CS_AUDIT),
       });
       return;
     }

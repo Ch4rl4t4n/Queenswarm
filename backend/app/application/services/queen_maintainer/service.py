@@ -14,6 +14,7 @@ from app.application.services.queen_maintainer.maintainer_guard import (
     build_maintainer_session_seed,
     maintainer_run_precheck,
 )
+from app.application.services.queen_maintainer.pre_tool_denylist import scan_maintainer_text_for_violations
 from app.application.services.queen_maintainer.tech_health import build_tech_health_report
 from app.application.services.supervisor.routine_service import (
     compute_next_run_at,
@@ -203,6 +204,23 @@ async def queue_maintainer_run(
     goal = goal_override or build_maintainer_goal(tech_health=report)
     if goal_override and "Maintainer budget policy" not in goal:
         goal = append_maintainer_budget_goal_footer(goal)
+
+    violations = scan_maintainer_text_for_violations(goal)
+    if violations:
+        logger.info(
+            "queen_maintainer.run_blocked",
+            agent_id="queen_maintainer",
+            swarm_id=str(routine.tenant_id or ""),
+            task_id="",
+            reason="pre_tool_denylist",
+            violations=violations,
+        )
+        return {
+            "ok": False,
+            "error": "pre_tool_denylist",
+            "blocked_patterns": violations,
+            "message": f"Goal contains blocked patterns: {', '.join(violations)}",
+        }
 
     routine.goal_template = goal
     payload = dict(routine.context_payload or {})

@@ -308,14 +308,15 @@ export const SECTION_HINTS = {
   innovation: {
     title: "Innovation Lab",
     description:
-      "Brainstorm new product features. Approved proposals queue Queen Maintainer for PR-only implementation — never direct writes to main.",
+      "Brainstorm new product features. Approved proposals pass a viability gate before Queen Maintainer queues PR-only implementation — never direct writes to main.",
     options: [
       "Brainstorm — creates pending proposal with risk + module tags.",
       "Approve / Reject — human gate before any code changes.",
-      "Implement — triggers Maintainer agent (PR workflow).",
-      "Open full workflow in Execution Studio → Innovation tab.",
+      "Approve & queue — one-step approve + Maintainer when viability passes.",
+      "Viability gate — plan length, simulate trust lane, pre-tool denylist, daily budget.",
+      "High risk — operator must acknowledge before Implement.",
     ],
-    manualHref: "/manual#innovation-lab",
+    manualHref: "/manual#innovation-viability",
   },
   oracle: {
     title: "Hive Oracle",
@@ -710,14 +711,15 @@ export const SECTION_HINTS = {
   },
   harnessRulesOverview: {
     title: "Harness visibility",
-    description: "Live counts for skills, MCP tools, tech health, and supervisor feature flags.",
+    description: "Live Four Cs readiness audit plus skills, MCP tools, tech health, and supervisor feature flags.",
     options: [
+      "Four Cs — Context, Connections, Capabilities, Cadence (weekly AI OS health).",
       "Tech health — composite score from harness freshness checks.",
       "Pattern Router — goal → agentic pattern stack + skill hints (see Agents session preview).",
       "Pattern Explorer — catalog + recent session selections.",
       "Forced reflection — post-task learning loop gate.",
     ],
-    manualHref: "/manual#pattern-router",
+    manualHref: "/manual#harness-four-cs",
   },
   harnessRulesMonitoring: {
     title: "Pattern monitoring",
@@ -765,9 +767,32 @@ export const SECTION_HINTS = {
     options: [
       "Solo trio — three-bee operator micro-swarm.",
       "Queen Maintainer — PR-only self-maintenance webhook.",
+      "Pre-tool denylist — blocks force-push, prod deploy, .env.prod in goals.",
       "Intelligence scan — read-only harness patch proposals.",
     ],
-    manualHref: "/manual#harness",
+    manualHref: "/manual#maintainer-safety",
+  },
+  harnessFourCs: {
+    title: "Four Cs readiness",
+    description:
+      "Read-only Nate Herk AI OS audit: Context (curated memory), Connections (MCP + routines), Capabilities (skills + Maintainer), Cadence (routines + goals).",
+    options: [
+      "Score 0–100 per dimension — no auto-changes.",
+      "Action hints — what to enable or configure next.",
+      "Maintainer safety — expandable pre-tool denylist rules.",
+    ],
+    manualHref: "/manual#harness-four-cs",
+  },
+  innovationViability: {
+    title: "Innovation viability gate",
+    description:
+      "Blocks unsafe Innovation Lab → Maintainer handoff: short plans, live trust lane, denylisted paths, pre-tool patterns, daily budget.",
+    options: [
+      "Approve & queue — skips separate Implement click when all checks pass.",
+      "High risk — checkbox required before queue.",
+      "PR-only — Maintainer never writes to main directly.",
+    ],
+    manualHref: "/manual#innovation-viability",
   },
   settingsLlmKeys: {
     title: "LLM & voice keys",

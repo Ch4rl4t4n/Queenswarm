@@ -2,6 +2,7 @@
 
 import { Lightbulb } from "lucide-react";
 
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { InnovationLabPanel } from "@/components/hive/innovation-lab-panel";
 import { V4Card, V4CardHeader } from "@/components/ui/v4";
 
@@ -13,7 +14,8 @@ export function ExecutionStudioInnovationPanel() {
         as="h3"
         kicker="Innovation Lab"
         title="Brainstorm → approve → auto-implement"
-        description="Propose features, review risk, and queue Queen Maintainer for PR-only delivery."
+        description="Propose features, review risk, pass viability gate, queue Queen Maintainer for PR-only delivery."
+        hint={sectionHintNode("innovationViability")}
       />
       <InnovationLabPanel />
     </V4Card>

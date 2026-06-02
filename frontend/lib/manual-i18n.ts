@@ -136,8 +136,20 @@ const FUNCTION_DESCRIPTIONS_EN: Record<string, { description: string; options: s
     options: ["Regret simulator", "Context teleport", "Evolutionary recipes"],
   },
   "innovation-lab": {
-    description: "Brainstorm features; Maintainer implements approved ideas via PR only.",
-    options: ["Brainstorm", "Approve/reject", "Queue Maintainer"],
+    description: "Brainstorm features; viability gate then Maintainer implements approved ideas via PR only.",
+    options: ["Brainstorm", "Approve & queue", "Viability checks", "High-risk ack"],
+  },
+  "harness-four-cs": {
+    description: "Four Cs AI OS readiness audit in Harness overview.",
+    options: ["Context score", "Connections score", "Capabilities + Cadence"],
+  },
+  "innovation-viability": {
+    description: "Deterministic gate before Innovation Lab queues Maintainer.",
+    options: ["Plan length", "Simulate trust lane", "Pre-tool denylist"],
+  },
+  "maintainer-safety": {
+    description: "PR-only Maintainer with pre-tool denylist and daily budget.",
+    options: ["No force-push", "No prod deploy", "Branch queen-maintainer/*"],
   },
 };
 

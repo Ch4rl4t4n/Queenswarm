@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.services.innovation_viability_gate import InnovationViabilityOut, assess_innovation_viability
 from app.application.services.supervisor.initiative import review_agent_suggestion
 from app.core.config import settings
 from app.infrastructure.persistence.models.agent_suggestion import AgentSuggestion
@@ -262,6 +263,33 @@ async def brainstorm_innovation_proposal(
     return _proposal_to_out(row)
 
 
+async def assess_proposal_viability(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    proposal_id: uuid.UUID,
+    acknowledge_high_risk: bool = False,
+) -> InnovationViabilityOut:
+    """Load proposal and run viability gate."""
+
+    row = await session.scalar(
+        select(AgentSuggestion).where(
+            AgentSuggestion.id == proposal_id,
+            AgentSuggestion.tenant_id == tenant_id,
+            AgentSuggestion.proposal_type == INNOVATION_PROPOSAL_TYPE,
+        ),
+    )
+    if row is None:
+        msg = "Innovation proposal not found."
+        raise LookupError(msg)
+    return await assess_innovation_viability(
+        session,
+        tenant_id=tenant_id,
+        proposal=row,
+        acknowledge_high_risk=acknowledge_high_risk,
+    )
+
+
 async def review_innovation_proposal(
     session: AsyncSession,
     *,
@@ -269,8 +297,11 @@ async def review_innovation_proposal(
     proposal_id: uuid.UUID,
     decision: Literal["approved", "rejected"],
     reviewer_subject: str,
-) -> InnovationProposalOut:
-    """Approve or reject innovation proposal."""
+    queue_maintainer: bool = False,
+    acknowledge_high_risk: bool = False,
+    tenant: Tenant | None = None,
+) -> InnovationProposalOut | dict[str, Any]:
+    """Approve or reject innovation proposal; optionally queue Maintainer in one step."""
 
     row = await session.scalar(
         select(AgentSuggestion).where(
@@ -292,7 +323,38 @@ async def review_innovation_proposal(
     if decision == "approved":
         reviewed.implemented_at = None
         await session.flush()
-    return _proposal_to_out(reviewed)
+    if decision != "approved" or not queue_maintainer:
+        return _proposal_to_out(reviewed)
+    if tenant is None:
+        tenant = await session.get(Tenant, tenant_id)
+    if tenant is None:
+        return {"ok": False, "error": "tenant_not_found"}
+    viability = await assess_innovation_viability(
+        session,
+        tenant_id=tenant_id,
+        proposal=reviewed,
+        acknowledge_high_risk=acknowledge_high_risk,
+    )
+    if not viability.ok:
+        return {
+            "ok": False,
+            "error": "viability_blocked",
+            "proposal": _proposal_to_out(reviewed).model_dump(mode="json"),
+            "viability": viability.model_dump(mode="json"),
+        }
+    handoff = await implement_innovation_proposal(
+        session,
+        tenant=tenant,
+        proposal_id=proposal_id,
+        reviewer_subject=reviewer_subject,
+        skip_viability=True,
+    )
+    return {
+        "ok": bool(handoff.get("ok")),
+        "proposal": _proposal_to_out(reviewed).model_dump(mode="json"),
+        "handoff": handoff,
+        "viability": viability.model_dump(mode="json"),
+    }
 
 
 async def implement_innovation_proposal(
@@ -301,6 +363,8 @@ async def implement_innovation_proposal(
     tenant: Tenant,
     proposal_id: uuid.UUID,
     reviewer_subject: str,
+    skip_viability: bool = False,
+    acknowledge_high_risk: bool = False,
 ) -> dict[str, Any]:
     """Queue Queen Maintainer to implement an approved innovation proposal."""
 
@@ -318,6 +382,20 @@ async def implement_innovation_proposal(
         return {"ok": False, "error": "proposal_not_found"}
     if row.status != "approved":
         return {"ok": False, "error": "proposal_not_approved", "status": row.status}
+
+    if not skip_viability:
+        viability = await assess_innovation_viability(
+            session,
+            tenant_id=tenant.id,
+            proposal=row,
+            acknowledge_high_risk=acknowledge_high_risk,
+        )
+        if not viability.ok:
+            return {
+                "ok": False,
+                "error": "viability_blocked",
+                "viability": viability.model_dump(mode="json"),
+            }
 
     payload = dict(row.proposal_payload or {})
     plan = str(payload.get("implementation_plan_md") or row.description)
@@ -375,6 +453,8 @@ __all__ = [
     "InnovationBrainstormRequest",
     "InnovationLabSnapshotOut",
     "InnovationProposalOut",
+    "InnovationViabilityOut",
+    "assess_proposal_viability",
     "brainstorm_innovation_proposal",
     "compose_innovation_lab_snapshot",
     "count_pending_innovation_proposals",
