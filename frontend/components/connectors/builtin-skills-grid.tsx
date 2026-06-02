@@ -21,8 +21,8 @@ function primaryRoleLabel(roles: string[]): string {
 
 function builtinAgentUsage(skill: SkillCatalogBuiltinItem): string {
   if (skill.agent_usage?.trim()) return skill.agent_usage.trim();
-  const roles = skill.roles.length ? skill.roles.join(", ") : "supervisor";
-  const keywords = skill.keywords.slice(0, 5).join(", ");
+  const roles = (skill.roles ?? []).length ? (skill.roles ?? []).join(", ") : "supervisor";
+  const keywords = (skill.keywords ?? []).slice(0, 5).join(", ");
   return keywords
     ? `Queen and ${roles} bees inject this shard when tasks match: ${keywords}.`
     : `Supervisor SkillLibrary loads ${skill.slug} for ${roles} during planning and execution.`;
@@ -30,7 +30,7 @@ function builtinAgentUsage(skill: SkillCatalogBuiltinItem): string {
 
 function builtinSummary(skill: SkillCatalogBuiltinItem): string {
   if (skill.summary?.trim()) return skill.summary.trim();
-  return `Built-in markdown skill for ${primaryRoleLabel(skill.roles)} lanes.`;
+  return `Built-in markdown skill for ${primaryRoleLabel(skill.roles ?? [])} lanes.`;
 }
 
 /** Built-in hive skills — marketplace-style cards with safe tag wrapping. */
@@ -94,7 +94,7 @@ export function BuiltinSkillsGrid({ skills, loading = false }: BuiltinSkillsGrid
                 <div className="min-w-0 flex-1 space-y-1">
                   <p className="qs-card-title text-sm font-semibold text-(--qs-text)">{skill.title}</p>
                   <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-(--qs-text-3)">
-                    {primaryRoleLabel(skill.roles)}
+                    {primaryRoleLabel(skill.roles ?? [])}
                   </p>
                 </div>
                 <V4Badge tone="info" className="shrink-0">
@@ -125,9 +125,9 @@ export function BuiltinSkillsGrid({ skills, loading = false }: BuiltinSkillsGrid
                 </div>
               ) : null}
 
-              {skill.roles.length ? (
+              {(skill.roles ?? []).length ? (
                 <div className="qs-tag-row">
-                  {skill.roles.slice(0, 4).map((role) => (
+                  {(skill.roles ?? []).slice(0, 4).map((role) => (
                     <V4Badge key={role} tone="purple">
                       {role.replaceAll("_", " ")}
                     </V4Badge>

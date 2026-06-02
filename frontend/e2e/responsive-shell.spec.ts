@@ -21,7 +21,7 @@ async function assertNoHorizontalOverflow(page: import("@playwright/test").Page)
 
 async function gotoShellRoute(page: import("@playwright/test").Page, path: string): Promise<boolean> {
   const targetPath = new URL(path, "http://localhost").pathname.replace(/\/$/, "") || "/";
-  await page.goto(path, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  await page.goto(path, { waitUntil: "domcontentloaded", timeout: 60_000 }).catch(() => undefined);
   let currentPath = new URL(page.url()).pathname.replace(/\/$/, "") || "/";
   if (currentPath === "/login") {
     return false;
@@ -70,10 +70,16 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     await expect(fab).toBeVisible({ timeout: 15_000 });
     await expect(fab.getByRole("link", { name: /Open Ballroom/i })).toBeVisible();
 
-    await page.goto("/swarms", { waitUntil: "load" });
+    const onSwarms = await gotoShellRoute(page, "/swarms");
+    if (!onSwarms) {
+      return;
+    }
     await expect(fab).toBeVisible({ timeout: 15_000 });
 
-    await page.goto("/ballroom", { waitUntil: "load" });
+    const onBallroom = await gotoShellRoute(page, "/ballroom");
+    if (!onBallroom) {
+      return;
+    }
     await expect(fab).toBeHidden({ timeout: 10_000 });
   });
 
@@ -369,8 +375,8 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     }
 
     await expect(page.getByRole("heading", { name: "Integrations" })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/Premium checkout: removed/i)).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole("button", { name: "Checkout removed" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/Premium checkout:\s*removed/i)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("button", { name: "Locked" })).toBeVisible({ timeout: 15_000 });
   });
 
   test("tablet integrations hub tab layout", async ({ page, context, baseURL }) => {

@@ -441,6 +441,7 @@ const STUB_SKILLS_CATALOG = {
       title: "Grill me",
       version: "1.0.0",
       keywords: ["review", "critique"],
+      roles: ["supervisor"],
     },
   ],
   recipes: [
@@ -1445,6 +1446,24 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ items: [] }),
+      });
+      return;
+    }
+
+    if (path.startsWith("external/projects")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([]),
+      });
+      return;
+    }
+
+    if (path === "plugins" || path.startsWith("plugins?")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ installed: [], reload_generation: 1 }),
       });
       return;
     }

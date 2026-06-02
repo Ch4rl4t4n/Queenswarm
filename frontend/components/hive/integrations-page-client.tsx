@@ -197,9 +197,12 @@ function iconKeyForPlugin(id: string): string {
 }
 
 function buildActiveCards(payload: IntegrationsInitialPayload): IntegrationCard[] {
-  const pluginIds = new Set(payload.plugins.map((row) => row.id));
+  const plugins = payload.plugins ?? [];
+  const connectors = payload.connectors ?? [];
+  const externalProjects = payload.externalProjects ?? [];
+  const pluginIds = new Set(plugins.map((row) => row.id));
   const mergedPlugins = [
-    ...payload.plugins,
+    ...plugins,
     ...SUPPLEMENTAL_PLUGINS.filter((row) => !pluginIds.has(row.id)),
   ];
 
@@ -215,7 +218,7 @@ function buildActiveCards(payload: IntegrationsInitialPayload): IntegrationCard[
     categoryKey: "plugins",
   }));
 
-  const connectorCards: IntegrationCard[] = payload.connectors.map((conn) => ({
+  const connectorCards: IntegrationCard[] = connectors.map((conn) => ({
     id: `connector-${conn.id}`,
     title: conn.display_name,
     meta: `${conn.slug} · ${conn.auth_type}`,
@@ -230,7 +233,7 @@ function buildActiveCards(payload: IntegrationsInitialPayload): IntegrationCard[
     categoryKey: "connectors_other",
   }));
 
-  const externalCards: IntegrationCard[] = payload.externalProjects.map((project) => ({
+  const externalCards: IntegrationCard[] = externalProjects.map((project) => ({
     id: `external-${project.id}`,
     title: project.display_name,
     meta: `${project.slug} · ${project.project_kind}`,
@@ -717,7 +720,7 @@ export function IntegrationsPageClient({
               ) : null
             }
           />
-          {!payload.plugins.length ? (
+          {!(payload.plugins ?? []).length ? (
             <p className="v4-learning-panel p-3 text-sm text-(--qs-text-3)">
               No plugin rows present.
             </p>
