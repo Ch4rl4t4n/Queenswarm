@@ -27,6 +27,6 @@ test.describe("Whole-App IA — primary sidebar order", () => {
     expect(trimmed.indexOf("Integrations")).toBeLessThan(trimmed.indexOf("Knowledge"));
     expect(trimmed.filter((l) => l === "Settings")).toHaveLength(1);
     expect(trimmed).not.toContain("Factory");
-    expect(trimmed).not.toContain("Foragers");
+    expect(trimmed.indexOf("Agents")).toBeLessThan(trimmed.indexOf("Foragers"));
   });
 });

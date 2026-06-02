@@ -108,10 +108,10 @@ test.describe("Whole-App critical journeys — desktop", () => {
     await assertShellTitle(page, "Apps & Tools");
 
     const marketingCard = page.locator("article").filter({
-      has: page.getByRole("heading", { name: "Marketing Automation" }),
+      has: page.getByText("Marketing Automation", { exact: true }),
     });
     await expect(marketingCard).toBeVisible({ timeout: 30_000 });
-    await marketingCard.getByRole("link", { name: "Open module" }).click();
+    await marketingCard.getByRole("link", { name: "Configure" }).click();
     await expect(page).toHaveURL(/\/apps-tools\/marketing-automation/, { timeout: 45_000 });
     await assertShellTitle(page, "Marketing Automation");
   });

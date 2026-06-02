@@ -468,6 +468,67 @@ const STUB_SKILL_UNLOCKS = {
   premium_price_eur_cents_default: 1900,
 };
 
+const STUB_APPS_TOOLS_INDEX = {
+  generated_at: new Date().toISOString(),
+  version: "v1",
+  workspaces: [
+    {
+      module_key: "marketing_automation",
+      label: "Marketing Automation",
+      layer: "apps_tools",
+      summary: "Campaign publishing and distribution workflows.",
+      status: "live",
+      enabled: true,
+      capability_keys: ["apps.marketing.publish_pipeline.v1"],
+    },
+  ],
+  capabilities: [
+    {
+      capability_key: "apps.marketing.publish_pipeline.v1",
+      label: "Marketing publish pipeline",
+      owner_module: "marketing_automation",
+      surface: "apps_tools",
+      summary: "Generate and orchestrate multi-channel publish packs.",
+      status: "live",
+      version: "v1",
+      risk_tier: "publish",
+      requires_approval: true,
+      input_schema_ref: "schemas/apps.marketing.publish_pipeline.input.v1.json",
+      output_schema_ref: "schemas/apps.marketing.publish_pipeline.output.v1.json",
+      enabled: true,
+      sla_hint_sec: 180,
+      dependency_keys: ["integrations.connector.invoke.v1"],
+      tags: ["apps", "marketing", "publish"],
+    },
+  ],
+  policies: [
+    {
+      module_key: "marketing_automation",
+      label: "Marketing Automation",
+      enabled: true,
+      risk_tier: "publish",
+      requires_approval: true,
+      cooldown_sec: null,
+      spend_cap_usd_24h: 10,
+      time_limit_sec: 12,
+      rate_limit_window_sec: 86400,
+      rate_limit_max_global: 30,
+      notes: ["Live publish is simulation-first."],
+    },
+  ],
+};
+
+const STUB_APPS_TOOLS_ANALYTICS = {
+  window: "24h",
+  compact_mode: false,
+  last_event_at: new Date().toISOString(),
+  total_events: 0,
+  counters: {},
+  module_funnel: [],
+  top_movers: [],
+  recommendation: null,
+};
+
 const STUB_RECIPE_PATTERN_STACKS = [
   {
     id: "exec_assistant",
@@ -1500,11 +1561,29 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
-    if (path.startsWith("tasks?")) {
+    if (path === "tasks" || path.startsWith("tasks?")) {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_MISSION_KANBAN_TASKS),
+      });
+      return;
+    }
+
+    if (path === "operator/apps-tools-index" || path.startsWith("operator/apps-tools-index?")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_APPS_TOOLS_INDEX),
+      });
+      return;
+    }
+
+    if (path.startsWith("operator/apps-tools-index/analytics")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_APPS_TOOLS_ANALYTICS),
       });
       return;
     }
