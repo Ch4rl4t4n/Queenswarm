@@ -69,7 +69,7 @@ async def review_publish_queue_deliverable(
     user_id = _dashboard_principal(sess)
     reviewed_by = str(sess.get("sub") or "")
     try:
-        return await review_publish_queue_item(
+        result = await review_publish_queue_item(
             db,
             deliverable_id=deliverable_id,
             dashboard_user_id=user_id,
@@ -81,6 +81,8 @@ async def review_publish_queue_deliverable(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    await db.commit()
+    return result
 
 
 @router.post(
@@ -98,7 +100,7 @@ async def bulk_review_publish_queue_deliverables(
     _require_enabled()
     user_id = _dashboard_principal(sess)
     reviewed_by = str(sess.get("sub") or "")
-    return await bulk_review_publish_queue(
+    result = await bulk_review_publish_queue(
         db,
         deliverable_ids=body.deliverable_ids,
         dashboard_user_id=user_id,
@@ -106,6 +108,8 @@ async def bulk_review_publish_queue_deliverables(
         note=body.note,
         reviewed_by=reviewed_by,
     )
+    await db.commit()
+    return result
 
 
 __all__ = ["router"]
