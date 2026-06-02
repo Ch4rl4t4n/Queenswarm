@@ -21,7 +21,8 @@ def test_compose_icm_tools_snapshot_when_enabled() -> None:
         mock_settings.research_bee_enabled = True
         snap = compose_icm_tools_snapshot()
     assert snap.enabled is True
-    assert len(snap.quick_automations) == 5
+    assert len(snap.quick_automations) == 6
+    assert any(p.id == "lead_gen_lane" for p in snap.quick_automations)
     assert any(p.id == "save_session_template" for p in snap.quick_automations)
     assert snap.link_drop_enabled is True
 

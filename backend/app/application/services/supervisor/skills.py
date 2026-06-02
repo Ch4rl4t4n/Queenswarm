@@ -19,6 +19,7 @@ DEFAULT_ROLE_SKILLS: dict[str, list[str]] = {
         "decision-frameworks",
         "execution-studio",
         "competitor-scrape-analyze",
+        "lead-gen-lane",
         "research-to-pr-proposal",
     ],
     "coder": [

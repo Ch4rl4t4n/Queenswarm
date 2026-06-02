@@ -241,13 +241,13 @@ export const SECTION_HINTS = {
   icmQuickAutomations: {
     title: "Quick Automations",
     description:
-      "One-click verified presets — morning check, summarize link, publish brief, and more. No builder; each action runs through simulate-first guardrails.",
+      "One-click verified presets — morning check, Lead Gen Lane, summarize link, meeting follow-up. No builder; simulate-first guardrails.",
     options: [
-      "Presets call POST /operator/icm/quick with a preset id.",
-      "Hover a pill for the preset detail tooltip.",
-      "Outputs route to Cockpit toast + optional Knowledge/Recipe side effects.",
+      "Lead Gen Lane — opens Agents preset (ICP → scout → outreach simulate).",
+      "Research URL — Link Drop structured brief.",
+      "Hover a pill for preset detail tooltip.",
     ],
-    manualHref: "/manual#icm-tools",
+    manualHref: "/manual#lead-gen-lane",
   },
   icmLinkDrop: {
     title: "Link Drop",
@@ -371,13 +371,15 @@ export const SECTION_HINTS = {
   },
   agentsSessions: {
     title: "Supervisor sessions",
-    description: "Live and historical Queen/supervisor runs — approve merges, kill stuck agents, export session reports.",
+    description:
+      "Live and historical Queen/supervisor runs — approve merges, kill stuck agents, export session reports. Quick presets include Lead Gen Lane (simulate outreach).",
     options: [
+      "Lead Gen Lane preset — ICP → scout ≤10 → outreach drafts (simulate).",
       "Session search — filter by goal, status, swarm.",
       "Merge ready — human approve before publish lane.",
       "Report dialog — Session → Recipe when verified.",
     ],
-    manualHref: "/manual#supervisor",
+    manualHref: "/manual#lead-gen-lane",
   },
   agentsRoster: {
     title: "Active roster",
@@ -907,6 +909,28 @@ export const SECTION_HINTS = {
     description: "Tier limits and enabled features side-by-side — compose-only flags never duplicate swarms.",
     options: ["Free — 2 agents, 1 swarm.", "Pro — Swarm Builder templates + dump/sleep.", "Enterprise — white-label + compliance bundle."],
     manualHref: "/manual#billing",
+  },
+  agentsLeadGenLane: {
+    title: "Lead Gen Lane preset",
+    description:
+      "Verified 5-step recipe: ICP → Lead Scout (≤10) → optional intel → Outreach Draft (≤5, simulate) → critic report.",
+    options: [
+      "Fill ICP industry/size/region/signal in goal before Create.",
+      "retrieval_contract wiki_only — hot ICP + forager-insights.",
+      "Never live Gmail send — simulate_only default.",
+      "Manual: /manual#lead-gen-lane",
+    ],
+    manualHref: "/manual#lead-gen-lane",
+  },
+  tasksMissionKanban: {
+    title: "Mission Kanban bundles",
+    description: "One-click task text packs — Lead Gen Lane, competitor research, content week, campaign brief.",
+    options: [
+      "Lead Gen Lane — auto-dispatch with full ICP template.",
+      "Competitor research — public sources only.",
+      "Campaign brief — triage before dispatch when autoDispatch=false.",
+    ],
+    manualHref: "/manual#agent-workflows",
   },
   tasksPerformanceTier: {
     title: "Performance by tier",

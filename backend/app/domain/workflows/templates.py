@@ -220,6 +220,70 @@ NEWSLETTER_WORKFLOW: dict[str, Any] = {
     ],
 }
 
+LEAD_GEN_LANE_WORKFLOW: dict[str, Any] = {
+    "name": "LEAD_GEN_LANE",
+    "description": "ICP brief → Lead Scout → enrich → Outreach Draft → simulate review (no live send).",
+    "steps": [
+        {
+            "order": 1,
+            "description": "Load ICP + offer brief from curated memory and Wiki Layer forager-insights",
+            "agent_role": "researcher",
+            "input_schema": {"icp": "dict", "max_leads": "int"},
+            "output_schema": {"icp_summary": "str", "signals": "list[str]"},
+            "guardrails": {
+                "risks": ["stale ICP", "missing HiveMind context"],
+                "mitigations": ["wiki_only retrieval", "ingest URL for fresh intel"],
+                "stop_conditions": ["ICP empty after operator prompt"],
+            },
+            "evaluation_criteria": _SHARED_EVAL,
+        },
+        {
+            "order": 2,
+            "description": "Lead Scout Bee — qualify ≤10 leads from HiveMind (tag: lead, account)",
+            "agent_role": "researcher",
+            "input_schema": {"icp_summary": "str", "max_leads": "int"},
+            "output_schema": {"leads": "list[{company, contact, signal, evidence_url}]"},
+            "guardrails": {
+                "risks": ["invented emails", "PII leakage"],
+                "mitigations": ["mark contact unknown", "strip PII from logs"],
+                "stop_conditions": ["zero leads without operator clarification"],
+            },
+            "evaluation_criteria": _SHARED_EVAL,
+        },
+        {
+            "order": 3,
+            "description": "Optional competitor/forager intel pass — public signals only",
+            "agent_role": "scraper",
+            "input_schema": {"competitors": "list[str]"},
+            "output_schema": {"intel_bullets": "list[str]"},
+            "guardrails": _SHARED_GUARD,
+            "evaluation_criteria": _SHARED_EVAL,
+        },
+        {
+            "order": 4,
+            "description": "Outreach Draft Bee — ≤5 personalised messages (Gmail simulate_only)",
+            "agent_role": "designer",
+            "input_schema": {"leads": "list"},
+            "output_schema": {"drafts": "list[{subject, body, cta, lead_ref}]"},
+            "guardrails": {
+                "risks": ["spam tone", "fabricated relationship"],
+                "mitigations": ["critic pass", "simulate_only=true"],
+                "stop_conditions": ["critic rejects tone"],
+            },
+            "evaluation_criteria": _SHARED_EVAL,
+        },
+        {
+            "order": 5,
+            "description": "Critic verify + operator report — persist outreach-result tags to HiveMind",
+            "agent_role": "critic",
+            "input_schema": {"drafts": "list"},
+            "output_schema": {"approved": "bool", "report_md": "str"},
+            "guardrails": _SHARED_GUARD,
+            "evaluation_criteria": _SHARED_EVAL,
+        },
+    ],
+}
+
 PRODUCT_MISSION_WORKFLOW: dict[str, Any] = {
     "name": "PRODUCT_MISSION",
     "description": "Niche → swarm produce → verify → package → multi-channel listing (GitHub, Gumroad, premium unlock).",
@@ -278,6 +342,7 @@ SEED_WORKFLOWS: dict[str, dict[str, Any]] = {
     "INSTAGRAM_POST": INSTAGRAM_POST_WORKFLOW,
     "YOUTUBE_DIGEST": YOUTUBE_DIGEST_WORKFLOW,
     "NEWSLETTER": NEWSLETTER_WORKFLOW,
+    "LEAD_GEN_LANE": LEAD_GEN_LANE_WORKFLOW,
     "PRODUCT_MISSION": PRODUCT_MISSION_WORKFLOW,
 }
 
@@ -328,6 +393,7 @@ __all__ = [
     "BLOG_POST_WORKFLOW",
     "CRYPTO_ACKIE_WORKFLOW",
     "INSTAGRAM_POST_WORKFLOW",
+    "LEAD_GEN_LANE_WORKFLOW",
     "NEWSLETTER_WORKFLOW",
     "PRODUCT_MISSION_WORKFLOW",
     "SEED_WORKFLOWS",

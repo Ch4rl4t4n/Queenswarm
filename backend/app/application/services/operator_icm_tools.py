@@ -162,6 +162,15 @@ _KEYWORD_RULES: tuple[tuple[re.Pattern[str], str, str, str, Literal["high", "med
         "dialogue_extract_hint",
     ),
     (
+        re.compile(r"\b(?:lead|outreach|prospect|pipeline|cold email|icp)\b", re.I),
+        "lead_gen",
+        "Lead gen / outreach",
+        "Launch Lead Gen Lane preset — scout + simulate drafts.",
+        "medium",
+        "/agents?preset=lead-gen-lane",
+        None,
+    ),
+    (
         re.compile(r"\b(?:research|article|paper|read this|youtube|http)\b", re.I),
         "research",
         "Research / URL",
@@ -206,6 +215,13 @@ def compose_icm_tools_snapshot() -> IcmToolsSnapshotOut:
             label="Research URL",
             detail="Read-only fetch → HiveMind brief (on approve).",
             kind="link_drop",
+        ),
+        QuickAutomationPresetOut(
+            id="lead_gen_lane",
+            label="Lead Gen Lane",
+            detail="ICP → Lead Scout → Outreach Draft (simulate-only). Opens Agents preset.",
+            kind="href",
+            href="/agents?preset=lead-gen-lane",
         ),
         QuickAutomationPresetOut(
             id="save_session_template",

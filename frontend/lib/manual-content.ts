@@ -247,6 +247,54 @@ export const APP_MANUAL_SECTIONS: ManualSection[] = [
     ],
   },
   {
+    id: "lead-gen-lane",
+    title: "Lead Gen Lane — verified outreach pipeline",
+    paragraphs: [
+      `Simulate-first alternative to lead-gen agencies ([reference video](https://www.youtube.com/watch?v=qw0xdTtzK1w)). Recipe: **Verified — Lead Gen Lane** (5 steps). Bees: **Lead Scout** + **Outreach Draft** — never live send.`,
+      `**One-click launch:** [Agents → preset Lead Gen Lane](${MANUAL_HREFS.agentsLeadGenLane}) · [Tasks → Mission Kanban bundle](${MANUAL_HREFS.tasks}) · [Agentic OS → Quick automation](${MANUAL_HREFS.agenticOs})`,
+      `Before run: write **ICP** in [Curated memory](${MANUAL_HREFS.knowledgeCurated}) — industry, size, region, signal. Optional: ingest competitor video/article via [Ingest URL](${MANUAL_HREFS.knowledgeIngest}) → Gardener updates forager-insights.`,
+      `Flow: ICP summary → Lead Scout (≤10 leads, HiveMind tags \`lead\`, \`account\`) → optional public intel → Outreach Draft (≤5, Gmail simulate_only) → Critic APPROVE → report.`,
+      `Skill Hot Tier auto-matches this recipe when session goal contains lead/outreach/ICP keywords.`,
+    ],
+    checklist: [
+      {
+        text: "1) ICP in Curated memory  2) Agents → Lead Gen Lane preset  3) Fill ICP blanks in goal  4) durable + critic  5) Review simulate drafts",
+        href: MANUAL_HREFS.agentsLeadGenLane,
+        linkLabel: "Launch preset",
+      },
+      {
+        text: "Never approve live Gmail send without explicit operator OK.",
+        href: MANUAL_HREFS.integrationsStudio,
+        linkLabel: "Execution Studio",
+      },
+      {
+        text: "After run — check Wiki Layer forager-insights + Recipe Library match.",
+        href: MANUAL_HREFS.knowledgeWiki,
+        linkLabel: "Wiki Layer",
+      },
+    ],
+  },
+  {
+    id: "agent-workflows",
+    title: "Agent workflow catalog (when to use which lane)",
+    paragraphs: [
+      `Verified recipes and presets agents should prefer — each is simulate-first, one sharp job per bee.`,
+      `**Lead Gen Lane** — B2B outreach drafts from HiveMind ([manual](${MANUAL_HREFS.manualLeadGenLane})).`,
+      `**Marketing campaign** — audience, channels, 2-week calendar, publish pack simulate ([Agents preset](${MANUAL_HREFS.agentsSessions})).`,
+      `**Competitor research** — top 5 + gap analysis ([preset](${MANUAL_HREFS.agentsSessions}) + skill \`competitor-scrape-analyze\`).`,
+      `**Ingest URL** — YouTube transcript or article → brief → Gardener ([Knowledge](${MANUAL_HREFS.knowledgeIngest})).`,
+      `**Four Lanes digest** — cron marketing/e-shop intel (optional background, not primary path).`,
+      `**Web redesign discovery** — UX audit + IA ([Agents preset](${MANUAL_HREFS.agentsSessions})).`,
+      `Agents pick workflows via **Skill Hot Tier** (goal match) + **Recipe Library** cosine ≥0.85 — never load all skills at once.`,
+    ],
+    checklist: [
+      { text: "Lead Gen — sales/outreach/ICP goals", href: MANUAL_HREFS.agentsLeadGenLane, linkLabel: "Lead Gen Lane" },
+      { text: "Marketing — campaign, publish, social", href: MANUAL_HREFS.agentsSessions, linkLabel: "Marketing preset" },
+      { text: "Research — competitor, ingest, foragers", href: MANUAL_HREFS.knowledgeIngest, linkLabel: "Ingest URL" },
+      { text: "Wiki + skills — hot tier only", href: MANUAL_HREFS.knowledgeWiki, linkLabel: "Wiki Layer" },
+    ],
+  },
+  {
     id: "settings-reference",
     title: "5. Settings reference",
     paragraphs: [
@@ -426,6 +474,18 @@ export const APP_FUNCTION_GUIDE: FunctionInfoGroup[] = [
         description: "Dynamic ingest workers wired to routines, HiveMind, and spawn flow.",
         options: ["Forager CRUD", "Source/filter config", "Manual ingest and agent spawn"],
       },
+      {
+        id: "lead-gen-lane",
+        label: "Lead Gen Lane preset",
+        description:
+          "One-click simulate-first outreach: ICP → Lead Scout ≤10 → Outreach Draft ≤5. Verified recipe LEAD_GEN_LANE.",
+        options: [
+          "Agents → preset chip Lead Gen Lane",
+          "Fill ICP in goal before Create",
+          "Gmail simulate_only — no live send",
+        ],
+        href: MANUAL_HREFS.agentsLeadGenLane,
+      },
     ],
   },
   {
@@ -437,6 +497,17 @@ export const APP_FUNCTION_GUIDE: FunctionInfoGroup[] = [
         label: "New task",
         description: "Create a new task for the execution pipeline.",
         options: ["Priority", "Goal description", "Link to workflow/session"],
+      },
+      {
+        id: "tasks-mission-kanban",
+        label: "Mission Kanban bundles",
+        description: "One-click task packs including Lead Gen Lane, competitor research, content week.",
+        options: [
+          "Lead Gen Lane — auto-dispatch scout + outreach simulate",
+          "Competitor research sprint",
+          "Campaign brief — triage before dispatch",
+        ],
+        href: MANUAL_HREFS.tasks,
       },
       {
         id: "tasks-routines",

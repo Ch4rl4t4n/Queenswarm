@@ -132,7 +132,30 @@ SOLO_SESSION_PRESETS: dict[str, SoloSessionPresetOut] = {
             "Public sources only. Critic APPROVE. Simulate only."
         ),
         roles=["researcher", "critic"],
-        skills=["context", "decide", "tdd"],
+        skills=["context", "decide", "tdd", "competitor-scrape-analyze"],
+    ),
+    "lead-gen-lane": SoloSessionPresetOut(
+        id="lead-gen-lane",
+        label="Lead Gen Lane — scout + outreach",
+        lane="sales",
+        goal=(
+            "PROJECT: Lead Gen Lane (simulate-first — Verified recipe LEAD_GEN_LANE).\n\n"
+            "ICP (fill in before run):\n"
+            "- Industry: ___\n"
+            "- Company size: ___\n"
+            "- Region: ___\n"
+            "- Signal (hiring, funding, tool stack): ___\n\n"
+            "Deliverables:\n"
+            "1. ICP summary from curated memory + Wiki forager-insights\n"
+            "2. Lead Scout — ≤10 qualified leads from HiveMind (tag: lead). Never invent emails.\n"
+            "3. Optional: 3 competitor intel bullets (public sources)\n"
+            "4. Outreach Draft Bee — ≤5 personalised messages (subject + body + CTA)\n"
+            "5. Critic APPROVE + operator report (SK or EN, ≤400 words)\n\n"
+            "Gmail simulate_only=true. No live send. Persist outreach-result tags."
+        ),
+        roles=["researcher", "designer", "critic"],
+        skills=["context", "decide", "lead-gen-lane", "competitor-scrape-analyze"],
+        retrieval_contract="wiki_only",
     ),
 }
 

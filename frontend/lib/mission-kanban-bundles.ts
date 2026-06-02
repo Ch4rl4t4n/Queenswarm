@@ -56,6 +56,28 @@ Deliverables:
 Public sources only. Verify before delivery.`,
   },
   {
+    id: "lead-gen-lane",
+    label: "Lead Gen Lane",
+    hint: "ICP → scout ≤10 → outreach simulate",
+    autoDispatch: true,
+    taskText: `Lead Gen Lane for Queenswarm (Verified recipe LEAD_GEN_LANE, simulate-first).
+
+ICP — fill before dispatch:
+- Industry: B2B SaaS / e-commerce (pick one)
+- Size: 10–200 employees
+- Region: EU / SK / CZ
+- Signal: recent hiring, funding, or stack change
+
+Deliverables:
+1. ICP summary from curated memory + Wiki forager-insights
+2. Lead Scout — max 10 qualified leads from HiveMind (never invent emails)
+3. Optional: 3 public competitor intel bullets
+4. Outreach Draft — max 5 personalised messages (subject + body + CTA, Gmail simulate_only)
+5. Critic APPROVE + operator report (max 400 words)
+
+No live send. Tag outreach-result in HiveMind.`,
+  },
+  {
     id: "marketing-campaign",
     label: "Campaign brief",
     hint: "Audience, channels, 2-week calendar",
