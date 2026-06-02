@@ -372,14 +372,26 @@ export const SECTION_HINTS = {
   agentsSessions: {
     title: "Supervisor sessions",
     description:
-      "Live and historical Queen/supervisor runs — approve merges, kill stuck agents, export session reports. Pattern Router preview under goal + badges on each row show selected patterns/skills.",
+      "Primary operator lane — sessions, Pattern Router preview, Automation Ladder (L1–L5), routines with webhook ingress, auto-approve.",
     options: [
+      "Automation Ladder panel — pick L1 preset vs L3 cron vs L4 webhook.",
       "Pattern Router preview — live stack before Create session.",
-      "Session row badges — primary patterns + resolved skills.",
-      "Info report — full Pattern Router block with rationale.",
-      "Lead Gen Lane preset — ICP → scout ≤10 → outreach drafts (simulate).",
+      "Routine webhook — Enable/rotate token per routine (Make/n8n middleware).",
+      "Recipe → Routine — POST /recipes/{id}/routine from verified catalog.",
     ],
-    manualHref: "/manual#pattern-router",
+    manualHref: "/manual#automation-ladder",
+  },
+  automationLadder: {
+    title: "Automation Ladder",
+    description:
+      "Five levels (skills → desktop → cloud cron → webhook → goal mode). Hybrid: judgment in Queenswarm, dumb pipes in n8n/Make.",
+    options: [
+      "L1 — presets + Pattern Router (manual Create).",
+      "L3 — SupervisorRoutine cron or Recipe → Routine.",
+      "L4 — webhook POST with text field + X-Queenswarm-Webhook-Token.",
+      "L5 — Knowledge → Goals (GoalOrchestrator).",
+    ],
+    manualHref: "/manual#automation-ladder",
   },
   agentsRoster: {
     title: "Active roster",

@@ -5,6 +5,8 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.presentation.api.deps import DashboardSession, DbSession, RecipeMutationSubject, require_dashboard_user_with_tenant_role
@@ -14,11 +16,12 @@ from app.infrastructure.persistence.models.recipe import Recipe
 from app.common.schemas.recipes_catalog import RecipeCatalogItem
 from app.common.schemas.recipes_search import RecipeSemanticHit
 from app.common.schemas.recipes_write import RecipeCreateBody, RecipePatchBody
-from app.domain.recipes.orchestration_pattern_stacks import list_orchestration_pattern_stacks
 from app.application.services.recipe_catalog import list_recipe_catalog_rows
 from app.application.services.recipe_pattern_tags import recipe_to_catalog_item
 from app.application.services.recipe_chroma_bridge import search_recipes_semantic
 from app.application.services.recipe_match_config import RecipeMatchConfigResponse, build_recipe_match_config
+from app.application.services.supervisor.recipe_routine import create_routine_from_recipe
+from app.domain.recipes.orchestration_pattern_stacks import list_orchestration_pattern_stacks
 from app.application.services.recipe_write import (
     RecipeWriteConflictError,
     RecipeWriteEmptyPatchError,
@@ -484,6 +487,86 @@ async def delete_recipe(
     )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+class RecipeRoutineCreateBody(BaseModel):
+    """Schedule a verified recipe as a supervisor routine."""
+
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+
+    name: str | None = Field(default=None, max_length=160)
+    schedule_kind: str = Field(default="cron", pattern="^(interval|cron|event)$")
+    interval_seconds: int | None = Field(default=86400, ge=60, le=86_400)
+    cron_expr: str | None = Field(default="0 9 * * *", max_length=64)
+    runtime_mode: str = Field(default="durable", pattern="^(inprocess|durable)$")
+    enable_webhook: bool = False
+
+
+class RecipeRoutineCreateResponse(BaseModel):
+    """Acknowledgement after recipe → routine conversion."""
+
+    routine_id: uuid.UUID
+    routine_name: str
+    recipe_id: uuid.UUID
+    schedule_kind: str
+    roles: list[str]
+    webhook_url: str | None = None
+    webhook_token: str | None = None
+
+
+@router.post(
+    "/{recipe_id}/routine",
+    response_model=RecipeRoutineCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create supervisor routine from verified recipe",
+)
+async def create_routine_from_recipe_route(
+    recipe_id: uuid.UUID,
+    body: RecipeRoutineCreateBody,
+    db: DbSession,
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+) -> RecipeRoutineCreateResponse:
+    """One-click Automation Ladder L3 — schedule a verified recipe as a cloud routine."""
+
+    _ensure_recipes_enabled()
+    if not settings.routines_enabled:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Routines are disabled.")
+
+    row = await db.scalar(select(Recipe).where(Recipe.id == recipe_id))
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recipe not found.")
+
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    subject = f"dashboard:{user.id}" if user is not None else None
+    routine, meta = await create_routine_from_recipe(
+        db,
+        recipe=row,
+        name=body.name,
+        schedule_kind=body.schedule_kind,  # type: ignore[arg-type]
+        interval_seconds=body.interval_seconds,
+        cron_expr=body.cron_expr,
+        runtime_mode=body.runtime_mode,  # type: ignore[arg-type]
+        enable_webhook=body.enable_webhook,
+        created_by_subject=subject,
+        tenant_id=tenant_id,
+    )
+    await db.commit()
+
+    from app.application.services.supervisor.routine_webhook import build_routine_webhook_url
+
+    webhook_token = meta.get("webhook_token")
+    return RecipeRoutineCreateResponse(
+        routine_id=routine.id,
+        routine_name=routine.name,
+        recipe_id=row.id,
+        schedule_kind=str(routine.schedule_kind),
+        roles=list(meta.get("roles") or []),
+        webhook_url=build_routine_webhook_url(routine_id=routine.id) if webhook_token else None,
+        webhook_token=str(webhook_token) if webhook_token else None,
+    )
 
 
 __all__ = ["router"]

@@ -2084,6 +2084,10 @@ class Settings(BaseSettings):
         default=False,
         description="Enable recurring/scheduled supervisor routines and Celery tick execution.",
     )
+    supervisor_routine_webhook_enabled: bool = Field(
+        default=True,
+        description="Enable token-authenticated POST webhook ingress for event-driven supervisor routines.",
+    )
     routine_watch_interval_sec: int = Field(
         default=120,
         ge=30,

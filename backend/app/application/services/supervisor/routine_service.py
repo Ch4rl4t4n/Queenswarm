@@ -300,7 +300,13 @@ async def list_supervisor_routines(
     return list((await db.scalars(stmt)).all())
 
 
-async def trigger_supervisor_routine_now(db: AsyncSession, *, routine: SupervisorRoutine) -> uuid.UUID:
+async def trigger_supervisor_routine_now(
+    db: AsyncSession,
+    *,
+    routine: SupervisorRoutine,
+    event_text: str | None = None,
+    trigger_source: str = "manual",
+) -> uuid.UUID:
     """Spawn an immediate supervisor session for a routine and update run cursors."""
 
     from app.application.services.supervisor.session_service import create_supervisor_session
@@ -338,7 +344,10 @@ async def trigger_supervisor_routine_now(db: AsyncSession, *, routine: Superviso
         "continuous_intelligence_report": report,
         "autonomous_plan": dict(payload.get("autonomous_plan") or {}),
         "autonomy_snapshot": autonomy_snapshot_payload,
+        "routine_trigger_source": trigger_source[:120],
     }
+    if event_text:
+        context_seed["webhook_event_text"] = event_text[:8000]
     from app.application.services.queen_maintainer.service import is_queen_maintainer_routine
 
     if is_queen_maintainer_routine(routine):
@@ -372,9 +381,13 @@ async def trigger_supervisor_routine_now(db: AsyncSession, *, routine: Superviso
 
         context_seed.update(enable_hivemind_verify_seed(roles=roles_list))
 
+    goal_text = str(routine.goal_template or "")
+    if event_text:
+        goal_text = f"{goal_text}\n\n=== EVENT CONTEXT ===\n{event_text.strip()[:8000]}"
+
     created = await create_supervisor_session(
         db,
-        goal=routine.goal_template,
+        goal=goal_text,
         created_by_subject=f"routine:{routine.id}",
         runtime_mode=routine.runtime_mode,
         roles=list(routine.roles or []),
@@ -401,6 +414,7 @@ async def trigger_supervisor_routine_now(db: AsyncSession, *, routine: Superviso
             "ran_at": now.isoformat(),
             "status": "triggered",
             "session_id": str(created.id),
+            "trigger_source": trigger_source[:120],
         },
     )
     routine.context_payload = consolidate_routine_memory(context_payload=payload)

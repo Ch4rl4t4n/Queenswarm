@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import UTC, datetime
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
@@ -69,12 +70,20 @@ from app.application.services.supervisor.initiative import (
     list_agent_suggestions,
     review_agent_suggestion_with_handoff,
 )
-from app.application.services.supervisor.autonomy import compile_swarm_autonomy_snapshot
+from app.application.services.supervisor.routine_webhook import (
+    build_routine_webhook_url,
+    disable_routine_webhook,
+    enable_routine_webhook,
+    handle_routine_webhook,
+    verify_routine_webhook_token,
+    webhook_config_from_payload,
+)
 from app.application.services.supervisor.pattern_router import (
     build_pattern_prompt_block,
     pattern_skill_slugs,
     select_patterns_for_task,
 )
+from app.application.services.supervisor.autonomy import compile_swarm_autonomy_snapshot
 from app.application.services.supervisor.sub_agent_job import (
     build_sub_agent_job_snapshot,
     extract_celery_task_id,
@@ -382,6 +391,38 @@ class SupervisorRoutineView(BaseModel):
     last_error: str | None
     created_at: datetime
     updated_at: datetime
+
+
+class RoutineWebhookBody(BaseModel):
+    """Inbound webhook payload — primary field is ``text`` (Claude routines compatible)."""
+
+    model_config = ConfigDict(extra="allow")
+
+    text: str | None = Field(default=None, max_length=8000)
+    message: str | None = Field(default=None, max_length=8000)
+    source: str | None = Field(default=None, max_length=120)
+    payload: str | dict[str, Any] | None = None
+
+
+class RoutineWebhookConfigView(BaseModel):
+    """Webhook ingress metadata for operator UI (token never echoed)."""
+
+    routine_id: uuid.UUID
+    enabled: bool
+    webhook_url: str
+    has_token: bool
+    last_received_at: str | None = None
+    trigger_count: int = 0
+    make_hint: str = ""
+
+
+class RoutineWebhookEnableResponse(BaseModel):
+    """One-time token returned when webhook ingress is enabled."""
+
+    routine_id: uuid.UUID
+    webhook_url: str
+    token: str
+    curl_example: str
 
 
 class SupervisorControlSummaryView(BaseModel):
@@ -1958,6 +1999,158 @@ async def trigger_agent_routine(
     session_id = await trigger_supervisor_routine_now(db, routine=row)
     await db.commit()
     return {"session_id": str(session_id)}
+
+
+@router.get(
+    "/routines/{routine_id}/webhook-config",
+    response_model=RoutineWebhookConfigView,
+    summary="Webhook ingress config for one routine",
+)
+async def get_routine_webhook_config(
+    routine_id: uuid.UUID,
+    _sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("supervisor:view")),
+) -> RoutineWebhookConfigView:
+    """Return webhook URL and telemetry without exposing stored token hash."""
+
+    row = await db.scalar(select(SupervisorRoutine).where(SupervisorRoutine.id == routine_id))
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Routine not found.")
+    cfg = webhook_config_from_payload(dict(row.context_payload or {}))
+    enabled = bool(cfg.get("enabled"))
+    return RoutineWebhookConfigView(
+        routine_id=row.id,
+        enabled=enabled,
+        webhook_url=build_routine_webhook_url(routine_id=row.id),
+        has_token=bool(cfg.get("token_hash")),
+        last_received_at=str(cfg.get("last_received_at") or "") or None,
+        trigger_count=int(cfg.get("trigger_count") or 0),
+        make_hint=(
+            "Use Make/n8n to POST JSON {\"text\": \"...\"} with header X-Queenswarm-Webhook-Token."
+            if enabled
+            else ""
+        ),
+    )
+
+
+@router.post(
+    "/routines/{routine_id}/webhook/enable",
+    response_model=RoutineWebhookEnableResponse,
+    summary="Enable webhook ingress and rotate token",
+)
+async def enable_routine_webhook_route(
+    routine_id: uuid.UUID,
+    _sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("supervisor:run")),
+) -> RoutineWebhookEnableResponse:
+    """Enable event webhook for one routine; returns bearer token once."""
+
+    if not settings.routines_enabled:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Routines are disabled.")
+    if not settings.supervisor_routine_webhook_enabled:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Routine webhooks are disabled.")
+    row = await db.scalar(select(SupervisorRoutine).where(SupervisorRoutine.id == routine_id))
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Routine not found.")
+    token, payload = enable_routine_webhook(context_payload=dict(row.context_payload or {}))
+    payload["watch_mode"] = True
+    row.context_payload = payload
+    row.schedule_kind = "event"
+    await db.commit()
+    url = build_routine_webhook_url(routine_id=row.id)
+    curl = (
+        f'curl -X POST "{url}" '
+        f'-H "Content-Type: application/json" '
+        f'-H "X-Queenswarm-Webhook-Token: {token}" '
+        f'-d \'{{"text":"Meeting ended — follow up with ACME","source":"fireflies"}}\''
+    )
+    return RoutineWebhookEnableResponse(
+        routine_id=row.id,
+        webhook_url=url,
+        token=token,
+        curl_example=curl,
+    )
+
+
+@router.delete(
+    "/routines/{routine_id}/webhook",
+    response_model=RoutineWebhookConfigView,
+    summary="Disable webhook ingress for one routine",
+)
+async def disable_routine_webhook_route(
+    routine_id: uuid.UUID,
+    _sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("supervisor:run")),
+) -> RoutineWebhookConfigView:
+    """Remove webhook token and disable ingress."""
+
+    row = await db.scalar(select(SupervisorRoutine).where(SupervisorRoutine.id == routine_id))
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Routine not found.")
+    row.context_payload = disable_routine_webhook(context_payload=dict(row.context_payload or {}))
+    await db.commit()
+    return RoutineWebhookConfigView(
+        routine_id=row.id,
+        enabled=False,
+        webhook_url=build_routine_webhook_url(routine_id=row.id),
+        has_token=False,
+    )
+
+
+@router.post(
+    "/routines/{routine_id}/webhook",
+    response_model=dict[str, str],
+    summary="Webhook ingress — spawn session from external event (token auth, no JWT)",
+    include_in_schema=settings.supervisor_routine_webhook_enabled,
+)
+async def routine_webhook_ingress(
+    routine_id: uuid.UUID,
+    request: Request,
+    db: DbSession,
+    body: RoutineWebhookBody | None = None,
+    webhook_token: str | None = Header(default=None, alias="X-Queenswarm-Webhook-Token"),
+) -> dict[str, str]:
+    """Accept external webhook events (Make, n8n, Fireflies middleware) and spawn a session."""
+
+    if not settings.routines_enabled or not settings.supervisor_routine_webhook_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Routine webhooks disabled.")
+
+    row = await db.scalar(select(SupervisorRoutine).where(SupervisorRoutine.id == routine_id))
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Routine not found.")
+    token = (webhook_token or "").strip()
+    if not verify_routine_webhook_token(context_payload=dict(row.context_payload or {}), token=token):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid webhook token.")
+
+    payload: dict[str, Any]
+    if body is not None:
+        payload = body.model_dump(exclude_none=True)
+    else:
+        raw = await request.body()
+        if not raw:
+            payload = {}
+        else:
+            try:
+                parsed = json.loads(raw.decode("utf-8"))
+                payload = parsed if isinstance(parsed, dict) else {"text": str(parsed)}
+            except json.JSONDecodeError:
+                payload = {"text": raw.decode("utf-8", errors="replace")[:8000]}
+
+    source_header = request.headers.get("X-Queenswarm-Webhook-Source")
+    try:
+        session_id = await handle_routine_webhook(
+            db,
+            routine=row,
+            body=payload,
+            source_header=source_header,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return {"session_id": str(session_id), "status": "queued"}
 
 
 @router.get(

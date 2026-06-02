@@ -12,7 +12,9 @@ import { toast } from "sonner";
 import { BrowserHarnessPanel } from "@/components/hive/browser-harness-panel";
 import { AgentsPanelSkeleton } from "@/components/hive/agents-panel-skeleton";
 import { AgentSessionReportDialog } from "@/components/hive/agent-session-report-dialog";
+import { AutomationLadderPanel } from "@/components/hive/automation-ladder-panel";
 import { InfoHint } from "@/components/hive/info-hint";
+import { RoutineWebhookControls } from "@/components/hive/routine-webhook-controls";
 import { SessionPatternSkillsPanel } from "@/components/hive/session-pattern-skills-panel";
 import { VoiceSessionControls } from "@/components/hive/voice-session-controls";
 import { usePlatform } from "@/components/hive/platform-context";
@@ -659,6 +661,10 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
         <BrowserHarnessPanel />
       </div>
 
+      <div className={isV4 ? "mt-4" : "mt-3"}>
+        <AutomationLadderPanel />
+      </div>
+
       {soloMode && soloPresets?.presets?.length ? (
         <div className={isV4 ? "mt-4" : "mt-3"}>
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-(--qs-text-3)">
@@ -1121,6 +1127,7 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
               <p className="text-xs text-(--qs-text-2)">
                 <span className="font-semibold text-(--qs-text)">{routine.name}</span> · every {routine.interval_seconds ?? 0}s · {routine.status}
               </p>
+              <RoutineWebhookControls routineId={routine.id} routineName={routine.name} />
               <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void triggerRoutine(routine.id)}>
                 Run now
               </button>

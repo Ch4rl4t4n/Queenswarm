@@ -308,6 +308,27 @@ export const APP_MANUAL_SECTIONS: ManualSection[] = [
     ],
   },
   {
+    id: "automation-ladder",
+    title: "Automation Ladder — stop babysitting Claude (L1–L5)",
+    paragraphs: [
+      `Framework from [Brad's automation video](https://www.youtube.com/watch?v=1RdkW1zqv-U): five levels from on-demand skills to hosted agents. Queenswarm maps each level to native bees — **no single answer fits every workflow**.`,
+      `**L1 Skills & presets** — Pattern Router preview + session presets. You still click Create. Best for repeatable missions with changing inputs.`,
+      `**L2 Desktop / browser** — [Browser Harness](${MANUAL_HREFS.agentsSessions}) with logged-in Chrome. Your laptop must be awake.`,
+      `**L3 Cloud schedule** — [Supervisor Routines](${MANUAL_HREFS.agentsSessions}) (cron/Celery) or **Recipe → Routine**: \`POST /api/v1/recipes/{id}/routine\`. Runs when laptop is closed.`,
+      `**L4 Event webhook** — Enable webhook on a routine → copy URL + token → Make/n8n middleware shapes payload as \`{"text":"..."}\` + header \`X-Queenswarm-Webhook-Token\`. Spawns durable session with EVENT CONTEXT appended to goal.`,
+      `**L5 Goal mode** — [Knowledge → Goals](${MANUAL_HREFS.knowledgeGoals}): Queen GoalOrchestrator iterates until done/budget. Multi-step projects without pressing Enter each turn.`,
+      `**Hybrid rule:** judgment/research → Queenswarm. Deterministic pipes (Stripe→accounting) → n8n/Make — never burn LLM tokens on dumb sync.`,
+      `Env: \`ROUTINES_ENABLED=true\`, \`SUPERVISOR_ROUTINE_WEBHOOK_ENABLED=true\`. Audit: \`./scripts/operator-automation-ladder-audit.sh\`.`,
+    ],
+    checklist: [
+      { text: "L1 — preset + Pattern preview → Create session", href: MANUAL_HREFS.agentsSessions, linkLabel: "Agents" },
+      { text: "L3 — verified recipe → cron routine", href: MANUAL_HREFS.knowledgeRecipes, linkLabel: "Recipes" },
+      { text: "L4 — routine webhook + Make middleware", href: MANUAL_HREFS.agentsSessions, linkLabel: "Webhook controls" },
+      { text: "L5 — multi-iteration Queen goal", href: MANUAL_HREFS.knowledgeGoals, linkLabel: "Goals" },
+      { text: "Run automation ladder audit after changes", href: MANUAL_HREFS.manualAutomationLadder, linkLabel: "Audit script" },
+    ],
+  },
+  {
     id: "agent-workflows",
     title: "Agent workflow catalog (when to use which lane)",
     paragraphs: [
@@ -530,6 +551,18 @@ export const APP_FUNCTION_GUIDE: FunctionInfoGroup[] = [
           "Resolved skills by sub-agent role in report",
         ],
         href: MANUAL_HREFS.manualPatternRouter,
+      },
+      {
+        id: "automation-ladder",
+        label: "Automation Ladder (L1–L5)",
+        description:
+          "When to use presets, browser harness, cron routines, webhooks, or Goal mode — hybrid with n8n/Make for dumb pipes.",
+        options: [
+          "L3 Recipe → Routine one-click API",
+          "L4 Webhook ingress on routines",
+          "L5 Goals in Knowledge tab",
+        ],
+        href: MANUAL_HREFS.manualAutomationLadder,
       },
     ],
   },
