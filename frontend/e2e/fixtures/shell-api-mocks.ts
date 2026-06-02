@@ -27,6 +27,22 @@ const STUB_TASK_QUEUE = {
   completed_today_count: 0,
 };
 
+const STUB_MISSION_KANBAN_TASK_ID = "22222222-2222-4222-8222-222222222222";
+
+const STUB_MISSION_KANBAN_TASKS = [
+  {
+    id: STUB_MISSION_KANBAN_TASK_ID,
+    title: "Content week",
+    status: "completed",
+    task_type: "agent_run",
+    priority: 5,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    agent_name: null,
+    payload: { task_text: "Launch content week for queenswarm.love (simulate-first)." },
+  },
+];
+
 const STUB_COCKPIT_BUNDLE = {
   generated_at: new Date().toISOString(),
   revision: 1,
@@ -1466,7 +1482,42 @@ export async function installShellApiMocks(page: Page): Promise<void> {
     }
 
     if (path.startsWith("tasks?")) {
-      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_MISSION_KANBAN_TASKS),
+      });
+      return;
+    }
+
+    if (path.startsWith("tasks/")) {
+      const method = route.request().method();
+      if (method === "DELETE") {
+        await route.fulfill({ status: 204, body: "" });
+        return;
+      }
+      if (method === "PATCH") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ ...STUB_MISSION_KANBAN_TASKS[0], title: "Content week (edited)" }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_MISSION_KANBAN_TASKS[0]),
+      });
+      return;
+    }
+
+    if (path === "tasks/bulk-cancel") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ cancelled: 1, skipped_running: 0, not_found: 0 }),
+      });
       return;
     }
 

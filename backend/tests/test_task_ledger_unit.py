@@ -7,9 +7,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.models.enums import TaskStatus, TaskType
-from app.models.task import Task
-from app.services.task_ledger import (
+from app.infrastructure.persistence.models.enums import TaskStatus, TaskType
+from app.infrastructure.persistence.models.task import Task
+from app.application.services.task_ledger import (
     TaskUpsertViolationError,
     apply_task_updates,
     create_task_record,

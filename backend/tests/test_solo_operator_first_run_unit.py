@@ -19,7 +19,8 @@ from app.domain.memory.curated import CuratedFileKind, CuratedMemoryFile
 
 
 def test_brief_is_ready_when_project_marker_present() -> None:
-    assert _brief_is_ready("PROJECT: Test\nGoal: x") is True
+    long_brief = f"PROJECT: Test\nGoal: x\n{'detail line ' * 20}"
+    assert _brief_is_ready(long_brief) is True
     assert _brief_is_ready("short") is False
 
 
