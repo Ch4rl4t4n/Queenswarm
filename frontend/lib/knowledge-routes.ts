@@ -2,9 +2,9 @@
 
 import { resolvePrimarySubnavFromUrl, SUBNAV_MENU_KEYS } from "@/lib/subnav-order-preferences";
 
-export type KnowledgeTab = "hivemind" | "outputs" | "recipes" | "dreaming" | "memory" | "goals";
+export type KnowledgeTab = "hivemind" | "outputs" | "recipes" | "dreaming" | "memory" | "wiki" | "goals";
 
-const ALL_KNOWLEDGE_TABS: KnowledgeTab[] = ["hivemind", "outputs", "recipes", "dreaming", "memory", "goals"];
+const ALL_KNOWLEDGE_TABS: KnowledgeTab[] = ["hivemind", "outputs", "recipes", "dreaming", "memory", "wiki", "goals"];
 
 const HASH_TO_TAB: Record<string, KnowledgeTab> = {
   hivemind: "hivemind",
@@ -14,6 +14,7 @@ const HASH_TO_TAB: Record<string, KnowledgeTab> = {
   learning: "recipes",
   dreaming: "dreaming",
   memory: "memory",
+  wiki: "wiki",
   goals: "goals",
 };
 

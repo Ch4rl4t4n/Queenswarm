@@ -152,7 +152,9 @@ test.describe("Whole-App critical journeys — desktop", () => {
     await gotoShellRoute(page, "/tasks");
     await assertShellTitle(page, "Tasks");
 
-    await page.getByRole("link", { name: "New task" }).first().click();
+    const newTask = page.getByRole("link", { name: "New task" }).first();
+    await expect(newTask).toBeVisible({ timeout: 20_000 });
+    await newTask.click();
     await expect(page).toHaveURL(/\/tasks\/new/, { timeout: 15_000 });
     await expect(page.getByRole("heading", { name: "New task" })).toBeVisible({ timeout: 20_000 });
   });

@@ -68,6 +68,17 @@ class SharedContextService:
             "hybrid_memory",
         ],
         "triage": ["recent_events", "policy", "semantic_memory", "graph_context"],
+        "wiki_only": [
+            "policy",
+            "customer_profile",
+            "similar_past_decisions",
+        ],
+        "deep_raw": [
+            "semantic_memory",
+            "graph_context",
+            "hybrid_memory",
+            "last_7_days_tasks",
+        ],
     }
     _SECTION_SYNONYMS: dict[str, str] = {
         "customer": "customer_profile",

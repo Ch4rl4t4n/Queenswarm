@@ -275,6 +275,10 @@ export function TasksPageClient() {
       error={hivePageShellError(err, () => setErr(null))}
       status={
         <div className="flex items-center gap-2">
+          <Link href="/tasks/new" className="qs-btn qs-btn--ghost qs-btn--sm hidden gap-1.5 lg:inline-flex">
+            <Plus className="h-3.5 w-3.5" aria-hidden />
+            New task
+          </Link>
           <div className="hidden gap-1 lg:flex">
             <button
               type="button"

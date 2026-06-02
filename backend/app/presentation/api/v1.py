@@ -53,6 +53,7 @@ from app.presentation.api.routers import harness as harness_router
 from app.presentation.api.routers import episodic_memory as episodic_memory_router
 from app.presentation.api.routers import dreaming as dreaming_router
 from app.presentation.api.routers import curated_memory as curated_memory_router
+from app.presentation.api.routers import wiki_layer as wiki_layer_router
 from app.presentation.api.routers import goals as goals_router
 from app.presentation.api.routers import agent_templates as agent_templates_router
 from app.presentation.api.routers import foragers as foragers_router
@@ -139,6 +140,7 @@ api_v1.include_router(episodic_memory_router.router)
 api_v1.include_router(llm_routing_router.router)
 api_v1.include_router(auto_graphify_router.router)
 api_v1.include_router(curated_memory_router.router)
+api_v1.include_router(wiki_layer_router.router)
 api_v1.include_router(goals_router.router)
 api_v1.include_router(agent_templates_router.router)
 api_v1.include_router(foragers_router.router)

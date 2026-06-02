@@ -26,6 +26,7 @@ from app.application.services.selective_recall import (
     rank_vector_hits,
     score_vector_similarity,
 )
+from app.application.services.wiki_layer_service import RetrievalTier, normalize_retrieval_tier
 from app.domain.hive_mind.graph import (
     bounded_operator_graph_snapshot,
     neighbor_snapshot_for_prompt,
@@ -187,6 +188,7 @@ class HiveMindService:
         tenant_id: uuid.UUID | None = None,
         recall_mode: RecallMode | str | None = None,
         token_budget_chars: int = 0,
+        retrieval_tier: RetrievalTier | str | None = None,
     ) -> str:
         """Return Markdown snippet for orch / manager conditioning (vectors + graph neighbours)."""
 
@@ -194,6 +196,9 @@ class HiveMindService:
         if not cfg.hive_mind_enabled or not relevance_to_current_task.strip():
             return ""
 
+        tier = normalize_retrieval_tier(
+            retrieval_tier if retrieval_tier is not None else "wiki_only",
+        )
         mode = normalize_recall_mode(
             recall_mode
             if recall_mode is not None
@@ -209,6 +214,9 @@ class HiveMindService:
         clipped_query = relevance_to_current_task.strip()[:4000]
         lines: list[str] = []
         pruned = 0
+
+        if tier == "wiki_only":
+            return ""
 
         max_hits = (
             cfg.hive_mind_selective_recall_max_hits

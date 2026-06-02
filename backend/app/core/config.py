@@ -556,6 +556,22 @@ class Settings(BaseSettings):
         le=200_000_000,
         description="Max in-memory ZIP size for /hive-mind/export bundles.",
     )
+    wiki_layer_enabled: bool = Field(
+        default=True,
+        description="Enable Karpathy-style Wiki Layer (hot wiki + cold raw tier).",
+    )
+    wiki_layer_max_prompt_chars: int = Field(
+        default=4_800,
+        ge=512,
+        le=16_000,
+        description="Max chars for compiled wiki block injected into Queen prompts.",
+    )
+    wiki_layer_gardener_pollen: float = Field(
+        default=3.0,
+        ge=0.0,
+        le=50.0,
+        description="Pollen awarded when Wiki Gardener updates pages.",
+    )
     external_integration_audit_to_vault: bool = Field(
         default=True,
         description="Mirror external integration audit lines into HiveMind vault.",

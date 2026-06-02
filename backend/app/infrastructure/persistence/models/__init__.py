@@ -42,6 +42,8 @@ _EXPORTABLE: dict[str, tuple[str, str]] = {
     "GraphifyBatchORM": ("app.infrastructure.persistence.models.graphify_batch", "GraphifyBatchORM"),
     "GoalORM": ("app.infrastructure.persistence.models.goal", "GoalORM"),
     "GoalAuditResultORM": ("app.infrastructure.persistence.models.goal", "GoalAuditResultORM"),
+    "WikiLayerPageORM": ("app.infrastructure.persistence.models.wiki_layer", "WikiLayerPageORM"),
+    "WikiGardenerRunORM": ("app.infrastructure.persistence.models.wiki_layer", "WikiGardenerRunORM"),
     "DashboardUserTenantMembership": (
         "app.infrastructure.persistence.models.tenant",
         "DashboardUserTenantMembership",
@@ -128,6 +130,7 @@ _MODEL_PACKAGES: tuple[str, ...] = (
     "app.infrastructure.persistence.models.dream_cycle",
     "app.infrastructure.persistence.models.dump_sleep_batch",
     "app.infrastructure.persistence.models.goal",
+    "app.infrastructure.persistence.models.wiki_layer",
     "app.infrastructure.persistence.models.operator_external_api",
     "app.infrastructure.persistence.models.connector_vault_entry",
     "app.infrastructure.persistence.models.commerce_order_event",

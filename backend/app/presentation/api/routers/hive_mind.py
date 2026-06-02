@@ -24,6 +24,7 @@ from app.core.redis_client import get_json, set_json
 from app.domain.hive_mind.graph import bounded_operator_graph_snapshot, bounded_tenant_project_shape_snapshot
 from app.domain.hive_mind.service import HiveMindService
 from app.domain.outputs.service import fetch_owned_deliverable
+from app.application.services.wiki_layer_service import load_wiki_config
 from app.application.services.selective_recall import (
     effective_prompt_char_budget,
     load_recall_config,
@@ -348,6 +349,7 @@ async def recall_preview(
 
     tenant_id = await _assert_selective_recall_feature(db, principal)
     cfg = await load_recall_config(db, tenant_id=tenant_id)
+    wiki_cfg = await load_wiki_config(db, tenant_id=tenant_id)
     budget = effective_prompt_char_budget(
         recall_mode=normalize_recall_mode(cfg.get("recall_mode")),
         tenant_budget=int(cfg.get("token_budget_chars") or 0),
@@ -363,12 +365,16 @@ async def recall_preview(
         tenant_id=tenant_id,
         recall_mode=str(cfg.get("recall_mode") or "selective"),
         token_budget_chars=int(cfg.get("token_budget_chars") or 0),
+        retrieval_tier=str(wiki_cfg.get("retrieval_tier") or "wiki_only"),
     )
+    telemetry = dict(wiki_cfg.get("telemetry") or {})
     return {
         "recall_mode": str(cfg.get("recall_mode") or "selective"),
+        "retrieval_tier": str(wiki_cfg.get("retrieval_tier") or "wiki_only"),
         "characters": len(text),
         "char_budget": budget,
         "hive_mind_prompt_block": text,
+        "wiki_telemetry": telemetry,
     }
 
 
