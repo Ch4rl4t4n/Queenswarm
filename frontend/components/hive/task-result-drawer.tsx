@@ -1,6 +1,7 @@
 "use client";
 
-import { HiveApiError, hiveFetchRaw, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { HiveApiError, hiveDelete, hiveFetchRaw, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
 import { COCKPIT_POLL_TASK_DRAWER_MS } from "@/lib/cockpit-poll-profile";
 import { useDocumentVisible } from "@/lib/hooks/use-document-visible";
 import type { TaskLineageResponse, TaskRow, TaskWorkspaceResponse } from "@/lib/hive-types";
@@ -16,6 +17,8 @@ interface TaskDrawerDetail extends TaskRow {
 interface TaskResultDrawerProps {
   taskId: string | null;
   onClose: () => void;
+  initialEdit?: boolean;
+  onMutated?: () => void;
 }
 
 function displayStatus(status: string | undefined): string {
@@ -130,7 +133,12 @@ function LiveStatusPoller({
   );
 }
 
-export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JSX.Element | null {
+export function TaskResultDrawer({
+  taskId,
+  onClose,
+  initialEdit = false,
+  onMutated,
+}: TaskResultDrawerProps): JSX.Element | null {
   const [task, setTask] = useState<TaskDrawerDetail | null>(null);
   const [lineage, setLineage] = useState<TaskLineageResponse | null>(null);
   const [workspace, setWorkspace] = useState<TaskWorkspaceResponse | null>(null);
@@ -139,6 +147,11 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
   const [slideIn, setSlideIn] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [noteBusy, setNoteBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editTaskText, setEditTaskText] = useState("");
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const pollComplete = useCallback((next: TaskDrawerDetail) => setTask(next), []);
 
   useEffect(() => {
@@ -161,6 +174,11 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
         setTask(detail);
         setLineage(tree);
         setWorkspace(files);
+        setEditTitle(detail.title);
+        const text =
+          detail.payload && typeof detail.payload.task_text === "string" ? detail.payload.task_text : "";
+        setEditTaskText(text);
+        setEditing(initialEdit);
         setLoading(false);
         requestAnimationFrame(() => setSlideIn(true));
       })
@@ -170,7 +188,51 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
           e instanceof HiveApiError ? `${e.message} (${e.status})` : e instanceof Error ? e.message : "Load failed";
         setDrawerError(msg);
       });
-  }, [taskId]);
+  }, [taskId, initialEdit]);
+
+  function beginEdit(): void {
+    if (!task) return;
+    setEditTitle(task.title);
+    const text =
+      task.payload && typeof task.payload.task_text === "string" ? task.payload.task_text : "";
+    setEditTaskText(text);
+    setEditing(true);
+  }
+
+  async function handleSaveEdit(): Promise<void> {
+    if (!taskId) return;
+    const title = editTitle.trim();
+    if (title.length < 2) {
+      window.alert("Title must be at least 2 characters.");
+      return;
+    }
+    setSaveBusy(true);
+    try {
+      const next = await hivePatchJson<TaskDrawerDetail>(`tasks/${encodeURIComponent(taskId)}`, {
+        title,
+        task_text: editTaskText.trim(),
+      });
+      setTask(next);
+      setEditing(false);
+      onMutated?.();
+    } catch (e) {
+      window.alert(e instanceof HiveApiError ? e.message : "Save failed");
+    } finally {
+      setSaveBusy(false);
+    }
+  }
+
+  async function handleDeleteTask(): Promise<void> {
+    if (!taskId) return;
+    setDeleteOpen(false);
+    try {
+      await hiveDelete<void>(`tasks/${encodeURIComponent(taskId)}`);
+      onMutated?.();
+      onClose();
+    } catch (e) {
+      window.alert(e instanceof HiveApiError ? e.message : "Could not remove task");
+    }
+  }
 
   if (!taskId) {
     return null;
@@ -269,6 +331,11 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
     try {
       const next = await hivePatchJson<TaskDrawerDetail>(`tasks/${encodeURIComponent(taskId)}`, { status });
       setTask(next);
+      onMutated?.();
+      if (status === "completed") {
+        const { celebrateVerifiedOutcome } = await import("@/lib/celebrate-verified-outcome");
+        await celebrateVerifiedOutcome();
+      }
     } catch (e) {
       window.alert(e instanceof HiveApiError ? e.message : "Status update failed");
     }
@@ -316,7 +383,7 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
 
       <div
         className={cn(
-          "fixed right-0 top-0 z-50 flex h-full w-full max-w-2xl flex-col border-l border-(--qs-border) bg-(--qs-surface) shadow-2xl transition-transform duration-300 ease-out",
+          "fixed right-0 top-0 z-[125] flex h-full w-full max-w-2xl flex-col border-l border-(--qs-border) bg-(--qs-surface) shadow-2xl transition-transform duration-300 ease-out",
           slideIn ? "translate-x-0" : "translate-x-full",
         )}
       >
@@ -335,7 +402,15 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
               ) : null}
             </div>
             <h2 className="truncate font-[family-name:var(--font-poppins)] text-base font-semibold text-[#fafafa]">
-              {task?.title ?? "Loading..."}
+              {editing ? (
+                <input
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full rounded-lg border border-[color:var(--qs-border)] bg-black/45 px-2 py-1 text-base text-[#fafafa] focus:border-pollen/35 focus:outline-none"
+                />
+              ) : (
+                (task?.title ?? "Loading...")
+              )}
             </h2>
             {task?.created_at ? (
               <p className="mt-0.5 font-[family-name:var(--font-poppins)] text-[11px] text-zinc-600">
@@ -379,9 +454,29 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
               {taskText ? (
                 <div>
                   <p className="qs-meta-label mb-2 text-zinc-500">Description</p>
-                  <pre className="whitespace-pre-wrap rounded-xl border border-[color:var(--qs-border)] bg-black/40 p-3 text-xs text-zinc-300">
-                    {taskText}
-                  </pre>
+                  {editing ? (
+                    <textarea
+                      value={editTaskText}
+                      onChange={(e) => setEditTaskText(e.target.value)}
+                      rows={12}
+                      className="w-full rounded-xl border border-[color:var(--qs-border)] bg-black/40 p-3 text-xs text-zinc-300 focus:border-pollen/35 focus:outline-none"
+                    />
+                  ) : (
+                    <pre className="whitespace-pre-wrap rounded-xl border border-[color:var(--qs-border)] bg-black/40 p-3 text-xs text-zinc-300">
+                      {taskText}
+                    </pre>
+                  )}
+                </div>
+              ) : editing ? (
+                <div>
+                  <p className="qs-meta-label mb-2 text-zinc-500">Description</p>
+                  <textarea
+                    value={editTaskText}
+                    onChange={(e) => setEditTaskText(e.target.value)}
+                    rows={8}
+                    placeholder="Mission prompt / task description…"
+                    className="w-full rounded-xl border border-[color:var(--qs-border)] bg-black/40 p-3 text-xs text-zinc-300 focus:border-pollen/35 focus:outline-none"
+                  />
                 </div>
               ) : null}
               {lineage?.parent ? (
@@ -498,42 +593,87 @@ export function TaskResultDrawer({ taskId, onClose }: TaskResultDrawerProps): JS
           ) : null}
         </div>
         {!loading && task ? (
-          <footer className="flex flex-wrap justify-end gap-2 border-t border-(--qs-border) bg-(--qs-surface-2) p-4">
-            {statusKey !== "blocked" && statusKey !== "completed" ? (
-              <button
-                type="button"
-                className="qs-btn qs-btn--ghost qs-btn--sm"
-                onClick={() => void handlePatchStatus("blocked")}
-              >
-                Block
-              </button>
-            ) : null}
-            {statusKey === "blocked" ? (
-              <button
-                type="button"
-                className="qs-btn qs-btn--ghost qs-btn--sm"
-                onClick={() => void handlePatchStatus("pending")}
-              >
-                Unblock
-              </button>
-            ) : null}
-            {statusKey !== "completed" ? (
-              <button
-                type="button"
-                className="qs-btn qs-btn--ghost qs-btn--sm"
-                onClick={() => void handlePatchStatus("completed")}
-              >
-                Complete
-              </button>
-            ) : null}
-            {task.agent_id ? (
-              <button type="button" className="qs-btn qs-btn--cyan qs-btn--sm" onClick={() => void handleRerunAgent()}>
-                Re-run agent
-              </button>
-            ) : null}
+          <footer className="border-t border-(--qs-border) bg-(--qs-surface-2) p-4 pr-40 sm:pr-44">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              {statusKey !== "running" ? (
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--danger qs-btn--sm"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  Remove
+                </button>
+              ) : null}
+              {editing ? (
+                <>
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--ghost qs-btn--sm"
+                    disabled={saveBusy}
+                    onClick={() => setEditing(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--primary qs-btn--sm"
+                    disabled={saveBusy}
+                    onClick={() => void handleSaveEdit()}
+                  >
+                    Save
+                  </button>
+                </>
+              ) : (
+                <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={beginEdit}>
+                  Edit
+                </button>
+              )}
+              {statusKey !== "blocked" && statusKey !== "completed" && !editing ? (
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--ghost qs-btn--sm"
+                  onClick={() => void handlePatchStatus("blocked")}
+                >
+                  Block
+                </button>
+              ) : null}
+              {statusKey === "blocked" && !editing ? (
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--ghost qs-btn--sm"
+                  onClick={() => void handlePatchStatus("pending")}
+                >
+                  Unblock
+                </button>
+              ) : null}
+              {statusKey !== "completed" && !editing ? (
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--ghost qs-btn--sm"
+                  onClick={() => void handlePatchStatus("completed")}
+                >
+                  Complete
+                </button>
+              ) : null}
+              {task.agent_id && !editing ? (
+                <button type="button" className="qs-btn qs-btn--cyan qs-btn--sm" onClick={() => void handleRerunAgent()}>
+                  Re-run agent
+                </button>
+              ) : null}
+            </div>
           </footer>
         ) : null}
       </div>
+
+      <ConfirmModal
+        open={deleteOpen}
+        title="Remove task?"
+        message="This cancels the task and removes it from Mission Kanban. Running tasks cannot be removed."
+        confirmLabel="Remove"
+        danger
+        onConfirm={() => void handleDeleteTask()}
+        onCancel={() => setDeleteOpen(false)}
+      />
     </>
   );
 }

@@ -1,6 +1,7 @@
 /** Route labels used by compact mobile chrome (hive header + titles). */
 import { AGENTIC_OS_PRODUCT_NAME } from "@/lib/cross-route-naming";
 import { OPERATOR_CONTROL_PLANE_ENABLED, PHASE70_CONSOLIDATED_NAV_ENABLED } from "@/lib/feature-flags";
+import { hiveMissionControlPageTitle } from "@/lib/hive-home-route";
 
 export interface MobileRouteMeta {
   kicker: string;
@@ -69,8 +70,8 @@ function routeTable(consolidatedEnabled: boolean): { prefix: string; meta: Mobil
     { prefix: "/jobs", meta: { kicker: "Jobs", staticSubtitle: "Celery · async workflow polling", pageTitleSuffix: "Jobs" } },
     { prefix: "/ballroom", meta: { kicker: "Ballroom", staticSubtitle: "Voice + chat", pageTitleSuffix: "Ballroom" } },
     { prefix: "/workflows", meta: { kicker: "Workflows", staticSubtitle: "DAG · pause · cancel", pageTitleSuffix: "Workflows" } },
-    { prefix: "/tasks/new", meta: { kicker: "Tasks", staticSubtitle: "Compose a new swarm mission", pageTitleSuffix: "New task" } },
-    { prefix: "/tasks", meta: { kicker: "Tasks", staticSubtitle: "Backlog · assignments", pageTitleSuffix: "Tasks" } },
+    { prefix: "/tasks/new", meta: { kicker: hiveMissionControlPageTitle(), staticSubtitle: "Compose a new swarm mission", pageTitleSuffix: "New task" } },
+    { prefix: "/tasks", meta: { kicker: hiveMissionControlPageTitle(), staticSubtitle: "Mission Kanban · backlog · assignments", pageTitleSuffix: hiveMissionControlPageTitle() } },
     { prefix: "/agents/new", meta: { kicker: "Agents", staticSubtitle: "Spawn a dynamic bee", pageTitleSuffix: "New agent" } },
     { prefix: "/agents", meta: { kicker: "Agents", staticSubtitle: "Sessions · roster · hierarchy", pageTitleSuffix: "Agents" } },
     { prefix: "/swarms/new", meta: { kicker: "Swarms", staticSubtitle: "Opinionated swarm templates", pageTitleSuffix: "Swarm Builder" } },

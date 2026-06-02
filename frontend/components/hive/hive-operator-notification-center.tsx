@@ -2,11 +2,14 @@
 
 import { Bell, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
+import { toast } from "sonner";
 
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
 import { useOperatorMissionFeedContext } from "@/components/hive/operator-mission-feed-provider";
 import { formatHiveNotificationBadge } from "@/lib/hooks/use-hive-notification-badge";
 import { useOperatorPendingSnapshot } from "@/lib/hooks/use-operator-pending-snapshot";
+import { subscribeExecutionStudioWebPush } from "@/lib/execution-studio-web-push";
 import { studioPendingActionHref, studioPendingApprovalsHref, supervisorSessionHref } from "@/lib/operator-pending-events";
 import { localizePhrase } from "@/lib/ui-copy";
 import type { DashboardSummary } from "@/lib/hive-types";
@@ -120,9 +123,45 @@ export function HiveOperatorNotificationCenter({ summary, className }: HiveOpera
               })}
             </p>
           ) : null}
+          <MissionPushEnableButton />
         </div>
       </details>
     </div>
+  );
+}
+
+function MissionPushEnableButton(): JSX.Element | null {
+  const { language } = useUiLanguage();
+  const [busy, setBusy] = useState(false);
+  if (typeof window === "undefined" || typeof Notification === "undefined") {
+    return null;
+  }
+  if (Notification.permission === "granted") {
+    return null;
+  }
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      className="mt-2 w-full rounded-lg border border-pollen/25 px-2 py-1.5 text-[10px] font-semibold text-pollen transition hover:bg-pollen/10 disabled:opacity-50"
+      onClick={() => {
+        setBusy(true);
+        void subscribeExecutionStudioWebPush()
+          .then((ok) => {
+            toast[ok ? "success" : "message"](
+              ok
+                ? localizePhrase(language, { en: "Browser alerts enabled", sk: "Browser alerts enabled" })
+                : localizePhrase(language, {
+                    en: "Push unavailable — check browser permission",
+                    sk: "Push unavailable — check browser permission",
+                  }),
+            );
+          })
+          .finally(() => setBusy(false));
+      }}
+    >
+      {localizePhrase(language, { en: "Enable browser alerts", sk: "Enable browser alerts" })}
+    </button>
   );
 }
 

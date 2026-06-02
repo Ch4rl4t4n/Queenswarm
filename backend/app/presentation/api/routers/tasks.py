@@ -17,6 +17,8 @@ from app.infrastructure.persistence.models.enums import TaskStatus
 from app.infrastructure.persistence.models.task import Task
 from app.infrastructure.persistence.models.task_final_deliverable import TaskFinalDeliverable
 from app.common.schemas.task import (
+    TaskBulkCancelRequest,
+    TaskBulkCancelResponse,
     TaskCreateRequest,
     TaskLineageResponse,
     TaskPatchRequest,
@@ -34,6 +36,8 @@ from app.application.services.task_presenter import attach_agent_labels, build_t
 from app.application.services.task_ledger import (
     TaskUpsertViolationError,
     apply_task_updates,
+    bulk_cancel_task_records,
+    cancel_task_record,
     create_task_record,
     fetch_task,
     iter_recent_tasks,
@@ -347,7 +351,15 @@ async def patch_existing_task(
 ) -> TaskSnapshot:
     """Update operator-visible fields emitted after LangGraph completions."""
 
-    if body.status is None and body.result is None and body.error_msg is None and body.operator_note is None:
+    if (
+        body.status is None
+        and body.result is None
+        and body.error_msg is None
+        and body.operator_note is None
+        and body.title is None
+        and body.task_text is None
+        and body.priority is None
+    ):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Provide at least one mutable field.",
@@ -363,6 +375,18 @@ async def patch_existing_task(
         except PromptInjectionViolationError as exc:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
+    if body.task_text is not None:
+        try:
+            guard_operator_input(body.task_text, field="task_text")
+        except PromptInjectionViolationError as exc:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+
+    if body.title is not None:
+        try:
+            guard_operator_input(body.title, field="title")
+        except PromptInjectionViolationError as exc:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+
     try:
         await apply_task_updates(
             db,
@@ -371,6 +395,9 @@ async def patch_existing_task(
             result=body.result,
             error_msg=body.error_msg,
             operator_note=body.operator_note,
+            title=body.title,
+            task_text=body.task_text,
+            priority=body.priority,
         )
         await db.commit()
         await db.refresh(row)
@@ -382,6 +409,63 @@ async def patch_existing_task(
         )
     lbl = await attach_agent_labels(db, [row])
     return build_task_snapshot(row, agent_label=lbl.get(row.agent_id))
+
+
+@router.post(
+    "/bulk-cancel",
+    response_model=TaskBulkCancelResponse,
+    summary="Bulk remove tasks from mission kanban (cancel)",
+)
+async def bulk_cancel_existing_tasks(
+    body: TaskBulkCancelRequest,
+    db: DbSession,
+    _session: DashboardSession,
+) -> TaskBulkCancelResponse:
+    """Cancel multiple backlog rows; running tasks are skipped."""
+
+    try:
+        cancelled, skipped_running, not_found = await bulk_cancel_task_records(db, body.task_ids)
+        await db.commit()
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected bulk task removal.",
+        )
+    return TaskBulkCancelResponse(
+        cancelled=cancelled,
+        skipped_running=skipped_running,
+        not_found=not_found,
+    )
+
+
+@router.delete(
+    "/{task_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove task from mission kanban (cancel)",
+)
+async def delete_existing_task(
+    task_id: uuid.UUID,
+    db: DbSession,
+    _session: DashboardSession,
+) -> None:
+    """Cancel a backlog row so it disappears from operator kanban lists."""
+
+    row = await fetch_task(db, task_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found.")
+    try:
+        await cancel_task_record(db, row)
+        await db.commit()
+    except TaskUpsertViolationError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Persistence rejected task removal.",
+        )
 
 
 __all__ = ["router"]

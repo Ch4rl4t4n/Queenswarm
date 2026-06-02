@@ -5,7 +5,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { TasksKanbanBoard } from "@/components/hive/tasks-kanban-board";
-import { HiveApiError, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { celebrateVerifiedOutcome } from "@/lib/celebrate-verified-outcome";
+import { HiveApiError, hiveDelete, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
 import { COCKPIT_POLL_BOARD_MS } from "@/lib/cockpit-poll-profile";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import type { TaskRow } from "@/lib/hive-types";
@@ -27,11 +29,18 @@ interface MissionKanbanTriageResponse {
   title: string;
 }
 
-interface MissionKanbanPanelProps {
-  onOpenTask?: (taskId: string) => void;
+interface TaskBulkCancelResponse {
+  cancelled: number;
+  skipped_running: number;
+  not_found: number;
 }
 
-export function MissionKanbanPanel({ onOpenTask }: MissionKanbanPanelProps): JSX.Element {
+interface MissionKanbanPanelProps {
+  onOpenTask?: (taskId: string, opts?: { edit?: boolean }) => void;
+  refreshSignal?: number;
+}
+
+export function MissionKanbanPanel({ onOpenTask, refreshSignal = 0 }: MissionKanbanPanelProps): JSX.Element {
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -40,6 +49,9 @@ export function MissionKanbanPanel({ onOpenTask }: MissionKanbanPanelProps): JSX
   const [showArchived, setShowArchived] = useState(true);
   const [newTitle, setNewTitle] = useState("");
   const [triageMode, setTriageMode] = useState(true);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [bulkDeleteIds, setBulkDeleteIds] = useState<string[] | null>(null);
+  const [selectedDoneIds, setSelectedDoneIds] = useState<Set<string>>(() => new Set());
 
   const reload = useCallback(async () => {
     try {
@@ -57,7 +69,7 @@ export function MissionKanbanPanel({ onOpenTask }: MissionKanbanPanelProps): JSX
 
   useEffect(() => {
     void reload();
-  }, [reload]);
+  }, [reload, refreshSignal]);
 
   const assignees = useMemo(() => uniqueAssignees(tasks), [tasks]);
 
@@ -163,11 +175,79 @@ export function MissionKanbanPanel({ onOpenTask }: MissionKanbanPanelProps): JSX
     }
   }
 
+  async function handleDeleteTask(taskId: string): Promise<void> {
+    setDeleteTargetId(null);
+    try {
+      await hiveDelete<void>(`tasks/${encodeURIComponent(taskId)}`);
+      toast.success("Task removed from kanban");
+      setSelectedDoneIds((prev) => {
+        if (!prev.has(taskId)) return prev;
+        const next = new Set(prev);
+        next.delete(taskId);
+        return next;
+      });
+      await reload();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Could not remove task");
+    }
+  }
+
+  async function handleBulkDeleteTasks(taskIds: string[]): Promise<void> {
+    setBulkDeleteIds(null);
+    if (!taskIds.length) return;
+    setBusy(true);
+    try {
+      const res = await hivePostJson<TaskBulkCancelResponse>("tasks/bulk-cancel", {
+        task_ids: taskIds,
+      });
+      const parts: string[] = [];
+      if (res.cancelled > 0) {
+        parts.push(`${res.cancelled} removed`);
+      }
+      if (res.skipped_running > 0) {
+        parts.push(`${res.skipped_running} still running`);
+      }
+      if (res.not_found > 0) {
+        parts.push(`${res.not_found} not found`);
+      }
+      toast.success(parts.length ? parts.join(" · ") : "Nothing to remove");
+      setSelectedDoneIds((prev) => {
+        const next = new Set(prev);
+        for (const id of taskIds) {
+          next.delete(id);
+        }
+        return next;
+      });
+      await reload();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Could not remove tasks");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function toggleDoneSelect(taskId: string): void {
+    setSelectedDoneIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) {
+        next.delete(taskId);
+      } else {
+        next.add(taskId);
+      }
+      return next;
+    });
+  }
+
   async function handlePatchStatus(taskId: string, status: string): Promise<void> {
     try {
       await hivePatchJson(`tasks/${encodeURIComponent(taskId)}`, { status });
       await reload();
-      toast.success(`Task moved to ${status}`);
+      if (status === "completed") {
+        await celebrateVerifiedOutcome();
+        toast.success("Mission complete — pollen earned");
+      } else {
+        toast.success(`Task moved to ${status}`);
+      }
     } catch (e) {
       toast.error(e instanceof HiveApiError ? e.message : "Status update failed");
     }
@@ -302,8 +382,45 @@ export function MissionKanbanPanel({ onOpenTask }: MissionKanbanPanelProps): JSX
           tasks={filtered}
           onOpenTask={onOpenTask}
           onPatchStatus={(taskId, status) => void handlePatchStatus(taskId, status)}
+          onDeleteTask={(taskId) => setDeleteTargetId(taskId)}
+          selectedDoneIds={selectedDoneIds}
+          onToggleDoneSelect={toggleDoneSelect}
+          onClearAllDone={(taskIds) => setBulkDeleteIds(taskIds)}
+          onDeleteSelectedDone={(taskIds) => setBulkDeleteIds(taskIds)}
         />
       )}
+
+      <ConfirmModal
+        open={deleteTargetId != null}
+        title="Remove task?"
+        message="This cancels the task and removes it from the Mission Kanban board. Running tasks cannot be removed."
+        confirmLabel="Remove"
+        danger
+        onConfirm={() => {
+          if (deleteTargetId) {
+            void handleDeleteTask(deleteTargetId);
+          }
+        }}
+        onCancel={() => setDeleteTargetId(null)}
+      />
+
+      <ConfirmModal
+        open={bulkDeleteIds != null}
+        title={
+          bulkDeleteIds && bulkDeleteIds.length === 1
+            ? "Remove done task?"
+            : `Remove ${bulkDeleteIds?.length ?? 0} done tasks?`
+        }
+        message="Selected completed tasks will be cancelled and removed from the board. This cannot be undone."
+        confirmLabel={bulkDeleteIds && bulkDeleteIds.length > 1 ? "Remove all" : "Remove"}
+        danger
+        onConfirm={() => {
+          if (bulkDeleteIds?.length) {
+            void handleBulkDeleteTasks(bulkDeleteIds);
+          }
+        }}
+        onCancel={() => setBulkDeleteIds(null)}
+      />
     </div>
   );
 }

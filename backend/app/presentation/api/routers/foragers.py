@@ -389,6 +389,63 @@ async def trigger_forager(
     return ForagerTriggerResponse.model_validate(out)
 
 
+class ForagerPromoteTaskResponse(BaseModel):
+    """Acknowledgement for forager digest → Mission Kanban triage."""
+
+    ok: bool
+    task_id: str | None = None
+    forager_id: str | None = None
+    title: str | None = None
+    error: str | None = None
+
+
+class ForagerPromoteTaskRequest(BaseModel):
+    """Optional title override when promoting forager harvest to triage."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    title: str | None = Field(default=None, max_length=500)
+
+
+@router.post(
+    "/{id}/promote-task",
+    response_model=ForagerPromoteTaskResponse,
+    summary="Promote forager harvest to Mission Kanban triage task",
+)
+async def promote_forager_task(
+    id: uuid.UUID,
+    body: ForagerPromoteTaskRequest,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> ForagerPromoteTaskResponse:
+    """Create a triage task summarizing one forager's HiveMind items."""
+
+    _require_forager_write(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.forager_operator_actions import promote_forager_digest_to_task
+
+    result = await promote_forager_digest_to_task(
+        db,
+        tenant_id=tenant_id,
+        forager_id=id,
+        title=body.title,
+    )
+    if not result.get("ok"):
+        err = str(result.get("error") or "promote_failed")
+        if err == "forager_not_found":
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Forager not found.")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=err)
+    await db.commit()
+    return ForagerPromoteTaskResponse(
+        ok=True,
+        task_id=str(result.get("task_id") or ""),
+        forager_id=str(result.get("forager_id") or ""),
+        title=str(result.get("title") or ""),
+    )
+
+
 @router.post("/{id}/scrape", response_model=ForagerScrapeResponse, summary="Scrape YouTube/X sources and ingest")
 async def scrape_forager(
     id: uuid.UUID,

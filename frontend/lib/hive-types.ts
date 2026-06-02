@@ -1384,6 +1384,10 @@ export interface ForagersOverviewConfiguration {
   schedule_label: string;
   last_run_seconds_ago: number | null;
   items_count: number;
+  run_progress_pct: number;
+  progress_kind?: string;
+  progress_detail?: string;
+  progress_href?: string | null;
   status: "ok" | "warn" | "paused" | "error";
   is_active: boolean;
 }

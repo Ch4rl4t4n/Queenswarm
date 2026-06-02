@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { seedDashboardSessionCookie } from "./fixtures/dashboard-session";
-import { e2eAdvancedDashboardPath, e2eHiveHomeHeading, e2eHiveHomePath } from "./fixtures/hive-home-route";
+import { e2eAdvancedDashboardPath, e2eHiveHomeHeading, e2eHiveHomePath, e2eTasksHubHeading } from "./fixtures/hive-home-route";
 import { suppressPwaInstallPrompt } from "./fixtures/pwa-test-hints";
 import { maybeInstallShellApiMocks, STUB_AGENT_ID } from "./fixtures/shell-api-mocks";
 
@@ -550,7 +550,7 @@ test.describe("Responsive shell — authenticated cockpit", () => {
 
   const SPRINT8_MOBILE_TABLET_ROUTES = [
     { path: "/settings/costs", heading: "Costs" },
-    { path: "/tasks", heading: "Tasks" },
+    { path: "/tasks", heading: e2eTasksHubHeading() },
     { path: "/foragers", heading: "Foragers" },
     { path: "/ballroom", heading: "Ballroom" },
     { path: "/settings/security", heading: "Settings" },

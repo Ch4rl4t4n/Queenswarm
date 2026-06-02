@@ -15,12 +15,12 @@ interface HiveBrandMarkProps {
 
 /** Sidebar / mobile hive brand — respects tenant white-label when configured. */
 export function HiveBrandMark({ onNavigate, compact = false, className }: HiveBrandMarkProps): JSX.Element {
-  const { tenantBranding } = usePlatform();
+  const { tenantBranding, soloMode } = usePlatform();
   const brand = resolveTenantBranding(tenantBranding);
 
   return (
     <Link
-      href={hiveOverviewHref()}
+      href={hiveOverviewHref({ soloMode })}
       className={cn(
         "flex w-full min-w-0 flex-col items-center justify-center text-center",
         compact ? "px-2" : "px-10",

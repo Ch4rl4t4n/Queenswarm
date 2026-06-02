@@ -30,8 +30,10 @@ import {
   V4Chip,
   type V4BadgeTone,
 } from "@/components/ui/v4";
+import { usePlatform } from "@/components/hive/platform-context";
 import { HiveApiError, hiveGet } from "@/lib/api";
 import { hivePageShellError } from "@/lib/hive-page-error";
+import { hiveMissionControlPageTitle } from "@/lib/hive-home-route";
 import {
   AGENTS_HUB_PATH,
   EXECUTION_LANE_CROSS_LINK_LABELS,
@@ -166,6 +168,8 @@ function buildTierRows(summary: DashboardSummaryPayload | null): { label: string
 }
 
 export function TasksPageClient() {
+  const { soloMode } = usePlatform();
+  const pageTitle = hiveMissionControlPageTitle({ soloMode });
   const [queue, setQueue] = useState<TaskQueueResponse | null>(null);
   const [summary, setSummary] = useState<DashboardSummaryPayload | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -174,12 +178,20 @@ export function TasksPageClient() {
   const [viewMode, setViewMode] = useState<ViewMode>("board");
   const filterScrollRef = useCenterActiveInScrollRow(filter);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [drawerEdit, setDrawerEdit] = useState(false);
+  const [kanbanRefresh, setKanbanRefresh] = useState(0);
   const searchParams = useSearchParams();
+
+  const openTask = useCallback((taskId: string, opts?: { edit?: boolean }) => {
+    setSelectedTaskId(taskId);
+    setDrawerEdit(opts?.edit ?? false);
+  }, []);
 
   useEffect(() => {
     const taskParam = searchParams.get("task");
     if (taskParam) {
       setSelectedTaskId(taskParam);
+      setDrawerEdit(false);
     }
   }, [searchParams]);
 
@@ -234,7 +246,7 @@ export function TasksPageClient() {
   if (!queue) {
     return (
       <HivePageShell
-        title="Tasks"
+        title={pageTitle}
         subtitle="Mission queue · workflows · async jobs"
         hintKey="tasks"
         error={hivePageShellError(err, () => setErr(null))}
@@ -247,7 +259,7 @@ export function TasksPageClient() {
   return (
     <HivePageShell
       canvasClassName="gap-6"
-      title="Tasks"
+      title={pageTitle}
       subtitle={
         <>
           <span className="text-(--qs-text-2)">{activeCount} active</span>
@@ -288,7 +300,7 @@ export function TasksPageClient() {
       <HubEcosystemStrip preset="tasks" />
 
       {viewMode === "board" ? (
-        <MissionKanbanPanel onOpenTask={setSelectedTaskId} />
+        <MissionKanbanPanel onOpenTask={openTask} refreshSignal={kanbanRefresh} />
       ) : null}
 
       {viewMode === "table" ? (
@@ -514,7 +526,15 @@ export function TasksPageClient() {
         </>
       ) : null}
 
-      <TaskResultDrawer onClose={() => setSelectedTaskId(null)} taskId={selectedTaskId} />
+      <TaskResultDrawer
+        onClose={() => {
+          setSelectedTaskId(null);
+          setDrawerEdit(false);
+        }}
+        taskId={selectedTaskId}
+        initialEdit={drawerEdit}
+        onMutated={() => setKanbanRefresh((value) => value + 1)}
+      />
     </HivePageShell>
   );
 }

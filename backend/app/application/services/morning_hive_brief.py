@@ -57,6 +57,34 @@ async def _latest_completed_session(
     return await db.scalar(stmt)
 
 
+async def compose_forager_brief_section(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+) -> list[dict[str, Any]]:
+    """Compact forager KPI rows for morning brief."""
+
+    from app.application.services.dashboard_foragers_overview import build_foragers_overview_payload
+
+    payload = await build_foragers_overview_payload(db)
+    rows: list[dict[str, Any]] = []
+    for row in payload.get("configurations") or []:
+        if not isinstance(row, dict):
+            continue
+        rows.append(
+            {
+                "id": row.get("id"),
+                "name": row.get("source_name"),
+                "status": row.get("status"),
+                "items_count": row.get("items_count", 0),
+                "progress_pct": row.get("run_progress_pct", 0),
+                "progress_kind": row.get("progress_kind"),
+            },
+        )
+    _ = tenant_id
+    return rows[:12]
+
+
 async def compose_morning_hive_brief(
     db: AsyncSession,
     *,
@@ -125,6 +153,17 @@ async def compose_morning_hive_brief(
         markdown_parts.extend(f"- {sig}" for sig in signals[:6])
         markdown_parts.append("")
 
+    foragers = await compose_forager_brief_section(db, tenant_id=tenant_id)
+    if foragers:
+        markdown_parts.append("## Foragers")
+        for row in foragers:
+            markdown_parts.append(
+                f"- **{row.get('name')}** · {row.get('status')} · "
+                f"{row.get('items_count', 0)} items · {row.get('progress_pct', 0)}% "
+                f"({row.get('progress_kind')})",
+            )
+        markdown_parts.append("")
+
     markdown = "\n".join(markdown_parts).strip()
     logger.info(
         "morning_brief.composed",
@@ -138,8 +177,9 @@ async def compose_morning_hive_brief(
         "tech_health_score": float(tech.get("health_score", 0.0)),
         "lanes_bound": trio.get("lanes_bound", 0),
         "sections": sections,
+        "foragers": foragers,
         "markdown": markdown,
     }
 
 
-__all__ = ["compose_morning_hive_brief"]
+__all__ = ["compose_forager_brief_section", "compose_morning_hive_brief"]

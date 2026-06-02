@@ -30,10 +30,20 @@ interface TrioStatus {
   lanes: TrioLane[];
 }
 
+interface MorningBriefForager {
+  id: string;
+  name: string;
+  status: string;
+  items_count: number;
+  progress_pct: number;
+  progress_kind?: string;
+}
+
 interface MorningBrief {
   markdown: string;
   tech_health_score: number;
   lanes_bound: number;
+  foragers?: MorningBriefForager[];
 }
 
 /** Solo operator preset group — orchestrates existing routines, not a separate hive. */
@@ -150,6 +160,25 @@ export function SoloOperatorTrioPanel() {
         <pre className="mt-4 max-h-80 overflow-auto rounded-lg border border-(--qs-border) bg-black/30 p-3 font-mono text-xs leading-relaxed text-(--qs-text)">
           {brief.markdown}
         </pre>
+      ) : null}
+      {brief?.foragers?.length ? (
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {brief.foragers.map((row) => (
+            <div
+              key={row.id}
+              className="rounded-lg border border-(--qs-border) bg-black/25 px-3 py-2 text-xs text-(--qs-text-2)"
+            >
+              <div className="font-semibold text-(--qs-text-1)">{row.name}</div>
+              <div className="mt-1 flex flex-wrap gap-2">
+                <V4Badge tone={row.status === "ok" ? "ok" : row.status === "error" ? "err" : "warn"}>
+                  {row.status}
+                </V4Badge>
+                <span>{row.items_count} items</span>
+                <span>{row.progress_pct}%</span>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : null}
       <div className="mt-6 space-y-6">
         <LazyOperatorLoopPanel />

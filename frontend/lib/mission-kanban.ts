@@ -94,6 +94,10 @@ export function filterMissionKanbanTasks(
   const q = opts.query.trim().toLowerCase();
   const assignee = opts.assignee.trim().toLowerCase();
   return tasks.filter((t) => {
+    const status = t.status.toLowerCase();
+    if (status === "cancelled") {
+      return false;
+    }
     const col = missionKanbanColumnFor(t.status);
     if (!opts.showArchived && col === "done") {
       return false;

@@ -5,18 +5,23 @@ import {
   AGENTIC_OS_PRODUCT_NAME,
   isAgenticOsRoute,
 } from "@/lib/cross-route-naming";
-import { hiveOverviewHref, hiveOverviewLabel } from "@/lib/hive-home-route";
+import { hiveOverviewHref, hiveOverviewLabel, soloOperatorHomePreferred } from "@/lib/hive-home-route";
 import { hiveMobileRouteMeta } from "@/lib/hive-mobile-meta";
 import { cockpitSectionHref } from "@/lib/cockpit-routes";
 import { OPERATOR_CONTROL_PLANE_ENABLED } from "@/lib/feature-flags";
 
 describe("cross-route-naming", () => {
-  it("uses Agentic OS for overview href and label when CP enabled", () => {
+  it("uses overview href and label from hive-home-route when CP enabled", () => {
     if (!OPERATOR_CONTROL_PLANE_ENABLED) {
       return;
     }
-    expect(hiveOverviewHref()).toBe(AGENTIC_OS_CANONICAL_PATH);
-    expect(hiveOverviewLabel()).toBe(AGENTIC_OS_PRODUCT_NAME);
+    if (soloOperatorHomePreferred()) {
+      expect(hiveOverviewHref()).toBe("/tasks");
+      expect(hiveOverviewLabel()).toBe("Mission Control");
+    } else {
+      expect(hiveOverviewHref()).toBe(AGENTIC_OS_CANONICAL_PATH);
+      expect(hiveOverviewLabel()).toBe(AGENTIC_OS_PRODUCT_NAME);
+    }
   });
 
   it("mobile meta shows Agentic OS on canonical and legacy paths", () => {

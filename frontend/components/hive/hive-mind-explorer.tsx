@@ -5,7 +5,7 @@ import "@xyflow/react/dist/style.css";
 import type { Edge, Node } from "@xyflow/react";
 import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider, useEdgesState, useNodesState } from "@xyflow/react";
 import { Brain, Download, Loader2, RefreshCw, Search, Sparkles } from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { CollapsibleLazyPanel } from "@/components/hive/collapsible-lazy-panel";
 import { HiveMindConstellationGraph } from "@/components/hive/hive-mind-constellation-graph";
@@ -55,6 +55,9 @@ interface HiveMindExplorerProps {
   readonly showHeader?: boolean;
   readonly variant?: "default" | "v4";
   readonly filterHint?: string;
+  /** Pre-fill semantic search (e.g. deep-link from Foragers → Results). */
+  readonly initialSearchQ?: string;
+  readonly autoSearchOnMount?: boolean;
 }
 
 function latticePosition(index: number): { x: number; y: number } {
@@ -64,7 +67,13 @@ function latticePosition(index: number): { x: number; y: number } {
 }
 
 /** Cockpit constellation explorer — JWT `/hive-mind/*` + lightweight React Flow canvas. */
-export function HiveMindExplorer({ showHeader = true, variant = "default", filterHint = "" }: HiveMindExplorerProps): JSX.Element {
+export function HiveMindExplorer({
+  showHeader = true,
+  variant = "default",
+  filterHint = "",
+  initialSearchQ = "",
+  autoSearchOnMount = false,
+}: HiveMindExplorerProps): JSX.Element {
   const [graph, setGraph] = useState<HiveGraphPayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +81,41 @@ export function HiveMindExplorer({ showHeader = true, variant = "default", filte
   const [busy, setBusy] = useState(false);
   const [searchHits, setSearchHits] = useState<SemanticHitPreview[]>([]);
   const graphLoadedRef = useRef(false);
+  const autoSearchAppliedRef = useRef(false);
+
+  const runSemanticSearch = useCallback(async (rawQuery: string): Promise<void> => {
+    const q = rawQuery.trim();
+    setBusy(true);
+    setError(null);
+    try {
+      if (q.length < 2) {
+        setSearchHits([]);
+        return;
+      }
+      const hits = await hiveGet<{
+        items: { metadata?: Record<string, string>; document?: string | null; distance?: number | null }[];
+      }>(`hive-mind/search?q=${encodeURIComponent(q)}&limit=10`);
+      const rows: SemanticHitPreview[] = hits.items.map((row, idx) => {
+        const meta = row.metadata ?? {};
+        const did = typeof meta.deliverable_id === "string" ? meta.deliverable_id : null;
+        const snippet = typeof row.document === "string" ? row.document.slice(0, 360) : "(empty payload)";
+        const title =
+          typeof meta.title === "string"
+            ? meta.title
+            : snippet.split("\n")[0]?.slice(0, 80) || `Hit ${idx + 1}`;
+        const source = typeof meta.source_path === "string" ? meta.source_path : did ? `deliverables/${did.slice(0, 8)}` : "hivemind/chroma";
+        const dist = typeof row.distance === "number" ? row.distance : null;
+        const score = dist != null ? Math.max(0, Math.min(1, 1 - dist)) : null;
+        const tags = [meta.tag, meta.source_type].filter((t): t is string => typeof t === "string" && t.length > 0);
+        return { key: `hit-${did ?? idx}-${idx}`, deliverableId: did, snippet, title, source, score, tags };
+      });
+      setSearchHits(rows);
+    } catch (e) {
+      setError(e instanceof HiveApiError ? e.message : "Search failed.");
+    } finally {
+      setBusy(false);
+    }
+  }, []);
 
   const [inspect, setInspect] = useState<DeliverablePayload | null>(null);
   const [inspectBusy, setInspectBusy] = useState(false);
@@ -141,38 +185,18 @@ export function HiveMindExplorer({ showHeader = true, variant = "default", filte
 
   async function submitSearch(ev: React.FormEvent): Promise<void> {
     ev.preventDefault();
-    const q = searchQ.trim();
-    setBusy(true);
-    setError(null);
-    try {
-      if (q.length < 2) {
-        setSearchHits([]);
-      } else {
-        const hits = await hiveGet<{
-          items: { metadata?: Record<string, string>; document?: string | null; distance?: number | null }[];
-        }>(`hive-mind/search?q=${encodeURIComponent(q)}&limit=10`);
-        const rows: SemanticHitPreview[] = hits.items.map((row, idx) => {
-          const meta = row.metadata ?? {};
-          const did = typeof meta.deliverable_id === "string" ? meta.deliverable_id : null;
-          const snippet = typeof row.document === "string" ? row.document.slice(0, 360) : "(empty payload)";
-          const title =
-            typeof meta.title === "string"
-              ? meta.title
-              : snippet.split("\n")[0]?.slice(0, 80) || `Hit ${idx + 1}`;
-          const source = typeof meta.source_path === "string" ? meta.source_path : did ? `deliverables/${did.slice(0, 8)}` : "hivemind/chroma";
-          const dist = typeof row.distance === "number" ? row.distance : null;
-          const score = dist != null ? Math.max(0, Math.min(1, 1 - dist)) : null;
-          const tags = [meta.tag, meta.source_type].filter((t): t is string => typeof t === "string" && t.length > 0);
-          return { key: `hit-${did ?? idx}-${idx}`, deliverableId: did, snippet, title, source, score, tags };
-        });
-        setSearchHits(rows);
-      }
-    } catch (e) {
-      setError(e instanceof HiveApiError ? e.message : "Search failed.");
-    } finally {
-      setBusy(false);
-    }
+    await runSemanticSearch(searchQ);
   }
+
+  useEffect(() => {
+    const seed = initialSearchQ.trim();
+    if (!autoSearchOnMount || !seed || autoSearchAppliedRef.current) {
+      return;
+    }
+    autoSearchAppliedRef.current = true;
+    setSearchQ(seed);
+    void runSemanticSearch(seed);
+  }, [autoSearchOnMount, initialSearchQ, runSemanticSearch]);
 
   async function runRecallSimulation(): Promise<void> {
     setBusy(true);

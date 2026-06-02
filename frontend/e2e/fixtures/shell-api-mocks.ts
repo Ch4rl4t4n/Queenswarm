@@ -49,7 +49,7 @@ const STUB_OPERATOR_COCKPIT = {
   now_actions: [
     {
       id: "start_day",
-      label: "Spusti deň",
+      label: "Start day",
       detail: "Trio cycle + morning brief pipeline (verify-first).",
       priority: "high",
       href: null,

@@ -28,7 +28,7 @@ const BRAIN_PACK_HINT = {
   options: {
     en: [
       "Load starter pack — Queenswarm solo-operator defaults (empty slots only).",
-      "Edit SOUL (tone + skills), MEMORY (mission + ideal state), USER (your prefs in Slovak).",
+      "Edit SOUL (tone + skills), MEMORY (mission + ideal state), USER (your preferences).",
       "Export .md — copy Hermes-style bundle for backup.",
       "Social OAuth: see docs/OPERATOR_SOCIAL_OAUTH_SETUP.md in repo.",
     ],

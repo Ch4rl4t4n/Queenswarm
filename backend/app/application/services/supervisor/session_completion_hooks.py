@@ -34,6 +34,16 @@ async def on_supervisor_session_completed(session: SupervisorSession, *, db: Asy
         href=f"/agents?session={session.id}",
         entity_id=str(session.id),
     )
+    if db is not None:
+        from app.application.services.operator_mission_push import maybe_send_mission_feed_web_push
+
+        await maybe_send_mission_feed_web_push(
+            db,
+            tenant_id=tenant_id,
+            title="Session completed",
+            body=goal[:500],
+            href=f"/agents?session={session.id}",
+        )
     _logger.info(
         "supervisor.session_completion_hooks.done",
         agent_id="supervisor",

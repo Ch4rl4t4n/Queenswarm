@@ -13,6 +13,7 @@ import {
   Sparkles,
   Waypoints,
 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useState, useEffect, useCallback, useMemo } from "react";
 
 import { AutoGraphifyPanel } from "@/components/hive/auto-graphify-panel";
@@ -80,6 +81,10 @@ const HIVEMIND_SECTIONS: {
 ];
 
 export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false }: KnowledgePageClientProps) {
+  const searchParams = useSearchParams();
+  const foragerId = searchParams.get("forager")?.trim() ?? "";
+  const foragerSearchQ = searchParams.get("q")?.trim() ?? "";
+
   const tabIds = useMemo(() => TABS.map((item) => item.id), []);
 
   const [tab, setTab] = useState<KnowledgeTab>(() => resolveKnowledgeTab({ visibleTabIds: tabIds }));
@@ -99,6 +104,17 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
     setHivemindSection(next);
     window.history.replaceState(null, "", knowledgeHivemindSectionHref(next));
   }, []);
+
+  useEffect(() => {
+    if (!foragerId) {
+      return;
+    }
+    setTab("hivemind");
+    setHivemindSection("explorer");
+    if (foragerSearchQ) {
+      setFilter(foragerSearchQ);
+    }
+  }, [foragerId, foragerSearchQ]);
 
   useEffect(() => {
     const syncFromHash = (): void => {
@@ -212,7 +228,13 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
                   </div>
                 }
               />
-              <HiveMindExplorer showHeader={false} variant="v4" filterHint={filter} />
+              <HiveMindExplorer
+                showHeader={false}
+                variant="v4"
+                filterHint={filter}
+                initialSearchQ={foragerSearchQ || (foragerId ? `forager:${foragerId}` : "")}
+                autoSearchOnMount={Boolean(foragerId)}
+              />
             </V4Card>
           ) : null}
           {hivemindSection === "evolution" ? <MemoryEvolutionPanel /> : null}

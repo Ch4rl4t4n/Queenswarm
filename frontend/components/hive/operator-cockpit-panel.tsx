@@ -784,7 +784,7 @@ function OperatorCockpitPanelInner() {
             <div className="mb-4 rounded-lg border border-[#00FF8833] bg-[#00FF8808] p-3" id="proof-of-hive">
               <p className="text-xs font-semibold uppercase tracking-wider text-[#00FF88]">Proof-of-Hive</p>
               <p className="mt-1 text-xs text-(--qs-muted)">
-                Shareable verify receipts — HMAC podpis, verify-first outcomes.
+                Shareable verify receipts — HMAC signature, verify-first outcomes.
               </p>
               {snapshot.proof_of_hive.receipts.length === 0 ? (
                 <p className="mt-2 text-[11px] text-(--qs-muted)">

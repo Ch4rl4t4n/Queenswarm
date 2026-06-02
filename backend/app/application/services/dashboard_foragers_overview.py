@@ -8,14 +8,18 @@ from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
+from app.application.services.social_intel_runner import _source_keys_for_forager
 from app.core.tenant_context import get_current_tenant_uuid
 from app.infrastructure.persistence.models.agent import Agent
 from app.infrastructure.persistence.models.agent_config import AgentConfig
 from app.infrastructure.persistence.models.agent_template import AgentTemplateORM
 from app.infrastructure.persistence.models.forager import ForagerORM
+from app.infrastructure.persistence.models.intel_source_cursor import IntelSourceCursorORM
 from app.infrastructure.persistence.models.knowledge import KnowledgeItem
 from app.infrastructure.persistence.models.supervisor_routine import SupervisorRoutine
+from app.infrastructure.persistence.models.supervisor_session import SupervisorSession
 
 
 def _sync_seconds_ago(ref: datetime | None, now: datetime) -> int | None:
@@ -91,6 +95,213 @@ def _trend_pct(current: int, previous: int) -> int | None:
     return int(round(((current - previous) / previous) * 100))
 
 
+def _session_sub_agent_progress_pct(session: SupervisorSession) -> int:
+    """Derive live evaluator progress from sub-agent completion ratio."""
+
+    subs = list(getattr(session, "sub_agents", None) or [])
+    if not subs:
+        return 15
+    done = sum(1 for row in subs if str(row.status or "").strip().lower() == "completed")
+    total = len(subs)
+    if done >= total:
+        return 99
+    return max(5, min(98, int(round(100.0 * done / total))))
+
+
+def _status_fallback_progress(
+    *,
+    status: str,
+    routine: SupervisorRoutine | None,
+    now: datetime,
+) -> int:
+    """Map idle row status to operator-visible completion when no live run exists."""
+
+    if status == "paused":
+        return 0
+    if status == "error":
+        return 0
+    if status == "ok":
+        return 100
+    if status == "warn" and routine is not None and routine.last_run_at is not None:
+        stale_after = max(int(routine.interval_seconds or 0) * 2, 3600)
+        age = _sync_seconds_ago(routine.last_run_at, now)
+        if age is not None and stale_after > 0:
+            overdue = min(1.0, age / stale_after)
+            return max(15, int(round(100 * (1.0 - overdue * 0.75))))
+    return 40
+
+
+async def _running_routine_progress_map(
+    session: AsyncSession,
+    routine_ids: list[uuid.UUID],
+) -> dict[str, int]:
+    """Return live progress pct keyed by routine id string for active supervisor sessions."""
+
+    detail = await _running_routine_detail_map(session, routine_ids)
+    return {key: int(row.get("pct") or 0) for key, row in detail.items()}
+
+
+async def _running_routine_detail_map(
+    session: AsyncSession,
+    routine_ids: list[uuid.UUID],
+) -> dict[str, dict[str, Any]]:
+    """Return live progress + session id keyed by routine id string."""
+
+    if not routine_ids:
+        return {}
+    id_strs = [str(rid) for rid in routine_ids]
+    stmt = (
+        select(SupervisorSession)
+        .options(selectinload(SupervisorSession.sub_agents))
+        .where(
+            SupervisorSession.status.in_(("running", "pending", "needs_input")),
+            SupervisorSession.context_summary["routine_id"].astext.in_(id_strs),
+        )
+        .order_by(SupervisorSession.created_at.desc())
+    )
+    rows = list((await session.execute(stmt)).scalars().all())
+    detail: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        routine_key = str((row.context_summary or {}).get("routine_id") or "")
+        if not routine_key or routine_key in detail:
+            continue
+        detail[routine_key] = {
+            "pct": _session_sub_agent_progress_pct(row),
+            "session_id": str(row.id),
+        }
+    return detail
+
+
+async def _cursor_backfill_progress_map(
+    session: AsyncSession,
+    foragers: list[ForagerORM],
+) -> dict[str, int]:
+    """Return source backfill completion pct for social intel foragers."""
+
+    social_ids = [
+        row.id
+        for row in foragers
+        if row.source_type in {"youtube", "twitter", "x"}
+    ]
+    if not social_ids:
+        return {}
+
+    cursor_rows = list(
+        (
+            await session.execute(
+                select(IntelSourceCursorORM).where(IntelSourceCursorORM.forager_id.in_(social_ids)),
+            )
+        ).scalars().all(),
+    )
+    by_forager: dict[str, list[IntelSourceCursorORM]] = {}
+    for cursor in cursor_rows:
+        by_forager.setdefault(str(cursor.forager_id), []).append(cursor)
+
+    out: dict[str, int] = {}
+    for forager in foragers:
+        if forager.source_type not in {"youtube", "twitter", "x"}:
+            continue
+        keys = _source_keys_for_forager(forager)
+        if not keys:
+            continue
+        cursors = by_forager.get(str(forager.id), [])
+        if not cursors:
+            out[str(forager.id)] = 0
+            continue
+        complete = sum(1 for row in cursors if bool(row.backfill_complete))
+        out[str(forager.id)] = max(0, min(100, int(round(100.0 * complete / len(keys)))))
+    return out
+
+
+def resolve_forager_run_progress_pct(
+    *,
+    forager: ForagerORM,
+    routine: SupervisorRoutine | None,
+    status: str,
+    now: datetime,
+    running_progress: int | None,
+    cursor_progress: int | None,
+) -> int:
+    """Combine live session, source backfill, and schedule health into one pct."""
+
+    return resolve_forager_progress_meta(
+        forager=forager,
+        routine=routine,
+        status=status,
+        now=now,
+        running_progress=running_progress,
+        running_session_id=None,
+        cursor_progress=cursor_progress,
+    )["pct"]
+
+
+def resolve_forager_progress_meta(
+    *,
+    forager: ForagerORM,
+    routine: SupervisorRoutine | None,
+    status: str,
+    now: datetime,
+    running_progress: int | None,
+    running_session_id: str | None,
+    cursor_progress: int | None,
+) -> dict[str, Any]:
+    """Return pct plus operator-facing progress kind, detail, and optional deep link."""
+
+    forager_id = str(forager.id)
+    knowledge_href = f"/knowledge?forager={forager_id}&q={forager.name}#explorer"
+
+    if running_progress is not None:
+        href = f"/agents?session={running_session_id}" if running_session_id else None
+        return {
+            "pct": running_progress,
+            "kind": "live_run",
+            "detail": "Supervisor evaluator session is running.",
+            "href": href,
+        }
+    if cursor_progress is not None:
+        pct = cursor_progress
+        if status == "ok" and cursor_progress >= 100:
+            pct = 100
+        elif status == "error":
+            pct = min(cursor_progress, 25)
+        detail = (
+            "Source backfill complete — all monitored channels indexed."
+            if pct >= 100
+            else f"Source backfill {pct}% — historical channels still indexing."
+        )
+        return {
+            "pct": pct,
+            "kind": "backfill",
+            "detail": detail,
+            "href": knowledge_href,
+        }
+    if status == "paused":
+        return {"pct": 0, "kind": "paused", "detail": "Forager paused — enable to resume schedule.", "href": None}
+    if status == "error":
+        return {
+            "pct": 0,
+            "kind": "error",
+            "detail": "Last routine run failed — open Edit or trigger Run to retry.",
+            "href": None,
+        }
+    if status == "ok":
+        return {
+            "pct": 100,
+            "kind": "idle_ok",
+            "detail": "Last scheduled run completed — harvest in HiveMind.",
+            "href": knowledge_href,
+        }
+    if status == "warn" and routine is not None and routine.last_run_at is not None:
+        pct = _status_fallback_progress(status=status, routine=routine, now=now)
+        return {
+            "pct": pct,
+            "kind": "schedule_stale",
+            "detail": "Run is overdue vs schedule — check cron or trigger Run now.",
+            "href": None,
+        }
+    return {"pct": 40, "kind": "unknown", "detail": "Progress estimate unavailable.", "href": None}
+
+
 async def _count_knowledge(
     session: AsyncSession,
     *,
@@ -153,6 +364,10 @@ async def build_foragers_overview_payload(session: AsyncSession) -> dict[str, An
         ).scalars().all()
         routines_map = {row.id: row for row in routine_rows}
 
+    running_detail = await _running_routine_detail_map(session, routine_ids)
+    running_progress = {key: int(row.get("pct") or 0) for key, row in running_detail.items()}
+    cursor_progress = await _cursor_backfill_progress_map(session, foragers)
+
     template_ids = {row.agent_template_id for row in foragers if row.agent_template_id is not None}
     templates_map: dict[uuid.UUID, AgentTemplateORM] = {}
     if template_ids:
@@ -207,6 +422,17 @@ async def build_foragers_overview_payload(session: AsyncSession) -> dict[str, An
         if status == "error":
             error_n += 1
         last_ref = routine.last_run_at if routine is not None and routine.last_run_at is not None else forager.updated_at
+        routine_key = str(forager.supervisor_routine_id) if forager.supervisor_routine_id else ""
+        live = running_detail.get(routine_key)
+        progress_meta = resolve_forager_progress_meta(
+            forager=forager,
+            routine=routine,
+            status=status,
+            now=now,
+            running_progress=int(live["pct"]) if live is not None else None,
+            running_session_id=str(live.get("session_id") or "") or None if live is not None else None,
+            cursor_progress=cursor_progress.get(str(forager.id)),
+        )
         configurations.append(
             {
                 "id": str(forager.id),
@@ -215,6 +441,10 @@ async def build_foragers_overview_payload(session: AsyncSession) -> dict[str, An
                 "schedule_label": _format_schedule(routine),
                 "last_run_seconds_ago": _sync_seconds_ago(last_ref, now),
                 "items_count": await _count_items_for_forager(session, forager),
+                "run_progress_pct": progress_meta["pct"],
+                "progress_kind": progress_meta["kind"],
+                "progress_detail": progress_meta["detail"],
+                "progress_href": progress_meta.get("href"),
                 "status": status,
                 "is_active": bool(forager.is_active),
             },
@@ -276,4 +506,8 @@ async def build_foragers_overview_payload(session: AsyncSession) -> dict[str, An
     }
 
 
-__all__ = ["build_foragers_overview_payload"]
+__all__ = [
+    "build_foragers_overview_payload",
+    "resolve_forager_progress_meta",
+    "resolve_forager_run_progress_pct",
+]
