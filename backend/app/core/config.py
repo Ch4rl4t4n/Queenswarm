@@ -572,6 +572,16 @@ class Settings(BaseSettings):
         le=50.0,
         description="Pollen awarded when Wiki Gardener updates pages.",
     )
+    wiki_layer_gardener_sweep_enabled: bool = Field(
+        default=True,
+        description="Enable periodic Celery Wiki Gardener sweeps (sync raw→wiki every ~5 min).",
+    )
+    wiki_layer_gardener_interval_sec: int = Field(
+        default=300,
+        ge=60,
+        le=3600,
+        description="Interval between Wiki Gardener tenant sweeps (seconds).",
+    )
     external_integration_audit_to_vault: bool = Field(
         default=True,
         description="Mirror external integration audit lines into HiveMind vault.",

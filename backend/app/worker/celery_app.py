@@ -56,5 +56,6 @@ from app.worker import scheduled_publish_tasks as _scheduled_publish_tasks  # no
 from app.worker import morning_publish_tasks as _morning_publish_tasks  # noqa: E402, F401
 from app.worker import operator_loop_tasks as _operator_loop_tasks  # noqa: E402, F401
 from app.worker import trading_overnight_tasks as _trading_overnight_tasks  # noqa: E402, F401
+from app.worker import wiki_gardener_tasks as _wiki_gardener_tasks  # noqa: E402, F401
 
 __all__ = ["celery_app", "create_celery_app"]

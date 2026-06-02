@@ -137,6 +137,12 @@ def build_beat_schedule() -> dict[str, dict[str, Any]]:
             "schedule": crontab(hour=6, minute=0),
             "options": {"queue": "hive"},
         }
+    if settings.wiki_layer_enabled and settings.wiki_layer_gardener_sweep_enabled:
+        schedule["hive-wiki-gardener-sweep"] = {
+            "task": "hive.wiki_gardener_sweep_tick",
+            "schedule": timedelta(seconds=int(settings.wiki_layer_gardener_interval_sec)),
+            "options": {"queue": "hive"},
+        }
     return schedule
 
 
