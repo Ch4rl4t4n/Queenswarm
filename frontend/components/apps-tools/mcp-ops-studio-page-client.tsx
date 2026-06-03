@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, PackageCheck, Search } from "lucide-react";
+import { Activity, AlertTriangle, PackageCheck, Search } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -21,26 +21,45 @@ interface McpCatalogItem {
   trust_tier: "verified" | "community";
   tool_count: number;
   auth_mode: "oauth" | "api_key";
+  template_id?: string | null;
+  installed?: boolean;
+  integrations_href?: string | null;
 }
 
 interface McpInstallItem {
   provider: string;
   requested_by: string;
   stage: "policy_review" | "pending_approval";
+  template_id?: string | null;
+  integrations_href?: string | null;
 }
 
 interface McpHealthItem {
   provider: string;
-  status: "healthy" | "degraded";
+  status: "healthy" | "degraded" | "cold";
   checked_at: string;
+  connector_slug?: string | null;
+  failed_calls?: number;
+  total_calls?: number;
+}
+
+interface McpToolGapItem {
+  kind: string;
+  connector_slug: string;
+  tool_name: string;
+  message: string;
+  occurrences: number;
+  suggested_template_id?: string | null;
+  integrations_href?: string | null;
 }
 
 interface McpOpsStudioSnapshot {
   generated_at: string;
-  source: "read_only_mock";
+  source: "live" | "read_only_mock";
   catalog: McpCatalogItem[];
   install: McpInstallItem[];
   health: McpHealthItem[];
+  tool_gaps: McpToolGapItem[];
 }
 
 const SECTION_TO_HASH: Record<McpOpsSection, string> = {
@@ -72,6 +91,7 @@ export function McpOpsStudioPageClient() {
   const [catalogItems, setCatalogItems] = useState<McpCatalogItem[]>([]);
   const [installItems, setInstallItems] = useState<McpInstallItem[]>([]);
   const [healthItems, setHealthItems] = useState<McpHealthItem[]>([]);
+  const [toolGapItems, setToolGapItems] = useState<McpToolGapItem[]>([]);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
@@ -112,6 +132,7 @@ export function McpOpsStudioPageClient() {
         setCatalogItems(Array.isArray(snapshot.catalog) ? snapshot.catalog : []);
         setInstallItems(Array.isArray(snapshot.install) ? snapshot.install : []);
         setHealthItems(Array.isArray(snapshot.health) ? snapshot.health : []);
+        setToolGapItems(Array.isArray(snapshot.tool_gaps) ? snapshot.tool_gaps : []);
         setGeneratedAt(typeof snapshot.generated_at === "string" ? snapshot.generated_at : null);
         setSnapshotSource(snapshot.source);
         setSectionState("ready");
@@ -234,11 +255,45 @@ export function McpOpsStudioPageClient() {
         </V4Card>
       ) : null}
 
+      {toolGapItems.length > 0 && sectionState === "ready" ? (
+        <V4Card className="border-magenta/30">
+          <V4CardHeader
+            title="Actionable tool gaps"
+            description="Failed MCP invocations from agent sessions — install or allowlist connectors in Integrations."
+          />
+          <div className="space-y-2">
+            {toolGapItems.map((row) => (
+              <div
+                key={`${row.kind}-${row.connector_slug}-${row.tool_name}`}
+                className="rounded-lg border border-magenta/25 bg-magenta/5 px-3 py-2 text-xs"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="flex items-center gap-1.5 font-medium text-(--qs-text)">
+                    <AlertTriangle className="size-3.5 text-magenta" aria-hidden />
+                    {row.connector_slug} · {row.tool_name}
+                  </span>
+                  <span className="text-(--qs-text-3)">
+                    {row.kind.replaceAll("_", " ")} · ×{row.occurrences}
+                  </span>
+                </div>
+                <p className="mt-1 text-(--qs-text-3)">{row.message}</p>
+                {row.integrations_href ? (
+                  <Link href={row.integrations_href} className="mt-2 inline-block text-cyan underline">
+                    Open Integrations
+                    {row.suggested_template_id ? ` → ${row.suggested_template_id}` : ""}
+                  </Link>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </V4Card>
+      ) : null}
+
       {section === "catalog" && sectionState === "ready" ? (
         <V4Card id="mcp-catalog">
           <V4CardHeader
             title="Provider catalog discovery"
-            description="Read-only provider list with trust metadata, policy fit, and capability compatibility signals."
+            description="Phase3 marketplace templates from Integrations — install from hub to activate tools."
           />
           {catalogItems.length === 0 ? (
             <p className="text-sm text-(--qs-text-3)">No catalog providers matched this view.</p>
@@ -246,13 +301,19 @@ export function McpOpsStudioPageClient() {
             <div className="space-y-2">
               {catalogItems.map((row) => (
                 <div
-                  key={row.provider}
+                  key={`${row.provider}-${row.template_id ?? "row"}`}
                   className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs"
                 >
                   <span className="font-medium text-(--qs-text)">{row.provider}</span>
                   <span className="text-(--qs-text-3)">
-                      {row.trust_tier} · {row.tool_count} tools · {row.auth_mode}
+                    {row.trust_tier} · {row.tool_count} tools · {row.auth_mode}
+                    {row.installed ? " · installed" : ""}
                   </span>
+                  {row.integrations_href ? (
+                    <Link href={row.integrations_href} className="text-cyan underline">
+                      {row.installed ? "Manage" : "Install"}
+                    </Link>
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -275,34 +336,35 @@ export function McpOpsStudioPageClient() {
       {section === "install" && sectionState === "ready" ? (
         <V4Card id="mcp-install">
           <V4CardHeader
-            title="Governed install queue"
-            description="Approval-gated install and lifecycle actions with immutable operator audit trail."
+            title="Recommended installs"
+            description="Featured marketplace templates not yet installed on this workspace."
           />
           {installItems.length === 0 ? (
-            <p className="text-sm text-(--qs-text-3)">No install requests queued right now.</p>
+            <p className="text-sm text-(--qs-text-3)">All featured templates installed — browse catalog for more.</p>
           ) : (
             <div className="space-y-2">
               {installItems.map((row) => (
                 <div
-                  key={`${row.provider}-${row.requested_by}`}
+                  key={`${row.provider}-${row.template_id ?? row.requested_by}`}
                   className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs"
                 >
                   <span className="font-medium text-(--qs-text)">{row.provider}</span>
                   <span className="text-(--qs-text-3)">
-                    {row.stage.replaceAll("_", " ")} · by {row.requested_by}
+                    {row.stage.replaceAll("_", " ")} · {row.requested_by}
                   </span>
+                  {row.integrations_href ? (
+                    <Link href={row.integrations_href} className="text-cyan underline">
+                      Install in Integrations
+                    </Link>
+                  ) : null}
                 </div>
               ))}
             </div>
           )}
           <div className="mt-3">
-            <button
-              type="button"
-              className="qs-btn qs-btn--ghost qs-btn--sm"
-              onClick={() => setActionNotice("Install request queued in read-only preview mode.")}
-            >
-              Queue governed install
-            </button>
+            <Link href="/integrations?tab=hub&hubSection=marketplace" className="qs-btn qs-btn--ghost qs-btn--sm">
+              Open marketplace
+            </Link>
           </div>
         </V4Card>
       ) : null}
@@ -311,10 +373,10 @@ export function McpOpsStudioPageClient() {
         <V4Card id="mcp-health">
           <V4CardHeader
             title="Runtime health diagnostics"
-            description="Connector/tool availability probes and auth state diagnostics for fast remediation."
+            description="Per-connector invoke metrics from agent sessions (Redis, 24h window)."
           />
           {healthItems.length === 0 ? (
-            <p className="text-sm text-(--qs-text-3)">No health probes yet for this window.</p>
+            <p className="text-sm text-(--qs-text-3)">No installed connectors with traffic yet — install from catalog.</p>
           ) : (
             <div className="space-y-2">
               {healthItems.map((row) => (
@@ -324,7 +386,10 @@ export function McpOpsStudioPageClient() {
                 >
                   <span className="font-medium text-(--qs-text)">{row.provider}</span>
                   <span className="text-(--qs-text-3)">
-                    {row.status} · {row.checked_at}
+                    {row.status}
+                    {typeof row.total_calls === "number" && row.total_calls > 0
+                      ? ` · ${row.failed_calls ?? 0}/${row.total_calls} failed`
+                      : " · no traffic"}
                   </span>
                 </div>
               ))}
@@ -334,9 +399,12 @@ export function McpOpsStudioPageClient() {
             <button
               type="button"
               className="qs-btn qs-btn--ghost qs-btn--sm"
-              onClick={() => setActionNotice("Health probe scheduled in read-only preview mode.")}
+              onClick={() => {
+                setActionNotice("Health metrics refreshed from live connector counters.");
+                setReloadToken((current) => current + 1);
+              }}
             >
-              Run health probe
+              Refresh health metrics
             </button>
           </div>
         </V4Card>

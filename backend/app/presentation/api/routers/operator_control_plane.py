@@ -186,13 +186,21 @@ async def operator_apps_tools_index(
 
 @router.get("/apps-tools/mcp-ops-studio/snapshot", summary="Read-only MCP Ops Studio snapshot")
 async def operator_mcp_ops_studio_snapshot(
+    db: DbSession,
     principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
 ) -> dict[str, Any]:
     """Return section-card snapshot for MCP Ops Studio route."""
 
-    if principal.get("tenant_id") is None:
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    user_id = getattr(user, "id", None)
+    if tenant_id is None or user_id is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
-    snapshot = compose_mcp_ops_studio_snapshot()
+    snapshot = await compose_mcp_ops_studio_snapshot(
+        db,
+        tenant_id=tenant_id,
+        dashboard_user_id=user_id,
+    )
     return snapshot.model_dump(mode="json")
 
 

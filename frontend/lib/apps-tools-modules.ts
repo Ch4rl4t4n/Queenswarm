@@ -54,8 +54,8 @@ export const APPS_TOOLS_MODULES: AppsToolsModuleDef[] = [
     moduleKey: "mcp_ops_studio",
     slug: "mcp-ops-studio",
     title: "MCP Ops Studio",
-    summary: "MCP catalog discovery, install governance, health checks, and lifecycle controls.",
-    status: "stub",
+    summary: "MCP catalog from Integrations marketplace, runtime health metrics, and actionable tool gaps.",
+    status: "beta",
     href: "/apps-tools/mcp-ops-studio",
     capabilityKeys: ["apps.mcp.catalog.discover.v1"],
   },
@@ -103,7 +103,7 @@ const MODULE_AGENT_USAGE: Record<AppsToolsModuleDef["moduleKey"], string> = {
   ecommerce_workspace:
     "Eshop-ops swarms sync Shopify and Stripe order events, then route webhook payloads into automation lanes.",
   mcp_ops_studio:
-    "Agents discover MCP manifests, install connectors, and run health checks before supervisor lanes bind tools.",
+    "Agents surface missing connectors as tool gaps; install Phase3 templates from Integrations marketplace.",
   trading_automation:
     "Trading cockpit lanes invoke guarded execution capabilities with policy gates before any live handoff.",
   browser_automation:

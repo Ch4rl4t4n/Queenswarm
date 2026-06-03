@@ -21,8 +21,13 @@ def restore_overrides() -> None:
 
 
 @pytest.mark.asyncio
-async def test_mcp_ops_studio_snapshot_returns_read_only_payload(restore_overrides: None) -> None:
+async def test_mcp_ops_studio_snapshot_returns_read_only_payload(restore_overrides: None, monkeypatch) -> None:
     """Snapshot endpoint returns catalog/install/health read model."""
+
+    monkeypatch.setattr(
+        "app.application.services.mcp_ops_studio_snapshot.settings.mcp_ops_studio_live_snapshot_enabled",
+        False,
+    )
 
     app.dependency_overrides[require_dashboard_user_with_tenant_role] = lambda: {
         "user": SimpleNamespace(id=uuid.uuid4()),
@@ -46,6 +51,7 @@ async def test_mcp_ops_studio_snapshot_returns_read_only_payload(restore_overrid
     assert any(row["provider"] == "GitHub MCP" for row in payload["catalog"])
     assert any(row["provider"] == "Linear MCP" for row in payload["install"])
     assert payload["health"] == []
+    assert payload["tool_gaps"] == []
 
 
 @pytest.mark.asyncio

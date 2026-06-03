@@ -390,15 +390,14 @@ async def tool_mcp_invoke(
     if session is None:
         return "mcp_invoke skipped — missing async DB session."
     lowered = connector_slug.strip().lower()
-    if connector_allow_tokens and lowered not in connector_allow_tokens:
-        return f"mcp_invoke blocked for `{connector_slug}` (not manager-allowlisted)."
-
     routing_mode = str((router_invoke_plan or {}).get("routing_mode") or "").strip().lower()
-    if routing_mode in {"priority", "research_then_action", "parallel_hint"}:
+    if connector_allow_tokens and lowered not in connector_allow_tokens:
+        result = f"mcp_invoke blocked for `{connector_slug}` (not manager-allowlisted)."
+    elif routing_mode in {"priority", "research_then_action", "parallel_hint"}:
         from app.infrastructure.persistence.models.tenant import Tenant
 
         tenant_row = await session.get(Tenant, tenant_id) if tenant_id is not None else None
-        return await invoke_mcp_with_router_fallback(
+        result = await invoke_mcp_with_router_fallback(
             session,
             tenant=tenant_row,
             manager_slug=manager_slug,
@@ -407,15 +406,27 @@ async def tool_mcp_invoke(
             arguments=dict(arguments),
             agent_task_id=agent_task_id,
         )
+    else:
+        result = await invoke_dynamic_tool(
+            session,
+            connector_slug=lowered,
+            tool_name=tool_name,
+            arguments=dict(arguments),
+            manager_slug=None if manager_slug.strip() == "" else manager_slug,
+            agent_task_id=agent_task_id,
+        )
 
-    return await invoke_dynamic_tool(
-        session,
-        connector_slug=lowered,
-        tool_name=tool_name,
-        arguments=dict(arguments),
-        manager_slug=None if manager_slug.strip() == "" else manager_slug,
-        agent_task_id=agent_task_id,
-    )
+    if tenant_id is not None:
+        from app.application.services.tool_gap_signal import record_tool_gap
+
+        await record_tool_gap(
+            tenant_id=tenant_id,
+            connector_slug=lowered,
+            tool_name=tool_name,
+            manager_slug=manager_slug,
+            result=result,
+        )
+    return result
 
 
 

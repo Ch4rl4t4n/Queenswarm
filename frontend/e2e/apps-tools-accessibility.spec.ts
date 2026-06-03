@@ -192,6 +192,7 @@ const MCP_OPS_SNAPSHOT_STUB = {
   ],
   install: [{ provider: "Linear MCP", requested_by: "operator", stage: "policy_review" }],
   health: [],
+  tool_gaps: [],
 };
 
 function mcpOpsSnapshotWithAgeMinutes(minutesAgo: number) {

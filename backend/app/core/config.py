@@ -1830,6 +1830,14 @@ class Settings(BaseSettings):
         default=True,
         description="P8 #77 — tenant forager v2 snapshot with connector gaps.",
     )
+    tool_gap_signal_enabled: bool = Field(
+        default=True,
+        description="Record actionable MCP invoke failures per tenant (Redis, 7d TTL).",
+    )
+    mcp_ops_studio_live_snapshot_enabled: bool = Field(
+        default=True,
+        description="MCP Ops Studio reads live marketplace catalog + health metrics (fallback mock when false).",
+    )
     trading_content_hybrid_enabled: bool = Field(
         default=True,
         description="P9 #80 — unified trading + publish content hybrid snapshot.",
