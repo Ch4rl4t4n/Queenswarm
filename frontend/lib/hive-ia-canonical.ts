@@ -23,8 +23,8 @@ import {
   ScrollText,
   Settings,
   Share2,
-  CircleHelp,
   Sparkles,
+  CircleHelp,
   Users,
   Zap,
 } from "lucide-react";
@@ -354,10 +354,10 @@ export function buildCanonicalNavGroups(options: {
         { href: "/apps-tools/marketing-automation", label: "Marketing Automation", Icon: Zap, section: "integrations", iaZone: "apps_tools" },
         { href: "/apps-tools/trading-automation", label: "Trading Automation", Icon: Activity, section: "integrations", iaZone: "apps_tools" },
         { href: "/apps-tools/content-factory", label: "Content Factory", Icon: Factory, section: "integrations", iaZone: "apps_tools" },
+        { href: "/apps-tools/skill-factory", label: "Skill Factory", Icon: Sparkles, section: "integrations", featureKey: "skill_factory", iaZone: "apps_tools" },
         { href: "/factory", label: "Micro-SaaS Factory", Icon: Factory, section: "execution", featureKey: "skills_export_factory", iaZone: "apps_tools" },
         { href: integrationsTabHref("studio"), label: "Legacy Execution Studio", Icon: Zap, section: "integrations", iaZone: "apps_tools" },
         { href: integrationsTabHref("marketplace"), label: "Tools marketplace", Icon: Boxes, section: "integrations", iaZone: "apps_tools" },
-        { href: integrationsTabHref("skills"), label: "Skills export", Icon: ScrollText, section: "integrations", iaZone: "apps_tools" },
       ],
     },
     {

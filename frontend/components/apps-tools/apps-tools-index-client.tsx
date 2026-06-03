@@ -380,6 +380,11 @@ const MODULE_SECTION_DEEP_LINKS: Record<
     { label: "HiveMind recall", href: "/apps-tools/research-workspace?section=hivemind#hivemind-links" },
     { label: "Automation handoff", href: "/apps-tools/research-workspace?section=automation#research-automation" },
   ],
+  skill_factory: [
+    { label: "Research", href: "/apps-tools/skill-factory" },
+    { label: "Sessions", href: "/agents#sessions" },
+    { label: "Knowledge", href: "/knowledge" },
+  ],
 };
 
 const MCP_RETRY_ANOMALY_ACK_STORAGE_KEY = "apps-tools:mcp-retry-anomaly-ack-score:v1";

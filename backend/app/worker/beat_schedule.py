@@ -113,6 +113,12 @@ def build_beat_schedule() -> dict[str, dict[str, Any]]:
             "schedule": crontab(hour=8, minute=15, day_of_week=1),
             "options": {"queue": "hive"},
         }
+    if settings.execution_studio_enabled:
+        schedule["hive-execution-studio-codebase-auto-approve"] = {
+            "task": "hive.execution_studio_codebase_auto_approve_tick",
+            "schedule": timedelta(minutes=3),
+            "options": {"queue": "hive"},
+        }
     if settings.scheduled_publish_enabled:
         schedule["hive-scheduled-publish-tick"] = {
             "task": "hive.scheduled_publish_tick",
@@ -129,6 +135,16 @@ def build_beat_schedule() -> dict[str, dict[str, Any]]:
         schedule["hive-operator-loop-morning"] = {
             "task": "hive.operator_loop_morning_tick",
             "schedule": crontab(hour=7, minute=30),
+            "options": {"queue": "hive"},
+        }
+    if settings.skill_factory_enabled:
+        schedule["hive-skill-factory-research"] = {
+            "task": "hive.skill_factory_research_tick",
+            "schedule": crontab(
+                hour=settings.skill_factory_research_cron_hour,
+                minute=settings.skill_factory_research_cron_minute,
+                day_of_week=1,
+            ),
             "options": {"queue": "hive"},
         }
     if settings.trading_overnight_review_enabled:

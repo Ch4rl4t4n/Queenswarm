@@ -12,6 +12,8 @@ _EXPORTABLE: dict[str, tuple[str, str]] = {
     "BrowserAutomationSession": ("app.infrastructure.persistence.models.browser_session", "BrowserAutomationSession"),
     "AgentTemplateORM": ("app.infrastructure.persistence.models.agent_template", "AgentTemplateORM"),
     "ForagerORM": ("app.infrastructure.persistence.models.forager", "ForagerORM"),
+    "TenantSkillORM": ("app.infrastructure.persistence.models.tenant_skill", "TenantSkillORM"),
+    "SkillOpportunityORM": ("app.infrastructure.persistence.models.skill_opportunity", "SkillOpportunityORM"),
     "AgentSuggestion": ("app.infrastructure.persistence.models.agent_suggestion", "AgentSuggestion"),
     "AgentRole": ("app.infrastructure.persistence.models.enums", "AgentRole"),
     "AgentStatus": ("app.infrastructure.persistence.models.enums", "AgentStatus"),

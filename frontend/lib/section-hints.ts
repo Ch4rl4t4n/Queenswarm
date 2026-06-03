@@ -63,9 +63,67 @@ export const SECTION_HINTS = {
     options: [
       "Module index — policy packs, risk tiers, and live/beta status per workspace.",
       "Deep links — open a module without losing Integrations or Agentic OS context.",
+      "Skill Factory — research → build → export (no in-app marketplace).",
       "Factory & Foragers — reachable from index or mobile More menu, not primary rail.",
     ],
     manualHref: "/manual#apps-tools",
+  },
+  skillFactory: {
+    title: "Skill Factory",
+    description:
+      "Automated skill production lane: HiveMind research → factory session → verified forge → tenant library → GitHub export. Sell externally, not in-app.",
+    options: [
+      "Guide tab — full operator manual from zero to export.",
+      "Research — weekly cron + Run now; composite score ≥72% = build candidate.",
+      "Approve verified_skill_forge in Agents → Suggestions before Library fills.",
+      "Skill picker — Sessions, Mission Kanban, New task (optional override chips).",
+    ],
+    manualHref: "/manual#skill-factory",
+  },
+  skillFactoryResearch: {
+    title: "Research lane",
+    description:
+      "Skill Market Intel + HiveMind score niches into ranked opportunities with demand, competition, and price anchor.",
+    options: [
+      "Run research now — up to 5 new opportunities per run.",
+      "Dismiss weak/generic niches early.",
+      "Feed HiveMind via Foragers for better intel scores.",
+      "Build skill — starts supervisor factory session.",
+    ],
+    manualHref: "/manual#skill-factory",
+  },
+  skillFactoryQueue: {
+    title: "Build queue",
+    description:
+      "Opportunities in queued or building state — each maps to one supervisor session.",
+    options: [
+      "building — monitor in Agents → Sessions.",
+      "completed opportunities move to Library after forge approve.",
+      "One build at a time recommended (cost + quality).",
+    ],
+    manualHref: "/manual#skill-factory",
+  },
+  skillFactoryLibrary: {
+    title: "Tenant skill library",
+    description:
+      "Verified tenant skills merged into SkillLibrary — visible to all sessions and skill picker chips.",
+    options: [
+      "Download GitHub pack — SKILL.md + README + LISTING.md.",
+      "Empty until first verified_skill_forge approve.",
+      "exported badge after first download.",
+    ],
+    manualHref: "/manual#skill-factory",
+  },
+  skillFactorySettings: {
+    title: "Factory automation",
+    description:
+      "Niche seeds, auto-build threshold, weekly cap, and factory kill-switch per tenant.",
+    options: [
+      "Start auto-build OFF — enable after first successful skill.",
+      "Max 2–3 builds/week for solo operator.",
+      "Save policy after every change.",
+    ],
+    manualHref: "/manual#skill-factory",
   },
   agents: {
     title: "Agents — primary control",

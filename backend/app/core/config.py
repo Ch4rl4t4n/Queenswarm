@@ -1886,6 +1886,12 @@ class Settings(BaseSettings):
         default=True,
         description="P3 #85 — Micro-SaaS factory landing + auth + deploy blueprint.",
     )
+    skill_factory_enabled: bool = Field(
+        default=True,
+        description="Skill Factory — research lane, tenant skills registry, GitHub export.",
+    )
+    skill_factory_research_cron_hour: int = Field(default=8, ge=0, le=23)
+    skill_factory_research_cron_minute: int = Field(default=0, ge=0, le=59)
     live_lane_snapshot_enabled: bool = Field(
         default=True,
         description="#65 — unified Polymarket + publish OAuth live lane prep snapshot.",

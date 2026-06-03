@@ -23,6 +23,7 @@ import {
 } from "@/lib/recipe-match-utils";
 import { HexNumberBadge, LANE_HEX_STROKE } from "@/components/hive/hex-metric-tile";
 import { InfoHint } from "@/components/hive/info-hint";
+import { SkillPickerChips } from "@/components/hive/skill-picker-chips";
 import { V4Card, V4CardHeader, V4Chip, V4PageCanvas } from "@/components/ui/v4";
 import { cn } from "@/lib/utils";
 
@@ -169,6 +170,7 @@ export function NewTaskConsole() {
 
   const [submitBusy, setSubmitBusy] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
+  const [intakeSkills, setIntakeSkills] = useState<string[]>([]);
   const [matchConfig, setMatchConfig] = useState<RecipeMatchConfigPayload>(DEFAULT_RECIPE_MATCH_CONFIG);
 
   useEffect(() => {
@@ -256,7 +258,7 @@ export function NewTaskConsole() {
         max_steps: 7,
         start_execution: true,
         defer_to_worker: true,
-        execution_payload: {},
+        execution_payload: intakeSkills.length > 0 ? { skills: intakeSkills } : {},
       });
       toast.success(
         res.kanban_slice_count != null
@@ -351,6 +353,12 @@ export function NewTaskConsole() {
           rows={6}
           className="v4-textarea mt-3 min-h-[140px]"
           placeholder="What should the hive run?"
+        />
+
+        <SkillPickerChips
+          className="mt-3"
+          selected={intakeSkills}
+          onChange={setIntakeSkills}
         />
 
         <div className="mt-5 flex flex-col gap-5 border-t border-(--qs-border) pt-5">

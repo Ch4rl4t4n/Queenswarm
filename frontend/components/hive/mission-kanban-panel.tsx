@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { TasksKanbanBoard } from "@/components/hive/tasks-kanban-board";
+import { SkillPickerChips } from "@/components/hive/skill-picker-chips";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { celebrateVerifiedOutcome } from "@/lib/celebrate-verified-outcome";
 import { HiveApiError, hiveDelete, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
@@ -52,6 +53,12 @@ export function MissionKanbanPanel({ onOpenTask, refreshSignal = 0 }: MissionKan
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [bulkDeleteIds, setBulkDeleteIds] = useState<string[] | null>(null);
   const [selectedDoneIds, setSelectedDoneIds] = useState<Set<string>>(() => new Set());
+  const [dispatchSkills, setDispatchSkills] = useState<string[]>([]);
+
+  const executionPayload = useMemo(
+    () => (dispatchSkills.length > 0 ? { skills: dispatchSkills } : {}),
+    [dispatchSkills],
+  );
 
   const reload = useCallback(async () => {
     try {
@@ -97,11 +104,12 @@ export function MissionKanbanPanel({ onOpenTask, refreshSignal = 0 }: MissionKan
         task_text: bundle.taskText,
         title: bundle.label,
         priority: 7,
+        skills: dispatchSkills.length > 0 ? dispatchSkills : undefined,
       });
       if (bundle.autoDispatch) {
         const res = await hivePostJson<MissionKanbanDispatchResponse>(
           `operator/mission-kanban/dispatch/${encodeURIComponent(triage.task_id)}`,
-          { start_execution: true, defer_to_worker: true },
+          { start_execution: true, defer_to_worker: true, execution_payload: executionPayload },
         );
         toast.success(`${bundle.label} dispatched · ${res.child_count} child slices`);
       } else {
@@ -127,6 +135,7 @@ export function MissionKanbanPanel({ onOpenTask, refreshSignal = 0 }: MissionKan
         await hivePostJson<MissionKanbanTriageResponse>("operator/mission-kanban/triage", {
           task_text: text,
           title: text.split("\n")[0]?.slice(0, 500),
+          skills: dispatchSkills.length > 0 ? dispatchSkills : undefined,
         });
         toast.success("Added to Triage — click Dispatch now to decompose.");
       } else {
@@ -159,7 +168,7 @@ export function MissionKanbanPanel({ onOpenTask, refreshSignal = 0 }: MissionKan
       for (const t of triageTasks) {
         const res = await hivePostJson<MissionKanbanDispatchResponse>(
           `operator/mission-kanban/dispatch/${encodeURIComponent(t.id)}`,
-          { start_execution: true, defer_to_worker: true },
+          { start_execution: true, defer_to_worker: true, execution_payload: executionPayload },
         );
         dispatched += 1;
         toast.success(`Dispatched "${t.title}" · ${res.child_count} child slices`);
@@ -355,6 +364,12 @@ export function MissionKanbanPanel({ onOpenTask, refreshSignal = 0 }: MissionKan
             + Add
           </button>
         </div>
+
+        <SkillPickerChips
+          className="mt-3"
+          selected={dispatchSkills}
+          onChange={setDispatchSkills}
+        />
 
         <div className="mt-3">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Skill bundles</p>

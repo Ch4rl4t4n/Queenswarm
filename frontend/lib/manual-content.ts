@@ -247,6 +247,43 @@ export const APP_MANUAL_SECTIONS: ManualSection[] = [
     ],
   },
   {
+    id: "skill-factory",
+    title: "Skill Factory — výroba skills od nuly",
+    paragraphs: [
+      `**Apps & Tools → [Skill Factory](${MANUAL_HREFS.skillFactory})** — research → build → verify → tenant library → GitHub export. Apka nepredáva — predaj len mimo (GitHub/Gumroad). In-app marketplace je vypnutý zámerne.`,
+      `Pipeline: (1) Settings — niche seeds + auto-build policy · (2) Research — Run now, composite ≥72% · (3) Build skill → supervisor session · (4) Agents → Suggestions — approve \`verified_skill_forge\` · (5) Library — Download GitHub pack · (6) Skill picker v Sessions / Mission Kanban / New task.`,
+      `Primary ROI = **interné skills** pre rýchlejší hive. Externý predaj = cherry-pick 1–2 top skills / mesiac. Full doc: docs/SKILL_FACTORY_OPERATOR_MANUAL.md`,
+      `Research používa HiveMind + Skill Market Intel (nie live GitHub/Gumroad scrape). Auto GitHub push zatiaľ nie — manuálny upload zipu.`,
+    ],
+    checklist: [
+      {
+        text: "0) LLM keys + auto-approve ON · 1) Settings — pridaj niche seeds · Save policy",
+        href: MANUAL_HREFS.skillFactory,
+        linkLabel: "Skill Factory",
+      },
+      {
+        text: "2) Research → Build skill · 3) Agents → Sessions — sleduj beh",
+        href: MANUAL_HREFS.agentsSessions,
+        linkLabel: "Sessions",
+      },
+      {
+        text: "4) Agents → Suggestions — approve verified_skill_forge",
+        href: MANUAL_HREFS.agents,
+        linkLabel: "Suggestions",
+      },
+      {
+        text: "5) Library → Download GitHub pack · 6) Použi skill cez picker chips",
+        href: MANUAL_HREFS.skillFactory,
+        linkLabel: "Library export",
+      },
+      {
+        text: "Guide tab v Skill Factory — krok-za-krokom + odporúčania + stav systému",
+        href: MANUAL_HREFS.manualSkillFactory,
+        linkLabel: "Manual anchor",
+      },
+    ],
+  },
+  {
     id: "lead-gen-lane",
     title: "Lead Gen Lane — verified outreach pipeline",
     paragraphs: [
@@ -837,6 +874,25 @@ export const APP_FUNCTION_GUIDE: FunctionInfoGroup[] = [
         description: "Brainstorm → approve → viability gate → Queen Maintainer PR-only implementation.",
         options: ["Brainstorm proposal", "Approve & queue Maintainer", "Viability gate + high-risk ack"],
         href: MANUAL_HREFS.manualInnovationViability,
+      },
+    ],
+  },
+  {
+    id: "apps-tools",
+    title: "Apps & Tools",
+    items: [
+      {
+        id: "skill-factory",
+        label: "Skill Factory",
+        description:
+          "Research niches → factory session → approve forge → tenant library → GitHub export. No in-app sales.",
+        options: [
+          "Guide tab — operator manual from zero",
+          "Research — HiveMind + Skill Market Intel scoring",
+          "Approve verified_skill_forge before Library fills",
+          "Skill picker — Sessions, Kanban, New task",
+        ],
+        href: MANUAL_HREFS.skillFactory,
       },
     ],
   },

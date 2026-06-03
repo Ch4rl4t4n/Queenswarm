@@ -6,6 +6,7 @@ import {
   parseSubAgentShortMemory,
   runtimeModeLabel,
   sessionStatusTone,
+  supervisorSessionProgressPct,
   subAgentStepEventLabel,
   subAgentStepEventTone,
   celeryJobStateTone,
@@ -94,6 +95,21 @@ describe("supervisor-session helpers", () => {
     expect(isSubAgentRetryable("queued", "running")).toBe(true);
     expect(isSubAgentRetryable("completed", "running")).toBe(false);
     expect(isSubAgentRetryable("needs_input", "paused")).toBe(false);
+  });
+
+  it("supervisorSessionProgressPct floors running work at 5%", () => {
+    expect(
+      supervisorSessionProgressPct({
+        status: "running",
+        sub_agents: [{ status: "running" }, { status: "running" }],
+      }),
+    ).toBe(5);
+    expect(
+      supervisorSessionProgressPct({
+        status: "running",
+        sub_agents: [{ status: "completed" }, { status: "running" }],
+      }),
+    ).toBe(50);
   });
 });
 

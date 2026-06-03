@@ -193,6 +193,11 @@ class MissionKanbanTriageRequest(BaseModel):
     priority: int = Field(default=5, ge=1, le=99)
     swarm_id: uuid.UUID | None = None
     target_lane: Literal["scout", "eval", "sim", "action"] | None = None
+    skills: list[str] = Field(
+        default_factory=list,
+        max_length=12,
+        description="Optional skill slugs pinned for dispatch execution.",
+    )
 
 
 class MissionKanbanTriageResponse(BaseModel):
@@ -316,6 +321,7 @@ async def mission_kanban_triage(
             title=body.title,
             priority=body.priority,
             swarm_id=swarm_id,
+            skills=[item.strip().lower() for item in body.skills if item.strip()],
         )
         await db.commit()
     except TaskUpsertViolationError as exc:

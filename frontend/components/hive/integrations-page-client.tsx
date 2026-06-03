@@ -142,6 +142,9 @@ const TABS: { id: IntegrationsTab; label: string; icon: typeof CheckCircle2; fea
 function visibleIntegrationTabs(features: Record<string, boolean>): typeof TABS {
   return TABS.filter((tab) => {
     if (tab.id === "skills") {
+      if (features.skill_factory) {
+        return false;
+      }
       return Boolean(features.skills_export_factory || features.skills_marketplace);
     }
     if (!tab.featureKey) {
@@ -550,8 +553,11 @@ export function IntegrationsPageClient({
   );
 
   const mobileRefreshAction = useMemo(
-    () => <HiveRefreshButton busy={refreshing} onClick={() => void refreshPulse()} />,
-    [refreshPulse, refreshing],
+    () =>
+      tab === "studio" ? null : (
+        <HiveRefreshButton busy={refreshing} onClick={() => void refreshPulse()} />
+      ),
+    [refreshPulse, refreshing, tab],
   );
 
   useSetHiveMobileHeaderTrailing(mobileRefreshAction);
@@ -562,11 +568,13 @@ export function IntegrationsPageClient({
       subtitle="Connectors · MCP hub · tools marketplace · external projects · plugin lattice."
       hintKey="integrations"
       status={
-        <HiveRefreshButton
-          className="hidden lg:inline-flex"
-          busy={refreshing}
-          onClick={() => void refreshPulse()}
-        />
+        tab !== "studio" ? (
+          <HiveRefreshButton
+            className="hidden lg:inline-flex"
+            busy={refreshing}
+            onClick={() => void refreshPulse()}
+          />
+        ) : null
       }
       actions={
         hasHubTab ? (

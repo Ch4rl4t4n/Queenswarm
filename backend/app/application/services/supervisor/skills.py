@@ -71,10 +71,11 @@ class SkillSnippet:
 class SkillLibrary:
     """Reads Markdown skills and dynamically selects best-fit combinations."""
 
-    def __init__(self, skills_dir: Path | None = None) -> None:
+    def __init__(self, skills_dir: Path | None = None, tenant_overlays: dict[str, SkillSnippet] | None = None) -> None:
         base = skills_dir or (Path(__file__).resolve().parents[3] / "skills")
         self._skills_dir = base
         self._cache: dict[str, SkillSnippet] = {}
+        self._tenant_overlays: dict[str, SkillSnippet] = dict(tenant_overlays or {})
 
     @property
     def skills_dir(self) -> Path:
@@ -88,6 +89,8 @@ class SkillLibrary:
         key = slug.strip().lower()
         if not key:
             return None
+        if key in self._tenant_overlays:
+            return self._tenant_overlays[key]
         if key in self._cache:
             return self._cache[key]
         path = self._skills_dir / f"{key}.md"
@@ -226,15 +229,14 @@ class SkillLibrary:
         return role.strip().lower().replace("-", "_")
 
     def list_available_slugs(self) -> list[str]:
-        """List available skill markdown slugs."""
+        """List available skill markdown slugs (builtin files + tenant overlays)."""
 
-        if not self._skills_dir.exists():
-            return []
-        rows: list[str] = []
-        for item in self._skills_dir.glob("*.md"):
-            if item.is_file():
-                rows.append(item.stem.strip().lower())
-        return sorted({slug for slug in rows if slug})
+        rows: set[str] = set(self._tenant_overlays.keys())
+        if self._skills_dir.exists():
+            for item in self._skills_dir.glob("*.md"):
+                if item.is_file():
+                    rows.add(item.stem.strip().lower())
+        return sorted(slug for slug in rows if slug)
 
     def build_prompt_block(self, slugs: list[str], *, lazy_fetch: bool = False) -> str:
         """Construct a compact prompt appendix for selected skills (sync).

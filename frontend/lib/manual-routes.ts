@@ -51,6 +51,8 @@ export const MANUAL_HREFS = {
   swarms: "/swarms",
   tasks: "/tasks",
   tasksNew: "/tasks/new",
+  skillFactory: "/apps-tools/skill-factory",
+  manualSkillFactory: "/manual#skill-factory",
 } as const;
 
 /** Per function-guide card id → open-in-app href. */

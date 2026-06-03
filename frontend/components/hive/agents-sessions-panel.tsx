@@ -15,9 +15,10 @@ import { AgentSessionReportDialog } from "@/components/hive/agent-session-report
 import { AutomationLadderPanel } from "@/components/hive/automation-ladder-panel";
 import { InfoHint } from "@/components/hive/info-hint";
 import { SessionPatternSkillsPanel } from "@/components/hive/session-pattern-skills-panel";
+import { SkillPickerChips } from "@/components/hive/skill-picker-chips";
+import { SupervisorSessionsListPanel } from "@/components/hive/supervisor-sessions-list-panel";
 import { VoiceSessionControls } from "@/components/hive/voice-session-controls";
 import { usePlatform } from "@/components/hive/platform-context";
-import { HiveSwitch } from "@/components/ui/hive-switch";
 import { QsSelect } from "@/components/ui/qs-select";
 import {
   V4Badge,
@@ -56,7 +57,7 @@ interface CreateSessionPayload {
   runtime_mode: "inprocess" | "durable";
   roles: string[];
   retrieval_contract: string;
-  skills: string[];
+  skills?: string[];
 }
 
 const ROLE_OPTIONS = ["researcher", "coder", "browser_operator", "critic", "designer"] as const;
@@ -83,19 +84,6 @@ function sessionRuntimeLabel(session: SupervisorSessionRow): string {
   return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
-function sessionStatusBadgeTone(status: string): "info" | "warn" | "ok" | "gold" {
-  if (status === "running") {
-    return "info";
-  }
-  if (status === "needs_input") {
-    return "warn";
-  }
-  if (status === "completed" || status === "approved") {
-    return "ok";
-  }
-  return "gold";
-}
-
 interface AgentsSessionsPanelProps {
   variant?: "default" | "v4";
 }
@@ -106,7 +94,7 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
   const [goal, setGoal] = useState("");
   const [runtimeMode, setRuntimeMode] = useState<"inprocess" | "durable">("inprocess");
   const [sessionRoles, setSessionRoles] = useState<string[]>([...ROLE_OPTIONS]);
-  const [sessionSkills, setSessionSkills] = useState<string[]>(["context", "decide", "tdd"]);
+  const [sessionSkills, setSessionSkills] = useState<string[]>([]);
   const [sessionRetrieval, setSessionRetrieval] = useState("customer_history+policy+last_3_tasks");
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -170,7 +158,7 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
     setGoal(preset.goal);
     setRuntimeMode(preset.runtime_mode);
     setSessionRoles(preset.roles.length > 0 ? preset.roles : [...ROLE_OPTIONS]);
-    setSessionSkills(preset.skills.length > 0 ? preset.skills : ["context", "decide", "tdd"]);
+    setSessionSkills(preset.skills.length > 0 ? preset.skills : []);
     setSessionRetrieval(preset.retrieval_contract || "customer_history+policy+last_3_tasks");
     setActivePresetId(preset.id);
   }
@@ -245,6 +233,10 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
 
   const patternPreviewSnapshot = useMemo(
     () => patternPreviewToSnapshot(patternPreview),
+    [patternPreview],
+  );
+  const suggestedSkillSlugs = useMemo(
+    () => patternPreview?.suggested_skill_slugs ?? [],
     [patternPreview],
   );
 
@@ -338,7 +330,7 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
       runtime_mode: runtimeMode,
       roles: sessionRoles.length > 0 ? sessionRoles : [...ROLE_OPTIONS],
       retrieval_contract: sessionRetrieval,
-      skills: sessionSkills.length > 0 ? sessionSkills : ["context", "decide", "tdd"],
+      skills: sessionSkills.length > 0 ? sessionSkills : undefined,
     };
     if (payload.goal.length < 4) {
       toast.error("Goal is too short.");
@@ -350,7 +342,7 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
       setGoal("");
       setActivePresetId(null);
       setSessionRoles([...ROLE_OPTIONS]);
-      setSessionSkills(["context", "decide", "tdd"]);
+      setSessionSkills([]);
       setSessionRetrieval("customer_history+policy+last_3_tasks");
       await mutate();
       toast.success("Supervisor session created.");
@@ -395,15 +387,11 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
     }
   }
 
-  async function clearAllSessions(): Promise<void> {
-    const targets = filteredSessions;
+  async function clearAllSessions(targets: SupervisorSessionRow[]): Promise<void> {
     if (targets.length === 0) {
       return;
     }
-    const filterHint =
-      sessionStatusFilter !== "all" || sessionQuery.trim()
-        ? " from current filter"
-        : "";
+    const filterHint = targets.length !== sessions.length ? " from current filter" : "";
     const confirmed = window.confirm(
       `Delete ${targets.length} session${targets.length === 1 ? "" : "s"}${filterHint}? This cannot be undone.`,
     );
@@ -412,10 +400,7 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
     }
     setClearAllBusy(true);
     try {
-      const isFullList =
-        sessionStatusFilter === "all" &&
-        !sessionQuery.trim() &&
-        targets.length === sessions.length;
+      const isFullList = targets.length === sessions.length;
       if (isFullList) {
         const result = await hiveDelete<{ deleted_count: number }>("agents/sessions");
         await refreshSessionsAndSummary();
@@ -487,8 +472,8 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
     return (
       <V4Card id="sessions" className="scroll-mt-28">
         <V4CardHeader
-          title="Dynamic supervisor sessions"
-          description="Spawn sub-agents, track statuses, and interact through shared memory logs."
+          title="Supervisor sessions"
+          description="Goals · sub-agents · runtime · auto-approve rules."
         />
         <div
           role="alert"
@@ -524,8 +509,8 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
     <Shell id="sessions" className={shellClass}>
       {isV4 ? (
         <V4CardHeader
-          title="Dynamic supervisor sessions"
-          description="Spawn sub-agents, track statuses, and interact through shared memory logs."
+          title="Supervisor sessions"
+          description="Goals · sub-agents · runtime · auto-approve rules."
           actions={
             <Link href={integrationsTabHref("active", "ecosystem")} className="qs-btn qs-btn--ghost qs-btn--sm">
               Tool hub
@@ -710,6 +695,13 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
         </div>
       ) : null}
 
+      <SkillPickerChips
+        className={isV4 ? "mt-3" : "mt-2"}
+        selected={sessionSkills}
+        suggested={suggestedSkillSlugs}
+        onChange={setSessionSkills}
+      />
+
       <div className={isV4 ? "mt-4" : "mt-3"}>
         <VoiceSessionControls
           compact
@@ -720,27 +712,35 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
         />
       </div>
 
-      <div className={isV4 ? "mt-5 flex flex-col gap-3 md:flex-row md:items-stretch" : "mt-4 grid gap-2 rounded-2xl border border-zinc-800 bg-black/20 p-3 md:grid-cols-[1fr_180px]"}>
+      {isV4 ? (
+        <div className="mt-5">
+          <SupervisorSessionsListPanel
+            sessions={sessions}
+            isLoading={isLoading}
+            sessionsControl={sessionsControl}
+            policyBusy={policyBusy}
+            reviewBusy={reviewBusy}
+            deleteBusy={deleteBusy}
+            clearAllBusy={clearAllBusy}
+            sessionRuntimeLabel={sessionRuntimeLabel}
+            onPatchAutoApprove={patchSessionsControlPolicy}
+            onReview={reviewSession}
+            onControl={controlSession}
+            onDelete={deleteSession}
+            onClearAll={clearAllSessions}
+            onReport={setReportSessionId}
+            onPrepareFirst={prepareFirstSession}
+          />
+        </div>
+      ) : (
+      <>
+      <div className="mt-4 grid gap-2 rounded-2xl border border-zinc-800 bg-black/20 p-3 md:grid-cols-[1fr_180px]">
         <input
           className="qs-input w-full min-w-0 flex-1"
           placeholder="Filter sessions by goal / status / runtime…"
           value={sessionQuery}
           onChange={(event) => setSessionQuery(event.target.value)}
         />
-        <label
-          className="flex shrink-0 items-center justify-between gap-2 rounded-lg border border-(--qs-border) bg-black/25 px-3 py-2 text-xs text-(--qs-text-2) md:min-w-[11.5rem]"
-          title="Auto approve approves needs_input sessions automatically. Critical actions (billing, live PR) stay manual."
-        >
-          <span className="whitespace-nowrap font-medium">
-            {sessionsControl?.auto_approve_enabled ? "Auto approve" : "Manual"}
-          </span>
-          <HiveSwitch
-            checked={Boolean(sessionsControl?.auto_approve_enabled)}
-            disabled={policyBusy}
-            aria-label="Toggle auto approve for supervisor sessions"
-            onCheckedChange={(checked) => void patchSessionsControlPolicy(checked)}
-          />
-        </label>
         <QsSelect
           className="w-full min-w-0 md:w-40 md:shrink-0"
           value={sessionStatusFilter}
@@ -811,99 +811,8 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
             )}
           </div>
         ) : (
-          filteredSessions.map((session) =>
-            isV4 ? (
-              <div key={session.id} className="v4-session-row">
-                <div className="min-w-0 flex-1">
-                  <div className="mb-1 flex flex-wrap items-center gap-2">
-                    <span className="font-(family-name:--font-jetbrains-mono) text-[11px] text-(--qs-text-3)">
-                      {shortSessionId(session.id)}
-                    </span>
-                    <V4Badge tone={sessionStatusBadgeTone(session.status)}>
-                      {session.status.replaceAll("_", " ")}
-                    </V4Badge>
-                    {playbookRecipeIdFromContext(session.context_summary) ? (
-                      <Link href="/recipes">
-                        <V4Badge tone="gold">playbook</V4Badge>
-                      </Link>
-                    ) : null}
-                  </div>
-                  <p className="v4-session-goal text-sm font-medium text-(--qs-text)" title={session.goal}>
-                    {sessionGoalPreview(session.goal)}
-                  </p>
-                  <SessionPatternSkillsPanel
-                    snapshot={extractSessionPatternSkills(session)}
-                    variant="compact"
-                  />
-                </div>
-                <div className="flex shrink-0 flex-wrap items-center gap-2">
-                  <span className="text-xs text-(--qs-text-3)">
-                    {sessionRuntimeLabel(session)} · {(session.sub_agents ?? []).length} agents
-                  </span>
-                  <Link href={supervisorSessionBallroomHref(session.id)} className="qs-btn qs-btn--ghost qs-btn--sm">
-                    Ballroom
-                  </Link>
-                  <button
-                    type="button"
-                    className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
-                    aria-label={`Session report ${shortSessionId(session.id)}`}
-                    onClick={() => setReportSessionId(session.id)}
-                  >
-                    <Info className="h-3.5 w-3.5" aria-hidden />
-                    Info
-                  </button>
-                  {isActiveSupervisorSession(session.status) ? (
-                    <>
-                      <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void controlSession(session.id, "pause")}>
-                        Pause
-                      </button>
-                      <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void controlSession(session.id, "resume")}>
-                        Resume
-                      </button>
-                      <button type="button" className="qs-btn qs-btn--danger qs-btn--sm" onClick={() => void controlSession(session.id, "stop")}>
-                        Stop
-                      </button>
-                    </>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="qs-btn qs-btn--ghost qs-btn--sm text-(--qs-red)"
-                    disabled={deleteBusy === session.id}
-                    onClick={() => void deleteSession(session.id)}
-                  >
-                    {deleteBusy === session.id ? "Deleting…" : "Delete"}
-                  </button>
-                  {session.status === "needs_input" ? (
-                    <>
-                      <button
-                        type="button"
-                        className="qs-btn qs-btn--green qs-btn--sm"
-                        disabled={reviewBusy === session.id}
-                        onClick={() =>
-                          void reviewSession(
-                            session.id,
-                            "approve",
-                            playbookRecipeIdFromContext(session.context_summary),
-                          )
-                        }
-                      >
-                        Approve
-                      </button>
-                      <button
-                        type="button"
-                        className="qs-btn qs-btn--danger qs-btn--sm"
-                        disabled={reviewBusy === session.id}
-                        onClick={() =>
-                          void reviewSession(session.id, "reject", playbookRecipeIdFromContext(session.context_summary))
-                        }
-                      >
-                        Reject
-                      </button>
-                    </>
-                  ) : null}
-                </div>
-              </div>
-            ) : (
+          filteredSessions.map((session) => (
+
               <div key={session.id} className="rounded-2xl border border-zinc-800 bg-black/25 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="min-w-0">
@@ -985,8 +894,7 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
                   </div>
                 </div>
               </div>
-            ),
-          )
+            ))
         )}
         </div>
         {filteredSessions.length > 0 ? (
@@ -994,7 +902,7 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
             type="button"
             className="qs-btn qs-btn--danger mt-3 w-full justify-center py-2.5 text-sm font-semibold disabled:opacity-45"
             disabled={clearAllBusy || isLoading}
-            onClick={() => void clearAllSessions()}
+            onClick={() => void clearAllSessions(filteredSessions)}
           >
             {clearAllBusy
               ? "Clearing…"
@@ -1004,6 +912,8 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
           </button>
         ) : null}
       </div>
+      </>
+      )}
 
       <AgentSessionReportDialog
         sessionId={reportSessionId}

@@ -23,9 +23,9 @@ import { downloadSkillExportBundle } from "@/lib/skill-export-utils";
 /** Skills marketplace — built-in hive skills + verified recipe exports. */
 export function SkillsMarketplacePanel(): JSX.Element {
   const { hasFeature, isAdmin } = usePlatform();
-  const showFactory = hasFeature("skills_export_factory");
-  const showProductMission = hasFeature("product_mission");
-  const showUgc = hasFeature("skills_marketplace");
+  const showFactory = hasFeature("skills_export_factory") && !hasFeature("skill_factory");
+  const showProductMission = hasFeature("product_mission") && !hasFeature("skill_factory");
+  const showUgc = hasFeature("skills_marketplace") && !hasFeature("skill_factory");
   const [catalog, setCatalog] = useState<SkillCatalogResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);

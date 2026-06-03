@@ -75,20 +75,25 @@ async def create_mission_triage_task(
     title: str | None,
     priority: int,
     swarm_id: uuid.UUID | None,
+    skills: list[str] | None = None,
 ) -> MissionKanbanTriageResult:
     """Park a high-level prompt on the triage column without running the breaker yet."""
 
     resolved_title = (title or "").strip() or intake_title(task_text)
+    skill_slugs = [item.strip().lower() for item in (skills or []) if item.strip()][:12]
+    payload: dict[str, Any] = {
+        "mission_kanban": True,
+        "triage": True,
+        "task_text": task_text.strip(),
+    }
+    if skill_slugs:
+        payload["skills"] = skill_slugs
     row = await create_task_record(
         session,
         title=resolved_title,
         task_type_value=TaskType.AGENT_RUN,
         priority=priority,
-        payload={
-            "mission_kanban": True,
-            "triage": True,
-            "task_text": task_text.strip(),
-        },
+        payload=payload,
         swarm_id=swarm_id,
         workflow_id=None,
         parent_task_id=None,
@@ -162,6 +167,21 @@ async def dispatch_mission_triage_task(
     if len(task_text) < 8:
         raise MissionKanbanStateError("Triage task_text must be at least 8 characters.")
 
+    payload_skills = [
+        str(item).strip().lower()
+        for item in (payload.get("skills") or [])
+        if str(item).strip()
+    ][:12]
+    exec_skills = [
+        str(item).strip().lower()
+        for item in (execution_payload.get("skills") or [])
+        if str(item).strip()
+    ][:12]
+    merged_skills = list(dict.fromkeys([*payload_skills, *exec_skills]))
+    merged_execution_payload = dict(execution_payload)
+    if merged_skills:
+        merged_execution_payload["skills"] = merged_skills
+
     breaker = WorkflowBreakerService()
     plan = await breaker.build_workflow_plan(
         session,
@@ -178,6 +198,7 @@ async def dispatch_mission_triage_task(
         "triage": False,
         "dispatched_at": True,
         "breaker_task_text": task_text,
+        **({"skills": merged_skills} if merged_skills else {}),
     }
     await session.flush()
 
@@ -210,7 +231,7 @@ async def dispatch_mission_triage_task(
                     "swarm_id": str(swarm_id),
                     "workflow_id": str(plan.workflow_id),
                     "task_id": str(row.id),
-                    "payload": execution_payload,
+                    "payload": merged_execution_payload,
                     "ledger_tracking_id": task_key,
                 },
                 task_id=task_key,
@@ -225,7 +246,7 @@ async def dispatch_mission_triage_task(
                 swarm_id=swarm_id,
                 workflow_id=plan.workflow_id,
                 task_id=row.id,
-                payload=execution_payload,
+                payload=merged_execution_payload,
             )
             execution = "inline"
 

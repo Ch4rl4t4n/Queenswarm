@@ -61,6 +61,23 @@ SUPPORTED_SUB_AGENT_ROLES: tuple[str, ...] = (
 )
 
 
+async def _resolve_skill_library(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID | None,
+    skill_library: SkillLibrary | None,
+) -> SkillLibrary:
+    """Return SkillLibrary with tenant overlays when no explicit loader passed."""
+
+    if skill_library is not None:
+        return skill_library
+    if tenant_id is not None:
+        from app.application.services.tenant_skill_loader import build_skill_library_for_tenant
+
+        return await build_skill_library_for_tenant(db, tenant_id=tenant_id)
+    return SkillLibrary()
+
+
 def coerce_runtime_mode(raw: str | None) -> SupervisorRuntimeMode:
     """Normalize runtime mode using feature flags + defaults."""
 
@@ -276,7 +293,11 @@ async def retry_sub_agent_step(
 
     if runtime_mode == "inprocess" and sub_status == "needs_input":
         ctx = shared_context or SharedContextService()
-        loader = skill_library or SkillLibrary()
+        loader = await _resolve_skill_library(
+            db,
+            tenant_id=session_row.tenant_id,
+            skill_library=skill_library,
+        )
         sub_agent.status = "pending"
         sub_agent.error_text = None
         await run_sub_agent_inprocess(
@@ -323,7 +344,11 @@ async def resume_inprocess_sub_agents_after_approval(
     if not subs:
         subs = await _list_session_sub_agents(db, session_row.id)
 
-    loader = skill_library or SkillLibrary()
+    loader = await _resolve_skill_library(
+        db,
+        tenant_id=session_row.tenant_id,
+        skill_library=skill_library,
+    )
     resumed = 0
     for sub in subs:
         if str(sub.status or "").strip().lower() != "needs_input":
@@ -382,7 +407,7 @@ async def create_supervisor_session(
     mode = coerce_runtime_mode(runtime_mode)
     norm_roles = normalize_roles(roles)
     now = datetime.now(tz=UTC)
-    loader = skill_library or SkillLibrary()
+    loader = await _resolve_skill_library(db, tenant_id=tenant_id, skill_library=skill_library)
     goal_clean = goal.strip()
     skill_slugs_effective = augment_skill_slugs_for_execution(goal_clean, skill_slugs=skill_slugs)
     contract = retrieval_contract.strip() if isinstance(retrieval_contract, str) else ""

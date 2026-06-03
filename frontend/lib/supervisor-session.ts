@@ -135,6 +135,48 @@ export function sessionGoalPreview(goal: string, maxLen = 140): string {
   return `${firstLine.slice(0, maxLen - 1)}…`;
 }
 
+/** Derive live progress from sub-agent completion (matches backend forager overview). */
+export function supervisorSessionProgressPct(session: {
+  status: string;
+  sub_agents?: { status: string }[];
+}): number {
+  const subs = session.sub_agents ?? [];
+  if (subs.length === 0) {
+    const key = session.status.trim().toLowerCase();
+    if (key === "completed") return 100;
+    if (key === "needs_input") return 55;
+    if (key === "running") return 15;
+    return 8;
+  }
+  const done = subs.filter((row) => row.status.trim().toLowerCase() === "completed").length;
+  const total = subs.length;
+  if (done >= total) return 99;
+  return Math.max(5, Math.min(98, Math.round((100.0 * done) / total)));
+}
+
+/** Operator-facing progress detail for session list rows. */
+export function supervisorSessionProgressDetail(
+  session: { status: string; sub_agents?: { status: string }[] },
+  elapsedLabel: string,
+): string {
+  const subs = session.sub_agents ?? [];
+  const pct = supervisorSessionProgressPct(session);
+  if (subs.length === 0) {
+    return `Session ${pct}% · ${elapsedLabel} elapsed · waiting for sub-agents`;
+  }
+  const normalized = subs.map((row) => row.status.trim().toLowerCase());
+  const done = normalized.filter((status) => status === "completed").length;
+  const running = normalized.filter((status) =>
+    ["running", "started", "in_progress", "active", "queued", "pending"].includes(status),
+  ).length;
+  const blocked = normalized.filter((status) => status === "needs_input" || status === "failed").length;
+  const parts = [`${done}/${subs.length} sub-agents done`, `${pct}%`];
+  if (running > 0) parts.push(`${running} in flight`);
+  if (blocked > 0) parts.push(`${blocked} blocked`);
+  parts.push(`${elapsedLabel} elapsed`);
+  return parts.join(" · ");
+}
+
 /** Deep-link to read-only supervisor session replay in Ballroom. */
 export function supervisorSessionBallroomHref(sessionId: string): string {
   return `/ballroom?supervisor_session=${encodeURIComponent(sessionId)}`;

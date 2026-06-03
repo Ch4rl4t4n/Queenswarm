@@ -11,9 +11,12 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.logging import get_logger
 from app.infrastructure.persistence.models.agent_suggestion import AgentSuggestion
 from app.infrastructure.persistence.models.supervisor_session import SubAgentSession, SupervisorSession
 from app.infrastructure.persistence.models.tenant import Tenant
+
+logger = get_logger(__name__)
 
 _DANGEROUS_CHANGE_TERMS: tuple[str, ...] = (
     "delete",
@@ -290,7 +293,21 @@ def _review_state(
     suggestion.reviewed_at = datetime.now(tz=UTC)
 
 
-def _should_auto_approve(*, draft: InitiativeDraft) -> bool:
+def _should_auto_approve(*, draft: InitiativeDraft, tenant: Tenant | None = None) -> bool:
+    from app.application.services.execution_studio_handoff import CODEBASE_PROPOSAL_TYPE
+
+    if draft.proposal_type == CODEBASE_PROPOSAL_TYPE:
+        return False
+
+    if tenant is not None:
+        from app.application.services.agent_initiative_policy import agent_initiative_policy
+
+        policy = agent_initiative_policy(tenant)
+        if policy["auto_approve_enabled"]:
+            if draft.risk_level == "high" and not policy["include_high_risk"]:
+                return False
+            return True
+
     risk_score = _risk_to_score(draft.risk_level)
     return (
         settings.agent_initiative_auto_approve_enabled
@@ -327,6 +344,10 @@ async def propose_agent_improvements(
     rows: list[AgentSuggestion] = []
     from app.application.services.execution_studio_handoff import CODEBASE_PROPOSAL_TYPE
 
+    tenant_row: Tenant | None = None
+    if supervisor_session.tenant_id is not None:
+        tenant_row = await db.get(Tenant, supervisor_session.tenant_id)
+
     for draft in drafts:
         payload = dict(draft.proposal_payload)
         if draft.proposal_type == CODEBASE_PROPOSAL_TYPE:
@@ -348,9 +369,15 @@ async def propose_agent_improvements(
             requires_manual_approval=bool(draft.requires_manual_approval),
             evaluation_reason=draft.evaluation_reason[:800],
         )
-        if _should_auto_approve(draft=draft):
+        if _should_auto_approve(draft=draft, tenant=tenant_row):
+            from app.application.services.agent_initiative_policy import tenant_agent_initiative_auto_approve_enabled
+
             row.status = "approved"
-            row.reviewed_by_subject = "supervisor:auto"
+            row.reviewed_by_subject = (
+                "agent_initiative:auto"
+                if tenant_row is not None and tenant_agent_initiative_auto_approve_enabled(tenant_row)
+                else "supervisor:auto"
+            )
             row.reviewed_at = datetime.now(tz=UTC)
             row.implemented_at = datetime.now(tz=UTC)
             _append_context_hint(supervisor_session=supervisor_session, suggestion=row)
@@ -380,6 +407,21 @@ async def propose_agent_improvements(
                         suggestion=row,
                         dashboard_user_id=operator_id,
                     )
+        from app.application.services.execution_studio_context import tenant_codebase_auto_approve_enabled
+
+        if tenant_row is not None and tenant_codebase_auto_approve_enabled(tenant_row):
+            for row in rows:
+                if row.proposal_type != CODEBASE_PROPOSAL_TYPE or row.status != "pending":
+                    continue
+                await review_agent_suggestion_with_handoff(
+                    db,
+                    suggestion=row,
+                    decision="approved",
+                    reviewer_subject="execution_studio:auto",
+                    supervisor_session=supervisor_session,
+                    tenant=tenant_row,
+                )
+
         for row in rows:
             if row.proposal_type != CODEBASE_PROPOSAL_TYPE or tenant_row is None:
                 if row.proposal_type == "execution_studio_external" and tenant_row is not None:
@@ -404,6 +446,7 @@ async def propose_agent_improvements(
                     "proposal_id": str(row.id),
                     "source": (row.proposal_payload or {}).get("source"),
                     "role": role,
+                    "auto_approved": row.status == "approved",
                 },
             )
     return rows
@@ -473,21 +516,43 @@ async def review_agent_suggestion_with_handoff(
     if decision.strip().lower() == "approved":
         from app.application.services.execution_studio_handoff import handoff_on_approved_proposal
 
-        handoff_result = await handoff_on_approved_proposal(
-            db,
-            suggestion=reviewed,
-            tenant=tenant,
-            reviewer_subject=reviewer_subject,
-        )
-        if handoff_result is None and reviewed.proposal_type == "execution_studio_external":
-            from app.application.services.execution_studio_external import handoff_on_approved_external_proposal
-
-            handoff_result = await handoff_on_approved_external_proposal(
+        try:
+            handoff_result = await handoff_on_approved_proposal(
                 db,
                 suggestion=reviewed,
                 tenant=tenant,
                 reviewer_subject=reviewer_subject,
             )
+            if handoff_result is None and reviewed.proposal_type == "verified_skill_forge" and tenant is not None:
+                from app.application.services.skill_factory_publish import publish_verified_skill_forge
+
+                handoff_result = await publish_verified_skill_forge(
+                    db,
+                    suggestion=reviewed,
+                    tenant_id=tenant.id,
+                )
+            if handoff_result is None and reviewed.proposal_type == "execution_studio_external":
+                from app.application.services.execution_studio_external import handoff_on_approved_external_proposal
+
+                handoff_result = await handoff_on_approved_external_proposal(
+                    db,
+                    suggestion=reviewed,
+                    tenant=tenant,
+                    reviewer_subject=reviewer_subject,
+                )
+        except Exception as exc:  # noqa: BLE001 — approval must persist even when handoff fails
+            logger.warning(
+                "agent_suggestion.handoff_failed",
+                agent_id=reviewer_subject[:64],
+                swarm_id=str(reviewed.tenant_id or ""),
+                task_id=str(reviewed.id),
+                error=str(exc)[:200],
+            )
+            handoff_result = {
+                "ok": False,
+                "error": "handoff_failed",
+                "message": str(exc)[:200],
+            }
     return reviewed, handoff_result
 
 
@@ -500,6 +565,7 @@ async def bulk_review_agent_suggestions(
     suggestion_ids: list[uuid.UUID] | None = None,
     include_high_risk: bool = False,
     limit: int = 50,
+    exclude_proposal_types: list[str] | None = None,
 ) -> dict[str, Any]:
     """Approve or reject many pending suggestions — skips high-risk unless explicitly allowed."""
 
@@ -507,6 +573,7 @@ async def bulk_review_agent_suggestions(
     if normalized not in {"approved", "rejected"}:
         return {"processed": 0, "skipped": 0, "errors": []}
 
+    excluded = {item.strip().lower() for item in (exclude_proposal_types or []) if str(item).strip()}
     cap = max(1, min(limit, 100))
     stmt = select(AgentSuggestion).where(
         AgentSuggestion.tenant_id == tenant_id,
@@ -514,6 +581,8 @@ async def bulk_review_agent_suggestions(
     )
     if suggestion_ids:
         stmt = stmt.where(AgentSuggestion.id.in_(suggestion_ids))
+    if excluded:
+        stmt = stmt.where(AgentSuggestion.proposal_type.notin_(list(excluded)))
     stmt = stmt.order_by(desc(AgentSuggestion.created_at)).limit(cap)
     rows = list((await db.scalars(stmt)).all())
 
@@ -521,6 +590,9 @@ async def bulk_review_agent_suggestions(
     skipped = 0
     errors: list[str] = []
     for row in rows:
+        if row.proposal_type.strip().lower() in excluded:
+            skipped += 1
+            continue
         if row.risk_level == "high" and not include_high_risk and normalized == "approved":
             skipped += 1
             continue
@@ -529,14 +601,15 @@ async def bulk_review_agent_suggestions(
             supervisor = await db.get(SupervisorSession, row.supervisor_session_id)
         tenant = await db.get(Tenant, tenant_id)
         try:
-            await review_agent_suggestion_with_handoff(
-                db,
-                suggestion=row,
-                decision=normalized,
-                reviewer_subject=reviewer_subject,
-                supervisor_session=supervisor,
-                tenant=tenant,
-            )
+            async with db.begin_nested():
+                await review_agent_suggestion_with_handoff(
+                    db,
+                    suggestion=row,
+                    decision=normalized,
+                    reviewer_subject=reviewer_subject,
+                    supervisor_session=supervisor,
+                    tenant=tenant,
+                )
             processed += 1
         except Exception as exc:  # noqa: BLE001
             errors.append(f"{row.id}: {str(exc)[:120]}")

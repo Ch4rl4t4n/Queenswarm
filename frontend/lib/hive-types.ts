@@ -1436,6 +1436,28 @@ export interface ForagersSpawnPolicy {
   auto_spawn_auto_approve_enabled: boolean;
 }
 
+export interface AgentInitiativePolicy {
+  auto_approve_enabled: boolean;
+  include_high_risk: boolean;
+}
+
+export interface MemoryEvolutionPolicy {
+  auto_approve_enabled: boolean;
+  include_high_importance: boolean;
+}
+
+export interface MemoryEvolutionProposalRow {
+  id: string;
+  proposal_kind: string;
+  title: string;
+  summary: string;
+  payload: Record<string, unknown>;
+  status: string;
+  importance_score: number;
+  requires_manual_approval: boolean;
+  created_at: string;
+}
+
 export interface ForagersOverviewPayload {
   generated_at: string;
   policy: ForagersSpawnPolicy;

@@ -8,7 +8,8 @@ export interface AppsToolsModuleDef {
     | "trading_automation"
     | "browser_automation"
     | "content_factory"
-    | "research_workspace";
+    | "research_workspace"
+    | "skill_factory";
   slug: string;
   title: string;
   summary: string;
@@ -85,6 +86,15 @@ export const APPS_TOOLS_MODULES: AppsToolsModuleDef[] = [
     href: "/apps-tools/research-workspace",
     capabilityKeys: ["apps.research.briefing.v1"],
   },
+  {
+    moduleKey: "skill_factory",
+    slug: "skill-factory",
+    title: "Skill Factory",
+    summary: "Research market niches, auto-build verified skills, export GitHub packs — no in-app sales.",
+    status: "live",
+    href: "/apps-tools/skill-factory",
+    capabilityKeys: ["apps.skill_factory.research.v1", "apps.skill_factory.build.v1"],
+  },
 ];
 
 const MODULE_AGENT_USAGE: Record<AppsToolsModuleDef["moduleKey"], string> = {
@@ -102,6 +112,8 @@ const MODULE_AGENT_USAGE: Record<AppsToolsModuleDef["moduleKey"], string> = {
     "Media agency and micro-SaaS factory lanes generate assets via content-factory capabilities in sequence.",
   research_workspace:
     "Research bees extract briefings and transcripts into swarm decisions via structured research capabilities.",
+  skill_factory:
+    "Research lane scores niches from HiveMind; factory sessions produce tenant skills exported to GitHub/Gumroad.",
 };
 
 /** Operator-facing copy for the “How agents use this” block on module cards. */
@@ -117,4 +129,5 @@ export const APPS_TOOLS_MODULE_CATEGORY: Record<AppsToolsModuleDef["moduleKey"],
   browser_automation: "browser",
   content_factory: "content",
   research_workspace: "research",
+  skill_factory: "content",
 };

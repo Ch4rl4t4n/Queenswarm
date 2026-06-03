@@ -10,6 +10,8 @@ SOLO_HIDDEN_FEATURES: Final[frozenset[str]] = frozenset(
         "team_rbac",
         "enterprise_workspace",
         "accounts_admin",
+        "skills_marketplace",
+        "ugc_content_engine",
     },
 )
 
@@ -47,11 +49,10 @@ SOLO_CORE_FEATURES: Final[frozenset[str]] = frozenset(
         "auto_graphify",
         "selective_recall",
         "skills_export_factory",
+        "skill_factory",
         # Operator monetization — available in solo for admin to earn
         "billing_settings",
         "sharing_settings",
-        "skills_marketplace",
-        "ugc_content_engine",
         "product_mission",
         "self_extending_tool_marketplace",
         "bee_gamification",

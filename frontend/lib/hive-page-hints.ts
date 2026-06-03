@@ -16,6 +16,7 @@ export type HivePageHintKey =
       | "ballroom"
       | "swarms"
       | "factory"
+      | "skillFactory"
       | "tasks"
       | "routines"
       | "dashboard"
@@ -33,6 +34,7 @@ export const HIVE_PAGE_HINTS = {
   ballroom: sectionHintProps("ballroom"),
   swarms: sectionHintProps("swarms"),
   factory: sectionHintProps("factory"),
+  skillFactory: sectionHintProps("skillFactory"),
   tasks: sectionHintProps("tasks"),
   routines: sectionHintProps("routines"),
   workflows: sectionHintProps("agentsWorkflows"),

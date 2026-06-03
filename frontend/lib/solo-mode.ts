@@ -7,6 +7,8 @@ export const SOLO_HIDDEN_FEATURES = new Set([
   "team_rbac",
   "enterprise_workspace",
   "accounts_admin",
+  "skills_marketplace",
+  "ugc_content_engine",
 ]);
 
 export const SOLO_CORE_FEATURES = new Set([
@@ -40,10 +42,9 @@ export const SOLO_CORE_FEATURES = new Set([
   "auto_graphify",
   "selective_recall",
   "skills_export_factory",
+  "skill_factory",
   "billing_settings",
   "sharing_settings",
-  "skills_marketplace",
-  "ugc_content_engine",
   "product_mission",
   "self_extending_tool_marketplace",
   "bee_gamification",

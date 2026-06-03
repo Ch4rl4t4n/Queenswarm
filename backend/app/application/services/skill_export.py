@@ -24,6 +24,7 @@ from app.common.schemas.skill_export import (
 )
 from app.core.logging import get_logger
 from app.infrastructure.persistence.models.recipe import Recipe
+from app.infrastructure.persistence.models.tenant_skill import TenantSkillORM
 
 logger = get_logger(__name__)
 
@@ -394,8 +395,80 @@ async def export_recipe_skill(
     return build_export_bundle(row)
 
 
+def build_export_bundle_from_tenant_skill(skill: TenantSkillORM) -> SkillExportResponse:
+    """Assemble GitHub-ready export bundle from a tenant Skill Factory row."""
+
+    slug = skill.slug
+    folder = slug
+    price_cents = 1900
+    install_command = f"npx skills@latest add queenswarm/{slug}"
+
+    class _RecipeShim:
+        """Minimal recipe-like object for publish asset builders."""
+
+        id = skill.id
+        name = skill.title
+        description = skill.description
+        topic_tags = list(skill.keywords or [])
+        success_count = 1
+        fail_count = 0
+        avg_pollen_earned = 0.0
+        verified_at = skill.verified_at
+        workflow_template: dict[str, Any] = {"steps": []}
+
+    shim = _RecipeShim()
+    skill_md = skill.markdown_body.strip() or build_skill_md(shim)  # type: ignore[arg-type]
+    hive_md = f"# Hive context — {skill.title}\n\n{skill.description}\n"
+    tasks_md = f"# Tasks — {skill.title}\n\nFollow SKILL.md workflow in order.\n"
+    meta_json = json.dumps(
+        {
+            "slug": slug,
+            "version": skill.version,
+            "source": skill.source,
+            "roles": list(skill.roles or []),
+            "keywords": list(skill.keywords or []),
+        },
+        indent=2,
+        sort_keys=True,
+    )
+    readme_md = build_readme_md(recipe=shim, slug=slug, install_command=install_command)  # type: ignore[arg-type]
+    listing_md = build_listing_md(recipe=shim, slug=slug, price_cents=price_cents)  # type: ignore[arg-type]
+    publish = build_publish_guide(recipe=shim, slug=slug, install_command=install_command)  # type: ignore[arg-type]
+
+    files = [
+        SkillExportFile(path=f"{folder}/SKILL.md", content=skill_md),
+        SkillExportFile(path=f"{folder}/HIVE.md", content=hive_md),
+        SkillExportFile(path=f"{folder}/tasks.prompt.md", content=tasks_md),
+        SkillExportFile(path=f"{folder}/meta.json", content=meta_json + "\n"),
+        SkillExportFile(path=f"{folder}/README.md", content=readme_md),
+        SkillExportFile(path=f"{folder}/LISTING.md", content=listing_md),
+    ]
+
+    meta = SkillExportMeta(
+        recipe_id=skill.id,
+        recipe_name=skill.title,
+        slug=slug,
+        verified=skill.verified_at is not None,
+        verified_at=skill.verified_at,
+        success_rate=1.0 if skill.verified_at else 0.0,
+        avg_pollen_earned=0.0,
+        success_count=1 if skill.verified_at else 0,
+        fail_count=0,
+        topic_tags=list(skill.keywords or []),
+    )
+
+    return SkillExportResponse(
+        meta=meta,
+        files=files,
+        install_command=install_command,
+        install_hint="Push folder to GitHub or Gumroad — external sale only.",
+        publish=publish,
+    )
+
+
 __all__ = [
     "build_export_bundle",
+    "build_export_bundle_from_tenant_skill",
     "build_skill_md",
     "build_skills_catalog",
     "export_recipe_skill",
