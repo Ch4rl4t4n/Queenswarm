@@ -37,6 +37,8 @@ curl -fsS "https://queenswarm.love/health/ready" >/dev/null
 echo "-- Prod export verify (in backend container)"
 if docker ps --format '{{.Names}}' | grep -q 'queenswarm_prod-backend-1'; then
   docker exec queenswarm_prod-backend-1 python scripts/skill_factory_export_verify.py
+  echo "-- Prod cycle status"
+  docker exec queenswarm_prod-backend-1 python scripts/skill_factory_cycle_status.py
 else
   echo "skip: prod backend container not running locally"
 fi

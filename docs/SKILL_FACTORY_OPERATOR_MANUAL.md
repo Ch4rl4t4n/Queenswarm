@@ -260,7 +260,27 @@ Najväčší ROI = skill, ktorý denne používaš v sessions. Externý predaj =
 
 ---
 
-## 12. Súvisiace docs
+## 12. Prvý celý cyklus (checklist)
+
+```bash
+# Prod smoke (na hoste s docker stackom)
+./scripts/skill-factory-audit.sh
+docker exec queenswarm_prod-backend-1 python scripts/skill_factory_cycle_status.py
+```
+
+| # | Krok | Hotovo keď |
+|---|------|------------|
+| 1 | Settings → niche seeds + Factory enabled | Snapshot ukazuje policy |
+| 2 | Research tab → Run research | ≥1 opportunity score ≥0.72 |
+| 3 | Build na top niche | Queue: status `completed` |
+| 4 | Queue → **Approve skill** | Library má nový slug |
+| 5 | Library → Download GitHub pack | ZIP obsahuje SKILL.md + LISTING.md |
+| 6 | (Voliteľne) Push GitHub PR | `github_exported_at` nastavené |
+| 7 | (Voliteľne) Gumroad draft → publish | `gumroad_product_url` + published |
+
+---
+
+## 13. Súvisiace docs
 
 - `docs/OPERATOR_CANONICAL_WORKFLOW.md` — primárna cesta Agents → Sessions
 - `/manual#skill-hot-tier` — builtin recipe hot tier
