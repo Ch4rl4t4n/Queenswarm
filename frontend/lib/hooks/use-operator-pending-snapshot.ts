@@ -22,6 +22,7 @@ export interface OperatorPendingApprovals {
   browser_pending: number;
   external_pending: number;
   codebase_pending: number;
+  codebase_auto_approve_enabled?: boolean;
   live_actions: Array<{
     type: "browser" | "external";
     message?: string;
@@ -47,8 +48,19 @@ const EMPTY_STUDIO: OperatorPendingApprovals = {
   browser_pending: 0,
   external_pending: 0,
   codebase_pending: 0,
+  codebase_auto_approve_enabled: false,
   live_actions: [],
 };
+
+function effectiveStudioCount(studio: OperatorPendingApprovals): number {
+  const browser = studio.browser_pending ?? 0;
+  const external = studio.external_pending ?? 0;
+  const codebase = studio.codebase_pending ?? 0;
+  if (studio.codebase_auto_approve_enabled) {
+    return browser + external;
+  }
+  return Math.max(0, studio.count ?? browser + external + codebase);
+}
 
 function applyOptimisticClear(
   studio: OperatorPendingApprovals,
@@ -204,7 +216,7 @@ export function useOperatorPendingSnapshot(tasksPending = 0): OperatorPendingSna
     };
   }, [refresh, wsConnected]);
 
-  const studioPending = Math.max(0, studio.count ?? 0);
+  const studioPending = effectiveStudioCount(studio);
   return {
     tasksPending,
     reviewPending,

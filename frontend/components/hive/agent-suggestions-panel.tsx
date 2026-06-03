@@ -1,20 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
-import { ApprovalCardDeck, type ApprovalDeckItem } from "@/components/hive/approval-card-deck";
+import { AgentSuggestionsConfigurationsPanel } from "@/components/hive/agent-suggestions-configurations-panel";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import { DASHBOARD_BOOT_STAGGER_MS } from "@/lib/dashboard-boot-stagger";
-import type { AgentSuggestionRow } from "@/lib/hive-types";
+import type { AgentInitiativePolicy, AgentSuggestionRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
 interface AgentSuggestionsPanelProps {
   className?: string;
-}
-
-function impactBadge(score: number): string {
-  return score >= 0.7 ? "high impact" : "med impact";
 }
 
 export function AgentSuggestionsPanel({ className }: AgentSuggestionsPanelProps) {
@@ -23,13 +20,22 @@ export function AgentSuggestionsPanel({ className }: AgentSuggestionsPanelProps)
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [policy, setPolicy] = useState<AgentInitiativePolicy>({
+    auto_approve_enabled: false,
+    include_high_risk: false,
+  });
+  const autoApproveLock = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const body = await hiveGet<AgentSuggestionRow[]>("agents/suggestions?status_filter=pending&limit=80");
+      const [body, policyBody] = await Promise.all([
+        hiveGet<AgentSuggestionRow[]>("agents/suggestions?status_filter=pending&limit=80"),
+        hiveGet<AgentInitiativePolicy>("agents/suggestions/policy"),
+      ]);
       setRows(Array.isArray(body) ? body : []);
+      setPolicy(policyBody);
     } catch (err) {
       setError(err instanceof HiveApiError ? err.message : "Unable to load suggestions");
     } finally {
@@ -44,30 +50,26 @@ export function AgentSuggestionsPanel({ className }: AgentSuggestionsPanelProps)
     return () => window.clearTimeout(timer);
   }, [load]);
 
-  const pending = useMemo(() => rows.filter((item) => item.status === "pending"), [rows]);
-
-  const deckItems: ApprovalDeckItem[] = useMemo(
-    () =>
-      pending.map((row) => ({
-        id: row.id,
-        title: row.title,
-        description: row.description,
-        meta: `${row.proposed_by_role} · ${row.proposal_type.replace(/_/g, " ")}`,
-        badge: row.risk_level === "high" ? "high risk" : impactBadge(row.impact_score),
-        badgeTone: row.risk_level === "high" ? "warn" : row.impact_score >= 0.7 ? "gold" : "info",
-      })),
-    [pending],
-  );
+  useEffect(() => {
+    if (!policy.auto_approve_enabled) return;
+    const tick = () => {
+      if (autoApproveLock.current) return;
+      autoApproveLock.current = true;
+      void load().finally(() => {
+        autoApproveLock.current = false;
+      });
+    };
+    tick();
+    const interval = window.setInterval(tick, 90_000);
+    return () => window.clearInterval(interval);
+  }, [load, policy.auto_approve_enabled]);
 
   async function review(id: string, decision: "approve" | "reject"): Promise<void> {
     setBusyId(id);
     setError(null);
     try {
-      const updated = await hivePostJson<AgentSuggestionRow>(
-        `agents/suggestions/${encodeURIComponent(id)}/review`,
-        { decision },
-      );
-      setRows((prev) => prev.map((row) => (row.id === id ? updated : row)));
+      await hivePostJson(`agents/suggestions/${encodeURIComponent(id)}/review`, { decision });
+      await load();
     } catch (err) {
       setError(err instanceof HiveApiError ? err.message : "Review failed");
     } finally {
@@ -76,14 +78,8 @@ export function AgentSuggestionsPanel({ className }: AgentSuggestionsPanelProps)
   }
 
   async function approveAll(includeHighRisk: boolean): Promise<void> {
+    const pending = rows.filter((r) => r.status === "pending");
     if (!pending.length) return;
-    const high = pending.filter((r) => r.risk_level === "high").length;
-    const ok = window.confirm(
-      includeHighRisk || high === 0
-        ? `Approve all ${pending.length} pending?`
-        : `Approve ${pending.length - high} safe (skip ${high} high-risk)?`,
-    );
-    if (!ok) return;
     setBulkBusy(true);
     try {
       await hivePostJson("agents/suggestions/bulk-review", {
@@ -92,21 +88,41 @@ export function AgentSuggestionsPanel({ className }: AgentSuggestionsPanelProps)
         limit: 100,
       });
       await load();
+      toast.success("Bulk approve complete.");
     } catch (err) {
-      setError(err instanceof HiveApiError ? err.message : "Bulk approve failed");
+      toast.error(err instanceof HiveApiError ? err.message : "Bulk approve failed");
     } finally {
       setBulkBusy(false);
     }
   }
 
+  async function rejectAll(): Promise<void> {
+    setBulkBusy(true);
+    try {
+      await hivePostJson("agents/suggestions/bulk-review", {
+        decision: "reject",
+        include_high_risk: true,
+        limit: 100,
+      });
+      await load();
+      toast.success("All pending suggestions rejected.");
+    } catch (err) {
+      toast.error(err instanceof HiveApiError ? err.message : "Bulk reject failed");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  const pendingCount = rows.filter((row) => row.status === "pending").length;
+
   return (
     <V4Card id="agent-suggestions" className={cn("v4-card-interactive scroll-mt-28", className)}>
       <V4CardHeader
         title="Agent suggestions"
-        description="Self-proposed improvements — one card at a time, approve to advance."
+        description="Reflection · initiative · workflow deltas · auto-approve rules."
         actions={
           <>
-            <V4Badge tone="purple">{pending.length} pending</V4Badge>
+            <V4Badge tone="purple">{pendingCount} pending</V4Badge>
             <button type="button" onClick={() => void load()} className="qs-btn qs-btn--ghost qs-btn--sm">
               Refresh
             </button>
@@ -114,17 +130,20 @@ export function AgentSuggestionsPanel({ className }: AgentSuggestionsPanelProps)
         }
       />
 
-      {loading ? <p className="text-sm text-(--qs-text-3)">Loading initiative suggestions…</p> : null}
+      {loading ? <p className="mb-4 text-sm text-(--qs-text-3)">Loading initiative suggestions…</p> : null}
 
       {!loading ? (
-        <ApprovalCardDeck
-          items={deckItems}
+        <AgentSuggestionsConfigurationsPanel
+          rows={rows}
+          policy={policy}
           busyId={busyId}
           bulkBusy={bulkBusy}
-          emptyLabel="No pending suggestions. Agents propose after reflection cycles complete."
-          onApprove={(id) => review(id, "approve")}
-          onReject={(id) => review(id, "reject")}
-          onApproveAll={() => approveAll(false)}
+          policyBusy={false}
+          onPolicyChange={setPolicy}
+          onReload={load}
+          onReview={review}
+          onApproveAll={approveAll}
+          onRejectAll={rejectAll}
         />
       ) : null}
 

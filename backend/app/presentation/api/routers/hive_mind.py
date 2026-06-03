@@ -107,6 +107,40 @@ class MemoryEvolutionProposalView(BaseModel):
     created_at: str
 
 
+class MemoryEvolutionPolicyView(BaseModel):
+    """Tenant memory evolution approval policy."""
+
+    auto_approve_enabled: bool
+    include_high_importance: bool
+
+
+class MemoryEvolutionPolicyPatch(BaseModel):
+    """Partial patch for memory evolution approval policy."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    auto_approve_enabled: bool | None = None
+    include_high_importance: bool | None = None
+
+
+class MemoryEvolutionBulkReviewRequest(BaseModel):
+    """Bulk approve or reject pending memory evolution proposals."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    decision: str = Field(pattern="^(approve|reject)$")
+    include_high_importance: bool = False
+    limit: int = Field(default=100, ge=1, le=200)
+
+
+class MemoryEvolutionBulkReviewResponse(BaseModel):
+    """Bulk review summary."""
+
+    processed: int
+    skipped: int
+    errors: list[str] = Field(default_factory=list)
+
+
 def _serialize_proposal(row: MemoryEvolutionProposal) -> MemoryEvolutionProposalView:
     return MemoryEvolutionProposalView(
         id=str(row.id),
@@ -528,6 +562,75 @@ async def run_memory_evolution(
 
 
 @router.get(
+    "/memory-evolution/policy",
+    response_model=MemoryEvolutionPolicyView,
+    summary="Read tenant memory evolution approval policy",
+)
+async def get_memory_evolution_policy(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    _: bool = Depends(require_tenant_permission("team:manage")),
+) -> MemoryEvolutionPolicyView:
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    from app.application.services.memory_evolution_policy import memory_evolution_policy
+
+    policy = memory_evolution_policy(tenant)
+    return MemoryEvolutionPolicyView(
+        auto_approve_enabled=bool(policy["auto_approve_enabled"]),
+        include_high_importance=bool(policy["include_high_importance"]),
+    )
+
+
+@router.patch(
+    "/memory-evolution/policy",
+    response_model=MemoryEvolutionPolicyView,
+    summary="Update tenant memory evolution approval policy",
+)
+async def patch_memory_evolution_policy(
+    body: MemoryEvolutionPolicyPatch,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    _: bool = Depends(require_tenant_permission("team:manage")),
+) -> MemoryEvolutionPolicyView:
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found.")
+    from app.application.services.memory_evolution_auto_approve import (
+        auto_approve_pending_memory_evolution_proposals,
+    )
+    from app.application.services.memory_evolution_policy import (
+        memory_evolution_policy,
+        merge_memory_evolution_policy_patch,
+    )
+
+    patch_data = body.model_dump(exclude_unset=True)
+    tenant.operator_settings = merge_memory_evolution_policy_patch(tenant.operator_settings, patch_data)
+    await db.flush()
+    policy = memory_evolution_policy(tenant)
+    if patch_data.get("auto_approve_enabled") is True:
+        await auto_approve_pending_memory_evolution_proposals(
+            db,
+            tenant_id=tenant_id,
+            approver_user_id=user.id,
+            include_high_importance=bool(policy["include_high_importance"]),
+        )
+    await db.commit()
+    await db.refresh(tenant)
+    policy = memory_evolution_policy(tenant)
+    return MemoryEvolutionPolicyView(
+        auto_approve_enabled=bool(policy["auto_approve_enabled"]),
+        include_high_importance=bool(policy["include_high_importance"]),
+    )
+
+
+@router.get(
     "/memory-evolution/proposals",
     response_model=list[MemoryEvolutionProposalView],
     summary="List memory evolution proposals for active tenant",
@@ -540,8 +643,22 @@ async def list_memory_evolution_changes(
     limit: int = Query(default=60, ge=1, le=200),
 ) -> list[MemoryEvolutionProposalView]:
     tenant_id = principal.get("tenant_id")
-    if tenant_id is None:
+    user = principal.get("user")
+    if tenant_id is None or user is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    if status_filter in {None, "pending"}:
+        from app.application.services.memory_evolution_auto_approve import (
+            maybe_auto_approve_memory_evolution_pending,
+        )
+
+        drained = await maybe_auto_approve_memory_evolution_pending(
+            db,
+            tenant=tenant,
+            approver_user_id=user.id,
+        )
+        if int(drained.get("processed", 0)) > 0:
+            await db.commit()
     rows = await list_memory_evolution_proposals(
         db,
         tenant_id=tenant_id,
@@ -549,6 +666,39 @@ async def list_memory_evolution_changes(
         limit=limit,
     )
     return [_serialize_proposal(row) for row in rows]
+
+
+@router.post(
+    "/memory-evolution/proposals/bulk-review",
+    response_model=MemoryEvolutionBulkReviewResponse,
+    summary="Bulk approve or reject pending memory evolution proposals",
+)
+async def bulk_review_memory_evolution_changes(
+    body: MemoryEvolutionBulkReviewRequest,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    _: bool = Depends(require_tenant_permission("team:manage")),
+) -> MemoryEvolutionBulkReviewResponse:
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.memory_evolution_auto_approve import bulk_review_memory_evolution_proposals
+
+    result = await bulk_review_memory_evolution_proposals(
+        db,
+        tenant_id=tenant_id,
+        decision="approve" if body.decision == "approve" else "reject",
+        approver_user_id=user.id,
+        limit=body.limit,
+        include_high_importance=body.include_high_importance,
+    )
+    await db.commit()
+    return MemoryEvolutionBulkReviewResponse(
+        processed=int(result.get("processed", 0)),
+        skipped=int(result.get("skipped", 0)),
+        errors=list(result.get("errors") or []),
+    )
 
 
 @router.post(

@@ -1,37 +1,34 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Check, X } from "lucide-react";
 import { toast } from "sonner";
 
+import { MemoryEvolutionProposalsPanel } from "@/components/hive/memory-evolution-proposals-panel";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
-import { cn } from "@/lib/utils";
-
-interface MemoryEvolutionProposal {
-  id: string;
-  proposal_kind: string;
-  title: string;
-  summary: string;
-  payload: Record<string, unknown>;
-  status: string;
-  importance_score: number;
-  requires_manual_approval: boolean;
-  created_at: string;
-}
+import type { MemoryEvolutionPolicy, MemoryEvolutionProposalRow } from "@/lib/hive-types";
 
 /** Pending memory evolution proposals — approve / reject via hive-mind API. */
 export function MemoryEvolutionPanel() {
-  const [rows, setRows] = useState<MemoryEvolutionProposal[]>([]);
-  const [busy, setBusy] = useState<string | null>(null);
+  const [rows, setRows] = useState<MemoryEvolutionProposalRow[]>([]);
+  const [policy, setPolicy] = useState<MemoryEvolutionPolicy>({
+    auto_approve_enabled: false,
+    include_high_importance: false,
+  });
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     try {
-      const payload = await hiveGet<MemoryEvolutionProposal[]>(
-        "hive-mind/memory-evolution/proposals?status_filter=pending&limit=20",
-      );
-      setRows(payload);
+      const [proposals, nextPolicy] = await Promise.all([
+        hiveGet<MemoryEvolutionProposalRow[]>(
+          "hive-mind/memory-evolution/proposals?status_filter=pending&limit=80",
+        ),
+        hiveGet<MemoryEvolutionPolicy>("hive-mind/memory-evolution/policy"),
+      ]);
+      setRows(Array.isArray(proposals) ? proposals : []);
+      setPolicy(nextPolicy);
       setErr(null);
     } catch (e) {
       const msg = e instanceof HiveApiError ? e.message : e instanceof Error ? e.message : "Proposals unavailable";
@@ -43,8 +40,8 @@ export function MemoryEvolutionPanel() {
     void reload();
   }, [reload]);
 
-  async function act(id: string, action: "approve" | "reject") {
-    setBusy(id);
+  async function review(id: string, action: "approve" | "reject") {
+    setBusyId(id);
     try {
       await hivePostJson(`hive-mind/memory-evolution/proposals/${encodeURIComponent(id)}/${action}`, {});
       toast.success(action === "approve" ? "Proposal approved" : "Proposal rejected");
@@ -52,58 +49,76 @@ export function MemoryEvolutionPanel() {
     } catch (e) {
       toast.error(e instanceof HiveApiError ? e.message : "Action failed");
     } finally {
-      setBusy(null);
+      setBusyId(null);
     }
   }
 
-  const pending = rows.filter((row) => row.status === "pending");
+  async function approveAll(includeHighImportance: boolean) {
+    const pending = rows.filter((row) => row.status === "pending");
+    if (!pending.length) return;
+    const highCount = pending.filter((row) => row.importance_score >= 0.82).length;
+    if (highCount > 0 && !includeHighImportance) {
+      const ok = window.confirm(
+        `Approve ${pending.length - highCount} routine proposal(s)? (${highCount} high-importance skipped.)`,
+      );
+      if (!ok) return;
+    } else {
+      const ok = window.confirm(`Approve all ${pending.length} pending proposal(s)?`);
+      if (!ok) return;
+    }
+    setBulkBusy(true);
+    try {
+      const result = await hivePostJson<{ processed: number; skipped: number }>(
+        "hive-mind/memory-evolution/proposals/bulk-review",
+        { decision: "approve", include_high_importance: includeHighImportance, limit: 100 },
+      );
+      toast.success(`Approved ${result.processed} · skipped ${result.skipped}`);
+      await reload();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Bulk approve failed");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function clearAll() {
+    setBulkBusy(true);
+    try {
+      const result = await hivePostJson<{ processed: number }>(
+        "hive-mind/memory-evolution/proposals/bulk-review",
+        { decision: "reject", include_high_importance: true, limit: 100 },
+      );
+      toast.success(`Cleared ${result.processed} proposal${result.processed === 1 ? "" : "s"}`);
+      await reload();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Clear all failed");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  const pendingCount = rows.filter((row) => row.status === "pending").length;
 
   return (
     <V4Card>
       <V4CardHeader
         title="Memory evolution proposals"
-        description="Suggested graph edits from reflection cycles — approve to commit, reject to log."
-        actions={<V4Badge tone="purple">{pending.length} pending</V4Badge>}
+        description="Suggested graph edits from reflection cycles — approve to commit, reject to discard."
+        actions={<V4Badge tone="purple">{pendingCount} pending</V4Badge>}
       />
       {err ? <p className="mb-3 text-sm text-(--qs-red)">{err}</p> : null}
-      <div className="flex flex-col gap-3">
-        {!pending.length ? (
-          <p className="text-sm text-(--qs-text-3)">No pending proposals — reflection cycles will surface edits here.</p>
-        ) : (
-          pending.map((row) => (
-            <div key={row.id} className="v4-spawn-rule">
-              <div className="min-w-0 flex-1">
-                <div className="text-sm text-(--qs-text)">{row.title || row.summary}</div>
-                <div className="mt-1 text-xs text-(--qs-text-3)">
-                  {row.summary !== row.title ? row.summary : null}
-                  {row.summary !== row.title ? " · " : ""}
-                  confidence {row.importance_score.toFixed(2)} · {row.proposal_kind}
-                </div>
-              </div>
-              <div className="flex shrink-0 gap-2">
-                <button
-                  type="button"
-                  className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
-                  disabled={busy === row.id}
-                  onClick={() => void act(row.id, "reject")}
-                >
-                  <X className="h-3.5 w-3.5" aria-hidden />
-                  Reject
-                </button>
-                <button
-                  type="button"
-                  className={cn("qs-btn qs-btn--primary qs-btn--sm gap-1.5")}
-                  disabled={busy === row.id}
-                  onClick={() => void act(row.id, "approve")}
-                >
-                  <Check className="h-3.5 w-3.5" aria-hidden />
-                  Approve
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+      <MemoryEvolutionProposalsPanel
+        rows={rows}
+        policy={policy}
+        busyId={busyId}
+        bulkBusy={bulkBusy}
+        policyBusy={false}
+        onPolicyChange={setPolicy}
+        onReload={reload}
+        onReview={review}
+        onApproveAll={approveAll}
+        onClearAll={clearAll}
+      />
     </V4Card>
   );
 }

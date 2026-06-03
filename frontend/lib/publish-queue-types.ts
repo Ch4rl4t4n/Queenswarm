@@ -23,5 +23,10 @@ export interface PublishQueueSnapshot {
   pending_count: number;
   approved_count: number;
   rejected_count: number;
+  auto_approve_enabled: boolean;
   items: PublishQueueItem[];
+}
+
+export interface PublishQueuePolicy {
+  auto_approve_enabled: boolean;
 }

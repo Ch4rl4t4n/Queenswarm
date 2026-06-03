@@ -1533,6 +1533,15 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path === "hive-mind/memory-evolution/policy") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ auto_approve_enabled: false, include_high_importance: false }),
+      });
+      return;
+    }
+
     if (path.startsWith("hive-mind/memory-evolution/proposals")) {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
       return;

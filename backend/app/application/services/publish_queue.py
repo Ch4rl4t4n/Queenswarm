@@ -58,6 +58,7 @@ class PublishQueueSnapshotOut(BaseModel):
     pending_count: int = 0
     approved_count: int = 0
     rejected_count: int = 0
+    auto_approve_enabled: bool = False
     items: list[PublishQueueItemOut] = Field(default_factory=list)
 
 
@@ -173,6 +174,7 @@ async def build_publish_queue_snapshot(
     *,
     dashboard_user_id: uuid.UUID,
     limit: int = 40,
+    auto_approve_enabled: bool = False,
 ) -> PublishQueueSnapshotOut:
     """Load publish queue items in one pass (newest first)."""
 
@@ -204,6 +206,7 @@ async def build_publish_queue_snapshot(
         pending_count=pending,
         approved_count=approved,
         rejected_count=rejected,
+        auto_approve_enabled=auto_approve_enabled,
         items=items,
     )
 

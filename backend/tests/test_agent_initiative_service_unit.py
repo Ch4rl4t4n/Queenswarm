@@ -13,6 +13,7 @@ from app.application.services.supervisor.initiative import (
     list_agent_suggestions,
     propose_agent_improvements,
     review_agent_suggestion,
+    review_agent_suggestion_with_handoff,
 )
 from app.infrastructure.persistence.models.agent_suggestion import AgentSuggestion
 from app.infrastructure.persistence.models.supervisor_session import SubAgentSession, SupervisorSession
@@ -158,3 +159,45 @@ async def test_list_agent_suggestions_when_rows_exist_then_returns_rows() -> Non
     )
     rows = await list_agent_suggestions(db, tenant_id=tenant_id)  # type: ignore[arg-type]
     assert len(rows) == 1
+
+
+@pytest.mark.asyncio
+async def test_review_agent_suggestion_with_handoff_when_handoff_raises_then_still_approved(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Approval must persist when Maintainer handoff fails (billing limit, session cap, etc.)."""
+
+    async def _boom(*_args: object, **_kwargs: object) -> dict[str, object]:
+        raise ValueError("billing_limit_exceeded:monthly_supervisor_sessions")
+
+    monkeypatch.setattr(
+        "app.application.services.execution_studio_handoff.handoff_on_approved_proposal",
+        _boom,
+    )
+
+    suggestion = AgentSuggestion(
+        tenant_id=uuid.uuid4(),
+        supervisor_session_id=None,
+        sub_agent_session_id=None,
+        proposal_type="codebase_execution",
+        proposed_by_role="researcher",
+        title="Codebase execution handoff (researcher)",
+        description="Research suggests repository changes.",
+        proposal_payload={"goal_excerpt": "Refactor panel"},
+        risk_level="high",
+        impact_score=0.7,
+        status="pending",
+        requires_manual_approval=True,
+    )
+    reviewed, handoff = await review_agent_suggestion_with_handoff(
+        _FakeDb(),  # type: ignore[arg-type]
+        suggestion=suggestion,
+        decision="approved",
+        reviewer_subject="dashboard:tester",
+        supervisor_session=None,
+        tenant=None,
+    )
+    assert reviewed.status == "approved"
+    assert handoff is not None
+    assert handoff.get("ok") is False
+    assert handoff.get("error") == "handoff_failed"

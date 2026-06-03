@@ -505,6 +505,22 @@ class AgentSuggestionBulkReviewBody(BaseModel):
     limit: int = Field(default=50, ge=1, le=100)
 
 
+class AgentInitiativePolicyView(BaseModel):
+    """Tenant policy for agent initiative suggestion approvals."""
+
+    auto_approve_enabled: bool
+    include_high_risk: bool
+
+
+class AgentInitiativePolicyPatchBody(BaseModel):
+    """Patch body for agent initiative approval policy."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    auto_approve_enabled: bool | None = None
+    include_high_risk: bool | None = None
+
+
 class SwarmAutonomySummaryView(BaseModel):
     """Aggregated autonomy posture across all connected self-improvement layers."""
 
@@ -2154,6 +2170,72 @@ async def routine_webhook_ingress(
 
 
 @router.get(
+    "/suggestions/policy",
+    response_model=AgentInitiativePolicyView,
+    summary="Agent initiative auto-approve policy",
+)
+async def get_agent_initiative_policy(
+    sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("supervisor:view")),
+) -> AgentInitiativePolicyView:
+    """Return tenant policy for initiative suggestion auto-approve."""
+
+    tenant_id = _tenant_id_from_session(sess)
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.agent_initiative_policy import agent_initiative_policy
+
+    tenant = await db.get(Tenant, tenant_id)
+    policy = agent_initiative_policy(tenant)
+    return AgentInitiativePolicyView(
+        auto_approve_enabled=bool(policy["auto_approve_enabled"]),
+        include_high_risk=bool(policy["include_high_risk"]),
+    )
+
+
+@router.patch(
+    "/suggestions/policy",
+    response_model=AgentInitiativePolicyView,
+    summary="Update agent initiative auto-approve policy",
+)
+async def patch_agent_initiative_policy(
+    body: AgentInitiativePolicyPatchBody,
+    sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("team:manage")),
+) -> AgentInitiativePolicyView:
+    """Persist initiative auto-approve policy; drains queue when enabled."""
+
+    tenant_id = _tenant_id_from_session(sess)
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.agent_initiative_auto_approve import auto_approve_pending_agent_initiative_suggestions
+    from app.application.services.agent_initiative_policy import agent_initiative_policy, merge_agent_initiative_policy_patch
+
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found.")
+    patch_data = body.model_dump(exclude_none=True)
+    tenant.operator_settings = merge_agent_initiative_policy_patch(tenant.operator_settings, patch_data)
+    await db.commit()
+    await db.refresh(tenant)
+    policy = agent_initiative_policy(tenant)
+    if patch_data.get("auto_approve_enabled") is True:
+        await auto_approve_pending_agent_initiative_suggestions(
+            db,
+            tenant_id=tenant.id,
+            reviewer_subject=str(sess.get("sub") or "dashboard:initiative"),
+            include_high_risk=bool(policy["include_high_risk"]),
+        )
+        await db.commit()
+    return AgentInitiativePolicyView(
+        auto_approve_enabled=bool(policy["auto_approve_enabled"]),
+        include_high_risk=bool(policy["include_high_risk"]),
+    )
+
+
+@router.get(
     "/suggestions",
     response_model=list[AgentSuggestionView],
     summary="List agent initiative suggestions",
@@ -2168,6 +2250,17 @@ async def list_supervisor_agent_suggestions(
     tenant_id = _tenant_id_from_session(sess)
     if tenant_id is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    if status_filter in {None, "pending"}:
+        from app.application.services.agent_initiative_auto_approve import maybe_auto_approve_agent_initiative_pending
+
+        drained = await maybe_auto_approve_agent_initiative_pending(
+            db,
+            tenant=tenant,
+            reviewer_subject=str(sess.get("sub") or "agent_initiative:auto"),
+        )
+        if int(drained.get("processed", 0)) > 0:
+            await db.commit()
     rows = await list_agent_suggestions(
         db,
         tenant_id=tenant_id,

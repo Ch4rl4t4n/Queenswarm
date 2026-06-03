@@ -15,6 +15,7 @@ const PUBLISH_QUEUE_SNAPSHOT = {
   pending_count: 1,
   approved_count: 0,
   rejected_count: 0,
+  auto_approve_enabled: false,
   items: [
     {
       id: "11111111-1111-4111-8111-111111111111",

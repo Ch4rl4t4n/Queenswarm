@@ -5,15 +5,15 @@ import Link from "next/link";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { MarketplaceCatalogCard } from "@/components/connectors/marketplace-catalog-card";
 import { PublishPackDetailModal } from "@/components/connectors/publish-pack-detail-modal";
 import { PublishMediaMissingBadge } from "@/components/connectors/publish-media-preview";
-import { ListPaginator, ViewportBoundedPanel } from "@/components/ui/list-paginator";
-import { V4Badge } from "@/components/ui/v4";
-import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
-import type { PublishQueueItem, PublishQueueSnapshot } from "@/lib/publish-queue-types";
-import { useGridTwoRowPageSize } from "@/lib/use-grid-two-row-page-size";
-import { usePaginatedSlice } from "@/lib/use-paginated-slice";
+import { ForagerProgressCell } from "@/components/hive/forager-progress-cell";
+import { HiveSwitch } from "@/components/ui/hive-switch";
+import { QsSelect } from "@/components/ui/qs-select";
+import { V4Badge, type V4BadgeTone } from "@/components/ui/v4";
+import { HiveApiError, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
+import { formatTimeAgoIso } from "@/lib/format-relative-time";
+import type { PublishQueueItem, PublishQueuePolicy, PublishQueueSnapshot } from "@/lib/publish-queue-types";
 import { cn } from "@/lib/utils";
 
 export type { PublishQueueItem, PublishQueueSnapshot } from "@/lib/publish-queue-types";
@@ -22,137 +22,46 @@ export interface ExecutionStudioPublishQueuePanelProps {
   onError: (message: string | null) => void;
 }
 
-type ChannelFilter = "all" | "pending" | "approved" | "rejected";
+type StatusFilter = "all" | PublishQueueItem["status"];
 
-const CHANNEL_FILTERS: { id: ChannelFilter; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "pending", label: "Pending" },
-  { id: "approved", label: "Approved" },
-  { id: "rejected", label: "Rejected" },
-];
+const PACK_PREVIEW_LIMIT = 3;
 
-function statusTone(status: PublishQueueItem["status"]): "ok" | "warn" | "err" | "info" {
+function shortPackId(id: string): string {
+  return `P-${id.replace(/-/g, "").slice(0, 4).toUpperCase()}`;
+}
+
+function statusTone(status: PublishQueueItem["status"]): V4BadgeTone {
   if (status === "approved") return "ok";
   if (status === "rejected") return "err";
   return "warn";
 }
 
-function PublishPackCard({
-  item,
-  index,
-  selected,
-  busy,
-  onToggleSelected,
-  onReview,
-  onOpenDetails,
-}: {
-  item: PublishQueueItem;
-  index: number;
-  selected: boolean;
-  busy: boolean;
-  onToggleSelected: (id: string, checked: boolean) => void;
-  onReview: (id: string, decision: "approve" | "reject") => void;
-  onOpenDetails: (item: PublishQueueItem) => void;
-}): JSX.Element {
-  const hookCount = item.hook_variants?.length ?? 0;
-  const hasMedia = Boolean(item.media_url?.trim());
+function packProgressPct(status: PublishQueueItem["status"]): number {
+  if (status === "approved") return 100;
+  if (status === "rejected") return 0;
+  return 45;
+}
 
+function PackSkillBadge({ slug }: { slug: string }): JSX.Element {
   return (
-    <MarketplaceCatalogCard
-      title={
-        <span className="inline-flex items-start gap-2">
-          {item.status === "pending" ? (
-            <input
-              type="checkbox"
-              className="mt-0.5 h-4 w-4 shrink-0 accent-pollen"
-              checked={selected}
-              onChange={(event) => onToggleSelected(item.id, event.currentTarget.checked)}
-              aria-label={`Select ${item.title}`}
-            />
-          ) : null}
-          <span className="line-clamp-2">{item.title}</span>
-        </span>
-      }
-      indexLabel={`#${index + 1}`}
-      kicker={item.channel}
-      statusBadge={<V4Badge tone={statusTone(item.status)}>{item.status}</V4Badge>}
-      summary={item.body_preview}
-      manifestLabel="Pack preview"
-      manifestBody={
-        <>
-          {item.cta ? `${item.cta} · ` : ""}
-          {item.hashtags.length ? item.hashtags.map((tag) => `#${tag}`).join(" ") : "No hashtags"}
-        </>
-      }
-      metaLine={item.tags.slice(0, 2).join(" · ") || "publish-pack"}
-      badges={
-        <>
-          {item.tags.slice(0, 2).map((tag) => (
-            <V4Badge key={tag} tone="info">
-              {tag}
-            </V4Badge>
-          ))}
-          {hookCount > 0 ? <V4Badge tone="gold">{hookCount} hooks</V4Badge> : null}
-          {hasMedia ? <V4Badge tone="ok">media</V4Badge> : <V4Badge tone="warn">no media</V4Badge>}
-          <PublishMediaMissingBadge channel={item.channel} mediaUrl={item.media_url} />
-        </>
-      }
-      footMeta={item.supervisor_session_id ? "linked session" : undefined}
-      actions={
-        <>
-          {item.supervisor_session_id ? (
-            <Link
-              href={`/agents?session=${encodeURIComponent(item.supervisor_session_id)}`}
-              className="qs-btn qs-btn--ghost qs-btn--sm inline-flex items-center gap-1"
-            >
-              <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-              Session
-            </Link>
-          ) : null}
-          <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5" onClick={() => onOpenDetails(item)}>
-            <FileText className="h-3.5 w-3.5" aria-hidden />
-            Details
-          </button>
-          {item.status === "pending" ? (
-            <>
-              <Link
-                href={`/knowledge/outputs?highlight=${encodeURIComponent(item.id)}`}
-                className="qs-btn qs-btn--ghost qs-btn--sm"
-              >
-                Edit
-              </Link>
-              <button
-                type="button"
-                className="qs-btn qs-btn--ghost qs-btn--sm"
-                disabled={busy}
-                onClick={() => onReview(item.id, "reject")}
-              >
-                Reject
-              </button>
-              <button
-                type="button"
-                className="qs-btn qs-btn--primary qs-btn--sm"
-                disabled={busy}
-                onClick={() => onReview(item.id, "approve")}
-              >
-                Approve
-              </button>
-            </>
-          ) : null}
-        </>
-      }
-    />
+    <span className="inline-flex max-w-full items-center rounded-md border border-pollen/45 bg-pollen/10 px-2 py-0.5 font-(family-name:--font-jetbrains-mono) text-[10px] text-pollen">
+      {slug}
+    </span>
   );
 }
 
 function ExecutionStudioPublishQueuePanelInner({ onError }: ExecutionStudioPublishQueuePanelProps) {
   const [snapshot, setSnapshot] = useState<PublishQueueSnapshot | null>(null);
+  const [policy, setPolicy] = useState<PublishQueuePolicy>({ auto_approve_enabled: false });
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [policyBusy, setPolicyBusy] = useState(false);
+  const [clearAllBusy, setClearAllBusy] = useState(false);
   const [detailItem, setDetailItem] = useState<PublishQueueItem | null>(null);
-  const [activeFilter, setActiveFilter] = useState<ChannelFilter>("all");
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [showAllRows, setShowAllRows] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -160,10 +69,7 @@ function ExecutionStudioPublishQueuePanelInner({ onError }: ExecutionStudioPubli
     try {
       const data = await hiveGet<PublishQueueSnapshot>("publish-queue");
       setSnapshot(data);
-      setSelected((prev) => {
-        const pendingIds = new Set(data.items.filter((row) => row.status === "pending").map((row) => row.id));
-        return new Set([...prev].filter((id) => pendingIds.has(id)));
-      });
+      setPolicy({ auto_approve_enabled: Boolean(data.auto_approve_enabled) });
       setDetailItem((prev) => {
         if (!prev) return null;
         return data.items.find((row) => row.id === prev.id) ?? null;
@@ -179,29 +85,68 @@ function ExecutionStudioPublishQueuePanelInner({ onError }: ExecutionStudioPubli
     void load();
   }, [load]);
 
-  const pendingItems = useMemo(
-    () => snapshot?.items.filter((row) => row.status === "pending") ?? [],
+  const filteredRows = useMemo(() => {
+    const items = snapshot?.items ?? [];
+    const q = query.trim().toLowerCase();
+    return items.filter((row) => {
+      if (statusFilter !== "all" && row.status !== statusFilter) {
+        return false;
+      }
+      if (!q) return true;
+      const haystack = [
+        row.title,
+        row.body_preview,
+        row.channel,
+        row.status,
+        row.cta,
+        ...row.tags,
+        ...row.hashtags,
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [query, snapshot?.items, statusFilter]);
+
+  const visibleRows = useMemo(() => {
+    if (showAllRows) {
+      return filteredRows;
+    }
+    return filteredRows.slice(0, PACK_PREVIEW_LIMIT);
+  }, [filteredRows, showAllRows]);
+
+  const hiddenRowCount = Math.max(0, filteredRows.length - PACK_PREVIEW_LIMIT);
+  const pendingRows = useMemo(
+    () => (snapshot?.items ?? []).filter((row) => row.status === "pending"),
     [snapshot?.items],
   );
 
-  const visibleItems = useMemo(() => {
-    const items = snapshot?.items ?? [];
-    if (activeFilter === "all") return items;
-    return items.filter((row) => row.status === activeFilter);
-  }, [activeFilter, snapshot?.items]);
+  useEffect(() => {
+    setShowAllRows(false);
+  }, [query, statusFilter, snapshot?.items.length]);
 
-  const filterCounts = useMemo(() => {
-    const items = snapshot?.items ?? [];
-    return {
-      all: items.length,
-      pending: items.filter((row) => row.status === "pending").length,
-      approved: items.filter((row) => row.status === "approved").length,
-      rejected: items.filter((row) => row.status === "rejected").length,
-    };
-  }, [snapshot?.items]);
-
-  const pageSize = useGridTwoRowPageSize({ columns: 2 });
-  const pagination = usePaginatedSlice(visibleItems, pageSize, `${activeFilter}|${pageSize}`);
+  const patchAutoApprove = useCallback(
+    async (enabled: boolean) => {
+      setPolicyBusy(true);
+      try {
+        const updated = await hivePatchJson<PublishQueuePolicy>("publish-queue/policy", {
+          auto_approve_enabled: enabled,
+        });
+        setPolicy(updated);
+        await load();
+        toast.success(
+          enabled
+            ? "Auto approve enabled — simulate-only packs approve without manual confirm."
+            : "Manual mode — each publish pack waits for your approval.",
+        );
+      } catch (exc) {
+        toast.error(exc instanceof HiveApiError ? exc.message : "Policy update failed.");
+      } finally {
+        setPolicyBusy(false);
+      }
+    },
+    [load],
+  );
 
   const reviewOne = useCallback(
     async (id: string, decision: "approve" | "reject") => {
@@ -223,9 +168,8 @@ function ExecutionStudioPublishQueuePanelInner({ onError }: ExecutionStudioPubli
     [detailItem?.id, load, onError],
   );
 
-  const bulkReview = useCallback(
-    async (decision: "approve" | "reject") => {
-      const ids = [...selected];
+  const bulkReviewPending = useCallback(
+    async (decision: "approve" | "reject", ids: string[]) => {
       if (!ids.length) return;
       setBulkBusy(true);
       onError(null);
@@ -234,8 +178,7 @@ function ExecutionStudioPublishQueuePanelInner({ onError }: ExecutionStudioPubli
           deliverable_ids: ids,
           decision,
         });
-        toast.success(`${out.updated} pack(s) ${decision === "approve" ? "approved" : "rejected"}.`);
-        setSelected(new Set());
+        toast.success(`${out.updated} pack(s) ${decision === "approve" ? "approved" : "cleared"}.`);
         setDetailItem(null);
         await load();
       } catch (exc) {
@@ -244,17 +187,29 @@ function ExecutionStudioPublishQueuePanelInner({ onError }: ExecutionStudioPubli
         setBulkBusy(false);
       }
     },
-    [load, onError, selected],
+    [load, onError],
   );
 
-  const toggleSelected = useCallback((id: string, checked: boolean) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (checked) next.add(id);
-      else next.delete(id);
-      return next;
-    });
-  }, []);
+  const approveAllVisible = useCallback(async () => {
+    const ids = filteredRows.filter((row) => row.status === "pending").map((row) => row.id);
+    if (!ids.length) return;
+    const ok = window.confirm(`Approve ${ids.length} pending publish pack${ids.length === 1 ? "" : "s"}?`);
+    if (!ok) return;
+    await bulkReviewPending("approve", ids);
+  }, [bulkReviewPending, filteredRows]);
+
+  const clearAllVisible = useCallback(async () => {
+    const ids = filteredRows.filter((row) => row.status === "pending").map((row) => row.id);
+    if (!ids.length) return;
+    const ok = window.confirm(`Clear ${ids.length} pending publish pack${ids.length === 1 ? "" : "s"} (reject)?`);
+    if (!ok) return;
+    setClearAllBusy(true);
+    try {
+      await bulkReviewPending("reject", ids);
+    } finally {
+      setClearAllBusy(false);
+    }
+  }, [bulkReviewPending, filteredRows]);
 
   if (loading && !snapshot) {
     return <div className="qs-bubble shrink-0 min-h-[8rem] animate-pulse bg-white/5 p-4" aria-hidden />;
@@ -266,7 +221,7 @@ function ExecutionStudioPublishQueuePanelInner({ onError }: ExecutionStudioPubli
 
   return (
     <>
-      <div id="publish-queue" className="v4-marketplace-shell v4-marketplace-shell--paginated shrink-0 space-y-3">
+      <div id="publish-queue" className="v4-marketplace-shell shrink-0 space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-(--qs-text)">Publish Queue</p>
@@ -285,82 +240,264 @@ function ExecutionStudioPublishQueuePanelInner({ onError }: ExecutionStudioPubli
           </div>
         </div>
 
-        {pendingItems.length > 0 ? (
-          <div className="flex flex-wrap justify-end gap-2">
-            <button
-              type="button"
-              className="qs-btn qs-btn--primary qs-btn--sm"
-              disabled={bulkBusy || selected.size === 0}
-              onClick={() => void bulkReview("approve")}
-            >
-              {bulkBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
-              Approve selected ({selected.size})
-            </button>
-            <button
-              type="button"
-              className="qs-btn qs-btn--ghost qs-btn--sm"
-              disabled={bulkBusy || selected.size === 0}
-              onClick={() => void bulkReview("reject")}
-            >
-              Reject selected
-            </button>
-          </div>
-        ) : null}
-
-        <div className="v4-subtab-row w-full max-w-full shrink-0">
-          {CHANNEL_FILTERS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              className={cn("v4-subtab shrink-0 gap-2", activeFilter === tab.id && "v4-subtab--active")}
-              onClick={() => setActiveFilter(tab.id)}
-            >
-              {tab.label}
-              <span className="rounded-full bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-(--qs-text-3)">
-                {filterCounts[tab.id]}
-              </span>
-            </button>
-          ))}
+        <div className="flex flex-col gap-3 md:flex-row md:items-stretch">
+          <input
+            className="qs-input min-w-0 flex-1"
+            placeholder="Filter publish packs by title / channel / status…"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          <label
+            className="flex shrink-0 items-center justify-between gap-2 rounded-lg border border-pollen/35 bg-black/25 px-3 py-2 text-xs text-(--qs-text-2) md:min-w-[11.5rem]"
+            title="Auto approve commits simulate-only publish packs without manual confirm."
+          >
+            <span className="whitespace-nowrap font-medium lowercase">
+              {policy.auto_approve_enabled ? "auto approve" : "manual"}
+            </span>
+            <HiveSwitch
+              checked={Boolean(policy.auto_approve_enabled)}
+              disabled={policyBusy || bulkBusy}
+              aria-label="Toggle auto approve for publish queue"
+              onCheckedChange={(checked) => void patchAutoApprove(checked)}
+            />
+          </label>
+          <QsSelect
+            className="w-full min-w-0 md:w-40 md:shrink-0"
+            value={statusFilter}
+            onValueChange={(next) => setStatusFilter(next as StatusFilter)}
+            options={[
+              { value: "all", label: "all statuses" },
+              { value: "pending", label: "pending" },
+              { value: "approved", label: "approved" },
+              { value: "rejected", label: "rejected" },
+            ]}
+          />
         </div>
 
-        <p className="v4-field-label uppercase tracking-[0.08em]">
-          Publish packs ({visibleItems.length})
-        </p>
-
-        {visibleItems.length === 0 ? (
-          <p className="text-xs text-(--qs-text-3)">
-            No publish packs in this filter. Run Marketing Ops / Publish Pack Bee — verified packs appear here
-            automatically.
+        {policy.auto_approve_enabled ? (
+          <p className="text-xs text-pollen">
+            Auto approve is ON — eligible simulate-only packs leave the queue automatically. Live channel posts stay
+            manual.
           </p>
-        ) : (
-          <ViewportBoundedPanel
-            className="v4-recipe-catalog-panel"
-            footer={
-              <ListPaginator
-                page={pagination.page}
-                totalPages={pagination.totalPages}
-                totalItems={pagination.totalItems}
-                pageSize={pageSize}
-                onPageChange={pagination.setPage}
-              />
-            }
-          >
-            <div className="hub-catalog-grid">
-              {pagination.slice.map((item, idx) => (
-                <PublishPackCard
-                  key={item.id}
-                  item={item}
-                  index={(pagination.page - 1) * pageSize + idx}
-                  selected={selected.has(item.id)}
-                  busy={busyId === item.id}
-                  onToggleSelected={toggleSelected}
-                  onReview={(id, decision) => void reviewOne(id, decision)}
-                  onOpenDetails={setDetailItem}
-                />
-              ))}
+        ) : null}
+
+        <div>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-(--qs-text-3)">
+              Publish packs
+              {filteredRows.length > 0 ? (
+                <span className="ml-2 font-normal normal-case tracking-normal text-(--qs-text-4)">
+                  ({filteredRows.length})
+                </span>
+              ) : null}
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              {pendingRows.length > 0 ? <V4Badge tone="gold">{pendingRows.length} pending</V4Badge> : null}
             </div>
-          </ViewportBoundedPanel>
-        )}
+          </div>
+
+          <div className="v4-sessions-list-scroll hive-scrollbar">
+            {filteredRows.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-pollen/35 bg-black/20 px-4 py-6 text-center">
+                <p className="text-sm text-(--qs-text-2)">
+                  {snapshot.items.length === 0
+                    ? policy.auto_approve_enabled
+                      ? "No publish packs — auto approve cleared the queue."
+                      : "No publish packs yet. Run Marketing Ops / Publish Pack Bee — verified packs appear here."
+                    : "No publish packs match this filter."}
+                </p>
+                {snapshot.items.length > 0 ? (
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--ghost qs-btn--sm mt-3"
+                    onClick={() => {
+                      setQuery("");
+                      setStatusFilter("all");
+                    }}
+                  >
+                    Reset filters
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              visibleRows.map((item) => {
+                const hookCount = item.hook_variants?.length ?? 0;
+                const hasMedia = Boolean(item.media_url?.trim());
+                const routeTags = [
+                  item.channel,
+                  item.status,
+                  policy.auto_approve_enabled ? "auto-approve" : "manual-approve",
+                  "simulate-only",
+                ];
+                const packTags = item.tags.slice(0, 6);
+                const progressPct = packProgressPct(item.status);
+
+                return (
+                  <div key={item.id} className="v4-session-row v4-session-row--pollen">
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex flex-wrap items-center gap-2">
+                        <span className="font-(family-name:--font-jetbrains-mono) text-[11px] text-(--qs-text-3)">
+                          {shortPackId(item.id)}
+                        </span>
+                        <V4Badge tone={statusTone(item.status)}>{item.status}</V4Badge>
+                        <V4Badge tone="purple">{item.channel}</V4Badge>
+                      </div>
+                      <p className="v4-session-goal text-sm font-medium text-(--qs-text)" title={item.title}>
+                        {item.title}
+                      </p>
+                      <p className="mt-1 line-clamp-2 text-xs text-(--qs-text-3)">{item.body_preview}</p>
+
+                      <div className="mt-2 space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-(--qs-text-3)">
+                            Pack preview
+                          </p>
+                          <V4Badge tone="gold">heuristic-v1</V4Badge>
+                        </div>
+                        <p className="text-xs text-(--qs-text-3)">
+                          {item.cta ? `${item.cta} · ` : ""}
+                          {item.hashtags.length
+                            ? item.hashtags.map((tag) => `#${tag}`).join(" ")
+                            : "No hashtags"}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {routeTags.map((tag) => (
+                            <V4Badge key={`${item.id}-route-${tag}`} tone="info">
+                              {tag}
+                            </V4Badge>
+                          ))}
+                          {hookCount > 0 ? <V4Badge tone="gold">{hookCount} hooks</V4Badge> : null}
+                          {hasMedia ? <V4Badge tone="ok">media</V4Badge> : <V4Badge tone="warn">no media</V4Badge>}
+                          <PublishMediaMissingBadge channel={item.channel} mediaUrl={item.media_url} />
+                        </div>
+                        {packTags.length > 0 ? (
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-medium uppercase tracking-wider text-(--qs-text-4)">
+                              Pack tags
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {packTags.map((slug) => (
+                                <PackSkillBadge key={`${item.id}-${slug}`} slug={slug} />
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+                        <ForagerProgressCell
+                          pct={progressPct}
+                          detail={`Review ${progressPct}% · ${item.status} · simulate-only`}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      <span className="text-xs text-(--qs-text-3)">
+                        {formatTimeAgoIso(item.created_at) ?? "just now"}
+                      </span>
+                      {item.supervisor_session_id ? (
+                        <Link
+                          href={`/agents?session=${encodeURIComponent(item.supervisor_session_id)}`}
+                          className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                          Session
+                        </Link>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
+                        onClick={() => setDetailItem(item)}
+                      >
+                        <FileText className="h-3.5 w-3.5" aria-hidden />
+                        Details
+                      </button>
+                      {item.status === "pending" ? (
+                        <>
+                          <Link
+                            href={`/knowledge/outputs?highlight=${encodeURIComponent(item.id)}`}
+                            className="qs-btn qs-btn--ghost qs-btn--sm"
+                          >
+                            Edit
+                          </Link>
+                          <button
+                            type="button"
+                            className="qs-btn qs-btn--ghost qs-btn--sm"
+                            disabled={busyId === item.id || bulkBusy || policy.auto_approve_enabled}
+                            title={
+                              policy.auto_approve_enabled ? "Auto approve is handling the queue." : undefined
+                            }
+                            onClick={() => void reviewOne(item.id, "reject")}
+                          >
+                            Reject
+                          </button>
+                          <button
+                            type="button"
+                            className={cn("qs-btn qs-btn--primary qs-btn--sm")}
+                            disabled={busyId === item.id || bulkBusy || policy.auto_approve_enabled}
+                            title={
+                              policy.auto_approve_enabled ? "Auto approve is handling the queue." : undefined
+                            }
+                            onClick={() => void reviewOne(item.id, "approve")}
+                          >
+                            {busyId === item.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                            ) : null}
+                            Approve
+                          </button>
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {hiddenRowCount > 0 && !showAllRows ? (
+            <button
+              type="button"
+              className="qs-btn qs-btn--ghost mt-3 w-full justify-center py-2.5 text-sm font-semibold"
+              disabled={clearAllBusy || busyId !== null || bulkBusy}
+              onClick={() => setShowAllRows(true)}
+            >
+              Show all ({filteredRows.length})
+            </button>
+          ) : null}
+          {showAllRows && filteredRows.length > PACK_PREVIEW_LIMIT ? (
+            <button
+              type="button"
+              className="qs-btn qs-btn--ghost mt-3 w-full justify-center py-2.5 text-sm font-semibold"
+              onClick={() => setShowAllRows(false)}
+            >
+              Show less
+            </button>
+          ) : null}
+
+          {filteredRows.some((row) => row.status === "pending") && !policy.auto_approve_enabled ? (
+            <button
+              type="button"
+              className="qs-btn qs-btn--primary mt-3 w-full justify-center py-2.5 text-sm font-semibold disabled:opacity-45"
+              disabled={busyId !== null || bulkBusy}
+              onClick={() => void approveAllVisible()}
+            >
+              {bulkBusy ? "Approving…" : `Approve all (${filteredRows.filter((row) => row.status === "pending").length})`}
+            </button>
+          ) : null}
+
+          {filteredRows.some((row) => row.status === "pending") ? (
+            <button
+              type="button"
+              className="qs-btn qs-btn--danger mt-3 w-full justify-center py-2.5 text-sm font-semibold disabled:opacity-45"
+              disabled={clearAllBusy || busyId !== null || bulkBusy}
+              onClick={() => void clearAllVisible()}
+            >
+              {clearAllBusy
+                ? "Clearing…"
+                : query.trim() || statusFilter !== "all"
+                  ? `Clear filtered (${filteredRows.filter((row) => row.status === "pending").length})`
+                  : `Clear all (${filteredRows.filter((row) => row.status === "pending").length})`}
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <PublishPackDetailModal
