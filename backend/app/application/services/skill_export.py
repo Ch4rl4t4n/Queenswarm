@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,6 +25,9 @@ from app.common.schemas.skill_export import (
 from app.core.logging import get_logger
 from app.infrastructure.persistence.models.recipe import Recipe
 from app.infrastructure.persistence.models.tenant_skill import TenantSkillORM
+
+if TYPE_CHECKING:
+    from app.infrastructure.persistence.models.skill_opportunity import SkillOpportunityORM
 
 logger = get_logger(__name__)
 
@@ -395,13 +398,22 @@ async def export_recipe_skill(
     return build_export_bundle(row)
 
 
-def build_export_bundle_from_tenant_skill(skill: TenantSkillORM) -> SkillExportResponse:
+def build_export_bundle_from_tenant_skill(
+    skill: TenantSkillORM,
+    *,
+    opportunity: SkillOpportunityORM | None = None,
+) -> SkillExportResponse:
     """Assemble GitHub-ready export bundle from a tenant Skill Factory row."""
+
+    from app.application.services.skill_factory_listing import (
+        build_factory_listing_md,
+        listing_context_from_skill_and_opportunity,
+    )
 
     slug = skill.slug
     folder = slug
-    price_cents = 1900
     install_command = f"npx skills@latest add queenswarm/{slug}"
+    listing_ctx = listing_context_from_skill_and_opportunity(skill, opportunity)
 
     class _RecipeShim:
         """Minimal recipe-like object for publish asset builders."""
@@ -427,12 +439,14 @@ def build_export_bundle_from_tenant_skill(skill: TenantSkillORM) -> SkillExportR
             "source": skill.source,
             "roles": list(skill.roles or []),
             "keywords": list(skill.keywords or []),
+            "price_eur_cents": listing_ctx.price_cents,
+            "niche": listing_ctx.niche,
         },
         indent=2,
         sort_keys=True,
     )
     readme_md = build_readme_md(recipe=shim, slug=slug, install_command=install_command)  # type: ignore[arg-type]
-    listing_md = build_listing_md(recipe=shim, slug=slug, price_cents=price_cents)  # type: ignore[arg-type]
+    listing_md = build_factory_listing_md(skill=skill, slug=slug, ctx=listing_ctx)
     publish = build_publish_guide(recipe=shim, slug=slug, install_command=install_command)  # type: ignore[arg-type]
 
     files = [
@@ -461,7 +475,7 @@ def build_export_bundle_from_tenant_skill(skill: TenantSkillORM) -> SkillExportR
         meta=meta,
         files=files,
         install_command=install_command,
-        install_hint="Push folder to GitHub or Gumroad — external sale only.",
+        install_hint="Push folder to GitHub or Gumroad — LISTING.md is Gumroad-ready with checklist.",
         publish=publish,
     )
 

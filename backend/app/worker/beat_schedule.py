@@ -147,6 +147,11 @@ def build_beat_schedule() -> dict[str, dict[str, Any]]:
             ),
             "options": {"queue": "hive"},
         }
+        schedule["hive-skill-factory-reconcile"] = {
+            "task": "hive.skill_factory_reconcile_tick",
+            "schedule": crontab(minute="*/15"),
+            "options": {"queue": "hive"},
+        }
     if settings.trading_overnight_review_enabled:
         schedule["hive-trading-overnight-review"] = {
             "task": "hive.trading_overnight_review_tick",

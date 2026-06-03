@@ -58,6 +58,16 @@ Prázdne seeds → systém použije 8 default niches.
 | Max builds/week | 2 – 3 |
 | Research cron | ON |
 
+### Externý intel (voliteľné)
+| Nastavenie | Kedy zapnúť |
+|------------|-------------|
+| Apify deep scrape | Máš Apify connector — doplní Google SERP do Knowledge |
+| Monid listing signals | Máš Monid connector — demand hook pri research |
+| Monid listing preview on approve | Máš Monid connector — pri approve doplní `listing_preview` hook do exportu |
+| Monid video preview on approve | Preview ON + Monid + env flag — Monid `run` pre video URL v LISTING.md |
+
+Vyžaduje Tavily/Serper keys v Settings → Integrations (research live search).
+
 ### Hint pri ukladaní
 Po každej zmene klikni **Save policy**. Bez uloženia cron nepoužije nové seeds.
 
@@ -90,10 +100,10 @@ Po každej zmene klikni **Save policy**. Bez uloženia cron nepoužije nové see
 
 Po **Build skill**:
 1. Opportunity → status `building`
-2. Vytvorí sa supervisor session s factory goal
-3. Queue tab — link na Sessions
+2. Vytvorí sa supervisor session s factory goal (PRODUCT_MISSION template)
+3. Queue tab — link na Sessions + stav buildu
 
-**Factory goal obsahuje:** niche, price anchor, skill-authoring-template, verify guardrails.
+**Factory goal obsahuje:** niche, price anchor, skill-authoring-template, verify guardrails, quality gate pred forge.
 
 **Hint:** Jeden build naraz. Paralelné runy = vyšší cost + nižšia kvalita.
 
@@ -117,13 +127,20 @@ Po **Build skill**:
 
 ---
 
-## 6. Schválenie forge (Agents → Suggestions)
+## 6. Schválenie forge (Queue tab — inline)
 
-Hľadaj `verified_skill_forge`:
+Primárna cesta: **Apps & Tools → Skill Factory → Queue** — pri hotovom builde klikni **Approve skill**.
+
+Alternatíva: Agents → Suggestions → `verified_skill_forge`.
+
 - **Approve** → tenant skill v DB + recipe v Recipe Library
 - **Reject** → nič sa neuloží do Library
 
-Po approve:
+Po approve (ak je zapnuté *Monid listing preview on approve*):
+- Monid discover doplní `one_line_hook` do opportunity `source_refs.listing_preview`
+- Export bundle použije Gumroad-ready LISTING.md s týmto hookom
+
+Po approve vždy:
 - Skill sa objaví v **Library** tab
 - Skill picker ukáže chip s badge `factory`
 - SkillLibrary overlay pri ďalších sessions
@@ -137,17 +154,26 @@ Po approve:
 **Download GitHub pack** obsahuje:
 - `SKILL.md` — runtime skill pre Cursor/Claude harness
 - `README.md` — inštalácia a usage
-- `LISTING.md` — copy pre Gumroad/Product Hunt
+- `LISTING.md` — **Gumroad-ready** copy (hook, persona, price tiers, video block, FAQ, launch checklist)
 - `meta.json` — slug, keywords, version
 
+LISTING.md sa generuje zo Skill Factory kontextu (niche, price anchor, Monid hook ak bol pri approve).
+
 ### GitHub (odporúčaný flow)
-1. Stiahni zip
-2. Vytvor repo `your-skill-pack-name`
+1. Stiahni zip **alebo** klikni **Push GitHub PR** (Library tab) keď je `github_rest` connector + env target nakonfigurovaný
+2. Vytvor repo `your-skill-pack-name` (ak nepoužívaš auto PR)
 3. Skopíruj súbory, commit, push
 4. Topics: `cursor-skill`, `agent-skill`, `ai-automation`
 
-### Gumroad (voliteľné)
-1. Použi LISTING.md ako popis
+**Auto PR env:** `SKILL_FACTORY_GITHUB_PR_ENABLED=true`, `SKILL_FACTORY_GITHUB_OWNER`, `SKILL_FACTORY_GITHUB_REPO`
+
+### Gumroad (voliteľné — API draft)
+1. Nastav `SKILL_FACTORY_GUMROAD_LISTING_ENABLED=true` + `SKILL_FACTORY_GUMROAD_ACCESS_TOKEN` (alebo connector `gumroad_rest`)
+2. Library → **Gumroad draft** — vytvorí draft produkt z LISTING.md
+3. Dokonči cover, preview video a publish v Gumroad UI
+
+### Gumroad (manuálne)
+1. Použi LISTING.md z GitHub packu ako popis
 2. Cena podľa suggested price z research
 3. Screenshot z Queenswarm verify report ako social proof
 
@@ -194,10 +220,17 @@ Najväčší ROI = skill, ktorý denne používaš v sessions. Externý predaj =
 ## 10. Čo je hotové vs. čo ešte treba
 
 ### Hotové (systém)
-- [x] Research + scoring + cron
-- [x] Build session + verify loop
-- [x] Forge approve → tenant registry + recipe
-- [x] GitHub export bundle
+- [x] Research + scoring + cron + weekly build cap
+- [x] External intel (Tavily/Serper) + voliteľný Apify deep scrape
+- [x] Monid listing signals pri research
+- [x] Quality gate (critic APPROVE + SKILL.md validator) pred forge
+- [x] Build session + verify loop (PRODUCT_MISSION)
+- [x] Queue inline approve + forge → tenant registry + recipe
+- [x] Monid listing preview hook pri approve (voliteľné)
+- [x] Monid video preview URL pri approve (voliteľné, Execution Studio)
+- [x] Auto GitHub PR z Library exportu (voliteľné, github_rest connector)
+- [x] Gumroad draft listing API z Library (voliteľné)
+- [x] Gumroad-ready LISTING.md v GitHub export bundle
 - [x] Skill picker (Sessions, Kanban, New task)
 - [x] Marketplace skrytý v solo režime
 
@@ -208,9 +241,7 @@ Najväčší ROI = skill, ktorý denne používaš v sessions. Externý predaj =
 - [ ] (Voliteľne) Foragers krmia HiveMind
 
 ### Plánované v produkte
-- [ ] Live GitHub/Gumroad market scrapers
-- [ ] Auto GitHub PR z exportu
-- [ ] Gumroad API listing
+- [ ] Gumroad publish API (draft → live)
 
 ---
 
@@ -235,4 +266,4 @@ Najväčší ROI = skill, ktorý denne používaš v sessions. Externý predaj =
 
 ---
 
-*Posledná aktualizácia: Skill Factory fázy A–E + Skill Market Intel + operator Guide tab.*
+*Posledná aktualizácia: Monid video preview on approve + Gumroad LISTING export + Queue inline approve.*

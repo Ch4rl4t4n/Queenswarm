@@ -61,7 +61,7 @@ export function integrationsScrollTargetFromHash(hash: string): string | null {
   if (key === "tools" || key === "tool-hub" || key === "vault" || key === "templates" || key === "roster" || key === "obsidian") {
     return key;
   }
-  if (
+    if (
     key === "social-publish"
     || key === "publish-queue"
     || key === "publish-performance"
@@ -72,6 +72,7 @@ export function integrationsScrollTargetFromHash(hash: string): string | null {
     || key === "micro-saas-factory"
     || key === "codebase-pending"
     || key === "todobase-pending"
+    || key === "skill-forge"
     || key === "execution-studio"
     || key === "innovation-lab"
   ) {
@@ -129,7 +130,7 @@ export function executionStudioWorkspaceFromHash(hash: string): ExecutionStudioW
   ) {
     return "publish";
   }
-  if (key === "live-lane" || key === "media-agency" || key === "micro-saas-factory" || key === "codebase-pending" || key === "todobase-pending") {
+  if (key === "live-lane" || key === "media-agency" || key === "micro-saas-factory" || key === "codebase-pending" || key === "todobase-pending" || key === "skill-forge") {
     return "lanes";
   }
   if (key === "execution-studio") {

@@ -178,4 +178,20 @@ async def maybe_enrich_tiktok_video_media(
     return pack.model_copy(update={"media_url": url})
 
 
-__all__ = ["maybe_enrich_tiktok_video_media"]
+__all__ = [
+    "extract_monid_video_url_from_upstream",
+    "maybe_enrich_tiktok_video_media",
+    "monid_video_bucket_from_operator_settings",
+]
+
+
+def extract_monid_video_url_from_upstream(upstream: dict[str, Any]) -> str | None:
+    """Parse first safe HTTPS video URL from Monid run/discover output."""
+
+    return _extract_video_url_from_upstream(upstream)
+
+
+def monid_video_bucket_from_operator_settings(operator_settings: dict[str, Any] | None) -> dict[str, Any]:
+    """Return tenant publish_lane.monid_video config bucket."""
+
+    return _monid_video_bucket(operator_settings)

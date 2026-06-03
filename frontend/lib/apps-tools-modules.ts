@@ -29,6 +29,15 @@ export const APPS_TOOLS_MODULES: AppsToolsModuleDef[] = [
     capabilityKeys: ["apps.marketing.publish_pipeline.v1", "apps.marketing.omni_publish.compose.v1"],
   },
   {
+    moduleKey: "skill_factory",
+    slug: "skill-factory",
+    title: "Skill Factory",
+    summary: "Research market niches, auto-build verified skills, export GitHub packs — no in-app sales.",
+    status: "live",
+    href: "/apps-tools/skill-factory",
+    capabilityKeys: ["apps.skill_factory.research.v1", "apps.skill_factory.build.v1"],
+  },
+  {
     moduleKey: "ecommerce_workspace",
     slug: "ecommerce-automation",
     title: "E-commerce Ops",
@@ -85,15 +94,6 @@ export const APPS_TOOLS_MODULES: AppsToolsModuleDef[] = [
     status: "stub",
     href: "/apps-tools/research-workspace",
     capabilityKeys: ["apps.research.briefing.v1"],
-  },
-  {
-    moduleKey: "skill_factory",
-    slug: "skill-factory",
-    title: "Skill Factory",
-    summary: "Research market niches, auto-build verified skills, export GitHub packs — no in-app sales.",
-    status: "live",
-    href: "/apps-tools/skill-factory",
-    capabilityKeys: ["apps.skill_factory.research.v1", "apps.skill_factory.build.v1"],
   },
 ];
 

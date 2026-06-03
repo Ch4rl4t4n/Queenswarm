@@ -1,21 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { DownloadIcon, Loader2Icon, PlayIcon, RefreshCwIcon, SparklesIcon, XIcon } from "lucide-react";
+import { DownloadIcon, GitBranchIcon, Loader2Icon, PlayIcon, RefreshCwIcon, SparklesIcon, StoreIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { HivePageShell } from "@/components/hive/hive-page-shell";
+import { useSkillFactoryNav } from "@/components/apps-tools/skill-factory-nav-context";
 import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { SkillFactoryManualPanel } from "@/components/apps-tools/skill-factory-manual-panel";
 import { HiveSwitch } from "@/components/ui/hive-switch";
 import { V4Badge, V4Card, V4CardHeader, V4Chip } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
+import {
+  navigateSkillFactoryTab,
+  resolveSkillFactoryTab,
+  type SkillFactoryTab,
+} from "@/lib/apps-tools-routes";
+import { useRouteHash } from "@/lib/hooks/use-route-hash";
 import { downloadSkillExportBundle } from "@/lib/skill-export-utils";
+import { supervisorSessionAgentsHref, skillFactoryForgeHref } from "@/lib/supervisor-session";
 import type { SkillExportResponse } from "@/lib/hive-types";
-import { cn } from "@/lib/utils";
-
-type FactoryTab = "guide" | "research" | "queue" | "library" | "settings";
 
 interface SkillFactoryPolicy {
   enabled: boolean;
@@ -24,6 +28,10 @@ interface SkillFactoryPolicy {
   auto_build_min_score: number;
   max_builds_per_week: number;
   research_cron_enabled: boolean;
+  apify_deep_scrape_enabled: boolean;
+  monid_listing_signals_enabled: boolean;
+  monid_listing_preview_on_approve: boolean;
+  monid_listing_video_preview_on_approve: boolean;
 }
 
 interface SkillOpportunityRow {
@@ -31,11 +39,36 @@ interface SkillOpportunityRow {
   niche: string;
   title: string;
   rationale: string;
+  demand_score: number;
+  competition_score: number;
+  buildability_score: number;
   composite_score: number;
   suggested_price_eur_cents: number;
   status: string;
   supervisor_session_id: string | null;
+  supervisor_session_status: string | null;
+  forge_suggestion_id: string | null;
   tenant_skill_id: string | null;
+}
+
+const PROFESSIONAL_NICHE_PRESETS: string[] = [
+  "Cursor IDE agent skill packs for SaaS teams",
+  "n8n automation templates for agencies",
+  "SEO content pipeline with simulate-first guardrails",
+  "competitor monitoring skill for B2B founders",
+  "newsletter growth loop with verified outcomes",
+  "Gumroad-ready AI workflow listing packs",
+  "lead research + outreach simulate-first",
+  "social content calendar with brand guardrails",
+];
+
+function opportunityStatusLabel(row: SkillOpportunityRow): string {
+  if (row.status === "building") return "Building…";
+  if (row.status === "awaiting_forge") return "Session done — open report";
+  if (row.status === "queued") return "Queued";
+  if (row.status === "failed") return "Build failed";
+  if (row.status === "completed") return "Completed";
+  return row.status;
 }
 
 interface TenantSkillRow {
@@ -55,15 +88,13 @@ interface SkillFactorySnapshot {
   library: TenantSkillRow[];
   queue_count: number;
   building_count: number;
+  research_keys_configured: boolean;
+  external_intel_enabled: boolean;
+  apify_connector_ready: boolean;
+  monid_connector_ready: boolean;
+  github_pr_export_ready: boolean;
+  gumroad_listing_ready: boolean;
 }
-
-const TABS: { id: FactoryTab; label: string }[] = [
-  { id: "guide", label: "Guide" },
-  { id: "research", label: "Research" },
-  { id: "queue", label: "Queue" },
-  { id: "library", label: "Library" },
-  { id: "settings", label: "Settings" },
-];
 
 function scorePct(score: number): string {
   return `${Math.round(score * 100)}%`;
@@ -74,7 +105,9 @@ function priceEur(cents: number): string {
 }
 
 export function SkillFactoryPageClient(): JSX.Element {
-  const [tab, setTab] = useState<FactoryTab>("guide");
+  const routeHash = useRouteHash();
+  const { setQueueBadge } = useSkillFactoryNav();
+  const tab = useMemo(() => resolveSkillFactoryTab({ hash: routeHash }), [routeHash]);
   const [snapshot, setSnapshot] = useState<SkillFactorySnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -100,6 +133,21 @@ export function SkillFactoryPageClient(): JSX.Element {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (!routeHash && typeof window !== "undefined") {
+      navigateSkillFactoryTab("research");
+    }
+  }, [routeHash]);
+
+  useEffect(() => {
+    if (!snapshot) {
+      setQueueBadge(undefined);
+      return;
+    }
+    const count = snapshot.queue_count + snapshot.building_count;
+    setQueueBadge(count > 0 ? count : undefined);
+  }, [setQueueBadge, snapshot]);
+
   const researchRows = useMemo(
     () => (snapshot?.opportunities ?? []).filter((row) => row.status === "pending"),
     [snapshot?.opportunities],
@@ -107,7 +155,7 @@ export function SkillFactoryPageClient(): JSX.Element {
   const queueRows = useMemo(
     () =>
       (snapshot?.opportunities ?? []).filter((row) =>
-        ["queued", "building"].includes(row.status),
+        ["queued", "building", "awaiting_forge", "failed"].includes(row.status),
       ),
     [snapshot?.opportunities],
   );
@@ -119,11 +167,22 @@ export function SkillFactoryPageClient(): JSX.Element {
   const runResearch = async (): Promise<void> => {
     setResearchBusy(true);
     try {
-      const res = await hivePostJson<{ created: number; builds_started: number }>(
-        "skill-factory/research/run",
-        {},
-      );
-      toast.success(`Research done — ${res.created} new, ${res.builds_started} builds started.`);
+      const res = await hivePostJson<{
+        created: number;
+        builds_started: number;
+        active_opportunities?: number;
+      }>("skill-factory/research/run", {});
+      if (res.created === 0) {
+        const active = res.active_opportunities ?? queueRows.length + researchRows.length;
+        toast.info("No new niches found.", {
+          description:
+            active > 0
+              ? `${active} opportunities already in queue or building. Refresh Queue or open Sessions to review completed runs.`
+              : "All configured niches were already scanned. Add niche seeds in Settings or wait for weekly cron.",
+        });
+      } else {
+        toast.success(`Research done — ${res.created} new, ${res.builds_started} builds started.`);
+      }
       await load();
     } catch (e) {
       toast.error(e instanceof HiveApiError ? e.message : "Research failed.");
@@ -157,6 +216,21 @@ export function SkillFactoryPageClient(): JSX.Element {
     }
   };
 
+  const approveForge = async (suggestionId: string, opportunityId: string): Promise<void> => {
+    setBusyId(opportunityId);
+    try {
+      await hivePostJson(`agents/suggestions/${encodeURIComponent(suggestionId)}/review`, {
+        decision: "approve",
+      });
+      toast.success("Skill approved — check Library tab to export GitHub pack.");
+      await load();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Approve failed.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const exportSkill = async (id: string): Promise<void> => {
     setBusyId(id);
     try {
@@ -166,6 +240,42 @@ export function SkillFactoryPageClient(): JSX.Element {
       await load();
     } catch (e) {
       toast.error(e instanceof HiveApiError ? e.message : "Export failed.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const pushGithubPr = async (id: string): Promise<void> => {
+    setBusyId(id);
+    try {
+      const res = await hivePostJson<{ branch: string; pr: { status: string } }>(
+        `skill-factory/skills/${id}/export/github-pr`,
+        {},
+      );
+      toast.success("GitHub PR opened.", {
+        description: `Branch ${res.branch} — review and merge manually.`,
+      });
+      await load();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "GitHub PR failed.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const createGumroadDraft = async (id: string): Promise<void> => {
+    setBusyId(id);
+    try {
+      const res = await hivePostJson<{ product_url: string | null; edit_url: string }>(
+        `skill-factory/skills/${id}/export/gumroad-draft`,
+        {},
+      );
+      toast.success("Gumroad draft created.", {
+        description: res.product_url ?? "Open Gumroad products to finish listing.",
+      });
+      await load();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Gumroad draft failed.");
     } finally {
       setBusyId(null);
     }
@@ -186,11 +296,14 @@ export function SkillFactoryPageClient(): JSX.Element {
   };
 
   return (
-    <HivePageShell
-      title="Skill Factory"
-      subtitle="Research → build → export GitHub-ready skills. No in-app marketplace — sell externally."
-      hintKey="skillFactory"
-      actions={
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-(--qs-text)">Skill Factory</p>
+          <p className="mt-0.5 text-xs text-(--qs-text-3)">
+            Research → build → export GitHub-ready skills. No in-app marketplace — sell externally.
+          </p>
+        </div>
         <div className="flex flex-wrap gap-2">
           <Link href="/manual#skill-factory" className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5">
             Manual
@@ -203,27 +316,6 @@ export function SkillFactoryPageClient(): JSX.Element {
             Sessions
           </Link>
         </div>
-      }
-    >
-      <div className="flex flex-wrap gap-2 border-b border-white/10 pb-3">
-        {TABS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={cn(
-              "rounded-full border px-3 py-1 text-xs font-medium transition",
-              tab === item.id
-                ? "border-pollen/50 bg-pollen/10 text-pollen"
-                : "border-white/15 text-(--qs-text-3) hover:border-white/30",
-            )}
-            onClick={() => setTab(item.id)}
-          >
-            {item.label}
-            {item.id === "queue" && snapshot ? (
-              <span className="ml-1 text-pollen">({snapshot.queue_count + snapshot.building_count})</span>
-            ) : null}
-          </button>
-        ))}
       </div>
 
       {loading ? (
@@ -244,9 +336,18 @@ export function SkillFactoryPageClient(): JSX.Element {
               <V4CardHeader
                 kicker="Research lane"
                 title="Market opportunities"
-                description="HiveMind + niche seeds → ranked skills to build. Runs weekly via cron (Mon)."
+                description="HiveMind + forager RSS + live web (Tavily/Serper) → ranked skills. Weekly cron Mon."
                 hint={sectionHintNode("skillFactoryResearch")}
               />
+              {!snapshot.research_keys_configured && snapshot.external_intel_enabled ? (
+                <p className="mt-2 text-xs text-(--qs-text-3)">
+                  Tip: add Tavily or Serper in{" "}
+                  <Link href="/settings/api-keys#research-keys" className="text-cyan underline">
+                    Settings → API keys
+                  </Link>{" "}
+                  for live Gumroad/GitHub market signals.
+                </p>
+              ) : null}
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -273,6 +374,11 @@ export function SkillFactoryPageClient(): JSX.Element {
                       <div>
                         <p className="font-medium text-(--qs-text)">{row.title}</p>
                         <p className="mt-1 text-xs text-(--qs-text-3)">{row.rationale}</p>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          <V4Chip>Demand {scorePct(row.demand_score)}</V4Chip>
+                          <V4Chip>Competition {scorePct(row.competition_score)}</V4Chip>
+                          <V4Chip>Build {scorePct(row.buildability_score)}</V4Chip>
+                        </div>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         <V4Chip>{scorePct(row.composite_score)}</V4Chip>
@@ -302,7 +408,11 @@ export function SkillFactoryPageClient(): JSX.Element {
                   </li>
                 ))}
                 {researchRows.length === 0 ? (
-                  <p className="text-xs text-(--qs-text-4)">No pending opportunities — run research.</p>
+                  <p className="text-xs text-(--qs-text-4)">
+                    {queueRows.length > 0
+                      ? `${queueRows.length} in queue — nothing pending. Open Queue or Sessions to review builds.`
+                      : "No pending opportunities — run research."}
+                  </p>
                 ) : null}
               </ul>
             </V4Card>
@@ -319,13 +429,40 @@ export function SkillFactoryPageClient(): JSX.Element {
                 {queueRows.map((row) => (
                   <li key={row.id} className="rounded-xl border border-cyan/25 bg-cyan/5 px-3 py-3 text-sm">
                     <p className="font-medium">{row.title}</p>
-                    <p className="mt-1 text-xs text-(--qs-text-3)">Status: {row.status}</p>
+                    <p className="mt-1 text-xs text-(--qs-text-3)">Status: {opportunityStatusLabel(row)}</p>
+                    {row.status === "awaiting_forge" ? (
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        {row.forge_suggestion_id ? (
+                          <button
+                            type="button"
+                            className="qs-btn qs-btn--primary qs-btn--sm"
+                            disabled={busyId === row.id}
+                            onClick={() => void approveForge(row.forge_suggestion_id!, row.id)}
+                          >
+                            Approve skill
+                          </button>
+                        ) : (
+                          <Link
+                            href={skillFactoryForgeHref()}
+                            className="qs-btn qs-btn--primary qs-btn--sm"
+                          >
+                            Open forge lane
+                          </Link>
+                        )}
+                        <Link
+                          href={skillFactoryForgeHref()}
+                          className="text-xs text-pollen underline"
+                        >
+                          Review in Integrations →
+                        </Link>
+                      </div>
+                    ) : null}
                     {row.supervisor_session_id ? (
                       <Link
-                        href={`/agents#sessions`}
+                        href={supervisorSessionAgentsHref(row.supervisor_session_id)}
                         className="mt-2 inline-block text-xs text-cyan underline"
                       >
-                        Open Sessions → {row.supervisor_session_id.slice(0, 8)}…
+                        Open session report → {row.supervisor_session_id.slice(0, 8)}…
                       </Link>
                     ) : null}
                   </li>
@@ -362,20 +499,45 @@ export function SkillFactoryPageClient(): JSX.Element {
                         {row.github_exported_at ? "exported" : "ready"}
                       </V4Badge>
                     </div>
-                    <button
-                      type="button"
-                      className="qs-btn qs-btn--primary qs-btn--sm mt-3 gap-1"
-                      disabled={busyId === row.id}
-                      onClick={() => void exportSkill(row.id)}
-                    >
-                      <DownloadIcon className="size-3.5" aria-hidden />
-                      Download GitHub pack
-                    </button>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="qs-btn qs-btn--primary qs-btn--sm gap-1"
+                        disabled={busyId === row.id}
+                        onClick={() => void exportSkill(row.id)}
+                      >
+                        <DownloadIcon className="size-3.5" aria-hidden />
+                        Download GitHub pack
+                      </button>
+                      {snapshot.github_pr_export_ready ? (
+                        <button
+                          type="button"
+                          className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
+                          disabled={busyId === row.id}
+                          onClick={() => void pushGithubPr(row.id)}
+                        >
+                          <GitBranchIcon className="size-3.5" aria-hidden />
+                          Push GitHub PR
+                        </button>
+                      ) : null}
+                      {snapshot.gumroad_listing_ready ? (
+                        <button
+                          type="button"
+                          className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
+                          disabled={busyId === row.id}
+                          onClick={() => void createGumroadDraft(row.id)}
+                        >
+                          <StoreIcon className="size-3.5" aria-hidden />
+                          Gumroad draft
+                        </button>
+                      ) : null}
+                    </div>
                   </li>
                 ))}
                 {snapshot.library.length === 0 ? (
                   <p className="text-xs text-(--qs-text-4)">
-                    No tenant skills yet — build from Research tab, then approve forge in Agents → Suggestions.
+                    No tenant skills yet — approve a completed build with{" "}
+                    <strong className="text-(--qs-text-2)">Approve skill</strong> in the Queue tab, then export here.
                   </p>
                 ) : null}
               </ul>
@@ -392,6 +554,13 @@ export function SkillFactoryPageClient(): JSX.Element {
               <label className="flex items-center justify-between gap-3 text-sm">
                 <span>Factory enabled</span>
                 <HiveSwitch checked={policyDraft.enabled} onCheckedChange={(v) => setPolicyDraft({ ...policyDraft, enabled: v })} />
+              </label>
+              <label className="flex items-center justify-between gap-3 text-sm">
+                <span>Weekly research cron (Mon)</span>
+                <HiveSwitch
+                  checked={policyDraft.research_cron_enabled}
+                  onCheckedChange={(v) => setPolicyDraft({ ...policyDraft, research_cron_enabled: v })}
+                />
               </label>
               <label className="flex items-center justify-between gap-3 text-sm">
                 <span>Auto-build when score ≥ threshold</span>
@@ -433,14 +602,113 @@ export function SkillFactoryPageClient(): JSX.Element {
                   }
                 />
               </label>
+              <label className="flex items-center justify-between gap-3 text-sm">
+                <span>Apify deep scrape (uses credits — max 1/run)</span>
+                <HiveSwitch
+                  checked={policyDraft.apify_deep_scrape_enabled}
+                  disabled={!snapshot.apify_connector_ready}
+                  onCheckedChange={(v) => setPolicyDraft({ ...policyDraft, apify_deep_scrape_enabled: v })}
+                />
+              </label>
+              {!snapshot.apify_connector_ready ? (
+                <p className="text-xs text-(--qs-text-4)">
+                  Connect Apify in{" "}
+                  <Link href="/integrations?tab=hub" className="text-cyan underline">
+                    Integrations → Hub
+                  </Link>{" "}
+                  (slug <code className="font-mono text-[10px]">apify_store</code>) to enable Gumroad/GitHub scrape.
+                </p>
+              ) : policyDraft.apify_deep_scrape_enabled ? (
+                <p className="text-xs text-(--qs-text-3)">
+                  Deep scrape runs Google Search via Apify on the first new niche each research run.
+                </p>
+              ) : null}
+              <label className="flex items-center justify-between gap-3 text-sm">
+                <span>Monid listing signals (discover — pay per call)</span>
+                <HiveSwitch
+                  checked={policyDraft.monid_listing_signals_enabled}
+                  disabled={!snapshot.monid_connector_ready}
+                  onCheckedChange={(v) => setPolicyDraft({ ...policyDraft, monid_listing_signals_enabled: v })}
+                />
+              </label>
+              {!snapshot.monid_connector_ready ? (
+                <p className="text-xs text-(--qs-text-4)">
+                  Connect Monid in{" "}
+                  <Link href="/integrations?tab=hub" className="text-cyan underline">
+                    Integrations → Hub
+                  </Link>{" "}
+                  (slug <code className="font-mono text-[10px]">monid_mcp</code>) for Gumroad/TikTok listing endpoint hints.
+                </p>
+              ) : policyDraft.monid_listing_signals_enabled ? (
+                <p className="text-xs text-(--qs-text-3)">
+                  Monid discover finds marketplace/listing endpoints — max 1 call per research run. Factory LISTING.md
+                  will include video preview notes when relevant.
+                </p>
+              ) : null}
+              <label className="flex items-center justify-between gap-3 text-sm">
+                <span>Monid listing preview on approve</span>
+                <HiveSwitch
+                  checked={policyDraft.monid_listing_preview_on_approve}
+                  disabled={!snapshot.monid_connector_ready}
+                  onCheckedChange={(v) =>
+                    setPolicyDraft({ ...policyDraft, monid_listing_preview_on_approve: v })
+                  }
+                />
+              </label>
+              {policyDraft.monid_listing_preview_on_approve && snapshot.monid_connector_ready ? (
+                <p className="text-xs text-(--qs-text-3)">
+                  On Approve skill, Monid discover enriches Gumroad hook in LISTING.md export (1 call per approve).
+                </p>
+              ) : null}
+              <label className="flex items-center justify-between gap-3 text-sm">
+                <span>Monid video preview on approve (run — pay per call)</span>
+                <HiveSwitch
+                  checked={policyDraft.monid_listing_video_preview_on_approve}
+                  disabled={!snapshot.monid_connector_ready || !policyDraft.monid_listing_preview_on_approve}
+                  onCheckedChange={(v) =>
+                    setPolicyDraft({ ...policyDraft, monid_listing_video_preview_on_approve: v })
+                  }
+                />
+              </label>
+              {policyDraft.monid_listing_video_preview_on_approve && snapshot.monid_connector_ready ? (
+                <p className="text-xs text-(--qs-text-3)">
+                  Generates a 15s Gumroad teaser URL via Monid run — stored in LISTING.md export. Requires Execution
+                  Studio + server flag <code className="font-mono text-[10px]">SKILL_FACTORY_MONID_VIDEO_PREVIEW_ENABLED</code>.
+                </p>
+              ) : null}
               <label className="block text-sm">
-                <span className="text-(--qs-text-3)">Add niche seed</span>
+                <span className="text-(--qs-text-3)">Niche seeds (max 12)</span>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--ghost qs-btn--sm"
+                    onClick={() =>
+                      setPolicyDraft({
+                        ...policyDraft,
+                        niche_seeds: PROFESSIONAL_NICHE_PRESETS.slice(0, 8),
+                      })
+                    }
+                  >
+                    Load professional presets
+                  </button>
+                </div>
                 <div className="mt-1 flex flex-wrap gap-2">
                   <input
                     className="qs-input min-w-[12rem] flex-1"
                     placeholder="e.g. newsletter growth automation"
                     value={nicheInput}
                     onChange={(e) => setNicheInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key !== "Enter") return;
+                      e.preventDefault();
+                      const next = nicheInput.trim();
+                      if (!next) return;
+                      setPolicyDraft({
+                        ...policyDraft,
+                        niche_seeds: [...policyDraft.niche_seeds, next].slice(0, 12),
+                      });
+                      setNicheInput("");
+                    }}
                   />
                   <button
                     type="button"
@@ -460,7 +728,23 @@ export function SkillFactoryPageClient(): JSX.Element {
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1">
                   {policyDraft.niche_seeds.map((seed) => (
-                    <V4Chip key={seed}>{seed}</V4Chip>
+                    <button
+                      key={seed}
+                      type="button"
+                      className="inline-flex items-center gap-1"
+                      onClick={() =>
+                        setPolicyDraft({
+                          ...policyDraft,
+                          niche_seeds: policyDraft.niche_seeds.filter((item) => item !== seed),
+                        })
+                      }
+                      title="Remove seed"
+                    >
+                      <V4Chip>
+                        {seed}
+                        <XIcon className="ml-1 size-3 opacity-60" aria-hidden />
+                      </V4Chip>
+                    </button>
                   ))}
                 </div>
               </label>
@@ -476,6 +760,6 @@ export function SkillFactoryPageClient(): JSX.Element {
           ) : null}
         </>
       )}
-    </HivePageShell>
+    </div>
   );
 }

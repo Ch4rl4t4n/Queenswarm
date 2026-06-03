@@ -15,6 +15,7 @@ from app.application.services.skill_factory_service import (
     dismiss_opportunity,
     export_tenant_skill_bundle,
     get_skill_factory_policy,
+    list_skill_opportunities,
     save_skill_factory_policy,
     start_factory_build,
 )
@@ -36,6 +37,10 @@ class SkillFactoryPolicyBody(BaseModel):
     auto_build_min_score: float = Field(default=0.72, ge=0.0, le=1.0)
     max_builds_per_week: int = Field(default=3, ge=1, le=10)
     research_cron_enabled: bool = True
+    apify_deep_scrape_enabled: bool = False
+    monid_listing_signals_enabled: bool = False
+    monid_listing_preview_on_approve: bool = False
+    monid_listing_video_preview_on_approve: bool = False
 
 
 class SkillCatalogItemOut(BaseModel):
@@ -120,7 +125,12 @@ async def skill_factory_run_research(
             created_by_subject=subject,
         )
     await db.commit()
-    return {"created": len(created), "builds_started": started}
+    active = sum(
+        1
+        for row in await list_skill_opportunities(db, tenant_id=tenant_id, limit=100)
+        if row.status in {"pending", "queued", "building", "awaiting_forge"}
+    )
+    return {"created": len(created), "builds_started": started, "active_opportunities": active}
 
 
 @router.post("/opportunities/{opportunity_id}/build", summary="Start factory build")
@@ -142,7 +152,13 @@ async def skill_factory_build(
             created_by_subject=subject,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        detail = str(exc)
+        if detail == "weekly_build_cap_reached":
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Weekly build cap reached — wait or raise max builds in Settings.",
+            ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail) from exc
     await db.commit()
     return {
         "opportunity_id": str(row.id),
@@ -186,6 +202,61 @@ async def skill_factory_export(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     await db.commit()
     return bundle
+
+
+@router.post("/skills/{skill_id}/export/github-pr", summary="Push export to GitHub PR")
+async def skill_factory_export_github_pr(
+    skill_id: uuid.UUID,
+    db: DbSession,
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+) -> dict:
+    """Commit Skill Factory bundle to a branch and open a GitHub PR for review."""
+
+    _ensure_enabled()
+    from app.application.services.skill_factory_github_export import push_skill_export_github_pr
+
+    result = await push_skill_export_github_pr(
+        db,
+        tenant_id=_tenant_id(principal),
+        skill_id=skill_id,
+    )
+    if not result.get("ok"):
+        detail = str(result.get("error") or "github_pr_failed")
+        status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        if detail in {"skill_not_found"}:
+            status_code = status.HTTP_404_NOT_FOUND
+        elif detail in {"github_pr_disabled", "github_target_not_configured"}:
+            status_code = status.HTTP_404_NOT_FOUND
+        raise HTTPException(status_code=status_code, detail=detail)
+    await db.commit()
+    return result
+
+
+@router.post("/skills/{skill_id}/export/gumroad-draft", summary="Create Gumroad draft listing")
+async def skill_factory_export_gumroad_draft(
+    skill_id: uuid.UUID,
+    db: DbSession,
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+) -> dict:
+    """Create a Gumroad draft product from LISTING.md (operator finishes in Gumroad UI)."""
+
+    _ensure_enabled()
+    from app.application.services.skill_factory_gumroad_listing import create_gumroad_draft_from_skill
+
+    result = await create_gumroad_draft_from_skill(
+        db,
+        tenant_id=_tenant_id(principal),
+        skill_id=skill_id,
+    )
+    if not result.get("ok"):
+        detail = str(result.get("error") or "gumroad_draft_failed")
+        status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        if detail == "skill_not_found":
+            status_code = status.HTTP_404_NOT_FOUND
+        elif detail in {"gumroad_listing_disabled", "gumroad_not_configured"}:
+            status_code = status.HTTP_404_NOT_FOUND
+        raise HTTPException(status_code=status_code, detail=detail)
+    return result
 
 
 __all__ = ["router"]

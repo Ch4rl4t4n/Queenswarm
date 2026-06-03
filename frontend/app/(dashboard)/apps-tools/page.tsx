@@ -1,6 +1,5 @@
 import nextDynamic from "next/dynamic";
 
-import { HivePageShell } from "@/components/hive/hive-page-shell";
 import { V4Card, V4CardHeader } from "@/components/ui/v4";
 
 const AppsToolsIndexClient = nextDynamic(
@@ -21,18 +20,12 @@ const AppsToolsIndexClient = nextDynamic(
 
 export default function AppsToolsPage() {
   return (
-    <HivePageShell
-      title="Apps & Tools"
-      subtitle="Modular workspace index. Each module is isolated by purpose and connected through capability contracts."
-      hintKey="appsTools"
-    >
-      <V4Card>
-        <V4CardHeader
-          title="Module index"
-          description="Compose-only route layer for the Agentic OS split. Existing execution flows stay unchanged and are opened through stable stubs."
-        />
-        <AppsToolsIndexClient />
-      </V4Card>
-    </HivePageShell>
+    <V4Card>
+      <V4CardHeader
+        title="Module index"
+        description="Compose-only route layer for the Agentic OS split. Existing execution flows stay unchanged and are opened through stable stubs."
+      />
+      <AppsToolsIndexClient />
+    </V4Card>
   );
 }

@@ -16,7 +16,9 @@ from app.application.services.recipe_write import RecipeWriteConflictError, crea
 from app.application.services.skill_export import build_export_bundle_from_tenant_skill
 from app.common.schemas.recipes_write import RecipeCreateBody
 from app.core.config import settings
+from app.infrastructure.persistence.models.agent_suggestion import AgentSuggestion
 from app.infrastructure.persistence.models.skill_opportunity import SkillOpportunityORM
+from app.infrastructure.persistence.models.supervisor_session import SupervisorSession
 from app.infrastructure.persistence.models.tenant_skill import TenantSkillORM
 
 logger = structlog.get_logger(__name__)
@@ -35,6 +37,10 @@ class SkillFactoryPolicyOut(BaseModel):
     auto_build_min_score: float = 0.72
     max_builds_per_week: int = 3
     research_cron_enabled: bool = True
+    apify_deep_scrape_enabled: bool = False
+    monid_listing_signals_enabled: bool = False
+    monid_listing_preview_on_approve: bool = False
+    monid_listing_video_preview_on_approve: bool = False
 
 
 class TenantSkillOut(BaseModel):
@@ -73,7 +79,10 @@ class SkillOpportunityOut(BaseModel):
     composite_score: float
     suggested_price_eur_cents: int
     status: str
+    source_refs: list[dict[str, Any]] = Field(default_factory=list)
     supervisor_session_id: str | None
+    supervisor_session_status: str | None = None
+    forge_suggestion_id: str | None = None
     tenant_skill_id: str | None
     created_at: datetime
 
@@ -88,6 +97,12 @@ class SkillFactorySnapshotOut(BaseModel):
     library: list[TenantSkillOut]
     queue_count: int
     building_count: int
+    research_keys_configured: bool = False
+    external_intel_enabled: bool = True
+    apify_connector_ready: bool = False
+    monid_connector_ready: bool = False
+    github_pr_export_ready: bool = False
+    gumroad_listing_ready: bool = False
 
 
 def slugify_skill_name(name: str) -> str:
@@ -110,6 +125,10 @@ def _policy_from_tenant_settings(raw: dict[str, Any] | None) -> SkillFactoryPoli
         auto_build_min_score=float(block.get("auto_build_min_score", 0.72)),
         max_builds_per_week=max(1, min(int(block.get("max_builds_per_week", 3)), 10)),
         research_cron_enabled=bool(block.get("research_cron_enabled", True)),
+        apify_deep_scrape_enabled=bool(block.get("apify_deep_scrape_enabled", False)),
+        monid_listing_signals_enabled=bool(block.get("monid_listing_signals_enabled", False)),
+        monid_listing_preview_on_approve=bool(block.get("monid_listing_preview_on_approve", False)),
+        monid_listing_video_preview_on_approve=bool(block.get("monid_listing_video_preview_on_approve", False)),
     )
 
 
@@ -162,7 +181,12 @@ def _tenant_skill_out(row: TenantSkillORM) -> TenantSkillOut:
     )
 
 
-def _opportunity_out(row: SkillOpportunityORM) -> SkillOpportunityOut:
+def _opportunity_out(
+    row: SkillOpportunityORM,
+    *,
+    supervisor_session_status: str | None = None,
+    forge_suggestion_id: str | None = None,
+) -> SkillOpportunityOut:
     return SkillOpportunityOut(
         id=str(row.id),
         niche=row.niche,
@@ -174,10 +198,106 @@ def _opportunity_out(row: SkillOpportunityORM) -> SkillOpportunityOut:
         composite_score=float(row.composite_score),
         suggested_price_eur_cents=int(row.suggested_price_eur_cents),
         status=row.status,
+        source_refs=list(row.source_refs or []) if isinstance(row.source_refs, list) else [],
         supervisor_session_id=str(row.supervisor_session_id) if row.supervisor_session_id else None,
+        supervisor_session_status=supervisor_session_status,
+        forge_suggestion_id=forge_suggestion_id,
         tenant_skill_id=str(row.tenant_skill_id) if row.tenant_skill_id else None,
         created_at=row.created_at,
     )
+
+
+async def _pending_forge_suggestion_ids(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    session_ids: list[uuid.UUID],
+) -> dict[uuid.UUID, uuid.UUID]:
+    """Map supervisor session id → pending verified_skill_forge suggestion id."""
+
+    if not session_ids:
+        return {}
+    rows = list(
+        (
+            await session.scalars(
+                select(AgentSuggestion).where(
+                    AgentSuggestion.tenant_id == tenant_id,
+                    AgentSuggestion.supervisor_session_id.in_(session_ids),
+                    AgentSuggestion.proposal_type == "verified_skill_forge",
+                    AgentSuggestion.status == "pending",
+                ),
+            )
+        ).all(),
+    )
+    out: dict[uuid.UUID, uuid.UUID] = {}
+    for row in rows:
+        if row.supervisor_session_id is not None:
+            out[row.supervisor_session_id] = row.id
+    return out
+
+
+async def reconcile_building_opportunities(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    opportunities: list[SkillOpportunityORM],
+) -> dict[uuid.UUID, str]:
+    """Sync factory opportunity rows with linked supervisor session terminal states."""
+
+    building_rows = [
+        row
+        for row in opportunities
+        if row.status == "building" and row.supervisor_session_id is not None
+    ]
+    if not building_rows:
+        return {}
+
+    session_ids = {row.supervisor_session_id for row in building_rows if row.supervisor_session_id}
+    sup_rows = list(
+        (
+            await session.scalars(
+                select(SupervisorSession).where(
+                    SupervisorSession.tenant_id == tenant_id,
+                    SupervisorSession.id.in_(session_ids),
+                ),
+            )
+        ).all(),
+    )
+    sup_by_id = {row.id: row for row in sup_rows}
+    session_status_by_opp: dict[uuid.UUID, str] = {}
+
+    for row in building_rows:
+        sup = sup_by_id.get(row.supervisor_session_id) if row.supervisor_session_id else None
+        if sup is None:
+            continue
+        sup_status = str(sup.status or "").strip().lower()
+        session_status_by_opp[row.id] = sup_status
+        if sup_status == "completed":
+            row.status = "awaiting_forge"
+            from app.application.services.skill_factory_forge import propose_skill_factory_forge_from_session
+
+            await propose_skill_factory_forge_from_session(session, supervisor_session=sup)
+            logger.info(
+                "skill_factory.opportunity_session_done",
+                agent_id="skill_factory",
+                swarm_id=str(tenant_id),
+                task_id=str(row.id),
+                session_id=str(sup.id),
+            )
+        elif sup_status in {"failed", "stopped", "cancelled"}:
+            row.status = "failed"
+            logger.info(
+                "skill_factory.opportunity_session_failed",
+                agent_id="skill_factory",
+                swarm_id=str(tenant_id),
+                task_id=str(row.id),
+                session_id=str(sup.id),
+                session_status=sup_status,
+            )
+
+    if session_status_by_opp:
+        await session.flush()
+    return session_status_by_opp
 
 
 async def list_tenant_skills(
@@ -222,25 +342,85 @@ async def compose_skill_factory_snapshot(
 
     policy = await get_skill_factory_policy(session, tenant_id=tenant_id)
     opportunities = await list_skill_opportunities(session, tenant_id=tenant_id, limit=50)
+    session_status_by_opp = await reconcile_building_opportunities(
+        session,
+        tenant_id=tenant_id,
+        opportunities=opportunities,
+    )
     library = await list_tenant_skills(session, tenant_id=tenant_id, limit=80)
-    queue_count = sum(1 for row in opportunities if row.status in {"pending", "queued"})
+    sup_ids = [row.supervisor_session_id for row in opportunities if row.supervisor_session_id]
+    forge_by_session = await _pending_forge_suggestion_ids(session, tenant_id=tenant_id, session_ids=sup_ids)
+    queue_count = sum(
+        1 for row in opportunities if row.status in {"pending", "queued", "awaiting_forge"}
+    )
     building_count = sum(1 for row in opportunities if row.status == "building")
+
+    from app.application.services.research_runtime_credentials import resolve_research_keys
+
+    research_keys = await resolve_research_keys(session)
+    research_configured = bool(research_keys.get("tavily") or research_keys.get("serper"))
+
+    from app.infrastructure.connectors.dynamic.service import DynamicConnectorService
+
+    apify_row = await DynamicConnectorService().fetch_by_slug(session, slug="apify_store")
+    apify_ready = apify_row is not None and apify_row.is_active
+
+    from app.application.services.skill_market_intel_monid import monid_connector_ready
+
+    monid_ready = await monid_connector_ready(session)
+
+    from app.application.services.skill_factory_github_export import github_pr_export_ready
+
+    github_ready = await github_pr_export_ready(session)
+
+    from app.application.services.skill_factory_gumroad_listing import gumroad_listing_ready
+
+    gumroad_ready = await gumroad_listing_ready(session)
+
     return SkillFactorySnapshotOut(
         policy=policy,
-        opportunities=[_opportunity_out(row) for row in opportunities],
+        opportunities=[
+            _opportunity_out(
+                row,
+                supervisor_session_status=session_status_by_opp.get(row.id),
+                forge_suggestion_id=(
+                    str(forge_by_session[row.supervisor_session_id])
+                    if row.supervisor_session_id and row.supervisor_session_id in forge_by_session
+                    else None
+                ),
+            )
+            for row in opportunities
+        ],
         library=[_tenant_skill_out(row) for row in library],
         queue_count=queue_count,
         building_count=building_count,
+        research_keys_configured=research_configured,
+        external_intel_enabled=settings.skill_factory_external_intel_enabled,
+        apify_connector_ready=apify_ready,
+        monid_connector_ready=monid_ready,
+        github_pr_export_ready=github_ready,
+        gumroad_listing_ready=gumroad_ready,
     )
 
 
 def build_factory_session_goal(*, opportunity: SkillOpportunityORM, price_cents: int) -> str:
     """Construct supervisor goal for one Skill Factory production run."""
 
+    from app.domain.workflows.templates import PRODUCT_MISSION_WORKFLOW
+
     price_eur = price_cents / 100
+    mission_steps = PRODUCT_MISSION_WORKFLOW.get("steps") or []
+    step_lines = [
+        f"  {idx + 1}) {str(step.get('description') or '').strip()}"
+        for idx, step in enumerate(mission_steps[:5])
+        if isinstance(step, dict)
+    ]
+    mission_block = "\n".join(step_lines) if step_lines else "  (PRODUCT_MISSION recipe — see workflow_template in context)"
     return "\n".join(
         [
             "Skill Factory — produce a GitHub-ready agent skill (simulate-first).",
+            "Follow PRODUCT_MISSION workflow (verified recipe in context):",
+            mission_block,
             "",
             f"Niche: {opportunity.niche}",
             f"Title: {opportunity.title}",
@@ -254,9 +434,35 @@ def build_factory_session_goal(*, opportunity: SkillOpportunityORM, price_cents:
             "5) Suggested price anchor and one-line hook",
             "",
             f"Price anchor: €{price_eur:.2f}",
-            "Critic APPROVE before operator review. Tag output skill-factory-ready.",
+            "",
+            "Quality gate (mandatory):",
+            "- Critic MUST end with line: Critic verdict: APPROVE or Critic verdict: REJECT",
+            "- SKILL.md must include agentskills.io frontmatter (name, description), 3–7 numbered steps, guardrails",
+            "- Tag final output skill-factory-ready",
+            "- Reject if workflow cannot be simulated or guardrails are missing",
+            "",
+            "LISTING.md must include: one-line hook, price anchor, buyer persona, and optional video/listing",
+            "preview note for Gumroad/TikTok (Monid discover when connector configured).",
+            "",
+            "Researcher: use HiveMind + any live market signals in rationale before coding.",
         ],
     )
+
+
+async def _load_product_mission_workflow(session: AsyncSession) -> dict[str, Any]:
+    """Return PRODUCT_MISSION workflow template from Recipe Library or bundled seed."""
+
+    from app.domain.workflows.templates import PRODUCT_MISSION_WORKFLOW
+    from app.infrastructure.persistence.models.recipe import Recipe
+
+    row = await session.scalar(select(Recipe).where(Recipe.name == "PRODUCT_MISSION"))
+    if row is not None and isinstance(row.workflow_template, dict) and row.workflow_template.get("steps"):
+        return dict(row.workflow_template)
+    return {
+        "seed_key": "PRODUCT_MISSION",
+        "steps": list(PRODUCT_MISSION_WORKFLOW.get("steps") or []),
+        "description": str(PRODUCT_MISSION_WORKFLOW.get("description") or ""),
+    }
 
 
 async def start_factory_build(
@@ -277,11 +483,25 @@ async def start_factory_build(
     if row.status in {"building", "completed"}:
         return row
 
-    shared = SharedContextService(session)
+    from app.application.services.skill_factory_research import _weekly_build_count
+
+    policy = await get_skill_factory_policy(session, tenant_id=tenant_id)
+    recent = await _weekly_build_count(session, tenant_id=tenant_id)
+    if recent >= policy.max_builds_per_week:
+        raise ValueError("weekly_build_cap_reached")
+
+    shared = SharedContextService()
     goal = build_factory_session_goal(
         opportunity=row,
         price_cents=int(row.suggested_price_eur_cents),
     )
+    workflow = await _load_product_mission_workflow(session)
+    context_seed: dict[str, Any] = {
+        "skill_factory": True,
+        "factory_opportunity_id": str(row.id),
+        "workflow_name": "PRODUCT_MISSION",
+        "workflow_template": workflow,
+    }
     sup = await create_supervisor_session(
         session,
         goal=goal,
@@ -289,12 +509,14 @@ async def start_factory_build(
         runtime_mode="durable",
         roles=["researcher", "coder", "critic"],
         shared_context=shared,
+        context_seed=context_seed,
         skill_slugs=[
             "skill-authoring-template",
             "multi-step-reasoning",
             "grill-me",
             "self-review-loop",
             "product-mission",
+            "competitor-scrape-analyze",
         ],
         tenant_id=tenant_id,
     )
@@ -449,10 +671,20 @@ async def export_tenant_skill_bundle(
 ) -> dict[str, Any]:
     """Build GitHub-ready export bundle for one tenant skill."""
 
+    from app.application.services.skill_export import build_export_bundle_from_tenant_skill
+    from app.infrastructure.persistence.models.skill_opportunity import SkillOpportunityORM
+
     row = await session.get(TenantSkillORM, skill_id)
     if row is None or row.tenant_id != tenant_id:
         raise ValueError("skill_not_found")
-    bundle = build_export_bundle_from_tenant_skill(row)
+
+    opportunity = await session.scalar(
+        select(SkillOpportunityORM).where(
+            SkillOpportunityORM.tenant_id == tenant_id,
+            SkillOpportunityORM.tenant_skill_id == skill_id,
+        ),
+    )
+    bundle = build_export_bundle_from_tenant_skill(row, opportunity=opportunity)
     await mark_skill_github_exported(session, tenant_id=tenant_id, skill_id=skill_id)
     return bundle.model_dump()
 
@@ -462,9 +694,11 @@ __all__ = [
     "SkillFactorySnapshotOut",
     "SkillOpportunityOut",
     "TenantSkillOut",
+    "_load_product_mission_workflow",
     "build_factory_session_goal",
     "compose_skill_factory_snapshot",
     "complete_opportunity_with_skill",
+    "reconcile_building_opportunities",
     "dismiss_opportunity",
     "export_tenant_skill_bundle",
     "get_skill_factory_policy",

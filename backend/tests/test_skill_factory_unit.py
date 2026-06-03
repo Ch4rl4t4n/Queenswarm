@@ -17,12 +17,13 @@ def test_score_opportunity_composite_in_range() -> None:
         niche="newsletter growth automation",
         hive_hits=3,
         existing_count=1,
+        tenant_skill_count=0,
     )
     assert 0.0 <= demand <= 1.0
     assert 0.0 <= competition <= 1.0
     assert 0.0 <= buildability <= 1.0
     assert 0.0 <= composite <= 1.0
-    assert "HiveMind" in rationale
+    assert "Demand" in rationale
 
 
 def test_build_factory_session_goal_includes_niche() -> None:
@@ -36,6 +37,8 @@ def test_build_factory_session_goal_includes_niche() -> None:
     goal = build_factory_session_goal(opportunity=opp, price_cents=1900)
     assert "SEO blog pipeline" in goal
     assert "€19.00" in goal
+    assert "PRODUCT_MISSION" in goal
+    assert "Critic verdict: APPROVE" in goal
 
 
 def test_skill_market_intel_demand_keywords() -> None:
@@ -51,3 +54,180 @@ def test_skill_market_intel_deduplicates_hits() -> None:
         ],
     )
     assert len(rows) == 2
+
+
+def test_start_factory_build_uses_stateless_shared_context(monkeypatch) -> None:
+    """SharedContextService is stateless — must not receive AsyncSession."""
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+    import uuid
+
+    from app.application.services.skill_factory_service import start_factory_build
+
+    opp_id = uuid.uuid4()
+    tenant_id = uuid.uuid4()
+    row = SimpleNamespace(
+        id=opp_id,
+        tenant_id=tenant_id,
+        status="pending",
+        niche="newsletter",
+        title="Newsletter pack",
+        rationale="test",
+        suggested_price_eur_cents=1900,
+        supervisor_session_id=None,
+    )
+
+    session = AsyncMock()
+    session.get = AsyncMock(return_value=row)
+    session.flush = AsyncMock()
+
+    create_mock = AsyncMock(return_value=SimpleNamespace(id=uuid.uuid4()))
+    monkeypatch.setattr(
+        "app.application.services.supervisor.session_service.create_supervisor_session",
+        create_mock,
+    )
+    monkeypatch.setattr(
+        "app.application.services.skill_factory_service.get_skill_factory_policy",
+        AsyncMock(return_value=SimpleNamespace(max_builds_per_week=3)),
+    )
+    monkeypatch.setattr(
+        "app.application.services.skill_factory_research._weekly_build_count",
+        AsyncMock(return_value=0),
+    )
+    monkeypatch.setattr(
+        "app.application.services.skill_factory_service._load_product_mission_workflow",
+        AsyncMock(return_value={"seed_key": "PRODUCT_MISSION", "steps": []}),
+    )
+
+    import asyncio
+
+    result = asyncio.get_event_loop().run_until_complete(
+        start_factory_build(
+            session,
+            tenant_id=tenant_id,
+            opportunity_id=opp_id,
+            created_by_subject="test-subject",
+        ),
+    )
+
+    assert result.status == "building"
+    create_mock.assert_awaited_once()
+    kwargs = create_mock.await_args.kwargs
+    assert kwargs["shared_context"] is not None
+    assert kwargs["tenant_id"] == tenant_id
+
+
+def test_reconcile_building_opportunities_marks_session_done(monkeypatch) -> None:
+    """Completed supervisor sessions should move building rows to awaiting_forge."""
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+    import uuid
+
+    from app.application.services.skill_factory_service import reconcile_building_opportunities
+
+    tenant_id = uuid.uuid4()
+    opp_id = uuid.uuid4()
+    session_id = uuid.uuid4()
+    opp = SimpleNamespace(
+        id=opp_id,
+        status="building",
+        supervisor_session_id=session_id,
+    )
+    sup = SimpleNamespace(id=session_id, status="completed", tenant_id=tenant_id, goal="", context_summary={})
+
+    forge_mock = AsyncMock(return_value=None)
+    monkeypatch.setattr(
+        "app.application.services.skill_factory_forge.propose_skill_factory_forge_from_session",
+        forge_mock,
+    )
+
+    db = AsyncMock()
+    db.scalars = AsyncMock(return_value=SimpleNamespace(all=lambda: [sup]))
+    db.flush = AsyncMock()
+
+    import asyncio
+
+    status_map = asyncio.get_event_loop().run_until_complete(
+        reconcile_building_opportunities(db, tenant_id=tenant_id, opportunities=[opp]),
+    )
+
+    assert opp.status == "awaiting_forge"
+    assert status_map[opp_id] == "completed"
+    forge_mock.assert_awaited_once()
+
+
+def test_extract_skill_markdown_from_coder_fence() -> None:
+    from app.application.services.skill_factory_forge import extract_skill_markdown_from_outputs
+
+    coder = (
+        "### 3. Complete SKILL.md\n\n"
+        "```yaml\n"
+        "---\n"
+        "name: newsletter-growth-automation\n"
+        "description: Growth skill\n"
+        "---\n\n"
+        "# Newsletter Growth\n\n"
+        "## Steps\n1. Segment\n"
+        "```"
+    )
+    md = extract_skill_markdown_from_outputs(coder_output=coder, critic_output="", goal="Skill Factory test")
+    assert "name: newsletter-growth-automation" in md
+    assert "Newsletter Growth" in md
+
+
+def test_is_skill_factory_session_from_raw_goal() -> None:
+    from types import SimpleNamespace
+
+    from app.application.services.skill_factory_forge import is_skill_factory_session
+
+    session = SimpleNamespace(
+        goal="=== MISSION ===",
+        context_summary={"raw_goal": "Skill Factory — produce a GitHub-ready agent skill"},
+    )
+    assert is_skill_factory_session(session) is True
+
+
+def test_quality_gate_critic_approve_and_skill_valid() -> None:
+    from app.application.services.skill_factory_quality_gate import (
+        critic_approved_factory,
+        evaluate_factory_outputs,
+        validate_skill_markdown,
+    )
+
+    skill = (
+        "---\n"
+        "name: newsletter-growth\n"
+        "description: Automate newsletter growth with guardrails\n"
+        "---\n\n"
+        "# Newsletter Growth\n\n"
+        "## When to use\nBefore scaling paid acquisition.\n\n"
+        "## Workflow\n"
+        "1. Segment audience\n"
+        "2. Draft sequence\n"
+        "3. Simulate send\n"
+    )
+    assert critic_approved_factory("Critic verdict: APPROVE — skill-factory-ready") is True
+    valid, issues = validate_skill_markdown(skill)
+    assert valid is True
+    assert issues == []
+    result = evaluate_factory_outputs(
+        skill_markdown=skill,
+        critic_output="Critic verdict: APPROVE",
+        coder_output=skill,
+    )
+    assert result.passed is True
+
+
+def test_quality_gate_rejects_missing_critic_approve() -> None:
+    from app.application.services.skill_factory_quality_gate import evaluate_factory_outputs
+
+    skill = (
+        "---\nname: x\ndescription: y\n---\n\n# Title\n1. a\n2. b\n3. c\nWhen to use: now\n"
+    )
+    result = evaluate_factory_outputs(
+        skill_markdown=skill,
+        critic_output="Needs more work — rejected",
+        coder_output=skill,
+    )
+    assert result.passed is False
+    assert "critic_not_approved" in result.issues

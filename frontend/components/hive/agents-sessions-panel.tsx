@@ -194,6 +194,14 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
   }, [soloMode, soloPresets, searchParams, activePresetId]);
 
   useEffect(() => {
+    const sessionParam = searchParams.get("session")?.trim();
+    if (!sessionParam) {
+      return;
+    }
+    setReportSessionId(sessionParam);
+  }, [searchParams]);
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedGoal(goal.trim());
     }, 400);

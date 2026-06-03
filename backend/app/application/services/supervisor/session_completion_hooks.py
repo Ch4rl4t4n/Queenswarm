@@ -36,6 +36,10 @@ async def on_supervisor_session_completed(session: SupervisorSession, *, db: Asy
     )
     if db is not None:
         from app.application.services.operator_mission_push import maybe_send_mission_feed_web_push
+        from app.application.services.skill_factory_forge import (
+            is_skill_factory_session,
+            propose_skill_factory_forge_from_session,
+        )
 
         await maybe_send_mission_feed_web_push(
             db,
@@ -44,6 +48,8 @@ async def on_supervisor_session_completed(session: SupervisorSession, *, db: Asy
             body=goal[:500],
             href=f"/agents?session={session.id}",
         )
+        if is_skill_factory_session(session):
+            await propose_skill_factory_forge_from_session(db, supervisor_session=session)
     _logger.info(
         "supervisor.session_completion_hooks.done",
         agent_id="supervisor",

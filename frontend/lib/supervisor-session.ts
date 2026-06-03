@@ -182,6 +182,21 @@ export function supervisorSessionBallroomHref(sessionId: string): string {
   return `/ballroom?supervisor_session=${encodeURIComponent(sessionId)}`;
 }
 
+/** Deep-link to Agents → Sessions with report dialog for one session. */
+export function supervisorSessionAgentsHref(sessionId: string): string {
+  return `/agents?session=${encodeURIComponent(sessionId)}#sessions`;
+}
+
+/** Deep-link to verified skill forge approve lane (Integrations → Studio → Lanes). */
+export function skillFactoryForgeHref(): string {
+  return "/integrations?tab=studio&section=lanes#skill-forge";
+}
+
+/** Deep-link to agent suggestions — legacy dashboard or forge lane when OCP is on. */
+export function agentSuggestionsHref(): string {
+  return skillFactoryForgeHref();
+}
+
 /** Terminal supervisor session — control actions are no-ops. */
 export function isTerminalSupervisorSession(status: string): boolean {
   return ["completed", "failed", "stopped", "cancelled", "approved", "rejected"].includes(status);

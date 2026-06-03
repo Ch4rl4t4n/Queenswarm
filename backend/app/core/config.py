@@ -1892,6 +1892,70 @@ class Settings(BaseSettings):
     )
     skill_factory_research_cron_hour: int = Field(default=8, ge=0, le=23)
     skill_factory_research_cron_minute: int = Field(default=0, ge=0, le=59)
+    skill_factory_external_intel_enabled: bool = Field(
+        default=True,
+        description="Skill Factory research uses Tavily/Serper live web signals when keys are configured.",
+    )
+    skill_factory_apify_probe_enabled: bool = Field(
+        default=True,
+        description="Light Apify actors_list probe during Skill Factory research when apify_store connector is active.",
+    )
+    skill_factory_apify_deep_scrape_max_per_run: int = Field(
+        default=1,
+        ge=0,
+        le=3,
+        description="Max Apify actor_run_sync calls per research run when tenant enables deep scrape.",
+    )
+    skill_factory_monid_intel_enabled: bool = Field(
+        default=True,
+        description="Allow Monid discover calls during Skill Factory research when tenant opts in.",
+    )
+    skill_factory_monid_max_per_run: int = Field(
+        default=1,
+        ge=0,
+        le=3,
+        description="Max Monid discover calls per research run when tenant enables listing signals.",
+    )
+    skill_factory_monid_video_preview_enabled: bool = Field(
+        default=False,
+        description="Allow Monid run on Skill Factory approve to resolve Gumroad preview video URL.",
+    )
+    skill_factory_github_pr_enabled: bool = Field(
+        default=False,
+        description="Allow Skill Factory Library → GitHub PR export via github_rest connector.",
+    )
+    skill_factory_github_owner: str = Field(
+        default="",
+        description="GitHub org/user for Skill Factory skill-pack PRs (optional).",
+    )
+    skill_factory_github_repo: str = Field(
+        default="",
+        description="GitHub repository for Skill Factory skill-pack PRs (optional).",
+    )
+    skill_factory_github_connector_slug: str = Field(
+        default="github_rest",
+        description="Dynamic connector slug for Skill Factory GitHub PR workflow.",
+    )
+    skill_factory_github_base_branch: str = Field(
+        default="main",
+        description="Base branch for Skill Factory export PRs.",
+    )
+    skill_factory_gumroad_listing_enabled: bool = Field(
+        default=False,
+        description="Allow Skill Factory Library → Gumroad draft product API.",
+    )
+    skill_factory_gumroad_access_token: str = Field(
+        default="",
+        description="Gumroad OAuth access token fallback when gumroad_rest connector is not installed.",
+    )
+    skill_factory_gumroad_attach_bundle_enabled: bool = Field(
+        default=True,
+        description="Upload GitHub pack ZIP as Gumroad deliverable after draft create.",
+    )
+    skill_factory_gumroad_cover_from_preview_enabled: bool = Field(
+        default=True,
+        description="Attach listing video_preview_url as Gumroad cover when present.",
+    )
     live_lane_snapshot_enabled: bool = Field(
         default=True,
         description="#65 — unified Polymarket + publish OAuth live lane prep snapshot.",

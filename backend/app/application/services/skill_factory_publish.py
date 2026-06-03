@@ -31,11 +31,21 @@ def _extract_title(markdown: str, fallback: str) -> str:
     return fallback[:200]
 
 
+async def _product_mission_workflow_for_publish(session: AsyncSession) -> dict[str, Any]:
+    """Attach PRODUCT_MISSION recipe steps when publishing factory skills."""
+
+    from app.application.services.skill_factory_service import _load_product_mission_workflow
+
+    return await _load_product_mission_workflow(session)
+
+
 async def publish_verified_skill_forge(
     session: AsyncSession,
     *,
     suggestion: AgentSuggestion,
     tenant_id: uuid.UUID,
+    tenant: Tenant | None = None,
+    reviewer_subject: str | None = None,
 ) -> dict[str, Any] | None:
     """On approve: persist tenant skill + link factory opportunity if present."""
 
@@ -60,6 +70,40 @@ async def publish_verified_skill_forge(
     if "skill-factory-ready" in goal.lower():
         keywords.append("factory-ready")
 
+    opportunity: SkillOpportunityORM | None = None
+    if sup is not None:
+        opportunity = await session.scalar(
+            select(SkillOpportunityORM).where(
+                SkillOpportunityORM.tenant_id == tenant_id,
+                SkillOpportunityORM.supervisor_session_id == sup.id,
+            ),
+        )
+
+    if opportunity is not None:
+        from app.application.services.publish_pack import resolve_dashboard_user_for_session
+        from app.application.services.skill_factory_listing_preview import maybe_enrich_listing_preview_on_approve
+        from app.core.jwt_tokens import parse_dashboard_user_subject
+        from app.infrastructure.persistence.models.tenant import Tenant as TenantModel
+
+        active_tenant = tenant
+        if active_tenant is None:
+            active_tenant = await session.get(TenantModel, tenant_id)
+
+        dashboard_user_id: uuid.UUID | None = None
+        if reviewer_subject:
+            dashboard_user_id = parse_dashboard_user_subject(reviewer_subject.strip())
+        if dashboard_user_id is None and sup is not None:
+            dashboard_user_id = await resolve_dashboard_user_for_session(session, supervisor_session=sup)
+
+        await maybe_enrich_listing_preview_on_approve(
+            session,
+            tenant_id=tenant_id,
+            opportunity=opportunity,
+            title=title,
+            tenant=active_tenant,
+            dashboard_user_id=dashboard_user_id,
+        )
+
     skill_row = await register_tenant_skill_from_markdown(
         session,
         tenant_id=tenant_id,
@@ -72,27 +116,9 @@ async def publish_verified_skill_forge(
         source="verified_skill_forge",
         mark_verified=True,
         recipe_name=f"Skill Factory — {title[:160]}",
-        workflow_template={
-            "seed_key": "SKILL_FACTORY_FORGE",
-            "steps": [
-                {
-                    "description": "Apply exported SKILL.md workflow",
-                    "agent_role": "researcher",
-                    "guardrails": {"simulate_first": True},
-                    "evaluation_criteria": {"critic_approve": True},
-                },
-            ],
-        },
+        workflow_template=await _product_mission_workflow_for_publish(session),
     )
 
-    opportunity: SkillOpportunityORM | None = None
-    if sup is not None:
-        opportunity = await session.scalar(
-            select(SkillOpportunityORM).where(
-                SkillOpportunityORM.tenant_id == tenant_id,
-                SkillOpportunityORM.supervisor_session_id == sup.id,
-            ),
-        )
     if opportunity is not None:
         await complete_opportunity_with_skill(
             session,

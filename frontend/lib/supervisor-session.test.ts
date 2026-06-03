@@ -7,6 +7,8 @@ import {
   runtimeModeLabel,
   sessionStatusTone,
   supervisorSessionProgressPct,
+  supervisorSessionAgentsHref,
+  skillFactoryForgeHref,
   subAgentStepEventLabel,
   subAgentStepEventTone,
   celeryJobStateTone,
@@ -30,6 +32,14 @@ describe("supervisor-session helpers", () => {
     expect(sessionStatusTone("running")).toBe("cyan");
     expect(sessionStatusTone("needs_input")).toBe("magenta");
     expect(sessionStatusTone("completed")).toBe("green");
+  });
+
+  it("builds skill factory forge deep link", () => {
+    expect(skillFactoryForgeHref()).toBe("/integrations?tab=studio&section=lanes#skill-forge");
+  });
+
+  it("builds agents deep link with session id", () => {
+    expect(supervisorSessionAgentsHref("abc-123")).toBe("/agents?session=abc-123#sessions");
   });
 
   it("parses sub-agent short_memory fields", () => {

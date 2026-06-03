@@ -20,28 +20,28 @@ function gapTone(status: "done" | "operator" | "planned"): "ok" | "info" | "warn
 }
 
 function gapLabel(status: "done" | "operator" | "planned"): string {
-  if (status === "done") return "hotové";
-  if (status === "operator") return "tvoj krok";
-  return "plánované";
+  if (status === "done") return "done";
+  if (status === "operator") return "your step";
+  return "planned";
 }
 
 /** Full operator guide — prerequisites, step-by-step pipeline, recommendations, gaps. */
 export function SkillFactoryManualPanel(): JSX.Element {
   return (
-    <div className="mt-4 space-y-4">
+    <div className="space-y-4">
       <V4Card id="skill-factory-prerequisites">
         <V4CardHeader
-          kicker="Pred začatím"
-          title="Jednorazová príprava"
-          description="Skontroluj pred prvým Build skill — bez LLM keys factory session zlyhá."
+          kicker="Before you start"
+          title="One-time setup"
+          description="Check these before your first Build skill — without LLM keys the factory session will fail."
           hint={
             <InfoHint
               title="Prerequisites"
-              description="Skill Factory je výrobná linka, nie chat. Potrebuje LLM, Celery a verify loop."
+              description="Skill Factory is a production line, not chat. It needs LLM, Celery, and the verify loop."
               options={[
                 "LLM keys — Grok/Claude minimum",
-                "Auto-approve ON pre solo",
-                "HiveMind — voliteľné, zlepšuje research",
+                "Auto-approve ON for solo",
+                "HiveMind — optional, improves research",
               ]}
               manualHref="/manual#skill-factory"
             />
@@ -59,7 +59,7 @@ export function SkillFactoryManualPanel(): JSX.Element {
                   <>
                     {" "}
                     <Link href={row.href} className="text-cyan underline">
-                      Otvoriť →
+                      Open →
                     </Link>
                   </>
                 ) : null}
@@ -71,16 +71,16 @@ export function SkillFactoryManualPanel(): JSX.Element {
 
       <V4Card id="skill-factory-pipeline">
         <V4CardHeader
-          kicker="Proces výroby"
-          title="Od nuly po GitHub pack"
-          description="8 krokov — každý s hintom. Primary path: Research → Build → Approve → Export → Use."
+          kicker="Production pipeline"
+          title="From zero to GitHub pack"
+          description="8 steps — each with a hint. Primary path: Research → Build → Approve → Export → Use."
           hint={
             <InfoHint
               title="Factory pipeline"
-              description="~85 % automatizované. Ty schvaľuješ forge a pushneš export mimo apky."
+              description="~85% automated. You approve forge and push export outside the app."
               options={[
-                "Simulate-first — critic pred operátorom",
-                "Tenant registry — agenti vidia skill hneď po approve",
+                "Simulate-first — critic before operator",
+                "Tenant registry — agents see skill right after approve",
                 "Full manual: docs/SKILL_FACTORY_OPERATOR_MANUAL.md",
               ]}
               manualHref="/manual#skill-factory"
@@ -101,7 +101,7 @@ export function SkillFactoryManualPanel(): JSX.Element {
                   {step.title}
                   {step.optional ? (
                     <V4Badge tone="info" className="ml-2 inline text-[10px]">
-                      voliteľné
+                      optional
                     </V4Badge>
                   ) : null}
                 </p>
@@ -133,7 +133,7 @@ export function SkillFactoryManualPanel(): JSX.Element {
       </V4Card>
 
       <V4Card id="skill-factory-recommendations">
-        <V4CardHeader title="Odporúčania stratégie" description="Biznis + technické — čo robiť a čomu sa vyhnúť." />
+        <V4CardHeader title="Strategy recommendations" description="Business + technical — what to do and what to avoid." />
         <ul className="mt-3 space-y-3">
           {SKILL_FACTORY_RECOMMENDATIONS.map((row) => (
             <li key={row.id} className="rounded-lg border border-white/10 bg-black/25 px-3 py-2">
@@ -146,8 +146,8 @@ export function SkillFactoryManualPanel(): JSX.Element {
 
       <V4Card id="skill-factory-gaps">
         <V4CardHeader
-          title="Stav systému — čo ešte treba"
-          description="Transparentný checklist funkcionality vs. tvoja operátorská práca."
+          title="System status — what is left"
+          description="Transparent checklist of shipped functionality vs. operator work."
         />
         <ul className="mt-3 space-y-2">
           {SKILL_FACTORY_GAPS.map((row) => (
@@ -162,7 +162,7 @@ export function SkillFactoryManualPanel(): JSX.Element {
 
       <p className="flex items-center gap-2 text-xs text-(--qs-text-4)">
         <BookOpenIcon className="size-3.5" aria-hidden />
-        Rozšírená verzia:{" "}
+        Extended version:{" "}
         <Link href="/manual#skill-factory" className="text-cyan underline">
           Operator Manual → Skill Factory
         </Link>
