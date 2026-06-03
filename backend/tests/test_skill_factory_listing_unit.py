@@ -32,6 +32,24 @@ def test_build_factory_listing_md_includes_gumroad_checklist() -> None:
     assert "One-line hook" in md
 
 
+def test_listing_context_falls_back_when_hook_is_pipe_only() -> None:
+    skill = SimpleNamespace(
+        title="Crypto Sentiment Alerts",
+        description="Real-time crypto sentiment monitoring skill pack.",
+        keywords=[],
+        markdown_body="# Crypto Sentiment Alerts\n",
+    )
+    opp = SimpleNamespace(
+        niche="crypto sentiment",
+        rationale="High demand",
+        suggested_price_eur_cents=1900,
+        source_refs=[{"kind": "listing_preview", "hook": "|", "source": "monid"}],
+    )
+    ctx = listing_context_from_skill_and_opportunity(skill, opp)  # type: ignore[arg-type]
+    assert ctx.one_line_hook == "Real-time crypto sentiment monitoring skill pack."
+    assert "|" not in ctx.one_line_hook
+
+
 def test_listing_context_uses_monid_preview_ref() -> None:
     skill = SimpleNamespace(
         title="Test Skill",

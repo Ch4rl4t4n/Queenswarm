@@ -71,6 +71,17 @@ def _listing_preview_from_opportunity(opportunity: SkillOpportunityORM | None) -
     return hook, video_url, source
 
 
+def _sanitize_hook(hook: str) -> str:
+    """Drop Monid/markdown noise so Gumroad subtitle is never empty or '|'."""
+
+    cleaned = hook.strip().strip("|").strip("-").strip()
+    if len(cleaned) >= 8 and not cleaned.startswith("Monid:"):
+        return cleaned[:240]
+    if cleaned.startswith("Monid:") and len(cleaned) >= 24:
+        return cleaned[:240]
+    return ""
+
+
 def listing_context_from_skill_and_opportunity(
     skill: TenantSkillORM,
     opportunity: SkillOpportunityORM | None,
@@ -84,7 +95,12 @@ def listing_context_from_skill_and_opportunity(
     niche = str(opportunity.niche if opportunity else "")
     rationale = str(opportunity.rationale if opportunity else skill.description or "")
     stored_hook, stored_video, source = _listing_preview_from_opportunity(opportunity)
-    hook = (monid_hook or stored_hook or _extract_hook_from_skill_md(skill.markdown_body, title=skill.title)).strip()
+    raw_hook = monid_hook or stored_hook or _extract_hook_from_skill_md(skill.markdown_body, title=skill.title)
+    hook = _sanitize_hook(raw_hook)
+    if not hook and skill.description and len(skill.description.strip()) >= 12:
+        hook = skill.description.strip()[:240]
+    if not hook:
+        hook = f"Verified AI agent skill — {skill.title}"[:240]
     persona = niche or "Indie hackers and small teams shipping with Cursor / Claude agent skills"
     if rationale and len(rationale) > 40:
         persona = f"{persona}. Signal: {rationale[:280]}"
