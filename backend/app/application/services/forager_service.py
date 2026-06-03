@@ -10,7 +10,11 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.agent_catalog import create_agent_record
-from app.application.services.supervisor.routine_service import create_supervisor_routine, trigger_supervisor_routine_now
+from app.application.services.supervisor.routine_service import (
+    create_supervisor_routine,
+    routine_has_active_session,
+    trigger_supervisor_routine_now,
+)
 from app.infrastructure.persistence.models.agent import Agent
 from app.infrastructure.persistence.models.agent_config import AgentConfig
 from app.infrastructure.persistence.models.agent_template import AgentTemplateORM
@@ -210,6 +214,12 @@ class ForagerService:
         if row is None:
             return 0
         default_tags = [str(tag).strip() for tag in list((row.filter_config or {}).get("default_tags") or []) if str(tag).strip()]
+        if not default_tags:
+            default_tags = [
+                str(tag).strip()
+                for tag in list((row.filter_config or {}).get("topic_tags") or [])
+                if str(tag).strip()
+            ]
         inserted = 0
         for record in records:
             content_text = str(record.get("content_text") or "").strip()
@@ -301,6 +311,7 @@ class ForagerService:
         tenant_id: uuid.UUID,
         forager_id: uuid.UUID,
         records: list[dict[str, Any]] | None = None,
+        trigger_routine: bool = True,
     ) -> dict[str, Any] | None:
         """Run one manual forager cycle: ingest into HiveMind + optionally trigger routine."""
 
@@ -329,11 +340,22 @@ class ForagerService:
                 for tag in list((row.filter_config or {}).get("default_tags") or [])
                 if str(tag).strip()
             ]
+            if not default_tags:
+                default_tags = [
+                    str(tag).strip()
+                    for tag in list((row.filter_config or {}).get("topic_tags") or [])
+                    if str(tag).strip()
+                ]
             from app.application.services.social_intel_scraper import scraped_item_to_ingest_record
 
             payload_records = [
                 scraped_item_to_ingest_record(item, default_tags=default_tags) for item in scraped
             ]
+        elif not payload_records and row.source_type == "rss":
+            from app.application.services.forager_rss_scraper import scrape_rss_forager_feeds
+
+            payload_records = await scrape_rss_forager_feeds(row)
+            scraped_count = len(payload_records)
 
         if not payload_records:
             fallback_content = str((row.source_config or {}).get("seed_content") or "").strip()
@@ -357,9 +379,22 @@ class ForagerService:
 
         triggered = False
         routine_session_id: str | None = None
-        if row.supervisor_routine_id is not None:
+        if trigger_routine and row.supervisor_routine_id is not None:
             routine = await self._db.get(SupervisorRoutine, row.supervisor_routine_id)
             if routine is not None and bool(routine.is_active):
+                already_running, existing_session_id = await routine_has_active_session(
+                    self._db,
+                    row.supervisor_routine_id,
+                )
+                if already_running:
+                    return {
+                        "forager_id": str(row.id),
+                        "ingested": int(ingested),
+                        "scraped": scraped_count,
+                        "routine_triggered": False,
+                        "routine_session_id": existing_session_id,
+                        "status": "already_running",
+                    }
                 session_id = await trigger_supervisor_routine_now(self._db, routine=routine)
                 triggered = True
                 routine_session_id = str(session_id)

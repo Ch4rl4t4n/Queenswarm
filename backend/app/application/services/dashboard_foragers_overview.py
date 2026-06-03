@@ -254,10 +254,23 @@ def resolve_forager_progress_meta(
 
     if running_progress is not None:
         href = f"/agents?session={running_session_id}" if running_session_id else None
+        pct = running_progress
+        detail = "Supervisor evaluator session is running."
+        if cursor_progress is not None and cursor_progress > running_progress:
+            # A fresh evaluator tick must not erase established source backfill progress.
+            pct = cursor_progress
+            detail = (
+                f"Source backfill {cursor_progress}% · evaluator session {running_progress}% "
+                "(live run — bar shows backfill until it catches up)."
+            )
+        elif cursor_progress is not None:
+            detail = (
+                f"Evaluator session {running_progress}% · source backfill {cursor_progress}%."
+            )
         return {
-            "pct": running_progress,
+            "pct": pct,
             "kind": "live_run",
-            "detail": "Supervisor evaluator session is running.",
+            "detail": detail,
             "href": href,
         }
     if cursor_progress is not None:

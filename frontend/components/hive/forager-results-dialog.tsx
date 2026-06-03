@@ -1,0 +1,267 @@
+"use client";
+
+import { Download, ExternalLink, FileText, Loader2Icon, X } from "lucide-react";
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+
+import { HiveModalShell } from "@/components/hive/hive-modal-shell";
+import { V4Badge } from "@/components/ui/v4";
+import { HiveApiError, hiveGet } from "@/lib/api";
+import { foragerKnowledgeHref } from "@/lib/execution-lane-routes";
+import { formatTimeAgoIso } from "@/lib/format-relative-time";
+import { cn } from "@/lib/utils";
+
+export interface ForagerHarvestReportRow {
+  forager_id: string;
+  name: string;
+  description: string;
+  source_type: string;
+  items_total: number;
+  executive_summary: string;
+  items: Array<{
+    title: string;
+    body: string;
+    source_url: string | null;
+    scraped_at: string | null;
+    confidence: number;
+    source_type: string;
+  }>;
+  generated_at: string;
+}
+
+interface ForagerResultsDialogProps {
+  foragerId: string | null;
+  sourceName?: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+async function downloadBlob(blob: Blob, filename: string): Promise<void> {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function shortForagerId(id: string): string {
+  return `F-${id.replace(/-/g, "").slice(0, 4).toUpperCase()}`;
+}
+
+/** Operator harvest report — readable findings + PDF/Markdown export. */
+export function ForagerResultsDialog({
+  foragerId,
+  sourceName,
+  open,
+  onOpenChange,
+}: ForagerResultsDialogProps): JSX.Element | null {
+  const [report, setReport] = useState<ForagerHarvestReportRow | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [exportBusy, setExportBusy] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const onOpenChangeRef = useRef(onOpenChange);
+  onOpenChangeRef.current = onOpenChange;
+
+  const loadReport = useCallback(async (targetId: string) => {
+    setLoading(true);
+    setReport(null);
+    try {
+      const body = await hiveGet<ForagerHarvestReportRow>(
+        `foragers/${encodeURIComponent(targetId)}/report?item_limit=25`,
+      );
+      setReport(body);
+    } catch (err) {
+      toast.error(err instanceof HiveApiError ? err.message : "Forager report unavailable");
+      onOpenChangeRef.current(false);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!open || !foragerId) {
+      setReport(null);
+      setLoading(false);
+      return;
+    }
+    void loadReport(foragerId);
+  }, [open, foragerId, loadReport]);
+
+  async function exportReport(format: "html" | "markdown" | "pdf"): Promise<void> {
+    if (!foragerId) {
+      return;
+    }
+    setExportBusy(format);
+    try {
+      const res = await fetch(
+        `/api/proxy/foragers/${encodeURIComponent(foragerId)}/report/export?format=${format}`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) {
+        throw new Error("Report export failed");
+      }
+      const blob = await res.blob();
+      const tail = foragerId.replace(/-/g, "").slice(-8).toUpperCase();
+      const ext = format === "markdown" ? "md" : format === "pdf" ? "pdf" : "html";
+      await downloadBlob(blob, `forager-${tail}-report.${ext}`);
+      toast.success(`Report downloaded (${format.toUpperCase()})`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Report export failed");
+    } finally {
+      setExportBusy(null);
+    }
+  }
+
+  if (!open || !foragerId) {
+    return null;
+  }
+
+  const knowledgeHref = foragerKnowledgeHref({
+    foragerId,
+    searchQuery: sourceName ?? report?.name,
+  });
+
+  return (
+    <HiveModalShell
+      open
+      onClose={() => onOpenChange(false)}
+      labelledBy="forager-results-title"
+      align="center"
+      zIndexClass="z-[72]"
+      closeLabel="Close forager report"
+      panelClassName="qs-bubble flex max-h-[min(92dvh,920px)] w-full max-w-3xl flex-col overflow-hidden rounded-(--qs-radius-lg)"
+    >
+      <header className="flex shrink-0 items-start justify-between gap-3 border-b border-(--qs-border) px-4 py-4 sm:px-5">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <FileText className="h-4 w-4 shrink-0 text-pollen" aria-hidden />
+            <h2 id="forager-results-title" className="text-lg font-semibold text-(--qs-text)">
+              Forager results
+            </h2>
+            {report ? (
+              <>
+                <V4Badge tone="gold">{shortForagerId(report.forager_id)}</V4Badge>
+                <V4Badge tone="purple">{report.source_type}</V4Badge>
+                <V4Badge tone="info">{report.items_total} signals</V4Badge>
+              </>
+            ) : null}
+          </div>
+          {report ? (
+            <p className="mt-1 line-clamp-2 text-sm text-(--qs-text-2)" title={report.name}>
+              {report.name}
+            </p>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          className="qs-btn qs-btn--ghost qs-btn--icon shrink-0"
+          aria-label="Close"
+          onClick={() => onOpenChange(false)}
+        >
+          <X className="h-4 w-4" aria-hidden />
+        </button>
+      </header>
+
+      <div ref={scrollRef} className="hive-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+        {loading ? (
+          <div className="flex items-center justify-center gap-2 py-16 text-sm text-(--qs-text-3)">
+            <Loader2Icon className="h-5 w-5 animate-spin text-pollen" aria-hidden />
+            Loading harvest report…
+          </div>
+        ) : report ? (
+          <div className="space-y-5">
+            <section>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-pollen">Executive summary</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-(--qs-text)">
+                {report.executive_summary}
+              </p>
+            </section>
+
+            <section>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-(--qs-text-3)">
+                Key findings
+                {report.items.length > 0 ? (
+                  <span className="ml-2 font-normal normal-case tracking-normal text-(--qs-text-4)">
+                    (showing {report.items.length} of {report.items_total})
+                  </span>
+                ) : null}
+              </p>
+              {report.items.length === 0 ? (
+                <div className="mt-3 space-y-3 rounded-xl border border-dashed border-pollen/35 bg-black/20 px-4 py-5 text-sm text-(--qs-text-3)">
+                  <p>No harvested signals yet for this forager.</p>
+                  <ol className="list-decimal space-y-1 pl-5 text-xs text-(--qs-text-2)">
+                    <li>Open <strong>Foragers</strong> → find this row → click <strong>Run</strong> (RSS feeds scrape on Run).</li>
+                    <li>In <strong>Edit</strong>, verify <code className="text-pollen">source_config.feeds</code> has working RSS URLs.</li>
+                    <li>Wait ~30s, reopen <strong>Results</strong>, then export PDF again.</li>
+                  </ol>
+                </div>
+              ) : (
+                <ul className="mt-3 space-y-3">
+                  {report.items.map((item, index) => (
+                    <li
+                      key={`${item.title}-${index}`}
+                      className="rounded-xl border border-pollen/30 bg-black/25 px-4 py-3"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <p className="text-sm font-medium text-(--qs-text)">{item.title}</p>
+                        <span className="text-[10px] text-(--qs-text-4)">
+                          {item.scraped_at ? formatTimeAgoIso(item.scraped_at) : "—"}
+                          {" · "}
+                          {Math.round(item.confidence * 100)}% conf.
+                        </span>
+                      </div>
+                      <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-(--qs-text-2)">
+                        {item.body.length > 1200 ? `${item.body.slice(0, 1197)}…` : item.body}
+                      </p>
+                      {item.source_url ? (
+                        <a
+                          href={item.source_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-2 inline-block text-xs text-cyan hover:underline"
+                        >
+                          {item.source_url}
+                        </a>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
+        ) : null}
+      </div>
+
+      <footer className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-(--qs-border) px-4 py-3 sm:px-5">
+        <Link href={knowledgeHref} className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5">
+          <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+          Raw HiveMind data
+        </Link>
+        <div className="flex flex-wrap gap-2">
+          {(["pdf", "markdown", "html"] as const).map((format) => (
+            <button
+              key={format}
+              type="button"
+              className={cn(
+                "qs-btn qs-btn--ghost qs-btn--sm gap-1.5",
+                format === "pdf" && "qs-btn--primary",
+                exportBusy === format && "opacity-60",
+              )}
+              disabled={Boolean(exportBusy) || loading || !report}
+              onClick={() => void exportReport(format)}
+            >
+              {exportBusy === format ? (
+                <Loader2Icon className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : (
+                <Download className="h-3.5 w-3.5" aria-hidden />
+              )}
+              {format.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      </footer>
+    </HiveModalShell>
+  );
+}

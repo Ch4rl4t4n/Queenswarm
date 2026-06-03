@@ -1,15 +1,16 @@
 "use client";
 
-import { ExternalLink, ListTodo, Pencil, Play, Trash2 } from "lucide-react";
-import Link from "next/link";
-import { memo, useCallback, useMemo, useState } from "react";
+import { FileText, ListTodo, Pencil, Play, Trash2 } from "lucide-react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { ForagerProgressCell } from "@/components/hive/forager-progress-cell";
+import { ForagerResultsDialog } from "@/components/hive/forager-results-dialog";
 import { HiveSwitch } from "@/components/ui/hive-switch";
 import { QsSelect } from "@/components/ui/qs-select";
 import { V4Badge, type V4BadgeTone } from "@/components/ui/v4";
 import { HiveApiError, hivePatchJson, hivePostJson } from "@/lib/api";
+import { formatTimeAgoSeconds } from "@/lib/format-relative-time";
 import { foragerKnowledgeHref } from "@/lib/execution-lane-routes";
 import type {
   ForagerRow,
@@ -19,6 +20,8 @@ import type {
 import { cn } from "@/lib/utils";
 
 type StatusFilter = "all" | ForagersOverviewConfiguration["status"];
+
+const FORAGER_CONFIG_PREVIEW_LIMIT = 3;
 
 export interface ForagerConfigurationsPanelProps {
   configurations: ForagersOverviewConfiguration[];
@@ -47,19 +50,13 @@ function statusTone(status: ForagersOverviewConfiguration["status"]): V4BadgeTon
 }
 
 function statusLabel(status: ForagersOverviewConfiguration["status"]): string {
-  if (status === "ok") return "running";
+  if (status === "ok") return "active";
   if (status === "warn") return "needs input";
   return status;
 }
 
-function formatAgo(sec: number | null): string {
-  if (sec == null) return "never";
-  if (sec < 60) return `${sec}s ago`;
-  const m = Math.floor(sec / 60);
-  if (m < 90) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 48) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
+function isForagerSessionLive(row: ForagersOverviewConfiguration): boolean {
+  return row.progress_kind === "live_run";
 }
 
 function ForagerSkillBadge({ slug }: { slug: string }): JSX.Element {
@@ -86,6 +83,8 @@ function ForagerConfigurationsPanelInner({
 }: ForagerConfigurationsPanelProps): JSX.Element {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [showAllConfigurations, setShowAllConfigurations] = useState(false);
+  const [resultsForager, setResultsForager] = useState<{ id: string; name: string } | null>(null);
   const [autoApproveBusy, setAutoApproveBusy] = useState(false);
   const [pauseAllBusy, setPauseAllBusy] = useState(false);
 
@@ -110,6 +109,27 @@ function ForagerConfigurationsPanelInner({
       return haystack.includes(q);
     });
   }, [configurations, foragersById, query, statusFilter]);
+
+  const visibleRows = useMemo(() => {
+    if (showAllConfigurations) {
+      return filteredRows;
+    }
+    return filteredRows.slice(0, FORAGER_CONFIG_PREVIEW_LIMIT);
+  }, [filteredRows, showAllConfigurations]);
+
+  const hiddenConfigurationCount = Math.max(0, filteredRows.length - FORAGER_CONFIG_PREVIEW_LIMIT);
+
+  const openResults = useCallback((row: ForagersOverviewConfiguration) => {
+    setResultsForager({ id: row.id, name: row.source_name });
+  }, []);
+
+  const resultsReportReady = useCallback((row: ForagersOverviewConfiguration): boolean => {
+    return (row.run_progress_pct ?? 0) >= 100 && row.status === "ok";
+  }, []);
+
+  useEffect(() => {
+    setShowAllConfigurations(false);
+  }, [query, statusFilter, configurations.length]);
 
   const patchAutoApprove = useCallback(
     async (enabled: boolean) => {
@@ -187,7 +207,7 @@ function ForagerConfigurationsPanelInner({
           onValueChange={(next) => setStatusFilter(next as StatusFilter)}
           options={[
             { value: "all", label: "all statuses" },
-            { value: "ok", label: "running" },
+            { value: "ok", label: "active" },
             { value: "warn", label: "needs input" },
             { value: "paused", label: "paused" },
             { value: "error", label: "error" },
@@ -229,7 +249,7 @@ function ForagerConfigurationsPanelInner({
               ) : null}
             </div>
           ) : (
-            filteredRows.map((row) => {
+            visibleRows.map((row) => {
               const forager = foragersById.get(row.id);
               const routeTags = [
                 row.source_type,
@@ -292,8 +312,15 @@ function ForagerConfigurationsPanelInner({
                         pct={row.run_progress_pct ?? 0}
                         detail={row.progress_detail}
                         href={
-                          row.progress_href ??
-                          foragerKnowledgeHref({ foragerId: row.id, searchQuery: row.source_name })
+                          resultsReportReady(row)
+                            ? null
+                            : row.progress_href ??
+                              foragerKnowledgeHref({ foragerId: row.id, searchQuery: row.source_name })
+                        }
+                        onActivate={
+                          resultsReportReady(row)
+                            ? () => openResults(row)
+                            : undefined
                         }
                       />
                     </div>
@@ -301,18 +328,16 @@ function ForagerConfigurationsPanelInner({
 
                   <div className="flex shrink-0 flex-wrap items-center gap-2">
                     <span className="text-xs text-(--qs-text-3)">
-                      {formatAgo(row.last_run_seconds_ago)} · {row.items_count} items
+                      {formatTimeAgoSeconds(row.last_run_seconds_ago)} · {row.items_count} items
                     </span>
-                    <Link
-                      href={
-                        row.progress_href ??
-                        foragerKnowledgeHref({ foragerId: row.id, searchQuery: row.source_name })
-                      }
+                    <button
+                      type="button"
                       className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
+                      onClick={() => openResults(row)}
                     >
-                      <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                      <FileText className="h-3.5 w-3.5" aria-hidden />
                       Results
-                    </Link>
+                    </button>
                     <button
                       type="button"
                       className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
@@ -325,7 +350,12 @@ function ForagerConfigurationsPanelInner({
                     <button
                       type="button"
                       className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
-                      disabled={!canManage || busy === `run-${row.id}`}
+                      disabled={!canManage || busy === `run-${row.id}` || isForagerSessionLive(row)}
+                      title={
+                        isForagerSessionLive(row)
+                          ? "Supervisor session is already running — wait for it to finish."
+                          : undefined
+                      }
                       onClick={() => void onRun(row.id)}
                     >
                       <Play className="h-3.5 w-3.5" aria-hidden />
@@ -376,7 +406,14 @@ function ForagerConfigurationsPanelInner({
                         <button
                           type="button"
                           className="qs-btn qs-btn--green qs-btn--sm"
-                          disabled={!canManage || busy === `run-${row.id}`}
+                          disabled={
+                            !canManage || busy === `run-${row.id}` || isForagerSessionLive(row)
+                          }
+                          title={
+                            isForagerSessionLive(row)
+                              ? "Supervisor session is already running — wait for it to finish."
+                              : undefined
+                          }
                           onClick={() => void onRun(row.id)}
                         >
                           Approve
@@ -398,6 +435,26 @@ function ForagerConfigurationsPanelInner({
           )}
         </div>
 
+        {hiddenConfigurationCount > 0 && !showAllConfigurations ? (
+          <button
+            type="button"
+            className="qs-btn qs-btn--ghost mt-3 w-full justify-center py-2.5 text-sm font-semibold"
+            disabled={pauseAllBusy || busy !== null}
+            onClick={() => setShowAllConfigurations(true)}
+          >
+            Show all ({filteredRows.length})
+          </button>
+        ) : null}
+        {showAllConfigurations && filteredRows.length > FORAGER_CONFIG_PREVIEW_LIMIT ? (
+          <button
+            type="button"
+            className="qs-btn qs-btn--ghost mt-3 w-full justify-center py-2.5 text-sm font-semibold"
+            onClick={() => setShowAllConfigurations(false)}
+          >
+            Show less
+          </button>
+        ) : null}
+
         {filteredRows.some((row) => row.is_active) ? (
           <button
             type="button"
@@ -413,6 +470,17 @@ function ForagerConfigurationsPanelInner({
           </button>
         ) : null}
       </div>
+
+      <ForagerResultsDialog
+        foragerId={resultsForager?.id ?? null}
+        sourceName={resultsForager?.name}
+        open={resultsForager !== null}
+        onOpenChange={(next) => {
+          if (!next) {
+            setResultsForager(null);
+          }
+        }}
+      />
     </div>
   );
 }

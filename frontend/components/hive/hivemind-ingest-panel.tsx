@@ -26,6 +26,7 @@ import {
   V4Stat,
 } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
+import { formatTimeAgoIso } from "@/lib/format-relative-time";
 import { cn } from "@/lib/utils";
 
 interface VaultSample {
@@ -113,16 +114,6 @@ function formatPct(value: number | null): string {
   return `${value.toFixed(0)}%`;
 }
 
-function formatAge(iso: string | null): string {
-  if (!iso) return "—";
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return "—";
-  const minutes = Math.max(0, Math.floor((Date.now() - then) / 60_000));
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 48) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
 
 function complianceBarTone(pct: number | null): "ok" | "warn" | "err" {
   if (pct == null || pct === 0) return "err";
@@ -265,7 +256,7 @@ export function HiveMindIngestPanel({
                 iconTone="purple"
                 foot={
                   data.dream_insights.latest_at
-                    ? `latest ${formatAge(data.dream_insights.latest_at)}`
+                    ? `latest ${formatTimeAgoIso(data.dream_insights.latest_at)}`
                     : "overnight reasoning"
                 }
               />
@@ -276,7 +267,7 @@ export function HiveMindIngestPanel({
                 iconTone={data.headline.dump_pending > 5 ? "default" : "green"}
                 foot={
                   data.dump_sleep.oldest_pending_at
-                    ? `oldest ${formatAge(data.dump_sleep.oldest_pending_at)}`
+                    ? `oldest ${formatTimeAgoIso(data.dump_sleep.oldest_pending_at)}`
                     : "queue clean"
                 }
               />
@@ -381,7 +372,7 @@ export function HiveMindIngestPanel({
                           {s.title}
                         </span>
                         <span className="shrink-0 font-mono text-[10px] text-(--qs-text-3)">
-                          {formatAge(s.updated_at)}
+                          {formatTimeAgoIso(s.updated_at)}
                         </span>
                       </li>
                     ))}
@@ -479,7 +470,7 @@ export function HiveMindIngestPanel({
                         {sample.severity}
                       </V4Badge>
                       <span className="font-mono text-[10px] text-(--qs-text-3)">
-                        {formatAge(sample.at)}
+                        {formatTimeAgoIso(sample.at)}
                       </span>
                       <span className="font-medium text-(--qs-cyan)">{sample.swarm_name}</span>
                       <span className="w-full text-(--qs-text-2)">{sample.message}</span>

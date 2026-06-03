@@ -94,8 +94,11 @@ async def test_foragers_create_returns_201(
     async def _commit() -> None:
         return None
 
+    async def _refresh(_row: object) -> None:
+        return None
+
     async def mock_db() -> AsyncIterator[SimpleNamespace]:
-        yield SimpleNamespace(commit=_commit)
+        yield SimpleNamespace(commit=_commit, refresh=_refresh)
 
     async def _fake_create(self, **kwargs):  # noqa: ANN003
         del self, kwargs
@@ -140,8 +143,11 @@ async def test_foragers_trigger_returns_summary(
     async def _commit() -> None:
         return None
 
+    async def _refresh(_row: object) -> None:
+        return None
+
     async def mock_db() -> AsyncIterator[SimpleNamespace]:
-        yield SimpleNamespace(commit=_commit)
+        yield SimpleNamespace(commit=_commit, refresh=_refresh)
 
     async def _fake_trigger(self, **kwargs):  # noqa: ANN003
         del self, kwargs

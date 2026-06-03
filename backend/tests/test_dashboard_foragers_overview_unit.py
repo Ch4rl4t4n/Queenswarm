@@ -23,7 +23,7 @@ def test_session_sub_agent_progress_pct_when_half_done() -> None:
     assert _session_sub_agent_progress_pct(session) == 50
 
 
-def test_resolve_forager_run_progress_prefers_running_session() -> None:
+def test_resolve_forager_run_progress_uses_higher_of_live_or_backfill() -> None:
     forager = MagicMock(spec=ForagerORM)
     forager.id = uuid.uuid4()
     pct = resolve_forager_run_progress_pct(
@@ -34,7 +34,16 @@ def test_resolve_forager_run_progress_prefers_running_session() -> None:
         running_progress=62,
         cursor_progress=100,
     )
-    assert pct == 62
+    assert pct == 100
+    pct_live_ahead = resolve_forager_run_progress_pct(
+        forager=forager,
+        routine=None,
+        status="ok",
+        now=datetime.now(tz=UTC),
+        running_progress=80,
+        cursor_progress=35,
+    )
+    assert pct_live_ahead == 80
 
 
 def test_resolve_forager_progress_meta_live_run_includes_session_href() -> None:
@@ -53,6 +62,27 @@ def test_resolve_forager_progress_meta_live_run_includes_session_href() -> None:
     assert meta["pct"] == 62
     assert meta["kind"] == "live_run"
     assert meta["href"] == "/agents?session=sess-123"
+
+
+def test_live_run_does_not_drop_below_backfill_progress() -> None:
+    """Fresh evaluator sessions must not reset bar below channel backfill pct."""
+
+    forager = MagicMock(spec=ForagerORM)
+    forager.id = uuid.uuid4()
+    forager.name = "YouTube Intel"
+    meta = resolve_forager_progress_meta(
+        forager=forager,
+        routine=None,
+        status="ok",
+        now=datetime.now(tz=UTC),
+        running_progress=5,
+        running_session_id="sess-new",
+        cursor_progress=35,
+    )
+    assert meta["pct"] == 35
+    assert meta["kind"] == "live_run"
+    assert "35%" in meta["detail"]
+    assert "5%" in meta["detail"]
 
 
 def test_resolve_forager_run_progress_ok_without_signals_is_complete() -> None:

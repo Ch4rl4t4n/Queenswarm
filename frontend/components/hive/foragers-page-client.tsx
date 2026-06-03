@@ -153,8 +153,15 @@ export function ForagersPageClient() {
   async function triggerRun(id: string) {
     if (!canManage) return;
     await withBusy(`run-${id}`, async () => {
-      await hivePostJson(`foragers/${encodeURIComponent(id)}/trigger`, { records: [] });
-      toast.success("Forager run triggered");
+      const res = await hivePostJson<{
+        status: string;
+        routine_session_id?: string | null;
+      }>(`foragers/${encodeURIComponent(id)}/trigger`, { records: [] });
+      if (res.status === "already_running") {
+        toast.info("Forager session already running — wait for it to finish.");
+      } else {
+        toast.success("Forager run triggered");
+      }
       await reload();
     });
   }
@@ -162,11 +169,20 @@ export function ForagersPageClient() {
   async function runAllNow() {
     if (!canManage || !configurations.length) return;
     await withBusy("run-all", async () => {
-      const active = configurations.filter((row) => row.is_active);
+      const active = configurations.filter((row) => row.is_active && row.progress_kind !== "live_run");
+      if (!active.length) {
+        toast.info("All active foragers are already running.");
+        return;
+      }
+      const skipped = configurations.filter((row) => row.is_active && row.progress_kind === "live_run").length;
       await Promise.all(
         active.map((row) => hivePostJson(`foragers/${encodeURIComponent(row.id)}/trigger`, { records: [] })),
       );
-      toast.success(`Triggered ${active.length} forager${active.length === 1 ? "" : "s"}`);
+      toast.success(
+        skipped > 0
+          ? `Triggered ${active.length} forager${active.length === 1 ? "" : "s"} (${skipped} already running)`
+          : `Triggered ${active.length} forager${active.length === 1 ? "" : "s"}`,
+      );
       await reload();
     });
   }

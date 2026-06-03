@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from datetime import UTC, datetime
+from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from starlette.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -19,6 +20,13 @@ from app.infrastructure.persistence.models.tenant import Tenant
 from app.presentation.api.deps import DbSession, require_dashboard_user_with_tenant_role
 
 router = APIRouter(prefix="/foragers", tags=["Foragers"])
+
+
+async def _forager_response(db: DbSession, row: object) -> ForagerResponse:
+    """Refresh ORM row before pydantic serialization (async SQLAlchemy timestamps)."""
+
+    await db.refresh(row)
+    return ForagerResponse.model_validate(row, from_attributes=True)
 
 
 class ForagerScheduleRequest(BaseModel):
@@ -286,7 +294,7 @@ async def create_forager(
         created_by_subject=str(principal.get("sub") or "dashboard:forager"),
     )
     await db.commit()
-    return ForagerResponse.model_validate(row, from_attributes=True)
+    return await _forager_response(db, row)
 
 
 @router.get("/{id}", response_model=ForagerResponse, summary="Get forager by id")
@@ -342,7 +350,7 @@ async def update_forager(
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Forager not found.")
     await db.commit()
-    return ForagerResponse.model_validate(row, from_attributes=True)
+    return await _forager_response(db, row)
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete forager")
@@ -434,7 +442,7 @@ async def toggle_forager(
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Forager not found.")
     await db.commit()
-    return ForagerResponse.model_validate(row, from_attributes=True)
+    return await _forager_response(db, row)
 
 
 @router.post("/{id}/trigger", response_model=ForagerTriggerResponse, summary="Trigger manual forager run")
@@ -574,8 +582,125 @@ async def append_forager_sources(
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Forager not found.")
     await db.commit()
-    await db.refresh(row)
-    return ForagerResponse.model_validate(row, from_attributes=True)
+    return await _forager_response(db, row)
+
+
+class ForagerHarvestFindingView(BaseModel):
+    """One harvested knowledge row in an operator report."""
+
+    title: str
+    body: str
+    source_url: str | None = None
+    scraped_at: datetime | None = None
+    confidence: float = 0.0
+    source_type: str = ""
+
+
+class ForagerHarvestReportView(BaseModel):
+    """JSON preview for forager harvest report dialog."""
+
+    forager_id: uuid.UUID
+    name: str
+    description: str
+    source_type: str
+    items_total: int
+    executive_summary: str
+    items: list[ForagerHarvestFindingView]
+    generated_at: datetime
+
+
+@router.get(
+    "/{id}/report",
+    response_model=ForagerHarvestReportView,
+    summary="Forager harvest intelligence report (JSON preview)",
+)
+async def get_forager_harvest_report(
+    id: uuid.UUID,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    item_limit: int = Query(default=25, ge=1, le=50),
+) -> ForagerHarvestReportView:
+    """Return structured harvest report for operator UI and export."""
+
+    _require_forager_read(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.forager_harvest_report import load_forager_harvest_report
+
+    report = await load_forager_harvest_report(
+        db,
+        tenant_id=tenant_id,
+        forager_id=id,
+        item_limit=item_limit,
+    )
+    if report is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Forager not found.")
+    return ForagerHarvestReportView(
+        forager_id=uuid.UUID(str(report["forager_id"])),
+        name=str(report["name"]),
+        description=str(report.get("description") or ""),
+        source_type=str(report.get("source_type") or ""),
+        items_total=int(report.get("items_total") or 0),
+        executive_summary=str(report.get("executive_summary") or ""),
+        items=[ForagerHarvestFindingView.model_validate(row) for row in list(report.get("items") or [])],
+        generated_at=report.get("generated_at") or datetime.now(tz=UTC),
+    )
+
+
+@router.get(
+    "/{id}/report/export",
+    summary="Export forager harvest report (HTML, Markdown, or PDF)",
+)
+async def export_forager_harvest_report(
+    id: uuid.UUID,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    export_format: Literal["html", "markdown", "pdf"] = Query(default="pdf", alias="format"),
+    item_limit: int = Query(default=25, ge=1, le=50),
+) -> Response:
+    """Download a printable intelligence report from HiveMind harvest."""
+
+    _require_forager_read(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.forager_harvest_report import (
+        build_forager_harvest_report_markdown,
+        build_forager_harvest_report_pdf,
+        build_forager_harvest_report_print_html,
+        load_forager_harvest_report,
+    )
+
+    report = await load_forager_harvest_report(
+        db,
+        tenant_id=tenant_id,
+        forager_id=id,
+        item_limit=item_limit,
+    )
+    if report is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Forager not found.")
+
+    tail = str(id).replace("-", "")[-8:].upper()
+    safe_name = "".join(ch if ch.isalnum() else "-" for ch in str(report.get("name") or "forager")).strip("-")[:40]
+    if export_format == "markdown":
+        content = build_forager_harvest_report_markdown(report)
+        media_type = "text/markdown; charset=utf-8"
+        filename = f"forager-{safe_name}-{tail}.md"
+        body: str | bytes = content
+    elif export_format == "pdf":
+        content = build_forager_harvest_report_pdf(report)
+        media_type = "application/pdf"
+        filename = f"forager-{safe_name}-{tail}.pdf"
+        body = content
+    else:
+        content = build_forager_harvest_report_print_html(report)
+        media_type = "text/html; charset=utf-8"
+        filename = f"forager-{safe_name}-{tail}.html"
+        body = content
+
+    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+    return Response(content=body, media_type=media_type, headers=headers)
 
 
 __all__ = ["router"]

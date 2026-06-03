@@ -246,3 +246,59 @@ async def test_trigger_manual_run_ingests_and_triggers_routine(monkeypatch: pyte
     assert out["routine_triggered"] is True
     assert captured["count"] == 1
 
+
+@pytest.mark.asyncio
+async def test_trigger_manual_run_skips_when_routine_already_running(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Manual trigger should not spawn a second supervisor session."""
+
+    db = _FakeDb()
+    service = ForagerService(db=db)  # type: ignore[arg-type]
+    tenant_id = uuid.uuid4()
+    routine_id = uuid.uuid4()
+    forager = SimpleNamespace(
+        id=uuid.uuid4(),
+        is_active=True,
+        supervisor_routine_id=routine_id,
+        source_type="rss",
+        source_config={},
+        filter_config={},
+    )
+    routine = SimpleNamespace(id=routine_id, is_active=True)
+    existing_session_id = str(uuid.uuid4())
+
+    async def _get(_tenant_id, _forager_id):  # noqa: ANN001
+        return forager
+
+    async def _db_get(_model, _pk):  # noqa: ANN001
+        return routine
+
+    async def _already_running(_db, _routine_id):  # noqa: ANN001
+        return True, existing_session_id
+
+    async def _should_not_trigger(*_args, **_kwargs):  # noqa: ANN003
+        raise AssertionError("trigger_supervisor_routine_now should not be called")
+
+    monkeypatch.setattr(service, "get_by_id", _get)
+    monkeypatch.setattr(db, "get", _db_get)
+    monkeypatch.setattr(
+        "app.application.services.forager_service.routine_has_active_session",
+        _already_running,
+    )
+    monkeypatch.setattr(
+        "app.application.services.forager_service.trigger_supervisor_routine_now",
+        _should_not_trigger,
+    )
+
+    out = await service.trigger_manual_run(
+        tenant_id=tenant_id,
+        forager_id=forager.id,
+        records=[],
+    )
+
+    assert out is not None
+    assert out["status"] == "already_running"
+    assert out["routine_triggered"] is False
+    assert out["routine_session_id"] == existing_session_id
+
