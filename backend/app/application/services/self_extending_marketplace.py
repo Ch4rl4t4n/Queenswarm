@@ -88,6 +88,7 @@ async def build_enriched_intelligence_scan(
     session: AsyncSession,
     *,
     dashboard_user_id: uuid.UUID,
+    tenant_id: uuid.UUID | None = None,
 ) -> dict[str, Any]:
     """Run Forager scan and enrich MCP preset proposals with install actions."""
 
@@ -105,6 +106,33 @@ async def build_enriched_intelligence_scan(
         for proposal in base.get("proposals", [])
         if isinstance(proposal, dict)
     ]
+
+    if tenant_id is not None:
+        from app.application.services.tool_gap_signal import list_tool_gaps
+
+        seen_targets = {
+            str(row.get("target") or "")
+            for row in proposals
+            if str(row.get("kind") or "") == "mcp_preset_skill"
+        }
+        for gap in await list_tool_gaps(tenant_id=tenant_id, limit=8):
+            template_id = str(gap.get("suggested_template_id") or "").strip()
+            if not template_id or template_id in seen_targets:
+                continue
+            seen_targets.add(template_id)
+            proposals.insert(
+                0,
+                _enrich_proposal(
+                    {
+                        "kind": "mcp_preset_skill",
+                        "target": template_id,
+                        "priority": "high",
+                        "rationale": f"Tool gap from agent session: {str(gap.get('message') or '')[:180]}",
+                    },
+                    templates_by_id=templates_by_id,
+                    installed_slugs=installed_slugs,
+                ),
+            )
     installable = sum(
         1
         for row in proposals

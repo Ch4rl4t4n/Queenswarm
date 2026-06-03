@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Any
 from urllib.parse import parse_qs
 
@@ -106,8 +107,13 @@ async def harness_intelligence_scan(
     if settings.self_extending_tool_marketplace_enabled:
         user = principal.get("user")
         user_id = getattr(user, "id", None)
+        tenant_id = principal.get("tenant_id")
         if user_id is not None:
-            return await build_enriched_intelligence_scan(db, dashboard_user_id=user_id)
+            return await build_enriched_intelligence_scan(
+                db,
+                dashboard_user_id=user_id,
+                tenant_id=tenant_id if isinstance(tenant_id, uuid.UUID) else None,
+            )
     return run_intelligence_scan()
 
 

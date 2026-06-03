@@ -112,6 +112,14 @@ def classify_tool_gap(
     return None
 
 
+def integrations_href_for_template(template_id: str | None = None) -> str:
+    """Canonical Integrations URL for resolving a tool gap."""
+
+    if template_id:
+        return f"/integrations?tab=marketplace&template={template_id}"
+    return "/integrations?tab=marketplace"
+
+
 def suggest_phase3_template_id(connector_slug: str) -> str | None:
     """Best-effort Phase3 template match for a missing connector slug."""
 
@@ -155,9 +163,7 @@ async def record_tool_gap(
     template_id = suggest_phase3_template_id(str(gap.get("connector_slug") or connector_slug))
     if template_id:
         gap["suggested_template_id"] = template_id
-        gap["integrations_href"] = f"/integrations?tab=hub&hubSection=marketplace&template={template_id}"
-    else:
-        gap["integrations_href"] = "/integrations?tab=hub&hubSection=marketplace"
+    gap["integrations_href"] = integrations_href_for_template(template_id)
 
     gap["last_seen_epoch"] = time.time()
     key = _gap_key(tenant_id)
@@ -228,6 +234,7 @@ async def list_tool_gaps(*, tenant_id: uuid.UUID, limit: int = 12) -> list[dict[
 
 __all__ = [
     "classify_tool_gap",
+    "integrations_href_for_template",
     "list_tool_gaps",
     "record_tool_gap",
     "suggest_phase3_template_id",

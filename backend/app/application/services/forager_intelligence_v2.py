@@ -65,6 +65,29 @@ async def compose_forager_v2_snapshot(
     ]
 
     connector_gaps: list[str] = []
+    existing_targets = {row.target for row in proposals if row.kind == "mcp_preset_skill"}
+
+    if tenant is not None:
+        from app.application.services.tool_gap_signal import list_tool_gaps
+
+        for gap in await list_tool_gaps(tenant_id=tenant.id, limit=6):
+            slug = str(gap.get("connector_slug") or "").strip()
+            message = str(gap.get("message") or "").strip()
+            if slug:
+                connector_gaps.append(f"{slug}: {message[:120]}")
+            template_id = str(gap.get("suggested_template_id") or "").strip()
+            if template_id and template_id not in existing_targets:
+                existing_targets.add(template_id)
+                proposals.insert(
+                    0,
+                    ForagerV2ProposalOut(
+                        kind="mcp_preset_skill",
+                        target=template_id,
+                        priority="high",
+                        rationale=f"Session tool gap ({gap.get('kind')}): {message[:200]}",
+                    ),
+                )
+
     try:
         from app.application.services.prediction_market_trading import build_prediction_markets_status_snapshot
 

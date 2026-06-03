@@ -9,7 +9,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.services.tool_gap_signal import list_tool_gaps
+from app.application.services.tool_gap_signal import integrations_href_for_template, list_tool_gaps
 from app.application.services.tool_marketplace import marketplace_catalog
 from app.core.config import settings
 from app.infrastructure.connectors.dynamic.hub import DynamicConnectorHub, manifest_tool_default
@@ -180,7 +180,7 @@ async def compose_mcp_ops_studio_snapshot(
         meta = marketplace_meta_for(template_id) if template_id else {}
         trust = str(meta.get("trust_tier") or "community")
         trust_tier: Literal["verified", "community"] = "verified" if trust == "verified" else "community"
-        href = f"/integrations?tab=hub&hubSection=marketplace&template={template_id}" if template_id else None
+        href = integrations_href_for_template(template_id) if template_id else integrations_href_for_template(None)
 
         catalog_rows.append(
             McpCatalogRowOut(

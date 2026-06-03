@@ -48,7 +48,11 @@ async def test_build_enriched_intelligence_scan_adds_install_actions() -> None:
             "app.application.services.self_extending_marketplace.marketplace_catalog",
             new=AsyncMock(return_value=fake_catalog),
         ):
-            payload = await build_enriched_intelligence_scan(AsyncMock(), dashboard_user_id=user_id)
+            with patch(
+                "app.application.services.tool_gap_signal.list_tool_gaps",
+                new=AsyncMock(return_value=[]),
+            ):
+                payload = await build_enriched_intelligence_scan(AsyncMock(), dashboard_user_id=user_id)
 
     proposal = payload["proposals"][0]
     assert proposal["action"] == "install_marketplace"

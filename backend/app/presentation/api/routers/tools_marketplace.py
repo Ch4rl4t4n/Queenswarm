@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -14,6 +15,7 @@ from app.application.services.tool_marketplace import (
     tool_hub_overview,
     tool_registry_snapshot,
 )
+from app.application.services.tool_gap_signal import list_tool_gaps
 from app.application.services.super_tool_router import (
     ROUTER_PRESETS,
     SuperToolRouterCreateBody,
@@ -30,6 +32,7 @@ from app.infrastructure.connectors.dynamic.hub import DynamicConnectorHub
 from app.infrastructure.connectors.dynamic.service import DynamicConnectorService
 from app.infrastructure.persistence.models.tenant import Tenant
 from app.presentation.api.deps import DashboardSession, DbSession, require_tenant_permission
+from app.core.config import settings
 from app.core.jwt_tokens import parse_dashboard_user_subject
 
 router = APIRouter(prefix="/tools", tags=["Tools Marketplace"])
@@ -158,6 +161,24 @@ async def tools_registry_monitoring(
                 },
             )
     return {"items": rows}
+
+
+@router.get("/tool-gaps", summary="Actionable MCP tool gaps from agent sessions")
+async def tools_tool_gaps(
+    sess: DashboardSession,
+    db: DbSession,
+    limit: int = 12,
+    _: bool = Depends(require_tenant_permission("connectors:view")),
+) -> dict[str, Any]:
+    """Return tenant-scoped tool gaps recorded from failed mcp_invoke calls."""
+
+    tenant = await _tenant_from_session(sess, db)
+    gaps = await list_tool_gaps(tenant_id=tenant.id, limit=max(1, min(30, int(limit))))
+    return {
+        "enabled": bool(settings.tool_gap_signal_enabled),
+        "generated_at": datetime.now(tz=UTC).isoformat(),
+        "gaps": gaps,
+    }
 
 
 @router.get("/marketplace/catalog", summary="API marketplace foundation catalog (templates/plugins)")

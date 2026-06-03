@@ -1,6 +1,7 @@
 "use client";
 
-import { Activity, AlertTriangle, PackageCheck, Search } from "lucide-react";
+import dynamic from "next/dynamic";
+import { Activity, PackageCheck, Search } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -12,6 +13,11 @@ import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import { formatRelativeMinutes, resolveMcpSnapshotFreshness } from "@/lib/mcp-ops-observability";
 import { V4Card, V4CardHeader } from "@/components/ui/v4";
 import { scrollBehaviorForMotion } from "@/lib/motion-preferences";
+
+const ToolGapsPanel = dynamic(
+  () => import("@/components/connectors/tool-gaps-panel").then((mod) => mod.ToolGapsPanel),
+  { ssr: false },
+);
 
 type McpOpsSection = "catalog" | "install" | "health";
 type McpSectionState = "loading" | "ready" | "error";
@@ -43,23 +49,12 @@ interface McpHealthItem {
   total_calls?: number;
 }
 
-interface McpToolGapItem {
-  kind: string;
-  connector_slug: string;
-  tool_name: string;
-  message: string;
-  occurrences: number;
-  suggested_template_id?: string | null;
-  integrations_href?: string | null;
-}
-
 interface McpOpsStudioSnapshot {
   generated_at: string;
   source: "live" | "read_only_mock";
   catalog: McpCatalogItem[];
   install: McpInstallItem[];
   health: McpHealthItem[];
-  tool_gaps: McpToolGapItem[];
 }
 
 const SECTION_TO_HASH: Record<McpOpsSection, string> = {
@@ -91,7 +86,6 @@ export function McpOpsStudioPageClient() {
   const [catalogItems, setCatalogItems] = useState<McpCatalogItem[]>([]);
   const [installItems, setInstallItems] = useState<McpInstallItem[]>([]);
   const [healthItems, setHealthItems] = useState<McpHealthItem[]>([]);
-  const [toolGapItems, setToolGapItems] = useState<McpToolGapItem[]>([]);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
@@ -132,7 +126,6 @@ export function McpOpsStudioPageClient() {
         setCatalogItems(Array.isArray(snapshot.catalog) ? snapshot.catalog : []);
         setInstallItems(Array.isArray(snapshot.install) ? snapshot.install : []);
         setHealthItems(Array.isArray(snapshot.health) ? snapshot.health : []);
-        setToolGapItems(Array.isArray(snapshot.tool_gaps) ? snapshot.tool_gaps : []);
         setGeneratedAt(typeof snapshot.generated_at === "string" ? snapshot.generated_at : null);
         setSnapshotSource(snapshot.source);
         setSectionState("ready");
@@ -255,39 +248,7 @@ export function McpOpsStudioPageClient() {
         </V4Card>
       ) : null}
 
-      {toolGapItems.length > 0 && sectionState === "ready" ? (
-        <V4Card className="border-magenta/30">
-          <V4CardHeader
-            title="Actionable tool gaps"
-            description="Failed MCP invocations from agent sessions — install or allowlist connectors in Integrations."
-          />
-          <div className="space-y-2">
-            {toolGapItems.map((row) => (
-              <div
-                key={`${row.kind}-${row.connector_slug}-${row.tool_name}`}
-                className="rounded-lg border border-magenta/25 bg-magenta/5 px-3 py-2 text-xs"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="flex items-center gap-1.5 font-medium text-(--qs-text)">
-                    <AlertTriangle className="size-3.5 text-magenta" aria-hidden />
-                    {row.connector_slug} · {row.tool_name}
-                  </span>
-                  <span className="text-(--qs-text-3)">
-                    {row.kind.replaceAll("_", " ")} · ×{row.occurrences}
-                  </span>
-                </div>
-                <p className="mt-1 text-(--qs-text-3)">{row.message}</p>
-                {row.integrations_href ? (
-                  <Link href={row.integrations_href} className="mt-2 inline-block text-cyan underline">
-                    Open Integrations
-                    {row.suggested_template_id ? ` → ${row.suggested_template_id}` : ""}
-                  </Link>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        </V4Card>
-      ) : null}
+      {sectionState === "ready" ? <ToolGapsPanel onInstalled={() => setReloadToken((c) => c + 1)} /> : null}
 
       {section === "catalog" && sectionState === "ready" ? (
         <V4Card id="mcp-catalog">
@@ -362,7 +323,7 @@ export function McpOpsStudioPageClient() {
             </div>
           )}
           <div className="mt-3">
-            <Link href="/integrations?tab=hub&hubSection=marketplace" className="qs-btn qs-btn--ghost qs-btn--sm">
+            <Link href="/integrations?tab=marketplace" className="qs-btn qs-btn--ghost qs-btn--sm">
               Open marketplace
             </Link>
           </div>

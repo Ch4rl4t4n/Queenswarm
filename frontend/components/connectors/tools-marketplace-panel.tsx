@@ -2,6 +2,7 @@
 
 import { ExternalLink, Plus } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import type { JSX } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -197,6 +198,8 @@ interface ToolsMarketplacePanelProps {
 }
 
 export function ToolsMarketplacePanel({ onJumpToActive }: ToolsMarketplacePanelProps): JSX.Element {
+  const searchParams = useSearchParams();
+  const templateFocus = searchParams.get("template")?.trim() ?? "";
   const [rows, setRows] = useState<MarketplaceTemplateRow[]>([]);
   const [connectorsBySlug, setConnectorsBySlug] = useState<Record<string, DynamicConnectorPayload>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -238,6 +241,20 @@ export function ToolsMarketplacePanel({ onJumpToActive }: ToolsMarketplacePanelP
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!templateFocus || rows.length === 0) {
+      return;
+    }
+    const match = rows.find((row) => row.id === templateFocus || row.slug === templateFocus);
+    if (match === undefined) {
+      return;
+    }
+    const category = (match.category || "all") as CategoryTab;
+    setActiveTab(category === "all" ? "all" : category);
+    setConfiguringSlug(match.slug);
+    setSuccess(`Tool gap suggested: configure ${match.title}.`);
+  }, [templateFocus, rows]);
 
   const templateSlugs = useMemo(() => new Set(rows.map((row) => row.slug.trim().toLowerCase())), [rows]);
 

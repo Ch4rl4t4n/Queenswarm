@@ -80,6 +80,11 @@ const ToolsMarketplacePanel = dynamic(
   { ssr: false },
 );
 
+const ToolGapsPanel = dynamic(
+  () => import("@/components/connectors/tool-gaps-panel").then((mod) => mod.ToolGapsPanel),
+  { ssr: false },
+);
+
 const ExecutionStudioPanel = dynamic(
   () =>
     import("@/components/connectors/execution-studio-panel").then((mod) => mod.ExecutionStudioPanel),
@@ -608,6 +613,8 @@ export function IntegrationsPageClient({
 
       {tab === "active" ? (
         <HiveSubnavContent className="space-y-6">
+          <ToolGapsPanel />
+
           <IntegrationsEcosystemLane onSelectTab={selectTab} />
 
           <V4Card id="marketplace-preview" className="scroll-mt-28">
@@ -645,6 +652,8 @@ export function IntegrationsPageClient({
 
       {tab === "hub" ? (
         <HiveSubnavContent className="space-y-4">
+          <ToolGapsPanel />
+
           <V4Card id="hub" className="scroll-mt-28">
             <V4CardHeader
               kicker="Phase 3 · MCP Hub"
@@ -671,7 +680,9 @@ export function IntegrationsPageClient({
       ) : null}
 
       {tab === "marketplace" ? (
-        <HiveSubnavContent>
+        <HiveSubnavContent className="space-y-4">
+          <ToolGapsPanel />
+
           <V4Card>
             <V4CardHeader
               kicker="Tools lattice"
