@@ -41,6 +41,7 @@ class SkillFactoryPolicyBody(BaseModel):
     monid_listing_signals_enabled: bool = False
     monid_listing_preview_on_approve: bool = False
     monid_listing_video_preview_on_approve: bool = False
+    monid_listing_video_preview_on_approve: bool = False
 
 
 class SkillCatalogItemOut(BaseModel):
