@@ -300,6 +300,27 @@ async def list_supervisor_routines(
     return list((await db.scalars(stmt)).all())
 
 
+async def routine_has_active_session(
+    db: AsyncSession,
+    routine_id: uuid.UUID,
+) -> tuple[bool, str | None]:
+    """Return whether a routine already has a live supervisor session."""
+
+    stmt = (
+        select(SupervisorSession.id)
+        .where(
+            SupervisorSession.status.in_(("running", "pending", "needs_input")),
+            SupervisorSession.context_summary["routine_id"].astext == str(routine_id),
+        )
+        .order_by(SupervisorSession.created_at.desc())
+        .limit(1)
+    )
+    session_id = await db.scalar(stmt)
+    if session_id is None:
+        return False, None
+    return True, str(session_id)
+
+
 async def trigger_supervisor_routine_now(
     db: AsyncSession,
     *,
@@ -310,6 +331,30 @@ async def trigger_supervisor_routine_now(
     """Spawn an immediate supervisor session for a routine and update run cursors."""
 
     from app.application.services.supervisor.session_service import create_supervisor_session
+
+    payload = dict(routine.context_payload or {})
+    if (
+        bool(payload.get("forager_auto_ingest"))
+        and payload.get("forager_id")
+        and routine.tenant_id is not None
+        and str(payload.get("forager_source_type") or "").strip().lower() == "rss"
+    ):
+        from app.application.services.forager_service import ForagerService
+
+        service = ForagerService(db=db)
+        try:
+            forager_id = uuid.UUID(str(payload["forager_id"]))
+        except ValueError:
+            forager_id = None
+        if forager_id is not None:
+            forager_row = await service.get_by_id(routine.tenant_id, forager_id)
+            if forager_row is not None and forager_row.is_active:
+                await service.trigger_manual_run(
+                    tenant_id=routine.tenant_id,
+                    forager_id=forager_id,
+                    records=[],
+                    trigger_routine=False,
+                )
 
     shared_context = SharedContextService()
     skills = SkillLibrary()

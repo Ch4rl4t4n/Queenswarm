@@ -10,6 +10,7 @@ import { HiveSwitch } from "@/components/ui/hive-switch";
 import { QsSelect } from "@/components/ui/qs-select";
 import { V4Badge } from "@/components/ui/v4";
 import { HiveApiError, hivePatchJson, hivePostJson } from "@/lib/api";
+import { dispatchOperatorPendingRefresh } from "@/lib/operator-pending-events";
 import type {
   CodebaseLane,
   ExecutionMode,
@@ -50,10 +51,15 @@ function ExecutionStudioCodebaseLanePanelInner({
       setPolicyBusy(true);
       onError(null);
       try {
-        const resp = await hivePatchJson<{ policy: StudioPolicy }>("execution-studio/policy", patch);
+        const resp = await hivePatchJson<{
+          policy: StudioPolicy;
+          codebase_auto_approve?: { processed: number; skipped: number; errors?: string[] };
+        }>("execution-studio/policy", patch);
         onPolicyUpdate(resp.policy);
+        return resp;
       } catch (exc) {
         onError(exc instanceof HiveApiError ? exc.message : "Policy update failed.");
+        throw exc;
       } finally {
         setPolicyBusy(false);
       }
@@ -90,6 +96,7 @@ function ExecutionStudioCodebaseLanePanelInner({
           toast.success("Proposal approved.");
         }
         await onReloadOverview({ silent: true });
+        dispatchOperatorPendingRefresh();
       } catch (exc) {
         const msg = exc instanceof HiveApiError ? exc.message : "Proposal review failed.";
         onError(msg);
@@ -140,19 +147,17 @@ function ExecutionStudioCodebaseLanePanelInner({
 
   return (
     <>
-      {(pendingProposals?.length ?? 0) > 0 ? (
-        <ScvPendingProposalsPanel
-          pendingProposals={pendingProposals ?? []}
-          pendingProposalsTotal={pendingProposalsTotal}
-          policy={policy}
-          codebase={codebase}
-          policyBusy={policyBusy}
-          proposalBusyId={proposalBusyId}
-          onPatchPolicy={patchPolicy}
-          onReview={reviewProposal}
-          onReloadOverview={onReloadOverview}
-        />
-      ) : null}
+      <ScvPendingProposalsPanel
+        pendingProposals={pendingProposals ?? []}
+        pendingProposalsTotal={pendingProposalsTotal}
+        policy={policy}
+        codebase={codebase}
+        policyBusy={policyBusy}
+        proposalBusyId={proposalBusyId}
+        onPatchPolicy={patchPolicy}
+        onReview={reviewProposal}
+        onReloadOverview={onReloadOverview}
+      />
 
       <div className="qs-bubble qs-bubble--tint-cyan shrink-0 space-y-3 p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">

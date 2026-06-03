@@ -82,6 +82,13 @@ export interface PendingProposal {
   goal_excerpt?: string;
 }
 
+export interface HandledProposal extends PendingProposal {
+  status: "approved" | "rejected" | "pending";
+  reviewed_at?: string | null;
+  reviewed_by_subject?: string | null;
+  handoff_session_id?: string | null;
+}
+
 export interface BrowserFallbackLane {
   enabled: boolean;
   role: string;

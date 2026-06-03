@@ -1,19 +1,23 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { HiveSwitch } from "@/components/ui/hive-switch";
 import { QsSelect } from "@/components/ui/qs-select";
 import { V4Badge, type V4BadgeTone } from "@/components/ui/v4";
-import { HiveApiError, hivePostJson } from "@/lib/api";
-import type { CodebaseLane, PendingProposal, StudioPolicy } from "@/lib/execution-studio-shared-types";
+import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
+import type { CodebaseLane, HandledProposal, PendingProposal, StudioPolicy } from "@/lib/execution-studio-shared-types";
+import { dispatchOperatorPendingRefresh } from "@/lib/operator-pending-events";
+import { formatTimeAgoIso } from "@/lib/format-relative-time";
 import { cn } from "@/lib/utils";
 
 type RiskFilter = "all" | "low" | "medium" | "high";
 
 const SCV_PENDING_PREVIEW_LIMIT = 3;
+const SCV_HANDLED_PREVIEW_LIMIT = 5;
 
 export interface ScvPendingProposalsPanelProps {
   pendingProposals: PendingProposal[];
@@ -22,9 +26,60 @@ export interface ScvPendingProposalsPanelProps {
   codebase: CodebaseLane;
   policyBusy: boolean;
   proposalBusyId: string | null;
-  onPatchPolicy: (patch: Partial<StudioPolicy>) => Promise<void>;
+  onPatchPolicy: (
+    patch: Partial<StudioPolicy>,
+  ) => Promise<{ policy: StudioPolicy; codebase_auto_approve?: CodebaseAutoApproveResult } | void>;
   onReview: (proposalId: string, decision: "approve" | "reject") => Promise<void>;
   onReloadOverview: (opts?: { silent?: boolean }) => Promise<void>;
+}
+
+interface CodebaseAutoApproveResult {
+  processed: number;
+  skipped: number;
+  errors?: string[];
+}
+
+interface CodebaseProposalApiItem {
+  id: string;
+  title: string;
+  description: string;
+  proposed_by_role: string;
+  risk_level: string;
+  status?: string;
+  reviewed_at?: string | null;
+  reviewed_by_subject?: string | null;
+  created_at: string | null;
+  proposal_payload?: {
+    goal_excerpt?: string;
+    handoff_session_id?: string;
+  };
+}
+
+function mapCodebaseProposalItem(item: CodebaseProposalApiItem): PendingProposal {
+  return {
+    id: item.id,
+    title: item.title,
+    description: item.description,
+    proposed_by_role: item.proposed_by_role,
+    risk_level: item.risk_level,
+    created_at: item.created_at,
+    goal_excerpt: item.proposal_payload?.goal_excerpt ?? "",
+  };
+}
+
+function mapHandledProposalItem(item: CodebaseProposalApiItem): HandledProposal {
+  return {
+    ...mapCodebaseProposalItem(item),
+    status: (item.status === "rejected" ? "rejected" : "approved") as "approved" | "rejected",
+    reviewed_at: item.reviewed_at ?? null,
+    reviewed_by_subject: item.reviewed_by_subject ?? null,
+    handoff_session_id: item.proposal_payload?.handoff_session_id ?? null,
+  };
+}
+
+function isAutoApproved(reviewer: string | null | undefined): boolean {
+  const subject = (reviewer ?? "").trim().toLowerCase();
+  return subject.startsWith("execution_studio:auto") || subject === "supervisor:auto";
 }
 
 function shortProposalId(id: string): string {
@@ -39,16 +94,6 @@ function riskBadgeTone(risk: string): V4BadgeTone {
   return "warn";
 }
 
-function formatProposalAge(createdAt: string | null | undefined): string {
-  if (!createdAt) return "recent";
-  const created = new Date(createdAt);
-  if (Number.isNaN(created.getTime())) return "recent";
-  const minutes = Math.max(1, Math.round((Date.now() - created.getTime()) / 60_000));
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 48) return `${hours}h ago`;
-  return created.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
-}
 
 function ScvSkillBadge({ slug }: { slug: string }): JSX.Element {
   return (
@@ -73,7 +118,38 @@ function ScvPendingProposalsPanelInner({
   const [riskFilter, setRiskFilter] = useState<RiskFilter>("all");
   const [showAllProposals, setShowAllProposals] = useState(false);
   const [autoApproveBusy, setAutoApproveBusy] = useState(false);
+  const [loadedProposals, setLoadedProposals] = useState<PendingProposal[]>(pendingProposals);
+  const [fetchAllBusy, setFetchAllBusy] = useState(false);
+  const [recentHandled, setRecentHandled] = useState<HandledProposal[]>([]);
+  const [recentBusy, setRecentBusy] = useState(false);
+  const [showAllHandled, setShowAllHandled] = useState(false);
   const autoApproveLock = useRef(false);
+
+  useEffect(() => {
+    setLoadedProposals(pendingProposals);
+    setShowAllProposals(false);
+  }, [pendingProposals]);
+
+  const loadRecentHandled = useCallback(async (limit = SCV_HANDLED_PREVIEW_LIMIT): Promise<void> => {
+    setRecentBusy(true);
+    try {
+      const out = await hiveGet<{ items: CodebaseProposalApiItem[] }>(
+        `execution-studio/proposals?status=approved&limit=${limit}`,
+      );
+      setRecentHandled(out.items.map(mapHandledProposalItem));
+    } catch {
+      /* keep last list */
+    } finally {
+      setRecentBusy(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadRecentHandled();
+  }, [loadRecentHandled, pendingProposals]);
+
+  const pendingTotal = pendingProposalsTotal ?? loadedProposals.length;
+  const hasActiveFilter = query.trim().length > 0 || riskFilter !== "all";
 
   const resolverSkills = useMemo(
     () => [...codebase.agent_skills, ...codebase.agent_roles].filter(Boolean).slice(0, 8),
@@ -82,7 +158,7 @@ function ScvPendingProposalsPanelInner({
 
   const filteredProposals = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return pendingProposals.filter((proposal) => {
+    return loadedProposals.filter((proposal) => {
       if (riskFilter !== "all" && proposal.risk_level.trim().toLowerCase() !== riskFilter) {
         return false;
       }
@@ -98,7 +174,9 @@ function ScvPendingProposalsPanelInner({
         .toLowerCase();
       return haystack.includes(q);
     });
-  }, [pendingProposals, query, riskFilter]);
+  }, [loadedProposals, query, riskFilter]);
+
+  const queuePendingCount = hasActiveFilter ? filteredProposals.length : pendingTotal;
 
   const visibleProposals = useMemo(() => {
     if (showAllProposals) {
@@ -107,78 +185,148 @@ function ScvPendingProposalsPanelInner({
     return filteredProposals.slice(0, SCV_PENDING_PREVIEW_LIMIT);
   }, [filteredProposals, showAllProposals]);
 
-  const hiddenProposalCount = Math.max(0, filteredProposals.length - SCV_PENDING_PREVIEW_LIMIT);
+  const hiddenProposalCount = hasActiveFilter
+    ? Math.max(0, filteredProposals.length - SCV_PENDING_PREVIEW_LIMIT)
+    : Math.max(0, queuePendingCount - SCV_PENDING_PREVIEW_LIMIT);
+
+  const loadAllProposals = useCallback(async (): Promise<void> => {
+    if (fetchAllBusy || loadedProposals.length >= pendingTotal) {
+      setShowAllProposals(true);
+      return;
+    }
+    setFetchAllBusy(true);
+    try {
+      const out = await hiveGet<{ total: number; items: CodebaseProposalApiItem[] }>(
+        `execution-studio/proposals?limit=${Math.min(100, Math.max(pendingTotal, 12))}`,
+      );
+      setLoadedProposals(out.items.map(mapCodebaseProposalItem));
+      setShowAllProposals(true);
+    } catch (exc) {
+      const msg = exc instanceof HiveApiError ? exc.message : "Could not load all SCV proposals.";
+      toast.error(msg);
+    } finally {
+      setFetchAllBusy(false);
+    }
+  }, [fetchAllBusy, loadedProposals.length, pendingTotal]);
 
   useEffect(() => {
     setShowAllProposals(false);
-  }, [query, riskFilter, pendingProposals.length]);
+  }, [query, riskFilter]);
 
-  const autoApprovePending = useCallback(async (): Promise<void> => {
-    if (autoApproveLock.current || pendingProposals.length === 0) {
-      return;
+  const autoApprovePending = useCallback(async (): Promise<number> => {
+    if (autoApproveLock.current || pendingTotal === 0) {
+      return 0;
     }
     autoApproveLock.current = true;
     setAutoApproveBusy(true);
+    let totalProcessed = 0;
+    let totalSkipped = 0;
+    const errorMessages: string[] = [];
     try {
-      const out = await hivePostJson<{ processed: number; skipped: number }>(
-        "execution-studio/proposals/bulk-review",
-        { decision: "approve", limit: 50 },
-      );
-      if (out.processed > 0) {
+      for (let round = 0; round < 10; round += 1) {
+        const out = await hivePostJson<CodebaseAutoApproveResult>(
+          "execution-studio/proposals/bulk-review",
+          { decision: "approve", limit: 50 },
+        );
+        totalProcessed += out.processed;
+        totalSkipped += out.skipped;
+        if (out.errors?.length) {
+          errorMessages.push(...out.errors.slice(0, 5));
+        }
+        if (out.processed === 0) {
+          break;
+        }
         await onReloadOverview({ silent: true });
-        toast.success(`Auto-approved ${out.processed} SCV proposal(s).`);
       }
-      if (out.skipped > 0) {
-        toast.message(`${out.skipped} proposal(s) could not be auto-approved.`);
+
+      if (totalProcessed > 0) {
+        await onReloadOverview({ silent: true });
+        dispatchOperatorPendingRefresh();
+        await loadRecentHandled(20);
+        toast.success(`Auto-approved ${totalProcessed} SCV proposal(s).`);
+      } else if (pendingTotal > 0) {
+        const detail =
+          errorMessages[0] ??
+          (totalSkipped > 0
+            ? `${totalSkipped} proposal(s) could not be auto-approved.`
+            : "No pending proposals were approved. Try manual approve or refresh.");
+        toast.error("Auto approve did not clear the queue.", { description: detail });
       }
+
+      if (totalSkipped > 0 && totalProcessed > 0) {
+        toast.message(`${totalSkipped} proposal(s) skipped during auto-approve.`);
+      }
+      return totalProcessed;
     } catch (exc) {
       const msg = exc instanceof HiveApiError ? exc.message : "Auto-approve failed.";
       toast.error(msg);
+      return 0;
     } finally {
       autoApproveLock.current = false;
       setAutoApproveBusy(false);
     }
-  }, [onReloadOverview, pendingProposals.length]);
+  }, [loadRecentHandled, onReloadOverview, pendingTotal]);
 
   useEffect(() => {
-    if (!policy.codebase_auto_approve_enabled || pendingProposals.length === 0) {
+    if (!policy.codebase_auto_approve_enabled) {
       return;
     }
-    void autoApprovePending();
-  }, [autoApprovePending, pendingProposals.length, policy.codebase_auto_approve_enabled]);
+    const tick = async () => {
+      await onReloadOverview({ silent: true });
+      await autoApprovePending();
+    };
+    void tick();
+    const interval = window.setInterval(() => {
+      void tick();
+    }, 90_000);
+    return () => window.clearInterval(interval);
+  }, [autoApprovePending, onReloadOverview, policy.codebase_auto_approve_enabled]);
+
+  const visibleHandled = showAllHandled
+    ? recentHandled
+    : recentHandled.slice(0, SCV_HANDLED_PREVIEW_LIMIT);
 
   const patchAutoApprove = useCallback(
     async (enabled: boolean) => {
-      await onPatchPolicy({ codebase_auto_approve_enabled: enabled });
-      toast.success(
-        enabled
-          ? "Auto approve enabled — pending proposals approve automatically and leave this queue."
-          : "Manual mode — approve or reject each proposal in the queue.",
-      );
-      if (enabled) {
-        await autoApprovePending();
+      try {
+        const resp = await onPatchPolicy({ codebase_auto_approve_enabled: enabled });
+        if (enabled) {
+          const serverProcessed = resp?.codebase_auto_approve?.processed ?? 0;
+          if (serverProcessed > 0) {
+            await onReloadOverview({ silent: true });
+            toast.success(
+              `Auto approve enabled — ${serverProcessed} pending proposal(s) approved and removed from queue.`,
+            );
+            return;
+          }
+          await autoApprovePending();
+          toast.success(
+            "Auto approve enabled — pending proposals approve automatically and leave this queue.",
+          );
+          return;
+        }
+        toast.success("Manual mode — approve or reject each proposal in the queue.");
+      } catch {
+        toast.error("Could not update auto approve policy.");
       }
     },
-    [autoApprovePending, onPatchPolicy],
+    [autoApprovePending, onPatchPolicy, onReloadOverview],
   );
-
-  if (pendingProposals.length === 0) {
-    return <></>;
-  }
-
-  const total = pendingProposalsTotal ?? pendingProposals.length;
 
   return (
     <div id="codebase-pending" className="qs-bubble shrink-0 space-y-4 p-4">
       <div>
-        <p className="text-sm font-semibold text-(--qs-text)">Pending SCV proposals</p>
+        <p className="text-sm font-semibold text-(--qs-text)">SCV proposals</p>
         <p className="mt-1 text-xs text-(--qs-text-3)">
-          Research → approval → SCV / Queen Maintainer handoff. Review queue shows up to{" "}
-          {SCV_PENDING_PREVIEW_LIMIT} at a time
-          {filteredProposals.length > SCV_PENDING_PREVIEW_LIMIT && !showAllProposals
-            ? ` (${filteredProposals.length} pending)`
-            : ""}
-          {total > pendingProposals.length ? ` · ${total} total in hive` : ""}.
+          Research → approval → Queen Maintainer handoff. Review queue shows up to{" "}
+          {SCV_PENDING_PREVIEW_LIMIT} at a time ·{" "}
+          <span className="font-medium text-(--qs-text-2)">{queuePendingCount} pending</span>
+          {hasActiveFilter && queuePendingCount !== pendingTotal ? ` (${pendingTotal} total)` : ""}.
+          {policy.codebase_auto_approve_enabled ? (
+            <span className="mt-1 block text-pollen">
+              Auto approve is ON — new proposals approve automatically and hand off to Queen Maintainer.
+            </span>
+          ) : null}
         </p>
       </div>
 
@@ -220,16 +368,16 @@ function ScvPendingProposalsPanelInner({
         <div className="mb-2 flex items-center justify-between gap-2">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-(--qs-text-3)">
             Proposals
-            {filteredProposals.length > 0 ? (
+            {queuePendingCount > 0 ? (
               <span className="ml-2 font-normal normal-case tracking-normal text-(--qs-text-4)">
-                ({filteredProposals.length})
+                ({queuePendingCount})
               </span>
             ) : null}
           </p>
-          {autoApproveBusy ? (
+          {autoApproveBusy || fetchAllBusy ? (
             <span className="inline-flex items-center gap-1 text-[10px] text-(--qs-text-4)">
               <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
-              Auto-approving…
+              {fetchAllBusy ? "Loading proposals…" : "Auto-approving…"}
             </span>
           ) : null}
         </div>
@@ -237,17 +385,32 @@ function ScvPendingProposalsPanelInner({
         <div className="v4-sessions-list-scroll hive-scrollbar">
           {filteredProposals.length === 0 ? (
             <div className="rounded-xl border border-dashed border-(--qs-border) bg-black/20 px-4 py-6 text-center">
-              <p className="text-sm text-(--qs-text-2)">No proposals match this filter.</p>
-              <button
-                type="button"
-                className="qs-btn qs-btn--ghost qs-btn--sm mt-3"
-                onClick={() => {
-                  setQuery("");
-                  setRiskFilter("all");
-                }}
-              >
-                Reset filters
-              </button>
+              {pendingTotal === 0 && !hasActiveFilter ? (
+                <>
+                  <p className="text-sm text-(--qs-text-2)">No pending SCV proposals.</p>
+                  <p className="mt-2 text-xs text-(--qs-text-3)">
+                    Approved items move to Queen Maintainer sessions — see{" "}
+                    <Link href="/agents" className="text-cyan underline-offset-2 hover:underline">
+                      Agents → Sessions
+                    </Link>{" "}
+                    or the recently approved list below.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-(--qs-text-2)">No proposals match this filter.</p>
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--ghost qs-btn--sm mt-3"
+                    onClick={() => {
+                      setQuery("");
+                      setRiskFilter("all");
+                    }}
+                  >
+                    Reset filters
+                  </button>
+                </>
+              )}
             </div>
           ) : (
             visibleProposals.map((proposal) => (
@@ -301,7 +464,7 @@ function ScvPendingProposalsPanelInner({
 
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <span className="text-xs text-(--qs-text-3)">
-                    {formatProposalAge(proposal.created_at)} · {proposal.proposed_by_role}
+                    {formatTimeAgoIso(proposal.created_at, { nullLabel: "recent", invalidLabel: "recent" })} · {proposal.proposed_by_role}
                   </span>
                   <button
                     type="button"
@@ -335,19 +498,90 @@ function ScvPendingProposalsPanelInner({
           <button
             type="button"
             className="qs-btn qs-btn--ghost mt-3 w-full justify-center py-2.5 text-sm font-semibold"
-            disabled={autoApproveBusy || proposalBusyId !== null}
-            onClick={() => setShowAllProposals(true)}
+            disabled={autoApproveBusy || proposalBusyId !== null || fetchAllBusy}
+            onClick={() => void loadAllProposals()}
           >
-            Show all ({filteredProposals.length})
+            Show all ({queuePendingCount})
           </button>
         ) : null}
-        {showAllProposals && filteredProposals.length > SCV_PENDING_PREVIEW_LIMIT ? (
+        {showAllProposals && queuePendingCount > SCV_PENDING_PREVIEW_LIMIT ? (
           <button
             type="button"
             className="qs-btn qs-btn--ghost mt-3 w-full justify-center py-2.5 text-sm font-semibold"
             onClick={() => setShowAllProposals(false)}
           >
             Show less
+          </button>
+        ) : null}
+      </div>
+
+      <div className="border-t border-(--qs-border)/50 pt-4">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-(--qs-text-3)">
+            Recently approved
+          </p>
+          {recentBusy ? (
+            <span className="inline-flex items-center gap-1 text-[10px] text-(--qs-text-4)">
+              <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+              Loading…
+            </span>
+          ) : null}
+        </div>
+        {recentHandled.length === 0 && !recentBusy ? (
+          <p className="text-xs text-(--qs-text-4)">No approved SCV proposals yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {visibleHandled.map((proposal) => (
+              <div
+                key={proposal.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-(--qs-border)/40 bg-black/20 px-3 py-2"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="mb-0.5 flex flex-wrap items-center gap-2">
+                    <span className="font-(family-name:--font-jetbrains-mono) text-[10px] text-(--qs-text-3)">
+                      {shortProposalId(proposal.id)}
+                    </span>
+                    <V4Badge tone="ok">approved</V4Badge>
+                    {isAutoApproved(proposal.reviewed_by_subject) ? (
+                      <V4Badge tone="gold">auto</V4Badge>
+                    ) : null}
+                  </div>
+                  <p className="line-clamp-1 text-xs font-medium text-(--qs-text)">{proposal.title}</p>
+                  <p className="text-[10px] text-(--qs-text-4)">
+                    {formatTimeAgoIso(proposal.reviewed_at ?? proposal.created_at, {
+                      nullLabel: "recent",
+                      invalidLabel: "recent",
+                    })}{" "}
+                    · {proposal.proposed_by_role}
+                  </p>
+                </div>
+                {proposal.handoff_session_id ? (
+                  <Link
+                    href={`/agents?session=${encodeURIComponent(proposal.handoff_session_id)}`}
+                    className="qs-btn qs-btn--ghost qs-btn--sm shrink-0"
+                  >
+                    Open session
+                  </Link>
+                ) : (
+                  <span className="text-[10px] text-(--qs-text-4)">No Maintainer session</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {recentHandled.length > SCV_HANDLED_PREVIEW_LIMIT ? (
+          <button
+            type="button"
+            className="qs-btn qs-btn--ghost mt-3 w-full justify-center py-2 text-sm"
+            onClick={() => {
+              if (showAllHandled) {
+                setShowAllHandled(false);
+                return;
+              }
+              void loadRecentHandled(20).then(() => setShowAllHandled(true));
+            }}
+          >
+            {showAllHandled ? "Show less" : `Show all (${recentHandled.length})`}
           </button>
         ) : null}
       </div>

@@ -345,6 +345,7 @@ interface StudioOverview {
   codebase: CodebaseLane;
   manual?: { version: string; title: string; summary: string; section_count: number };
   pending_codebase_proposals?: PendingProposal[];
+  pending_codebase_proposals_total?: number;
   pending_approvals?: PendingApprovalsSnapshot;
   recent_activity?: StudioActivity[];
   activity_telemetry?: ActivityTelemetry;
@@ -414,9 +415,11 @@ export function ExecutionStudioPanel({ onOpenMarketplace, onOpenHub }: Execution
             count: Math.max(0, (prev.pending_approvals.count ?? 0) - 1),
           }
         : prev.pending_approvals;
+      const pendingTotal = Math.max(0, (prev.pending_codebase_proposals_total ?? next.length) - 1);
       return {
         ...prev,
         pending_codebase_proposals: next,
+        pending_codebase_proposals_total: pendingTotal,
         pending_approvals: pendingApprovals,
       };
     });
@@ -469,6 +472,7 @@ export function ExecutionStudioPanel({ onOpenMarketplace, onOpenHub }: Execution
   );
 
   const codebasePendingCount = Math.max(
+    overview?.pending_codebase_proposals_total ?? 0,
     overview?.pending_approvals?.codebase_pending ?? 0,
     overview?.pending_codebase_proposals?.length ?? 0,
   );
@@ -626,7 +630,9 @@ export function ExecutionStudioPanel({ onOpenMarketplace, onOpenHub }: Execution
           codebase={overview.codebase}
           policy={overview.policy}
           pendingProposals={overview.pending_codebase_proposals}
-          pendingProposalsTotal={overview.pending_approvals?.codebase_pending}
+          pendingProposalsTotal={
+            overview.pending_codebase_proposals_total ?? overview.pending_approvals?.codebase_pending
+          }
           loading={loading}
           onPolicyUpdate={(policy) => setOverview((prev) => (prev ? { ...prev, policy } : prev))}
           onError={setError}

@@ -34,6 +34,7 @@ import {
   V4Stat,
 } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
+import { formatHoursLikeCommandCenter } from "@/lib/format-relative-time";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import { cn } from "@/lib/utils";
 
@@ -110,10 +111,6 @@ function formatLines(n: number): string {
   return String(n);
 }
 
-function formatHours(h: number): string {
-  if (h >= 24) return `${(h / 24).toFixed(1)}d`;
-  return `${h.toFixed(0)}h`;
-}
 
 function shortWeek(isoWeek: string): string {
   const parts = isoWeek.split("-W");
@@ -298,7 +295,7 @@ export function CommandCenterCodebaseAtlas({ enabled }: { enabled: boolean }) {
             />
             <V4Stat
               label="Dev hours (est.)"
-              value={formatHours(data.summary.estimated_dev_hours)}
+              value={formatHoursLikeCommandCenter(data.summary.estimated_dev_hours)}
               icon={Timer}
               iconTone="cyan"
               foot={`${data.summary.coding_sessions} sessions · ${data.summary.active_dev_days} active days`}

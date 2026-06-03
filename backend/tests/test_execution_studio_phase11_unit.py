@@ -163,12 +163,12 @@ async def test_build_pending_approvals_snapshot_counts_codebase(monkeypatch: pyt
     class _Session:
         pass
 
-    async def _fake_codebase(*_a: object, **_k: object) -> list[object]:
-        return [object(), object()]
+    async def _fake_codebase_count(*_a: object, **_k: object) -> int:
+        return 2
 
     monkeypatch.setattr(
-        "app.application.services.execution_studio_pending.list_pending_codebase_proposals",
-        _fake_codebase,
+        "app.application.services.execution_studio_pending.count_pending_codebase_proposals",
+        _fake_codebase_count,
     )
     snap = await build_pending_approvals_snapshot(_Session(), tenant=tenant)  # type: ignore[arg-type]
     assert snap["codebase_pending"] == 2

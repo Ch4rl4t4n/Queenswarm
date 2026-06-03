@@ -113,6 +113,63 @@ def test_merge_studio_policy_codebase_auto_approve() -> None:
 
 
 @pytest.mark.asyncio
+async def test_maybe_auto_approve_codebase_pending_when_policy_off_then_noop(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Auto-approve drain skips tenants without SCV auto-approve policy."""
+
+    from types import SimpleNamespace
+
+    from app.application.services.execution_studio_handoff import maybe_auto_approve_codebase_pending
+
+    async def _fail(*_a: object, **_k: object) -> dict[str, object]:
+        raise AssertionError("should not drain")
+
+    monkeypatch.setattr(
+        "app.application.services.execution_studio_handoff.auto_approve_pending_codebase_proposals",
+        _fail,
+    )
+    tenant = SimpleNamespace(id=uuid.uuid4(), operator_settings={})
+    out = await maybe_auto_approve_codebase_pending(None, tenant=tenant)  # type: ignore[arg-type]
+    assert out["processed"] == 0
+    assert out["drained"] is False
+
+
+@pytest.mark.asyncio
+async def test_maybe_auto_approve_codebase_pending_when_policy_on_then_drains(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Auto-approve drain runs when tenant policy enables SCV auto-approve."""
+
+    from types import SimpleNamespace
+
+    from app.application.services.execution_studio_handoff import maybe_auto_approve_codebase_pending
+
+    tenant_id = uuid.uuid4()
+    tenant = SimpleNamespace(
+        id=tenant_id,
+        operator_settings={"execution_studio": {"codebase_auto_approve_enabled": True}},
+    )
+
+    async def _drain(*_a: object, **kwargs: object) -> dict[str, object]:
+        assert kwargs.get("tenant_id") == tenant_id
+        return {"processed": 3, "skipped": 0, "errors": []}
+
+    monkeypatch.setattr(
+        "app.application.services.execution_studio_handoff.auto_approve_pending_codebase_proposals",
+        _drain,
+    )
+
+    class _Session:
+        async def flush(self) -> None:
+            return None
+
+    out = await maybe_auto_approve_codebase_pending(_Session(), tenant=tenant)  # type: ignore[arg-type]
+    assert out["processed"] == 3
+    assert out["drained"] is True
+
+
+@pytest.mark.asyncio
 async def test_submit_codebase_pr_draft_denylist() -> None:
     """Denylist blocks forbidden paths before any GitHub call."""
 

@@ -27,7 +27,10 @@ from app.application.services.queen_maintainer.maintainer_guard import (
     maintainer_budget_snapshot,
 )
 from app.application.services.queen_maintainer.tech_health import build_tech_health_report
-from app.application.services.execution_studio_handoff import list_pending_codebase_proposals
+from app.application.services.execution_studio_handoff import (
+    count_pending_codebase_proposals,
+    list_pending_codebase_proposals,
+)
 from app.application.services.execution_studio_activity import list_execution_activity, persist_execution_activity
 from app.application.services.execution_studio_push import user_has_push_subscription
 from app.application.services.execution_studio_telemetry import build_activity_telemetry
@@ -541,7 +544,9 @@ async def execution_studio_overview(
     )
 
     pending_proposals: list[dict[str, Any]] = []
+    pending_proposals_total = 0
     if tenant is not None:
+        pending_proposals_total = await count_pending_codebase_proposals(session, tenant_id=tenant.id)
         rows = await list_pending_codebase_proposals(session, tenant_id=tenant.id, limit=12)
         pending_proposals = [
             {
@@ -582,6 +587,7 @@ async def execution_studio_overview(
             "flows": manual.get("flows"),
         },
         "pending_codebase_proposals": pending_proposals,
+        "pending_codebase_proposals_total": pending_proposals_total,
         "pending_approvals": pending_approvals,
         "recent_activity": list_execution_activity(tenant, limit=20),
         "activity_telemetry": build_activity_telemetry(tenant, limit=40),

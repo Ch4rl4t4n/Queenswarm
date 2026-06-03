@@ -161,10 +161,17 @@ def enrich_supervisor_session_summary(
     return enriched
 
 
+def tenant_codebase_auto_approve_enabled(tenant: Tenant | None) -> bool:
+    """Return True when tenant Execution Studio policy enables SCV auto-approve."""
+
+    return bool(_policy_from_tenant(tenant).get("codebase_auto_approve_enabled"))
+
+
 __all__ = [
     "augment_skill_slugs_for_execution",
     "build_execution_prompt_block",
     "detect_execution_domain",
     "enrich_supervisor_session_summary",
     "execution_prompt_from_summary",
+    "tenant_codebase_auto_approve_enabled",
 ]

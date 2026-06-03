@@ -917,6 +917,35 @@ def run_supervisor_audit_rollup_email_tick_task() -> dict[str, object]:
     return asyncio.run(_run())
 
 
+@celery_app.task(name="hive.execution_studio_codebase_auto_approve_tick", queue="hive")
+def run_execution_studio_codebase_auto_approve_tick_task() -> dict[str, object]:
+    """Drain pending SCV proposals for tenants with auto-approve policy enabled."""
+
+    async def _run() -> dict[str, object]:
+        from sqlalchemy import select
+
+        from app.application.services.execution_studio_context import tenant_codebase_auto_approve_enabled
+        from app.application.services.execution_studio_handoff import maybe_auto_approve_codebase_pending
+        from app.infrastructure.persistence.models.tenant import Tenant
+
+        processed_total = 0
+        tenants_touched = 0
+        async with async_session() as session:
+            tenants = list((await session.scalars(select(Tenant))).all())
+            for tenant in tenants:
+                if not tenant_codebase_auto_approve_enabled(tenant):
+                    continue
+                result = await maybe_auto_approve_codebase_pending(session, tenant=tenant)
+                batch = int(result.get("processed", 0))
+                if batch > 0:
+                    tenants_touched += 1
+                    processed_total += batch
+            await session.commit()
+        return {"processed": processed_total, "tenants": tenants_touched}
+
+    return asyncio.run(_run())
+
+
 @celery_app.task(name="hive.execution_studio_weekly_rollup_tick", queue="hive")
 def run_execution_studio_weekly_rollup_tick_task() -> dict[str, object]:
     """Send weekly Execution Studio telemetry rollup to tenant webhooks."""
@@ -958,6 +987,7 @@ __all__ = [
     "run_supervisor_routines_tick_task",
     "run_supervisor_audit_digest_tick_task",
     "run_supervisor_audit_rollup_email_tick_task",
+    "run_execution_studio_codebase_auto_approve_tick_task",
     "run_execution_studio_weekly_rollup_tick_task",
     "grok_control_plane_execute_run_task",
     "run_tenant_audit_retention_tick_task",

@@ -28,7 +28,9 @@ from app.application.services.execution_studio_push import (
 )
 from app.application.services.execution_studio_browser import execute_browser_fallback_step
 from app.application.services.execution_studio_handoff import (
+    count_pending_codebase_proposals,
     create_codebase_execution_proposal,
+    list_codebase_proposals,
     list_pending_codebase_proposals,
 )
 from app.application.services.execution_studio_manual import build_execution_studio_manual
@@ -206,7 +208,13 @@ async def studio_overview(
     _assert_enabled()
     tenant = await _tenant_from_session(sess, db)
     user_id = _subject_uuid(sess)
-    return await execution_studio_overview(db, dashboard_user_id=user_id, tenant=tenant)
+    from app.application.services.execution_studio_handoff import maybe_auto_approve_codebase_pending
+
+    drained = await maybe_auto_approve_codebase_pending(db, tenant=tenant)
+    payload = await execution_studio_overview(db, dashboard_user_id=user_id, tenant=tenant)
+    if int(drained.get("processed", 0)) > 0:
+        await db.commit()
+    return payload
 
 
 @router.delete("/activity", summary="Clear Execution Studio recent activity feed")
@@ -235,10 +243,17 @@ async def studio_pending_approvals(
     """Lightweight badge payload for mobile notification bell."""
 
     _assert_enabled()
+    from app.application.services.execution_studio_context import tenant_codebase_auto_approve_enabled
+    from app.application.services.execution_studio_handoff import maybe_auto_approve_codebase_pending
     from app.application.services.execution_studio_pending import build_pending_approvals_snapshot
 
     tenant = await _tenant_from_session(sess, db)
-    return await build_pending_approvals_snapshot(db, tenant=tenant)
+    drained = await maybe_auto_approve_codebase_pending(db, tenant=tenant)
+    snapshot = await build_pending_approvals_snapshot(db, tenant=tenant)
+    if int(drained.get("processed", 0)) > 0:
+        await db.commit()
+    snapshot["codebase_auto_approve_enabled"] = tenant_codebase_auto_approve_enabled(tenant)
+    return snapshot
 
 
 @router.patch("/policy", summary="Update Execution Studio tenant policy")
@@ -252,15 +267,26 @@ async def studio_policy_patch(
 
     _assert_enabled()
     tenant = await _tenant_from_session(sess, db)
+    patch_data = body.model_dump(exclude_none=True)
     tenant.operator_settings = merge_studio_policy_patch(
         tenant.operator_settings,
-        body.model_dump(exclude_none=True),
+        patch_data,
     )
     await db.commit()
     await db.refresh(tenant)
     from app.application.services.execution_studio import studio_policy
 
-    return {"policy": studio_policy(tenant)}
+    response: dict[str, Any] = {"policy": studio_policy(tenant)}
+    if patch_data.get("codebase_auto_approve_enabled") is True:
+        from app.application.services.execution_studio_handoff import auto_approve_pending_codebase_proposals
+
+        response["codebase_auto_approve"] = await auto_approve_pending_codebase_proposals(
+            db,
+            tenant_id=tenant.id,
+            reviewer_subject=f"dashboard:{_subject_uuid(sess)}",
+        )
+        await db.commit()
+    return response
 
 
 @router.patch("/notifications", summary="Update Execution Studio notification settings")
@@ -605,18 +631,28 @@ async def studio_manual_section(
     return build_execution_studio_manual(section_id=section_id)
 
 
-@router.get("/proposals", summary="Pending codebase execution proposals")
+@router.get("/proposals", summary="Codebase execution proposals")
 async def studio_pending_proposals(
     sess: DashboardSession,
     db: DbSession,
+    limit: int = 24,
+    status: Literal["pending", "approved", "rejected", "all"] = "pending",
     _: bool = Depends(require_tenant_permission("connectors:read")),
 ) -> dict[str, Any]:
-    """List pending research → codebase handoff proposals."""
+    """List codebase handoff proposals — pending queue or recently handled."""
 
     _assert_enabled()
     tenant = await _tenant_from_session(sess, db)
-    rows = await list_pending_codebase_proposals(db, tenant_id=tenant.id, limit=24)
+    cap = max(1, min(limit, 100))
+    rows = await list_codebase_proposals(db, tenant_id=tenant.id, status_filter=status, limit=cap)
+    total = (
+        await count_pending_codebase_proposals(db, tenant_id=tenant.id)
+        if status == "pending"
+        else len(rows)
+    )
     return {
+        "total": total,
+        "status": status,
         "items": [
             {
                 "id": str(row.id),
@@ -624,6 +660,9 @@ async def studio_pending_proposals(
                 "description": row.description,
                 "proposed_by_role": row.proposed_by_role,
                 "risk_level": row.risk_level,
+                "status": row.status,
+                "reviewed_at": row.reviewed_at.isoformat() if row.reviewed_at else None,
+                "reviewed_by_subject": row.reviewed_by_subject,
                 "proposal_payload": dict(row.proposal_payload or {}),
                 "created_at": row.created_at.isoformat() if row.created_at else None,
             }

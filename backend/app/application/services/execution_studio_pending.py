@@ -7,7 +7,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.execution_studio_activity import list_execution_activity
-from app.application.services.execution_studio_handoff import list_pending_codebase_proposals
+from app.application.services.execution_studio_handoff import count_pending_codebase_proposals
 from app.infrastructure.persistence.models.tenant import Tenant
 
 
@@ -157,9 +157,7 @@ async def build_pending_approvals_snapshot(
 
     codebase_pending = 0
     if tenant is not None:
-        codebase_pending = len(
-            await list_pending_codebase_proposals(session, tenant_id=tenant.id, limit=50),
-        )
+        codebase_pending = await count_pending_codebase_proposals(session, tenant_id=tenant.id)
 
     total = browser_pending + external_pending + codebase_pending
     snapshot = {
