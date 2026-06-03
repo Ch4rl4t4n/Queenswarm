@@ -19,6 +19,7 @@ import type {
   WorkflowsDashboardResponse,
 } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
+import { formatDurationSeconds } from "@/lib/format-relative-time";
 
 const DAG_TONE_HEX: Record<WorkflowDagStep["hex_tone"], string> = {
   cyan: "#00E5FF",
@@ -27,17 +28,6 @@ const DAG_TONE_HEX: Record<WorkflowDagStep["hex_tone"], string> = {
   success: "#00FF88",
 };
 
-function formatWfAgo(sec: number): string {
-  if (sec < 60) {
-    return `${sec}s`;
-  }
-  const m = Math.floor(sec / 60);
-  if (m < 120) {
-    return `${m}m`;
-  }
-  const h = Math.floor(m / 60);
-  return `${h}h`;
-}
 
 function laneBarClass(lane: string): string {
   const L = lane.toLowerCase();
@@ -197,7 +187,7 @@ function ListRow({
               </V4Badge>
             ))}
             <span className="text-[11px] tabular-nums text-(--qs-text-3)">
-              {formatWfAgo(row.seconds_ago)} ago · {row.steps_done}/{row.steps_total} steps
+              {formatDurationSeconds(row.seconds_ago)} ago · {row.steps_done}/{row.steps_total} steps
             </span>
           </div>
         </div>

@@ -21,6 +21,7 @@ import {
 import { hivePageShellError } from "@/lib/hive-page-error";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import { cn } from "@/lib/utils";
+import { formatTimeAgoIso } from "@/lib/format-relative-time";
 
 interface WorkflowStep {
   id: string;
@@ -258,20 +259,7 @@ function WorkflowCard({
           : "pending";
 
   const c = STATUS_COLORS[badgeStatus];
-  const timeAgo = (d: string) => {
-    if (!d) {
-      return "recent";
-    }
-    const diff = Date.now() - new Date(d).getTime();
-    const m = Math.floor(diff / 60000);
-    if (m < 1) {
-      return "just now";
-    }
-    if (m < 60) {
-      return `${m}m ago`;
-    }
-    return `${Math.floor(m / 60)}h ago`;
-  };
+  const timeAgo = (d: string) => formatTimeAgoIso(d, { nullLabel: "recent", invalidLabel: "recent" });
 
   const canControl = wf.status === "running" || wf.status === "pending";
 

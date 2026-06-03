@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { HiveApiError, hiveDelete, hiveGet, hivePostJson } from "@/lib/api";
+import { formatTimeAgoIso } from "@/lib/format-relative-time";
 import { cn } from "@/lib/utils";
 
 interface HealthNote {
@@ -22,17 +23,6 @@ interface SwarmHealthNotesPanelProps {
   onChanged?: () => void;
 }
 
-function formatTimeAgo(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
-  if (Number.isNaN(ms) || ms < 0) return "just now";
-  const sec = Math.floor(ms / 1000);
-  if (sec < 60) return `${sec}s ago`;
-  const min = Math.floor(sec / 60);
-  if (min < 90) return `${min}m ago`;
-  const h = Math.floor(min / 60);
-  if (h < 36) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
-}
 
 function SeverityIcon({ s }: { s: HealthNote["severity"] }) {
   if (s === "error") return <AlertTriangle className="h-3.5 w-3.5 text-(--qs-red)" aria-hidden />;
@@ -173,7 +163,7 @@ export function SwarmHealthNotesPanel({ swarmId, onChanged }: SwarmHealthNotesPa
               <div className="min-w-0 flex-1">
                 <p className="text-(--qs-text)">{n.message}</p>
                 <p className="mt-0.5 text-[10px] text-(--qs-text-3)">
-                  {n.source} · {formatTimeAgo(n.at)}
+                  {n.source} · {formatTimeAgoIso(n.at)}
                 </p>
               </div>
               <button

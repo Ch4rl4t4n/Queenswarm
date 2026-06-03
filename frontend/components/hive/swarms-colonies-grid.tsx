@@ -7,6 +7,7 @@ import { useMemo } from "react";
 import { ListPaginator, ViewportBoundedPanel } from "@/components/ui/list-paginator";
 import { V4Badge, V4IconPollen } from "@/components/ui/v4";
 import type { SwarmsOverviewColony } from "@/lib/hive-types";
+import { formatTimeAgoSeconds } from "@/lib/format-relative-time";
 import { useGridTwoRowPageSize } from "@/lib/use-grid-two-row-page-size";
 import { usePaginatedSlice } from "@/lib/use-paginated-slice";
 import { cn } from "@/lib/utils";
@@ -15,14 +16,6 @@ function formatPollen(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
   return String(Math.round(n * 10) / 10);
-}
-
-function formatAgo(sec: number | null): string {
-  if (sec == null) return "awaiting sync";
-  if (sec < 60) return `${sec}s ago`;
-  const m = Math.floor(sec / 60);
-  if (m < 90) return `${m}m ago`;
-  return `${Math.floor(m / 60)}h ago`;
 }
 
 function healthTone(severity: "info" | "warn" | "error"): "ok" | "warn" | "err" {
@@ -103,7 +96,7 @@ function ColonyMarketCard({
           <V4IconPollen size={11} />
           {formatPollen(colony.total_pollen)}
         </span>
-        <V4Badge tone="info">{formatAgo(colony.last_sync_seconds_ago)}</V4Badge>
+        <V4Badge tone="info">{formatTimeAgoSeconds(colony.last_sync_seconds_ago, { nullLabel: "awaiting sync" })}</V4Badge>
         {colony.health && colony.health.open_count > 0 ? (
           <V4Badge tone={healthTone(colony.health.last_severity)}>
             {colony.health.open_count} health note{colony.health.open_count === 1 ? "" : "s"}

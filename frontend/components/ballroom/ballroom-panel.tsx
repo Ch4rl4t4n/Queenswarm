@@ -11,6 +11,7 @@ import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { GrokLiveVoiceButton } from "@/components/ballroom/grok-live-voice-chat";
 import { V4Badge, V4Card } from "@/components/ui/v4";
 import { HiveApiError, hiveDelete, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
+import { formatDurationSeconds } from "@/lib/format-relative-time";
 import type { SupervisorSessionEventRow, SupervisorSessionRow } from "@/lib/hive-types";
 import { resolveHiveBearerToken } from "@/lib/hive-bearer-token";
 import { LinkifyText } from "@/lib/linkify-text";
@@ -102,15 +103,7 @@ function historyTimeLabel(iso?: string | null): string {
   if (diffSec < 60) {
     return "now";
   }
-  const mins = Math.floor(diffSec / 60);
-  if (mins < 60) {
-    return `${mins}m`;
-  }
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) {
-    return `${hrs}h`;
-  }
-  return `${Math.floor(hrs / 24)}d`;
+  return formatDurationSeconds(diffSec);
 }
 
 function parseChatPromptRow(raw: unknown): ActiveChatPrompt | null {

@@ -1,3 +1,5 @@
+import { formatTimeAgoMinutes } from "@/lib/format-relative-time";
+
 export const MCP_SNAPSHOT_FRESHNESS_FRESH_MAX_MINUTES = 10;
 export const MCP_SNAPSHOT_FRESHNESS_AGING_MAX_MINUTES = 60;
 export const MCP_SNAPSHOT_RETRY_SPIKE_24H_THRESHOLD = 3;
@@ -32,8 +34,5 @@ export function resolveMcpSnapshotFreshness(input: string | null): McpSnapshotFr
 }
 
 export function formatRelativeMinutes(minutes: number | null): string {
-  if (minutes === null) return "n/a";
-  if (minutes <= 0) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  return `${Math.round(minutes / 60)}h ago`;
+  return formatTimeAgoMinutes(minutes);
 }

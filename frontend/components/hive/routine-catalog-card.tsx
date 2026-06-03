@@ -6,6 +6,7 @@ import { CalendarClock, Play } from "lucide-react";
 import { RoutineWebhookControls } from "@/components/hive/routine-webhook-controls";
 import { V4Badge, V4Chip } from "@/components/ui/v4";
 import type { SupervisorRoutineRow } from "@/lib/hive-types";
+import { formatDurationSeconds, formatTimeAgoIso } from "@/lib/format-relative-time";
 import { cn } from "@/lib/utils";
 
 function formatInterval(seconds: number | null): string {
@@ -19,31 +20,9 @@ function formatInterval(seconds: number | null): string {
     return `every ${seconds / 3_600}h`;
   }
   if (seconds >= 60) {
-    return `every ${Math.round(seconds / 60)}m`;
+    return `every ${formatDurationSeconds(seconds)}`;
   }
   return `every ${seconds}s`;
-}
-
-function formatAgo(iso: string | null): string {
-  if (!iso) {
-    return "never";
-  }
-  const ms = Date.now() - new Date(iso).getTime();
-  if (Number.isNaN(ms) || ms < 0) {
-    return "—";
-  }
-  const min = Math.floor(ms / 60_000);
-  if (min < 1) {
-    return "just now";
-  }
-  if (min < 60) {
-    return `${min}m ago`;
-  }
-  const h = Math.floor(min / 60);
-  if (h < 48) {
-    return `${h}h ago`;
-  }
-  return `${Math.floor(h / 24)}d ago`;
 }
 
 function statusTone(status: string, isActive: boolean): "ok" | "warn" | "err" | "info" | "gold" {
@@ -110,7 +89,7 @@ export function RoutineCatalogCard({
         </div>
         <div>
           <dt className="v4-field-label">Last run</dt>
-          <dd className="mt-1 text-[11px] text-(--qs-text-2)">{formatAgo(routine.last_run_at)}</dd>
+          <dd className="mt-1 text-[11px] text-(--qs-text-2)">{formatTimeAgoIso(routine.last_run_at)}</dd>
         </div>
         <div>
           <dt className="v4-field-label">Runtime</dt>

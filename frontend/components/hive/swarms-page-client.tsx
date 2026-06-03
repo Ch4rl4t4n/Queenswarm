@@ -29,6 +29,7 @@ import {
   V4Stat,
 } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
+import { formatDurationSeconds, formatTimeAgoSeconds } from "@/lib/format-relative-time";
 import { hivePageShellError } from "@/lib/hive-page-error";
 import { COCKPIT_POLL_BOARD_MS } from "@/lib/cockpit-poll-profile";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
@@ -39,21 +40,6 @@ function formatPollen(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
   return String(Math.round(n * 10) / 10);
-}
-
-function formatDuration(sec: number): string {
-  if (sec < 60) return `${sec}s`;
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return s > 0 ? `${m}m ${s}s` : `${m}m`;
-}
-
-function formatAgo(sec: number | null): string {
-  if (sec == null) return "awaiting";
-  if (sec < 60) return `${sec}s ago`;
-  const m = Math.floor(sec / 60);
-  if (m < 90) return `${m}m ago`;
-  return `${Math.floor(m / 60)}h ago`;
 }
 
 function formatWaggleClock(iso: string): string {
@@ -277,13 +263,13 @@ export function SwarmsPageClient() {
             />
             <V4Stat
               label="Avg sync drift"
-              value={formatDuration(kpis?.avg_sync_drift_sec ?? 0)}
+              value={formatDurationSeconds(kpis?.avg_sync_drift_sec ?? 0)}
               icon={Radio}
               iconTone="cyan"
               valueVariant="text"
               foot={
                 kpis?.last_global_tick_sec != null
-                  ? `Last global tick ${formatDuration(kpis.last_global_tick_sec)} ago`
+                  ? `Last global tick ${formatDurationSeconds(kpis.last_global_tick_sec, { suffix: "ago" })}`
                   : "Awaiting first global tick"
               }
             />
@@ -423,7 +409,7 @@ export function SwarmsPageClient() {
                 <span className="text-xs text-(--qs-text-3)">
                   {row.state === "syncing" && row.seconds_ago == null
                     ? "in progress"
-                    : formatAgo(row.seconds_ago)}
+                    : formatTimeAgoSeconds(row.seconds_ago, { nullLabel: "awaiting" })}
                 </span>
               </div>
             ))}

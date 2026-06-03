@@ -1,11 +1,10 @@
 /** Sub-swarm global sync countdown helpers. */
 
+import { formatDurationSeconds } from "@/lib/format-relative-time";
+
 export function formatSyncDue(seconds: number): string {
   if (seconds <= 0) return "due now";
-  if (seconds < 60) return `${seconds}s`;
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  return formatDurationSeconds(seconds, { style: "verbose" });
 }
 
 export function syncTone(needsSync: boolean): "ok" | "warn" | "info" {

@@ -153,6 +153,13 @@ ESHOP_FORAGER_SPEC: dict[str, Any] = {
             "https://www.jahan.cz/rss",
             "https://www.trebonsky-med.cz/feed/",
         ],
+        "fallback_site_urls": [
+            "https://www.pleva.cz/",
+            "https://www.jahan.cz/",
+            "https://www.trebonsky-med.cz/",
+            "https://www.vceliobchod.cz/",
+            "https://www.ivcelarskepotreby.sk/",
+        ],
     },
     "schedule_cron": "0 6 * * 2,4",
     "is_active": True,
@@ -498,7 +505,7 @@ async def _ensure_eshop_forager(
             **dict(ESHOP_FORAGER_SPEC["source_config"]),
             FOUR_LANE_PAYLOAD_KEY: "eshop_research",
         },
-        filter_config={"topic_tags": ["najman-eshop", "four-lane", "eshop-research"]},
+        filter_config={"default_tags": ["najman-eshop", "four-lane", "eshop-research"]},
         prompt_template=(
             "E-shop competitor RSS intel for beebrdy.cz. Summarize UX, pricing, product pages. "
             "Tag najman-eshop. Default simulate."

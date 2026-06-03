@@ -18,6 +18,7 @@ import { cockpitSwrKeys } from "@/lib/cockpit-swr-keys";
 import { COCKPIT_POLL_SWARM_BOARD_MS } from "@/lib/cockpit-poll-profile";
 import { useSwrVisiblePollOptions } from "@/lib/hooks/use-swr-refresh-interval";
 import type { SwarmBoardCard, SwarmBoardResponse, WaggleFeedItem } from "@/lib/hive-types";
+import { formatTimeAgoSeconds } from "@/lib/format-relative-time";
 import { formatSyncDue, syncTone } from "@/lib/sub-swarm-local-mind-utils";
 import { cn } from "@/lib/utils";
 
@@ -43,17 +44,9 @@ const LANE_ICON: Record<string, typeof Search> = {
   action: Zap,
 };
 
-function formatAgo(sec: number | null): string {
-  if (sec == null) return "no sync yet";
-  if (sec < 45) return `${sec}s ago`;
-  const m = Math.floor(sec / 60);
-  if (m < 90) return `${m}m ago`;
-  return `${Math.floor(m / 60)}h ago`;
-}
 
 function formatFeedAgo(sec: number): string {
-  if (sec < 90) return `${sec}s ago`;
-  return formatAgo(sec);
+  return formatTimeAgoSeconds(sec);
 }
 
 function SwarmCard({ card }: { card: SwarmBoardCard }) {
@@ -95,7 +88,7 @@ function SwarmCard({ card }: { card: SwarmBoardCard }) {
           <strong className="text-(--qs-text)">{card.avg_performance_pct}%</strong> perf
         </span>
         <span>
-          <strong className="text-(--qs-text)">{formatAgo(card.last_sync_seconds_ago)}</strong>
+          <strong className="text-(--qs-text)">{formatTimeAgoSeconds(card.last_sync_seconds_ago, { nullLabel: "no sync yet" })}</strong>
         </span>
       </div>
       <Link href="/swarms" className="mt-3 inline-flex items-center gap-0.5 text-xs font-semibold text-(--qs-cyan) hover:text-pollen">

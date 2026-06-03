@@ -20,6 +20,9 @@ export interface ApprovalCardDeckProps {
   busyId: string | null;
   bulkBusy?: boolean;
   emptyLabel?: string;
+  emptyHint?: string;
+  variant?: "default" | "pollen";
+  alwaysShowShell?: boolean;
   onApprove: (id: string) => Promise<void>;
   onReject: (id: string) => Promise<void>;
   onApproveAll?: () => Promise<void>;
@@ -33,6 +36,9 @@ export function ApprovalCardDeck({
   busyId,
   bulkBusy = false,
   emptyLabel = "Nothing pending.",
+  emptyHint,
+  variant = "default",
+  alwaysShowShell = false,
   onApprove,
   onReject,
   onApproveAll,
@@ -66,12 +72,43 @@ export function ApprovalCardDeck({
     return `${safeIndex + 1} / ${items.length}`;
   }, [items.length, safeIndex]);
 
-  if (!items.length) {
+  if (!items.length && !alwaysShowShell) {
     return <p className="text-sm text-(--qs-text-3)">{emptyLabel}</p>;
   }
 
+  if (!items.length && alwaysShowShell) {
+    return (
+      <div className={cn("approval-card-deck", variant === "pollen" && "approval-card-deck--pollen", className)}>
+        {(onApproveAll || onRejectAll) && (
+          <div className="approval-card-deck__toolbar">
+            <div className="flex items-center gap-2">
+              <Layers className="h-4 w-4 text-pollen" aria-hidden />
+              <span className="font-mono text-xs text-(--qs-text-3)">0 / 0</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {onApproveAll ? (
+                <button type="button" className="qs-btn qs-btn--primary qs-btn--sm" disabled>
+                  Approve all
+                </button>
+              ) : null}
+              {onRejectAll ? (
+                <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" disabled>
+                  Reject all
+                </button>
+              ) : null}
+            </div>
+          </div>
+        )}
+        <div className="approval-card-deck__empty-shell">
+          <p className="text-sm text-(--qs-text-2)">{emptyLabel}</p>
+          {emptyHint ? <p className="text-xs text-(--qs-text-3)">{emptyHint}</p> : null}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={cn("approval-card-deck", className)}>
+    <div className={cn("approval-card-deck", variant === "pollen" && "approval-card-deck--pollen", className)}>
       <div className="approval-card-deck__toolbar">
         <div className="flex items-center gap-2">
           <Layers className="h-4 w-4 text-pollen" aria-hidden />
@@ -148,7 +185,7 @@ export function ApprovalCardDeck({
             <div className="flex flex-wrap items-start justify-between gap-2">
               <p className="text-base font-semibold leading-snug text-(--qs-text)">{current.title}</p>
               {current.badge ? (
-                <V4Badge tone={current.badgeTone ?? "info"}>{current.badge}</V4Badge>
+                <V4Badge tone={current.badgeTone ?? (variant === "pollen" ? "gold" : "info")}>{current.badge}</V4Badge>
               ) : null}
             </div>
             <p className="mt-3 flex-1 overflow-y-auto text-sm leading-relaxed text-(--qs-text-2)">

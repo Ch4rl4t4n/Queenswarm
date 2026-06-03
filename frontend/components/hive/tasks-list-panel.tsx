@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 
 import type { TaskRow } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
+import { formatTimeAgoIso } from "@/lib/format-relative-time";
 
 type StatusTab = "all" | "running" | "pending" | "completed";
 
@@ -28,17 +29,6 @@ function matchesTab(statusRaw: string, tab: StatusTab): boolean {
   return true;
 }
 
-function timeAgo(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  const ms = Date.now() - new Date(iso).getTime();
-  if (Number.isNaN(ms) || ms < 0) return "—";
-  const mins = Math.floor(ms / 60_000);
-  if (mins < 1) return "now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 48) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
-}
 
 function taskSteps(task: TaskRow): { done: number; total: number } {
   const p = task.payload;
@@ -171,7 +161,7 @@ export function TasksListPanel({ tasks, onOpenTask }: TasksListPanelProps): JSX.
                         </span>
                       </div>
                     </td>
-                    <td className="hidden whitespace-nowrap px-4 py-3 font-[family-name:var(--font-poppins)] text-xs text-zinc-500 md:table-cell">{timeAgo(t.updated_at)}</td>
+                    <td className="hidden whitespace-nowrap px-4 py-3 font-[family-name:var(--font-poppins)] text-xs text-zinc-500 md:table-cell">{formatTimeAgoIso(t.updated_at, { invalidLabel: "—", justNowBelowSec: 1 })}</td>
                   </tr>
                 );
               })

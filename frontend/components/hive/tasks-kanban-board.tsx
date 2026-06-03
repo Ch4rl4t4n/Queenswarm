@@ -13,16 +13,16 @@ import {
   type MissionKanbanColumn,
 } from "@/lib/mission-kanban";
 import { cn } from "@/lib/utils";
+import { formatDurationSeconds } from "@/lib/format-relative-time";
 
-function timeAgo(dateStr: string | null | undefined): string {
+
+function formatKanbanAge(dateStr: string | null | undefined): string {
   if (!dateStr) return "";
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h`;
-  return `${Math.floor(hrs / 24)}d`;
+  const parsed = Date.parse(dateStr);
+  if (Number.isNaN(parsed)) return "";
+  const sec = Math.floor((Date.now() - parsed) / 1000);
+  if (sec < 60) return "just now";
+  return formatDurationSeconds(sec);
 }
 
 interface TasksKanbanBoardProps {
@@ -192,7 +192,7 @@ function KanbanCard({
               </span>
               <span className="font-mono text-[10px] text-zinc-600">{shortTaskId(String(task.id))}</span>
               <span className="font-[family-name:var(--font-poppins)] text-[10px] text-zinc-600">
-                {timeAgo(task.updated_at ?? task.created_at)}
+                {formatKanbanAge(task.updated_at ?? task.created_at)}
               </span>
             </div>
           </button>

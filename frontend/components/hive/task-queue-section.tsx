@@ -13,6 +13,7 @@ import { cockpitSwrKeys } from "@/lib/cockpit-swr-keys";
 import { COCKPIT_POLL_TASK_QUEUE_MS } from "@/lib/cockpit-poll-profile";
 import { useSwrVisiblePollOptions } from "@/lib/hooks/use-swr-refresh-interval";
 import type { TaskQueueItem, TaskQueueResponse } from "@/lib/hive-types";
+import { formatDurationSeconds } from "@/lib/format-relative-time";
 import { cn } from "@/lib/utils";
 
 type StatusTab = "all" | "running" | "pending" | "completed";
@@ -91,17 +92,6 @@ function statusDotAndLabel(status: string): { dot: string; label: string } {
   return { dot: "bg-zinc-500", label: s };
 }
 
-function formatQueueAgo(sec: number): string {
-  if (sec < 60) {
-    return `${sec}s`;
-  }
-  const m = Math.floor(sec / 60);
-  if (m < 120) {
-    return `${m}m`;
-  }
-  const h = Math.floor(m / 60);
-  return `${h}h`;
-}
 
 function matchesTab(item: TaskQueueItem, tab: StatusTab): boolean {
   const s = item.status.toLowerCase();
@@ -227,7 +217,7 @@ export function TaskQueueSection() {
                     </div>
                     <div className="mt-2 flex w-full items-center justify-between gap-3 sm:max-w-[13rem] sm:justify-end">
                       <span className={cn("text-sm font-bold tabular-nums", pctText)}>{task.progress_pct}%</span>
-                      <span className="text-[11px] text-(--qs-text-3)">pred {formatQueueAgo(task.seconds_ago)}</span>
+                      <span className="text-[11px] text-(--qs-text-3)">pred {formatDurationSeconds(task.seconds_ago)}</span>
                     </div>
                   </div>
                 </div>

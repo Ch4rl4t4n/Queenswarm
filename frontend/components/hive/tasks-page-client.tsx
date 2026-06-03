@@ -47,6 +47,7 @@ import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import { SIMULATIONS_ENABLED } from "@/lib/feature-flags";
 import { cn } from "@/lib/utils";
 import type { DashboardSummaryPayload, TaskQueueItem, TaskQueueResponse } from "@/lib/hive-types";
+import { formatTimeAgoSeconds } from "@/lib/format-relative-time";
 
 type FilterTab = "all" | "running" | "pending" | "done";
 type ViewMode = "board" | "table";
@@ -113,14 +114,6 @@ const TIER_LABELS: Record<string, string> = {
   unknown: "Unassigned",
 };
 
-function formatAgo(sec: number): string {
-  if (sec < 60) return `${sec}s ago`;
-  const m = Math.floor(sec / 60);
-  if (m < 90) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 48) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
-}
 
 function laneLabel(lane: string): string {
   if (!lane) return "Hive";
@@ -410,7 +403,7 @@ export function TasksPageClient() {
                             <span className="v4-progress-pct">{task.progress_pct}%</span>
                           </div>
                         </td>
-                        <td className="text-(--qs-text-3)">{formatAgo(task.seconds_ago)}</td>
+                        <td className="text-(--qs-text-3)">{formatTimeAgoSeconds(task.seconds_ago)}</td>
                         <td>
                           <button
                             type="button"
@@ -447,7 +440,7 @@ export function TasksPageClient() {
                     </div>
                     <div className="v4-mobile-card-row__meta">
                       <V4Badge tone="purple">{laneLabel(task.lane)}</V4Badge>
-                      <span>{formatAgo(task.seconds_ago)}</span>
+                      <span>{formatTimeAgoSeconds(task.seconds_ago)}</span>
                     </div>
                     <div className="v4-progress-cell">
                       <div className="v4-progress-track">
@@ -510,7 +503,7 @@ export function TasksPageClient() {
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm text-(--qs-text)">{task.title}</div>
                       <div className="mt-0.5 text-xs text-(--qs-text-3)">
-                        {task.short_id} · {laneLabel(task.lane)} · {formatAgo(task.seconds_ago)}
+                        {task.short_id} · {laneLabel(task.lane)} · {formatTimeAgoSeconds(task.seconds_ago)}
                       </div>
                     </div>
                     <button

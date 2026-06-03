@@ -88,16 +88,46 @@ export function HiveOperatorNotificationCenter({ summary, className }: HiveOpera
             <>
               <NotificationRow
                 href={studioPendingApprovalsHref(snapshot.studio)}
-                label={localizePhrase(language, {
-                  en: `${snapshot.studioPending} Execution Studio approvals`,
-                  sk: `${snapshot.studioPending} Execution Studio schválení`,
-                })}
+                label={(() => {
+                  const autoScv = Boolean(snapshot.studio.codebase_auto_approve_enabled);
+                  const codebase = autoScv ? 0 : (snapshot.studio.codebase_pending ?? 0);
+                  const live =
+                    (snapshot.studio.browser_pending ?? 0) + (snapshot.studio.external_pending ?? 0);
+                  if (live === 0 && codebase > 0) {
+                    return localizePhrase(language, {
+                      en: `${codebase} SCV proposals pending`,
+                      sk: `${codebase} SCV návrhov čaká`,
+                    });
+                  }
+                  if (codebase > 0 && live > 0) {
+                    return localizePhrase(language, {
+                      en: `${snapshot.studioPending} approvals (${codebase} SCV · ${live} live)`,
+                      sk: `${snapshot.studioPending} schválení (${codebase} SCV · ${live} live)`,
+                    });
+                  }
+                  return localizePhrase(language, {
+                    en: `${snapshot.studioPending} Execution Studio approvals`,
+                    sk: `${snapshot.studioPending} Execution Studio schválení`,
+                  });
+                })()}
               />
-              {(snapshot.studio.codebase_pending ?? 0) > 0 && snapshot.studio.live_actions.length === 0 ? (
+              {!snapshot.studio.codebase_auto_approve_enabled &&
+              (snapshot.studio.codebase_pending ?? 0) > 0 &&
+              snapshot.studio.live_actions.length === 0 ? (
                 <p className="ml-1 text-[10px] text-(--qs-text-4)">
                   {localizePhrase(language, {
                     en: "SCV codebase proposals — open Lanes tab",
                     sk: "SCV codebase návrhy — záložka Lanes",
+                  })}
+                </p>
+              ) : null}
+              {!snapshot.studio.codebase_auto_approve_enabled &&
+              (snapshot.studio.codebase_pending ?? 0) > 0 &&
+              snapshot.studio.live_actions.length > 0 ? (
+                <p className="ml-1 text-[10px] text-(--qs-text-4)">
+                  {localizePhrase(language, {
+                    en: `${snapshot.studio.codebase_pending} SCV · ${snapshot.studio.live_actions.length} live confirmation(s)`,
+                    sk: `${snapshot.studio.codebase_pending} SCV · ${snapshot.studio.live_actions.length} live potvrdení`,
                   })}
                 </p>
               ) : null}
