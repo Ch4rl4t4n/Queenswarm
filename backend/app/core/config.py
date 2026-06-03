@@ -1956,6 +1956,10 @@ class Settings(BaseSettings):
         default=True,
         description="Attach listing video_preview_url as Gumroad cover when present.",
     )
+    skill_factory_gumroad_publish_enabled: bool = Field(
+        default=False,
+        description="Allow Library → Gumroad publish (PUT /products/:id/enable).",
+    )
     live_lane_snapshot_enabled: bool = Field(
         default=True,
         description="#65 — unified Polymarket + publish OAuth live lane prep snapshot.",

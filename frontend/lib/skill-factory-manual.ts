@@ -244,14 +244,14 @@ export const SKILL_FACTORY_GAPS: SkillFactoryGapItem[] = [
   {
     id: "github-auto-push",
     label: "Auto GitHub PR / push",
-    status: "planned",
-    detail: "Today: Download GitHub pack → manual push. GitHub connector may PR in the future.",
+    status: "done",
+    detail: "Library → Push GitHub PR when github_rest connector and env target are configured.",
   },
   {
     id: "gumroad-api",
     label: "Gumroad API listing",
-    status: "planned",
-    detail: "LISTING.md is ready — upload manually on gumroad.com.",
+    status: "done",
+    detail: "Library → Gumroad draft + publish when gumroad_rest connector and env flags are set.",
   },
   {
     id: "llm-cost",

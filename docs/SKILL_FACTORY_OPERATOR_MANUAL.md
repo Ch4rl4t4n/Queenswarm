@@ -167,10 +167,11 @@ LISTING.md sa generuje zo Skill Factory kontextu (niche, price anchor, Monid hoo
 
 **Auto PR env:** `SKILL_FACTORY_GITHUB_PR_ENABLED=true`, `SKILL_FACTORY_GITHUB_OWNER`, `SKILL_FACTORY_GITHUB_REPO`
 
-### Gumroad (voliteľné — API draft)
+### Gumroad (voliteľné — API draft + publish)
 1. Nastav `SKILL_FACTORY_GUMROAD_LISTING_ENABLED=true` + `SKILL_FACTORY_GUMROAD_ACCESS_TOKEN` (alebo connector `gumroad_rest`)
-2. Library → **Gumroad draft** — vytvorí draft produkt z LISTING.md
-3. Dokonči cover, preview video a publish v Gumroad UI
+2. Library → **Gumroad draft** — vytvorí draft produkt z LISTING.md (ZIP bundle + cover ak sú zapnuté)
+3. Library → **Gumroad publish** — `PUT /products/:id/enable` (draft → live). Ak chýba draft, tlačidlo vytvorí draft aj publish naraz (`create_if_missing`).
+4. Env pre publish: `SKILL_FACTORY_GUMROAD_PUBLISH_ENABLED=true` (default off — bezpečný rollout)
 
 ### Gumroad (manuálne)
 1. Použi LISTING.md z GitHub packu ako popis
@@ -230,6 +231,7 @@ Najväčší ROI = skill, ktorý denne používaš v sessions. Externý predaj =
 - [x] Monid video preview URL pri approve (voliteľné, Execution Studio)
 - [x] Auto GitHub PR z Library exportu (voliteľné, github_rest connector)
 - [x] Gumroad draft listing API z Library (voliteľné)
+- [x] Gumroad publish API (draft → live) z Library (voliteľné)
 - [x] Gumroad-ready LISTING.md v GitHub export bundle
 - [x] Skill picker (Sessions, Kanban, New task)
 - [x] Marketplace skrytý v solo režime
@@ -241,7 +243,7 @@ Najväčší ROI = skill, ktorý denne používaš v sessions. Externý predaj =
 - [ ] (Voliteľne) Foragers krmia HiveMind
 
 ### Plánované v produkte
-- [ ] Gumroad publish API (draft → live)
+- [ ] Stripe / checkout integrácia (zámerne mimo scope — predaj cez Gumroad)
 
 ---
 
@@ -266,4 +268,4 @@ Najväčší ROI = skill, ktorý denne používaš v sessions. Externý predaj =
 
 ---
 
-*Posledná aktualizácia: Monid video preview on approve + Gumroad LISTING export + Queue inline approve.*
+*Posledná aktualizácia: Gumroad publish API (draft → live) + Library export tlačidlá.*

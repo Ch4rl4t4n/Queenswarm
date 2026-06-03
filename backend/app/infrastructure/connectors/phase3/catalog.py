@@ -323,6 +323,13 @@ _PHASE3_RAW: tuple[Phase3ConnectorTemplate, ...] = (
                 "method": "GET",
                 "description": "List seller products.",
             },
+            {
+                "name": "products_enable",
+                "path": "/products/{product_id}/enable",
+                "method": "PUT",
+                "description": "Publish (enable) a Gumroad product.",
+                "required_permission": "tool:write",
+            },
         ),
     ),
     Phase3ConnectorTemplate(

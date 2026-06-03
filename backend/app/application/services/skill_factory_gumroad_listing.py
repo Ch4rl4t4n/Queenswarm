@@ -121,6 +121,155 @@ async def _gumroad_token_for_session(session: AsyncSession) -> str | None:
     return env_token or None
 
 
+def _extract_product_id(payload: dict[str, Any]) -> str | None:
+    """Parse Gumroad product id from API response."""
+
+    from app.application.services.skill_factory_gumroad_assets import _extract_product_id as asset_extract
+
+    return asset_extract(payload)
+
+
+def read_gumroad_listing_ref(opportunity: SkillOpportunityORM | None) -> dict[str, Any] | None:
+    """Return gumroad_listing ref from opportunity if present."""
+
+    if opportunity is None:
+        return None
+    for item in list(opportunity.source_refs or []):
+        if isinstance(item, dict) and str(item.get("kind") or "") == "gumroad_listing":
+            return item
+    return None
+
+
+def persist_gumroad_listing_ref(
+    opportunity: SkillOpportunityORM,
+    *,
+    product_id: str,
+    product_url: str | None,
+    published: bool = False,
+) -> None:
+    """Store Gumroad product linkage on opportunity source_refs."""
+
+    refs: list[Any] = list(opportunity.source_refs or [])
+    refs = [item for item in refs if not (isinstance(item, dict) and item.get("kind") == "gumroad_listing")]
+    refs.append(
+        {
+            "kind": "gumroad_listing",
+            "product_id": product_id,
+            "product_url": product_url,
+            "published": published,
+        },
+    )
+    opportunity.source_refs = refs[:24]
+
+
+async def gumroad_publish_ready(session: AsyncSession) -> bool:
+    """True when Gumroad publish API is enabled with credentials."""
+
+    if not settings.skill_factory_gumroad_publish_enabled:
+        return False
+    return await gumroad_listing_ready(session)
+
+
+async def _gumroad_enable_product(
+    client: httpx.AsyncClient,
+    *,
+    token: str,
+    product_id: str,
+) -> tuple[bool, dict[str, Any], str]:
+    """PUT /products/:id/enable to publish a draft product."""
+
+    rsp = await client.put(
+        f"{_GUMROAD_API}/{product_id}/enable",
+        data={"access_token": token},
+    )
+    try:
+        payload = rsp.json()
+    except json.JSONDecodeError:
+        payload = {}
+    if rsp.status_code >= 400 or not (isinstance(payload, dict) and payload.get("success")):
+        return False, payload if isinstance(payload, dict) else {}, rsp.text[:400]
+    return True, payload if isinstance(payload, dict) else {}, ""
+
+
+async def publish_gumroad_listing_for_skill(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    skill_id: uuid.UUID,
+    product_id: str | None = None,
+    create_if_missing: bool = False,
+) -> dict[str, Any]:
+    """Publish an existing Gumroad product (optionally create draft first)."""
+
+    if not settings.skill_factory_gumroad_publish_enabled:
+        return {"ok": False, "error": "gumroad_publish_disabled"}
+
+    token = await _gumroad_token_for_session(session)
+    if not token:
+        return {"ok": False, "error": "gumroad_not_configured"}
+
+    row = await session.get(TenantSkillORM, skill_id)
+    if row is None or row.tenant_id != tenant_id:
+        return {"ok": False, "error": "skill_not_found"}
+
+    opportunity = await session.scalar(
+        select(SkillOpportunityORM).where(
+            SkillOpportunityORM.tenant_id == tenant_id,
+            SkillOpportunityORM.tenant_skill_id == skill_id,
+        ),
+    )
+    listing_ref = read_gumroad_listing_ref(opportunity)
+    resolved_id = (product_id or (listing_ref or {}).get("product_id") or "").strip()
+
+    if not resolved_id and create_if_missing:
+        draft = await create_gumroad_draft_from_skill(session, tenant_id=tenant_id, skill_id=skill_id)
+        if not draft.get("ok"):
+            return draft
+        resolved_id = str(draft.get("product_id") or "").strip()
+        listing_ref = read_gumroad_listing_ref(opportunity)
+
+    if not resolved_id:
+        return {"ok": False, "error": "gumroad_product_id_missing"}
+
+    timeout = httpx.Timeout(30.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        ok, payload, err = await _gumroad_enable_product(client, token=token, product_id=resolved_id)
+
+    if not ok:
+        return {
+            "ok": False,
+            "error": "gumroad_publish_failed",
+            "message": str(payload.get("message") or err)[:300],
+        }
+
+    product = payload.get("product") if isinstance(payload.get("product"), dict) else {}
+    product_url = _extract_product_url(payload) or str((listing_ref or {}).get("product_url") or "")
+
+    if opportunity is not None:
+        persist_gumroad_listing_ref(
+            opportunity,
+            product_id=resolved_id,
+            product_url=product_url or None,
+            published=True,
+        )
+        await session.flush()
+
+    logger.info(
+        "skill_factory.gumroad_published",
+        agent_id="skill_factory",
+        swarm_id=str(tenant_id),
+        task_id=str(skill_id),
+        product_id=resolved_id[:80],
+    )
+    return {
+        "ok": True,
+        "product_id": resolved_id,
+        "product_url": product_url,
+        "published": bool(product.get("published", True)),
+        "short_url": str(product.get("short_url") or product_url or ""),
+    }
+
+
 async def create_gumroad_draft_from_skill(
     session: AsyncSession,
     *,
@@ -210,6 +359,15 @@ async def create_gumroad_draft_from_skill(
     )
 
     product_id = _extract_product_id(product_payload)
+    if product_id and opportunity is not None:
+        persist_gumroad_listing_ref(
+            opportunity,
+            product_id=product_id,
+            product_url=product_url,
+            published=False,
+        )
+        await session.flush()
+
     if product_id:
         assets_result = await enrich_gumroad_product_assets(
             token=token,
@@ -241,5 +399,9 @@ async def create_gumroad_draft_from_skill(
 __all__ = [
     "create_gumroad_draft_from_skill",
     "gumroad_listing_ready",
+    "gumroad_publish_ready",
+    "persist_gumroad_listing_ref",
+    "publish_gumroad_listing_for_skill",
+    "read_gumroad_listing_ref",
     "_markdown_to_gumroad_html",
 ]

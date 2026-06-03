@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { DownloadIcon, GitBranchIcon, Loader2Icon, PlayIcon, RefreshCwIcon, SparklesIcon, StoreIcon, XIcon } from "lucide-react";
+import { DownloadIcon, GitBranchIcon, Loader2Icon, PlayIcon, RefreshCwIcon, RocketIcon, SparklesIcon, StoreIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -79,6 +79,9 @@ interface TenantSkillRow {
   source: string;
   verified_at: string | null;
   github_exported_at: string | null;
+  gumroad_product_id: string | null;
+  gumroad_product_url: string | null;
+  gumroad_published: boolean | null;
   keywords: string[];
 }
 
@@ -94,6 +97,7 @@ interface SkillFactorySnapshot {
   monid_connector_ready: boolean;
   github_pr_export_ready: boolean;
   gumroad_listing_ready: boolean;
+  gumroad_publish_ready: boolean;
 }
 
 function scorePct(score: number): string {
@@ -276,6 +280,24 @@ export function SkillFactoryPageClient(): JSX.Element {
       await load();
     } catch (e) {
       toast.error(e instanceof HiveApiError ? e.message : "Gumroad draft failed.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const publishGumroadListing = async (id: string, createIfMissing: boolean): Promise<void> => {
+    setBusyId(id);
+    try {
+      const res = await hivePostJson<{ short_url: string; published: boolean }>(
+        `skill-factory/skills/${id}/export/gumroad-publish`,
+        { create_if_missing: createIfMissing },
+      );
+      toast.success("Gumroad listing published.", {
+        description: res.short_url || "Product is live on Gumroad.",
+      });
+      await load();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Gumroad publish failed.");
     } finally {
       setBusyId(null);
     }
@@ -530,6 +552,30 @@ export function SkillFactoryPageClient(): JSX.Element {
                           <StoreIcon className="size-3.5" aria-hidden />
                           Gumroad draft
                         </button>
+                      ) : null}
+                      {snapshot.gumroad_publish_ready ? (
+                        <button
+                          type="button"
+                          className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
+                          disabled={busyId === row.id || row.gumroad_published === true}
+                          onClick={() =>
+                            void publishGumroadListing(row.id, !row.gumroad_product_id)
+                          }
+                        >
+                          <RocketIcon className="size-3.5" aria-hidden />
+                          {row.gumroad_published ? "Published" : row.gumroad_product_id ? "Gumroad publish" : "Gumroad publish (draft+live)"}
+                        </button>
+                      ) : null}
+                      {row.gumroad_product_url ? (
+                        <a
+                          href={row.gumroad_product_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
+                        >
+                          <StoreIcon className="size-3.5" aria-hidden />
+                          Open Gumroad
+                        </a>
                       ) : null}
                     </div>
                   </li>

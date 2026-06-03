@@ -60,6 +60,9 @@ class TenantSkillOut(BaseModel):
     recipe_id: str | None
     verified_at: datetime | None
     github_exported_at: datetime | None
+    gumroad_product_id: str | None = None
+    gumroad_product_url: str | None = None
+    gumroad_published: bool | None = None
     is_active: bool
     is_builtin: bool = False
 
@@ -103,6 +106,7 @@ class SkillFactorySnapshotOut(BaseModel):
     monid_connector_ready: bool = False
     github_pr_export_ready: bool = False
     gumroad_listing_ready: bool = False
+    gumroad_publish_ready: bool = False
 
 
 def slugify_skill_name(name: str) -> str:
@@ -162,7 +166,19 @@ async def save_skill_factory_policy(
     return policy
 
 
-def _tenant_skill_out(row: TenantSkillORM) -> TenantSkillOut:
+def _gumroad_ref_from_opportunity(row: SkillOpportunityORM | None) -> dict[str, Any] | None:
+    """Read persisted Gumroad listing ref from opportunity source_refs."""
+
+    if row is None:
+        return None
+    for item in list(row.source_refs or []):
+        if isinstance(item, dict) and str(item.get("kind") or "") == "gumroad_listing":
+            return item
+    return None
+
+
+def _tenant_skill_out(row: TenantSkillORM, *, gumroad_ref: dict[str, Any] | None = None) -> TenantSkillOut:
+    ref = gumroad_ref or {}
     return TenantSkillOut(
         id=str(row.id),
         slug=row.slug,
@@ -176,6 +192,9 @@ def _tenant_skill_out(row: TenantSkillORM) -> TenantSkillOut:
         recipe_id=str(row.recipe_id) if row.recipe_id else None,
         verified_at=row.verified_at,
         github_exported_at=row.github_exported_at,
+        gumroad_product_id=str(ref.get("product_id") or "") or None,
+        gumroad_product_url=str(ref.get("product_url") or "") or None,
+        gumroad_published=bool(ref.get("published")) if ref.get("product_id") else None,
         is_active=row.is_active,
         is_builtin=False,
     )
@@ -377,6 +396,18 @@ async def compose_skill_factory_snapshot(
 
     gumroad_ready = await gumroad_listing_ready(session)
 
+    from app.application.services.skill_factory_gumroad_listing import gumroad_publish_ready
+
+    gumroad_publish = await gumroad_publish_ready(session)
+
+    gumroad_by_skill: dict[uuid.UUID, dict[str, Any]] = {}
+    for opp in opportunities:
+        if opp.tenant_skill_id is None:
+            continue
+        ref = _gumroad_ref_from_opportunity(opp)
+        if ref is not None:
+            gumroad_by_skill[opp.tenant_skill_id] = ref
+
     return SkillFactorySnapshotOut(
         policy=policy,
         opportunities=[
@@ -391,7 +422,7 @@ async def compose_skill_factory_snapshot(
             )
             for row in opportunities
         ],
-        library=[_tenant_skill_out(row) for row in library],
+        library=[_tenant_skill_out(row, gumroad_ref=gumroad_by_skill.get(row.id)) for row in library],
         queue_count=queue_count,
         building_count=building_count,
         research_keys_configured=research_configured,
@@ -400,6 +431,7 @@ async def compose_skill_factory_snapshot(
         monid_connector_ready=monid_ready,
         github_pr_export_ready=github_ready,
         gumroad_listing_ready=gumroad_ready,
+        gumroad_publish_ready=gumroad_publish,
     )
 
 
