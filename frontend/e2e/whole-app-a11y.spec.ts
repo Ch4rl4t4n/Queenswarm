@@ -91,11 +91,23 @@ test.describe("Whole-App a11y — panels and subnav", () => {
     await expect(sectionsNav).toBeVisible({ timeout: 15_000 });
 
     const securityTab = sectionsNav.getByRole("link", { name: "Security" });
+    const llmTab = sectionsNav.getByRole("link", { name: "LLM & voice" });
     await securityTab.focus();
-    await page.keyboard.press("ArrowRight");
+
+    // Essentials order: Security → Notifications → LLM & voice (custom tab order may differ).
+    for (let step = 0; step < 4; step += 1) {
+      await page.keyboard.press("ArrowRight");
+      try {
+        await expect(page).toHaveURL(/\/settings\/llm-keys/, { timeout: 2_000 });
+        break;
+      } catch {
+        if (step === 3) {
+          throw new Error("Arrow keys did not reach LLM & voice tab");
+        }
+      }
+    }
 
     await expect(page).toHaveURL(/\/settings\/llm-keys/, { timeout: 10_000 });
-    const llmTab = sectionsNav.getByRole("link", { name: "LLM & voice" });
     await expect(llmTab).toHaveAttribute("aria-current", "page");
     await expect(llmTab).toBeFocused({ timeout: 5_000 });
   });

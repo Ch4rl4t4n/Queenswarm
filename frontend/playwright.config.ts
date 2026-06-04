@@ -50,6 +50,8 @@ export default defineConfig({
             NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED: "true",
             NEXT_PUBLIC_PHASE70_CONSOLIDATED_NAV_ENABLED: "true",
             NEXT_PUBLIC_RECIPES_ENABLED: "true",
+            NEXT_PUBLIC_SOLO_MODE: "true",
+            NEXT_PUBLIC_SINGLE_ADMIN_MODE: "true",
           },
           url: `${baseURL}/login`,
           timeout: 240_000,

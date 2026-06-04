@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { seedDashboardSessionCookie } from "./fixtures/dashboard-session";
-import { e2eHiveHomePath } from "./fixtures/hive-home-route";
+import { e2eHiveHomeHeading, e2eHiveHomePath } from "./fixtures/hive-home-route";
 import { maybeInstallShellApiMocks } from "./fixtures/shell-api-mocks";
 import { HIVE_CRITICAL_JOURNEY_SPECS } from "../lib/hive-critical-journeys-spec";
 import { OPERATOR_CONTROL_PLANE_ENABLED } from "../lib/feature-flags";
@@ -35,7 +35,7 @@ async function gotoShellRoute(
 
 async function assertShellTitle(
   page: import("@playwright/test").Page,
-  title: string,
+  title: string | RegExp,
   urlPattern?: RegExp,
 ): Promise<void> {
   if (urlPattern) {
@@ -91,7 +91,7 @@ test.describe("Whole-App critical journeys — desktop", () => {
 
     await gotoShellRoute(page, e2eHiveHomePath());
     await expect(page.locator("#hive-search")).toHaveCount(0);
-    await assertShellTitle(page, "Agentic OS");
+    await assertShellTitle(page, e2eHiveHomeHeading());
   });
 
   test(`${journeySpec("agentic-os-sidebar-loop")?.id}: sidebar zone loop`, async ({ page }) => {

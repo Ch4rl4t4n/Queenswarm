@@ -466,7 +466,7 @@ const STUB_OPERATOR_ME = {
   single_admin_mode: false,
   platform_mode: "commercial",
   subscription_tier: "free",
-  solo_mode: false,
+  solo_mode: true,
   platform_features: STUB_PLATFORM_FEATURES,
   scopes: ["dash:admin", "dash:operator", "dash:read"],
 };
