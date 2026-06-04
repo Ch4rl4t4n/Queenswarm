@@ -11,7 +11,7 @@ import {
 
 describe("factory-content-factory-routes", () => {
   it("builds pack factory deep link with hash tab", () => {
-    expect(contentFactoryPackFactoryHref()).toBe("/apps-tools/content-factory#pipeline");
+    expect(contentFactoryPackFactoryHref()).toBe("/apps-tools/content-factory#research");
   });
 
   it("builds micro-saas deep link with query and hash", () => {

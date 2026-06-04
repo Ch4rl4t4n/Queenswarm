@@ -33,7 +33,7 @@ export function contentFactoryAgencyHref(): string {
 
 /** Deep link into Content Pack Factory lane inside Content Factory. */
 export function contentFactoryPackFactoryHref(): string {
-  return `${CONTENT_FACTORY_PATH}#pipeline`;
+  return `${CONTENT_FACTORY_PATH}#research`;
 }
 
 /** Operator-facing cross-link labels — keep UI + E2E in sync. */

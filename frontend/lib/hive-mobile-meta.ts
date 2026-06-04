@@ -36,7 +36,7 @@ function routeTable(consolidatedEnabled: boolean): { prefix: string; meta: Mobil
           { prefix: "/integrations", meta: { kicker: "Integrations", staticSubtitle: "Connectors · plugins · external apps", pageTitleSuffix: "Integrations" } },
           { prefix: "/apps-tools", meta: { kicker: "Apps & Tools", staticSubtitle: "Domain workspaces · factory · MCP", pageTitleSuffix: "Apps & Tools" } },
           { prefix: "/apps-tools/marketing-automation", meta: { kicker: "Apps & Tools", staticSubtitle: "Publish queue · social distribution", pageTitleSuffix: "Marketing Automation" } },
-          { prefix: "/apps-tools/content-factory", meta: { kicker: "Apps & Tools", staticSubtitle: "Content Pack Factory · Pipeline", pageTitleSuffix: "Apps & Tools" } },
+          { prefix: "/apps-tools/content-factory", meta: { kicker: "Apps & Tools", staticSubtitle: "Pack Factory · Research", pageTitleSuffix: "Apps & Tools" } },
           { prefix: "/apps-tools/trading-automation", meta: { kicker: "Apps & Tools", staticSubtitle: "Trading cockpit · live lane", pageTitleSuffix: "Trading Automation" } },
           { prefix: "/apps-tools/browser-automation", meta: { kicker: "Apps & Tools", staticSubtitle: "Operator-approved browser harness", pageTitleSuffix: "Browser Automation" } },
           { prefix: "/apps-tools/research-workspace", meta: { kicker: "Apps & Tools", staticSubtitle: "Briefing-first research lane", pageTitleSuffix: "Research Workspace" } },

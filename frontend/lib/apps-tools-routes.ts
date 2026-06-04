@@ -4,7 +4,7 @@ export type AppsToolsPrimarySection = "module_index" | "skill_factory" | "conten
 
 export type SkillFactoryTab = "research" | "queue" | "library" | "launch" | "settings" | "guide";
 
-export type ContentPackFactoryTab = "pipeline" | "guide";
+export type ContentPackFactoryTab = "research" | "queue" | "library" | "settings" | "guide";
 
 export const APPS_TOOLS_MODULE_INDEX_HREF = "/apps-tools";
 
@@ -22,7 +22,10 @@ export const SKILL_FACTORY_TABS: { id: SkillFactoryTab; label: string }[] = [
 ];
 
 export const CONTENT_PACK_FACTORY_TABS: { id: ContentPackFactoryTab; label: string }[] = [
-  { id: "pipeline", label: "Pipeline" },
+  { id: "research", label: "Research" },
+  { id: "queue", label: "Queue" },
+  { id: "library", label: "Library" },
+  { id: "settings", label: "Settings" },
   { id: "guide", label: "Guide" },
 ];
 
@@ -72,8 +75,8 @@ export function resolveSkillFactoryTab(options: { hash?: string; fallback?: Skil
 
 export function contentPackFactoryTabFromHash(hash: string): ContentPackFactoryTab | null {
   const key = hash.replace(/^#/, "").trim().toLowerCase();
-  if (key === "pack-factory") {
-    return "pipeline";
+  if (key === "pack-factory" || key === "pipeline") {
+    return "research";
   }
   if (!key || !CONTENT_PACK_FACTORY_TAB_IDS.has(key)) {
     return null;
@@ -103,7 +106,7 @@ export function resolveContentPackFactoryTab(options: {
   if (fromHash) {
     return fromHash;
   }
-  return options.fallback ?? "pipeline";
+  return options.fallback ?? "research";
 }
 
 /** True when pathname should use the Apps & Tools shell (index + factory modules). */

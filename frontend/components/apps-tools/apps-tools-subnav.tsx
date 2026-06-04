@@ -49,7 +49,7 @@ export function AppsToolsSubnav(): JSX.Element | null {
         id: "content_factory",
         label: "Pack Factory",
         icon: Package,
-        href: contentPackFactoryTabHref("pipeline"),
+        href: contentPackFactoryTabHref("research"),
       });
     }
     return rows;
@@ -78,7 +78,7 @@ export function AppsToolsSubnav(): JSX.Element | null {
         id: row.id,
         label: row.label,
         badge:
-          row.id === "pipeline" && packQueueBadge !== undefined && packQueueBadge > 0 ? packQueueBadge : undefined,
+          row.id === "queue" && packQueueBadge !== undefined && packQueueBadge > 0 ? packQueueBadge : undefined,
       }));
     }
     return [];
@@ -91,7 +91,7 @@ export function AppsToolsSubnav(): JSX.Element | null {
         return;
       }
       if (id === "content_factory") {
-        router.push(contentPackFactoryTabHref("pipeline"));
+        router.push(contentPackFactoryTabHref("research"));
         return;
       }
       router.push(APPS_TOOLS_MODULE_INDEX_HREF);

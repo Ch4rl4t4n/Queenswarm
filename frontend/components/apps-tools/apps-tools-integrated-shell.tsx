@@ -1,26 +1,18 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { usePathname } from "next/navigation";
 
 import { AppsToolsSubnav } from "@/components/apps-tools/apps-tools-subnav";
 import { SkillFactoryNavProvider } from "@/components/apps-tools/skill-factory-nav-context";
 import { HivePageShell } from "@/components/hive/hive-page-shell";
 import { HiveSubnavContent } from "@/components/hive/hive-subnav-stack";
-import { appsToolsShellActiveForPathname } from "@/lib/apps-tools-routes";
 
-interface AppsToolsLayoutClientProps {
+interface AppsToolsIntegratedShellProps {
   children: ReactNode;
 }
 
-/** Shared Apps & Tools shell for module index and factory modules; other module workspaces pass through. */
-export function AppsToolsLayoutClient({ children }: AppsToolsLayoutClientProps): JSX.Element {
-  const pathname = usePathname();
-
-  if (!appsToolsShellActiveForPathname(pathname)) {
-    return <>{children}</>;
-  }
-
+/** Shared Apps & Tools shell for module index, Skill Factory, and Pack Factory. */
+export function AppsToolsIntegratedShell({ children }: AppsToolsIntegratedShellProps): JSX.Element {
   return (
     <SkillFactoryNavProvider>
       <HivePageShell

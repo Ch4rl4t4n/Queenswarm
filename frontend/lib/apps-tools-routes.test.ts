@@ -35,10 +35,11 @@ describe("apps-tools-routes", () => {
   });
 
   it("resolves content pack factory tabs from hash", () => {
-    expect(contentPackFactoryTabFromHash("#pipeline")).toBe("pipeline");
-    expect(contentPackFactoryTabFromHash("#pack-factory")).toBe("pipeline");
-    expect(contentPackFactoryTabFromHash("#guide")).toBe("guide");
-    expect(resolveContentPackFactoryTab({ hash: "" })).toBe("pipeline");
+    expect(contentPackFactoryTabFromHash("#research")).toBe("research");
+    expect(contentPackFactoryTabFromHash("#pack-factory")).toBe("research");
+    expect(contentPackFactoryTabFromHash("#pipeline")).toBe("research");
+    expect(contentPackFactoryTabFromHash("#queue")).toBe("queue");
+    expect(resolveContentPackFactoryTab({ hash: "" })).toBe("research");
     expect(contentPackFactoryTabHref("guide")).toBe("/apps-tools/content-factory#guide");
   });
 });

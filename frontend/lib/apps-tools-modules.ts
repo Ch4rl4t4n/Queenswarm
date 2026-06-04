@@ -40,7 +40,7 @@ export const APPS_TOOLS_MODULES: AppsToolsModuleDef[] = [
     summary: "Niche social/content harness packs — same eval lane as Skill Factory.",
     status: "beta",
     tier: "core",
-    href: "/apps-tools/content-factory#pipeline",
+    href: "/apps-tools/content-factory#research",
     capabilityKeys: ["apps.content.factory.v1"],
   },
   {

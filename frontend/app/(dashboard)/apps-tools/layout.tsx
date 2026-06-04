@@ -1,11 +1,10 @@
 import type { ReactNode } from "react";
 
-import { AppsToolsLayoutClient } from "@/components/apps-tools/apps-tools-layout-client";
-
 interface AppsToolsLayoutProps {
   children: ReactNode;
 }
 
-export default function AppsToolsLayout({ children }: AppsToolsLayoutProps) {
-  return <AppsToolsLayoutClient>{children}</AppsToolsLayoutClient>;
+/** Passthrough — integrated shell lives in `(integrated)/layout.tsx`; module workspaces keep own HivePageShell. */
+export default function AppsToolsLayout({ children }: AppsToolsLayoutProps): JSX.Element {
+  return <>{children}</>;
 }

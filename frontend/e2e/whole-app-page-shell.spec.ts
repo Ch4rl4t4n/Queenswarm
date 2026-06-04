@@ -34,7 +34,7 @@ test.describe("Whole-App page shell — zone headers", () => {
   }
 
   test("Apps & Tools factory modules use shared shell", async ({ page }) => {
-    const factoryRoutes = ["/apps-tools/skill-factory#launch", "/apps-tools/content-factory#pipeline"];
+    const factoryRoutes = ["/apps-tools/skill-factory#launch", "/apps-tools/content-factory#research"];
 
     await page.setViewportSize({ width: 1280, height: 900 });
 

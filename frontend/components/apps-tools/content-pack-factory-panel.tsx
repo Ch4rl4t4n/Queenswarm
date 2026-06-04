@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { DownloadIcon, Loader2Icon, PlayIcon, SparklesIcon, StoreIcon, XIcon } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { ContentPackFactoryManualPanel } from "@/components/apps-tools/content-pack-factory-manual-panel";
@@ -276,6 +276,22 @@ export function ContentPackFactoryPanel({
     setNicheInput("");
   };
 
+  const opportunities = snapshot?.opportunities ?? [];
+  const library = snapshot?.library ?? [];
+  const researchRows = useMemo(
+    () => opportunities.filter((row) => row.status === "pending"),
+    [opportunities],
+  );
+  const queueRows = useMemo(
+    () =>
+      opportunities.filter((row) =>
+        ["queued", "building", "awaiting_forge", "failed"].includes(row.status),
+      ),
+    [opportunities],
+  );
+  const failedCount = opportunities.filter((row) => row.status === "failed").length;
+  const buildBlocked = factoryBuildDisabled(snapshot?.llm);
+
   if (loading && !snapshot) {
     return (
       <div className="qs-bubble flex min-h-[12rem] items-center justify-center gap-2 p-6 text-sm text-white/60">
@@ -285,133 +301,153 @@ export function ContentPackFactoryPanel({
     );
   }
 
-  const opportunities = snapshot?.opportunities ?? [];
-  const library = snapshot?.library ?? [];
-  const failedCount = opportunities.filter((row) => row.status === "failed").length;
-  const buildBlocked = factoryBuildDisabled(snapshot?.llm);
+  const renderOpportunityRow = (row: ContentPackOpportunityRow) => (
+    <div key={row.id} className="qs-bubble flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-medium text-white">{row.title}</span>
+          <V4Badge tone="info">{opportunityStatusLabel(row)}</V4Badge>
+          <V4Badge tone="gold">{scorePct(row.composite_score)}</V4Badge>
+          <V4Badge tone="info">{priceEur(row.suggested_price_eur_cents)}</V4Badge>
+        </div>
+        <p className="mt-1 text-xs text-white/50 line-clamp-2">{row.rationale}</p>
+      </div>
+      <div className="flex shrink-0 flex-wrap gap-2">
+        {row.forge_suggestion_id ? (
+          <Link href={`/agents?forge=${row.forge_suggestion_id}`} className="qs-btn qs-btn--primary qs-btn--sm">
+            Review forge
+          </Link>
+        ) : null}
+        {row.supervisor_session_id && row.status === "building" ? (
+          <Link
+            href={supervisorSessionAgentsHref(row.supervisor_session_id)}
+            className="qs-btn qs-btn--ghost qs-btn--sm"
+          >
+            Open session
+          </Link>
+        ) : null}
+        {row.status === "pending" || row.status === "queued" ? (
+          <button
+            type="button"
+            className="qs-btn qs-btn--primary qs-btn--sm"
+            disabled={busyId === row.id || buildBlocked}
+            title={buildBlocked ? snapshot?.llm?.recommended_action : undefined}
+            onClick={() => void startBuild(row.id)}
+          >
+            {busyId === row.id ? <Loader2Icon className="size-3.5 animate-spin" /> : <PlayIcon className="size-3.5" />}
+            Build
+          </button>
+        ) : null}
+        {row.status !== "completed" && row.status !== "dismissed" ? (
+          <button
+            type="button"
+            className="qs-btn qs-btn--ghost qs-btn--sm"
+            disabled={busyId === row.id}
+            onClick={() => void dismissOpportunity(row.id)}
+            aria-label="Dismiss"
+          >
+            <XIcon className="size-3.5" />
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
 
   return (
     <div id="pack-factory" className="flex flex-col gap-4 scroll-mt-24">
       {activeTab === "guide" ? <ContentPackFactoryManualPanel /> : null}
 
-      {activeTab === "pipeline" ? (
+      {activeTab === "research" || activeTab === "queue" ? (
+        <FactoryLlmReadinessBanner
+          llm={snapshot?.llm}
+          onSmoked={(next) => setSnapshot((prev) => (prev ? { ...prev, llm: next } : prev))}
+        />
+      ) : null}
+
+      {activeTab === "research" ? (
         <>
-      <FactoryLlmReadinessBanner
-        llm={snapshot?.llm}
-        onSmoked={(next) => setSnapshot((prev) => (prev ? { ...prev, llm: next } : prev))}
-      />
-      <V4Card>
-        <V4CardHeader
-          title="Factory status"
-          description="Queue snapshot and research controls."
-          hint={sectionHintNode("contentPackFactoryResearch")}
-          actions={
-            <button
-              type="button"
-              className="qs-btn qs-btn--primary qs-btn--sm"
-              disabled={researchBusy}
-              onClick={() => void runResearch()}
-            >
-              {researchBusy ? <Loader2Icon className="size-3.5 animate-spin" /> : <SparklesIcon className="size-3.5" />}
-              Run research
-            </button>
-          }
-        />
-        <div className="space-y-3 px-4 pb-4 text-sm text-white/70">
-          <div className="flex flex-wrap gap-2">
-            <V4Chip>Queue {snapshot?.queue_count ?? 0}</V4Chip>
-            <V4Chip>Building {snapshot?.building_count ?? 0}</V4Chip>
-            <V4Chip>Research keys {snapshot?.research_keys_configured ? "OK" : "optional"}</V4Chip>
-            {failedCount > 0 ? <V4Badge tone="warn">{failedCount} failed</V4Badge> : null}
-          </div>
-          <p className="flex flex-wrap items-center gap-1 text-xs text-white/50">
-            Builds use Grok (xAI) as primary — run smoke test before Build.
-            <InfoHint
-              title="Grok required"
-              description="Skill/Content Pack Factory uses your Grok API key. Claude and OpenAI are optional fallbacks only."
-              options={[
-                "Settings → AI · LLM keys — Grok must show vault + CONNECTED",
-                "Run smoke test in Skill Factory or Pack factory",
-              ]}
-              manualHref="/manual#content-pack-factory"
-              className="hive-inline-hint"
+          <V4Card>
+            <V4CardHeader
+              title="Factory status"
+              description="Queue snapshot and research controls."
+              hint={sectionHintNode("contentPackFactoryResearch")}
+              actions={
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--primary qs-btn--sm"
+                  disabled={researchBusy}
+                  onClick={() => void runResearch()}
+                >
+                  {researchBusy ? <Loader2Icon className="size-3.5 animate-spin" /> : <SparklesIcon className="size-3.5" />}
+                  Run research
+                </button>
+              }
             />
-          </p>
-        </div>
-      </V4Card>
-
-      <V4Card>
-        <V4CardHeader
-          title="Research queue"
-          description="Ranked niches ready for factory builds."
-          hint={sectionHintNode("contentPackFactoryQueue")}
-        />
-        <div className="space-y-2 px-4 pb-4">
-          {opportunities.length === 0 ? (
-            <p className="text-sm text-white/50">No opportunities — run research or add niche seeds below.</p>
-          ) : (
-            opportunities.map((row) => (
-              <div key={row.id} className="qs-bubble flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium text-white">{row.title}</span>
-                    <V4Badge tone="info">{opportunityStatusLabel(row)}</V4Badge>
-                    <V4Badge tone="gold">{scorePct(row.composite_score)}</V4Badge>
-                    <V4Badge tone="info">{priceEur(row.suggested_price_eur_cents)}</V4Badge>
-                  </div>
-                  <p className="mt-1 text-xs text-white/50 line-clamp-2">{row.rationale}</p>
-                </div>
-                <div className="flex shrink-0 flex-wrap gap-2">
-                  {row.forge_suggestion_id ? (
-                    <Link href={`/agents?forge=${row.forge_suggestion_id}`} className="qs-btn qs-btn--primary qs-btn--sm">
-                      Review forge
-                    </Link>
-                  ) : null}
-                  {row.supervisor_session_id && row.status === "building" ? (
-                    <Link
-                      href={supervisorSessionAgentsHref(row.supervisor_session_id)}
-                      className="qs-btn qs-btn--ghost qs-btn--sm"
-                    >
-                      Open session
-                    </Link>
-                  ) : null}
-                  {row.status === "pending" || row.status === "queued" ? (
-                    <button
-                      type="button"
-                      className="qs-btn qs-btn--primary qs-btn--sm"
-                      disabled={busyId === row.id || buildBlocked}
-                      title={buildBlocked ? snapshot?.llm?.recommended_action : undefined}
-                      onClick={() => void startBuild(row.id)}
-                    >
-                      {busyId === row.id ? <Loader2Icon className="size-3.5 animate-spin" /> : <PlayIcon className="size-3.5" />}
-                      Build
-                    </button>
-                  ) : null}
-                  {row.status !== "completed" && row.status !== "dismissed" ? (
-                    <button
-                      type="button"
-                      className="qs-btn qs-btn--ghost qs-btn--sm"
-                      disabled={busyId === row.id}
-                      onClick={() => void dismissOpportunity(row.id)}
-                      aria-label="Dismiss"
-                    >
-                      <XIcon className="size-3.5" />
-                    </button>
-                  ) : null}
-                </div>
+            <div className="space-y-3 px-4 pb-4 text-sm text-white/70">
+              <div className="flex flex-wrap gap-2">
+                <V4Chip>Queue {snapshot?.queue_count ?? 0}</V4Chip>
+                <V4Chip>Building {snapshot?.building_count ?? 0}</V4Chip>
+                <V4Chip>Research keys {snapshot?.research_keys_configured ? "OK" : "optional"}</V4Chip>
+                {failedCount > 0 ? <V4Badge tone="warn">{failedCount} failed</V4Badge> : null}
               </div>
-            ))
-          )}
-        </div>
-      </V4Card>
+              <p className="flex flex-wrap items-center gap-1 text-xs text-white/50">
+                Builds use Grok (xAI) as primary — run smoke test before Build.
+                <InfoHint
+                  title="Grok required"
+                  description="Skill/Content Pack Factory uses your Grok API key. Claude and OpenAI are optional fallbacks only."
+                  options={[
+                    "Settings → AI · LLM keys — Grok must show vault + CONNECTED",
+                    "Run smoke test in Skill Factory or Pack Factory",
+                  ]}
+                  manualHref="/manual#content-pack-factory"
+                  className="hive-inline-hint"
+                />
+              </p>
+            </div>
+          </V4Card>
 
-      <V4Card>
-        <V4CardHeader
-          title="Library"
-          description="Verified packs — export bundles for Gumroad."
-          hint={sectionHintNode("contentPackFactoryLibrary")}
-        />
-        <div className="space-y-2 px-4 pb-4">
+          <V4Card>
+            <V4CardHeader
+              title="Market opportunities"
+              description="Ranked niches ready for factory builds."
+              hint={sectionHintNode("contentPackFactoryQueue")}
+            />
+            <div className="space-y-2 px-4 pb-4">
+              {researchRows.length === 0 ? (
+                <p className="text-sm text-white/50">No pending niches — run research or add niche seeds in Settings.</p>
+              ) : (
+                researchRows.map((row) => renderOpportunityRow(row))
+              )}
+            </div>
+          </V4Card>
+        </>
+      ) : null}
+
+      {activeTab === "queue" ? (
+        <V4Card>
+          <V4CardHeader
+            title="Build queue"
+            description="Active builds, forge review, and failed runs."
+            hint={sectionHintNode("contentPackFactoryQueue")}
+          />
+          <div className="space-y-2 px-4 pb-4">
+            {queueRows.length === 0 ? (
+              <p className="text-sm text-white/50">Nothing in queue — start from Research tab.</p>
+            ) : (
+              queueRows.map((row) => renderOpportunityRow(row))
+            )}
+          </div>
+        </V4Card>
+      ) : null}
+
+      {activeTab === "library" ? (
+        <V4Card>
+          <V4CardHeader
+            title="Library"
+            description="Verified packs — export bundles for Gumroad."
+            hint={sectionHintNode("contentPackFactoryLibrary")}
+          />
+          <div className="space-y-2 px-4 pb-4">
           {library.length === 0 ? (
             <p className="text-sm text-white/50">No packs yet. Complete a build and approve the forge proposal.</p>
           ) : (
@@ -471,9 +507,10 @@ export function ContentPackFactoryPanel({
             ))
           )}
         </div>
-      </V4Card>
+        </V4Card>
+      ) : null}
 
-      {policyDraft ? (
+      {activeTab === "settings" && policyDraft ? (
         <V4Card>
           <V4CardHeader
             title="Automation policy"
@@ -568,8 +605,6 @@ export function ContentPackFactoryPanel({
             </button>
           </div>
         </V4Card>
-      ) : null}
-        </>
       ) : null}
     </div>
   );

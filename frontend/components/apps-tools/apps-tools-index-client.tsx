@@ -908,7 +908,7 @@ export function AppsToolsIndexClient() {
           <Link href="/apps-tools/skill-factory#launch" className="qs-btn qs-btn--primary qs-btn--sm">
             Skill Factory → Launch
           </Link>
-          <Link href="/apps-tools/content-factory#pipeline" className="qs-btn qs-btn--ghost qs-btn--sm">
+          <Link href="/apps-tools/content-factory#research" className="qs-btn qs-btn--ghost qs-btn--sm">
             Content Pack Factory
           </Link>
           <Link href="/integrations?tab=hub" className="qs-btn qs-btn--ghost qs-btn--sm">

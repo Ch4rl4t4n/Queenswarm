@@ -10,7 +10,6 @@ import { ModulePolicyPackPill } from "@/components/apps-tools/module-policy-pack
 import {
   navigateContentPackFactoryTab,
   resolveContentPackFactoryTab,
-  type ContentPackFactoryTab,
 } from "@/lib/apps-tools-routes";
 import { FACTORY_BLUEPRINT_PATH, FACTORY_CROSS_LINK_LABELS } from "@/lib/factory-content-factory-routes";
 import { useRouteHash } from "@/lib/hooks/use-route-hash";
@@ -27,7 +26,7 @@ const ContentPackFactoryPanel = dynamic(
   },
 );
 
-/** Content Pack Factory — embedded in Apps & Tools shell (same nav pattern as Skill Factory). */
+/** Content Pack Factory — embedded in Apps & Tools integrated shell (same nav pattern as Skill Factory). */
 export function ContentFactoryPageClient(): JSX.Element {
   const routeHash = useRouteHash();
   const { setPackQueueBadge } = useSkillFactoryNav();
@@ -37,7 +36,7 @@ export function ContentFactoryPageClient(): JSX.Element {
 
   useEffect(() => {
     if (!routeHash && typeof window !== "undefined") {
-      navigateContentPackFactoryTab("pipeline");
+      navigateContentPackFactoryTab("research");
     }
   }, [routeHash]);
 
@@ -48,7 +47,7 @@ export function ContentFactoryPageClient(): JSX.Element {
     const params = new URLSearchParams(window.location.search);
     const legacySection = params.get("section");
     if (legacySection === "pack-factory" || legacySection === "pipeline") {
-      navigateContentPackFactoryTab("pipeline");
+      navigateContentPackFactoryTab("research");
     }
   }, []);
 
@@ -68,7 +67,7 @@ export function ContentFactoryPageClient(): JSX.Element {
             <ModulePolicyPackPill moduleKey="content_factory" />
           </div>
           <p className="mt-0.5 text-xs text-(--qs-text-3)">
-            Niche content harness packs — same eval + Gumroad export lane as Skill Factory.
+            Research → build → verify → export Gumroad-ready social packs.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -113,17 +112,6 @@ export function ContentFactoryPageClient(): JSX.Element {
         onError={setError}
         onQueueCountChange={onQueueCountChange}
       />
-
-      <details className="rounded-xl border border-white/10 bg-black/20 p-4 text-xs text-(--qs-text-3)">
-        <summary className="cursor-pointer font-medium text-(--qs-text-2)">Legacy lanes (frozen)</summary>
-        <p className="mt-2">
-          Media agency and Micro-SaaS factory are deprioritized. Use{" "}
-          <Link href="/integrations?tab=studio&section=lanes#media-agency" className="text-cyan underline">
-            Integrations → Studio
-          </Link>{" "}
-          if needed.
-        </p>
-      </details>
     </div>
   );
 }
