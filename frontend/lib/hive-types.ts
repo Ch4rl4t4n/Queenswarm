@@ -37,7 +37,7 @@ export interface SystemStatusPayload {
 /** Masked row from ``GET /api/v1/llm-keys``. */
 export interface LlmKeyMaskRow {
   id: string;
-  provider: "grok" | "anthropic" | "openai" | "deepgram" | "elevenlabs";
+  provider: "grok" | "anthropic" | "openai" | "openrouter" | "deepgram" | "elevenlabs";
   label: string;
   api_key_masked: string;
   model_default: string | null;

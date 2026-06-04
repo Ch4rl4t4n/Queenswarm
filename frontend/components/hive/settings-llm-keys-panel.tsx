@@ -14,7 +14,7 @@ import type { LlmKeyMaskRow } from "@/lib/hive-types";
 import { localizeDescription } from "@/lib/ui-copy";
 import { cn } from "@/lib/utils";
 
-type ProviderId = "grok" | "anthropic" | "openai" | "deepgram" | "elevenlabs";
+type ProviderId = "grok" | "anthropic" | "openai" | "openrouter" | "deepgram" | "elevenlabs";
 type SttProviderPreference = "auto" | "grok" | "deepgram" | "openai";
 type TtsProviderPreference = "auto" | "grok" | "elevenlabs" | "openai";
 
@@ -29,7 +29,7 @@ interface VoiceProviderPreferences {
   tts_tone: string;
 }
 
-const PROVIDERS: ProviderId[] = ["grok", "anthropic", "openai", "deepgram", "elevenlabs"];
+const PROVIDERS: ProviderId[] = ["grok", "anthropic", "openai", "openrouter", "deepgram", "elevenlabs"];
 
 const STT_PROVIDER_OPTIONS: readonly { value: SttProviderPreference; label: string }[] = [
   { value: "auto", label: "Auto (Grok -> Deepgram -> OpenAI)" },
@@ -99,6 +99,13 @@ const PROVIDER_COPY: Record<
       sk: "Volitelny fallback — factory bezne bezi na Grok.",
     },
   },
+  openrouter: {
+    title: { en: "OpenRouter - NVIDIA Nemotron", sk: "OpenRouter - NVIDIA Nemotron" },
+    hint: {
+      en: "Experimental eval route for open-weight agentic models. Default candidate: nvidia/nemotron-3-ultra-550b-a55b:free.",
+      sk: "Experimentalny eval route pre open-weight agenticke modely. Kandidat: nvidia/nemotron-3-ultra-550b-a55b:free.",
+    },
+  },
   deepgram: {
     title: { en: "Deepgram - STT", sk: "Deepgram - STT" },
     hint: { en: "Server-side speech-to-text for Ballroom voice input.", sk: "Serverovy speech-to-text pre hlasovy vstup v Ballroom." },
@@ -130,6 +137,12 @@ const PROVIDER_SKINS: Record<
     bgColor: "#0f1a14",
     borderColor: "rgb(0 255 136 / 0.28)",
     textColor: "#00FF88",
+  },
+  openrouter: {
+    logo: "OR",
+    bgColor: "#150f24",
+    borderColor: "rgb(255 0 170 / 0.32)",
+    textColor: "#FF00AA",
   },
   deepgram: {
     logo: "DG",
@@ -249,6 +262,7 @@ export function SettingsLlmKeysPanel() {
     grok: "",
     anthropic: "",
     openai: "",
+    openrouter: "",
     deepgram: "",
     elevenlabs: "",
   });
@@ -256,6 +270,7 @@ export function SettingsLlmKeysPanel() {
     grok: "",
     anthropic: "",
     openai: "",
+    openrouter: "",
     deepgram: "",
     elevenlabs: "",
   });
@@ -263,6 +278,7 @@ export function SettingsLlmKeysPanel() {
     grok: true,
     anthropic: false,
     openai: false,
+    openrouter: false,
     deepgram: false,
     elevenlabs: false,
   });
@@ -271,6 +287,7 @@ export function SettingsLlmKeysPanel() {
     grok: false,
     anthropic: false,
     openai: false,
+    openrouter: false,
     deepgram: false,
     elevenlabs: false,
   });
@@ -290,6 +307,7 @@ export function SettingsLlmKeysPanel() {
         grok: "",
         anthropic: "",
         openai: "",
+        openrouter: "",
         deepgram: "",
         elevenlabs: "",
       };
@@ -297,6 +315,7 @@ export function SettingsLlmKeysPanel() {
         grok: true,
         anthropic: false,
         openai: false,
+        openrouter: false,
         deepgram: false,
         elevenlabs: false,
       };
