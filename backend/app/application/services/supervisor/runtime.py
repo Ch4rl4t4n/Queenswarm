@@ -150,14 +150,15 @@ def detect_step_issues(
     text = output_text.strip()
     role_key = normalize_role(role)
     summary = dict(context_summary or {})
+    first_line = next((line.strip().lower() for line in text.splitlines() if line.strip()), "")
     is_factory_critic_verdict = (
         role_key == "critic"
         and (summary.get("skill_factory") is True or summary.get("content_pack_factory") is True)
-        and text.lower() in {"critic verdict: approve", "critic verdict: reject"}
+        and first_line in {"critic verdict: approve", "critic verdict: reject"}
     )
     if len(text) < 40 and not is_factory_critic_verdict:
         issues.append("bad_output")
-    else:
+    elif not is_factory_critic_verdict:
         head = text[:160].lower()
         if any(
             head.startswith(token) or f"\n{token}" in head

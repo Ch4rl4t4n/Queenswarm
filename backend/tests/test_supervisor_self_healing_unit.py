@@ -67,7 +67,12 @@ def test_detect_step_issues_when_skill_factory_critic_reject_then_not_bad_output
         retrieval_contract="",
         retrieval_sections=["coder draft"],
         selected_skills=["self-review-loop"],
-        output_text="Critic verdict: REJECT",
+        output_text=(
+            "Critic verdict: REJECT\n\n"
+            "---\n"
+            "Tool highlights:\n"
+            "- wikipedia: transient connector error"
+        ),
         role="critic",
         context_summary={"skill_factory": True},
     )
