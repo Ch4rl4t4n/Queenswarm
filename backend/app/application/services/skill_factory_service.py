@@ -112,6 +112,9 @@ class SkillOpportunityOut(BaseModel):
     supervisor_session_status: str | None = None
     forge_suggestion_id: str | None = None
     forge_review_status: str | None = None
+    forge_quality_passed: bool | None = None
+    forge_critic_approved: bool | None = None
+    forge_issues: list[str] = Field(default_factory=list)
     tenant_skill_id: str | None
     created_at: datetime
 
@@ -242,12 +245,31 @@ def _tenant_skill_out(
     )
 
 
+def _forge_payload_fields(forge: Any | None) -> tuple[bool | None, bool | None, list[str]]:
+    """Extract quality gate fields from verified_skill_forge suggestion."""
+
+    if forge is None:
+        return None, None, []
+    payload = dict(getattr(forge, "proposal_payload", None) or {})
+    quality = payload.get("quality_gate_passed")
+    critic = payload.get("critic_approved")
+    issues_raw = payload.get("issues")
+    return (
+        bool(quality) if quality is not None else None,
+        bool(critic) if critic is not None else None,
+        [str(i) for i in issues_raw[:6]] if isinstance(issues_raw, list) else [],
+    )
+
+
 def _opportunity_out(
     row: SkillOpportunityORM,
     *,
     supervisor_session_status: str | None = None,
     forge_suggestion_id: str | None = None,
     forge_review_status: str | None = None,
+    forge_quality_passed: bool | None = None,
+    forge_critic_approved: bool | None = None,
+    forge_issues: list[str] | None = None,
 ) -> SkillOpportunityOut:
     return SkillOpportunityOut(
         id=str(row.id),
@@ -265,6 +287,9 @@ def _opportunity_out(
         supervisor_session_status=supervisor_session_status,
         forge_suggestion_id=forge_suggestion_id,
         forge_review_status=forge_review_status,
+        forge_quality_passed=forge_quality_passed,
+        forge_critic_approved=forge_critic_approved,
+        forge_issues=list(forge_issues or []),
         tenant_skill_id=str(row.tenant_skill_id) if row.tenant_skill_id else None,
         created_at=row.created_at,
     )
@@ -650,9 +675,11 @@ async def compose_skill_factory_snapshot(
 
     hero_niches = len(policy.niche_seeds) >= 3
 
-    return SkillFactorySnapshotOut(
-        policy=policy,
-        opportunities=[
+    opportunity_out_rows: list[SkillOpportunityOut] = []
+    for row in opportunities:
+        forge = forge_rows_by_session.get(row.supervisor_session_id) if row.supervisor_session_id else None
+        forge_quality_passed, forge_critic_approved, forge_issues = _forge_payload_fields(forge)
+        opportunity_out_rows.append(
             _opportunity_out(
                 row,
                 supervisor_session_status=session_status_by_opp.get(row.id),
@@ -662,13 +689,17 @@ async def compose_skill_factory_snapshot(
                     else None
                 ),
                 forge_review_status=(
-                    str(forge_rows_by_session[row.supervisor_session_id].status or "").strip().lower()
-                    if row.supervisor_session_id and row.supervisor_session_id in forge_rows_by_session
-                    else None
+                    str(forge.status or "").strip().lower() if forge is not None else None
                 ),
-            )
-            for row in opportunities
-        ],
+                forge_quality_passed=forge_quality_passed,
+                forge_critic_approved=forge_critic_approved,
+                forge_issues=forge_issues,
+            ),
+        )
+
+    return SkillFactorySnapshotOut(
+        policy=policy,
+        opportunities=opportunity_out_rows,
         library=library_out,
         queue_count=queue_count,
         building_count=building_count,

@@ -57,6 +57,9 @@ interface SkillOpportunityRow {
   supervisor_session_status: string | null;
   forge_suggestion_id: string | null;
   forge_review_status?: string | null;
+  forge_quality_passed?: boolean | null;
+  forge_critic_approved?: boolean | null;
+  forge_issues?: string[];
   tenant_skill_id: string | null;
 }
 
@@ -568,6 +571,23 @@ export function SkillFactoryPageClient(): JSX.Element {
                   <li key={row.id} className="rounded-xl border border-cyan/25 bg-cyan/5 px-3 py-3 text-sm">
                     <p className="font-medium">{row.title}</p>
                     <p className="mt-1 text-xs text-(--qs-text-3)">Status: {opportunityStatusLabel(row)}</p>
+                    {row.status === "awaiting_forge" && (row.forge_quality_passed != null || row.forge_issues?.length) ? (
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px]">
+                        {row.forge_quality_passed != null ? (
+                          <V4Badge tone={row.forge_quality_passed ? "ok" : "warn"}>
+                            quality {row.forge_quality_passed ? "pass" : "fail"}
+                          </V4Badge>
+                        ) : null}
+                        {row.forge_critic_approved != null ? (
+                          <V4Badge tone={row.forge_critic_approved ? "ok" : "warn"}>
+                            critic {row.forge_critic_approved ? "APPROVE" : "REJECT"}
+                          </V4Badge>
+                        ) : null}
+                        {row.forge_issues && row.forge_issues.length > 0 ? (
+                          <span className="font-mono text-(--qs-text-4)">{row.forge_issues.slice(0, 3).join(", ")}</span>
+                        ) : null}
+                      </div>
+                    ) : null}
                     {row.status === "awaiting_forge" ? (
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         {row.tenant_skill_id ? (
@@ -582,7 +602,16 @@ export function SkillFactoryPageClient(): JSX.Element {
                           <button
                             type="button"
                             className="qs-btn qs-btn--primary qs-btn--sm"
-                            disabled={busyId === row.id}
+                            disabled={
+                              busyId === row.id
+                              || row.forge_quality_passed === false
+                              || row.forge_critic_approved === false
+                            }
+                            title={
+                              row.forge_quality_passed === false || row.forge_critic_approved === false
+                                ? "Reject forge — critic APPROVE + valid SKILL required"
+                                : undefined
+                            }
                             onClick={() => void approveForge(row.forge_suggestion_id!, row.id)}
                           >
                             Approve skill

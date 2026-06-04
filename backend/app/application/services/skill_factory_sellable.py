@@ -128,10 +128,16 @@ def assess_tenant_skill_sellable(
     )
 
 
-def launch_queue_sort_key(item: dict[str, Any]) -> tuple[float, str]:
+def launch_queue_sort_key(item: dict[str, Any] | Any) -> tuple[float, str]:
     """Sort launch queue rows by score desc then title."""
 
-    return (-float(item.get("sellable_score") or 0.0), str(item.get("title") or ""))
+    if isinstance(item, dict):
+        score = item.get("sellable_score") or 0.0
+        title = item.get("title") or ""
+    else:
+        score = getattr(item, "sellable_score", 0.0) or 0.0
+        title = getattr(item, "title", "") or ""
+    return (-float(score), str(title))
 
 
 def forge_quality_from_payload(payload: dict[str, Any] | None) -> dict[str, Any] | None:

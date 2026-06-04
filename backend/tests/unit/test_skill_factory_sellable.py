@@ -42,6 +42,14 @@ def test_assess_tenant_skill_sellable_when_generic_slug_then_draft_or_rejected()
     assert "generic_factory_slug" in result.issues
 
 
+def test_launch_queue_sort_key_accepts_pydantic_out() -> None:
+    from app.application.services.skill_factory_sellable import launch_queue_sort_key
+
+    a = SimpleNamespace(sellable_score=0.9, title="Alpha")
+    b = SimpleNamespace(sellable_score=0.5, title="Beta")
+    assert launch_queue_sort_key(a) < launch_queue_sort_key(b)
+
+
 def test_assess_tenant_skill_sellable_when_forge_quality_failed_then_not_recommended() -> None:
     result = assess_tenant_skill_sellable(
         _skill(),  # type: ignore[arg-type]

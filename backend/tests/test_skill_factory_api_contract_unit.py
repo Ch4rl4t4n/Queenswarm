@@ -35,6 +35,13 @@ def test_snapshot_out_includes_connector_flags() -> None:
         assert required in fields
 
 
+def test_opportunity_out_includes_forge_quality_fields() -> None:
+    from app.application.services.skill_factory_service import SkillOpportunityOut
+
+    fields = set(SkillOpportunityOut.model_fields.keys())
+    assert {"forge_quality_passed", "forge_critic_approved", "forge_issues"} <= fields
+
+
 def test_launch_prepare_out_in_snapshot_contract_fields() -> None:
     """Launch prepare API uses LaunchPrepareOut — not embedded in snapshot."""
 
