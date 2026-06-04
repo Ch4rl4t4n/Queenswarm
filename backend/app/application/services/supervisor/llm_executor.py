@@ -239,6 +239,10 @@ async def execute_supervisor_sub_agent_llm(
         from app.application.services.skill_factory_session_prompts import build_coder_factory_execute_instruction
 
         execute_instruction = build_coder_factory_execute_instruction()
+    elif factory_lane and role.lower() == "critic":
+        from app.application.services.skill_factory_session_prompts import build_critic_factory_execute_instruction
+
+        execute_instruction = build_critic_factory_execute_instruction()
     elif content_pack_lane and role.lower() == "coder":
         execute_instruction = build_content_pack_coder_execute_instruction()
     elif content_pack_lane and role.lower() == "researcher":

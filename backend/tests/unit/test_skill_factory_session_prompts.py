@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from app.application.services.skill_factory_session_prompts import (
     build_coder_factory_execute_instruction,
+    build_critic_factory_execute_instruction,
     build_critic_factory_user_block,
     is_skill_factory_context,
 )
@@ -19,6 +20,14 @@ def test_build_critic_factory_user_block_requires_verdict_line() -> None:
     block = build_critic_factory_user_block(coder_draft="# Draft\n\n1. Step")
     assert "Critic verdict: APPROVE" in block
     assert "Critic verdict: REJECT" in block
+
+
+def test_build_critic_factory_execute_instruction_blocks_hivemind_format() -> None:
+    text = build_critic_factory_execute_instruction()
+    assert "Do not return HiveMind" in text
+    assert "[INSIGHT]" not in text
+    assert "Critic verdict: APPROVE" in text
+    assert "Critic verdict: REJECT" in text
 
 
 def test_should_enqueue_only_first_sub_agent_for_factory() -> None:

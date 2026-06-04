@@ -35,6 +35,17 @@ def build_coder_factory_execute_instruction() -> str:
     )
 
 
+def build_critic_factory_execute_instruction() -> str:
+    """Mandatory response format for factory critic sub-agent."""
+
+    return (
+        "Execute now. Review only the Skill Factory coder draft. Do not return HiveMind findings, "
+        "Finding blocks, insight write-backs, or research notes. If the draft satisfies the required "
+        "SKILL.md quality bar, end with exactly `Critic verdict: APPROVE` on its own final line. "
+        "Otherwise end with exactly `Critic verdict: REJECT` on its own final line."
+    )
+
+
 def build_critic_factory_user_block(*, coder_draft: str) -> str:
     """Extra critic context for Skill Factory quality gate."""
 
@@ -132,6 +143,7 @@ async def load_coder_draft_for_factory(
 
 __all__ = [
     "build_coder_factory_execute_instruction",
+    "build_critic_factory_execute_instruction",
     "build_critic_factory_user_block",
     "enqueue_next_factory_sub_agent",
     "is_skill_factory_context",
