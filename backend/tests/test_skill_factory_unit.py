@@ -101,6 +101,10 @@ async def test_start_factory_build_uses_stateless_shared_context(monkeypatch) ->
         "app.application.services.skill_factory_service._load_product_mission_workflow",
         AsyncMock(return_value={"seed_key": "PRODUCT_MISSION", "steps": []}),
     )
+    monkeypatch.setattr(
+        "app.application.services.factory_llm_readiness_service.assert_factory_build_llm_ready",
+        AsyncMock(return_value=None),
+    )
 
     result = await start_factory_build(
         session,
