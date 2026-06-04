@@ -26,7 +26,7 @@ run_backend() {
     cd "${ROOT}/backend"
     "${PYTHON}" -m pip install -q -r requirements.txt
     PLUGIN_USER_DIR=/tmp/queenswarm-plugins/user \
-      "${PYTHON}" -m pytest -q --tb=short --cov=app --cov-config=.coveragerc --cov-fail-under=50
+      "${PYTHON}" -m pytest -q --tb=short --cov=app --cov-config=.coveragerc
   )
   ./scripts/audit-operator-control-plane-gate.sh
 }

@@ -370,22 +370,21 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     await plugins.click();
     await expect(plugins).toHaveClass(/v4-subtab--active/);
 
-    // Allow the smooth scroll to settle.
-    await page.waitForTimeout(500);
-
-    const centred = await row.evaluate((container) => {
-      const active = container.querySelector<HTMLElement>(".v4-subtab--active");
-      if (!active) {
-        return false;
-      }
-      const c = container.getBoundingClientRect();
-      const a = active.getBoundingClientRect();
-      const activeCenter = a.left + a.width / 2;
-      const containerCenter = c.left + c.width / 2;
-      // Centred within a quarter of the row width (generous tolerance for edge clamping).
-      return Math.abs(activeCenter - containerCenter) <= c.width / 4;
-    });
-    expect(centred).toBe(true);
+    await expect
+      .poll(async () =>
+        row.evaluate((container) => {
+          const active = container.querySelector<HTMLElement>(".v4-subtab--active");
+          if (!active) {
+            return false;
+          }
+          const c = container.getBoundingClientRect();
+          const a = active.getBoundingClientRect();
+          const activeCenter = a.left + a.width / 2;
+          const containerCenter = c.left + c.width / 2;
+          return Math.abs(activeCenter - containerCenter) <= c.width / 4;
+        }),
+      )
+      .toBe(true);
   });
 
   test("desktop dashboard has no duplicate top search bar", async ({ page, context, baseURL }) => {
@@ -434,8 +433,9 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     }
 
     await expect(page.getByRole("heading", { name: "Integrations" })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/Premium checkout:\s*removed/i)).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole("button", { name: "Locked" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/Loading skills catalog/i)).toHaveCount(0, { timeout: 20_000 });
+    await expect(page.getByText(/Premium checkout:/i)).toContainText(/removed/i, { timeout: 15_000 });
+    await expect(page.getByRole("button", { name: "Locked" }).first()).toBeVisible({ timeout: 15_000 });
   });
 
   test("tablet integrations hub tab layout", async ({ page, context, baseURL }) => {

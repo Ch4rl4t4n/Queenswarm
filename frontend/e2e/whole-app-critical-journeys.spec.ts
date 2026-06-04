@@ -20,7 +20,11 @@ async function gotoShellRoute(
   path: string,
   options?: { waitForMobileNav?: boolean },
 ): Promise<void> {
+  const pathname = path.split("?")[0]?.split("#")[0] ?? path;
   await page.goto(path, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  await expect(page).toHaveURL(new RegExp(`${pathname.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:[?#]|$)`), {
+    timeout: 45_000,
+  });
   await expect(page.locator('[data-hive-shell="canvas"], main').first()).toBeVisible({ timeout: 45_000 });
   if (options?.waitForMobileNav) {
     await expect(page.getByRole("navigation", { name: "Primary mobile navigation" })).toBeVisible({
@@ -111,8 +115,10 @@ test.describe("Whole-App critical journeys — desktop", () => {
       has: page.getByText("Skill Factory", { exact: true }),
     });
     await expect(skillFactoryCard).toBeVisible({ timeout: 30_000 });
-    await skillFactoryCard.getByRole("link", { name: "Configure" }).click();
-    await expect(page).toHaveURL(/\/apps-tools\/skill-factory/, { timeout: 45_000 });
+    await Promise.all([
+      page.waitForURL(/\/apps-tools\/skill-factory(?:[?#]|$)/, { timeout: 45_000 }),
+      skillFactoryCard.getByRole("link", { name: "Configure" }).click(),
+    ]);
     await assertShellTitle(page, "Apps & Tools");
   });
 

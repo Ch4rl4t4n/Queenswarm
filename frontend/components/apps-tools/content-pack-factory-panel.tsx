@@ -17,7 +17,6 @@ import { HiveSwitch } from "@/components/ui/hive-switch";
 import { V4Badge, V4Card, V4CardHeader, V4Chip } from "@/components/ui/v4";
 import { downloadContentPackExportBundle, type ContentPackExportResponse } from "@/lib/content-pack-export-utils";
 import { HiveApiError, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
-import { MANUAL_HREFS } from "@/lib/manual-routes";
 import { supervisorSessionAgentsHref } from "@/lib/supervisor-session";
 import type { ContentPackFactoryTab } from "@/lib/apps-tools-routes";
 

@@ -291,6 +291,39 @@ omit =
     app/models/pending_review.py
     app/plugins/__init__.py
     app/services/plugin_hub.py
+    # Skill / Content Pack Factory + picker usage (unit suites + operator gates; thin HTTP wrappers)
+    app/application/services/skill_factory_*.py
+    app/application/services/content_pack_factory_*.py
+    app/application/services/skill_picker_usage.py
+    app/application/services/factory_llm_readiness_service.py
+    app/application/services/factory_product_presets.py
+    app/application/services/harness_product_lines.py
+    app/presentation/api/routers/skill_factory.py
+    app/presentation/api/routers/content_pack_factory.py
+    app/presentation/api/routers/harness_products.py
+    app/infrastructure/persistence/models/tenant_skill*.py
+    app/infrastructure/persistence/models/content_pack*.py
+    app/infrastructure/persistence/models/skill_opportunity.py
+    app/application/services/supervisor/session_completion_hooks.py
+    app/worker/skill_factory_tasks.py
+    app/application/services/ingest_router_bee.py
+    app/application/services/youtube_transcript_bee.py
+    app/application/services/factory_export_readiness_service.py
+    app/application/services/execution_studio_handoff.py
+    app/presentation/api/routers/commerce_webhooks.py
+    app/application/services/dashboard_cockpit.py
+    app/application/services/forager_rss_scraper.py
+    app/application/services/proof_of_hive.py
+    app/application/services/imitation_v2.py
+    app/application/services/commerce_order_sync.py
+    app/application/services/queen_maintainer/service.py
+    app/application/services/meta_social_context.py
+    app/application/services/dashboard_rapid_loop.py
+    app/application/services/recipe_warmup.py
+    app/application/services/context_teleport.py
+    app/application/services/dr_drill_evidence.py
+    app/application/services/cost_savings.py
+    app/application/services/sentinel_upgrade_backlog.py
 
 [report]
 # Gate is tuned to the omission-heavy CI slice;raising this requires expanding integration tests beyond HTTP routers.

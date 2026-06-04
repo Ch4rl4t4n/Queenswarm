@@ -78,4 +78,21 @@ describe("hive-ia-canonical", () => {
     const swarmsLinks = agentic.items.filter((i) => i.href === "/swarms");
     expect(swarmsLinks).toHaveLength(1);
   });
+
+  it("keeps Pack Factory in Apps & Tools More group (not CANONICAL_MORE_ONLY orphan)", () => {
+    const orphanPaths = CANONICAL_MORE_ONLY_HREFS.map((href) => href.split("#")[0] ?? href);
+    expect(orphanPaths).not.toContain("/apps-tools/content-factory");
+
+    const groups = buildCanonicalNavGroups({
+      consolidatedEnabled: true,
+      operatorControlPlane: true,
+      advancedMonitoring: false,
+      simulationsEnabled: false,
+      recipesEnabled: false,
+    });
+    const appsTools = groups.find((g) => g.title === "Apps & Tools");
+    expect(appsTools).toBeDefined();
+    const packFactory = appsTools!.items.find((i) => i.label === "Pack Factory");
+    expect(packFactory?.href).toBe("/apps-tools/content-factory#research");
+  });
 });

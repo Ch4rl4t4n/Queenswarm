@@ -37,6 +37,22 @@ Also: `.cursorrules`, `.cursor/rules/*.mdc` — IDE-specific rules.
 
 Migrations before traffic switch. Health check must pass.
 
+## CI parity (avoid red emails)
+
+Before pushing to `main`, run the same gates GitHub Actions runs:
+
+```bash
+./scripts/ci-local.sh all              # backend (80% cov via .coveragerc) + frontend e2e subset + security
+./scripts/ci-local.sh --whole-app      # release gate (critical journeys + a11y)
+```
+
+**Common drift traps:**
+
+- `scripts/ci-local.sh` must not override `--cov-fail-under` — use `backend/.coveragerc` only (80%).
+- E2E stubs: do not set `skill_factory: true` globally in `shell-api-mocks.ts` — it hides Integrations **Skills export** tab.
+- IA: new Apps & Tools routes belong in `buildCanonicalNavGroups` Apps & Tools group, not `CANONICAL_MORE_ONLY_HREFS`.
+- E2E selectors: prefer `getByRole("heading", { name })` when subnav duplicates labels.
+
 ## Behavioral memory (tenant)
 
 Operators edit tenant `instructions` curated memory in **Settings → AI · harness** or **Knowledge → Curated memory**. Injected as `=== BEHAVIORAL INSTRUCTIONS ===` in Queen prompts.
