@@ -1,25 +1,26 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Activity, PackageCheck, Search } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { RefreshCwIcon } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ModulePolicyPackPill } from "@/components/apps-tools/module-policy-pack-pill";
-import { HivePageShell } from "@/components/hive/hive-page-shell";
-import { HiveSubnavRow } from "@/components/hive/hive-subnav-row";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
+import {
+  navigateMcpOpsStudioTab,
+  resolveMcpOpsStudioTab,
+  type McpOpsStudioTab,
+} from "@/lib/apps-tools-routes";
+import { useRouteHash } from "@/lib/hooks/use-route-hash";
 import { formatRelativeMinutes, resolveMcpSnapshotFreshness } from "@/lib/mcp-ops-observability";
 import { V4Card, V4CardHeader } from "@/components/ui/v4";
-import { scrollBehaviorForMotion } from "@/lib/motion-preferences";
 
 const ToolGapsPanel = dynamic(
   () => import("@/components/connectors/tool-gaps-panel").then((mod) => mod.ToolGapsPanel),
   { ssr: false },
 );
 
-type McpOpsSection = "catalog" | "install" | "health";
 type McpSectionState = "loading" | "ready" | "error";
 
 interface McpCatalogItem {
@@ -57,30 +58,10 @@ interface McpOpsStudioSnapshot {
   health: McpHealthItem[];
 }
 
-const SECTION_TO_HASH: Record<McpOpsSection, string> = {
-  catalog: "mcp-catalog",
-  install: "mcp-install",
-  health: "mcp-health",
-};
-
-function sectionFromHash(hash: string): McpOpsSection | null {
-  const key = hash.replace(/^#/, "").trim().toLowerCase();
-  if (key === "mcp-catalog") return "catalog";
-  if (key === "mcp-install") return "install";
-  if (key === "mcp-health") return "health";
-  return null;
-}
-
-function sectionFromQuery(raw: string | null): McpOpsSection | null {
-  if (raw === "catalog" || raw === "install" || raw === "health") {
-    return raw;
-  }
-  return null;
-}
-
-export function McpOpsStudioPageClient() {
-  const searchParams = useSearchParams();
-  const [section, setSection] = useState<McpOpsSection>("catalog");
+/** MCP Ops Studio — embedded in Apps & Tools integrated shell (Catalog · Install · Health subnav). */
+export function McpOpsStudioPageClient(): JSX.Element {
+  const routeHash = useRouteHash();
+  const section = useMemo(() => resolveMcpOpsStudioTab({ hash: routeHash }), [routeHash]);
   const [sectionState, setSectionState] = useState<McpSectionState>("loading");
   const [sectionError, setSectionError] = useState<string | null>(null);
   const [catalogItems, setCatalogItems] = useState<McpCatalogItem[]>([]);
@@ -90,30 +71,27 @@ export function McpOpsStudioPageClient() {
   const [reloadToken, setReloadToken] = useState(0);
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
   const [snapshotSource, setSnapshotSource] = useState<McpOpsStudioSnapshot["source"] | null>(null);
+
   const freshness = resolveMcpSnapshotFreshness(generatedAt);
   const freshnessLabel =
     freshness.tone === "fresh" ? "Fresh snapshot" : freshness.tone === "aging" ? "Aging snapshot" : "Stale snapshot";
 
-  const updateUrl = useCallback((next: McpOpsSection) => {
-    const hash = SECTION_TO_HASH[next];
-    window.history.replaceState(null, "", `/apps-tools/mcp-ops-studio?section=${next}#${hash}`);
+  useEffect(() => {
+    if (!routeHash && typeof window !== "undefined") {
+      navigateMcpOpsStudioTab("catalog");
+    }
+  }, [routeHash]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    const legacySection = params.get("section");
+    if (legacySection === "catalog" || legacySection === "install" || legacySection === "health") {
+      navigateMcpOpsStudioTab(legacySection as McpOpsStudioTab);
+    }
   }, []);
-
-  useEffect(() => {
-    const fromQuery = sectionFromQuery(searchParams.get("section"));
-    const fromHash = sectionFromHash(typeof window !== "undefined" ? window.location.hash : "");
-    const next = fromQuery ?? fromHash;
-    if (next) {
-      setSection(next);
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
-    const target = document.getElementById(SECTION_TO_HASH[section]);
-    if (target) {
-      target.scrollIntoView({ behavior: scrollBehaviorForMotion(), block: "start" });
-    }
-  }, [section]);
 
   useEffect(() => {
     let active = true;
@@ -154,63 +132,56 @@ export function McpOpsStudioPageClient() {
       source: "mcp_ops_studio_retry",
       href: typeof window !== "undefined" ? window.location.pathname + window.location.search : undefined,
     }).catch(() => {
-      // Retry telemetry is best-effort and must never block operators.
+      /* best-effort telemetry */
     });
     setReloadToken((current) => current + 1);
   }, []);
 
   return (
-    <HivePageShell
-      title="MCP Ops Studio"
-      subtitle="Catalog-first MCP provider operations lane for discovery, governed installs, and runtime health."
-      status={<ModulePolicyPackPill moduleKey="mcp_ops_studio" />}
-      actions={
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold text-(--qs-text)">MCP Ops Studio</p>
+            <ModulePolicyPackPill moduleKey="mcp_ops_studio" />
+          </div>
+          <p className="mt-0.5 text-xs text-(--qs-text-3)">
+            Catalog-first MCP provider operations — discovery, governed installs, and runtime health.
+          </p>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link href="/integrations?tab=hub&hubSection=roster" className="qs-btn qs-btn--ghost qs-btn--sm">
-            Open Integrations Hub
+            Integrations Hub
           </Link>
-          <Link href="/apps-tools" className="qs-btn qs-btn--ghost qs-btn--sm">
-            Back to Apps & Tools
-          </Link>
+          <button
+            type="button"
+            className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
+            onClick={() => setReloadToken((value) => value + 1)}
+          >
+            <RefreshCwIcon className="size-3.5" aria-hidden />
+            Refresh
+          </button>
         </div>
-      }
-      subnav={
-        <>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-(--qs-text-3)">
-            <p>
-              Snapshot source: {snapshotSource ?? "n/a"} · refreshed {formatRelativeMinutes(freshness.ageMinutes)}
-            </p>
-            <span
-              className={`rounded-full border px-2 py-0.5 ${
-                freshness.tone === "fresh"
-                  ? "border-emerald-300/45 bg-emerald-300/10 text-emerald-100"
-                  : freshness.tone === "aging"
-                    ? "border-amber-300/45 bg-amber-300/10 text-amber-100"
-                    : "border-red-300/45 bg-red-300/10 text-red-100"
-              }`}
-              aria-live="polite"
-            >
-              {freshnessLabel}
-            </span>
-          </div>
-          <HiveSubnavRow
-            items={[
-              { id: "catalog", label: "Catalog", icon: Search },
-              { id: "install", label: "Install queue", icon: PackageCheck },
-              { id: "health", label: "Health checks", icon: Activity },
-            ]}
-            activeId={section}
-            onChange={(id) => {
-              const next = id as McpOpsSection;
-              setSection(next);
-              updateUrl(next);
-            }}
-            ariaLabel="MCP ops studio sections"
-            menuKey="apps-tools-mcp-ops-studio"
-          />
-        </>
-      }
-    >
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 text-xs text-(--qs-text-3)">
+        <p>
+          Snapshot: {snapshotSource ?? "n/a"} · refreshed {formatRelativeMinutes(freshness.ageMinutes)}
+        </p>
+        <span
+          className={`rounded-full border px-2 py-0.5 ${
+            freshness.tone === "fresh"
+              ? "border-emerald-300/45 bg-emerald-300/10 text-emerald-100"
+              : freshness.tone === "aging"
+                ? "border-amber-300/45 bg-amber-300/10 text-amber-100"
+                : "border-red-300/45 bg-red-300/10 text-red-100"
+          }`}
+          aria-live="polite"
+        >
+          {freshnessLabel}
+        </span>
+      </div>
+
       {actionNotice ? (
         <div
           role="status"
@@ -223,7 +194,7 @@ export function McpOpsStudioPageClient() {
       {sectionState === "loading" ? (
         <V4Card>
           <V4CardHeader
-            title="Loading MCP Ops Studio section..."
+            title="Loading MCP Ops Studio…"
             description="Hydrating read-only backend snapshot for this workspace lane."
           />
           <div className="space-y-2" aria-hidden>
@@ -239,7 +210,7 @@ export function McpOpsStudioPageClient() {
             title="MCP Ops section unavailable"
             description="Read-only backend snapshot failed. Retry without mutating runtime state."
           />
-          <p className="text-sm text-(--qs-text-3)">{sectionError ?? "Unknown MCP mock error."}</p>
+          <p className="text-sm text-(--qs-text-3)">{sectionError ?? "Unknown MCP error."}</p>
           <div className="mt-3">
             <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={rerunSectionLoad}>
               Retry section load
@@ -248,7 +219,9 @@ export function McpOpsStudioPageClient() {
         </V4Card>
       ) : null}
 
-      {sectionState === "ready" ? <ToolGapsPanel onInstalled={() => setReloadToken((c) => c + 1)} /> : null}
+      {sectionState === "ready" && section === "catalog" ? (
+        <ToolGapsPanel onInstalled={() => setReloadToken((c) => c + 1)} />
+      ) : null}
 
       {section === "catalog" && sectionState === "ready" ? (
         <V4Card id="mcp-catalog">
@@ -370,6 +343,6 @@ export function McpOpsStudioPageClient() {
           </div>
         </V4Card>
       ) : null}
-    </HivePageShell>
+    </div>
   );
 }

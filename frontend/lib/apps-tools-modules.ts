@@ -50,7 +50,7 @@ export const APPS_TOOLS_MODULES: AppsToolsModuleDef[] = [
     summary: "MCP catalog, install queue, and tool health — harness integration layer.",
     status: "beta",
     tier: "core",
-    href: "/apps-tools/mcp-ops-studio",
+    href: "/apps-tools/mcp-ops-studio#catalog",
     capabilityKeys: ["apps.mcp.catalog.discover.v1"],
   },
   {

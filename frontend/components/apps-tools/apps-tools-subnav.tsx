@@ -1,6 +1,6 @@
 "use client";
 
-import { Boxes, Package, Sparkles } from "lucide-react";
+import { Boxes, Cable, Package, Sparkles } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useMemo } from "react";
 
@@ -12,18 +12,23 @@ import {
   appsToolsPrimaryFromPathname,
   CONTENT_PACK_FACTORY_TABS,
   contentPackFactoryTabHref,
+  MCP_OPS_STUDIO_TABS,
+  mcpOpsStudioTabHref,
   navigateContentPackFactoryTab,
+  navigateMcpOpsStudioTab,
   navigateSkillFactoryTab,
   resolveContentPackFactoryTab,
+  resolveMcpOpsStudioTab,
   resolveSkillFactoryTab,
   skillFactoryTabHref,
   SKILL_FACTORY_TABS,
   type ContentPackFactoryTab,
+  type McpOpsStudioTab,
   type SkillFactoryTab,
 } from "@/lib/apps-tools-routes";
 import { useRouteHash } from "@/lib/hooks/use-route-hash";
 
-/** Primary (Module index · Skill Factory · Pack Factory) + secondary factory tabs. */
+/** Primary (Module index · factories · MCP Ops) + secondary section tabs. */
 export function AppsToolsSubnav(): JSX.Element | null {
   const pathname = usePathname();
   const router = useRouter();
@@ -52,6 +57,12 @@ export function AppsToolsSubnav(): JSX.Element | null {
         href: contentPackFactoryTabHref("research"),
       });
     }
+    rows.push({
+      id: "mcp_ops_studio",
+      label: "MCP Ops",
+      icon: Cable,
+      href: mcpOpsStudioTabHref("catalog"),
+    });
     return rows;
   }, [skillFactoryEnabled]);
 
@@ -64,6 +75,8 @@ export function AppsToolsSubnav(): JSX.Element | null {
     () => resolveContentPackFactoryTab({ hash: routeHash }),
     [routeHash],
   );
+
+  const activeMcpOpsTab = useMemo(() => resolveMcpOpsStudioTab({ hash: routeHash }), [routeHash]);
 
   const secondaryItems = useMemo(() => {
     if (primarySection === "skill_factory" && skillFactoryEnabled) {
@@ -81,6 +94,9 @@ export function AppsToolsSubnav(): JSX.Element | null {
           row.id === "queue" && packQueueBadge !== undefined && packQueueBadge > 0 ? packQueueBadge : undefined,
       }));
     }
+    if (primarySection === "mcp_ops_studio") {
+      return MCP_OPS_STUDIO_TABS.map((row) => ({ id: row.id, label: row.label }));
+    }
     return [];
   }, [packQueueBadge, primarySection, queueBadge, skillFactoryEnabled]);
 
@@ -92,6 +108,10 @@ export function AppsToolsSubnav(): JSX.Element | null {
       }
       if (id === "content_factory") {
         router.push(contentPackFactoryTabHref("research"));
+        return;
+      }
+      if (id === "mcp_ops_studio") {
+        router.push(mcpOpsStudioTabHref("catalog"));
         return;
       }
       router.push(APPS_TOOLS_MODULE_INDEX_HREF);
@@ -107,13 +127,28 @@ export function AppsToolsSubnav(): JSX.Element | null {
       }
       if (primarySection === "content_factory") {
         navigateContentPackFactoryTab(id as ContentPackFactoryTab);
+        return;
+      }
+      if (primarySection === "mcp_ops_studio") {
+        navigateMcpOpsStudioTab(id as McpOpsStudioTab);
       }
     },
     [primarySection],
   );
 
   const secondaryAriaLabel =
-    primarySection === "content_factory" ? "Content Pack Factory sections" : "Skill Factory sections";
+    primarySection === "content_factory"
+      ? "Content Pack Factory sections"
+      : primarySection === "mcp_ops_studio"
+        ? "MCP Ops Studio sections"
+        : "Skill Factory sections";
+
+  const secondaryMenuKey =
+    primarySection === "content_factory"
+      ? "apps-tools-content-factory"
+      : primarySection === "mcp_ops_studio"
+        ? "apps-tools-mcp-ops-studio"
+        : "apps-tools-skill-factory";
 
   if (primaryItems.length === 0) {
     return null;
@@ -129,16 +164,16 @@ export function AppsToolsSubnav(): JSX.Element | null {
           ? activeSkillFactoryTab
           : primarySection === "content_factory"
             ? activeContentFactoryTab
-            : undefined
+            : primarySection === "mcp_ops_studio"
+              ? activeMcpOpsTab
+              : undefined
       }
       onPrimaryChange={onPrimaryChange}
       onSecondaryChange={secondaryItems.length > 0 ? onSecondaryChange : undefined}
       primaryAriaLabel="Apps & Tools sections"
       secondaryAriaLabel={secondaryAriaLabel}
       primaryMenuKey="apps-tools-primary"
-      secondaryMenuKey={
-        primarySection === "content_factory" ? "apps-tools-content-factory" : "apps-tools-skill-factory"
-      }
+      secondaryMenuKey={secondaryMenuKey}
     />
   );
 }

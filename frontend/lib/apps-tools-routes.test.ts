@@ -5,7 +5,10 @@ import {
   appsToolsShellActiveForPathname,
   contentPackFactoryTabFromHash,
   contentPackFactoryTabHref,
+  mcpOpsStudioTabFromHash,
+  mcpOpsStudioTabHref,
   resolveContentPackFactoryTab,
+  resolveMcpOpsStudioTab,
   resolveSkillFactoryTab,
   skillFactoryTabFromHash,
   skillFactoryTabHref,
@@ -16,6 +19,7 @@ describe("apps-tools-routes", () => {
     expect(appsToolsShellActiveForPathname("/apps-tools")).toBe(true);
     expect(appsToolsShellActiveForPathname("/apps-tools/skill-factory")).toBe(true);
     expect(appsToolsShellActiveForPathname("/apps-tools/content-factory")).toBe(true);
+    expect(appsToolsShellActiveForPathname("/apps-tools/mcp-ops-studio")).toBe(true);
     expect(appsToolsShellActiveForPathname("/apps-tools/marketing-automation")).toBe(false);
   });
 
@@ -23,6 +27,7 @@ describe("apps-tools-routes", () => {
     expect(appsToolsPrimaryFromPathname("/apps-tools")).toBe("module_index");
     expect(appsToolsPrimaryFromPathname("/apps-tools/skill-factory")).toBe("skill_factory");
     expect(appsToolsPrimaryFromPathname("/apps-tools/content-factory")).toBe("content_factory");
+    expect(appsToolsPrimaryFromPathname("/apps-tools/mcp-ops-studio")).toBe("mcp_ops_studio");
   });
 
   it("resolves skill factory tabs from hash", () => {
@@ -41,5 +46,14 @@ describe("apps-tools-routes", () => {
     expect(contentPackFactoryTabFromHash("#queue")).toBe("queue");
     expect(resolveContentPackFactoryTab({ hash: "" })).toBe("research");
     expect(contentPackFactoryTabHref("guide")).toBe("/apps-tools/content-factory#guide");
+  });
+
+  it("resolves mcp ops studio tabs from hash", () => {
+    expect(mcpOpsStudioTabFromHash("#catalog")).toBe("catalog");
+    expect(mcpOpsStudioTabFromHash("#mcp-catalog")).toBe("catalog");
+    expect(mcpOpsStudioTabFromHash("#install")).toBe("install");
+    expect(mcpOpsStudioTabFromHash("#health")).toBe("health");
+    expect(resolveMcpOpsStudioTab({ hash: "" })).toBe("catalog");
+    expect(mcpOpsStudioTabHref("health")).toBe("/apps-tools/mcp-ops-studio#health");
   });
 });

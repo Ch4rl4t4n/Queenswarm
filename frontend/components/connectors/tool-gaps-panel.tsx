@@ -116,7 +116,7 @@ export function ToolGapsPanel({ embedded = false, className, onInstalled }: Tool
                 Open Integrations
               </Link>
             ) : null}
-            <Link href="/apps-tools/mcp-ops-studio?section=health#mcp-health" className="qs-btn qs-btn--ghost qs-btn--sm">
+            <Link href="/apps-tools/mcp-ops-studio#health" className="qs-btn qs-btn--ghost qs-btn--sm">
               MCP Ops Studio
             </Link>
           </div>

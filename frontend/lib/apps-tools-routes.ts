@@ -1,16 +1,20 @@
 /** Apps & Tools section routing — primary areas + factory hash tabs. */
 
-export type AppsToolsPrimarySection = "module_index" | "skill_factory" | "content_factory";
+export type AppsToolsPrimarySection = "module_index" | "skill_factory" | "content_factory" | "mcp_ops_studio";
 
 export type SkillFactoryTab = "research" | "queue" | "library" | "launch" | "settings" | "guide";
 
 export type ContentPackFactoryTab = "research" | "queue" | "library" | "settings" | "guide";
+
+export type McpOpsStudioTab = "catalog" | "install" | "health";
 
 export const APPS_TOOLS_MODULE_INDEX_HREF = "/apps-tools";
 
 export const APPS_TOOLS_SKILL_FACTORY_HREF = "/apps-tools/skill-factory";
 
 export const APPS_TOOLS_CONTENT_FACTORY_HREF = "/apps-tools/content-factory";
+
+export const APPS_TOOLS_MCP_OPS_STUDIO_HREF = "/apps-tools/mcp-ops-studio";
 
 export const SKILL_FACTORY_TABS: { id: SkillFactoryTab; label: string }[] = [
   { id: "research", label: "Research" },
@@ -29,8 +33,15 @@ export const CONTENT_PACK_FACTORY_TABS: { id: ContentPackFactoryTab; label: stri
   { id: "guide", label: "Guide" },
 ];
 
+export const MCP_OPS_STUDIO_TABS: { id: McpOpsStudioTab; label: string }[] = [
+  { id: "catalog", label: "Catalog" },
+  { id: "install", label: "Install queue" },
+  { id: "health", label: "Health checks" },
+];
+
 const SKILL_FACTORY_TAB_IDS = new Set<string>(SKILL_FACTORY_TABS.map((row) => row.id));
 const CONTENT_PACK_FACTORY_TAB_IDS = new Set<string>(CONTENT_PACK_FACTORY_TABS.map((row) => row.id));
+const MCP_OPS_STUDIO_TAB_IDS = new Set<string>(MCP_OPS_STUDIO_TABS.map((row) => row.id));
 
 export function appsToolsPrimaryFromPathname(pathname: string): AppsToolsPrimarySection {
   const normalized = pathname.split("#")[0]?.replace(/\/$/, "") ?? pathname;
@@ -39,6 +50,9 @@ export function appsToolsPrimaryFromPathname(pathname: string): AppsToolsPrimary
   }
   if (normalized === APPS_TOOLS_CONTENT_FACTORY_HREF) {
     return "content_factory";
+  }
+  if (normalized === APPS_TOOLS_MCP_OPS_STUDIO_HREF) {
+    return "mcp_ops_studio";
   }
   return "module_index";
 }
@@ -109,12 +123,55 @@ export function resolveContentPackFactoryTab(options: {
   return options.fallback ?? "research";
 }
 
-/** True when pathname should use the Apps & Tools shell (index + factory modules). */
+export function mcpOpsStudioTabFromHash(hash: string): McpOpsStudioTab | null {
+  const key = hash.replace(/^#/, "").trim().toLowerCase();
+  if (key === "mcp-catalog") {
+    return "catalog";
+  }
+  if (key === "mcp-install") {
+    return "install";
+  }
+  if (key === "mcp-health") {
+    return "health";
+  }
+  if (!key || !MCP_OPS_STUDIO_TAB_IDS.has(key)) {
+    return null;
+  }
+  return key as McpOpsStudioTab;
+}
+
+export function mcpOpsStudioTabHref(tab: McpOpsStudioTab): string {
+  return `${APPS_TOOLS_MCP_OPS_STUDIO_HREF}#${tab}`;
+}
+
+/** Hash tab switch — App Router ignores hash-only router.push; use history + hashchange. */
+export function navigateMcpOpsStudioTab(tab: McpOpsStudioTab): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const href = mcpOpsStudioTabHref(tab);
+  window.history.replaceState(null, "", href);
+  window.dispatchEvent(new HashChangeEvent("hashchange"));
+}
+
+export function resolveMcpOpsStudioTab(options: {
+  hash?: string;
+  fallback?: McpOpsStudioTab;
+}): McpOpsStudioTab {
+  const fromHash = mcpOpsStudioTabFromHash(options.hash ?? "");
+  if (fromHash) {
+    return fromHash;
+  }
+  return options.fallback ?? "catalog";
+}
+
+/** True when pathname should use the Apps & Tools shell (index + integrated modules). */
 export function appsToolsShellActiveForPathname(pathname: string): boolean {
   const normalized = pathname.split("#")[0]?.replace(/\/$/, "") ?? pathname;
   return (
     normalized === APPS_TOOLS_MODULE_INDEX_HREF ||
     normalized === APPS_TOOLS_SKILL_FACTORY_HREF ||
-    normalized === APPS_TOOLS_CONTENT_FACTORY_HREF
+    normalized === APPS_TOOLS_CONTENT_FACTORY_HREF ||
+    normalized === APPS_TOOLS_MCP_OPS_STUDIO_HREF
   );
 }

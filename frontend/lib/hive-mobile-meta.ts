@@ -40,7 +40,7 @@ function routeTable(consolidatedEnabled: boolean): { prefix: string; meta: Mobil
           { prefix: "/apps-tools/trading-automation", meta: { kicker: "Apps & Tools", staticSubtitle: "Trading cockpit · live lane", pageTitleSuffix: "Trading Automation" } },
           { prefix: "/apps-tools/browser-automation", meta: { kicker: "Apps & Tools", staticSubtitle: "Operator-approved browser harness", pageTitleSuffix: "Browser Automation" } },
           { prefix: "/apps-tools/research-workspace", meta: { kicker: "Apps & Tools", staticSubtitle: "Briefing-first research lane", pageTitleSuffix: "Research Workspace" } },
-          { prefix: "/apps-tools/mcp-ops-studio", meta: { kicker: "Apps & Tools", staticSubtitle: "MCP catalog · governed installs", pageTitleSuffix: "MCP Ops Studio" } },
+          { prefix: "/apps-tools/mcp-ops-studio", meta: { kicker: "Apps & Tools", staticSubtitle: "MCP Ops · Catalog", pageTitleSuffix: "Apps & Tools" } },
           { prefix: "/manual", meta: { kicker: "Manual", staticSubtitle: "Operator docs · app functions", pageTitleSuffix: "Manual" } },
           { prefix: "/foragers", meta: { kicker: "Foragers", staticSubtitle: "Dynamic ingest workers · spawn flow", pageTitleSuffix: "Foragers" } },
           { prefix: "/routines", meta: { kicker: "Routines", staticSubtitle: "Supervisor schedules · webhooks · L3/L4", pageTitleSuffix: "Routines" } },

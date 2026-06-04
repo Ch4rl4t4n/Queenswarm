@@ -361,9 +361,9 @@ const MODULE_SECTION_DEEP_LINKS: Record<
     { label: "Connectors", href: "/integrations?tab=connectors" },
   ],
   mcp_ops_studio: [
-    { label: "Catalog", href: "/apps-tools/mcp-ops-studio?section=catalog#mcp-catalog" },
-    { label: "Install queue", href: "/apps-tools/mcp-ops-studio?section=install#mcp-install" },
-    { label: "Health checks", href: "/apps-tools/mcp-ops-studio?section=health#mcp-health" },
+    { label: "Catalog", href: "/apps-tools/mcp-ops-studio#catalog" },
+    { label: "Install queue", href: "/apps-tools/mcp-ops-studio#install" },
+    { label: "Health checks", href: "/apps-tools/mcp-ops-studio#health" },
   ],
   trading_automation: [
     { label: "Trading cockpit", href: "/apps-tools/trading-automation?section=cockpit#trading-cockpit" },
@@ -853,7 +853,7 @@ export function AppsToolsIndexClient() {
     }
     trackEvent("mcp_ops_lifecycle_recommendation_open", {
       moduleKey: "mcp_ops_studio",
-      href: "/apps-tools/mcp-ops-studio?section=health",
+      href: "/apps-tools/mcp-ops-studio#health",
       source,
     });
   };
@@ -1202,7 +1202,7 @@ export function AppsToolsIndexClient() {
                     {retryAckSplitByWindow.all}/{retryResurfacedSplitByWindow.all}
                   </p>
                   <Link
-                    href="/apps-tools/mcp-ops-studio?section=health"
+                    href="/apps-tools/mcp-ops-studio#health"
                     aria-disabled={isLifecycleRecommendationCooldownActive}
                     className={`mt-1 inline-flex text-[11px] font-medium underline-offset-2 transition focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/45 ${
                       isLifecycleRecommendationCooldownActive
@@ -1215,7 +1215,7 @@ export function AppsToolsIndexClient() {
                         setLifecycleOverrideConfirmArmed(false);
                         trackEvent("mcp_ops_lifecycle_recommendation_cooldown_block", {
                           moduleKey: "mcp_ops_studio",
-                          href: "/apps-tools/mcp-ops-studio?section=health",
+                          href: "/apps-tools/mcp-ops-studio#health",
                           source: "analytics_recommendation",
                         });
                         return;
@@ -1246,7 +1246,7 @@ export function AppsToolsIndexClient() {
                             setLifecycleOverrideConfirmArmed(false);
                             trackEvent("mcp_ops_lifecycle_recommendation_cooldown_override", {
                               moduleKey: "mcp_ops_studio",
-                              href: "/apps-tools/mcp-ops-studio?section=health",
+                              href: "/apps-tools/mcp-ops-studio#health",
                               source: "analytics_recommendation",
                             });
                             runLifecycleRecommendationOpenAction("analytics_recommendation_override");
@@ -1396,12 +1396,12 @@ export function AppsToolsIndexClient() {
                   <p className="mt-1 text-magenta-100/90">{copy.mcpRetryAnomalyActionHint}</p>
                   <div className="mt-2">
                     <Link
-                      href="/apps-tools/mcp-ops-studio?section=health#mcp-health"
+                      href="/apps-tools/mcp-ops-studio#health"
                       className="qs-btn qs-btn--ghost qs-btn--sm"
                       onClick={() =>
                         trackEvent("module_section_quick_link", {
                           moduleKey: activeModuleDef.moduleKey,
-                          href: "/apps-tools/mcp-ops-studio?section=health#mcp-health",
+                          href: "/apps-tools/mcp-ops-studio#health",
                           source: "retry_anomaly_hint",
                         })
                       }

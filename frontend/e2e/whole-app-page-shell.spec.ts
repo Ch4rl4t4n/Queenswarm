@@ -34,7 +34,11 @@ test.describe("Whole-App page shell — zone headers", () => {
   }
 
   test("Apps & Tools factory modules use shared shell", async ({ page }) => {
-    const factoryRoutes = ["/apps-tools/skill-factory#launch", "/apps-tools/content-factory#research"];
+    const factoryRoutes = [
+      "/apps-tools/skill-factory#launch",
+      "/apps-tools/content-factory#research",
+      "/apps-tools/mcp-ops-studio#catalog",
+    ];
 
     await page.setViewportSize({ width: 1280, height: 900 });
 
@@ -53,7 +57,6 @@ test.describe("Whole-App page shell — zone headers", () => {
       "/apps-tools/trading-automation",
       "/apps-tools/browser-automation",
       "/apps-tools/research-workspace",
-      "/apps-tools/mcp-ops-studio",
     ];
 
     await page.setViewportSize({ width: 1280, height: 900 });

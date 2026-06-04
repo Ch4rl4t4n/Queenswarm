@@ -100,7 +100,7 @@ describe("hiveMobileRouteMeta", () => {
 
   it("returns secondary route mobile titles", () => {
     expect(hiveMobileRouteMeta("/foragers").pageTitleSuffix).toBe("Foragers");
-    expect(hiveMobileRouteMeta("/apps-tools/mcp-ops-studio").pageTitleSuffix).toBe("MCP Ops Studio");
+    expect(hiveMobileRouteMeta("/apps-tools/mcp-ops-studio").pageTitleSuffix).toBe("Apps & Tools");
     expect(hiveMobileRouteMeta("/settings/team").pageTitleSuffix).toBe("Team");
     expect(hiveMobileRouteMeta("/settings/enterprise").pageTitleSuffix).toBe("Enterprise");
     expect(hiveMobileRouteMeta("/settings/billing").pageTitleSuffix).toBe("Costs");
