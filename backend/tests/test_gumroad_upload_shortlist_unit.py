@@ -4,7 +4,7 @@ import io
 import tarfile
 from pathlib import Path
 
-from scripts.gumroad_upload_shortlist import build_shortlist
+from scripts.gumroad_upload_shortlist import build_shortlist, render_markdown
 
 
 def _write_tar(path: Path, files: dict[str, str]) -> None:
@@ -97,3 +97,25 @@ def test_build_shortlist_cleans_markdown_bold_from_skill_price(tmp_path: Path) -
     rows = build_shortlist(tmp_path, limit=10)
 
     assert rows[0]["price"] == "€19.00 — suggested tiers: €10 starter / €19 pro / €28 team"
+
+
+def test_render_markdown_creates_operator_upload_checklist() -> None:
+    markdown = render_markdown(
+        [
+            {
+                "slug": "facebook-local-pack",
+                "kind": "content_pack",
+                "score": 115,
+                "subtitle": "Book more local-service jobs.",
+                "price": "EUR 19.00",
+                "description": "Local service owners.",
+                "bundle": "/tmp/facebook-local-pack.tar.gz",
+                "listing_path": "facebook-local-pack/LISTING.md",
+            },
+        ],
+    )
+
+    assert "# Gumroad Upload Shortlist" in markdown
+    assert "- [ ] `facebook-local-pack` (content_pack, score 115)" in markdown
+    assert "**Price:** EUR 19.00" in markdown
+    assert "`/tmp/facebook-local-pack.tar.gz`" in markdown

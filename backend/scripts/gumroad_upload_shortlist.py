@@ -127,6 +127,37 @@ def build_shortlist(src: Path, *, limit: int = 12, include_drafts: bool = False)
     return rows[: max(1, limit)]
 
 
+def render_markdown(rows: list[dict[str, str | int]]) -> str:
+    """Render a Gumroad upload shortlist as an operator checklist."""
+
+    lines = [
+        "# Gumroad Upload Shortlist",
+        "",
+        "Use this checklist for manual Gumroad product creation.",
+        "",
+    ]
+    for row in rows:
+        lines.extend(
+            [
+                f"- [ ] `{row['slug']}` ({row['kind']}, score {row['score']})",
+                f"  - **Subtitle:** {str(row['subtitle']) or 'n/a'}",
+            ],
+        )
+        if row["price"]:
+            lines.append(f"  - **Price:** {row['price']}")
+        if row["description"]:
+            lines.append(f"  - **Description:** {row['description']}")
+        lines.extend(
+            [
+                f"  - **File:** `{row['bundle']}`",
+                f"  - **Listing:** `{row['listing_path']}`",
+                "",
+            ],
+        )
+    lines.append("Upload: https://gumroad.com/products/new")
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def main(argv: list[str] | None = None) -> int:
     """Print a ranked Gumroad manual upload shortlist."""
 
@@ -134,6 +165,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("src", nargs="?", default=str(DEFAULT_EXPORT_DIR))
     parser.add_argument("--limit", type=int, default=12)
     parser.add_argument("--include-drafts", action="store_true")
+    parser.add_argument(
+        "--write-markdown",
+        nargs="?",
+        const="UPLOAD_SHORTLIST.md",
+        help="Write the shortlist as markdown in the export directory, or to the provided path.",
+    )
     args = parser.parse_args(argv)
 
     src = Path(args.src).expanduser().resolve()
@@ -142,6 +179,13 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     rows = build_shortlist(src, limit=args.limit, include_drafts=args.include_drafts)
+    if args.write_markdown:
+        output_path = Path(args.write_markdown)
+        if not output_path.is_absolute():
+            output_path = src / output_path
+        output_path.write_text(render_markdown(rows), encoding="utf-8")
+        print(f"markdown={output_path}")
+
     print("== Gumroad upload shortlist ==")
     print(f"source={src}")
     for index, row in enumerate(rows, start=1):
