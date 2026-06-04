@@ -63,6 +63,7 @@ services:
     volumes:
       - ./reports:/app/reports:ro
       - ./exports:/app/exports
+      - ./exports:/exports
       - .:/repo:ro
     mem_limit: 10240m
     cpus: "4.0"
@@ -83,6 +84,7 @@ services:
     cpus: "1.75"
     volumes:
       - ./exports:/app/exports
+      - ./exports:/exports
 
   celery-beat:
     env_file:
