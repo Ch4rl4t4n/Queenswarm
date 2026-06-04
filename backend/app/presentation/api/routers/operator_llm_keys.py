@@ -367,7 +367,7 @@ async def test_llm_operator_key(
             return {"status": "error", "error": "No credential configured.", "model": provider}
         return {"status": "ok", "model": provider, "response": "CREDENTIAL_READY"}
 
-    _, model_hint = _provider_label_model(user, provider)
+    _, model_hint, _ = _provider_label_model(user, provider)
     defaults: dict[ProviderLiteral, str] = {
         "grok": "xai/grok-3-mini",
         "anthropic": "anthropic/claude-haiku-4-5-20251001",

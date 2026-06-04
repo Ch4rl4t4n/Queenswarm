@@ -1968,6 +1968,10 @@ class Settings(BaseSettings):
         default=False,
         description="Allow Library → Gumroad publish (PUT /products/:id/enable).",
     )
+    content_pack_factory_enabled: bool = Field(
+        default=True,
+        description="Content Pack Factory — research, build, library, Gumroad-ready export.",
+    )
     live_lane_snapshot_enabled: bool = Field(
         default=True,
         description="#65 — unified Polymarket + publish OAuth live lane prep snapshot.",

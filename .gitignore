@@ -5,7 +5,9 @@ __pycache__/
 *.so
 .Python
 .venv/
+.venv-test/
 .venv-ci/
+coverage.json
 venv/
 env/
 ENV/
@@ -88,3 +90,6 @@ reports/
 frontend/reports/
 reports/operator-handoff-*/
 design-reference/
+
+# Operator export bundles (local / container smoke)
+exports/

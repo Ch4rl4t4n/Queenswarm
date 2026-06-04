@@ -37,6 +37,7 @@ export const PLATFORM_FEATURE_CATALOG: Record<string, FeatureSpec> = {
   skills_marketplace: { internal: true, commercial: true, minTier: "pro" },
   skills_export_factory: { internal: true, commercial: false },
   skill_factory: { internal: true, commercial: false },
+  content_pack_factory: { internal: true, commercial: false },
   product_mission: { internal: true, commercial: false },
   ugc_content_engine: { internal: true, commercial: true, minTier: "pro" },
   sub_swarm_mind_ui: { internal: true, commercial: true },

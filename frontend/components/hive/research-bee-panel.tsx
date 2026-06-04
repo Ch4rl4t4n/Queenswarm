@@ -1,11 +1,12 @@
 "use client";
 
-import { BookOpen, Loader2 } from "lucide-react";
+import { BookOpen, Download, Loader2 } from "lucide-react";
 import { memo, useCallback, useState } from "react";
 
 import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hivePostJson } from "@/lib/api";
+import { downloadResearchBriefExportBundle, type ResearchBriefExportResponse } from "@/lib/research-brief-export-utils";
 import { cn } from "@/lib/utils";
 
 interface ResearchBrief {
@@ -36,6 +37,7 @@ function ResearchBeePanelInner({ onError }: ResearchBeePanelProps) {
   const [persist, setPersist] = useState(true);
   const [triggerGardener, setTriggerGardener] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
   const [brief, setBrief] = useState<ResearchBrief | null>(null);
 
   const submit = useCallback(async () => {
@@ -55,6 +57,26 @@ function ResearchBeePanelInner({ onError }: ResearchBeePanelProps) {
       onError(err instanceof HiveApiError ? err.message : "Research brief failed.");
     } finally {
       setLoading(false);
+    }
+  }, [url, paste, titleHint, persist, triggerGardener, onError]);
+
+  const exportB2bBundle = useCallback(async () => {
+    setExportBusy(true);
+    onError(null);
+    try {
+      const body = {
+        source_url: url.trim() || null,
+        content_text: paste.trim() || null,
+        title_hint: titleHint.trim() || null,
+        persist,
+        trigger_gardener: triggerGardener,
+      };
+      const bundle = await hivePostJson<ResearchBriefExportResponse>("research-bee/brief/export", body);
+      await downloadResearchBriefExportBundle(bundle);
+    } catch (err) {
+      onError(err instanceof HiveApiError ? err.message : "B2B export failed.");
+    } finally {
+      setExportBusy(false);
     }
   }, [url, paste, titleHint, persist, triggerGardener, onError]);
 
@@ -121,10 +143,21 @@ function ResearchBeePanelInner({ onError }: ResearchBeePanelProps) {
         Run Wiki Gardener after save (updates forager-insights wiki)
       </label>
 
-      <button type="button" className="qs-btn qs-btn--primary qs-btn--sm" disabled={loading} onClick={() => void submit()}>
-        {loading ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
-        Ingest &amp; generate brief
-      </button>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="qs-btn qs-btn--primary qs-btn--sm" disabled={loading} onClick={() => void submit()}>
+          {loading ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+          Ingest &amp; generate brief
+        </button>
+        <button
+          type="button"
+          className="qs-btn qs-btn--ghost qs-btn--sm"
+          disabled={exportBusy || loading || (!url.trim() && !paste.trim())}
+          onClick={() => void exportB2bBundle()}
+        >
+          {exportBusy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Download className="size-4" aria-hidden />}
+          Export B2B pack
+        </button>
+      </div>
 
       {brief ? (
         <article className="space-y-2 rounded-lg border border-white/10 bg-black/25 p-3 text-sm">

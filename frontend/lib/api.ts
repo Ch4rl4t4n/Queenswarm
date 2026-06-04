@@ -197,7 +197,7 @@ export async function hiveFetch<T = unknown>(subpath: string, init?: RequestInit
         }
         throw new HiveApiError(
           res.status === 429
-            ? "Rate limit reached — wait a few seconds and try again."
+            ? (detail ?? "Rate limit reached — wait a few seconds and try again.")
             : res.status === 401
               ? "Session vypršala — prihlás sa znova."
               : (detail ?? (res.statusText || `HTTP ${res.status}`)),

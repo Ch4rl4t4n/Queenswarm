@@ -71,6 +71,8 @@ from app.presentation.api.routers import prediction_markets as prediction_market
 from app.presentation.api.routers import live_lane as live_lane_router
 from app.presentation.api.routers import micro_saas_factory as micro_saas_factory_router
 from app.presentation.api.routers import skill_factory as skill_factory_router
+from app.presentation.api.routers import content_pack_factory as content_pack_factory_router
+from app.presentation.api.routers import factory_readiness as factory_readiness_router
 from app.presentation.api.routers import media_agency as media_agency_router
 from app.presentation.api.routers import research_bee as research_bee_router
 from app.presentation.api.routers import trading_cockpit as trading_cockpit_router
@@ -161,6 +163,8 @@ api_v1.include_router(research_bee_router.router)
 api_v1.include_router(media_agency_router.router)
 api_v1.include_router(micro_saas_factory_router.router)
 api_v1.include_router(skill_factory_router.router)
+api_v1.include_router(content_pack_factory_router.router)
+api_v1.include_router(factory_readiness_router.router)
 api_v1.include_router(live_lane_router.router)
 api_v1.include_router(agent_os_router.router)
 api_v1.include_router(hive_mind_router.router)

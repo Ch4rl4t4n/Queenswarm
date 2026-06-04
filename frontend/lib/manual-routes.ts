@@ -53,6 +53,8 @@ export const MANUAL_HREFS = {
   tasksNew: "/tasks/new",
   skillFactory: "/apps-tools/skill-factory",
   manualSkillFactory: "/manual#skill-factory",
+  contentPackFactory: "/apps-tools/content-factory?tab=pack-factory",
+  manualContentPackFactory: "/manual#content-pack-factory",
 } as const;
 
 /** Per function-guide card id → open-in-app href. */
@@ -103,4 +105,5 @@ export const MANUAL_FUNCTION_HREFS: Record<string, string> = {
   "settings-team": "/settings/team",
   "settings-billing": "/settings/costs",
   "settings-voice-providers": MANUAL_HREFS.settingsLlmKeys,
+  "content-pack-factory": MANUAL_HREFS.contentPackFactory,
 };

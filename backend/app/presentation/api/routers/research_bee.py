@@ -9,6 +9,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.application.services.research_bee import ResearchBriefOut, compose_research_brief
+from app.application.services.research_brief_export import (
+    build_research_brief_export_bundle,
+    export_response_to_dict,
+)
 from app.core.config import settings
 from app.presentation.api.deps import DbSession, require_dashboard_user_with_tenant_role
 
@@ -72,6 +76,45 @@ async def create_research_brief(
         )
         await db.commit()
         return brief
+    except ValueError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    except httpx.HTTPError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to fetch source URL: {exc}",
+        ) from exc
+
+
+@router.post("/brief/export", summary="Generate brief + B2B export bundle")
+async def export_research_brief_bundle(
+    body: ResearchBriefRequest,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Fetch URL or pasted text → structured brief → Gumroad-ready export files."""
+
+    _require_enabled()
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+
+    try:
+        brief = await compose_research_brief(
+            db,
+            tenant_id=tenant_id,
+            source_url=body.source_url,
+            content_text=body.content_text,
+            title_hint=body.title_hint,
+            persist=body.persist,
+            trigger_gardener=body.trigger_gardener,
+        )
+        if not brief.summary:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="empty_brief")
+        bundle = build_research_brief_export_bundle(brief)
+        await db.commit()
+        return export_response_to_dict(bundle)
     except ValueError as exc:
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc

@@ -533,6 +533,16 @@ async def review_agent_suggestion_with_handoff(
                     tenant=tenant,
                     reviewer_subject=reviewer_subject,
                 )
+            if handoff_result is None and reviewed.proposal_type == "verified_content_pack_forge" and tenant is not None:
+                from app.application.services.content_pack_factory_publish import publish_verified_content_pack_forge
+
+                handoff_result = await publish_verified_content_pack_forge(
+                    db,
+                    suggestion=reviewed,
+                    tenant_id=tenant.id,
+                    tenant=tenant,
+                    reviewer_subject=reviewer_subject,
+                )
             if handoff_result is None and reviewed.proposal_type == "execution_studio_external":
                 from app.application.services.execution_studio_external import handoff_on_approved_external_proposal
 

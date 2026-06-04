@@ -284,6 +284,43 @@ export const APP_MANUAL_SECTIONS: ManualSection[] = [
     ],
   },
   {
+    id: "content-pack-factory",
+    title: "Content Pack Factory — Gumroad-ready social packs",
+    paragraphs: [
+      `**Apps & Tools → Content Factory → Pack factory** — research niches → factory session → approve \`verified_content_pack_forge\` → library → export bundle or Gumroad draft.`,
+      `Pipeline: (1) Settings → AI · LLM keys — OpenAI gpt-4o-mini recommended · (2) Pack factory → Run smoke test · (3) Research → Build · (4) Agents → Suggestions — approve forge · (5) Library → Download bundle / Gumroad.`,
+      `Builds are blocked until LLM credentials pass the factory readiness gate. Manual path: \`exports/gumroad-upload/*.tar.gz\` + LISTING.md. Full doc: docs/CONTENT_PACK_FACTORY_OPERATOR_MANUAL.md`,
+      `Pair with Skill Factory for dual-lane first revenue — skills for internal ROI, content packs for external Gumroad listings.`,
+    ],
+    checklist: [
+      {
+        text: "0) LLM keys + smoke test PASS · 1) Pack factory — niche seeds · Save policy",
+        href: MANUAL_HREFS.contentPackFactory,
+        linkLabel: "Pack factory",
+      },
+      {
+        text: "2) Research → Build pack · 3) Agents → Sessions — monitor run",
+        href: MANUAL_HREFS.agentsSessions,
+        linkLabel: "Sessions",
+      },
+      {
+        text: "4) Agents → Suggestions — approve verified_content_pack_forge",
+        href: MANUAL_HREFS.agents,
+        linkLabel: "Suggestions",
+      },
+      {
+        text: "5) Library → Export bundle · Gumroad draft when connector ready",
+        href: MANUAL_HREFS.contentPackFactory,
+        linkLabel: "Library export",
+      },
+      {
+        text: "First revenue bootstrap — docs/FACTORY_FIRST_REVENUE_OPERATOR_MANUAL.md",
+        href: MANUAL_HREFS.settingsLlmKeys,
+        linkLabel: "LLM keys",
+      },
+    ],
+  },
+  {
     id: "lead-gen-lane",
     title: "Lead Gen Lane — verified outreach pipeline",
     paragraphs: [
@@ -893,6 +930,19 @@ export const APP_FUNCTION_GUIDE: FunctionInfoGroup[] = [
           "Skill picker — Sessions, Kanban, New task",
         ],
         href: MANUAL_HREFS.skillFactory,
+      },
+      {
+        id: "content-pack-factory",
+        label: "Content Pack Factory",
+        description:
+          "Research niches → factory session → approve forge → tenant library → Gumroad-ready export bundles.",
+        options: [
+          "Guide tab — operator manual from zero",
+          "LLM smoke test before Build",
+          "Approve verified_content_pack_forge before Library fills",
+          "Manual Gumroad upload via exports/gumroad-upload/",
+        ],
+        href: MANUAL_HREFS.contentPackFactory,
       },
     ],
   },

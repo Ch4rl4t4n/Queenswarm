@@ -80,15 +80,24 @@ const PROVIDER_COPY: Record<
 > = {
   grok: {
     title: { en: "Grok (xAI)", sk: "Grok (xAI)" },
-    hint: { en: "Primary routing - persisted in hive vault.", sk: "Primarny routing - ulozene v hive vault." },
+    hint: {
+      en: "Primary routing — persisted in hive vault. Invalid keys block factory builds until removed (factory_llm_auto_repair.py).",
+      sk: "Primarny routing — hive vault. Neplatne kluce blokuju factory buildy.",
+    },
   },
   anthropic: {
     title: { en: "Claude - Anthropic", sk: "Claude - Anthropic" },
-    hint: { en: "Admin-only upsert unless env already supplies credential.", sk: "Zapis len pre admina, ak credential uz nie je v env." },
+    hint: {
+      en: "Optional fallback only — not required when Grok is your primary provider.",
+      sk: "Volitelny fallback — nie je potrebny ak pouzivas Grok.",
+    },
   },
   openai: {
     title: { en: "OpenAI - GPT-4o mini", sk: "OpenAI - GPT-4o mini" },
-    hint: { en: "Cheap simulations / parity checks.", sk: "Lacne simulacie a parity kontroly." },
+    hint: {
+      en: "Optional fallback only — Skill/Content Pack Factory runs on Grok by default.",
+      sk: "Volitelny fallback — factory bezne bezi na Grok.",
+    },
   },
   deepgram: {
     title: { en: "Deepgram - STT", sk: "Deepgram - STT" },
@@ -396,7 +405,12 @@ export function SettingsLlmKeysPanel() {
     try {
       const res = await hivePostJson<{ status?: string; error?: string; response?: string }>(`llm-keys/test/${provider}`, {});
       const ok = res.status === "ok";
-      const line = ok ? `✅ CONNECTED (${res.response ?? "ping ok"})` : `❌ ${res.error ?? "ping failed"}`;
+      const responseText = (res.response ?? "ping ok").trim();
+      const line = ok
+        ? responseText.toUpperCase() === "CONNECTED"
+          ? "✅ CONNECTED"
+          : `✅ CONNECTED (${responseText})`
+        : `❌ ${res.error ?? "ping failed"}`;
       setTestMsg((m) => ({ ...m, [provider]: line }));
       toast.message(ok ? "LLM reachable" : "LLM test failed");
     } catch (e) {

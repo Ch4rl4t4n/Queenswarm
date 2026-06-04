@@ -356,6 +356,39 @@ class LiteLLMRouter:
         )
         return response, content, model_name, hop_cost_usd
 
+    async def complete_single_model(
+        self,
+        session: AsyncSession,
+        *,
+        model_name: str,
+        messages: list[dict[str, str]],
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        swarm_id: str = "",
+        workflow_id: str | None = None,
+        task_id: str | None = None,
+    ) -> tuple[str, float]:
+        """Ping one model slug — Grok-only factory smoke without fallback hops."""
+
+        await self._assert_budget(session)
+        _response, content, used, hop_cost_usd = await self._acompletion_with_model(
+            session,
+            model_name=model_name,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            swarm_id=swarm_id or None,
+            workflow_id=workflow_id or None,
+            task_id=task_id or None,
+        )
+        logger.info(
+            "llm_router.single_model.ok",
+            model=used,
+            swarm_id=swarm_id,
+            task_id=task_id or "",
+        )
+        return content, hop_cost_usd
+
     async def complete_with_fallback_messages(
         self,
         session: AsyncSession,

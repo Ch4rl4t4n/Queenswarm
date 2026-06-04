@@ -63,8 +63,9 @@ export const SECTION_HINTS = {
     options: [
       "Module index — policy packs, risk tiers, and live/beta status per workspace.",
       "Deep links — open a module without losing Integrations or Agentic OS context.",
-      "Skill Factory — research → build → export (no in-app marketplace).",
-      "Factory & Foragers — reachable from index or mobile More menu, not primary rail.",
+      "Skill Factory — research → build → export (Guide tab + docs/SKILL_FACTORY_OPERATOR_MANUAL.md).",
+      "Content Factory → Pack factory — social packs + Guide tab (docs/CONTENT_PACK_FACTORY_OPERATOR_MANUAL.md).",
+      "Factory bootstrap — ./scripts/factory-first-revenue-bootstrap.sh (docs/FACTORY_FIRST_REVENUE_OPERATOR_MANUAL.md).",
     ],
     manualHref: "/manual#apps-tools",
   },
@@ -124,6 +125,73 @@ export const SECTION_HINTS = {
       "Save policy after every change.",
     ],
     manualHref: "/manual#skill-factory",
+  },
+  contentPackFactory: {
+    title: "Content Pack Factory",
+    description:
+      "Social content pack lane: research → build → verified_content_pack_forge → library → Gumroad export. Shares LLM keys and Gumroad env with Skill Factory.",
+    options: [
+      "Guide tab — operator manual + server script reference.",
+      "Run research — ranked Instagram/LinkedIn/TikTok niches.",
+      "Approve verified_content_pack_forge (not skill_forge) in Agents.",
+      "LLM smoke must pass before builds — OpenAI gpt-4o-mini recommended.",
+    ],
+    manualHref: "/manual#content-pack-factory",
+  },
+  contentPackFactoryResearch: {
+    title: "Pack research lane",
+    description:
+      "HiveMind + niche seeds score content pack opportunities — demand, competition, buildability, price anchor.",
+    options: [
+      "Run research now — adds rows to queue (max per policy).",
+      "Apply vertical starter — 8 Tier-A presets in one click.",
+      "Research keys optional — Tavily/Serper improve scores only.",
+      "Dismiss weak niches early to keep queue focused.",
+    ],
+    manualHref: "/manual#content-pack-factory",
+  },
+  contentPackFactoryQueue: {
+    title: "Pack build queue",
+    description:
+      "Each opportunity maps to one supervisor session. Status building → awaiting_forge → Library after forge approve.",
+    options: [
+      "failed — usually LLM or quality gate; fix keys and rebuild.",
+      "awaiting_forge — approve verified_content_pack_forge in Agents.",
+      "One build at a time when LLM budget is tight.",
+    ],
+    manualHref: "/manual#content-pack-factory",
+  },
+  contentPackFactoryLibrary: {
+    title: "Content pack library",
+    description:
+      "Verified packs with publish_pack JSON, PACK.md, and LISTING.md — export for Gumroad or manual sale.",
+    options: [
+      "Export — downloads zip bundle.",
+      "Gumroad draft — when SKILL_FACTORY_GUMROAD_LISTING_ENABLED + token.",
+      "Empty until first verified_content_pack_forge approve.",
+    ],
+    manualHref: "/manual#content-pack-factory",
+  },
+  contentPackFactorySettings: {
+    title: "Pack automation policy",
+    description:
+      "Niche seeds, auto-build threshold, weekly cap, and factory enable switch.",
+    options: [
+      "Save policy after Apply vertical starter.",
+      "Start auto-build OFF until first successful pack.",
+      "Max 2–3 builds/week for solo operator.",
+    ],
+    manualHref: "/manual#content-pack-factory",
+  },
+  contentPackFactoryLlm: {
+    title: "Grok required for builds",
+    description:
+      "Factory sessions use Grok (xAI) as primary LLM. Run smoke test before Build — Claude/OpenAI are optional fallbacks only.",
+    options: [
+      "Settings → AI · LLM keys — Grok vault + CONNECTED",
+      "Skill Factory / Pack factory → Run smoke test",
+    ],
+    manualHref: "/manual#content-pack-factory",
   },
   agents: {
     title: "Agents — primary control",

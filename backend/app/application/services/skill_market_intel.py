@@ -10,6 +10,8 @@ import structlog
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
+
 logger = structlog.get_logger(__name__)
 
 _DEMAND_KEYWORDS: frozenset[str] = frozenset(
