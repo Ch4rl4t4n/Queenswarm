@@ -15,6 +15,13 @@ from app.application.services.agent_prompt_templates import (
     _WORKER_OUTPUT_CONTRACT,
     AGENT_PROMPT_REGISTRY,
 )
+from app.application.services.content_pack_factory_session_prompts import (
+    build_content_pack_coder_execute_instruction,
+    build_content_pack_critic_user_block,
+    is_content_pack_factory_context,
+    load_content_pack_coder_draft,
+    resolve_content_pack_system_prompt,
+)
 from app.application.services.queen_maintainer.maintainer_guard import is_maintainer_session
 from app.application.services.supervisor.hivemind_insight_ingest import ingest_supervisor_insights
 from app.application.services.supervisor.hivemind_verify import (
@@ -190,6 +197,7 @@ async def execute_supervisor_sub_agent_llm(
 
     verify_lane = is_hivemind_verify_session(summary)
     factory_lane = is_skill_factory_context(summary)
+    content_pack_lane = is_content_pack_factory_context(summary)
     researcher_draft_block = ""
     if verify_lane and role.lower() == "critic":
         draft = str(summary.get("researcher_draft_for_verify") or "").strip()
@@ -209,6 +217,13 @@ async def execute_supervisor_sub_agent_llm(
             summary=summary,
         )
         researcher_draft_block = f"\n\n{build_critic_factory_user_block(coder_draft=coder_draft)}"
+    elif content_pack_lane and role.lower() == "critic":
+        coder_draft = await load_content_pack_coder_draft(
+            db,
+            supervisor_session_id=supervisor_session.id,
+            summary=summary,
+        )
+        researcher_draft_block = f"\n\n{build_content_pack_critic_user_block(coder_draft=coder_draft)}"
 
     execute_instruction = (
         "Execute now. Include at least one `[INSIGHT]` HiveMind write-back with tag "
@@ -224,6 +239,13 @@ async def execute_supervisor_sub_agent_llm(
         from app.application.services.skill_factory_session_prompts import build_coder_factory_execute_instruction
 
         execute_instruction = build_coder_factory_execute_instruction()
+    elif content_pack_lane and role.lower() == "coder":
+        execute_instruction = build_content_pack_coder_execute_instruction()
+    elif content_pack_lane and role.lower() == "researcher":
+        execute_instruction = (
+            "Execute now. Produce a concise research brief for the coder: buyer persona, channel strategy, "
+            "offer angle, snippet themes, and any sourced market signals. Do not return HiveMind finding blocks."
+        )
 
     hint_block = f"\n\n## Self-heal hint (attempt {attempt})\n{hint.strip()}" if hint and hint.strip() else ""
     user_payload = (
@@ -247,7 +269,7 @@ async def execute_supervisor_sub_agent_llm(
             if isinstance(picked, str) and picked.strip():
                 model_override = picked.strip()
 
-    system_prompt = resolve_system_prompt_for_role(role)
+    system_prompt = resolve_content_pack_system_prompt(role) if content_pack_lane else resolve_system_prompt_for_role(role)
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_payload},

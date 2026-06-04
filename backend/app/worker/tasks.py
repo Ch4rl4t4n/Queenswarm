@@ -749,6 +749,14 @@ def run_supervisor_sub_agent_step_task(
                 completed_sub=sub,
             )
 
+            from app.application.services.content_pack_factory_session_prompts import enqueue_next_content_pack_sub_agent
+
+            await enqueue_next_content_pack_sub_agent(
+                session,
+                supervisor_session=sup,
+                completed_sub=sub,
+            )
+
             remaining_stmt = select(SubAgentSession).where(
                 SubAgentSession.supervisor_session_id == sup.id,
                 SubAgentSession.status.in_(("pending", "queued", "running")),

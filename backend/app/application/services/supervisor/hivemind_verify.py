@@ -189,7 +189,14 @@ def should_enqueue_only_first_sub_agent(context_summary: dict[str, Any] | None) 
         should_enqueue_only_first_factory_sub_agent,
     )
 
-    return should_enqueue_only_first_factory_sub_agent(context_summary)
+    if should_enqueue_only_first_factory_sub_agent(context_summary):
+        return True
+
+    from app.application.services.content_pack_factory_session_prompts import (
+        should_enqueue_only_first_content_pack_sub_agent,
+    )
+
+    return should_enqueue_only_first_content_pack_sub_agent(context_summary)
 
 
 __all__ = [
