@@ -32,7 +32,8 @@ from app.application.services.skill_factory_github_export import github_pr_expor
 from app.application.services.llm_runtime_credentials import refresh_llm_secret_cache
 from app.core.config import settings
 from app.core.database import async_session
-from app.core.llm_router import LiteLLMRouter, model_slug_has_configured_credentials
+from app.application.services.factory_llm_readiness_service import run_factory_llm_smoke
+from app.core.llm_router import model_slug_has_configured_credentials
 from app.infrastructure.persistence.models.content_pack_opportunity import ContentPackOpportunityORM
 from app.infrastructure.persistence.models.skill_opportunity import SkillOpportunityORM
 from app.infrastructure.persistence.models.tenant import Tenant
@@ -46,19 +47,11 @@ async def _primary_tenant(session) -> Tenant | None:
 
 
 async def _llm_smoke_passes(session) -> bool:
-    """Return True when at least one hop in the decomposition chain responds."""
+    """Return True when Grok-first factory smoke passes (matches UI readiness)."""
 
-    router = LiteLLMRouter()
-    try:
-        await router.complete_with_fallback_messages(
-            session,
-            messages=[{"role": "user", "content": "Reply OK"}],
-            max_tokens=5,
-            swarm_id="factory_first_revenue_cycle",
-            task_id="smoke",
-        )
-    except Exception as exc:
-        print(f"llm_smoke_test=FAIL {type(exc).__name__}: {str(exc)[:200]}")
+    smoked = await run_factory_llm_smoke(session)
+    if not smoked.smoke_ok:
+        print(f"llm_smoke_test=FAIL {smoked.smoke_error or 'unknown'}")
         return False
     print("llm_smoke_test=PASS")
     return True
