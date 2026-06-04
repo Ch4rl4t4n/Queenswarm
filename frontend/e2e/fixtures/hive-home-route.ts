@@ -17,6 +17,11 @@ export function e2eTasksHubHeading(): RegExp {
   return new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
 }
 
+/** Sidebar label for `/tasks` — Mission Control in solo operator mode. */
+export function e2eTasksSidebarLabel(): string {
+  return hiveMissionControlPageTitle();
+}
+
 /** Advanced ColonyConsole — always `/dashboard`. */
 export function e2eAdvancedDashboardPath(): string {
   return "/dashboard";

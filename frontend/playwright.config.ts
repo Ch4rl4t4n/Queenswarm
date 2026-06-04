@@ -17,6 +17,17 @@ const bypassWebServer =
   !!process.env.PLAYWRIGHT_NO_WEBSERVER ||
   (!!userBaseRaw && userBaseRaw.length > 0);
 
+/** Mirror prod solo operator build flags in the test runner (not only Next dev server). */
+if (!bypassWebServer) {
+  process.env.NEXT_PUBLIC_ADVANCED_MONITORING_ENABLED ??= "true";
+  process.env.NEXT_PUBLIC_SIMULATIONS_ENABLED ??= "true";
+  process.env.NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED ??= "true";
+  process.env.NEXT_PUBLIC_PHASE70_CONSOLIDATED_NAV_ENABLED ??= "true";
+  process.env.NEXT_PUBLIC_RECIPES_ENABLED ??= "true";
+  process.env.NEXT_PUBLIC_SOLO_MODE ??= "true";
+  process.env.NEXT_PUBLIC_SINGLE_ADMIN_MODE ??= "true";
+}
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,

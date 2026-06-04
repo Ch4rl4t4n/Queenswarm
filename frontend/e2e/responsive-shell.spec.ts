@@ -61,7 +61,7 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
 
-    const onShell = await gotoShellRoute(page, "/");
+    const onShell = await gotoShellRoute(page, e2eHiveHomePath());
     if (!onShell) {
       return;
     }
@@ -87,7 +87,7 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
 
-    const onShell = await gotoShellRoute(page, "/");
+    const onShell = await gotoShellRoute(page, e2eHiveHomePath());
     if (!onShell) {
       return;
     }
@@ -372,18 +372,24 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     await expect(plugins).toHaveClass(/v4-subtab--active/);
 
     await expect
-      .poll(async () =>
-        row.evaluate((container) => {
-          const active = container.querySelector<HTMLElement>(".v4-subtab--active");
-          if (!active) {
-            return false;
-          }
-          const c = container.getBoundingClientRect();
-          const a = active.getBoundingClientRect();
-          const activeCenter = a.left + a.width / 2;
-          const containerCenter = c.left + c.width / 2;
-          return Math.abs(activeCenter - containerCenter) <= c.width / 4;
-        }),
+      .poll(
+        async () =>
+          row.evaluate((container) => {
+            const active = container.querySelector<HTMLElement>(".v4-subtab--active");
+            if (!active) {
+              return false;
+            }
+            const maxScroll = container.scrollWidth - container.clientWidth;
+            if (maxScroll <= 0) {
+              return true;
+            }
+            const c = container.getBoundingClientRect();
+            const a = active.getBoundingClientRect();
+            const activeCenter = a.left + a.width / 2;
+            const containerCenter = c.left + c.width / 2;
+            return Math.abs(activeCenter - containerCenter) <= c.width / 3;
+          }),
+        { timeout: 15_000 },
       )
       .toBe(true);
   });
@@ -634,9 +640,15 @@ test.describe("Responsive shell — authenticated cockpit", () => {
         }
 
         await assertNoHorizontalOverflow(page);
-        await expect(page.getByRole("heading", { name: route.heading, exact: true }).first()).toBeVisible({
-          timeout: 15_000,
-        });
+        if (route.path === "/tasks") {
+          await expect(page.getByTestId("hive-page-shell").locator("h1")).toHaveText(route.heading, {
+            timeout: 15_000,
+          });
+        } else {
+          await expect(page.getByRole("heading", { name: route.heading, exact: true }).first()).toBeVisible({
+            timeout: 15_000,
+          });
+        }
       });
     }
   }

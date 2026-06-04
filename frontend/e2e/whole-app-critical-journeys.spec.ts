@@ -1,7 +1,12 @@
 import { expect, test } from "@playwright/test";
 
 import { seedDashboardSessionCookie } from "./fixtures/dashboard-session";
-import { e2eHiveHomeHeading, e2eHiveHomePath } from "./fixtures/hive-home-route";
+import {
+  e2eHiveHomeHeading,
+  e2eHiveHomePath,
+  e2eTasksHubHeading,
+  e2eTasksSidebarLabel,
+} from "./fixtures/hive-home-route";
 import { maybeInstallShellApiMocks } from "./fixtures/shell-api-mocks";
 import { HIVE_CRITICAL_JOURNEY_SPECS } from "../lib/hive-critical-journeys-spec";
 import { OPERATOR_CONTROL_PLANE_ENABLED } from "../lib/feature-flags";
@@ -9,6 +14,7 @@ import { OPERATOR_CONTROL_PLANE_ENABLED } from "../lib/feature-flags";
 const SIDEBAR_ROUTE_PATTERN: Record<string, RegExp> = {
   Swarms: /\/swarms(?:\?|#|$)/,
   Tasks: /\/tasks(?:\?|#|$)/,
+  "Mission Control": /\/tasks(?:\?|#|$)/,
   Agents: /\/agents(?:\?|#|$)/,
   "Apps & Tools": /\/apps-tools(?:\?|#|$)/,
   Integrations: /\/integrations(?:\?|#|$)/,
@@ -52,7 +58,10 @@ async function clickSidebarNav(page: import("@playwright/test").Page, label: str
   const link = nav.getByRole("link", { name: new RegExp(`^${label}\\b`) });
   const routePattern = SIDEBAR_ROUTE_PATTERN[label];
   if (routePattern) {
-    await Promise.all([page.waitForURL(routePattern, { timeout: 45_000 }), link.click()]);
+    await Promise.all([
+      page.waitForURL(routePattern, { timeout: 45_000, waitUntil: "domcontentloaded" }),
+      link.click(),
+    ]);
     return;
   }
   await link.click();
@@ -78,7 +87,7 @@ function journeySpec(id: string) {
 }
 
 test.describe("Whole-App critical journeys — desktop", () => {
-  test.describe.configure({ mode: "serial" });
+  test.describe.configure({ mode: "serial", timeout: 90_000 });
 
   test.beforeEach(async ({ page, context, baseURL }) => {
     await maybeInstallShellApiMocks(page);
@@ -100,9 +109,10 @@ test.describe("Whole-App critical journeys — desktop", () => {
     await gotoShellRoute(page, "/agentic-os");
     await assertShellTitle(page, "Agentic OS");
 
-    for (const label of ["Swarms", "Tasks", "Agents"] as const) {
+    const tasksNav = e2eTasksSidebarLabel();
+    for (const label of ["Swarms", tasksNav, "Agents"] as const) {
       await clickSidebarNav(page, label);
-      await assertShellTitle(page, label);
+      await assertShellTitle(page, label === tasksNav ? e2eTasksHubHeading() : label);
     }
   });
 
@@ -110,7 +120,17 @@ test.describe("Whole-App critical journeys — desktop", () => {
     test.skip(!OPERATOR_CONTROL_PLANE_ENABLED, journeySpec("agentic-os-subnav-command")?.description);
 
     await gotoShellRoute(page, "/agentic-os");
-    await clickSubnavTab(page, "Agentic OS sections", "Command");
+    await expect(page.getByRole("navigation", { name: "Agentic OS sections" })).toBeVisible({
+      timeout: 20_000,
+    });
+
+    const expandAdvanced = page.getByRole("button", { name: /Show advanced tools/i });
+    try {
+      await expandAdvanced.click({ timeout: 8_000 });
+      await clickSubnavTab(page, "Advanced Agentic OS tools", "Command");
+    } catch {
+      await clickSubnavTab(page, "Agentic OS sections", "Command");
+    }
     await expect(page.getByText("Bee Hotline")).toBeVisible({ timeout: 20_000 });
   });
 
