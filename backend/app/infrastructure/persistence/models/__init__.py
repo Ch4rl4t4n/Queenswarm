@@ -14,6 +14,11 @@ _EXPORTABLE: dict[str, tuple[str, str]] = {
     "ForagerORM": ("app.infrastructure.persistence.models.forager", "ForagerORM"),
     "TenantSkillORM": ("app.infrastructure.persistence.models.tenant_skill", "TenantSkillORM"),
     "SkillOpportunityORM": ("app.infrastructure.persistence.models.skill_opportunity", "SkillOpportunityORM"),
+    "TenantContentPackORM": ("app.infrastructure.persistence.models.tenant_content_pack", "TenantContentPackORM"),
+    "ContentPackOpportunityORM": (
+        "app.infrastructure.persistence.models.content_pack_opportunity",
+        "ContentPackOpportunityORM",
+    ),
     "AgentSuggestion": ("app.infrastructure.persistence.models.agent_suggestion", "AgentSuggestion"),
     "AgentRole": ("app.infrastructure.persistence.models.enums", "AgentRole"),
     "AgentStatus": ("app.infrastructure.persistence.models.enums", "AgentStatus"),

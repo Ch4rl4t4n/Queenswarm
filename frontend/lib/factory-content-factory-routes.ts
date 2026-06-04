@@ -8,11 +8,12 @@
 export const FACTORY_BLUEPRINT_PATH = "/factory";
 export const CONTENT_FACTORY_PATH = "/apps-tools/content-factory";
 
-export type ContentFactorySection = "agency" | "micro-saas";
+export type ContentFactorySection = "agency" | "micro-saas" | "pack-factory";
 
 const SECTION_HASH: Record<ContentFactorySection, string> = {
   agency: "media-agency",
   "micro-saas": "micro-saas-factory",
+  "pack-factory": "pack-factory",
 };
 
 /** Canonical href for a Content Factory sub-section (`?section=` + scroll hash). */
@@ -28,6 +29,11 @@ export function contentFactoryMicroSaasHref(): string {
 /** Deep link into Media agency lane inside Content Factory. */
 export function contentFactoryAgencyHref(): string {
   return contentFactorySectionHref("agency");
+}
+
+/** Deep link into Content Pack Factory lane inside Content Factory. */
+export function contentFactoryPackFactoryHref(): string {
+  return contentFactorySectionHref("pack-factory");
 }
 
 /** Operator-facing cross-link labels — keep UI + E2E in sync. */

@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, Factory } from "lucide-react";
+import { Building2, Factory, Package } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -37,22 +37,35 @@ const ExecutionStudioMicroSaasFactoryPanel = dynamic(
   },
 );
 
-type ContentFactorySection = "agency" | "micro-saas";
+const ContentPackFactoryPanel = dynamic(
+  () =>
+    import("@/components/apps-tools/content-pack-factory-panel").then((mod) => ({
+      default: mod.ContentPackFactoryPanel,
+    })),
+  {
+    ssr: false,
+    loading: () => <div className="qs-bubble shrink-0 min-h-[10rem] animate-pulse bg-white/5 p-4" aria-hidden />,
+  },
+);
+
+type ContentFactorySection = "agency" | "micro-saas" | "pack-factory";
 
 const SECTION_TO_HASH: Record<ContentFactorySection, string> = {
   agency: "media-agency",
   "micro-saas": "micro-saas-factory",
+  "pack-factory": "pack-factory",
 };
 
 function sectionFromHash(hash: string): ContentFactorySection | null {
   const key = hash.replace(/^#/, "").trim().toLowerCase();
   if (key === "media-agency") return "agency";
   if (key === "micro-saas-factory") return "micro-saas";
+  if (key === "pack-factory") return "pack-factory";
   return null;
 }
 
 function sectionFromQuery(raw: string | null): ContentFactorySection | null {
-  if (raw === "agency" || raw === "micro-saas") {
+  if (raw === "agency" || raw === "micro-saas" || raw === "pack-factory") {
     return raw;
   }
   return null;
@@ -105,6 +118,7 @@ export function ContentFactoryPageClient() {
           items={[
             { id: "agency", label: "Media agency", icon: Building2 },
             { id: "micro-saas", label: "Micro-SaaS factory", icon: Factory },
+            { id: "pack-factory", label: "Pack factory", icon: Package },
           ]}
           activeId={section}
           onChange={(id) => {
@@ -119,6 +133,7 @@ export function ContentFactoryPageClient() {
     >
       {section === "agency" ? <ExecutionStudioMediaAgencyPanel onError={setError} /> : null}
       {section === "micro-saas" ? <ExecutionStudioMicroSaasFactoryPanel onError={setError} /> : null}
+      {section === "pack-factory" ? <ContentPackFactoryPanel onError={setError} /> : null}
     </HivePageShell>
   );
 }
