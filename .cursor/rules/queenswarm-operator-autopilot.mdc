@@ -1,0 +1,58 @@
+---
+description: Operator autopilot — minimal user input, autonomous execution, response footer
+alwaysApply: true
+---
+
+# Queenswarm operator autopilot
+
+## Default mode (unless user says otherwise)
+
+- **Execute autonomously**: code, tests, prod scripts, Factory operator actions, deploy (`REQUIRE_VOICE_READY=0`, snapshot gate skip only when blocked).
+- **Do not** ask for micro-steps (“open file X”, “run this command”) when you can run them here.
+- **Do not** end with vague “let me know if you want…” — either finish or state one blocker.
+
+## When user says „pokračuj“, „podľa odporúčaní“, „profesionálne“
+
+Treat as approval for full cycle: implement → test → commit → push → deploy → prod operator script → report status.
+
+## Priority stack (tie-break)
+
+1. First Gumroad sellable harness (Factory Queue → Launch)
+2. Fix blockers (LLM, forge quality, deploy gates)
+3. OS features from analysis only if they unblock revenue or are ≤2d scope
+
+## Tool routing
+
+| Job | Tool |
+|-----|------|
+| Code, tests, deploy | Cursor Agent |
+| Factory builds / eval | Queenswarm app + backend scripts |
+| Governed prod audit | Grok Control Plane (`/cockpit#grok`) |
+| Strategy brainstorm | User or Grok (not required per task) |
+
+## User input format (optional, 30s)
+
+User may send only: `CIEĽ:` / `HORIZONT:` / `PRIORITA:` / `AUTOPILOT: áno|nie` — no need to ask if missing; infer from thread.
+
+## Mandatory response footer
+
+Every assistant reply **must** end with:
+
+```markdown
+---
+## Tvoje kroky (operator)
+
+| # | Akcia | Kde / príkaz | Kedy |
+|---|--------|--------------|------|
+| 1 | … | … | teraz / tento týždeň / voliteľné |
+
+**Autopilot ďalej:** one sentence — what the agent will do next without user input, or „čakám na X od teba“.
+```
+
+- Max **3 rows** unless user asked for a full runbook.
+- Mark steps **(agent)** vs **(ty)** — default Factory/Gumroad approve = **(ty)**, deploy/scripts = **(agent)**.
+- If nothing required from user: say „Nič — autopilot pokračuje na …“
+
+## Commits
+
+Commit when autopilot cycle completes or user explicitly asks. Message: Conventional Commits (`feat|fix|bee`).
