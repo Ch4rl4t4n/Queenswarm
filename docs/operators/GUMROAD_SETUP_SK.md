@@ -41,6 +41,7 @@ Tento dokument vysvetľuje, **čo potrebuješ ty** vs. **čo robí Queenswarm**,
    - Riadok **Cover** hovorí, aké screenshoty/cover assety pridať, aby produkt nepôsobil ako surový ZIP.
    - Copy-paste launch text: `python scripts/gumroad_launch_copy_pack.py` → `exports/GUMROAD_LAUNCH_COPY.md`
    - Cover assety: `python scripts/gumroad_cover_asset.py` alebo bulk `python scripts/gumroad_cover_asset.py --all` → `exports/gumroad-assets/<slug>/cover.html` + `COVER_BRIEF.md`
+   - Ready upload balíček: `python scripts/gumroad_ready_package.py` alebo bulk `python scripts/gumroad_ready_package.py --all` → `exports/gumroad-ready/<slug>/` s bundle, fields, cover a manifestom v jednom adresári.
    - Kvalita produktov: `python scripts/gumroad_product_scorecard.py` → `exports/GUMROAD_SCORECARD.md`
    - Auto-next po publikovaní: `python scripts/gumroad_launch_copy_pack.py --mark-uploaded <slug> --url <gumroad-url>` označí hotový produkt a hneď pripraví ďalší launch copy pack.
 
