@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from scripts.gumroad_cover_asset import render_cover_brief, render_cover_html, write_cover_assets
+from scripts.gumroad_cover_asset import generate_cover_assets, render_cover_brief, render_cover_html, write_cover_assets
 from scripts.gumroad_upload_tracker import parse_shortlist
 
 
@@ -48,3 +48,40 @@ def test_write_cover_assets_creates_html_and_brief(tmp_path: Path) -> None:
     assert (out / "cover.html").is_file()
     assert (out / "COVER_BRIEF.md").is_file()
     assert "SEO Repurpose Pack" in (out / "cover.html").read_text(encoding="utf-8")
+
+
+def test_generate_cover_assets_all_writes_each_qa_clean_product(tmp_path: Path) -> None:
+    first_bundle = tmp_path / "first.tar.gz"
+    second_bundle = tmp_path / "second.tar.gz"
+    first_bundle.write_text("bundle", encoding="utf-8")
+    second_bundle.write_text("bundle", encoding="utf-8")
+    products = parse_shortlist(
+        f"""# Gumroad Upload Shortlist
+
+- [ ] `first` (content_pack, score 115)
+  - **Subtitle:** A strong Gumroad subtitle for first product.
+  - **Price:** EUR 19.00
+  - **Description:** A concrete target buyer and outcome description.
+  - **File:** `{first_bundle}`
+  - **Listing:** `first/LISTING.md`
+
+- [ ] `second` (content_pack, score 110)
+  - **Subtitle:** A strong Gumroad subtitle for second product.
+  - **Price:** EUR 29.00
+  - **Description:** A concrete target buyer and outcome description.
+  - **File:** `{second_bundle}`
+  - **Listing:** `second/LISTING.md`
+
+- [ ] `blocked` (content_pack, score 80)
+  - **Subtitle:** Too short.
+  - **Description:** Weak.
+  - **File:** `/tmp/missing.tar.gz`
+  - **Listing:** `blocked/LISTING.md`
+""",
+    )
+
+    written = generate_cover_assets(tmp_path / "assets", products, state={"products": {}}, all_products=True)
+
+    assert [path.name for path in written] == ["first", "second"]
+    assert (tmp_path / "assets" / "first" / "cover.html").is_file()
+    assert not (tmp_path / "assets" / "blocked").exists()

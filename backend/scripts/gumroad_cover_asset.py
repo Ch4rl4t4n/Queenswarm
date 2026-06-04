@@ -22,6 +22,7 @@ from scripts.gumroad_upload_tracker import (  # noqa: E402
     cover_checklist,
     load_state,
     parse_shortlist,
+    qa_product,
 )
 
 EXPORT_ROOT = ROOT.parent / "exports"
@@ -209,6 +210,45 @@ def write_cover_assets(out_root: Path, product: UploadProduct, *, title: str, ho
     return target
 
 
+def _uploaded(state: dict, slug: str) -> bool:
+    """Return True if tracker state marks a product uploaded."""
+
+    products = state.get("products")
+    if not isinstance(products, dict):
+        return False
+    record = products.get(slug)
+    return isinstance(record, dict) and record.get("status") == "uploaded"
+
+
+def generate_cover_assets(
+    out_root: Path,
+    products: list[UploadProduct],
+    *,
+    state: dict,
+    all_products: bool = False,
+) -> list[Path]:
+    """Generate cover assets for the next or all QA-clean pending products."""
+
+    selected: list[UploadProduct]
+    if all_products:
+        selected = [
+            product
+            for product in products
+            if not _uploaded(state, product.slug) and not qa_product(product)
+        ]
+    else:
+        product = select_launch_product(products, state)
+        selected = [product] if product else []
+
+    written: list[Path] = []
+    for product in selected:
+        listing_md = extract_listing_from_bundle(Path(product.bundle), product.listing_path)
+        title = _listing_title(listing_md, product.slug)
+        hook = _listing_hook(listing_md, product.subtitle)
+        written.append(write_cover_assets(out_root, product, title=title, hook=hook))
+    return written
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI entrypoint."""
 
@@ -216,6 +256,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--shortlist", default=str(DEFAULT_SHORTLIST))
     parser.add_argument("--state", default=str(DEFAULT_STATE))
     parser.add_argument("--out-dir", default=str(DEFAULT_OUT_DIR))
+    parser.add_argument("--all", action="store_true", help="Generate assets for every pending QA-clean product.")
     args = parser.parse_args(argv)
 
     shortlist_path = Path(args.shortlist).expanduser().resolve()
@@ -223,18 +264,22 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Missing shortlist: {shortlist_path}")
         return 1
     products = parse_shortlist(shortlist_path.read_text(encoding="utf-8"))
-    product = select_launch_product(products, load_state(Path(args.state).expanduser().resolve()))
-    if product is None:
+    state = load_state(Path(args.state).expanduser().resolve())
+    written = generate_cover_assets(
+        Path(args.out_dir).expanduser().resolve(),
+        products,
+        state=state,
+        all_products=bool(args.all),
+    )
+    if not written:
         print("No pending QA-clean upload product found.")
         return 1
 
-    listing_md = extract_listing_from_bundle(Path(product.bundle), product.listing_path)
-    title = _listing_title(listing_md, product.slug)
-    hook = _listing_hook(listing_md, product.subtitle)
-    target = write_cover_assets(Path(args.out_dir).expanduser().resolve(), product, title=title, hook=hook)
-    print(f"cover_dir={target}")
-    print(f"cover_html={target / 'cover.html'}")
-    print(f"cover_brief={target / 'COVER_BRIEF.md'}")
+    for target in written:
+        print(f"cover_dir={target}")
+        print(f"cover_html={target / 'cover.html'}")
+        print(f"cover_brief={target / 'COVER_BRIEF.md'}")
+    print(f"count={len(written)}")
     return 0
 
 
