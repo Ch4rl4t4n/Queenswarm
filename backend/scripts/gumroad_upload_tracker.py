@@ -107,6 +107,23 @@ def apply_uploaded_mark(state: dict[str, Any], *, slug: str, gumroad_url: str) -
     return state
 
 
+def qa_product(product: UploadProduct) -> list[str]:
+    """Return upload-blocking or review-worthy listing issues."""
+
+    issues: list[str] = []
+    if not product.price.strip() or product.price.strip().lower() in {"n/a", "see listing.md"}:
+        issues.append("missing_price")
+    if len(product.subtitle.strip()) < 40:
+        issues.append("weak_hook")
+    if len(product.description.strip()) < 20:
+        issues.append("weak_description")
+    if not product.bundle.strip() or not Path(product.bundle).is_file():
+        issues.append("bundle_missing")
+    if not product.listing_path.strip():
+        issues.append("listing_missing")
+    return issues
+
+
 def _product_record(state: dict[str, Any], slug: str) -> dict[str, Any]:
     products = state.get("products")
     if not isinstance(products, dict):
@@ -129,6 +146,7 @@ def render_progress_report(products: list[UploadProduct], state: dict[str, Any],
         "",
     ]
     for product in pending[: max(1, next_limit)]:
+        qa_issues = qa_product(product)
         lines.extend(
             [
                 f"- [ ] `{product.slug}` ({product.kind}, score {product.score})",
@@ -136,6 +154,8 @@ def render_progress_report(products: list[UploadProduct], state: dict[str, Any],
                 f"  - **File:** `{product.bundle}`",
             ],
         )
+        if qa_issues:
+            lines.append(f"  - **QA:** {', '.join(qa_issues)}")
     if not pending:
         lines.append("- All shortlist products are marked uploaded.")
 

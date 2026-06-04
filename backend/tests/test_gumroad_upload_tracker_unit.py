@@ -7,6 +7,7 @@ import json
 from scripts.gumroad_upload_tracker import (
     apply_uploaded_mark,
     parse_shortlist,
+    qa_product,
     render_progress_report,
 )
 
@@ -68,6 +69,42 @@ def test_render_progress_report_prioritizes_pending_products() -> None:
     assert "- [x] `facebook-local-pack`" in report
     assert "- [ ] `seo-skill` (skill_factory, score 85)" in report
     assert "https://gum.co/facebook" in report
+
+
+def test_qa_product_flags_missing_price_short_hook_and_missing_bundle() -> None:
+    product = parse_shortlist(
+        """# Gumroad Upload Shortlist
+
+- [ ] `weak-pack` (content_pack, score 80)
+  - **Subtitle:** Too short.
+  - **Description:** Good target.
+  - **File:** `/tmp/does-not-exist.tar.gz`
+  - **Listing:** `weak-pack/LISTING.md`
+""",
+    )[0]
+
+    issues = qa_product(product)
+
+    assert "missing_price" in issues
+    assert "weak_hook" in issues
+    assert "bundle_missing" in issues
+
+
+def test_render_progress_report_includes_listing_qa_warnings() -> None:
+    product = parse_shortlist(
+        """# Gumroad Upload Shortlist
+
+- [ ] `weak-pack` (content_pack, score 80)
+  - **Subtitle:** Too short.
+  - **Description:** Good target.
+  - **File:** `/tmp/does-not-exist.tar.gz`
+  - **Listing:** `weak-pack/LISTING.md`
+""",
+    )[0]
+
+    report = render_progress_report([product], {"products": {}}, next_limit=1)
+
+    assert "**QA:** missing_price, weak_hook, weak_description, bundle_missing" in report
 
 
 def test_tracker_state_is_json_serializable() -> None:

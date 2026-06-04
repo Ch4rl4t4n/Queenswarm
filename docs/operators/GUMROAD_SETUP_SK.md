@@ -36,7 +36,8 @@ Tento dokument vysvetľuje, **čo potrebuješ ty** vs. **čo robí Queenswarm**,
 5. Tracker:
    - Ďalšie priority: `python scripts/gumroad_upload_tracker.py --next 5`
    - Označiť hotové: `python scripts/gumroad_upload_tracker.py --mark-uploaded <slug> --url <gumroad-url>`
-   - Report: `exports/UPLOAD_PROGRESS.md`
+   - Report + QA varovania: `exports/UPLOAD_PROGRESS.md`
+   - Ak report ukáže `missing_price`, `weak_hook`, `weak_description` alebo `bundle_missing`, najprv oprav listing/bundle alebo uploadni vyššie hodnotený produkt bez varovaní.
 
 **Tvoja Gumroad stránka = tvoja „predajná webstránka“** na začiatok.
 
