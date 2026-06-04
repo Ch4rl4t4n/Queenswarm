@@ -142,16 +142,16 @@ export function DynamicCollectorDeck({
 
           {current ? (
             <article
-              className="dynamic-collector-deck__card dynamic-collector-deck__card--front"
+              className="dynamic-collector-deck__card dynamic-collector-deck__card--front hive-readable-card"
               style={{ zIndex: 20 }}
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <p className="text-base font-semibold leading-snug text-(--qs-text)">{current.title}</p>
+                <p className="hive-readable-prose min-w-0 flex-1 text-base font-semibold leading-snug text-(--qs-text)">{current.title}</p>
                 {current.badge ? (
                   <V4Badge tone={current.badgeTone ?? "info"}>{current.badge}</V4Badge>
                 ) : null}
               </div>
-              <p className="mt-3 flex-1 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-(--qs-text-2)">
+              <p className="hive-readable-prose mt-3 flex-1 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-(--qs-text-2)">
                 {current.body}
               </p>
               {current.meta ? (

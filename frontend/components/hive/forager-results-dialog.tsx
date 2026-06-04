@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { HiveModalShell } from "@/components/hive/hive-modal-shell";
+import { HiveModalShell, hiveModalScrollBodyClass } from "@/components/hive/hive-modal-shell";
 import { V4Badge } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
 import { foragerKnowledgeHref } from "@/lib/execution-lane-routes";
@@ -149,7 +149,7 @@ export function ForagerResultsDialog({
             ) : null}
           </div>
           {report ? (
-            <p className="mt-1 line-clamp-2 text-sm text-(--qs-text-2)" title={report.name}>
+            <p className="hive-readable-prose mt-1 line-clamp-2 text-sm text-(--qs-text-2)" title={report.name}>
               {report.name}
             </p>
           ) : null}
@@ -164,14 +164,14 @@ export function ForagerResultsDialog({
         </button>
       </header>
 
-      <div ref={scrollRef} className="hive-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+      <div ref={scrollRef} className={hiveModalScrollBodyClass}>
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-16 text-sm text-(--qs-text-3)">
             <Loader2Icon className="h-5 w-5 animate-spin text-pollen" aria-hidden />
             Loading harvest report…
           </div>
         ) : report ? (
-          <div className="space-y-5">
+          <div className="hive-readable-prose space-y-5">
             <section>
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-pollen">Executive summary</p>
               <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-(--qs-text)">
@@ -189,7 +189,7 @@ export function ForagerResultsDialog({
                 ) : null}
               </p>
               {report.items.length === 0 ? (
-                <div className="mt-3 space-y-3 rounded-xl border border-dashed border-pollen/35 bg-black/20 px-4 py-5 text-sm text-(--qs-text-3)">
+                <div className="mt-3 space-y-3 rounded-xl border border-dashed border-pollen/35 bg-black/20 px-4 py-5 text-sm text-(--qs-text-3) sm:px-5">
                   <p>No harvested signals yet for this forager.</p>
                   <ol className="list-decimal space-y-1 pl-5 text-xs text-(--qs-text-2)">
                     <li>Open <strong>Foragers</strong> → find this row → click <strong>Run</strong> (RSS feeds scrape on Run).</li>
@@ -202,17 +202,19 @@ export function ForagerResultsDialog({
                   {report.items.map((item, index) => (
                     <li
                       key={`${item.title}-${index}`}
-                      className="rounded-xl border border-pollen/30 bg-black/25 px-4 py-3"
+                      className="hive-readable-card rounded-xl border border-pollen/30 bg-black/25 px-4 py-3.5 sm:px-5 sm:py-4"
                     >
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <p className="text-sm font-medium text-(--qs-text)">{item.title}</p>
-                        <span className="text-[10px] text-(--qs-text-4)">
+                      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+                        <p className="min-w-0 flex-1 text-sm font-medium leading-snug text-(--qs-text)">
+                          {item.title}
+                        </p>
+                        <span className="shrink-0 text-[10px] leading-relaxed text-(--qs-text-4)">
                           {item.scraped_at ? formatTimeAgoIso(item.scraped_at) : "—"}
                           {" · "}
                           {Math.round(item.confidence * 100)}% conf.
                         </span>
                       </div>
-                      <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-(--qs-text-2)">
+                      <p className="mt-2.5 whitespace-pre-wrap text-xs leading-relaxed text-(--qs-text-2)">
                         {item.body.length > 1200 ? `${item.body.slice(0, 1197)}…` : item.body}
                       </p>
                       {item.source_url ? (
@@ -220,7 +222,7 @@ export function ForagerResultsDialog({
                           href={item.source_url}
                           target="_blank"
                           rel="noreferrer"
-                          className="mt-2 inline-block text-xs text-cyan hover:underline"
+                          className="hive-readable-link mt-2.5 text-xs text-cyan hover:underline"
                         >
                           {item.source_url}
                         </a>

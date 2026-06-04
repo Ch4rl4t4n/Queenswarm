@@ -19,6 +19,10 @@ export function hiveModalOverlayAlignClass(align: HiveModalAlign): string {
   return "items-center justify-center p-4";
 }
 
+/** Shared scroll body for HiveModalShell report dialogs. */
+export const hiveModalScrollBodyClass =
+  "hive-modal-scroll hive-scrollbar min-h-0 flex-1 px-4 py-4 sm:px-5";
+
 /** Shared panel chrome for bottom-sheet modals (max-width/height set per dialog). */
 export const hiveModalBottomSheetPanelClass =
   "qs-bubble flex w-full flex-col overflow-hidden rounded-t-(--qs-radius-lg) sm:rounded-(--qs-radius-lg)";

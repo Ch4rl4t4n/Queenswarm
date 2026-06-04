@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { V4Badge } from "@/components/ui/v4";
-import { HiveModalShell, hiveModalBottomSheetPanelClass } from "@/components/hive/hive-modal-shell";
+import { HiveModalShell, hiveModalBottomSheetPanelClass, hiveModalScrollBodyClass } from "@/components/hive/hive-modal-shell";
 import { HiveApiError, hiveGet } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -140,7 +140,7 @@ export function DreamReportInfoDialog({ cycleId, open, onOpenChange }: DreamRepo
           </button>
         </header>
 
-        <div className="hive-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5">
+        <div className={cn(hiveModalScrollBodyClass, "space-y-4")}>
           {loading ? (
             <div className="flex items-center gap-2 py-8 text-sm text-(--qs-text-3)">
               <Loader2Icon className="h-4 w-4 animate-spin text-pollen" aria-hidden />
@@ -175,14 +175,14 @@ export function DreamReportInfoDialog({ cycleId, open, onOpenChange }: DreamRepo
               {report.summary ? (
                 <section className="v4-dream-report-context">
                   <p className="v4-field-label text-[10px] text-cyan-300/90">What this report is about</p>
-                  <p className="mt-1 text-sm leading-relaxed text-(--qs-text-2)">{report.summary}</p>
+                  <p className="hive-readable-prose mt-1 text-sm leading-relaxed text-(--qs-text-2)">{report.summary}</p>
                 </section>
               ) : null}
 
               {detail.digest_md?.trim() ? (
                 <section className="qs-bubble-inner space-y-2 p-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-(--qs-text-3)">Digest</p>
-                  <pre className="whitespace-pre-wrap font-(family-name:--font-jetbrains-mono) text-xs leading-relaxed text-(--qs-text-2)">
+                  <pre className="hive-readable-prose whitespace-pre-wrap font-(family-name:--font-jetbrains-mono) text-xs leading-relaxed text-(--qs-text-2)">
                     {detail.digest_md.trim()}
                   </pre>
                 </section>
@@ -205,8 +205,8 @@ export function DreamReportInfoDialog({ cycleId, open, onOpenChange }: DreamRepo
                   </p>
                   <ul className="space-y-2">
                     {detail.insights.slice(0, 12).map((insight) => (
-                      <li key={insight.id} className="rounded-(--qs-radius-sm) border border-(--qs-border) px-3 py-2">
-                        <p className="text-xs leading-relaxed text-(--qs-text-2)">{insight.summary}</p>
+                      <li key={insight.id} className="hive-readable-card rounded-(--qs-radius-sm) border border-(--qs-border) px-3 py-2.5 sm:px-4">
+                        <p className="hive-readable-prose text-xs leading-relaxed text-(--qs-text-2)">{insight.summary}</p>
                         <p className="mt-1 font-mono text-[10px] text-(--qs-text-3)">
                           {insight.source_kind} · confidence {Math.round(insight.confidence * 100)}%
                         </p>
@@ -236,7 +236,7 @@ function ReportListSection({
   return (
     <section className="qs-bubble-inner space-y-2 p-3">
       <p className={cn("text-[11px] font-semibold uppercase tracking-wider", toneClass)}>{title}</p>
-      <ul className="list-disc space-y-1 pl-4 text-xs leading-relaxed text-(--qs-text-2)">
+      <ul className="hive-readable-prose list-disc space-y-1 pl-4 text-xs leading-relaxed text-(--qs-text-2)">
         {items.map((item) => (
           <li key={item}>{item}</li>
         ))}

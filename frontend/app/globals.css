@@ -3819,6 +3819,36 @@
     word-break: break-word;
   }
 
+  /** Modal / report scroll regions — clip horizontal bleed from long URLs. */
+  .hive-modal-scroll {
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  /** Readable blocks inside modals — titles, body copy, URLs. */
+  .hive-readable-prose {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .hive-readable-card {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .hive-readable-link {
+    display: block;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
   .v4-card-header .v4-label-kicker {
     display: block;
     margin-bottom: 6px;

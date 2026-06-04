@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AgentSessionEventLog } from "@/components/hive/agent-session-event-log";
-import { HiveModalShell } from "@/components/hive/hive-modal-shell";
+import { HiveModalShell, hiveModalScrollBodyClass } from "@/components/hive/hive-modal-shell";
 import { SessionPatternSkillsPanel } from "@/components/hive/session-pattern-skills-panel";
 import { SubAgentSessionCard } from "@/components/hive/sub-agent-session-card";
 import { V4Badge } from "@/components/ui/v4";
@@ -204,7 +204,7 @@ export function AgentSessionReportDialog({ sessionId, open, onOpenChange }: Agen
               {session ? <V4Badge tone={session.status === "completed" ? "ok" : session.status === "failed" ? "err" : "info"}>{session.status}</V4Badge> : null}
             </div>
             {session ? (
-              <p className="mt-1 text-sm leading-relaxed text-(--qs-text-2)" title={session.goal}>
+              <p className="hive-readable-prose mt-1 text-sm leading-relaxed text-(--qs-text-2)" title={session.goal}>
                 {sessionGoalPreview(session.goal, 240)}
               </p>
             ) : null}
@@ -219,7 +219,7 @@ export function AgentSessionReportDialog({ sessionId, open, onOpenChange }: Agen
           </button>
         </header>
 
-        <div ref={scrollRef} className="hive-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5">
+        <div ref={scrollRef} className={cn(hiveModalScrollBodyClass, "space-y-4")}>
           {loading ? (
             <div className="flex items-center gap-2 py-8 text-sm text-(--qs-text-3)">
               <Loader2Icon className="h-4 w-4 animate-spin text-pollen" aria-hidden />
@@ -252,7 +252,7 @@ export function AgentSessionReportDialog({ sessionId, open, onOpenChange }: Agen
                   </div>
                 </dl>
                 {session.error_text ? (
-                  <p className="rounded-(--qs-radius-sm) border border-(--qs-red)/35 bg-(--qs-red)/10 px-3 py-2 text-xs text-(--qs-red)">
+                  <p className="hive-readable-prose rounded-(--qs-radius-sm) border border-(--qs-red)/35 bg-(--qs-red)/10 px-3 py-2 text-xs text-(--qs-red)">
                     {session.error_text}
                   </p>
                 ) : null}

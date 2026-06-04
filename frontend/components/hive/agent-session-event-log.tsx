@@ -18,7 +18,7 @@ export function AgentSessionEventLog({ events, loading }: AgentSessionEventLogPr
     return <p className="text-xs text-(--qs-text-3)">No timeline events yet.</p>;
   }
   return (
-    <div className="v4-event-log max-h-72 space-y-2 overflow-y-auto p-3">
+    <div className="hive-modal-scroll v4-event-log max-h-72 space-y-2 p-3 sm:p-4">
       {rows.map((event) => (
         <div key={event.id} className="v4-learning-feed-row">
           <div className="min-w-0 flex-1">
@@ -28,7 +28,7 @@ export function AgentSessionEventLog({ events, loading }: AgentSessionEventLogPr
               </span>
               <span className="text-[11px] text-(--qs-text-3)">{new Date(event.occurred_at).toLocaleString()}</span>
             </div>
-            <p className="mt-1 text-xs text-(--qs-text-2)">{event.message}</p>
+            <p className="hive-readable-prose mt-1 text-xs text-(--qs-text-2)">{event.message}</p>
           </div>
         </div>
       ))}

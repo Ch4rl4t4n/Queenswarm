@@ -65,7 +65,7 @@ export function SubAgentSessionCard({
   }
 
   return (
-    <article className="rounded-xl border border-zinc-800 bg-black/30 p-3">
+    <article className="hive-readable-card rounded-xl border border-zinc-800 bg-black/30 p-3 sm:p-4">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-semibold uppercase tracking-wider text-cyan">{sub.role}</p>
         <div className="flex items-center gap-2">
@@ -86,12 +86,12 @@ export function SubAgentSessionCard({
         </div>
       </div>
 
-      <p className="mt-2 text-[11px] text-zinc-500">
+      <p className="hive-readable-prose mt-2 text-[11px] text-zinc-500">
         tools: {(sub.toolset ?? []).length ? (sub.toolset ?? []).join(", ") : "none"} · {sub.runtime_mode}
       </p>
 
       {memory.subGoal ? (
-        <p className="mt-2 text-xs text-zinc-300">
+        <p className="hive-readable-prose mt-2 text-xs text-zinc-300">
           <span className="text-[10px] uppercase tracking-wide text-zinc-600">sub-goal · </span>
           {memory.subGoal}
         </p>
@@ -131,7 +131,7 @@ export function SubAgentSessionCard({
             {expanded ? "Hide skills prompt" : "Show skills prompt"}
           </button>
           {expanded ? (
-            <pre className="mt-1 max-h-36 overflow-auto rounded-lg bg-black/40 p-2 font-mono text-[10px] text-zinc-300">
+            <pre className="hive-readable-prose mt-1 max-h-36 overflow-auto rounded-lg bg-black/40 p-2.5 font-mono text-[10px] text-zinc-300">
               {typeof sub.short_memory?.skills_prompt_block === "string"
                 ? sub.short_memory.skills_prompt_block
                 : memory.promptPreview}
@@ -141,12 +141,12 @@ export function SubAgentSessionCard({
       ) : null}
 
       {sub.last_output ? (
-        <p className={cn("mt-2 whitespace-pre-wrap text-xs text-zinc-200", !showFullOutput && (expanded ? "line-clamp-2" : "line-clamp-4"))}>
+        <p className={cn("hive-readable-prose mt-2 whitespace-pre-wrap text-xs text-zinc-200", !showFullOutput && (expanded ? "line-clamp-2" : "line-clamp-4"))}>
           {sub.last_output}
         </p>
       ) : null}
 
-      {sub.error_text ? <p className="mt-2 text-xs text-danger">{sub.error_text}</p> : null}
+      {sub.error_text ? <p className="hive-readable-prose mt-2 text-xs text-danger">{sub.error_text}</p> : null}
 
       {events.length > 0 || sub.runtime_mode === "durable" ? (
         <SubAgentStepTimeline

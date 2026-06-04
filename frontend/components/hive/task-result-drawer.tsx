@@ -559,7 +559,7 @@ export function TaskResultDrawer({
               {outputFmt === "markdown" ? (
                 <MarkdownPreview content={outputText} />
               ) : outputFmt === "json" ? (
-                <pre className="overflow-x-auto whitespace-pre-wrap rounded-xl border border-[color:var(--qs-border)] bg-[#050510] p-4 font-[family-name:var(--font-jetbrains-mono)] text-xs text-data">
+                <pre className="hive-readable-prose whitespace-pre-wrap rounded-xl border border-[color:var(--qs-border)] bg-[#050510] p-4 font-[family-name:var(--font-jetbrains-mono)] text-xs text-data">
                   {outputText}
                 </pre>
               ) : outputFmt === "html" ? (
@@ -568,7 +568,7 @@ export function TaskResultDrawer({
                   dangerouslySetInnerHTML={{ __html: outputText }}
                 />
               ) : (
-                <pre className="overflow-x-auto whitespace-pre-wrap rounded-xl border border-[color:var(--qs-border)] bg-[#050510] p-4 font-[family-name:var(--font-jetbrains-mono)] text-sm text-zinc-200">
+                <pre className="hive-readable-prose whitespace-pre-wrap rounded-xl border border-[color:var(--qs-border)] bg-[#050510] p-4 font-[family-name:var(--font-jetbrains-mono)] text-sm text-zinc-200">
                   {outputText}
                 </pre>
               )}

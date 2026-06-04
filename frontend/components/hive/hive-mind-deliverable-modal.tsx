@@ -21,7 +21,7 @@ export function HiveMindDeliverableModal({ title, body, busy, onClose }: HiveMin
       onClose={onClose}
       ariaLabel="Deliverable preview"
       backdropClassName="bg-black/70 backdrop-blur-sm"
-      panelClassName="v4-card flex max-h-[85vh] w-full max-w-2xl flex-col gap-4 overflow-hidden"
+      panelClassName="v4-card flex max-h-[85vh] w-full max-w-2xl flex-col gap-4 overflow-hidden p-4 sm:p-5"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -35,7 +35,7 @@ export function HiveMindDeliverableModal({ title, body, busy, onClose }: HiveMin
       {busy ? (
         <p className="text-sm text-(--qs-text-3)">Fetching markdown mirror…</p>
       ) : (
-        <pre className="hive-scrollbar max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-(--qs-radius-lg) border border-(--qs-border) bg-black/40 p-4 font-mono text-xs leading-relaxed text-(--qs-text-2)">
+        <pre className="hive-readable-prose hive-scrollbar max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-(--qs-radius-lg) border border-(--qs-border) bg-black/40 p-4 font-mono text-xs leading-relaxed text-(--qs-text-2)">
           {body}
         </pre>
       )}

@@ -43,12 +43,12 @@ export function PublishPackDetailModal({
       onClose={onClose}
       labelledBy="publish-pack-detail-title"
       backdropClassName="bg-black/70 backdrop-blur-sm"
-      panelClassName="v4-card flex max-h-[90vh] w-full max-w-2xl flex-col gap-4 overflow-hidden"
+      panelClassName="v4-card flex max-h-[90vh] w-full max-w-2xl flex-col gap-4 overflow-hidden p-4 sm:p-5"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <span className="v4-label-kicker">Publish pack</span>
-          <h3 id="publish-pack-detail-title" className="text-lg font-semibold text-(--qs-text)">
+          <h3 id="publish-pack-detail-title" className="hive-readable-prose text-lg font-semibold text-(--qs-text)">
             {item.title}
           </h3>
           <div className="flex flex-wrap items-center gap-2">
@@ -66,10 +66,10 @@ export function PublishPackDetailModal({
         </button>
       </div>
 
-      <div className="hive-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+      <div className="hive-modal-scroll hive-scrollbar min-h-0 flex-1 space-y-4">
         <section>
           <p className="v4-field-label text-[10px] text-cyan-300/90">Caption</p>
-          <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-(--qs-text-2)">
+          <p className="hive-readable-prose mt-1 whitespace-pre-wrap text-sm leading-relaxed text-(--qs-text-2)">
             {item.body || item.body_preview}
           </p>
         </section>
@@ -77,14 +77,14 @@ export function PublishPackDetailModal({
         {item.cta ? (
           <section>
             <p className="v4-field-label text-[10px] text-cyan-300/90">CTA</p>
-            <p className="mt-1 text-sm text-(--qs-text-2)">{item.cta}</p>
+            <p className="hive-readable-prose mt-1 text-sm text-(--qs-text-2)">{item.cta}</p>
           </section>
         ) : null}
 
         {item.hashtags.length > 0 ? (
           <section>
             <p className="v4-field-label text-[10px] text-cyan-300/90">Hashtags</p>
-            <p className="mt-1 font-mono text-xs text-(--qs-text-3)">
+            <p className="hive-readable-prose mt-1 font-mono text-xs text-(--qs-text-3)">
               {item.hashtags.map((tag) => `#${tag}`).join(" ")}
             </p>
           </section>
@@ -97,12 +97,12 @@ export function PublishPackDetailModal({
               {item.hook_variants.map((hook) => (
                 <li
                   key={hook.id}
-                  className="rounded-lg border border-(--qs-border)/60 bg-black/20 px-3 py-2 text-xs text-(--qs-text-2)"
+                  className="hive-readable-card rounded-lg border border-(--qs-border)/60 bg-black/20 px-3 py-2.5 sm:px-4 sm:py-3 text-xs text-(--qs-text-2)"
                 >
                   <span className="font-mono text-[10px] uppercase text-cyan">{hook.style}</span>
-                  <p className="mt-1">{hook.hook}</p>
+                  <p className="hive-readable-prose mt-1">{hook.hook}</p>
                   {hook.rationale ? (
-                    <p className="mt-1 text-[11px] text-(--qs-text-3)">{hook.rationale}</p>
+                    <p className="hive-readable-prose mt-1 text-[11px] text-(--qs-text-3)">{hook.rationale}</p>
                   ) : null}
                 </li>
               ))}
@@ -127,7 +127,7 @@ export function PublishPackDetailModal({
           </Link>
         ) : null}
 
-        <p className="font-mono text-[10px] text-(--qs-text-4)">
+        <p className="hive-readable-prose font-mono text-[10px] text-(--qs-text-4)">
           Created {new Date(item.created_at).toLocaleString()} · {item.id}
         </p>
       </div>
