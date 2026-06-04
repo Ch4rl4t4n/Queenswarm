@@ -29,6 +29,7 @@ def test_snapshot_out_includes_connector_flags() -> None:
         "gumroad_publish_ready",
         "launch_readiness",
         "launch_queue",
+        "launch_near_miss",
         "llm",
     ):
         assert required in fields

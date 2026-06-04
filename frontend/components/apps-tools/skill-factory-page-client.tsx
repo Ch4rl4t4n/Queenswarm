@@ -12,6 +12,7 @@ import {
   factoryBuildDisabled,
   type FactoryLlmReadiness,
 } from "@/components/apps-tools/factory-llm-readiness-banner";
+import { HarnessEvalPanel } from "@/components/apps-tools/harness-eval-panel";
 import { HarnessProductLinesPanel } from "@/components/apps-tools/harness-product-lines-panel";
 import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { SkillFactoryManualPanel } from "@/components/apps-tools/skill-factory-manual-panel";
@@ -119,6 +120,7 @@ interface SkillFactorySnapshot {
   opportunities: SkillOpportunityRow[];
   library: TenantSkillRow[];
   launch_queue: TenantSkillRow[];
+  launch_near_miss: TenantSkillRow[];
   launch_readiness: LaunchReadiness | null;
   queue_count: number;
   building_count: number;
@@ -695,6 +697,7 @@ export function SkillFactoryPageClient(): JSX.Element {
           {tab === "launch" ? (
             <>
             <HarnessProductLinesPanel />
+            <HarnessEvalPanel />
             <V4Card className="mt-4">
               <V4CardHeader
                 title="Launch queue"
@@ -799,10 +802,39 @@ export function SkillFactoryPageClient(): JSX.Element {
                   </li>
                 ))}
                 {(snapshot.launch_queue ?? []).length === 0 ? (
-                  <p className="text-xs text-(--qs-text-4)">
-                    No sellable skills yet — most factory drafts need critic APPROVE + valid SKILL.md. Check Library
-                    tiers or rebuild top opportunities from Queue.
-                  </p>
+                  <div className="space-y-3 text-xs text-(--qs-text-4)">
+                    <p>
+                      No sellable skills yet — most factory drafts need critic APPROVE + valid SKILL.md.
+                      {snapshot.building_count > 0 ? (
+                        <span className="text-cyan"> {snapshot.building_count} builds in progress…</span>
+                      ) : null}
+                    </p>
+                    {(snapshot.launch_near_miss ?? []).length > 0 ? (
+                      <div>
+                        <p className="font-medium text-(--qs-text-3)">Closest to launch (draft tier)</p>
+                        <ul className="mt-2 space-y-2">
+                          {(snapshot.launch_near_miss ?? []).map((row) => (
+                            <li key={row.id} className="rounded-lg border border-(--qs-border-2) px-3 py-2">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <span className="font-medium text-(--qs-text-2)">{row.title}</span>
+                                <V4Badge tone="info">{scorePct(row.sellable_score)}</V4Badge>
+                              </div>
+                              {row.sellable_issues.length > 0 ? (
+                                <p className="mt-1 font-mono text-[10px]">fix: {row.sellable_issues.join(", ")}</p>
+                              ) : null}
+                            </li>
+                          ))}
+                        </ul>
+                        <button
+                          type="button"
+                          className="mt-2 text-cyan underline"
+                          onClick={() => navigateSkillFactoryTab("library")}
+                        >
+                          Open Library → rebuild or approve forge
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                 ) : null}
               </ul>
             </V4Card>

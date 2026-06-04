@@ -31,6 +31,24 @@ def test_harness_catalog_route_model_fields() -> None:
     assert {"lines", "revenue_scenarios", "economics_note"} <= fields
 
 
+def test_harness_eval_result_fields_for_fe() -> None:
+    """Eval panel reads these fields from POST /harness-products/eval."""
+
+    from app.application.services.harness_eval_service import HarnessEvalResultOut
+
+    fields = set(HarnessEvalResultOut.model_fields.keys())
+    assert {
+        "passed",
+        "tier",
+        "score",
+        "issues",
+        "critic_approved",
+        "skill_valid",
+        "eval_report_md",
+        "recommended_gumroad_price_eur_cents",
+    } <= fields
+
+
 def test_revenue_scenario_keys_stable_for_fe() -> None:
     """Frontend panel expects month_1/3/6 scenario keys."""
 

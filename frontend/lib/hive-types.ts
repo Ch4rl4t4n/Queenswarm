@@ -628,6 +628,18 @@ export interface HarnessProductCatalog {
   economics_note: string;
 }
 
+/** Eval-as-a-Service result (`POST /harness-products/eval`). */
+export interface HarnessEvalResult {
+  passed: boolean;
+  tier: string;
+  score: number;
+  issues: string[];
+  critic_approved: boolean;
+  skill_valid: boolean;
+  eval_report_md: string;
+  recommended_gumroad_price_eur_cents: number;
+}
+
 export interface SkillExportMeta {
   source: string;
   recipe_id: string;

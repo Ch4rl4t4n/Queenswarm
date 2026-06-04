@@ -135,6 +135,7 @@ class SkillFactorySnapshotOut(BaseModel):
     gumroad_publish_ready: bool = False
     launch_readiness: LaunchReadinessOut | None = None
     launch_queue: list[TenantSkillOut] = Field(default_factory=list)
+    launch_near_miss: list[TenantSkillOut] = Field(default_factory=list)
     llm: FactoryLlmReadinessOut | None = None
 
 
@@ -643,6 +644,9 @@ async def compose_skill_factory_snapshot(
 
     launch_candidates.sort(key=launch_queue_sort_key)
     launch_queue = [row for row in launch_candidates if row.recommended_for_launch][:12]
+    near_miss_pool = [row for row in library_out if row.sellable_tier == "draft"]
+    near_miss_pool.sort(key=launch_queue_sort_key)
+    launch_near_miss = near_miss_pool[:5]
 
     hero_niches = len(policy.niche_seeds) >= 3
 
@@ -685,6 +689,7 @@ async def compose_skill_factory_snapshot(
             hero_niches_confirmed=hero_niches,
         ),
         launch_queue=launch_queue,
+        launch_near_miss=launch_near_miss,
         llm=llm_status,
     )
 
