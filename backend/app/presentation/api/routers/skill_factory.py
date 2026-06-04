@@ -12,7 +12,11 @@ from app.application.services.factory_policy_limits import (
     FACTORY_MAX_BUILDS_PER_WEEK_CAP,
     FACTORY_MAX_BUILDS_PER_WEEK_DEFAULT,
 )
-from app.application.services.factory_vertical_seeds import vertical_seeds_payload
+from app.application.services.factory_product_presets import (
+    factory_product_presets,
+    merged_vertical_seeds_payload,
+    preset_by_id,
+)
 from app.application.services.skill_factory_research import auto_queue_factory_builds, run_skill_market_research
 from app.application.services.harness_eval_service import HarnessEvalResultOut
 from app.application.services.skill_factory_launch import LaunchPrepareOut, prepare_launch_batch
@@ -464,16 +468,58 @@ async def skill_factory_eval_skill(
 @router.get("/vertical-seeds", summary="Monetization vertical niche catalog")
 async def skill_factory_vertical_seeds(
     principal: dict = Depends(require_dashboard_user_with_tenant_role),
-) -> dict[str, list[str]]:
+) -> dict[str, list[str] | list[dict[str, object]]]:
     """Return SSOT vertical seeds for operator presets."""
 
     del principal
     _ensure_enabled()
-    payload = vertical_seeds_payload()
+    payload = merged_vertical_seeds_payload()
     return {
         "vertical": payload["skill_factory"],
         "starter": payload["skill_factory_starter"],
+        "product_presets": payload["product_presets"],
     }
+
+
+@router.get("/product-presets", summary="Revenue-oriented factory presets")
+async def skill_factory_product_presets(
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+) -> list[dict[str, object]]:
+    """Return Pigford + Middleton preset bundles for Settings UI."""
+
+    del principal
+    _ensure_enabled()
+    return [row.model_dump(mode="json") for row in factory_product_presets()]
+
+
+class ApplyProductPresetOut(BaseModel):
+    """Policy after applying a product preset."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    preset_id: str
+    niche_seeds: list[str]
+    policy: SkillFactoryPolicyOut
+
+
+@router.post("/product-presets/{preset_id}/apply", response_model=ApplyProductPresetOut, summary="Apply preset seeds")
+async def skill_factory_apply_product_preset(
+    preset_id: str,
+    db: DbSession,
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+) -> ApplyProductPresetOut:
+    """Replace niche seeds with a curated revenue preset (Pigford / Middleton)."""
+
+    _ensure_enabled()
+    preset = preset_by_id(preset_id)
+    if preset is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="preset_not_found")
+    tenant_id = _tenant_id(principal)
+    current = await get_skill_factory_policy(db, tenant_id=tenant_id)
+    updated = current.model_copy(update={"niche_seeds": list(preset.niche_seeds)[:12]})
+    saved = await save_skill_factory_policy(db, tenant_id=tenant_id, policy=updated)
+    await db.commit()
+    return ApplyProductPresetOut(preset_id=preset.id, niche_seeds=list(saved.niche_seeds), policy=saved)
 
 
 __all__ = ["router"]

@@ -270,6 +270,16 @@ const GROK_PRESETS: GrokPreset[] = [
     commandProfile: "release_safe",
   },
   {
+    id: "skill-factory-hero-build",
+    label: "Skill Factory hero build",
+    objective:
+      "Verify Skill Factory sellable pipeline: run tests for factory presets + session learnings, fix failures, deploy with REQUIRE_VOICE_READY=0.",
+    scopePaths: "backend/app/application/services/factory_product_presets.py,backend/app/application/services/session_learnings_distill.py,frontend/components/apps-tools/skill-factory-page-client.tsx",
+    runMode: "code_edit_and_test",
+    riskLevel: "medium",
+    commandProfile: "ci_quick",
+  },
+  {
     id: "publish-template-pack",
     label: "Publish template pack",
     objective:

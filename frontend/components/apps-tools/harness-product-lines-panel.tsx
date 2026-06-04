@@ -62,7 +62,7 @@ export function HarnessProductLinesPanel(): JSX.Element {
   return (
     <V4Card className="mt-4">
       <V4CardHeader
-        title="3× ⭐⭐⭐ product lines"
+        title="4× ⭐⭐⭐ product lines"
         description="Cena = čo zaplatí kupujúci na Gumroad. Náš náklad = LLM + hosting pri predaji. Zisk = net po poplatkoch mínus náklad."
       />
       <p className="mt-2 px-4 text-xs text-(--qs-text-3)">{catalog.economics_note}</p>

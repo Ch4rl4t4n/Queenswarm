@@ -130,11 +130,12 @@ export const SECTION_HINTS = {
   skillFactorySettings: {
     title: "Factory automation",
     description:
-      "Niche seeds, auto-build threshold, weekly cap, and factory kill-switch per tenant.",
+      "Revenue presets (Pigford / Middleton), niche seeds, auto-build cap. Pair with Cursor Agent for code; Grok Control Plane (/cockpit) for governed deploys.",
     options: [
-      "Start auto-build OFF — enable after first successful skill.",
-      "Max 2–3 builds/week for solo operator.",
-      "Save policy after every change.",
+      "Apply revenue preset → Save policy → Research → Queue rebuild.",
+      "Start auto-build OFF until first sellable forge.",
+      "Max 2–3 builds/week — quality over volume.",
+      "Session learnings auto-append to Settings → AI · harness after non-factory sessions.",
     ],
     manualHref: "/manual#skill-factory",
   },

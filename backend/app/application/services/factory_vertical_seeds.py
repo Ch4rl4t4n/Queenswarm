@@ -4,10 +4,24 @@ from __future__ import annotations
 
 from typing import Literal
 
+from app.application.services.factory_product_presets import (
+    MIDDLETON_LOCAL_BIZ_5_WORKERS_SEEDS,
+    PIGFORD_SOLO_FOUNDER_SEEDS,
+)
+
 FactoryLane = Literal["skill", "content_pack"]
+
+# Tier S — analysis-driven hero bundles (Pigford + Middleton)
+SKILL_FACTORY_HERO_SEEDS: tuple[str, ...] = (
+    *PIGFORD_SOLO_FOUNDER_SEEDS[:2],
+    *MIDDLETON_LOCAL_BIZ_5_WORKERS_SEEDS[:2],
+)
 
 # Tier A — highest Gumroad/GitHub demand signals (Cursor, n8n, agency ops)
 SKILL_FACTORY_VERTICAL_SEEDS: tuple[str, ...] = (
+    *SKILL_FACTORY_HERO_SEEDS,
+    *PIGFORD_SOLO_FOUNDER_SEEDS[2:],
+    *MIDDLETON_LOCAL_BIZ_5_WORKERS_SEEDS[2:],
     "Cursor IDE agent skill packs for SaaS teams",
     "n8n automation templates for agencies",
     "SEO content pipeline with simulate-first guardrails",
@@ -16,7 +30,6 @@ SKILL_FACTORY_VERTICAL_SEEDS: tuple[str, ...] = (
     "Gumroad-ready AI workflow listing packs",
     "lead research + outreach simulate-first",
     "social content calendar with brand guardrails",
-    "Claude Code PR review skill for indie dev teams",
     "customer support triage skill with guardrails",
     "real estate listing copy skill pack",
     "dental clinic appointment reminder automation",
@@ -38,7 +51,7 @@ CONTENT_PACK_VERTICAL_SEEDS: tuple[str, ...] = (
     "Black Friday email + social combo pack",
 )
 
-# Curated starter set (8) for one-click operator preset
+# Curated starter set (8) for one-click operator preset — hero + proven niches
 SKILL_FACTORY_STARTER_SEEDS: tuple[str, ...] = SKILL_FACTORY_VERTICAL_SEEDS[:8]
 CONTENT_PACK_STARTER_SEEDS: tuple[str, ...] = CONTENT_PACK_VERTICAL_SEEDS[:8]
 

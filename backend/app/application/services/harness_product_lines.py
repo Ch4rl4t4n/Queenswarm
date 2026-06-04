@@ -120,6 +120,25 @@ def harness_product_catalog() -> list[HarnessProductLineOut]:
             ),
             api_path="POST /api/v1/harness-products/recipes/{id}/runbook-export",
         ),
+        HarnessProductLineOut(
+            id="local_biz_5_workers_bundle",
+            title="Local Business 5 AI Workers Bundle",
+            summary=(
+                "Middleton-style SMB pack — 5 verified runbooks/skills: reactivation, reviews, "
+                "lead nurture, receptionist FAQ, ads refresh."
+            ),
+            stars=3,
+            status="live",
+            gumroad_angle="One Gumroad product — five supervised worker harnesses + eval reports.",
+            economics=_economics(
+                price_min=7900,
+                price_max=19900,
+                price_rec=9900,
+                cost_per_sale=24,
+                setup=kit_setup * 5,
+            ),
+            api_path="GET /api/v1/skill-factory/product-presets",
+        ),
     ]
 
 
@@ -130,28 +149,32 @@ def revenue_scenarios() -> dict[str, dict[str, int]]:
     eval_net = lines["eval_as_a_service"].economics.net_eur_cents_per_sale
     kit_net = lines["mcp_connector_starter_kit"].economics.net_eur_cents_per_sale
     runbook_net = lines["operator_runbook"].economics.net_eur_cents_per_sale
+    bundle_net = lines["local_biz_5_workers_bundle"].economics.net_eur_cents_per_sale
 
-    def _month(*, eval_n: int, kit_n: int, runbook_n: int) -> int:
-        return eval_n * eval_net + kit_n * kit_net + runbook_n * runbook_net
+    def _month(*, eval_n: int, kit_n: int, runbook_n: int, bundle_n: int = 0) -> int:
+        return eval_n * eval_net + kit_n * kit_net + runbook_n * runbook_net + bundle_n * bundle_net
 
     return {
         "month_1_organic": {
-            "label_eur_net": _month(eval_n=3, kit_n=2, runbook_n=1) // 100,
+            "label_eur_net": _month(eval_n=3, kit_n=2, runbook_n=1, bundle_n=0) // 100,
             "eval_sales": 3,
             "kit_sales": 2,
             "runbook_sales": 1,
+            "bundle_sales": 0,
         },
         "month_3_marketing": {
-            "label_eur_net": _month(eval_n=15, kit_n=10, runbook_n=8) // 100,
+            "label_eur_net": _month(eval_n=15, kit_n=10, runbook_n=8, bundle_n=1) // 100,
             "eval_sales": 15,
             "kit_sales": 10,
             "runbook_sales": 8,
+            "bundle_sales": 1,
         },
         "month_6_scaled": {
-            "label_eur_net": _month(eval_n=40, kit_n=25, runbook_n=20) // 100,
+            "label_eur_net": _month(eval_n=40, kit_n=25, runbook_n=20, bundle_n=3) // 100,
             "eval_sales": 40,
             "kit_sales": 25,
             "runbook_sales": 20,
+            "bundle_sales": 3,
         },
     }
 

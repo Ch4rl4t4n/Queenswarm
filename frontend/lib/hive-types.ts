@@ -620,6 +620,17 @@ export interface HarnessRevenueScenario {
   eval_sales: number;
   kit_sales: number;
   runbook_sales: number;
+  bundle_sales?: number;
+}
+
+export interface FactoryProductPreset {
+  id: string;
+  title: string;
+  summary: string;
+  source: string;
+  gumroad_price_eur_cents_recommended: number;
+  niche_seeds: string[];
+  stars: number;
 }
 
 export interface HarnessProductCatalog {

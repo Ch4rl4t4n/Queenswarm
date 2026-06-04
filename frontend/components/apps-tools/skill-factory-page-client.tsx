@@ -27,7 +27,7 @@ import {
 import { useRouteHash } from "@/lib/hooks/use-route-hash";
 import { downloadSkillExportBundle, downloadTextFile } from "@/lib/skill-export-utils";
 import { supervisorSessionAgentsHref, skillFactoryForgeHref } from "@/lib/supervisor-session";
-import type { HarnessEvalResult, LaunchPrepareResult, SkillExportResponse } from "@/lib/hive-types";
+import type { FactoryProductPreset, HarnessEvalResult, LaunchPrepareResult, SkillExportResponse } from "@/lib/hive-types";
 
 interface SkillFactoryPolicy {
   enabled: boolean;
@@ -159,6 +159,7 @@ export function SkillFactoryPageClient(): JSX.Element {
   const [nicheInput, setNicheInput] = useState("");
   const [verticalSeeds, setVerticalSeeds] = useState<string[]>(FALLBACK_STARTER_PRESETS);
   const [starterSeeds, setStarterSeeds] = useState<string[]>(FALLBACK_STARTER_PRESETS);
+  const [productPresets, setProductPresets] = useState<FactoryProductPreset[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -182,10 +183,13 @@ export function SkillFactoryPageClient(): JSX.Element {
   }, [load]);
 
   useEffect(() => {
-    void hiveGet<{ vertical: string[]; starter: string[] }>("skill-factory/vertical-seeds")
+    void hiveGet<{ vertical: string[]; starter: string[]; product_presets?: FactoryProductPreset[] }>(
+      "skill-factory/vertical-seeds",
+    )
       .then((data) => {
         if (data.vertical?.length) setVerticalSeeds(data.vertical);
         if (data.starter?.length) setStarterSeeds(data.starter);
+        if (data.product_presets?.length) setProductPresets(data.product_presets);
       })
       .catch(() => {
         /* fallback presets */
@@ -371,6 +375,23 @@ export function SkillFactoryPageClient(): JSX.Element {
       await load();
     } catch (e) {
       toast.error(e instanceof HiveApiError ? e.message : "Bulk reject failed.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const applyProductPreset = async (presetId: string): Promise<void> => {
+    setBusyId(`preset-${presetId}`);
+    try {
+      const res = await hivePostJson<{ policy: SkillFactoryPolicy; niche_seeds: string[] }>(
+        `skill-factory/product-presets/${presetId}/apply`,
+        {},
+      );
+      setPolicyDraft(res.policy);
+      toast.success("Preset applied.", { description: `${res.niche_seeds.length} niche seeds loaded.` });
+      await load();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Preset apply failed.");
     } finally {
       setBusyId(null);
     }
@@ -1149,6 +1170,29 @@ export function SkillFactoryPageClient(): JSX.Element {
                   Studio + server flag <code className="font-mono text-[10px]">SKILL_FACTORY_MONID_VIDEO_PREVIEW_ENABLED</code>.
                 </p>
               ) : null}
+              <label className="block text-sm">
+                <span className="text-(--qs-text-3)">Revenue presets (analysis → seeds)</span>
+                <p className="mt-1 max-w-xl text-xs text-(--qs-text-4)">
+                  One click loads Pigford solo-founder or Middleton local-biz bundle seeds, then run Research →
+                  Queue builds. Cursor handles implementation; Grok Control Plane for governed deploys.
+                </p>
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  {productPresets.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      className="qs-btn qs-btn--ghost qs-btn--sm text-left"
+                      disabled={busyId === `preset-${preset.id}`}
+                      onClick={() => void applyProductPreset(preset.id)}
+                    >
+                      {busyId === `preset-${preset.id}` ? (
+                        <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
+                      ) : null}
+                      {preset.title} · €{(preset.gumroad_price_eur_cents_recommended / 100).toFixed(0)}
+                    </button>
+                  ))}
+                </div>
+              </label>
               <label className="block text-sm">
                 <span className="text-(--qs-text-3)">Niche seeds (max 12)</span>
                 <div className="mt-2 flex flex-wrap gap-2">
