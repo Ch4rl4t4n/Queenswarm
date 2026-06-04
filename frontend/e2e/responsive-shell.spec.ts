@@ -366,11 +366,13 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     await expect(row).toBeVisible({ timeout: 15_000 });
 
     // Pick a far tab that starts off-centre, select it, then assert it auto-centres.
+    await row.evaluate((container) => {
+      container.scrollLeft = container.scrollWidth;
+    });
     const plugins = row.getByRole("button", { name: /Plugins/i });
     await expect(plugins).toBeVisible();
-    await plugins.scrollIntoViewIfNeeded();
     await plugins.click();
-    await expect(plugins).toHaveClass(/v4-subtab--active/);
+    await expect(row.getByRole("button", { name: /Plugins/i })).toHaveClass(/v4-subtab--active/);
     await expect(page).toHaveURL(/tab=plugins/, { timeout: 15_000 });
 
     await expect
