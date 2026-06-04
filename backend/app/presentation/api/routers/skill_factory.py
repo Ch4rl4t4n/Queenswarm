@@ -24,6 +24,9 @@ from app.application.services.skill_factory_service import (
     export_tenant_skill_bundle,
     get_skill_factory_policy,
     list_skill_opportunities,
+    rebuild_factory_opportunity,
+    reject_failed_factory_forges,
+    reject_factory_forge,
     save_skill_factory_policy,
     start_factory_build,
 )
@@ -199,6 +202,91 @@ async def skill_factory_dismiss(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found.")
     await db.commit()
     return {"id": str(row.id), "status": row.status}
+
+
+class RebuildOut(BaseModel):
+    """Factory rebuild response."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    opportunity_id: str
+    session_id: str
+    status: str
+
+
+@router.post("/opportunities/{opportunity_id}/reject-forge", summary="Reject pending forge")
+async def skill_factory_reject_forge(
+    opportunity_id: uuid.UUID,
+    db: DbSession,
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, bool]:
+    """Reject failed verified_skill_forge for one opportunity."""
+
+    _ensure_enabled()
+    tenant_id = _tenant_id(principal)
+    try:
+        await reject_factory_forge(
+            db,
+            tenant_id=tenant_id,
+            opportunity_id=opportunity_id,
+            reviewer_subject=str(principal.get("sub") or "dashboard:skill_factory"),
+        )
+    except ValueError as exc:
+        code = str(exc)
+        status_code = status.HTTP_404_NOT_FOUND if code == "opportunity_not_found" else status.HTTP_422_UNPROCESSABLE_ENTITY
+        raise HTTPException(status_code=status_code, detail=code) from exc
+    await db.commit()
+    return {"rejected": True}
+
+
+@router.post("/opportunities/{opportunity_id}/rebuild", response_model=RebuildOut, summary="Reject forge and rebuild")
+async def skill_factory_rebuild(
+    opportunity_id: uuid.UUID,
+    db: DbSession,
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+) -> RebuildOut:
+    """Reject failed forge (if pending) and queue a fresh factory session."""
+
+    _ensure_enabled()
+    tenant_id = _tenant_id(principal)
+    subject = str(principal.get("sub") or "dashboard:skill_factory")
+    try:
+        row = await rebuild_factory_opportunity(
+            db,
+            tenant_id=tenant_id,
+            opportunity_id=opportunity_id,
+            created_by_subject=subject,
+            reviewer_subject=subject,
+        )
+    except ValueError as exc:
+        code = str(exc)
+        if code == "weekly_build_cap_reached":
+            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=code) from exc
+        status_code = status.HTTP_404_NOT_FOUND if code == "opportunity_not_found" else status.HTTP_422_UNPROCESSABLE_ENTITY
+        raise HTTPException(status_code=status_code, detail=code) from exc
+    await db.commit()
+    return RebuildOut(
+        opportunity_id=str(row.id),
+        session_id=str(row.supervisor_session_id or ""),
+        status=row.status,
+    )
+
+
+@router.post("/queue/reject-failed-forges", summary="Bulk reject forges that failed quality gate")
+async def skill_factory_reject_failed_forges(
+    db: DbSession,
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, int]:
+    """Reject all pending skill forges where quality gate failed."""
+
+    _ensure_enabled()
+    rejected = await reject_failed_factory_forges(
+        db,
+        tenant_id=_tenant_id(principal),
+        reviewer_subject=str(principal.get("sub") or "dashboard:skill_factory"),
+    )
+    await db.commit()
+    return {"rejected": rejected}
 
 
 @router.post("/skills/{skill_id}/export", summary="Export GitHub bundle")

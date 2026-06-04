@@ -334,6 +334,48 @@ export function SkillFactoryPageClient(): JSX.Element {
     }
   };
 
+  const rejectForge = async (opportunityId: string, suggestionId: string): Promise<void> => {
+    setBusyId(opportunityId);
+    try {
+      await hivePostJson(`skill-factory/opportunities/${opportunityId}/reject-forge`, {});
+      toast.success("Forge rejected.");
+      await load();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Reject failed.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const rebuildOpportunity = async (opportunityId: string): Promise<void> => {
+    setBusyId(opportunityId);
+    try {
+      const res = await hivePostJson<{ session_id: string }>(
+        `skill-factory/opportunities/${opportunityId}/rebuild`,
+        {},
+      );
+      toast.success("Rebuild started.", { description: `Session ${res.session_id.slice(0, 8)}…` });
+      await load();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Rebuild failed.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const rejectAllFailedForges = async (): Promise<void> => {
+    setBusyId("reject-failed");
+    try {
+      const res = await hivePostJson<{ rejected: number }>("skill-factory/queue/reject-failed-forges", {});
+      toast.success(`Rejected ${res.rejected} failed forge(s).`);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Bulk reject failed.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const exportSkill = async (id: string): Promise<void> => {
     setBusyId(id);
     try {
@@ -565,6 +607,18 @@ export function SkillFactoryPageClient(): JSX.Element {
                 title="Build queue"
                 description="Queued and in-progress factory runs."
                 hint={sectionHintNode("skillFactoryQueue")}
+                actions={
+                  queueRows.some((r) => r.status === "awaiting_forge" && r.forge_quality_passed === false) ? (
+                    <button
+                      type="button"
+                      className="qs-btn qs-btn--ghost qs-btn--sm"
+                      disabled={busyId === "reject-failed"}
+                      onClick={() => void rejectAllFailedForges()}
+                    >
+                      Reject all failed forges
+                    </button>
+                  ) : undefined
+                }
               />
               <ul className="mt-4 space-y-2">
                 {queueRows.map((row) => (
@@ -642,6 +696,27 @@ export function SkillFactoryPageClient(): JSX.Element {
                           >
                             Review in Integrations →
                           </button>
+                        ) : null}
+                        {row.forge_suggestion_id && row.forge_quality_passed === false ? (
+                          <>
+                            <button
+                              type="button"
+                              className="qs-btn qs-btn--ghost qs-btn--sm"
+                              disabled={busyId === row.id}
+                              onClick={() => void rejectForge(row.id, row.forge_suggestion_id!)}
+                            >
+                              Reject forge
+                            </button>
+                            <button
+                              type="button"
+                              className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
+                              disabled={busyId === row.id}
+                              onClick={() => void rebuildOpportunity(row.id)}
+                            >
+                              <RefreshCwIcon className="size-3.5" aria-hidden />
+                              Rebuild
+                            </button>
+                          </>
                         ) : null}
                       </div>
                     ) : null}

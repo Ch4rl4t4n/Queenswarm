@@ -878,6 +878,132 @@ async def dismiss_opportunity(
     return row
 
 
+async def reject_factory_forge(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    opportunity_id: uuid.UUID,
+    reviewer_subject: str,
+) -> SkillOpportunityORM:
+    """Reject pending verified_skill_forge for one opportunity."""
+
+    row = await session.get(SkillOpportunityORM, opportunity_id)
+    if row is None or row.tenant_id != tenant_id:
+        raise ValueError("opportunity_not_found")
+    if row.supervisor_session_id is None:
+        raise ValueError("no_supervisor_session")
+
+    from app.infrastructure.persistence.models.tenant import Tenant
+    from app.application.services.supervisor.initiative import review_agent_suggestion_with_handoff
+
+    forge = await session.scalar(
+        select(AgentSuggestion).where(
+            AgentSuggestion.tenant_id == tenant_id,
+            AgentSuggestion.supervisor_session_id == row.supervisor_session_id,
+            AgentSuggestion.proposal_type == "verified_skill_forge",
+            AgentSuggestion.status == "pending",
+        ),
+    )
+    if forge is None:
+        raise ValueError("no_pending_forge")
+
+    sup = await session.get(SupervisorSession, row.supervisor_session_id)
+    tenant = await session.get(Tenant, tenant_id)
+    await review_agent_suggestion_with_handoff(
+        session,
+        suggestion=forge,
+        decision="rejected",
+        reviewer_subject=reviewer_subject,
+        supervisor_session=sup,
+        tenant=tenant,
+    )
+    row.status = "failed"
+    await session.flush()
+    logger.info(
+        "skill_factory.forge_rejected",
+        agent_id="skill_factory",
+        swarm_id=str(tenant_id),
+        task_id=str(row.id),
+    )
+    return row
+
+
+async def rebuild_factory_opportunity(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    opportunity_id: uuid.UUID,
+    created_by_subject: str,
+    reviewer_subject: str,
+) -> SkillOpportunityORM:
+    """Reject failed forge (if any) and start a fresh factory build."""
+
+    row = await session.get(SkillOpportunityORM, opportunity_id)
+    if row is None or row.tenant_id != tenant_id:
+        raise ValueError("opportunity_not_found")
+
+    if row.status == "awaiting_forge":
+        try:
+            await reject_factory_forge(
+                session,
+                tenant_id=tenant_id,
+                opportunity_id=opportunity_id,
+                reviewer_subject=reviewer_subject,
+            )
+        except ValueError as exc:
+            if str(exc) != "no_pending_forge":
+                raise
+
+    row.status = "queued"
+    row.supervisor_session_id = None
+    await session.flush()
+    return await start_factory_build(
+        session,
+        tenant_id=tenant_id,
+        opportunity_id=opportunity_id,
+        created_by_subject=created_by_subject,
+    )
+
+
+async def reject_failed_factory_forges(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    reviewer_subject: str,
+) -> int:
+    """Reject pending forges that failed quality gate or critic."""
+
+    opportunities = await list_skill_opportunities(session, tenant_id=tenant_id, limit=50)
+    awaiting = [row for row in opportunities if row.status == "awaiting_forge"]
+    session_ids = [row.supervisor_session_id for row in awaiting if row.supervisor_session_id]
+    forge_by_session = await _forge_suggestions_by_session(
+        session,
+        tenant_id=tenant_id,
+        session_ids=[sid for sid in session_ids if sid is not None],
+    )
+    rejected = 0
+    for opp in awaiting:
+        if opp.supervisor_session_id is None:
+            continue
+        forge = forge_by_session.get(opp.supervisor_session_id)
+        if forge is None or str(forge.status or "").lower() != "pending":
+            continue
+        payload = dict(forge.proposal_payload or {})
+        if payload.get("quality_gate_passed") is not False and payload.get("critic_approved") is not False:
+            continue
+        try:
+            await reject_factory_forge(
+                session,
+                tenant_id=tenant_id,
+                opportunity_id=opp.id,
+                reviewer_subject=reviewer_subject,
+            )
+            rejected += 1
+        except ValueError:
+            continue
+    return rejected
+
+
 async def register_tenant_skill_from_markdown(
     session: AsyncSession,
     *,
@@ -1037,6 +1163,9 @@ __all__ = [
     "compose_skill_factory_snapshot",
     "complete_opportunity_with_skill",
     "reconcile_building_opportunities",
+    "rebuild_factory_opportunity",
+    "reject_failed_factory_forges",
+    "reject_factory_forge",
     "dismiss_opportunity",
     "export_tenant_skill_bundle",
     "get_skill_factory_policy",

@@ -23,6 +23,7 @@ from app.application.services.supervisor.hivemind_verify import (
     is_hivemind_verify_session,
     load_researcher_draft,
 )
+from app.application.services.skill_factory_session_prompts import is_skill_factory_context
 from app.application.services.supervisor.skills import SkillLibrary
 from app.application.services.supervisor.spawner import infer_manager_slug_for_role
 from app.core.config import settings
@@ -188,6 +189,7 @@ async def execute_supervisor_sub_agent_llm(
     )
 
     verify_lane = is_hivemind_verify_session(summary)
+    factory_lane = is_skill_factory_context(summary)
     researcher_draft_block = ""
     if verify_lane and role.lower() == "critic":
         draft = str(summary.get("researcher_draft_for_verify") or "").strip()
@@ -195,6 +197,18 @@ async def execute_supervisor_sub_agent_llm(
             draft = await load_researcher_draft(db, supervisor_session_id=supervisor_session.id)
         if draft:
             researcher_draft_block = f"\n\n{build_critic_verify_user_block(researcher_draft=draft)}"
+    elif factory_lane and role.lower() == "critic":
+        from app.application.services.skill_factory_session_prompts import (
+            build_critic_factory_user_block,
+            load_coder_draft_for_factory,
+        )
+
+        coder_draft = await load_coder_draft_for_factory(
+            db,
+            supervisor_session_id=supervisor_session.id,
+            summary=summary,
+        )
+        researcher_draft_block = f"\n\n{build_critic_factory_user_block(coder_draft=coder_draft)}"
 
     execute_instruction = (
         "Execute now. Include at least one `[INSIGHT]` HiveMind write-back with tag "
@@ -206,6 +220,10 @@ async def execute_supervisor_sub_agent_llm(
             "`hivemind-candidate` in the markdown. The critic will verify before HiveMind ingest — "
             "include source URLs for every claim."
         )
+    elif factory_lane and role.lower() == "coder":
+        from app.application.services.skill_factory_session_prompts import build_coder_factory_execute_instruction
+
+        execute_instruction = build_coder_factory_execute_instruction()
 
     hint_block = f"\n\n## Self-heal hint (attempt {attempt})\n{hint.strip()}" if hint and hint.strip() else ""
     user_payload = (
@@ -266,6 +284,10 @@ async def execute_supervisor_sub_agent_llm(
     if supervisor_session.tenant_id is not None and llm_output:
         if verify_lane and role.lower() == "researcher":
             summary["researcher_draft_for_verify"] = llm_output[:50_000]
+            supervisor_session.context_summary = summary
+            await db.flush()
+        elif factory_lane and role.lower() == "coder":
+            summary["factory_coder_draft"] = llm_output[:50_000]
             supervisor_session.context_summary = summary
             await db.flush()
         elif verify_lane and role.lower() == "critic":
