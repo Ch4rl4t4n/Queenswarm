@@ -40,6 +40,7 @@ Tento dokument vysvetľuje, **čo potrebuješ ty** vs. **čo robí Queenswarm**,
    - Ak report ukáže `missing_price`, `weak_hook`, `weak_description` alebo `bundle_missing`, najprv oprav listing/bundle alebo uploadni vyššie hodnotený produkt bez varovaní.
    - Riadok **Cover** hovorí, aké screenshoty/cover assety pridať, aby produkt nepôsobil ako surový ZIP.
    - Copy-paste launch text: `python scripts/gumroad_launch_copy_pack.py` → `exports/GUMROAD_LAUNCH_COPY.md`
+   - Cover assety: `python scripts/gumroad_cover_asset.py` → `exports/gumroad-assets/<slug>/cover.html` + `COVER_BRIEF.md`
    - Auto-next po publikovaní: `python scripts/gumroad_launch_copy_pack.py --mark-uploaded <slug> --url <gumroad-url>` označí hotový produkt a hneď pripraví ďalší launch copy pack.
 
 **Tvoja Gumroad stránka = tvoja „predajná webstránka“** na začiatok.
