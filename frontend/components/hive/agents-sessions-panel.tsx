@@ -40,7 +40,7 @@ import type {
 } from "@/lib/hive-types";
 import type { SoloSessionPreset, SoloSessionPresetsResponse } from "@/lib/solo-session-presets";
 import { SOLO_PRESET_LANE_LABEL } from "@/lib/solo-session-presets";
-import { runtimeModeLabel, sessionGoalPreview, sessionStatusTone, supervisorSessionBallroomHref, isActiveSupervisorSession } from "@/lib/supervisor-session";
+import { runtimeModeLabel, sessionGoalPreview, sessionStatusTone, supervisorSessionBallroomHref, isActiveSupervisorSession, supervisorClearSessionsButtonLabel, supervisorSessionMatchesStatusFilter, type SupervisorSessionStatusFilter } from "@/lib/supervisor-session";
 import { focusSessionGoalComposer } from "@/lib/operator-canonical-ui";
 import {
   extractSessionPatternSkills,
@@ -61,7 +61,7 @@ interface CreateSessionPayload {
 }
 
 const ROLE_OPTIONS = ["researcher", "coder", "browser_operator", "critic", "designer"] as const;
-type SessionStatusFilter = "all" | "running" | "needs_input" | "completed" | "failed" | "queued";
+type SessionStatusFilter = SupervisorSessionStatusFilter;
 
 function shortSessionId(id: string): string {
   const tail = id.replace(/-/g, "").slice(-4).toUpperCase();
@@ -101,7 +101,7 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
   const [busy, setBusy] = useState(false);
   const [reviewBusy, setReviewBusy] = useState<string | null>(null);
   const [sessionQuery, setSessionQuery] = useState("");
-  const [sessionStatusFilter, setSessionStatusFilter] = useState<SessionStatusFilter>("all");
+  const [sessionStatusFilter, setSessionStatusFilter] = useState<SessionStatusFilter>("active");
   const [deleteBusy, setDeleteBusy] = useState<string | null>(null);
   const [clearAllBusy, setClearAllBusy] = useState(false);
   const [reportSessionId, setReportSessionId] = useState<string | null>(null);
@@ -319,7 +319,7 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
   const filteredSessions = useMemo(() => {
     const q = sessionQuery.trim().toLowerCase();
     return sessions.filter((session) => {
-      if (sessionStatusFilter !== "all" && session.status !== sessionStatusFilter) {
+      if (!supervisorSessionMatchesStatusFilter(session.status, sessionStatusFilter)) {
         return false;
       }
       if (!q) {
@@ -400,16 +400,37 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
     if (targets.length === 0) {
       return;
     }
-    const filterHint = targets.length !== sessions.length ? " from current filter" : "";
+    const filterHint =
+      sessionStatusFilter === "completed"
+        ? " completed"
+        : sessionStatusFilter === "failed"
+          ? " failed"
+          : targets.length !== sessions.length
+            ? " from current filter"
+            : "";
     const confirmed = window.confirm(
-      `Delete ${targets.length} session${targets.length === 1 ? "" : "s"}${filterHint}? This cannot be undone.`,
+      `Delete ${targets.length} session${targets.length === 1 ? "" : "s"}${filterHint}? Learnings stay in HiveMind / curated memory; this only clears the list.`,
     );
     if (!confirmed) {
       return;
     }
     setClearAllBusy(true);
     try {
-      const isFullList = targets.length === sessions.length;
+      const q = sessionQuery.trim();
+      const canBulkByStatus =
+        !q &&
+        (sessionStatusFilter === "completed" || sessionStatusFilter === "failed") &&
+        targets.every((row) => row.status === sessionStatusFilter);
+      const isFullList = !q && sessionStatusFilter === "all" && targets.length === sessions.length;
+
+      if (canBulkByStatus) {
+        const result = await hiveDelete<{ deleted_count: number }>(
+          `agents/sessions?status=${encodeURIComponent(sessionStatusFilter)}`,
+        );
+        await refreshSessionsAndSummary();
+        toast.success(`Deleted ${result.deleted_count} ${sessionStatusFilter} session(s).`);
+        return;
+      }
       if (isFullList) {
         const result = await hiveDelete<{ deleted_count: number }>("agents/sessions");
         await refreshSessionsAndSummary();
@@ -757,6 +778,7 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
           value={sessionStatusFilter}
           onValueChange={(next) => setSessionStatusFilter(next as SessionStatusFilter)}
           options={[
+            { value: "active", label: "active only" },
             { value: "all", label: "all statuses" },
             { value: "running", label: "running" },
             { value: "needs_input", label: "needs_input" },
@@ -915,11 +937,12 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
             disabled={clearAllBusy || isLoading}
             onClick={() => void clearAllSessions(filteredSessions)}
           >
-            {clearAllBusy
-              ? "Clearing…"
-              : sessionStatusFilter !== "all" || sessionQuery.trim()
-                ? `Clear filtered (${filteredSessions.length})`
-                : `Clear all (${filteredSessions.length})`}
+            {supervisorClearSessionsButtonLabel(
+              clearAllBusy,
+              filteredSessions.length,
+              sessionStatusFilter,
+              Boolean(sessionQuery.trim()),
+            )}
           </button>
         ) : null}
       </div>

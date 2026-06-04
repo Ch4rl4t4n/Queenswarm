@@ -100,6 +100,9 @@ def _trend_pct(current: int, previous: int) -> int | None:
 def _session_sub_agent_progress_pct(session: SupervisorSession) -> int:
     """Derive live evaluator progress from sub-agent completion ratio."""
 
+    if str(session.status or "").strip().lower() == "completed":
+        return 100
+
     subs = list(getattr(session, "sub_agents", None) or [])
     if not subs:
         return 15

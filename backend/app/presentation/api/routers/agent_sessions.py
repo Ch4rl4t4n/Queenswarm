@@ -58,6 +58,7 @@ from app.application.services.supervisor import (
     create_supervisor_session,
     delete_all_supervisor_sessions,
     delete_supervisor_session,
+    delete_supervisor_sessions_by_status,
     get_supervisor_session,
     list_supervisor_routines,
     list_session_events,
@@ -945,32 +946,52 @@ async def list_agent_sessions(
 @router.delete(
     "/sessions",
     response_model=SessionsClearView,
-    summary="Delete all supervisor sessions for the active tenant",
+    summary="Delete supervisor sessions for the active tenant",
 )
 async def clear_agent_sessions(
     sess: DashboardSession,
     request: Request,
     db: DbSession,
+    status: str | None = Query(
+        default=None,
+        description="When set, delete only this terminal status (completed, failed, stopped, cancelled).",
+        pattern="^(completed|failed|stopped|cancelled)$",
+    ),
     _: bool = Depends(require_tenant_permission("supervisor:run")),
 ) -> SessionsClearView:
-    """Remove every supervisor session row visible in the operator list."""
+    """Remove supervisor session rows — all tenant rows, or one archived status bucket."""
 
     tenant_id = _require_tenant_id(sess)
-    deleted_count = await delete_all_supervisor_sessions(db, tenant_id=tenant_id)
+    if status is not None:
+        try:
+            deleted_count = await delete_supervisor_sessions_by_status(
+                db,
+                tenant_id=tenant_id,
+                status=status,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+        audit_action = "supervisor_sessions_clear_status"
+        audit_payload: dict[str, object] = {"deleted_count": deleted_count, "status": status}
+    else:
+        deleted_count = await delete_all_supervisor_sessions(db, tenant_id=tenant_id)
+        audit_action = "supervisor_sessions_clear_all"
+        audit_payload = {"deleted_count": deleted_count}
     from app.application.services.tenancy import write_tenant_audit_log
 
     await write_tenant_audit_log(
         db,
         tenant_id=tenant_id,
         actor_user_id=_actor_user_id_from_session(sess),
-        action="supervisor_sessions_clear_all",
+        action=audit_action,
         target_type="supervisor_session",
-        target_ref="*",
-        payload={"deleted_count": deleted_count},
+        target_ref=status or "*",
+        payload=audit_payload,
         client_ip=peer_ip_for_rate_limit(request),
     )
     await db.commit()
-    return SessionsClearView(deleted_count=deleted_count)
+    note = f"Cleared {deleted_count} session(s)" + (f" with status={status}" if status else "")
+    return SessionsClearView(deleted_count=deleted_count, note=note)
 
 
 @router.delete(

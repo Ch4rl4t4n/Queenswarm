@@ -135,22 +135,82 @@ export function sessionGoalPreview(goal: string, maxLen = 140): string {
   return `${firstLine.slice(0, maxLen - 1)}…`;
 }
 
+/** Terminal rows safe to bulk-purge from the sessions list (HiveMind/recipes already captured). */
+export const ARCHIVED_SUPERVISOR_SESSION_STATUSES = new Set([
+  "completed",
+  "failed",
+  "stopped",
+  "cancelled",
+]);
+
+export type SupervisorSessionStatusFilter =
+  | "all"
+  | "active"
+  | "running"
+  | "needs_input"
+  | "completed"
+  | "failed"
+  | "queued";
+
+/** Match one session row against the operator status filter (``active`` hides archived rows). */
+export function supervisorSessionMatchesStatusFilter(
+  status: string,
+  filter: SupervisorSessionStatusFilter,
+): boolean {
+  const key = status.trim().toLowerCase();
+  if (filter === "all") {
+    return true;
+  }
+  if (filter === "active") {
+    return !ARCHIVED_SUPERVISOR_SESSION_STATUSES.has(key);
+  }
+  return key === filter;
+}
+
+/** Label for bulk session purge button in Agents → Sessions. */
+export function supervisorClearSessionsButtonLabel(
+  clearAllBusy: boolean,
+  count: number,
+  statusFilter: SupervisorSessionStatusFilter,
+  hasQuery: boolean,
+): string {
+  if (clearAllBusy) {
+    return "Clearing…";
+  }
+  if (statusFilter === "completed") {
+    return `Clear completed (${count})`;
+  }
+  if (statusFilter === "failed") {
+    return `Clear failed (${count})`;
+  }
+  if (hasQuery || (statusFilter !== "all" && statusFilter !== "active")) {
+    return `Clear filtered (${count})`;
+  }
+  return `Clear all (${count})`;
+}
+
 /** Derive live progress from sub-agent completion (matches backend forager overview). */
 export function supervisorSessionProgressPct(session: {
   status: string;
   sub_agents?: { status: string }[];
 }): number {
+  const statusKey = session.status.trim().toLowerCase();
+  if (statusKey === "completed") {
+    return 100;
+  }
+
   const subs = session.sub_agents ?? [];
   if (subs.length === 0) {
-    const key = session.status.trim().toLowerCase();
-    if (key === "completed") return 100;
-    if (key === "needs_input") return 55;
-    if (key === "running") return 15;
+    if (statusKey === "needs_input") return 55;
+    if (statusKey === "running") return 15;
     return 8;
   }
   const done = subs.filter((row) => row.status.trim().toLowerCase() === "completed").length;
   const total = subs.length;
-  if (done >= total) return 99;
+  if (done >= total) {
+    // Sub-agents finished; supervisor may still be closing out hooks.
+    return 99;
+  }
   return Math.max(5, Math.min(98, Math.round((100.0 * done) / total)));
 }
 

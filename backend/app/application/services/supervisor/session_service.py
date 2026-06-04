@@ -872,6 +872,44 @@ async def delete_supervisor_session(db: AsyncSession, *, session_id: uuid.UUID) 
     return True
 
 
+PURGEABLE_SUPERVISOR_SESSION_STATUSES: frozenset[str] = frozenset(
+    {"completed", "failed", "stopped", "cancelled"},
+)
+
+
+async def delete_supervisor_sessions_by_status(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    status: str,
+) -> int:
+    """Delete archived supervisor sessions for one tenant + terminal status."""
+
+    normalized = status.strip().lower()
+    if normalized not in PURGEABLE_SUPERVISOR_SESSION_STATUSES:
+        msg = f"Unsupported purge status: {status}"
+        raise ValueError(msg)
+
+    stmt = delete(SupervisorSession).where(
+        SupervisorSession.tenant_id == tenant_id,
+        SupervisorSession.status == normalized,
+    )
+    result = await db.execute(stmt)
+    await db.flush()
+    deleted = int(result.rowcount or 0)
+    if deleted:
+        logger.info(
+            "supervisor_sessions_cleared_by_status",
+            agent_id="supervisor_session_service",
+            swarm_id="",
+            task_id="",
+            deleted=deleted,
+            status=normalized,
+            tenant_id=str(tenant_id),
+        )
+    return deleted
+
+
 async def delete_all_supervisor_sessions(
     db: AsyncSession,
     *,

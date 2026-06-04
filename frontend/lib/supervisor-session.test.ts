@@ -6,6 +6,7 @@ import {
   parseSubAgentShortMemory,
   runtimeModeLabel,
   sessionStatusTone,
+  supervisorSessionMatchesStatusFilter,
   supervisorSessionProgressPct,
   supervisorSessionAgentsHref,
   skillFactoryForgeHref,
@@ -120,6 +121,25 @@ describe("supervisor-session helpers", () => {
         sub_agents: [{ status: "completed" }, { status: "running" }],
       }),
     ).toBe(50);
+  });
+
+  it("supervisorSessionProgressPct shows 100 when session completed", () => {
+    expect(
+      supervisorSessionProgressPct({
+        status: "completed",
+        sub_agents: [
+          { status: "completed" },
+          { status: "completed" },
+          { status: "completed" },
+        ],
+      }),
+    ).toBe(100);
+  });
+
+  it("supervisorSessionMatchesStatusFilter hides archived rows for active", () => {
+    expect(supervisorSessionMatchesStatusFilter("running", "active")).toBe(true);
+    expect(supervisorSessionMatchesStatusFilter("completed", "active")).toBe(false);
+    expect(supervisorSessionMatchesStatusFilter("completed", "completed")).toBe(true);
   });
 });
 

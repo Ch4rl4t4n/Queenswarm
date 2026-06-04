@@ -18,6 +18,9 @@ import {
   isActiveSupervisorSession,
   runtimeModeLabel,
   sessionGoalPreview,
+  supervisorClearSessionsButtonLabel,
+  supervisorSessionMatchesStatusFilter,
+  type SupervisorSessionStatusFilter,
   supervisorSessionBallroomHref,
   supervisorSessionProgressDetail,
   supervisorSessionProgressPct,
@@ -25,8 +28,6 @@ import {
 import { cn } from "@/lib/utils";
 
 const SESSION_PREVIEW_LIMIT = 3;
-
-type SessionStatusFilter = "all" | "running" | "needs_input" | "completed" | "failed" | "queued";
 
 export interface SupervisorSessionsListPanelProps {
   sessions: SupervisorSessionRow[];
@@ -88,13 +89,13 @@ function SupervisorSessionsListPanelInner({
   onPrepareFirst,
 }: SupervisorSessionsListPanelProps): JSX.Element {
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<SessionStatusFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<SupervisorSessionStatusFilter>("active");
   const [showAllSessions, setShowAllSessions] = useState(false);
 
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase();
     return sessions.filter((session) => {
-      if (statusFilter !== "all" && session.status !== statusFilter) {
+      if (!supervisorSessionMatchesStatusFilter(session.status, statusFilter)) {
         return false;
       }
       if (!q) return true;
@@ -147,8 +148,9 @@ function SupervisorSessionsListPanelInner({
         <QsSelect
           className="w-full min-w-0 md:w-40 md:shrink-0"
           value={statusFilter}
-          onValueChange={(next) => setStatusFilter(next as SessionStatusFilter)}
+          onValueChange={(next) => setStatusFilter(next as SupervisorSessionStatusFilter)}
           options={[
+            { value: "active", label: "active only" },
             { value: "all", label: "all statuses" },
             { value: "running", label: "running" },
             { value: "needs_input", label: "needs_input" },
@@ -400,11 +402,7 @@ function SupervisorSessionsListPanelInner({
             disabled={clearAllBusy || isLoading}
             onClick={() => void onClearAll(filteredRows)}
           >
-            {clearAllBusy
-              ? "Clearing…"
-              : query.trim() || statusFilter !== "all"
-                ? `Clear filtered (${filteredRows.length})`
-                : `Clear all (${filteredRows.length})`}
+            {supervisorClearSessionsButtonLabel(clearAllBusy, filteredRows.length, statusFilter, Boolean(query.trim()))}
           </button>
         ) : null}
       </div>

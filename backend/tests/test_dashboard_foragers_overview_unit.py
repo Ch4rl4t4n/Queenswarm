@@ -16,11 +16,22 @@ from app.infrastructure.persistence.models.forager import ForagerORM
 
 def test_session_sub_agent_progress_pct_when_half_done() -> None:
     session = MagicMock()
+    session.status = "running"
     session.sub_agents = [
         MagicMock(status="completed"),
         MagicMock(status="running"),
     ]
     assert _session_sub_agent_progress_pct(session) == 50
+
+
+def test_session_sub_agent_progress_pct_when_completed() -> None:
+    session = MagicMock()
+    session.status = "completed"
+    session.sub_agents = [
+        MagicMock(status="completed"),
+        MagicMock(status="completed"),
+    ]
+    assert _session_sub_agent_progress_pct(session) == 100
 
 
 def test_resolve_forager_run_progress_uses_higher_of_live_or_backfill() -> None:
