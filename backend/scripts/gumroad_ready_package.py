@@ -103,6 +103,32 @@ def _readme(product: UploadProduct) -> str:
     ).rstrip() + "\n"
 
 
+def render_upload_queue(products: list[UploadProduct], package_dirs: list[Path]) -> str:
+    """Render a root upload queue for ready product directories."""
+
+    package_by_slug = {path.name: path.name for path in package_dirs}
+    lines = [
+        "# Gumroad Ready Upload Queue",
+        "",
+        "Use this index to upload products in score order without opening every folder manually.",
+        "",
+    ]
+    for index, product in enumerate(products, start=1):
+        folder = package_by_slug.get(product.slug, product.slug)
+        lines.extend(
+            [
+                f"{index}. `{product.slug}` ({product.kind}, score {product.score})",
+                f"   - Price: {product.price}",
+                f"   - Folder: `{folder}/`",
+                f"   - Fields: `{folder}/GUMROAD_FIELDS.md`",
+                f"   - Bundle: `{folder}/product-bundle.tar.gz`",
+                f"   - Cover: `{folder}/cover.html`",
+                "",
+            ],
+        )
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def write_ready_package(out_root: Path, product: UploadProduct, listing_md: str) -> Path:
     """Write one ready-to-upload product directory."""
 
@@ -129,11 +155,15 @@ def build_ready_packages(
     """Build ready-to-upload directories for next or all QA-clean pending products."""
 
     written: list[Path] = []
+    packaged_products: list[UploadProduct] = []
     for product in _select_products(products, state=state, all_products=all_products):
         listing_md = extract_listing_from_bundle(Path(product.bundle), product.listing_path)
         if not listing_md:
             continue
         written.append(write_ready_package(out_root, product, listing_md))
+        packaged_products.append(product)
+    if written:
+        (out_root / "UPLOAD_QUEUE.md").write_text(render_upload_queue(packaged_products, written), encoding="utf-8")
     return written
 
 

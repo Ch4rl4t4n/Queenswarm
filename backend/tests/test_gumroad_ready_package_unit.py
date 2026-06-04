@@ -61,6 +61,10 @@ def test_build_ready_packages_writes_upload_directory_for_next_product(tmp_path:
     assert manifest["slug"] == "seo-pack"
     assert manifest["price"] == "EUR 19.00"
     assert manifest["bundle_file"] == "product-bundle.tar.gz"
+    queue = (tmp_path / "ready" / "UPLOAD_QUEUE.md").read_text(encoding="utf-8")
+    assert "1. `seo-pack`" in queue
+    assert "GUMROAD_FIELDS.md" in queue
+    assert "product-bundle.tar.gz" in queue
 
 
 def test_build_ready_packages_all_skips_uploaded_and_qa_blocked(tmp_path: Path) -> None:
@@ -103,3 +107,7 @@ def test_build_ready_packages_all_skips_uploaded_and_qa_blocked(tmp_path: Path) 
     assert [path.name for path in written] == ["second"]
     assert not (tmp_path / "ready" / "first").exists()
     assert not (tmp_path / "ready" / "blocked").exists()
+    queue = (tmp_path / "ready" / "UPLOAD_QUEUE.md").read_text(encoding="utf-8")
+    assert "`second`" in queue
+    assert "`first`" not in queue
+    assert "`blocked`" not in queue
