@@ -214,6 +214,31 @@ def test_quality_gate_critic_approve_and_skill_valid() -> None:
     assert result.passed is True
 
 
+def test_quality_gate_accepts_step_heading_workflow_format() -> None:
+    from app.application.services.skill_factory_quality_gate import validate_skill_markdown
+
+    skill = (
+        "---\n"
+        "name: crypto-sentiment-alerts\n"
+        "description: Real-time sentiment alerts with guardrails\n"
+        "---\n\n"
+        "# Crypto Sentiment Alerts\n\n"
+        "## When to use\nUse when monitoring social sentiment for crypto assets.\n\n"
+        "## Workflow (3 steps)\n\n"
+        "### Step 1: Fetch sentiment data\n"
+        "Collect source posts from approved public feeds.\n\n"
+        "### Step 2: Score sentiment shifts\n"
+        "Classify bullish and bearish language with thresholds.\n\n"
+        "### Step 3: Send simulate-first alert\n"
+        "Write alert preview before any live notification.\n"
+    )
+
+    valid, issues = validate_skill_markdown(skill)
+
+    assert valid is True
+    assert "needs_3_plus_workflow_steps" not in issues
+
+
 def test_quality_gate_rejects_missing_critic_approve() -> None:
     from app.application.services.skill_factory_quality_gate import evaluate_factory_outputs
 

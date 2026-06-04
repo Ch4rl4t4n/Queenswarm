@@ -27,6 +27,7 @@ _FRONTMATTER_NAME_RE = re.compile(r"^---\s*\nname:\s*.+\n", re.MULTILINE | re.IG
 _FRONTMATTER_DESC_RE = re.compile(r"^description:\s*.+", re.MULTILINE | re.IGNORECASE)
 _HEADING_RE = re.compile(r"^#\s+.+\S", re.MULTILINE)
 _WORKFLOW_STEP_RE = re.compile(r"^\d+\.\s+.+\S", re.MULTILINE)
+_WORKFLOW_STEP_HEADING_RE = re.compile(r"^#{1,6}\s+Step\s+\d+\b.+\S", re.MULTILINE | re.IGNORECASE)
 
 
 @dataclass
@@ -74,7 +75,7 @@ def validate_skill_markdown(skill_md: str) -> tuple[bool, list[str]]:
         issues.append("missing_description")
     if not _HEADING_RE.search(text):
         issues.append("missing_heading")
-    workflow_steps = len(_WORKFLOW_STEP_RE.findall(text))
+    workflow_steps = len(_WORKFLOW_STEP_RE.findall(text)) + len(_WORKFLOW_STEP_HEADING_RE.findall(text))
     if workflow_steps < 3:
         issues.append("needs_3_plus_workflow_steps")
     lower = text.lower()
