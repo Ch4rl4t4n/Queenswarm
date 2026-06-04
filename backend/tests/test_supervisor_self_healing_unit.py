@@ -60,6 +60,21 @@ def test_detect_step_issues_when_long_llm_output_mentions_error_then_not_bad_out
     assert "bad_output" not in issues
 
 
+def test_detect_step_issues_when_skill_factory_critic_reject_then_not_bad_output() -> None:
+    """Factory critic reject verdict is a valid terminal gate result, not a retry loop."""
+
+    issues = detect_step_issues(
+        retrieval_contract="",
+        retrieval_sections=["coder draft"],
+        selected_skills=["self-review-loop"],
+        output_text="Critic verdict: REJECT",
+        role="critic",
+        context_summary={"skill_factory": True},
+    )
+
+    assert "bad_output" not in issues
+
+
 def test_is_approval_required_when_critical_goal_then_true() -> None:
     """Critical action keywords trigger approval workflow."""
 

@@ -131,6 +131,7 @@ def detect_step_issues(
     selected_skills: list[str],
     output_text: str,
     execution_error: str | None = None,
+    role: str = "",
     goal: str = "",
     context_summary: dict[str, Any] | None = None,
 ) -> list[str]:
@@ -147,7 +148,14 @@ def detect_step_issues(
         if not maintainer_treats_context_satisfied(goal=goal, context_summary=context_summary):
             issues.append("missing_context")
     text = output_text.strip()
-    if len(text) < 40:
+    role_key = normalize_role(role)
+    summary = dict(context_summary or {})
+    is_factory_critic_verdict = (
+        role_key == "critic"
+        and (summary.get("skill_factory") is True or summary.get("content_pack_factory") is True)
+        and text.lower() in {"critic verdict: approve", "critic verdict: reject"}
+    )
+    if len(text) < 40 and not is_factory_critic_verdict:
         issues.append("bad_output")
     else:
         head = text[:160].lower()
@@ -325,6 +333,7 @@ async def run_self_healing_cycle(
             selected_skills=selected_skills,
             output_text=last_output,
             execution_error=execution_error,
+            role=role,
             goal=goal,
             context_summary=context_summary,
         )
