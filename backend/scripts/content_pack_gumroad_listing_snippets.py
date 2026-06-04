@@ -63,7 +63,7 @@ def extract_listing_fields(listing_md: str) -> dict[str, str]:
         or _section(listing_md, "Hook")
         or _label(listing_md, "Hook")
     )
-    price = _section(listing_md, "Price anchor") or _label(listing_md, "Price")
+    price = _section(listing_md, "Price anchor") or _label(listing_md, "Price anchor") or _label(listing_md, "Price")
     description = (
         _section(listing_md, "Short description")
         or _label(listing_md, "Target buyer")

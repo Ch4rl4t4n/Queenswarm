@@ -77,3 +77,20 @@ def test_extract_listing_fields_accepts_bold_label_format() -> None:
     assert fields["subtitle"] == "Stop guessing your Facebook ad copy."
     assert fields["description"] == "Local service owners who need better lead ads."
     assert fields["price"] == "EUR 19.00"
+
+
+def test_extract_listing_fields_accepts_bold_price_anchor_label() -> None:
+    fields = extract_listing_fields(
+        "\n".join(
+            [
+                "# LISTING.md",
+                "**Hook:** Stop staring at a blank Instagram grid.",
+                "",
+                "**Target buyer:** Coaches who need predictable content.",
+                "",
+                "**Price anchor:** €9.00",
+            ],
+        ),
+    )
+
+    assert fields["price"] == "€9.00"
