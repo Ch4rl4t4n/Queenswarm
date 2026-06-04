@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildSkillUsageMapFromCatalog,
+  mergeSkillUsageMaps,
   pickCompactSkillSlugs,
   SKILL_PICKER_PINNED_SLUGS,
 } from "@/lib/skill-picker-catalog";
@@ -50,6 +52,26 @@ describe("skill-picker-catalog", () => {
       limit: 6,
     });
     expect(compact).toContain("seo-blog-factory");
+  });
+
+  it("ranks frequent skills from backend usage_count", () => {
+    const withUsage: SkillCatalogItem[] = catalog.map((row) =>
+      row.slug === "decide" ? { ...row, usage_count: 12 } : row,
+    );
+    const compact = pickCompactSkillSlugs({
+      catalog: withUsage,
+      selected: [],
+      suggested: [],
+      usage: buildSkillUsageMapFromCatalog(withUsage),
+      limit: 4,
+    });
+    expect(compact).toContain("decide");
+  });
+
+  it("mergeSkillUsageMaps prefers higher backend counts", () => {
+    const merged = mergeSkillUsageMaps({ context: 5 }, { context: 2, decide: 1 });
+    expect(merged.context).toBe(5);
+    expect(merged.decide).toBe(1);
   });
 
   it("pins cover common operator builtins", () => {

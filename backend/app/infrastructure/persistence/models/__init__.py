@@ -13,6 +13,10 @@ _EXPORTABLE: dict[str, tuple[str, str]] = {
     "AgentTemplateORM": ("app.infrastructure.persistence.models.agent_template", "AgentTemplateORM"),
     "ForagerORM": ("app.infrastructure.persistence.models.forager", "ForagerORM"),
     "TenantSkillORM": ("app.infrastructure.persistence.models.tenant_skill", "TenantSkillORM"),
+    "TenantSkillPickerUsageORM": (
+        "app.infrastructure.persistence.models.tenant_skill_picker_usage",
+        "TenantSkillPickerUsageORM",
+    ),
     "SkillOpportunityORM": ("app.infrastructure.persistence.models.skill_opportunity", "SkillOpportunityORM"),
     "TenantContentPackORM": ("app.infrastructure.persistence.models.tenant_content_pack", "TenantContentPackORM"),
     "ContentPackOpportunityORM": (
@@ -114,6 +118,9 @@ _MODEL_PACKAGES: tuple[str, ...] = (
     "app.infrastructure.persistence.models.agent_suggestion",
     "app.infrastructure.persistence.models.agent_template",
     "app.infrastructure.persistence.models.forager",
+    "app.infrastructure.persistence.models.tenant_skill",
+    "app.infrastructure.persistence.models.tenant_skill_picker_usage",
+    "app.infrastructure.persistence.models.skill_opportunity",
     "app.infrastructure.persistence.models.intel_source_cursor",
     "app.infrastructure.persistence.models.recipe",
     "app.infrastructure.persistence.models.workflow",

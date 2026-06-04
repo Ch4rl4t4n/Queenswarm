@@ -34,6 +34,11 @@ from app.application.services.skill_factory_service import (
     save_skill_factory_policy,
     start_factory_build,
 )
+from app.application.services.skill_picker_usage import (
+    get_skill_picker_usage_map,
+    increment_skill_picker_usage,
+    sync_skill_picker_usage_counts,
+)
 from app.application.services.tenant_skill_loader import list_all_skill_slugs_for_tenant
 from app.core.config import settings
 from app.presentation.api.deps import DbSession, require_dashboard_user_with_tenant_role
@@ -73,6 +78,23 @@ class SkillCatalogItemOut(BaseModel):
     roles: list[str] = Field(default_factory=list)
     is_builtin: bool = True
     is_tenant: bool = False
+    usage_count: int = Field(default=0, ge=0)
+
+
+class SkillPickerUsageBody(BaseModel):
+    """Record manual skill selection in session/task pickers."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    slugs: list[str] = Field(default_factory=list, max_length=32)
+
+
+class SkillPickerUsageSyncBody(BaseModel):
+    """One-time merge of browser localStorage counts into backend tallies."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    counts: dict[str, int] = Field(default_factory=dict, max_length=50)
 
 
 def _tenant_id(principal: dict) -> uuid.UUID:
@@ -108,8 +130,44 @@ async def skill_factory_catalog(
     """Builtin + tenant skills for session/task skill picker."""
 
     _ensure_enabled()
-    rows = await list_all_skill_slugs_for_tenant(db, tenant_id=_tenant_id(principal))
-    return [SkillCatalogItemOut.model_validate(row) for row in rows]
+    tenant_id = _tenant_id(principal)
+    rows = await list_all_skill_slugs_for_tenant(db, tenant_id=tenant_id)
+    usage_map = await get_skill_picker_usage_map(db, tenant_id=tenant_id)
+    return [
+        SkillCatalogItemOut.model_validate(
+            {
+                **row,
+                "usage_count": usage_map.get(str(row["slug"]).lower(), 0),
+            },
+        )
+        for row in rows
+    ]
+
+
+@router.post("/catalog/usage", status_code=status.HTTP_204_NO_CONTENT, summary="Record skill picker usage")
+async def skill_factory_record_picker_usage(
+    body: SkillPickerUsageBody,
+    db: DbSession,
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+) -> None:
+    """Increment usage tallies when operator manually selects skills."""
+
+    _ensure_enabled()
+    await increment_skill_picker_usage(db, tenant_id=_tenant_id(principal), slugs=body.slugs)
+    await db.commit()
+
+
+@router.post("/catalog/usage/sync", status_code=status.HTTP_204_NO_CONTENT, summary="Merge localStorage usage")
+async def skill_factory_sync_picker_usage(
+    body: SkillPickerUsageSyncBody,
+    db: DbSession,
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+) -> None:
+    """Additive merge for one-time migration from browser localStorage."""
+
+    _ensure_enabled()
+    await sync_skill_picker_usage_counts(db, tenant_id=_tenant_id(principal), counts=body.counts)
+    await db.commit()
 
 
 @router.put("/policy", response_model=SkillFactoryPolicyOut, summary="Update automation policy")

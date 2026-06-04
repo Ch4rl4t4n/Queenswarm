@@ -1,15 +1,19 @@
 "use client";
 
 import { ChevronDownIcon, Loader2Icon, SparklesIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { HiveSwitch } from "@/components/ui/hive-switch";
 import { V4Chip } from "@/components/ui/v4";
-import { HiveApiError, hiveGet } from "@/lib/api";
+import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import {
+  buildSkillUsageMapFromCatalog,
+  clearLocalSkillUsageMap,
+  hasLocalSkillUsagePendingSync,
+  mergeSkillUsageMaps,
   pickCompactSkillSlugs,
   readSkillUsageMap,
-  recordSkillUsage,
+  recordSkillUsageLocal,
   sortCatalogForPicker,
   type SkillCatalogItem,
 } from "@/lib/skill-picker-catalog";
@@ -75,6 +79,7 @@ export function SkillPickerChips({
   const [autoMatchInternal, setAutoMatchInternal] = useState(true);
   const [allExpanded, setAllExpanded] = useState(false);
   const [usageVersion, setUsageVersion] = useState(0);
+  const syncStartedRef = useRef(false);
 
   const autoMatch = autoMatchProp ?? autoMatchInternal;
   const setAutoMatch = onAutoMatchChange ?? setAutoMatchInternal;
@@ -97,7 +102,27 @@ export function SkillPickerChips({
     void load();
   }, [load]);
 
-  const usage = useMemo(() => readSkillUsageMap(), [usageVersion]);
+  useEffect(() => {
+    if (syncStartedRef.current || !hasLocalSkillUsagePendingSync()) {
+      return;
+    }
+    syncStartedRef.current = true;
+    const counts = readSkillUsageMap();
+    void hivePostJson("skill-factory/catalog/usage/sync", { counts })
+      .then(() => {
+        clearLocalSkillUsageMap();
+        return load();
+      })
+      .catch(() => {
+        syncStartedRef.current = false;
+      });
+  }, [load]);
+
+  const usage = useMemo(() => {
+    const fromApi = buildSkillUsageMapFromCatalog(catalog);
+    const local = readSkillUsageMap();
+    return mergeSkillUsageMaps(fromApi, local);
+  }, [catalog, usageVersion]);
 
   const sortedCatalog = useMemo(() => sortCatalogForPicker(catalog, usage), [catalog, usage]);
 
@@ -121,8 +146,15 @@ export function SkillPickerChips({
       : [...selected, key];
     onChange(next);
     if (next.length > 0) {
-      recordSkillUsage(next);
-      setUsageVersion((value) => value + 1);
+      void hivePostJson("skill-factory/catalog/usage", { slugs: next })
+        .then(() => {
+          setUsageVersion((value) => value + 1);
+          void load();
+        })
+        .catch(() => {
+          recordSkillUsageLocal(next);
+          setUsageVersion((value) => value + 1);
+        });
     }
   };
 

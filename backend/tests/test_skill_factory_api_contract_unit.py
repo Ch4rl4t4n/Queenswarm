@@ -6,6 +6,21 @@ from app.application.services.skill_factory_service import SkillFactoryPolicyOut
 from app.presentation.api.routers.skill_factory import SkillFactoryPolicyBody
 
 
+def test_catalog_item_out_includes_usage_count() -> None:
+    from app.presentation.api.routers.skill_factory import SkillCatalogItemOut
+
+    fields = set(SkillCatalogItemOut.model_fields.keys())
+    assert "usage_count" in fields
+    row = SkillCatalogItemOut.model_validate(
+        {
+            "slug": "context",
+            "title": "Context",
+            "usage_count": 3,
+        },
+    )
+    assert row.usage_count == 3
+
+
 def test_policy_body_matches_policy_out_fields() -> None:
     """Frontend PUT body fields must match backend policy out (prevents 422 on save)."""
 

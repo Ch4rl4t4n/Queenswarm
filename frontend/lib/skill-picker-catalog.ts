@@ -7,9 +7,11 @@ export interface SkillCatalogItem {
   roles: string[];
   is_builtin: boolean;
   is_tenant: boolean;
+  usage_count?: number;
 }
 
 export const SKILL_PICKER_USAGE_STORAGE_KEY = "queenswarm:skill-picker-usage";
+export const SKILL_PICKER_USAGE_SYNCED_KEY = "queenswarm:skill-picker-usage-synced";
 
 /** Operator-facing defaults — builtins used most often in sessions / kanban. */
 export const SKILL_PICKER_PINNED_SLUGS: readonly string[] = [
@@ -54,7 +56,56 @@ export function readSkillUsageMap(): SkillUsageMap {
   }
 }
 
-export function recordSkillUsage(slugs: string[]): void {
+export function buildSkillUsageMapFromCatalog(catalog: SkillCatalogItem[]): SkillUsageMap {
+  const out: SkillUsageMap = {};
+  for (const row of catalog) {
+    const count = row.usage_count ?? 0;
+    if (count > 0) {
+      out[row.slug.toLowerCase()] = count;
+    }
+  }
+  return out;
+}
+
+/** Backend counts win; localStorage fills gaps until sync completes. */
+export function mergeSkillUsageMaps(primary: SkillUsageMap, fallback: SkillUsageMap): SkillUsageMap {
+  const out: SkillUsageMap = { ...fallback };
+  for (const [slug, count] of Object.entries(primary)) {
+    if (count > 0) {
+      out[slug] = Math.max(out[slug] ?? 0, count);
+    }
+  }
+  return out;
+}
+
+export function clearLocalSkillUsageMap(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    window.localStorage.removeItem(SKILL_PICKER_USAGE_STORAGE_KEY);
+    window.localStorage.setItem(SKILL_PICKER_USAGE_SYNCED_KEY, "1");
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+export function hasLocalSkillUsagePendingSync(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  try {
+    if (window.localStorage.getItem(SKILL_PICKER_USAGE_SYNCED_KEY) === "1") {
+      return false;
+    }
+    return Object.keys(readSkillUsageMap()).length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/** Legacy local-only fallback when API is unavailable. */
+export function recordSkillUsageLocal(slugs: string[]): void {
   if (typeof window === "undefined" || slugs.length === 0) {
     return;
   }
