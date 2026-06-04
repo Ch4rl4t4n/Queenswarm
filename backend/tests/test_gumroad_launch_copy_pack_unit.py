@@ -8,6 +8,7 @@ from pathlib import Path
 
 from scripts.gumroad_launch_copy_pack import (
     extract_listing_from_bundle,
+    prepare_next_launch_product,
     render_launch_copy,
     select_launch_product,
 )
@@ -90,3 +91,38 @@ def test_render_launch_copy_contains_copy_paste_sections(tmp_path: Path) -> None
     assert "**Subtitle:** A strong Gumroad subtitle" in markdown
     assert "## Launch Post" in markdown
     assert "Better launches" in markdown
+
+
+def test_prepare_next_launch_product_marks_uploaded_then_selects_next(tmp_path: Path) -> None:
+    bundle = tmp_path / "good-pack.tar.gz"
+    bundle.write_text("placeholder", encoding="utf-8")
+    products = parse_shortlist(
+        f"""# Gumroad Upload Shortlist
+
+- [ ] `first-pack` (content_pack, score 115)
+  - **Subtitle:** A strong Gumroad subtitle for first launch-ready product.
+  - **Price:** EUR 19.00
+  - **Description:** A concrete target buyer and outcome description.
+  - **File:** `{bundle}`
+  - **Listing:** `first-pack/LISTING.md`
+
+- [ ] `second-pack` (content_pack, score 110)
+  - **Subtitle:** A strong Gumroad subtitle for second launch-ready product.
+  - **Price:** EUR 29.00
+  - **Description:** A concrete target buyer and outcome description.
+  - **File:** `{bundle}`
+  - **Listing:** `second-pack/LISTING.md`
+""",
+    )
+
+    selected, state = prepare_next_launch_product(
+        products,
+        {"products": {}},
+        mark_uploaded_slug="first-pack",
+        gumroad_url="https://gum.co/first",
+    )
+
+    assert selected is not None
+    assert selected.slug == "second-pack"
+    assert state["products"]["first-pack"]["status"] == "uploaded"
+    assert state["products"]["first-pack"]["gumroad_url"] == "https://gum.co/first"

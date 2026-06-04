@@ -16,10 +16,12 @@ if str(ROOT) not in sys.path:
 
 from scripts.gumroad_upload_tracker import (
     UploadProduct,
+    apply_uploaded_mark,
     cover_checklist,
     load_state,
     parse_shortlist,
     qa_product,
+    save_state,
 )
 
 EXPORT_ROOT = ROOT.parent / "exports"
@@ -48,6 +50,23 @@ def select_launch_product(products: list[UploadProduct], state: dict[str, Any]) 
             continue
         return product
     return None
+
+
+def prepare_next_launch_product(
+    products: list[UploadProduct],
+    state: dict[str, Any],
+    *,
+    mark_uploaded_slug: str = "",
+    gumroad_url: str = "",
+) -> tuple[UploadProduct | None, dict[str, Any]]:
+    """Optionally mark one product uploaded, then select the next launch candidate."""
+
+    if mark_uploaded_slug:
+        known_slugs = {product.slug for product in products}
+        if mark_uploaded_slug not in known_slugs:
+            raise ValueError(f"unknown_slug:{mark_uploaded_slug}")
+        state = apply_uploaded_mark(state, slug=mark_uploaded_slug, gumroad_url=gumroad_url)
+    return select_launch_product(products, state), state
 
 
 def extract_listing_from_bundle(bundle_path: Path, listing_path: str) -> str:
@@ -146,6 +165,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--shortlist", default=str(DEFAULT_SHORTLIST))
     parser.add_argument("--state", default=str(DEFAULT_STATE))
     parser.add_argument("--out", default=str(DEFAULT_OUTPUT))
+    parser.add_argument("--mark-uploaded", default="", help="Mark slug as uploaded before generating next launch copy.")
+    parser.add_argument("--url", default="", help="Gumroad URL for --mark-uploaded.")
     args = parser.parse_args(argv)
 
     shortlist_path = Path(args.shortlist).expanduser().resolve()
@@ -153,8 +174,21 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Missing shortlist: {shortlist_path}")
         return 1
     products = parse_shortlist(shortlist_path.read_text(encoding="utf-8"))
-    state = load_state(Path(args.state).expanduser().resolve())
-    product = select_launch_product(products, state)
+    state_path = Path(args.state).expanduser().resolve()
+    state = load_state(state_path)
+    try:
+        product, state = prepare_next_launch_product(
+            products,
+            state,
+            mark_uploaded_slug=str(args.mark_uploaded or ""),
+            gumroad_url=str(args.url or ""),
+        )
+    except ValueError as exc:
+        print(str(exc))
+        return 1
+    if args.mark_uploaded:
+        save_state(state_path, state)
+        print(f"marked_uploaded={args.mark_uploaded}")
     if product is None:
         print("No pending QA-clean upload product found.")
         return 1
