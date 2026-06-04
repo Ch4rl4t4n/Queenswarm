@@ -49,6 +49,19 @@ def test_validate_publish_pack_accepts_simulate() -> None:
     assert pack.snippets[0].text == "Short post"
 
 
+def test_validate_publish_pack_accepts_linkedin_simulate_channel() -> None:
+    payload = {
+        "artifact_type": "publish_pack",
+        "channel": "LinkedIn",
+        "title": "LinkedIn thought leadership pack",
+        "body": "A simulate-first LinkedIn pack for B2B SaaS founders.",
+        "simulate_only": True,
+        "snippets": [{"text": "Founder POV post", "hashtags": ["b2bsaas"]}],
+    }
+    pack = validate_publish_pack(payload)
+    assert pack.channel == "linkedin"
+
+
 def test_validate_publish_pack_rejects_secrets() -> None:
     payload = {
         "artifact_type": "publish_pack",

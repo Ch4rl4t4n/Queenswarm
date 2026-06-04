@@ -28,7 +28,7 @@ TAG_PUBLISH_PACK_VERIFIED = "publish-pack-verified"
 TAG_SIMULATE_ONLY = "simulate_only"
 TAG_READY_TO_PUBLISH = "ready_to_publish"
 
-PublishChannel = Literal["instagram", "facebook", "twitter", "tiktok", "newsletter", "blog", "other"]
+PublishChannel = Literal["instagram", "facebook", "twitter", "tiktok", "linkedin", "newsletter", "blog", "other"]
 
 _RE_JSON_BLOCK = re.compile(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", re.IGNORECASE)
 _RE_SECRET = re.compile(
@@ -75,6 +75,11 @@ class PublishPackArtifact(BaseModel):
     simulate_only: bool = True
     social_account_id: str | None = Field(default=None, max_length=64)
     snippets: list[PublishPackSnippet] = Field(default_factory=list, max_length=8)
+
+    @field_validator("channel", mode="before")
+    @classmethod
+    def _normalize_channel(cls, value: Any) -> str:
+        return str(value or "instagram").strip().lower()
 
     @field_validator("simulate_only")
     @classmethod
