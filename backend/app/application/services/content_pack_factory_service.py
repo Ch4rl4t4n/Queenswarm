@@ -522,7 +522,7 @@ def build_content_pack_factory_session_goal(*, opportunity: ContentPackOpportuni
             "- Critic MUST end with line: Critic verdict: APPROVE or Critic verdict: REJECT",
             "- publish_pack must include title, body, hashtags, cta, 3+ snippets",
             "- Tag final output content-pack-factory-ready",
-            "- Reject if pack cannot be simulated or contains secret-shaped tokens",
+            "- Reject if pack cannot be simulated or contains credential-like placeholders",
             "",
             "Researcher: use HiveMind + niche rationale before coding.",
         ],

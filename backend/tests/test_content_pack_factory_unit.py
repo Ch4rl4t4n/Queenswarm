@@ -64,6 +64,8 @@ def test_build_session_goal_includes_quality_gate() -> None:
     assert "TikTok hooks" in goal
     assert "content-pack-factory-ready" in goal
     assert "Critic verdict: APPROVE" in goal
+    assert "secret" not in goal.lower()
+    assert "token" not in goal.lower()
 
 
 def test_validate_content_pack_artifact_passes() -> None:
