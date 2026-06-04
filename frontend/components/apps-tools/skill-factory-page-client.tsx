@@ -12,6 +12,7 @@ import {
   factoryBuildDisabled,
   type FactoryLlmReadiness,
 } from "@/components/apps-tools/factory-llm-readiness-banner";
+import { HarnessProductLinesPanel } from "@/components/apps-tools/harness-product-lines-panel";
 import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { SkillFactoryManualPanel } from "@/components/apps-tools/skill-factory-manual-panel";
 import { HiveSwitch } from "@/components/ui/hive-switch";
@@ -95,13 +96,30 @@ interface TenantSkillRow {
   gumroad_product_id: string | null;
   gumroad_product_url: string | null;
   gumroad_published: boolean | null;
+  sellable_tier: string;
+  sellable_score: number;
+  sellable_issues: string[];
+  recommended_for_launch: boolean;
   keywords: string[];
+}
+
+interface LaunchReadiness {
+  sellable_count: number;
+  draft_count: number;
+  rejected_count: number;
+  gumroad_token_configured: boolean;
+  gumroad_manual_ready: boolean;
+  github_pat_configured: boolean;
+  hero_niches_confirmed: boolean;
+  exports_on_disk_hint: string;
 }
 
 interface SkillFactorySnapshot {
   policy: SkillFactoryPolicy;
   opportunities: SkillOpportunityRow[];
   library: TenantSkillRow[];
+  launch_queue: TenantSkillRow[];
+  launch_readiness: LaunchReadiness | null;
   queue_count: number;
   building_count: number;
   research_keys_configured: boolean;
@@ -358,7 +376,7 @@ export function SkillFactoryPageClient(): JSX.Element {
         <div className="min-w-0">
           <p className="text-sm font-semibold text-(--qs-text)">Skill Factory</p>
           <p className="mt-0.5 text-xs text-(--qs-text-3)">
-            Research → build → export GitHub-ready skills. No in-app marketplace — sell externally.
+            Research → build → export Verified Niche Harness packs (SKILL + HARNESS + EVAL + TOOLS). Sell on Gumroad — not in-app.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -596,9 +614,14 @@ export function SkillFactoryPageClient(): JSX.Element {
                           <p className="mt-1 text-xs text-(--qs-text-3)">{row.description.slice(0, 200)}</p>
                         ) : null}
                       </div>
-                      <V4Badge tone={row.github_exported_at ? "ok" : "info"}>
-                        {row.github_exported_at ? "exported" : "ready"}
-                      </V4Badge>
+                      <div className="flex flex-wrap gap-1">
+                        <V4Badge tone={row.sellable_tier === "sellable" ? "ok" : row.sellable_tier === "draft" ? "info" : "warn"}>
+                          {row.sellable_tier} · {scorePct(row.sellable_score)}
+                        </V4Badge>
+                        <V4Badge tone={row.github_exported_at ? "ok" : "info"}>
+                          {row.github_exported_at ? "exported" : "ready"}
+                        </V4Badge>
+                      </div>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button
@@ -669,6 +692,123 @@ export function SkillFactoryPageClient(): JSX.Element {
             </V4Card>
           ) : null}
 
+          {tab === "launch" ? (
+            <>
+            <HarnessProductLinesPanel />
+            <V4Card className="mt-4">
+              <V4CardHeader
+                title="Launch queue"
+                description="Hero products ready for Gumroad — manual upload works without API token or your own website."
+                hint={sectionHintNode("skillFactoryLaunch")}
+              />
+              {snapshot.launch_readiness ? (
+                <ul className="mt-3 space-y-2 text-xs text-(--qs-text-3)">
+                  <li className="flex flex-wrap items-center gap-2">
+                    <V4Badge tone={snapshot.launch_readiness.sellable_count >= 3 ? "ok" : "info"}>
+                      {snapshot.launch_readiness.sellable_count} sellable
+                    </V4Badge>
+                    <span>{snapshot.launch_readiness.draft_count} drafts · {snapshot.launch_readiness.rejected_count} rejected</span>
+                  </li>
+                  <li>
+                    Gumroad token (optional API drafts):{" "}
+                    {snapshot.launch_readiness.gumroad_token_configured ? (
+                      <span className="text-success">configured</span>
+                    ) : (
+                      <span>
+                        not set —{" "}
+                        <Link href="/apps-tools/skill-factory#guide" className="text-cyan underline">
+                          Guide tab + GUMROAD_SETUP_SK.md
+                        </Link>
+                      </span>
+                    )}
+                  </li>
+                  <li>
+                    GitHub PAT (optional teaser repos):{" "}
+                    {snapshot.launch_readiness.github_pat_configured ? (
+                      <span className="text-success">ready</span>
+                    ) : (
+                      <span className="text-(--qs-text-4)">optional — connect in Integrations</span>
+                    )}
+                  </li>
+                  <li>
+                    Hero niches (Settings seeds):{" "}
+                    {snapshot.launch_readiness.hero_niches_confirmed ? (
+                      <span className="text-success">3+ configured</span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="text-cyan underline"
+                        onClick={() => navigateSkillFactoryTab("settings")}
+                      >
+                        add niche seeds
+                      </button>
+                    )}
+                  </li>
+                  <li className="font-mono text-[10px] text-(--qs-text-4)">
+                    Server bundles: {snapshot.launch_readiness.exports_on_disk_hint}
+                  </li>
+                </ul>
+              ) : null}
+              <ul className="mt-4 space-y-2">
+                {(snapshot.launch_queue ?? []).map((row) => (
+                  <li key={row.id} className="rounded-xl border border-success/30 bg-success/5 px-3 py-3 text-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="font-medium">{row.title}</p>
+                        <p className="mt-1 font-mono text-[10px] text-pollen">{row.slug}.tar.gz</p>
+                        {row.sellable_issues.length > 0 ? (
+                          <p className="mt-1 text-[10px] text-(--qs-text-4)">
+                            Notes: {row.sellable_issues.join(", ")}
+                          </p>
+                        ) : null}
+                      </div>
+                      <V4Badge tone="ok">launch · {scorePct(row.sellable_score)}</V4Badge>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="qs-btn qs-btn--primary qs-btn--sm gap-1"
+                        disabled={busyId === row.id}
+                        onClick={() => void exportSkill(row.id)}
+                      >
+                        <DownloadIcon className="size-3.5" aria-hidden />
+                        Download pack
+                      </button>
+                      {snapshot.gumroad_listing_ready ? (
+                        <button
+                          type="button"
+                          className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
+                          disabled={busyId === row.id}
+                          onClick={() => void createGumroadDraft(row.id)}
+                        >
+                          <StoreIcon className="size-3.5" aria-hidden />
+                          API draft
+                        </button>
+                      ) : (
+                        <a
+                          href="https://gumroad.com/products/new"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
+                        >
+                          <StoreIcon className="size-3.5" aria-hidden />
+                          Manual Gumroad upload
+                        </a>
+                      )}
+                    </div>
+                  </li>
+                ))}
+                {(snapshot.launch_queue ?? []).length === 0 ? (
+                  <p className="text-xs text-(--qs-text-4)">
+                    No sellable skills yet — most factory drafts need critic APPROVE + valid SKILL.md. Check Library
+                    tiers or rebuild top opportunities from Queue.
+                  </p>
+                ) : null}
+              </ul>
+            </V4Card>
+            </>
+          ) : null}
+
           {tab === "settings" && policyDraft ? (
             <V4Card className="mt-4 space-y-4">
               <V4CardHeader
@@ -727,8 +867,8 @@ export function SkillFactoryPageClient(): JSX.Element {
                   }
                 />
                 <p className="mt-1 max-w-md text-xs text-(--qs-text-4)">
-                  Cost guardrail for Grok spend (rolling 7 days). Target 50+ library skills for Gumroad;
-                  verified skills load into the tenant SkillLibrary for every swarm session.
+                  Quality guardrail — target 3–5 sellable harness launches per month, not volume drafts.
+                  Verified skills load into tenant SkillLibrary for every swarm session.
                 </p>
               </label>
               <label className="flex items-center justify-between gap-3 text-sm">

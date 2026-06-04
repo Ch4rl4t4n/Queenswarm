@@ -9,6 +9,8 @@ import { ListPaginator, ViewportBoundedPanel } from "@/components/ui/list-pagina
 import { V4Badge } from "@/components/ui/v4";
 import {
   APPS_TOOLS_MODULES,
+  APPS_TOOLS_MODULES_CORE,
+  APPS_TOOLS_MODULES_FROZEN,
   APPS_TOOLS_MODULE_CATEGORY,
   appsToolsModuleAgentUsage,
   type AppsToolsModuleDef,
@@ -107,6 +109,8 @@ function compactGovernanceSummary(policy: ModulePolicyPack): string {
 
 export interface AppsToolsModuleGridProps {
   loading: boolean;
+  modules?: AppsToolsModuleDef[];
+  sectionLabel?: string;
   policyByModule: Record<string, ModulePolicyPack>;
   workspaceByModule: Record<string, CapabilityWorkspace>;
   capabilitiesByModule: Record<string, CapabilityContract[]>;
@@ -123,6 +127,8 @@ export interface AppsToolsModuleGridProps {
 /** Apps & Tools module index — marketplace-style cards + numbered pagination. */
 export function AppsToolsModuleGrid({
   loading,
+  modules = APPS_TOOLS_MODULES_CORE,
+  sectionLabel = "CORE MODULES",
   policyByModule,
   workspaceByModule,
   capabilitiesByModule,
@@ -137,22 +143,22 @@ export function AppsToolsModuleGrid({
 }: AppsToolsModuleGridProps): JSX.Element {
   const pageSize = useGridTwoRowPageSize({ columns: 2 });
   const pagination = usePaginatedSlice(
-    APPS_TOOLS_MODULES,
+    modules,
     pageSize,
-    `${pageSize}|${APPS_TOOLS_MODULES.length}|${loading}`,
+    `${pageSize}|${modules.length}|${loading}`,
   );
 
-  const totalLabel = useMemo(() => `${APPS_TOOLS_MODULES.length} modules`, []);
+  const totalLabel = useMemo(() => `${modules.length} modules`, [modules.length]);
 
   if (loading) {
     return (
       <div className="apps-tools-module-grid-wrap mt-4 min-w-0 space-y-3">
         <div className="apps-tools-module-grid-head flex flex-wrap items-center gap-2">
-          <p className="hub-catalog-section-head__label">ALL MODULES</p>
+          <p className="hub-catalog-section-head__label">{sectionLabel}</p>
           <V4Badge tone="info">{totalLabel}</V4Badge>
         </div>
         <div className="hub-catalog-grid">
-          {APPS_TOOLS_MODULES.map((moduleDef) => (
+          {modules.map((moduleDef) => (
             <article
               key={`skeleton-${moduleDef.slug}`}
               className="apps-tools-module-card v4-dream-cycle-card animate-pulse"
@@ -172,7 +178,7 @@ export function AppsToolsModuleGrid({
   return (
     <div className="apps-tools-module-grid-wrap mt-4 min-w-0 space-y-3">
       <div className="apps-tools-module-grid-head flex flex-wrap items-center gap-2">
-        <p className="hub-catalog-section-head__label">ALL MODULES</p>
+        <p className="hub-catalog-section-head__label">{sectionLabel}</p>
         <V4Badge tone="info">{totalLabel}</V4Badge>
       </div>
 

@@ -27,6 +27,8 @@ export function AppsToolsSubnav(): JSX.Element | null {
   const { queueBadge } = useSkillFactoryNav();
 
   const primarySection = appsToolsPrimaryFromPathname(pathname);
+  const activePrimary =
+    pathname.includes("/apps-tools/content-factory") ? "content_factory" : primarySection;
   const skillFactoryEnabled = hasFeature("skill_factory");
 
   const primaryItems = useMemo(() => {
@@ -38,7 +40,13 @@ export function AppsToolsSubnav(): JSX.Element | null {
         id: "skill_factory",
         label: "Skill Factory",
         icon: Sparkles,
-        href: skillFactoryTabHref("research"),
+        href: skillFactoryTabHref("launch"),
+      });
+      rows.push({
+        id: "content_factory",
+        label: "Pack Factory",
+        icon: Sparkles,
+        href: "/apps-tools/content-factory?section=pack-factory#pack-factory",
       });
     }
     return rows;
@@ -63,7 +71,11 @@ export function AppsToolsSubnav(): JSX.Element | null {
   const onPrimaryChange = useCallback(
     (id: string) => {
       if (id === "skill_factory") {
-        router.push(skillFactoryTabHref("research"));
+        router.push(skillFactoryTabHref("launch"));
+        return;
+      }
+      if (id === "content_factory") {
+        router.push("/apps-tools/content-factory?section=pack-factory#pack-factory");
         return;
       }
       router.push(APPS_TOOLS_MODULE_INDEX_HREF);
@@ -83,7 +95,7 @@ export function AppsToolsSubnav(): JSX.Element | null {
     <HiveSectionSubnav
       primary={primaryItems}
       secondary={secondaryItems.length > 0 ? secondaryItems : undefined}
-      activePrimary={primarySection}
+      activePrimary={activePrimary}
       activeSecondary={primarySection === "skill_factory" ? activeSkillFactoryTab : undefined}
       onPrimaryChange={onPrimaryChange}
       onSecondaryChange={secondaryItems.length > 0 ? onSecondaryChange : undefined}

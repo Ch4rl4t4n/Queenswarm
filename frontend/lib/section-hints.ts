@@ -115,6 +115,18 @@ export const SECTION_HINTS = {
     ],
     manualHref: "/manual#skill-factory",
   },
+  skillFactoryLaunch: {
+    title: "Launch queue",
+    description:
+      "Sellable skills ranked for first Gumroad revenue — manual upload works without API token or your own website.",
+    options: [
+      "sellable tier — valid SKILL.md, non-generic slug, no factory quality-warning description.",
+      "Download pack — upload .tar.gz to Gumroad Products → New.",
+      "Optional API draft when gumroad_rest token is configured.",
+      "Operator guide (SK): docs/operators/GUMROAD_SETUP_SK.md",
+    ],
+    manualHref: "/manual#skill-factory",
+  },
   skillFactorySettings: {
     title: "Factory automation",
     description:

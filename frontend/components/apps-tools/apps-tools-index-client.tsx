@@ -14,7 +14,11 @@ import { useUiLanguage } from "@/components/hive/ui-language-provider";
 import { HiveModalShell, hiveModalBottomSheetPanelClass } from "@/components/hive/hive-modal-shell";
 import { AppsToolsModuleGrid } from "@/components/apps-tools/apps-tools-module-grid";
 import { resolveAppsToolsAnalyticsCopy } from "@/lib/apps-tools-analytics-copy";
-import { APPS_TOOLS_MODULES } from "@/lib/apps-tools-modules";
+import {
+  APPS_TOOLS_MODULES,
+  APPS_TOOLS_MODULES_CORE,
+  APPS_TOOLS_MODULES_FROZEN,
+} from "@/lib/apps-tools-modules";
 import { contentFactoryAgencyHref, contentFactoryMicroSaasHref } from "@/lib/factory-content-factory-routes";
 
 type PolicyRiskTier = "read" | "write" | "publish" | "financial";
@@ -894,8 +898,34 @@ export function AppsToolsIndexClient() {
 
   return (
     <>
+      <section className="mt-4 rounded-2xl border border-pollen/30 bg-pollen/5 p-4">
+        <h3 className="text-sm font-semibold text-(--qs-text)">Verified Niche Harness — first revenue</h3>
+        <p className="mt-1 text-xs text-(--qs-text-3)">
+          Harness beats model. Produce eval-backed packs (SKILL + HARNESS + EVAL + TOOLS), sell on Gumroad — not in-app
+          marketplace.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link href="/apps-tools/skill-factory#launch" className="qs-btn qs-btn--primary qs-btn--sm">
+            Skill Factory → Launch
+          </Link>
+          <Link
+            href="/apps-tools/content-factory?section=pack-factory#pack-factory"
+            className="qs-btn qs-btn--ghost qs-btn--sm"
+          >
+            Content Pack Factory
+          </Link>
+          <Link href="/integrations?tab=hub" className="qs-btn qs-btn--ghost qs-btn--sm">
+            MCP Integrations
+          </Link>
+          <Link href="/manual#skill-factory" className="qs-btn qs-btn--ghost qs-btn--sm">
+            Operator manual
+          </Link>
+        </div>
+      </section>
+
       {!loading && analyticsSnapshot ? (
-        <section className="mt-4 rounded-2xl border border-white/12 bg-white/[0.03] p-4">
+        <details className="mt-4 rounded-2xl border border-white/12 bg-white/[0.03] p-4">
+          <summary className="cursor-pointer text-sm font-semibold text-white/95">Advanced operator metrics (MCP)</summary>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h3 className="text-sm font-semibold text-white/95">{copy.usagePulseTitle}</h3>
@@ -1257,10 +1287,12 @@ export function AppsToolsIndexClient() {
               ))}
             </div>
           ) : null}
-        </section>
+        </details>
       ) : null}
       <AppsToolsModuleGrid
         loading={loading}
+        modules={APPS_TOOLS_MODULES_CORE}
+        sectionLabel="CORE MODULES"
         policyByModule={policyByModule}
         workspaceByModule={workspaceByModule}
         capabilitiesByModule={capabilitiesByModule}
@@ -1292,6 +1324,38 @@ export function AppsToolsIndexClient() {
             source: "beta_hint",
           })}
       />
+
+      {!loading && APPS_TOOLS_MODULES_FROZEN.length > 0 ? (
+        <details className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4">
+          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-(--qs-text-3)">
+            Frozen modules ({APPS_TOOLS_MODULES_FROZEN.length}) — maintained, not first-revenue priority
+          </summary>
+          <div className="mt-4">
+            <AppsToolsModuleGrid
+              loading={false}
+              modules={APPS_TOOLS_MODULES_FROZEN}
+              sectionLabel="FROZEN"
+              policyByModule={policyByModule}
+              workspaceByModule={workspaceByModule}
+              capabilitiesByModule={capabilitiesByModule}
+              onOpenDetails={(moduleKey) => {
+                trackEvent("module_details_open", { moduleKey, source: "frozen_module_card" });
+                setActiveModuleKey(moduleKey);
+              }}
+              onTrackModuleOpen={(moduleDef) =>
+                trackEvent("module_card_open", {
+                  moduleKey: moduleDef.moduleKey,
+                  href: moduleDef.href,
+                  source: "frozen_module_card",
+                })}
+              onTrackAvailabilityHint={(moduleKey) =>
+                trackEvent("module_availability_hint_open", { moduleKey, source: "frozen_availability_hint" })}
+              onTrackBetaHint={(moduleKey) =>
+                trackEvent("module_beta_hint_open", { moduleKey, source: "frozen_beta_hint" })}
+            />
+          </div>
+        </details>
+      ) : null}
 
       {activeModuleDef ? (
         <HiveModalShell

@@ -1,5 +1,8 @@
 export type AppsToolsModuleStatus = "live" | "beta" | "stub";
 
+/** Long-term product tier — core = revenue + harness; frozen = maintained but deprioritized. */
+export type AppsToolsModuleTier = "core" | "frozen";
+
 export interface AppsToolsModuleDef {
   moduleKey:
     | "marketing_automation"
@@ -14,35 +17,69 @@ export interface AppsToolsModuleDef {
   title: string;
   summary: string;
   status: AppsToolsModuleStatus;
+  tier: AppsToolsModuleTier;
   href: string;
   capabilityKeys: string[];
 }
 
 export const APPS_TOOLS_MODULES: AppsToolsModuleDef[] = [
   {
+    moduleKey: "skill_factory",
+    slug: "skill-factory",
+    title: "Skill Factory",
+    summary: "Verified Niche Harness production — research → build → eval → GitHub/Gumroad export.",
+    status: "live",
+    tier: "core",
+    href: "/apps-tools/skill-factory",
+    capabilityKeys: ["apps.skill_factory.research.v1", "apps.skill_factory.build.v1"],
+  },
+  {
+    moduleKey: "content_factory",
+    slug: "content-factory",
+    title: "Content Pack Factory",
+    summary: "Niche social/content harness packs — same eval lane as Skill Factory.",
+    status: "beta",
+    tier: "core",
+    href: "/apps-tools/content-factory?section=pack-factory#pack-factory",
+    capabilityKeys: ["apps.content.factory.v1"],
+  },
+  {
+    moduleKey: "mcp_ops_studio",
+    slug: "mcp-ops-studio",
+    title: "MCP Ops Studio",
+    summary: "MCP catalog, install queue, and tool health — harness integration layer.",
+    status: "beta",
+    tier: "core",
+    href: "/apps-tools/mcp-ops-studio",
+    capabilityKeys: ["apps.mcp.catalog.discover.v1"],
+  },
+  {
     moduleKey: "marketing_automation",
     slug: "marketing-automation",
     title: "Marketing Automation",
-    summary: "Publish queue, social distribution, and performance loop in one workspace.",
+    summary: "Publish queue and social distribution — frozen until first Gumroad revenue.",
     status: "live",
+    tier: "frozen",
     href: "/apps-tools/marketing-automation",
     capabilityKeys: ["apps.marketing.publish_pipeline.v1", "apps.marketing.omni_publish.compose.v1"],
   },
   {
-    moduleKey: "skill_factory",
-    slug: "skill-factory",
-    title: "Skill Factory",
-    summary: "Research market niches, auto-build verified skills, export GitHub packs — no in-app sales.",
-    status: "live",
-    href: "/apps-tools/skill-factory",
-    capabilityKeys: ["apps.skill_factory.research.v1", "apps.skill_factory.build.v1"],
+    moduleKey: "research_workspace",
+    slug: "research-workspace",
+    title: "Research Workspace",
+    summary: "Structured briefing flows — use Agents → Sessions for primary research.",
+    status: "stub",
+    tier: "frozen",
+    href: "/apps-tools/research-workspace",
+    capabilityKeys: ["apps.research.briefing.v1"],
   },
   {
     moduleKey: "ecommerce_workspace",
     slug: "ecommerce-automation",
     title: "E-commerce Ops",
-    summary: "Shopify + Stripe order sync, webhook queue, and eshop-ops swarm workspace.",
+    summary: "Shopify + Stripe sync — frozen (no paying niche yet).",
     status: "beta",
+    tier: "frozen",
     href: "/apps-tools/ecommerce-automation",
     capabilityKeys: [
       "apps.ecommerce.shopify_sync.v1",
@@ -51,20 +88,12 @@ export const APPS_TOOLS_MODULES: AppsToolsModuleDef[] = [
     ],
   },
   {
-    moduleKey: "mcp_ops_studio",
-    slug: "mcp-ops-studio",
-    title: "MCP Ops Studio",
-    summary: "MCP catalog from Integrations marketplace, runtime health metrics, and actionable tool gaps.",
-    status: "beta",
-    href: "/apps-tools/mcp-ops-studio",
-    capabilityKeys: ["apps.mcp.catalog.discover.v1"],
-  },
-  {
     moduleKey: "trading_automation",
     slug: "trading-automation",
     title: "Trading Automation",
-    summary: "Trading cockpit controls and guarded live execution handoff.",
+    summary: "Trading cockpit — frozen (regulatory + commodity risk).",
     status: "beta",
+    tier: "frozen",
     href: "/apps-tools/trading-automation",
     capabilityKeys: ["apps.trading.execution.v1", "apps.live_lane.execution.v1"],
   },
@@ -72,48 +101,41 @@ export const APPS_TOOLS_MODULES: AppsToolsModuleDef[] = [
     moduleKey: "browser_automation",
     slug: "browser-automation",
     title: "Browser Automation",
-    summary: "Operator-approved browser/live lane automations and action governance.",
+    summary: "Live browser lane — frozen; prefer MCP + supervised sessions.",
     status: "beta",
+    tier: "frozen",
     href: "/apps-tools/browser-automation",
     capabilityKeys: ["apps.browser.automation.v1"],
   },
-  {
-    moduleKey: "content_factory",
-    slug: "content-factory",
-    title: "Content Factory",
-    summary: "Media agency lane and micro-SaaS factory workflows in one module.",
-    status: "beta",
-    href: "/apps-tools/content-factory",
-    capabilityKeys: ["apps.content.factory.v1"],
-  },
-  {
-    moduleKey: "research_workspace",
-    slug: "research-workspace",
-    title: "Research Workspace",
-    summary: "Structured briefing and transcript extraction flows for swarm decisions.",
-    status: "stub",
-    href: "/apps-tools/research-workspace",
-    capabilityKeys: ["apps.research.briefing.v1"],
-  },
 ];
+
+/** Primary modules shown on Apps & Tools index (12–24 mo strategy). */
+export const APPS_TOOLS_MODULES_CORE: AppsToolsModuleDef[] = APPS_TOOLS_MODULES.filter(
+  (row) => row.tier === "core",
+);
+
+/** Deprioritized modules — collapsible on index; routes still work. */
+export const APPS_TOOLS_MODULES_FROZEN: AppsToolsModuleDef[] = APPS_TOOLS_MODULES.filter(
+  (row) => row.tier === "frozen",
+);
 
 const MODULE_AGENT_USAGE: Record<AppsToolsModuleDef["moduleKey"], string> = {
   marketing_automation:
-    "Publish lanes compose social packs and push approved items through omni-publish capabilities when the workspace is live.",
+    "Frozen lane — publish after first harness products sell on Gumroad.",
   ecommerce_workspace:
-    "Eshop-ops swarms sync Shopify and Stripe order events, then route webhook payloads into automation lanes.",
+    "Frozen — eshop sync when a commerce niche harness proves revenue.",
   mcp_ops_studio:
-    "Agents surface missing connectors as tool gaps; install Phase3 templates from Integrations marketplace.",
+    "Connect MCP tools listed in TOOLS.json for each exported harness pack.",
   trading_automation:
-    "Trading cockpit lanes invoke guarded execution capabilities with policy gates before any live handoff.",
+    "Frozen — not part of first-revenue strategy.",
   browser_automation:
-    "Operator-approved browser sessions run live-lane automations with explicit approval guardrails per action.",
+    "Frozen — supervised browser via Agents when explicitly needed.",
   content_factory:
-    "Media agency and micro-SaaS factory lanes generate assets via content-factory capabilities in sequence.",
+    "Pack factory builds niche content harnesses with critic eval + Gumroad export.",
   research_workspace:
-    "Research bees extract briefings and transcripts into swarm decisions via structured research capabilities.",
+    "Use Agents → New session for research; this stub remains for future briefing UX.",
   skill_factory:
-    "Research lane scores niches from HiveMind; factory sessions produce tenant skills exported to GitHub/Gumroad.",
+    "Research → build → eval gate → Launch queue → GitHub/Gumroad (Verified Niche Harness).",
 };
 
 /** Operator-facing copy for the “How agents use this” block on module cards. */
@@ -129,5 +151,5 @@ export const APPS_TOOLS_MODULE_CATEGORY: Record<AppsToolsModuleDef["moduleKey"],
   browser_automation: "browser",
   content_factory: "content",
   research_workspace: "research",
-  skill_factory: "content",
+  skill_factory: "harness",
 };

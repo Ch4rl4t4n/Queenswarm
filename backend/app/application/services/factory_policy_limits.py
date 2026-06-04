@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 FACTORY_MAX_BUILDS_PER_WEEK_CAP = 50
-FACTORY_MAX_BUILDS_PER_WEEK_DEFAULT = 10
+FACTORY_MAX_BUILDS_PER_WEEK_DEFAULT = 5
 
 
 def clamp_max_builds_per_week(raw: object) -> int:

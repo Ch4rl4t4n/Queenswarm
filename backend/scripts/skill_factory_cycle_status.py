@@ -49,6 +49,34 @@ async def _run() -> int:
             f"gumroad_publish={gumroad_live_ready}",
         )
 
+        from app.application.services.skill_factory_service import _forge_quality_by_skill_id
+        from app.application.services.skill_factory_sellable import assess_tenant_skill_sellable
+
+        tenant_id = skill_rows[0].tenant_id if skill_rows else None
+        forge_quality: dict = {}
+        if tenant_id is not None and skill_rows:
+            forge_quality = await _forge_quality_by_skill_id(
+                session,
+                tenant_id=tenant_id,
+                skill_ids=[row.id for row in skill_rows],
+            )
+        sellable = draft = rejected = recommended = 0
+        if skill_rows:
+            for skill in skill_rows:
+                assessment = assess_tenant_skill_sellable(
+                    skill,
+                    forge_quality=forge_quality.get(skill.id),
+                )
+                if assessment.tier == "sellable":
+                    sellable += 1
+                elif assessment.tier == "draft":
+                    draft += 1
+                else:
+                    rejected += 1
+                if assessment.recommended_for_launch:
+                    recommended += 1
+        print(f"launch_tiers: sellable={sellable} draft={draft} rejected={rejected} recommended={recommended}")
+
         pending_approve = [row for row in opp_rows if row.status == "completed" and not row.tenant_skill_id]
         if pending_approve:
             print(f"\n-- Queue: {len(pending_approve)} completed awaiting approve --")
@@ -74,6 +102,11 @@ async def _run() -> int:
             print("Approve completed build in Skill Factory → Queue tab.")
         elif not skill_rows:
             print("Run Research → Build on top opportunity, then Approve skill.")
+        elif recommended == 0:
+            print(
+                "Launch queue empty — rebuild hero niches (critic APPROVE + valid SKILL.md). "
+                "Run: ./scripts/prepare-launch-batch.sh"
+            )
         elif not any(skill.github_exported_at for skill in skill_rows):
             print("Library → Download GitHub pack or Push GitHub PR on best skill.")
         elif gumroad_draft_ready and not gumroad_live_ready:
@@ -81,7 +114,10 @@ async def _run() -> int:
         elif gumroad_live_ready:
             print("Library → Gumroad publish on exported skill, or start next niche build.")
         else:
-            print("Configure GitHub/Gumroad env flags for automated export, or manual upload from bundle.")
+            print(
+                "Run ./scripts/prepare-launch-batch.sh then manual Gumroad upload "
+                "(docs/operators/GUMROAD_SETUP_SK.md)."
+            )
 
         return 0
 

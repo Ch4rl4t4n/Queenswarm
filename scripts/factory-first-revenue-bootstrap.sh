@@ -56,6 +56,12 @@ run_py scripts/factory_abort_llm_blocked_builds.py || true
 echo "-- Skill Factory cycle status"
 run_py scripts/skill_factory_cycle_status.py
 
+echo "-- Launch batch (top sellable for Gumroad)"
+"$ROOT/scripts/prepare-launch-batch.sh" 3 || true
+
+echo "-- Hero rebuild when launch queue empty"
+run_py scripts/factory_queue_hero_builds.py --limit 3 --apply || true
+
 echo "-- Content Pack Factory cycle status"
 run_py scripts/content_pack_factory_cycle_status.py
 

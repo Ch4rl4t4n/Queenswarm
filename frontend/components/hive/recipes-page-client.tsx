@@ -57,6 +57,24 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
     }
   }, []);
 
+  const exportRunbook = useCallback(async (recipeId: string, recipeName: string) => {
+    setExportBusyId(recipeId);
+    try {
+      const bundle = await hivePostJson<SkillExportResponse>(
+        `harness-products/recipes/${recipeId}/runbook-export`,
+        {},
+      );
+      await downloadSkillExportBundle(bundle);
+      toast.success(`Runbook exported — ${recipeName}`, {
+        description: "RUNBOOK.md + SKILL.md + schedule template (Gumroad-ready).",
+      });
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Runbook export failed.");
+    } finally {
+      setExportBusyId(null);
+    }
+  }, []);
+
   useEffect(() => {
     const t = window.setTimeout(() => setDebounced(needle.trim()), 350);
     return () => window.clearTimeout(t);
@@ -221,6 +239,20 @@ export function RecipesPageClient({ showHeader = true }: RecipesPageClientProps)
         >
           <CalendarClock className="h-3.5 w-3.5" aria-hidden />
           Schedule routine
+        </button>
+        <button
+          type="button"
+          className="qs-btn qs-btn--ghost qs-btn--sm"
+          disabled={exportBusyId === recipe.id || !recipe.verified_at}
+          title={recipe.verified_at ? "Operator Runbook bundle for Gumroad" : "Verify recipe first"}
+          onClick={() => void exportRunbook(recipe.id, recipe.name)}
+        >
+          {exportBusyId === recipe.id ? (
+            <Loader2Icon className="h-3.5 w-3.5 animate-spin" aria-hidden />
+          ) : (
+            <DownloadIcon className="h-3.5 w-3.5" aria-hidden />
+          )}
+          Export runbook
         </button>
         <button
           type="button"

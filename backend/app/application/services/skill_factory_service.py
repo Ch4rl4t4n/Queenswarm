@@ -69,8 +69,27 @@ class TenantSkillOut(BaseModel):
     gumroad_product_id: str | None = None
     gumroad_product_url: str | None = None
     gumroad_published: bool | None = None
+    sellable_tier: str = "draft"
+    sellable_score: float = 0.0
+    sellable_issues: list[str] = Field(default_factory=list)
+    recommended_for_launch: bool = False
     is_active: bool
     is_builtin: bool = False
+
+
+class LaunchReadinessOut(BaseModel):
+    """Operator checklist for first Gumroad / GitHub launch."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    sellable_count: int = 0
+    draft_count: int = 0
+    rejected_count: int = 0
+    gumroad_token_configured: bool = False
+    gumroad_manual_ready: bool = True
+    github_pat_configured: bool = False
+    hero_niches_confirmed: bool = False
+    exports_on_disk_hint: str = "exports/gumroad-upload/*.tar.gz"
 
 
 class SkillOpportunityOut(BaseModel):
@@ -114,6 +133,8 @@ class SkillFactorySnapshotOut(BaseModel):
     github_pr_export_ready: bool = False
     gumroad_listing_ready: bool = False
     gumroad_publish_ready: bool = False
+    launch_readiness: LaunchReadinessOut | None = None
+    launch_queue: list[TenantSkillOut] = Field(default_factory=list)
     llm: FactoryLlmReadinessOut | None = None
 
 
@@ -185,7 +206,15 @@ def _gumroad_ref_from_opportunity(row: SkillOpportunityORM | None) -> dict[str, 
     return None
 
 
-def _tenant_skill_out(row: TenantSkillORM, *, gumroad_ref: dict[str, Any] | None = None) -> TenantSkillOut:
+def _tenant_skill_out(
+    row: TenantSkillORM,
+    *,
+    gumroad_ref: dict[str, Any] | None = None,
+    sellable: Any | None = None,
+) -> TenantSkillOut:
+    from app.application.services.skill_factory_sellable import SkillSellableAssessment, assess_tenant_skill_sellable
+
+    assessment: SkillSellableAssessment = sellable or assess_tenant_skill_sellable(row)
     ref = gumroad_ref or {}
     return TenantSkillOut(
         id=str(row.id),
@@ -203,6 +232,10 @@ def _tenant_skill_out(row: TenantSkillORM, *, gumroad_ref: dict[str, Any] | None
         gumroad_product_id=str(ref.get("product_id") or "") or None,
         gumroad_product_url=str(ref.get("product_url") or "") or None,
         gumroad_published=bool(ref.get("published")) if ref.get("product_id") else None,
+        sellable_tier=assessment.tier,
+        sellable_score=assessment.score,
+        sellable_issues=list(assessment.issues),
+        recommended_for_launch=assessment.recommended_for_launch,
         is_active=row.is_active,
         is_builtin=False,
     )
@@ -292,6 +325,49 @@ async def _forge_suggestions_by_session(
     for row in rows:
         if row.supervisor_session_id is not None and row.supervisor_session_id not in out:
             out[row.supervisor_session_id] = row
+    return out
+
+
+async def _forge_quality_by_skill_id(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    skill_ids: list[uuid.UUID],
+) -> dict[uuid.UUID, dict[str, Any]]:
+    """Map tenant skill id → forge quality gate payload from verified_skill_forge."""
+
+    from app.application.services.skill_factory_sellable import forge_quality_from_payload
+
+    if not skill_ids:
+        return {}
+    opps = list(
+        (
+            await session.scalars(
+                select(SkillOpportunityORM).where(
+                    SkillOpportunityORM.tenant_id == tenant_id,
+                    SkillOpportunityORM.tenant_skill_id.in_(skill_ids),
+                ),
+            )
+        ).all(),
+    )
+    session_by_skill: dict[uuid.UUID, uuid.UUID] = {}
+    for opp in opps:
+        if opp.tenant_skill_id is not None and opp.supervisor_session_id is not None:
+            session_by_skill[opp.tenant_skill_id] = opp.supervisor_session_id
+    forge_by_session = await _forge_suggestions_by_session(
+        session,
+        tenant_id=tenant_id,
+        session_ids=list(session_by_skill.values()),
+    )
+    out: dict[uuid.UUID, dict[str, Any]] = {}
+    for skill_id, sup_id in session_by_skill.items():
+        forge = forge_by_session.get(sup_id)
+        if forge is None:
+            continue
+        payload = dict(forge.proposal_payload or {}) if isinstance(forge.proposal_payload, dict) else {}
+        quality = forge_quality_from_payload(payload)
+        if quality is not None:
+            out[skill_id] = quality
     return out
 
 
@@ -536,6 +612,40 @@ async def compose_skill_factory_snapshot(
         if ref is not None:
             gumroad_by_skill[opp.tenant_skill_id] = ref
 
+    from app.application.services.skill_factory_sellable import assess_tenant_skill_sellable, launch_queue_sort_key
+
+    skill_ids = [row.id for row in library]
+    forge_quality_by_skill = await _forge_quality_by_skill_id(
+        session,
+        tenant_id=tenant_id,
+        skill_ids=skill_ids,
+    )
+
+    library_out: list[TenantSkillOut] = []
+    sellable_count = 0
+    draft_count = 0
+    rejected_count = 0
+    launch_candidates: list[TenantSkillOut] = []
+    for row in library:
+        assessment = assess_tenant_skill_sellable(
+            row,
+            forge_quality=forge_quality_by_skill.get(row.id),
+        )
+        skill_out = _tenant_skill_out(row, gumroad_ref=gumroad_by_skill.get(row.id), sellable=assessment)
+        library_out.append(skill_out)
+        if assessment.tier == "sellable":
+            sellable_count += 1
+            launch_candidates.append(skill_out)
+        elif assessment.tier == "draft":
+            draft_count += 1
+        else:
+            rejected_count += 1
+
+    launch_candidates.sort(key=launch_queue_sort_key)
+    launch_queue = [row for row in launch_candidates if row.recommended_for_launch][:12]
+
+    hero_niches = len(policy.niche_seeds) >= 3
+
     return SkillFactorySnapshotOut(
         policy=policy,
         opportunities=[
@@ -555,7 +665,7 @@ async def compose_skill_factory_snapshot(
             )
             for row in opportunities
         ],
-        library=[_tenant_skill_out(row, gumroad_ref=gumroad_by_skill.get(row.id)) for row in library],
+        library=library_out,
         queue_count=queue_count,
         building_count=building_count,
         research_keys_configured=research_configured,
@@ -565,6 +675,16 @@ async def compose_skill_factory_snapshot(
         github_pr_export_ready=github_ready,
         gumroad_listing_ready=gumroad_ready,
         gumroad_publish_ready=gumroad_publish,
+        launch_readiness=LaunchReadinessOut(
+            sellable_count=sellable_count,
+            draft_count=draft_count,
+            rejected_count=rejected_count,
+            gumroad_token_configured=gumroad_ready,
+            gumroad_manual_ready=True,
+            github_pat_configured=github_ready,
+            hero_niches_confirmed=hero_niches,
+        ),
+        launch_queue=launch_queue,
         llm=llm_status,
     )
 
@@ -596,8 +716,11 @@ def build_factory_session_goal(*, opportunity: SkillOpportunityORM, price_cents:
             "1) Buyer persona + pain (max 200 words)",
             "2) Verified 3–7 step workflow with explicit agent roles and guardrails",
             "3) Complete SKILL.md (agentskills.io frontmatter + workflow body)",
-            "4) README.md install guide + LISTING.md for Gumroad/GitHub",
-            "5) Suggested price anchor and one-line hook",
+            "4) HARNESS.md — context contract (when to use / when not / orchestrator pattern)",
+            "5) EVAL_REPORT.md — critic verdict summary + buyer eval checklist",
+            "6) TOOLS.json — MCP connector slugs map (tavily, serper, github_rest as relevant)",
+            "7) README.md install guide + LISTING.md for Gumroad/GitHub",
+            "8) Suggested price anchor and one-line hook",
             "",
             f"Price anchor: €{price_eur:.2f}",
             "",
@@ -854,7 +977,16 @@ async def export_tenant_skill_bundle(
             SkillOpportunityORM.tenant_skill_id == skill_id,
         ),
     )
-    bundle = build_export_bundle_from_tenant_skill(row, opportunity=opportunity)
+    forge_quality = await _forge_quality_by_skill_id(
+        session,
+        tenant_id=tenant_id,
+        skill_ids=[skill_id],
+    )
+    bundle = build_export_bundle_from_tenant_skill(
+        row,
+        opportunity=opportunity,
+        forge_quality=forge_quality.get(skill_id),
+    )
     await mark_skill_github_exported(session, tenant_id=tenant_id, skill_id=skill_id)
     return bundle.model_dump()
 

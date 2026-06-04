@@ -402,9 +402,16 @@ def build_export_bundle_from_tenant_skill(
     skill: TenantSkillORM,
     *,
     opportunity: SkillOpportunityORM | None = None,
+    forge_quality: dict[str, Any] | None = None,
 ) -> SkillExportResponse:
     """Assemble GitHub-ready export bundle from a tenant Skill Factory row."""
 
+    from app.application.services.skill_factory_export_harness import (
+        build_eval_report_md,
+        build_harness_md,
+        build_mcp_setup_md,
+        build_tools_json,
+    )
     from app.application.services.skill_factory_listing import (
         build_factory_listing_md,
         listing_context_from_skill_and_opportunity,
@@ -439,6 +446,8 @@ def build_export_bundle_from_tenant_skill(
             "source": skill.source,
             "roles": list(skill.roles or []),
             "keywords": list(skill.keywords or []),
+            "export_version": "2.0",
+            "harness_artifacts": ["HARNESS.md", "EVAL_REPORT.md", "TOOLS.json"],
             "price_eur_cents": listing_ctx.price_cents,
             "niche": listing_ctx.niche,
         },
@@ -448,9 +457,17 @@ def build_export_bundle_from_tenant_skill(
     readme_md = build_readme_md(recipe=shim, slug=slug, install_command=install_command)  # type: ignore[arg-type]
     listing_md = build_factory_listing_md(skill=skill, slug=slug, ctx=listing_ctx)
     publish = build_publish_guide(recipe=shim, slug=slug, install_command=install_command)  # type: ignore[arg-type]
+    harness_md = build_harness_md(skill, opportunity=opportunity)
+    eval_md = build_eval_report_md(skill, forge_quality=forge_quality)
+    tools_json = build_tools_json(skill, opportunity=opportunity)
+    mcp_setup_md = build_mcp_setup_md(skill, opportunity=opportunity)
 
     files = [
         SkillExportFile(path=f"{folder}/SKILL.md", content=skill_md),
+        SkillExportFile(path=f"{folder}/HARNESS.md", content=harness_md),
+        SkillExportFile(path=f"{folder}/EVAL_REPORT.md", content=eval_md),
+        SkillExportFile(path=f"{folder}/TOOLS.json", content=tools_json),
+        SkillExportFile(path=f"{folder}/MCP_SETUP.md", content=mcp_setup_md),
         SkillExportFile(path=f"{folder}/HIVE.md", content=hive_md),
         SkillExportFile(path=f"{folder}/tasks.prompt.md", content=tasks_md),
         SkillExportFile(path=f"{folder}/meta.json", content=meta_json + "\n"),
@@ -475,7 +492,7 @@ def build_export_bundle_from_tenant_skill(
         meta=meta,
         files=files,
         install_command=install_command,
-        install_hint="Push folder to GitHub or Gumroad — LISTING.md is Gumroad-ready with checklist.",
+        install_hint="Push folder to GitHub or Gumroad — HARNESS.md + EVAL_REPORT.md + TOOLS.json included.",
         publish=publish,
     )
 

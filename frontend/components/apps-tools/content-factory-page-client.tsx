@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, Factory, Package } from "lucide-react";
+import { Package } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -10,32 +10,7 @@ import { HivePageShell } from "@/components/hive/hive-page-shell";
 import { HiveSubnavRow } from "@/components/hive/hive-subnav-row";
 import { ModulePolicyPackPill } from "@/components/apps-tools/module-policy-pack-pill";
 import { scrollBehaviorForMotion } from "@/lib/motion-preferences";
-import {
-  FACTORY_BLUEPRINT_PATH,
-  FACTORY_CROSS_LINK_LABELS,
-} from "@/lib/factory-content-factory-routes";
-
-const ExecutionStudioMediaAgencyPanel = dynamic(
-  () =>
-    import("@/components/connectors/execution-studio-media-agency-panel").then((mod) => ({
-      default: mod.ExecutionStudioMediaAgencyPanel,
-    })),
-  {
-    ssr: false,
-    loading: () => <div className="qs-bubble shrink-0 min-h-[10rem] animate-pulse bg-white/5 p-4" aria-hidden />,
-  },
-);
-
-const ExecutionStudioMicroSaasFactoryPanel = dynamic(
-  () =>
-    import("@/components/connectors/execution-studio-micro-saas-factory-panel").then((mod) => ({
-      default: mod.ExecutionStudioMicroSaasFactoryPanel,
-    })),
-  {
-    ssr: false,
-    loading: () => <div className="qs-bubble shrink-0 min-h-[10rem] animate-pulse bg-white/5 p-4" aria-hidden />,
-  },
-);
+import { FACTORY_BLUEPRINT_PATH, FACTORY_CROSS_LINK_LABELS } from "@/lib/factory-content-factory-routes";
 
 const ContentPackFactoryPanel = dynamic(
   () =>
@@ -48,32 +23,26 @@ const ContentPackFactoryPanel = dynamic(
   },
 );
 
-type ContentFactorySection = "agency" | "micro-saas" | "pack-factory";
+type ContentFactorySection = "pack-factory";
 
 const SECTION_TO_HASH: Record<ContentFactorySection, string> = {
-  agency: "media-agency",
-  "micro-saas": "micro-saas-factory",
   "pack-factory": "pack-factory",
 };
 
 function sectionFromHash(hash: string): ContentFactorySection | null {
   const key = hash.replace(/^#/, "").trim().toLowerCase();
-  if (key === "media-agency") return "agency";
-  if (key === "micro-saas-factory") return "micro-saas";
   if (key === "pack-factory") return "pack-factory";
   return null;
 }
 
 function sectionFromQuery(raw: string | null): ContentFactorySection | null {
-  if (raw === "agency" || raw === "micro-saas" || raw === "pack-factory") {
-    return raw;
-  }
+  if (raw === "pack-factory") return "pack-factory";
   return null;
 }
 
 export function ContentFactoryPageClient() {
   const searchParams = useSearchParams();
-  const [section, setSection] = useState<ContentFactorySection>("agency");
+  const [section, setSection] = useState<ContentFactorySection>("pack-factory");
   const [error, setError] = useState<string | null>(null);
 
   const updateUrl = useCallback((next: ContentFactorySection) => {
@@ -84,11 +53,12 @@ export function ContentFactoryPageClient() {
   useEffect(() => {
     const fromQuery = sectionFromQuery(searchParams.get("section"));
     const fromHash = sectionFromHash(typeof window !== "undefined" ? window.location.hash : "");
-    const next = fromQuery ?? fromHash;
-    if (next) {
-      setSection(next);
+    const next = fromQuery ?? fromHash ?? "pack-factory";
+    setSection(next);
+    if (!fromQuery && !fromHash) {
+      updateUrl("pack-factory");
     }
-  }, [searchParams]);
+  }, [searchParams, updateUrl]);
 
   useEffect(() => {
     const target = document.getElementById(SECTION_TO_HASH[section]);
@@ -99,14 +69,14 @@ export function ContentFactoryPageClient() {
 
   return (
     <HivePageShell
-      title="Content Factory"
-      subtitle="Content production module for white-label media operations and Micro-SaaS launch workflows."
+      title="Content Pack Factory"
+      subtitle="Niche content harness packs — same eval + Gumroad export lane as Skill Factory."
       status={<ModulePolicyPackPill moduleKey="content_factory" />}
       error={error ? { message: error, onDismiss: () => setError(null) } : null}
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          <Link href="/integrations?tab=studio&section=lanes#media-agency" className="qs-btn qs-btn--ghost qs-btn--sm">
-            Open legacy studio lane
+          <Link href="/apps-tools/skill-factory#launch" className="qs-btn qs-btn--ghost qs-btn--sm">
+            Skill Factory Launch
           </Link>
           <Link href={FACTORY_BLUEPRINT_PATH} className="qs-btn qs-btn--ghost qs-btn--sm">
             {FACTORY_CROSS_LINK_LABELS.toBlueprint}
@@ -115,25 +85,28 @@ export function ContentFactoryPageClient() {
       }
       subnav={
         <HiveSubnavRow
-          items={[
-            { id: "agency", label: "Media agency", icon: Building2 },
-            { id: "micro-saas", label: "Micro-SaaS factory", icon: Factory },
-            { id: "pack-factory", label: "Pack factory", icon: Package },
-          ]}
+          items={[{ id: "pack-factory", label: "Pack factory", icon: Package }]}
           activeId={section}
-          onChange={(id) => {
-            const next = id as ContentFactorySection;
-            setSection(next);
-            updateUrl(next);
+          onChange={() => {
+            setSection("pack-factory");
+            updateUrl("pack-factory");
           }}
-          ariaLabel="Content factory sections"
+          ariaLabel="Content pack factory"
           menuKey="apps-tools-content-factory"
         />
       }
     >
-      {section === "agency" ? <ExecutionStudioMediaAgencyPanel onError={setError} /> : null}
-      {section === "micro-saas" ? <ExecutionStudioMicroSaasFactoryPanel onError={setError} /> : null}
-      {section === "pack-factory" ? <ContentPackFactoryPanel onError={setError} /> : null}
+      <ContentPackFactoryPanel onError={setError} />
+      <details className="mt-6 rounded-xl border border-white/10 bg-black/20 p-4 text-xs text-(--qs-text-3)">
+        <summary className="cursor-pointer font-medium text-(--qs-text-2)">Legacy lanes (frozen)</summary>
+        <p className="mt-2">
+          Media agency and Micro-SaaS factory are deprioritized. Use{" "}
+          <Link href="/integrations?tab=studio&section=lanes#media-agency" className="text-cyan underline">
+            Integrations → Studio
+          </Link>{" "}
+          if needed.
+        </p>
+      </details>
     </HivePageShell>
   );
 }

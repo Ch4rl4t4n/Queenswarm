@@ -2,7 +2,7 @@
 
 export type AppsToolsPrimarySection = "module_index" | "skill_factory";
 
-export type SkillFactoryTab = "research" | "queue" | "library" | "settings" | "guide";
+export type SkillFactoryTab = "research" | "queue" | "library" | "launch" | "settings" | "guide";
 
 export const APPS_TOOLS_MODULE_INDEX_HREF = "/apps-tools";
 
@@ -12,6 +12,7 @@ export const SKILL_FACTORY_TABS: { id: SkillFactoryTab; label: string }[] = [
   { id: "research", label: "Research" },
   { id: "queue", label: "Queue" },
   { id: "library", label: "Library" },
+  { id: "launch", label: "Launch" },
   { id: "settings", label: "Settings" },
   { id: "guide", label: "Guide" },
 ];

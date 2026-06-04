@@ -592,6 +592,42 @@ export interface SkillExportFile {
   content: string;
 }
 
+/** Harness product catalog (`GET /harness-products/catalog`). */
+export interface HarnessProductLineEconomics {
+  price_eur_cents_min: number;
+  price_eur_cents_max: number;
+  price_eur_cents_recommended: number;
+  our_cost_eur_cents_per_sale: number;
+  our_cost_eur_cents_one_time_setup: number;
+  net_eur_cents_per_sale: number;
+  margin_pct: number;
+  gumroad_fee_note: string;
+}
+
+export interface HarnessProductLine {
+  id: string;
+  title: string;
+  summary: string;
+  stars: number;
+  status: string;
+  gumroad_angle: string;
+  economics: HarnessProductLineEconomics;
+  api_path: string | null;
+}
+
+export interface HarnessRevenueScenario {
+  label_eur_net: number;
+  eval_sales: number;
+  kit_sales: number;
+  runbook_sales: number;
+}
+
+export interface HarnessProductCatalog {
+  lines: HarnessProductLine[];
+  revenue_scenarios: Record<string, HarnessRevenueScenario>;
+  economics_note: string;
+}
+
 export interface SkillExportMeta {
   source: string;
   recipe_id: string;
