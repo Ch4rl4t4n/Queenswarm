@@ -94,7 +94,10 @@ test.describe("Whole-App a11y — panels and subnav", () => {
     await securityTab.focus();
     await page.keyboard.press("ArrowRight");
 
-    await expect(sectionsNav.getByRole("link", { name: "Notifications" })).toBeFocused({ timeout: 5_000 });
+    await expect(page).toHaveURL(/\/settings\/llm-keys/, { timeout: 10_000 });
+    const llmTab = sectionsNav.getByRole("link", { name: "LLM & voice" });
+    await expect(llmTab).toHaveAttribute("aria-current", "page");
+    await expect(llmTab).toBeFocused({ timeout: 5_000 });
   });
 
   test("settings costs route exposes single page h1", async ({ page }) => {

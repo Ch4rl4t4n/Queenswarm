@@ -602,6 +602,27 @@ const STUB_RECIPE_MATCH_CONFIG = {
   hybrid_graph_weight: 0.3,
 };
 
+const STUB_SKILL_FACTORY_SNAPSHOT = {
+  policy: {
+    enabled: true,
+    niche_seeds: ["indie hacker SEO blog pipeline"],
+    auto_build_enabled: false,
+    auto_build_min_score: 0.72,
+    max_builds_per_week: 5,
+    research_cron_enabled: false,
+    apify_deep_scrape_enabled: false,
+    monid_listing_signals_enabled: false,
+    monid_listing_preview_on_approve: false,
+    monid_listing_video_preview_on_approve: false,
+  },
+  opportunities: [],
+  queue_count: 0,
+  building_count: 0,
+  library_count: 0,
+  sellable_count: 0,
+  research_keys_configured: false,
+};
+
 const STUB_APPS_TOOLS_INDEX = {
   generated_at: new Date().toISOString(),
   version: "v1",
@@ -1829,6 +1850,30 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_APPS_TOOLS_INDEX),
+      });
+      return;
+    }
+
+    if (path.startsWith("skill-factory/snapshot")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_SKILL_FACTORY_SNAPSHOT),
+      });
+      return;
+    }
+
+    if (path.startsWith("skill-factory/seeds") || path.startsWith("skill-factory/llm-readiness")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          vertical: ["indie hacker SEO"],
+          starter: ["SEO blog pipeline"],
+          product_presets: [],
+          ready: true,
+          blockers: [],
+        }),
       });
       return;
     }

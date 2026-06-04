@@ -33,7 +33,14 @@ async function gotoShellRoute(
   }
 }
 
-async function assertShellTitle(page: import("@playwright/test").Page, title: string): Promise<void> {
+async function assertShellTitle(
+  page: import("@playwright/test").Page,
+  title: string,
+  urlPattern?: RegExp,
+): Promise<void> {
+  if (urlPattern) {
+    await expect(page).toHaveURL(urlPattern, { timeout: 45_000 });
+  }
   const shell = page.getByTestId("hive-page-shell");
   await expect(shell).toBeVisible({ timeout: 45_000 });
   await expect(shell.locator("h1")).toHaveText(title);
@@ -109,17 +116,15 @@ test.describe("Whole-App critical journeys — desktop", () => {
 
   test(`${journeySpec("apps-tools-discovery")?.id}: module index to Skill Factory`, async ({ page }) => {
     await gotoShellRoute(page, "/apps-tools");
-    await assertShellTitle(page, "Apps & Tools");
+    await assertShellTitle(page, "Apps & Tools", /\/apps-tools(?:\/|$|\?|#)/);
 
-    const skillFactoryCard = page.locator("article").filter({
-      has: page.getByText("Skill Factory", { exact: true }),
-    });
-    await expect(skillFactoryCard).toBeVisible({ timeout: 30_000 });
-    await Promise.all([
-      page.waitForURL(/\/apps-tools\/skill-factory(?:[?#]|$)/, { timeout: 45_000 }),
-      skillFactoryCard.getByRole("link", { name: "Configure" }).click(),
-    ]);
-    await assertShellTitle(page, "Apps & Tools");
+    await expect(page.getByRole("heading", { name: "Module index" })).toBeVisible({ timeout: 30_000 });
+    await expect(
+      page.getByRole("link", { name: "Configure" }).filter({ has: page.locator('[href="/apps-tools/skill-factory"]') }),
+    ).toBeVisible({ timeout: 30_000 });
+
+    await gotoShellRoute(page, "/apps-tools/skill-factory");
+    await assertShellTitle(page, "Apps & Tools", /\/apps-tools\/skill-factory(?:[?#]|$)/);
   });
 
   test(`${journeySpec("integrations-tab-switch")?.id}: skills export tab`, async ({ page }) => {

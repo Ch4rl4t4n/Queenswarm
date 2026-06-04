@@ -354,6 +354,7 @@ test.describe("Responsive shell — authenticated cockpit", () => {
 
   test("mobile subnav centers the selected section in the scroll row", async ({ page, context, baseURL }) => {
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
 
     const onShell = await gotoShellRoute(page, "/integrations");
@@ -432,7 +433,7 @@ test.describe("Responsive shell — authenticated cockpit", () => {
       return;
     }
 
-    await expect(page.getByRole("heading", { name: "Integrations" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("hive-page-shell").locator("h1")).toHaveText("Integrations", { timeout: 15_000 });
     await expect(page.getByText(/Loading skills catalog/i)).toHaveCount(0, { timeout: 20_000 });
     await expect(page.getByText(/Premium checkout:/i)).toContainText(/removed/i, { timeout: 15_000 });
     await expect(page.getByRole("button", { name: "Locked" }).first()).toBeVisible({ timeout: 15_000 });
