@@ -38,6 +38,7 @@ Tento dokument vysvetľuje, **čo potrebuješ ty** vs. **čo robí Queenswarm**,
    - Označiť hotové: `python scripts/gumroad_upload_tracker.py --mark-uploaded <slug> --url <gumroad-url>`
    - Report + QA varovania: `exports/UPLOAD_PROGRESS.md`
    - Ak report ukáže `missing_price`, `weak_hook`, `weak_description` alebo `bundle_missing`, najprv oprav listing/bundle alebo uploadni vyššie hodnotený produkt bez varovaní.
+   - Riadok **Cover** hovorí, aké screenshoty/cover assety pridať, aby produkt nepôsobil ako surový ZIP.
 
 **Tvoja Gumroad stránka = tvoja „predajná webstránka“** na začiatok.
 

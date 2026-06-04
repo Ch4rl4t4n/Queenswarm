@@ -124,6 +124,24 @@ def qa_product(product: UploadProduct) -> list[str]:
     return issues
 
 
+def cover_checklist(product: UploadProduct) -> list[str]:
+    """Return Gumroad cover/screenshot checklist items for a product type."""
+
+    if product.kind == "content_pack":
+        return [
+            "pack preview screenshot",
+            "sample output screenshot",
+            "Queenswarm neon cover",
+        ]
+    if product.kind.startswith("skill_factory"):
+        return [
+            "SKILL.md preview screenshot",
+            "README/workflow screenshot",
+            "simulate-first proof screenshot",
+        ]
+    return ["product preview screenshot", "Queenswarm neon cover"]
+
+
 def _product_record(state: dict[str, Any], slug: str) -> dict[str, Any]:
     products = state.get("products")
     if not isinstance(products, dict):
@@ -147,11 +165,13 @@ def render_progress_report(products: list[UploadProduct], state: dict[str, Any],
     ]
     for product in pending[: max(1, next_limit)]:
         qa_issues = qa_product(product)
+        cover_items = cover_checklist(product)
         lines.extend(
             [
                 f"- [ ] `{product.slug}` ({product.kind}, score {product.score})",
                 f"  - **Price:** {product.price or 'n/a'}",
                 f"  - **File:** `{product.bundle}`",
+                f"  - **Cover:** {'; '.join(cover_items)}",
             ],
         )
         if qa_issues:

@@ -6,6 +6,7 @@ import json
 
 from scripts.gumroad_upload_tracker import (
     apply_uploaded_mark,
+    cover_checklist,
     parse_shortlist,
     qa_product,
     render_progress_report,
@@ -105,6 +106,26 @@ def test_render_progress_report_includes_listing_qa_warnings() -> None:
     report = render_progress_report([product], {"products": {}}, next_limit=1)
 
     assert "**QA:** missing_price, weak_hook, weak_description, bundle_missing" in report
+
+
+def test_cover_checklist_is_product_type_specific() -> None:
+    products = parse_shortlist(SHORTLIST_MD)
+
+    content_items = cover_checklist(products[0])
+    skill_items = cover_checklist(products[1])
+
+    assert "pack preview screenshot" in content_items
+    assert "sample output screenshot" in content_items
+    assert "SKILL.md preview screenshot" in skill_items
+    assert "simulate-first proof screenshot" in skill_items
+
+
+def test_render_progress_report_includes_cover_checklist() -> None:
+    products = parse_shortlist(SHORTLIST_MD)
+
+    report = render_progress_report(products, {"products": {}}, next_limit=1)
+
+    assert "**Cover:** pack preview screenshot; sample output screenshot; Queenswarm neon cover" in report
 
 
 def test_tracker_state_is_json_serializable() -> None:
