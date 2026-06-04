@@ -50,6 +50,34 @@ def test_listing_context_falls_back_when_hook_is_pipe_only() -> None:
     assert "|" not in ctx.one_line_hook
 
 
+def test_listing_context_uses_multiline_frontmatter_description() -> None:
+    skill = SimpleNamespace(
+        title="Crypto Sentiment Alerts",
+        description="Skill Factory session completed — approve to publish into Library.",
+        keywords=["crypto"],
+        markdown_body=(
+            "---\n"
+            "name: crypto-sentiment-alerts\n"
+            "description: |\n"
+            "  Real-time sentiment alerts for top 10 cryptos.\n"
+            "  Detects bullish/bearish flips and sends Discord alerts.\n"
+            "---\n\n"
+            "# Crypto Sentiment Alerts\n"
+        ),
+    )
+    ctx = listing_context_from_skill_and_opportunity(
+        skill,  # type: ignore[arg-type]
+        SimpleNamespace(
+            niche="crypto sentiment",
+            rationale="High demand",
+            suggested_price_eur_cents=1900,
+            source_refs=[],
+        ),
+    )
+    assert "Real-time sentiment alerts" in ctx.one_line_hook
+    assert "Skill Factory session completed" not in ctx.one_line_hook
+
+
 def test_listing_context_uses_monid_preview_ref() -> None:
     skill = SimpleNamespace(
         title="Test Skill",

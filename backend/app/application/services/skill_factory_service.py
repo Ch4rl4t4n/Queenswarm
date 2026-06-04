@@ -12,9 +12,15 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.services.recipe_write import RecipeWriteConflictError, create_recipe_entry
+from app.application.services.factory_policy_limits import (
+    FACTORY_MAX_BUILDS_PER_WEEK_CAP,
+    FACTORY_MAX_BUILDS_PER_WEEK_DEFAULT,
+    clamp_max_builds_per_week,
+)
 from app.application.services.skill_export import build_export_bundle_from_tenant_skill
 from app.common.schemas.recipes_write import RecipeCreateBody
+from app.application.services.factory_llm_readiness_service import FactoryLlmReadinessOut
+from app.application.services.recipe_write import RecipeWriteConflictError, create_recipe_entry
 from app.core.config import settings
 from app.infrastructure.persistence.models.agent_suggestion import AgentSuggestion
 from app.infrastructure.persistence.models.skill_opportunity import SkillOpportunityORM
@@ -35,7 +41,7 @@ class SkillFactoryPolicyOut(BaseModel):
     niche_seeds: list[str] = Field(default_factory=list)
     auto_build_enabled: bool = False
     auto_build_min_score: float = 0.72
-    max_builds_per_week: int = 3
+    max_builds_per_week: int = FACTORY_MAX_BUILDS_PER_WEEK_DEFAULT
     research_cron_enabled: bool = True
     apify_deep_scrape_enabled: bool = False
     monid_listing_signals_enabled: bool = False
@@ -86,6 +92,7 @@ class SkillOpportunityOut(BaseModel):
     supervisor_session_id: str | None
     supervisor_session_status: str | None = None
     forge_suggestion_id: str | None = None
+    forge_review_status: str | None = None
     tenant_skill_id: str | None
     created_at: datetime
 
@@ -107,6 +114,7 @@ class SkillFactorySnapshotOut(BaseModel):
     github_pr_export_ready: bool = False
     gumroad_listing_ready: bool = False
     gumroad_publish_ready: bool = False
+    llm: FactoryLlmReadinessOut | None = None
 
 
 def slugify_skill_name(name: str) -> str:
@@ -127,7 +135,7 @@ def _policy_from_tenant_settings(raw: dict[str, Any] | None) -> SkillFactoryPoli
         niche_seeds=seeds,
         auto_build_enabled=bool(block.get("auto_build_enabled", False)),
         auto_build_min_score=float(block.get("auto_build_min_score", 0.72)),
-        max_builds_per_week=max(1, min(int(block.get("max_builds_per_week", 3)), 10)),
+        max_builds_per_week=clamp_max_builds_per_week(block.get("max_builds_per_week")),
         research_cron_enabled=bool(block.get("research_cron_enabled", True)),
         apify_deep_scrape_enabled=bool(block.get("apify_deep_scrape_enabled", False)),
         monid_listing_signals_enabled=bool(block.get("monid_listing_signals_enabled", False)),
@@ -205,6 +213,7 @@ def _opportunity_out(
     *,
     supervisor_session_status: str | None = None,
     forge_suggestion_id: str | None = None,
+    forge_review_status: str | None = None,
 ) -> SkillOpportunityOut:
     return SkillOpportunityOut(
         id=str(row.id),
@@ -221,6 +230,7 @@ def _opportunity_out(
         supervisor_session_id=str(row.supervisor_session_id) if row.supervisor_session_id else None,
         supervisor_session_status=supervisor_session_status,
         forge_suggestion_id=forge_suggestion_id,
+        forge_review_status=forge_review_status,
         tenant_skill_id=str(row.tenant_skill_id) if row.tenant_skill_id else None,
         created_at=row.created_at,
     )
@@ -253,6 +263,111 @@ async def _pending_forge_suggestion_ids(
         if row.supervisor_session_id is not None:
             out[row.supervisor_session_id] = row.id
     return out
+
+
+async def _forge_suggestions_by_session(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    session_ids: list[uuid.UUID],
+) -> dict[uuid.UUID, AgentSuggestion]:
+    """Map supervisor session id → latest verified_skill_forge suggestion."""
+
+    if not session_ids:
+        return {}
+    rows = list(
+        (
+            await session.scalars(
+                select(AgentSuggestion)
+                .where(
+                    AgentSuggestion.tenant_id == tenant_id,
+                    AgentSuggestion.supervisor_session_id.in_(session_ids),
+                    AgentSuggestion.proposal_type == "verified_skill_forge",
+                )
+                .order_by(desc(AgentSuggestion.created_at)),
+            )
+        ).all(),
+    )
+    out: dict[uuid.UUID, AgentSuggestion] = {}
+    for row in rows:
+        if row.supervisor_session_id is not None and row.supervisor_session_id not in out:
+            out[row.supervisor_session_id] = row
+    return out
+
+
+async def reconcile_skill_factory_queue_states(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    opportunities: list[SkillOpportunityORM],
+) -> dict[uuid.UUID, str]:
+    """Sync opportunity rows with supervisor session + forge approval lifecycle."""
+
+    session_status_by_opp = await reconcile_building_opportunities(
+        session,
+        tenant_id=tenant_id,
+        opportunities=opportunities,
+    )
+    session_ids = [row.supervisor_session_id for row in opportunities if row.supervisor_session_id]
+    forge_by_session = await _forge_suggestions_by_session(
+        session,
+        tenant_id=tenant_id,
+        session_ids=[sid for sid in session_ids if sid is not None],
+    )
+
+    from app.infrastructure.persistence.models.tenant import Tenant
+
+    tenant = await session.get(Tenant, tenant_id)
+
+    for row in opportunities:
+        if row.status in {"completed", "dismissed"}:
+            continue
+        sid = row.supervisor_session_id
+        if sid is None:
+            continue
+        forge = forge_by_session.get(sid)
+        if forge is None:
+            continue
+
+        forge_status = str(forge.status or "").strip().lower()
+        if forge_status == "approved" and row.tenant_skill_id is None:
+            from app.application.services.skill_factory_publish import publish_verified_skill_forge
+
+            try:
+                result = await publish_verified_skill_forge(
+                    session,
+                    suggestion=forge,
+                    tenant_id=tenant_id,
+                    tenant=tenant,
+                    reviewer_subject="operator:skill_factory_reconcile",
+                )
+                if not result or not result.get("ok"):
+                    logger.warning(
+                        "skill_factory.reconcile_publish_skipped",
+                        agent_id="skill_factory",
+                        swarm_id=str(tenant_id),
+                        task_id=str(row.id),
+                        forge_id=str(forge.id),
+                        result=result,
+                    )
+            except Exception as exc:
+                logger.warning(
+                    "skill_factory.reconcile_publish_failed",
+                    agent_id="skill_factory",
+                    swarm_id=str(tenant_id),
+                    task_id=str(row.id),
+                    forge_id=str(forge.id),
+                    error=str(exc)[:200],
+                )
+        elif forge_status == "approved" and row.tenant_skill_id is not None and row.status != "completed":
+            row.status = "completed"
+        elif forge_status == "pending" and row.status != "awaiting_forge":
+            row.status = "awaiting_forge"
+        elif forge_status == "rejected" and row.status not in {"failed", "dismissed"}:
+            row.status = "failed"
+
+    await session.flush()
+    return session_status_by_opp
 
 
 async def reconcile_building_opportunities(
@@ -361,14 +476,23 @@ async def compose_skill_factory_snapshot(
 
     policy = await get_skill_factory_policy(session, tenant_id=tenant_id)
     opportunities = await list_skill_opportunities(session, tenant_id=tenant_id, limit=50)
-    session_status_by_opp = await reconcile_building_opportunities(
+    session_status_by_opp = await reconcile_skill_factory_queue_states(
         session,
         tenant_id=tenant_id,
         opportunities=opportunities,
     )
     library = await list_tenant_skills(session, tenant_id=tenant_id, limit=80)
     sup_ids = [row.supervisor_session_id for row in opportunities if row.supervisor_session_id]
-    forge_by_session = await _pending_forge_suggestion_ids(session, tenant_id=tenant_id, session_ids=sup_ids)
+    pending_forge_by_session = await _pending_forge_suggestion_ids(
+        session,
+        tenant_id=tenant_id,
+        session_ids=[sid for sid in sup_ids if sid is not None],
+    )
+    forge_rows_by_session = await _forge_suggestions_by_session(
+        session,
+        tenant_id=tenant_id,
+        session_ids=[sid for sid in sup_ids if sid is not None],
+    )
     queue_count = sum(
         1 for row in opportunities if row.status in {"pending", "queued", "awaiting_forge"}
     )
@@ -400,6 +524,10 @@ async def compose_skill_factory_snapshot(
 
     gumroad_publish = await gumroad_publish_ready(session)
 
+    from app.application.services.factory_llm_readiness_service import resolve_factory_llm_readiness
+
+    llm_status = await resolve_factory_llm_readiness(session)
+
     gumroad_by_skill: dict[uuid.UUID, dict[str, Any]] = {}
     for opp in opportunities:
         if opp.tenant_skill_id is None:
@@ -415,8 +543,13 @@ async def compose_skill_factory_snapshot(
                 row,
                 supervisor_session_status=session_status_by_opp.get(row.id),
                 forge_suggestion_id=(
-                    str(forge_by_session[row.supervisor_session_id])
-                    if row.supervisor_session_id and row.supervisor_session_id in forge_by_session
+                    str(pending_forge_by_session[row.supervisor_session_id])
+                    if row.supervisor_session_id and row.supervisor_session_id in pending_forge_by_session
+                    else None
+                ),
+                forge_review_status=(
+                    str(forge_rows_by_session[row.supervisor_session_id].status or "").strip().lower()
+                    if row.supervisor_session_id and row.supervisor_session_id in forge_rows_by_session
                     else None
                 ),
             )
@@ -432,6 +565,7 @@ async def compose_skill_factory_snapshot(
         github_pr_export_ready=github_ready,
         gumroad_listing_ready=gumroad_ready,
         gumroad_publish_ready=gumroad_publish,
+        llm=llm_status,
     )
 
 
@@ -521,6 +655,10 @@ async def start_factory_build(
     recent = await _weekly_build_count(session, tenant_id=tenant_id)
     if recent >= policy.max_builds_per_week:
         raise ValueError("weekly_build_cap_reached")
+
+    from app.application.services.factory_llm_readiness_service import assert_factory_build_llm_ready
+
+    await assert_factory_build_llm_ready(session)
 
     shared = SharedContextService()
     goal = build_factory_session_goal(

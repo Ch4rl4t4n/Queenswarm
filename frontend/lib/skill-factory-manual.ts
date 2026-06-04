@@ -37,7 +37,8 @@ export const SKILL_FACTORY_PREREQUISITES: SkillFactoryPrerequisite[] = [
   {
     id: "llm-keys",
     label: "LLM keys configured",
-    detail: "Settings → AI · LLM keys — at least one provider (Grok recommended). Factory sessions call researcher + coder + critic bees.",
+    detail:
+      "Settings → AI · LLM keys — OpenAI gpt-4o-mini recommended minimum. Factory sessions call researcher + coder + critic bees.",
     href: MANUAL_HREFS.settingsLlmKeys,
   },
   {
@@ -148,9 +149,10 @@ export const SKILL_FACTORY_STEPS: SkillFactoryManualStep[] = [
     phase: 6,
     title: "6. Export GitHub pack",
     summary: "Download bundle: SKILL.md + README.md + LISTING.md + meta.json — ready for repo or Gumroad.",
-    hint: "LISTING.md is copy for your sales listing. GitHub push is manual (no auto-PR yet).",
+    hint: "LISTING.md hooks come from SKILL frontmatter. Re-run factory_refresh_skill_exports.py on server to refresh disk bundles.",
     actions: [
       "Library tab → Download GitHub pack",
+      "Or server: factory_refresh_skill_exports.py + prepare-gumroad-upload-bundles.sh",
       "Unzip and review SKILL.md",
       "Push to public/private repo per your strategy",
     ],
@@ -201,8 +203,8 @@ export const SKILL_FACTORY_RECOMMENDATIONS: SkillFactoryRecommendation[] = [
   },
   {
     id: "one-at-a-time",
-    title: "One build at a time",
-    body: "max_builds_per_week = 2–3. Researcher→coder→critic chain quality drops with parallel factory runs.",
+    title: "Weekly build cap",
+    body: "max_builds_per_week up to 50 — Grok cost guardrail, not a catalog ceiling. Verified library skills are available to the whole tenant swarm via SkillLibrary.",
   },
   {
     id: "feed-hivemind",
@@ -268,3 +270,4 @@ export const SKILL_FACTORY_GAPS: SkillFactoryGapItem[] = [
 ];
 
 export const SKILL_FACTORY_MANUAL_DOC = "docs/SKILL_FACTORY_OPERATOR_MANUAL.md";
+export const FACTORY_FIRST_REVENUE_MANUAL_DOC = "docs/FACTORY_FIRST_REVENUE_OPERATOR_MANUAL.md";

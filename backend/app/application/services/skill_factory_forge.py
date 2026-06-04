@@ -29,16 +29,26 @@ _SKILL_FRONTMATTER_RE = re.compile(
 )
 
 
+def is_content_pack_factory_session(session: SupervisorSession) -> bool:
+    """Return True when session goal targets Content Pack Factory production."""
+
+    ctx = dict(session.context_summary or {})
+    if ctx.get("content_pack_factory") is True:
+        return True
+    raw = str(ctx.get("raw_goal") or session.goal or "").lower()
+    return "content pack factory" in raw or "content-pack-factory-ready" in raw
+
+
 def is_skill_factory_session(session: SupervisorSession) -> bool:
     """Return True when session goal targets Skill Factory production."""
 
+    if is_content_pack_factory_session(session):
+        return False
     ctx = dict(session.context_summary or {})
-    parts = [
-        str(session.goal or ""),
-        str(ctx.get("raw_goal") or ""),
-    ]
-    combined = " ".join(parts).lower()
-    return "skill factory" in combined or "skill-factory-ready" in combined
+    if ctx.get("skill_factory") is True:
+        return True
+    raw = str(ctx.get("raw_goal") or session.goal or "").lower()
+    return "skill factory" in raw or "skill-factory-ready" in raw
 
 
 def extract_skill_markdown_from_outputs(*, coder_output: str, critic_output: str, goal: str) -> str:

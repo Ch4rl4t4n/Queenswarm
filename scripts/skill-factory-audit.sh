@@ -11,6 +11,7 @@ echo "-- Backend unit tests (factory module)"
 cd backend
 .venv-test/bin/python -m pytest \
   tests/test_skill_factory_api_contract_unit.py \
+  tests/test_factory_llm_readiness_unit.py \
   tests/test_skill_factory_unit.py \
   tests/test_skill_factory_listing_unit.py \
   tests/test_skill_factory_listing_preview_unit.py \

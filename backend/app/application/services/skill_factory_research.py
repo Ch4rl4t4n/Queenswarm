@@ -11,6 +11,10 @@ import structlog
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.services.factory_vertical_seeds import (
+    SKILL_FACTORY_VERTICAL_SEEDS,
+    starter_seeds_for_lane,
+)
 from app.application.services.skill_factory_service import SkillFactoryPolicyOut, slugify_skill_name
 from app.core.config import settings
 from app.infrastructure.persistence.models.skill_opportunity import SkillOpportunityORM
@@ -29,16 +33,7 @@ _DEFAULT_NICHES: tuple[str, ...] = (
     "social content calendar AI",
 )
 
-PROFESSIONAL_NICHE_SEEDS: tuple[str, ...] = (
-    "Cursor IDE agent skill packs for SaaS teams",
-    "n8n automation templates for agencies",
-    "SEO content pipeline with simulate-first guardrails",
-    "competitor monitoring skill for B2B founders",
-    "newsletter growth loop with verified outcomes",
-    "Gumroad-ready AI workflow listing packs",
-    "lead research + outreach simulate-first",
-    "social content calendar with brand guardrails",
-)
+PROFESSIONAL_NICHE_SEEDS: tuple[str, ...] = SKILL_FACTORY_VERTICAL_SEEDS
 
 _TOKEN_RE = re.compile(r"[a-z0-9]{4,}", re.IGNORECASE)
 
@@ -192,7 +187,7 @@ async def run_skill_market_research(
 
     seeds = [item.strip() for item in policy.niche_seeds if item.strip()]
     if not seeds:
-        seeds = list(_DEFAULT_NICHES)
+        seeds = list(starter_seeds_for_lane("skill"))
 
     created: list[SkillOpportunityORM] = []
     apify_deep_budget = [0]

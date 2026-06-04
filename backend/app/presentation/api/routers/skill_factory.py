@@ -7,6 +7,11 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.application.services.factory_policy_limits import (
+    FACTORY_MAX_BUILDS_PER_WEEK_CAP,
+    FACTORY_MAX_BUILDS_PER_WEEK_DEFAULT,
+)
+from app.application.services.factory_vertical_seeds import vertical_seeds_payload
 from app.application.services.skill_factory_research import auto_queue_factory_builds, run_skill_market_research
 from app.application.services.skill_factory_service import (
     SkillFactoryPolicyOut,
@@ -35,12 +40,15 @@ class SkillFactoryPolicyBody(BaseModel):
     niche_seeds: list[str] = Field(default_factory=list, max_length=12)
     auto_build_enabled: bool = False
     auto_build_min_score: float = Field(default=0.72, ge=0.0, le=1.0)
-    max_builds_per_week: int = Field(default=3, ge=1, le=10)
+    max_builds_per_week: int = Field(
+        default=FACTORY_MAX_BUILDS_PER_WEEK_DEFAULT,
+        ge=1,
+        le=FACTORY_MAX_BUILDS_PER_WEEK_CAP,
+    )
     research_cron_enabled: bool = True
     apify_deep_scrape_enabled: bool = False
     monid_listing_signals_enabled: bool = False
     monid_listing_preview_on_approve: bool = False
-    monid_listing_video_preview_on_approve: bool = False
     monid_listing_video_preview_on_approve: bool = False
 
 
@@ -77,7 +85,9 @@ async def skill_factory_snapshot(
     """Return policy, opportunities, and tenant skill library."""
 
     _ensure_enabled()
-    return await compose_skill_factory_snapshot(db, tenant_id=_tenant_id(principal))
+    snapshot = await compose_skill_factory_snapshot(db, tenant_id=_tenant_id(principal))
+    await db.commit()
+    return snapshot
 
 
 @router.get("/catalog", response_model=list[SkillCatalogItemOut], summary="All skills for picker")
@@ -102,7 +112,9 @@ async def skill_factory_update_policy(
 
     _ensure_enabled()
     policy = SkillFactoryPolicyOut.model_validate(body.model_dump())
-    return await save_skill_factory_policy(db, tenant_id=_tenant_id(principal), policy=policy)
+    saved = await save_skill_factory_policy(db, tenant_id=_tenant_id(principal), policy=policy)
+    await db.commit()
+    return saved
 
 
 @router.post("/research/run", summary="Run market research now")
@@ -159,7 +171,9 @@ async def skill_factory_build(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Weekly build cap reached — wait or raise max builds in Settings.",
             ) from exc
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail) from exc
+        if detail == "opportunity_not_found":
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=detail) from exc
     await db.commit()
     return {
         "opportunity_id": str(row.id),
@@ -299,6 +313,21 @@ async def skill_factory_export_gumroad_publish(
         raise HTTPException(status_code=status_code, detail=detail)
     await db.commit()
     return result
+
+
+@router.get("/vertical-seeds", summary="Monetization vertical niche catalog")
+async def skill_factory_vertical_seeds(
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, list[str]]:
+    """Return SSOT vertical seeds for operator presets."""
+
+    del principal
+    _ensure_enabled()
+    payload = vertical_seeds_payload()
+    return {
+        "vertical": payload["skill_factory"],
+        "starter": payload["skill_factory_starter"],
+    }
 
 
 __all__ = ["router"]

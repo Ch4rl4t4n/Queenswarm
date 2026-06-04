@@ -42,7 +42,14 @@ Agents / Kanban / New task (skill picker)
 ## 2. Nastavenie factory (Settings tab)
 
 ### Niche seeds
-Pridaj 3–8 konkrétnych tém. Príklady:
+Pridaj 3–8 konkrétnych tém alebo klikni **Apply vertical starter** (načíta Tier-A monetizačné niky z API).
+
+Server-side seed (všetci tenant-i, idempotent):
+```bash
+docker exec queenswarm_prod-backend-1 python scripts/factory_seed_vertical_policies.py
+```
+
+Príklady verticalov:
 - `newsletter growth automation`
 - `SEO blog pipeline for indie hackers`
 - `Cursor agent skills for dev teams`
@@ -288,4 +295,19 @@ docker exec queenswarm_prod-backend-1 python scripts/skill_factory_cycle_status.
 
 ---
 
-*Posledná aktualizácia: Gumroad publish API (draft → live) + Library export tlačidlá.*
+## 14. Operator scripts (English)
+
+Shared bootstrap: `docs/FACTORY_FIRST_REVENUE_OPERATOR_MANUAL.md`
+
+| Script | Purpose |
+|--------|---------|
+| `factory-first-revenue-bootstrap.sh` | Full seed + research + export + LLM smoke |
+| `factory_refresh_skill_exports.py` | Regenerate LISTING.md from SKILL frontmatter |
+| `gumroad_listing_snippets.py` | Copy-paste Gumroad subtitles |
+| `prepare-gumroad-upload-bundles.sh` | Host `.tar.gz` per skill |
+| `factory_llm_readiness.py --smoke` | Verify LLM before builds |
+| `skill_factory_cycle_status.py` | Library + export flags snapshot |
+
+---
+
+*Last updated: Factory first revenue bootstrap + LISTING frontmatter hook fix + Content Pack Factory operator manual (English).*

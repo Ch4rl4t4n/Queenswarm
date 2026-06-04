@@ -37,8 +37,48 @@ def _tier_suggestions(cents: int) -> str:
     return f"€{starter:.0f} starter / €{anchor:.0f} pro / €{team:.0f} team"
 
 
+_GENERIC_DESC_MARKERS = (
+    "skill factory session completed",
+    "approve to publish into library",
+    "draft from skill factory session",
+)
+
+
+def _is_generic_factory_description(text: str) -> bool:
+    """Return True when tenant skill description is factory boilerplate, not buyer copy."""
+
+    lowered = text.strip().lower()
+    return any(marker in lowered for marker in _GENERIC_DESC_MARKERS)
+
+
 def _extract_hook_from_skill_md(markdown: str, *, title: str) -> str:
     """Pull hook from SKILL frontmatter or first heading."""
+
+    if markdown.strip().startswith("---"):
+        parts = markdown.split("---", 2)
+        if len(parts) >= 3:
+            frontmatter = parts[1]
+            lines = frontmatter.splitlines()
+            for index, line in enumerate(lines):
+                stripped = line.strip()
+                if not stripped.lower().startswith("description:"):
+                    continue
+                inline = stripped.split(":", 1)[1].strip()
+                if inline in {"|", ">", "|-", ">-"} or not inline:
+                    collected: list[str] = []
+                    for follow in lines[index + 1 :]:
+                        if follow.startswith((" ", "\t")):
+                            cleaned = follow.strip()
+                            if cleaned:
+                                collected.append(cleaned)
+                            continue
+                        if not follow.strip():
+                            continue
+                        break
+                    if collected:
+                        return " ".join(collected)[:240]
+                if inline:
+                    return inline.strip().strip('"').strip("'")[:240]
 
     match = _FRONTMATTER_DESC_RE.search(markdown)
     if match:
@@ -97,7 +137,12 @@ def listing_context_from_skill_and_opportunity(
     stored_hook, stored_video, source = _listing_preview_from_opportunity(opportunity)
     raw_hook = monid_hook or stored_hook or _extract_hook_from_skill_md(skill.markdown_body, title=skill.title)
     hook = _sanitize_hook(raw_hook)
-    if not hook and skill.description and len(skill.description.strip()) >= 12:
+    if (
+        not hook
+        and skill.description
+        and len(skill.description.strip()) >= 12
+        and not _is_generic_factory_description(skill.description)
+    ):
         hook = skill.description.strip()[:240]
     if not hook:
         hook = f"Verified AI agent skill — {skill.title}"[:240]
@@ -125,6 +170,8 @@ def build_factory_listing_md(
     """Gumroad-ready LISTING.md with hook, persona, tiers, video note, checklist."""
 
     desc = (skill.description or ctx.one_line_hook or "Verified agent skill from Skill Factory.").strip()
+    if _is_generic_factory_description(desc):
+        desc = ctx.one_line_hook or ctx.rationale or skill.title
     price = _price_display(ctx.price_cents)
     tiers = _tier_suggestions(ctx.price_cents)
     tags = ", ".join(str(t) for t in (skill.keywords or [])[:8]) or "agent-skill, skill-factory, cursor"
