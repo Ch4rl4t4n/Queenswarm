@@ -33,6 +33,10 @@ Tento dokument vysvetľuje, **čo potrebuješ ty** vs. **čo robí Queenswarm**,
    - Súbor: nahraj `.tar.gz` z kroku 2
    - Cover: 1 screenshot (môže byť hrubý — dashboard, README, ukážka SKILL.md)
 4. Publikuj produkt. Zdieľaj link na X / Product Hunt / Reddit.
+5. Tracker:
+   - Ďalšie priority: `python scripts/gumroad_upload_tracker.py --next 5`
+   - Označiť hotové: `python scripts/gumroad_upload_tracker.py --mark-uploaded <slug> --url <gumroad-url>`
+   - Report: `exports/UPLOAD_PROGRESS.md`
 
 **Tvoja Gumroad stránka = tvoja „predajná webstránka“** na začiatok.
 
@@ -117,6 +121,7 @@ Všetko ostatné (research, build, export, LISTING.md, `.tar.gz`) robí factory 
 | Stiahnuť pack | Launch / Library → **Download GitHub pack** |
 | Gumroad draft (API) | Library → **Gumroad draft** (ak token) alebo `scripts/skill_factory_gumroad_batch_draft.py --execute` |
 | Token / integrácia | Settings / Integrations → `gumroad_rest` |
+| Manuálny upload tracker | `scripts/gumroad_upload_tracker.py --next 5` |
 | Operator skripty | `./scripts/factory-first-revenue-bootstrap.sh` |
 
 ---
