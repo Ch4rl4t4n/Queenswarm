@@ -16,9 +16,20 @@ if str(ROOT) not in sys.path:
 
 from scripts.content_pack_gumroad_listing_snippets import extract_listing_fields
 
+DEFAULT_EXPORT_ROOTS = (ROOT.parent / "exports", ROOT / "exports", Path("/exports"))
 DEFAULT_EXPORT_DIR = ROOT.parent / "exports" / "gumroad-upload"
 DEFAULT_LAUNCH_BATCH_DIR = ROOT.parent / "exports" / "launch-batch"
-DEFAULT_SOURCE_DIRS = (DEFAULT_EXPORT_DIR, DEFAULT_LAUNCH_BATCH_DIR)
+
+
+def default_source_dirs(export_roots: list[Path] | None = None) -> list[Path]:
+    """Return existing default export source directories."""
+
+    sources: list[Path] = []
+    for root in export_roots or list(DEFAULT_EXPORT_ROOTS):
+        for child in (root / "gumroad-upload", root / "launch-batch"):
+            if child.is_dir() and child not in sources:
+                sources.append(child)
+    return sources
 
 
 def _section(md: str, heading: str) -> str:
@@ -220,7 +231,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    sources = [Path(raw).expanduser().resolve() for raw in args.src] if args.src else list(DEFAULT_SOURCE_DIRS)
+    sources = [Path(raw).expanduser().resolve() for raw in args.src] if args.src else default_source_dirs()
     existing_sources = [src for src in sources if src.is_dir()]
     if not existing_sources:
         print(f"Missing export dirs: {', '.join(str(src) for src in sources)}")

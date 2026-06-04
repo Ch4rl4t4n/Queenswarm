@@ -4,7 +4,7 @@ import io
 import tarfile
 from pathlib import Path
 
-from scripts.gumroad_upload_shortlist import build_shortlist, build_unified_shortlist, render_markdown
+from scripts.gumroad_upload_shortlist import build_shortlist, build_unified_shortlist, default_source_dirs, render_markdown
 
 
 def _write_tar(path: Path, files: dict[str, str]) -> None:
@@ -60,6 +60,18 @@ def test_build_shortlist_prioritizes_content_packs_and_skips_drafts(tmp_path: Pa
     assert [row["slug"] for row in rows] == ["facebook-local-pack", "crypto-sentiment-alerts"]
     assert rows[0]["kind"] == "content_pack"
     assert rows[0]["score"] > rows[1]["score"]
+
+
+def test_default_source_dirs_uses_existing_export_roots(tmp_path: Path) -> None:
+    root = tmp_path / "exports"
+    gumroad = root / "gumroad-upload"
+    launch = root / "launch-batch"
+    gumroad.mkdir(parents=True)
+    launch.mkdir()
+
+    sources = default_source_dirs([root, tmp_path / "missing"])
+
+    assert sources == [gumroad, launch]
 
 
 def test_build_shortlist_classifies_slug_listing_with_skill_md_as_skill_factory(tmp_path: Path) -> None:
