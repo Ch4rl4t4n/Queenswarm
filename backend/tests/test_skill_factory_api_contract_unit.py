@@ -33,3 +33,11 @@ def test_snapshot_out_includes_connector_flags() -> None:
         "llm",
     ):
         assert required in fields
+
+
+def test_launch_prepare_out_in_snapshot_contract_fields() -> None:
+    """Launch prepare API uses LaunchPrepareOut — not embedded in snapshot."""
+
+    from app.application.services.skill_factory_launch import LaunchPrepareOut
+
+    assert "exports" in LaunchPrepareOut.model_fields

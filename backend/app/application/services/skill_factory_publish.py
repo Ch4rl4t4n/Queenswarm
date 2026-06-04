@@ -147,6 +147,21 @@ async def publish_verified_skill_forge(
     if len(skill_md) < 40:
         return {"ok": False, "error": "empty_skill_markdown"}
 
+    from app.application.services.skill_factory_forge import is_fallback_factory_skill_markdown
+
+    if is_fallback_factory_skill_markdown(skill_md):
+        return {
+            "ok": False,
+            "error": "fallback_skill_markdown",
+            "detail": "Forge used generic skill-factory-output template — reject and rebuild session.",
+        }
+    if payload.get("quality_gate_passed") is False:
+        return {
+            "ok": False,
+            "error": "quality_gate_failed",
+            "detail": "Critic APPROVE + valid SKILL.md required before Library publish.",
+        }
+
     sup: SupervisorSession | None = None
     if suggestion.supervisor_session_id is not None:
         sup = await session.get(SupervisorSession, suggestion.supervisor_session_id)

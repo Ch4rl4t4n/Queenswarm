@@ -640,6 +640,24 @@ export interface HarnessEvalResult {
   recommended_gumroad_price_eur_cents: number;
 }
 
+export interface LaunchPrepareExport {
+  skill_id: string;
+  slug: string;
+  title: string;
+  score: number;
+  tier: string;
+  suggested_price_eur_cents: number | null;
+}
+
+export interface LaunchPrepareResult {
+  exported_count: number;
+  sellable_recommended: number;
+  tier_counts: Record<string, number>;
+  checklist_md: string;
+  exports: LaunchPrepareExport[];
+  message: string;
+}
+
 export interface SkillExportMeta {
   source: string;
   recipe_id: string;

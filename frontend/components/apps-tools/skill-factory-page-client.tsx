@@ -25,9 +25,9 @@ import {
   type SkillFactoryTab,
 } from "@/lib/apps-tools-routes";
 import { useRouteHash } from "@/lib/hooks/use-route-hash";
-import { downloadSkillExportBundle } from "@/lib/skill-export-utils";
+import { downloadSkillExportBundle, downloadTextFile } from "@/lib/skill-export-utils";
 import { supervisorSessionAgentsHref, skillFactoryForgeHref } from "@/lib/supervisor-session";
-import type { SkillExportResponse } from "@/lib/hive-types";
+import type { HarnessEvalResult, LaunchPrepareResult, SkillExportResponse } from "@/lib/hive-types";
 
 interface SkillFactoryPolicy {
   enabled: boolean;
@@ -281,7 +281,51 @@ export function SkillFactoryPageClient(): JSX.Element {
       toast.success("Skill approved — check Library tab to export GitHub pack.");
       await load();
     } catch (e) {
-      toast.error(e instanceof HiveApiError ? e.message : "Approve failed.");
+      const msg = e instanceof HiveApiError ? e.message : "Approve failed.";
+      toast.error(msg, {
+        description: msg.includes("quality_gate") || msg.includes("fallback")
+          ? "Reject forge — session needs critic APPROVE + valid SKILL.md (not fallback draft)."
+          : undefined,
+      });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const evalSkill = async (id: string, title: string): Promise<void> => {
+    setBusyId(id);
+    try {
+      const result = await hivePostJson<HarnessEvalResult>(`skill-factory/skills/${id}/eval`, {});
+      downloadTextFile(`${title.slice(0, 40).replace(/[^a-z0-9]+/gi, "-")}-EVAL_REPORT.md`, result.eval_report_md);
+      toast.success(result.passed ? "Eval PASS — report downloaded" : "Eval FAIL — see report", {
+        description: result.issues.slice(0, 3).join(", ") || undefined,
+      });
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Eval failed.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const prepareLaunchBatch = async (): Promise<void> => {
+    setBusyId("launch-prepare");
+    try {
+      const result = await hivePostJson<LaunchPrepareResult>("skill-factory/launch/prepare", { limit: 3 });
+      if (result.exported_count > 0) {
+        toast.success(`Prepared ${result.exported_count} launch pack(s).`, { description: result.message });
+        downloadTextFile("LAUNCH_CHECKLIST.md", result.checklist_md);
+        for (const row of result.exports) {
+          await exportSkill(row.skill_id);
+        }
+      } else {
+        toast.info(result.message, {
+          description: `${result.tier_counts.draft ?? 0} drafts · ${result.tier_counts.rejected ?? 0} rejected — approve quality forges only.`,
+        });
+        downloadTextFile("LAUNCH_CHECKLIST.md", result.checklist_md);
+      }
+      await load();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Launch prepare failed.");
     } finally {
       setBusyId(null);
     }
@@ -628,6 +672,15 @@ export function SkillFactoryPageClient(): JSX.Element {
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button
                         type="button"
+                        className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
+                        disabled={busyId === row.id}
+                        onClick={() => void evalSkill(row.id, row.title)}
+                      >
+                        <SparklesIcon className="size-3.5" aria-hidden />
+                        Run eval
+                      </button>
+                      <button
+                        type="button"
                         className="qs-btn qs-btn--primary qs-btn--sm gap-1"
                         disabled={busyId === row.id}
                         onClick={() => void exportSkill(row.id)}
@@ -752,7 +805,22 @@ export function SkillFactoryPageClient(): JSX.Element {
                   </li>
                 </ul>
               ) : null}
-              <ul className="mt-4 space-y-2">
+              <div className="mt-4 flex flex-wrap gap-2 px-4 pb-4">
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--primary qs-btn--sm gap-1"
+                  disabled={busyId === "launch-prepare"}
+                  onClick={() => void prepareLaunchBatch()}
+                >
+                  {busyId === "launch-prepare" ? (
+                    <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <RocketIcon className="size-3.5" aria-hidden />
+                  )}
+                  Prepare launch batch
+                </button>
+              </div>
+              <ul className="mt-2 space-y-2">
                 {(snapshot.launch_queue ?? []).map((row) => (
                   <li key={row.id} className="rounded-xl border border-success/30 bg-success/5 px-3 py-3 text-sm">
                     <div className="flex flex-wrap items-start justify-between gap-2">

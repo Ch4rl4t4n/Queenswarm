@@ -6,6 +6,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import select
 
 from app.application.services.factory_policy_limits import (
     FACTORY_MAX_BUILDS_PER_WEEK_CAP,
@@ -13,6 +14,8 @@ from app.application.services.factory_policy_limits import (
 )
 from app.application.services.factory_vertical_seeds import vertical_seeds_payload
 from app.application.services.skill_factory_research import auto_queue_factory_builds, run_skill_market_research
+from app.application.services.harness_eval_service import HarnessEvalResultOut
+from app.application.services.skill_factory_launch import LaunchPrepareOut, prepare_launch_batch
 from app.application.services.skill_factory_service import (
     SkillFactoryPolicyOut,
     SkillFactorySnapshotOut,
@@ -313,6 +316,61 @@ async def skill_factory_export_gumroad_publish(
         raise HTTPException(status_code=status_code, detail=detail)
     await db.commit()
     return result
+
+
+class LaunchPrepareBody(BaseModel):
+    """Launch batch preparation options."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    limit: int = Field(default=3, ge=1, le=12)
+
+
+@router.post("/launch/prepare", response_model=LaunchPrepareOut, summary="Prepare Gumroad launch batch")
+async def skill_factory_launch_prepare(
+    body: LaunchPrepareBody,
+    db: DbSession,
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+) -> LaunchPrepareOut:
+    """Export sellable skills server-side and return operator checklist."""
+
+    _ensure_enabled()
+    result = await prepare_launch_batch(
+        db,
+        tenant_id=_tenant_id(principal),
+        limit=body.limit,
+    )
+    await db.commit()
+    return result
+
+
+@router.post("/skills/{skill_id}/eval", response_model=HarnessEvalResultOut, summary="Eval tenant skill markdown")
+async def skill_factory_eval_skill(
+    skill_id: uuid.UUID,
+    db: DbSession,
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+):
+    """Run Eval-as-a-Service on a library skill."""
+
+    _ensure_enabled()
+    from app.application.services.harness_eval_service import HarnessEvalRequest, run_harness_eval
+    from app.infrastructure.persistence.models.tenant_skill import TenantSkillORM
+
+    row = await db.scalar(
+        select(TenantSkillORM).where(
+            TenantSkillORM.id == skill_id,
+            TenantSkillORM.tenant_id == _tenant_id(principal),
+        ),
+    )
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Skill not found.")
+    return await run_harness_eval(
+        HarnessEvalRequest(
+            workflow_markdown=row.markdown_body or "",
+            title=row.title,
+            run_llm_critic=False,
+        ),
+    )
 
 
 @router.get("/vertical-seeds", summary="Monetization vertical niche catalog")

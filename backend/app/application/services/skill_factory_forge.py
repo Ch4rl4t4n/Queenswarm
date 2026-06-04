@@ -51,20 +51,108 @@ def is_skill_factory_session(session: SupervisorSession) -> bool:
     return "skill factory" in raw or "skill-factory-ready" in raw
 
 
-def extract_skill_markdown_from_outputs(*, coder_output: str, critic_output: str, goal: str) -> str:
+_FALLBACK_NAME_MARKERS = ("name: skill-factory-output", "name: skill-factory-draft")
+
+
+def is_fallback_factory_skill_markdown(skill_md: str) -> bool:
+    """True when markdown is the generic factory fallback template."""
+
+    lower = skill_md.strip().lower()
+    return any(marker in lower for marker in _FALLBACK_NAME_MARKERS)
+
+
+def extract_skill_markdown_from_outputs(
+    *,
+    coder_output: str,
+    critic_output: str,
+    goal: str,
+    orchestrator_output: str = "",
+    researcher_output: str = "",
+    opportunity_title: str = "",
+    niche: str = "",
+) -> str:
     """Best-effort SKILL.md extraction from factory session sub-agent outputs."""
 
-    for source in (coder_output, critic_output, f"{coder_output}\n\n{critic_output}"):
+    sources = (
+        coder_output,
+        orchestrator_output,
+        researcher_output,
+        critic_output,
+        f"{coder_output}\n\n{orchestrator_output}\n\n{critic_output}",
+        goal,
+    )
+    for source in sources:
         text = source.strip()
         if not text:
             continue
         match = _SKILL_FENCE_RE.search(text)
         if match and len(match.group(1).strip()) >= 80:
-            return match.group(1).strip()[:20_000]
+            candidate = match.group(1).strip()[:20_000]
+            if not is_fallback_factory_skill_markdown(candidate):
+                return candidate
         match = _SKILL_FRONTMATTER_RE.search(text)
         if match and len(match.group(1).strip()) >= 80:
-            return match.group(1).strip()[:20_000]
+            candidate = match.group(1).strip()[:20_000]
+            if not is_fallback_factory_skill_markdown(candidate):
+                return candidate
+
+    if len(coder_output.strip()) >= 40:
+        structured = _build_structured_skill_from_session(
+            opportunity_title=opportunity_title,
+            niche=niche,
+            goal=goal,
+            coder_output=coder_output,
+            critic_output=critic_output,
+        )
+        if structured:
+            return structured
+
     return _build_fallback_skill_markdown(goal=goal, coder_output=coder_output, critic_output=critic_output)
+
+
+def _build_structured_skill_from_session(
+    *,
+    opportunity_title: str,
+    niche: str,
+    goal: str,
+    coder_output: str,
+    critic_output: str,
+) -> str:
+    """Build niche-named SKILL.md from session outputs when fenced extract fails."""
+
+    from app.application.services.skill_factory_service import slugify_skill_name
+
+    title = (opportunity_title or niche or "Verified niche harness").strip()
+    name = slugify_skill_name(title)
+    if name in {"skill-factory-output", "skill-factory-draft"}:
+        name = slugify_skill_name(niche or title)
+
+    step_matches = re.findall(r"^\d+\.\s+.+\S", coder_output, flags=re.MULTILINE)
+    steps = [s.strip() for s in step_matches[:7]]
+    if len(steps) < 3:
+        steps = [
+            "1. Research niche context with simulate-first guardrails",
+            "2. Draft workflow output and validate structure",
+            "3. Critic verdict APPROVE before external publish",
+        ]
+
+    return (
+        "---\n"
+        f"name: {name}\n"
+        f"description: {title[:180]}\n"
+        "level: 1\n"
+        "---\n\n"
+        f"# {title[:120]}\n\n"
+        "When to use: supervised operator sessions with simulate-first guardrails.\n\n"
+        "## Workflow\n\n"
+        + "\n".join(steps if steps[0][:2].isdigit() else [f"{i + 1}. {s}" for i, s in enumerate(steps)])
+        + "\n\n"
+        "## Guardrails\n\n"
+        "- Simulate before any live publish or spend\n"
+        "- Critic must output: Critic verdict: APPROVE\n\n"
+        f"## Goal context\n{goal[:800]}\n\n"
+        f"## Critic notes\n{critic_output.strip()[:1200]}\n"
+    )
 
 
 def _build_fallback_skill_markdown(*, goal: str, coder_output: str, critic_output: str) -> str:
@@ -137,6 +225,16 @@ async def propose_skill_factory_forge_from_session(
         supervisor_session_id=supervisor_session.id,
         role="coder",
     )
+    orchestrator_output = await _load_sub_agent_output(
+        db,
+        supervisor_session_id=supervisor_session.id,
+        role="orchestrator",
+    )
+    researcher_output = await _load_sub_agent_output(
+        db,
+        supervisor_session_id=supervisor_session.id,
+        role="researcher",
+    )
     critic_output = await _load_sub_agent_output(
         db,
         supervisor_session_id=supervisor_session.id,
@@ -144,10 +242,22 @@ async def propose_skill_factory_forge_from_session(
     )
     ctx = dict(supervisor_session.context_summary or {})
     goal = str(ctx.get("raw_goal") or supervisor_session.goal or "")
+
+    opportunity = await db.scalar(
+        select(SkillOpportunityORM).where(
+            SkillOpportunityORM.tenant_id == supervisor_session.tenant_id,
+            SkillOpportunityORM.supervisor_session_id == supervisor_session.id,
+        ),
+    )
+
     skill_md = extract_skill_markdown_from_outputs(
         coder_output=coder_output,
         critic_output=critic_output,
         goal=goal,
+        orchestrator_output=orchestrator_output,
+        researcher_output=researcher_output,
+        opportunity_title=str(opportunity.title if opportunity else ""),
+        niche=str(opportunity.niche if opportunity else ""),
     )
     quality = evaluate_factory_outputs(
         skill_markdown=skill_md,
@@ -164,12 +274,6 @@ async def propose_skill_factory_forge_from_session(
         )
         return None
 
-    opportunity = await db.scalar(
-        select(SkillOpportunityORM).where(
-            SkillOpportunityORM.tenant_id == supervisor_session.tenant_id,
-            SkillOpportunityORM.supervisor_session_id == supervisor_session.id,
-        ),
-    )
     title_base = opportunity.title if opportunity is not None else _extract_skill_title(goal=goal, draft_excerpt=coder_output)
     payload: dict[str, Any] = {
         "skill_markdown": quality.skill_markdown,
@@ -219,6 +323,7 @@ async def propose_skill_factory_forge_from_session(
 
 __all__ = [
     "extract_skill_markdown_from_outputs",
+    "is_fallback_factory_skill_markdown",
     "is_skill_factory_session",
     "propose_skill_factory_forge_from_session",
 ]
