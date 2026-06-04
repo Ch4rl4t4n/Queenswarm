@@ -17,6 +17,8 @@ if str(ROOT) not in sys.path:
 from scripts.content_pack_gumroad_listing_snippets import extract_listing_fields
 
 DEFAULT_EXPORT_DIR = ROOT.parent / "exports" / "gumroad-upload"
+DEFAULT_LAUNCH_BATCH_DIR = ROOT.parent / "exports" / "launch-batch"
+DEFAULT_SOURCE_DIRS = (DEFAULT_EXPORT_DIR, DEFAULT_LAUNCH_BATCH_DIR)
 
 
 def _section(md: str, heading: str) -> str:
@@ -37,6 +39,18 @@ def _first_line(text: str) -> str:
     return ""
 
 
+def _bundle_kind_from_members(*, slug: str, members: set[str], listing_name: str) -> str:
+    """Infer product kind from tarball members."""
+
+    if listing_name == "./LISTING.md":
+        return "skill_factory"
+    if f"{slug}/SKILL.md" in members:
+        return "skill_factory"
+    if f"{slug}/publish_pack.json" in members or f"{slug}/PACK.md" in members:
+        return "content_pack"
+    return "content_pack"
+
+
 def _read_listing(bundle_path: Path) -> tuple[str, str, str] | None:
     """Return listing markdown, member path, and bundle kind."""
 
@@ -45,13 +59,15 @@ def _read_listing(bundle_path: Path) -> tuple[str, str, str] | None:
     try:
         with tarfile.open(bundle_path, "r:gz") as tar:
             members = {member.name: member for member in tar.getmembers() if member.isfile()}
-            for name, kind in ((content_pack_member, "content_pack"), ("./LISTING.md", "skill_factory")):
+            member_names = set(members)
+            for name in (content_pack_member, "./LISTING.md"):
                 member = members.get(name)
                 if member is None:
                     continue
                 extracted = tar.extractfile(member)
                 if extracted is None:
                     continue
+                kind = _bundle_kind_from_members(slug=slug, members=member_names, listing_name=name)
                 return extracted.read().decode("utf-8"), name, kind
     except (tarfile.TarError, UnicodeDecodeError, OSError):
         return None
@@ -127,6 +143,37 @@ def build_shortlist(src: Path, *, limit: int = 12, include_drafts: bool = False)
     return rows[: max(1, limit)]
 
 
+def build_unified_shortlist(
+    sources: list[Path],
+    *,
+    limit: int = 18,
+    include_drafts: bool = False,
+) -> list[dict[str, str | int]]:
+    """Build a sorted Gumroad upload shortlist from multiple export directories."""
+
+    best_by_product: dict[tuple[str, str], dict[str, str | int]] = {}
+    for src in sources:
+        if not src.is_dir():
+            continue
+        for row in iter_upload_candidates(src, include_drafts=include_drafts):
+            key = (str(row["slug"]), str(row["kind"]))
+            existing = best_by_product.get(key)
+            if existing is None:
+                best_by_product[key] = row
+                continue
+            existing_bundle = str(existing["bundle"])
+            current_bundle = str(row["bundle"])
+            current_is_launch = "/launch-batch/" in current_bundle
+            existing_is_launch = "/launch-batch/" in existing_bundle
+            if current_is_launch and not existing_is_launch:
+                best_by_product[key] = row
+            elif current_is_launch == existing_is_launch and int(row["score"]) > int(existing["score"]):
+                best_by_product[key] = row
+    rows = list(best_by_product.values())
+    rows.sort(key=lambda row: (-int(row["score"]), str(row["kind"]), str(row["slug"])))
+    return rows[: max(1, limit)]
+
+
 def render_markdown(rows: list[dict[str, str | int]]) -> str:
     """Render a Gumroad upload shortlist as an operator checklist."""
 
@@ -162,8 +209,8 @@ def main(argv: list[str] | None = None) -> int:
     """Print a ranked Gumroad manual upload shortlist."""
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("src", nargs="?", default=str(DEFAULT_EXPORT_DIR))
-    parser.add_argument("--limit", type=int, default=12)
+    parser.add_argument("src", nargs="*", help="Export directories. Defaults to gumroad-upload + launch-batch.")
+    parser.add_argument("--limit", type=int, default=18)
     parser.add_argument("--include-drafts", action="store_true")
     parser.add_argument(
         "--write-markdown",
@@ -173,21 +220,22 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    src = Path(args.src).expanduser().resolve()
-    if not src.is_dir():
-        print(f"Missing export dir: {src}")
+    sources = [Path(raw).expanduser().resolve() for raw in args.src] if args.src else list(DEFAULT_SOURCE_DIRS)
+    existing_sources = [src for src in sources if src.is_dir()]
+    if not existing_sources:
+        print(f"Missing export dirs: {', '.join(str(src) for src in sources)}")
         return 1
 
-    rows = build_shortlist(src, limit=args.limit, include_drafts=args.include_drafts)
+    rows = build_unified_shortlist(existing_sources, limit=args.limit, include_drafts=args.include_drafts)
     if args.write_markdown:
         output_path = Path(args.write_markdown)
         if not output_path.is_absolute():
-            output_path = src / output_path
+            output_path = existing_sources[0] / output_path if len(existing_sources) == 1 else ROOT.parent / "exports" / output_path
         output_path.write_text(render_markdown(rows), encoding="utf-8")
         print(f"markdown={output_path}")
 
     print("== Gumroad upload shortlist ==")
-    print(f"source={src}")
+    print(f"sources={', '.join(str(src) for src in existing_sources)}")
     for index, row in enumerate(rows, start=1):
         print(f"\n{index}. {row['slug']} [{row['kind']}] score={row['score']}")
         print(f"subtitle: {str(row['subtitle'])[:180] or 'n/a'}")

@@ -4,7 +4,7 @@ import io
 import tarfile
 from pathlib import Path
 
-from scripts.gumroad_upload_shortlist import build_shortlist, render_markdown
+from scripts.gumroad_upload_shortlist import build_shortlist, build_unified_shortlist, render_markdown
 
 
 def _write_tar(path: Path, files: dict[str, str]) -> None:
@@ -60,6 +60,83 @@ def test_build_shortlist_prioritizes_content_packs_and_skips_drafts(tmp_path: Pa
     assert [row["slug"] for row in rows] == ["facebook-local-pack", "crypto-sentiment-alerts"]
     assert rows[0]["kind"] == "content_pack"
     assert rows[0]["score"] > rows[1]["score"]
+
+
+def test_build_shortlist_classifies_slug_listing_with_skill_md_as_skill_factory(tmp_path: Path) -> None:
+    _write_tar(
+        tmp_path / "seo-skill.tar.gz",
+        {
+            "seo-skill/LISTING.md": "\n".join(
+                [
+                    "# LISTING.md",
+                    "## One-line hook (Gumroad subtitle)",
+                    "Ship a verified SEO workflow for indie teams.",
+                    "",
+                    "## Price anchor",
+                    "€19.00",
+                    "",
+                    "## Short description",
+                    "A launch-ready Skill Factory export.",
+                ],
+            ),
+            "seo-skill/SKILL.md": "---\nname: seo-skill\n---\n",
+        },
+    )
+
+    rows = build_shortlist(tmp_path, limit=10)
+
+    assert rows[0]["kind"] == "skill_factory"
+    assert rows[0]["listing_path"] == "seo-skill/LISTING.md"
+
+
+def test_build_unified_shortlist_reads_content_and_skill_sources(tmp_path: Path) -> None:
+    content_dir = tmp_path / "gumroad-upload"
+    launch_dir = tmp_path / "launch-batch"
+    content_dir.mkdir()
+    launch_dir.mkdir()
+    _write_tar(
+        content_dir / "facebook-local-pack.tar.gz",
+        {
+            "facebook-local-pack/LISTING.md": "**Hook:** Book more jobs.\n\n**Target buyer:** Local owners.\n",
+            "facebook-local-pack/publish_pack.json": "{}",
+        },
+    )
+    _write_tar(
+        launch_dir / "seo-skill.tar.gz",
+        {
+            "seo-skill/LISTING.md": "## One-line hook (Gumroad subtitle)\nShip SEO workflows.\n",
+            "seo-skill/SKILL.md": "---\nname: seo-skill\n---\n",
+        },
+    )
+
+    rows = build_unified_shortlist([content_dir, launch_dir], limit=10)
+
+    assert {row["kind"] for row in rows} == {"content_pack", "skill_factory"}
+    assert {row["slug"] for row in rows} == {"facebook-local-pack", "seo-skill"}
+
+
+def test_build_unified_shortlist_dedupes_same_skill_preferring_launch_batch(tmp_path: Path) -> None:
+    gumroad_dir = tmp_path / "gumroad-upload"
+    launch_dir = tmp_path / "launch-batch"
+    gumroad_dir.mkdir()
+    launch_dir.mkdir()
+    listing = "## One-line hook (Gumroad subtitle)\nShip SEO workflows.\n"
+    _write_tar(
+        gumroad_dir / "seo-skill.tar.gz",
+        {"./LISTING.md": listing},
+    )
+    _write_tar(
+        launch_dir / "seo-skill.tar.gz",
+        {
+            "seo-skill/LISTING.md": listing,
+            "seo-skill/SKILL.md": "---\nname: seo-skill\n---\n",
+        },
+    )
+
+    rows = build_unified_shortlist([gumroad_dir, launch_dir], limit=10)
+
+    assert [row["slug"] for row in rows] == ["seo-skill"]
+    assert "launch-batch" in str(rows[0]["bundle"])
 
 
 def test_build_shortlist_can_include_drafts_when_requested(tmp_path: Path) -> None:
