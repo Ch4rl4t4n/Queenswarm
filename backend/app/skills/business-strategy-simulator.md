@@ -48,3 +48,25 @@ Simulate strategy choices in a controlled environment so Queenswarm can recommen
 - recommended strategy with risks
 - "do not do" list
 - approval gate before any live execution
+
+## CLI Flow
+
+Run the first simulate-first report without live actions:
+
+```bash
+python scripts/business_strategy_simulator.py
+```
+
+Custom scenario:
+
+```bash
+python scripts/business_strategy_simulator.py \
+  --business "Queenswarm Gumroad Launch" \
+  --offer "simulate-first workflow packs" \
+  --buyer "solo founders and small agencies" \
+  --price-floor 9 \
+  --price-ceiling 29 \
+  --horizon-days 90
+```
+
+Outputs are written under `exports/business-simulations/`.
