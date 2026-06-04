@@ -62,6 +62,7 @@ services:
       CODEBASE_ATLAS_REPO_ROOT: /repo
     volumes:
       - ./reports:/app/reports:ro
+      - ./exports:/app/exports
       - .:/repo:ro
     mem_limit: 10240m
     cpus: "4.0"
@@ -80,6 +81,8 @@ services:
       CELERY_WORKER_CONCURRENCY: ${CELERY_WORKER_CONCURRENCY:-3}
     mem_limit: 3072m
     cpus: "1.75"
+    volumes:
+      - ./exports:/app/exports
 
   celery-beat:
     env_file:
