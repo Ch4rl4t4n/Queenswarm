@@ -97,6 +97,8 @@ async def maybe_auto_approve_supervisor_session(
     hydrated = await get_supervisor_session(db, session_row.id)
     if hydrated is None:
         return False
+    if str(hydrated.status or "").strip().lower() in {"stopped", "completed", "failed", "cancelled"}:
+        return False
 
     await apply_session_review(
         db,

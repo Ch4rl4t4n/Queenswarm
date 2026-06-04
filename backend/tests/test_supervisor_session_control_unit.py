@@ -78,6 +78,39 @@ async def test_maybe_auto_approve_when_policy_disabled_then_false() -> None:
 
 
 @pytest.mark.asyncio
+async def test_maybe_auto_approve_when_hydrated_session_closed_then_false(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    tenant_id = uuid.uuid4()
+    row = MagicMock()
+    row.status = "needs_input"
+    row.tenant_id = tenant_id
+    row.goal = "Digest"
+    row.context_summary = {}
+    row.id = uuid.uuid4()
+
+    hydrated = MagicMock()
+    hydrated.status = "stopped"
+
+    db = AsyncMock()
+    db.get = AsyncMock(return_value=SimpleNamespace(operator_settings={"supervisor_sessions": {"auto_approve_enabled": True}}))
+    monkeypatch.setattr(
+        "app.application.services.supervisor_session_control.get_supervisor_session",
+        AsyncMock(return_value=hydrated),
+    )
+    apply_mock = AsyncMock()
+    monkeypatch.setattr(
+        "app.application.services.supervisor_session_control.apply_session_review",
+        apply_mock,
+    )
+
+    approved = await maybe_auto_approve_supervisor_session(db, session_row=row)
+
+    assert approved is False
+    apply_mock.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_auto_approve_pending_when_enabled_then_approves_non_critical(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
