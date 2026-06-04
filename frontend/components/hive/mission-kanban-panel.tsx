@@ -54,10 +54,11 @@ export function MissionKanbanPanel({ onOpenTask, refreshSignal = 0 }: MissionKan
   const [bulkDeleteIds, setBulkDeleteIds] = useState<string[] | null>(null);
   const [selectedDoneIds, setSelectedDoneIds] = useState<Set<string>>(() => new Set());
   const [dispatchSkills, setDispatchSkills] = useState<string[]>([]);
+  const [autoMatchSkills, setAutoMatchSkills] = useState(true);
 
   const executionPayload = useMemo(
-    () => (dispatchSkills.length > 0 ? { skills: dispatchSkills } : {}),
-    [dispatchSkills],
+    () => (!autoMatchSkills && dispatchSkills.length > 0 ? { skills: dispatchSkills } : {}),
+    [autoMatchSkills, dispatchSkills],
   );
 
   const reload = useCallback(async () => {
@@ -104,7 +105,7 @@ export function MissionKanbanPanel({ onOpenTask, refreshSignal = 0 }: MissionKan
         task_text: bundle.taskText,
         title: bundle.label,
         priority: 7,
-        skills: dispatchSkills.length > 0 ? dispatchSkills : undefined,
+        skills: !autoMatchSkills && dispatchSkills.length > 0 ? dispatchSkills : undefined,
       });
       if (bundle.autoDispatch) {
         const res = await hivePostJson<MissionKanbanDispatchResponse>(
@@ -135,7 +136,7 @@ export function MissionKanbanPanel({ onOpenTask, refreshSignal = 0 }: MissionKan
         await hivePostJson<MissionKanbanTriageResponse>("operator/mission-kanban/triage", {
           task_text: text,
           title: text.split("\n")[0]?.slice(0, 500),
-          skills: dispatchSkills.length > 0 ? dispatchSkills : undefined,
+          skills: !autoMatchSkills && dispatchSkills.length > 0 ? dispatchSkills : undefined,
         });
         toast.success("Added to Triage — click Dispatch now to decompose.");
       } else {
@@ -369,6 +370,8 @@ export function MissionKanbanPanel({ onOpenTask, refreshSignal = 0 }: MissionKan
           className="mt-3"
           selected={dispatchSkills}
           onChange={setDispatchSkills}
+          autoMatch={autoMatchSkills}
+          onAutoMatchChange={setAutoMatchSkills}
         />
 
         <div className="mt-3">

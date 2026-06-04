@@ -171,6 +171,7 @@ export function NewTaskConsole() {
   const [submitBusy, setSubmitBusy] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
   const [intakeSkills, setIntakeSkills] = useState<string[]>([]);
+  const [autoMatchSkills, setAutoMatchSkills] = useState(true);
   const [matchConfig, setMatchConfig] = useState<RecipeMatchConfigPayload>(DEFAULT_RECIPE_MATCH_CONFIG);
 
   useEffect(() => {
@@ -258,7 +259,7 @@ export function NewTaskConsole() {
         max_steps: 7,
         start_execution: true,
         defer_to_worker: true,
-        execution_payload: intakeSkills.length > 0 ? { skills: intakeSkills } : {},
+        execution_payload: !autoMatchSkills && intakeSkills.length > 0 ? { skills: intakeSkills } : {},
       });
       toast.success(
         res.kanban_slice_count != null
@@ -359,6 +360,8 @@ export function NewTaskConsole() {
           className="mt-3"
           selected={intakeSkills}
           onChange={setIntakeSkills}
+          autoMatch={autoMatchSkills}
+          onAutoMatchChange={setAutoMatchSkills}
         />
 
         <div className="mt-5 flex flex-col gap-5 border-t border-(--qs-border) pt-5">

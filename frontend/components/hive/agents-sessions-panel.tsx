@@ -95,6 +95,7 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
   const [runtimeMode, setRuntimeMode] = useState<"inprocess" | "durable">("inprocess");
   const [sessionRoles, setSessionRoles] = useState<string[]>([...ROLE_OPTIONS]);
   const [sessionSkills, setSessionSkills] = useState<string[]>([]);
+  const [autoMatchSkills, setAutoMatchSkills] = useState(true);
   const [sessionRetrieval, setSessionRetrieval] = useState("customer_history+policy+last_3_tasks");
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -338,7 +339,7 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
       runtime_mode: runtimeMode,
       roles: sessionRoles.length > 0 ? sessionRoles : [...ROLE_OPTIONS],
       retrieval_contract: sessionRetrieval,
-      skills: sessionSkills.length > 0 ? sessionSkills : undefined,
+      skills: !autoMatchSkills && sessionSkills.length > 0 ? sessionSkills : undefined,
     };
     if (payload.goal.length < 4) {
       toast.error("Goal is too short.");
@@ -708,6 +709,8 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
         selected={sessionSkills}
         suggested={suggestedSkillSlugs}
         onChange={setSessionSkills}
+        autoMatch={autoMatchSkills}
+        onAutoMatchChange={setAutoMatchSkills}
       />
 
       <div className={isV4 ? "mt-4" : "mt-3"}>
