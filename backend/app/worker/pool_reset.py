@@ -33,13 +33,16 @@ def _reset_pools_after_prefork(**_kwargs: object) -> None:
     configure_observability()
 
     async def _purge() -> None:
-        from app.core.database import async_engine
+        from app.core.database import async_engine, async_session
         from app.core.neo4j_client import close_neo4j
         from app.core.redis_client import close_redis
+        from app.application.services.llm_runtime_credentials import refresh_llm_secret_cache
 
         await async_engine.dispose()
         await close_redis()
         await close_neo4j()
+        async with async_session() as session:
+            await refresh_llm_secret_cache(session)
         _logger.info("celery_worker.pools_reset_after_fork")
 
     asyncio.run(_purge())
