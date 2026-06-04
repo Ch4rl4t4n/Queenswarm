@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import tarfile
 import uuid
 from pathlib import Path
 from typing import Any
@@ -47,6 +48,16 @@ class LaunchPrepareOut(BaseModel):
     checklist_md: str = ""
     exports: list[LaunchPrepareExportOut] = Field(default_factory=list)
     message: str = ""
+
+
+def package_launch_skill_dir(skill_dir: Path) -> Path:
+    """Create a Gumroad-uploadable tarball for one launch skill directory."""
+
+    bundle_path = skill_dir.with_suffix(".tar.gz")
+    with tarfile.open(bundle_path, "w:gz") as tar:
+        for path in sorted(item for item in skill_dir.iterdir() if item.is_file()):
+            tar.add(path, arcname=f"{skill_dir.name}/{path.name}")
+    return bundle_path
 
 
 async def prepare_launch_batch(
@@ -129,6 +140,7 @@ async def prepare_launch_batch(
             rel = str(item.get("path") or "file.txt")
             leaf = rel.split("/", 1)[-1]
             (skill_dir / leaf).write_text(str(item.get("content") or ""), encoding="utf-8")
+        bundle_path = package_launch_skill_dir(skill_dir)
 
         price_cents = int(opportunity.suggested_price_eur_cents) if opportunity else None
         exports_out.append(
@@ -142,7 +154,10 @@ async def prepare_launch_batch(
             ),
         )
         price_label = f"€{price_cents / 100:.2f}" if price_cents else "see LISTING.md"
-        checklist_lines.append(f"- **{skill.title}** (`{skill.slug}`) — score {assessment.score:.2f}, price {price_label}")
+        checklist_lines.append(
+            f"- **{skill.title}** (`{skill.slug}`) — score {assessment.score:.2f}, "
+            f"price {price_label}, bundle `{bundle_path.name}`",
+        )
 
     if not heroes:
         checklist_lines.append(
@@ -168,4 +183,4 @@ async def prepare_launch_batch(
     )
 
 
-__all__ = ["LaunchPrepareExportOut", "LaunchPrepareOut", "prepare_launch_batch"]
+__all__ = ["LaunchPrepareExportOut", "LaunchPrepareOut", "package_launch_skill_dir", "prepare_launch_batch"]
