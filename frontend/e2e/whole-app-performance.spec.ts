@@ -31,8 +31,9 @@ test.describe("Whole-App performance — shell loading states", () => {
     await page.goto("/apps-tools", { waitUntil: "domcontentloaded", timeout: 60_000 });
 
     await expect(page.getByTestId("hive-page-shell")).toBeVisible({ timeout: 45_000 });
-    await expect(page.getByRole("heading", { name: "Apps & Tools" })).toBeVisible();
-    await expect(page.getByText("Module index")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "Apps & Tools", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Module index" })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("Skill Factory", { exact: true })).toBeVisible({ timeout: 30_000 });
   });
 
   test("settings route exposes shell under progressive nav", async ({ page }) => {

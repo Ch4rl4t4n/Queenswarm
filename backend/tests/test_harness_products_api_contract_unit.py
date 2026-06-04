@@ -14,7 +14,7 @@ def test_harness_catalog_out_matches_product_line_schema() -> None:
     """Catalog response lines must serialize economics fields the FE panel reads."""
 
     catalog = harness_product_catalog()
-    assert len(catalog) == 3
+    assert len(catalog) == 4
     for row in catalog:
         assert isinstance(row, HarnessProductLineOut)
         assert row.stars == 3

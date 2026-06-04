@@ -103,17 +103,17 @@ test.describe("Whole-App critical journeys — desktop", () => {
     await expect(page.getByText("Bee Hotline")).toBeVisible({ timeout: 20_000 });
   });
 
-  test(`${journeySpec("apps-tools-discovery")?.id}: module index to marketing automation`, async ({ page }) => {
+  test(`${journeySpec("apps-tools-discovery")?.id}: module index to Skill Factory`, async ({ page }) => {
     await gotoShellRoute(page, "/apps-tools");
     await assertShellTitle(page, "Apps & Tools");
 
-    const marketingCard = page.locator("article").filter({
-      has: page.getByText("Marketing Automation", { exact: true }),
+    const skillFactoryCard = page.locator("article").filter({
+      has: page.getByText("Skill Factory", { exact: true }),
     });
-    await expect(marketingCard).toBeVisible({ timeout: 30_000 });
-    await marketingCard.getByRole("link", { name: "Configure" }).click();
-    await expect(page).toHaveURL(/\/apps-tools\/marketing-automation/, { timeout: 45_000 });
-    await assertShellTitle(page, "Marketing Automation");
+    await expect(skillFactoryCard).toBeVisible({ timeout: 30_000 });
+    await skillFactoryCard.getByRole("link", { name: "Configure" }).click();
+    await expect(page).toHaveURL(/\/apps-tools\/skill-factory/, { timeout: 45_000 });
+    await assertShellTitle(page, "Apps & Tools");
   });
 
   test(`${journeySpec("integrations-tab-switch")?.id}: skills export tab`, async ({ page }) => {

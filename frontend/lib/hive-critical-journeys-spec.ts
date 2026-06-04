@@ -46,7 +46,7 @@ export const HIVE_CRITICAL_JOURNEY_SPECS: HiveCriticalJourneySpec[] = [
   {
     id: "apps-tools-discovery",
     title: "Apps & Tools discovery",
-    description: "Module index deep-links to Marketing Automation workspace.",
+    description: "Module index deep-links to Skill Factory workspace.",
     viewport: "desktop",
   },
   {

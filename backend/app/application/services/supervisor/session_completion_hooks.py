@@ -54,7 +54,7 @@ async def on_supervisor_session_completed(session: SupervisorSession, *, db: Asy
         )
         if is_content_pack_factory_session(session):
             await propose_content_pack_factory_forge_from_session(db, supervisor_session=session)
-        el        if is_skill_factory_session(session):
+        elif is_skill_factory_session(session):
             await propose_skill_factory_forge_from_session(db, supervisor_session=session)
         from app.application.services.session_learnings_distill import distill_session_learnings_to_curated_memory
 

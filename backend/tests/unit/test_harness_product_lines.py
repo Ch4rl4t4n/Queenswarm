@@ -5,12 +5,17 @@ from __future__ import annotations
 from app.application.services.harness_product_lines import harness_product_catalog, revenue_scenarios
 
 
-def test_harness_product_catalog_has_three_star_lines() -> None:
+def test_harness_product_catalog_has_four_star_lines() -> None:
     lines = harness_product_catalog()
-    assert len(lines) == 3
+    assert len(lines) == 4
     assert all(row.stars == 3 for row in lines)
     ids = {row.id for row in lines}
-    assert ids == {"eval_as_a_service", "mcp_connector_starter_kit", "operator_runbook"}
+    assert ids == {
+        "eval_as_a_service",
+        "mcp_connector_starter_kit",
+        "operator_runbook",
+        "local_biz_5_workers_bundle",
+    }
 
 
 def test_harness_product_catalog_economics_net_positive() -> None:

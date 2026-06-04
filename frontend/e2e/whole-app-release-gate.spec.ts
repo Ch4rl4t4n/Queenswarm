@@ -72,7 +72,7 @@ test.describe("Whole-App release gate — structural invariants", () => {
 
   test("invariant: Apps & Tools index exposes module grid", async ({ page }) => {
     await gotoShellRoute(page, "/apps-tools");
-    await expect(page.getByText("Module index")).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText("Marketing Automation", { exact: true })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "Module index" })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("Skill Factory", { exact: true })).toBeVisible({ timeout: 30_000 });
   });
 });

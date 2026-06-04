@@ -44,8 +44,8 @@ def test_resolve_platform_features_applies_solo_preset(monkeypatch: pytest.Monke
         subscription_tier=TIER_FREE,
     )
     assert features["billing_settings"] is True
-    assert features["skills_marketplace"] is True
-    assert features["ugc_content_engine"] is True
+    assert features["skills_marketplace"] is False
+    assert features["ugc_content_engine"] is False
     assert features["foragers"] is True
     assert features["platform_features_admin"] is True
     assert features["command_center_admin"] is True

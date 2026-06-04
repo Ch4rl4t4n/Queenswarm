@@ -162,7 +162,6 @@ export const CANONICAL_PRIMARY_CP_HREFS: readonly string[] = CANONICAL_PRIMARY_C
 /** Routes that must appear in mobile More menu but not primary rail. */
 export const CANONICAL_MORE_ONLY_HREFS: readonly string[] = [
   "/factory",
-  "/apps-tools/content-factory",
   "/workflows",
   "/jobs",
   "/dashboard",

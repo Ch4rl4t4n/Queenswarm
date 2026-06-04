@@ -241,7 +241,7 @@ async def skill_factory_build(
             ) from exc
         if detail == "opportunity_not_found":
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail) from exc
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=detail) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=detail) from exc
     await db.commit()
     return {
         "opportunity_id": str(row.id),
@@ -295,7 +295,7 @@ async def skill_factory_reject_forge(
         )
     except ValueError as exc:
         code = str(exc)
-        status_code = status.HTTP_404_NOT_FOUND if code == "opportunity_not_found" else status.HTTP_422_UNPROCESSABLE_ENTITY
+        status_code = status.HTTP_404_NOT_FOUND if code == "opportunity_not_found" else status.HTTP_422_UNPROCESSABLE_CONTENT
         raise HTTPException(status_code=status_code, detail=code) from exc
     await db.commit()
     return {"rejected": True}
@@ -324,7 +324,7 @@ async def skill_factory_rebuild(
         code = str(exc)
         if code == "weekly_build_cap_reached":
             raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=code) from exc
-        status_code = status.HTTP_404_NOT_FOUND if code == "opportunity_not_found" else status.HTTP_422_UNPROCESSABLE_ENTITY
+        status_code = status.HTTP_404_NOT_FOUND if code == "opportunity_not_found" else status.HTTP_422_UNPROCESSABLE_CONTENT
         raise HTTPException(status_code=status_code, detail=code) from exc
     await db.commit()
     return RebuildOut(

@@ -7,6 +7,8 @@ from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
+from unittest.mock import AsyncMock
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -256,7 +258,8 @@ async def test_agent_sessions_review_when_enabled_returns_200(
         return None
 
     monkeypatch.setattr(agent_sessions_router, "write_supervisor_session_audit_log", _fake_audit)
-    monkeypatch.setattr(agent_sessions_router, "maybe_auto_save_playbook_on_approve", lambda *a, **k: None)
+    monkeypatch.setattr(agent_sessions_router, "apply_session_review", AsyncMock())
+    monkeypatch.setattr(agent_sessions_router, "maybe_auto_save_playbook_on_approve", AsyncMock(return_value=None))
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:

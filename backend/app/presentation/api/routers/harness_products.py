@@ -98,7 +98,7 @@ async def harness_runbook_export_route(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recipe not found.")
     if row.verified_at is None:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Recipe must be verified before runbook export.",
         )
     return build_runbook_export_bundle(row)

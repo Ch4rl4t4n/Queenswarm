@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+import uuid
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
+import pytest
+
 from app.application.services.skill_factory_research import _score_opportunity
 from app.application.services.skill_factory_service import build_factory_session_goal, slugify_skill_name
 from app.application.services.skill_market_intel import _demand_keyword_hits, _normalize_hits
@@ -56,12 +62,9 @@ def test_skill_market_intel_deduplicates_hits() -> None:
     assert len(rows) == 2
 
 
-def test_start_factory_build_uses_stateless_shared_context(monkeypatch) -> None:
+@pytest.mark.asyncio
+async def test_start_factory_build_uses_stateless_shared_context(monkeypatch) -> None:
     """SharedContextService is stateless — must not receive AsyncSession."""
-    from types import SimpleNamespace
-    from unittest.mock import AsyncMock
-    import uuid
-
     from app.application.services.skill_factory_service import start_factory_build
 
     opp_id = uuid.uuid4()
@@ -99,15 +102,11 @@ def test_start_factory_build_uses_stateless_shared_context(monkeypatch) -> None:
         AsyncMock(return_value={"seed_key": "PRODUCT_MISSION", "steps": []}),
     )
 
-    import asyncio
-
-    result = asyncio.get_event_loop().run_until_complete(
-        start_factory_build(
-            session,
-            tenant_id=tenant_id,
-            opportunity_id=opp_id,
-            created_by_subject="test-subject",
-        ),
+    result = await start_factory_build(
+        session,
+        tenant_id=tenant_id,
+        opportunity_id=opp_id,
+        created_by_subject="test-subject",
     )
 
     assert result.status == "building"
@@ -117,12 +116,9 @@ def test_start_factory_build_uses_stateless_shared_context(monkeypatch) -> None:
     assert kwargs["tenant_id"] == tenant_id
 
 
-def test_reconcile_building_opportunities_marks_session_done(monkeypatch) -> None:
+@pytest.mark.asyncio
+async def test_reconcile_building_opportunities_marks_session_done(monkeypatch) -> None:
     """Completed supervisor sessions should move building rows to awaiting_forge."""
-    from types import SimpleNamespace
-    from unittest.mock import AsyncMock
-    import uuid
-
     from app.application.services.skill_factory_service import reconcile_building_opportunities
 
     tenant_id = uuid.uuid4()
@@ -145,11 +141,7 @@ def test_reconcile_building_opportunities_marks_session_done(monkeypatch) -> Non
     db.scalars = AsyncMock(return_value=SimpleNamespace(all=lambda: [sup]))
     db.flush = AsyncMock()
 
-    import asyncio
-
-    status_map = asyncio.get_event_loop().run_until_complete(
-        reconcile_building_opportunities(db, tenant_id=tenant_id, opportunities=[opp]),
-    )
+    status_map = await reconcile_building_opportunities(db, tenant_id=tenant_id, opportunities=[opp])
 
     assert opp.status == "awaiting_forge"
     assert status_map[opp_id] == "completed"

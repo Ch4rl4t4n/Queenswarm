@@ -73,19 +73,19 @@ test.describe("Whole-App dead-button audit — legacy routes", () => {
     await expect(page).toHaveURL(/\/settings\/costs/, { timeout: 45_000 });
   });
 
-  test("apps-tools module index deep-links to Marketing Automation", async ({ page }) => {
+  test("apps-tools module index deep-links to Skill Factory", async ({ page }) => {
     test.skip(!OPERATOR_CONTROL_PLANE_ENABLED, "Requires operator control plane");
 
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/apps-tools", { waitUntil: "domcontentloaded", timeout: 60_000 });
-    await expect(page.getByText("Module index")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "Module index" })).toBeVisible({ timeout: 30_000 });
 
-    const marketingCard = page.locator("article").filter({
-      has: page.getByText("Marketing Automation", { exact: true }),
+    const skillFactoryCard = page.locator("article").filter({
+      has: page.getByText("Skill Factory", { exact: true }),
     });
-    await expect(marketingCard).toBeVisible({ timeout: 30_000 });
-    await marketingCard.getByRole("link", { name: "Configure" }).click();
-    await expect(page).toHaveURL(/\/apps-tools\/marketing-automation/, { timeout: 45_000 });
+    await expect(skillFactoryCard).toBeVisible({ timeout: 30_000 });
+    await skillFactoryCard.getByRole("link", { name: "Configure" }).click();
+    await expect(page).toHaveURL(/\/apps-tools\/skill-factory/, { timeout: 45_000 });
   });
 
   test("integrations legacy /connectors lands on hub tab", async ({ page }) => {

@@ -57,7 +57,10 @@ async def test_build_hook_winner_stats_aggregates_styles() -> None:
 @pytest.mark.asyncio
 async def test_compose_forager_v2_snapshot_enabled() -> None:
     session = AsyncMock()
-    tenant = SimpleNamespace(operator_settings={"execution_studio": {"recent_activity": [{"x": 1}] * 5}})
+    tenant = SimpleNamespace(
+        id=uuid.uuid4(),
+        operator_settings={"execution_studio": {"recent_activity": [{"x": 1}] * 5}},
+    )
 
     with (
         patch("app.application.services.forager_intelligence_v2.settings") as mock_settings,
