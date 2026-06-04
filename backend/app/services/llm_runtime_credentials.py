@@ -16,6 +16,7 @@ from app.application.services.llm_runtime_credentials import (
     provider_effective_elevenlabs,
     provider_effective_grok,
     provider_effective_openai,
+    provider_effective_openrouter,
     refresh_llm_secret_cache,
 )
 
@@ -29,5 +30,6 @@ __all__ = [
     "provider_effective_elevenlabs",
     "provider_effective_grok",
     "provider_effective_openai",
+    "provider_effective_openrouter",
     "refresh_llm_secret_cache",
 ]

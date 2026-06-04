@@ -23,6 +23,7 @@ from app.services.llm_runtime_credentials import (
     provider_effective_anthropic,
     provider_effective_grok,
     provider_effective_openai,
+    provider_effective_openrouter,
 )
 
 def _decomposition_exhaustion_message(errors: list[str]) -> str:
@@ -128,6 +129,12 @@ def model_api_key(model: str) -> str:
             msg = "OpenAI routing requested but OPENAI_API_KEY is unset."
             raise RuntimeError(msg)
         return key
+    if lowered.startswith("openrouter/"):
+        key = provider_effective_openrouter()
+        if not key:
+            msg = "OpenRouter routing requested but OPENROUTER_API_KEY is unset."
+            raise RuntimeError(msg)
+        return key
     msg = f"Unsupported LiteLLM model slug for credential resolution: {model}"
     raise ValueError(msg)
 
@@ -156,6 +163,8 @@ def model_slug_has_configured_credentials(model_name: str) -> bool:
         return bool(provider_effective_anthropic())
     if lowered.startswith("openai/") or "gpt-" in lowered or "/gpt" in lowered:
         return _openai_key_looks_configured(provider_effective_openai())
+    if lowered.startswith("openrouter/"):
+        return bool(provider_effective_openrouter())
     try:
         key = model_api_key(model_name)
     except (ValueError, RuntimeError):

@@ -16,7 +16,7 @@ from app.infrastructure.persistence.models.hive_llm_secret import HiveLlmSecret
 
 logger = get_logger(__name__)
 
-_ALLOWED: Final[frozenset[str]] = frozenset({"grok", "anthropic", "openai", "deepgram", "elevenlabs"})
+_ALLOWED: Final[frozenset[str]] = frozenset({"grok", "anthropic", "openai", "openrouter", "deepgram", "elevenlabs"})
 
 _cache: dict[str, str] = {}
 
@@ -63,6 +63,15 @@ def apply_llm_cache_to_environ() -> None:
         os.environ["OPENAI_API_KEY"] = o_e
     else:
         os.environ.pop("OPENAI_API_KEY", None)
+
+    or_v = get_cached_llm_key("openrouter")
+    or_e = (str(settings.openrouter_api_key).strip() if settings.openrouter_api_key else "")
+    if or_v:
+        os.environ["OPENROUTER_API_KEY"] = or_v
+    elif or_e:
+        os.environ["OPENROUTER_API_KEY"] = or_e
+    else:
+        os.environ.pop("OPENROUTER_API_KEY", None)
 
     d_v = get_cached_llm_key("deepgram")
     d_e = (settings.deepgram_api_key or "").strip()
@@ -179,6 +188,17 @@ def provider_effective_openai() -> str:
     return ""
 
 
+def provider_effective_openrouter() -> str:
+    """Return non-empty OpenRouter material when configured."""
+
+    v = get_cached_llm_key("openrouter")
+    if v:
+        return v.strip()
+    if settings.openrouter_api_key:
+        return str(settings.openrouter_api_key).strip()
+    return ""
+
+
 def provider_effective_deepgram() -> str:
     """Return non-empty Deepgram material when configured."""
 
@@ -201,5 +221,6 @@ __all__ = [
     "provider_effective_elevenlabs",
     "provider_effective_grok",
     "provider_effective_openai",
+    "provider_effective_openrouter",
     "refresh_llm_secret_cache",
 ]

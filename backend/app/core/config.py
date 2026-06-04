@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     grok_api_key: str = Field(default="", description="Primary LLM routing key (Grok / xAI); empty skips paid calls.")
     anthropic_api_key: str = Field(default="", description="Fallback Claude key via LiteLLM; empty skips that route.")
     openai_api_key: str | None = Field(default=None, description="Optional cheap-route key.")
+    openrouter_api_key: str | None = Field(
+        default=None,
+        description="Optional OpenRouter key for experimental open-weight agentic models such as Nemotron.",
+    )
     deepgram_api_key: str | None = Field(
         default=None,
         description="Optional Deepgram API key for Ballroom STT when provider=deepgram.",

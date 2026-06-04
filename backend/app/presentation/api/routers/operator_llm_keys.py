@@ -22,13 +22,14 @@ from app.application.services.llm_runtime_credentials import (
     provider_effective_elevenlabs,
     provider_effective_grok,
     provider_effective_openai,
+    provider_effective_openrouter,
 )
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/llm-keys", tags=["LLM Keys"])
 
-ProviderLiteral = Literal["grok", "anthropic", "openai", "deepgram", "elevenlabs"]
+ProviderLiteral = Literal["grok", "anthropic", "openai", "openrouter", "deepgram", "elevenlabs"]
 VoiceSttProviderLiteral = Literal["auto", "grok", "deepgram", "openai"]
 VoiceTtsProviderLiteral = Literal["auto", "grok", "elevenlabs", "openai"]
 VoiceLatencyModeLiteral = Literal["balanced", "fast"]
@@ -189,6 +190,7 @@ async def list_llm_operator_keys(sess: DashboardSession, db: DbSession) -> dict[
         ("grok", provider_effective_grok(), get_cached_llm_key("grok")),
         ("anthropic", provider_effective_anthropic(), get_cached_llm_key("anthropic")),
         ("openai", provider_effective_openai(), get_cached_llm_key("openai")),
+        ("openrouter", provider_effective_openrouter(), get_cached_llm_key("openrouter")),
         ("deepgram", provider_effective_deepgram(), get_cached_llm_key("deepgram")),
         ("elevenlabs", provider_effective_elevenlabs(), get_cached_llm_key("elevenlabs")),
     ]
@@ -372,6 +374,7 @@ async def test_llm_operator_key(
         "grok": "xai/grok-3-mini",
         "anthropic": "anthropic/claude-haiku-4-5-20251001",
         "openai": "openai/gpt-4o-mini",
+        "openrouter": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
         "deepgram": "deepgram/nova-2",
         "elevenlabs": "elevenlabs/tts",
     }
