@@ -59,7 +59,7 @@ export const MOBILE_TABLET_SECONDARY_ROUTE_SPECS: MobileTabletRouteSpec[] = [
   { path: "/settings/audit", mobileTitle: "Audit log", shellTitle: "Settings", panelHeading: /^Audit log$/ },
   { path: "/settings/sharing", mobileTitle: "Public sharing", shellTitle: "Settings", panelHeading: /^Public sharing$/ },
   { path: "/apps-tools/marketing-automation", mobileTitle: "Marketing Automation", shellTitle: "Marketing Automation" },
-  { path: "/apps-tools/content-factory", mobileTitle: "Content Factory", shellTitle: "Content Factory" },
+  { path: "/apps-tools/content-factory", mobileTitle: "Pack Factory", shellTitle: "Apps & Tools" },
   { path: "/apps-tools/trading-automation", mobileTitle: "Trading Automation", shellTitle: "Trading Automation" },
   { path: "/apps-tools/browser-automation", mobileTitle: "Browser Automation", shellTitle: "Browser Automation" },
   { path: "/apps-tools/research-workspace", mobileTitle: "Research Workspace", shellTitle: "Research Workspace" },

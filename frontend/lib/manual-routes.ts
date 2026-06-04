@@ -53,7 +53,7 @@ export const MANUAL_HREFS = {
   tasksNew: "/tasks/new",
   skillFactory: "/apps-tools/skill-factory",
   manualSkillFactory: "/manual#skill-factory",
-  contentPackFactory: "/apps-tools/content-factory?tab=pack-factory",
+  contentPackFactory: "/apps-tools/content-factory#pipeline",
   manualContentPackFactory: "/manual#content-pack-factory",
 } as const;
 

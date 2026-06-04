@@ -108,8 +108,9 @@ test.describe("Whole-App dead-button audit — legacy routes", () => {
     test.skip(!OPERATOR_CONTROL_PLANE_ENABLED, "Requires operator control plane");
 
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto("/apps-tools/content-factory", { waitUntil: "domcontentloaded", timeout: 60_000 });
-    await expect(page.getByRole("heading", { name: "Content Factory" })).toBeVisible({ timeout: 30_000 });
+    await page.goto("/apps-tools/content-factory#pipeline", { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await expect(page.getByRole("heading", { level: 1, name: "Apps & Tools" })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("Content Pack Factory")).toBeVisible({ timeout: 30_000 });
 
     const toBlueprint = FACTORY_CONTENT_FACTORY_CROSS_LINKS.find((row) => row.from === "/apps-tools/content-factory");
     expect(toBlueprint).toBeDefined();
@@ -120,8 +121,8 @@ test.describe("Whole-App dead-button audit — legacy routes", () => {
     const toModule = FACTORY_CONTENT_FACTORY_CROSS_LINKS.find((row) => row.from === "/factory");
     expect(toModule).toBeDefined();
     await page.getByRole("link", { name: FACTORY_CROSS_LINK_LABELS.toContentFactoryModule }).click();
-    await expect(page).toHaveURL(/\/apps-tools\/content-factory\?section=micro-saas/, { timeout: 45_000 });
-    await expect(page.getByRole("heading", { level: 1, name: "Content Factory" })).toBeVisible({ timeout: 30_000 });
+    await expect(page).toHaveURL(/\/apps-tools\/content-factory#pipeline/, { timeout: 45_000 });
+    await expect(page.getByRole("heading", { level: 1, name: "Apps & Tools" })).toBeVisible({ timeout: 30_000 });
   });
 
   test("execution lane tasks ↔ workflows ↔ jobs cross-links resolve", async ({ page }) => {

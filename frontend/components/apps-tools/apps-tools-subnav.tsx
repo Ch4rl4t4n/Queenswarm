@@ -1,6 +1,6 @@
 "use client";
 
-import { Boxes, Sparkles } from "lucide-react";
+import { Boxes, Package, Sparkles } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useMemo } from "react";
 
@@ -10,25 +10,28 @@ import { useSkillFactoryNav } from "@/components/apps-tools/skill-factory-nav-co
 import {
   APPS_TOOLS_MODULE_INDEX_HREF,
   appsToolsPrimaryFromPathname,
+  CONTENT_PACK_FACTORY_TABS,
+  contentPackFactoryTabHref,
+  navigateContentPackFactoryTab,
   navigateSkillFactoryTab,
+  resolveContentPackFactoryTab,
   resolveSkillFactoryTab,
   skillFactoryTabHref,
   SKILL_FACTORY_TABS,
+  type ContentPackFactoryTab,
   type SkillFactoryTab,
 } from "@/lib/apps-tools-routes";
 import { useRouteHash } from "@/lib/hooks/use-route-hash";
 
-/** Primary (Module index · Skill Factory) + secondary Skill Factory tabs. */
+/** Primary (Module index · Skill Factory · Pack Factory) + secondary factory tabs. */
 export function AppsToolsSubnav(): JSX.Element | null {
   const pathname = usePathname();
   const router = useRouter();
   const routeHash = useRouteHash();
   const { hasFeature } = usePlatform();
-  const { queueBadge } = useSkillFactoryNav();
+  const { queueBadge, packQueueBadge } = useSkillFactoryNav();
 
   const primarySection = appsToolsPrimaryFromPathname(pathname);
-  const activePrimary =
-    pathname.includes("/apps-tools/content-factory") ? "content_factory" : primarySection;
   const skillFactoryEnabled = hasFeature("skill_factory");
 
   const primaryItems = useMemo(() => {
@@ -45,8 +48,8 @@ export function AppsToolsSubnav(): JSX.Element | null {
       rows.push({
         id: "content_factory",
         label: "Pack Factory",
-        icon: Sparkles,
-        href: "/apps-tools/content-factory?section=pack-factory#pack-factory",
+        icon: Package,
+        href: contentPackFactoryTabHref("pipeline"),
       });
     }
     return rows;
@@ -57,16 +60,29 @@ export function AppsToolsSubnav(): JSX.Element | null {
     [routeHash],
   );
 
+  const activeContentFactoryTab = useMemo(
+    () => resolveContentPackFactoryTab({ hash: routeHash }),
+    [routeHash],
+  );
+
   const secondaryItems = useMemo(() => {
-    if (primarySection !== "skill_factory" || !skillFactoryEnabled) {
-      return [];
+    if (primarySection === "skill_factory" && skillFactoryEnabled) {
+      return SKILL_FACTORY_TABS.map((row) => ({
+        id: row.id,
+        label: row.label,
+        badge: row.id === "queue" && queueBadge !== undefined && queueBadge > 0 ? queueBadge : undefined,
+      }));
     }
-    return SKILL_FACTORY_TABS.map((row) => ({
-      id: row.id,
-      label: row.label,
-      badge: row.id === "queue" && queueBadge !== undefined && queueBadge > 0 ? queueBadge : undefined,
-    }));
-  }, [primarySection, queueBadge, skillFactoryEnabled]);
+    if (primarySection === "content_factory" && skillFactoryEnabled) {
+      return CONTENT_PACK_FACTORY_TABS.map((row) => ({
+        id: row.id,
+        label: row.label,
+        badge:
+          row.id === "pipeline" && packQueueBadge !== undefined && packQueueBadge > 0 ? packQueueBadge : undefined,
+      }));
+    }
+    return [];
+  }, [packQueueBadge, primarySection, queueBadge, skillFactoryEnabled]);
 
   const onPrimaryChange = useCallback(
     (id: string) => {
@@ -75,7 +91,7 @@ export function AppsToolsSubnav(): JSX.Element | null {
         return;
       }
       if (id === "content_factory") {
-        router.push("/apps-tools/content-factory?section=pack-factory#pack-factory");
+        router.push(contentPackFactoryTabHref("pipeline"));
         return;
       }
       router.push(APPS_TOOLS_MODULE_INDEX_HREF);
@@ -83,9 +99,21 @@ export function AppsToolsSubnav(): JSX.Element | null {
     [router],
   );
 
-  const onSecondaryChange = useCallback((id: string) => {
-    navigateSkillFactoryTab(id as SkillFactoryTab);
-  }, []);
+  const onSecondaryChange = useCallback(
+    (id: string) => {
+      if (primarySection === "skill_factory") {
+        navigateSkillFactoryTab(id as SkillFactoryTab);
+        return;
+      }
+      if (primarySection === "content_factory") {
+        navigateContentPackFactoryTab(id as ContentPackFactoryTab);
+      }
+    },
+    [primarySection],
+  );
+
+  const secondaryAriaLabel =
+    primarySection === "content_factory" ? "Content Pack Factory sections" : "Skill Factory sections";
 
   if (primaryItems.length === 0) {
     return null;
@@ -95,14 +123,22 @@ export function AppsToolsSubnav(): JSX.Element | null {
     <HiveSectionSubnav
       primary={primaryItems}
       secondary={secondaryItems.length > 0 ? secondaryItems : undefined}
-      activePrimary={activePrimary}
-      activeSecondary={primarySection === "skill_factory" ? activeSkillFactoryTab : undefined}
+      activePrimary={primarySection}
+      activeSecondary={
+        primarySection === "skill_factory"
+          ? activeSkillFactoryTab
+          : primarySection === "content_factory"
+            ? activeContentFactoryTab
+            : undefined
+      }
       onPrimaryChange={onPrimaryChange}
       onSecondaryChange={secondaryItems.length > 0 ? onSecondaryChange : undefined}
       primaryAriaLabel="Apps & Tools sections"
-      secondaryAriaLabel="Skill Factory sections"
+      secondaryAriaLabel={secondaryAriaLabel}
       primaryMenuKey="apps-tools-primary"
-      secondaryMenuKey="apps-tools-skill-factory"
+      secondaryMenuKey={
+        primarySection === "content_factory" ? "apps-tools-content-factory" : "apps-tools-skill-factory"
+      }
     />
   );
 }

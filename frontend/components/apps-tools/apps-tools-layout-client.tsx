@@ -13,7 +13,7 @@ interface AppsToolsLayoutClientProps {
   children: ReactNode;
 }
 
-/** Shared Apps & Tools shell for module index and Skill Factory; module workspaces pass through. */
+/** Shared Apps & Tools shell for module index and factory modules; other module workspaces pass through. */
 export function AppsToolsLayoutClient({ children }: AppsToolsLayoutClientProps): JSX.Element {
   const pathname = usePathname();
 

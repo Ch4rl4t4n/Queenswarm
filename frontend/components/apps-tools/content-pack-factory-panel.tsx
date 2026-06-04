@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpenIcon, DownloadIcon, Loader2Icon, PlayIcon, RefreshCwIcon, SparklesIcon, StoreIcon, XIcon } from "lucide-react";
+import { DownloadIcon, Loader2Icon, PlayIcon, SparklesIcon, StoreIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -19,9 +19,7 @@ import { downloadContentPackExportBundle, type ContentPackExportResponse } from 
 import { HiveApiError, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
 import { MANUAL_HREFS } from "@/lib/manual-routes";
 import { supervisorSessionAgentsHref } from "@/lib/supervisor-session";
-import { cn } from "@/lib/utils";
-
-type PackFactoryTab = "pipeline" | "guide";
+import type { ContentPackFactoryTab } from "@/lib/apps-tools-routes";
 
 interface ContentPackFactoryPolicy {
   enabled: boolean;
@@ -102,11 +100,18 @@ function opportunityStatusLabel(row: ContentPackOpportunityRow): string {
 }
 
 interface ContentPackFactoryPanelProps {
+  activeTab: ContentPackFactoryTab;
+  refreshToken?: number;
   onError?: (message: string | null) => void;
+  onQueueCountChange?: (count: number | undefined) => void;
 }
 
-export function ContentPackFactoryPanel({ onError }: ContentPackFactoryPanelProps): JSX.Element {
-  const [tab, setTab] = useState<PackFactoryTab>("pipeline");
+export function ContentPackFactoryPanel({
+  activeTab,
+  refreshToken = 0,
+  onError,
+  onQueueCountChange,
+}: ContentPackFactoryPanelProps): JSX.Element {
   const [snapshot, setSnapshot] = useState<ContentPackFactorySnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -133,7 +138,16 @@ export function ContentPackFactoryPanel({ onError }: ContentPackFactoryPanelProp
 
   useEffect(() => {
     void loadSnapshot();
-  }, [loadSnapshot]);
+  }, [loadSnapshot, refreshToken]);
+
+  useEffect(() => {
+    if (!snapshot) {
+      onQueueCountChange?.(undefined);
+      return;
+    }
+    const count = snapshot.queue_count + snapshot.building_count;
+    onQueueCountChange?.(count > 0 ? count : undefined);
+  }, [onQueueCountChange, snapshot]);
 
   useEffect(() => {
     void hiveGet<{ vertical: string[]; starter: string[] }>("/content-pack-factory/vertical-seeds")
@@ -278,51 +292,9 @@ export function ContentPackFactoryPanel({ onError }: ContentPackFactoryPanelProp
 
   return (
     <div id="pack-factory" className="flex flex-col gap-4 scroll-mt-24">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-white">Content Pack Factory</p>
-          <p className="mt-0.5 text-xs text-white/50">
-            Research → build → verify → export Gumroad-ready social packs.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/manual#content-pack-factory" className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5">
-            <BookOpenIcon className="size-3.5" aria-hidden />
-            Manual
-          </Link>
-          <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void loadSnapshot()}>
-            <RefreshCwIcon className="size-3.5" aria-hidden />
-            Refresh
-          </button>
-          <Link href={MANUAL_HREFS.settingsLlmKeys} className="qs-btn qs-btn--ghost qs-btn--sm">
-            LLM keys
-          </Link>
-        </div>
-      </div>
+      {activeTab === "guide" ? <ContentPackFactoryManualPanel /> : null}
 
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Pack factory views">
-        {(
-          [
-            ["pipeline", "Pipeline"],
-            ["guide", "Guide"],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            className={cn("qs-btn qs-btn--sm", tab === id ? "qs-btn--primary" : "qs-btn--ghost")}
-            onClick={() => setTab(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {tab === "guide" ? <ContentPackFactoryManualPanel /> : null}
-
-      {tab === "pipeline" ? (
+      {activeTab === "pipeline" ? (
         <>
       <FactoryLlmReadinessBanner
         llm={snapshot?.llm}

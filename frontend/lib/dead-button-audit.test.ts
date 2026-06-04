@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { contentFactoryMicroSaasHref } from "@/lib/factory-content-factory-routes";
+import { contentFactoryPackFactoryHref } from "@/lib/factory-content-factory-routes";
 import { JOBS_PATH, TASKS_HUB_PATH, WORKFLOWS_PATH } from "@/lib/execution-lane-routes";
 import { integrationsTabHref } from "@/lib/integrations-routes";
 import {
@@ -67,7 +67,7 @@ describe("dead-button-audit", () => {
 
   it("documents factory ↔ content-factory bidirectional cross-links", () => {
     expect(factoryContentFactoryCrossLinkTargets("/apps-tools/content-factory")).toContain("/factory");
-    expect(factoryContentFactoryCrossLinkTargets("/factory")).toContain(contentFactoryMicroSaasHref());
+    expect(factoryContentFactoryCrossLinkTargets("/factory")).toContain(contentFactoryPackFactoryHref());
     expect(FACTORY_CONTENT_FACTORY_CROSS_LINKS).toHaveLength(2);
   });
 

@@ -3,12 +3,17 @@ import { describe, expect, it } from "vitest";
 import {
   contentFactoryAgencyHref,
   contentFactoryMicroSaasHref,
+  contentFactoryPackFactoryHref,
   contentFactorySectionHref,
   FACTORY_BLUEPRINT_PATH,
   FACTORY_CROSS_LINK_LABELS,
 } from "@/lib/factory-content-factory-routes";
 
 describe("factory-content-factory-routes", () => {
+  it("builds pack factory deep link with hash tab", () => {
+    expect(contentFactoryPackFactoryHref()).toBe("/apps-tools/content-factory#pipeline");
+  });
+
   it("builds micro-saas deep link with query and hash", () => {
     expect(contentFactoryMicroSaasHref()).toBe(
       "/apps-tools/content-factory?section=micro-saas#micro-saas-factory",

@@ -1,12 +1,16 @@
-/** Apps & Tools section routing — primary areas + Skill Factory hash tabs. */
+/** Apps & Tools section routing — primary areas + factory hash tabs. */
 
-export type AppsToolsPrimarySection = "module_index" | "skill_factory";
+export type AppsToolsPrimarySection = "module_index" | "skill_factory" | "content_factory";
 
 export type SkillFactoryTab = "research" | "queue" | "library" | "launch" | "settings" | "guide";
+
+export type ContentPackFactoryTab = "pipeline" | "guide";
 
 export const APPS_TOOLS_MODULE_INDEX_HREF = "/apps-tools";
 
 export const APPS_TOOLS_SKILL_FACTORY_HREF = "/apps-tools/skill-factory";
+
+export const APPS_TOOLS_CONTENT_FACTORY_HREF = "/apps-tools/content-factory";
 
 export const SKILL_FACTORY_TABS: { id: SkillFactoryTab; label: string }[] = [
   { id: "research", label: "Research" },
@@ -17,12 +21,21 @@ export const SKILL_FACTORY_TABS: { id: SkillFactoryTab; label: string }[] = [
   { id: "guide", label: "Guide" },
 ];
 
+export const CONTENT_PACK_FACTORY_TABS: { id: ContentPackFactoryTab; label: string }[] = [
+  { id: "pipeline", label: "Pipeline" },
+  { id: "guide", label: "Guide" },
+];
+
 const SKILL_FACTORY_TAB_IDS = new Set<string>(SKILL_FACTORY_TABS.map((row) => row.id));
+const CONTENT_PACK_FACTORY_TAB_IDS = new Set<string>(CONTENT_PACK_FACTORY_TABS.map((row) => row.id));
 
 export function appsToolsPrimaryFromPathname(pathname: string): AppsToolsPrimarySection {
   const normalized = pathname.split("#")[0]?.replace(/\/$/, "") ?? pathname;
   if (normalized === APPS_TOOLS_SKILL_FACTORY_HREF) {
     return "skill_factory";
+  }
+  if (normalized === APPS_TOOLS_CONTENT_FACTORY_HREF) {
+    return "content_factory";
   }
   return "module_index";
 }
@@ -57,8 +70,48 @@ export function resolveSkillFactoryTab(options: { hash?: string; fallback?: Skil
   return options.fallback ?? "research";
 }
 
-/** True when pathname should use the Apps & Tools shell (index + Skill Factory only). */
+export function contentPackFactoryTabFromHash(hash: string): ContentPackFactoryTab | null {
+  const key = hash.replace(/^#/, "").trim().toLowerCase();
+  if (key === "pack-factory") {
+    return "pipeline";
+  }
+  if (!key || !CONTENT_PACK_FACTORY_TAB_IDS.has(key)) {
+    return null;
+  }
+  return key as ContentPackFactoryTab;
+}
+
+export function contentPackFactoryTabHref(tab: ContentPackFactoryTab): string {
+  return `${APPS_TOOLS_CONTENT_FACTORY_HREF}#${tab}`;
+}
+
+/** Hash tab switch — App Router ignores hash-only router.push; use history + hashchange. */
+export function navigateContentPackFactoryTab(tab: ContentPackFactoryTab): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const href = contentPackFactoryTabHref(tab);
+  window.history.replaceState(null, "", href);
+  window.dispatchEvent(new HashChangeEvent("hashchange"));
+}
+
+export function resolveContentPackFactoryTab(options: {
+  hash?: string;
+  fallback?: ContentPackFactoryTab;
+}): ContentPackFactoryTab {
+  const fromHash = contentPackFactoryTabFromHash(options.hash ?? "");
+  if (fromHash) {
+    return fromHash;
+  }
+  return options.fallback ?? "pipeline";
+}
+
+/** True when pathname should use the Apps & Tools shell (index + factory modules). */
 export function appsToolsShellActiveForPathname(pathname: string): boolean {
   const normalized = pathname.split("#")[0]?.replace(/\/$/, "") ?? pathname;
-  return normalized === APPS_TOOLS_MODULE_INDEX_HREF || normalized === APPS_TOOLS_SKILL_FACTORY_HREF;
+  return (
+    normalized === APPS_TOOLS_MODULE_INDEX_HREF ||
+    normalized === APPS_TOOLS_SKILL_FACTORY_HREF ||
+    normalized === APPS_TOOLS_CONTENT_FACTORY_HREF
+  );
 }

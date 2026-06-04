@@ -6,7 +6,7 @@
 import { BILLING_PLANS_HASH } from "@/lib/billing-settings-copy";
 import {
   CONTENT_FACTORY_PATH,
-  contentFactoryMicroSaasHref,
+  contentFactoryPackFactoryHref,
   FACTORY_BLUEPRINT_PATH,
   FACTORY_CROSS_LINK_LABELS,
 } from "@/lib/factory-content-factory-routes";
@@ -110,7 +110,7 @@ export const APPS_INTEGRATIONS_CROSS_LINKS = [
 /** Factory blueprint lane ↔ Content Factory module (bidirectional operator CTAs). */
 export const FACTORY_CONTENT_FACTORY_CROSS_LINKS = [
   { from: CONTENT_FACTORY_PATH, to: FACTORY_BLUEPRINT_PATH, label: FACTORY_CROSS_LINK_LABELS.toBlueprint },
-  { from: FACTORY_BLUEPRINT_PATH, to: contentFactoryMicroSaasHref(), label: FACTORY_CROSS_LINK_LABELS.toContentFactoryModule },
+  { from: FACTORY_BLUEPRINT_PATH, to: contentFactoryPackFactoryHref(), label: FACTORY_CROSS_LINK_LABELS.toContentFactoryModule },
 ] as const;
 
 /** Tasks ↔ Workflows ↔ Jobs — execution lane More-menu triangle. */

@@ -9,7 +9,7 @@ import { HivePageShell } from "@/components/hive/hive-page-shell";
 import { V4Card } from "@/components/ui/v4";
 import { hiveGet } from "@/lib/api";
 import {
-  contentFactoryMicroSaasHref,
+  contentFactoryPackFactoryHref,
   FACTORY_CROSS_LINK_LABELS,
 } from "@/lib/factory-content-factory-routes";
 
@@ -48,7 +48,7 @@ export function FactoryPageClient(): JSX.Element {
       hintKey="factory"
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          <Link href={contentFactoryMicroSaasHref()} className="qs-btn qs-btn--ghost qs-btn--sm">
+          <Link href={contentFactoryPackFactoryHref()} className="qs-btn qs-btn--ghost qs-btn--sm">
             {FACTORY_CROSS_LINK_LABELS.toContentFactoryModule}
           </Link>
           <Link href="/swarms/new?template=micro-saas-factory" className="qs-btn qs-btn--ghost qs-btn--sm gap-2">

@@ -33,10 +33,23 @@ test.describe("Whole-App page shell — zone headers", () => {
     });
   }
 
-  test("Apps & Tools modules use HivePageShell", async ({ page }) => {
+  test("Apps & Tools factory modules use shared shell", async ({ page }) => {
+    const factoryRoutes = ["/apps-tools/skill-factory#launch", "/apps-tools/content-factory#pipeline"];
+
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    for (const path of factoryRoutes) {
+      await page.goto(path, { waitUntil: "domcontentloaded", timeout: 60_000 });
+      const shell = page.getByTestId("hive-page-shell");
+      await expect(shell).toBeVisible({ timeout: 45_000 });
+      await expect(shell.locator("h1")).toHaveText("Apps & Tools");
+      await expect(shell.locator(".hive-page-shell-subnav")).toBeVisible();
+    }
+  });
+
+  test("Apps & Tools module workspaces use HivePageShell", async ({ page }) => {
     const modules = [
       "/apps-tools/marketing-automation",
-      "/apps-tools/content-factory",
       "/apps-tools/trading-automation",
       "/apps-tools/browser-automation",
       "/apps-tools/research-workspace",

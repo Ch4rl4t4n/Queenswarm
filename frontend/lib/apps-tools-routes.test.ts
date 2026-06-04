@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   appsToolsPrimaryFromPathname,
   appsToolsShellActiveForPathname,
+  contentPackFactoryTabFromHash,
+  contentPackFactoryTabHref,
+  resolveContentPackFactoryTab,
   resolveSkillFactoryTab,
   skillFactoryTabFromHash,
   skillFactoryTabHref,
@@ -12,12 +15,14 @@ describe("apps-tools-routes", () => {
   it("detects shell routes", () => {
     expect(appsToolsShellActiveForPathname("/apps-tools")).toBe(true);
     expect(appsToolsShellActiveForPathname("/apps-tools/skill-factory")).toBe(true);
+    expect(appsToolsShellActiveForPathname("/apps-tools/content-factory")).toBe(true);
     expect(appsToolsShellActiveForPathname("/apps-tools/marketing-automation")).toBe(false);
   });
 
   it("maps primary section from pathname", () => {
     expect(appsToolsPrimaryFromPathname("/apps-tools")).toBe("module_index");
     expect(appsToolsPrimaryFromPathname("/apps-tools/skill-factory")).toBe("skill_factory");
+    expect(appsToolsPrimaryFromPathname("/apps-tools/content-factory")).toBe("content_factory");
   });
 
   it("resolves skill factory tabs from hash", () => {
@@ -27,5 +32,13 @@ describe("apps-tools-routes", () => {
     expect(resolveSkillFactoryTab({ hash: "#library" })).toBe("library");
     expect(resolveSkillFactoryTab({ hash: "" })).toBe("research");
     expect(skillFactoryTabHref("settings")).toBe("/apps-tools/skill-factory#settings");
+  });
+
+  it("resolves content pack factory tabs from hash", () => {
+    expect(contentPackFactoryTabFromHash("#pipeline")).toBe("pipeline");
+    expect(contentPackFactoryTabFromHash("#pack-factory")).toBe("pipeline");
+    expect(contentPackFactoryTabFromHash("#guide")).toBe("guide");
+    expect(resolveContentPackFactoryTab({ hash: "" })).toBe("pipeline");
+    expect(contentPackFactoryTabHref("guide")).toBe("/apps-tools/content-factory#guide");
   });
 });
