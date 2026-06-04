@@ -47,6 +47,9 @@ Tento dokument vysvetľuje, **čo potrebuješ ty** vs. **čo robí Queenswarm**,
    - **Integrations → Hub → `gumroad_rest`**, alebo
    - env `SKILL_FACTORY_GUMROAD_ACCESS_TOKEN` + `SKILL_FACTORY_GUMROAD_LISTING_ENABLED=true`
 5. V **Skill Factory → Library / Launch** tlačidlo **Gumroad draft** vytvorí produkt cez API. Ty dokončíš cover + publish v Gumroad UI.
+6. Pre batch režim najprv spusti preview:
+   - `python scripts/skill_factory_gumroad_batch_draft.py --limit 6`
+   - Reálne drafty vytvorí až explicitný gate: `python scripts/skill_factory_gumroad_batch_draft.py --limit 6 --execute`
 
 ---
 
@@ -112,7 +115,7 @@ Všetko ostatné (research, build, export, LISTING.md, `.tar.gz`) robí factory 
 |-------|--------|
 | Launch queue | Apps & Tools → Skill Factory → **Launch** |
 | Stiahnuť pack | Launch / Library → **Download GitHub pack** |
-| Gumroad draft (API) | Library → **Gumroad draft** (ak token) |
+| Gumroad draft (API) | Library → **Gumroad draft** (ak token) alebo `scripts/skill_factory_gumroad_batch_draft.py --execute` |
 | Token / integrácia | Settings / Integrations → `gumroad_rest` |
 | Operator skripty | `./scripts/factory-first-revenue-bootstrap.sh` |
 
