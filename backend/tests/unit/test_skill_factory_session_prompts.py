@@ -21,6 +21,14 @@ def test_build_critic_factory_user_block_requires_verdict_line() -> None:
     assert "Critic verdict: REJECT" in block
 
 
+def test_should_enqueue_only_first_sub_agent_for_factory() -> None:
+    from app.application.services.supervisor.hivemind_verify import should_enqueue_only_first_sub_agent
+
+    assert should_enqueue_only_first_sub_agent({"skill_factory": True}) is True
+    assert should_enqueue_only_first_sub_agent({"raw_goal": "Skill Factory — build"}) is True
+    assert should_enqueue_only_first_sub_agent({"raw_goal": "Regular task"}) is False
+
+
 def test_build_coder_factory_execute_instruction_requires_skill_fence() -> None:
     text = build_coder_factory_execute_instruction()
     assert "SKILL.md" in text

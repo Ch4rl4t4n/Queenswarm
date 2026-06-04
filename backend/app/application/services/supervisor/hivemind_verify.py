@@ -181,9 +181,15 @@ async def enqueue_next_verify_sub_agent(
 
 
 def should_enqueue_only_first_sub_agent(context_summary: dict[str, Any] | None) -> bool:
-    """Durable sessions with verify lane start researcher only; critic follows on completion."""
+    """Durable verify/factory lanes start with one sub-agent; chain continues on completion."""
 
-    return is_hivemind_verify_session(context_summary)
+    if is_hivemind_verify_session(context_summary):
+        return True
+    from app.application.services.skill_factory_session_prompts import (
+        should_enqueue_only_first_factory_sub_agent,
+    )
+
+    return should_enqueue_only_first_factory_sub_agent(context_summary)
 
 
 __all__ = [

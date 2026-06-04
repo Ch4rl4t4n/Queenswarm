@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
-from app.application.services.supervisor.hivemind_verify import load_researcher_draft
-from app.infrastructure.persistence.models.supervisor_session import SupervisorSession
+from typing import Any
+
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.application.services.supervisor.hivemind_verify import load_researcher_draft
+from app.infrastructure.persistence.models.supervisor_session import SubAgentSession, SupervisorSession
 
 
 def is_skill_factory_context(summary: dict) -> bool:
@@ -49,6 +53,54 @@ def build_critic_factory_user_block(*, coder_draft: str) -> str:
     )
 
 
+async def enqueue_next_factory_sub_agent(
+    db: AsyncSession,
+    *,
+    supervisor_session: SupervisorSession,
+    completed_sub: SubAgentSession,
+) -> int:
+    """After each factory sub-agent completes, enqueue the next by spawn_order."""
+
+    from app.application.services.supervisor.session_service import enqueue_durable_sub_agent_step
+
+    if not is_skill_factory_context(dict(supervisor_session.context_summary or {})):
+        return 0
+
+    summary = dict(supervisor_session.context_summary or {})
+    role = str(completed_sub.role or "").strip().lower()
+    if role == "coder":
+        summary["factory_coder_draft"] = str(
+            (completed_sub.short_memory or {}).get("last_summary") or completed_sub.last_output or "",
+        )[:50_000]
+        supervisor_session.context_summary = summary
+
+    next_sub = await db.scalar(
+        select(SubAgentSession)
+        .where(
+            SubAgentSession.supervisor_session_id == supervisor_session.id,
+            SubAgentSession.spawn_order > int(completed_sub.spawn_order or 0),
+            SubAgentSession.status.in_(("pending", "queued")),
+        )
+        .order_by(SubAgentSession.spawn_order.asc())
+        .limit(1),
+    )
+    if next_sub is None:
+        return 0
+    await enqueue_durable_sub_agent_step(
+        db,
+        supervisor_session=supervisor_session,
+        sub_agent=next_sub,
+        reason="skill_factory_chain",
+    )
+    return 1
+
+
+def should_enqueue_only_first_factory_sub_agent(context_summary: dict[str, Any] | None) -> bool:
+    """Factory durable sessions run sub-agents sequentially so critic sees coder draft."""
+
+    return is_skill_factory_context(dict(context_summary or {}))
+
+
 async def load_coder_draft_for_factory(
     db: AsyncSession,
     *,
@@ -62,8 +114,6 @@ async def load_coder_draft_for_factory(
         return cached
 
     from sqlalchemy import select
-
-    from app.infrastructure.persistence.models.supervisor_session import SubAgentSession
 
     row = await db.scalar(
         select(SubAgentSession)
@@ -83,6 +133,8 @@ async def load_coder_draft_for_factory(
 __all__ = [
     "build_coder_factory_execute_instruction",
     "build_critic_factory_user_block",
+    "enqueue_next_factory_sub_agent",
     "is_skill_factory_context",
     "load_coder_draft_for_factory",
+    "should_enqueue_only_first_factory_sub_agent",
 ]
