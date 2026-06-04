@@ -8,7 +8,7 @@ LIMIT="${1:-3}"
 if docker ps --format '{{.Names}}' | grep -q 'queenswarm_prod-backend-1'; then
   docker exec queenswarm_prod-backend-1 python scripts/factory_prepare_launch_batch.py --limit "$LIMIT"
   mkdir -p "$ROOT/exports/launch-batch"
-  docker cp queenswarm_prod-backend-1:/app/exports/launch-batch/. "$ROOT/exports/launch-batch/" 2>/dev/null || true
+  docker cp queenswarm_prod-backend-1:/exports/launch-batch/. "$ROOT/exports/launch-batch/" 2>/dev/null || true
 else
   cd "$ROOT/backend" && .venv-test/bin/python scripts/factory_prepare_launch_batch.py --limit "$LIMIT"
 fi
