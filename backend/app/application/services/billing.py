@@ -333,9 +333,11 @@ def evaluate_usage_health(*, limits: dict[str, int], usage: dict[str, float]) ->
 
 
 async def assert_supervisor_session_hard_limit(db: AsyncSession, *, tenant_id: uuid.UUID) -> None:
-    """Block new supervisor sessions when hard monthly quota is exceeded."""
+    """Block new supervisor sessions when commercial hard monthly quota is exceeded."""
 
-    subscription = await ensure_tenant_subscription(db, tenant_id=tenant_id)
+    subscription = await _commercial_subscription_for_tenant(db, tenant_id=tenant_id)
+    if subscription is None:
+        return
     limits = resolve_plan_limits(subscription)
     usage = await compute_tenant_usage(db, tenant_id=tenant_id)
     sessions = float(usage.get("monthly_supervisor_sessions", 0.0))
