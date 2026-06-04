@@ -28,7 +28,7 @@ TAG_PUBLISH_PACK_VERIFIED = "publish-pack-verified"
 TAG_SIMULATE_ONLY = "simulate_only"
 TAG_READY_TO_PUBLISH = "ready_to_publish"
 
-PublishChannel = Literal["instagram", "facebook", "twitter", "tiktok", "linkedin", "newsletter", "blog", "other"]
+PublishChannel = Literal["instagram", "facebook", "twitter", "tiktok", "linkedin", "newsletter", "blog", "multi", "other"]
 
 _RE_JSON_BLOCK = re.compile(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", re.IGNORECASE)
 _RE_SECRET = re.compile(

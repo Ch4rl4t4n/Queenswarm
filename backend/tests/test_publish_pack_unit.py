@@ -62,6 +62,20 @@ def test_validate_publish_pack_accepts_linkedin_simulate_channel() -> None:
     assert pack.channel == "linkedin"
 
 
+def test_validate_publish_pack_accepts_multi_channel_simulate_pack() -> None:
+    payload = {
+        "format": "social_content_pack",
+        "artifact_type": "publish_pack",
+        "channel": "multi",
+        "title": "Newsletter launch sequence",
+        "body": "A multi-channel launch sequence for X, LinkedIn, and Indie Hackers.",
+        "simulate_only": True,
+        "snippets": [{"text": "Launch post", "hashtags": ["newsletter"]}],
+    }
+    pack = validate_publish_pack(payload)
+    assert pack.channel == "multi"
+
+
 def test_validate_publish_pack_rejects_secrets() -> None:
     payload = {
         "artifact_type": "publish_pack",
