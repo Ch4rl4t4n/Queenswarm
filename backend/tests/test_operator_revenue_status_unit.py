@@ -13,6 +13,7 @@ def test_render_revenue_status_summarizes_core_reports(tmp_path: Path) -> None:
     simulation = tmp_path / "GUMROAD_LAUNCH_STRATEGY.md"
     audit = tmp_path / "GUMROAD_OBJECTIVE_AUDIT.md"
     model_eval = tmp_path / "MODEL_EVAL_REPORT.md"
+    token_readiness = tmp_path / "OPERATOR_TOKEN_READINESS.md"
     queue.write_text(
         "\n".join(
             [
@@ -34,6 +35,10 @@ def test_render_revenue_status_summarizes_core_reports(tmp_path: Path) -> None:
         "# Model Evaluation Swarm\n\n- `openrouter/nvidia/nemotron-3-ultra-550b-a55b:free`\n",
         encoding="utf-8",
     )
+    token_readiness.write_text(
+        "# Operator Token Readiness\n\n- `OPENROUTER_API_KEY` — missing (OpenRouter): Nemotron eval\n",
+        encoding="utf-8",
+    )
 
     report = render_revenue_status(
         RevenueStatusInputs(
@@ -42,6 +47,7 @@ def test_render_revenue_status_summarizes_core_reports(tmp_path: Path) -> None:
             business_simulation=simulation,
             objective_audit=audit,
             model_eval=model_eval,
+            token_readiness=token_readiness,
         ),
     )
 
@@ -51,6 +57,7 @@ def test_render_revenue_status_summarizes_core_reports(tmp_path: Path) -> None:
     assert "verdict: review" in report
     assert "trust-building offer" in report
     assert "Nemotron" in report
+    assert "OPENROUTER_API_KEY" in report
     assert "Upload product #1" in report
 
 
@@ -62,6 +69,7 @@ def test_render_revenue_status_marks_missing_reports(tmp_path: Path) -> None:
             business_simulation=tmp_path / "missing-simulation.md",
             objective_audit=tmp_path / "missing-audit.md",
             model_eval=tmp_path / "missing-model-eval.md",
+            token_readiness=tmp_path / "missing-token-readiness.md",
         ),
     )
 

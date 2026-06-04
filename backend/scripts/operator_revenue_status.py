@@ -21,6 +21,7 @@ class RevenueStatusInputs:
     business_simulation: Path
     objective_audit: Path
     model_eval: Path
+    token_readiness: Path
 
     def __repr__(self) -> str:
         return f"RevenueStatusInputs(upload_queue={self.upload_queue!s})"
@@ -69,6 +70,21 @@ def _model_eval_hint(model_eval_md: str) -> str:
     return "missing"
 
 
+def _token_hint(token_readiness_md: str) -> str:
+    """Return concise token readiness state."""
+
+    if not token_readiness_md:
+        return "missing"
+    missing = [
+        line.split("`", 2)[1]
+        for line in token_readiness_md.splitlines()
+        if "— missing" in line and line.startswith("- `") and "`" in line
+    ]
+    if missing:
+        return "missing: " + ", ".join(missing[:4])
+    return "all configured"
+
+
 def render_revenue_status(inputs: RevenueStatusInputs) -> str:
     """Render a single operator runbook from revenue reports."""
 
@@ -77,12 +93,14 @@ def render_revenue_status(inputs: RevenueStatusInputs) -> str:
     simulation_md = _read(inputs.business_simulation)
     audit_md = _read(inputs.objective_audit)
     model_eval_md = _read(inputs.model_eval)
+    token_readiness_md = _read(inputs.token_readiness)
 
     readiness = _first_match(scorecard_md, r"^(Ready:\s+\*\*[^*]+\*\*)$")
     first_product = _first_product(upload_queue_md)
     audit_verdict = _first_match(audit_md, r"^-\s+(verdict:\s+\w+)$")
     business_recommendation = _business_recommendation(simulation_md)
     model_eval_hint = _model_eval_hint(model_eval_md)
+    token_hint = _token_hint(token_readiness_md)
     missing = [
         label
         for label, body in (
@@ -91,6 +109,7 @@ def render_revenue_status(inputs: RevenueStatusInputs) -> str:
             ("business_simulation", simulation_md),
             ("objective_audit", audit_md),
             ("model_eval", model_eval_md),
+            ("token_readiness", token_readiness_md),
         )
         if not body
     ]
@@ -110,6 +129,7 @@ def render_revenue_status(inputs: RevenueStatusInputs) -> str:
         f"- Objective audit: {audit_verdict}",
         f"- Strategy simulation: {business_recommendation}",
         f"- Model eval: {model_eval_hint}",
+        f"- Token readiness: {token_hint}",
         "",
         "## Missing Reports",
         "",
@@ -133,6 +153,7 @@ def render_revenue_status(inputs: RevenueStatusInputs) -> str:
             f"- `{inputs.business_simulation}`",
             f"- `{inputs.objective_audit}`",
             f"- `{inputs.model_eval}`",
+            f"- `{inputs.token_readiness}`",
         ],
     )
     return "\n".join(lines).rstrip() + "\n"
@@ -147,6 +168,7 @@ def default_inputs(export_root: Path = EXPORT_ROOT) -> RevenueStatusInputs:
         business_simulation=export_root / "business-simulations" / "GUMROAD_LAUNCH_STRATEGY.md",
         objective_audit=export_root / "guardrail-audits" / "GUMROAD_OBJECTIVE_AUDIT.md",
         model_eval=export_root / "model-evals" / "MODEL_EVAL_REPORT.md",
+        token_readiness=export_root / "OPERATOR_TOKEN_READINESS.md",
     )
 
 
