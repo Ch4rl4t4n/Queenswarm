@@ -74,12 +74,13 @@ async function clickSubnavTab(
 ): Promise<void> {
   const nav = page.getByRole("navigation", { name: navLabel });
   await expect(nav).toBeVisible({ timeout: 20_000 });
-  const tab = nav.getByRole("button", { name: tabLabel });
-  if ((await tab.count()) > 0) {
-    await tab.click();
+  const tabPattern = new RegExp(`^${tabLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\b|$)`, "i");
+  const tabButton = nav.getByRole("button", { name: tabPattern });
+  if ((await tabButton.count()) > 0) {
+    await tabButton.first().click();
     return;
   }
-  await nav.getByRole("link", { name: tabLabel }).click();
+  await nav.getByRole("link", { name: tabPattern }).first().click();
 }
 
 function journeySpec(id: string) {
@@ -139,9 +140,9 @@ test.describe("Whole-App critical journeys — desktop", () => {
     await assertShellTitle(page, "Apps & Tools", /\/apps-tools(?:\/|$|\?|#)/);
 
     await expect(page.getByRole("heading", { name: "Module index" })).toBeVisible({ timeout: 30_000 });
-    await expect(
-      page.getByRole("link", { name: "Configure" }).filter({ has: page.locator('[href="/apps-tools/skill-factory"]') }),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('a[href="/apps-tools/skill-factory"]').filter({ hasText: /^Configure$/ })).toBeVisible({
+      timeout: 30_000,
+    });
 
     await gotoShellRoute(page, "/apps-tools/skill-factory");
     await assertShellTitle(page, "Apps & Tools", /\/apps-tools\/skill-factory(?:[?#]|$)/);
@@ -151,7 +152,11 @@ test.describe("Whole-App critical journeys — desktop", () => {
     await gotoShellRoute(page, "/integrations");
     await assertShellTitle(page, "Integrations");
 
-    await clickSubnavTab(page, "Integration sections", "Skills export");
+    const sections = page.getByRole("navigation", { name: "Integration sections" });
+    await expect(sections).toBeVisible({ timeout: 20_000 });
+    const skillsTab = sections.getByRole("button", { name: /Skills export/i });
+    await expect(skillsTab).toBeVisible({ timeout: 15_000 });
+    await skillsTab.click();
     await expect(page).toHaveURL(/tab=skills/, { timeout: 15_000 });
   });
 
@@ -181,7 +186,7 @@ test.describe("Whole-App critical journeys — desktop", () => {
 
   test(`${journeySpec("execution-new-task")?.id}: tasks queue to new task wizard`, async ({ page }) => {
     await gotoShellRoute(page, "/tasks");
-    await assertShellTitle(page, "Tasks");
+    await assertShellTitle(page, e2eTasksHubHeading());
 
     const newTask = page.getByRole("link", { name: "New task" }).first();
     await expect(newTask).toBeVisible({ timeout: 20_000 });
@@ -206,8 +211,8 @@ test.describe("Whole-App critical journeys — mobile", () => {
     await page.setViewportSize({ width: 390, height: 844 });
   });
 
-  test(`${journeySpec("mobile-more-foragers")?.id}: overflow menu reaches foragers`, async ({ page }) => {
-    test.skip(!OPERATOR_CONTROL_PLANE_ENABLED, journeySpec("mobile-more-foragers")?.description);
+  test(`${journeySpec("mobile-more-foragers")?.id ?? "mobile-more-foragers"}: overflow menu reaches foragers`, async ({ page }) => {
+    test.skip(!OPERATOR_CONTROL_PLANE_ENABLED, journeySpec("mobile-more-foragers")?.description ?? "Mobile overflow → Foragers");
 
     await gotoShellRoute(page, "/swarms", { waitForMobileNav: true });
 

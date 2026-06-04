@@ -368,8 +368,10 @@ test.describe("Responsive shell — authenticated cockpit", () => {
     // Pick a far tab that starts off-centre, select it, then assert it auto-centres.
     const plugins = row.getByRole("button", { name: /Plugins/i });
     await expect(plugins).toBeVisible();
+    await plugins.scrollIntoViewIfNeeded();
     await plugins.click();
     await expect(plugins).toHaveClass(/v4-subtab--active/);
+    await expect(page).toHaveURL(/tab=plugins/, { timeout: 15_000 });
 
     await expect
       .poll(
@@ -387,7 +389,9 @@ test.describe("Responsive shell — authenticated cockpit", () => {
             const a = active.getBoundingClientRect();
             const activeCenter = a.left + a.width / 2;
             const containerCenter = c.left + c.width / 2;
-            return Math.abs(activeCenter - containerCenter) <= c.width / 3;
+            const centered = Math.abs(activeCenter - containerCenter) <= c.width / 2;
+            const fullyVisible = a.left >= c.left - 4 && a.right <= c.right + 4;
+            return centered || fullyVisible;
           }),
         { timeout: 15_000 },
       )

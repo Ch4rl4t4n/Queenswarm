@@ -87,6 +87,13 @@ export const HIVE_CRITICAL_JOURNEY_SPECS: HiveCriticalJourneySpec[] = [
     viewport: "desktop",
     requiresCp: true,
   },
+  {
+    id: "mobile-more-foragers",
+    title: "Mobile more menu → Foragers",
+    description: "Overflow sheet reaches Foragers on mobile.",
+    viewport: "mobile",
+    requiresCp: true,
+  },
 ];
 
 export function hiveCriticalJourneyCount(): number {
