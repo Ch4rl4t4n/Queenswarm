@@ -32,8 +32,8 @@ export default async function RootPage(): Promise<JSX.Element> {
           Verified agent skills and content packs — simulate-first, sell with confidence.
         </h1>
         <p className="mt-4 max-w-2xl text-base text-(--qs-text-2)">
-          Every listing ships with guardrails, harness files, and a quality score. Professional delivery,
-          not prompt dumps.
+          Every listing ships with guardrails, harness files, and a quality score. Browse here, buy on external
+          marketplaces — professional delivery, not prompt dumps.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Link href="/skills" className="qs-btn qs-btn--primary">
@@ -51,7 +51,7 @@ export default async function RootPage(): Promise<JSX.Element> {
             <h2 className="font-[family-name:var(--font-hive-display)] text-2xl font-semibold">Featured listings</h2>
             <p className="mt-1 text-sm text-(--qs-text-3)">Highest-potential verified skills and content packs.</p>
           </div>
-          <Link href="/skills" className="text-sm text-cyan hover:underline">
+          <Link href="/skills" className="text-sm text-data hover:underline">
             View all
           </Link>
         </div>

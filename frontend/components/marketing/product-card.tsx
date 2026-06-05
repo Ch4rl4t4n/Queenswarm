@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { hasMarketplaceLink, marketplaceLinksForProduct } from "@/lib/marketing-purchase";
 import type { MarketingProduct } from "@/lib/marketing-products";
 
 interface ProductCardProps {
@@ -14,6 +15,9 @@ function kindLabel(kind: string): string {
 }
 
 export function ProductCard({ product }: ProductCardProps): JSX.Element {
+  const purchaseLinks = marketplaceLinksForProduct(product);
+  const primaryPurchase = purchaseLinks[0];
+
   return (
     <article className="v4-card v4-card-tight flex h-full flex-col gap-3 border border-(--qs-border) p-5">
       <div className="flex items-start justify-between gap-3">
@@ -26,12 +30,29 @@ export function ProductCard({ product }: ProductCardProps): JSX.Element {
         </Link>
       </h2>
       <p className="line-clamp-3 text-sm text-(--qs-text-2)">{product.subtitle}</p>
-      <div className="mt-auto flex items-center justify-between gap-3 pt-2">
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-2">
         <span className="font-mono text-sm text-pollen">{product.price || "€9.00"}</span>
-        <Link href={`/skills/${product.slug}`} className="qs-btn qs-btn--ghost qs-btn--sm">
-          View details
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href={`/skills/${product.slug}`} className="qs-btn qs-btn--ghost qs-btn--sm">
+            View details
+          </Link>
+          {primaryPurchase ? (
+            <a
+              href={primaryPurchase.href}
+              className="qs-btn qs-btn--primary qs-btn--sm"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Buy on {primaryPurchase.label}
+            </a>
+          ) : (
+            <span className="text-[11px] uppercase tracking-[0.12em] text-(--qs-text-3)">Listing soon</span>
+          )}
+        </div>
       </div>
+      {!hasMarketplaceLink(product) ? (
+        <p className="text-xs text-(--qs-text-3)">Marketplace link will appear here after publish.</p>
+      ) : null}
     </article>
   );
 }

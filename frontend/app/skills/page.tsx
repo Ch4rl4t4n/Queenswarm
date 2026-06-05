@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { MarketingShell } from "@/components/marketing/marketing-shell";
 import { ProductCard } from "@/components/marketing/product-card";
@@ -7,7 +6,7 @@ import { fetchMarketingCatalog } from "@/lib/marketing-products";
 
 export const metadata: Metadata = {
   title: "Verified skills catalog · Let Agents Cook",
-  description: "Browse verified Queenswarm skills and content packs ready for Gumroad.",
+  description: "Browse verified agent skills and content packs. Buy on external marketplaces.",
 };
 
 export default async function SkillsCatalogPage(): Promise<JSX.Element> {
@@ -30,11 +29,8 @@ export default async function SkillsCatalogPage(): Promise<JSX.Element> {
           ))}
         </div>
         <p className="mt-10 text-sm text-(--qs-text-3)">
-          Need the runtime harness?{" "}
-          <Link href="/start" className="text-cyan hover:underline">
-            Start in Queenswarm
-          </Link>
-          .
+          Each product page links to external marketplaces (Gumroad and others as listed). No app signup — buy and
+          download the bundle from the marketplace.
         </p>
       </section>
     </MarketingShell>

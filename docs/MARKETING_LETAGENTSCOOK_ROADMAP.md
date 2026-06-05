@@ -13,7 +13,7 @@ Updated: 2026-06-05
 | Language | **English only** (app + marketing + operator copy) |
 | Stack | Same Next.js monorepo, host-based routing, Hive Control V4 design tokens |
 | Catalog source | `exports/gumroad-ready/*/manifest.json` + scorecard QA gate |
-| Sales | Gumroad primary; app = post-purchase runtime (`/start?product=slug`) |
+| Sales | External marketplaces only (Gumroad primary). **No app links** — Queenswarm is private operator harness |
 
 ## Brand
 
@@ -57,10 +57,10 @@ Updated: 2026-06-05
 | M1 | nginx `server_name letagentscook.org` + env `MARKETING_PUBLIC_ORIGIN` | Agent | ✅ |
 | M2 | Next.js host middleware (marketing vs app layout) | Agent | ✅ |
 | M3 | `marketing_catalog_sync.py` + `GET /api/v1/marketing/products` | Agent | ✅ |
-| M4 | Pages: `/`, `/skills`, `/skills/[slug]`, `/start` | Agent | ✅ |
+| M4 | Pages: `/`, `/skills`, `/skills/[slug]` (`/start` → `/skills` redirect) | Agent | ✅ |
 | M5 | Playwright smoke + OG images from `cover.html` | Agent | pending M4 |
 | M6 | Gumroad URL sync from upload tracker → catalog | Agent | pending M4 |
-| M7 | Gumroad purchase webhook → `queenswarm.love/start` unlock | Agent | pending M6 |
+| M7 | Multi-marketplace URL sync (Gumroad + future stores) in catalog | Agent | pending M6 |
 
 ## App integration (automation)
 
@@ -69,8 +69,8 @@ Factory build → export → gumroad-ready/
   → marketing_catalog_sync.py → content/marketing/catalog.json
   → GET /api/v1/marketing/products (public, cached)
   → letagentscook.org/skills/[slug]
-  → CTA: Gumroad (manifest / tracker URL)
-  → Post-purchase: queenswarm.love/start?product=[slug]
+  → CTA: external marketplace URLs only (from gumroad-upload-status.json)
+  → No Queenswarm / app links on marketing domain
 ```
 
 ## Related harness work (same program)

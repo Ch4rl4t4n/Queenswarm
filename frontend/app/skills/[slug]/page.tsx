@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { MarketingShell } from "@/components/marketing/marketing-shell";
-import { appPublicOrigin } from "@/lib/marketing-host";
+import { hasMarketplaceLink, marketplaceLinksForProduct } from "@/lib/marketing-purchase";
 import { fetchMarketingProduct } from "@/lib/marketing-products";
 
 interface SkillDetailPageProps {
@@ -29,14 +29,13 @@ export default async function SkillDetailPage({ params }: SkillDetailPageProps):
     notFound();
   }
 
-  const appOrigin = appPublicOrigin();
-  const purchaseHref = product.gumroad_url ?? `/start?product=${encodeURIComponent(product.slug)}`;
-  const isExternal = purchaseHref.startsWith("http");
+  const purchaseLinks = marketplaceLinksForProduct(product);
+  const listed = hasMarketplaceLink(product);
 
   return (
     <MarketingShell>
       <section className="mx-auto max-w-3xl px-4 py-12">
-        <Link href="/skills" className="text-sm text-(--qs-text-3) hover:text-cyan">
+        <Link href="/skills" className="text-sm text-(--qs-text-3) hover:text-data">
           ← Back to catalog
         </Link>
         <p className="mt-6 text-xs uppercase tracking-[0.2em] text-pollen">
@@ -54,7 +53,7 @@ export default async function SkillDetailPage({ params }: SkillDetailPageProps):
           </div>
           <div className="rounded-xl border border-(--qs-border) bg-white/5 p-4">
             <dt className="text-[10px] uppercase text-(--qs-text-3)">Quality score</dt>
-            <dd className="mt-1 font-mono text-lg text-cyan">{product.score}/100</dd>
+            <dd className="mt-1 font-mono text-lg text-data">{product.score}/100</dd>
           </div>
           <div className="rounded-xl border border-(--qs-border) bg-white/5 p-4">
             <dt className="text-[10px] uppercase text-(--qs-text-3)">Delivery</dt>
@@ -65,22 +64,35 @@ export default async function SkillDetailPage({ params }: SkillDetailPageProps):
         <ul className="mt-8 space-y-2 text-sm text-(--qs-text-2)">
           <li>Simulate-first workflow with explicit guardrails</li>
           <li>Bundle includes SKILL/HARNESS files and listing copy</li>
-          <li>Run and extend inside Queenswarm after purchase</li>
+          <li>Download and use from your marketplace purchase — no app signup required</li>
         </ul>
 
-        <div className="mt-10 flex flex-wrap gap-3">
-          {isExternal ? (
-            <a href={purchaseHref} className="qs-btn qs-btn--primary" rel="noopener noreferrer" target="_blank">
-              Buy on Gumroad
-            </a>
+        <div className="mt-10 rounded-xl border border-(--qs-border) bg-(--qs-surface-3)/50 p-5">
+          <h2 className="font-[family-name:var(--font-hive-display)] text-lg font-semibold">Where to buy</h2>
+          {listed ? (
+            <>
+              <p className="mt-2 text-sm text-(--qs-text-2)">
+                Purchase on an external marketplace. You receive the full bundle after checkout.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                {purchaseLinks.map((link) => (
+                  <a
+                    key={link.id}
+                    href={link.href}
+                    className="qs-btn qs-btn--primary"
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    Buy on {link.label}
+                  </a>
+                ))}
+              </div>
+            </>
           ) : (
-            <Link href={purchaseHref} className="qs-btn qs-btn--primary">
-              Get started
-            </Link>
+            <p className="mt-2 text-sm text-(--qs-text-2)">
+              This listing is not on a marketplace yet. Check back soon — purchase links appear here after publish.
+            </p>
           )}
-          <a href={`${appOrigin}/start?product=${encodeURIComponent(product.slug)}`} className="qs-btn qs-btn--ghost">
-            Open in Queenswarm
-          </a>
         </div>
       </section>
     </MarketingShell>

@@ -65,6 +65,10 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(target);
   }
 
+  if (marketingHost && (pathname === "/start" || pathname.startsWith("/start/"))) {
+    return NextResponse.redirect(new URL("/skills", request.url));
+  }
+
   if (!marketingHost && (pathname === "/skills" || pathname.startsWith("/skills/") || pathname.startsWith("/start"))) {
     const target = new URL(pathname, marketingPublicOrigin());
     target.search = request.nextUrl.search;
