@@ -48,9 +48,8 @@ export function HiveSectionSubnav({
   secondaryMenuKey,
   tertiaryMenuKey,
 }: HiveSectionSubnavProps): JSX.Element {
-  const showSecondary =
-    secondary && secondary.length > 0 && activeSecondary && onSecondaryChange;
-  const showTertiary = tertiary && tertiary.length > 0 && activeTertiary && onTertiaryChange;
+  const showSecondary = secondary && secondary.length > 0 && onSecondaryChange;
+  const showTertiary = tertiary && tertiary.length > 0 && onTertiaryChange;
 
   return (
     <HiveSubnavStack>
@@ -65,7 +64,7 @@ export function HiveSectionSubnav({
       {showSecondary ? (
         <HiveSubnavRow
           items={secondary}
-          activeId={activeSecondary}
+          activeId={activeSecondary ?? ""}
           onChange={onSecondaryChange}
           ariaLabel={secondaryAriaLabel}
           menuKey={secondaryMenuKey}
@@ -74,7 +73,7 @@ export function HiveSectionSubnav({
       {showTertiary ? (
         <HiveSubnavRow
           items={tertiary}
-          activeId={activeTertiary}
+          activeId={activeTertiary ?? ""}
           onChange={onTertiaryChange}
           ariaLabel={tertiaryAriaLabel}
           menuKey={tertiaryMenuKey}

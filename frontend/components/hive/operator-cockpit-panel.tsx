@@ -49,6 +49,7 @@ import {
   cockpitNavSections,
   visibleCockpitSections,
 } from "@/lib/operator-canonical-ui";
+
 const GrokControlPlanePanel = dynamic(
   () => import("@/components/hive/grok-control-plane-panel").then((mod) => ({ default: mod.GrokControlPlanePanel })),
   { loading: () => <HivePanelSectionSkeleton label="Loading Grok control plane" /> },
@@ -225,8 +226,8 @@ const COCKPIT_SECTIONS: {
   label: string;
   icon: typeof Gauge;
 }[] = [
-  { id: "business", label: "Business brief", icon: Briefcase },
-  { id: "overview", label: "Operator overview", icon: Gauge },
+  { id: "overview", label: "Overview", icon: Gauge },
+  { id: "business", label: "Business", icon: Briefcase },
   { id: "lanes", label: "Lanes", icon: Waypoints },
   { id: "command", label: "Command", icon: MessageSquare },
   { id: "grok", label: "Grok", icon: Terminal },
@@ -567,9 +568,9 @@ function OperatorCockpitPanelInner() {
     }
   }, []);
 
-  const showSecondaryRow = soloMode && advancedCockpitNav.length > 0;
+  const showSecondaryCockpitNav = soloMode && advancedCockpitNav.length > 0;
   const primaryActiveId = cockpitNavSplit.primary.includes(section) ? section : "";
-  const secondaryActiveId = cockpitNavSplit.advanced.includes(section) ? section : "";
+  const advancedActiveId = cockpitNavSplit.advanced.includes(section) ? section : "";
 
   const cockpitSubnav = (
     <HiveSectionSubnav
@@ -579,18 +580,18 @@ function OperatorCockpitPanelInner() {
           : visibleCockpitNav.map(({ id, label, icon }) => ({ id, label, icon }))
       }
       secondary={
-        showSecondaryRow
+        showSecondaryCockpitNav
           ? advancedCockpitNav.map(({ id, label, icon }) => ({ id, label, icon }))
           : undefined
       }
       activePrimary={soloMode ? primaryActiveId : section}
-      activeSecondary={showSecondaryRow ? secondaryActiveId : undefined}
+      activeSecondary={showSecondaryCockpitNav ? advancedActiveId : undefined}
       onPrimaryChange={(id) => selectSection(id as CockpitSection)}
       onSecondaryChange={(id) => selectSection(id as CockpitSection)}
       primaryAriaLabel="Agentic OS sections"
       secondaryAriaLabel="Agentic OS tools"
       primaryMenuKey="cockpit-primary"
-      secondaryMenuKey="cockpit-tools"
+      secondaryMenuKey="cockpit-advanced"
     />
   );
 
@@ -638,131 +639,142 @@ function OperatorCockpitPanelInner() {
       error={shellError}
     >
       <HiveSubnavContent>
-      {section === "business" && soloMode ? (
-        <>
-          <FirstRunSetupBanner />
-          <BusinessOperatorPanel />
-        </>
-      ) : null}
-
       {section === "overview" ? (
-        <V4Card>
+        <div className="space-y-4">
+          {soloMode ? <FirstRunSetupBanner /> : null}
           {soloMode ? (
-            <div className="mb-4 rounded-lg border border-pollen/35 bg-pollen/5 p-3 text-xs leading-relaxed text-(--qs-text-2)">
-              <p className="font-semibold text-pollen">Optional — not your daily start</p>
-              <p className="mt-1">
+            <V4Card>
+              <p className="text-xs font-semibold text-pollen">Optional — not your daily start</p>
+              <p className="mt-1 text-xs leading-relaxed text-(--qs-text-2)">
                 Primary workflow:{" "}
                 <Link href="/agents#sessions" className="font-medium text-cyan underline">
                   Agents → Sessions
                 </Link>
+                . Business brief lives in{" "}
+                <button
+                  type="button"
+                  className="font-medium text-cyan underline"
+                  onClick={() => selectSection("business")}
+                >
+                  Business
+                </button>
                 . Four Lanes run on cron; Innovation Lab is for tech SCV proposals.
               </p>
-            </div>
+            </V4Card>
           ) : null}
-          <V4CardHeader
-            kicker="Control Plane"
-            title="Operator overview"
-            description="Now actions, trust lanes, proof receipts, and priority queue."
-            hint={<CockpitHint hintKey="overview" />}
-            actions={refreshButton}
-          />
-          <div className="mb-4 flex flex-wrap gap-2">
-            <Link href="/agents#sessions" className="qs-btn qs-btn--primary qs-btn--sm gap-1">
-              Open Agents
-            </Link>
-            <button
-              type="button"
-              className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
-              disabled={busy === "start_day"}
-              onClick={() => void runAction("start_day")}
-            >
-              {busy === "start_day" ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
-              Start day
-            </button>
-            {!soloMode ? (
-              <Link href={snapshot.links.factory ?? "/factory"} className="qs-btn qs-btn--ghost qs-btn--sm gap-1">
-                <Rocket className="size-4" /> Factory
+
+          <V4Card>
+            <V4CardHeader
+              kicker="Control Plane"
+              title="Operator overview"
+              description="Now actions, trust lanes, proof receipts, and priority queue."
+              hint={<CockpitHint hintKey="overview" />}
+              actions={refreshButton}
+            />
+            <div className="flex flex-wrap gap-2">
+              <Link href="/agents#sessions" className="qs-btn qs-btn--primary qs-btn--sm gap-1">
+                Open Agents
               </Link>
-            ) : null}
-            {!soloMode ? (
-              <Link href={snapshot.links.swarms ?? "/swarms"} className="qs-btn qs-btn--ghost qs-btn--sm">
-                Swarms
-              </Link>
-            ) : null}
-            {soloMode ? (
-              <Link href="/agentic-os#lanes" className="qs-btn qs-btn--ghost qs-btn--sm">
-                Four Lanes (optional)
-              </Link>
-            ) : null}
-          </div>
+              <button
+                type="button"
+                className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
+                disabled={busy === "start_day"}
+                onClick={() => void runAction("start_day")}
+              >
+                {busy === "start_day" ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
+                Start day
+              </button>
+              {!soloMode ? (
+                <Link href={snapshot.links.factory ?? "/factory"} className="qs-btn qs-btn--ghost qs-btn--sm gap-1">
+                  <Rocket className="size-4" /> Factory
+                </Link>
+              ) : null}
+              {!soloMode ? (
+                <Link href={snapshot.links.swarms ?? "/swarms"} className="qs-btn qs-btn--ghost qs-btn--sm">
+                  Swarms
+                </Link>
+              ) : null}
+              {soloMode ? (
+                <Link href="/agentic-os#lanes" className="qs-btn qs-btn--ghost qs-btn--sm">
+                  Four Lanes (optional)
+                </Link>
+              ) : null}
+            </div>
+          </V4Card>
 
           {snapshot.trust_autopilot?.enabled ? (
-            <div className="mb-4 rounded-lg border border-pollen/30 bg-pollen/5 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-pollen">Trust Autopilot</p>
-              <p className="mt-1 text-xs text-(--qs-muted)">
-                Priority Telegram pings only after verified outcomes — no spam.
-              </p>
-              <ul className="mt-2 space-y-0.5 text-[11px] text-(--qs-muted)">
+            <V4Card>
+              <V4CardHeader
+                kicker="Trust"
+                title="Trust Autopilot"
+                description="Priority Telegram pings only after verified outcomes — no spam."
+              />
+              <ul className="space-y-0.5 text-[11px] text-(--qs-muted)">
                 {Object.entries(snapshot.trust_autopilot.lanes ?? {}).map(([key, label]) => (
                   <li key={key}>{label}</li>
                 ))}
               </ul>
-            </div>
+            </V4Card>
           ) : null}
 
           {snapshot.grok_control_plane?.enabled ? (
-            <div className="mb-4 rounded-lg border border-cyan/30 bg-cyan/5 p-3" id="grok-health-overview">
+            <V4Card id="grok-health-overview">
               {(() => {
                 const healthLevel = snapshot.grok_control_plane?.health_level ?? "ok";
                 const failedThreshold = snapshot.grok_control_plane?.failed_alert_threshold ?? 3;
                 return (
                   <>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-cyan">Grok Control Plane</p>
-                <V4Badge
-                  tone={grokHealthTone(snapshot.grok_control_plane)}
-                  className={healthLevel === "error" ? "animate-pulse" : undefined}
-                >
-                  {healthLevel === "error"
-                    ? "needs attention"
-                    : healthLevel === "warn"
-                      ? "in progress"
-                      : "healthy"}
-                </V4Badge>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-(--qs-muted)">
-                <span>active {snapshot.grok_control_plane.active_runs}</span>
-                <span>draft {snapshot.grok_control_plane.draft_runs}</span>
-                <span>
-                  failed {snapshot.grok_control_plane.failed_runs}/{failedThreshold}
-                </span>
-                <span>cli {snapshot.grok_control_plane.cli_available ? "ok" : "missing"}</span>
-              </div>
-              <button
-                type="button"
-                className="mt-2 text-xs text-cyan hover:text-pollen"
-                onClick={() => selectSection("grok")}
-              >
-                Open Grok queue →
-              </button>
+                    <V4CardHeader
+                      kicker="Grok"
+                      title="Grok Control Plane"
+                      description="Harness self-maintenance queue health at a glance."
+                      actions={
+                        <V4Badge
+                          tone={grokHealthTone(snapshot.grok_control_plane)}
+                          className={healthLevel === "error" ? "animate-pulse" : undefined}
+                        >
+                          {healthLevel === "error"
+                            ? "needs attention"
+                            : healthLevel === "warn"
+                              ? "in progress"
+                              : "healthy"}
+                        </V4Badge>
+                      }
+                    />
+                    <div className="flex flex-wrap gap-2 text-[11px] text-(--qs-muted)">
+                      <span>active {snapshot.grok_control_plane.active_runs}</span>
+                      <span>draft {snapshot.grok_control_plane.draft_runs}</span>
+                      <span>
+                        failed {snapshot.grok_control_plane.failed_runs}/{failedThreshold}
+                      </span>
+                      <span>cli {snapshot.grok_control_plane.cli_available ? "ok" : "missing"}</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="mt-3 text-xs text-cyan hover:text-pollen"
+                      onClick={() => selectSection("grok")}
+                    >
+                      Open Grok queue →
+                    </button>
                   </>
                 );
               })()}
-            </div>
+            </V4Card>
           ) : null}
 
           {snapshot.proof_of_hive?.enabled ? (
-            <div className="mb-4 rounded-lg border border-[#00FF8833] bg-[#00FF8808] p-3" id="proof-of-hive">
-              <p className="text-xs font-semibold uppercase tracking-wider text-[#00FF88]">Proof-of-Hive</p>
-              <p className="mt-1 text-xs text-(--qs-muted)">
-                Shareable verify receipts — HMAC signature, verify-first outcomes.
-              </p>
+            <V4Card id="proof-of-hive">
+              <V4CardHeader
+                kicker="Verify"
+                title="Proof-of-Hive"
+                description="Shareable verify receipts — HMAC signature, verify-first outcomes."
+              />
               {snapshot.proof_of_hive.receipts.length === 0 ? (
-                <p className="mt-2 text-[11px] text-(--qs-muted)">
+                <p className="text-[11px] text-(--qs-muted)">
                   No receipts yet — they appear after simulate-approved publish packs.
                 </p>
               ) : (
-                <ul className="mt-2 space-y-2">
+                <ul className="space-y-2">
                   {snapshot.proof_of_hive.receipts.map((receipt) => (
                     <li
                       key={receipt.token}
@@ -790,45 +802,54 @@ function OperatorCockpitPanelInner() {
                   ))}
                 </ul>
               )}
-            </div>
+            </V4Card>
           ) : null}
 
-          {snapshot.now_actions.length > 0 ? (
-            <ul className="space-y-2">
-              {snapshot.now_actions.map((action) => (
-                <li
-                  key={action.id}
-                  className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-medium text-(--qs-text)">{action.label}</span>
-                      <V4Badge tone={priorityTone(action.priority)}>{action.priority}</V4Badge>
+          <V4Card>
+            <V4CardHeader
+              kicker="Queue"
+              title="Priority actions"
+              description="Overnight dump, publish queue, trading halt, and onboarding gaps."
+            />
+            {snapshot.now_actions.length > 0 ? (
+              <ul className="space-y-2">
+                {snapshot.now_actions.map((action) => (
+                  <li
+                    key={action.id}
+                    className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-medium text-(--qs-text)">{action.label}</span>
+                        <V4Badge tone={priorityTone(action.priority)}>{action.priority}</V4Badge>
+                      </div>
+                      <p className="mt-0.5 text-xs text-(--qs-muted)">{action.detail}</p>
                     </div>
-                    <p className="mt-0.5 text-xs text-(--qs-muted)">{action.detail}</p>
-                  </div>
-                  {action.action ? (
-                    <button
-                      type="button"
-                      className="qs-btn qs-btn--primary qs-btn--sm shrink-0 self-center"
-                      disabled={busy === action.action}
-                      onClick={() => void runAction(action.action!)}
-                    >
-                      Run
-                    </button>
-                  ) : action.href ? (
-                    <Link href={action.href} className="qs-btn qs-btn--ghost qs-btn--sm shrink-0 self-center">
-                      Go
-                    </Link>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-(--qs-muted)">No priority actions right now.</p>
-          )}
-        </V4Card>
+                    {action.action ? (
+                      <button
+                        type="button"
+                        className="qs-btn qs-btn--primary qs-btn--sm shrink-0 self-center"
+                        disabled={busy === action.action}
+                        onClick={() => void runAction(action.action!)}
+                      >
+                        Run
+                      </button>
+                    ) : action.href ? (
+                      <Link href={action.href} className="qs-btn qs-btn--ghost qs-btn--sm shrink-0 self-center">
+                        Go
+                      </Link>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-(--qs-muted)">No priority actions right now.</p>
+            )}
+          </V4Card>
+        </div>
       ) : null}
+
+      {section === "business" && soloMode ? <BusinessOperatorPanel /> : null}
 
       {section === "lanes" ? <SoloOperatorFourLanesPanel onMutate={() => void load({ silent: true })} /> : null}
 

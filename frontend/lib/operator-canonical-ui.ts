@@ -5,39 +5,37 @@
 
 import type { CockpitSection } from "@/lib/cockpit-routes";
 
-/** Agentic OS sections hidden in solo mode — none; full subnav always visible. */
-export const SOLO_COCKPIT_HIDDEN_SECTIONS: readonly CockpitSection[] = [];
+/** Agentic OS sections hidden in solo mode (legacy VC infra — manual §4). */
+export const SOLO_COCKPIT_HIDDEN_SECTIONS: readonly CockpitSection[] = ["fleet"];
 
-/** Solo-only tabs — hidden outside solo (team mode keeps Operator overview only). */
-export const SOLO_COCKPIT_ONLY_SECTIONS: readonly CockpitSection[] = ["business"];
+/** Sections visible only in solo operator mode. */
+export const SOLO_ONLY_COCKPIT_SECTIONS: readonly CockpitSection[] = ["business"];
 
-/** Solo primary row — business brief, operator overview, innovation. */
+/** Solo primary tabs — daily start (manual §2). Four Lanes demoted to Advanced (OW6). */
 export const SOLO_COCKPIT_PRIMARY_SECTIONS: readonly CockpitSection[] = [
-  "business",
   "overview",
+  "business",
   "innovation",
 ];
 
-/** Solo secondary row — always visible (no accordion). */
+/** Solo secondary row — always visible in sub-nav (OW4); includes optional Four Lanes cron (OW6). */
 export const SOLO_COCKPIT_ADVANCED_SECTIONS: readonly CockpitSection[] = [
   "command",
   "grok",
   "icm",
   "modules",
-  "fleet",
   "lanes",
 ];
 
-/** Solo tab sort order — optional cron digests last. */
+/** Solo tab sort order — optional cron digests always last. */
 export const SOLO_COCKPIT_SECTION_ORDER: readonly CockpitSection[] = [
-  "business",
   "overview",
+  "business",
   "innovation",
   "command",
   "grok",
   "icm",
   "modules",
-  "fleet",
   "lanes",
 ];
 
@@ -102,7 +100,7 @@ export const OPERATOR_UI_CONTROL_AUDIT: readonly OperatorUiControlAudit[] = [
     area: "Agentic OS",
     label: "Advanced tools accordion",
     disposition: "remove",
-    reason: "Full two-row subnav always visible; progressive disclosure only in Settings.",
+    reason: "OW4 — secondary row always visible; progressive disclosure reserved for Settings.",
   },
   {
     id: "pattern-onboarding-cta",
@@ -174,8 +172,9 @@ export function visibleCockpitSections(
   soloMode: boolean,
   all: readonly CockpitSection[],
 ): CockpitSection[] {
-  const hidden = soloMode ? SOLO_COCKPIT_HIDDEN_SECTIONS : SOLO_COCKPIT_ONLY_SECTIONS;
-  const filtered = all.filter((id) => !hidden.includes(id));
+  const filtered = soloMode
+    ? all.filter((id) => !SOLO_COCKPIT_HIDDEN_SECTIONS.includes(id))
+    : all.filter((id) => !SOLO_ONLY_COCKPIT_SECTIONS.includes(id));
   if (!soloMode) {
     return filtered;
   }

@@ -167,7 +167,9 @@ async def publish_verified_skill_forge(
         sup = await session.get(SupervisorSession, suggestion.supervisor_session_id)
 
     goal = str(sup.goal if sup else suggestion.title or "Verified skill")
-    keywords = ["skill-factory", "verified"]
+    keywords = ["skill-factory", "verified", "tenant-agents", "personal"]
+    if payload.get("personal_agent_scope"):
+        keywords.extend(["agent-picker", "personal-use"])
     if "skill-factory-ready" in goal.lower():
         keywords.append("factory-ready")
 

@@ -602,6 +602,35 @@ const STUB_RECIPE_MATCH_CONFIG = {
   hybrid_graph_weight: 0.3,
 };
 
+const STUB_FACTORY_LLM_READINESS = {
+  grok_configured: false,
+  anthropic_configured: false,
+  openai_configured: false,
+  openrouter_configured: true,
+  chain_usable: true,
+  build_allowed: true,
+  grok_primary: false,
+  openrouter_primary: true,
+  primary_model: "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+  recommended_action:
+    "Nemotron/OpenRouter ready (openrouter/nvidia/nemotron-3-ultra-550b-a55b:free) — run smoke test, then start factory builds.",
+  decomposition_chain: ["openrouter/nvidia/nemotron-3-ultra-550b-a55b:free"],
+  available_models: [
+    {
+      value: "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      label: "Nemotron 3 Ultra (OpenRouter · free)",
+      configured: true,
+    },
+    {
+      value: "xai/grok-3-mini",
+      label: "Grok 3 Mini (xAI)",
+      configured: false,
+    },
+  ],
+  smoke_ok: null,
+  smoke_error: null,
+};
+
 const STUB_SKILL_FACTORY_SNAPSHOT = {
   policy: {
     enabled: true,
@@ -621,6 +650,7 @@ const STUB_SKILL_FACTORY_SNAPSHOT = {
   library_count: 0,
   sellable_count: 0,
   research_keys_configured: false,
+  llm: STUB_FACTORY_LLM_READINESS,
 };
 
 const STUB_APPS_TOOLS_INDEX = {
@@ -1880,6 +1910,15 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_SKILL_FACTORY_SNAPSHOT),
+      });
+      return;
+    }
+
+    if (path.startsWith("factory-readiness/llm")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_FACTORY_LLM_READINESS),
       });
       return;
     }

@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Activity, Briefcase, ExternalLink, Loader2, Play, Target, Users } from "lucide-react";
+import { Briefcase, ExternalLink, Loader2, Play } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { BusinessApprovalInbox } from "@/components/hive/business-approval-inbox";
+import { InlineSectionHintKey } from "@/components/hive/inline-section-hint";
 import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { V4Badge, V4Card, V4CardHeader, type V4BadgeTone } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
@@ -209,7 +210,7 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
 
   if (loading && !snapshot) {
     return (
-      <V4Card className="mb-4 border-pollen/30">
+      <V4Card className="border-pollen/30">
         <div className="flex items-center gap-2 p-4 text-sm text-(--qs-muted)">
           <Loader2 className="size-4 animate-spin text-pollen" aria-hidden />
           Loading business brief…
@@ -220,7 +221,7 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
 
   if (error && !snapshot) {
     return (
-      <V4Card className="mb-4 border-error/30">
+      <V4Card className="border-error/30">
         <p className="p-4 text-sm text-error">{error}</p>
       </V4Card>
     );
@@ -234,45 +235,55 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
   const isExternal = (href: string): boolean => href.startsWith("http");
 
   return (
-    <V4Card className="border-pollen/35 bg-pollen/5" id="business-operator">
-      <V4CardHeader
-        kicker="Chief Business Operator"
-        title={snapshot.headline?.trim() || "What to do for the business"}
-        description={snapshot.tagline}
-        actions={<HiveRefreshButton busy={loading} onClick={() => void load()} />}
-      />
+    <div className="space-y-4" id="business-operator">
+      <V4Card className="border-pollen/35 bg-pollen/5">
+        <V4CardHeader
+          kicker="Chief Business Operator"
+          title={snapshot.headline?.trim() || "What to do for the business"}
+          description={snapshot.tagline}
+          hint={<InlineSectionHintKey hintKey="businessOperator" />}
+          actions={<HiveRefreshButton busy={loading} onClick={() => void load()} />}
+        />
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-lg border border-(--qs-border) bg-(--qs-surface-2) p-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-(--qs-muted)">Catalog live</p>
+            <p className="mt-1 font-[family-name:var(--font-hive-mono)] text-2xl font-bold text-pollen">
+              {snapshot.catalog.product_count}
+            </p>
+            <p className="mt-1 text-xs text-(--qs-text-2)">
+              {snapshot.catalog.gumroad_linked_count} with Gumroad URL
+            </p>
+          </div>
+          <div className="rounded-lg border border-(--qs-border) bg-(--qs-surface-2) p-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-(--qs-muted)">Scorecard ready</p>
+            <p className="mt-1 font-[family-name:var(--font-hive-mono)] text-2xl font-bold text-cyan">
+              {snapshot.revenue.scorecard_ready_count ?? "—"}
+            </p>
+            <p className="mt-1 text-xs text-(--qs-text-2)">{snapshot.revenue.ready_summary ?? "—"}</p>
+          </div>
+          <div className="rounded-lg border border-(--qs-border) bg-(--qs-surface-2) p-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-(--qs-muted)">Mission queue</p>
+            <p className="mt-1 font-[family-name:var(--font-hive-mono)] text-2xl font-bold text-(--qs-text)">
+              {snapshot.missions.triage_count}
+            </p>
+            <p className="mt-1 text-xs text-(--qs-text-2)">
+              triage · {snapshot.missions.in_progress_count} in progress
+            </p>
+          </div>
+        </div>
+      </V4Card>
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-lg border border-(--qs-border) bg-(--qs-surface-2) p-3">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-(--qs-muted)">Catalog live</p>
-          <p className="mt-1 font-[family-name:var(--font-hive-mono)] text-2xl font-bold text-pollen">
-            {snapshot.catalog.product_count}
-          </p>
-          <p className="mt-1 text-xs text-(--qs-text-2)">
-            {snapshot.catalog.gumroad_linked_count} with Gumroad URL
-          </p>
-        </div>
-        <div className="rounded-lg border border-(--qs-border) bg-(--qs-surface-2) p-3">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-(--qs-muted)">Scorecard ready</p>
-          <p className="mt-1 font-[family-name:var(--font-hive-mono)] text-2xl font-bold text-cyan">
-            {snapshot.revenue.scorecard_ready_count ?? "—"}
-          </p>
-          <p className="mt-1 text-xs text-(--qs-text-2)">{snapshot.revenue.ready_summary ?? "—"}</p>
-        </div>
-        <div className="rounded-lg border border-(--qs-border) bg-(--qs-surface-2) p-3">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-(--qs-muted)">Mission queue</p>
-          <p className="mt-1 font-[family-name:var(--font-hive-mono)] text-2xl font-bold text-(--qs-text)">
-            {snapshot.missions.triage_count}
-          </p>
-          <p className="mt-1 text-xs text-(--qs-text-2)">triage · {snapshot.missions.in_progress_count} in progress</p>
-        </div>
-      </div>
-
-      <BusinessApprovalInbox />
+      <V4Card>
+        <BusinessApprovalInbox />
+      </V4Card>
 
       {snapshot.harness_profiles?.profiles?.length ? (
-        <div className="mb-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cyan">Harness profile (AOS1)</p>
+        <V4Card>
+          <V4CardHeader
+            kicker="AOS1"
+            title="Harness profile"
+            description="Switch marketing, factory, trading, or general operator presets."
+          />
           <div className="flex flex-wrap gap-2">
             {snapshot.harness_profiles.profiles.map((profile) => (
               <button
@@ -290,12 +301,16 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
               </button>
             ))}
           </div>
-        </div>
+        </V4Card>
       ) : null}
 
       {snapshot.cross_lane_learning?.enabled && snapshot.cross_lane_learning.suggestions.length > 0 ? (
-        <div className="mb-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-pollen">Cross-lane learning (BA7)</p>
+        <V4Card>
+          <V4CardHeader
+            kicker="BA7"
+            title="Cross-lane learning"
+            description="Recipes worth copying across marketing, factory, and trading lanes."
+          />
           <ul className="space-y-2 text-sm">
             {snapshot.cross_lane_learning.suggestions.slice(0, 3).map((row) => (
               <li key={row.id} className="rounded-lg border border-(--qs-border) bg-(--qs-surface) p-3">
@@ -306,18 +321,21 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
               </li>
             ))}
           </ul>
-        </div>
+        </V4Card>
       ) : null}
 
       {snapshot.goal_stack && snapshot.goal_stack.goals.length > 0 ? (
-        <div className="mb-4">
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-pollen">
-            <Target className="size-3.5" aria-hidden />
-            Goal stack
-            {snapshot.goal_stack.critical_drift_count > 0 ? (
-              <V4Badge tone="gold">{snapshot.goal_stack.critical_drift_count} drift</V4Badge>
-            ) : null}
-          </p>
+        <V4Card>
+          <V4CardHeader
+            kicker="Goals"
+            title="Goal stack"
+            description="Business goal drift — simulate-first before live operator actions."
+            actions={
+              snapshot.goal_stack.critical_drift_count > 0 ? (
+                <V4Badge tone="gold">{snapshot.goal_stack.critical_drift_count} drift</V4Badge>
+              ) : undefined
+            }
+          />
           <ul className="space-y-2">
             {snapshot.goal_stack.goals.map((goal) => (
               <li
@@ -326,7 +344,15 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium text-(--qs-text)">{goal.label}</span>
-                  <V4Badge tone={goal.drift_severity === "critical" ? "gold" : goal.drift_severity === "warning" ? "warn" : "ok"}>
+                  <V4Badge
+                    tone={
+                      goal.drift_severity === "critical"
+                        ? "gold"
+                        : goal.drift_severity === "warning"
+                          ? "warn"
+                          : "ok"
+                    }
+                  >
                     {goal.drift_severity}
                   </V4Badge>
                 </div>
@@ -336,18 +362,21 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
               </li>
             ))}
           </ul>
-        </div>
+        </V4Card>
       ) : null}
 
       {snapshot.background_team?.enabled && snapshot.background_team.bees.length > 0 ? (
-        <div className="mb-4">
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-cyan">
-            <Users className="size-3.5" aria-hidden />
-            Background team
-            {snapshot.background_team.attention_count > 0 ? (
-              <V4Badge tone="warn">{snapshot.background_team.attention_count} attention</V4Badge>
-            ) : null}
-          </p>
+        <V4Card>
+          <V4CardHeader
+            kicker="Team"
+            title="Background team"
+            description="Autonomous bees running on cron — attention flags only when needed."
+            actions={
+              snapshot.background_team.attention_count > 0 ? (
+                <V4Badge tone="warn">{snapshot.background_team.attention_count} attention</V4Badge>
+              ) : undefined
+            }
+          />
           <div className="grid gap-2 sm:grid-cols-3">
             {snapshot.background_team.bees.map((bee) => (
               <div
@@ -360,15 +389,16 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
               </div>
             ))}
           </div>
-        </div>
+        </V4Card>
       ) : null}
 
       {pulse ? (
-        <div className="mb-4 rounded-lg border border-cyan/30 bg-cyan/5 p-3">
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-cyan">
-            <Activity className="size-3.5" aria-hidden />
-            Midday pulse
-          </p>
+        <V4Card>
+          <V4CardHeader
+            kicker="Pulse"
+            title="Midday pulse"
+            description="Autonomous run summary and notable changes since morning brief."
+          />
           <p className="text-sm font-medium text-(--qs-text)">{pulse.headline}</p>
           {pulse.changes.length > 0 ? (
             <ul className="mt-2 space-y-1 text-xs text-(--qs-text-2)">
@@ -377,14 +407,15 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
               ))}
             </ul>
           ) : null}
-        </div>
+        </V4Card>
       ) : null}
 
-      <div className="mb-4">
-        <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-pollen">
-          <Target className="size-3.5" aria-hidden />
-          Top 3 actions
-        </p>
+      <V4Card>
+        <V4CardHeader
+          kicker="Dispatch"
+          title="Top 3 actions"
+          description="Highest-impact business moves — dispatch to session or Mission Kanban."
+        />
         <ul className="space-y-2">
           {snapshot.top_actions.map((action) => {
             const tone = priorityTone(action.priority);
@@ -443,31 +474,30 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
             );
           })}
         </ul>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <Link href="/agents#sessions" className="qs-btn qs-btn--primary qs-btn--sm gap-1">
-          <Briefcase className="size-4" aria-hidden />
-          Agents → Sessions
-        </Link>
-        <Link href="/tasks" className="qs-btn qs-btn--ghost qs-btn--sm gap-1">
-          <Briefcase className="size-4" aria-hidden />
-          Mission Control
-        </Link>
-        <a
-          href={marketingHref}
-          className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <ExternalLink className="size-4" aria-hidden />
-          letagentscook.org/skills
-        </a>
-        <Link href="/factory" className="qs-btn qs-btn--ghost qs-btn--sm">
-          Factory queue
-        </Link>
-      </div>
-    </V4Card>
+        <div className="mt-4 flex flex-wrap gap-2 border-t border-(--qs-border) pt-4">
+          <Link href="/agents#sessions" className="qs-btn qs-btn--primary qs-btn--sm gap-1">
+            <Briefcase className="size-4" aria-hidden />
+            Agents → Sessions
+          </Link>
+          <Link href="/tasks" className="qs-btn qs-btn--ghost qs-btn--sm gap-1">
+            <Briefcase className="size-4" aria-hidden />
+            Mission Control
+          </Link>
+          <a
+            href={marketingHref}
+            className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <ExternalLink className="size-4" aria-hidden />
+            letagentscook.org/skills
+          </a>
+          <Link href="/factory" className="qs-btn qs-btn--ghost qs-btn--sm">
+            Factory queue
+          </Link>
+        </div>
+      </V4Card>
+    </div>
   );
 }
 

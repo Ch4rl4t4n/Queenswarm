@@ -390,7 +390,7 @@ export function ContentPackFactoryPanel({
                 {failedCount > 0 ? <V4Badge tone="warn">{failedCount} failed</V4Badge> : null}
               </div>
               <p className="flex flex-wrap items-center gap-1 text-xs text-white/50">
-                Builds use Grok (xAI) as primary — run smoke test before Build.
+                Pick factory LLM in the readiness banner — run smoke test before Build.
                 <InfoHint
                   title="Grok required"
                   description="Skill/Content Pack Factory uses your Grok API key. Claude and OpenAI are optional fallbacks only."

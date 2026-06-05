@@ -42,6 +42,7 @@ async def on_supervisor_session_completed(session: SupervisorSession, *, db: Asy
         )
         from app.application.services.skill_factory_forge import (
             is_skill_factory_session,
+            maybe_auto_publish_personal_skill_forge,
             propose_skill_factory_forge_from_session,
         )
 
@@ -55,7 +56,8 @@ async def on_supervisor_session_completed(session: SupervisorSession, *, db: Asy
         if is_content_pack_factory_session(session):
             await propose_content_pack_factory_forge_from_session(db, supervisor_session=session)
         elif is_skill_factory_session(session):
-            await propose_skill_factory_forge_from_session(db, supervisor_session=session)
+            forge = await propose_skill_factory_forge_from_session(db, supervisor_session=session)
+            await maybe_auto_publish_personal_skill_forge(db, suggestion=forge)
         from app.application.services.session_learnings_distill import distill_session_learnings_to_curated_memory
 
         await distill_session_learnings_to_curated_memory(db, session=session)

@@ -254,12 +254,17 @@ class LiteLLMRouter:
 
         self._governor = CostGovernor()
 
-    def _decomposition_chain(self, *, routing_mode: str | None = None) -> list[str]:
+    def _decomposition_chain(
+        self,
+        *,
+        routing_mode: str | None = None,
+        primary_override: str | None = None,
+    ) -> list[str]:
         """Ordered list of model slugs that have usable credentials."""
 
         from app.application.services.llm_routing import DEFAULT_ROUTING_MODE, ordered_model_chain
 
-        primary = settings.workflow_breaker_primary_model
+        primary = primary_override or settings.workflow_breaker_primary_model
         fallback = settings.workflow_breaker_fallback_model
         tertiary = settings.workflow_breaker_tertiary_model
         ordered: list[str] = [primary, fallback, tertiary]
@@ -408,6 +413,7 @@ class LiteLLMRouter:
         swarm_id: str = "",
         workflow_id: str | None = None,
         task_id: str | None = None,
+        primary_override: str | None = None,
     ) -> tuple[str, float]:
         """Try Grok → Claude → optional GPT using the configured decomposition chain.
 
@@ -423,7 +429,7 @@ class LiteLLMRouter:
             "workflow_id": workflow_id or "",
         }
         routing_mode = await self._resolve_routing_mode(session)
-        hops = self._decomposition_chain(routing_mode=routing_mode)
+        hops = self._decomposition_chain(routing_mode=routing_mode, primary_override=primary_override)
         if not hops:
             raise RuntimeError(
                 "LiteLLM router has no credentials for configured models "

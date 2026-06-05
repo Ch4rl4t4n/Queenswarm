@@ -153,7 +153,7 @@ function BusinessApprovalInboxInner(): JSX.Element | null {
   );
 
   return (
-    <div className="mb-4 rounded-lg border border-cyan/25 bg-cyan/5 p-4" id="business-approval-inbox">
+    <div id="business-approval-inbox">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-cyan">Approval inbox</p>

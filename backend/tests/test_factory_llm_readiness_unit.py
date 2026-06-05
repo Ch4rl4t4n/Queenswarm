@@ -11,6 +11,7 @@ from app.application.services.factory_llm_readiness_service import (
     assert_factory_build_llm_ready,
     resolve_factory_llm_readiness,
     run_factory_llm_smoke,
+    save_factory_llm_primary,
 )
 
 
@@ -49,6 +50,48 @@ async def test_resolve_factory_llm_readiness_when_openai_configured() -> None:
 
 
 @pytest.mark.asyncio
+async def test_resolve_factory_llm_readiness_when_openrouter_primary() -> None:
+    session = AsyncMock()
+
+    with (
+        patch(
+            "app.application.services.factory_llm_readiness_service.refresh_llm_secret_cache",
+            new=AsyncMock(),
+        ),
+        patch(
+            "app.application.services.factory_llm_readiness_service.provider_effective_grok",
+            return_value=False,
+        ),
+        patch(
+            "app.application.services.factory_llm_readiness_service.provider_effective_anthropic",
+            return_value=False,
+        ),
+        patch(
+            "app.application.services.factory_llm_readiness_service.provider_effective_openai",
+            return_value=False,
+        ),
+        patch(
+            "app.application.services.factory_llm_readiness_service.provider_effective_openrouter",
+            return_value=True,
+        ),
+        patch(
+            "app.application.services.factory_llm_readiness_service.settings.workflow_breaker_primary_model",
+            "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+        ),
+        patch(
+            "app.application.services.factory_llm_readiness_service.model_slug_has_configured_credentials",
+            return_value=True,
+        ),
+    ):
+        status = await resolve_factory_llm_readiness(session)
+
+    assert status.openrouter_configured is True
+    assert status.openrouter_primary is True
+    assert status.build_allowed is True
+    assert "Nemotron" in status.recommended_action or "OpenRouter" in status.recommended_action
+
+
+@pytest.mark.asyncio
 async def test_resolve_factory_llm_readiness_when_no_providers() -> None:
     session = AsyncMock()
 
@@ -78,7 +121,7 @@ async def test_resolve_factory_llm_readiness_when_no_providers() -> None:
 
     assert status.build_allowed is False
     assert status.chain_usable is False
-    assert "Grok" in status.recommended_action
+    assert "Grok" in status.recommended_action or "OpenRouter" in status.recommended_action
 
 
 @pytest.mark.asyncio
@@ -235,3 +278,22 @@ async def test_run_factory_llm_smoke_success() -> None:
 
     assert status.smoke_ok is True
     router.complete_with_fallback_messages.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_save_factory_llm_primary_persists_tenant_selection() -> None:
+    tenant_id = __import__("uuid").uuid4()
+    tenant = MagicMock()
+    tenant.operator_settings = {}
+    session = AsyncMock()
+    session.get = AsyncMock(return_value=tenant)
+
+    saved = await save_factory_llm_primary(
+        session,
+        tenant_id=tenant_id,
+        primary_model="openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+    )
+
+    assert saved == "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free"
+    assert tenant.operator_settings["factory_llm"]["primary_model"] == saved
+    session.flush.assert_awaited_once()

@@ -281,14 +281,21 @@ async def propose_skill_factory_forge_from_session(
         "factory_opportunity_id": str(opportunity.id) if opportunity else None,
         **quality.to_payload(),
     }
+    personal_publish = settings.skill_factory_personal_agent_publish_enabled
     description = (
-        "Skill Factory session passed quality gate — approve to publish into Library and enable GitHub export."
-        if quality.passed
+        "Personal agent skill — installs into your tenant library for researcher/coder/orchestrator sessions."
+        if quality.passed and personal_publish
         else (
-            "Skill Factory session completed with quality warnings — review critic verdict and SKILL.md "
-            f"before publish. Issues: {', '.join(quality.issues[:6]) or 'unknown'}."
+            "Skill Factory session passed quality gate — approve to publish into Library for agent sessions."
+            if quality.passed
+            else (
+                "Skill Factory session completed with quality warnings — review critic verdict and SKILL.md "
+                f"before publish. Issues: {', '.join(quality.issues[:6]) or 'unknown'}."
+            )
         )
     )
+    payload["personal_agent_scope"] = personal_publish
+    payload["usage_scope"] = "tenant_agents" if personal_publish else "operator_review"
 
     row = AgentSuggestion(
         tenant_id=supervisor_session.tenant_id,
@@ -300,9 +307,9 @@ async def propose_skill_factory_forge_from_session(
         description=description[:2000],
         proposal_payload=payload,
         risk_level="low" if quality.passed else "medium",
-        impact_score=0.82 if quality.passed else 0.55,
+        impact_score=0.45 if quality.passed and personal_publish else (0.82 if quality.passed else 0.55),
         status="pending",
-        requires_manual_approval=True,
+        requires_manual_approval=not (quality.passed and personal_publish),
         evaluation_reason=(
             "skill_factory_session_completed"
             if quality.passed
@@ -321,9 +328,50 @@ async def propose_skill_factory_forge_from_session(
     return row
 
 
+async def maybe_auto_publish_personal_skill_forge(
+    db: AsyncSession,
+    *,
+    suggestion: AgentSuggestion | None,
+) -> dict[str, Any] | None:
+    """Publish quality-passed factory skills into tenant library for agent pickers."""
+
+    if suggestion is None:
+        return None
+    if not settings.skill_factory_personal_agent_publish_enabled:
+        return None
+    if suggestion.proposal_type != "verified_skill_forge":
+        return None
+    if suggestion.status != "pending":
+        return None
+    payload = dict(suggestion.proposal_payload or {})
+    if payload.get("quality_gate_passed") is False:
+        return None
+
+    from app.application.services.supervisor.initiative import review_agent_suggestion_with_handoff
+    from app.infrastructure.persistence.models.tenant import Tenant
+
+    tenant = await db.get(Tenant, suggestion.tenant_id)
+    supervisor = None
+    if suggestion.supervisor_session_id is not None:
+        supervisor = await db.get(SupervisorSession, suggestion.supervisor_session_id)
+
+    reviewed, handoff = await review_agent_suggestion_with_handoff(
+        db,
+        suggestion=suggestion,
+        decision="approved",
+        reviewer_subject="skill_factory:personal",
+        supervisor_session=supervisor,
+        tenant=tenant,
+    )
+    if reviewed.status != "approved":
+        return None
+    return handoff
+
+
 __all__ = [
     "extract_skill_markdown_from_outputs",
     "is_fallback_factory_skill_markdown",
     "is_skill_factory_session",
+    "maybe_auto_publish_personal_skill_forge",
     "propose_skill_factory_forge_from_session",
 ]

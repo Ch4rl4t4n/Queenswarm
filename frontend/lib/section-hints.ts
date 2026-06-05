@@ -199,7 +199,7 @@ export const SECTION_HINTS = {
   contentPackFactoryLlm: {
     title: "Grok required for builds",
     description:
-      "Factory sessions use Grok (xAI) as primary LLM. Run smoke test before Build — Claude/OpenAI are optional fallbacks only.",
+      "Pick factory LLM on Research tab (Nemotron/OpenRouter, Grok, GPT-4o mini, Claude). Run smoke test before Build — fallbacks stay on the env chain.",
     options: [
       "Settings → AI · LLM keys — Grok vault + CONNECTED",
       "Skill Factory / Pack factory → Run smoke test",
@@ -308,18 +308,6 @@ export const SECTION_HINTS = {
   },
 
   // —— Cockpit cards ——
-  businessBrief: {
-    title: "Chief Business Operator",
-    description:
-      "Business harness brief — catalog, revenue scorecard, approval inbox, harness profiles, and top dispatch actions.",
-    options: [
-      "Approval inbox — publish packs, suggestions, lane digests in one queue.",
-      "Harness profile — switch marketing, factory, trading, or general operator presets.",
-      "Dispatch — routes top actions to supervisor session or Mission Kanban.",
-      "Refresh — reloads business snapshot without control-plane modules.",
-    ],
-    manualHref: "/manual#cockpit-overview",
-  },
   overview: {
     title: "Operator overview",
     description:
@@ -329,6 +317,18 @@ export const SECTION_HINTS = {
       "Trust Autopilot — Telegram pings only after simulated/verified outcomes.",
       "Proof-of-Hive — shareable HMAC receipts after publish simulate approval.",
       "Refresh — reloads core snapshot without heavy futurist modules.",
+    ],
+    manualHref: "/manual#cockpit-overview",
+  },
+  businessOperator: {
+    title: "Chief Business Operator",
+    description:
+      "Business harness brief — catalog scorecard, mission queue, approval inbox, harness profiles, and cross-lane learning.",
+    options: [
+      "Catalog live — Gumroad-linked products and marketing origin.",
+      "Approval inbox — publish queue, agent suggestions, lane digests.",
+      "Harness profile — switch marketing / factory / trading operator presets.",
+      "Top actions — dispatch to supervisor session or Mission Kanban.",
     ],
     manualHref: "/manual#cockpit-overview",
   },

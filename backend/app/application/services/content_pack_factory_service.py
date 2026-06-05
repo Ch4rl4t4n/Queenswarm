@@ -463,7 +463,7 @@ async def compose_content_pack_factory_snapshot(
 
     from app.application.services.factory_llm_readiness_service import resolve_factory_llm_readiness
 
-    llm_status = await resolve_factory_llm_readiness(session)
+    llm_status = await resolve_factory_llm_readiness(session, tenant_id=tenant_id)
 
     gumroad_by_pack: dict[uuid.UUID, dict[str, Any]] = {}
     for opp in opportunities:
@@ -555,7 +555,7 @@ async def start_content_pack_factory_build(
 
     from app.application.services.factory_llm_readiness_service import assert_factory_build_llm_ready
 
-    await assert_factory_build_llm_ready(session)
+    await assert_factory_build_llm_ready(session, tenant_id=tenant_id)
 
     shared = SharedContextService()
     goal = build_content_pack_factory_session_goal(

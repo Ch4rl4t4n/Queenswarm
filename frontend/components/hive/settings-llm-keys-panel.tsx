@@ -81,8 +81,8 @@ const PROVIDER_COPY: Record<
   grok: {
     title: { en: "Grok (xAI)", sk: "Grok (xAI)" },
     hint: {
-      en: "Primary routing — persisted in hive vault. Invalid keys block factory builds until removed (factory_llm_auto_repair.py).",
-      sk: "Primarny routing — hive vault. Neplatne kluce blokuju factory buildy.",
+      en: "Optional fallback — factory and agents use your primary provider (Nemotron when marked primary).",
+      sk: "Volitelny fallback — factory a agenti pouzivaju primarneho providera (Nemotron ak je primary).",
     },
   },
   anthropic: {
@@ -95,15 +95,15 @@ const PROVIDER_COPY: Record<
   openai: {
     title: { en: "OpenAI - GPT-4o mini", sk: "OpenAI - GPT-4o mini" },
     hint: {
-      en: "Optional fallback only — Skill/Content Pack Factory runs on Grok by default.",
-      sk: "Volitelny fallback — factory bezne bezi na Grok.",
+      en: "Optional tertiary fallback — Skill Factory follows WORKFLOW_BREAKER_* env chain (Nemotron primary in prod).",
+      sk: "Volitelny terciarny fallback — Skill Factory ide cez WORKFLOW_BREAKER_* retazec.",
     },
   },
   openrouter: {
     title: { en: "OpenRouter - NVIDIA Nemotron", sk: "OpenRouter - NVIDIA Nemotron" },
     hint: {
-      en: "Experimental eval route for open-weight agentic models. Default candidate: nvidia/nemotron-3-ultra-550b-a55b:free.",
-      sk: "Experimentalny eval route pre open-weight agenticke modely. Kandidat: nvidia/nemotron-3-ultra-550b-a55b:free.",
+      en: "Primary for factory + agents when marked primary. Default: nvidia/nemotron-3-ultra-550b-a55b:free.",
+      sk: "Primary pre factory + agentov ak je oznaceny primary. Default: nvidia/nemotron-3-ultra-550b-a55b:free.",
     },
   },
   deepgram: {

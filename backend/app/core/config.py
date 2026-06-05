@@ -1926,6 +1926,13 @@ class Settings(BaseSettings):
         default=True,
         description="Skill Factory — research lane, tenant skills registry, GitHub export.",
     )
+    skill_factory_personal_agent_publish_enabled: bool = Field(
+        default=True,
+        description=(
+            "Auto-publish quality-passed factory skills into tenant library for agent sessions "
+            "(personal in-app use — not Gumroad)."
+        ),
+    )
     skill_factory_research_cron_hour: int = Field(default=8, ge=0, le=23)
     skill_factory_research_cron_minute: int = Field(default=0, ge=0, le=59)
     skill_factory_external_intel_enabled: bool = Field(
