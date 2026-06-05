@@ -63,10 +63,21 @@ load_all_models()
 def hive_llm_credentials_ready() -> bool:
     """Return ``True`` when at least one LiteLLM-backed provider secret is configured."""
 
-    grok = (hive_settings.grok_api_key or "").strip()
-    claude = (hive_settings.anthropic_api_key or "").strip()
-    openai = (hive_settings.openai_api_key or "").strip()
-    return bool(grok) or bool(claude) or bool(openai)
+    from app.application.services.llm_runtime_credentials import (
+        provider_effective_anthropic,
+        provider_effective_grok,
+        provider_effective_openai,
+        provider_effective_openrouter,
+    )
+
+    return any(
+        (
+            provider_effective_grok(),
+            provider_effective_anthropic(),
+            provider_effective_openai(),
+            provider_effective_openrouter(),
+        ),
+    )
 
 
 def markdown_no_llm_fallback(

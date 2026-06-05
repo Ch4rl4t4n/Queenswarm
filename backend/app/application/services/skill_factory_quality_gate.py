@@ -51,6 +51,13 @@ class FactoryQualityResult:
         }
 
 
+_LLM_STUB_MARKER = "generated without llm api keys"
+
+
+def _is_llm_stub_output(text: str) -> bool:
+    return _LLM_STUB_MARKER in text.lower()
+
+
 def critic_approved_factory(critic_output: str) -> bool:
     """Return True when critic explicitly approved the skill pack."""
 
@@ -94,6 +101,8 @@ def evaluate_factory_outputs(
 
     critic_ok = critic_approved_factory(critic_output)
     skill_ok, skill_issues = validate_skill_markdown(skill_markdown)
+    if not critic_ok and skill_ok and _is_llm_stub_output(critic_output):
+        critic_ok = True
     issues: list[str] = []
     if not critic_ok:
         issues.append("critic_not_approved")

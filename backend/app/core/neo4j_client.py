@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from typing import Any
 
@@ -11,6 +12,7 @@ from neo4j.exceptions import Neo4jError
 from app.core.config import settings
 
 _driver: AsyncDriver | None = None
+_driver_loop_id: int | None = None
 
 
 def _build_driver() -> AsyncDriver:
@@ -23,11 +25,20 @@ def _build_driver() -> AsyncDriver:
 
 
 async def get_neo4j_driver() -> AsyncDriver:
-    """Return the application-wide Neo4j async driver (lazy singleton)."""
+    """Return Neo4j async driver bound to the current asyncio event loop.
 
-    global _driver
-    if _driver is None:
+    Celery tasks call ``asyncio.run()`` per task; a driver created on a prior loop
+    raises "Future attached to a different loop" during drain rebuilds.
+    """
+
+    global _driver, _driver_loop_id
+    loop = asyncio.get_running_loop()
+    loop_id = id(loop)
+    if _driver is None or _driver_loop_id != loop_id:
+        if _driver is not None:
+            await _driver.close()
         _driver = _build_driver()
+        _driver_loop_id = loop_id
     return _driver
 
 
@@ -188,7 +199,8 @@ async def count_imitation_edges_by_recipes(recipe_ids: list[str]) -> dict[str, i
 async def close_neo4j() -> None:
     """Close the Neo4j driver during FastAPI shutdown."""
 
-    global _driver
+    global _driver, _driver_loop_id
     if _driver is not None:
         await _driver.close()
         _driver = None
+        _driver_loop_id = None

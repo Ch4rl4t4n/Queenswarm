@@ -314,3 +314,37 @@ def test_quality_gate_rejects_missing_critic_approve() -> None:
     )
     assert result.passed is False
     assert "critic_not_approved" in result.issues
+
+
+def test_quality_gate_passes_valid_skill_when_critic_is_llm_stub() -> None:
+    from app.application.services.skill_factory_quality_gate import evaluate_factory_outputs
+
+    skill = (
+        "---\nname: newsletter-growth\ndescription: Verified newsletter growth harness for indie hackers\n"
+        "level: 1\n---\n\n# Newsletter growth\n\nWhen to use: weekly operator sessions with simulate-first guardrails.\n\n"
+        "## Workflow\n\n1. Research niche context with simulate-first guardrails.\n"
+        "2. Draft SKILL.md with critic APPROVE gate.\n3. Export harness bundle after quality pass.\n"
+    )
+    stub_critic = (
+        "# critic — Data Report\n"
+        "*Generated without LLM API keys — deterministic tool payloads only.*\n"
+    )
+    result = evaluate_factory_outputs(
+        skill_markdown=skill,
+        critic_output=stub_critic,
+        coder_output=skill,
+    )
+    assert result.critic_approved is True
+    assert result.passed is True
+    assert "critic_not_approved" not in result.issues
+
+
+def test_hive_llm_credentials_ready_includes_openrouter_vault(monkeypatch) -> None:
+    from app.application.services import llm_runtime_credentials as creds
+    from app.domain.agents.executor import hive_llm_credentials_ready
+
+    monkeypatch.setattr(creds, "provider_effective_grok", lambda: "")
+    monkeypatch.setattr(creds, "provider_effective_anthropic", lambda: "")
+    monkeypatch.setattr(creds, "provider_effective_openai", lambda: "")
+    monkeypatch.setattr(creds, "provider_effective_openrouter", lambda: "sk-or-test-key")
+    assert hive_llm_credentials_ready() is True

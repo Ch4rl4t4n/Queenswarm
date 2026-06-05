@@ -87,6 +87,9 @@ def skill_factory_reconcile_tick_task() -> dict[str, Any]:
 
         totals = {"tenants": 0, "embedded": 0, "approved": 0, "rebuilt": 0, "started": 0}
         async with async_session() as session:
+            from app.application.services.llm_runtime_credentials import refresh_llm_secret_cache
+
+            await refresh_llm_secret_cache(session)
             embed_totals = await embed_skill_market_items_all_tenants(session, limit_per_tenant=20)
             totals["embedded"] = embed_totals.get("embedded", 0)
             tenants = list((await session.scalars(select(Tenant).limit(32))).all())
@@ -129,6 +132,9 @@ def skill_factory_queue_drain_tick_task() -> dict[str, Any]:
 
         totals = {"tenants": 0, "approved": 0, "rebuilt": 0, "started": 0}
         async with async_session() as session:
+            from app.application.services.llm_runtime_credentials import refresh_llm_secret_cache
+
+            await refresh_llm_secret_cache(session)
             tenants = list((await session.scalars(select(Tenant).limit(32))).all())
             for tenant in tenants:
                 policy = await get_skill_factory_policy(session, tenant_id=tenant.id)
