@@ -308,6 +308,18 @@ export const SECTION_HINTS = {
   },
 
   // —— Cockpit cards ——
+  businessBrief: {
+    title: "Chief Business Operator",
+    description:
+      "Business harness brief — catalog, revenue scorecard, approval inbox, harness profiles, and top dispatch actions.",
+    options: [
+      "Approval inbox — publish packs, suggestions, lane digests in one queue.",
+      "Harness profile — switch marketing, factory, trading, or general operator presets.",
+      "Dispatch — routes top actions to supervisor session or Mission Kanban.",
+      "Refresh — reloads business snapshot without control-plane modules.",
+    ],
+    manualHref: "/manual#cockpit-overview",
+  },
   overview: {
     title: "Operator overview",
     description:
@@ -323,7 +335,7 @@ export const SECTION_HINTS = {
   fourLanes: {
     title: "Four Lanes (optional)",
     description:
-      "Background cron digests — open via Agentic OS → Show advanced tools → Lanes. Not your daily start; use Agents → Sessions for projects.",
+      "Background cron digests — Agentic OS → Lanes tab. Not your daily start; use Agents → Sessions for projects.",
     options: [
       "Lane A — Najman marketing digest (Po/St/Pi) + competitor forager.",
       "Lane B — Tech SCV daily upgrades → Innovation Lab → Queen Maintainer PR.",

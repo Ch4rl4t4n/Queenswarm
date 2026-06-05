@@ -279,7 +279,7 @@ def _derive_top_actions(
                             title=f"Goal drift: {goal.label}",
                             detail=goal.drift_detail,
                             priority="high",
-                            href="/cockpit#business-operator",
+                            href="/agentic-os#business",
                         ),
                     ),
                 )

@@ -5,32 +5,39 @@
 
 import type { CockpitSection } from "@/lib/cockpit-routes";
 
-/** Agentic OS sections hidden in solo mode (legacy VC infra — manual §4). */
-export const SOLO_COCKPIT_HIDDEN_SECTIONS: readonly CockpitSection[] = ["fleet"];
+/** Agentic OS sections hidden in solo mode — none; full subnav always visible. */
+export const SOLO_COCKPIT_HIDDEN_SECTIONS: readonly CockpitSection[] = [];
 
-/** Solo primary tabs — daily start (manual §2). Four Lanes demoted to Advanced (OW6). */
+/** Solo-only tabs — hidden outside solo (team mode keeps Operator overview only). */
+export const SOLO_COCKPIT_ONLY_SECTIONS: readonly CockpitSection[] = ["business"];
+
+/** Solo primary row — business brief, operator overview, innovation. */
 export const SOLO_COCKPIT_PRIMARY_SECTIONS: readonly CockpitSection[] = [
+  "business",
   "overview",
   "innovation",
 ];
 
-/** Solo advanced tabs — collapsed by default (OW4); includes optional Four Lanes cron (OW6). */
+/** Solo secondary row — always visible (no accordion). */
 export const SOLO_COCKPIT_ADVANCED_SECTIONS: readonly CockpitSection[] = [
   "command",
   "grok",
   "icm",
   "modules",
+  "fleet",
   "lanes",
 ];
 
-/** Solo tab sort order — optional cron digests always last. */
+/** Solo tab sort order — optional cron digests last. */
 export const SOLO_COCKPIT_SECTION_ORDER: readonly CockpitSection[] = [
+  "business",
   "overview",
   "innovation",
   "command",
   "grok",
   "icm",
   "modules",
+  "fleet",
   "lanes",
 ];
 
@@ -94,8 +101,8 @@ export const OPERATOR_UI_CONTROL_AUDIT: readonly OperatorUiControlAudit[] = [
     id: "cockpit-advanced-accordion",
     area: "Agentic OS",
     label: "Advanced tools accordion",
-    disposition: "wire",
-    reason: "OW4 — Command/Grok/ICM/Modules collapsed in solo.",
+    disposition: "remove",
+    reason: "Full two-row subnav always visible; progressive disclosure only in Settings.",
   },
   {
     id: "pattern-onboarding-cta",
@@ -167,9 +174,8 @@ export function visibleCockpitSections(
   soloMode: boolean,
   all: readonly CockpitSection[],
 ): CockpitSection[] {
-  const filtered = soloMode
-    ? all.filter((id) => !SOLO_COCKPIT_HIDDEN_SECTIONS.includes(id))
-    : [...all];
+  const hidden = soloMode ? SOLO_COCKPIT_HIDDEN_SECTIONS : SOLO_COCKPIT_ONLY_SECTIONS;
+  const filtered = all.filter((id) => !hidden.includes(id));
   if (!soloMode) {
     return filtered;
   }

@@ -12,7 +12,7 @@ import {
 } from "@/lib/first-run-wizard";
 import { useSoloFirstRun } from "@/lib/use-solo-first-run";
 
-/** Compact first-run nudge on Agentic OS Overview until setup is complete (OW5). */
+/** Compact first-run nudge on Agentic OS Business brief until setup is complete (OW5). */
 function FirstRunSetupBannerInner(): JSX.Element | null {
   const { soloMode } = usePlatform();
   const [dismissed, setDismissed] = useState(true);

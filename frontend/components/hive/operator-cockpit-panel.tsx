@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   ArrowRight,
+  Briefcase,
   Copy,
   FlaskConical,
   Gauge,
@@ -17,8 +18,6 @@ import {
   Terminal,
   Users,
   Waypoints,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -48,11 +47,8 @@ import {
 import { useRouteScopedPollOptions } from "@/lib/hooks/use-route-scoped-poll";
 import {
   cockpitNavSections,
-  isCockpitAdvancedSection,
   visibleCockpitSections,
 } from "@/lib/operator-canonical-ui";
-import { cn } from "@/lib/utils";
-
 const GrokControlPlanePanel = dynamic(
   () => import("@/components/hive/grok-control-plane-panel").then((mod) => ({ default: mod.GrokControlPlanePanel })),
   { loading: () => <HivePanelSectionSkeleton label="Loading Grok control plane" /> },
@@ -229,7 +225,8 @@ const COCKPIT_SECTIONS: {
   label: string;
   icon: typeof Gauge;
 }[] = [
-  { id: "overview", label: "Overview", icon: Gauge },
+  { id: "business", label: "Business brief", icon: Briefcase },
+  { id: "overview", label: "Operator overview", icon: Gauge },
   { id: "lanes", label: "Lanes", icon: Waypoints },
   { id: "command", label: "Command", icon: MessageSquare },
   { id: "grok", label: "Grok", icon: Terminal },
@@ -284,7 +281,6 @@ function OperatorCockpitPanelInner() {
   const [section, setSection] = useState<CockpitSection>(() =>
     resolveCockpitSection({ visibleIds: visibleSectionIds }),
   );
-  const [advancedNavOpen, setAdvancedNavOpen] = useState(() => isCockpitAdvancedSection(section, soloMode));
   const [modulesHydrated, setModulesHydrated] = useState(false);
   const [modulesLoading, setModulesLoading] = useState(false);
 
@@ -364,12 +360,6 @@ function OperatorCockpitPanelInner() {
     window.addEventListener("hashchange", syncFromHash);
     return () => window.removeEventListener("hashchange", syncFromHash);
   }, [visibleSectionIds]);
-
-  useEffect(() => {
-    if (isCockpitAdvancedSection(section, soloMode)) {
-      setAdvancedNavOpen(true);
-    }
-  }, [section, soloMode]);
 
   useEffect(() => {
     const ballroomSession = searchParams.get("ballroom_session")?.trim();
@@ -577,64 +567,31 @@ function OperatorCockpitPanelInner() {
     }
   }, []);
 
-  const showAdvancedSecondary = soloMode && advancedNavOpen && advancedCockpitNav.length > 0;
-  const showExpandAdvanced = soloMode && !advancedNavOpen && advancedCockpitNav.length > 0;
+  const showSecondaryRow = soloMode && advancedCockpitNav.length > 0;
   const primaryActiveId = cockpitNavSplit.primary.includes(section) ? section : "";
-  const advancedActiveId = cockpitNavSplit.advanced.includes(section) ? section : "";
+  const secondaryActiveId = cockpitNavSplit.advanced.includes(section) ? section : "";
 
   const cockpitSubnav = (
-    <div className="flex flex-col gap-3">
-      <HiveSectionSubnav
-        primary={
-          soloMode
-            ? primaryCockpitNav.map(({ id, label, icon }) => ({ id, label, icon }))
-            : visibleCockpitNav.map(({ id, label, icon }) => ({ id, label, icon }))
-        }
-        secondary={
-          showAdvancedSecondary
-            ? advancedCockpitNav.map(({ id, label, icon }) => ({ id, label, icon }))
-            : undefined
-        }
-        activePrimary={soloMode ? primaryActiveId : section}
-        activeSecondary={showAdvancedSecondary ? advancedActiveId : undefined}
-        onPrimaryChange={(id) => selectSection(id as CockpitSection)}
-        onSecondaryChange={(id) => selectSection(id as CockpitSection)}
-        primaryAriaLabel="Agentic OS sections"
-        secondaryAriaLabel="Advanced Agentic OS tools"
-        primaryMenuKey="cockpit-primary"
-        secondaryMenuKey="cockpit-advanced"
-      />
-      {showExpandAdvanced ? (
-        <button
-          type="button"
-          className="qs-btn qs-btn--ghost qs-btn--sm w-fit gap-1.5"
-          aria-expanded={false}
-          onClick={() => {
-            setAdvancedNavOpen(true);
-            selectSection(advancedCockpitNav[0]?.id ?? "command");
-          }}
-        >
-          <ChevronDown className="size-4 shrink-0" aria-hidden />
-          Show advanced tools
-        </button>
-      ) : null}
-      {soloMode && advancedNavOpen ? (
-        <button
-          type="button"
-          className={cn("qs-btn qs-btn--ghost qs-btn--sm w-fit gap-1.5")}
-          aria-expanded
-          onClick={() => {
-            setAdvancedNavOpen(false);
-            if (isCockpitAdvancedSection(section, soloMode)) {
-              selectSection("overview");
-            }
-          }}
-        >
-          <ChevronUp className="size-4 shrink-0" aria-hidden />
-          Hide advanced tools
-        </button>
-      ) : null}
-    </div>
+    <HiveSectionSubnav
+      primary={
+        soloMode
+          ? primaryCockpitNav.map(({ id, label, icon }) => ({ id, label, icon }))
+          : visibleCockpitNav.map(({ id, label, icon }) => ({ id, label, icon }))
+      }
+      secondary={
+        showSecondaryRow
+          ? advancedCockpitNav.map(({ id, label, icon }) => ({ id, label, icon }))
+          : undefined
+      }
+      activePrimary={soloMode ? primaryActiveId : section}
+      activeSecondary={showSecondaryRow ? secondaryActiveId : undefined}
+      onPrimaryChange={(id) => selectSection(id as CockpitSection)}
+      onSecondaryChange={(id) => selectSection(id as CockpitSection)}
+      primaryAriaLabel="Agentic OS sections"
+      secondaryAriaLabel="Agentic OS tools"
+      primaryMenuKey="cockpit-primary"
+      secondaryMenuKey="cockpit-tools"
+    />
   );
 
   if (loading && !snapshot) {
@@ -681,10 +638,15 @@ function OperatorCockpitPanelInner() {
       error={shellError}
     >
       <HiveSubnavContent>
+      {section === "business" && soloMode ? (
+        <>
+          <FirstRunSetupBanner />
+          <BusinessOperatorPanel />
+        </>
+      ) : null}
+
       {section === "overview" ? (
         <V4Card>
-          {soloMode ? <BusinessOperatorPanel /> : null}
-          {soloMode ? <FirstRunSetupBanner /> : null}
           {soloMode ? (
             <div className="mb-4 rounded-lg border border-pollen/35 bg-pollen/5 p-3 text-xs leading-relaxed text-(--qs-text-2)">
               <p className="font-semibold text-pollen">Optional — not your daily start</p>

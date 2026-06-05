@@ -234,7 +234,7 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
   const isExternal = (href: string): boolean => href.startsWith("http");
 
   return (
-    <V4Card className="mb-4 border-pollen/35 bg-pollen/5" id="business-operator">
+    <V4Card className="border-pollen/35 bg-pollen/5" id="business-operator">
       <V4CardHeader
         kicker="Chief Business Operator"
         title={snapshot.headline?.trim() || "What to do for the business"}

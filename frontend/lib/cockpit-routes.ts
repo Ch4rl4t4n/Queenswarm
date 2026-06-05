@@ -2,9 +2,19 @@
 
 import { resolvePrimarySubnavFromUrl, SUBNAV_MENU_KEYS } from "@/lib/subnav-order-preferences";
 
-export type CockpitSection = "overview" | "lanes" | "command" | "grok" | "icm" | "fleet" | "modules" | "innovation";
+export type CockpitSection =
+  | "business"
+  | "overview"
+  | "lanes"
+  | "command"
+  | "grok"
+  | "icm"
+  | "fleet"
+  | "modules"
+  | "innovation";
 
 const ALL_COCKPIT_SECTIONS: CockpitSection[] = [
+  "business",
   "overview",
   "lanes",
   "command",
@@ -16,6 +26,10 @@ const ALL_COCKPIT_SECTIONS: CockpitSection[] = [
 ];
 
 const HASH_TO_SECTION: Record<string, CockpitSection> = {
+  business: "business",
+  "business-brief": "business",
+  "business-operator": "business",
+  cbo: "business",
   overview: "overview",
   lanes: "lanes",
   "four-lanes": "lanes",

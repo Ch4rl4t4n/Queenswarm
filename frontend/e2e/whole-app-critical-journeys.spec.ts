@@ -125,13 +125,7 @@ test.describe("Whole-App critical journeys — desktop", () => {
       timeout: 20_000,
     });
 
-    const expandAdvanced = page.getByRole("button", { name: /Show advanced tools/i });
-    try {
-      await expandAdvanced.click({ timeout: 8_000 });
-      await clickSubnavTab(page, "Advanced Agentic OS tools", "Command");
-    } catch {
-      await clickSubnavTab(page, "Agentic OS sections", "Command");
-    }
+    await clickSubnavTab(page, "Agentic OS tools", "Command");
     await expect(page.getByText("Bee Hotline")).toBeVisible({ timeout: 20_000 });
   });
 
