@@ -95,21 +95,6 @@ function Gallery({ product }: { readonly product: MarketingProductView }): JSX.E
           background: `radial-gradient(ellipse 100% 90% at ${active === 1 ? "70" : active === 2 ? "40" : "30"}% 25%, oklch(0.42 0.18 ${hue} / 0.5), transparent 60%), linear-gradient(160deg, #0d1230, #0a0e23)`,
         }}
       >
-        <svg
-          width="100%"
-          height="100%"
-          viewBox="0 0 320 180"
-          preserveAspectRatio="xMidYMid slice"
-          style={{ position: "absolute", inset: 0, opacity: 0.4 }}
-          aria-hidden
-        >
-          <defs>
-            <pattern id="gg" width="26" height="26" patternUnits="userSpaceOnUse">
-              <path d="M26 0H0V26" fill="none" stroke="oklch(0.7 0.1 280 / 0.14)" strokeWidth="1" />
-            </pattern>
-          </defs>
-          <rect width="320" height="180" fill="url(#gg)" />
-        </svg>
         <div style={{ position: "relative", textAlign: "center", color: `oklch(0.85 0.12 ${hue})` }}>
           <LacIcon name={product.type === "skill" ? "hexagon" : "doc"} size={56} />
           <div className="text-3 fs-12 mt-3" style={{ fontFamily: "var(--font-mono)" }}>

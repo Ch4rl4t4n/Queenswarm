@@ -34,6 +34,15 @@
    and the rich gradient on .mk-shell which always spans the full page height. */
 html, body { background: #0a0820 !important; }
 
+/* Marketing site only — no Queenswarm honeycomb body overlay */
+body:has(.mk-shell)::before,
+body:has(.mk-shell)::after {
+  display: none !important;
+  content: none !important;
+  background: none !important;
+  background-image: none !important;
+}
+
 /* Downloads / purchases count on cards */
 .mk-downloads {
   display: inline-flex; align-items: center; gap: 5px;
