@@ -55,6 +55,11 @@ class SkillFactoryPolicyBody(BaseModel):
     niche_seeds: list[str] = Field(default_factory=list, max_length=12)
     auto_build_enabled: bool = False
     auto_build_min_score: float = Field(default=0.72, ge=0.0, le=1.0)
+    auto_queue_drain_enabled: bool = True
+    auto_rebuild_failed_forges: bool = True
+    auto_approve_passing_forges: bool = True
+    max_concurrent_builds: int = Field(default=2, ge=1, le=5)
+    drain_batch_per_tick: int = Field(default=3, ge=1, le=10)
     max_builds_per_week: int = Field(
         default=FACTORY_MAX_BUILDS_PER_WEEK_DEFAULT,
         ge=1,
@@ -338,6 +343,39 @@ async def skill_factory_rebuild(
         session_id=str(row.supervisor_session_id or ""),
         status=row.status,
     )
+
+
+@router.post("/queue/drain", summary="Drain queue — auto-rebuild failed forges and fill build slots")
+async def skill_factory_drain_queue(
+    db: DbSession,
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, int | list[str]]:
+    """Prioritized queue drain: approve passing forges, rebuild failures, start queued builds."""
+
+    _ensure_enabled()
+    tenant_id = _tenant_id(principal)
+    from app.application.services.skill_factory_queue_drain import drain_skill_factory_queue
+    from app.application.services.skill_factory_service import compose_skill_factory_snapshot, get_skill_factory_policy
+
+    policy = await get_skill_factory_policy(db, tenant_id=tenant_id)
+    subject = str(principal.get("sub") or "dashboard:skill_factory")
+    drain = await drain_skill_factory_queue(
+        db,
+        tenant_id=tenant_id,
+        policy=policy,
+        reviewer_subject=subject,
+        created_by_subject=subject,
+    )
+    if drain.approved or drain.rebuilt or drain.started:
+        await compose_skill_factory_snapshot(db, tenant_id=tenant_id)
+    await db.commit()
+    return {
+        "approved": drain.approved,
+        "rebuilt": drain.rebuilt,
+        "started": drain.started,
+        "skipped_cap": drain.skipped_cap,
+        "errors": drain.errors,
+    }
 
 
 @router.post("/queue/reject-failed-forges", summary="Bulk reject forges that failed quality gate")

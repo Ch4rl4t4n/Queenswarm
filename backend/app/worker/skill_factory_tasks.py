@@ -75,18 +75,31 @@ def skill_factory_reconcile_tick_task() -> dict[str, Any]:
         from sqlalchemy import select
 
         from app.application.services.forager_hivemind_embed import embed_skill_market_items_all_tenants
-        from app.application.services.skill_factory_service import compose_skill_factory_snapshot
+        from app.application.services.skill_factory_queue_drain import drain_skill_factory_queue
+        from app.application.services.skill_factory_service import (
+            compose_skill_factory_snapshot,
+            get_skill_factory_policy,
+        )
         from app.infrastructure.persistence.models.tenant import Tenant
 
         if not settings.skill_factory_enabled:
             return {"skipped": True, "reason": "disabled"}
 
-        totals = {"tenants": 0, "embedded": 0}
+        totals = {"tenants": 0, "embedded": 0, "approved": 0, "rebuilt": 0, "started": 0}
         async with async_session() as session:
             embed_totals = await embed_skill_market_items_all_tenants(session, limit_per_tenant=20)
             totals["embedded"] = embed_totals.get("embedded", 0)
             tenants = list((await session.scalars(select(Tenant).limit(32))).all())
             for tenant in tenants:
+                policy = await get_skill_factory_policy(session, tenant_id=tenant.id)
+                drain = await drain_skill_factory_queue(
+                    session,
+                    tenant_id=tenant.id,
+                    policy=policy,
+                )
+                totals["approved"] += drain.approved
+                totals["rebuilt"] += drain.rebuilt
+                totals["started"] += drain.started
                 await compose_skill_factory_snapshot(session, tenant_id=tenant.id)
                 totals["tenants"] += 1
             await session.commit()
@@ -97,4 +110,49 @@ def skill_factory_reconcile_tick_task() -> dict[str, Any]:
     return result
 
 
-__all__ = ["skill_factory_reconcile_tick_task", "skill_factory_research_tick_task"]
+@celery_app.task(name="hive.skill_factory_queue_drain_tick", queue="hive")
+def skill_factory_queue_drain_tick_task() -> dict[str, Any]:
+    """Fast queue drain — auto-rebuild failed forges and fill build slots."""
+
+    async def _run() -> dict[str, Any]:
+        from sqlalchemy import select
+
+        from app.application.services.skill_factory_queue_drain import drain_skill_factory_queue
+        from app.application.services.skill_factory_service import (
+            compose_skill_factory_snapshot,
+            get_skill_factory_policy,
+        )
+        from app.infrastructure.persistence.models.tenant import Tenant
+
+        if not settings.skill_factory_enabled:
+            return {"skipped": True, "reason": "disabled"}
+
+        totals = {"tenants": 0, "approved": 0, "rebuilt": 0, "started": 0}
+        async with async_session() as session:
+            tenants = list((await session.scalars(select(Tenant).limit(32))).all())
+            for tenant in tenants:
+                policy = await get_skill_factory_policy(session, tenant_id=tenant.id)
+                drain = await drain_skill_factory_queue(
+                    session,
+                    tenant_id=tenant.id,
+                    policy=policy,
+                )
+                totals["approved"] += drain.approved
+                totals["rebuilt"] += drain.rebuilt
+                totals["started"] += drain.started
+                if drain.approved or drain.rebuilt or drain.started:
+                    await compose_skill_factory_snapshot(session, tenant_id=tenant.id)
+                totals["tenants"] += 1
+            await session.commit()
+        return totals
+
+    result = asyncio.run(_run())
+    logger.info("skill_factory.celery_queue_drain_tick", **result)
+    return result
+
+
+__all__ = [
+    "skill_factory_queue_drain_tick_task",
+    "skill_factory_reconcile_tick_task",
+    "skill_factory_research_tick_task",
+]

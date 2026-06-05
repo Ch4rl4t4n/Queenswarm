@@ -276,27 +276,54 @@ export function SkillFactoryPageClient(): JSX.Element {
     setQueueBadge(count > 0 ? count : undefined);
   }, [setQueueBadge, snapshot]);
 
+  const drainQueue = useCallback(async (): Promise<void> => {
+    try {
+      const res = await hivePostJson<{
+        approved: number;
+        rebuilt: number;
+        started: number;
+        skipped_cap: number;
+      }>("skill-factory/queue/drain", {});
+      if ((res.approved ?? 0) + (res.rebuilt ?? 0) + (res.started ?? 0) > 0) {
+        await refreshAfterQueueAction();
+      }
+    } catch {
+      /* drain is best-effort */
+    }
+  }, [refreshAfterQueueAction]);
+
   useEffect(() => {
-    if (tab !== "queue" || !snapshot?.building_count) {
+    if (tab !== "queue") {
       return;
     }
+    void drainQueue();
+    const pollMs = snapshot?.building_count ? 12_000 : 45_000;
     const timer = window.setInterval(() => {
+      void drainQueue();
       void refreshSnapshotQuiet();
-    }, 12_000);
+    }, pollMs);
     return () => window.clearInterval(timer);
-  }, [tab, snapshot?.building_count, refreshSnapshotQuiet]);
+  }, [tab, snapshot?.building_count, drainQueue, refreshSnapshotQuiet]);
 
   const researchRows = useMemo(
     () => (snapshot?.opportunities ?? []).filter((row) => row.status === "pending"),
     [snapshot?.opportunities],
   );
-  const queueRows = useMemo(
-    () =>
-      (snapshot?.opportunities ?? []).filter((row) =>
-        ["queued", "building", "awaiting_forge", "failed"].includes(row.status),
-      ),
-    [snapshot?.opportunities],
-  );
+  const queueRows = useMemo(() => {
+    const statusRank: Record<string, number> = {
+      building: 0,
+      awaiting_forge: 1,
+      failed: 2,
+      queued: 3,
+    };
+    return (snapshot?.opportunities ?? [])
+      .filter((row) => ["queued", "building", "awaiting_forge", "failed"].includes(row.status))
+      .sort((a, b) => {
+        const rank = (statusRank[a.status] ?? 9) - (statusRank[b.status] ?? 9);
+        if (rank !== 0) return rank;
+        return (b.composite_score ?? 0) - (a.composite_score ?? 0);
+      });
+  }, [snapshot?.opportunities]);
   const doneRows = useMemo(
     () => (snapshot?.opportunities ?? []).filter((row) => row.status === "completed"),
     [snapshot?.opportunities],
@@ -729,25 +756,26 @@ export function SkillFactoryPageClient(): JSX.Element {
         (row) =>
           row.status === "failed"
           || isStuckFactoryBuild(row)
-          || (row.status === "awaiting_forge" && row.forge_quality_passed === false),
+          || (row.status === "awaiting_forge"
+            && (row.forge_quality_passed === false || row.forge_critic_approved === false)),
       ),
     [snapshot?.opportunities],
   );
 
   const rebuildAllFailed = async (): Promise<void> => {
-    const ids = rebuildableRows.map((row) => row.id);
-    if (ids.length === 0) return;
+    if (rebuildableRows.length === 0) return;
     setBusyId("rebuild-failed");
     try {
-      let started = 0;
-      for (const id of ids.slice(0, 5)) {
-        const res = await hivePostJson<{ status: string; session_id: string }>(
-          `skill-factory/opportunities/${id}/rebuild`,
-          {},
-        );
-        if (res.status === "building") started += 1;
-      }
-      toast.success(`Rebuild batch: ${started}/${Math.min(ids.length, 5)} now building.`);
+      const res = await hivePostJson<{ approved: number; rebuilt: number; started: number }>(
+        "skill-factory/queue/drain",
+        {},
+      );
+      const moved = (res.rebuilt ?? 0) + (res.started ?? 0) + (res.approved ?? 0);
+      toast.success(
+        moved > 0
+          ? `Queue drain: ${res.rebuilt ?? 0} rebuilt · ${res.started ?? 0} started · ${res.approved ?? 0} approved`
+          : "Drain ran — waiting for build slots or weekly cap.",
+      );
       await refreshAfterQueueAction();
     } catch (e) {
       toast.error(e instanceof HiveApiError ? e.message : "Rebuild failed.");
@@ -1086,8 +1114,8 @@ export function SkillFactoryPageClient(): JSX.Element {
                 title="Build queue"
                 description={
                   snapshot.opportunity_counts
-                    ? `${snapshot.opportunity_counts.actionable} actionable · ${snapshot.opportunity_counts.failed} failed · ${snapshot.opportunity_counts.building} building`
-                    : "Queued and in-progress factory runs."
+                    ? `${snapshot.opportunity_counts.actionable} actionable · ${snapshot.opportunity_counts.failed} failed · ${snapshot.opportunity_counts.building} building · auto-drain every 45s (score priority)`
+                    : "Queued and in-progress factory runs — auto-drain moves failed forges to rebuild."
                 }
                 hint={sectionHintNode("skillFactoryQueue")}
                 actions={

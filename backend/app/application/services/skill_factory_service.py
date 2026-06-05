@@ -41,6 +41,11 @@ class SkillFactoryPolicyOut(BaseModel):
     niche_seeds: list[str] = Field(default_factory=list)
     auto_build_enabled: bool = False
     auto_build_min_score: float = 0.72
+    auto_queue_drain_enabled: bool = True
+    auto_rebuild_failed_forges: bool = True
+    auto_approve_passing_forges: bool = True
+    max_concurrent_builds: int = 2
+    drain_batch_per_tick: int = 3
     max_builds_per_week: int = FACTORY_MAX_BUILDS_PER_WEEK_DEFAULT
     research_cron_enabled: bool = True
     apify_deep_scrape_enabled: bool = False
@@ -190,6 +195,11 @@ def _policy_from_tenant_settings(raw: dict[str, Any] | None) -> SkillFactoryPoli
         niche_seeds=seeds,
         auto_build_enabled=bool(block.get("auto_build_enabled", False)),
         auto_build_min_score=float(block.get("auto_build_min_score", 0.72)),
+        auto_queue_drain_enabled=bool(block.get("auto_queue_drain_enabled", True)),
+        auto_rebuild_failed_forges=bool(block.get("auto_rebuild_failed_forges", True)),
+        auto_approve_passing_forges=bool(block.get("auto_approve_passing_forges", True)),
+        max_concurrent_builds=max(1, min(int(block.get("max_concurrent_builds", 2)), 5)),
+        drain_batch_per_tick=max(1, min(int(block.get("drain_batch_per_tick", 3)), 10)),
         max_builds_per_week=clamp_max_builds_per_week(block.get("max_builds_per_week")),
         research_cron_enabled=bool(block.get("research_cron_enabled", True)),
         apify_deep_scrape_enabled=bool(block.get("apify_deep_scrape_enabled", False)),

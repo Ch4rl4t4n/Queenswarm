@@ -42,9 +42,15 @@ export function isStuckFactoryBuild(row: FactoryQueueOpportunityRow): boolean {
   return row.status === "building" && !row.supervisor_session_id;
 }
 
+function forgeNeedsRebuild(row: FactoryQueueOpportunityRow): boolean {
+  return row.status === "awaiting_forge"
+    && (row.forge_quality_passed === false || row.forge_critic_approved === false);
+}
+
 export function opportunityStatusLabel(row: FactoryQueueOpportunityRow): string {
   if (isStuckFactoryBuild(row)) return "stuck";
   if (row.status === "building") return "building";
+  if (forgeNeedsRebuild(row)) return "needs rebuild";
   if (row.status === "awaiting_forge") return "forge review";
   if (row.status === "queued") return "queued";
   if (row.status === "failed") return "failed";
@@ -54,6 +60,7 @@ export function opportunityStatusLabel(row: FactoryQueueOpportunityRow): string 
 function statusTone(row: FactoryQueueOpportunityRow): "ok" | "warn" | "err" | "info" | "purple" | "gold" {
   if (row.status === "failed" || isStuckFactoryBuild(row)) return "err";
   if (row.status === "building") return "info";
+  if (forgeNeedsRebuild(row)) return "warn";
   if (row.status === "awaiting_forge") return "gold";
   if (row.status === "queued") return "purple";
   return "warn";
@@ -63,6 +70,7 @@ function progressPct(row: FactoryQueueOpportunityRow): number {
   if (row.status === "failed" || isStuckFactoryBuild(row)) return 0;
   if (row.status === "queued") return 8;
   if (row.status === "building") return 42;
+  if (forgeNeedsRebuild(row)) return 72;
   if (row.status === "awaiting_forge") return 88;
   return 0;
 }
@@ -70,7 +78,8 @@ function progressPct(row: FactoryQueueOpportunityRow): number {
 function progressDetail(row: FactoryQueueOpportunityRow): string {
   if (row.supervisor_session_error) return row.supervisor_session_error.slice(0, 120);
   if (row.status === "building") return "Supervisor session in progress";
-  if (row.status === "awaiting_forge") return "Session done — approve or reject forge";
+  if (forgeNeedsRebuild(row)) return "Quality/critic failed — auto-rebuild queued (highest score first)";
+  if (row.status === "awaiting_forge") return "Session done — approve forge or wait for auto-approve";
   if (row.status === "failed") return "Build failed — Run or Rebuild to retry";
   if (row.status === "queued") return "Waiting for factory run";
   return row.rationale?.slice(0, 120) ?? "";
