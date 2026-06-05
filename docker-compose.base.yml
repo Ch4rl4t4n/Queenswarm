@@ -363,6 +363,8 @@ services:
         NEXT_PUBLIC_QS_POLL_PROFILE: ${NEXT_PUBLIC_QS_POLL_PROFILE:-default}
         NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED: ${NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED:-true}
         NEXT_PUBLIC_PHASE70_CONSOLIDATED_NAV_ENABLED: ${NEXT_PUBLIC_PHASE70_CONSOLIDATED_NAV_ENABLED:-true}
+        NEXT_PUBLIC_MARKETING_PUBLIC_ORIGIN: ${NEXT_PUBLIC_MARKETING_PUBLIC_ORIGIN:-https://letagentscook.org}
+        NEXT_PUBLIC_APP_PUBLIC_ORIGIN: ${NEXT_PUBLIC_APP_PUBLIC_ORIGIN:-https://queenswarm.love}
     environment:
       NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-https://queenswarm.love/api/v1}
       NEXT_PUBLIC_HIVE_WS_GUEST: ${NEXT_PUBLIC_HIVE_WS_GUEST:-true}
@@ -370,6 +372,8 @@ services:
       NEXT_PUBLIC_QS_POLL_PROFILE: ${NEXT_PUBLIC_QS_POLL_PROFILE:-default}
       NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED: ${NEXT_PUBLIC_OPERATOR_CONTROL_PLANE_ENABLED:-true}
       NEXT_PUBLIC_PHASE70_CONSOLIDATED_NAV_ENABLED: ${NEXT_PUBLIC_PHASE70_CONSOLIDATED_NAV_ENABLED:-true}
+      NEXT_PUBLIC_MARKETING_PUBLIC_ORIGIN: ${NEXT_PUBLIC_MARKETING_PUBLIC_ORIGIN:-https://letagentscook.org}
+      NEXT_PUBLIC_APP_PUBLIC_ORIGIN: ${NEXT_PUBLIC_APP_PUBLIC_ORIGIN:-https://queenswarm.love}
       INTERNAL_BACKEND_ORIGIN: http://backend:8000
       HIVE_PROXY_JWT: ${DASHBOARD_JWT:-unset}
       REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-90}
@@ -399,6 +403,7 @@ services:
       - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       # Interpolated from --env-file (staging sets QS_NGINX_SITE_CONF to stg vhost).
       - ${QS_NGINX_SITE_CONF:-./deploy/nginx/conf.d/queenswarm.love.conf}:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/nginx/conf.d/letagentscook.org.conf:/etc/nginx/conf.d/letagentscook.org.conf:ro
       # Webroot for ACME HTTP-01 challenge files (written by scripts/issue-letsencrypt.sh).
       - ./deploy/nginx/.acme:/var/www/certbot:ro
       - ./deploy/nginx/includes:/etc/nginx/includes:ro

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { QS_ACCESS, QS_REFRESH } from "@/lib/auth-cookies";
 import { isLikelyValidDashboardAccessToken } from "@/lib/dashboard-access-jwt";
 import { hiveOverviewHref } from "@/lib/hive-home-route";
+import { appPublicOrigin, isAppDashboardPath, isMarketingHost, marketingPublicOrigin } from "@/lib/marketing-host";
 
 function controlPlaneHome(): string {
   return hiveOverviewHref();
@@ -11,7 +12,19 @@ function controlPlaneHome(): string {
 
 /** Paths that bypass auth gates; gated routes rely on HttpOnly ``qs_dashboard_at`` cookie (see ``attachDashboardTokenCookies``). */
 
-const PUBLIC_PREFIXES = ["/login", "/verify-2fa", "/terms", "/privacy", "/data-deletion", "/health", "/offline", "/magnet", "/transparency"];
+const PUBLIC_PREFIXES = [
+  "/login",
+  "/verify-2fa",
+  "/terms",
+  "/privacy",
+  "/data-deletion",
+  "/health",
+  "/offline",
+  "/magnet",
+  "/transparency",
+  "/skills",
+  "/start",
+];
 
 /** PWA shell assets — no auth redirect (mobile/tablet install + offline fallback). */
 const PUBLIC_EXACT = new Set([
@@ -42,7 +55,25 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const host = request.headers.get("host") ?? "";
   const { pathname } = request.nextUrl;
+  const marketingHost = isMarketingHost(host);
+
+  if (marketingHost && isAppDashboardPath(pathname)) {
+    const target = new URL(pathname, appPublicOrigin());
+    target.search = request.nextUrl.search;
+    return NextResponse.redirect(target);
+  }
+
+  if (!marketingHost && (pathname === "/skills" || pathname.startsWith("/skills/") || pathname.startsWith("/start"))) {
+    const target = new URL(pathname, marketingPublicOrigin());
+    target.search = request.nextUrl.search;
+    return NextResponse.redirect(target);
+  }
+
+  if (marketingHost) {
+    return NextResponse.next();
+  }
   /** HttpOnly dashboard cookie preferred; legacy ``qs_token`` mirrors Bearer for some clients. */
   const access = request.cookies.get(QS_ACCESS)?.value ?? request.cookies.get("qs_token")?.value;
   const refreshSession = hasRefreshSession(request);

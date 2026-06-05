@@ -315,6 +315,7 @@ services:
     volumes:
       - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./deploy/nginx/conf.d/queenswarm.love.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/nginx/conf.d/letagentscook.org.conf:/etc/nginx/conf.d/letagentscook.org.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       frontend:

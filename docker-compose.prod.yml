@@ -148,6 +148,9 @@ services:
     volumes:
       - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./deploy/nginx/queenswarm.love.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/nginx/conf.d/letagentscook.org.conf:/etc/nginx/conf.d/letagentscook.org.conf:ro
+      - ./deploy/nginx/.acme:/var/www/certbot:ro
+      - ./deploy/nginx/includes:/etc/nginx/includes:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
     mem_limit: 512m
     cpus: "0.75"

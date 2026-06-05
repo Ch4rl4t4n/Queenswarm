@@ -71,7 +71,7 @@ Zdroje: RoundtableSpace / levelsio / Hermes-style bookmarky, 32 YouTube videí, 
 | Nápad | Popis | Technická zvládnuteľnosť |
 |-------|-------|--------------------------|
 | **Trading + Content Hybrid** | Jeden swarm: paper/live Polymarket + auto content o výsledkoch | ✅ High — stava na Operator Loop + publish lane |
-| **Life OS + Business OS bundle** | Ráno brief + stalled + publish + trading v jednom preset | ✅ Partial — Operator Loop; doplniť Swarm Builder bundle |
+| **Life OS + Business OS bundle** | Ráno brief + stalled + publish + trading v jednom preset | 🔄 Partial — Operator Loop; **BA1 CBO** + **BA4 Inbox** (see `BUSINESS_OS_ORCHESTRATOR_ANALYSIS.md`) |
 | **Public Trading Transparency** | Verejný dashboard P&L (paper first) | ✅ Medium — read-only snapshot, no secrets |
 | **Faceless Media Agency in a Box** | White-label publish lane pre klientov | ✅ Medium — multi-tenant onboarding už čiastočne |
 | **Micro-SaaS Factory** | Swarm postaví landing + monetization lane + deploy | ⚠️ Lower — veľký scope; fáza 2+ |

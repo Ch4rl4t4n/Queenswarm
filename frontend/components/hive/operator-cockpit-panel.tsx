@@ -71,6 +71,14 @@ const InnovationLabPanel = dynamic(
   { loading: () => <HivePanelSectionSkeleton label="Loading innovation lab" /> },
 );
 
+const BusinessOperatorPanel = dynamic(
+  () =>
+    import("@/components/hive/business-operator-panel").then((mod) => ({
+      default: mod.BusinessOperatorPanel,
+    })),
+  { loading: () => <HivePanelSectionSkeleton label="Loading business brief" minHeightClass="min-h-[8rem]" /> },
+);
+
 interface CockpitAction {
   id: string;
   label: string;
@@ -675,6 +683,7 @@ function OperatorCockpitPanelInner() {
       <HiveSubnavContent>
       {section === "overview" ? (
         <V4Card>
+          {soloMode ? <BusinessOperatorPanel /> : null}
           {soloMode ? <FirstRunSetupBanner /> : null}
           {soloMode ? (
             <div className="mb-4 rounded-lg border border-pollen/35 bg-pollen/5 p-3 text-xs leading-relaxed text-(--qs-text-2)">

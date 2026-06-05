@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, ConfigDict, Field, StrictBool
 
 from app.application.services.hive_innovation_lab import (
@@ -29,6 +29,14 @@ from app.application.services.module_policy_packs import (
     get_module_policy_pack,
 )
 from app.application.services.mcp_ops_studio_snapshot import compose_mcp_ops_studio_snapshot
+from app.application.services.approval_inbox import (
+    ApprovalInboxSnapshotOut,
+    compose_approval_inbox_snapshot,
+)
+from app.application.services.business_operator import (
+    BusinessOperatorSnapshotOut,
+    compose_business_operator_snapshot,
+)
 from app.application.services.operator_control_plane import (
     OperatorActRequest,
     compose_operator_cockpit_snapshot,
@@ -84,6 +92,56 @@ def _reviewer_subject(principal: dict[str, Any]) -> str:
     user = principal.get("user")
     email = getattr(user, "email", None) if user is not None else None
     return str(email or "operator")
+
+
+@router.get(
+    "/approvals",
+    response_model=ApprovalInboxSnapshotOut,
+    summary="Unified approval inbox (BA4)",
+)
+async def operator_approval_inbox(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    limit: int = Query(default=30, ge=1, le=50),
+) -> ApprovalInboxSnapshotOut:
+    """Pending publish packs, agent suggestions, lane digests, and revenue steps."""
+
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    return await compose_approval_inbox_snapshot(
+        db,
+        tenant_id=uuid.UUID(str(tenant_id)),
+        dashboard_user_id=user.id,
+        tenant=tenant,
+        limit=limit,
+    )
+
+
+@router.get(
+    "/business/snapshot",
+    response_model=BusinessOperatorSnapshotOut,
+    summary="Chief Business Operator brief (read-only, BA1)",
+)
+async def business_operator_snapshot(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> BusinessOperatorSnapshotOut:
+    """Revenue, catalog, missions, and top 3 business actions."""
+
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    return await compose_business_operator_snapshot(
+        db,
+        tenant_id=uuid.UUID(str(tenant_id)),
+        dashboard_user_id=user.id,
+        tenant=tenant,
+    )
 
 
 @router.get("/cockpit", summary="Unified operator cockpit snapshot")

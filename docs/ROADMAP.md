@@ -1,6 +1,6 @@
 # Queenswarm Roadmap & Backlog
 
-Updated: 2026-06-01
+Updated: 2026-06-05
 
 Living backlog for **queenswarm.love** — ordered by impact. Status reflects production host as of last deploy.
 
@@ -291,6 +291,48 @@ Business plays aligned with indie-hacker signals (Polymarket bot, faceless YouTu
 | 85 | **Micro-SaaS Factory swarm** — landing + auth + deploy template | P3 | 14+ d | ✅ Shipped (beta) | `/factory` + `GET /micro-saas-factory` |
 
 **Revenue model fit:** performance transparency + content + marketplace cut — not PayPal execution.
+
+## P0 — letagentscook.org marketing + catalog (Jun 2026)
+
+Sales domain for verified skills/content packs. App remains **queenswarm.love**. **English only.**
+
+**Canonical doc:** [`docs/MARKETING_LETAGENTSCOOK_ROADMAP.md`](MARKETING_LETAGENTSCOOK_ROADMAP.md)
+
+| Step | Scope | Status |
+|------|-------|--------|
+| MK0 | DNS `letagentscook.org` A → prod IP `46.224.120.151` | ✅ |
+| MK1 | nginx + TLS + `MARKETING_PUBLIC_ORIGIN` | ✅ |
+| MK2 | Host-based Next.js routing (marketing shell) | ✅ code shipped |
+| MK3 | Product catalog API from `gumroad-ready` manifests | ✅ |
+| MK4 | `/skills` index + `/skills/[slug]` + `/start` bridge | ✅ code shipped |
+| MK5 | Catalog v1: 12 unique listings live (16 ready, deduped) | ✅ 14 live |
+| MK6 | Scale factory → **50+** scorecard-clean listings | Wave 1–2 |
+| MK7 | Gumroad URL auto-sync + purchase webhook unlock | pending MK5 |
+
+**Featured homepage (agent-picked):** newsletter growth loop · SEO simulate-first pipeline · 30-day Instagram calendar.
+
+**Related (same program):** Obsidian max (OBS1–2) · Business OS Orchestrator (BA1–7) · Agent OS profiles (AOS1–2) — see [`docs/BUSINESS_OS_ORCHESTRATOR_ANALYSIS.md`](BUSINESS_OS_ORCHESTRATOR_ANALYSIS.md).
+
+## P1 — Business OS Orchestrator (Jun 2026)
+
+Hlavný biznis orchestrátor v apke — radí čo robiť, časť organizuje autonómne cez **max 3–5 background bees**. Inspirované konvergenciou „company control plane + heartbeat team“ ([ZeroInc](https://github.com/agentxagi/zero-inc), [0xTria thread](https://x.com/0xTria/status/2061813514893668735)); **nezmení** kanonický workflow (Supervisor session + Mission Kanban).
+
+**Canonical doc:** [`docs/BUSINESS_OS_ORCHESTRATOR_ANALYSIS.md`](BUSINESS_OS_ORCHESTRATOR_ANALYSIS.md)
+
+| Step | Scope | Status |
+|------|-------|--------|
+| BA1 | **Chief Business Operator (CBO)** — Cockpit panel + snapshot API (revenue, queue, top 3 actions) | ✅ |
+| BA2 | **Business Goal Stack** — tenant KPIs → mission tagging + drift alerts | planned |
+| BA3 | **Background Business Team** — 3 heartbeat bees (marketing / revenue / factory ops); wraps Four Lanes | planned |
+| BA4 | **Unified Approval Inbox** — publish, Gumroad, lane digest, agent suggestions | ✅ |
+| BA5 | **Proactive Pulse** — midday „what changed / what ran“ (+ existing morning brief) | planned |
+| BA6 | **CBO → Dispatch bridge** — one-click skill bundle dispatch (max 3–5 agents) | planned |
+| BA7 | **Cross-lane learning** — recipe winners → CBO „apply to lane X“ suggestions | planned |
+| PA2 | Google Calendar → proactive daily planner | planned (P2) |
+
+**Pravidlá:** simulate-first · human approve pre live peniaze/publish · CBO ne nahradzuje `/agents` sessions · cap background LLM spend per bee.
+
+**Priorita voči cash:** BA1 → BA4 → BA6 pred hlboká BA3 automatizácia.
 
 ## P0 — Operator blockers
 

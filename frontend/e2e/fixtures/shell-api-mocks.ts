@@ -851,6 +851,27 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path === "operator/business/snapshot") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          generated_at: new Date().toISOString(),
+          headline: "First Gumroad upload",
+          tagline: "Verified skills and revenue — simulate-first, sell with confidence.",
+          catalog: { product_count: 14, featured_count: 3, gumroad_linked_count: 0, marketing_origin: "https://letagentscook.org" },
+          revenue: { ready_summary: "Ready: **14/16**", scorecard_ready_count: 14, first_upload_candidate: "`hero-pack`", next_operator_action: "Upload first listing" },
+          missions: { triage_count: 0, ready_count: 0, in_progress_count: 0, blocked_count: 0 },
+          top_actions: [
+            { id: "gumroad_first_upload", lane: "revenue", title: "First Gumroad upload", detail: "Upload from queue", priority: "high", href: "/factory" },
+          ],
+          links: { marketing_skills: "https://letagentscook.org/skills", mission_control: "/tasks", factory: "/factory" },
+        }),
+      });
+      return;
+    }
+
     if (path === "operator/innovation-lab" || path.startsWith("operator/innovation-lab?")) {
       await route.fulfill({
         status: 200,

@@ -10,6 +10,12 @@ from app.application.services.ugc_content_engine import (
     list_lead_magnets,
     ugc_content_engine_enabled,
 )
+from app.application.services.marketing_product_catalog import (
+    MarketingCatalogOut,
+    MarketingProductOut,
+    build_catalog,
+    find_product,
+)
 from app.application.services.public_trading_transparency import (
     PublicTradingTransparencyOut,
     build_public_trading_transparency,
@@ -32,6 +38,31 @@ router = APIRouter(prefix="/marketing", tags=["Marketing"])
 def _ensure_enabled() -> None:
     if not ugc_content_engine_enabled():
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="UGC content engine disabled.")
+
+
+@public_router.get(
+    "/products",
+    response_model=MarketingCatalogOut,
+    summary="Verified skills catalog (public)",
+)
+async def list_marketing_products() -> MarketingCatalogOut:
+    """Return deduped gumroad-ready catalog for letagentscook.org."""
+
+    return build_catalog()
+
+
+@public_router.get(
+    "/products/{slug}",
+    response_model=MarketingProductOut,
+    summary="One verified product (public)",
+)
+async def marketing_product_detail(slug: str) -> MarketingProductOut:
+    """Return one catalog product by slug."""
+
+    product = find_product(slug)
+    if product is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found.")
+    return product
 
 
 @public_router.get(

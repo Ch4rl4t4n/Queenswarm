@@ -99,4 +99,9 @@ ensure_nginx_running
 echo "Issuing/renewing LE cert for production: ${prd_domain}, www.${prd_domain}"
 issue_cert "$prd_domain" "$prd_domain" "www.${prd_domain}"
 
+marketing_domain="$(load_kv "$PRD_ENV_FILE" MARKETING_DOMAIN || true)"
+marketing_domain="${marketing_domain:-letagentscook.org}"
+echo "Issuing/renewing LE cert for marketing: ${marketing_domain}, www.${marketing_domain}"
+issue_cert "$marketing_domain" "$marketing_domain" "www.${marketing_domain}"
+
 echo "Let's Encrypt issuance/renewal completed."
