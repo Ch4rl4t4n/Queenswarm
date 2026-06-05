@@ -546,6 +546,83 @@ class SmartRebuildBody(BaseModel):
     note: str | None = Field(default=None, max_length=500)
 
 
+@router.post("/library/archive-duplicates", summary="Archive older duplicate niche skills")
+async def skill_factory_archive_library_duplicates(
+    db: DbSession,
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, int]:
+    """Deactivate older -4/-5 slug variants; keep newest per niche in library."""
+
+    _ensure_enabled()
+    from app.application.services.skill_factory_library_dedupe import archive_library_duplicate_skills
+
+    archived = await archive_library_duplicate_skills(db, tenant_id=_tenant_id(principal))
+    await db.commit()
+    return {"archived": archived}
+
+
+class LibraryPurgeBody(BaseModel):
+    """Optional subset of library skills to purge (must be sieve-eligible)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    skill_ids: list[uuid.UUID] | None = Field(
+        default=None,
+        description="If set, only archive these skills when purge-eligible.",
+    )
+
+
+@router.post("/library/purge-reviewed", summary="Remove reviewed skills without launch value")
+async def skill_factory_purge_reviewed_library(
+    body: LibraryPurgeBody,
+    db: DbSession,
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, int]:
+    """Archive skills with sieve verdict retire/deprioritize or operator disposition."""
+
+    _ensure_enabled()
+    from app.application.services.skill_factory_library_purge import purge_reviewed_library_skills
+
+    result = await purge_reviewed_library_skills(
+        db,
+        tenant_id=_tenant_id(principal),
+        skill_ids=body.skill_ids,
+    )
+    await db.commit()
+    return result
+
+
+@router.post("/skills/{skill_id}/archive", summary="Remove one reviewed skill from library")
+async def skill_factory_archive_library_skill(
+    skill_id: uuid.UUID,
+    db: DbSession,
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, bool]:
+    """Soft-delete a purge-eligible skill from the active library."""
+
+    _ensure_enabled()
+    from app.application.services.skill_factory_library_purge import archive_tenant_library_skill
+
+    try:
+        archived = await archive_tenant_library_skill(
+            db,
+            tenant_id=_tenant_id(principal),
+            skill_id=skill_id,
+            require_purge_eligible=True,
+        )
+    except ValueError as exc:
+        if str(exc) == "skill_not_purge_eligible":
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Skill is not eligible for removal — launch-ready or worth retry.",
+            ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    if not archived:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="skill_not_found")
+    await db.commit()
+    return {"archived": True}
+
+
 @router.post("/skills/{skill_id}/smart-rebuild", summary="Smart rebuild from library skill")
 async def skill_factory_smart_rebuild(
     skill_id: uuid.UUID,

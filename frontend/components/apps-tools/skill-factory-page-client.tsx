@@ -26,6 +26,7 @@ import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { SkillFactoryManualPanel } from "@/components/apps-tools/skill-factory-manual-panel";
 import { SkillFactoryRevenueFunnelPanel } from "@/components/apps-tools/skill-factory-revenue-funnel-panel";
 import { HiveSwitch } from "@/components/ui/hive-switch";
+import { QsSelect } from "@/components/ui/qs-select";
 import { V4Badge, V4Card, V4CardHeader, V4Chip } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
 import {
@@ -110,6 +111,7 @@ interface TenantSkillRow {
   library_verdict: string | null;
   library_verdict_reason: string | null;
   library_verdict_action: string | null;
+  purge_eligible?: boolean;
 }
 
 interface LaunchReadiness {
@@ -155,6 +157,8 @@ interface SkillFactorySnapshot {
   github_pr_export_ready: boolean;
   gumroad_listing_ready: boolean;
   gumroad_publish_ready: boolean;
+  library_duplicates_hidden?: number;
+  library_purge_eligible?: number;
   llm: FactoryLlmReadiness | null;
 }
 
@@ -165,6 +169,8 @@ function scorePct(score: number): string {
 function priceEur(cents: number): string {
   return `€${(cents / 100).toFixed(2)}`;
 }
+
+const LIBRARY_PREVIEW_LIMIT = 5;
 
 function isLibrarySmartRebuildEligible(row: TenantSkillRow): boolean {
   return (
@@ -189,6 +195,8 @@ export function SkillFactoryPageClient(): JSX.Element {
   const [productPresets, setProductPresets] = useState<FactoryProductPreset[]>([]);
   const [sessionReportId, setSessionReportId] = useState<string | null>(null);
   const [librarySieve, setLibrarySieve] = useState<LibrarySieveVerdict>("all");
+  const [libraryQuery, setLibraryQuery] = useState("");
+  const [showAllLibrary, setShowAllLibrary] = useState(false);
   const [inlineEvalBySkill, setInlineEvalBySkill] = useState<Record<string, InlineEvalResult>>({});
   const [evalReportCache, setEvalReportCache] = useState<Record<string, string>>({});
   const [libraryRebuildQueued, setLibraryRebuildQueued] = useState<Set<string>>(() => new Set());
@@ -227,6 +235,10 @@ export function SkillFactoryPageClient(): JSX.Element {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    setShowAllLibrary(false);
+  }, [libraryQuery, librarySieve, snapshot?.library?.length]);
 
   useEffect(() => {
     void hiveGet<{ vertical: string[]; starter: string[]; product_presets?: FactoryProductPreset[] }>(
@@ -314,6 +326,35 @@ export function SkillFactoryPageClient(): JSX.Element {
     }
     return rows.filter((row) => row.library_verdict === librarySieve);
   }, [snapshot?.library, librarySieve]);
+
+  const searchedLibraryRows = useMemo(() => {
+    const q = libraryQuery.trim().toLowerCase();
+    if (!q) {
+      return filteredLibraryRows;
+    }
+    return filteredLibraryRows.filter((row) => {
+      const haystack = [
+        row.title,
+        row.slug,
+        row.description,
+        row.library_verdict ?? "",
+        row.library_verdict_reason ?? "",
+        ...row.sellable_issues,
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [filteredLibraryRows, libraryQuery]);
+
+  const visibleLibraryRows = useMemo(() => {
+    if (showAllLibrary) {
+      return searchedLibraryRows;
+    }
+    return searchedLibraryRows.slice(0, LIBRARY_PREVIEW_LIMIT);
+  }, [searchedLibraryRows, showAllLibrary]);
+
+  const hiddenLibraryCount = Math.max(0, searchedLibraryRows.length - LIBRARY_PREVIEW_LIMIT);
 
   const libraryRebuildEligible = useMemo(
     () => (snapshot?.library ?? []).filter(isLibrarySmartRebuildEligible),
@@ -415,6 +456,73 @@ export function SkillFactoryPageClient(): JSX.Element {
       await refreshSnapshotQuiet();
     } catch (e) {
       toast.error(e instanceof HiveApiError ? e.message : "Smart rebuild failed.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const removeLibrarySkill = async (id: string, title: string): Promise<void> => {
+    const ok = window.confirm(
+      `Remove "${title}" from library?\n\nReviewed — no launch value. You can still rebuild the niche from Research if needed.`,
+    );
+    if (!ok) return;
+    setBusyId(id);
+    try {
+      await hivePostJson(`skill-factory/skills/${id}/archive`, {});
+      toast.success("Removed from library.");
+      await refreshSnapshotQuiet();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Remove failed.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const purgeReviewedLibrary = async (): Promise<void> => {
+    const targets = searchedLibraryRows.filter((row) => row.purge_eligible);
+    if (targets.length === 0) {
+      toast.message("No reviewed skills eligible for removal in this view.");
+      return;
+    }
+    const ok = window.confirm(
+      `Remove ${targets.length} reviewed skill${targets.length === 1 ? "" : "s"} from library?\n\nOnly retire/deprioritize verdicts — launch-ready skills stay.`,
+    );
+    if (!ok) return;
+    setBusyId("library-purge-reviewed");
+    try {
+      const res = await hivePostJson<{ archived: number; skipped: number }>(
+        "skill-factory/library/purge-reviewed",
+        { skill_ids: targets.map((row) => row.id) },
+      );
+      if (res.archived > 0) {
+        toast.success(`Removed ${res.archived} skill${res.archived === 1 ? "" : "s"} from library.`, {
+          description: res.skipped > 0 ? `${res.skipped} skipped (worth retry / launch).` : undefined,
+        });
+      } else {
+        toast.message("Nothing removed — run eval or set disposition first.");
+      }
+      await refreshSnapshotQuiet();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Bulk remove failed.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const archiveLibraryDuplicates = async (): Promise<void> => {
+    setBusyId("library-archive-dupes");
+    try {
+      const res = await hivePostJson<{ archived: number }>("skill-factory/library/archive-duplicates", {});
+      if (res.archived > 0) {
+        toast.success(`Archived ${res.archived} older duplicate${res.archived === 1 ? "" : "s"}.`, {
+          description: "Library now shows one row per niche (newest version).",
+        });
+      } else {
+        toast.message("No duplicate niche versions to archive.");
+      }
+      await refreshSnapshotQuiet();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Archive duplicates failed.");
     } finally {
       setBusyId(null);
     }
@@ -1069,9 +1177,35 @@ export function SkillFactoryPageClient(): JSX.Element {
             <V4Card className="mt-4">
               <V4CardHeader
                 title="Tenant skill library"
-                description="Sieve — verdict on every card: launch, fix & retry, deprioritize, or retire. Run eval shows result inline (no download required)."
+                description="Same row pattern as Forager — ID, verdict badges, sellable progress, inline actions. Sieve + eval + export unchanged."
                 hint={sectionHintNode("skillFactoryLibrary")}
               />
+              <div className="mt-3 flex flex-col gap-3 px-1 md:flex-row md:items-stretch">
+                <input
+                  className="qs-input min-w-0 flex-1"
+                  placeholder="Filter skills by title / slug / verdict / issues…"
+                  value={libraryQuery}
+                  onChange={(event) => setLibraryQuery(event.target.value)}
+                />
+                <QsSelect
+                  className="w-full min-w-0 md:w-52 md:shrink-0"
+                  value={librarySieve}
+                  onValueChange={(next) => setLibrarySieve(next as LibrarySieveVerdict)}
+                  options={([
+                    "all",
+                    "launch",
+                    "worth_retry",
+                    "deprioritize",
+                    "retire",
+                  ] as const).map((key) => ({
+                    value: key,
+                    label:
+                      key === "all"
+                        ? `all verdicts (${librarySieveCounts.all})`
+                        : `${LIBRARY_SIEVE_LABELS[key]} (${librarySieveCounts[key]})`,
+                  }))}
+                />
+              </div>
               <div className="mt-3 flex flex-wrap items-center gap-2 px-1">
                 <button
                   type="button"
@@ -1094,58 +1228,110 @@ export function SkillFactoryPageClient(): JSX.Element {
                   Open Queue →
                 </button>
               </div>
-              <div className="mt-2 flex flex-wrap gap-2 px-1">
-                {(["all", "launch", "worth_retry", "deprioritize", "retire"] as const).map((key) => (
+              <div className="mt-4 px-1">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-(--qs-text-3)">
+                    Library
+                    {searchedLibraryRows.length > 0 ? (
+                      <span className="ml-2 font-normal normal-case tracking-normal text-(--qs-text-4)">
+                        ({searchedLibraryRows.length})
+                      </span>
+                    ) : null}
+                  </p>
+                </div>
+                <div className="v4-sessions-list-scroll hive-scrollbar">
+                  {(snapshot.library ?? []).length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-(--qs-border) bg-black/20 px-4 py-6 text-center">
+                      <p className="text-sm text-(--qs-text-2)">
+                        No tenant skills yet — approve a completed build in Queue, then export here.
+                      </p>
+                    </div>
+                  ) : searchedLibraryRows.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-(--qs-border) bg-black/20 px-4 py-6 text-center">
+                      <p className="text-sm text-(--qs-text-2)">
+                        No skills match this filter.
+                      </p>
+                      <button
+                        type="button"
+                        className="qs-btn qs-btn--ghost qs-btn--sm mt-3"
+                        onClick={() => {
+                          setLibraryQuery("");
+                          setLibrarySieve("all");
+                        }}
+                      >
+                        Reset filters
+                      </button>
+                    </div>
+                  ) : (
+                    visibleLibraryRows.map((row) => (
+                      <FactoryLibrarySkillCard
+                        key={row.id}
+                        row={row}
+                        busyId={busyId}
+                        githubPrReady={snapshot.github_pr_export_ready}
+                        gumroadListingReady={snapshot.gumroad_listing_ready}
+                        gumroadPublishReady={snapshot.gumroad_publish_ready}
+                        inlineEval={inlineEvalBySkill[row.id] ?? null}
+                        rebuildQueued={libraryRebuildQueued.has(row.id)}
+                        onSmartRebuild={(id) => void smartRebuildSkill(id)}
+                        onDeprioritize={(id) => void setSkillDisposition(id, "deprioritized", "Niche deprioritized — lower research priority.")}
+                        onRetire={(id) => void setSkillDisposition(id, "retired", "Niche retired — excluded from research.")}
+                        onRemove={(id, title) => void removeLibrarySkill(id, title)}
+                        onEval={(id, title) => void evalSkill(id, title)}
+                        onDownloadEvalReport={(id, title) => void downloadEvalReport(id, title)}
+                        onExport={(id) => void exportSkill(id)}
+                        onGithubPr={(id) => void pushGithubPr(id)}
+                        onGumroadDraft={(id) => void createGumroadDraft(id)}
+                        onGumroadPublish={(id) => void publishGumroadListing(id, !row.gumroad_product_id)}
+                      />
+                    ))
+                  )}
+                </div>
+                {hiddenLibraryCount > 0 && !showAllLibrary ? (
                   <button
-                    key={key}
                     type="button"
-                    className={cn(
-                      "qs-btn qs-btn--sm",
-                      librarySieve === key ? "qs-btn--primary" : "qs-btn--ghost",
-                    )}
-                    onClick={() => setLibrarySieve(key)}
+                    className="qs-btn qs-btn--ghost mt-3 w-full justify-center py-2.5 text-sm font-semibold"
+                    disabled={busyId !== null}
+                    onClick={() => setShowAllLibrary(true)}
                   >
-                    {key === "all" ? "All" : LIBRARY_SIEVE_LABELS[key]}
-                    <span className="ml-1 opacity-70">({librarySieveCounts[key]})</span>
+                    Show all ({searchedLibraryRows.length})
                   </button>
-                ))}
-              </div>
-              <div className="v4-sessions-list-scroll hive-scrollbar mt-2">
-                {(snapshot.library ?? []).length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-(--qs-border) bg-black/20 px-4 py-6 text-center">
-                    <p className="text-sm text-(--qs-text-2)">
-                      No tenant skills yet — approve a completed build in Queue, then export here.
-                    </p>
-                  </div>
-                ) : filteredLibraryRows.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-(--qs-border) bg-black/20 px-4 py-6 text-center">
-                    <p className="text-sm text-(--qs-text-2)">
-                      No skills in this sieve — try another filter.
-                    </p>
-                  </div>
-                ) : (
-                  filteredLibraryRows.map((row) => (
-                    <FactoryLibrarySkillCard
-                      key={row.id}
-                      row={row}
-                      busyId={busyId}
-                      githubPrReady={snapshot.github_pr_export_ready}
-                      gumroadListingReady={snapshot.gumroad_listing_ready}
-                      gumroadPublishReady={snapshot.gumroad_publish_ready}
-                      inlineEval={inlineEvalBySkill[row.id] ?? null}
-                      rebuildQueued={libraryRebuildQueued.has(row.id)}
-                      onSmartRebuild={(id) => void smartRebuildSkill(id)}
-                      onDeprioritize={(id) => void setSkillDisposition(id, "deprioritized", "Niche deprioritized — lower research priority.")}
-                      onRetire={(id) => void setSkillDisposition(id, "retired", "Niche retired — excluded from research.")}
-                      onEval={(id, title) => void evalSkill(id, title)}
-                      onDownloadEvalReport={(id, title) => void downloadEvalReport(id, title)}
-                      onExport={(id) => void exportSkill(id)}
-                      onGithubPr={(id) => void pushGithubPr(id)}
-                      onGumroadDraft={(id) => void createGumroadDraft(id)}
-                      onGumroadPublish={(id) => void publishGumroadListing(id, !row.gumroad_product_id)}
-                    />
-                  ))
-                )}
+                ) : null}
+                {showAllLibrary && searchedLibraryRows.length > LIBRARY_PREVIEW_LIMIT ? (
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--ghost mt-3 w-full justify-center py-2.5 text-sm font-semibold"
+                    onClick={() => setShowAllLibrary(false)}
+                  >
+                    Show less
+                  </button>
+                ) : null}
+                {(snapshot.library_purge_eligible ?? 0) > 0 ? (
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--danger mt-3 w-full justify-center py-2.5 text-sm font-semibold disabled:opacity-45"
+                    disabled={busyId !== null}
+                    onClick={() => void purgeReviewedLibrary()}
+                  >
+                    {busyId === "library-purge-reviewed"
+                      ? "Removing…"
+                      : libraryQuery.trim() || librarySieve !== "all"
+                        ? `Delete reviewed in filter (${searchedLibraryRows.filter((row) => row.purge_eligible).length})`
+                        : `Delete reviewed (${snapshot.library_purge_eligible})`}
+                  </button>
+                ) : null}
+                {(snapshot.library_duplicates_hidden ?? 0) > 0 ? (
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--ghost mt-3 w-full justify-center py-2.5 text-sm font-semibold"
+                    disabled={busyId !== null}
+                    onClick={() => void archiveLibraryDuplicates()}
+                  >
+                    {busyId === "library-archive-dupes"
+                      ? "Archiving…"
+                      : `Archive ${snapshot.library_duplicates_hidden} duplicate${(snapshot.library_duplicates_hidden ?? 0) === 1 ? "" : "s"}`}
+                  </button>
+                ) : null}
               </div>
             </V4Card>
           ) : null}

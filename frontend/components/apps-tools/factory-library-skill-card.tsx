@@ -4,16 +4,19 @@ import {
   ArchiveIcon,
   BanIcon,
   DownloadIcon,
+  ExternalLinkIcon,
   GitBranchIcon,
   Loader2Icon,
   RefreshCwIcon,
   RocketIcon,
   SparklesIcon,
   StoreIcon,
+  Trash2Icon,
 } from "lucide-react";
 
-import { V4Badge } from "@/components/ui/v4";
-import { sellableIssueLabel, verdictTone } from "@/lib/sellable-issue-labels";
+import { ForagerProgressCell } from "@/components/hive/forager-progress-cell";
+import { V4Badge, type V4BadgeTone } from "@/components/ui/v4";
+import { LIBRARY_SIEVE_LABELS, sellableIssueLabel, verdictTone } from "@/lib/sellable-issue-labels";
 import { cn } from "@/lib/utils";
 
 export interface InlineEvalResult {
@@ -42,6 +45,11 @@ export interface FactoryLibrarySkillRow {
   library_verdict: string | null;
   library_verdict_reason: string | null;
   library_verdict_action: string | null;
+  purge_eligible?: boolean;
+}
+
+function shortSkillId(id: string): string {
+  return `S-${id.replace(/-/g, "").slice(0, 4).toUpperCase()}`;
 }
 
 function scorePct(score: number): string {
@@ -56,17 +64,22 @@ function dispositionLabel(disposition: string | null): string | null {
   return disposition;
 }
 
-function dispositionTone(disposition: string | null): "ok" | "warn" | "err" | "info" | "purple" | "gold" {
+function dispositionTone(disposition: string | null): V4BadgeTone {
   if (disposition === "worth_retry") return "ok";
   if (disposition === "deprioritized") return "warn";
   if (disposition === "retired") return "err";
   return "info";
 }
 
-function tierTone(tier: string): "ok" | "warn" | "err" | "info" | "purple" | "gold" {
+function tierTone(tier: string): V4BadgeTone {
   if (tier === "sellable") return "ok";
   if (tier === "draft") return "info";
   return "warn";
+}
+
+function verdictLabel(verdict: string | null): string {
+  if (!verdict) return "pending";
+  return LIBRARY_SIEVE_LABELS[verdict as keyof typeof LIBRARY_SIEVE_LABELS] ?? verdict.replaceAll("_", " ");
 }
 
 interface FactoryLibrarySkillCardProps {
@@ -78,6 +91,7 @@ interface FactoryLibrarySkillCardProps {
   onSmartRebuild: (id: string) => void;
   onDeprioritize: (id: string) => void;
   onRetire: (id: string) => void;
+  onRemove: (id: string, title: string) => void;
   onEval: (id: string, title: string) => void;
   onExport: (id: string) => void;
   onGithubPr?: (id: string) => void;
@@ -97,6 +111,7 @@ export function FactoryLibrarySkillCard({
   onSmartRebuild,
   onDeprioritize,
   onRetire,
+  onRemove,
   onEval,
   onExport,
   onGithubPr,
@@ -112,41 +127,27 @@ export function FactoryLibrarySkillCard({
   const canSmartRebuild = rejected || draft;
   const retired = row.factory_disposition === "retired";
   const dispLabel = dispositionLabel(row.factory_disposition);
-
   const verdict = row.library_verdict;
   const issueLabels = row.sellable_issues.map(sellableIssueLabel);
+  const scorePercent = Math.round(row.sellable_score * 100);
+  const progressDetail = row.library_verdict_reason ?? row.description;
 
   return (
     <div
       className={cn(
-        "v4-session-row v4-session-row--pollen",
-        verdict === "retire" && "border-error/40",
-        verdict === "launch" && "border-success/35",
+        "v4-session-row",
+        verdict === "launch" && "border-success/30",
+        verdict === "retire" && "border-error/35",
       )}
       data-testid="factory-library-row"
       data-library-verdict={verdict ?? "unknown"}
     >
       <div className="min-w-0 flex-1">
-        {verdict ? (
-          <div
-            className={cn(
-              "mb-2 rounded-lg border px-3 py-2 text-xs",
-              verdict === "launch" && "border-success/40 bg-success/10 text-success",
-              verdict === "worth_retry" && "border-cyan/40 bg-cyan/10 text-cyan",
-              verdict === "deprioritize" && "border-pollen/40 bg-pollen/10 text-pollen",
-              verdict === "retire" && "border-error/40 bg-error/10 text-error",
-            )}
-          >
-            <div className="flex flex-wrap items-center gap-2">
-              <V4Badge tone={verdictTone(verdict)}>{verdict.replaceAll("_", " ")}</V4Badge>
-              <span className="text-(--qs-text-2)">{row.library_verdict_reason}</span>
-            </div>
-            {row.library_verdict_action ? (
-              <p className="mt-1 text-(--qs-text-3)">→ {row.library_verdict_action}</p>
-            ) : null}
-          </div>
-        ) : null}
         <div className="mb-1 flex flex-wrap items-center gap-2">
+          <span className="font-(family-name:--font-jetbrains-mono) text-[11px] text-(--qs-text-3)">
+            {shortSkillId(row.id)}
+          </span>
+          {verdict ? <V4Badge tone={verdictTone(verdict)}>{verdictLabel(verdict)}</V4Badge> : null}
           <V4Badge tone={tierTone(row.sellable_tier)}>
             {row.sellable_tier} · {scorePct(row.sellable_score)}
           </V4Badge>
@@ -158,140 +159,205 @@ export function FactoryLibrarySkillCard({
             <V4Badge tone="purple">attempt {row.factory_attempt_count}</V4Badge>
           ) : null}
           {rebuildQueued ? <V4Badge tone="info">rebuild queued</V4Badge> : null}
+          {inlineEval ? (
+            <V4Badge tone={inlineEval.passed ? "ok" : "err"}>
+              eval {inlineEval.passed ? "pass" : "fail"}
+            </V4Badge>
+          ) : null}
         </div>
+
         <p className="v4-session-goal text-sm font-medium text-(--qs-text)" title={row.title}>
           {row.title}
         </p>
-        <p className="mt-1 font-mono text-[10px] text-pollen">{row.slug}</p>
-        {issueLabels.length > 0 ? (
-          <ul className="mt-2 space-y-0.5 text-xs text-(--qs-text-3)">
-            {issueLabels.map((label) => (
-              <li key={label}>· {label}</li>
-            ))}
-          </ul>
-        ) : null}
-        {inlineEval ? (
-          <div
-            className={cn(
-              "mt-3 rounded-lg border px-3 py-2 text-xs",
-              inlineEval.passed ? "border-success/40 bg-success/5" : "border-error/40 bg-error/5",
-            )}
-          >
+        <p className="mt-1 line-clamp-2 text-xs text-(--qs-text-3)">
+          {progressDetail || "Tenant harness skill from Skill Factory — export when sellable."}
+        </p>
+        <p className="mt-1 font-(family-name:--font-jetbrains-mono) text-[10px] text-pollen">{row.slug}</p>
+
+        <div className="mt-2 space-y-1.5" data-testid="factory-library-pattern-meta">
+          {row.library_verdict_action ? (
+            <p className="text-[11px] text-(--qs-text-4)">→ {row.library_verdict_action}</p>
+          ) : null}
+
+          {issueLabels.length > 0 ? (
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-(--qs-text-3)">
+                Sellable signals
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {issueLabels.slice(0, 6).map((label) => (
+                  <V4Badge key={`${row.id}-${label}`} tone="info">
+                    {label}
+                  </V4Badge>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {row.gumroad_product_id ? (
             <div className="flex flex-wrap items-center gap-2">
-              <V4Badge tone={inlineEval.passed ? "ok" : "err"}>
-                Eval {inlineEval.passed ? "PASS" : "FAIL"} · {Math.round(inlineEval.score * 100)}%
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-(--qs-text-3)">
+                Launch channel
+              </p>
+              <V4Badge tone={row.gumroad_published ? "ok" : "gold"}>
+                {row.gumroad_published ? "gumroad live" : "gumroad draft"}
               </V4Badge>
-              <span className="text-(--qs-text-4)">{inlineEval.tier}</span>
+            </div>
+          ) : null}
+
+          <ForagerProgressCell
+            pct={scorePercent}
+            detail={`Sellable score ${scorePercent}% · ${row.sellable_tier}`}
+          />
+
+          {inlineEval && inlineEval.issues.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {inlineEval.issues.slice(0, 4).map((issue) => (
+                <V4Badge key={`${row.id}-eval-${issue}`} tone={inlineEval.passed ? "ok" : "err"}>
+                  {sellableIssueLabel(issue)}
+                </V4Badge>
+              ))}
               {onDownloadEvalReport ? (
                 <button
                   type="button"
-                  className="text-cyan underline"
+                  className="text-[10px] text-cyan underline"
                   onClick={() => onDownloadEvalReport(row.id, row.title)}
                 >
-                  Download report
+                  Eval report
                 </button>
               ) : null}
             </div>
-            {inlineEval.issues.length > 0 ? (
-              <ul className="mt-1 space-y-0.5 text-(--qs-text-3)">
-                {inlineEval.issues.slice(0, 5).map((issue) => (
-                  <li key={issue}>· {sellableIssueLabel(issue)}</li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        ) : null}
-        {row.factory_disposition_note ? (
-          <p className="mt-2 text-xs text-(--qs-text-4)">Note: {row.factory_disposition_note}</p>
-        ) : null}
+          ) : null}
+
+          {row.factory_disposition_note ? (
+            <p className="text-[11px] text-(--qs-text-4)">Note: {row.factory_disposition_note}</p>
+          ) : null}
+        </div>
       </div>
 
-      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <span className="text-xs text-(--qs-text-3)">
+          {scorePct(row.sellable_score)} · {row.sellable_tier}
+        </span>
+
+        <button
+          type="button"
+          className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
+          disabled={busy}
+          onClick={() => onEval(row.id, row.title)}
+        >
+          {busy ? <Loader2Icon className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <SparklesIcon className="h-3.5 w-3.5" aria-hidden />}
+          {inlineEval ? "Re-eval" : "Eval"}
+        </button>
+
+        <button
+          type="button"
+          className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
+          disabled={busy}
+          onClick={() => onExport(row.id)}
+        >
+          <DownloadIcon className="h-3.5 w-3.5" aria-hidden />
+          Pack
+        </button>
+
         {canSmartRebuild ? (
           <button
             type="button"
-            className="qs-btn qs-btn--primary qs-btn--sm gap-1"
+            className={cn(
+              "qs-btn qs-btn--sm gap-1.5",
+              rejected ? "qs-btn--primary" : "qs-btn--ghost",
+            )}
             disabled={busy || retired}
             title={retired ? "Niche retired — mark worth retry first" : "Guided rebuild with learnings"}
             onClick={() => onSmartRebuild(row.id)}
           >
-            {busy ? <Loader2Icon className="size-3.5 animate-spin" aria-hidden /> : <RefreshCwIcon className="size-3.5" aria-hidden />}
-            Smart rebuild
+            <RefreshCwIcon className="h-3.5 w-3.5" aria-hidden />
+            Rebuild
           </button>
         ) : null}
-        {canSmartRebuild ? (
-          <button
-            type="button"
-            className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
-            disabled={busy || retired}
-            onClick={() => onDeprioritize(row.id)}
-          >
-            <ArchiveIcon className="size-3.5" aria-hidden />
-            Deprioritize
-          </button>
-        ) : null}
-        {canSmartRebuild ? (
-          <button
-            type="button"
-            className={cn("qs-btn qs-btn--ghost qs-btn--sm gap-1", retired && "text-error")}
-            disabled={busy}
-            onClick={() => onRetire(row.id)}
-          >
-            <BanIcon className="size-3.5" aria-hidden />
-            {retired ? "Retired" : "Retire niche"}
-          </button>
-        ) : null}
-        <button
-          type="button"
-          className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
-          disabled={busy}
-          onClick={() => onEval(row.id, row.title)}
-        >
-          <SparklesIcon className="size-3.5" aria-hidden />
-          {inlineEval ? "Re-eval" : "Run eval"}
-        </button>
-        <button
-          type="button"
-          className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
-          disabled={busy}
-          onClick={() => onExport(row.id)}
-        >
-          <DownloadIcon className="size-3.5" aria-hidden />
-          Harness pack
-        </button>
+
         {githubPrReady && onGithubPr ? (
-          <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-1" disabled={busy} onClick={() => onGithubPr(row.id)}>
-            <GitBranchIcon className="size-3.5" aria-hidden />
+          <button
+            type="button"
+            className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
+            disabled={busy}
+            onClick={() => onGithubPr(row.id)}
+          >
+            <GitBranchIcon className="h-3.5 w-3.5" aria-hidden />
             PR
           </button>
         ) : null}
+
         {gumroadListingReady && onGumroadDraft ? (
-          <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-1" disabled={busy} onClick={() => onGumroadDraft(row.id)}>
-            <StoreIcon className="size-3.5" aria-hidden />
+          <button
+            type="button"
+            className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
+            disabled={busy}
+            onClick={() => onGumroadDraft(row.id)}
+          >
+            <StoreIcon className="h-3.5 w-3.5" aria-hidden />
             Gumroad
           </button>
         ) : null}
-        {gumroadPublishReady && onGumroadPublish ? (
+
+        {gumroadPublishReady && onGumroadPublish && row.gumroad_product_id ? (
           <button
             type="button"
-            className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
+            className="qs-btn qs-btn--green qs-btn--sm gap-1.5"
             disabled={busy || row.gumroad_published === true}
             onClick={() => onGumroadPublish(row.id)}
           >
-            <RocketIcon className="size-3.5" aria-hidden />
+            <RocketIcon className="h-3.5 w-3.5" aria-hidden />
             Publish
           </button>
         ) : null}
+
         {row.gumroad_product_url ? (
           <a
             href={row.gumroad_product_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
+            className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
           >
-            <StoreIcon className="size-3.5" aria-hidden />
+            <ExternalLinkIcon className="h-3.5 w-3.5" aria-hidden />
             Open
           </a>
+        ) : null}
+
+        {canSmartRebuild ? (
+          <>
+            <button
+              type="button"
+              className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
+              disabled={busy || retired}
+              onClick={() => onDeprioritize(row.id)}
+            >
+              <ArchiveIcon className="h-3.5 w-3.5" aria-hidden />
+              Deprioritize
+            </button>
+            <button
+              type="button"
+              className={cn("qs-btn qs-btn--ghost qs-btn--sm gap-1.5", retired && "text-error")}
+              disabled={busy}
+              onClick={() => onRetire(row.id)}
+            >
+              <BanIcon className="h-3.5 w-3.5" aria-hidden />
+              {retired ? "Retired" : "Retire"}
+            </button>
+          </>
+        ) : null}
+
+        {row.purge_eligible ? (
+          <button
+            type="button"
+            className={cn("qs-btn qs-btn--danger qs-btn--sm gap-1.5", busy && "opacity-60")}
+            disabled={busy}
+            title="Remove from library — reviewed, no launch value"
+            onClick={() => onRemove(row.id, row.title)}
+          >
+            <Trash2Icon className="h-3.5 w-3.5" aria-hidden />
+            Delete
+          </button>
         ) : null}
       </div>
     </div>

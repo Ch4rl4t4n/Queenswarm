@@ -238,6 +238,23 @@ async def publish_verified_skill_forge(
             skill=skill_row,
         )
 
+    from app.application.services.skill_factory_library_dedupe import archive_older_niche_skill_versions
+
+    archived = await archive_older_niche_skill_versions(
+        session,
+        tenant_id=tenant_id,
+        keep_skill_id=skill_row.id,
+        slug=skill_row.slug,
+    )
+    if archived:
+        logger.info(
+            "skill_factory.niche_duplicates_archived",
+            agent_id="skill_factory",
+            swarm_id=str(tenant_id),
+            task_id=str(skill_row.id),
+            archived=archived,
+        )
+
     logger.info(
         "skill_factory.forge_published",
         agent_id="skill_factory",

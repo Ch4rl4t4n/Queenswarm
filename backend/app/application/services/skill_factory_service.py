@@ -79,6 +79,7 @@ class TenantSkillOut(BaseModel):
     library_verdict: str | None = None
     library_verdict_reason: str | None = None
     library_verdict_action: str | None = None
+    purge_eligible: bool = False
     is_active: bool
     is_builtin: bool = False
 
@@ -166,6 +167,8 @@ class SkillFactorySnapshotOut(BaseModel):
     launch_readiness: LaunchReadinessOut | None = None
     launch_queue: list[TenantSkillOut] = Field(default_factory=list)
     launch_near_miss: list[TenantSkillOut] = Field(default_factory=list)
+    library_duplicates_hidden: int = 0
+    library_purge_eligible: int = 0
     llm: FactoryLlmReadinessOut | None = None
 
 
@@ -247,10 +250,19 @@ def _tenant_skill_out(
 ) -> TenantSkillOut:
     from app.application.services.skill_factory_sellable import SkillSellableAssessment, assess_tenant_skill_sellable
 
+    from app.application.services.skill_factory_library_purge import is_library_purge_eligible
+
     assessment: SkillSellableAssessment = sellable or assess_tenant_skill_sellable(row)
     ref = gumroad_ref or {}
     disp = disposition
     sieve_out = sieve
+    purge_eligible = False
+    if sieve_out is not None:
+        purge_eligible = is_library_purge_eligible(
+            library_verdict=sieve_out.verdict,
+            factory_disposition=disp.disposition if disp is not None else None,
+            recommended_for_launch=assessment.recommended_for_launch,
+        )
     return TenantSkillOut(
         id=str(row.id),
         slug=row.slug,
@@ -277,6 +289,7 @@ def _tenant_skill_out(
         library_verdict=sieve_out.verdict if sieve_out is not None else None,
         library_verdict_reason=sieve_out.reason if sieve_out is not None else None,
         library_verdict_action=sieve_out.action if sieve_out is not None else None,
+        purge_eligible=purge_eligible,
         is_active=row.is_active,
         is_builtin=False,
     )
@@ -745,7 +758,10 @@ async def compose_skill_factory_snapshot(
         tenant_id=tenant_id,
         opportunities=opportunities,
     )
-    library = await list_tenant_skills(session, tenant_id=tenant_id, limit=80)
+    library_raw = await list_tenant_skills(session, tenant_id=tenant_id, limit=120)
+    from app.application.services.skill_factory_library_dedupe import dedupe_library_skills_latest
+
+    library, library_duplicates_hidden = dedupe_library_skills_latest(library_raw)
     sup_ids = [row.supervisor_session_id for row in opportunities if row.supervisor_session_id]
     pending_forge_by_session = await _pending_forge_suggestion_ids(
         session,
@@ -820,6 +836,7 @@ async def compose_skill_factory_snapshot(
     sellable_count = 0
     draft_count = 0
     rejected_count = 0
+    library_purge_eligible = 0
     launch_candidates: list[TenantSkillOut] = []
     for row in library:
         assessment = assess_tenant_skill_sellable(
@@ -844,6 +861,8 @@ async def compose_skill_factory_snapshot(
             sieve=sieve,
         )
         library_out.append(skill_out)
+        if skill_out.purge_eligible:
+            library_purge_eligible += 1
         if assessment.tier == "sellable":
             sellable_count += 1
             launch_candidates.append(skill_out)
@@ -912,6 +931,8 @@ async def compose_skill_factory_snapshot(
         ),
         launch_queue=launch_queue,
         launch_near_miss=launch_near_miss,
+        library_duplicates_hidden=library_duplicates_hidden,
+        library_purge_eligible=library_purge_eligible,
         llm=llm_status,
     )
 
