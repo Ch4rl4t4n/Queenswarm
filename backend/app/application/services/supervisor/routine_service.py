@@ -357,7 +357,12 @@ async def trigger_supervisor_routine_now(
                 )
 
     shared_context = SharedContextService()
-    skills = SkillLibrary()
+    if routine.tenant_id is not None:
+        from app.application.services.tenant_skill_loader import build_skill_library_for_tenant
+
+        skill_library = await build_skill_library_for_tenant(db, tenant_id=routine.tenant_id)
+    else:
+        skill_library = SkillLibrary()
     payload = dict(routine.context_payload or {})
     report = build_continuous_intelligence_report(routine=routine)
     payload["continuous_intelligence_report"] = report
@@ -439,7 +444,7 @@ async def trigger_supervisor_routine_now(
         shared_context=shared_context,
         retrieval_contract=routine.retrieval_contract,
         skill_slugs=list(routine.skills or []),
-        skill_library=skills,
+        skill_library=skill_library,
         context_seed=context_seed,
         tenant_id=routine.tenant_id,
     )

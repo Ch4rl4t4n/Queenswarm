@@ -418,7 +418,12 @@ def run_supervisor_sub_agent_step_task(
                     await session.commit()
                     return {"ok": False, "reason": "session_cost_cap_reached", "sub_agent_session_id": str(sub.id)}
 
-            skill_library = SkillLibrary()
+            if sup.tenant_id is not None:
+                from app.application.services.tenant_skill_loader import build_skill_library_for_tenant
+
+                skill_library = await build_skill_library_for_tenant(session, tenant_id=sup.tenant_id)
+            else:
+                skill_library = SkillLibrary()
             requested_skills = [
                 str(item)
                 for item in (sub.short_memory or {}).get("skills", [])
