@@ -4,10 +4,11 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Brain, Loader2 } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
-import { HiveApiError, hiveGet } from "@/lib/api";
+import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 
 interface AgentOsAction {
   id: string;
@@ -54,6 +55,7 @@ function AgentOsPanelInner() {
   const [snapshot, setSnapshot] = useState<AgentOsSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [applyBusy, setApplyBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -71,6 +73,48 @@ function AgentOsPanelInner() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const applyProposal = useCallback(
+    async (proposalId: string) => {
+      setApplyBusy(proposalId);
+      try {
+        const res = await hivePostJson<{ applied: number; skipped: number }>(
+          "agent-os/behavioral-proposals/apply",
+          { proposal_ids: [proposalId] },
+        );
+        if (res.applied > 0) {
+          toast.success("Nightly learning applied to harness memory.");
+        } else {
+          toast.message("Already applied — no duplicate.");
+        }
+        await load();
+      } catch (e) {
+        toast.error(e instanceof HiveApiError ? e.message : "Apply failed.");
+      } finally {
+        setApplyBusy(null);
+      }
+    },
+    [load],
+  );
+
+  const applyAllProposals = useCallback(async () => {
+    if (!snapshot?.behavioral_proposals.proposals.length) {
+      return;
+    }
+    setApplyBusy("all");
+    try {
+      const ids = snapshot.behavioral_proposals.proposals.slice(0, 3).map((p) => p.id);
+      const res = await hivePostJson<{ applied: number }>("agent-os/behavioral-proposals/apply", {
+        proposal_ids: ids,
+      });
+      toast.success(`Applied ${res.applied} preference(s) to behavioral memory.`);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Apply failed.");
+    } finally {
+      setApplyBusy(null);
+    }
+  }, [load, snapshot]);
 
   if (loading && !snapshot) {
     return (
@@ -113,14 +157,35 @@ function AgentOsPanelInner() {
           <p className="text-xs font-semibold uppercase text-pollen">Overnight behavioral proposals</p>
           <ul className="space-y-1">
             {snapshot.behavioral_proposals.proposals.map((p) => (
-              <li key={p.id} className="rounded border border-(--qs-border)/60 bg-black/20 px-3 py-2 text-xs text-(--qs-text-2)">
-                {p.proposal}
+              <li
+                key={p.id}
+                className="flex flex-wrap items-start justify-between gap-2 rounded border border-(--qs-border)/60 bg-black/20 px-3 py-2 text-xs text-(--qs-text-2)"
+              >
+                <span className="min-w-0 flex-1">{p.proposal}</span>
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--primary qs-btn--sm shrink-0"
+                  disabled={applyBusy !== null}
+                  onClick={() => void applyProposal(p.id)}
+                >
+                  {applyBusy === p.id ? "…" : "Apply"}
+                </button>
               </li>
             ))}
           </ul>
-          <Link href="/settings/harness" className="text-xs text-cyan hover:text-pollen">
-            Merge into behavioral memory →
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="qs-btn qs-btn--ghost qs-btn--sm"
+              disabled={applyBusy !== null}
+              onClick={() => void applyAllProposals()}
+            >
+              {applyBusy === "all" ? "Applying…" : "Apply all (max 3)"}
+            </button>
+            <Link href="/settings/harness" className="self-center text-xs text-cyan hover:text-pollen">
+              Edit behavioral memory →
+            </Link>
+          </div>
         </div>
       ) : null}
 

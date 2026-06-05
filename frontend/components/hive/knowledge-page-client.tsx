@@ -21,6 +21,7 @@ import { AutoGraphifyPanel } from "@/components/hive/auto-graphify-panel";
 import { SelectiveRecallPanel } from "@/components/hive/selective-recall-panel";
 import { ProjectShapeGraphPanel } from "@/components/hive/project-shape-graph-panel";
 import { OperatorBrainPackPanel } from "@/components/hive/operator-brain-pack-panel";
+import { SecondBrainPackWizardPanel } from "@/components/hive/second-brain-pack-wizard-panel";
 import { HiveSessionSearchPanel } from "@/components/hive/hive-session-search-panel";
 import { EpisodicMemoryPanel } from "@/components/hive/episodic-memory-panel";
 import { DreamingConsole } from "@/components/hive/dreaming-console";
@@ -289,6 +290,7 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
 
       {tab === "memory" ? (
         <div id="memory" className="scroll-mt-28 space-y-6">
+          <SecondBrainPackWizardPanel />
           <OperatorBrainPackPanel />
           <HiveSessionSearchPanel />
           <EpisodicMemoryPanel />

@@ -17,6 +17,7 @@ import {
   HarnessSkillLatticeGrid,
 } from "@/components/hive/harness-snapshot-grids";
 import { sectionHintNode } from "@/components/hive/inline-section-hint";
+import { SecondBrainPackWizardPanel } from "@/components/hive/second-brain-pack-wizard-panel";
 import { SoloOperatorTrioPanel } from "@/components/hive/solo-operator-trio-panel";
 import { SlackHarnessTrainerPanel } from "@/components/hive/slack-harness-trainer-panel";
 import { LspBridgePanel } from "@/components/hive/lsp-bridge-panel";
@@ -261,6 +262,7 @@ export function SettingsHarnessPanel({ section }: SettingsHarnessPanelProps): JS
 
   return (
     <div id="rules-loops" className="settings-panel-density scroll-mt-28 space-y-4" data-testid="settings-harness-loops">
+      <SecondBrainPackWizardPanel />
       <V4Card>
         <V4CardHeader
           kicker="Operator"

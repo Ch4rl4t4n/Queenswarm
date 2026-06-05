@@ -107,23 +107,23 @@ export const SECTION_HINTS = {
   skillFactoryLibrary: {
     title: "Tenant skill library",
     description:
-      "Verified tenant skills merged into SkillLibrary — visible to all sessions and skill picker chips.",
+      "Sellable harness tiers — Smart rebuild injects learnings; Retire stops research on dead niches.",
     options: [
-      "Download GitHub pack — SKILL.md + README + LISTING.md.",
-      "Empty until first verified_skill_forge approve.",
-      "exported badge after first download.",
+      "Harness pack — SKILL + HARNESS + EVAL + LISTING + TOOLS.json.",
+      "Smart rebuild on rejected/draft — guided factory with fix hints.",
+      "Deprioritize / Retire niche — operator disposition for research focus.",
     ],
     manualHref: "/manual#skill-factory",
   },
   skillFactoryLaunch: {
     title: "Launch queue",
     description:
-      "Sellable skills ranked for first Gumroad revenue — manual upload works without API token or your own website.",
+      "Revenue funnel — sellable harness packs ranked for Gumroad; near-miss drafts get inline Smart rebuild.",
     options: [
-      "sellable tier — valid SKILL.md, non-generic slug, no factory quality-warning description.",
-      "Download pack — upload .tar.gz to Gumroad Products → New.",
-      "Optional API draft when gumroad_rest token is configured.",
-      "Operator guide (SK): docs/operators/GUMROAD_SETUP_SK.md",
+      "Funnel panel — library → sellable tier → launch queue → Gumroad.",
+      "Harness pack download — LISTING.md ready for product page.",
+      "Smart rebuild on near-miss without leaving Launch tab.",
+      "Manual Gumroad upload works without API token.",
     ],
     manualHref: "/manual#skill-factory",
   },

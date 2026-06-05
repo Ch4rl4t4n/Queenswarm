@@ -111,4 +111,123 @@ async def compose_dreaming_behavioral_snapshot(
     )
 
 
-__all__ = ["DreamingBehavioralSnapshotOut", "compose_dreaming_behavioral_snapshot"]
+_NIGHTLY_MARKER = "<!-- qs-nightly-learning"
+
+
+def _proposal_already_applied(instructions: str, *, proposal_id: str, batch_id: str | None) -> bool:
+    text = instructions or ""
+    if f"proposal_id={proposal_id}" in text:
+        return True
+    if batch_id and f"batch_id={batch_id}" in text and proposal_id in text:
+        return True
+    return False
+
+
+def _nightly_learning_block(
+    *,
+    proposal: str,
+    proposal_id: str,
+    batch_id: str | None,
+    source: str,
+) -> str:
+    stamp = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
+    meta = f"proposal_id={proposal_id}"
+    if batch_id:
+        meta = f"{meta} batch_id={batch_id}"
+    return (
+        f"## Nightly learning · {stamp}\n"
+        f"{_NIGHTLY_MARKER} {meta} source={source} -->\n"
+        f"- {proposal.strip()}"
+    )
+
+
+class ApplyBehavioralProposalsOut(BaseModel):
+    """Result of applying overnight proposals to curated instructions."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    applied: int
+    skipped: int
+    char_count: int
+    version: int
+
+
+async def apply_behavioral_proposals(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    proposal_ids: list[str],
+    author: str = "agent_os",
+) -> ApplyBehavioralProposalsOut:
+    """Merge up to 3 verified overnight proposals into tenant INSTRUCTIONS."""
+
+    from app.application.services.curated_memory_service import CuratedMemoryService
+    from app.application.services.slack_harness_trainer import merge_instructions_append
+    from app.domain.memory.curated import CuratedFileKind
+
+    if not settings.dreaming_behavioral_proposals_enabled:
+        raise ValueError("behavioral_proposals_disabled")
+
+    snapshot = await compose_dreaming_behavioral_snapshot(session, tenant_id=tenant_id)
+    if not snapshot.proposals:
+        raise ValueError("no_proposals")
+
+    wanted = {pid.strip() for pid in proposal_ids if pid.strip()}
+    if not wanted:
+        raise ValueError("no_proposal_ids")
+
+    max_apply = min(3, max(1, int(getattr(settings, "nightly_learnings_max_preferences", 3) or 3)))
+    selected = [p for p in snapshot.proposals if p.id in wanted][:max_apply]
+    if not selected:
+        raise ValueError("proposals_not_found")
+
+    svc = CuratedMemoryService(db=session)
+    current = await svc.get(tenant_id, CuratedFileKind.INSTRUCTIONS)
+    base = (current.content_md if current else "") or ""
+    applied = 0
+    skipped = 0
+    merged = base
+
+    for proposal in selected:
+        if _proposal_already_applied(merged, proposal_id=proposal.id, batch_id=snapshot.batch_id):
+            skipped += 1
+            continue
+        block = _nightly_learning_block(
+            proposal=proposal.proposal,
+            proposal_id=proposal.id,
+            batch_id=snapshot.batch_id,
+            source=proposal.source,
+        )
+        merged = merge_instructions_append(merged, block)
+        applied += 1
+
+    if applied == 0:
+        return ApplyBehavioralProposalsOut(
+            applied=0,
+            skipped=skipped,
+            char_count=len(merged),
+            version=int(current.version if current else 0),
+        )
+
+    row = await svc.upsert(
+        tenant_id,
+        CuratedFileKind.INSTRUCTIONS,
+        merged,
+        user_id=None,
+    )
+    return ApplyBehavioralProposalsOut(
+        applied=applied,
+        skipped=skipped,
+        char_count=len(merged),
+        version=int(row.version),
+    )
+
+
+__all__ = [
+    "ApplyBehavioralProposalsOut",
+    "BehavioralProposalOut",
+    "DreamingBehavioralSnapshotOut",
+    "apply_behavioral_proposals",
+    "compose_dreaming_behavioral_snapshot",
+]
+

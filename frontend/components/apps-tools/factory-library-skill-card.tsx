@@ -183,7 +183,7 @@ export function FactoryLibrarySkillCard({
           onClick={() => onExport(row.id)}
         >
           <DownloadIcon className="size-3.5" aria-hidden />
-          GitHub pack
+          Harness pack
         </button>
         {githubPrReady && onGithubPr ? (
           <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-1" disabled={busy} onClick={() => onGithubPr(row.id)}>

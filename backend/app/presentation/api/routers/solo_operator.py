@@ -262,6 +262,22 @@ async def solo_session_presets(
     }
 
 
+@router.get("/second-brain-wizard", summary="Second Brain Pack wizard (Brain Pack → trio → Obsidian)")
+async def solo_second_brain_wizard(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Hermes-style second brain setup checklist."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.second_brain_wizard import compose_second_brain_wizard
+
+    snapshot = await compose_second_brain_wizard(db, tenant_id=tenant_id)
+    return snapshot.model_dump(mode="json")
+
+
 @router.get("/first-run", summary="Solo first-run wizard checklist (LLM → brief → session)")
 async def solo_first_run(
     db: DbSession,

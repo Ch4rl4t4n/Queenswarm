@@ -47,6 +47,41 @@ async def get_agent_os_snapshot(
     return await compose_agent_os_snapshot(db, tenant_id=tenant_id, tenant=tenant)
 
 
+class ApplyBehavioralProposalsBody(BaseModel):
+    """Apply overnight behavioral proposals to curated instructions."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    proposal_ids: list[str] = Field(min_length=1, max_length=3)
+
+
+@router.post("/behavioral-proposals/apply", summary="Apply overnight proposals to harness memory")
+async def apply_agent_os_behavioral_proposals(
+    body: ApplyBehavioralProposalsBody,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Merge up to 3 verified overnight learnings into tenant INSTRUCTIONS."""
+
+    _require_enabled()
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.dreaming_behavioral_proposals import apply_behavioral_proposals
+
+    try:
+        result = await apply_behavioral_proposals(
+            db,
+            tenant_id=tenant_id,
+            proposal_ids=body.proposal_ids,
+            author=str(principal.get("sub") or "agent_os"),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return result.model_dump(mode="json")
+
+
 @router.post(
     "/analysis/consensus",
     response_model=AnalysisConsensusOut,

@@ -21,6 +21,7 @@ import { HarnessProductLinesPanel } from "@/components/apps-tools/harness-produc
 import { AgentSessionReportDialog } from "@/components/hive/agent-session-report-dialog";
 import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { SkillFactoryManualPanel } from "@/components/apps-tools/skill-factory-manual-panel";
+import { SkillFactoryRevenueFunnelPanel } from "@/components/apps-tools/skill-factory-revenue-funnel-panel";
 import { HiveSwitch } from "@/components/ui/hive-switch";
 import { V4Badge, V4Card, V4CardHeader, V4Chip } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
@@ -332,7 +333,7 @@ export function SkillFactoryPageClient(): JSX.Element {
       await hivePostJson(`agents/suggestions/${encodeURIComponent(suggestionId)}/review`, {
         decision: "approve",
       });
-      toast.success("Skill approved — check Library tab to export GitHub pack.");
+      toast.success("Skill approved — check Library tab to export harness pack.");
       await refreshAfterQueueAction();
     } catch (e) {
       const msg = e instanceof HiveApiError ? e.message : "Approve failed.";
@@ -584,7 +585,7 @@ export function SkillFactoryPageClient(): JSX.Element {
     try {
       const bundle = await hivePostJson<SkillExportResponse>(`skill-factory/skills/${id}/export`, {});
       await downloadSkillExportBundle(bundle);
-      toast.success("GitHub pack downloaded.");
+      toast.success("Harness pack downloaded.");
       await load();
     } catch (e) {
       toast.error(e instanceof HiveApiError ? e.message : "Export failed.");
@@ -708,7 +709,20 @@ export function SkillFactoryPageClient(): JSX.Element {
         </V4Card>
       ) : (
         <>
-          {tab === "guide" ? <SkillFactoryManualPanel /> : null}
+          {tab === "guide" ? (
+            <div className="space-y-4">
+              <SkillFactoryRevenueFunnelPanel
+                launchReadiness={snapshot.launch_readiness}
+                libraryCount={(snapshot.library ?? []).length}
+                buildingCount={snapshot.building_count}
+                launchQueueCount={(snapshot.launch_queue ?? []).length}
+                nearMiss={snapshot.launch_near_miss ?? []}
+                onSmartRebuild={(id) => void smartRebuildSkill(id)}
+                busyId={busyId}
+              />
+              <SkillFactoryManualPanel />
+            </div>
+          ) : null}
 
           {tab === "research" ? (
             <>
@@ -982,6 +996,15 @@ export function SkillFactoryPageClient(): JSX.Element {
 
           {tab === "launch" ? (
             <>
+            <SkillFactoryRevenueFunnelPanel
+              launchReadiness={snapshot.launch_readiness}
+              libraryCount={(snapshot.library ?? []).length}
+              buildingCount={snapshot.building_count}
+              launchQueueCount={(snapshot.launch_queue ?? []).length}
+              nearMiss={snapshot.launch_near_miss ?? []}
+              onSmartRebuild={(id) => void smartRebuildSkill(id)}
+              busyId={busyId}
+            />
             <HarnessProductLinesPanel />
             <HarnessEvalPanel llm={snapshot?.llm ?? null} />
             <V4Card className="mt-4">
@@ -1059,7 +1082,7 @@ export function SkillFactoryPageClient(): JSX.Element {
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
                         <p className="font-medium">{row.title}</p>
-                        <p className="mt-1 font-mono text-[10px] text-pollen">{row.slug}.tar.gz</p>
+                        <p className="mt-1 font-mono text-[10px] text-pollen">{row.slug} · harness pack</p>
                         {row.sellable_issues.length > 0 ? (
                           <p className="mt-1 text-[10px] text-(--qs-text-4)">
                             Notes: {row.sellable_issues.join(", ")}
@@ -1076,7 +1099,7 @@ export function SkillFactoryPageClient(): JSX.Element {
                         onClick={() => void exportSkill(row.id)}
                       >
                         <DownloadIcon className="size-3.5" aria-hidden />
-                        Download pack
+                        Harness pack
                       </button>
                       {snapshot.gumroad_listing_ready ? (
                         <button
@@ -1121,8 +1144,19 @@ export function SkillFactoryPageClient(): JSX.Element {
                                 <V4Badge tone="info">{scorePct(row.sellable_score)}</V4Badge>
                               </div>
                               {row.sellable_issues.length > 0 ? (
-                                <p className="mt-1 font-mono text-[10px]">fix: {row.sellable_issues.join(", ")}</p>
+                                <p className="mt-1 text-[10px] text-(--qs-text-4)">
+                                  fix: {row.sellable_issues.slice(0, 2).join(", ")}
+                                </p>
                               ) : null}
+                              <button
+                                type="button"
+                                className="mt-2 qs-btn qs-btn--primary qs-btn--sm gap-1"
+                                disabled={busyId === row.id}
+                                onClick={() => void smartRebuildSkill(row.id)}
+                              >
+                                <RefreshCwIcon className="size-3.5" aria-hidden />
+                                Smart rebuild
+                              </button>
                             </li>
                           ))}
                         </ul>
