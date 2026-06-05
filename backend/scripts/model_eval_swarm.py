@@ -307,7 +307,12 @@ def _build_eval_messages(scenario: EvalScenario) -> list[dict[str, str]]:
     ]
 
 
-async def run_live_evals(models: list[str], scenarios: list[EvalScenario]) -> list[EvalRunOutcome]:
+async def run_live_evals(
+    models: list[str],
+    scenarios: list[EvalScenario],
+    *,
+    timeout_secs: int = 120,
+) -> list[EvalRunOutcome]:
     """Execute live eval prompts against configured model slugs."""
 
     from app.application.services.llm_runtime_credentials import refresh_llm_secret_cache
@@ -343,14 +348,17 @@ async def run_live_evals(models: list[str], scenarios: list[EvalScenario]) -> li
             for scenario in scenarios:
                 started = time.monotonic()
                 try:
-                    content, cost = await router.complete_single_model(
-                        session,
-                        model_name=model,
-                        messages=_build_eval_messages(scenario),
-                        max_tokens=700,
-                        temperature=0.2,
-                        swarm_id=_SWARM_ID,
-                        task_id=f"eval:{scenario.name}",
+                    content, cost = await asyncio.wait_for(
+                        router.complete_single_model(
+                            session,
+                            model_name=model,
+                            messages=_build_eval_messages(scenario),
+                            max_tokens=700,
+                            temperature=0.2,
+                            swarm_id=_SWARM_ID,
+                            task_id=f"eval:{scenario.name}",
+                        ),
+                        timeout=timeout_secs,
                     )
                     latency_ms = int((time.monotonic() - started) * 1000)
                     hits, total = score_response_against_criteria(content, scenario.success_criteria)
@@ -364,6 +372,21 @@ async def run_live_evals(models: list[str], scenarios: list[EvalScenario]) -> li
                             criteria_hits=hits,
                             criteria_total=total,
                             excerpt=_excerpt(content),
+                        ),
+                    )
+                except TimeoutError:
+                    latency_ms = int((time.monotonic() - started) * 1000)
+                    outcomes.append(
+                        EvalRunOutcome(
+                            model=model,
+                            scenario=scenario.name,
+                            status="timeout",
+                            latency_ms=latency_ms,
+                            cost_usd=0.0,
+                            criteria_hits=0,
+                            criteria_total=len(scenario.success_criteria),
+                            excerpt="",
+                            error=f"timed out after {timeout_secs}s",
                         ),
                     )
                 except Exception as exc:
@@ -391,11 +414,16 @@ async def _async_main(
     scenarios: list[EvalScenario],
     out: Path,
     live: bool,
+    timeout_secs: int,
 ) -> int:
     """Generate plan-only or live eval report."""
 
     if live:
-        outcomes = await run_live_evals(models=models, scenarios=scenarios)
+        outcomes = await run_live_evals(
+            models=models,
+            scenarios=scenarios,
+            timeout_secs=timeout_secs,
+        )
         report = render_live_eval_report(models=models, scenarios=scenarios, outcomes=outcomes)
     else:
         report = render_eval_plan_report(models=models, scenarios=scenarios)
@@ -418,16 +446,36 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Run live LLM evals (requires configured credentials). Default is plan-only.",
     )
+    parser.add_argument(
+        "--scenario",
+        action="append",
+        dest="scenarios",
+        help="Run only named scenario(s) during live eval.",
+    )
+    parser.add_argument(
+        "--timeout-secs",
+        type=int,
+        default=120,
+        help="Per-model scenario timeout for live eval (default: 120).",
+    )
     args = parser.parse_args(argv)
 
     models = args.models or DEFAULT_MODELS
+    scenarios = default_scenarios()
+    if args.scenarios:
+        wanted = {name.strip() for name in args.scenarios if name.strip()}
+        scenarios = [scenario for scenario in scenarios if scenario.name in wanted]
+        if not scenarios:
+            print("No matching scenarios for --scenario filter.", file=sys.stderr)
+            return 2
     out = Path(args.out).expanduser().resolve()
     return asyncio.run(
         _async_main(
             models=models,
-            scenarios=default_scenarios(),
+            scenarios=scenarios,
             out=out,
             live=bool(args.live),
+            timeout_secs=max(30, int(args.timeout_secs)),
         ),
     )
 
