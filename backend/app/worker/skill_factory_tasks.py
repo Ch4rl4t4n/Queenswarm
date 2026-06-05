@@ -67,7 +67,12 @@ def skill_factory_research_tick_task() -> dict[str, Any]:
     return result
 
 
-@celery_app.task(name="hive.skill_factory_reconcile_tick", queue="hive")
+@celery_app.task(
+    name="hive.skill_factory_reconcile_tick",
+    queue="hive",
+    soft_time_limit=600,
+    time_limit=660,
+)
 def skill_factory_reconcile_tick_task() -> dict[str, Any]:
     """Reconcile building opportunities + embed pending forager knowledge."""
 
@@ -113,7 +118,12 @@ def skill_factory_reconcile_tick_task() -> dict[str, Any]:
     return result
 
 
-@celery_app.task(name="hive.skill_factory_queue_drain_tick", queue="hive")
+@celery_app.task(
+    name="hive.skill_factory_queue_drain_tick",
+    queue="hive",
+    soft_time_limit=600,
+    time_limit=660,
+)
 def skill_factory_queue_drain_tick_task() -> dict[str, Any]:
     """Fast queue drain — auto-rebuild failed forges and fill build slots."""
 

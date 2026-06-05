@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.application.services.skill_factory_queue_drain import (
+    _forge_lenient_approvable,
     _forge_needs_rebuild,
     _forge_ready_to_approve,
     drain_skill_factory_queue,
@@ -52,6 +53,19 @@ def test_factory_progress_fields_for_awaiting_forge_fail() -> None:
     assert phase == "forge_failed"
     assert "rebuild" in label.lower()
     assert detail is not None
+
+
+def test_forge_lenient_approvable_when_skill_valid_and_only_critic_failed() -> None:
+    forge = SimpleNamespace(
+        status="pending",
+        proposal_payload={
+            "quality_gate_passed": False,
+            "critic_approved": False,
+            "skill_valid": True,
+            "issues": ["critic_not_approved"],
+        },
+    )
+    assert _forge_lenient_approvable(forge) is True
 
 
 def test_forge_ready_to_approve_requires_both_gates() -> None:

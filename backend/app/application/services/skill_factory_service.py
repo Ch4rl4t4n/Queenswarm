@@ -351,6 +351,10 @@ def _forge_status_allows_rebuild(forge: Any | None) -> bool:
 
     if forge is None:
         return False
+    from app.application.services.skill_factory_queue_drain import _forge_lenient_approvable
+
+    if _forge_lenient_approvable(forge):
+        return False
     status = str(getattr(forge, "status", "") or "").strip().lower()
     if status in {"pending", "approved"}:
         return forge_needs_rebuild(forge)

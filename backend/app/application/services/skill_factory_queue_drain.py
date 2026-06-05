@@ -45,6 +45,21 @@ def _forge_ready_to_approve(*, quality_passed: bool | None, critic_approved: boo
     return quality_passed is not False and critic_approved is not False
 
 
+def _forge_lenient_approvable(forge: AgentSuggestion | None) -> bool:
+    """Publish when SKILL.md is valid and only the critic gate failed (stub or soft reject)."""
+
+    if forge is None or str(forge.status or "").strip().lower() != "pending":
+        return False
+    quality_passed, critic_approved, issues = _forge_payload_fields(forge)
+    if _forge_ready_to_approve(quality_passed=quality_passed, critic_approved=critic_approved):
+        return True
+    payload = dict(forge.proposal_payload or {}) if isinstance(forge.proposal_payload, dict) else {}
+    if payload.get("skill_valid") is not True:
+        return False
+    non_critic_issues = [issue for issue in issues if issue != "critic_not_approved"]
+    return len(non_critic_issues) == 0
+
+
 async def _count_building(session: AsyncSession, *, tenant_id: uuid.UUID) -> int:
     return int(
         await session.scalar(
@@ -73,10 +88,7 @@ async def _approve_passing_forge(
     from app.infrastructure.persistence.models.supervisor_session import SupervisorSession
     from app.infrastructure.persistence.models.tenant import Tenant
 
-    if str(forge.status or "").strip().lower() != "pending":
-        return False
-    quality_passed, critic_approved, _ = _forge_payload_fields(forge)
-    if not _forge_ready_to_approve(quality_passed=quality_passed, critic_approved=critic_approved):
+    if not _forge_lenient_approvable(forge):
         return False
 
     supervisor = None
