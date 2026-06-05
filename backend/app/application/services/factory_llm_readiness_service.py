@@ -14,6 +14,7 @@ from app.application.services.llm_runtime_credentials import (
     refresh_llm_secret_cache,
 )
 from app.core.config import settings
+from app.core.litellm_model_registry import normalize_factory_model_slug
 from app.core.llm_router import LiteLLMRouter, model_slug_has_configured_credentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -165,8 +166,8 @@ async def resolve_effective_factory_primary_model(
             block = dict((tenant.operator_settings or {}).get("factory_llm") or {})
             raw = block.get("primary_model")
             if isinstance(raw, str) and raw.strip():
-                return raw.strip()
-    return settings.workflow_breaker_primary_model
+                return normalize_factory_model_slug(raw)
+    return normalize_factory_model_slug(settings.workflow_breaker_primary_model)
 
 
 async def save_factory_llm_primary(
@@ -177,7 +178,7 @@ async def save_factory_llm_primary(
 ) -> str:
     """Persist tenant factory primary model selection."""
 
-    cleaned = primary_model.strip()
+    cleaned = normalize_factory_model_slug(primary_model)
     if cleaned not in _allowed_factory_primary_models():
         raise ValueError(f"Unsupported factory LLM model: {primary_model}")
 

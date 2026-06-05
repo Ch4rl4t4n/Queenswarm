@@ -9,6 +9,10 @@ from typing import Any, Literal
 
 import litellm
 from litellm import AuthenticationError, acompletion
+
+from app.core.litellm_model_registry import register_litellm_factory_models
+
+register_litellm_factory_models()
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -62,6 +66,19 @@ def _decomposition_exhaustion_message(errors: list[str]) -> str:
 
 
 logger = get_logger(__name__)
+
+
+def _safe_completion_cost(response: Any, *, model_name: str) -> float:
+    """Return LiteLLM cost estimate; zero when model is absent from the cost map."""
+
+    try:
+        billed = litellm.completion_cost(completion_response=response, model=model_name)
+        return float(billed or 0.0)
+    except Exception as exc:  # noqa: BLE001 — unmapped models must not fail completions
+        if "isn't mapped yet" in str(exc).lower() or "not mapped" in str(exc).lower():
+            logger.info("llm_router.completion_cost.unmapped_model", model=model_name)
+            return 0.0
+        raise
 
 
 class _ConcurrencyLimiter:
@@ -214,8 +231,7 @@ async def record_llm_cost(
         else:
             prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
             completion_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
-        billed = litellm.completion_cost(completion_response=response, model=model_name)
-        cost_value = float(billed or 0.0)
+        cost_value = _safe_completion_cost(response, model_name=model_name)
         if cost_value == 0.0 and prompt_tokens == 0 and completion_tokens == 0:
             return
         entry = CostRecord(
@@ -352,7 +368,7 @@ class LiteLLMRouter:
                 max_wait_sec=settings.llm_retry_max_wait_sec,
             )
         content = response.choices[0].message.content or ""
-        hop_cost_usd = float(litellm.completion_cost(completion_response=response, model=model_name) or 0.0)
+        hop_cost_usd = _safe_completion_cost(response, model_name=model_name)
         observe_llm_cost_usd(model_name=model_name, cost_usd=hop_cost_usd)
         await record_llm_cost(
             session,

@@ -383,6 +383,11 @@ async def test_llm_operator_key(
     try:
         from litellm import completion
 
+        from app.core.litellm_model_registry import normalize_factory_model_slug, register_litellm_factory_models
+
+        register_litellm_factory_models()
+        model = normalize_factory_model_slug(model)
+
         resp = completion(
             model=model,
             messages=[{"role": "user", "content": "Reply with exactly: CONNECTED"}],

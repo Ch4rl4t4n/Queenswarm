@@ -2404,6 +2404,9 @@ class Settings(BaseSettings):
         oai = (str(oai_raw).strip()) if oai_raw is not None else ""
         if oai:
             os.environ.setdefault("OPENAI_API_KEY", oai)
+        or_key = (self.openrouter_api_key or "").strip()
+        if or_key:
+            os.environ.setdefault("OPENROUTER_API_KEY", or_key)
         return self
 
 
