@@ -25,9 +25,16 @@ class TradingManager:
             ValueError: When payloads are clearly malformed.
         """
 
-        mode = str(project_settings.get("trading_mode") or "paper").strip().lower()
-        if mode not in {"paper", "real"}:
-            msg = "settings.trading_mode must be 'paper' or 'real'."
+        mode = str(project_settings.get("trading_mode") or "real").strip().lower()
+        if mode == "paper":
+            return {
+                "status": "blocked",
+                "reason": "paper_trading_removed",
+                "detail": "Paper trading was removed. Use trading_mode=real with Polymarket CLOB.",
+                "venue": resolve_venue(project_settings),
+            }
+        if mode not in {"real"}:
+            msg = "settings.trading_mode must be 'real'."
             raise ValueError(msg)
 
         symbol = str(payload.get("market_ticker") or payload.get("symbol") or "").strip()

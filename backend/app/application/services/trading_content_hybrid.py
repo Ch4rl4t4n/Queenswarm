@@ -34,9 +34,7 @@ class TradingContentHybridSnapshotOut(BaseModel):
 
     enabled: bool
     generated_at: datetime
-    paper_pnl_usd: float = 0.0
-    paper_equity_usd: float = 0.0
-    trade_content_drafts: int = 0
+    live_trading_enabled: bool = False
     publish_pending: int = 0
     publish_live_posts: int = 0
     polymarket_prep_pct: int = 0
@@ -65,13 +63,6 @@ async def compose_trading_content_hybrid_snapshot(
     )
     perf = build_publish_performance_snapshot(tenant, window_days=30)
 
-    trade_rows = await list_owned_deliverables(
-        session,
-        dashboard_user_id=dashboard_user_id,
-        limit=60,
-        tag="trade-to-content",
-    )
-
     perf_data = trading.performance
     pm = trading.prediction_markets
     readiness = pm.get("polymarket_readiness") or {}
@@ -88,14 +79,14 @@ async def compose_trading_content_hybrid_snapshot(
                 href="/integrations?tab=studio#trading-cockpit",
             ),
         )
-    if trade_rows:
+    if not bool(pm.get("live_trading_enabled")):
         actions.append(
             HybridActionOut(
-                id="review_trade_content",
-                label=f"{len(trade_rows)} trade→content draft(s)",
-                detail="Review auto-generated publish packs from paper fills.",
-                priority="medium",
-                href="/integrations?tab=studio#publish-queue",
+                id="enable_live",
+                label="Enable Polymarket live trading",
+                detail="Set PREDICTION_MARKETS_LIVE_TRADING_ENABLED after CLOB vault review.",
+                priority="high",
+                href="/integrations?tab=studio#trading-cockpit",
             ),
         )
     if perf.live_posts == 0 and perf.totals.get("social_simulate", 0) >= 2:
@@ -112,9 +103,7 @@ async def compose_trading_content_hybrid_snapshot(
     return TradingContentHybridSnapshotOut(
         enabled=True,
         generated_at=datetime.now(tz=UTC),
-        paper_pnl_usd=float(perf_data.get("total_pnl_usd") or 0.0),
-        paper_equity_usd=float(perf_data.get("equity_usd") or 0.0),
-        trade_content_drafts=len(trade_rows),
+        live_trading_enabled=bool(pm.get("live_trading_enabled")),
         publish_pending=int(perf.totals.get("queue_approved", 0)) - int(perf.totals.get("social_simulate", 0)),
         publish_live_posts=perf.live_posts,
         polymarket_prep_pct=prep_pct,

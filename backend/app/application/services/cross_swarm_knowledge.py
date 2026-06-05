@@ -13,7 +13,7 @@ from app.application.services.recipe_chroma_bridge import search_recipes_semanti
 from app.core.config import settings
 
 DOMAIN_QUERIES: dict[str, str] = {
-    "trading": "polymarket paper trading risk verified workflow",
+    "trading": "polymarket live prediction markets risk verified workflow",
     "marketing": "social publish content flywheel marketing ops",
     "life_os": "morning briefing stalled projects overnight dump",
     "exec": "executive assistant inbox triage calendar",

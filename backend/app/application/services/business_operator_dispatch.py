@@ -41,7 +41,7 @@ LANE_SKILL_BUNDLES: dict[BusinessActionLane, list[str]] = {
     "factory": ["skill-authoring-template", "self-review-loop", "product-mission"],
     "mission": ["product-mission", "multi-step-reasoning", "decision-frameworks"],
     "ops": ["context", "decision-frameworks", "execution-studio"],
-    "trading": ["trading-paper-discipline", "decision-frameworks", "real-money-risk-gate"],
+    "trading": ["polymarket-prediction-evaluator", "decision-frameworks", "real-money-risk-gate"],
     "po": ["operator-approval-gate", "decision-frameworks", "context"],
 }
 

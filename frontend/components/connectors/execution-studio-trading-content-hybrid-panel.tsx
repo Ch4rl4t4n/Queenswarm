@@ -7,7 +7,6 @@ import { memo, useCallback, useEffect, useState } from "react";
 import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { V4Badge } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
-import { cn } from "@/lib/utils";
 
 interface HybridAction {
   id: string;
@@ -20,9 +19,7 @@ interface HybridAction {
 interface TradingContentHybridSnapshot {
   enabled: boolean;
   generated_at: string;
-  paper_pnl_usd: number;
-  paper_equity_usd: number;
-  trade_content_drafts: number;
+  live_trading_enabled: boolean;
   publish_pending: number;
   publish_live_posts: number;
   polymarket_prep_pct: number;
@@ -75,33 +72,27 @@ function ExecutionStudioTradingContentHybridPanelInner({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <GitBranch className="size-4 text-pollen" aria-hidden />
-          <h3 className="font-heading text-sm font-semibold text-(--qs-text)">Trading + Content Hybrid</h3>
+          <h3 className="font-heading text-sm font-semibold text-(--qs-text)">Polymarket + Publish</h3>
         </div>
         <HiveRefreshButton busy={loading} onClick={() => void load()} />
       </div>
 
       {loading && !snapshot ? (
-        <p className="text-xs text-(--qs-text-3)">Loading dual-lane snapshot…</p>
+        <p className="text-xs text-(--qs-text-3)">Loading Polymarket lane…</p>
       ) : snapshot ? (
         <>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             <article className="rounded-lg border border-white/10 bg-black/20 p-2">
-              <p className="text-[10px] uppercase tracking-wide text-(--qs-text-3)">Paper P&L</p>
-              <p className={cn("font-mono text-sm", snapshot.paper_pnl_usd >= 0 ? "text-success" : "text-error")}>
-                ${snapshot.paper_pnl_usd.toFixed(2)}
-              </p>
-            </article>
-            <article className="rounded-lg border border-white/10 bg-black/20 p-2">
-              <p className="text-[10px] uppercase tracking-wide text-(--qs-text-3)">Equity</p>
-              <p className="font-mono text-sm text-cyan">${snapshot.paper_equity_usd.toFixed(2)}</p>
-            </article>
-            <article className="rounded-lg border border-white/10 bg-black/20 p-2">
-              <p className="text-[10px] uppercase tracking-wide text-(--qs-text-3)">Trade→content</p>
-              <p className="font-mono text-sm text-pollen">{snapshot.trade_content_drafts}</p>
+              <p className="text-[10px] uppercase tracking-wide text-(--qs-text-3)">Live trading</p>
+              <p className="font-mono text-sm text-(--qs-text)">{snapshot.live_trading_enabled ? "ON" : "OFF"}</p>
             </article>
             <article className="rounded-lg border border-white/10 bg-black/20 p-2">
               <p className="text-[10px] uppercase tracking-wide text-(--qs-text-3)">Polymarket prep</p>
               <p className="font-mono text-sm text-(--qs-text)">{snapshot.polymarket_prep_pct}%</p>
+            </article>
+            <article className="rounded-lg border border-white/10 bg-black/20 p-2">
+              <p className="text-[10px] uppercase tracking-wide text-(--qs-text-3)">Live posts</p>
+              <p className="font-mono text-sm text-pollen">{snapshot.publish_live_posts}</p>
             </article>
           </div>
 
@@ -120,16 +111,14 @@ function ExecutionStudioTradingContentHybridPanelInner({
                     <p className="mt-1 text-xs text-(--qs-text-3)">{action.detail}</p>
                   </div>
                   {action.href ? (
-                    <Link href={action.href} className="text-xs text-cyan hover:underline">
-                      Open lane
+                    <Link href={action.href} className="qs-btn qs-btn--ghost qs-btn--sm">
+                      Open
                     </Link>
                   ) : null}
                 </li>
               ))}
             </ul>
-          ) : (
-            <p className="text-xs text-(--qs-text-3)">Both lanes healthy — no urgent hybrid actions.</p>
-          )}
+          ) : null}
         </>
       ) : null}
     </div>

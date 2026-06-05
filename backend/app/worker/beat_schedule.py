@@ -40,12 +40,6 @@ def build_beat_schedule() -> dict[str, dict[str, Any]]:
             "schedule": crontab(hour=settings.dreaming_cron_hour, minute=settings.dreaming_cron_minute),
             "options": {"queue": "hive"},
         }
-    if settings.paper_trading_enabled:
-        schedule["hive-paper-trading-tick"] = {
-            "task": "hive.paper_trading_tick",
-            "schedule": timedelta(seconds=int(settings.paper_trading_tick_interval_sec)),
-            "options": {"queue": "hive"},
-        }
     if settings.agent_stale_sweep_enabled:
         schedule["hive-agent-stale-sweep"] = {
             "task": "hive.agent_stale_sweep",

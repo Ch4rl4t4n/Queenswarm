@@ -442,7 +442,7 @@ async def compose_business_operator_snapshot(
     )
     revenue = compose_revenue_summary(export_root)
     factory_queue_count = 0
-    trading_paper_mode = True
+    polymarket_live_ready = False
     if settings.skill_factory_enabled:
         try:
             from app.application.services.skill_factory_service import compose_skill_factory_snapshot
@@ -459,9 +459,11 @@ async def compose_business_operator_snapshot(
             dashboard_user_id=dashboard_user_id,
             tenant=tenant,
         )
-        trading_paper_mode = str((trading_snap.config or {}).get("default_mode") or "paper") == "paper"
+        pm = trading_snap.prediction_markets or {}
+        readiness = pm.get("polymarket_readiness") or {}
+        polymarket_live_ready = bool(readiness.get("ready")) and bool(pm.get("live_trading_enabled"))
     except Exception:
-        trading_paper_mode = True
+        polymarket_live_ready = False
 
     missions = await _mission_counts(db, tenant_id=tenant_id)
     daily, goal_stack, background_team, cross_lane = await asyncio.gather(
@@ -480,7 +482,7 @@ async def compose_business_operator_snapshot(
             missions=missions,
             revenue=revenue,
             factory_queue_count=factory_queue_count,
-            trading_paper_mode=trading_paper_mode,
+            polymarket_live_ready=polymarket_live_ready,
         ),
         compose_background_business_team(db, tenant_id=tenant_id, tenant=tenant),
         compose_business_cross_lane_learning(db, tenant_id=tenant_id),

@@ -1216,8 +1216,8 @@ class Settings(BaseSettings):
         description="GitHub repo name for skill folder publish hints.",
     )
     paper_trading_enabled: bool = Field(
-        default=True,
-        description="Enable paper trading bee Celery ticks and dashboard APIs.",
+        default=False,
+        description="Deprecated — paper trading removed; keep false.",
     )
     hourly_youtube_crypto_roll_enabled: bool = Field(
         default=True,
@@ -1831,8 +1831,8 @@ class Settings(BaseSettings):
         description="Minimum average confidence for Analysis Swarm execute recommendation.",
     )
     trade_to_content_enabled: bool = Field(
-        default=True,
-        description="Auto-draft publish pack from verified paper fill.",
+        default=False,
+        description="Deprecated — paper trade→content pipeline removed.",
     )
     cross_swarm_knowledge_enabled: bool = Field(
         default=True,

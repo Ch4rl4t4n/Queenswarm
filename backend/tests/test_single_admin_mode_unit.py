@@ -11,7 +11,6 @@ from app.worker.beat_schedule import build_beat_schedule
 from app.worker.tasks import (
     dynamic_agent_schedule_tick_task,
     manager_peer_review_sweep_task,
-    paper_trading_tick_task,
     pollen_reroster_sweep_task,
     recipe_warmup_task,
 )
@@ -70,10 +69,8 @@ def test_worker_tasks_short_circuit_when_feature_disabled(monkeypatch: pytest.Mo
     monkeypatch.setattr(settings, "manager_peer_review_enabled", False)
     monkeypatch.setattr(settings, "recipe_warmup_enabled", False)
     monkeypatch.setattr(settings, "pollen_reroster_enabled", False)
-    monkeypatch.setattr(settings, "paper_trading_enabled", False)
     assert dynamic_agent_schedule_tick_task()["status"] == "skipped"
     assert manager_peer_review_sweep_task()["status"] == "skipped"
     assert recipe_warmup_task()["status"] == "skipped"
     assert pollen_reroster_sweep_task()["status"] == "skipped"
-    assert paper_trading_tick_task()["status"] == "skipped"
 

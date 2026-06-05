@@ -68,11 +68,11 @@ DEFAULT_PROFILES: tuple[HarnessProjectProfileOut, ...] = (
     HarnessProjectProfileOut(
         profile_id="trading",
         label="Trading harness",
-        description="Paper discipline, risk gates, cockpit signals.",
-        skill_slugs=["trading-paper-discipline", "decision-frameworks", "real-money-risk-gate"],
+        description="Polymarket prediction evaluation + live risk gates.",
+        skill_slugs=["polymarket-prediction-evaluator", "decision-frameworks", "real-money-risk-gate"],
         cbo_lane="trading",
         module_key="trading_automation",
-        default_goal_hint="Paper-mode analysis only — no live orders without explicit approval.",
+        default_goal_hint="Evaluator consensus first — live USDC orders only after operator approval.",
     ),
     HarnessProjectProfileOut(
         profile_id="general",

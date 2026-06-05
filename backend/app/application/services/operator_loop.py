@@ -137,13 +137,13 @@ def _derive_actions(
                 href=STUDIO_TRADING_COCKPIT_HREF,
             ),
         )
-    elif (trading.get("config") or {}).get("default_mode") == "paper":
+    elif not perf.get("live_ready") and settings.prediction_markets_enabled:
         actions.append(
             OperatorLoopActionOut(
-                id="paper_tick",
-                label="Run paper trading tick",
-                detail="Evaluate watchlist signals in paper mode (no real money).",
-                priority="medium",
+                id="polymarket_prep",
+                label="Complete Polymarket live setup",
+                detail="Vault CLOB credentials and enable live trading flag after risk review.",
+                priority="high",
                 href=STUDIO_TRADING_COCKPIT_HREF,
             ),
         )

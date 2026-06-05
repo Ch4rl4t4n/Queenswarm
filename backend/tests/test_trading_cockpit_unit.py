@@ -28,12 +28,11 @@ def test_merge_trading_lane_patch_deep_merges_risk() -> None:
     assert lane["venue"] == "polymarket"
 
 
-def test_project_settings_from_lane_paper() -> None:
+def test_project_settings_from_lane_always_polymarket_real() -> None:
     lane = {**DEFAULT_TRADING_LANE, "venue": "paper_crypto"}
     settings = _project_settings_from_lane(lane)
-    assert settings["trading_mode"] == "paper"
-    assert settings["venue"] == ""
-    assert "BTC" in settings["watchlist"]
+    assert settings["trading_mode"] == "real"
+    assert settings["venue"] == "polymarket"
 
 
 def test_project_settings_from_lane_polymarket() -> None:
@@ -76,7 +75,7 @@ async def test_apply_trading_cockpit_config_sets_real_mode_for_polymarket() -> N
             session,
             tenant=tenant,
             owner_id=owner_id,
-            patch=TradingCockpitConfigPatch(venue="polymarket"),
+            patch=TradingCockpitConfigPatch(execution_flow="manual_approve"),
         )
     assert lane["default_mode"] == "real"
     assert lane["venue"] == "polymarket"

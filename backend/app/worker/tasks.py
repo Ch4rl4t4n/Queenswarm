@@ -802,24 +802,6 @@ def run_supervisor_routines_tick_task() -> dict[str, int]:
     return asyncio.run(_run())
 
 
-@celery_app.task(name="hive.paper_trading_tick", queue="hive")
-def paper_trading_tick_task() -> dict[str, object]:
-    """Run paper trading bee across eligible external projects."""
-
-    if not settings.paper_trading_enabled:
-        return {"status": "skipped", "reason": "paper_trading_disabled"}
-
-    async def _run() -> dict[str, object]:
-        from app.application.services.paper_trading_service import run_paper_trading_tick_all
-
-        async with async_session() as session:
-            payload = await run_paper_trading_tick_all(session)
-            await session.commit()
-            return payload
-
-    return asyncio.run(_run())
-
-
 @celery_app.task(name="hive.manager_peer_review_sweep", queue="hive")
 def manager_peer_review_sweep_task() -> dict[str, object]:
     """Sample 10 % of completed sessions; emit info health-notes by alternate managers."""
@@ -1003,7 +985,6 @@ __all__ = [
     "execute_universal_agent_task",
     "hourly_youtube_crypto_roll_task",
     "agent_stale_sweep_task",
-    "paper_trading_tick_task",
     "run_supervisor_sub_agent_step_task",
     "run_supervisor_routines_tick_task",
     "run_supervisor_audit_digest_tick_task",

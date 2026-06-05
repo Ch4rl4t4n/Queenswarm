@@ -57,7 +57,6 @@ from app.presentation.api.routers import wiki_layer as wiki_layer_router
 from app.presentation.api.routers import goals as goals_router
 from app.presentation.api.routers import agent_templates as agent_templates_router
 from app.presentation.api.routers import foragers as foragers_router
-from app.presentation.api.routers import paper_trading as paper_trading_router
 from app.presentation.api.routers import command_center_admin as command_center_admin_router
 from app.presentation.api.routers import admin_accounts as admin_accounts_router
 from app.presentation.api.routers import admin_publish_lane as admin_publish_lane_router
@@ -152,7 +151,6 @@ api_v1.include_router(platform_features_admin_router.router)
 api_v1.include_router(admin_accounts_router.router)
 api_v1.include_router(admin_publish_lane_router.router)
 api_v1.include_router(command_center_admin_router.router)
-api_v1.include_router(paper_trading_router.router)
 api_v1.include_router(outputs_router.router)
 api_v1.include_router(publish_queue_router.router)
 api_v1.include_router(publish_performance_router.router)

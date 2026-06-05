@@ -1,4 +1,4 @@
-"""Celery task — trading overnight review digest (06:00 UTC, P8)."""
+"""Celery task — Polymarket overnight readiness digest (06:00 UTC)."""
 
 from __future__ import annotations
 
@@ -16,11 +16,11 @@ logger = get_logger(__name__)
 
 @celery_app.task(name="hive.trading_overnight_review_tick", queue="hive")
 def trading_overnight_review_tick_task() -> dict[str, Any]:
-    """Append trading P&L summary to tenant execution activity before morning loop."""
+    """Append Polymarket live-lane readiness to tenant execution activity."""
 
     async def _run() -> dict[str, Any]:
-        from app.application.services.paper_trading_service import build_dashboard_paper_summary
         from app.application.services.execution_studio_activity import persist_execution_activity
+        from app.application.services.prediction_market_trading import build_prediction_markets_status_snapshot
         from app.core.config import settings
         from app.core.database import async_session
         from app.infrastructure.persistence.models.tenant import DashboardUserTenantMembership, Tenant
@@ -30,7 +30,6 @@ def trading_overnight_review_tick_task() -> dict[str, Any]:
 
         notified = 0
         async with async_session() as session:
-            summary = await build_dashboard_paper_summary(session)
             memberships = list(
                 (
                     await session.scalars(
@@ -50,19 +49,23 @@ def trading_overnight_review_tick_task() -> dict[str, Any]:
                 if tenant is None:
                     continue
                 try:
+                    pm_status = await build_prediction_markets_status_snapshot(
+                        session,
+                        dashboard_user_id=membership.dashboard_user_id,
+                    )
+                    readiness = pm_status.get("polymarket_readiness") or {}
+                    prep_pct = int(readiness.get("progress_pct") or 0)
+                    live = bool(pm_status.get("live_trading_enabled"))
                     await persist_execution_activity(
                         session,
                         tenant,
                         event_type="trade_overnight_review",
-                        message=(
-                            f"Overnight trading review: equity ${summary.get('total_equity_usd', 0):.2f} "
-                            f"P&L ${summary.get('total_pnl_usd', 0):.2f}"
-                        ),
+                        message=f"Polymarket lane: prep {prep_pct}% · live={'on' if live else 'off'}",
                         payload={
                             "ok": True,
-                            "total_equity_usd": summary.get("total_equity_usd"),
-                            "total_pnl_usd": summary.get("total_pnl_usd"),
-                            "project_count": summary.get("project_count"),
+                            "prep_pct": prep_pct,
+                            "live_trading_enabled": live,
+                            "ready": bool(readiness.get("ready")),
                         },
                     )
                     notified += 1
@@ -76,15 +79,7 @@ def trading_overnight_review_tick_task() -> dict[str, Any]:
             await session.commit()
         return {"enabled": True, "notified": notified}
 
-    result = asyncio.run(_run())
-    logger.info(
-        "trading_overnight.celery_tick",
-        agent_id="trading_overnight",
-        swarm_id="global",
-        task_id="review",
-        notified=int(result.get("notified") or 0),
-    )
-    return result
+    return asyncio.run(_run())
 
 
 __all__ = ["trading_overnight_review_tick_task"]

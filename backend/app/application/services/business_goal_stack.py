@@ -25,7 +25,7 @@ BusinessGoalKind = Literal[
     "mission_triage_clear",
     "factory_queue",
     "catalog_products",
-    "trading_paper",
+    "polymarket_live",
     "custom",
 ]
 
@@ -151,7 +151,7 @@ def _lane_for_kind(kind: BusinessGoalKind) -> str | None:
         "catalog_products": "marketing",
         "factory_queue": "factory",
         "mission_triage_clear": "mission",
-        "trading_paper": "trading",
+        "polymarket_live": "trading",
     }
     return mapping.get(kind)
 
@@ -163,7 +163,7 @@ def _measure_goal(
     missions: BusinessMissionSummaryOut,
     revenue: BusinessRevenueSummaryOut,
     factory_queue_count: int,
-    trading_paper_mode: bool,
+    polymarket_live_ready: bool,
 ) -> tuple[float, DriftSeverity, str]:
     """Return current value, drift severity, and detail for one goal."""
 
@@ -201,11 +201,11 @@ def _measure_goal(
         severity = "warning" if current <= 3 else "critical"
         return current, severity, f"{int(current)} skill(s) queued or building"
 
-    if goal.kind == "trading_paper":
-        current = 1.0 if trading_paper_mode else 0.0
-        if trading_paper_mode:
-            return current, "ok", "Trading in paper mode (simulate-first)"
-        return current, "warning", "Trading not in paper mode — verify risk gates"
+    if goal.kind == "polymarket_live":
+        current = 1.0 if polymarket_live_ready else 0.0
+        if polymarket_live_ready:
+            return current, "ok", "Polymarket live lane ready (CLOB + live flag)"
+        return current, "critical", "Polymarket live not ready — vault CLOB and enable live flag"
 
     if goal.kind == "custom":
         return 0.0, "ok", revenue.next_operator_action or "Custom goal — track manually"
@@ -222,7 +222,7 @@ async def compose_business_goal_stack(
     missions: BusinessMissionSummaryOut,
     revenue: BusinessRevenueSummaryOut,
     factory_queue_count: int = 0,
-    trading_paper_mode: bool = True,
+    polymarket_live_ready: bool = False,
 ) -> BusinessGoalStackOut:
     """Measure tenant goals and compute drift for CBO."""
 
@@ -239,7 +239,7 @@ async def compose_business_goal_stack(
             missions=missions,
             revenue=revenue,
             factory_queue_count=factory_queue_count,
-            trading_paper_mode=trading_paper_mode,
+            polymarket_live_ready=polymarket_live_ready,
         )
         if severity != "ok":
             drift_count += 1
@@ -277,7 +277,7 @@ def goal_id_for_lane(lane: str) -> str | None:
         "marketing": "catalog_products",
         "factory": "factory_queue",
         "mission": "mission_inbox_zero",
-        "trading": "trading_paper",
+        "trading": "polymarket_live",
     }
     return mapping.get(lane)
 

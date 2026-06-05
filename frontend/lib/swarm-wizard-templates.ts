@@ -18,6 +18,7 @@ export type SwarmWizardTemplateId =
   | "content-flywheel"
   | "content-flywheel-v2"
   | "polymarket-trading"
+  | "polymarket-prediction-evaluator"
   | "trading-content-hybrid"
   | "life-business-os"
   | "faceless-media-agency"
@@ -540,13 +541,64 @@ export const SWARM_WIZARD_TEMPLATES: SwarmWizardTemplate[] = [
     },
   },
   {
-    id: "polymarket-trading",
-    name: "Polymarket Trading Swarm",
-    tagline: "Forager → Analysis → Risk → Executor (paper first)",
+    id: "polymarket-prediction-evaluator",
+    name: "Polymarket Prediction Evaluator",
+    tagline: "Research + consensus only — no orders",
     description:
-      "Trading swarm for Polymarket lane: market research, 3-model consensus, risk validation, paper execution. Live only after operator vault + flags.",
+      "Evaluation-only swarm: scan Polymarket markets, 3-model consensus, edge scoring. Never places orders — hand off to live executor after operator approval.",
     category: "personal",
-    swarmName: "Polymarket Trading",
+    swarmName: "Polymarket Evaluator",
+    swarmPurpose: "scout",
+    estimatedMinutes: 8,
+    timeSavedHoursPerWeek: 6,
+    accentHex: "#00FFFF",
+    comingSoon: false,
+    agents: [
+      {
+        name: "Evaluator Supervisor",
+        hiveTier: "manager",
+        systemPrompt:
+          `Supervise Polymarket evaluation only — no execute_trade, no CLOB orders. Rank markets by edge vs price.${EXEC}`,
+        tools: DEPT_TOOLS,
+      },
+      {
+        name: "Market Scanner Bee",
+        hiveTier: "worker",
+        systemPrompt:
+          "Fetch Polymarket Gamma markets/events. Filter liquidity, time-to-resolution, and category fit.",
+        tools: DEPT_TOOLS,
+      },
+      {
+        name: "Consensus Analyst Bee",
+        hiveTier: "worker",
+        systemPrompt:
+          "Run 3-lane analysis consensus. Output probability estimate, confidence, and edge vs market price.",
+        tools: ["hive_memory_search"],
+      },
+      {
+        name: "Edge Critic Bee",
+        hiveTier: "worker",
+        systemPrompt:
+          "Challenge consensus — flag thin liquidity, resolution risk, and overconfidence. No trade recommendations without caveats.",
+        tools: [],
+      },
+    ],
+    routine: {
+      name: "Market evaluation sweep",
+      goalTemplate:
+        "Scan Polymarket, run consensus on top 5 markets, deliver ranked evaluation report — no orders.",
+      scheduleKind: "cron",
+      cronExpr: "0 8,14 * * 1-5",
+    },
+  },
+  {
+    id: "polymarket-trading",
+    name: "Polymarket Live Executor",
+    tagline: "Real USDC orders — after evaluator + risk gate",
+    description:
+      "Live trading swarm for Polymarket: consumes evaluator reports, passes risk validator, places signed CLOB orders when operator approves.",
+    category: "personal",
+    swarmName: "Polymarket Live Executor",
     swarmPurpose: "action",
     estimatedMinutes: 10,
     timeSavedHoursPerWeek: 8,
@@ -554,47 +606,33 @@ export const SWARM_WIZARD_TEMPLATES: SwarmWizardTemplate[] = [
     comingSoon: false,
     agents: [
       {
-        name: "Trading Supervisor",
+        name: "Live Trading Supervisor",
         hiveTier: "manager",
         systemPrompt:
-          `Supervise Polymarket trading lane: simulate-first, human approve for live. Enforce daily stop-loss and max order USD via Trading Cockpit.${EXEC}`,
+          `Supervise Polymarket LIVE lane only — real USDC. Require evaluator report + human approval per order unless trusted_auto.${EXEC}`,
         tools: DEPT_TOOLS,
-      },
-      {
-        name: "Market Forager Bee",
-        hiveTier: "worker",
-        systemPrompt:
-          "Research Polymarket markets via polymarket_gamma connector. Store briefs in HiveMind with citations.",
-        tools: DEPT_TOOLS,
-      },
-      {
-        name: "Analysis Consensus Bee",
-        hiveTier: "worker",
-        systemPrompt:
-          "Run 3-lane analysis consensus before any trade signal. Output bullish/bearish/neutral with confidence — never execute without Risk Validator pass.",
-        tools: ["hive_memory_search"],
       },
       {
         name: "Risk Validator Bee",
         hiveTier: "worker",
         systemPrompt:
-          "Validate trades: confidence threshold, max order, daily loss, halt state. Block and log reasons when checks fail.",
+          "Validate every order: max order USD, daily loss, confidence threshold, live flag. Block and audit when checks fail.",
         tools: [],
       },
       {
-        name: "Paper Executor Bee",
+        name: "CLOB Executor Bee",
         hiveTier: "worker",
         systemPrompt:
-          "Execute paper trades only. After verified fill, trigger trade→content draft for optional social publish.",
+          "Place signed Polymarket CLOB orders via external project API only after risk pass and operator approval.",
         tools: DEPT_TOOLS,
       },
     ],
     routine: {
-      name: "Paper trading tick cycle",
+      name: "Live execution cycle",
       goalTemplate:
-        "Run paper tick: forage markets, consensus analysis, risk gate, paper fill if allowed, draft content pack.",
+        "Review latest evaluator report, risk-gate approved markets, request operator approval for live orders.",
       scheduleKind: "cron",
-      cronExpr: "0 */4 * * 1-5",
+      cronExpr: "0 9,15 * * 1-5",
     },
   },
   {
@@ -665,16 +703,16 @@ export const SWARM_WIZARD_TEMPLATES: SwarmWizardTemplate[] = [
   {
     id: "trading-content-hybrid",
     name: "Trading + Content Hybrid",
-    tagline: "Polymarket paper lane + auto trade→content flywheel",
+    tagline: "Deprecated — use Polymarket evaluator + executor",
     description:
-      "Dual-lane colony: paper prediction markets with risk gate, verified fills, and auto publish pack drafts for social flywheel.",
+      "Removed — paper trading and trade→content flywheel deprecated. Use polymarket-prediction-evaluator and polymarket-trading templates.",
     category: "personal",
     swarmName: "Trading Content Hybrid",
     swarmPurpose: "action",
     estimatedMinutes: 14,
     timeSavedHoursPerWeek: 18,
     accentHex: "#FFB800",
-    comingSoon: false,
+    comingSoon: true,
     agents: [
       {
         name: "Hybrid Supervisor",
@@ -721,7 +759,7 @@ export const SWARM_WIZARD_TEMPLATES: SwarmWizardTemplate[] = [
     name: "Life + Business OS",
     tagline: "Morning brief + trading/content lanes in one colony",
     description:
-      "Bundle Life OS overnight dump with Trading + Content Hybrid — personal priorities plus paper revenue lane.",
+      "Bundle Life OS overnight dump with morning brief — personal priorities (no paper trading lane).",
     category: "personal",
     swarmName: "Life Business OS",
     swarmPurpose: "scout",
@@ -749,17 +787,11 @@ export const SWARM_WIZARD_TEMPLATES: SwarmWizardTemplate[] = [
         systemPrompt: "Deliver verified morning briefing with stalled projects and pollen earned.",
         tools: ["hive_memory_search", "task_list"],
       },
-      {
-        name: "Hybrid Trading Bee",
-        hiveTier: "worker",
-        systemPrompt: "Run paper Polymarket tick with risk gate; draft trade→content on verified fill.",
-        tools: DEPT_TOOLS,
-      },
     ],
     routine: {
       name: "Overnight + hybrid morning cycle",
       goalTemplate:
-        "Overnight dump → morning brief → paper trading tick → content draft queue.",
+        "Overnight dump → morning brief → top 3 personal priorities.",
       scheduleKind: "cron",
       cronExpr: "0 6 * * *",
     },

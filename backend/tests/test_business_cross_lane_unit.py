@@ -36,7 +36,7 @@ async def test_cross_lane_collects_suggestions() -> None:
         suggestions=[
             CrossSwarmRecipeSuggestionOut(
                 recipe_id="r1",
-                name="Paper discipline",
+                name="Polymarket evaluator",
                 source_domain="trading",
                 target_domain="marketing",
                 similarity=0.82,
