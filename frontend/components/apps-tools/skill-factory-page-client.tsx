@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { DownloadIcon, GitBranchIcon, Loader2Icon, PlayIcon, RefreshCwIcon, RocketIcon, SparklesIcon, StoreIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -12,8 +11,13 @@ import {
   factoryBuildDisabled,
   type FactoryLlmReadiness,
 } from "@/components/apps-tools/factory-llm-readiness-banner";
+import {
+  FactoryQueueTaskCard,
+  isStuckFactoryBuild,
+} from "@/components/apps-tools/factory-queue-task-card";
 import { HarnessEvalPanel } from "@/components/apps-tools/harness-eval-panel";
 import { HarnessProductLinesPanel } from "@/components/apps-tools/harness-product-lines-panel";
+import { AgentSessionReportDialog } from "@/components/hive/agent-session-report-dialog";
 import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { SkillFactoryManualPanel } from "@/components/apps-tools/skill-factory-manual-panel";
 import { HiveSwitch } from "@/components/ui/hive-switch";
@@ -26,7 +30,6 @@ import {
 } from "@/lib/apps-tools-routes";
 import { useRouteHash } from "@/lib/hooks/use-route-hash";
 import { downloadSkillExportBundle, downloadTextFile } from "@/lib/skill-export-utils";
-import { supervisorSessionAgentsHref, skillFactoryForgeHref } from "@/lib/supervisor-session";
 import type { FactoryProductPreset, HarnessEvalResult, LaunchPrepareResult, SkillExportResponse } from "@/lib/hive-types";
 
 interface SkillFactoryPolicy {
@@ -55,6 +58,7 @@ interface SkillOpportunityRow {
   status: string;
   supervisor_session_id: string | null;
   supervisor_session_status: string | null;
+  supervisor_session_error?: string | null;
   forge_suggestion_id: string | null;
   forge_review_status?: string | null;
   forge_quality_passed?: boolean | null;
@@ -73,21 +77,6 @@ const FALLBACK_STARTER_PRESETS: string[] = [
   "lead research + outreach simulate-first",
   "social content calendar with brand guardrails",
 ];
-
-function opportunityStatusLabel(row: SkillOpportunityRow): string {
-  if (row.status === "building") return "Building…";
-  if (row.status === "awaiting_forge" && row.forge_review_status === "approved") {
-    return row.tenant_skill_id ? "In Library — export or publish" : "Forge approved — syncing to Library";
-  }
-  if (row.status === "awaiting_forge" && row.forge_review_status === "pending") {
-    return "Session done — approve forge";
-  }
-  if (row.status === "awaiting_forge") return "Session done — open report";
-  if (row.status === "queued") return "Queued";
-  if (row.status === "failed") return "Build failed";
-  if (row.status === "completed") return "Completed";
-  return row.status;
-}
 
 interface TenantSkillRow {
   id: string;
@@ -118,6 +107,18 @@ interface LaunchReadiness {
   exports_on_disk_hint: string;
 }
 
+interface SkillFactoryOpportunityCounts {
+  pending: number;
+  queued: number;
+  building: number;
+  awaiting_forge: number;
+  failed: number;
+  completed: number;
+  dismissed: number;
+  total: number;
+  actionable: number;
+}
+
 interface SkillFactorySnapshot {
   policy: SkillFactoryPolicy;
   opportunities: SkillOpportunityRow[];
@@ -127,6 +128,10 @@ interface SkillFactorySnapshot {
   launch_readiness: LaunchReadiness | null;
   queue_count: number;
   building_count: number;
+  failed_count?: number;
+  actionable_count?: number;
+  opportunity_counts?: SkillFactoryOpportunityCounts | null;
+  opportunities_truncated?: boolean;
   research_keys_configured: boolean;
   external_intel_enabled: boolean;
   apify_connector_ready: boolean;
@@ -146,7 +151,6 @@ function priceEur(cents: number): string {
 }
 
 export function SkillFactoryPageClient(): JSX.Element {
-  const router = useRouter();
   const routeHash = useRouteHash();
   const { setQueueBadge } = useSkillFactoryNav();
   const tab = useMemo(() => resolveSkillFactoryTab({ hash: routeHash }), [routeHash]);
@@ -160,6 +164,7 @@ export function SkillFactoryPageClient(): JSX.Element {
   const [verticalSeeds, setVerticalSeeds] = useState<string[]>(FALLBACK_STARTER_PRESETS);
   const [starterSeeds, setStarterSeeds] = useState<string[]>(FALLBACK_STARTER_PRESETS);
   const [productPresets, setProductPresets] = useState<FactoryProductPreset[]>([]);
+  const [sessionReportId, setSessionReportId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -175,6 +180,16 @@ export function SkillFactoryPageClient(): JSX.Element {
       setSnapshot(null);
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const refreshSnapshotQuiet = useCallback(async () => {
+    try {
+      const data = await hiveGet<SkillFactorySnapshot>("skill-factory/snapshot");
+      setSnapshot(data);
+      setPolicyDraft(data.policy);
+    } catch {
+      /* queue poll — ignore transient errors */
     }
   }, []);
 
@@ -207,9 +222,26 @@ export function SkillFactoryPageClient(): JSX.Element {
       setQueueBadge(undefined);
       return;
     }
-    const count = snapshot.queue_count + snapshot.building_count;
+    const visibleQueue = snapshot.opportunities.filter((row) =>
+      ["queued", "building", "awaiting_forge", "failed"].includes(row.status),
+    ).length;
+    const dbActionable =
+      snapshot.opportunity_counts?.actionable
+      ?? snapshot.actionable_count
+      ?? snapshot.queue_count + snapshot.building_count + (snapshot.failed_count ?? 0);
+    const count = Math.max(dbActionable, visibleQueue);
     setQueueBadge(count > 0 ? count : undefined);
   }, [setQueueBadge, snapshot]);
+
+  useEffect(() => {
+    if (tab !== "queue" || !snapshot?.building_count) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      void refreshSnapshotQuiet();
+    }, 12_000);
+    return () => window.clearInterval(timer);
+  }, [tab, snapshot?.building_count, refreshSnapshotQuiet]);
 
   const researchRows = useMemo(
     () => (snapshot?.opportunities ?? []).filter((row) => row.status === "pending"),
@@ -234,14 +266,21 @@ export function SkillFactoryPageClient(): JSX.Element {
         created: number;
         builds_started: number;
         active_opportunities?: number;
+        failed_count?: number;
+        pending_count?: number;
+        queued_count?: number;
+        building_count?: number;
       }>("skill-factory/research/run", {});
       if (res.created === 0) {
-        const active = res.active_opportunities ?? queueRows.length + researchRows.length;
-        toast.info("No new niches found.", {
+        const active = res.active_opportunities ?? snapshot?.actionable_count ?? queueRows.length;
+        const failed = res.failed_count ?? snapshot?.failed_count ?? 0;
+        toast.info("No new niches — seeds already covered.", {
           description:
-            active > 0
-              ? `${active} opportunities already in queue or building. Refresh Queue or open Sessions to review completed runs.`
-              : "All configured niches were already scanned. Add niche seeds in Settings or wait for weekly cron.",
+            failed > 0
+              ? `${active} actionable (${failed} failed) — open Queue tab: Rebuild or Clear failed.`
+              : active > 0
+                ? `${active} already in pipeline — manage inline on Queue tab.`
+                : "Add niche seeds in Settings or wait for weekly cron.",
         });
       } else {
         toast.success(`Research done — ${res.created} new, ${res.builds_started} builds started.`);
@@ -362,6 +401,76 @@ export function SkillFactoryPageClient(): JSX.Element {
       await load();
     } catch (e) {
       toast.error(e instanceof HiveApiError ? e.message : "Rebuild failed.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const runQueueTask = async (opportunityId: string): Promise<void> => {
+    const row = (snapshot?.opportunities ?? []).find((item) => item.id === opportunityId);
+    if (!row) return;
+    if (row.status === "queued") {
+      await buildOpportunity(opportunityId);
+      return;
+    }
+    await rebuildOpportunity(opportunityId);
+  };
+
+  const stopQueueSession = async (opportunityId: string, sessionId: string): Promise<void> => {
+    setBusyId(opportunityId);
+    try {
+      await hivePostJson(`agents/sessions/${sessionId}/control`, { action: "stop" });
+      toast.success("Build stopped.");
+      await load();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Stop failed.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const factoryLlmShortLabel = useMemo(() => {
+    const llm = snapshot?.llm;
+    if (!llm?.primary_model) return undefined;
+    const match = llm.available_models?.find((row) => row.value === llm.primary_model);
+    if (match?.label) {
+      const short = match.label.split("(")[0]?.trim();
+      return short ? short.slice(0, 28) : match.label.slice(0, 28);
+    }
+    return llm.primary_model.split("/").pop()?.slice(0, 24);
+  }, [snapshot?.llm]);
+
+  const rebuildAllFailed = async (): Promise<void> => {
+    const ids = (snapshot?.opportunities ?? [])
+      .filter((row) => row.status === "failed" || isStuckFactoryBuild(row))
+      .map((row) => row.id);
+    if (ids.length === 0) return;
+    setBusyId("rebuild-failed");
+    try {
+      for (const id of ids.slice(0, 5)) {
+        await hivePostJson(`skill-factory/opportunities/${id}/rebuild`, {});
+      }
+      toast.success(`Started rebuild for ${Math.min(ids.length, 5)} task(s).`);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Rebuild failed.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const dismissAllFailed = async (): Promise<void> => {
+    const failedIds = queueRows.filter((row) => row.status === "failed").map((row) => row.id);
+    if (failedIds.length === 0) return;
+    setBusyId("dismiss-failed");
+    try {
+      for (const id of failedIds) {
+        await hivePostJson(`skill-factory/opportunities/${id}/dismiss`, {});
+      }
+      toast.success(`Cleared ${failedIds.length} failed build${failedIds.length === 1 ? "" : "s"}.`);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Dismiss failed.");
     } finally {
       setBusyId(null);
     }
@@ -550,7 +659,7 @@ export function SkillFactoryPageClient(): JSX.Element {
                   for live Gumroad/GitHub market signals.
                 </p>
               ) : null}
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   className="qs-btn qs-btn--primary qs-btn--sm gap-2"
@@ -565,6 +674,28 @@ export function SkillFactoryPageClient(): JSX.Element {
                   Run research now
                 </button>
                 <V4Badge tone="info">{researchRows.length} pending</V4Badge>
+                {snapshot.opportunity_counts ? (
+                  <>
+                    <V4Badge tone={snapshot.opportunity_counts.failed > 0 ? "warn" : "info"}>
+                      {snapshot.opportunity_counts.actionable} in pipeline
+                    </V4Badge>
+                    {snapshot.opportunity_counts.failed > 0 ? (
+                      <V4Badge tone="warn">{snapshot.opportunity_counts.failed} failed</V4Badge>
+                    ) : null}
+                    {snapshot.opportunity_counts.building > 0 ? (
+                      <V4Badge tone="info">{snapshot.opportunity_counts.building} building</V4Badge>
+                    ) : null}
+                  </>
+                ) : null}
+                {(snapshot.actionable_count ?? 0) > 0 ? (
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--ghost qs-btn--sm"
+                    onClick={() => navigateSkillFactoryTab("queue")}
+                  >
+                    Open Queue ({snapshot.actionable_count})
+                  </button>
+                ) : null}
               </div>
               <ul className="mt-4 space-y-2">
                 {researchRows.map((row) => (
@@ -611,11 +742,28 @@ export function SkillFactoryPageClient(): JSX.Element {
                   </li>
                 ))}
                 {researchRows.length === 0 ? (
-                  <p className="text-xs text-(--qs-text-4)">
-                    {queueRows.length > 0
-                      ? `${queueRows.length} in queue — nothing pending. Open Queue or Sessions to review builds.`
-                      : "No pending opportunities — run research."}
-                  </p>
+                  <div className="space-y-2 text-xs text-(--qs-text-4)">
+                    {snapshot.opportunity_counts && snapshot.opportunity_counts.actionable > 0 ? (
+                      <p>
+                        Pipeline: {snapshot.opportunity_counts.pending} pending ·{" "}
+                        {snapshot.opportunity_counts.queued} queued · {snapshot.opportunity_counts.building} building ·{" "}
+                        {snapshot.opportunity_counts.awaiting_forge} forge ·{" "}
+                        <span className="text-error">{snapshot.opportunity_counts.failed} failed</span>
+                        {snapshot.opportunities_truncated ? " (list truncated — use Queue tab)" : null}
+                      </p>
+                    ) : (
+                      <p>No pending opportunities — run research or add niche seeds in Settings.</p>
+                    )}
+                    {(snapshot.failed_count ?? 0) > 0 ? (
+                      <button
+                        type="button"
+                        className="qs-btn qs-btn--ghost qs-btn--sm"
+                        onClick={() => navigateSkillFactoryTab("queue")}
+                      >
+                        Manage {snapshot.failed_count} failed on Queue →
+                      </button>
+                    ) : null}
+                  </div>
                 ) : null}
               </ul>
             </V4Card>
@@ -626,135 +774,83 @@ export function SkillFactoryPageClient(): JSX.Element {
             <V4Card className="mt-4">
               <V4CardHeader
                 title="Build queue"
-                description="Queued and in-progress factory runs."
+                description={
+                  snapshot.opportunity_counts
+                    ? `${snapshot.opportunity_counts.actionable} actionable · ${snapshot.opportunity_counts.failed} failed · ${snapshot.opportunity_counts.building} building`
+                    : "Queued and in-progress factory runs."
+                }
                 hint={sectionHintNode("skillFactoryQueue")}
                 actions={
-                  queueRows.some((r) => r.status === "awaiting_forge" && r.forge_quality_passed === false) ? (
-                    <button
-                      type="button"
-                      className="qs-btn qs-btn--ghost qs-btn--sm"
-                      disabled={busyId === "reject-failed"}
-                      onClick={() => void rejectAllFailedForges()}
-                    >
-                      Reject all failed forges
-                    </button>
-                  ) : undefined
+                  <div className="flex flex-wrap items-center gap-2">
+                    {queueRows.some((r) => r.status === "failed" || isStuckFactoryBuild(r)) ? (
+                      <button
+                        type="button"
+                        className="qs-btn qs-btn--primary qs-btn--sm gap-1"
+                        disabled={busyId === "rebuild-failed" || factoryBuildDisabled(snapshot?.llm)}
+                        onClick={() => void rebuildAllFailed()}
+                      >
+                        <RefreshCwIcon className="size-3.5" aria-hidden />
+                        Rebuild failed ({queueRows.filter((r) => r.status === "failed").length})
+                      </button>
+                    ) : null}
+                    {queueRows.some((r) => r.status === "failed") ? (
+                      <button
+                        type="button"
+                        className="qs-btn qs-btn--ghost qs-btn--sm"
+                        disabled={busyId === "dismiss-failed"}
+                        onClick={() => void dismissAllFailed()}
+                      >
+                        Clear failed
+                      </button>
+                    ) : null}
+                    {queueRows.some((r) => r.status === "awaiting_forge" && r.forge_quality_passed === false) ? (
+                      <button
+                        type="button"
+                        className="qs-btn qs-btn--ghost qs-btn--sm"
+                        disabled={busyId === "reject-failed"}
+                        onClick={() => void rejectAllFailedForges()}
+                      >
+                        Reject all failed forges
+                      </button>
+                    ) : null}
+                  </div>
                 }
               />
-              <ul className="mt-4 space-y-2">
-                {queueRows.map((row) => (
-                  <li key={row.id} className="rounded-xl border border-cyan/25 bg-cyan/5 px-3 py-3 text-sm">
-                    <p className="font-medium">{row.title}</p>
-                    <p className="mt-1 text-xs text-(--qs-text-3)">Status: {opportunityStatusLabel(row)}</p>
-                    {row.status === "awaiting_forge" && (row.forge_quality_passed != null || row.forge_issues?.length) ? (
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px]">
-                        {row.forge_quality_passed != null ? (
-                          <V4Badge tone={row.forge_quality_passed ? "ok" : "warn"}>
-                            quality {row.forge_quality_passed ? "pass" : "fail"}
-                          </V4Badge>
-                        ) : null}
-                        {row.forge_critic_approved != null ? (
-                          <V4Badge tone={row.forge_critic_approved ? "ok" : "warn"}>
-                            critic {row.forge_critic_approved ? "APPROVE" : "REJECT"}
-                          </V4Badge>
-                        ) : null}
-                        {row.forge_issues && row.forge_issues.length > 0 ? (
-                          <span className="font-mono text-(--qs-text-4)">{row.forge_issues.slice(0, 3).join(", ")}</span>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    {row.status === "awaiting_forge" ? (
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        {row.tenant_skill_id ? (
-                          <button
-                            type="button"
-                            className="qs-btn qs-btn--primary qs-btn--sm"
-                            onClick={() => navigateSkillFactoryTab("library")}
-                          >
-                            Open Library
-                          </button>
-                        ) : row.forge_suggestion_id ? (
-                          <button
-                            type="button"
-                            className="qs-btn qs-btn--primary qs-btn--sm"
-                            disabled={
-                              busyId === row.id
-                              || row.forge_quality_passed === false
-                              || row.forge_critic_approved === false
-                            }
-                            title={
-                              row.forge_quality_passed === false || row.forge_critic_approved === false
-                                ? "Reject forge — critic APPROVE + valid SKILL required"
-                                : undefined
-                            }
-                            onClick={() => void approveForge(row.forge_suggestion_id!, row.id)}
-                          >
-                            Approve skill
-                          </button>
-                        ) : row.forge_review_status === "approved" ? (
-                          <button
-                            type="button"
-                            className="qs-btn qs-btn--primary qs-btn--sm"
-                            disabled={busyId === row.id}
-                            onClick={() => void load()}
-                          >
-                            Sync to Library
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="qs-btn qs-btn--primary qs-btn--sm"
-                            onClick={() => router.push(skillFactoryForgeHref())}
-                          >
-                            Open forge lane
-                          </button>
-                        )}
-                        {row.forge_suggestion_id ? (
-                          <button
-                            type="button"
-                            className="text-xs text-pollen underline"
-                            onClick={() => router.push(skillFactoryForgeHref())}
-                          >
-                            Review in Integrations →
-                          </button>
-                        ) : null}
-                        {row.forge_suggestion_id && row.forge_quality_passed === false ? (
-                          <>
-                            <button
-                              type="button"
-                              className="qs-btn qs-btn--ghost qs-btn--sm"
-                              disabled={busyId === row.id}
-                              onClick={() => void rejectForge(row.id, row.forge_suggestion_id!)}
-                            >
-                              Reject forge
-                            </button>
-                            <button
-                              type="button"
-                              className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
-                              disabled={busyId === row.id}
-                              onClick={() => void rebuildOpportunity(row.id)}
-                            >
-                              <RefreshCwIcon className="size-3.5" aria-hidden />
-                              Rebuild
-                            </button>
-                          </>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    {row.supervisor_session_id ? (
-                      <Link
-                        href={supervisorSessionAgentsHref(row.supervisor_session_id)}
-                        className="mt-2 inline-block text-xs text-cyan underline"
-                      >
-                        Open session report → {row.supervisor_session_id.slice(0, 8)}…
-                      </Link>
-                    ) : null}
-                  </li>
-                ))}
+              <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-(--qs-text-3)">
+                Factory runs
+                <span className="ml-2 font-normal normal-case tracking-normal text-(--qs-text-4)">
+                  ({queueRows.length} shown
+                  {snapshot.opportunity_counts
+                    ? ` · ${snapshot.opportunity_counts.actionable} actionable in DB`
+                    : null}
+                  )
+                </span>
+              </p>
+              <div className="v4-sessions-list-scroll hive-scrollbar mt-2">
                 {queueRows.length === 0 ? (
-                  <p className="text-xs text-(--qs-text-4)">Queue empty.</p>
-                ) : null}
-              </ul>
+                  <div className="rounded-xl border border-dashed border-(--qs-border) bg-black/20 px-4 py-6 text-center">
+                    <p className="text-sm text-(--qs-text-2)">Queue empty — run Research or Rebuild failed tasks.</p>
+                  </div>
+                ) : (
+                  queueRows.map((row) => (
+                    <FactoryQueueTaskCard
+                      key={row.id}
+                      row={row}
+                      busyId={busyId}
+                      buildDisabled={factoryBuildDisabled(snapshot?.llm)}
+                      factoryLlmLabel={factoryLlmShortLabel}
+                      onRun={(id) => void runQueueTask(id)}
+                      onStop={(id, sessionId) => void stopQueueSession(id, sessionId)}
+                      onRebuild={(id) => void rebuildOpportunity(id)}
+                      onDismiss={(id) => void dismissOpportunity(id)}
+                      onApproveForge={(suggestionId, id) => void approveForge(suggestionId, id)}
+                      onRejectForge={(id, suggestionId) => void rejectForge(id, suggestionId)}
+                      onSync={() => void load()}
+                      onOpenReport={(sessionId) => setSessionReportId(sessionId)}
+                    />
+                  ))
+                )}
+              </div>
               {doneRows.length > 0 ? (
                 <p className="mt-4 text-xs text-(--qs-text-3)">
                   {doneRows.length} factory run{doneRows.length === 1 ? "" : "s"} completed
@@ -875,7 +971,7 @@ export function SkillFactoryPageClient(): JSX.Element {
           {tab === "launch" ? (
             <>
             <HarnessProductLinesPanel />
-            <HarnessEvalPanel />
+            <HarnessEvalPanel llm={snapshot?.llm ?? null} />
             <V4Card className="mt-4">
               <V4CardHeader
                 title="Launch queue"
@@ -1294,6 +1390,13 @@ export function SkillFactoryPageClient(): JSX.Element {
           ) : null}
         </>
       )}
+      <AgentSessionReportDialog
+        sessionId={sessionReportId}
+        open={sessionReportId !== null}
+        onOpenChange={(open) => {
+          if (!open) setSessionReportId(null);
+        }}
+      />
     </div>
   );
 }

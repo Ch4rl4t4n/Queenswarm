@@ -206,12 +206,18 @@ async def skill_factory_run_research(
             created_by_subject=subject,
         )
     await db.commit()
-    active = sum(
-        1
-        for row in await list_skill_opportunities(db, tenant_id=tenant_id, limit=100)
-        if row.status in {"pending", "queued", "building", "awaiting_forge"}
-    )
-    return {"created": len(created), "builds_started": started, "active_opportunities": active}
+    from app.application.services.skill_factory_service import count_skill_opportunity_statuses
+
+    counts = await count_skill_opportunity_statuses(db, tenant_id=tenant_id)
+    return {
+        "created": len(created),
+        "builds_started": started,
+        "active_opportunities": counts.actionable,
+        "failed_count": counts.failed,
+        "pending_count": counts.pending,
+        "queued_count": counts.queued,
+        "building_count": counts.building,
+    }
 
 
 @router.post("/opportunities/{opportunity_id}/build", summary="Start factory build")
@@ -520,6 +526,8 @@ async def skill_factory_eval_skill(
             title=row.title,
             run_llm_critic=False,
         ),
+        session=db,
+        tenant_id=_tenant_id(principal),
     )
 
 

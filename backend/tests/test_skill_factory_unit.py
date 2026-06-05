@@ -145,11 +145,36 @@ async def test_reconcile_building_opportunities_marks_session_done(monkeypatch) 
     db.scalars = AsyncMock(return_value=SimpleNamespace(all=lambda: [sup]))
     db.flush = AsyncMock()
 
-    status_map = await reconcile_building_opportunities(db, tenant_id=tenant_id, opportunities=[opp])
+    status_map, error_map = await reconcile_building_opportunities(db, tenant_id=tenant_id, opportunities=[opp])
 
     assert opp.status == "awaiting_forge"
     assert status_map[opp_id] == "completed"
+    assert error_map == {}
     forge_mock.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_reconcile_building_opportunities_marks_orphan_building_failed() -> None:
+    """Building rows without a supervisor session should become failed with guidance."""
+    from app.application.services.skill_factory_service import reconcile_building_opportunities
+
+    tenant_id = uuid.uuid4()
+    opp_id = uuid.uuid4()
+    opp = SimpleNamespace(
+        id=opp_id,
+        status="building",
+        supervisor_session_id=None,
+    )
+
+    db = AsyncMock()
+    db.flush = AsyncMock()
+
+    status_map, error_map = await reconcile_building_opportunities(db, tenant_id=tenant_id, opportunities=[opp])
+
+    assert opp.status == "failed"
+    assert status_map[opp_id] == "orphan"
+    assert "Rebuild" in error_map[opp_id]
+    db.flush.assert_awaited_once()
 
 
 def test_extract_skill_markdown_from_coder_fence() -> None:
@@ -169,6 +194,24 @@ def test_extract_skill_markdown_from_coder_fence() -> None:
     md = extract_skill_markdown_from_outputs(coder_output=coder, critic_output="", goal="Skill Factory test")
     assert "name: newsletter-growth-automation" in md
     assert "Newsletter Growth" in md
+
+
+def test_skill_factory_opportunity_counts_actionable_includes_failed() -> None:
+    from app.application.services.skill_factory_service import SkillFactoryOpportunityCountsOut
+
+    counts = SkillFactoryOpportunityCountsOut(
+        pending=0,
+        queued=2,
+        building=3,
+        awaiting_forge=0,
+        failed=13,
+        completed=1,
+        dismissed=0,
+        total=19,
+        actionable=18,
+    )
+    assert counts.actionable == 18
+    assert counts.failed == 13
 
 
 def test_is_skill_factory_session_from_raw_goal() -> None:

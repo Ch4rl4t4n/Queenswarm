@@ -31,3 +31,18 @@ async def test_run_harness_eval_when_invalid_structure_then_fails() -> None:
     )
     assert result.passed is False
     assert len(result.issues) > 0
+
+
+@pytest.mark.asyncio
+async def test_run_harness_eval_when_llm_critic_without_session_then_raises() -> None:
+    with pytest.raises(ValueError, match="eval_session_required"):
+        await run_harness_eval(
+            HarnessEvalRequest(workflow_markdown=_VALID_MD, title="Test", run_llm_critic=True),
+        )
+
+
+def test_validate_factory_critic_model_rejects_unknown_slug() -> None:
+    from app.application.services.factory_llm_readiness_service import validate_factory_critic_model
+
+    with pytest.raises(ValueError, match="unsupported_critic_model"):
+        validate_factory_critic_model("unknown/vendor/model")

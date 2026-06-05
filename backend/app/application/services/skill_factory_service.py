@@ -9,7 +9,7 @@ from typing import Any
 
 import structlog
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.factory_policy_limits import (
@@ -110,6 +110,7 @@ class SkillOpportunityOut(BaseModel):
     source_refs: list[dict[str, Any]] = Field(default_factory=list)
     supervisor_session_id: str | None
     supervisor_session_status: str | None = None
+    supervisor_session_error: str | None = None
     forge_suggestion_id: str | None = None
     forge_review_status: str | None = None
     forge_quality_passed: bool | None = None
@@ -117,6 +118,22 @@ class SkillOpportunityOut(BaseModel):
     forge_issues: list[str] = Field(default_factory=list)
     tenant_skill_id: str | None
     created_at: datetime
+
+
+class SkillFactoryOpportunityCountsOut(BaseModel):
+    """Aggregate opportunity counts — full DB totals, not limited to snapshot page."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    pending: int = 0
+    queued: int = 0
+    building: int = 0
+    awaiting_forge: int = 0
+    failed: int = 0
+    completed: int = 0
+    dismissed: int = 0
+    total: int = 0
+    actionable: int = 0
 
 
 class SkillFactorySnapshotOut(BaseModel):
@@ -129,6 +146,10 @@ class SkillFactorySnapshotOut(BaseModel):
     library: list[TenantSkillOut]
     queue_count: int
     building_count: int
+    failed_count: int = 0
+    actionable_count: int = 0
+    opportunity_counts: SkillFactoryOpportunityCountsOut | None = None
+    opportunities_truncated: bool = False
     research_keys_configured: bool = False
     external_intel_enabled: bool = True
     apify_connector_ready: bool = False
@@ -265,6 +286,7 @@ def _opportunity_out(
     row: SkillOpportunityORM,
     *,
     supervisor_session_status: str | None = None,
+    supervisor_session_error: str | None = None,
     forge_suggestion_id: str | None = None,
     forge_review_status: str | None = None,
     forge_quality_passed: bool | None = None,
@@ -285,6 +307,7 @@ def _opportunity_out(
         source_refs=list(row.source_refs or []) if isinstance(row.source_refs, list) else [],
         supervisor_session_id=str(row.supervisor_session_id) if row.supervisor_session_id else None,
         supervisor_session_status=supervisor_session_status,
+        supervisor_session_error=supervisor_session_error,
         forge_suggestion_id=forge_suggestion_id,
         forge_review_status=forge_review_status,
         forge_quality_passed=forge_quality_passed,
@@ -402,10 +425,10 @@ async def reconcile_skill_factory_queue_states(
     *,
     tenant_id: uuid.UUID,
     opportunities: list[SkillOpportunityORM],
-) -> dict[uuid.UUID, str]:
+) -> tuple[dict[uuid.UUID, str], dict[uuid.UUID, str]]:
     """Sync opportunity rows with supervisor session + forge approval lifecycle."""
 
-    session_status_by_opp = await reconcile_building_opportunities(
+    session_status_by_opp, session_error_by_opp = await reconcile_building_opportunities(
         session,
         tenant_id=tenant_id,
         opportunities=opportunities,
@@ -469,7 +492,49 @@ async def reconcile_skill_factory_queue_states(
             row.status = "failed"
 
     await session.flush()
-    return session_status_by_opp
+    return session_status_by_opp, session_error_by_opp
+
+
+async def _supervisor_session_errors_for_opportunities(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    opportunities: list[SkillOpportunityORM],
+) -> dict[uuid.UUID, str]:
+    """Load supervisor error_text for failed or stuck factory opportunities."""
+
+    session_ids = {
+        row.supervisor_session_id
+        for row in opportunities
+        if row.supervisor_session_id is not None and row.status in {"failed", "building"}
+    }
+    if not session_ids:
+        return {}
+
+    sup_rows = list(
+        (
+            await session.scalars(
+                select(SupervisorSession).where(
+                    SupervisorSession.tenant_id == tenant_id,
+                    SupervisorSession.id.in_(session_ids),
+                ),
+            )
+        ).all(),
+    )
+    error_by_session = {
+        row.id: str(row.error_text or "").strip()[:500]
+        for row in sup_rows
+        if str(row.error_text or "").strip()
+    }
+    out: dict[uuid.UUID, str] = {}
+    for row in opportunities:
+        sid = row.supervisor_session_id
+        if sid is None:
+            continue
+        err = error_by_session.get(sid)
+        if err:
+            out[row.id] = err
+    return out
 
 
 async def reconcile_building_opportunities(
@@ -477,8 +542,25 @@ async def reconcile_building_opportunities(
     *,
     tenant_id: uuid.UUID,
     opportunities: list[SkillOpportunityORM],
-) -> dict[uuid.UUID, str]:
+) -> tuple[dict[uuid.UUID, str], dict[uuid.UUID, str]]:
     """Sync factory opportunity rows with linked supervisor session terminal states."""
+
+    session_status_by_opp: dict[uuid.UUID, str] = {}
+    session_error_by_opp: dict[uuid.UUID, str] = {}
+    changed = False
+
+    for row in opportunities:
+        if row.status == "building" and row.supervisor_session_id is None:
+            row.status = "failed"
+            session_status_by_opp[row.id] = "orphan"
+            session_error_by_opp[row.id] = "Build never started (no supervisor session). Use Rebuild."
+            changed = True
+            logger.info(
+                "skill_factory.opportunity_building_orphan",
+                agent_id="skill_factory",
+                swarm_id=str(tenant_id),
+                task_id=str(row.id),
+            )
 
     building_rows = [
         row
@@ -486,7 +568,9 @@ async def reconcile_building_opportunities(
         if row.status == "building" and row.supervisor_session_id is not None
     ]
     if not building_rows:
-        return {}
+        if changed:
+            await session.flush()
+        return session_status_by_opp, session_error_by_opp
 
     session_ids = {row.supervisor_session_id for row in building_rows if row.supervisor_session_id}
     sup_rows = list(
@@ -500,16 +584,27 @@ async def reconcile_building_opportunities(
         ).all(),
     )
     sup_by_id = {row.id: row for row in sup_rows}
-    session_status_by_opp: dict[uuid.UUID, str] = {}
 
     for row in building_rows:
         sup = sup_by_id.get(row.supervisor_session_id) if row.supervisor_session_id else None
         if sup is None:
+            row.status = "failed"
+            session_status_by_opp[row.id] = "missing"
+            session_error_by_opp[row.id] = "Supervisor session missing. Use Rebuild."
+            changed = True
+            logger.info(
+                "skill_factory.opportunity_session_missing",
+                agent_id="skill_factory",
+                swarm_id=str(tenant_id),
+                task_id=str(row.id),
+                session_id=str(row.supervisor_session_id),
+            )
             continue
         sup_status = str(sup.status or "").strip().lower()
         session_status_by_opp[row.id] = sup_status
         if sup_status == "completed":
             row.status = "awaiting_forge"
+            changed = True
             from app.application.services.skill_factory_forge import propose_skill_factory_forge_from_session
 
             await propose_skill_factory_forge_from_session(session, supervisor_session=sup)
@@ -522,6 +617,10 @@ async def reconcile_building_opportunities(
             )
         elif sup_status in {"failed", "stopped", "cancelled"}:
             row.status = "failed"
+            changed = True
+            err = str(sup.error_text or "").strip()
+            if err:
+                session_error_by_opp[row.id] = err[:500]
             logger.info(
                 "skill_factory.opportunity_session_failed",
                 agent_id="skill_factory",
@@ -531,9 +630,9 @@ async def reconcile_building_opportunities(
                 session_status=sup_status,
             )
 
-    if session_status_by_opp:
+    if changed or session_status_by_opp:
         await session.flush()
-    return session_status_by_opp
+    return session_status_by_opp, session_error_by_opp
 
 
 async def list_tenant_skills(
@@ -552,6 +651,45 @@ async def list_tenant_skills(
     return list((await session.scalars(stmt)).all())
 
 
+async def count_skill_opportunity_statuses(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+) -> SkillFactoryOpportunityCountsOut:
+    """Count all opportunities by status for accurate queue badges."""
+
+    rows = list(
+        (
+            await session.execute(
+                select(SkillOpportunityORM.status, func.count())
+                .where(SkillOpportunityORM.tenant_id == tenant_id)
+                .group_by(SkillOpportunityORM.status),
+            )
+        ).all(),
+    )
+    by_status: dict[str, int] = {str(status or "").strip().lower(): int(count) for status, count in rows}
+    pending = by_status.get("pending", 0)
+    queued = by_status.get("queued", 0)
+    building = by_status.get("building", 0)
+    awaiting_forge = by_status.get("awaiting_forge", 0)
+    failed = by_status.get("failed", 0)
+    completed = by_status.get("completed", 0)
+    dismissed = by_status.get("dismissed", 0)
+    total = pending + queued + building + awaiting_forge + failed + completed + dismissed
+    actionable = pending + queued + building + awaiting_forge + failed
+    return SkillFactoryOpportunityCountsOut(
+        pending=pending,
+        queued=queued,
+        building=building,
+        awaiting_forge=awaiting_forge,
+        failed=failed,
+        completed=completed,
+        dismissed=dismissed,
+        total=total,
+        actionable=actionable,
+    )
+
+
 async def list_skill_opportunities(
     session: AsyncSession,
     *,
@@ -564,7 +702,7 @@ async def list_skill_opportunities(
     stmt = select(SkillOpportunityORM).where(SkillOpportunityORM.tenant_id == tenant_id)
     if status:
         stmt = stmt.where(SkillOpportunityORM.status == status.strip().lower())
-    stmt = stmt.order_by(desc(SkillOpportunityORM.composite_score), desc(SkillOpportunityORM.created_at))
+    stmt = stmt.order_by(desc(SkillOpportunityORM.updated_at), desc(SkillOpportunityORM.composite_score))
     stmt = stmt.limit(max(1, min(limit, 100)))
     return list((await session.scalars(stmt)).all())
 
@@ -577,8 +715,16 @@ async def compose_skill_factory_snapshot(
     """Build dashboard snapshot for Skill Factory UI."""
 
     policy = await get_skill_factory_policy(session, tenant_id=tenant_id)
-    opportunities = await list_skill_opportunities(session, tenant_id=tenant_id, limit=50)
-    session_status_by_opp = await reconcile_skill_factory_queue_states(
+    opportunity_limit = 100
+    status_counts = await count_skill_opportunity_statuses(session, tenant_id=tenant_id)
+    opportunities = await list_skill_opportunities(session, tenant_id=tenant_id, limit=opportunity_limit)
+    opportunities_truncated = status_counts.total > len(opportunities)
+    session_status_by_opp, reconcile_errors_by_opp = await reconcile_skill_factory_queue_states(
+        session,
+        tenant_id=tenant_id,
+        opportunities=opportunities,
+    )
+    session_errors_by_opp = await _supervisor_session_errors_for_opportunities(
         session,
         tenant_id=tenant_id,
         opportunities=opportunities,
@@ -595,10 +741,10 @@ async def compose_skill_factory_snapshot(
         tenant_id=tenant_id,
         session_ids=[sid for sid in sup_ids if sid is not None],
     )
-    queue_count = sum(
-        1 for row in opportunities if row.status in {"pending", "queued", "awaiting_forge"}
-    )
-    building_count = sum(1 for row in opportunities if row.status == "building")
+    queue_count = status_counts.pending + status_counts.queued + status_counts.awaiting_forge
+    building_count = status_counts.building
+    failed_count = status_counts.failed
+    actionable_count = status_counts.actionable
 
     from app.application.services.research_runtime_credentials import resolve_research_keys
 
@@ -679,10 +825,12 @@ async def compose_skill_factory_snapshot(
     for row in opportunities:
         forge = forge_rows_by_session.get(row.supervisor_session_id) if row.supervisor_session_id else None
         forge_quality_passed, forge_critic_approved, forge_issues = _forge_payload_fields(forge)
+        session_error = reconcile_errors_by_opp.get(row.id) or session_errors_by_opp.get(row.id)
         opportunity_out_rows.append(
             _opportunity_out(
                 row,
                 supervisor_session_status=session_status_by_opp.get(row.id),
+                supervisor_session_error=session_error,
                 forge_suggestion_id=(
                     str(pending_forge_by_session[row.supervisor_session_id])
                     if row.supervisor_session_id and row.supervisor_session_id in pending_forge_by_session
@@ -703,6 +851,10 @@ async def compose_skill_factory_snapshot(
         library=library_out,
         queue_count=queue_count,
         building_count=building_count,
+        failed_count=failed_count,
+        actionable_count=actionable_count,
+        opportunity_counts=status_counts,
+        opportunities_truncated=opportunities_truncated,
         research_keys_configured=research_configured,
         external_intel_enabled=settings.skill_factory_external_intel_enabled,
         apify_connector_ready=apify_ready,
@@ -1154,6 +1306,7 @@ async def export_tenant_skill_bundle(
 
 
 __all__ = [
+    "SkillFactoryOpportunityCountsOut",
     "SkillFactoryPolicyOut",
     "SkillFactorySnapshotOut",
     "SkillOpportunityOut",
@@ -1161,6 +1314,7 @@ __all__ = [
     "_load_product_mission_workflow",
     "build_factory_session_goal",
     "compose_skill_factory_snapshot",
+    "count_skill_opportunity_statuses",
     "complete_opportunity_with_skill",
     "reconcile_building_opportunities",
     "rebuild_factory_opportunity",

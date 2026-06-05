@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import uuid
+
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.skill_factory_export_harness import build_eval_report_md
 from app.application.services.skill_factory_quality_gate import (
@@ -26,6 +29,7 @@ class HarnessEvalRequest(BaseModel):
     workflow_markdown: str = Field(min_length=40, max_length=80_000)
     title: str = Field(default="Submitted workflow", max_length=200)
     run_llm_critic: bool = False
+    critic_model: str | None = Field(default=None, max_length=160)
 
 
 class HarnessEvalResultOut(BaseModel):
@@ -60,15 +64,33 @@ def _shim_skill(*, title: str, markdown: str) -> TenantSkillORM:
     )
 
 
-async def run_harness_eval(body: HarnessEvalRequest) -> HarnessEvalResultOut:
+async def run_harness_eval(
+    body: HarnessEvalRequest,
+    *,
+    session: AsyncSession | None = None,
+    tenant_id: uuid.UUID | None = None,
+) -> HarnessEvalResultOut:
     """Evaluate submitted workflow markdown — Eval-as-a-Service core."""
 
     md = body.workflow_markdown.strip()
     skill_ok, skill_issues = validate_skill_markdown(md)
 
     critic_output = ""
+    critic_model = ""
     if body.run_llm_critic and settings.skill_factory_enabled:
-        critic_output = await _llm_critic_verdict(workflow_md=md, title=body.title)
+        if session is None:
+            raise ValueError("eval_session_required")
+        critic_model = await _resolve_eval_critic_model(
+            session,
+            tenant_id=tenant_id,
+            critic_model=body.critic_model,
+        )
+        critic_output = await _llm_critic_verdict(
+            session=session,
+            workflow_md=md,
+            title=body.title,
+            model_name=critic_model,
+        )
     elif body.run_llm_critic:
         critic_output = "Critic verdict: REJECT\nReason: LLM critic disabled."
 
@@ -106,6 +128,7 @@ async def run_harness_eval(body: HarnessEvalRequest) -> HarnessEvalResultOut:
         tier=assessment.tier,
         score=assessment.score,
         llm_critic=body.run_llm_critic,
+        critic_model=critic_model or None,
     )
 
     return HarnessEvalResultOut(
@@ -120,37 +143,45 @@ async def run_harness_eval(body: HarnessEvalRequest) -> HarnessEvalResultOut:
     )
 
 
-async def _llm_critic_verdict(*, workflow_md: str, title: str) -> str:
+async def _resolve_eval_critic_model(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID | None,
+    critic_model: str | None,
+) -> str:
+    """Resolve critic model for Eval-as-a-Service."""
+
+    from app.application.services.factory_llm_readiness_service import resolve_factory_critic_model
+
+    return await resolve_factory_critic_model(session, tenant_id=tenant_id, critic_model=critic_model)
+
+
+async def _llm_critic_verdict(
+    *,
+    session: AsyncSession,
+    workflow_md: str,
+    title: str,
+    model_name: str,
+) -> str:
     """Optional LLM critic for paid eval tier."""
 
-    from app.application.services.factory_llm_readiness_service import run_factory_llm_smoke
-    from app.core.database import async_session
     from app.core.llm_router import LiteLLMRouter
 
-    async with async_session() as session:
-        smoked = await run_factory_llm_smoke(session)
-        if not smoked.smoke_ok:
-            return f"Critic verdict: REJECT\nReason: LLM unavailable ({smoked.smoke_error or 'smoke failed'})."
-
-    from app.core.config import settings as app_settings
-
     router = LiteLLMRouter()
-    model_name = app_settings.workflow_breaker_primary_model
     prompt = (
         "You are a harness critic. Review this workflow/SKILL for production sale.\n"
         "End with exactly one line: Critic verdict: APPROVE or Critic verdict: REJECT\n\n"
         f"Title: {title}\n\n{workflow_md[:12000]}"
     )
     try:
-        async with async_session() as session:
-            content, _cost = await router.complete_single_model(
-                session,
-                model_name=model_name,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=512,
-                task_id="harness_eval_critic",
-                swarm_id="harness_products",
-            )
+        content, _cost = await router.complete_single_model(
+            session,
+            model_name=model_name,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=512,
+            task_id="harness_eval_critic",
+            swarm_id="harness_products",
+        )
         raw = str(content or "").strip()
         if not critic_approved_factory(raw) and "REJECT" not in raw.upper():
             return f"{raw}\n\nCritic verdict: REJECT\nReason: missing explicit APPROVE."

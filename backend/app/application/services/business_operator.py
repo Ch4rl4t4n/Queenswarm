@@ -448,7 +448,10 @@ async def compose_business_operator_snapshot(
             from app.application.services.skill_factory_service import compose_skill_factory_snapshot
 
             factory_snap = await compose_skill_factory_snapshot(db, tenant_id=tenant_id)
-            factory_queue_count = int(factory_snap.queue_count or 0) + int(factory_snap.building_count or 0)
+            factory_queue_count = int(
+                factory_snap.actionable_count
+                or (int(factory_snap.queue_count or 0) + int(factory_snap.building_count or 0))
+            )
         except Exception:
             factory_queue_count = 0
     try:

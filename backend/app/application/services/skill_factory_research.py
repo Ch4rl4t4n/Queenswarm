@@ -173,12 +173,40 @@ async def _existing_similar_count(session: AsyncSession, *, tenant_id: uuid.UUID
     return count
 
 
+async def _reactivate_failed_opportunity(
+    row: SkillOpportunityORM,
+    *,
+    rationale: str,
+    demand: float,
+    competition: float,
+    buildability: float,
+    composite: float,
+    source_refs: list[dict[str, Any]],
+    policy: SkillFactoryPolicyOut,
+) -> None:
+    """Refresh a failed opportunity instead of creating a duplicate niche row."""
+
+    row.rationale = rationale
+    row.demand_score = demand
+    row.competition_score = competition
+    row.buildability_score = buildability
+    row.composite_score = composite
+    row.suggested_price_eur_cents = _price_for_score(composite)
+    row.source_refs = source_refs
+    row.supervisor_session_id = None
+    row.status = (
+        "queued"
+        if policy.auto_build_enabled and composite >= policy.auto_build_min_score
+        else "pending"
+    )
+
+
 async def run_skill_market_research(
     session: AsyncSession,
     *,
     tenant_id: uuid.UUID,
     policy: SkillFactoryPolicyOut,
-    max_new: int = 5,
+    max_new: int = 12,
 ) -> list[SkillOpportunityORM]:
     """Scan configured niches and insert new pending opportunities."""
 
@@ -192,17 +220,19 @@ async def run_skill_market_research(
     created: list[SkillOpportunityORM] = []
     apify_deep_budget = [0]
     monid_budget = [0]
-    for niche in seeds[: max(1, min(max_new, 12))]:
+    for niche in seeds[:12]:
+        if len(created) >= max(1, min(max_new, 12)):
+            break
+
         title = f"Skill pack: {niche[:80]}"
-        slug_key = slugify_skill_name(niche)
-        dup = await session.scalar(
+        active_dup = await session.scalar(
             select(SkillOpportunityORM).where(
                 SkillOpportunityORM.tenant_id == tenant_id,
                 SkillOpportunityORM.niche == niche,
                 SkillOpportunityORM.status.in_(("pending", "queued", "building", "awaiting_forge")),
             ),
         )
-        if dup is not None:
+        if active_dup is not None:
             continue
 
         hive_hits = await _hive_niche_hits(session, tenant_id=tenant_id, niche=niche)
@@ -235,6 +265,31 @@ async def run_skill_market_research(
         intel_refs = intel.get("source_refs")
         if isinstance(intel_refs, list):
             source_refs.extend(item for item in intel_refs if isinstance(item, dict))
+
+        failed_dup = await session.scalar(
+            select(SkillOpportunityORM)
+            .where(
+                SkillOpportunityORM.tenant_id == tenant_id,
+                SkillOpportunityORM.niche == niche,
+                SkillOpportunityORM.status == "failed",
+            )
+            .order_by(desc(SkillOpportunityORM.updated_at))
+            .limit(1),
+        )
+        if failed_dup is not None:
+            await _reactivate_failed_opportunity(
+                failed_dup,
+                rationale=rationale,
+                demand=demand,
+                competition=competition,
+                buildability=buildability,
+                composite=composite,
+                source_refs=source_refs,
+                policy=policy,
+            )
+            created.append(failed_dup)
+            continue
+
         row = SkillOpportunityORM(
             tenant_id=tenant_id,
             niche=niche[:200],

@@ -1,12 +1,16 @@
 "use client";
 
 import { DownloadIcon, Loader2Icon, SparklesIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
+import {
+  type FactoryLlmReadiness,
+} from "@/components/apps-tools/factory-llm-readiness-banner";
 import { HiveSwitch } from "@/components/ui/hive-switch";
-import { HiveApiError, hivePostJson } from "@/lib/api";
+import { QsSelect } from "@/components/ui/qs-select";
+import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
+import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import type { HarnessEvalResult } from "@/lib/hive-types";
 import { downloadTextFile } from "@/lib/skill-export-utils";
 
@@ -14,16 +18,91 @@ function eur(cents: number): string {
   return `€${(cents / 100).toFixed(2)}`;
 }
 
-export function HarnessEvalPanel(): JSX.Element {
+function criticCostHint(model: string): string {
+  const lowered = model.toLowerCase();
+  if (lowered.includes("nemotron") || lowered.includes("openrouter")) {
+    return "~€0,02 navyše (OpenRouter)";
+  }
+  if (lowered.includes("grok")) {
+    return "~€0,08 navyše (Grok)";
+  }
+  if (lowered.includes("gpt-4o-mini")) {
+    return "~€0,03 navyše (OpenAI)";
+  }
+  return "~€0,05 navyše";
+}
+
+function criticModelLabel(model: string, llm: FactoryLlmReadiness | null): string {
+  const match = llm?.available_models?.find((row) => row.value === model);
+  return match?.label ?? model;
+}
+
+interface HarnessEvalPanelProps {
+  llm?: FactoryLlmReadiness | null;
+}
+
+export function HarnessEvalPanel({ llm: llmProp }: HarnessEvalPanelProps): JSX.Element {
   const [title, setTitle] = useState("My workflow");
   const [markdown, setMarkdown] = useState("");
   const [runLlmCritic, setRunLlmCritic] = useState(false);
+  const [llm, setLlm] = useState<FactoryLlmReadiness | null>(llmProp ?? null);
+  const [criticModel, setCriticModel] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<HarnessEvalResult | null>(null);
+
+  useEffect(() => {
+    if (llmProp) {
+      setLlm(llmProp);
+    }
+  }, [llmProp]);
+
+  useEffect(() => {
+    if (llmProp || llm) {
+      return;
+    }
+    void hiveGet<FactoryLlmReadiness>("factory-readiness/llm")
+      .then((data) => setLlm(data))
+      .catch(() => {
+        /* optional — heuristic eval still works */
+      });
+  }, [llm, llmProp]);
+
+  useEffect(() => {
+    if (!llm?.primary_model) {
+      return;
+    }
+    setCriticModel((prev) => prev || llm.primary_model);
+  }, [llm?.primary_model]);
+
+  const modelOptions = useMemo(() => {
+    if (llm?.available_models?.length) {
+      return llm.available_models.map((row) => ({
+        value: row.value,
+        label: row.configured ? row.label : `${row.label} (key missing)`,
+        disabled: !row.configured,
+      }));
+    }
+    if (llm?.primary_model) {
+      return [{ value: llm.primary_model, label: llm.primary_model }];
+    }
+    return [];
+  }, [llm]);
+
+  const selectedCriticConfigured = useMemo(() => {
+    if (!criticModel) {
+      return false;
+    }
+    const match = llm?.available_models?.find((row) => row.value === criticModel);
+    return match?.configured ?? Boolean(llm?.chain_usable);
+  }, [criticModel, llm]);
 
   const runEval = async (): Promise<void> => {
     if (markdown.trim().length < 40) {
       toast.error("Workflow must be at least 40 characters.");
+      return;
+    }
+    if (runLlmCritic && !selectedCriticConfigured) {
+      toast.error("Vyber nakonfigurovaný LLM critic — dopln kľúč v Settings → AI · LLM keys.");
       return;
     }
     setBusy(true);
@@ -33,6 +112,7 @@ export function HarnessEvalPanel(): JSX.Element {
         title: title.trim() || "Submitted workflow",
         workflow_markdown: markdown,
         run_llm_critic: runLlmCritic,
+        critic_model: runLlmCritic && criticModel ? criticModel : undefined,
       });
       setResult(data);
       toast.success(data.passed ? "Eval PASS" : "Eval completed — see issues");
@@ -75,14 +155,35 @@ export function HarnessEvalPanel(): JSX.Element {
             placeholder={"---\nname: my-skill\ndescription: ...\n---\n\n# Title\n\nWhen to use: ...\n\n1. Step one\n2. Step two"}
           />
         </label>
-        <label className="flex items-center justify-between gap-3 text-sm max-w-md">
-          <span>LLM critic (Grok — ~€0,08 navyše)</span>
-          <HiveSwitch checked={runLlmCritic} onCheckedChange={setRunLlmCritic} />
-        </label>
+        <div className="space-y-2 max-w-md">
+          <label className="flex items-center justify-between gap-3 text-sm">
+            <span>LLM critic ({criticCostHint(criticModel || llm?.primary_model || "grok")})</span>
+            <HiveSwitch checked={runLlmCritic} onCheckedChange={setRunLlmCritic} />
+          </label>
+          {runLlmCritic ? (
+            <div className="space-y-1">
+              <span className="text-xs text-(--qs-text-3)">Critic model</span>
+              <QsSelect
+                value={criticModel}
+                onValueChange={setCriticModel}
+                options={modelOptions}
+                disabled={modelOptions.length === 0}
+                aria-label="Eval LLM critic model"
+                className="w-full"
+              />
+              {criticModel ? (
+                <p className="text-[10px] text-(--qs-text-4)">
+                  {criticModelLabel(criticModel, llm)}
+                  {!selectedCriticConfigured ? " — API key missing for this provider" : null}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
         <button
           type="button"
           className="qs-btn qs-btn--primary qs-btn--sm gap-1"
-          disabled={busy}
+          disabled={busy || (runLlmCritic && !selectedCriticConfigured)}
           onClick={() => void runEval()}
         >
           {busy ? <Loader2Icon className="size-3.5 animate-spin" aria-hidden /> : <SparklesIcon className="size-3.5" aria-hidden />}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { DownloadIcon, Loader2Icon, PlayIcon, SparklesIcon, StoreIcon, XIcon } from "lucide-react";
+import { DownloadIcon, Loader2Icon, PlayIcon, SparklesIcon, SquareIcon, StoreIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -17,7 +17,6 @@ import { HiveSwitch } from "@/components/ui/hive-switch";
 import { V4Badge, V4Card, V4CardHeader, V4Chip } from "@/components/ui/v4";
 import { downloadContentPackExportBundle, type ContentPackExportResponse } from "@/lib/content-pack-export-utils";
 import { HiveApiError, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
-import { supervisorSessionAgentsHref } from "@/lib/supervisor-session";
 import type { ContentPackFactoryTab } from "@/lib/apps-tools-routes";
 
 interface ContentPackFactoryPolicy {
@@ -182,13 +181,23 @@ export function ContentPackFactoryPanel({
         `/content-pack-factory/opportunities/${opportunityId}/build`,
         {},
       );
-      toast.success("Build started");
-      if (result.session_id) {
-        window.open(supervisorSessionAgentsHref(result.session_id), "_blank", "noopener,noreferrer");
-      }
+      toast.success("Build started — track progress in Queue.");
       await loadSnapshot();
     } catch (err) {
       toast.error(err instanceof HiveApiError ? err.message : "Build failed");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const stopBuild = async (opportunityId: string, sessionId: string) => {
+    setBusyId(opportunityId);
+    try {
+      await hivePostJson(`agents/sessions/${sessionId}/control`, { action: "stop" });
+      toast.success("Build stopped.");
+      await loadSnapshot();
+    } catch (err) {
+      toast.error(err instanceof HiveApiError ? err.message : "Stop failed");
     } finally {
       setBusyId(null);
     }
@@ -312,18 +321,16 @@ export function ContentPackFactoryPanel({
         <p className="mt-1 text-xs text-white/50 line-clamp-2">{row.rationale}</p>
       </div>
       <div className="flex shrink-0 flex-wrap gap-2">
-        {row.forge_suggestion_id ? (
-          <Link href={`/agents?forge=${row.forge_suggestion_id}`} className="qs-btn qs-btn--primary qs-btn--sm">
-            Review forge
-          </Link>
-        ) : null}
         {row.supervisor_session_id && row.status === "building" ? (
-          <Link
-            href={supervisorSessionAgentsHref(row.supervisor_session_id)}
-            className="qs-btn qs-btn--ghost qs-btn--sm"
+          <button
+            type="button"
+            className="qs-btn qs-btn--ghost qs-btn--sm gap-1 text-error"
+            disabled={busyId === row.id}
+            onClick={() => void stopBuild(row.id, row.supervisor_session_id!)}
           >
-            Open session
-          </Link>
+            <SquareIcon className="size-3.5" aria-hidden />
+            Stop
+          </button>
         ) : null}
         {row.status === "pending" || row.status === "queued" ? (
           <button

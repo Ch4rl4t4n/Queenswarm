@@ -291,6 +291,32 @@ async def run_factory_llm_smoke(
         )
 
 
+def validate_factory_critic_model(model: str) -> str:
+    """Normalize and validate a factory/eval critic model slug."""
+
+    cleaned = normalize_factory_model_slug(model.strip())
+    if cleaned not in _allowed_factory_primary_models():
+        raise ValueError(f"unsupported_critic_model:{model}")
+    if not model_slug_has_configured_credentials(cleaned):
+        raise ValueError(f"critic_model_not_configured:{cleaned}")
+    return cleaned
+
+
+async def resolve_factory_critic_model(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID | None,
+    critic_model: str | None,
+) -> str:
+    """Resolve eval/factory critic model — explicit override or tenant primary."""
+
+    if critic_model and critic_model.strip():
+        return validate_factory_critic_model(critic_model)
+    if tenant_id is not None:
+        return await resolve_effective_factory_primary_model(session, tenant_id=tenant_id)
+    return normalize_factory_model_slug(settings.workflow_breaker_primary_model)
+
+
 async def assert_factory_build_llm_ready(
     session: AsyncSession,
     *,
@@ -311,7 +337,9 @@ __all__ = [
     "FactoryLlmReadinessOut",
     "assert_factory_build_llm_ready",
     "resolve_effective_factory_primary_model",
+    "resolve_factory_critic_model",
     "resolve_factory_llm_readiness",
     "run_factory_llm_smoke",
     "save_factory_llm_primary",
+    "validate_factory_critic_model",
 ]

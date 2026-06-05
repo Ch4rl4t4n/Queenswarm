@@ -43,6 +43,14 @@ class HarnessEvalBody(BaseModel):
     workflow_markdown: str = Field(min_length=40, max_length=80_000)
     title: str = Field(default="Submitted workflow", max_length=200)
     run_llm_critic: bool = False
+    critic_model: str | None = Field(default=None, max_length=160)
+
+
+def _tenant_id(principal: dict) -> uuid.UUID:
+    raw = principal.get("tenant_id")
+    if raw is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant required.")
+    return raw if isinstance(raw, uuid.UUID) else uuid.UUID(str(raw))
 
 
 def _ensure_enabled() -> None:
@@ -66,18 +74,30 @@ async def harness_product_catalog_route(
 @router.post("/eval", response_model=HarnessEvalResultOut, summary="Eval-as-a-Service")
 async def harness_eval_route(
     body: HarnessEvalBody,
-    _principal: dict = Depends(require_dashboard_user_with_tenant_role),
+    db: DbSession,
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
 ) -> HarnessEvalResultOut:
     """Evaluate submitted workflow — returns EVAL_REPORT markdown."""
 
     _ensure_enabled()
-    return await run_harness_eval(
-        HarnessEvalRequest(
-            workflow_markdown=body.workflow_markdown,
-            title=body.title,
-            run_llm_critic=body.run_llm_critic,
-        ),
-    )
+    try:
+        return await run_harness_eval(
+            HarnessEvalRequest(
+                workflow_markdown=body.workflow_markdown,
+                title=body.title,
+                run_llm_critic=body.run_llm_critic,
+                critic_model=body.critic_model,
+            ),
+            session=db,
+            tenant_id=_tenant_id(principal),
+        )
+    except ValueError as exc:
+        code = str(exc)
+        if code.startswith(("unsupported_critic_model:", "critic_model_not_configured:")):
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=code) from exc
+        if code == "eval_session_required":
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=code) from exc
+        raise
 
 
 @router.post(
