@@ -24,6 +24,8 @@ const PUBLIC_PREFIXES = [
   "/transparency",
   "/skills",
   "/start",
+  "/how-it-works",
+  "/verify-first",
 ];
 
 /** PWA shell assets — no auth redirect (mobile/tablet install + offline fallback). */
@@ -69,7 +71,14 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/skills", request.url));
   }
 
-  if (!marketingHost && (pathname === "/skills" || pathname.startsWith("/skills/") || pathname.startsWith("/start"))) {
+  const marketingPublic =
+    pathname === "/skills" ||
+    pathname.startsWith("/skills/") ||
+    pathname.startsWith("/start") ||
+    pathname === "/how-it-works" ||
+    pathname === "/verify-first";
+
+  if (!marketingHost && marketingPublic) {
     const target = new URL(pathname, marketingPublicOrigin());
     target.search = request.nextUrl.search;
     return NextResponse.redirect(target);

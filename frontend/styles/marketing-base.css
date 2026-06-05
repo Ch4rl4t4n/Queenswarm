@@ -1,0 +1,134 @@
+/* Let Agents Cook — marketing base tokens + buttons (HERMES design layer) */
+
+.mk-shell,
+.mk-shell * {
+  box-sizing: border-box;
+}
+
+.mk-shell {
+  --text-1: #f0f2ff;
+  --text-2: #c7bee2;
+  --text-3: #877ba8;
+  --text-4: #5a4f77;
+  --font-ui: var(--font-poppins), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+  --violet-soft: oklch(0.72 0.18 295 / 0.12);
+  --teal-soft: oklch(0.82 0.13 185 / 0.12);
+  --green-soft: oklch(0.78 0.16 155 / 0.12);
+  --amber-soft: oklch(0.82 0.14 75 / 0.15);
+  --amber: oklch(0.82 0.14 75);
+  color: var(--text-1);
+  font-family: var(--font-ui);
+}
+
+.mk-shell a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.mk-shell .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 18px;
+  border-radius: 11px;
+  font-weight: 600;
+  font-size: 14px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font-ui);
+}
+
+.mk-shell .btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.mk-shell .btn-primary {
+  background: linear-gradient(180deg, oklch(0.72 0.19 295), oklch(0.58 0.2 295));
+  color: #fff;
+  box-shadow: 0 6px 24px oklch(0.55 0.2 295 / 0.35);
+}
+
+.mk-shell .btn-secondary {
+  background: var(--surface-1);
+  border: 1px solid var(--border-2);
+  color: var(--text-1);
+}
+
+.mk-shell .btn-ghost {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-2);
+}
+
+.mk-shell .btn-block {
+  width: 100%;
+}
+
+.mk-shell .row {
+  display: flex;
+  align-items: center;
+}
+
+.mk-shell .between {
+  justify-content: space-between;
+}
+
+.mk-shell .col {
+  display: flex;
+  flex-direction: column;
+}
+
+.mk-shell .gap-2 {
+  gap: 8px;
+}
+
+.mk-shell .gap-3 {
+  gap: 12px;
+}
+
+.mk-shell .mt-4 {
+  margin-top: 16px;
+}
+
+.mk-shell .mt-6 {
+  margin-top: 24px;
+}
+
+.mk-shell .fw-600 {
+  font-weight: 600;
+}
+
+.mk-shell .fs-12 {
+  font-size: 12px;
+}
+
+.mk-shell .fs-13 {
+  font-size: 13px;
+}
+
+.mk-shell .text-2 {
+  color: var(--text-2);
+}
+
+.mk-shell .text-3 {
+  color: var(--text-3);
+}
+
+.mk-shell .text-4 {
+  color: var(--text-4);
+}
+
+.mk-shell .glass {
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
+  border-radius: 16px;
+}
+
+.mk-shell .glass-light {
+  background: rgba(140, 160, 220, 0.06);
+  border: 1px solid var(--border-1);
+  border-radius: 12px;
+}

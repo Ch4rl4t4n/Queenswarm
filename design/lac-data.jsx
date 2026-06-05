@@ -1,0 +1,158 @@
+// Let Agents Cook — product catalog data (14 products).
+// Real sample copy for the 5 featured; plausible extensions for the rest.
+// Most are "soon" (Listing soon); a couple are "listed" with a Gumroad URL.
+// Exports: window.LACData = { PRODUCTS, NICHES, TYPES, glyphForType }
+
+const PRODUCTS = [
+  {
+    id: 1, slug: 'newsletter-growth-loop',
+    title: 'Newsletter Growth Loop with Verified Outcomes',
+    type: 'skill', price: 9, score: 85, featured: true, status: 'listed', sales: 1240,
+    gumroad: 'https://gumroad.com/l/newsletter-growth-loop',
+    niches: ['Newsletter', 'Growth', 'Email'],
+    summary: 'A simulate-first growth loop that turns one issue into a repeatable subscriber engine — with outcome checks baked in.',
+    description: 'This skill orchestrates a complete newsletter growth loop: ideation, draft, referral hook, and a verified-outcomes pass that measures lift before you ship. Every run is dry-run-able, so you see the projected subscriber delta and content quality score before anything goes live.',
+    whatYouGet: ['Growth-loop agent definition (drop-in)', 'Simulate-first dry-run harness', 'Referral hook templates (12 variants)', 'Outcome scorecard + lift estimator', 'Setup guide for any newsletter stack'],
+  },
+  {
+    id: 2, slug: 'seo-content-pipeline',
+    title: 'SEO Content Pipeline with Simulate-First Guardrails',
+    type: 'skill', price: 9, score: 92, featured: true, status: 'listed', sales: 860,
+    gumroad: 'https://gumroad.com/l/seo-content-pipeline',
+    niches: ['SEO', 'Content', 'Growth'],
+    summary: 'Brief → outline → draft → on-page check, with guardrails that refuse to publish thin or off-brief content.',
+    description: 'A four-stage SEO pipeline where each stage validates the previous one. The simulate-first guardrail runs the whole chain in a sandbox, scores the draft against the brief and target keyword intent, and only greenlights work that clears your threshold.',
+    whatYouGet: ['4-stage pipeline agent', 'Keyword-intent matcher', 'On-page guardrail checklist', 'Thin-content refusal rules', 'Brief-adherence scorer'],
+  },
+  {
+    id: 3, slug: 'instagram-calendar-coaches',
+    title: '30-Day Instagram Content Calendar for Coaches',
+    type: 'pack', price: 9, score: 115, featured: true, status: 'listed', sales: 2410,
+    gumroad: 'https://gumroad.com/l/instagram-calendar-coaches',
+    niches: ['Instagram', 'Coaching', 'Content'],
+    summary: 'A full month of hook-led posts, carousels and reels prompts tuned for coaches who sell transformation.',
+    description: 'Thirty days of ready-to-adapt content: daily hooks, carousel scripts, reel concepts and caption frames, sequenced to build authority then convert. Built for coaches — every prompt is outcome-oriented, not vanity-metric bait.',
+    whatYouGet: ['30 daily post briefs', '10 carousel scripts', '8 reel concepts + hooks', 'Caption frames with CTAs', 'Weekly theme map'],
+  },
+  {
+    id: 4, slug: 'linkedin-thought-leadership-b2b',
+    title: 'LinkedIn Thought-Leadership Pack for B2B SaaS',
+    type: 'pack', price: 29, score: 98, featured: false, status: 'soon',
+    gumroad: null,
+    niches: ['LinkedIn', 'B2B SaaS', 'Content'],
+    summary: 'Point-of-view posts, comment frameworks and a 6-week authority arc for SaaS founders and operators.',
+    description: 'A structured authority-building pack: contrarian POV posts, narrative case-study frames, and engagement scripts designed to start the right conversations with B2B buyers. Sequenced as a six-week arc so momentum compounds.',
+    whatYouGet: ['24 POV post templates', '6-week authority arc', 'Comment & DM frameworks', 'Case-study narrative frames', 'Hook library (40+)'],
+  },
+  {
+    id: 5, slug: 'facebook-ad-copy-local',
+    title: 'Facebook Ad Copy Variations for Local Services',
+    type: 'pack', price: 19, score: 88, featured: false, status: 'soon',
+    gumroad: null,
+    niches: ['Facebook Ads', 'Local Services', 'Content'],
+    summary: 'Angles, hooks and full ad variations for plumbers, clinics, salons and other local service businesses.',
+    description: 'A swipe-ready pack of ad copy organized by angle — urgency, trust, offer, social proof — with full primary-text/headline/description sets you can drop into Ads Manager and split-test immediately.',
+    whatYouGet: ['60 ad copy variations', '8 proven angles', 'Headline + description matrix', 'Offer-framing cheatsheet', 'Local trust-signal library'],
+  },
+  {
+    id: 6, slug: 'cold-email-sequence-agency',
+    title: 'Cold Email Sequence Engine for Agencies',
+    type: 'skill', price: 19, score: 79, featured: false, status: 'soon',
+    gumroad: null,
+    niches: ['Email', 'B2B SaaS', 'Growth'],
+    summary: 'Researches a prospect, drafts a 5-touch sequence, and self-checks deliverability and tone before you send.',
+    description: 'An outbound skill that personalizes at the account level: it pulls public signals, drafts a five-touch sequence, then runs a deliverability-and-tone guardrail so nothing spammy leaves the building.',
+    whatYouGet: ['5-touch sequence agent', 'Account-research step', 'Deliverability guardrail', 'Tone & spam-word checker', 'Follow-up cadence presets'],
+  },
+  {
+    id: 7, slug: 'youtube-script-framework',
+    title: 'YouTube Script Framework for Educators',
+    type: 'pack', price: 19, score: 84, featured: false, status: 'soon',
+    gumroad: null,
+    niches: ['Content', 'Coaching', 'Growth'],
+    summary: 'Retention-first script structures: cold opens, chaptered teaching beats and CTA placements that don\u2019t feel forced.',
+    description: 'A scripting pack built around retention curves. Cold-open formulas, chaptered teaching beats, pattern-interrupt cues and natural CTA placement — everything an educator needs to turn knowledge into watch time.',
+    whatYouGet: ['6 script structures', 'Cold-open formula bank', 'Retention beat map', 'CTA placement guide', 'Title + thumbnail brief tool'],
+  },
+  {
+    id: 8, slug: 'tiktok-hook-generator',
+    title: 'TikTok Hook & Concept Generator',
+    type: 'skill', price: 9, score: 81, featured: false, status: 'soon',
+    gumroad: null,
+    niches: ['Content', 'Growth'],
+    summary: 'Generates scroll-stopping hooks and 3-beat concepts tuned to your niche, then scores each for stopping power.',
+    description: 'Feed it a topic and audience; it returns batches of hooks and three-beat concepts, each scored for stopping power and clarity so you film the strongest ideas, not the first ones.',
+    whatYouGet: ['Hook + concept agent', 'Stopping-power scorer', 'Niche tuning presets', 'Trend-angle adapter', 'Batch export'],
+  },
+  {
+    id: 9, slug: 'product-launch-email-pack',
+    title: 'Product Launch Email Sequence Pack',
+    type: 'pack', price: 29, score: 90, featured: false, status: 'soon',
+    gumroad: null,
+    niches: ['Email', 'Growth', 'B2B SaaS'],
+    summary: 'A full launch runway: tease, open-cart, social proof, urgency and last-call emails with timing guidance.',
+    description: 'Everything to run a clean launch: a complete email runway from pre-tease to last-call, with timing guidance, subject-line variants and a proof-stacking framework so the offer lands.',
+    whatYouGet: ['12-email launch runway', 'Subject-line variants (40+)', 'Proof-stacking framework', 'Send-timing calendar', 'Urgency-without-sleaze guide'],
+  },
+  {
+    id: 10, slug: 'ecommerce-product-descriptions',
+    title: 'E-commerce Product Description Engine',
+    type: 'skill', price: 19, score: 86, featured: false, status: 'soon',
+    gumroad: null,
+    niches: ['E-commerce', 'Content', 'SEO'],
+    summary: 'Turns spec sheets into benefit-led, SEO-aware descriptions — and checks each for keyword fit and readability.',
+    description: 'A skill that reads raw product specs and outputs benefit-led descriptions optimized for both shoppers and search. A built-in check scores keyword fit and readability so every page pulls its weight.',
+    whatYouGet: ['Description-writing agent', 'Spec-to-benefit translator', 'Keyword-fit scorer', 'Readability check', 'Bulk catalog mode'],
+  },
+  {
+    id: 11, slug: 'webinar-funnel-scripts',
+    title: 'Webinar Funnel Script Pack',
+    type: 'pack', price: 29, score: 83, featured: false, status: 'soon',
+    gumroad: null,
+    niches: ['Coaching', 'Growth', 'Email'],
+    summary: 'Registration page, reminder sequence, slide narrative and pitch transition — the whole webinar funnel, scripted.',
+    description: 'A complete webinar funnel in copy: registration page, reminder emails, a slide-by-slide teaching narrative and the all-important pitch transition that converts attention into action.',
+    whatYouGet: ['Registration page copy', 'Reminder email sequence', 'Slide narrative framework', 'Pitch transition scripts', 'Replay follow-up emails'],
+  },
+  {
+    id: 12, slug: 'brand-voice-guardrail',
+    title: 'Brand Voice Guardrail Skill',
+    type: 'skill', price: 9, score: 77, featured: false, status: 'soon',
+    gumroad: null,
+    niches: ['Content', 'B2B SaaS'],
+    summary: 'Wraps any content step and rejects drafts that drift from your brand voice, with a redline of what to fix.',
+    description: 'A composable guardrail you attach to any writing agent. It learns your voice from a few samples, then reviews every draft — flagging drift, off-tone phrasing and banned words with a concrete redline.',
+    whatYouGet: ['Voice-guardrail agent', 'Few-shot voice trainer', 'Drift detector + redline', 'Banned-word rules', 'Composable with any writer'],
+  },
+  {
+    id: 13, slug: 'twitter-thread-builder',
+    title: 'X / Twitter Thread Builder for Founders',
+    type: 'pack', price: 19, score: 87, featured: false, status: 'soon',
+    gumroad: null,
+    niches: ['Content', 'Growth', 'B2B SaaS'],
+    summary: 'Thread architectures, hook banks and CTA endings that turn a single insight into a high-save thread.',
+    description: 'Proven thread architectures with hook banks and save-worthy endings. Built for founders who want to compound an audience by teaching what they know, structured for reach and retention.',
+    whatYouGet: ['8 thread architectures', 'Hook bank (50+)', 'Save-worthy ending frames', 'Insight-to-thread workflow', 'Repurpose-to-newsletter map'],
+  },
+  {
+    id: 14, slug: 'lead-magnet-factory',
+    title: 'Lead Magnet Factory Skill',
+    type: 'skill', price: 29, score: 94, featured: false, status: 'soon',
+    gumroad: null,
+    niches: ['Growth', 'Email', 'Coaching'],
+    summary: 'From audience pain to finished checklist or mini-guide — drafted, structured and quality-scored end to end.',
+    description: 'Describe your audience and offer; this skill proposes lead-magnet angles, drafts the full asset (checklist, mini-guide or template), and scores it for usefulness and conversion potential before you publish.',
+    whatYouGet: ['Lead-magnet generator agent', 'Angle proposal step', 'Full asset drafting', 'Usefulness + conversion scorer', 'Opt-in copy generator'],
+  },
+];
+
+const NICHES = ['Newsletter', 'SEO', 'Instagram', 'LinkedIn', 'Facebook Ads', 'Email', 'Coaching', 'B2B SaaS', 'E-commerce', 'Local Services', 'Content', 'Growth'];
+
+const TYPES = [
+  { key: 'skill', label: 'Verified skill' },
+  { key: 'pack', label: 'Content pack' },
+];
+
+function typeLabel(t) { return t === 'skill' ? 'Verified skill' : 'Content pack'; }
+
+window.LACData = { PRODUCTS, NICHES, TYPES, typeLabel };

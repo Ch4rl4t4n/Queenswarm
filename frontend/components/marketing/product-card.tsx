@@ -1,58 +1,88 @@
+"use client";
+
 import Link from "next/link";
 
-import { hasMarketplaceLink, marketplaceLinksForProduct } from "@/lib/marketing-purchase";
-import type { MarketingProduct } from "@/lib/marketing-products";
+import { CoverArt } from "@/components/marketing/cover-art";
+import { LacIcon } from "@/components/marketing/lac-icons";
+import { ScorePill } from "@/components/marketing/score-pill";
+import { typeLabel, type MarketingProductView } from "@/lib/marketing-catalog-view";
 
 interface ProductCardProps {
-  readonly product: MarketingProduct;
+  readonly product: MarketingProductView;
+  readonly compareOn?: boolean;
+  readonly compareList?: string[];
+  readonly onToggleCompare?: (slug: string) => void;
 }
 
-function kindLabel(kind: string): string {
-  if (kind === "content_pack") {
-    return "Content pack";
-  }
-  return "Verified skill";
-}
-
-export function ProductCard({ product }: ProductCardProps): JSX.Element {
-  const purchaseLinks = marketplaceLinksForProduct(product);
-  const primaryPurchase = purchaseLinks[0];
+export function ProductCard({
+  product,
+  compareOn = false,
+  compareList = [],
+  onToggleCompare,
+}: ProductCardProps): JSX.Element {
+  const inCompare = compareList.includes(product.slug);
+  const compareFull = compareList.length >= 3 && !inCompare;
+  const href = `/skills/${product.slug}`;
 
   return (
-    <article className="v4-card v4-card-tight flex h-full flex-col gap-3 border border-(--qs-border) p-5">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-[11px] uppercase tracking-[0.16em] text-(--qs-text-3)">{kindLabel(product.kind)}</p>
-        {product.featured ? <span className="v4-badge v4-badge--gold text-[10px]">featured</span> : null}
+    <Link
+      href={href}
+      className={`mk-card${product.featured ? " featured" : ""}`}
+      style={{ textDecoration: "none", color: "inherit" }}
+    >
+      <div className="mk-card-top">
+        <span className={`mk-type ${product.type}`}>
+          <LacIcon name={product.type === "skill" ? "shield" : "doc"} size={12} />
+          {typeLabel(product.type)}
+        </span>
+        {product.featured ? <span className="mk-corner featured">Featured</span> : null}
       </div>
-      <h2 className="font-[family-name:var(--font-hive-display)] text-lg font-semibold leading-snug text-(--qs-text)">
-        <Link href={`/skills/${product.slug}`} className="hover:text-pollen">
-          {product.title}
-        </Link>
-      </h2>
-      <p className="line-clamp-3 text-sm text-(--qs-text-2)">{product.subtitle}</p>
-      <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-2">
-        <span className="font-mono text-sm text-pollen">{product.price || "€9.00"}</span>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link href={`/skills/${product.slug}`} className="qs-btn qs-btn--ghost qs-btn--sm">
-            View details
-          </Link>
-          {primaryPurchase ? (
-            <a
-              href={primaryPurchase.href}
-              className="qs-btn qs-btn--primary qs-btn--sm"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              Buy on {primaryPurchase.label}
-            </a>
+
+      <CoverArt product={product} />
+
+      <div className="mk-card-title">{product.title}</div>
+
+      <div className="mk-card-tags">
+        {product.niches.slice(0, 3).map((niche) => (
+          <span key={niche} className="mk-tag">
+            {niche}
+          </span>
+        ))}
+      </div>
+
+      <div style={{ flex: 1 }} />
+
+      <div className="mk-card-foot">
+        <div className="row gap-3" style={{ alignItems: "center" }}>
+          {product.status === "listed" ? (
+            <span className="mk-price">€{product.price.toFixed(2)}</span>
           ) : (
-            <span className="text-[11px] uppercase tracking-[0.12em] text-(--qs-text-3)">Listing soon</span>
+            <span className="mk-soon-label">
+              <span className="d" />
+              Listing soon
+            </span>
           )}
+          <ScorePill score={product.score} />
         </div>
+        {compareOn && onToggleCompare ? (
+          <label
+            className="mk-compare"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            title={compareFull ? "Max 3" : "Compare"}
+          >
+            <input
+              type="checkbox"
+              checked={inCompare}
+              disabled={compareFull}
+              onChange={() => onToggleCompare(product.slug)}
+            />
+            Compare
+          </label>
+        ) : null}
       </div>
-      {!hasMarketplaceLink(product) ? (
-        <p className="text-xs text-(--qs-text-3)">Marketplace link will appear here after publish.</p>
-      ) : null}
-    </article>
+    </Link>
   );
 }
