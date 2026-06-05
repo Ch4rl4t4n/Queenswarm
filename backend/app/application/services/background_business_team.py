@@ -9,7 +9,6 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.services.business_operator import compose_revenue_summary
 from app.application.services.marketing_product_catalog import build_catalog
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -123,6 +122,8 @@ async def _compose_revenue_ops(
     """Revenue ops — Gumroad scorecard gaps (read-only, no export LLM)."""
 
     _ = db, tenant_id
+    from app.application.services.business_operator import compose_revenue_summary
+
     revenue = compose_revenue_summary()
     catalog = build_catalog()
     gap = max(0, catalog.product_count - catalog.gumroad_linked_count if hasattr(catalog, "gumroad_linked_count") else 0)

@@ -8,21 +8,17 @@ import re
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.services.background_business_team import (
-    BackgroundBusinessTeamOut,
-    compose_background_business_team,
-)
-from app.application.services.business_goal_stack import (
-    BusinessGoalStackOut,
-    compose_business_goal_stack,
-)
 from app.application.services.marketing_product_catalog import build_catalog
+
+if TYPE_CHECKING:
+    from app.application.services.background_business_team import BackgroundBusinessTeamOut
+    from app.application.services.business_goal_stack import BusinessGoalStackOut
 from app.application.services.solo_daily_plan import compose_solo_daily_plan
 from app.core.config import settings
 from app.infrastructure.persistence.models.enums import TaskStatus
@@ -402,6 +398,9 @@ async def compose_business_operator_snapshot(
             generated_at=datetime.now(tz=UTC),
         )
 
+    from app.application.services.background_business_team import compose_background_business_team
+    from app.application.services.business_goal_stack import compose_business_goal_stack
+
     catalog_payload = build_catalog(export_root)
     gumroad_linked = sum(1 for product in catalog_payload.products if product.gumroad_url)
     catalog = BusinessCatalogSummaryOut(
@@ -489,6 +488,23 @@ async def fetch_business_mission_summary(
     """Public wrapper for mission kanban counts used by BA2 API."""
 
     return await _mission_counts(db, tenant_id=tenant_id)
+
+
+def _rebuild_business_operator_models() -> None:
+    """Resolve forward refs for nested BA2/BA3 snapshot models."""
+
+    from app.application.services.background_business_team import BackgroundBusinessTeamOut
+    from app.application.services.business_goal_stack import BusinessGoalStackOut
+
+    BusinessOperatorSnapshotOut.model_rebuild(
+        _types_namespace={
+            "BackgroundBusinessTeamOut": BackgroundBusinessTeamOut,
+            "BusinessGoalStackOut": BusinessGoalStackOut,
+        },
+    )
+
+
+_rebuild_business_operator_models()
 
 
 __all__ = [

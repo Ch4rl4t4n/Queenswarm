@@ -4,16 +4,17 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.services.business_operator import (
-    BusinessCatalogSummaryOut,
-    BusinessMissionSummaryOut,
-    BusinessRevenueSummaryOut,
-)
+if TYPE_CHECKING:
+    from app.application.services.business_operator import (
+        BusinessCatalogSummaryOut,
+        BusinessMissionSummaryOut,
+        BusinessRevenueSummaryOut,
+    )
 from app.core.logging import get_logger
 from app.infrastructure.persistence.models.tenant import Tenant
 
