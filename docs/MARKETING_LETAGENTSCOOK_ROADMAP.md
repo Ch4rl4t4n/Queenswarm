@@ -78,12 +78,12 @@ Factory build → export → gumroad-ready/
 
 | ID | Item | Phase |
 |----|------|-------|
-| OBS1 | Obsidian bidirectional vault + wikilink export | P2 |
-| OBS2 | Knowledge Elicitation panel (AI asks, operator approves) | P2 |
+| OBS1 | Obsidian bidirectional vault + wikilink export | ✅ shipped (Vault-MOC + README) |
+| OBS2 | Knowledge Elicitation panel (AI asks, operator approves) | ✅ shipped |
 | PA1 | → **BA1 + BA4** Chief Business Operator + Approval Inbox (see `BUSINESS_OS_ORCHESTRATOR_ANALYSIS.md`) | P1 |
-| PA2 | Google Calendar → proactive daily planner (**PA2** in ROADMAP) | P2 |
-| AOS1 | Project harness profiles (marketing / factory / trading) | P2 |
-| AOS2 | Mission agent picker (max 3–5 agents per session) | P2 |
+| PA2 | Google Calendar → proactive daily planner (**PA2** in ROADMAP) | ✅ shipped |
+| AOS1 | Project harness profiles (marketing / factory / trading) | ✅ shipped |
+| AOS2 | Mission agent picker (max 3–5 agents per session) | ✅ via **BA6** CBO dispatch |
 
 ## AI toolchain (design-aligned generation)
 

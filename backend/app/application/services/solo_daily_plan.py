@@ -110,6 +110,25 @@ async def compose_solo_daily_plan(
             ),
         )
 
+    if settings.calendar_daily_planner_enabled:
+        from app.application.services.calendar_daily_planner import compose_calendar_daily_planner
+
+        calendar = await compose_calendar_daily_planner(
+            session,
+            dashboard_user_id=dashboard_user_id,
+        )
+        for event in calendar.items[:3]:
+            items.append(
+                SoloDailyPlanItemOut(
+                    id=event.id,
+                    lane="po",
+                    title=f"Calendar: {event.title}",
+                    detail=event.detail or calendar.message,
+                    href=event.href,
+                    priority=1,
+                ),
+            )
+
     trio = await get_solo_trio_status(session, tenant_id=tenant_id)
     bound = int(trio.get("lanes_bound") or trio.get("bound_lane_count") or 0)
     if bound >= 1:

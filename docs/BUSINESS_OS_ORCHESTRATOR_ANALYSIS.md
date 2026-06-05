@@ -54,8 +54,8 @@ Zdroj požiadavky: [0xTria X post](https://x.com/0xTria/status/20618135148936687
 | **BA4** | **Unified Approval Inbox** | Jedna fronta: publish, Gumroad upload, lane digest, agent suggestions | ✅ shipped |
 | **BA5** | **Proactive Pulse** | Ráno (máme) + **obedný** pulse: čo sa zmenilo, čo bežalo autonómne | ✅ shipped |
 | **BA6** | **CBO → Dispatch bridge** | Z CBO jeden klik: triage+dispatch s predvybraným skill bundle (bez výberu 20 agentov) | ✅ shipped |
-| **BA7** | **Cross-lane learning** | Trading/marketing recipe winner → CBO navrhne „apply to lane X“ | 3–4 d |
-| **PA2** | **Google Calendar** | Proaktívny denný plán s kalendárom (už v pláne) | 3–5 d |
+| **BA7** | **Cross-lane learning** | Trading/marketing recipe winner → CBO navrhne „apply to lane X“ | ✅ shipped |
+| **PA2** | **Google Calendar** | Proaktívny denný plán s kalendárom (už v pláne) | ✅ shipped |
 
 ### Neberieme (alebo P4+)
 

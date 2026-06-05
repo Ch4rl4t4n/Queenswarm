@@ -1608,6 +1608,18 @@ class Settings(BaseSettings):
         default=False,
         description="12:00 UTC Telegram midday pulse when Telegram configured.",
     )
+    business_cross_lane_learning_enabled: bool = Field(
+        default=True,
+        description="BA7 — cross-lane recipe suggestions in CBO (semantic search, no LLM).",
+    )
+    calendar_daily_planner_enabled: bool = Field(
+        default=True,
+        description="PA2 — Google Calendar events in solo daily plan (read-only connector).",
+    )
+    knowledge_elicitation_enabled: bool = Field(
+        default=True,
+        description="OBS2 — Brain Pack gap prompts in Knowledge UI.",
+    )
     grok_control_plane_enabled: bool = Field(
         default=True,
         description="Enable Grok Control Plane in cockpit (plan/approve/execute).",

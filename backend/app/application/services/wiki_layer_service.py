@@ -443,12 +443,24 @@ class WikiLayerService:
         pages = await self.list_wiki_pages(tenant_id)
 
         buf = io.BytesIO()
+        moc_lines = ["# Queenswarm Vault MOC", "", "## Brain Pack", "- [[Brain-Pack]]", "- [[Instructions]]", "", "## Wiki"]
         with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
             zf.writestr("Brain-Pack.md", brain_md)
             zf.writestr("Instructions.md", bundle.get(CuratedFileKind.INSTRUCTIONS, ""))
             for page in pages:
                 safe_name = re.sub(r"[^\w\-]+", "-", page.slug).strip("-") or "page"
-                zf.writestr(f"wiki/{safe_name}.md", f"# {page.title}\n\n{page.content_md}")
+                wikilink = f"[[{safe_name}]]"
+                moc_lines.append(f"- {wikilink} — {page.title}")
+                body = f"# {page.title}\n\n{page.content_md}\n\n---\nBacklinks: [[Vault-MOC]]\n"
+                zf.writestr(f"wiki/{safe_name}.md", body)
+            zf.writestr("Vault-MOC.md", "\n".join(moc_lines) + "\n")
+            zf.writestr(
+                "README-Obsidian-Sync.md",
+                "# Obsidian sync (OBS1)\n\n"
+                "1. Unzip into your vault.\n"
+                "2. Edit wiki/*.md locally — use Integrations → Obsidian sync to ingest.\n"
+                "3. Vault-MOC uses wikilinks for bidirectional navigation.\n",
+            )
         return buf.getvalue()
 
     async def latest_gardener_run(self, tenant_id: uuid.UUID) -> WikiGardenerRunORM | None:

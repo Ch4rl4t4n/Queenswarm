@@ -18,7 +18,9 @@ from app.application.services.marketing_product_catalog import build_catalog
 
 if TYPE_CHECKING:
     from app.application.services.background_business_team import BackgroundBusinessTeamOut
+    from app.application.services.business_cross_lane_learning import BusinessCrossLaneLearningOut
     from app.application.services.business_goal_stack import BusinessGoalStackOut
+    from app.application.services.harness_project_profiles import HarnessProfilesStateOut
 from app.application.services.solo_daily_plan import compose_solo_daily_plan
 from app.core.config import settings
 from app.infrastructure.persistence.models.enums import TaskStatus
@@ -98,6 +100,8 @@ class BusinessOperatorSnapshotOut(BaseModel):
     top_actions: list[BusinessOperatorActionOut] = Field(default_factory=list)
     goal_stack: BusinessGoalStackOut | None = None
     background_team: BackgroundBusinessTeamOut | None = None
+    cross_lane_learning: BusinessCrossLaneLearningOut | None = None
+    harness_profiles: HarnessProfilesStateOut | None = None
     links: dict[str, str] = Field(default_factory=dict)
 
 
@@ -225,8 +229,34 @@ def _derive_top_actions(
     missions: BusinessMissionSummaryOut,
     daily_items: list[dict[str, object]],
     goal_stack: BusinessGoalStackOut | None = None,
+    cross_lane: BusinessCrossLaneLearningOut | None = None,
 ) -> list[BusinessOperatorActionOut]:
     candidates: list[tuple[int, BusinessOperatorActionOut]] = []
+
+    if cross_lane is not None and cross_lane.suggestions:
+        top = cross_lane.suggestions[0]
+        lane_key = top.target_lane
+        lane_from_goal: dict[str, BusinessActionLane] = {
+            "revenue": "revenue",
+            "marketing": "marketing",
+            "factory": "factory",
+            "mission": "mission",
+            "trading": "trading",
+            "ops": "ops",
+        }
+        candidates.append(
+            (
+                2,
+                BusinessOperatorActionOut(
+                    id=top.id,
+                    lane=lane_from_goal.get(lane_key, "ops"),
+                    title=f"Apply recipe: {top.recipe_name[:60]}",
+                    detail=f"{top.source_domain} → {top.target_domain} ({top.similarity:.0%}) — simulate before live.",
+                    priority="medium",
+                    href=top.href,
+                ),
+            ),
+        )
 
     if goal_stack is not None:
         lane_from_goal: dict[str, BusinessActionLane] = {
@@ -399,7 +429,9 @@ async def compose_business_operator_snapshot(
         )
 
     from app.application.services.background_business_team import compose_background_business_team
+    from app.application.services.business_cross_lane_learning import compose_business_cross_lane_learning
     from app.application.services.business_goal_stack import compose_business_goal_stack
+    from app.application.services.harness_project_profiles import compose_harness_profiles_state
 
     catalog_payload = build_catalog(export_root)
     gumroad_linked = sum(1 for product in catalog_payload.products if product.gumroad_url)
@@ -432,7 +464,7 @@ async def compose_business_operator_snapshot(
         trading_paper_mode = True
 
     missions = await _mission_counts(db, tenant_id=tenant_id)
-    daily, goal_stack, background_team = await asyncio.gather(
+    daily, goal_stack, background_team, cross_lane = await asyncio.gather(
         compose_solo_daily_plan(
             db,
             tenant_id=tenant_id,
@@ -451,7 +483,9 @@ async def compose_business_operator_snapshot(
             trading_paper_mode=trading_paper_mode,
         ),
         compose_background_business_team(db, tenant_id=tenant_id, tenant=tenant),
+        compose_business_cross_lane_learning(db, tenant_id=tenant_id),
     )
+    harness_profiles = compose_harness_profiles_state(tenant)
     daily_items = [item.model_dump(mode="json") for item in daily.items]
     top_actions = _derive_top_actions(
         revenue=revenue,
@@ -459,6 +493,7 @@ async def compose_business_operator_snapshot(
         missions=missions,
         daily_items=daily_items,
         goal_stack=goal_stack,
+        cross_lane=cross_lane,
     )
 
     return BusinessOperatorSnapshotOut(
@@ -471,6 +506,8 @@ async def compose_business_operator_snapshot(
         top_actions=top_actions,
         goal_stack=goal_stack,
         background_team=background_team,
+        cross_lane_learning=cross_lane,
+        harness_profiles=harness_profiles,
         links={
             "agents_sessions": "/agents#sessions",
             "mission_control": "/tasks",
@@ -494,12 +531,16 @@ def _rebuild_business_operator_models() -> None:
     """Resolve forward refs for nested BA2/BA3 snapshot models."""
 
     from app.application.services.background_business_team import BackgroundBusinessTeamOut
+    from app.application.services.business_cross_lane_learning import BusinessCrossLaneLearningOut
     from app.application.services.business_goal_stack import BusinessGoalStackOut
+    from app.application.services.harness_project_profiles import HarnessProfilesStateOut
 
     BusinessOperatorSnapshotOut.model_rebuild(
         _types_namespace={
             "BackgroundBusinessTeamOut": BackgroundBusinessTeamOut,
+            "BusinessCrossLaneLearningOut": BusinessCrossLaneLearningOut,
             "BusinessGoalStackOut": BusinessGoalStackOut,
+            "HarnessProfilesStateOut": HarnessProfilesStateOut,
         },
     )
 

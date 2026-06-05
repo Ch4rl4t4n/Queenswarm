@@ -327,8 +327,8 @@ Hlavný biznis orchestrátor v apke — radí čo robiť, časť organizuje auto
 | BA4 | **Unified Approval Inbox** — publish, Gumroad, lane digest, agent suggestions | ✅ |
 | BA5 | **Proactive Pulse** — midday „what changed / what ran“ (+ existing morning brief) | ✅ shipped |
 | BA6 | **CBO → Dispatch bridge** — one-click skill bundle dispatch (max 3–5 agents) | ✅ |
-| BA7 | **Cross-lane learning** — recipe winners → CBO „apply to lane X“ suggestions | planned |
-| PA2 | Google Calendar → proactive daily planner | planned (P2) |
+| BA7 | **Cross-lane learning** — recipe winners → CBO „apply to lane X“ suggestions | ✅ shipped |
+| PA2 | Google Calendar → proactive daily planner | ✅ shipped (connector-gated) |
 
 **Pravidlá:** simulate-first · human approve pre live peniaze/publish · CBO ne nahradzuje `/agents` sessions · cap background LLM spend per bee.
 

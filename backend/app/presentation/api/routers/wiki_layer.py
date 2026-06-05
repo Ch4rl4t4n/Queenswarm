@@ -9,6 +9,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.responses import Response
 
+from app.application.services.knowledge_elicitation import (
+    KnowledgeElicitationAnswerIn,
+    KnowledgeElicitationSnapshotOut,
+    apply_knowledge_elicitation_answer,
+    compose_knowledge_elicitation_snapshot,
+)
 from app.application.services.wiki_layer_service import (
     WikiLayerService,
     load_wiki_config,
@@ -228,3 +234,46 @@ async def export_obsidian_vault(
         media_type="application/zip",
         headers={"Content-Disposition": 'attachment; filename="queenswarm-wiki-vault.zip"'},
     )
+
+
+@router.get(
+    "/elicitation",
+    response_model=KnowledgeElicitationSnapshotOut,
+    summary="Brain Pack gap prompts (OBS2)",
+)
+async def knowledge_elicitation_snapshot(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> KnowledgeElicitationSnapshotOut:
+    """Surface empty curated memory files for operator answers."""
+
+    tenant_id = _tenant_id_from(principal)
+    return await compose_knowledge_elicitation_snapshot(db, tenant_id=tenant_id)
+
+
+@router.post(
+    "/elicitation",
+    response_model=KnowledgeElicitationSnapshotOut,
+    summary="Save elicitation answer to Brain Pack (OBS2)",
+)
+async def knowledge_elicitation_answer(
+    body: KnowledgeElicitationAnswerIn,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> KnowledgeElicitationSnapshotOut:
+    """Persist operator answer into curated memory."""
+
+    tenant_id = _tenant_id_from(principal)
+    user = principal.get("user")
+    try:
+        snapshot = await apply_knowledge_elicitation_answer(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=user.id if user is not None else None,
+            body=body,
+        )
+        await db.commit()
+    except ValueError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    return snapshot

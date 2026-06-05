@@ -130,6 +130,22 @@ def resolve_dispatch_template(
     skills = _skills_for_lane(lane)
     goal = _supervisor_goal(action_id=action_id, title=title, detail=detail, lane=lane)
 
+    if action_id.startswith("cross_lane_"):
+        recipe_goal = (
+            f"=== CBO CROSS-LANE RECIPE ===\n"
+            f"# {title}\n\n"
+            f"{detail}\n\n"
+            "Simulate this verified recipe in the target lane before any live action.\n"
+            "Deliverables: adapted plan, simulate-first artifact, critic verdict."
+        )
+        return _DispatchTemplate(
+            mode=dispatch_mode or "supervisor_session",
+            goal=recipe_goal,
+            session_title=title[:120],
+            skills=skills,
+            roles=DEFAULT_ROLES,
+        )
+
     if action_id == "mission_triage":
         return _DispatchTemplate(
             mode=dispatch_mode or "triage_flush",

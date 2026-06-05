@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { BusinessApprovalInbox } from "@/components/hive/business-approval-inbox";
 import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { V4Badge, V4Card, V4CardHeader, type V4BadgeTone } from "@/components/ui/v4";
-import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
+import { HiveApiError, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 interface BusinessAction {
@@ -92,6 +92,23 @@ interface BusinessOperatorSnapshot {
     bees: BackgroundBee[];
     attention_count: number;
   } | null;
+  cross_lane_learning?: {
+    enabled: boolean;
+    suggestions: Array<{
+      id: string;
+      recipe_name: string;
+      source_domain: string;
+      target_domain: string;
+      target_lane: string;
+      similarity: number;
+      rationale: string;
+      href: string | null;
+    }>;
+  } | null;
+  harness_profiles?: {
+    active_profile_id: string;
+    profiles: Array<{ profile_id: string; label: string; description: string }>;
+  } | null;
   links: Record<string, string>;
 }
 
@@ -123,6 +140,7 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
   const [error, setError] = useState<string | null>(null);
   const [dispatchingId, setDispatchingId] = useState<string | null>(null);
   const [pulse, setPulse] = useState<ProactivePulse | null>(null);
+  const [profileBusy, setProfileBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -145,6 +163,24 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const handleProfileChange = useCallback(
+    async (profileId: string) => {
+      setProfileBusy(true);
+      try {
+        await hivePatchJson("operator/business/harness-profiles", {
+          active_profile_id: profileId,
+        });
+        toast.success(`Harness profile: ${profileId}`);
+        await load();
+      } catch (e) {
+        toast.error(e instanceof HiveApiError ? e.message : "Profile update failed");
+      } finally {
+        setProfileBusy(false);
+      }
+    },
+    [load],
+  );
 
   const handleDispatch = useCallback(
     async (action: BusinessAction) => {
@@ -233,6 +269,45 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
       </div>
 
       <BusinessApprovalInbox />
+
+      {snapshot.harness_profiles?.profiles?.length ? (
+        <div className="mb-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cyan">Harness profile (AOS1)</p>
+          <div className="flex flex-wrap gap-2">
+            {snapshot.harness_profiles.profiles.map((profile) => (
+              <button
+                key={profile.profile_id}
+                type="button"
+                className={
+                  snapshot.harness_profiles?.active_profile_id === profile.profile_id
+                    ? "qs-btn qs-btn--primary qs-btn--sm"
+                    : "qs-btn qs-btn--ghost qs-btn--sm"
+                }
+                disabled={profileBusy || loading}
+                onClick={() => void handleProfileChange(profile.profile_id)}
+              >
+                {profile.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {snapshot.cross_lane_learning?.enabled && snapshot.cross_lane_learning.suggestions.length > 0 ? (
+        <div className="mb-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-pollen">Cross-lane learning (BA7)</p>
+          <ul className="space-y-2 text-sm">
+            {snapshot.cross_lane_learning.suggestions.slice(0, 3).map((row) => (
+              <li key={row.id} className="rounded-lg border border-(--qs-border) bg-(--qs-surface) p-3">
+                <p className="font-medium text-(--qs-text)">{row.recipe_name}</p>
+                <p className="text-xs text-(--qs-text-2)">
+                  {row.source_domain} → {row.target_domain} ({Math.round(row.similarity * 100)}%)
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {snapshot.goal_stack && snapshot.goal_stack.goals.length > 0 ? (
         <div className="mb-4">

@@ -4,6 +4,7 @@ import { BookMarked, Download, Flower2, Loader2Icon, RefreshCw } from "lucide-re
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { KnowledgeElicitationPanel } from "@/components/hive/knowledge-elicitation-panel";
 import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { QsSelect } from "@/components/ui/qs-select";
 import { V4Badge, V4Card, V4CardHeader, V4FormField, V4FormStack } from "@/components/ui/v4";
@@ -169,6 +170,7 @@ export function WikiLayerPanel(): JSX.Element {
 
   return (
     <div className="space-y-4">
+      <KnowledgeElicitationPanel />
       <V4Card>
         <V4CardHeader
           title="Wiki Layer"

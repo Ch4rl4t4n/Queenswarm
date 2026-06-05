@@ -48,6 +48,20 @@ from app.application.services.business_operator_dispatch import (
     BusinessOperatorDispatchOut,
     dispatch_business_operator_action,
 )
+from app.application.services.business_cross_lane_learning import (
+    BusinessCrossLaneLearningOut,
+    compose_business_cross_lane_learning,
+)
+from app.application.services.calendar_daily_planner import (
+    CalendarDailyPlannerOut,
+    compose_calendar_daily_planner,
+)
+from app.application.services.harness_project_profiles import (
+    HarnessProfilesPatchIn,
+    HarnessProfilesStateOut,
+    compose_harness_profiles_state,
+    persist_active_harness_profile,
+)
 from app.application.services.proactive_pulse import ProactivePulseOut, compose_proactive_pulse
 from app.application.services.prompt_injection_guard import (
     PromptInjectionViolationError,
@@ -313,6 +327,82 @@ async def business_proactive_pulse(
     )
     await db.commit()
     return pulse
+
+
+@router.get(
+    "/business/cross-lane",
+    response_model=BusinessCrossLaneLearningOut,
+    summary="Cross-lane recipe learning (BA7)",
+)
+async def business_cross_lane_learning(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> BusinessCrossLaneLearningOut:
+    """Verified recipe transfer suggestions across business lanes."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    return await compose_business_cross_lane_learning(db, tenant_id=uuid.UUID(str(tenant_id)))
+
+
+@router.get(
+    "/business/harness-profiles",
+    response_model=HarnessProfilesStateOut,
+    summary="Project harness profiles (AOS1)",
+)
+async def business_harness_profiles_get(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> HarnessProfilesStateOut:
+    """Active marketing/factory/trading harness profile."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    return compose_harness_profiles_state(tenant)
+
+
+@router.patch(
+    "/business/harness-profiles",
+    response_model=HarnessProfilesStateOut,
+    summary="Set active harness profile (AOS1)",
+)
+async def business_harness_profiles_patch(
+    body: HarnessProfilesPatchIn,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> HarnessProfilesStateOut:
+    """Switch CBO dispatch defaults to marketing, factory, or trading profile."""
+
+    _require_owner_or_admin(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found.")
+    state = persist_active_harness_profile(tenant, body.active_profile_id)
+    await db.commit()
+    return state
+
+
+@router.get(
+    "/business/calendar-planner",
+    response_model=CalendarDailyPlannerOut,
+    summary="Calendar daily planner (PA2)",
+)
+async def business_calendar_planner(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> CalendarDailyPlannerOut:
+    """Read-only Google Calendar events for proactive planning."""
+
+    user = principal.get("user")
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User context missing.")
+    return await compose_calendar_daily_planner(db, dashboard_user_id=user.id)
 
 
 @router.get("/cockpit", summary="Unified operator cockpit snapshot")
