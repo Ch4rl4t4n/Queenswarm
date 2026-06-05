@@ -251,7 +251,7 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium text-(--qs-text)">{goal.label}</span>
-                  <V4Badge tone={goal.drift_severity === "critical" ? "gold" : goal.drift_severity === "warning" ? "warn" : "success"}>
+                  <V4Badge tone={goal.drift_severity === "critical" ? "gold" : goal.drift_severity === "warning" ? "warn" : "ok"}>
                     {goal.drift_severity}
                   </V4Badge>
                 </div>
