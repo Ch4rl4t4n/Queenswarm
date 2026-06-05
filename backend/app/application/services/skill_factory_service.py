@@ -308,6 +308,16 @@ def _tenant_skill_out(
     )
 
 
+_FORGE_FAILURE_ISSUES: frozenset[str] = frozenset(
+    {
+        "critic_not_approved",
+        "quality_gate_failed",
+        "skill_invalid",
+        "forge_quality_failed",
+    },
+)
+
+
 def _forge_payload_fields(forge: Any | None) -> tuple[bool | None, bool | None, list[str]]:
     """Extract quality gate fields from verified_skill_forge suggestion."""
 
@@ -317,11 +327,34 @@ def _forge_payload_fields(forge: Any | None) -> tuple[bool | None, bool | None, 
     quality = payload.get("quality_gate_passed")
     critic = payload.get("critic_approved")
     issues_raw = payload.get("issues")
-    return (
-        bool(quality) if quality is not None else None,
-        bool(critic) if critic is not None else None,
-        [str(i) for i in issues_raw[:6]] if isinstance(issues_raw, list) else [],
-    )
+    issues = [str(i) for i in issues_raw[:6]] if isinstance(issues_raw, list) else []
+    quality_out = bool(quality) if quality is not None else None
+    critic_out = bool(critic) if critic is not None else None
+    if quality_out is None and any(issue in _FORGE_FAILURE_ISSUES for issue in issues):
+        quality_out = False
+    if critic_out is None and "critic_not_approved" in issues:
+        critic_out = False
+    return quality_out, critic_out, issues
+
+
+def forge_needs_rebuild(forge: Any | None) -> bool:
+    """True when forge payload indicates quality/critic failure."""
+
+    quality_passed, critic_approved, issues = _forge_payload_fields(forge)
+    if quality_passed is False or critic_approved is False:
+        return True
+    return any(issue in _FORGE_FAILURE_ISSUES for issue in issues)
+
+
+def _forge_status_allows_rebuild(forge: Any | None) -> bool:
+    """Forges stuck in pending or wrongly-approved states are rebuildable."""
+
+    if forge is None:
+        return False
+    status = str(getattr(forge, "status", "") or "").strip().lower()
+    if status in {"pending", "approved"}:
+        return forge_needs_rebuild(forge)
+    return False
 
 
 def _factory_progress_fields(
@@ -1098,7 +1131,7 @@ async def _prepare_opportunity_for_rebuild(
                 reviewer_subject=reviewer_subject,
             )
         except ValueError as exc:
-            if str(exc) not in {"no_pending_forge", "no_supervisor_session"}:
+            if str(exc) not in {"no_pending_forge", "no_supervisor_session", "no_rejectable_forge"}:
                 raise
 
     row = await session.get(SkillOpportunityORM, opportunity_id)
@@ -1242,6 +1275,47 @@ async def dismiss_opportunity(
     return row
 
 
+async def _reject_stale_factory_forge(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    forge: AgentSuggestion,
+    supervisor_session_id: uuid.UUID | None,
+    reviewer_subject: str,
+) -> None:
+    """Reject a pending or wrongly-approved forge that failed quality gates."""
+
+    from app.application.services.supervisor.initiative import review_agent_suggestion_with_handoff
+    from app.infrastructure.persistence.models.tenant import Tenant
+
+    forge_status = str(forge.status or "").strip().lower()
+    if forge_status == "rejected":
+        return
+    if forge_status == "pending":
+        sup = (
+            await session.get(SupervisorSession, supervisor_session_id)
+            if supervisor_session_id is not None
+            else None
+        )
+        tenant = await session.get(Tenant, tenant_id)
+        await review_agent_suggestion_with_handoff(
+            session,
+            suggestion=forge,
+            decision="rejected",
+            reviewer_subject=reviewer_subject,
+            supervisor_session=sup,
+            tenant=tenant,
+        )
+        return
+    if forge_status == "approved" and forge_needs_rebuild(forge):
+        forge.status = "rejected"
+        forge.reviewed_by_subject = reviewer_subject[:512]
+        forge.reviewed_at = datetime.now(tz=UTC)
+        await session.flush()
+        return
+    raise ValueError("no_rejectable_forge")
+
+
 async def reject_factory_forge(
     session: AsyncSession,
     *,
@@ -1249,7 +1323,7 @@ async def reject_factory_forge(
     opportunity_id: uuid.UUID,
     reviewer_subject: str,
 ) -> SkillOpportunityORM:
-    """Reject pending verified_skill_forge for one opportunity."""
+    """Reject pending or stale approved verified_skill_forge for one opportunity."""
 
     row = await session.get(SkillOpportunityORM, opportunity_id)
     if row is None or row.tenant_id != tenant_id:
@@ -1257,29 +1331,22 @@ async def reject_factory_forge(
     if row.supervisor_session_id is None:
         raise ValueError("no_supervisor_session")
 
-    from app.infrastructure.persistence.models.tenant import Tenant
-    from app.application.services.supervisor.initiative import review_agent_suggestion_with_handoff
-
     forge = await session.scalar(
         select(AgentSuggestion).where(
             AgentSuggestion.tenant_id == tenant_id,
             AgentSuggestion.supervisor_session_id == row.supervisor_session_id,
             AgentSuggestion.proposal_type == "verified_skill_forge",
-            AgentSuggestion.status == "pending",
-        ),
+        ).order_by(desc(AgentSuggestion.created_at)),
     )
     if forge is None:
         raise ValueError("no_pending_forge")
 
-    sup = await session.get(SupervisorSession, row.supervisor_session_id)
-    tenant = await session.get(Tenant, tenant_id)
-    await review_agent_suggestion_with_handoff(
+    await _reject_stale_factory_forge(
         session,
-        suggestion=forge,
-        decision="rejected",
+        tenant_id=tenant_id,
+        forge=forge,
+        supervisor_session_id=row.supervisor_session_id,
         reviewer_subject=reviewer_subject,
-        supervisor_session=sup,
-        tenant=tenant,
     )
     row.status = "failed"
     await session.flush()
@@ -1338,10 +1405,7 @@ async def reject_failed_factory_forges(
         if opp.supervisor_session_id is None:
             continue
         forge = forge_by_session.get(opp.supervisor_session_id)
-        if forge is None or str(forge.status or "").lower() != "pending":
-            continue
-        payload = dict(forge.proposal_payload or {})
-        if payload.get("quality_gate_passed") is not False and payload.get("critic_approved") is not False:
+        if not _forge_status_allows_rebuild(forge):
             continue
         try:
             await reject_factory_forge(

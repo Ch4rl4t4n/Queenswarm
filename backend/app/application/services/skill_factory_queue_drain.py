@@ -14,6 +14,7 @@ from app.application.services.skill_factory_service import (
     SkillFactoryPolicyOut,
     _forge_payload_fields,
     _forge_suggestions_by_session,
+    _forge_status_allows_rebuild,
     list_skill_opportunities,
     rebuild_factory_opportunity,
 )
@@ -177,10 +178,7 @@ async def drain_skill_factory_queue(
                 break
             if row.status == "awaiting_forge" and row.supervisor_session_id is not None:
                 forge = forge_by_session.get(row.supervisor_session_id)
-                if forge is None or str(forge.status or "").strip().lower() != "pending":
-                    continue
-                quality_passed, critic_approved, _ = _forge_payload_fields(forge)
-                if not _forge_needs_rebuild(quality_passed=quality_passed, critic_approved=critic_approved):
+                if not _forge_status_allows_rebuild(forge):
                     continue
             elif row.status != "failed":
                 continue
