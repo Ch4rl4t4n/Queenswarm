@@ -73,6 +73,9 @@ class TenantSkillOut(BaseModel):
     sellable_score: float = 0.0
     sellable_issues: list[str] = Field(default_factory=list)
     recommended_for_launch: bool = False
+    factory_disposition: str | None = None
+    factory_attempt_count: int = 0
+    factory_disposition_note: str | None = None
     is_active: bool
     is_builtin: bool = False
 
@@ -236,11 +239,13 @@ def _tenant_skill_out(
     *,
     gumroad_ref: dict[str, Any] | None = None,
     sellable: Any | None = None,
+    disposition: Any | None = None,
 ) -> TenantSkillOut:
     from app.application.services.skill_factory_sellable import SkillSellableAssessment, assess_tenant_skill_sellable
 
     assessment: SkillSellableAssessment = sellable or assess_tenant_skill_sellable(row)
     ref = gumroad_ref or {}
+    disp = disposition
     return TenantSkillOut(
         id=str(row.id),
         slug=row.slug,
@@ -261,6 +266,9 @@ def _tenant_skill_out(
         sellable_score=assessment.score,
         sellable_issues=list(assessment.issues),
         recommended_for_launch=assessment.recommended_for_launch,
+        factory_disposition=disp.disposition if disp is not None else None,
+        factory_attempt_count=int(disp.attempt_count) if disp is not None else 0,
+        factory_disposition_note=disp.note if disp is not None else None,
         is_active=row.is_active,
         is_builtin=False,
     )
@@ -793,6 +801,12 @@ async def compose_skill_factory_snapshot(
         skill_ids=skill_ids,
     )
 
+    from app.application.services.skill_factory_disposition import derive_niche_from_skill, resolve_skill_disposition
+    from app.infrastructure.persistence.models.tenant import Tenant
+
+    tenant_row = await session.get(Tenant, tenant_id)
+    tenant_settings = dict(tenant_row.operator_settings or {}) if tenant_row else {}
+
     library_out: list[TenantSkillOut] = []
     sellable_count = 0
     draft_count = 0
@@ -803,7 +817,17 @@ async def compose_skill_factory_snapshot(
             row,
             forge_quality=forge_quality_by_skill.get(row.id),
         )
-        skill_out = _tenant_skill_out(row, gumroad_ref=gumroad_by_skill.get(row.id), sellable=assessment)
+        disposition = resolve_skill_disposition(
+            slug=row.slug,
+            niche=derive_niche_from_skill(row),
+            settings=tenant_settings,
+        )
+        skill_out = _tenant_skill_out(
+            row,
+            gumroad_ref=gumroad_by_skill.get(row.id),
+            sellable=assessment,
+            disposition=disposition,
+        )
         library_out.append(skill_out)
         if assessment.tier == "sellable":
             sellable_count += 1

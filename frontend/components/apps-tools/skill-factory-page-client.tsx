@@ -11,6 +11,7 @@ import {
   factoryBuildDisabled,
   type FactoryLlmReadiness,
 } from "@/components/apps-tools/factory-llm-readiness-banner";
+import { FactoryLibrarySkillCard } from "@/components/apps-tools/factory-library-skill-card";
 import {
   FactoryQueueTaskCard,
   isStuckFactoryBuild,
@@ -94,6 +95,9 @@ interface TenantSkillRow {
   sellable_issues: string[];
   recommended_for_launch: boolean;
   keywords: string[];
+  factory_disposition: string | null;
+  factory_attempt_count: number;
+  factory_disposition_note: string | null;
 }
 
 interface LaunchReadiness {
@@ -337,6 +341,44 @@ export function SkillFactoryPageClient(): JSX.Element {
           ? "Reject forge — session needs critic APPROVE + valid SKILL.md (not fallback draft)."
           : undefined,
       });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const smartRebuildSkill = async (id: string): Promise<void> => {
+    setBusyId(id);
+    try {
+      const res = await hivePostJson<{
+        session_id: string;
+        opportunity_id: string;
+        attempt_count: number;
+        fix_lines: string[];
+      }>(`skill-factory/skills/${id}/smart-rebuild`, {});
+      toast.success("Smart rebuild started.", {
+        description: `Attempt ${res.attempt_count} · session ${res.session_id.slice(0, 8)}… · Queue tab for progress.`,
+      });
+      await refreshSnapshotQuiet();
+      navigateSkillFactoryTab("queue");
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Smart rebuild failed.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const setSkillDisposition = async (
+    id: string,
+    disposition: "worth_retry" | "deprioritized" | "retired",
+    label: string,
+  ): Promise<void> => {
+    setBusyId(id);
+    try {
+      await hivePutJson(`skill-factory/skills/${id}/disposition`, { disposition });
+      toast.success(label);
+      await refreshSnapshotQuiet();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Disposition failed.");
     } finally {
       setBusyId(null);
     }
@@ -901,101 +943,40 @@ export function SkillFactoryPageClient(): JSX.Element {
                 description={`${(snapshot.library ?? []).length} active skill${(snapshot.library ?? []).length === 1 ? "" : "s"} — each verified skill is available to all swarm sessions via SkillLibrary.`}
                 hint={sectionHintNode("skillFactoryLibrary")}
               />
-              <ul className="mt-4 space-y-2">
-                {(snapshot.library ?? []).map((row) => (
-                  <li key={row.id} className="rounded-xl border border-pollen/25 bg-pollen/5 px-3 py-3 text-sm">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <p className="font-medium">{row.title}</p>
-                        <p className="mt-1 font-mono text-[10px] text-pollen">{row.slug}</p>
-                        {row.description ? (
-                          <p className="mt-1 text-xs text-(--qs-text-3)">{row.description.slice(0, 200)}</p>
-                        ) : null}
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        <V4Badge tone={row.sellable_tier === "sellable" ? "ok" : row.sellable_tier === "draft" ? "info" : "warn"}>
-                          {row.sellable_tier} · {scorePct(row.sellable_score)}
-                        </V4Badge>
-                        <V4Badge tone={row.github_exported_at ? "ok" : "info"}>
-                          {row.github_exported_at ? "exported" : "ready"}
-                        </V4Badge>
-                      </div>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
-                        disabled={busyId === row.id}
-                        onClick={() => void evalSkill(row.id, row.title)}
-                      >
-                        <SparklesIcon className="size-3.5" aria-hidden />
-                        Run eval
-                      </button>
-                      <button
-                        type="button"
-                        className="qs-btn qs-btn--primary qs-btn--sm gap-1"
-                        disabled={busyId === row.id}
-                        onClick={() => void exportSkill(row.id)}
-                      >
-                        <DownloadIcon className="size-3.5" aria-hidden />
-                        Download GitHub pack
-                      </button>
-                      {snapshot.github_pr_export_ready ? (
-                        <button
-                          type="button"
-                          className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
-                          disabled={busyId === row.id}
-                          onClick={() => void pushGithubPr(row.id)}
-                        >
-                          <GitBranchIcon className="size-3.5" aria-hidden />
-                          Push GitHub PR
-                        </button>
-                      ) : null}
-                      {snapshot.gumroad_listing_ready ? (
-                        <button
-                          type="button"
-                          className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
-                          disabled={busyId === row.id}
-                          onClick={() => void createGumroadDraft(row.id)}
-                        >
-                          <StoreIcon className="size-3.5" aria-hidden />
-                          Gumroad draft
-                        </button>
-                      ) : null}
-                      {snapshot.gumroad_publish_ready ? (
-                        <button
-                          type="button"
-                          className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
-                          disabled={busyId === row.id || row.gumroad_published === true}
-                          onClick={() =>
-                            void publishGumroadListing(row.id, !row.gumroad_product_id)
-                          }
-                        >
-                          <RocketIcon className="size-3.5" aria-hidden />
-                          {row.gumroad_published ? "Published" : row.gumroad_product_id ? "Gumroad publish" : "Gumroad publish (draft+live)"}
-                        </button>
-                      ) : null}
-                      {row.gumroad_product_url ? (
-                        <a
-                          href={row.gumroad_product_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
-                        >
-                          <StoreIcon className="size-3.5" aria-hidden />
-                          Open Gumroad
-                        </a>
-                      ) : null}
-                    </div>
-                  </li>
-                ))}
-                {snapshot.library.length === 0 ? (
-                  <p className="text-xs text-(--qs-text-4)">
-                    No tenant skills yet — approve a completed build with{" "}
-                    <strong className="text-(--qs-text-2)">Approve skill</strong> in the Queue tab, then export here.
-                  </p>
-                ) : null}
-              </ul>
+              <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-(--qs-text-3)">
+                Library skills
+                <span className="ml-2 font-normal normal-case tracking-normal text-(--qs-text-4)">
+                  rejected/draft → Smart rebuild injects learnings; Retire stops future research on niche
+                </span>
+              </p>
+              <div className="v4-sessions-list-scroll hive-scrollbar mt-2">
+                {(snapshot.library ?? []).length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-(--qs-border) bg-black/20 px-4 py-6 text-center">
+                    <p className="text-sm text-(--qs-text-2)">
+                      No tenant skills yet — approve a completed build in Queue, then export here.
+                    </p>
+                  </div>
+                ) : (
+                  (snapshot.library ?? []).map((row) => (
+                    <FactoryLibrarySkillCard
+                      key={row.id}
+                      row={row}
+                      busyId={busyId}
+                      githubPrReady={snapshot.github_pr_export_ready}
+                      gumroadListingReady={snapshot.gumroad_listing_ready}
+                      gumroadPublishReady={snapshot.gumroad_publish_ready}
+                      onSmartRebuild={(id) => void smartRebuildSkill(id)}
+                      onDeprioritize={(id) => void setSkillDisposition(id, "deprioritized", "Niche deprioritized — lower research priority.")}
+                      onRetire={(id) => void setSkillDisposition(id, "retired", "Niche retired — excluded from research.")}
+                      onEval={(id, title) => void evalSkill(id, title)}
+                      onExport={(id) => void exportSkill(id)}
+                      onGithubPr={(id) => void pushGithubPr(id)}
+                      onGumroadDraft={(id) => void createGumroadDraft(id)}
+                      onGumroadPublish={(id) => void publishGumroadListing(id, !row.gumroad_product_id)}
+                    />
+                  ))
+                )}
+              </div>
             </V4Card>
           ) : null}
 

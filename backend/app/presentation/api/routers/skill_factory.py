@@ -500,6 +500,87 @@ async def skill_factory_launch_prepare(
     return result
 
 
+class SkillDispositionBody(BaseModel):
+    """Operator disposition for a library skill niche."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    disposition: str = Field(description="worth_retry | deprioritized | retired")
+    note: str | None = Field(default=None, max_length=500)
+
+
+@router.put("/skills/{skill_id}/disposition", summary="Set factory disposition for library skill")
+async def skill_factory_skill_disposition(
+    skill_id: uuid.UUID,
+    body: SkillDispositionBody,
+    db: DbSession,
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+) -> dict:
+    """Record whether to retry, deprioritize, or retire a rejected niche."""
+
+    _ensure_enabled()
+    from app.application.services.skill_factory_disposition import save_skill_disposition
+
+    disposition = body.disposition.strip().lower()
+    if disposition not in {"worth_retry", "deprioritized", "retired"}:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="invalid_disposition")
+    try:
+        out = await save_skill_disposition(
+            db,
+            tenant_id=_tenant_id(principal),
+            skill_id=skill_id,
+            disposition=disposition,  # type: ignore[arg-type]
+            note=body.note,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    await db.commit()
+    return out.model_dump(mode="json")
+
+
+class SmartRebuildBody(BaseModel):
+    """Optional operator note for smart rebuild."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    note: str | None = Field(default=None, max_length=500)
+
+
+@router.post("/skills/{skill_id}/smart-rebuild", summary="Smart rebuild from library skill")
+async def skill_factory_smart_rebuild(
+    skill_id: uuid.UUID,
+    body: SmartRebuildBody,
+    db: DbSession,
+    principal: dict = Depends(require_dashboard_user_with_tenant_role),
+) -> dict:
+    """Start guided factory rebuild using prior rejection learnings."""
+
+    _ensure_enabled()
+    from app.application.services.skill_factory_disposition import smart_rebuild_from_library_skill
+
+    subject = str(principal.get("sub") or "dashboard:skill_factory")
+    try:
+        out = await smart_rebuild_from_library_skill(
+            db,
+            tenant_id=_tenant_id(principal),
+            skill_id=skill_id,
+            created_by_subject=subject,
+            operator_note=body.note,
+        )
+    except ValueError as exc:
+        code = str(exc)
+        if code == "skill_not_found":
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=code) from exc
+        if code == "niche_retired":
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Niche retired — change disposition to worth_retry first.",
+            ) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=code) from exc
+    await db.commit()
+    return out.model_dump(mode="json")
+
+
 @router.post("/skills/{skill_id}/eval", response_model=HarnessEvalResultOut, summary="Eval tenant skill markdown")
 async def skill_factory_eval_skill(
     skill_id: uuid.UUID,

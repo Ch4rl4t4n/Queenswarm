@@ -217,12 +217,24 @@ async def run_skill_market_research(
     if not seeds:
         seeds = list(starter_seeds_for_lane("skill"))
 
+    from app.application.services.skill_factory_disposition import (
+        niche_disposition_score_adjustment,
+        niche_is_retired,
+    )
+    from app.infrastructure.persistence.models.tenant import Tenant
+
+    tenant_row = await session.get(Tenant, tenant_id)
+    tenant_settings = dict(tenant_row.operator_settings or {}) if tenant_row else {}
+
     created: list[SkillOpportunityORM] = []
     apify_deep_budget = [0]
     monid_budget = [0]
     for niche in seeds[:12]:
         if len(created) >= max(1, min(max_new, 12)):
             break
+
+        if niche_is_retired(niche=niche, settings=tenant_settings):
+            continue
 
         title = f"Skill pack: {niche[:80]}"
         active_dup = await session.scalar(
@@ -261,6 +273,13 @@ async def run_skill_market_research(
                 f"{rationale} Skill Market Intel: {intel_hits} demand signals "
                 f"(boost +{demand_boost:.2f})."
             )
+        disp_adj = niche_disposition_score_adjustment(niche=niche, settings=tenant_settings)
+        if disp_adj != 0.0:
+            composite = max(0.0, min(1.0, composite + disp_adj))
+            if disp_adj < 0:
+                rationale = f"{rationale} Operator disposition: deprioritized niche."
+            elif disp_adj > 0:
+                rationale = f"{rationale} Operator disposition: worth retry — prior learnings available."
         source_refs: list[dict[str, Any]] = [{"kind": "hive_hits", "count": hive_hits}]
         intel_refs = intel.get("source_refs")
         if isinstance(intel_refs, list):
