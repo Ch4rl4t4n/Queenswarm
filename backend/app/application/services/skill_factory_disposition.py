@@ -238,6 +238,14 @@ async def save_skill_disposition(
     if disposition == "retired":
         skill.is_active = False
         await session.flush()
+        from app.application.services.skill_factory_niche_registry import record_niche_abandoned_from_skill
+
+        await record_niche_abandoned_from_skill(
+            session,
+            tenant_id=tenant_id,
+            skill=skill,
+            reason="retired",
+        )
 
     logger.info(
         "skill_factory.disposition_saved",
@@ -346,8 +354,19 @@ async def smart_rebuild_from_library_skill(
     niche = derive_niche_from_skill(skill)
     if niche_is_retired(niche=niche, settings=settings):
         raise ValueError("niche_retired")
+    if not getattr(skill, "is_active", True):
+        raise ValueError("skill_archived")
 
     from app.application.services.factory_llm_readiness_service import assert_factory_build_llm_ready
+    from app.application.services.skill_factory_niche_registry import (
+        factory_build_skip_reason,
+        load_factory_niche_fingerprints,
+    )
+
+    fingerprints = await load_factory_niche_fingerprints(session, tenant_id=tenant_id, tenant_settings=settings)
+    build_skip = factory_build_skip_reason(niche=niche, fingerprints=fingerprints, settings=settings)
+    if build_skip in {"niche_abandoned_retired", "niche_abandoned_purged", "sellable_skill_exists"}:
+        raise ValueError(build_skip)
 
     await assert_factory_build_llm_ready(session, tenant_id=tenant_id)
 

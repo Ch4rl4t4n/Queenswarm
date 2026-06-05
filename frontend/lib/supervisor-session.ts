@@ -267,6 +267,25 @@ export function isActiveSupervisorSession(status: string): boolean {
   return ["running", "queued", "needs_input", "paused"].includes(status);
 }
 
+/** Why Approve stays manual when auto-approve policy is on (null = eligible for auto-drain). */
+export function supervisorSessionManualApproveHint(
+  session: { status: string; goal: string; context_summary?: Record<string, unknown> | null },
+  autoApproveEnabled: boolean,
+): string | null {
+  if (session.status !== "needs_input") {
+    return null;
+  }
+  const ctx = session.context_summary ?? {};
+  if (!autoApproveEnabled) {
+    return "Auto approve is OFF — click Approve or enable the toggle.";
+  }
+  if (ctx.approval_required === true) {
+    const reason = typeof ctx.approval_reason === "string" ? ctx.approval_reason.trim() : "";
+    return reason || "Critical action (billing, secrets, live PR) — manual approve required.";
+  }
+  return null;
+}
+
 /** Compact excerpt from the latest supervisor session audit row. */
 export function supervisorAuditExcerpt(payload: Record<string, unknown>, maxLen = 120): string | null {
   const parts: string[] = [];

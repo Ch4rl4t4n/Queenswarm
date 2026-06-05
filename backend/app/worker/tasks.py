@@ -920,6 +920,47 @@ def run_supervisor_audit_rollup_email_tick_task() -> dict[str, object]:
     return asyncio.run(_run())
 
 
+@celery_app.task(name="hive.supervisor_sessions_auto_approve_tick", queue="hive")
+def run_supervisor_sessions_auto_approve_tick_task() -> dict[str, object]:
+    """Drain needs_input supervisor sessions for tenants with auto-approve enabled."""
+
+    async def _run() -> dict[str, object]:
+        from sqlalchemy import select
+
+        from app.application.services.supervisor_session_control import (
+            auto_approve_pending_supervisor_sessions,
+            resolve_supervisor_sessions_auto_approve,
+        )
+        from app.infrastructure.persistence.models.tenant import Tenant
+
+        approved_total = 0
+        skipped_critical_total = 0
+        tenants_touched = 0
+        async with async_session() as session:
+            tenants = list((await session.scalars(select(Tenant))).all())
+            for tenant in tenants:
+                if not resolve_supervisor_sessions_auto_approve(tenant):
+                    continue
+                result = await auto_approve_pending_supervisor_sessions(
+                    session,
+                    tenant_id=tenant.id,
+                )
+                approved = int(result.get("approved_count", 0))
+                skipped = int(result.get("skipped_critical", 0))
+                if approved > 0 or skipped > 0:
+                    tenants_touched += 1
+                    approved_total += approved
+                    skipped_critical_total += skipped
+            await session.commit()
+        return {
+            "approved": approved_total,
+            "skipped_critical": skipped_critical_total,
+            "tenants": tenants_touched,
+        }
+
+    return asyncio.run(_run())
+
+
 @celery_app.task(name="hive.execution_studio_codebase_auto_approve_tick", queue="hive")
 def run_execution_studio_codebase_auto_approve_tick_task() -> dict[str, object]:
     """Drain pending SCV proposals for tenants with auto-approve policy enabled."""
@@ -989,6 +1030,7 @@ __all__ = [
     "run_supervisor_routines_tick_task",
     "run_supervisor_audit_digest_tick_task",
     "run_supervisor_audit_rollup_email_tick_task",
+    "run_supervisor_sessions_auto_approve_tick_task",
     "run_execution_studio_codebase_auto_approve_tick_task",
     "run_execution_studio_weekly_rollup_tick_task",
     "grok_control_plane_execute_run_task",

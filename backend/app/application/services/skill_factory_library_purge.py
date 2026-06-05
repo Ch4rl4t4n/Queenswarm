@@ -87,6 +87,14 @@ async def archive_tenant_library_skill(
 
     skill.is_active = False
     await session.flush()
+    from app.application.services.skill_factory_niche_registry import record_niche_abandoned_from_skill
+
+    await record_niche_abandoned_from_skill(
+        session,
+        tenant_id=tenant_id,
+        skill=skill,
+        reason="purged",
+    )
     logger.info(
         "skill_factory.library_skill_archived",
         agent_id="skill_factory",

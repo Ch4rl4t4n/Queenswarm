@@ -10,6 +10,7 @@ import pytest
 
 from app.application.services.supervisor_session_control import (
     auto_approve_pending_supervisor_sessions,
+    explain_session_manual_approve,
     is_session_auto_approve_blocked,
     maybe_auto_approve_supervisor_session,
     merge_supervisor_sessions_patch,
@@ -51,6 +52,27 @@ def test_is_session_auto_approve_blocked_when_critical_keyword() -> None:
         context_summary={"approval_required": True},
     )
     assert blocked is True
+
+
+def test_explain_session_manual_approve_when_critical() -> None:
+    hint = explain_session_manual_approve(
+        status="needs_input",
+        goal="Rotate production billing secrets",
+        context_summary={"approval_required": True, "approval_reason": "Critical action keyword detected: billing"},
+        auto_approve_enabled=True,
+    )
+    assert hint is not None
+    assert "billing" in hint.lower()
+
+
+def test_explain_session_manual_approve_when_eligible_then_none() -> None:
+    hint = explain_session_manual_approve(
+        status="needs_input",
+        goal="Forager insights digest",
+        context_summary={},
+        auto_approve_enabled=True,
+    )
+    assert hint is None
 
 
 def test_is_session_auto_approve_blocked_when_self_heal_only() -> None:

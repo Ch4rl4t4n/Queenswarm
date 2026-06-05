@@ -110,11 +110,12 @@ async def _resolve_publish_identity(
         title = opp_title
     else:
         title = extracted
-    slug = await _resolve_unique_skill_slug(
+    from app.application.services.skill_factory_niche_registry import resolve_canonical_skill_slug
+
+    slug = await resolve_canonical_skill_slug(
         session,
         tenant_id=tenant_id,
         base_title=title,
-        opportunity_id=opportunity.id if opportunity is not None else None,
     )
     return title, slug
 

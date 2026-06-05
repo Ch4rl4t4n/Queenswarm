@@ -290,7 +290,8 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
       return;
     }
     let cancelled = false;
-    void (async () => {
+
+    const drainPending = async (quiet: boolean): Promise<void> => {
       try {
         const result = await hivePostJson<{ approved_count: number; skipped_critical: number }>(
           "agents/sessions/auto-approve-pending",
@@ -301,18 +302,29 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
         }
         if (result.approved_count > 0) {
           await refreshSessionsAndSummaryStable();
-          toast.success(`Auto-approved ${result.approved_count} session(s).`);
+          if (!quiet) {
+            toast.success(`Auto-approved ${result.approved_count} session(s).`);
+          }
         }
-        if (result.skipped_critical > 0) {
+        if (!quiet && result.skipped_critical > 0) {
           toast.message(`${result.skipped_critical} critical session(s) still need manual approve.`);
         }
       } catch (e) {
-        const msg = e instanceof HiveApiError ? e.message : "Auto-approve failed";
-        toast.error(msg);
+        if (!quiet) {
+          const msg = e instanceof HiveApiError ? e.message : "Auto-approve failed";
+          toast.error(msg);
+        }
       }
-    })();
+    };
+
+    void drainPending(false);
+    const intervalId = window.setInterval(() => {
+      void drainPending(true);
+    }, 45_000);
+
     return () => {
       cancelled = true;
+      window.clearInterval(intervalId);
     };
   }, [sessions, sessionsControl?.auto_approve_enabled, refreshSessionsAndSummaryStable]);
 

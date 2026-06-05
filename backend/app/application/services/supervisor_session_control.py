@@ -34,6 +34,26 @@ def resolve_supervisor_sessions_auto_approve(tenant: Tenant | None) -> bool:
     return bool(bucket.get("auto_approve_enabled"))
 
 
+def explain_session_manual_approve(
+    *,
+    status: str,
+    goal: str,
+    context_summary: dict[str, Any] | None,
+    auto_approve_enabled: bool,
+) -> str | None:
+    """Human-readable reason why Approve stays manual despite auto-approve policy."""
+
+    if str(status or "").strip().lower() != "needs_input":
+        return None
+    summary = dict(context_summary or {})
+    if not auto_approve_enabled:
+        return "Auto approve is OFF — click Approve or enable the toggle."
+    if is_session_auto_approve_blocked(goal=goal, context_summary=summary):
+        reason = str(summary.get("approval_reason") or "").strip()
+        return reason or "Critical action (billing, secrets, live PR) — manual approve required."
+    return None
+
+
 def is_session_auto_approve_blocked(*, goal: str, context_summary: dict[str, Any] | None) -> bool:
     """Critical maintainer / billing actions stay manual even in auto-approve mode."""
 
@@ -174,6 +194,7 @@ async def auto_approve_pending_supervisor_sessions(
 
 __all__ = [
     "auto_approve_pending_supervisor_sessions",
+    "explain_session_manual_approve",
     "is_session_auto_approve_blocked",
     "maybe_auto_approve_supervisor_session",
     "merge_supervisor_sessions_patch",

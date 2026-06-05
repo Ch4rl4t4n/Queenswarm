@@ -871,8 +871,12 @@ async def compose_skill_factory_snapshot(
         else:
             rejected_count += 1
 
-    launch_candidates.sort(key=launch_queue_sort_key)
-    launch_queue = [row for row in launch_candidates if row.recommended_for_launch][:12]
+    from app.application.services.skill_factory_library_dedupe import dedupe_tenant_skill_out_latest
+
+    launch_pool = [row for row in launch_candidates if row.recommended_for_launch]
+    launch_pool.sort(key=launch_queue_sort_key)
+    launch_deduped, _launch_dupes_hidden = dedupe_tenant_skill_out_latest(launch_pool)
+    launch_queue = launch_deduped[:12]
     near_miss_pool = [row for row in library_out if row.sellable_tier == "draft"]
     near_miss_pool.sort(key=launch_queue_sort_key)
     launch_near_miss = near_miss_pool[:5]
@@ -1057,6 +1061,34 @@ async def start_factory_build(
         return row
     if row.status == "completed":
         raise ValueError("opportunity_already_completed")
+
+    from app.application.services.skill_factory_niche_registry import (
+        factory_build_skip_reason,
+        load_factory_niche_fingerprints,
+    )
+    from app.infrastructure.persistence.models.tenant import Tenant
+
+    tenant_row = await session.get(Tenant, tenant_id)
+    tenant_settings = dict(tenant_row.operator_settings or {}) if tenant_row else {}
+    fingerprints = await load_factory_niche_fingerprints(
+        session,
+        tenant_id=tenant_id,
+        tenant_settings=tenant_settings,
+    )
+    build_skip = factory_build_skip_reason(
+        niche=row.niche,
+        fingerprints=fingerprints,
+        settings=tenant_settings,
+    )
+    refs = list(row.source_refs or [])
+    is_smart_rebuild = any(isinstance(item, dict) and item.get("kind") == "smart_rebuild" for item in refs)
+    if build_skip:
+        if is_smart_rebuild and build_skip == "library_skill_exists":
+            pass
+        elif is_smart_rebuild and build_skip in {"niche_already_shipped"}:
+            pass
+        else:
+            raise ValueError(build_skip)
 
     if not bypass_weekly_cap:
         from app.application.services.skill_factory_research import _weekly_build_count

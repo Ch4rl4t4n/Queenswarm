@@ -8,6 +8,7 @@ import {
   sessionStatusTone,
   supervisorSessionMatchesStatusFilter,
   supervisorSessionProgressPct,
+  supervisorSessionManualApproveHint,
   supervisorSessionAgentsHref,
   skillFactoryForgeHref,
   subAgentStepEventLabel,
@@ -140,6 +141,25 @@ describe("supervisor-session helpers", () => {
     expect(supervisorSessionMatchesStatusFilter("running", "active")).toBe(true);
     expect(supervisorSessionMatchesStatusFilter("completed", "active")).toBe(false);
     expect(supervisorSessionMatchesStatusFilter("completed", "completed")).toBe(true);
+  });
+
+  it("supervisorSessionManualApproveHint explains critical blocks", () => {
+    expect(
+      supervisorSessionManualApproveHint(
+        {
+          status: "needs_input",
+          goal: "Digest",
+          context_summary: { approval_required: true, approval_reason: "Critical action keyword detected: billing" },
+        },
+        true,
+      ),
+    ).toContain("billing");
+    expect(
+      supervisorSessionManualApproveHint(
+        { status: "needs_input", goal: "Forager insights", context_summary: {} },
+        true,
+      ),
+    ).toBeNull();
   });
 });
 

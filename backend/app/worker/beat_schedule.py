@@ -107,6 +107,12 @@ def build_beat_schedule() -> dict[str, dict[str, Any]]:
             "schedule": crontab(hour=8, minute=15, day_of_week=1),
             "options": {"queue": "hive"},
         }
+    if settings.light_control_plane_enabled:
+        schedule["hive-supervisor-sessions-auto-approve"] = {
+            "task": "hive.supervisor_sessions_auto_approve_tick",
+            "schedule": timedelta(minutes=2),
+            "options": {"queue": "hive"},
+        }
     if settings.execution_studio_enabled:
         schedule["hive-execution-studio-codebase-auto-approve"] = {
             "task": "hive.execution_studio_codebase_auto_approve_tick",

@@ -22,6 +22,7 @@ import {
   supervisorSessionMatchesStatusFilter,
   type SupervisorSessionStatusFilter,
   supervisorSessionBallroomHref,
+  supervisorSessionManualApproveHint,
   supervisorSessionProgressDetail,
   supervisorSessionProgressPct,
 } from "@/lib/supervisor-session";
@@ -230,6 +231,10 @@ function SupervisorSessionsListPanelInner({
               ];
               const progressPct = supervisorSessionProgressPct(session);
               const playbookId = playbookRecipeIdFromContext(session.context_summary);
+              const manualApproveHint = supervisorSessionManualApproveHint(
+                session,
+                Boolean(sessionsControl?.auto_approve_enabled),
+              );
 
               return (
                 <div key={session.id} className="v4-session-row v4-session-row--pollen">
@@ -247,6 +252,13 @@ function SupervisorSessionsListPanelInner({
                           <V4Badge tone="gold">playbook</V4Badge>
                         </Link>
                       ) : null}
+                      {manualApproveHint ? (
+                        <span title={manualApproveHint}>
+                          <V4Badge tone="warn">manual approve</V4Badge>
+                        </span>
+                      ) : session.status === "needs_input" && sessionsControl?.auto_approve_enabled ? (
+                        <V4Badge tone="info">auto pending</V4Badge>
+                      ) : null}
                     </div>
                     <p className="v4-session-goal text-sm font-medium text-(--qs-text)" title={session.goal}>
                       {sessionGoalPreview(session.goal)}
@@ -256,6 +268,9 @@ function SupervisorSessionsListPanelInner({
                       {(session.sub_agents ?? []).length === 1 ? "" : "s"}
                       {roles.length > 0 ? ` · ${roles.join(", ")}` : ""}
                     </p>
+                    {manualApproveHint ? (
+                      <p className="mt-1 text-[11px] text-pollen">{manualApproveHint}</p>
+                    ) : null}
 
                     <div className="mt-2 space-y-1.5" data-testid="supervisor-session-pattern-skills">
                       <div className="flex flex-wrap items-center gap-2">

@@ -226,6 +226,17 @@ async def run_skill_market_research(
     tenant_row = await session.get(Tenant, tenant_id)
     tenant_settings = dict(tenant_row.operator_settings or {}) if tenant_row else {}
 
+    from app.application.services.skill_factory_niche_registry import (
+        load_factory_niche_fingerprints,
+        research_skip_reason,
+    )
+
+    fingerprints = await load_factory_niche_fingerprints(
+        session,
+        tenant_id=tenant_id,
+        tenant_settings=tenant_settings,
+    )
+
     created: list[SkillOpportunityORM] = []
     apify_deep_budget = [0]
     monid_budget = [0]
@@ -234,6 +245,17 @@ async def run_skill_market_research(
             break
 
         if niche_is_retired(niche=niche, settings=tenant_settings):
+            continue
+
+        skip = research_skip_reason(niche=niche, fingerprints=fingerprints, settings=tenant_settings)
+        if skip is not None:
+            logger.info(
+                "skill_factory.research_skip_niche",
+                agent_id="skill_factory",
+                swarm_id=str(tenant_id),
+                task_id=skip,
+                niche=niche[:80],
+            )
             continue
 
         title = f"Skill pack: {niche[:80]}"

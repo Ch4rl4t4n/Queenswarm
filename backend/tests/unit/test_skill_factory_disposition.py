@@ -149,6 +149,13 @@ async def test_smart_rebuild_from_library_skill_starts_session(monkeypatch) -> N
         AsyncMock(),
     )
     monkeypatch.setattr(
+        "app.application.services.skill_factory_niche_registry.load_factory_niche_fingerprints",
+        AsyncMock(return_value=__import__(
+            "app.application.services.skill_factory_niche_registry",
+            fromlist=["FactoryNicheFingerprints"],
+        ).FactoryNicheFingerprints()),
+    )
+    monkeypatch.setattr(
         "app.application.services.skill_factory_disposition._find_or_create_rebuild_opportunity",
         AsyncMock(return_value=opp),
     )

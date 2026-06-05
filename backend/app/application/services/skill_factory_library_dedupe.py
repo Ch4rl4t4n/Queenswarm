@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -96,8 +97,27 @@ async def archive_older_niche_skill_versions(
     return archived
 
 
+def dedupe_tenant_skill_out_latest(
+    rows: list[Any],
+) -> tuple[list[Any], int]:
+    """Dedupe API skill rows by slug base (launch queue / library out)."""
+
+    by_base: dict[str, Any] = {}
+    for row in rows:
+        slug = str(getattr(row, "slug", "") or "")
+        base = _slug_base(slug)
+        current = by_base.get(base)
+        score = float(getattr(row, "sellable_score", 0.0) or 0.0)
+        if current is None or score >= float(getattr(current, "sellable_score", 0.0) or 0.0):
+            by_base[base] = row
+    deduped = list(by_base.values())
+    hidden = max(0, len(rows) - len(deduped))
+    return deduped, hidden
+
+
 __all__ = [
     "archive_library_duplicate_skills",
     "archive_older_niche_skill_versions",
     "dedupe_library_skills_latest",
+    "dedupe_tenant_skill_out_latest",
 ]
