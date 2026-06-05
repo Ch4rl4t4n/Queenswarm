@@ -119,7 +119,7 @@ async def _weekly_build_count(session: AsyncSession, *, tenant_id: uuid.UUID) ->
         .select_from(SkillOpportunityORM)
         .where(
             SkillOpportunityORM.tenant_id == tenant_id,
-            SkillOpportunityORM.status.in_(("building", "awaiting_forge", "completed")),
+            SkillOpportunityORM.status.in_(("building", "completed")),
             SkillOpportunityORM.updated_at >= week_ago,
         ),
     )

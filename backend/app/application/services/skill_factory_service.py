@@ -942,12 +942,48 @@ async def _load_product_mission_workflow(session: AsyncSession) -> dict[str, Any
     }
 
 
+async def _prepare_opportunity_for_rebuild(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    opportunity_id: uuid.UUID,
+    reviewer_subject: str,
+) -> SkillOpportunityORM:
+    """Reject stale forge (if any) and reset opportunity row before a fresh factory run."""
+
+    row = await session.get(SkillOpportunityORM, opportunity_id)
+    if row is None or row.tenant_id != tenant_id:
+        raise ValueError("opportunity_not_found")
+
+    if row.status == "awaiting_forge":
+        try:
+            await reject_factory_forge(
+                session,
+                tenant_id=tenant_id,
+                opportunity_id=opportunity_id,
+                reviewer_subject=reviewer_subject,
+            )
+        except ValueError as exc:
+            if str(exc) not in {"no_pending_forge", "no_supervisor_session"}:
+                raise
+
+    row = await session.get(SkillOpportunityORM, opportunity_id)
+    if row is None or row.tenant_id != tenant_id:
+        raise ValueError("opportunity_not_found")
+    row.supervisor_session_id = None
+    row.tenant_skill_id = None
+    row.status = "queued"
+    await session.flush()
+    return row
+
+
 async def start_factory_build(
     session: AsyncSession,
     *,
     tenant_id: uuid.UUID,
     opportunity_id: uuid.UUID,
     created_by_subject: str,
+    bypass_weekly_cap: bool = False,
 ) -> SkillOpportunityORM:
     """Queue a factory supervisor session for one opportunity."""
 
@@ -957,15 +993,18 @@ async def start_factory_build(
     row = await session.get(SkillOpportunityORM, opportunity_id)
     if row is None or row.tenant_id != tenant_id:
         raise ValueError("opportunity_not_found")
-    if row.status in {"building", "completed"}:
+    if row.status == "building":
         return row
+    if row.status == "completed":
+        raise ValueError("opportunity_already_completed")
 
-    from app.application.services.skill_factory_research import _weekly_build_count
+    if not bypass_weekly_cap:
+        from app.application.services.skill_factory_research import _weekly_build_count
 
-    policy = await get_skill_factory_policy(session, tenant_id=tenant_id)
-    recent = await _weekly_build_count(session, tenant_id=tenant_id)
-    if recent >= policy.max_builds_per_week:
-        raise ValueError("weekly_build_cap_reached")
+        policy = await get_skill_factory_policy(session, tenant_id=tenant_id)
+        recent = await _weekly_build_count(session, tenant_id=tenant_id)
+        if recent >= policy.max_builds_per_week:
+            raise ValueError("weekly_build_cap_reached")
 
     from app.application.services.factory_llm_readiness_service import assert_factory_build_llm_ready
 
@@ -1090,30 +1129,18 @@ async def rebuild_factory_opportunity(
 ) -> SkillOpportunityORM:
     """Reject failed forge (if any) and start a fresh factory build."""
 
-    row = await session.get(SkillOpportunityORM, opportunity_id)
-    if row is None or row.tenant_id != tenant_id:
-        raise ValueError("opportunity_not_found")
-
-    if row.status == "awaiting_forge":
-        try:
-            await reject_factory_forge(
-                session,
-                tenant_id=tenant_id,
-                opportunity_id=opportunity_id,
-                reviewer_subject=reviewer_subject,
-            )
-        except ValueError as exc:
-            if str(exc) != "no_pending_forge":
-                raise
-
-    row.status = "queued"
-    row.supervisor_session_id = None
-    await session.flush()
+    await _prepare_opportunity_for_rebuild(
+        session,
+        tenant_id=tenant_id,
+        opportunity_id=opportunity_id,
+        reviewer_subject=reviewer_subject,
+    )
     return await start_factory_build(
         session,
         tenant_id=tenant_id,
         opportunity_id=opportunity_id,
         created_by_subject=created_by_subject,
+        bypass_weekly_cap=True,
     )
 
 

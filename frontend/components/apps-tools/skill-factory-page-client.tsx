@@ -193,6 +193,10 @@ export function SkillFactoryPageClient(): JSX.Element {
     }
   }, []);
 
+  const refreshAfterQueueAction = useCallback(async (): Promise<void> => {
+    await refreshSnapshotQuiet();
+  }, [refreshSnapshotQuiet]);
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -298,7 +302,7 @@ export function SkillFactoryPageClient(): JSX.Element {
     try {
       const res = await hivePostJson<{ session_id: string }>(`skill-factory/opportunities/${id}/build`, {});
       toast.success("Factory build started.", { description: `Session ${res.session_id.slice(0, 8)}…` });
-      await load();
+      await refreshAfterQueueAction();
     } catch (e) {
       toast.error(e instanceof HiveApiError ? e.message : "Build failed.");
     } finally {
@@ -310,7 +314,7 @@ export function SkillFactoryPageClient(): JSX.Element {
     setBusyId(id);
     try {
       await hivePostJson(`skill-factory/opportunities/${id}/dismiss`, {});
-      await load();
+      await refreshAfterQueueAction();
     } catch (e) {
       toast.error(e instanceof HiveApiError ? e.message : "Dismiss failed.");
     } finally {
@@ -325,7 +329,7 @@ export function SkillFactoryPageClient(): JSX.Element {
         decision: "approve",
       });
       toast.success("Skill approved — check Library tab to export GitHub pack.");
-      await load();
+      await refreshAfterQueueAction();
     } catch (e) {
       const msg = e instanceof HiveApiError ? e.message : "Approve failed.";
       toast.error(msg, {
@@ -382,7 +386,7 @@ export function SkillFactoryPageClient(): JSX.Element {
     try {
       await hivePostJson(`skill-factory/opportunities/${opportunityId}/reject-forge`, {});
       toast.success("Forge rejected.");
-      await load();
+      await refreshAfterQueueAction();
     } catch (e) {
       toast.error(e instanceof HiveApiError ? e.message : "Reject failed.");
     } finally {
@@ -393,14 +397,27 @@ export function SkillFactoryPageClient(): JSX.Element {
   const rebuildOpportunity = async (opportunityId: string): Promise<void> => {
     setBusyId(opportunityId);
     try {
-      const res = await hivePostJson<{ session_id: string }>(
+      const res = await hivePostJson<{ session_id: string; status: string; opportunity_id: string }>(
         `skill-factory/opportunities/${opportunityId}/rebuild`,
         {},
       );
-      toast.success("Rebuild started.", { description: `Session ${res.session_id.slice(0, 8)}…` });
-      await load();
+      if (res.status === "building" && res.session_id) {
+        toast.success("Rebuild started.", { description: `Session ${res.session_id.slice(0, 8)}… · status building` });
+      } else {
+        toast.warning(`Rebuild finished with status: ${res.status || "unknown"}`, {
+          description: res.session_id ? `Session ${res.session_id.slice(0, 8)}…` : "No new session id returned.",
+        });
+      }
+      await refreshAfterQueueAction();
     } catch (e) {
-      toast.error(e instanceof HiveApiError ? e.message : "Rebuild failed.");
+      const msg = e instanceof HiveApiError ? e.message : "Rebuild failed.";
+      toast.error(msg, {
+        description: msg.includes("weekly_build_cap")
+          ? "Raise max_builds_per_week in Settings or wait — rebuilds should bypass cap after this deploy."
+          : msg.includes("LLM") || msg.includes("smoke")
+            ? "Run Factory LLM smoke test in the banner above."
+            : undefined,
+      });
     } finally {
       setBusyId(null);
     }
@@ -421,7 +438,7 @@ export function SkillFactoryPageClient(): JSX.Element {
     try {
       await hivePostJson(`agents/sessions/${sessionId}/control`, { action: "stop" });
       toast.success("Build stopped.");
-      await load();
+      await refreshAfterQueueAction();
     } catch (e) {
       toast.error(e instanceof HiveApiError ? e.message : "Stop failed.");
     } finally {
@@ -440,18 +457,32 @@ export function SkillFactoryPageClient(): JSX.Element {
     return llm.primary_model.split("/").pop()?.slice(0, 24);
   }, [snapshot?.llm]);
 
+  const rebuildableRows = useMemo(
+    () =>
+      (snapshot?.opportunities ?? []).filter(
+        (row) =>
+          row.status === "failed"
+          || isStuckFactoryBuild(row)
+          || (row.status === "awaiting_forge" && row.forge_quality_passed === false),
+      ),
+    [snapshot?.opportunities],
+  );
+
   const rebuildAllFailed = async (): Promise<void> => {
-    const ids = (snapshot?.opportunities ?? [])
-      .filter((row) => row.status === "failed" || isStuckFactoryBuild(row))
-      .map((row) => row.id);
+    const ids = rebuildableRows.map((row) => row.id);
     if (ids.length === 0) return;
     setBusyId("rebuild-failed");
     try {
+      let started = 0;
       for (const id of ids.slice(0, 5)) {
-        await hivePostJson(`skill-factory/opportunities/${id}/rebuild`, {});
+        const res = await hivePostJson<{ status: string; session_id: string }>(
+          `skill-factory/opportunities/${id}/rebuild`,
+          {},
+        );
+        if (res.status === "building") started += 1;
       }
-      toast.success(`Started rebuild for ${Math.min(ids.length, 5)} task(s).`);
-      await load();
+      toast.success(`Rebuild batch: ${started}/${Math.min(ids.length, 5)} now building.`);
+      await refreshAfterQueueAction();
     } catch (e) {
       toast.error(e instanceof HiveApiError ? e.message : "Rebuild failed.");
     } finally {
@@ -468,7 +499,7 @@ export function SkillFactoryPageClient(): JSX.Element {
         await hivePostJson(`skill-factory/opportunities/${id}/dismiss`, {});
       }
       toast.success(`Cleared ${failedIds.length} failed build${failedIds.length === 1 ? "" : "s"}.`);
-      await load();
+      await refreshAfterQueueAction();
     } catch (e) {
       toast.error(e instanceof HiveApiError ? e.message : "Dismiss failed.");
     } finally {
@@ -782,7 +813,7 @@ export function SkillFactoryPageClient(): JSX.Element {
                 hint={sectionHintNode("skillFactoryQueue")}
                 actions={
                   <div className="flex flex-wrap items-center gap-2">
-                    {queueRows.some((r) => r.status === "failed" || isStuckFactoryBuild(r)) ? (
+                    {rebuildableRows.length > 0 ? (
                       <button
                         type="button"
                         className="qs-btn qs-btn--primary qs-btn--sm gap-1"
@@ -790,7 +821,7 @@ export function SkillFactoryPageClient(): JSX.Element {
                         onClick={() => void rebuildAllFailed()}
                       >
                         <RefreshCwIcon className="size-3.5" aria-hidden />
-                        Rebuild failed ({queueRows.filter((r) => r.status === "failed").length})
+                        Rebuild forges ({rebuildableRows.length})
                       </button>
                     ) : null}
                     {queueRows.some((r) => r.status === "failed") ? (
@@ -845,7 +876,7 @@ export function SkillFactoryPageClient(): JSX.Element {
                       onDismiss={(id) => void dismissOpportunity(id)}
                       onApproveForge={(suggestionId, id) => void approveForge(suggestionId, id)}
                       onRejectForge={(id, suggestionId) => void rejectForge(id, suggestionId)}
-                      onSync={() => void load()}
+                      onSync={() => void refreshAfterQueueAction()}
                       onOpenReport={(sessionId) => setSessionReportId(sessionId)}
                     />
                   ))
