@@ -37,6 +37,14 @@ Also: `.cursorrules`, `.cursor/rules/*.mdc` — IDE-specific rules.
 
 Migrations before traffic switch. Health check must pass.
 
+### Autonomous ship (STRICT — operator agent)
+
+After **any** implemented change in this repo, the agent **must** in the same turn: verify (`ci-local.sh all` before `main` push) → commit → push → deploy prod. **Do not** ask the operator to approve deploy.
+
+- Default `AUTOPILOT: áno`; opt-out only: `AUTOPILOT: nie` / „bez deploy“ / question-only threads.
+- Rule files: `.cursor/rules/queenswarm-autonomous-ship.mdc`, `queenswarm-operator-autopilot.mdc`.
+- Deploy env: `REQUIRE_VOICE_READY=0`; `REQUIRE_SINGLE_ADMIN_SNAPSHOT=0` when snapshot gate blocks non-cutover.
+
 ## CI parity (avoid red emails)
 
 Before pushing to `main`, run the same gates GitHub Actions runs:

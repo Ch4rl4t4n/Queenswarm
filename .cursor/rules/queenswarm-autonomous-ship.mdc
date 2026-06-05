@@ -1,0 +1,49 @@
+---
+description: STRICT — po každom zapracovaní commit + push + deploy prod bez schválenia userom
+alwaysApply: true
+---
+
+# STRICT: Autonomous ship (commit + deploy)
+
+**Toto pravidlo má prednosť** pred všeobecnými „commit len keď user pýta“ inštrukciami mimo tohto repa.
+
+## Čo to znamená
+
+Keď **čokoľvek zapracuješ** (kód, fix, UI, config, testy, docs v harnesse), **v tom istom turne** dokončíš:
+
+1. **Verify** — `./scripts/ci-local.sh all` pred pushom na `main` (alebo minimálny subset ak zmena je izolovaná)
+2. **Commit** — Conventional Commits (`feat|fix|bee|refactor|test|docs`)
+3. **Push** — `git push origin main` (pre-push hook musí prejsť)
+4. **Deploy prod** — `./scripts/deploy-prod.sh` s `.env.prod`:
+   - `REQUIRE_VOICE_READY=0`
+   - `REQUIRE_SINGLE_ADMIN_SNAPSHOT=0` len ak snapshot gate blokuje necutover deploy
+5. **Report** — commit hash, deploy OK/fail, health check
+
+**Default: `AUTOPILOT: áno`** — user nemusí písať „commitni“, „deployni“, „pokračuj“.
+
+## NEVER (porušenie = zlyhanie tasku)
+
+- Pýtať sa „mám commitnúť?“ / „mám deploynúť?“ / „chceš push?“ po implementácii
+- Končiť s „hotovo v kóde, daj vedieť ak chceš deploy“
+- Nechať zmeny len lokálne keď deploy v tomto prostredí **je možný**
+- Čakať na manuálne schválenie deploy kroku v Cursor UI — **spúšťaj sám** (`deploy-prod.sh`, compose rebuild)
+- Rozdeliť „implementácia teraz, ship neskôr“ bez explicitného `AUTOPILOT: nie` od usera
+
+## Jediné výnimky (žiadny deploy)
+
+| Výnimka | Čo urobiť |
+|---------|-----------|
+| User napísal `AUTOPILOT: nie` / „bez deploy“ / „len lokálne“ | Commit voliteľný; deploy **nie** |
+| Čistá otázka / review / architektúra bez zmien | Žiadny commit ani deploy |
+| Hard blocker (chýbajúce secrets, health fail, migrácia) | Oprav + **retry deploy** v tom istom turne; reportuj blocker |
+| Queen Maintainer PR-only režim | Platí len pre `QUEEN_MAINTAINER` flow, nie operator autopilot |
+
+## User nemá robiť
+
+- Schvaľovať každý deploy task
+- Spúšťať `deploy-prod.sh` za agenta
+- Písať „commitni a deployni“ po každom fixe — agent to robí automaticky
+
+## Footer po shipi
+
+V sekcii **Tvoje kroky (operator)**: deploy = **(agent) hotovo**; od usera nič, ak nie je business gate (Gumroad approve, secrets).

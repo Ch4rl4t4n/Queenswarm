@@ -5,9 +5,11 @@ alwaysApply: true
 
 # Queenswarm operator autopilot
 
+> **STRICT ship:** Pozri `.cursor/rules/queenswarm-autonomous-ship.mdc` — commit + push + deploy prod **automaticky** po každom zapracovaní. User **neschvaľuje** deploy.
+
 ## Default mode (unless user says otherwise)
 
-- **Execute autonomously**: code, tests, prod scripts, Factory operator actions — bez čakania na druhé „urob commit/deploy“.
+- **Execute autonomously**: code, tests, **commit, push, prod deploy** — bez čakania na „urob commit/deploy“.
 - **Do not** ask for micro-steps (“open file X”, “run this command”) when you can run them here.
 - **Do not** end with vague “let me know if you want…” — either finish or state one blocker.
 
