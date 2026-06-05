@@ -15,14 +15,21 @@ Tento návod pripája NVIDIA Nemotron ako experimentálny model do Queenswarm. N
    - preferované: Settings → AI / LLM keys → provider `openrouter`
    - alebo `.env.prod.tokens`: `OPENROUTER_API_KEY=...`
 3. Over, že model je len eval kandidát, nie automatický live executor.
-4. Spusti eval plán:
+4. Spusti eval plán (bez live volaní):
 
 ```bash
 cd backend
 python scripts/model_eval_swarm.py --out ../exports/model-evals/MODEL_EVAL_REPORT.md
 ```
 
-5. Po token setup-e otestuj konkrétny model cez LLM keys test alebo samostatný eval smoke.
+5. Po token setup-e spusti live eval:
+
+```bash
+cd backend
+python scripts/model_eval_swarm.py --live --out ../exports/model-evals/MODEL_EVAL_REPORT.md
+```
+
+6. Over model aj cez Settings → AI · LLM keys → OpenRouter → **Test**.
 
 ## Kedy ho povýšiť do routera
 

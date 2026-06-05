@@ -63,11 +63,16 @@ def _business_recommendation(simulation_md: str) -> str:
 def _model_eval_hint(model_eval_md: str) -> str:
     """Return model eval state with Nemotron mention when present."""
 
-    if "nemotron" in model_eval_md.lower():
-        return "Nemotron candidate queued for OpenRouter eval."
+    lowered = model_eval_md.lower()
+    if "mode: **live eval**" in model_eval_md:
+        if "nemotron" in lowered and "recommendation:" in lowered:
+            return "live eval complete — review promotion hint before router change"
+        return "live eval complete — review MODEL_EVAL_REPORT.md"
+    if "nemotron" in lowered:
+        return "Nemotron candidate listed — run model_eval_swarm.py --live"
     if model_eval_md:
-        return "Model eval report available."
-    return "missing"
+        return "plan generated — run model_eval_swarm.py --live after token setup"
+    return "missing — run model_eval_swarm.py"
 
 
 def _token_hint(token_readiness_md: str) -> str:

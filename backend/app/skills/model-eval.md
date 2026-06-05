@@ -46,5 +46,5 @@ Compare candidate models on Queenswarm-specific behavior before changing product
 
 1. Generate the eval plan: `python scripts/model_eval_swarm.py`.
 2. Add `OPENROUTER_API_KEY` only in vault or `.env.prod.tokens`.
-3. Run live model smoke/eval after token setup.
+3. Run live eval: `python scripts/model_eval_swarm.py --live`.
 4. Save findings to `exports/model-evals/` and distill durable routing learnings.
