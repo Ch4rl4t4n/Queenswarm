@@ -41,6 +41,7 @@ async def test_compose_solo_daily_plan_includes_po_and_trio() -> None:
     ):
         mock_settings.solo_mode_enabled = True
         mock_settings.operator_loop_enabled = True
+        mock_settings.calendar_daily_planner_enabled = False
         trio_mock.return_value = {"bound_lane_count": 2}
 
         plan = await compose_solo_daily_plan(

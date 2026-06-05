@@ -43,8 +43,11 @@ Before pushing to `main`, run the same gates GitHub Actions runs:
 
 ```bash
 ./scripts/ci-local.sh all              # backend (80% cov via .coveragerc) + frontend e2e subset + security
+./scripts/install-git-hooks.sh         # blocks `git push origin main` until ci-local passes
 ./scripts/ci-local.sh --whole-app      # release gate (critical journeys + a11y)
 ```
+
+`deploy-prod.sh` defaults to `CI_PREFLIGHT_MODE=all` (full parity). Use `CI_PREFLIGHT_MODE=quick` only for hotfixes when you accept CI email risk.
 
 **Common drift traps:**
 

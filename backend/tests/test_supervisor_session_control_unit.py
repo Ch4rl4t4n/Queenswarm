@@ -30,6 +30,18 @@ def test_resolve_supervisor_sessions_auto_approve_when_disabled_by_default() -> 
     assert resolve_supervisor_sessions_auto_approve(tenant) is False
 
 
+def test_resolve_supervisor_sessions_auto_approve_when_tenant_enabled() -> None:
+    tenant = SimpleNamespace(operator_settings={"supervisor_sessions": {"auto_approve_enabled": True}})
+    assert resolve_supervisor_sessions_auto_approve(tenant) is True
+
+
+def test_serialize_supervisor_sessions_control_view_auto_mode() -> None:
+    tenant = SimpleNamespace(operator_settings={"supervisor_sessions": {"auto_approve_enabled": True}})
+    view = serialize_supervisor_sessions_control_view(tenant)
+    assert view["auto_approve_enabled"] is True
+    assert view["mode_label"] == "auto"
+
+
 def test_serialize_supervisor_sessions_control_view_manual_mode() -> None:
     tenant = SimpleNamespace(operator_settings={})
     view = serialize_supervisor_sessions_control_view(tenant)
@@ -133,6 +145,15 @@ async def test_maybe_auto_approve_when_hydrated_session_closed_then_false(
 
 
 @pytest.mark.asyncio
+async def test_auto_approve_pending_when_policy_disabled_then_empty() -> None:
+    db = AsyncMock()
+    db.get = AsyncMock(return_value=SimpleNamespace(operator_settings={}))
+    result = await auto_approve_pending_supervisor_sessions(db, tenant_id=uuid.uuid4())
+    assert result["approved_count"] == 0
+    assert result["session_ids"] == []
+
+
+@pytest.mark.asyncio
 async def test_auto_approve_pending_when_enabled_then_approves_non_critical(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -170,3 +191,80 @@ async def test_auto_approve_pending_when_enabled_then_approves_non_critical(
     assert result["approved_count"] == 1
     assert result["session_ids"] == [str(session_id)]
     apply_mock.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_maybe_auto_approve_when_eligible_then_applies_review(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    tenant_id = uuid.uuid4()
+    row = MagicMock()
+    row.status = "needs_input"
+    row.tenant_id = tenant_id
+    row.goal = "Digest"
+    row.context_summary = {}
+    row.id = uuid.uuid4()
+
+    hydrated = MagicMock()
+    hydrated.status = "needs_input"
+    hydrated.id = row.id
+    hydrated.tenant_id = tenant_id
+    hydrated.goal = row.goal
+    hydrated.context_summary = {}
+
+    db = AsyncMock()
+    db.get = AsyncMock(
+        return_value=SimpleNamespace(
+            operator_settings={"supervisor_sessions": {"auto_approve_enabled": True}},
+        ),
+    )
+    apply_mock = AsyncMock()
+    monkeypatch.setattr(
+        "app.application.services.supervisor_session_control.apply_session_review",
+        apply_mock,
+    )
+    monkeypatch.setattr(
+        "app.application.services.supervisor_session_control.get_supervisor_session",
+        AsyncMock(return_value=hydrated),
+    )
+
+    approved = await maybe_auto_approve_supervisor_session(db, session_row=row)
+
+    assert approved is True
+    apply_mock.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_auto_approve_pending_skips_critical_sessions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = AsyncMock()
+    tenant_id = uuid.uuid4()
+    row = MagicMock()
+    row.id = uuid.uuid4()
+    row.goal = "Rotate production billing secrets"
+    row.context_summary = {"approval_required": True}
+    row.status = "needs_input"
+
+    async def _scalars(_stmt):  # noqa: ANN001
+        result = MagicMock()
+        result.all.return_value = [row]
+        return result
+
+    db.scalars = _scalars  # type: ignore[method-assign]
+    db.get = AsyncMock(
+        return_value=SimpleNamespace(
+            operator_settings={"supervisor_sessions": {"auto_approve_enabled": True}},
+        ),
+    )
+    apply_mock = AsyncMock()
+    monkeypatch.setattr(
+        "app.application.services.supervisor_session_control.apply_session_review",
+        apply_mock,
+    )
+
+    result = await auto_approve_pending_supervisor_sessions(db, tenant_id=tenant_id)
+
+    assert result["approved_count"] == 0
+    assert result["skipped_critical"] == 1
+    apply_mock.assert_not_awaited()

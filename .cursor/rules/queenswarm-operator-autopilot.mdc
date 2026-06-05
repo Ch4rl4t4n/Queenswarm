@@ -15,10 +15,10 @@ alwaysApply: true
 
 Keď čokoľvek zapracuješ (fix, feature, refactor, UI, config, docs v harnesse), **ihneď** dokonči celý cyklus — **nepýtaj sa** na commit ani deploy:
 
-1. **Verify** — typecheck / relevantné testy (aspoň subset, čo sa týka zmeny)
+1. **Verify** — `./scripts/ci-local.sh all` (CI parity s GitHub Actions) **pred** pushom na `main`; inak len zmenený subset
 2. **Commit** — Conventional Commits (`feat|fix|bee|refactor|test|docs`)
-3. **Push** — `git push -u origin HEAD` (na `main` ak si na main)
-4. **Deploy prod** — `./scripts/deploy-prod.sh` s `--env-file .env.prod` implicitne; env:
+3. **Push** — `git push -u origin HEAD` (na `main` len ak krok 1 prešiel; hook: `./scripts/install-git-hooks.sh`)
+4. **Deploy prod** — `./scripts/deploy-prod.sh` s `--env-file .env.prod` (default `CI_PREFLIGHT_MODE=all`); env:
    - `REQUIRE_VOICE_READY=0` (default pre operator deploy)
    - `REQUIRE_SINGLE_ADMIN_SNAPSHOT=0` len ak snapshot gate blokuje a nie je cutover
 5. **Report** — commit hash, deploy výsledok, health check

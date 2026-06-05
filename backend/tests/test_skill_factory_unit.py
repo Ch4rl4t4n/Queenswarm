@@ -78,10 +78,23 @@ async def test_start_factory_build_uses_stateless_shared_context(monkeypatch) ->
         rationale="test",
         suggested_price_eur_cents=1900,
         supervisor_session_id=None,
+        source_refs=[],
     )
 
+    from app.infrastructure.persistence.models.tenant import Tenant
+    from app.infrastructure.persistence.models.skill_opportunity import SkillOpportunityORM
+
+    tenant_row = SimpleNamespace(operator_settings={})
     session = AsyncMock()
-    session.get = AsyncMock(return_value=row)
+
+    async def _session_get(model: type, key: uuid.UUID) -> SimpleNamespace | None:
+        if model is SkillOpportunityORM:
+            return row
+        if model is Tenant:
+            return tenant_row
+        return None
+
+    session.get = AsyncMock(side_effect=_session_get)
     session.flush = AsyncMock()
 
     create_mock = AsyncMock(return_value=SimpleNamespace(id=uuid.uuid4()))
@@ -104,6 +117,12 @@ async def test_start_factory_build_uses_stateless_shared_context(monkeypatch) ->
     monkeypatch.setattr(
         "app.application.services.factory_llm_readiness_service.assert_factory_build_llm_ready",
         AsyncMock(return_value=None),
+    )
+    from app.application.services.skill_factory_niche_registry import FactoryNicheFingerprints
+
+    monkeypatch.setattr(
+        "app.application.services.skill_factory_niche_registry.load_factory_niche_fingerprints",
+        AsyncMock(return_value=FactoryNicheFingerprints()),
     )
 
     result = await start_factory_build(

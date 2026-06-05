@@ -18,10 +18,24 @@ async def test_trading_quote_returns_verified_payload_when_symbol_present() -> N
     out = await mgr.handle(
         action="quote",
         payload={"symbol": "btc", "quantity": 0.25, "assumed_price_usd": 42_000},
-        project_settings={"trading_mode": "paper", "max_order_usd": 50_000},
+        project_settings={"trading_mode": "real", "max_order_usd": 50_000},
     )
     assert out["status"] == "ok"
     assert out["verified"] is True
+
+
+@pytest.mark.asyncio
+async def test_trading_quote_blocks_paper_mode_after_removal() -> None:
+    """Paper lane removed — callers must use real mode + Polymarket CLOB."""
+
+    mgr = TradingManager()
+    out = await mgr.handle(
+        action="quote",
+        payload={"symbol": "btc", "quantity": 0.25, "assumed_price_usd": 42_000},
+        project_settings={"trading_mode": "paper", "max_order_usd": 50_000},
+    )
+    assert out["status"] == "blocked"
+    assert out["reason"] == "paper_trading_removed"
 
 
 @pytest.mark.asyncio
@@ -111,6 +125,39 @@ def test_estimate_run_cost_usd_scales_with_execute_suffix() -> None:
     low = estimate_run_cost_usd("quote", "trading")
     high = estimate_run_cost_usd("execute_trade", "trading")
     assert high > low
+
+
+@pytest.mark.asyncio
+async def test_trading_quote_requires_symbol() -> None:
+    mgr = TradingManager()
+    with pytest.raises(ValueError, match="symbol"):
+        await mgr.handle(
+            action="quote",
+            payload={"quantity": 1},
+            project_settings={"trading_mode": "real"},
+        )
+
+
+@pytest.mark.asyncio
+async def test_trading_rejects_unknown_mode() -> None:
+    mgr = TradingManager()
+    with pytest.raises(ValueError, match="trading_mode"):
+        await mgr.handle(
+            action="quote",
+            payload={"symbol": "btc", "quantity": 1, "assumed_price_usd": 1},
+            project_settings={"trading_mode": "sandbox"},
+        )
+
+
+@pytest.mark.asyncio
+async def test_trading_unsupported_action_raises() -> None:
+    mgr = TradingManager()
+    with pytest.raises(ValueError, match="Unsupported"):
+        await mgr.handle(
+            action="liquidate_all",
+            payload={"symbol": "btc", "quantity": 1},
+            project_settings={"trading_mode": "real"},
+        )
 
 
 @pytest.mark.asyncio

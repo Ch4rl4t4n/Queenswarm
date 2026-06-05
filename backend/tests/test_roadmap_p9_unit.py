@@ -88,35 +88,15 @@ async def test_compose_forager_v2_snapshot_enabled() -> None:
 
 @pytest.mark.asyncio
 async def test_build_public_trading_transparency_sanitized() -> None:
-    session = AsyncMock()
-    with (
-        patch("app.application.services.public_trading_transparency.settings") as mock_settings,
-        patch(
-            "app.application.services.public_trading_transparency.build_dashboard_paper_summary",
-            new_callable=AsyncMock,
-        ) as summary_mock,
-    ):
-        mock_settings.public_trading_transparency_enabled = True
-        summary_mock.return_value = {
-            "total_equity_usd": 10500.0,
-            "total_pnl_usd": 500.0,
-            "project_count": 1,
-            "projects": [
-                {
-                    "recent_fills": [
-                        {"symbol": "BTC", "side": "buy", "user_id": "secret-should-not-leak"},
-                    ],
-                },
-            ],
-            "disclaimer": "Paper only.",
-        }
-        snap = await build_public_trading_transparency(session)
+    """Paper transparency lane removed — public endpoint returns disabled stub."""
 
-    assert snap.enabled is True
-    assert snap.total_pnl_usd == 500.0
-    assert len(snap.recent_fills) == 1
-    assert snap.recent_fills[0].symbol == "BTC"
-    assert not hasattr(snap.recent_fills[0], "user_id")
+    session = AsyncMock()
+    snap = await build_public_trading_transparency(session)
+
+    assert snap.enabled is False
+    assert snap.total_pnl_usd == 0.0
+    assert snap.recent_fills == []
+    assert "Paper trading removed" in snap.disclaimer
 
 
 @pytest.mark.asyncio

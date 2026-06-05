@@ -10,7 +10,7 @@ WEEK1_SLUGS = [
     "operator-approval-gate",
     "research-to-pr-proposal",
     "marketing-campaign-playbook",
-    "trading-paper-discipline",
+    "polymarket-prediction-evaluator",
     "multi-tenant-content-calendar",
     "competitor-scrape-analyze",
     "eshop-ops-research",

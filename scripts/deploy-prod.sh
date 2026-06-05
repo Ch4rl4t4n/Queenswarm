@@ -142,10 +142,23 @@ chmod +x "${ROOT}/scripts/validate-prod-env.sh"
 ENV_FILE="$ENV_FILE" SINGLE_ADMIN_REQUIRED="$SINGLE_ADMIN_REQUIRED" "${ROOT}/scripts/validate-prod-env.sh"
 
 RUN_CI_PREFLIGHT="${RUN_CI_PREFLIGHT:-1}"
+CI_PREFLIGHT_MODE="${CI_PREFLIGHT_MODE:-all}"
 if [[ "${RUN_CI_PREFLIGHT}" == "1" ]]; then
-  echo "CI preflight (security + typecheck + CP gate) — set RUN_CI_PREFLIGHT=0 to skip."
   chmod +x "${ROOT}/scripts/ci-local.sh"
-  "${ROOT}/scripts/ci-local.sh" --quick
+  case "${CI_PREFLIGHT_MODE}" in
+    all)
+      echo "CI preflight (full parity with GitHub Actions) — set CI_PREFLIGHT_MODE=quick or RUN_CI_PREFLIGHT=0 to skip."
+      "${ROOT}/scripts/ci-local.sh" all
+      ;;
+    quick)
+      echo "CI preflight (quick: security + typecheck) — set CI_PREFLIGHT_MODE=all for full gate."
+      "${ROOT}/scripts/ci-local.sh" --quick
+      ;;
+    *)
+      echo "Unknown CI_PREFLIGHT_MODE=${CI_PREFLIGHT_MODE} — use all|quick"
+      exit 1
+      ;;
+  esac
 fi
 
 # Mirror backend CP toggle into Next.js build flag when only OPERATOR_CONTROL_PLANE_ENABLED is set.
