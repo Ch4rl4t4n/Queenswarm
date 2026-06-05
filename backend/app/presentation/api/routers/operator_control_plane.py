@@ -37,6 +37,22 @@ from app.application.services.business_operator import (
     BusinessOperatorSnapshotOut,
     compose_business_operator_snapshot,
 )
+from app.application.services.business_goal_stack import (
+    BusinessGoalStackOut,
+    BusinessGoalStackPatchIn,
+    compose_business_goal_stack,
+    persist_goal_definitions,
+)
+from app.application.services.business_operator_dispatch import (
+    BusinessOperatorDispatchIn,
+    BusinessOperatorDispatchOut,
+    dispatch_business_operator_action,
+)
+from app.application.services.proactive_pulse import ProactivePulseOut, compose_proactive_pulse
+from app.application.services.prompt_injection_guard import (
+    PromptInjectionViolationError,
+    guard_operator_input,
+)
 from app.application.services.operator_control_plane import (
     OperatorActRequest,
     compose_operator_cockpit_snapshot,
@@ -142,6 +158,161 @@ async def business_operator_snapshot(
         dashboard_user_id=user.id,
         tenant=tenant,
     )
+
+
+@router.post(
+    "/business/dispatch",
+    response_model=BusinessOperatorDispatchOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="CBO one-click dispatch (BA6)",
+)
+async def business_operator_dispatch(
+    body: BusinessOperatorDispatchIn,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> BusinessOperatorDispatchOut:
+    """Dispatch a CBO top action into supervisor session or mission kanban."""
+
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+
+    reviewer = _reviewer_subject(principal)
+    try:
+        if body.goal_override:
+            guard_operator_input(body.goal_override, field="goal_override")
+        result = await dispatch_business_operator_action(
+            db,
+            tenant_id=uuid.UUID(str(tenant_id)),
+            created_by_subject=reviewer,
+            body=body,
+        )
+        await db.commit()
+    except PromptInjectionViolationError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    except ValueError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    return result
+
+
+@router.get(
+    "/business/goals",
+    response_model=BusinessGoalStackOut,
+    summary="Business Goal Stack definitions (BA2)",
+)
+async def business_goal_stack_get(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> BusinessGoalStackOut:
+    """Return tenant goal definitions with measured drift."""
+
+    from app.application.services.business_operator import (
+        BusinessCatalogSummaryOut,
+        compose_revenue_summary,
+        fetch_business_mission_summary,
+    )
+    from app.application.services.marketing_product_catalog import build_catalog
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    catalog_payload = build_catalog()
+    catalog = BusinessCatalogSummaryOut(
+        product_count=catalog_payload.product_count,
+        featured_count=sum(1 for p in catalog_payload.products if p.featured),
+        gumroad_linked_count=sum(1 for p in catalog_payload.products if p.gumroad_url),
+    )
+    missions = await fetch_business_mission_summary(db, tenant_id=uuid.UUID(str(tenant_id)))
+    revenue = compose_revenue_summary()
+    return await compose_business_goal_stack(
+        db,
+        tenant_id=uuid.UUID(str(tenant_id)),
+        tenant=tenant,
+        catalog=catalog,
+        missions=missions,
+        revenue=revenue,
+    )
+
+
+@router.patch(
+    "/business/goals",
+    response_model=BusinessGoalStackOut,
+    summary="Update Business Goal Stack (BA2)",
+)
+async def business_goal_stack_patch(
+    body: BusinessGoalStackPatchIn,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> BusinessGoalStackOut:
+    """Replace tenant business goal definitions."""
+
+    from app.application.services.business_operator import (
+        BusinessCatalogSummaryOut,
+        compose_revenue_summary,
+        fetch_business_mission_summary,
+    )
+    from app.application.services.marketing_product_catalog import build_catalog
+
+    _require_owner_or_admin(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found.")
+    persist_goal_definitions(tenant, body.goals)
+    await db.commit()
+    catalog_payload = build_catalog()
+    catalog = BusinessCatalogSummaryOut(
+        product_count=catalog_payload.product_count,
+        featured_count=sum(1 for p in catalog_payload.products if p.featured),
+        gumroad_linked_count=sum(1 for p in catalog_payload.products if p.gumroad_url),
+    )
+    missions = await fetch_business_mission_summary(db, tenant_id=uuid.UUID(str(tenant_id)))
+    revenue = compose_revenue_summary()
+    return await compose_business_goal_stack(
+        db,
+        tenant_id=uuid.UUID(str(tenant_id)),
+        tenant=tenant,
+        catalog=catalog,
+        missions=missions,
+        revenue=revenue,
+    )
+
+
+@router.get(
+    "/business/pulse",
+    response_model=ProactivePulseOut,
+    summary="Proactive pulse — what changed / what ran (BA5)",
+)
+async def business_proactive_pulse(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    phase: Literal["morning", "midday", "evening", "anytime"] = Query(default="midday"),
+) -> ProactivePulseOut:
+    """Midday (or anytime) proactive digest for CBO."""
+
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    pulse = await compose_proactive_pulse(
+        db,
+        tenant_id=uuid.UUID(str(tenant_id)),
+        dashboard_user_id=user.id,
+        tenant=tenant,
+        phase=phase,
+    )
+    await db.commit()
+    return pulse
 
 
 @router.get("/cockpit", summary="Unified operator cockpit snapshot")

@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { Briefcase, ExternalLink, Loader2, Target } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Activity, Briefcase, ExternalLink, Loader2, Play, Target, Users } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { BusinessApprovalInbox } from "@/components/hive/business-approval-inbox";
 import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { V4Badge, V4Card, V4CardHeader, type V4BadgeTone } from "@/components/ui/v4";
-import { HiveApiError, hiveGet } from "@/lib/api";
+import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 interface BusinessAction {
@@ -17,6 +19,42 @@ interface BusinessAction {
   detail: string;
   priority: "high" | "medium" | "low";
   href: string | null;
+}
+
+interface BusinessGoalProgress {
+  id: string;
+  kind: string;
+  label: string;
+  target_value: number;
+  current_value: number;
+  unit: string;
+  drift_severity: "ok" | "warning" | "critical";
+  drift_detail: string;
+}
+
+interface BackgroundBee {
+  bee_id: string;
+  label: string;
+  status: "idle" | "ok" | "attention" | "disabled";
+  summary: string;
+  pending_count: number;
+  last_run_at: string | null;
+  href: string | null;
+}
+
+interface ProactivePulseChange {
+  id: string;
+  category: string;
+  label: string;
+  detail: string;
+  severity: "info" | "warn" | "success";
+}
+
+interface ProactivePulse {
+  enabled: boolean;
+  headline: string;
+  changes: ProactivePulseChange[];
+  autonomous_runs: { id: string; label: string; detail: string }[];
 }
 
 interface BusinessOperatorSnapshot {
@@ -44,7 +82,28 @@ interface BusinessOperatorSnapshot {
     blocked_count: number;
   };
   top_actions: BusinessAction[];
+  goal_stack?: {
+    goals: BusinessGoalProgress[];
+    drift_count: number;
+    critical_drift_count: number;
+  } | null;
+  background_team?: {
+    enabled: boolean;
+    bees: BackgroundBee[];
+    attention_count: number;
+  } | null;
   links: Record<string, string>;
+}
+
+interface BusinessDispatchResponse {
+  ok: boolean;
+  kind: "supervisor_session" | "mission_kanban";
+  message: string;
+  href: string;
+  supervisor_session_id?: string | null;
+  task_id?: string | null;
+  child_count?: number;
+  dispatched_triage_count?: number;
 }
 
 function priorityTone(priority: BusinessAction["priority"]): V4BadgeTone {
@@ -58,15 +117,22 @@ function priorityTone(priority: BusinessAction["priority"]): V4BadgeTone {
 }
 
 function BusinessOperatorPanelInner(): JSX.Element | null {
+  const router = useRouter();
   const [snapshot, setSnapshot] = useState<BusinessOperatorSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dispatchingId, setDispatchingId] = useState<string | null>(null);
+  const [pulse, setPulse] = useState<ProactivePulse | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await hiveGet<BusinessOperatorSnapshot>("operator/business/snapshot");
+      const [data, pulseData] = await Promise.all([
+        hiveGet<BusinessOperatorSnapshot>("operator/business/snapshot"),
+        hiveGet<ProactivePulse>("operator/business/pulse?phase=midday").catch(() => null),
+      ]);
       setSnapshot(data);
+      setPulse(pulseData?.enabled ? pulseData : null);
       setError(null);
     } catch (e) {
       const msg = e instanceof HiveApiError ? e.message : "Business operator unavailable";
@@ -79,6 +145,31 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const handleDispatch = useCallback(
+    async (action: BusinessAction) => {
+      setDispatchingId(action.id);
+      try {
+        const result = await hivePostJson<BusinessDispatchResponse>("operator/business/dispatch", {
+          action_id: action.id,
+          lane: action.lane,
+          title: action.title,
+          detail: action.detail,
+        });
+        toast.success(result.message);
+        if (result.kind === "supervisor_session") {
+          router.push(result.href);
+        } else {
+          router.push("/tasks");
+        }
+      } catch (e) {
+        toast.error(e instanceof HiveApiError ? e.message : "Dispatch failed");
+      } finally {
+        setDispatchingId(null);
+      }
+    },
+    [router],
+  );
 
   if (loading && !snapshot) {
     return (
@@ -143,6 +234,77 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
 
       <BusinessApprovalInbox />
 
+      {snapshot.goal_stack && snapshot.goal_stack.goals.length > 0 ? (
+        <div className="mb-4">
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-pollen">
+            <Target className="size-3.5" aria-hidden />
+            Goal stack
+            {snapshot.goal_stack.critical_drift_count > 0 ? (
+              <V4Badge tone="gold">{snapshot.goal_stack.critical_drift_count} drift</V4Badge>
+            ) : null}
+          </p>
+          <ul className="space-y-2">
+            {snapshot.goal_stack.goals.map((goal) => (
+              <li
+                key={goal.id}
+                className="rounded-lg border border-(--qs-border) bg-(--qs-surface) p-3 text-sm"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium text-(--qs-text)">{goal.label}</span>
+                  <V4Badge tone={goal.drift_severity === "critical" ? "gold" : goal.drift_severity === "warning" ? "warn" : "success"}>
+                    {goal.drift_severity}
+                  </V4Badge>
+                </div>
+                <p className="mt-1 text-xs text-(--qs-text-2)">
+                  {goal.drift_detail || `${goal.current_value}/${goal.target_value} ${goal.unit}`}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {snapshot.background_team?.enabled && snapshot.background_team.bees.length > 0 ? (
+        <div className="mb-4">
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-cyan">
+            <Users className="size-3.5" aria-hidden />
+            Background team
+            {snapshot.background_team.attention_count > 0 ? (
+              <V4Badge tone="warn">{snapshot.background_team.attention_count} attention</V4Badge>
+            ) : null}
+          </p>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {snapshot.background_team.bees.map((bee) => (
+              <div
+                key={bee.bee_id}
+                className="rounded-lg border border-(--qs-border) bg-(--qs-surface-2) p-3 text-xs"
+              >
+                <p className="font-semibold text-(--qs-text)">{bee.label}</p>
+                <p className="mt-1 text-(--qs-muted)">{bee.status}</p>
+                <p className="mt-1 text-(--qs-text-2)">{bee.summary || "—"}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {pulse ? (
+        <div className="mb-4 rounded-lg border border-cyan/30 bg-cyan/5 p-3">
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-cyan">
+            <Activity className="size-3.5" aria-hidden />
+            Midday pulse
+          </p>
+          <p className="text-sm font-medium text-(--qs-text)">{pulse.headline}</p>
+          {pulse.changes.length > 0 ? (
+            <ul className="mt-2 space-y-1 text-xs text-(--qs-text-2)">
+              {pulse.changes.slice(0, 4).map((change) => (
+                <li key={change.id}>• {change.label}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="mb-4">
         <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-pollen">
           <Target className="size-3.5" aria-hidden />
@@ -151,6 +313,7 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
         <ul className="space-y-2">
           {snapshot.top_actions.map((action) => {
             const tone = priorityTone(action.priority);
+            const dispatchBusy = dispatchingId === action.id;
             const content = (
               <>
                 <div className="flex flex-wrap items-center gap-2">
@@ -159,6 +322,21 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
                 </div>
                 <p className="mt-1 font-medium text-(--qs-text)">{action.title}</p>
                 <p className="mt-0.5 text-xs text-(--qs-text-2)">{action.detail}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--primary qs-btn--sm gap-1"
+                    disabled={dispatchBusy || loading}
+                    onClick={() => void handleDispatch(action)}
+                  >
+                    {dispatchBusy ? (
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                    ) : (
+                      <Play className="size-3.5" aria-hidden />
+                    )}
+                    Dispatch
+                  </button>
+                </div>
               </>
             );
             const className = cn(

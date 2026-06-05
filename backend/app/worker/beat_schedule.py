@@ -137,6 +137,18 @@ def build_beat_schedule() -> dict[str, dict[str, Any]]:
             "schedule": crontab(hour=7, minute=30),
             "options": {"queue": "hive"},
         }
+    if settings.business_background_team_enabled:
+        schedule["hive-business-background-team"] = {
+            "task": "hive.business_background_team_tick",
+            "schedule": crontab(minute=15, hour="*/2"),
+            "options": {"queue": "hive"},
+        }
+    if settings.proactive_pulse_enabled and settings.proactive_pulse_telegram_midday_enabled:
+        schedule["hive-proactive-pulse-midday"] = {
+            "task": "hive.proactive_pulse_midday_tick",
+            "schedule": crontab(hour=12, minute=0),
+            "options": {"queue": "hive"},
+        }
     if settings.skill_factory_enabled:
         schedule["hive-skill-factory-research"] = {
             "task": "hive.skill_factory_research_tick",

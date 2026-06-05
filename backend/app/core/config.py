@@ -1596,6 +1596,18 @@ class Settings(BaseSettings):
         default=True,
         description="Unified Operator Control Plane — /operator/cockpit compose + act router.",
     )
+    business_background_team_enabled: bool = Field(
+        default=False,
+        description="BA3 — snapshot-only heartbeat bees (marketing/revenue/factory ops). No LLM.",
+    )
+    proactive_pulse_enabled: bool = Field(
+        default=True,
+        description="BA5 — proactive midday pulse (what changed / what ran autonomously).",
+    )
+    proactive_pulse_telegram_midday_enabled: bool = Field(
+        default=False,
+        description="12:00 UTC Telegram midday pulse when Telegram configured.",
+    )
     grok_control_plane_enabled: bool = Field(
         default=True,
         description="Enable Grok Control Plane in cockpit (plan/approve/execute).",

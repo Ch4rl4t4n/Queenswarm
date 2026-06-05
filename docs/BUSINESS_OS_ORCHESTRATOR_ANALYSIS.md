@@ -49,11 +49,11 @@ Zdroj požiadavky: [0xTria X post](https://x.com/0xTria/status/20618135148936687
 | ID | Názov | Prečo | Odhad |
 |----|-------|-------|-------|
 | **BA1** | **Chief Business Operator (CBO)** | Jeden panel v Cockpit: revenue status, Gumroad queue, top 3 akcie | ✅ shipped |
-| **BA2** | **Business Goal Stack** | Tenant ciele (MRR/listings/trading paper) → misie auto-tagged, CBO meria drift | 2–3 d |
-| **BA3** | **Background Business Team (3 bees)** | Marketing Ops · Revenue Ops · Factory Ops — heartbeat cron, nie nový org chart | 4–6 d |
+| **BA2** | **Business Goal Stack** | Tenant ciele (MRR/listings/trading paper) → misie auto-tagged, CBO meria drift | ✅ shipped |
+| **BA3** | **Background Business Team (3 bees)** | Marketing Ops · Revenue Ops · Factory Ops — heartbeat cron, nie nový org chart | ✅ shipped (`BUSINESS_BACKGROUND_TEAM_ENABLED`) |
 | **BA4** | **Unified Approval Inbox** | Jedna fronta: publish, Gumroad upload, lane digest, agent suggestions | ✅ shipped |
-| **BA5** | **Proactive Pulse** | Ráno (máme) + **obedný** pulse: čo sa zmenilo, čo bežalo autonómne | 2 d |
-| **BA6** | **CBO → Dispatch bridge** | Z CBO jeden klik: triage+dispatch s predvybraným skill bundle (bez výberu 20 agentov) | 2–3 d |
+| **BA5** | **Proactive Pulse** | Ráno (máme) + **obedný** pulse: čo sa zmenilo, čo bežalo autonómne | ✅ shipped |
+| **BA6** | **CBO → Dispatch bridge** | Z CBO jeden klik: triage+dispatch s predvybraným skill bundle (bez výberu 20 agentov) | ✅ shipped |
 | **BA7** | **Cross-lane learning** | Trading/marketing recipe winner → CBO navrhne „apply to lane X“ | 3–4 d |
 | **PA2** | **Google Calendar** | Proaktívny denný plán s kalendárom (už v pláne) | 3–5 d |
 

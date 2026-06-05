@@ -76,6 +76,7 @@ async def create_mission_triage_task(
     priority: int,
     swarm_id: uuid.UUID | None,
     skills: list[str] | None = None,
+    extra_payload: dict[str, Any] | None = None,
 ) -> MissionKanbanTriageResult:
     """Park a high-level prompt on the triage column without running the breaker yet."""
 
@@ -88,6 +89,8 @@ async def create_mission_triage_task(
     }
     if skill_slugs:
         payload["skills"] = skill_slugs
+    if extra_payload:
+        payload.update(extra_payload)
     row = await create_task_record(
         session,
         title=resolved_title,

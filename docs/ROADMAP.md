@@ -322,11 +322,11 @@ Hlavný biznis orchestrátor v apke — radí čo robiť, časť organizuje auto
 | Step | Scope | Status |
 |------|-------|--------|
 | BA1 | **Chief Business Operator (CBO)** — Cockpit panel + snapshot API (revenue, queue, top 3 actions) | ✅ |
-| BA2 | **Business Goal Stack** — tenant KPIs → mission tagging + drift alerts | planned |
-| BA3 | **Background Business Team** — 3 heartbeat bees (marketing / revenue / factory ops); wraps Four Lanes | planned |
+| BA2 | **Business Goal Stack** — tenant KPIs → mission tagging + drift alerts | ✅ shipped |
+| BA3 | **Background Business Team** — 3 heartbeat bees (marketing / revenue / factory ops); wraps Four Lanes | ✅ shipped (env-gated) |
 | BA4 | **Unified Approval Inbox** — publish, Gumroad, lane digest, agent suggestions | ✅ |
-| BA5 | **Proactive Pulse** — midday „what changed / what ran“ (+ existing morning brief) | planned |
-| BA6 | **CBO → Dispatch bridge** — one-click skill bundle dispatch (max 3–5 agents) | planned |
+| BA5 | **Proactive Pulse** — midday „what changed / what ran“ (+ existing morning brief) | ✅ shipped |
+| BA6 | **CBO → Dispatch bridge** — one-click skill bundle dispatch (max 3–5 agents) | ✅ |
 | BA7 | **Cross-lane learning** — recipe winners → CBO „apply to lane X“ suggestions | planned |
 | PA2 | Google Calendar → proactive daily planner | planned (P2) |
 

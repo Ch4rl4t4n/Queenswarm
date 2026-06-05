@@ -14,6 +14,14 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.services.background_business_team import (
+    BackgroundBusinessTeamOut,
+    compose_background_business_team,
+)
+from app.application.services.business_goal_stack import (
+    BusinessGoalStackOut,
+    compose_business_goal_stack,
+)
 from app.application.services.marketing_product_catalog import build_catalog
 from app.application.services.solo_daily_plan import compose_solo_daily_plan
 from app.core.config import settings
@@ -87,11 +95,13 @@ class BusinessOperatorSnapshotOut(BaseModel):
     enabled: bool = True
     generated_at: datetime
     headline: str = ""
-    tagline: str = "Verified skills and revenue — simulate-first, sell with confidence."
+    tagline: str = "Internal harness brief — simulate-first, free-first LLM, operator approves live actions."
     catalog: BusinessCatalogSummaryOut = Field(default_factory=BusinessCatalogSummaryOut)
     revenue: BusinessRevenueSummaryOut = Field(default_factory=BusinessRevenueSummaryOut)
     missions: BusinessMissionSummaryOut = Field(default_factory=BusinessMissionSummaryOut)
     top_actions: list[BusinessOperatorActionOut] = Field(default_factory=list)
+    goal_stack: BusinessGoalStackOut | None = None
+    background_team: BackgroundBusinessTeamOut | None = None
     links: dict[str, str] = Field(default_factory=dict)
 
 
@@ -218,8 +228,35 @@ def _derive_top_actions(
     catalog: BusinessCatalogSummaryOut,
     missions: BusinessMissionSummaryOut,
     daily_items: list[dict[str, object]],
+    goal_stack: BusinessGoalStackOut | None = None,
 ) -> list[BusinessOperatorActionOut]:
     candidates: list[tuple[int, BusinessOperatorActionOut]] = []
+
+    if goal_stack is not None:
+        lane_from_goal: dict[str, BusinessActionLane] = {
+            "revenue": "revenue",
+            "marketing": "marketing",
+            "factory": "factory",
+            "mission": "mission",
+            "trading": "trading",
+            "ops": "ops",
+        }
+        for goal in goal_stack.goals:
+            if goal.drift_severity == "critical":
+                lane_key = goal.mission_lane or "ops"
+                candidates.append(
+                    (
+                        1,
+                        BusinessOperatorActionOut(
+                            id=f"goal_drift_{goal.id}",
+                            lane=lane_from_goal.get(lane_key, "ops"),
+                            title=f"Goal drift: {goal.label}",
+                            detail=goal.drift_detail,
+                            priority="high",
+                            href="/cockpit#business-operator",
+                        ),
+                    ),
+                )
 
     if revenue.missing_reports:
         candidates.append(
@@ -373,8 +410,30 @@ async def compose_business_operator_snapshot(
         gumroad_linked_count=max(gumroad_linked, _count_gumroad_uploads(_resolve_export_root(export_root))),
     )
     revenue = compose_revenue_summary(export_root)
-    missions, daily = await asyncio.gather(
-        _mission_counts(db, tenant_id=tenant_id),
+    factory_queue_count = 0
+    trading_paper_mode = True
+    if settings.skill_factory_enabled:
+        try:
+            from app.application.services.skill_factory_service import compose_skill_factory_snapshot
+
+            factory_snap = await compose_skill_factory_snapshot(db, tenant_id=tenant_id)
+            factory_queue_count = int(factory_snap.queue_count or 0) + int(factory_snap.building_count or 0)
+        except Exception:
+            factory_queue_count = 0
+    try:
+        from app.application.services.trading_cockpit import compose_trading_cockpit_snapshot
+
+        trading_snap = await compose_trading_cockpit_snapshot(
+            db,
+            dashboard_user_id=dashboard_user_id,
+            tenant=tenant,
+        )
+        trading_paper_mode = str((trading_snap.config or {}).get("default_mode") or "paper") == "paper"
+    except Exception:
+        trading_paper_mode = True
+
+    missions = await _mission_counts(db, tenant_id=tenant_id)
+    daily, goal_stack, background_team = await asyncio.gather(
         compose_solo_daily_plan(
             db,
             tenant_id=tenant_id,
@@ -382,6 +441,17 @@ async def compose_business_operator_snapshot(
             tenant=tenant,
             max_items=5,
         ),
+        compose_business_goal_stack(
+            db,
+            tenant_id=tenant_id,
+            tenant=tenant,
+            catalog=catalog,
+            missions=missions,
+            revenue=revenue,
+            factory_queue_count=factory_queue_count,
+            trading_paper_mode=trading_paper_mode,
+        ),
+        compose_background_business_team(db, tenant_id=tenant_id, tenant=tenant),
     )
     daily_items = [item.model_dump(mode="json") for item in daily.items]
     top_actions = _derive_top_actions(
@@ -389,6 +459,7 @@ async def compose_business_operator_snapshot(
         catalog=catalog,
         missions=missions,
         daily_items=daily_items,
+        goal_stack=goal_stack,
     )
 
     return BusinessOperatorSnapshotOut(
@@ -399,6 +470,8 @@ async def compose_business_operator_snapshot(
         revenue=revenue,
         missions=missions,
         top_actions=top_actions,
+        goal_stack=goal_stack,
+        background_team=background_team,
         links={
             "agents_sessions": "/agents#sessions",
             "mission_control": "/tasks",
@@ -408,8 +481,20 @@ async def compose_business_operator_snapshot(
     )
 
 
+async def fetch_business_mission_summary(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+) -> BusinessMissionSummaryOut:
+    """Public wrapper for mission kanban counts used by BA2 API."""
+
+    return await _mission_counts(db, tenant_id=tenant_id)
+
+
 __all__ = [
+    "BusinessMissionSummaryOut",
     "BusinessOperatorSnapshotOut",
     "compose_business_operator_snapshot",
     "compose_revenue_summary",
+    "fetch_business_mission_summary",
 ]
