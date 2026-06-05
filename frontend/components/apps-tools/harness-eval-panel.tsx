@@ -12,6 +12,10 @@ import { QsSelect } from "@/components/ui/qs-select";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import type { HarnessEvalResult } from "@/lib/hive-types";
+import {
+  HARNESS_EVAL_DEFAULT_MARKDOWN,
+  HARNESS_EVAL_DEFAULT_TITLE,
+} from "@/lib/harness-eval-default-workflow";
 import { downloadTextFile } from "@/lib/skill-export-utils";
 
 function eur(cents: number): string {
@@ -42,8 +46,8 @@ interface HarnessEvalPanelProps {
 }
 
 export function HarnessEvalPanel({ llm: llmProp }: HarnessEvalPanelProps): JSX.Element {
-  const [title, setTitle] = useState("My workflow");
-  const [markdown, setMarkdown] = useState("");
+  const [title, setTitle] = useState(HARNESS_EVAL_DEFAULT_TITLE);
+  const [markdown, setMarkdown] = useState(HARNESS_EVAL_DEFAULT_MARKDOWN);
   const [runLlmCritic, setRunLlmCritic] = useState(false);
   const [llm, setLlm] = useState<FactoryLlmReadiness | null>(llmProp ?? null);
   const [criticModel, setCriticModel] = useState("");
