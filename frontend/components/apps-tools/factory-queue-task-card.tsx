@@ -51,8 +51,8 @@ export function opportunityStatusLabel(row: FactoryQueueOpportunityRow): string 
   return row.status;
 }
 
-function statusTone(row: FactoryQueueOpportunityRow): "ok" | "warn" | "error" | "info" | "purple" | "gold" {
-  if (row.status === "failed" || isStuckFactoryBuild(row)) return "error";
+function statusTone(row: FactoryQueueOpportunityRow): "ok" | "warn" | "err" | "info" | "purple" | "gold" {
+  if (row.status === "failed" || isStuckFactoryBuild(row)) return "err";
   if (row.status === "building") return "info";
   if (row.status === "awaiting_forge") return "gold";
   if (row.status === "queued") return "purple";
