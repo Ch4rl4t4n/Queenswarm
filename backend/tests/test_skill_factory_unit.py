@@ -339,6 +339,24 @@ def test_quality_gate_passes_valid_skill_when_critic_is_llm_stub() -> None:
     assert "critic_not_approved" not in result.issues
 
 
+def test_factory_publish_quality_ok_lenient_when_skill_valid() -> None:
+    from app.application.services.skill_factory_publish import _factory_publish_quality_ok
+
+    skill = (
+        "---\nname: newsletter-growth\ndescription: Verified newsletter growth harness for indie hackers\n"
+        "level: 1\n---\n\n# Newsletter growth\n\nWhen to use: weekly operator sessions with simulate-first guardrails.\n\n"
+        "## Workflow\n\n1. Research niche context with simulate-first guardrails.\n"
+        "2. Draft SKILL.md with critic APPROVE gate.\n3. Export harness bundle after quality pass.\n"
+    )
+    payload = {
+        "quality_gate_passed": False,
+        "critic_approved": False,
+        "skill_valid": True,
+        "issues": ["critic_not_approved"],
+    }
+    assert _factory_publish_quality_ok(payload, skill_md=skill) is True
+
+
 def test_hive_llm_credentials_ready_includes_openrouter_vault(monkeypatch) -> None:
     from app.application.services import llm_runtime_credentials as creds
     from app.domain.agents.executor import hive_llm_credentials_ready

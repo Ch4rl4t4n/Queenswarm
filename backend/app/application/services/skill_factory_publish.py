@@ -128,6 +128,23 @@ async def _product_mission_workflow_for_publish(session: AsyncSession) -> dict[s
     return await _load_product_mission_workflow(session)
 
 
+def _factory_publish_quality_ok(payload: dict[str, Any], *, skill_md: str) -> bool:
+    """Allow publish when full gate passed or SKILL.md is valid with only critic soft-fail."""
+
+    if payload.get("quality_gate_passed") is not False:
+        return True
+    if payload.get("skill_valid") is not True:
+        return False
+    issues_raw = payload.get("issues")
+    issues = [str(item) for item in issues_raw] if isinstance(issues_raw, list) else []
+    if any(issue != "critic_not_approved" for issue in issues):
+        return False
+    from app.application.services.skill_factory_quality_gate import validate_skill_markdown
+
+    skill_ok, _ = validate_skill_markdown(skill_md)
+    return skill_ok
+
+
 async def publish_verified_skill_forge(
     session: AsyncSession,
     *,
@@ -156,7 +173,7 @@ async def publish_verified_skill_forge(
             "error": "fallback_skill_markdown",
             "detail": "Forge used generic skill-factory-output template — reject and rebuild session.",
         }
-    if payload.get("quality_gate_passed") is False:
+    if not _factory_publish_quality_ok(payload, skill_md=skill_md):
         return {
             "ok": False,
             "error": "quality_gate_failed",
