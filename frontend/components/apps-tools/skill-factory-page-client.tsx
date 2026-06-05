@@ -166,6 +166,13 @@ function priceEur(cents: number): string {
   return `€${(cents / 100).toFixed(2)}`;
 }
 
+function isLibrarySmartRebuildEligible(row: TenantSkillRow): boolean {
+  return (
+    (row.sellable_tier === "rejected" || row.sellable_tier === "draft")
+    && row.factory_disposition !== "retired"
+  );
+}
+
 export function SkillFactoryPageClient(): JSX.Element {
   const routeHash = useRouteHash();
   const { setQueueBadge } = useSkillFactoryNav();
@@ -184,6 +191,7 @@ export function SkillFactoryPageClient(): JSX.Element {
   const [librarySieve, setLibrarySieve] = useState<LibrarySieveVerdict>("all");
   const [inlineEvalBySkill, setInlineEvalBySkill] = useState<Record<string, InlineEvalResult>>({});
   const [evalReportCache, setEvalReportCache] = useState<Record<string, string>>({});
+  const [libraryRebuildQueued, setLibraryRebuildQueued] = useState<Set<string>>(() => new Set());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -307,6 +315,11 @@ export function SkillFactoryPageClient(): JSX.Element {
     return rows.filter((row) => row.library_verdict === librarySieve);
   }, [snapshot?.library, librarySieve]);
 
+  const libraryRebuildEligible = useMemo(
+    () => (snapshot?.library ?? []).filter(isLibrarySmartRebuildEligible),
+    [snapshot?.library],
+  );
+
   const runResearch = async (): Promise<void> => {
     setResearchBusy(true);
     try {
@@ -395,16 +408,47 @@ export function SkillFactoryPageClient(): JSX.Element {
         attempt_count: number;
         fix_lines: string[];
       }>(`skill-factory/skills/${id}/smart-rebuild`, {});
-      toast.success("Smart rebuild started.", {
-        description: `Attempt ${res.attempt_count} · session ${res.session_id.slice(0, 8)}… · Queue tab for progress.`,
+      setLibraryRebuildQueued((prev) => new Set(prev).add(id));
+      toast.success("Smart rebuild queued.", {
+        description: `Attempt ${res.attempt_count} — stay in Library; open Queue when you want progress.`,
       });
       await refreshSnapshotQuiet();
-      navigateSkillFactoryTab("queue");
     } catch (e) {
       toast.error(e instanceof HiveApiError ? e.message : "Smart rebuild failed.");
     } finally {
       setBusyId(null);
     }
+  };
+
+  const smartRebuildAllLibrary = async (): Promise<void> => {
+    const targets = libraryRebuildEligible;
+    if (targets.length === 0) {
+      toast.message("No rejected/draft skills eligible for Smart rebuild.");
+      return;
+    }
+    setBusyId("library-rebuild-all");
+    let started = 0;
+    let failed = 0;
+    const queued = new Set(libraryRebuildQueued);
+    for (const row of targets) {
+      try {
+        await hivePostJson(`skill-factory/skills/${row.id}/smart-rebuild`, {});
+        queued.add(row.id);
+        started += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    setLibraryRebuildQueued(queued);
+    await refreshSnapshotQuiet();
+    if (started > 0) {
+      toast.success(`Smart rebuild: ${started} queued${failed > 0 ? ` · ${failed} failed (cap/retired)` : ""}.`, {
+        description: "You stay in Library — factory runs appear in Queue tab.",
+      });
+    } else {
+      toast.error(failed > 0 ? "No rebuilds started — check weekly cap or retired niches." : "Nothing to rebuild.");
+    }
+    setBusyId(null);
   };
 
   const setSkillDisposition = async (
@@ -1028,7 +1072,29 @@ export function SkillFactoryPageClient(): JSX.Element {
                 description="Sieve — verdict on every card: launch, fix & retry, deprioritize, or retire. Run eval shows result inline (no download required)."
                 hint={sectionHintNode("skillFactoryLibrary")}
               />
-              <div className="mt-3 flex flex-wrap gap-2 px-1">
+              <div className="mt-3 flex flex-wrap items-center gap-2 px-1">
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--primary qs-btn--sm gap-1"
+                  disabled={busyId !== null || libraryRebuildEligible.length === 0}
+                  onClick={() => void smartRebuildAllLibrary()}
+                >
+                  {busyId === "library-rebuild-all" ? (
+                    <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <RefreshCwIcon className="size-3.5" aria-hidden />
+                  )}
+                  Smart rebuild all ({libraryRebuildEligible.length})
+                </button>
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--ghost qs-btn--sm"
+                  onClick={() => navigateSkillFactoryTab("queue")}
+                >
+                  Open Queue →
+                </button>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2 px-1">
                 {(["all", "launch", "worth_retry", "deprioritize", "retire"] as const).map((key) => (
                   <button
                     key={key}
@@ -1067,6 +1133,7 @@ export function SkillFactoryPageClient(): JSX.Element {
                       gumroadListingReady={snapshot.gumroad_listing_ready}
                       gumroadPublishReady={snapshot.gumroad_publish_ready}
                       inlineEval={inlineEvalBySkill[row.id] ?? null}
+                      rebuildQueued={libraryRebuildQueued.has(row.id)}
                       onSmartRebuild={(id) => void smartRebuildSkill(id)}
                       onDeprioritize={(id) => void setSkillDisposition(id, "deprioritized", "Niche deprioritized — lower research priority.")}
                       onRetire={(id) => void setSkillDisposition(id, "retired", "Niche retired — excluded from research.")}

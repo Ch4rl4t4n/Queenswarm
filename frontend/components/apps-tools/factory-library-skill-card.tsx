@@ -84,6 +84,7 @@ interface FactoryLibrarySkillCardProps {
   onGumroadDraft?: (id: string) => void;
   onGumroadPublish?: (id: string) => void;
   inlineEval?: InlineEvalResult | null;
+  rebuildQueued?: boolean;
   onDownloadEvalReport?: (id: string, title: string) => void;
 }
 
@@ -102,6 +103,7 @@ export function FactoryLibrarySkillCard({
   onGumroadDraft,
   onGumroadPublish,
   inlineEval,
+  rebuildQueued,
   onDownloadEvalReport,
 }: FactoryLibrarySkillCardProps): JSX.Element {
   const busy = busyId === row.id;
@@ -155,6 +157,7 @@ export function FactoryLibrarySkillCard({
           {row.factory_attempt_count > 0 ? (
             <V4Badge tone="purple">attempt {row.factory_attempt_count}</V4Badge>
           ) : null}
+          {rebuildQueued ? <V4Badge tone="info">rebuild queued</V4Badge> : null}
         </div>
         <p className="v4-session-goal text-sm font-medium text-(--qs-text)" title={row.title}>
           {row.title}
