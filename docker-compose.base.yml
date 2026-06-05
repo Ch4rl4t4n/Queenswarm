@@ -407,6 +407,7 @@ services:
       # Webroot for ACME HTTP-01 challenge files (written by scripts/issue-letsencrypt.sh).
       - ./deploy/nginx/.acme:/var/www/certbot:ro
       - ./deploy/nginx/includes:/etc/nginx/includes:ro
+      - ./deploy/nginx/html/letagentscook-maintenance:/var/www/letagentscook-maintenance:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       frontend:

@@ -151,6 +151,7 @@ services:
       - ./deploy/nginx/conf.d/letagentscook.org.conf:/etc/nginx/conf.d/letagentscook.org.conf:ro
       - ./deploy/nginx/.acme:/var/www/certbot:ro
       - ./deploy/nginx/includes:/etc/nginx/includes:ro
+      - ./deploy/nginx/html/letagentscook-maintenance:/var/www/letagentscook-maintenance:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
     mem_limit: 512m
     cpus: "0.75"

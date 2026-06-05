@@ -14,6 +14,7 @@ Updated: 2026-06-05
 | Stack | Same Next.js monorepo, host-based routing, Hive Control V4 design tokens |
 | Catalog source | `exports/gumroad-ready/*/manifest.json` + scorecard QA gate |
 | Sales | External marketplaces only (Gumroad primary). **No app links** — Queenswarm is private operator harness |
+| Public storefront | **OFF** by default until launch — nginx maintenance on `letagentscook.org` (swap include in `letagentscook.org.conf`) |
 
 ## Brand
 
