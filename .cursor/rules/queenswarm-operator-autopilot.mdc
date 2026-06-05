@@ -7,13 +7,33 @@ alwaysApply: true
 
 ## Default mode (unless user says otherwise)
 
-- **Execute autonomously**: code, tests, prod scripts, Factory operator actions, deploy (`REQUIRE_VOICE_READY=0`, snapshot gate skip only when blocked).
+- **Execute autonomously**: code, tests, prod scripts, Factory operator actions — bez čakania na druhé „urob commit/deploy“.
 - **Do not** ask for micro-steps (“open file X”, “run this command”) when you can run them here.
 - **Do not** end with vague “let me know if you want…” — either finish or state one blocker.
 
-## When user says „pokračuj“, „podľa odporúčaní“, „profesionálne“
+## Delivery cycle — PO KAŽDOM zapracovaní (non-negotiable)
 
-Treat as approval for full cycle: implement → test → commit → push → deploy → prod operator script → report status.
+Keď čokoľvek zapracuješ (fix, feature, refactor, UI, config, docs v harnesse), **ihneď** dokonči celý cyklus — **nepýtaj sa** na commit ani deploy:
+
+1. **Verify** — typecheck / relevantné testy (aspoň subset, čo sa týka zmeny)
+2. **Commit** — Conventional Commits (`feat|fix|bee|refactor|test|docs`)
+3. **Push** — `git push -u origin HEAD` (na `main` ak si na main)
+4. **Deploy prod** — `./scripts/deploy-prod.sh` s `--env-file .env.prod` implicitne; env:
+   - `REQUIRE_VOICE_READY=0` (default pre operator deploy)
+   - `REQUIRE_SINGLE_ADMIN_SNAPSHOT=0` len ak snapshot gate blokuje a nie je cutover
+5. **Report** — commit hash, deploy výsledok, health check
+
+**Výnimky (jediné dôvody nedeployovať):**
+
+- User explicitne povedal `AUTOPILOT: nie` alebo „bez deploy“ / „len lokálne“
+- Deploy gate hard-fail (secrets, migrácia, health) — oprav a **retry deploy** v tom istom turne
+- Čistá otázka / review bez kódu — žiadny commit ani deploy
+
+**Nikdy** nenechávaj „čakám na tvoje OK pre deploy“ po implementácii — to je porušenie autopilota.
+
+## When user says „pokračuj“, „podľa odporúčaní“, „profesionálne“, „zapracuj“
+
+Rovnaký cyklus ako vyššie — bez dodatočného schválenia.
 
 ## Priority stack (tie-break)
 
@@ -32,7 +52,7 @@ Treat as approval for full cycle: implement → test → commit → push → dep
 
 ## User input format (optional, 30s)
 
-User may send only: `CIEĽ:` / `HORIZONT:` / `PRIORITA:` / `AUTOPILOT: áno|nie` — no need to ask if missing; infer from thread.
+User may send only: `CIEĽ:` / `HORIZONT:` / `PRIORITA:` / `AUTOPILOT: áno|nie` — no need to ask if missing; infer from thread. Default **AUTOPILOT: áno**.
 
 ## Mandatory response footer
 
@@ -52,7 +72,8 @@ Every assistant reply **must** end with:
 - Max **3 rows** unless user asked for a full runbook.
 - Mark steps **(agent)** vs **(ty)** — default Factory/Gumroad approve = **(ty)**, deploy/scripts = **(agent)**.
 - If nothing required from user: say „Nič — autopilot pokračuje na …“
+- Po deployi: v footeri uveď **(agent) hotovo** — netlač na usera „over deploy“.
 
 ## Commits
 
-Commit when autopilot cycle completes or user explicitly asks. Message: Conventional Commits (`feat|fix|bee`).
+Commit + push + deploy sú **súčasťou** každého implementačného tasku, nie voliteľný krok na konci.
