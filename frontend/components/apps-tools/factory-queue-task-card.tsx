@@ -29,10 +29,14 @@ export interface FactoryQueueOpportunityRow {
   forge_quality_passed?: boolean | null;
   forge_critic_approved?: boolean | null;
   forge_issues?: string[];
-  tenant_skill_id: string | null;
+  progress_phase?: string;
+  progress_label?: string;
+  progress_detail?: string | null;
 }
 
 const ACTIVE_SESSION_STATUSES = new Set(["running", "queued", "needs_input", "paused"]);
+
+const PHASE_STEPS = ["queued", "building", "forge_review", "completed"] as const;
 
 function shortOppId(id: string): string {
   return `F-${id.replace(/-/g, "").slice(-4).toUpperCase()}`;
@@ -43,8 +47,10 @@ export function isStuckFactoryBuild(row: FactoryQueueOpportunityRow): boolean {
 }
 
 function forgeNeedsRebuild(row: FactoryQueueOpportunityRow): boolean {
-  return row.status === "awaiting_forge"
-    && (row.forge_quality_passed === false || row.forge_critic_approved === false);
+  return (
+    row.status === "awaiting_forge"
+    && (row.forge_quality_passed === false || row.forge_critic_approved === false)
+  );
 }
 
 export function opportunityStatusLabel(row: FactoryQueueOpportunityRow): string {
@@ -66,23 +72,38 @@ function statusTone(row: FactoryQueueOpportunityRow): "ok" | "warn" | "err" | "i
   return "warn";
 }
 
-function progressPct(row: FactoryQueueOpportunityRow): number {
-  if (row.status === "failed" || isStuckFactoryBuild(row)) return 0;
-  if (row.status === "queued") return 8;
-  if (row.status === "building") return 42;
-  if (forgeNeedsRebuild(row)) return 72;
-  if (row.status === "awaiting_forge") return 88;
+function resolvePhase(row: FactoryQueueOpportunityRow): string {
+  if (row.progress_phase) return row.progress_phase;
+  if (row.status === "building") return "building";
+  if (forgeNeedsRebuild(row)) return "forge_failed";
+  if (row.status === "awaiting_forge") return "forge_review";
+  if (row.status === "queued") return "queued";
+  if (row.status === "failed") return "failed";
+  return row.status;
+}
+
+function phaseStepIndex(phase: string): number {
+  if (phase === "building") return 1;
+  if (phase === "forge_review" || phase === "forge_failed") return 2;
+  if (phase === "completed") return 3;
+  if (phase === "failed" || phase === "blocked") return -1;
   return 0;
 }
 
-function progressDetail(row: FactoryQueueOpportunityRow): string {
-  if (row.supervisor_session_error) return row.supervisor_session_error.slice(0, 120);
-  if (row.status === "building") return "Supervisor session in progress";
-  if (forgeNeedsRebuild(row)) return "Quality/critic failed — auto-rebuild queued (highest score first)";
-  if (row.status === "awaiting_forge") return "Session done — approve forge or wait for auto-approve";
-  if (row.status === "failed") return "Build failed — Run or Rebuild to retry";
-  if (row.status === "queued") return "Waiting for factory run";
+function progressHeadline(row: FactoryQueueOpportunityRow): string {
+  if (row.progress_label) return row.progress_label;
+  if (row.supervisor_session_error) return row.supervisor_session_error.slice(0, 160);
+  if (row.status === "building") return `Supervisor: ${row.supervisor_session_status ?? "starting"}`;
+  if (forgeNeedsRebuild(row)) return "Forge failed — waiting for auto-rebuild";
   return row.rationale?.slice(0, 120) ?? "";
+}
+
+function progressSubline(row: FactoryQueueOpportunityRow): string | null {
+  if (row.progress_detail) return row.progress_detail;
+  if (row.status === "building" && row.supervisor_session_status) {
+    return `Session status: ${row.supervisor_session_status}`;
+  }
+  return null;
 }
 
 function sessionIsActive(row: FactoryQueueOpportunityRow): boolean {
@@ -132,7 +153,10 @@ export function FactoryQueueTaskCard({
     && Boolean(row.forge_suggestion_id)
     && row.forge_quality_passed !== false
     && row.forge_critic_approved !== false;
-  const pct = progressPct(row);
+  const phase = resolvePhase(row);
+  const stepIdx = phaseStepIndex(phase);
+  const headline = progressHeadline(row);
+  const subline = progressSubline(row);
 
   return (
     <div className="v4-session-row v4-session-row--pollen" data-testid="factory-queue-row">
@@ -157,10 +181,13 @@ export function FactoryQueueTaskCard({
           ) : null}
         </p>
 
-        <div className="mt-2 space-y-1.5">
+        <div className="mt-2 space-y-2">
           <div className="flex flex-wrap gap-1.5">
             <V4Badge tone="info">skill factory</V4Badge>
             <V4Badge tone="info">{row.status}</V4Badge>
+            {row.supervisor_session_status ? (
+              <V4Badge tone="purple">session: {row.supervisor_session_status}</V4Badge>
+            ) : null}
             {row.forge_quality_passed != null ? (
               <V4Badge tone={row.forge_quality_passed ? "ok" : "warn"}>
                 quality {row.forge_quality_passed ? "pass" : "fail"}
@@ -172,14 +199,27 @@ export function FactoryQueueTaskCard({
               </V4Badge>
             ) : null}
           </div>
-          <div className="v4-progress-cell max-w-md" title={progressDetail(row)}>
-            <div className="v4-progress-track">
-              <div
-                className={cn("v4-progress-fill", row.status === "failed" && "bg-error/80")}
-                style={{ width: `${pct}%` }}
-              />
+
+          <div className="max-w-lg space-y-1.5" title={headline}>
+            <div className="flex items-center gap-1">
+              {PHASE_STEPS.map((step, idx) => (
+                <div key={step} className="flex flex-1 items-center gap-1">
+                  <div
+                    className={cn(
+                      "h-1.5 flex-1 rounded-full",
+                      stepIdx < 0 ? "bg-error/50" : idx <= stepIdx ? "bg-pollen" : "bg-(--qs-border)",
+                      row.status === "building" && idx === 1 && "animate-pulse bg-cyan",
+                    )}
+                  />
+                </div>
+              ))}
             </div>
-            <span className="v4-progress-pct">{pct}%</span>
+            <p className="text-xs font-medium text-(--qs-text-2)">{headline}</p>
+            {subline ? <p className="text-[11px] text-(--qs-text-4)">{subline}</p> : null}
+            <p className="font-mono text-[10px] uppercase tracking-wide text-(--qs-text-4)">
+              phase: {phase}
+              {row.status === "building" ? " · live" : ""}
+            </p>
           </div>
         </div>
       </div>

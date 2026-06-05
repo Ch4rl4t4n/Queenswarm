@@ -48,6 +48,11 @@ interface SkillFactoryPolicy {
   niche_seeds: string[];
   auto_build_enabled: boolean;
   auto_build_min_score: number;
+  auto_queue_drain_enabled?: boolean;
+  auto_rebuild_failed_forges?: boolean;
+  auto_approve_passing_forges?: boolean;
+  max_concurrent_builds?: number;
+  drain_batch_per_tick?: number;
   max_builds_per_week: number;
   research_cron_enabled: boolean;
   apify_deep_scrape_enabled: boolean;
@@ -75,6 +80,9 @@ interface SkillOpportunityRow {
   forge_quality_passed?: boolean | null;
   forge_critic_approved?: boolean | null;
   forge_issues?: string[];
+  progress_phase?: string;
+  progress_label?: string;
+  progress_detail?: string | null;
   tenant_skill_id: string | null;
 }
 
@@ -283,12 +291,25 @@ export function SkillFactoryPageClient(): JSX.Element {
         rebuilt: number;
         started: number;
         skipped_cap: number;
+        errors?: string[];
       }>("skill-factory/queue/drain", {});
-      if ((res.approved ?? 0) + (res.rebuilt ?? 0) + (res.started ?? 0) > 0) {
+      const moved = (res.approved ?? 0) + (res.rebuilt ?? 0) + (res.started ?? 0);
+      if (moved > 0) {
         await refreshAfterQueueAction();
       }
-    } catch {
-      /* drain is best-effort */
+      if ((res.errors?.length ?? 0) > 0) {
+        toast.warning(`Queue drain: ${res.errors?.[0] ?? "blocked"}`, {
+          description:
+            res.errors?.length && res.errors.length > 1
+              ? `${res.errors.length} items blocked — check Settings → throughput`
+              : undefined,
+        });
+      }
+      if ((res.skipped_cap ?? 0) > 0 && moved === 0) {
+        toast.info("Weekly build cap reached — raise max_builds_per_week in Settings.");
+      }
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Queue drain failed.");
     }
   }, [refreshAfterQueueAction]);
 
@@ -297,7 +318,10 @@ export function SkillFactoryPageClient(): JSX.Element {
       return;
     }
     void drainQueue();
-    const pollMs = snapshot?.building_count ? 12_000 : 45_000;
+    const hasStuckForge = (snapshot?.opportunities ?? []).some(
+      (row) => row.status === "awaiting_forge" && row.forge_quality_passed === false,
+    );
+    const pollMs = snapshot?.building_count ? 8_000 : hasStuckForge ? 20_000 : 45_000;
     const timer = window.setInterval(() => {
       void drainQueue();
       void refreshSnapshotQuiet();
@@ -1114,8 +1138,8 @@ export function SkillFactoryPageClient(): JSX.Element {
                 title="Build queue"
                 description={
                   snapshot.opportunity_counts
-                    ? `${snapshot.opportunity_counts.actionable} actionable · ${snapshot.opportunity_counts.failed} failed · ${snapshot.opportunity_counts.building} building · auto-drain every 45s (score priority)`
-                    : "Queued and in-progress factory runs — auto-drain moves failed forges to rebuild."
+                    ? `${snapshot.opportunity_counts.actionable} actionable · ${snapshot.opportunity_counts.failed} failed · ${snapshot.opportunity_counts.building} building · max ${policyDraft?.max_concurrent_builds ?? 5} parallel`
+                    : "Queued runs — real phase labels, no fake %. Tune throughput in Settings."
                 }
                 hint={sectionHintNode("skillFactoryQueue")}
                 actions={
@@ -1584,6 +1608,56 @@ export function SkillFactoryPageClient(): JSX.Element {
                     setPolicyDraft({
                       ...policyDraft,
                       auto_build_min_score: Number.parseFloat(e.target.value) || 0.72,
+                    })
+                  }
+                />
+              </label>
+              <V4CardHeader
+                title="Queue throughput"
+                description="Parallel factory builds and auto-drain batch size (Nemotron/OpenRouter free tier can run higher)."
+              />
+              <label className="flex items-center justify-between gap-3 text-sm">
+                <span>Auto-drain queue (rebuild failed forges)</span>
+                <HiveSwitch
+                  checked={policyDraft.auto_queue_drain_enabled ?? true}
+                  onCheckedChange={(v) => setPolicyDraft({ ...policyDraft, auto_queue_drain_enabled: v })}
+                />
+              </label>
+              <label className="flex items-center justify-between gap-3 text-sm">
+                <span>Auto-rebuild quality/critic failures</span>
+                <HiveSwitch
+                  checked={policyDraft.auto_rebuild_failed_forges ?? true}
+                  onCheckedChange={(v) => setPolicyDraft({ ...policyDraft, auto_rebuild_failed_forges: v })}
+                />
+              </label>
+              <label className="block text-sm">
+                <span className="text-(--qs-text-3)">Max parallel builds</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={10}
+                  className="qs-input mt-1 w-full max-w-xs"
+                  value={policyDraft.max_concurrent_builds ?? 5}
+                  onChange={(e) =>
+                    setPolicyDraft({
+                      ...policyDraft,
+                      max_concurrent_builds: Number.parseInt(e.target.value, 10) || 5,
+                    })
+                  }
+                />
+              </label>
+              <label className="block text-sm">
+                <span className="text-(--qs-text-3)">Drain batch per tick (rebuilds/approvals per 2 min)</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={15}
+                  className="qs-input mt-1 w-full max-w-xs"
+                  value={policyDraft.drain_batch_per_tick ?? 5}
+                  onChange={(e) =>
+                    setPolicyDraft({
+                      ...policyDraft,
+                      drain_batch_per_tick: Number.parseInt(e.target.value, 10) || 5,
                     })
                   }
                 />

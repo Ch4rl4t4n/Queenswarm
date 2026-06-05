@@ -55,6 +55,7 @@ def test_opportunity_out_includes_forge_quality_fields() -> None:
 
     fields = set(SkillOpportunityOut.model_fields.keys())
     assert {"forge_quality_passed", "forge_critic_approved", "forge_issues"} <= fields
+    assert {"progress_phase", "progress_label", "progress_detail"} <= fields
 
 
 def test_launch_prepare_out_in_snapshot_contract_fields() -> None:

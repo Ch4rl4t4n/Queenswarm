@@ -44,8 +44,8 @@ class SkillFactoryPolicyOut(BaseModel):
     auto_queue_drain_enabled: bool = True
     auto_rebuild_failed_forges: bool = True
     auto_approve_passing_forges: bool = True
-    max_concurrent_builds: int = 2
-    drain_batch_per_tick: int = 3
+    max_concurrent_builds: int = 5
+    drain_batch_per_tick: int = 5
     max_builds_per_week: int = FACTORY_MAX_BUILDS_PER_WEEK_DEFAULT
     research_cron_enabled: bool = True
     apify_deep_scrape_enabled: bool = False
@@ -128,6 +128,9 @@ class SkillOpportunityOut(BaseModel):
     forge_quality_passed: bool | None = None
     forge_critic_approved: bool | None = None
     forge_issues: list[str] = Field(default_factory=list)
+    progress_phase: str = "unknown"
+    progress_label: str = ""
+    progress_detail: str | None = None
     tenant_skill_id: str | None
     created_at: datetime
 
@@ -198,8 +201,8 @@ def _policy_from_tenant_settings(raw: dict[str, Any] | None) -> SkillFactoryPoli
         auto_queue_drain_enabled=bool(block.get("auto_queue_drain_enabled", True)),
         auto_rebuild_failed_forges=bool(block.get("auto_rebuild_failed_forges", True)),
         auto_approve_passing_forges=bool(block.get("auto_approve_passing_forges", True)),
-        max_concurrent_builds=max(1, min(int(block.get("max_concurrent_builds", 2)), 5)),
-        drain_batch_per_tick=max(1, min(int(block.get("drain_batch_per_tick", 3)), 10)),
+        max_concurrent_builds=max(1, min(int(block.get("max_concurrent_builds", 5)), 10)),
+        drain_batch_per_tick=max(1, min(int(block.get("drain_batch_per_tick", 5)), 15)),
         max_builds_per_week=clamp_max_builds_per_week(block.get("max_builds_per_week")),
         research_cron_enabled=bool(block.get("research_cron_enabled", True)),
         apify_deep_scrape_enabled=bool(block.get("apify_deep_scrape_enabled", False)),
@@ -321,6 +324,52 @@ def _forge_payload_fields(forge: Any | None) -> tuple[bool | None, bool | None, 
     )
 
 
+def _factory_progress_fields(
+    row: SkillOpportunityORM,
+    *,
+    supervisor_session_status: str | None,
+    supervisor_session_error: str | None,
+    forge_quality_passed: bool | None,
+    forge_critic_approved: bool | None,
+    forge_issues: list[str] | None,
+) -> tuple[str, str, str | None]:
+    """Human-readable factory phase — no fake percentages."""
+
+    err = (supervisor_session_error or "").strip()
+    issues = list(forge_issues or [])
+    sup = (supervisor_session_status or "").strip().lower()
+    status = str(row.status or "").strip().lower()
+
+    if err:
+        return "blocked", err[:160], "Use Rebuild or check Factory LLM in Settings"
+    if status == "queued":
+        return "queued", "Waiting for build slot", "Auto-drain starts highest-score opportunities first"
+    if status == "building":
+        sup_labels = {
+            "running": "Supervisor running — sub-agents active",
+            "queued": "Supervisor session queued",
+            "needs_input": "Supervisor needs input — check Sessions",
+            "paused": "Supervisor paused",
+            "pending": "Supervisor starting",
+        }
+        label = sup_labels.get(sup, f"Supervisor: {sup or 'starting'}")
+        return "building", label, "Live session — open Report for step output"
+    if status == "awaiting_forge":
+        if forge_quality_passed is False or forge_critic_approved is False:
+            detail = ", ".join(issues[:4]) if issues else "quality gate or critic rejected"
+            return (
+                "forge_failed",
+                "Forge failed — auto-rebuild queued",
+                detail,
+            )
+        return "forge_review", "Forge ready — approve or auto-publish", None
+    if status == "failed":
+        return "failed", "Build failed", err or "Use Rebuild to retry"
+    if status == "completed":
+        return "completed", "Published to Library", None
+    return status or "unknown", status or "unknown", None
+
+
 def _opportunity_out(
     row: SkillOpportunityORM,
     *,
@@ -332,6 +381,14 @@ def _opportunity_out(
     forge_critic_approved: bool | None = None,
     forge_issues: list[str] | None = None,
 ) -> SkillOpportunityOut:
+    phase, label, detail = _factory_progress_fields(
+        row,
+        supervisor_session_status=supervisor_session_status,
+        supervisor_session_error=supervisor_session_error,
+        forge_quality_passed=forge_quality_passed,
+        forge_critic_approved=forge_critic_approved,
+        forge_issues=forge_issues,
+    )
     return SkillOpportunityOut(
         id=str(row.id),
         niche=row.niche,
@@ -352,6 +409,9 @@ def _opportunity_out(
         forge_quality_passed=forge_quality_passed,
         forge_critic_approved=forge_critic_approved,
         forge_issues=list(forge_issues or []),
+        progress_phase=phase,
+        progress_label=label,
+        progress_detail=detail,
         tenant_skill_id=str(row.tenant_skill_id) if row.tenant_skill_id else None,
         created_at=row.created_at,
     )
@@ -1047,6 +1107,12 @@ async def _prepare_opportunity_for_rebuild(
     row.supervisor_session_id = None
     row.tenant_skill_id = None
     row.status = "queued"
+    refs = list(row.source_refs or []) if isinstance(row.source_refs, list) else []
+    if not any(isinstance(item, dict) and item.get("kind") == "factory_rebuild" for item in refs):
+        from datetime import UTC, datetime
+
+        refs.append({"kind": "factory_rebuild", "at": datetime.now(tz=UTC).isoformat()})
+        row.source_refs = refs
     await session.flush()
     return row
 
@@ -1091,11 +1157,16 @@ async def start_factory_build(
         settings=tenant_settings,
     )
     refs = list(row.source_refs or [])
-    is_smart_rebuild = any(isinstance(item, dict) and item.get("kind") == "smart_rebuild" for item in refs)
+    is_retry_build = any(
+        isinstance(item, dict) and item.get("kind") in {"smart_rebuild", "factory_rebuild"}
+        for item in refs
+    )
     if build_skip:
-        if is_smart_rebuild and build_skip == "library_skill_exists":
-            pass
-        elif is_smart_rebuild and build_skip in {"niche_already_shipped"}:
+        if is_retry_build and build_skip in {
+            "library_skill_exists",
+            "niche_already_shipped",
+            "sellable_skill_exists",
+        }:
             pass
         else:
             raise ValueError(build_skip)

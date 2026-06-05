@@ -173,7 +173,7 @@ async def drain_skill_factory_queue(
 
     if policy.auto_rebuild_failed_forges and budget > 0:
         for row in actionable:
-            if budget <= 0:
+            if budget <= 0 or building >= policy.max_concurrent_builds:
                 break
             if row.status == "awaiting_forge" and row.supervisor_session_id is not None:
                 forge = forge_by_session.get(row.supervisor_session_id)

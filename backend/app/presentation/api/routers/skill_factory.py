@@ -58,8 +58,8 @@ class SkillFactoryPolicyBody(BaseModel):
     auto_queue_drain_enabled: bool = True
     auto_rebuild_failed_forges: bool = True
     auto_approve_passing_forges: bool = True
-    max_concurrent_builds: int = Field(default=2, ge=1, le=5)
-    drain_batch_per_tick: int = Field(default=3, ge=1, le=10)
+    max_concurrent_builds: int = Field(default=5, ge=1, le=10)
+    drain_batch_per_tick: int = Field(default=5, ge=1, le=15)
     max_builds_per_week: int = Field(
         default=FACTORY_MAX_BUILDS_PER_WEEK_DEFAULT,
         ge=1,

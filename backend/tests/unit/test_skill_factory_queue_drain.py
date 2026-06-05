@@ -22,6 +22,25 @@ def test_forge_needs_rebuild_when_quality_or_critic_fail() -> None:
     assert _forge_needs_rebuild(quality_passed=True, critic_approved=True) is False
 
 
+def test_factory_progress_fields_for_awaiting_forge_fail() -> None:
+    from types import SimpleNamespace
+
+    from app.application.services.skill_factory_service import _factory_progress_fields
+
+    row = SimpleNamespace(status="awaiting_forge")
+    phase, label, detail = _factory_progress_fields(
+        row,
+        supervisor_session_status="completed",
+        supervisor_session_error=None,
+        forge_quality_passed=False,
+        forge_critic_approved=False,
+        forge_issues=["critic_not_approved"],
+    )
+    assert phase == "forge_failed"
+    assert "rebuild" in label.lower()
+    assert detail is not None
+
+
 def test_forge_ready_to_approve_requires_both_gates() -> None:
     assert _forge_ready_to_approve(quality_passed=True, critic_approved=True) is True
     assert _forge_ready_to_approve(quality_passed=False, critic_approved=True) is False
