@@ -144,7 +144,16 @@ probe "queen maintainer settings" "/api/v1/queen-maintainer/settings"
 probe "queen maintainer tech-health" "/api/v1/queen-maintainer/tech-health"
 
 echo
-echo "── 6. Settings · LLM · Platform ──"
+echo "── 6. Business OS (CBO) ──"
+probe "business goals" "/api/v1/operator/business/goals"
+probe "business pulse" "/api/v1/operator/business/pulse?phase=midday"
+probe "business cross-lane" "/api/v1/operator/business/cross-lane"
+probe "business harness profiles" "/api/v1/operator/business/harness-profiles"
+probe "business calendar planner" "/api/v1/operator/business/calendar-planner" "200|403" "calendar OAuth may be stale"
+probe "wiki elicitation" "/api/v1/memory/wiki-layer/elicitation"
+
+echo
+echo "── 7. Settings · LLM · Platform ──"
 probe "llm routing settings" "/api/v1/llm-routing/settings"
 probe "llm cost savings" "/api/v1/llm-routing/cost-savings"
 probe "platform features" "/api/v1/operator/platform-features" "200|403" "admin only"
@@ -152,7 +161,7 @@ probe "system status" "/api/v1/system/status"
 
 if [[ "$solo_mode" == true ]]; then
   echo
-  echo "── 7. Commercial (DEFERRED in solo — not blocking) ──"
+  echo "── 8. Commercial (DEFERRED in solo — not blocking) ──"
   for path in /api/v1/billing/plans /api/v1/settings/enterprise/config; do
     code="$(curl -sk -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${TOKEN}" "${HIVE_BASE}${path}" || echo "000")"
     echo "  ○ deferred ${path} — HTTP ${code}"

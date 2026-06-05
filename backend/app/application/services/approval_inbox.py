@@ -124,14 +124,14 @@ async def compose_approval_inbox_snapshot(
     )
     for row in suggestion_rows:
         counts.agent_suggestions += 1
-        summary = str(row.summary or row.proposal_type or "Agent suggestion").strip()
+        detail = str(row.description or row.title or row.proposal_type or "Agent suggestion").strip()
         items.append(
             ApprovalInboxItemOut(
                 id=f"suggestion:{row.id}",
                 kind="agent_suggestion",
                 lane="ops",
-                title=_proposal_label(str(row.proposal_type or "suggestion")),
-                detail=summary[:320],
+                title=str(row.title or _proposal_label(str(row.proposal_type or "suggestion"))).strip(),
+                detail=detail[:320],
                 created_at=row.created_at,
                 href="/agents#learning-loop",
                 source_id=str(row.id),

@@ -45,7 +45,8 @@ async def test_compose_approval_inbox_merges_publish_and_suggestions() -> None:
 
     class _Suggestion:
         id = uuid.uuid4()
-        summary = "Add retry guard"
+        title = "Retry guard"
+        description = "Add retry guard"
         proposal_type = "verified_skill_forge"
         created_at = created
 
