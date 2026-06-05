@@ -25,7 +25,7 @@ export function MarketingShell({ children }: MarketingShellProps): JSX.Element {
       <main>{children}</main>
       <footer className="border-t border-(--qs-border) px-4 py-10 text-sm text-(--qs-text-3)">
         <div className="mx-auto flex max-w-6xl flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <p>Verified agent skills and content packs — simulate-first, sell with confidence.</p>
+          <p>Buy verified agent skills and content packs — simulate-first, tested before publish.</p>
           <p>Purchases on external marketplaces · {marketingPublicOrigin().replace("https://", "")}</p>
         </div>
       </footer>

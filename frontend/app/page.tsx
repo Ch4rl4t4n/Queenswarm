@@ -12,7 +12,7 @@ import { fetchMarketingCatalog } from "@/lib/marketing-products";
 export const metadata: Metadata = {
   title: "Let Agents Cook — Verified agent skills",
   description:
-    "Verified agent skills and content packs — simulate-first, sell with confidence.",
+    "Buy verified agent skills and content packs — every listing is simulate-first and scorecard-checked before publish.",
 };
 
 export default async function RootPage(): Promise<JSX.Element> {
@@ -29,11 +29,12 @@ export default async function RootPage(): Promise<JSX.Element> {
       <section className="mx-auto max-w-6xl px-4 py-16">
         <p className="text-xs uppercase tracking-[0.2em] text-pollen">Let Agents Cook</p>
         <h1 className="mt-3 max-w-3xl font-[family-name:var(--font-hive-display)] text-4xl font-bold leading-tight md:text-5xl">
-          Verified agent skills and content packs — simulate-first, sell with confidence.
+          Buy verified agent skills and content packs — tested before you purchase.
         </h1>
         <p className="mt-4 max-w-2xl text-base text-(--qs-text-2)">
-          Every listing ships with guardrails, harness files, and a quality score. Browse here, buy on external
-          marketplaces — professional delivery, not prompt dumps.
+          We build and QA every listing with guardrails, harness files, and a quality score. You browse here, then
+          checkout on Gumroad (or other listed stores) and download the bundle — professional delivery, not prompt
+          dumps.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Link href="/skills" className="qs-btn qs-btn--primary">

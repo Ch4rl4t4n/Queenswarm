@@ -18,7 +18,7 @@ Updated: 2026-06-05
 ## Brand
 
 - **Name:** Let Agents Cook
-- **Recommended tagline:** *Verified agent skills and content packs — simulate-first, sell with confidence.*
+- **Recommended tagline (buyer-facing):** *Buy verified agent skills and content packs — tested before you purchase.*
 - **Alt taglines (A/B):**
   - *Professional harnesses with guardrails built in — not hype stapled on.*
   - *Every listing passes simulation before it reaches your customer.*
