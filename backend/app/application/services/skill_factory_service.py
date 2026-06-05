@@ -76,6 +76,9 @@ class TenantSkillOut(BaseModel):
     factory_disposition: str | None = None
     factory_attempt_count: int = 0
     factory_disposition_note: str | None = None
+    library_verdict: str | None = None
+    library_verdict_reason: str | None = None
+    library_verdict_action: str | None = None
     is_active: bool
     is_builtin: bool = False
 
@@ -240,12 +243,14 @@ def _tenant_skill_out(
     gumroad_ref: dict[str, Any] | None = None,
     sellable: Any | None = None,
     disposition: Any | None = None,
+    sieve: Any | None = None,
 ) -> TenantSkillOut:
     from app.application.services.skill_factory_sellable import SkillSellableAssessment, assess_tenant_skill_sellable
 
     assessment: SkillSellableAssessment = sellable or assess_tenant_skill_sellable(row)
     ref = gumroad_ref or {}
     disp = disposition
+    sieve_out = sieve
     return TenantSkillOut(
         id=str(row.id),
         slug=row.slug,
@@ -269,6 +274,9 @@ def _tenant_skill_out(
         factory_disposition=disp.disposition if disp is not None else None,
         factory_attempt_count=int(disp.attempt_count) if disp is not None else 0,
         factory_disposition_note=disp.note if disp is not None else None,
+        library_verdict=sieve_out.verdict if sieve_out is not None else None,
+        library_verdict_reason=sieve_out.reason if sieve_out is not None else None,
+        library_verdict_action=sieve_out.action if sieve_out is not None else None,
         is_active=row.is_active,
         is_builtin=False,
     )
@@ -802,6 +810,7 @@ async def compose_skill_factory_snapshot(
     )
 
     from app.application.services.skill_factory_disposition import derive_niche_from_skill, resolve_skill_disposition
+    from app.application.services.skill_library_sieve import compute_library_sieve_verdict
     from app.infrastructure.persistence.models.tenant import Tenant
 
     tenant_row = await session.get(Tenant, tenant_id)
@@ -822,11 +831,17 @@ async def compose_skill_factory_snapshot(
             niche=derive_niche_from_skill(row),
             settings=tenant_settings,
         )
+        sieve = compute_library_sieve_verdict(
+            assessment,
+            attempt_count=int(disposition.attempt_count) if disposition else 0,
+            disposition=disposition.disposition if disposition else None,
+        )
         skill_out = _tenant_skill_out(
             row,
             gumroad_ref=gumroad_by_skill.get(row.id),
             sellable=assessment,
             disposition=disposition,
+            sieve=sieve,
         )
         library_out.append(skill_out)
         if assessment.tier == "sellable":

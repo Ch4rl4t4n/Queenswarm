@@ -11,7 +11,10 @@ import {
   factoryBuildDisabled,
   type FactoryLlmReadiness,
 } from "@/components/apps-tools/factory-llm-readiness-banner";
-import { FactoryLibrarySkillCard } from "@/components/apps-tools/factory-library-skill-card";
+import {
+  FactoryLibrarySkillCard,
+  type InlineEvalResult,
+} from "@/components/apps-tools/factory-library-skill-card";
 import {
   FactoryQueueTaskCard,
   isStuckFactoryBuild,
@@ -26,10 +29,15 @@ import { HiveSwitch } from "@/components/ui/hive-switch";
 import { V4Badge, V4Card, V4CardHeader, V4Chip } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
 import {
+  LIBRARY_SIEVE_LABELS,
+  type LibrarySieveVerdict,
+} from "@/lib/sellable-issue-labels";
+import {
   navigateSkillFactoryTab,
   resolveSkillFactoryTab,
   type SkillFactoryTab,
 } from "@/lib/apps-tools-routes";
+import { cn } from "@/lib/utils";
 import { useRouteHash } from "@/lib/hooks/use-route-hash";
 import { downloadSkillExportBundle, downloadTextFile } from "@/lib/skill-export-utils";
 import type { FactoryProductPreset, HarnessEvalResult, LaunchPrepareResult, SkillExportResponse } from "@/lib/hive-types";
@@ -99,6 +107,9 @@ interface TenantSkillRow {
   factory_disposition: string | null;
   factory_attempt_count: number;
   factory_disposition_note: string | null;
+  library_verdict: string | null;
+  library_verdict_reason: string | null;
+  library_verdict_action: string | null;
 }
 
 interface LaunchReadiness {
@@ -170,6 +181,9 @@ export function SkillFactoryPageClient(): JSX.Element {
   const [starterSeeds, setStarterSeeds] = useState<string[]>(FALLBACK_STARTER_PRESETS);
   const [productPresets, setProductPresets] = useState<FactoryProductPreset[]>([]);
   const [sessionReportId, setSessionReportId] = useState<string | null>(null);
+  const [librarySieve, setLibrarySieve] = useState<LibrarySieveVerdict>("all");
+  const [inlineEvalBySkill, setInlineEvalBySkill] = useState<Record<string, InlineEvalResult>>({});
+  const [evalReportCache, setEvalReportCache] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -267,6 +281,31 @@ export function SkillFactoryPageClient(): JSX.Element {
     () => (snapshot?.opportunities ?? []).filter((row) => row.status === "completed"),
     [snapshot?.opportunities],
   );
+
+  const librarySieveCounts = useMemo(() => {
+    const counts: Record<LibrarySieveVerdict, number> = {
+      all: snapshot?.library?.length ?? 0,
+      launch: 0,
+      worth_retry: 0,
+      deprioritize: 0,
+      retire: 0,
+    };
+    for (const row of snapshot?.library ?? []) {
+      const v = row.library_verdict as Exclude<LibrarySieveVerdict, "all"> | null;
+      if (v && v in counts) {
+        counts[v] += 1;
+      }
+    }
+    return counts;
+  }, [snapshot?.library]);
+
+  const filteredLibraryRows = useMemo(() => {
+    const rows = snapshot?.library ?? [];
+    if (librarySieve === "all") {
+      return rows;
+    }
+    return rows.filter((row) => row.library_verdict === librarySieve);
+  }, [snapshot?.library, librarySieve]);
 
   const runResearch = async (): Promise<void> => {
     setResearchBusy(true);
@@ -389,15 +428,47 @@ export function SkillFactoryPageClient(): JSX.Element {
     setBusyId(id);
     try {
       const result = await hivePostJson<HarnessEvalResult>(`skill-factory/skills/${id}/eval`, {});
-      downloadTextFile(`${title.slice(0, 40).replace(/[^a-z0-9]+/gi, "-")}-EVAL_REPORT.md`, result.eval_report_md);
-      toast.success(result.passed ? "Eval PASS — report downloaded" : "Eval FAIL — see report", {
-        description: result.issues.slice(0, 3).join(", ") || undefined,
+      setInlineEvalBySkill((prev) => ({
+        ...prev,
+        [id]: {
+          passed: result.passed,
+          tier: result.tier,
+          score: result.score,
+          issues: result.issues,
+          evaluated_at: new Date().toISOString(),
+        },
+      }));
+      setEvalReportCache((prev) => ({ ...prev, [id]: result.eval_report_md }));
+      toast.success(result.passed ? "Eval PASS — keep in launch queue" : "Eval FAIL — see card verdict", {
+        description: result.passed
+          ? "Export harness pack when ready."
+          : "Retire or Smart rebuild based on sieve banner on card.",
       });
     } catch (e) {
       toast.error(e instanceof HiveApiError ? e.message : "Eval failed.");
     } finally {
       setBusyId(null);
     }
+  };
+
+  const downloadEvalReport = async (id: string, title: string): Promise<void> => {
+    let md = evalReportCache[id];
+    if (!md) {
+      const result = await hivePostJson<HarnessEvalResult>(`skill-factory/skills/${id}/eval`, {});
+      md = result.eval_report_md;
+      setEvalReportCache((prev) => ({ ...prev, [id]: md }));
+      setInlineEvalBySkill((prev) => ({
+        ...prev,
+        [id]: {
+          passed: result.passed,
+          tier: result.tier,
+          score: result.score,
+          issues: result.issues,
+          evaluated_at: new Date().toISOString(),
+        },
+      }));
+    }
+    downloadTextFile(`${title.slice(0, 40).replace(/[^a-z0-9]+/gi, "-")}-EVAL_REPORT.md`, md);
   };
 
   const prepareLaunchBatch = async (): Promise<void> => {
@@ -954,15 +1025,25 @@ export function SkillFactoryPageClient(): JSX.Element {
             <V4Card className="mt-4">
               <V4CardHeader
                 title="Tenant skill library"
-                description={`${(snapshot.library ?? []).length} active skill${(snapshot.library ?? []).length === 1 ? "" : "s"} — each verified skill is available to all swarm sessions via SkillLibrary.`}
+                description="Sieve — verdict on every card: launch, fix & retry, deprioritize, or retire. Run eval shows result inline (no download required)."
                 hint={sectionHintNode("skillFactoryLibrary")}
               />
-              <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-(--qs-text-3)">
-                Library skills
-                <span className="ml-2 font-normal normal-case tracking-normal text-(--qs-text-4)">
-                  rejected/draft → Smart rebuild injects learnings; Retire stops future research on niche
-                </span>
-              </p>
+              <div className="mt-3 flex flex-wrap gap-2 px-1">
+                {(["all", "launch", "worth_retry", "deprioritize", "retire"] as const).map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={cn(
+                      "qs-btn qs-btn--sm",
+                      librarySieve === key ? "qs-btn--primary" : "qs-btn--ghost",
+                    )}
+                    onClick={() => setLibrarySieve(key)}
+                  >
+                    {key === "all" ? "All" : LIBRARY_SIEVE_LABELS[key]}
+                    <span className="ml-1 opacity-70">({librarySieveCounts[key]})</span>
+                  </button>
+                ))}
+              </div>
               <div className="v4-sessions-list-scroll hive-scrollbar mt-2">
                 {(snapshot.library ?? []).length === 0 ? (
                   <div className="rounded-xl border border-dashed border-(--qs-border) bg-black/20 px-4 py-6 text-center">
@@ -970,8 +1051,14 @@ export function SkillFactoryPageClient(): JSX.Element {
                       No tenant skills yet — approve a completed build in Queue, then export here.
                     </p>
                   </div>
+                ) : filteredLibraryRows.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-(--qs-border) bg-black/20 px-4 py-6 text-center">
+                    <p className="text-sm text-(--qs-text-2)">
+                      No skills in this sieve — try another filter.
+                    </p>
+                  </div>
                 ) : (
-                  (snapshot.library ?? []).map((row) => (
+                  filteredLibraryRows.map((row) => (
                     <FactoryLibrarySkillCard
                       key={row.id}
                       row={row}
@@ -979,10 +1066,12 @@ export function SkillFactoryPageClient(): JSX.Element {
                       githubPrReady={snapshot.github_pr_export_ready}
                       gumroadListingReady={snapshot.gumroad_listing_ready}
                       gumroadPublishReady={snapshot.gumroad_publish_ready}
+                      inlineEval={inlineEvalBySkill[row.id] ?? null}
                       onSmartRebuild={(id) => void smartRebuildSkill(id)}
                       onDeprioritize={(id) => void setSkillDisposition(id, "deprioritized", "Niche deprioritized — lower research priority.")}
                       onRetire={(id) => void setSkillDisposition(id, "retired", "Niche retired — excluded from research.")}
                       onEval={(id, title) => void evalSkill(id, title)}
+                      onDownloadEvalReport={(id, title) => void downloadEvalReport(id, title)}
                       onExport={(id) => void exportSkill(id)}
                       onGithubPr={(id) => void pushGithubPr(id)}
                       onGumroadDraft={(id) => void createGumroadDraft(id)}

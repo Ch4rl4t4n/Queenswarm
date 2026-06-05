@@ -9,7 +9,27 @@ const LABELS: Record<string, string> = {
   factory_draft_description: "Description must be buyer-facing",
   duplicate_niche_suffix: "Differentiate from prior attempt",
   skill_markdown_invalid: "Invalid SKILL.md per agentskills.io",
+  not_verified: "Not verified — approve forge first",
 };
+
+export type LibrarySieveVerdict = "launch" | "worth_retry" | "deprioritize" | "retire" | "all";
+
+export const LIBRARY_SIEVE_LABELS: Record<Exclude<LibrarySieveVerdict, "all">, string> = {
+  launch: "Launch ready",
+  worth_retry: "Fix & retry",
+  deprioritize: "Deprioritize",
+  retire: "Retire candidate",
+};
+
+export function verdictTone(
+  verdict: string | null | undefined,
+): "ok" | "warn" | "err" | "info" | "purple" | "gold" {
+  if (verdict === "launch") return "ok";
+  if (verdict === "worth_retry") return "info";
+  if (verdict === "deprioritize") return "warn";
+  if (verdict === "retire") return "err";
+  return "warn";
+}
 
 export function sellableIssueLabel(code: string): string {
   return LABELS[code] ?? code.replaceAll("_", " ");

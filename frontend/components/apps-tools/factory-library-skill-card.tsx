@@ -13,7 +13,16 @@ import {
 } from "lucide-react";
 
 import { V4Badge } from "@/components/ui/v4";
+import { sellableIssueLabel, verdictTone } from "@/lib/sellable-issue-labels";
 import { cn } from "@/lib/utils";
+
+export interface InlineEvalResult {
+  passed: boolean;
+  tier: string;
+  score: number;
+  issues: string[];
+  evaluated_at: string;
+}
 
 export interface FactoryLibrarySkillRow {
   id: string;
@@ -30,6 +39,9 @@ export interface FactoryLibrarySkillRow {
   factory_disposition: string | null;
   factory_attempt_count: number;
   factory_disposition_note: string | null;
+  library_verdict: string | null;
+  library_verdict_reason: string | null;
+  library_verdict_action: string | null;
 }
 
 function scorePct(score: number): string {
@@ -71,6 +83,8 @@ interface FactoryLibrarySkillCardProps {
   onGithubPr?: (id: string) => void;
   onGumroadDraft?: (id: string) => void;
   onGumroadPublish?: (id: string) => void;
+  inlineEval?: InlineEvalResult | null;
+  onDownloadEvalReport?: (id: string, title: string) => void;
 }
 
 export function FactoryLibrarySkillCard({
@@ -87,6 +101,8 @@ export function FactoryLibrarySkillCard({
   onGithubPr,
   onGumroadDraft,
   onGumroadPublish,
+  inlineEval,
+  onDownloadEvalReport,
 }: FactoryLibrarySkillCardProps): JSX.Element {
   const busy = busyId === row.id;
   const rejected = row.sellable_tier === "rejected";
@@ -95,14 +111,39 @@ export function FactoryLibrarySkillCard({
   const retired = row.factory_disposition === "retired";
   const dispLabel = dispositionLabel(row.factory_disposition);
 
-  const issueSummary =
-    row.sellable_issues.length > 0
-      ? `Issues: ${row.sellable_issues.join(", ")}`
-      : "Skill Factory session completed — review critic verdict and SKILL.md before publish.";
+  const verdict = row.library_verdict;
+  const issueLabels = row.sellable_issues.map(sellableIssueLabel);
 
   return (
-    <div className="v4-session-row v4-session-row--pollen" data-testid="factory-library-row">
+    <div
+      className={cn(
+        "v4-session-row v4-session-row--pollen",
+        verdict === "retire" && "border-error/40",
+        verdict === "launch" && "border-success/35",
+      )}
+      data-testid="factory-library-row"
+      data-library-verdict={verdict ?? "unknown"}
+    >
       <div className="min-w-0 flex-1">
+        {verdict ? (
+          <div
+            className={cn(
+              "mb-2 rounded-lg border px-3 py-2 text-xs",
+              verdict === "launch" && "border-success/40 bg-success/10 text-success",
+              verdict === "worth_retry" && "border-cyan/40 bg-cyan/10 text-cyan",
+              verdict === "deprioritize" && "border-pollen/40 bg-pollen/10 text-pollen",
+              verdict === "retire" && "border-error/40 bg-error/10 text-error",
+            )}
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <V4Badge tone={verdictTone(verdict)}>{verdict.replaceAll("_", " ")}</V4Badge>
+              <span className="text-(--qs-text-2)">{row.library_verdict_reason}</span>
+            </div>
+            {row.library_verdict_action ? (
+              <p className="mt-1 text-(--qs-text-3)">→ {row.library_verdict_action}</p>
+            ) : null}
+          </div>
+        ) : null}
         <div className="mb-1 flex flex-wrap items-center gap-2">
           <V4Badge tone={tierTone(row.sellable_tier)}>
             {row.sellable_tier} · {scorePct(row.sellable_score)}
@@ -119,16 +160,46 @@ export function FactoryLibrarySkillCard({
           {row.title}
         </p>
         <p className="mt-1 font-mono text-[10px] text-pollen">{row.slug}</p>
-        <p className="mt-2 text-xs text-(--qs-text-3)">
-          {issueSummary}
-          {row.factory_disposition_note ? (
-            <span className="mt-1 block text-(--qs-text-4)">Note: {row.factory_disposition_note}</span>
-          ) : null}
-        </p>
-        {canSmartRebuild ? (
-          <p className="mt-2 text-[11px] text-cyan">
-            Smart rebuild injects prior failures into factory goal — critic APPROVE + 3+ workflow steps required.
-          </p>
+        {issueLabels.length > 0 ? (
+          <ul className="mt-2 space-y-0.5 text-xs text-(--qs-text-3)">
+            {issueLabels.map((label) => (
+              <li key={label}>· {label}</li>
+            ))}
+          </ul>
+        ) : null}
+        {inlineEval ? (
+          <div
+            className={cn(
+              "mt-3 rounded-lg border px-3 py-2 text-xs",
+              inlineEval.passed ? "border-success/40 bg-success/5" : "border-error/40 bg-error/5",
+            )}
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <V4Badge tone={inlineEval.passed ? "ok" : "err"}>
+                Eval {inlineEval.passed ? "PASS" : "FAIL"} · {Math.round(inlineEval.score * 100)}%
+              </V4Badge>
+              <span className="text-(--qs-text-4)">{inlineEval.tier}</span>
+              {onDownloadEvalReport ? (
+                <button
+                  type="button"
+                  className="text-cyan underline"
+                  onClick={() => onDownloadEvalReport(row.id, row.title)}
+                >
+                  Download report
+                </button>
+              ) : null}
+            </div>
+            {inlineEval.issues.length > 0 ? (
+              <ul className="mt-1 space-y-0.5 text-(--qs-text-3)">
+                {inlineEval.issues.slice(0, 5).map((issue) => (
+                  <li key={issue}>· {sellableIssueLabel(issue)}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : null}
+        {row.factory_disposition_note ? (
+          <p className="mt-2 text-xs text-(--qs-text-4)">Note: {row.factory_disposition_note}</p>
         ) : null}
       </div>
 
@@ -174,7 +245,7 @@ export function FactoryLibrarySkillCard({
           onClick={() => onEval(row.id, row.title)}
         >
           <SparklesIcon className="size-3.5" aria-hidden />
-          Run eval
+          {inlineEval ? "Re-eval" : "Run eval"}
         </button>
         <button
           type="button"
