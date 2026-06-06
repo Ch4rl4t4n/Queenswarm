@@ -1597,6 +1597,14 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         await route.fulfill({ status: 200, contentType: "application/json", body: "null" });
         return;
       }
+      if (path === "memory/wiki-layer/capture" && route.request().method() === "POST") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ id: "capture-stub", markdown: "", topic_tags: ["second_brain:capture"] }),
+        });
+        return;
+      }
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({}) });
       return;
     }

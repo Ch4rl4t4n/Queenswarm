@@ -41,6 +41,8 @@ _WIKI_PAGE_SLUGS: tuple[tuple[str, str], ...] = (
     ("project-briefs", "Project briefs"),
     ("forager-insights", "Forager insights"),
     ("verified-recipes", "Verified recipes"),
+    ("maps-of-content", "Maps of content"),
+    ("connection-intelligence", "Connection intelligence"),
 )
 
 
@@ -370,6 +372,29 @@ class WikiLayerService:
                 source_refs=[{"type": "recipe", "ids": [str(r.id) for r in recipes]}],
             )
 
+            from app.application.services.wiki_connection_synthesizer import (
+                compile_connection_intelligence,
+                compile_maps_of_content,
+            )
+
+            capture_items = await self._fetch_capture_knowledge(tenant_id)
+            moc_md = compile_maps_of_content(capture_items or raw_items)
+            pages_updated += await self._upsert_page(
+                tenant_id,
+                slug="maps-of-content",
+                title="Maps of content",
+                content_md=moc_md,
+                source_refs=[{"type": "knowledge_item", "ids": [str(r.id) for r in capture_items[:24]]}],
+            )
+            intel_md = compile_connection_intelligence(capture_items or raw_items)
+            pages_updated += await self._upsert_page(
+                tenant_id,
+                slug="connection-intelligence",
+                title="Connection intelligence",
+                content_md=intel_md,
+                source_refs=[{"type": "knowledge_item", "ids": [str(r.id) for r in capture_items[:24]]}],
+            )
+
             run.status = WikiGardenerStatusORM.COMPLETED
             run.pages_updated = pages_updated
             run.raw_scanned = len(raw_items)
@@ -498,6 +523,25 @@ class WikiLayerService:
                     .where(
                         KnowledgeItem.tenant_id == tenant_id,
                         KnowledgeItem.scraped_at >= since,
+                    )
+                    .order_by(desc(KnowledgeItem.scraped_at))
+                    .limit(limit),
+                )
+            ).all(),
+        )
+
+    async def _fetch_capture_knowledge(self, tenant_id: uuid.UUID, *, limit: int = 80) -> list[KnowledgeItem]:
+        """Load second-brain capture notes for MOC / connection intelligence."""
+
+        since = datetime.now(tz=UTC) - timedelta(days=180)
+        return list(
+            (
+                await self._db.scalars(
+                    select(KnowledgeItem)
+                    .where(
+                        KnowledgeItem.tenant_id == tenant_id,
+                        KnowledgeItem.scraped_at >= since,
+                        KnowledgeItem.source_type == "second_brain_capture",
                     )
                     .order_by(desc(KnowledgeItem.scraped_at))
                     .limit(limit),

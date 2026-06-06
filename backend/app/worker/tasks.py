@@ -354,6 +354,9 @@ def run_supervisor_sub_agent_step_task(
         aid = uuid.UUID(sub_agent_session_id)
         shared_context = SharedContextService()
         async with async_session() as session:
+            from app.application.services.llm_runtime_credentials import refresh_llm_secret_cache
+
+            await refresh_llm_secret_cache(session)
             sup = await session.get(SupervisorSession, sid)
             sub = await session.get(SubAgentSession, aid)
             if sup is None or sub is None:

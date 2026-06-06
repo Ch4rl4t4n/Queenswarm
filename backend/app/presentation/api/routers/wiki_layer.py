@@ -15,6 +15,12 @@ from app.application.services.knowledge_elicitation import (
     apply_knowledge_elicitation_answer,
     compose_knowledge_elicitation_snapshot,
 )
+from app.application.services.second_brain_capture import (
+    SecondBrainCaptureIn,
+    SecondBrainCaptureOut,
+    empty_capture_template,
+    persist_capture_note,
+)
 from app.application.services.wiki_layer_service import (
     WikiLayerService,
     load_wiki_config,
@@ -217,6 +223,32 @@ async def latest_gardener_run(
         created_at=run.created_at.isoformat() if run.created_at else None,
         completed_at=run.completed_at.isoformat() if run.completed_at else None,
     )
+
+
+@router.get("/capture/template", summary="Second-brain capture markdown template")
+async def capture_template(
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, str]:
+    """Return IDEA / CONNECTS TO / MIGHT USE FOR / Key Tension skeleton."""
+
+    _ = principal
+    return {"markdown": empty_capture_template()}
+
+
+@router.post("/capture", response_model=SecondBrainCaptureOut, summary="Quick-capture second-brain note")
+async def capture_second_brain_note(
+    body: SecondBrainCaptureIn,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> SecondBrainCaptureOut:
+    """Persist structured capture into raw tier; Gardener compiles MOC + connections."""
+
+    if not settings.wiki_layer_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Wiki Layer disabled.")
+    tenant_id = _tenant_id_from(principal)
+    result = await persist_capture_note(db, tenant_id=tenant_id, payload=body)
+    await db.commit()
+    return result
 
 
 @router.get("/export/obsidian", summary="Export Brain Pack + wiki as Obsidian ZIP")
