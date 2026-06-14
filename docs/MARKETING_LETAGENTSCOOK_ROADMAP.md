@@ -60,8 +60,8 @@ Updated: 2026-06-05
 | M3 | `marketing_catalog_sync.py` + `GET /api/v1/marketing/products` | Agent | ✅ |
 | M4 | Pages: `/`, `/skills`, `/skills/[slug]` (`/start` → `/skills` redirect) | Agent | ✅ |
 | M5 | Playwright smoke + OG images from `cover.html` | Agent | pending M4 |
-| M6 | Gumroad URL sync from upload tracker → catalog | Agent | pending M4 |
-| M7 | Multi-marketplace URL sync (Gumroad + future stores) in catalog | Agent | pending M6 |
+| M6 | Gumroad URL sync from upload tracker → catalog | Agent | ✅ |
+| M7 | Multi-marketplace URL sync (Gumroad + future stores) in catalog | Agent | ✅ |
 
 ## App integration (automation)
 

@@ -1508,6 +1508,14 @@ class Settings(BaseSettings):
         default="",
         description="Stripe webhook signing secret (whsec_...) — never log or expose.",
     )
+    gumroad_webhook_secret: str = Field(
+        default="",
+        description="Path secret for POST /commerce/webhooks/gumroad/{secret} Gumroad ping ingress.",
+    )
+    gumroad_purchase_unlock_enabled: bool = Field(
+        default=True,
+        description="When true, Gumroad sale ping unlocks premium recipe export for matching dashboard email.",
+    )
     social_publish_rate_limit_window_sec: float = Field(
         default=86400.0,
         gt=0,

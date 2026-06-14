@@ -130,6 +130,8 @@ Všetko ostatné (research, build, export, LISTING.md, `.tar.gz`) robí factory 
 | Stiahnuť pack | Launch / Library → **Download GitHub pack** |
 | Gumroad draft (API) | Library → **Gumroad draft** (ak token) alebo `scripts/skill_factory_gumroad_batch_draft.py --execute` |
 | Token / integrácia | Settings / Integrations → `gumroad_rest` |
+| Gumroad ping webhook | Gumroad Settings → Ping → `https://queenswarm.love/api/v1/commerce/webhooks/gumroad/{GUMROAD_WEBHOOK_SECRET}` + `COMMERCE_WEBHOOKS_ENABLED=true` |
+| URL auto-sync (API) | `POST /api/v1/commerce/catalog/sync-gumroad` (owner/admin JWT) |
 | Manuálny upload tracker | `scripts/gumroad_upload_tracker.py --next 5` |
 | Operator skripty | `./scripts/factory-first-revenue-bootstrap.sh` |
 

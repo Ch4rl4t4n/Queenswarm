@@ -316,7 +316,7 @@ Sales domain for verified skills/content packs. App remains **queenswarm.love**.
 | MK4 | `/skills` index + `/skills/[slug]` + `/start` bridge | ✅ code shipped |
 | MK5 | Catalog v1: 12 unique listings live (16 ready, deduped) | ✅ 14 live |
 | MK6 | Scale factory → **50+** scorecard-clean listings | Wave 1–2 |
-| MK7 | Gumroad URL auto-sync + purchase webhook unlock | pending MK5 |
+| MK7 | Gumroad URL auto-sync + purchase webhook unlock | ✅ |
 
 **Featured homepage (agent-picked):** newsletter growth loop · SEO simulate-first pipeline · 30-day Instagram calendar.
 

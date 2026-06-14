@@ -27,7 +27,7 @@ COMMERCE_EVENT_KEY_PREFIX = "commerce:order_event:v1"
 COMMERCE_EVENT_INDEX_KEY = "commerce:order_event:index:v1"
 COMMERCE_EVENT_TTL_SEC = 7 * 24 * 3600
 COMMERCE_EVENT_INDEX_TTL_SEC = 8 * 24 * 3600
-CommerceProvider = Literal["stripe", "shopify"]
+CommerceProvider = Literal["stripe", "shopify", "gumroad"]
 
 
 class CommerceOrderEvent(BaseModel):
@@ -110,7 +110,7 @@ def _parse_index_member(member: str) -> tuple[CommerceProvider, str] | None:
     if ":" not in member:
         return None
     provider_raw, event_id = member.split(":", 1)
-    if provider_raw not in {"stripe", "shopify"} or not event_id.strip():
+    if provider_raw not in {"stripe", "shopify", "gumroad"} or not event_id.strip():
         return None
     return provider_raw, event_id
 
