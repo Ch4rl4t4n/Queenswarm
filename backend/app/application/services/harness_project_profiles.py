@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.infrastructure.persistence.models.tenant import Tenant
 
-HarnessProfileId = Literal["marketing", "factory", "trading", "general"]
+HarnessProfileId = Literal["marketing", "factory", "trading", "investments", "general"]
 
 PROFILES_KEY = "harness_profiles"
 
@@ -75,6 +75,18 @@ DEFAULT_PROFILES: tuple[HarnessProjectProfileOut, ...] = (
         default_goal_hint="Evaluator consensus first — live USDC orders only after operator approval.",
     ),
     HarnessProjectProfileOut(
+        profile_id="investments",
+        label="Investments harness",
+        description="Moneta PM — anonymized product briefs, research, stakeholder alignment.",
+        skill_slugs=["grill-me", "decision-frameworks", "business-strategy-simulator"],
+        cbo_lane="research",
+        module_key="research_workspace",
+        default_goal_hint=(
+            "Anonymized investment product brief — no bank PII. "
+            "Research + grill-me follow-ups, simulate-first."
+        ),
+    ),
+    HarnessProjectProfileOut(
         profile_id="general",
         label="General operator",
         description="Balanced context + decision frameworks.",
@@ -110,7 +122,7 @@ def compose_harness_profiles_state(tenant: Tenant | None) -> HarnessProfilesStat
 
     block = _profiles_root(tenant)
     active = str(block.get("active_profile_id") or "general")
-    if active not in {"marketing", "factory", "trading", "general"}:
+    if active not in {"marketing", "factory", "trading", "investments", "general"}:
         active = "general"
     updated_raw = block.get("updated_at")
     updated: datetime | None = None

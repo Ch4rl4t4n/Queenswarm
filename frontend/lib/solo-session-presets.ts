@@ -20,6 +20,7 @@ export const SOLO_PRESET_LANE_LABEL: Record<string, string> = {
   po: "Bank PO",
   marketing: "Marketing",
   trading: "Trading",
+  investments: "Investments",
   sales: "Sales / Lead Gen",
   ops: "Ops",
 };

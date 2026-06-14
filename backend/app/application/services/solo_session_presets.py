@@ -119,6 +119,31 @@ SOLO_SESSION_PRESETS: dict[str, SoloSessionPresetOut] = {
         ),
         skills=["context", "execution-studio", "publish_pack"],
     ),
+    "investment-product-brief": SoloSessionPresetOut(
+        id="investment-product-brief",
+        label="Investments — product brief",
+        lane="investments",
+        goal=(
+            "PROJECT: Investment / product brief (verify-first).\n\n"
+            "Complete these sections (anonymized — no bank PII):\n"
+            "1. Problem — pain or opportunity\n"
+            "2. Audience — segments who benefit\n"
+            "3. KPI — leading + lagging success metrics\n"
+            "4. Regulatory notes — compliance constraints (no internal policy numbers)\n"
+            "5. Open questions — unknowns for stakeholder grill\n"
+            "6. Sources to fetch — public URLs or operator-provided docs\n\n"
+            "Deliverables:\n"
+            "- Structured brief markdown (SK or EN per operator)\n"
+            "- 3 HiveMind recall bullets with citations\n"
+            "- grill-me follow-up questions (max 5) if gaps remain\n"
+            "- Critic APPROVE before final operator_reply (≤400 words)\n\n"
+            f"{_BANK_PO_GUARDRAIL}\n"
+            "Use Research Bee + simulate-first. Dispatch to Kanban when done."
+        ),
+        roles=["researcher", "critic"],
+        skills=["grill-me", "decision-frameworks", "business-strategy-simulator"],
+        retrieval_contract="customer_history+policy+last_3_tasks",
+    ),
     "competitor-research": SoloSessionPresetOut(
         id="competitor-research",
         label="Research — competitor intel",

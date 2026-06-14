@@ -21,6 +21,7 @@ from app.application.services.solo_session_presets import (
         "marketing-campaign",
         "competitor-research",
         "lead-gen-lane",
+        "investment-product-brief",
     ],
 )
 def test_get_solo_session_preset_when_known_returns_row(preset_id: str) -> None:
@@ -40,5 +41,9 @@ def test_list_solo_session_presets_includes_bank_po(monkeypatch: pytest.MonkeyPa
 
     monkeypatch.setattr(config.settings, "solo_mode_enabled", True)
     presets = list_solo_session_presets()
-    assert len(presets) >= 8
+    assert len(presets) >= 9
+    brief = get_solo_session_preset("investment-product-brief")
+    assert brief is not None
+    assert "Regulatory notes" in brief.goal
+    assert "grill-me" in brief.skills
     assert any(row.id == "bank-po-brief" for row in presets)

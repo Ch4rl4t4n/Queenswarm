@@ -110,7 +110,7 @@ Canonical design for **P10 Track N** — low-effort operator packs inspired by J
 
 **Reuses:** `swarm-wizard-templates` · OW7 picker · **DA4** wizard pattern (lighter)
 
-**Est.:** 1–2 d · **Priority:** P0 (Moneta daily)
+**Est.:** 1–2 d · **Priority:** P0 (Moneta daily) · **Status:** ✅ shipped (`investment-product-brief` preset)
 
 ---
 
@@ -146,7 +146,7 @@ Canonical design for **P10 Track N** — low-effort operator packs inspired by J
 
 **Reuses:** AOS1 CBO panel · profile switcher (already shipped for 4 profiles)
 
-**Est.:** 1 d · **Priority:** P0
+**Est.:** 1 d · **Priority:** P0 · **Status:** ✅ shipped (5th harness profile)
 
 ---
 

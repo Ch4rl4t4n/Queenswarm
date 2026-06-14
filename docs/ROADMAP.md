@@ -686,10 +686,10 @@ _Signals: Jun 2026 operator batch — [grill-me](https://www.youtube.com/watch?v
 | NP1 | **Stakeholder Grill wizard** — structured interview → brief artifact | P1 | 2–3 d | ⏳ | `grill-me.md` · task workspace |
 | NP2 | **Creative rubric presets** — composition · accuracy · brand (Riverflow pattern) | P1 | 1–2 d | ⏳ | `rubric_templates.py` · publish simulate |
 | NP3 | **Brand Context Pack** — voice · refs · forbidden claims in Brain Pack | P1 | 2 d | ⏳ | Curated memory · AOS1 marketing |
-| NP4 | **Investment brief goal template** — problem · KPI · compliance · open Q | P0 | 1–2 d | ⏳ | OW7 templates · Research Bee |
+| NP4 | **Investment brief goal template** — problem · KPI · compliance · open Q | P0 | 1–2 d | ✅ | OW7 presets · Research Bee |
 | NP5 | **Trading thesis brief** — prob · edge · kill criteria → risk preflight | P1 | 2 d | ⏳ | Trading cockpit · AOS1 trading |
 | NP6 | **Campaign launch wizard** — brand → draft → rubric → simulate publish | P1 | 2–3 d | ⏳ | Publish onboarding · **NP2+NP3** |
-| NP7 | **AOS1 `investments` harness profile** — Moneta PM default skills + lane | P0 | 1 d | ⏳ | `harness_project_profiles.py` |
+| NP7 | **AOS1 `investments` harness profile** — Moneta PM default skills + lane | P0 | 1 d | ✅ | `harness_project_profiles.py` |
 | NP8 | **Video URL batch → intel brief** — paste list → digest → wiki/task | P2 | 2–3 d | ⏳ | Social intel · **DG6** · SB1 capture |
 
 **Operator verticals (target):**
