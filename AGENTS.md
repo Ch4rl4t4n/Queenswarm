@@ -74,7 +74,10 @@ PR-only self-maintenance. Never direct write to `main`. Denylist: `.env*`, billi
 
 ## Key docs
 
-- `docs/ROADMAP.md` — phased product plan
+- `docs/ROADMAP.md` — phased product plan (+ **P10** competitive tracks A–I)
+- `docs/ROADMAP_EXCELLENCE_RECOMMENDATIONS.md` — external signal triage (Rahul, Pikachin, …)
+- `docs/BUSINESS_DATA_ANALYTICS_OS.md` — Business Data Analytics OS (Track L / Codex-style)
+- `docs/LOCAL_SOVEREIGN_LLM_OS.md` — Local/air-gap LLM + fine-tune (Track M / Unsloth-style)
 - `docs/FEATURE_IMPLEMENTATION_GUARDRAILS.md` — mandatory perf + safety checklist for new features
 - `docs/QUEENSWARM_DESIGN_PATTERNS.md` — agentic patterns (Kashef)
 - `docs/HARNESS_SELF_MAINTAINING_ANALYSIS.md` — harness video synthesis

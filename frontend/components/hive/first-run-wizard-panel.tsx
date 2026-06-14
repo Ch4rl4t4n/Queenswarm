@@ -67,6 +67,23 @@ function FirstRunWizardPanelInner(): JSX.Element | null {
 
   return (
     <V4Card id="first-run-wizard" className="border-pollen/35 bg-pollen/5">
+      {data.capability ? (
+        <div className="border-b border-(--qs-border)/40 px-4 py-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-pollen">What Queenswarm does</p>
+          <h3 className="mt-1 font-heading text-lg font-semibold text-(--qs-text)">
+            {data.capability.headline}
+          </h3>
+          <p className="mt-1 text-sm text-(--qs-text-2)">{data.capability.subhead}</p>
+          <ul className="mt-3 space-y-1.5">
+            {data.capability.bullets.map((bullet) => (
+              <li key={bullet} className="flex gap-2 text-xs text-(--qs-muted)">
+                <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-cyan" aria-hidden />
+                <span>{bullet}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <V4CardHeader
         kicker="Setup once"
         title="First-run wizard"

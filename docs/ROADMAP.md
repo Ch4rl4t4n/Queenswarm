@@ -1,6 +1,6 @@
 # Queenswarm Roadmap & Backlog
 
-Updated: 2026-06-05
+Updated: 2026-06-11 (P10 Track Q — Mission Home & Guided UX)
 
 Living backlog for **queenswarm.love** — ordered by impact. Status reflects production host as of last deploy.
 
@@ -9,6 +9,11 @@ Living backlog for **queenswarm.love** — ordered by impact. Status reflects pr
 **Mission backlog (May 2026):** see `docs/MISSION_EXECUTION_BACKLOG.md` — **Phase 0–2 + perf dev complete**; operator gates remain.  
 **Parallel agents:** see `docs/PHASE0_AGENT_SPLIT.md`. Tomorrow operator checklist: `docs/TOMORROW_OPERATOR_RUNBOOK.md`.  
 **Latest synthesis (YouTube + X + Atlas):** [`docs/CAPABILITIES_SYNTHESIS_MAY2026.md`](CAPABILITIES_SYNTHESIS_MAY2026.md)
+**Excellence & competitive moat (P10):** [`docs/ROADMAP_EXCELLENCE_RECOMMENDATIONS.md`](ROADMAP_EXCELLENCE_RECOMMENDATIONS.md) — triage template for external signals  
+**Business Data Analytics OS (P10 L):** [`docs/BUSINESS_DATA_ANALYTICS_OS.md`](BUSINESS_DATA_ANALYTICS_OS.md) — Codex-style reports in Apps & Tools  
+**Local Sovereign LLM (P10 M):** [`docs/LOCAL_SOVEREIGN_LLM_OS.md`](LOCAL_SOVEREIGN_LLM_OS.md) — Ollama/air-gap + fine-tune lane  
+**Operator vertical packs (P10 N):** [`docs/OPERATOR_VERTICAL_PACKS.md`](OPERATOR_VERTICAL_PACKS.md) — Moneta PM · marketing rubric · trading thesis  
+**Mission Home & Guided UX (P10 Q):** [`docs/OPERATOR_MISSION_HOME_UX.md`](OPERATOR_MISSION_HOME_UX.md) — process rail · first-run · responsive clarity
 **Agentic OS split blueprint:** [`docs/AGENTIC_OS_APPS_BLUEPRINT.md`](AGENTIC_OS_APPS_BLUEPRINT.md)
 
 ## Operator Workflow UX (P0 — May 2026)
@@ -104,6 +109,10 @@ YouTube + X scrape → delta cursors → truth gate → HiveMind. Powers Tech SC
 | SI6 | X OAuth fix + vault tenant binding | ✅ |
 
 Doc: [`docs/SOCIAL_INTEL_SWARM_SETUP.md`](SOCIAL_INTEL_SWARM_SETUP.md) · `./scripts/operator-social-intel-provision.sh`
+
+**P10 follow-up (Track I):** delta alerts (**DG3**), Data Monitor wizard (**DG1**), discovery-first URL bind (**DG6**) — see [P10 Track I](#track-i--data-goldmine-engine).
+
+**P10 follow-up (Track K):** closed review loop (**LOOP1**), social intel score→task (**LOOP5**) — see [P10 Track K](#track-k--closed-agent-loops-greg-isenberg--rasmic).
 
 ## Feature Implementation Guardrails (mandatory)
 
@@ -325,6 +334,7 @@ Hlavný biznis orchestrátor v apke — radí čo robiť, časť organizuje auto
 | BA2 | **Business Goal Stack** — tenant KPIs → mission tagging + drift alerts | ✅ shipped |
 | BA3 | **Background Business Team** — 3 heartbeat bees (marketing / revenue / factory ops); wraps Four Lanes | ✅ shipped (env-gated) |
 | BA4 | **Unified Approval Inbox** — publish, Gumroad, lane digest, agent suggestions | ✅ |
+| BA4+ | **Delta alert strip** in Approval Inbox (P10 DG3 — forager „new since last run“) | ⏳ |
 | BA5 | **Proactive Pulse** — midday „what changed / what ran“ (+ existing morning brief) | ✅ shipped |
 | BA6 | **CBO → Dispatch bridge** — one-click skill bundle dispatch (max 3–5 agents) | ✅ |
 | BA7 | **Cross-lane learning** — recipe winners → CBO „apply to lane X“ suggestions | ✅ shipped |
@@ -347,7 +357,7 @@ Hlavný biznis orchestrátor v apke — radí čo robiť, časť organizuje auto
 
 | # | Item | Status | Doc |
 |---|------|--------|-----|
-| 56 | Operator Brain Pack (SOUL/MEMORY/USER) | ✅ Shipped | `docs/SOLO_OPERATOR_TRIO_GUIDE.md` |
+| 56 | Operator Brain Pack (SOUL/MEMORY/USER) | ✅ Shipped | `docs/SOLO_OPERATOR_TRIO_GUIDE.md` · **MEM3–4** UX follow-up |
 | 57 | My 3 Bees preset group (routine orchestration) | ✅ Shipped | Settings → AI harness |
 | 58 | Morning Hive Brief composite | ✅ Shipped | `GET /solo-operator/morning-brief` |
 | 59 | Hive Session Search | ✅ Shipped | Knowledge → Memory tab |
@@ -423,7 +433,7 @@ Full analysis: **`docs/HARNESS_SELF_MAINTAINING_ANALYSIS.md`**
 |---|------|----------|------|--------|
 | 43 | **Queen Maintainer** skill + behavioral `instructions.md` | P0 stub | 1 d | ✅ Shipped |
 | 44 | Queen Maintainer weekly cron routine | P1 | 2–3 d | ✅ API + bootstrap |
-| 45 | GitHub PR-only workflow (`queen-maintainer/*`) | P1 | 3–4 d | ✅ `/queen-maintainer/pr-draft` + `pulls_create` |
+| 45 | GitHub PR-only workflow (`queen-maintainer/*`) | P1 | 3–4 d | ✅ `/queen-maintainer/pr-draft` + `pulls_create` · **LOOP1** extends |
 | 46 | **Tech Health Dashboard** (deps, coverage, perf) | P1 | 4–5 d | ✅ `GET /queen-maintainer/tech-health` |
 | 47 | **Forager Intelligence Loop** (skills + MCP + docs refresh) | P1 | 4–6 d | ✅ `POST /harness/intelligence-scan` |
 | 48 | Layered harness — `AGENTS.md` hierarchy | P1 | 1–2 d | ✅ |
@@ -439,19 +449,338 @@ Full analysis: **`docs/HARNESS_SELF_MAINTAINING_ANALYSIS.md`**
 
 ## P7 — Future swarms (reference)
 
-_See phased roadmap in Capabilities Atlas and `docs/MISSION_EXECUTION_BACKLOG.md`._
+_See phased roadmap in Capabilities Atlas and `docs/MISSION_EXECUTION_BACKLOG.md`. Open UX items moved to **P10 Track F**._
 
-| # | Item | Phase |
-|---|------|-------|
-| 19 | Exec Assistant wizard | Fáza 0 w2 |
-| 20 | Rapid loop dashboard widget | Fáza 0 w3 |
-| 21 | Recipe cosine matching UI | Fáza 1 |
-| 22 | Sub-swarm local hive mind UI | Fáza 2 |
-| 23 | Commercial tier self-serve (full) | Fáza 2 |
-| 24 | Dump & Sleep + Overnight Report | Fáza 4 P0 |
-| 25 | Free-First LLM routing | Fáza 4 P0 |
-| 26 | Auto-Graphify + graph viz | Fáza 4 P1 |
-| 27 | Venice MCP + Tool Discovery | Fáza 4 P1 |
+| # | Item | Phase | Status |
+|---|------|-------|--------|
+| 19 | Exec Assistant wizard | Fáza 0 w2 | reference |
+| 20 | Rapid loop dashboard widget | Fáza 0 w3 | → **FP2** |
+| 21 | Recipe cosine matching UI | Fáza 1 | → **FP1** |
+| 22 | Sub-swarm local hive mind UI | Fáza 2 | → **FP3** |
+| 23 | Commercial tier self-serve (full) | Fáza 2 | → **FP4** |
+| 24 | Dump & Sleep + Overnight Report | Fáza 4 P0 | ✅ |
+| 25 | Free-First LLM routing | Fáza 4 P0 | ✅ |
+| 26 | Auto-Graphify + graph viz | Fáza 4 P1 | ✅ |
+| 27 | Venice MCP + Tool Discovery | Fáza 4 P1 | ✅ |
+
+## P10 — Excellence & competitive moat (Jun 2026)
+
+Strategic backlog from operator competitive reviews. **Harness > hype** — extend what exists, no parallel stacks.
+
+**Canonical doc:** [`docs/ROADMAP_EXCELLENCE_RECOMMENDATIONS.md`](ROADMAP_EXCELLENCE_RECOMMENDATIONS.md) — **Evaluation template** for new X/YouTube links.
+
+### External signals processed
+
+| Date | Signal | Track | Verdict |
+|------|--------|-------|---------|
+| Jun 2026 | [Rahul — Goal → Think → Tools](https://x.com/sairahul1/status/2064988918630736353) | A (AL1–4) | Architecture ✅ · UX visibility 🔴 |
+| Jun 2026 | [Pikachin — Data Goldmine Engine](https://x.com/pikach_in/status/2064450336589242818) | I (DG1–8) | Foragers ✅ · wizard + alerts 🔴 |
+| Jun 2026 | Second-brain / Obsidian threads | B (SB1–4) | SB1 ✅ · automation ⏳ |
+| Jun 2026 | [Simon Scrapes — Memory beats Hermes](https://www.youtube.com/watch?v=H9BUkgDf5Y4) | J (MEM1–5) | Hive Mind ✅ · cited recall UX 🔴 |
+| Jun 2026 | [Greg Isenberg — Agent loop hype vs closed loops](https://www.youtube.com/watch?v=7clJ8IH784Q) | K (LOOP1–5) | HITL + critic ✅ · guardrails UX 🔴 |
+| Jun 2026 | [OpenAI — Codex for data science](https://www.youtube.com/watch?v=Lvk_VZOppIY) | L (DA1–12) | Connectors ✅ · analytics workspace 🔴 |
+| Jun 2026 | [David Ondrej — Unsloth Studio local fine-tune](https://www.youtube.com/watch?v=BFH9D05UFvM) | M (LOC1–14) | LiteLLM ✅ · Ollama/air-gap 🔴 |
+| Jun 2026 | Operator batch — 18× YouTube + [Riverflow](https://x.com/riverflow_ai) | N (NP1–8) | Harness ✅ · vertical wizards 🔴 |
+| Jun 2026 | [CyrilXBT — Obsidian trading journal](https://x.com/cyrilXBT/status/2064928168105136433) | O (TJ1–7) | Wiki/Obsidian ✅ · journal studio 🔴 |
+| Jun 2026 | [Ryan Doser — Robinhood AI agent (Claude MCP)](https://www.youtube.com/watch?v=w4QrQdulH0g) | P (RA1–5) | Polymarket ✅ · Robinhood MCP 🔴 |
+| Jun 2026 | [Julian Goldie — Hermes Agent OS / Mission Control](https://www.youtube.com/watch?v=egeUmkhdcM4) | Q (UX0–10) | Depth ✅ · guided process UX 🔴 |
+
+**Execution order:** **Mission clarity (UX0–UX3, UX6)** parallel early → Cash (MK6–7, REV) → **Local inference MVP (LOC1–4, LOC11)** → Vertical packs (NP7, NP4) → Trust (TR4, LOOP2, AL1/UX10) → Analytics (DA1–4) → Marketing/Trading studios → Work intel (DG) · Memory · Depth.
+
+**Canonical docs:** Track L [`BUSINESS_DATA_ANALYTICS_OS.md`](BUSINESS_DATA_ANALYTICS_OS.md) · Track M [`LOCAL_SOVEREIGN_LLM_OS.md`](LOCAL_SOVEREIGN_LLM_OS.md) · Track N [`OPERATOR_VERTICAL_PACKS.md`](OPERATOR_VERTICAL_PACKS.md) · Track Q [`OPERATOR_MISSION_HOME_UX.md`](OPERATOR_MISSION_HOME_UX.md)
+
+**Do not build:** wide-open `/goal` product loops without HITL — see Track K anti-patterns.
+
+**Operator schedule:** Implementation **on hold** until ~**2026-06-08** — then start **Track M LOC1–4** (local Ollama/air-gap) unless reprioritized.
+
+**Existing assets reused by Track I:** `ForagerService` · `social_intel_runner` · `intel_source_cursors` · `promote_forager_digest_to_task` · `competitor-scrape-analyze` · Tavily/Serper/Apify · BA4 Approval Inbox · Skill Factory queue.
+
+### Track A — Agent loop transparency
+
+_Goal → Think → Tools → Verify visible in UI — not buried in event JSON._
+
+| ID | Item | Priority | Est. | Status | Gate / asset |
+|----|------|----------|------|--------|--------------|
+| AL1 | **Agent Loop Timeline** — Goal → Plan → Tool → Verify per session | P0 | 3–4 d | ⏳ | Agents session drawer · reuse `session_events` |
+| AL2 | **Tool Outcome Panel** at approve / `needs_input` | P0 | 2–3 d | ⏳ | Tool name, args summary, sim result, critic |
+| AL3 | **Goal progress strip** on Mission Kanban lineage | P1 | 2 d | ⏳ | `supervisor_sessions` + durable step count |
+| AL4 | **Pattern + tool explainer** chip per step | P1 | 2 d | ⏳ | Pattern Router payload + tool registry label |
+
+### Track B — Second brain & wiki layer
+
+| ID | Item | Priority | Est. | Status | Gate / asset |
+|----|------|----------|------|--------|--------------|
+| SB1 | Structured capture (IDEA / CONNECTS / TENSION) API + Wiki UI | P0 | 3 d | ✅ Shipped | `POST /memory/wiki-layer/capture` |
+| SB2 | Weekly **connection-intelligence** Celery tick | P1 | 1–2 d | ⏳ | Gardener wiki pages refresh |
+| SB3 | Capture approve → auto wikilink in vault export | P1 | 2 d | ⏳ | Obsidian export path |
+| SB4 | Wiki-layer hits in ⌘K mission search | P2 | 2–3 d | ⏳ | Chroma + `search_mission_operator` |
+
+### Track C — Revenue & buyer proof
+
+_MK6/MK7 remain in P0 letagentscook table above._
+
+| ID | Item | Priority | Est. | Status | Gate / asset |
+|----|------|----------|------|--------|--------------|
+| REV1 | Post-purchase onboarding email + simulate proof artifact | P1 | 2–3 d | ⏳ | After MK7 webhook |
+| REV2 | Public **Eval-as-a-Service** lead magnet | P1 | 3–4 d | ⏳ | `/skills/eval` · Wave 2 catalog |
+| REV3 | **Scorecard badge** on every product detail page | P2 | 1 d | ⏳ | `GUMROAD_SCORECARD.md` fields |
+
+### Track D — Operator trust & factory SLOs
+
+| ID | Item | Priority | Est. | Status | Gate / asset |
+|----|------|----------|------|--------|--------------|
+| TR1 | **Injection guard coverage** dashboard | P1 | 2 d | ⏳ | Checkpoint hit counts by tool |
+| TR2 | **Simulation pass rate** trend in CBO snapshot | P1 | 1–2 d | ⏳ | `GET /business-os/snapshot` |
+| TR3 | **Rubric score** in session report pre-approve | P2 | 1 d | ⏳ | `rubric_templates.py` surface |
+| TR4 | **Skill Factory queue SLO** panel | P0 | 2 d | ⏳ | awaiting_forge, critic rate, weekly cap |
+
+### Track E — Long-running & durable sessions
+
+| ID | Item | Priority | Est. | Status | Gate / asset |
+|----|------|----------|------|--------|--------------|
+| LR1 | **Checkpoint resume** CTA on session list (prominent) | P1 | 2 d | ⏳ | `checkpoint_resume.py` exists |
+| LR2 | **Progress %** on Kanban lineage | P1 | 2–3 d | ⏳ | Durable step events |
+| LR3 | Worker crash → auto-resume + mission feed notify | P2 | 3 d | ⏳ | Celery + Redis lease |
+
+### Track F — Product depth (from P7)
+
+| ID | Item | Priority | Est. | Status | Gate / asset |
+|----|------|----------|------|--------|--------------|
+| FP1 | **Recipe cosine matching UI** on dispatch | P1 | 3–4 d | ⏳ | Recipe Library + triage |
+| FP2 | **Rapid loop dashboard widget** on solo home | P1 | 2 d | ⏳ | Pollen + loop telemetry |
+| FP3 | **Sub-swarm local hive mind UI** | P2 | 5–7 d | ⏳ | 5–10 bee groups + 5 min sync viz |
+| FP4 | **Commercial tier self-serve** (billing + limits) | P2 | 10+ d | ⏳ | Stripe + feature gates |
+
+### Track G — Competitive signal pipeline
+
+_For operator-fed links — next review cycle._
+
+| ID | Item | Priority | Est. | Status | Gate / asset |
+|----|------|----------|------|--------|--------------|
+| SIG1 | **Competitive triage runbook** — link → 8-dimension score → roadmap delta | P0 | ✅ doc | ✅ | `ROADMAP_EXCELLENCE_RECOMMENDATIONS.md` |
+| SIG2 | Social Intel → quarterly roadmap refresh (Tech SCV) | P2 | 2 d | ⏳ | Forager + CBO action |
+| SIG3 | Capabilities Atlas auto-highlight 🟡 after synthesis | P2 | 2–3 d | ⏳ | `/settings/capabilities` |
+
+### Track I — Data goldmine engine
+
+_Signal: [Pikachin — public data → structured intel](https://x.com/pikach_in/status/2064450336589242818). Harness pieces exist; gap = wizard + alerts + structured export._
+
+| ID | Item | Priority | Est. | Status | Gate / asset |
+|----|------|----------|------|--------|--------------|
+| DG1 | **Data Monitor wizard** — one-line intent → forager + schedule + schema | P0 | 4–5 d | ⏳ | Foragers spawn + Celery |
+| DG2 | **Structured extract templates** (jobs, prices, events, listings) | P1 | 3–4 d | ⏳ | Pydantic row models + ingest |
+| DG3 | **Delta alert inbox** — „new since last run“ + rule match | P0 | 3–4 d | ⏳ | CBO / Approval Inbox strip |
+| DG4 | **Forager feedback loop** — thumbs on hits → filter tuning | P2 | 2–3 d | ⏳ | `filter_config` + LearningLog |
+| DG5 | **Export lane** — approved rows → Notion DB / Sheet / CSV | P1 | 3–4 d | ⏳ | Connectors + simulate-first |
+| DG6 | **Discovery-first scrape** — Serper/Tavily URL find → bind forager | P1 | 2–3 d | ⏳ | OW9 keys + forager create |
+| DG7 | **Goldmine → dispatch** — alert → Kanban triage + skill bundle | P0 | 2 d | ⏳ | `promote_forager_digest` extend |
+| DG8 | **Goldmine → product** — monitor niche → Skill Factory seed | P2 | 3 d | ⏳ | Factory queue + scorecard |
+
+**Operator workflow (target):** one-line monitor intent → scheduled scrape → structured rows → delta alert → approve → Kanban dispatch **or** Factory seed **or** Notion/Sheet export.
+
+**Guardrails:** public data only · robots.txt · injection guard on ingest · simulate-first before publish/trade · no paywall bypass.
+
+### Track J — Memory excellence (Simon Scrapes / Hermes+MemSearch+GBrain)
+
+_Signal: [I Built The Best Claude Memory System (Beats Hermes)](https://www.youtube.com/watch?v=H9BUkgDf5Y4). Backend recall exists (OW21, selective recall, Brain Pack); gap = auto-capture, cited answers, injection visibility._
+
+| ID | Item | Priority | Est. | Status | Gate / asset |
+|----|------|----------|------|--------|--------------|
+| MEM1 | **Auto episodic capture** — completed session → daily summarized log | P1 | 2–3 d | ⏳ | Episodic API + Celery · MemSearch pattern |
+| MEM2 | **Cited recall panel** — answer + source file/session or explicit „not in memory“ | P1 | 3–4 d | ⏳ | Hive search + GBrain-style synthesis |
+| MEM3 | **Tier-0 injection strip** — Brain Pack / injected context before deep Chroma search | P1 | 1–2 d | ⏳ | Harness settings · Hermes frozen snapshot |
+| MEM4 | **Token budget meter** on Brain Pack / harness (char ≈ token estimate) | P2 | 1 d | ⏳ | `hive_mind_max_prompt_chars` surfacing |
+| MEM5 | **Client/project memory tags** + recall filter (team slice / RLS-style) | P2 | 4–5 d | ⏳ | Tenant metadata + HiveMind query |
+
+**Do not:** port MemSearch/Hermes/GBrain as parallel Claude Code stack — extend Hive Mind + verify moat.
+
+### Track K — Closed agent loops (Greg Isenberg / Rasmic)
+
+_Signal: [WTF Is an AI Agent Loop? Genius or Hype?](https://www.youtube.com/watch?v=7clJ8IH784Q). HITL + critic + Queen Maintainer ✅; gap = scored closed loops with turn/cost guards._
+
+| ID | Item | Priority | Est. | Status | Gate / asset |
+|----|------|----------|------|--------|--------------|
+| LOOP1 | **Closed Review Loop skill** — rubric score → self-heal → re-run (max N turns, min score) | P0 | 3–4 d | ⏳ | Queen Maintainer + `rubric_templates` · Greptile pattern |
+| LOOP2 | **Loop guardrails panel** — max turns, min score, cost cap per loop | P0 | 2 d | ⏳ | CostGovernor + session context |
+| LOOP3 | **Agent Loop Timeline** (Think→Act→Observe) | P0 | — | ⏳ | **Same as AL1** — single implementation |
+| LOOP4 | **Mid-flight checkpoint UX** — pause loop → operator approve → continue | P1 | 2–3 d | ⏳ | `needs_input` prominent CTA |
+| LOOP5 | **Closed-loop presets** — Skill Factory critic loop · Social intel score→task · SEO bulk (simulate-only) | P1 | 2–3 d | ⏳ | Skill bundles + TR4 SLO fields |
+
+**Anti-patterns (⛔ skip):** wide-open `/goal` whole-product loop · loop without objective score · single PR/session >1k LOC without slice.
+
+**Closed-loop use cases (ship via LOOP1/5, not new harness):**
+
+| Use case | Existing base | Target |
+|----------|---------------|--------|
+| Code / harness review | Queen Maintainer + CI | LOOP1 score ≥4/5 before merge |
+| Skill Factory | Critic → forge | LOOP5 max turns + score in TR4 panel |
+| Publish / SEO bulk | Content Flywheel | Formula pages OK; live publish stays HITL |
+| Social intel | Evaluator after scrape | LOOP5 ingest → score → Kanban task |
+
+**Principles (all P10):** simulate-first · lazy FE panels · single snapshot BE endpoints · no new central coordinator · verified outcomes only.
+
+### Track L — Business Data Analytics OS (Codex-style)
+
+_Signal: [OpenAI — Codex for data science](https://www.youtube.com/watch?v=Lvk_VZOppIY). **Session template + Apps & Tools module** — not a new hive colony._
+
+**Canonical doc:** [`docs/BUSINESS_DATA_ANALYTICS_OS.md`](BUSINESS_DATA_ANALYTICS_OS.md)
+
+**Model:** Business question → read-only connectors → analyst report artifact → lineage → critic ≥4/5 → export (simulate → approve).
+
+| ID | Item | Priority | Est. | Status | Gate / asset |
+|----|------|----------|------|--------|--------------|
+| DA1 | **Swarm template** `business-analytics-report` — Fetch · Analyst · Narrative · Critic · Export staging | P0 | 3–4 d | ⏳ | `swarm-wizard-templates.ts` · max 5 bees |
+| DA2 | **Skill** `business-analytics-playbook.md` — workflow + guardrails + connector order | P0 | 1 d | ⏳ | `backend/app/skills/` |
+| DA3 | **Analytics Workspace** module — `/apps-tools/analytics` card + lazy panels | P0 | 4–5 d | ⏳ | `apps.analytics.decision_report.v1` |
+| DA4 | **Business Question wizard** — question · range · sources → dispatch session | P0 | 2–3 d | ⏳ | Mission Kanban lineage |
+| DA5 | **Live report artifact** panel — editable markdown + chart blocks (session-bound) | P1 | 3–4 d | ⏳ | Task workspace pattern |
+| DA6 | **Data lineage strip** — connector · query · timestamp per section | P1 | 2–3 d | ⏳ | Session events + connector audit |
+| DA7 | **Connector profile** — GA4 + Google Sheets read + warehouse MCP slot (Databricks-ready) | P1 | 3–5 d | ⏳ | Integrations hub · read-only |
+| DA8 | **Export lane** — Notion page + Google Slides template (simulate-first) | P1 | 3–4 d | ⏳ | Publish simulate patterns |
+| DA9 | **Weekly analytics routine** — leadership deck tick + morning brief KPI | P2 | 2 d | ⏳ | Celery + CBO snapshot |
+| DA10 | **Report critic closed loop** — rubric ≥4/5 before export (LOOP5 preset) | P1 | 1–2 d | ⏳ | `rubric_templates.py` |
+| DA11 | **Snapshot API** `GET /analytics-workspace/snapshot` | P0 | 1 d | ⏳ | Single cached read |
+| DA12 | **E2E + operator manual** — wizard → session → approve export | P1 | 2 d | ⏳ | `docs/OPERATOR_ANALYTICS_WORKSPACE_MANUAL.md` |
+
+**Reuses:** `ga4-analytics-playbook` · Research Bee · analysis consensus (optional) · Hive Mind · AL1 timeline (when shipped).
+
+**Not in scope:** mutating GA4/warehouse config · autonomous wide-open loop · new Virtual Company department.
+
+### Track M — Local Sovereign LLM OS (Unsloth / air-gap)
+
+_Signal: [Unsloth Studio — fine-tune & run locally](https://www.youtube.com/watch?v=BFH9D05UFvM). **LiteLLM → Ollama/vLLM + verified datasets** — harness unchanged, cloud optional off._
+
+**Canonical doc:** [`docs/LOCAL_SOVEREIGN_LLM_OS.md`](LOCAL_SOVEREIGN_LLM_OS.md)
+
+**Goal:** Queenswarm on PC/server **without external LLM** · optional QLoRA adapters from **verified** swarm data.
+
+| ID | Item | Priority | Est. | Status | Gate / asset |
+|----|------|----------|------|--------|--------------|
+| LOC1 | **Ollama + vLLM providers** in `LiteLLMRouter` (`ollama/*`, openai-compatible local base) | P0 | 2–3 d | ⏳ | `llm_router.py` · litellm registry |
+| LOC2 | **`local_sovereign` routing mode** + `LLM_AIRGAP=1` hard block cloud hops | P0 | 1–2 d | ⏳ | Settings + startup guard |
+| LOC3 | **Docker profile `local-llm`** — Ollama service + compose overlay | P0 | 1 d | ⏳ | `docker-compose.local-llm.yml` |
+| LOC4 | **Settings → Local Inference** panel — endpoint, model, ping, enable sovereign | P0 | 2–3 d | ⏳ | `/settings/harness` lazy panel |
+| LOC5 | **Verified dataset exporter** — critic-approved sessions/recipes → JSONL (Alpaca) | P1 | 3–4 d | ⏳ | HiveMind + session export API |
+| LOC6 | **Dataset Recipe wizard** — PDF/CSV → Q&A pairs via **local model only** | P1 | 4–5 d | ⏳ | Unsloth-recipes pattern · HITL |
+| LOC7 | **Unsloth bridge** — operator script + doc (`pull adapter → Ollama import`) | P1 | 1–2 d | ⏳ | `scripts/operator-unsloth-bridge.sh` |
+| LOC8 | **Adapter registry** — tenant LoRA/GGUF metadata → LiteLLM model slug | P1 | 2–3 d | ⏳ | Postgres + Settings picker |
+| LOC9 | **Fine-tune job queue** — GPU Celery worker, operator approve start | P2 | 5–7 d | ⏳ | Env-gated · not in API container |
+| LOC10 | **Hardware preflight** — RAM/VRAM/disk model recommendation | P1 | 1 d | ⏳ | `operator-local-llm-preflight.sh` |
+| LOC11 | **CostGovernor local hops** — $0 billing + metrics label `inference=local` | P0 | 1 d | ⏳ | Cost panel UX |
+| LOC12 | **E2E + manual** — air-gap session completes with Ollama only | P0 | 2 d | ⏳ | `docs/OPERATOR_LOCAL_LLM_MANUAL.md` |
+| LOC13 | **Track L integration** — Analytics bees default to local model in sovereign mode | P1 | 1 d | ⏳ | DA template env flag |
+| LOC14 | **Recipe tags** — `local-adapter` + imitation hints for sovereign tenants | P2 | 1–2 d | ⏳ | Recipe Library |
+
+**Optional (HITL only):** `hybrid_distill` teacher API for dataset LOC6 — budget cap · never default in air-gap.
+
+**Anti-patterns:** cloud fallback when air-gap · train on raw unverified dumps · Unsloth inside FastAPI worker.
+
+### Track N — Operator vertical packs (Moneta · Marketing · Trading)
+
+_Signals: Jun 2026 operator batch — [grill-me](https://www.youtube.com/watch?v=c0kaKxM2pHg) · [brand context](https://www.youtube.com/watch?v=yh_fZZVbNwc) · [Koah probabilities](https://www.youtube.com/watch?v=SC4hr_U8298) · [Riverflow rubric](https://x.com/riverflow_ai) · [Listen Labs](https://www.youtube.com/watch?v=Rumft-rsEu4) (internal slice only). **Extend existing lanes** — no Listen Labs panel, no Riverflow image API._
+
+**Canonical doc:** [`OPERATOR_VERTICAL_PACKS.md`](OPERATOR_VERTICAL_PACKS.md)
+
+| ID | Item | Priority | Est. | Status | Gate / asset |
+|----|------|----------|------|--------|--------------|
+| NP1 | **Stakeholder Grill wizard** — structured interview → brief artifact | P1 | 2–3 d | ⏳ | `grill-me.md` · task workspace |
+| NP2 | **Creative rubric presets** — composition · accuracy · brand (Riverflow pattern) | P1 | 1–2 d | ⏳ | `rubric_templates.py` · publish simulate |
+| NP3 | **Brand Context Pack** — voice · refs · forbidden claims in Brain Pack | P1 | 2 d | ⏳ | Curated memory · AOS1 marketing |
+| NP4 | **Investment brief goal template** — problem · KPI · compliance · open Q | P0 | 1–2 d | ⏳ | OW7 templates · Research Bee |
+| NP5 | **Trading thesis brief** — prob · edge · kill criteria → risk preflight | P1 | 2 d | ⏳ | Trading cockpit · AOS1 trading |
+| NP6 | **Campaign launch wizard** — brand → draft → rubric → simulate publish | P1 | 2–3 d | ⏳ | Publish onboarding · **NP2+NP3** |
+| NP7 | **AOS1 `investments` harness profile** — Moneta PM default skills + lane | P0 | 1 d | ⏳ | `harness_project_profiles.py` |
+| NP8 | **Video URL batch → intel brief** — paste list → digest → wiki/task | P2 | 2–3 d | ⏳ | Social intel · **DG6** · SB1 capture |
+
+**Operator verticals (target):**
+
+| Vertical | Profile | Primary IDs | Daily loop |
+|----------|---------|-------------|------------|
+| Moneta investments PO/PM | `investments` | NP7 · NP4 · NP1 · DA (Track L) | Brief → research session → Kanban |
+| External marketing | `marketing` | NP3 · NP2 · NP6 · publish lane | Brand → rubric → simulate → live |
+| Trading / betting | `trading` | NP5 · existing cockpit | Thesis → evaluator → paper → live HITL |
+
+**⛔ Skip from batch:** Listen Labs 30M panel · Treehouse parallel agents · Pi/OpenClaw harness · Andrew Ng no-code app · full Riverflow integration.
+
+### Track O — Learning Loop Studio (CyrilXBT · Obsidian trading journal)
+
+_Signals: [CyrilXBT — Obsidian trading journal](https://x.com/cyrilXBT/status/2064928168105136433) · [n8n + Obsidian business brain](https://x.com/cyrilXBT/status/2064883165169140169). **One small Apps & Tools studio** — configure + review; execution stays in Trading Cockpit. **No n8n clone** — Celery + Wiki Layer + Obsidian export._
+
+| ID | Item | Priority | Est. | Status | Gate / asset |
+|----|------|----------|------|--------|--------------|
+| TJ1 | **Journal Studio** module — `/apps-tools/trading-journal` config + timeline | P1 | 3–4 d | ⏳ | Apps & Tools lazy panel |
+| TJ2 | **Trade entry schema** — thesis · outcome · tags · lesson (manual + paper fill import) | P1 | 2–3 d | ⏳ | `PaperTradingFill` · task workspace |
+| TJ3 | **Overnight journal gardener** — fills → draft lesson → operator approve → wiki | P1 | 2–3 d | ⏳ | Celery · **SB1** capture · critic |
+| TJ4 | **Studio settings** — fields ON/OFF · review cron · Obsidian subfolder · mistake tags | P0 | 1–2 d | ⏳ | Tenant `operator_settings.journal_studio` |
+| TJ5 | **Pre-trade recall** — inject top mistakes / edges before next session | P1 | 2 d | ⏳ | Brain Pack · **NP5** thesis · Hive Mind |
+| TJ6 | **30/90-day pattern strip** — win rate by tag · repeat-mistake alert | P2 | 2–3 d | ⏳ | CBO snapshot · morning brief |
+| TJ7 | **Business brain preset** (optional) — same studio shell for Moneta/marketing notes | P2 | 2 d | ⏳ | **NP4** brief · Wiki Layer |
+
+**Use today:** Knowledge → Wiki Layer capture · Trading Cockpit P&L · morning brief · Obsidian ZIP export.
+
+### Track P — Broker Agent Lane (Robinhood MCP · minmax)
+
+_Signal: [How to Build an AI Trading Agent on Robinhood (With Claude)](https://www.youtube.com/watch?v=w4QrQdulH0g) · [Robinhood Agentic Trading MCP](https://robinhood.com/us/en/support/articles/agentic-trading-overview/). **Same outcome as video (MCP broker + agent), Queenswarm moat = simulate-first + HITL — not raw Claude Code loop.** Extend **Trading Cockpit** — no second harness._
+
+**Video flow:** add MCP `https://agent.robinhood.com/mcp/trading` → OAuth desktop → fund Agentic ring-fenced account → NL portfolio + orders in Claude.
+
+**Queenswarm today:** ✅ Polymarket Gamma/CLOB · Trading Cockpit · `real-money-risk-gate` · Connector Hub · external MCP · paper lane · **Track O** journal. 🔴 Robinhood preset · unified broker guardrails UI · HITL order queue.
+
+| ID | Item | Priority | Est. | Status | Gate / asset |
+|----|------|----------|------|--------|--------------|
+| RA1 | **Robinhood Agentic MCP preset** — marketplace template + install doc (`agent.robinhood.com/mcp/trading`) | P1 | 1–2 d | ⏳ | Connector catalog · dynamic MCP |
+| RA2 | **Broker MCP tab** in Trading Cockpit — connect status · OAuth steps · last probe | P1 | 2 d | ⏳ | `execution-studio-trading-cockpit-panel` |
+| RA3 | **Broker guardrails pack** — max order · daily cap · kill switch · approve mode (tenant settings) | P0 | 1–2 d | ⏳ | Shared Polymarket + Robinhood |
+| RA4 | **Read-only broker session** — portfolio/quotes tools only until smoke + guardrails set | P0 | 1 d | ⏳ | Swarm template · evaluator pattern |
+| RA5 | **HITL order queue** — agent proposes order → Approval Inbox → MCP execute | P0 | 2–3 d | ⏳ | Publish simulate pattern · audit log |
+
+**Build order (minmax):** **RA3 → RA4 → RA5** (works for Polymarket immediately) → **RA1 → RA2** (Robinhood US).
+
+**⛔ Skip:** 24/7 autonomous live loop · Claude Code clone · Alpaca full stack (P2 only if needed) · bypass HITL “trade now” in NL.
+
+**EU note:** Robinhood Agentic = US equities; SK operator primary lane stays **Polymarket** + **Track O** journal.
+
+### Track Q — Mission Home & Guided Operator UX (Hermes clarity shell)
+
+_Signal: [Claude Agent OS / Hermes Mission Control](https://www.youtube.com/watch?v=egeUmkhdcM4). **One process-ordered home + progressive nav — keep all Queenswarm capabilities.** Deep analysis: [`OPERATOR_MISSION_HOME_UX.md`](OPERATOR_MISSION_HOME_UX.md)._
+
+**Process rail (always visible):** `Setup → Plan → Work → Verify → Learn → Done`
+
+| ID | Item | Priority | Est. | Status | Gate / asset |
+|----|------|----------|------|--------|--------------|
+| UX0 | **UX research lock** — task flows · first-run journey · 2026 trend checklist | P0 | 2 d | ⏳ | Canonical UX doc sign-off |
+| UX1 | **Process Rail** — 6-step indicator · current step from tenant/onboarding state | P0 | 3 d | ✅ | OW canonical workflow |
+| UX2 | **Mission Home snapshot** — brief · 3 actions · approvals · active sessions | P0 | 3–4 d | ✅ | `GET /solo-operator/mission-home` · `/tasks` |
+| UX3 | **First-run capability story** — hero + extend OW5 wizard · sample empty states | P0 | 2–3 d | ✅ | OW5 · publish onboarding UX |
+| UX4 | **Progressive solo nav** — 4 primary links · Advanced accordion for rest | P1 | 2 d | ⏳ | OW4 · OW10 |
+| UX5 | **Memory strip on Home** — SOUL/MEMORY/USER preview · token meter | P1 | 2 d | ⏳ | Brain Pack · **MEM3–MEM4** |
+| UX6 | **Responsive + spacing pass** — mobile/tablet layouts · 8px grid · 44px touch | P0 | 3–4 d | ✅ | `breakpoints.ts` · `responsive-shell.spec.ts` |
+| UX7 | **Process-linked studios** — Factory/Trading/Journal from rail step (not parallel maze) | P1 | 2 d | ⏳ | Apps & Tools · Tracks N/O/P |
+| UX8 | **Route microcopy** — one-line purpose per primary route | P1 | 1–2 d | ⏳ | `section-hints.ts` |
+| UX9 | **E2E first-run journey** — setup → session → verify (mobile/tablet/desktop) | P1 | 2 d | ⏳ | Playwright · OW19 |
+| UX10 | **Session progress on Home** — loop chip + % (same build as **AL1**) | P1 | 1–2 d | ⏳ | AL1 · session events |
+
+**Responsive:** mobile ≤767 · tablet 768–1023 · desktop ≥1024 sidebar+canvas **unchanged** · no `#hive-search` top bar on desktop.
+
+**Build order:** **UX0 → UX1 → UX2 → UX3 → UX6** → UX4/UX5/UX7/UX8/UX9/UX10.
+
+**⛔ Skip:** Hermes OS rebuild · hide verify gates · desktop layout changes without approval.
+
+### P10 open backlog (quick index)
+
+| Priority | IDs | Theme |
+|----------|-----|-------|
+| P0 cash | MK6, MK7 | Catalog 50+ · Gumroad webhook |
+| P0 UX clarity | **UX0–UX3, UX6** | Process rail · Mission Home · first-run · responsive |
+| P0 sovereign | **LOC1–LOC4, LOC11–LOC12** | Ollama · air-gap · local UI · E2E |
+| P0 vertical | **NP7, NP4** | Investments profile · product brief template |
+| P0 trust | TR4, AL1/LOOP3, AL2, **LOOP1, LOOP2** | Factory SLO · agent loop UI · closed loops |
+| P1 vertical | **NP1–NP3, NP5–NP6** | Grill · brand · rubric · campaign · thesis |
+| P1 broker | **RA3–RA5, RA1–RA2** | Guardrails · HITL orders · Robinhood MCP |
+| P0 work intel | **DG1, DG3, DG7** | Data Monitor · delta alerts · dispatch |
+| P0 analytics | **DA1–DA4, DA11** | Template · wizard · workspace MVP |
+| P1 | LOC5–8, LOC10, LOC13, SB2–3, MEM1–3, … | Dataset · adapters · Unsloth bridge |
+| P2 | LOC9, LOC14, DA9, … | GPU fine-tune queue · recipe tags |
 
 ---
 
@@ -493,3 +822,8 @@ PLAYWRIGHT_BASE_URL=https://queenswarm.love ./scripts/prod-walkthrough-gate.sh
 - `docs/HARNESS_SELF_MAINTAINING_ANALYSIS.md` — harness videos + Queen Maintainer
 - `docs/TOMORROW_OPERATOR_RUNBOOK.md` — audit + operator morning checklist
 - `docs/CAPABILITIES_SYNTHESIS_MAY2026.md` — YouTube + X + Atlas gap analysis (May 2026)
+- `docs/ROADMAP_EXCELLENCE_RECOMMENDATIONS.md` — P10 tracks + competitive triage template (Jun 2026)
+- `docs/BUSINESS_DATA_ANALYTICS_OS.md` — Codex-style analytics workspace (Track L)
+- `docs/LOCAL_SOVEREIGN_LLM_OS.md` — Local/air-gap LLM + fine-tune lane (Track M)
+- `docs/OPERATOR_VERTICAL_PACKS.md` — Moneta · marketing · trading packs (Track N)
+- `docs/OPERATOR_MISSION_HOME_UX.md` — Mission Home · Process Rail · responsive UX (Track Q)

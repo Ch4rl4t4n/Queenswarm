@@ -278,6 +278,31 @@ async def solo_second_brain_wizard(
     return snapshot.model_dump(mode="json")
 
 
+@router.get(
+    "/mission-home",
+    summary="Mission Home snapshot — Process Rail, brief, actions, approvals, sessions",
+)
+async def solo_mission_home(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.mission_home_service import compose_mission_home_snapshot
+    from app.infrastructure.persistence.models.tenant import Tenant
+
+    tenant = await db.get(Tenant, tenant_id)
+    snapshot = await compose_mission_home_snapshot(
+        db,
+        tenant_id=tenant_id,
+        dashboard_user_id=user.id,
+        tenant=tenant,
+    )
+    return snapshot.model_dump(mode="json")
+
+
 @router.get("/first-run", summary="Solo first-run wizard checklist (LLM → brief → session)")
 async def solo_first_run(
     db: DbSession,

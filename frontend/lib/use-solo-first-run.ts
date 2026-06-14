@@ -13,11 +13,18 @@ export interface FirstRunStep {
   link_label: string;
 }
 
+export interface FirstRunCapability {
+  headline: string;
+  subhead: string;
+  bullets: string[];
+}
+
 export interface FirstRunSnapshot {
   enabled: boolean;
   complete: boolean;
   progress_pct: number;
   steps: FirstRunStep[];
+  capability?: FirstRunCapability;
 }
 
 interface UseSoloFirstRunOptions {

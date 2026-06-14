@@ -25,6 +25,7 @@ Purpose: define extraction order from mixed cockpit/integrations panels into cle
 | `execution-studio-media-agency-panel` | `content_factory` | Apps & Tools | `apps.content.factory.v1` | Phase C.3 |
 | `execution-studio-micro-saas-factory-panel` | `content_factory` | Apps & Tools | `apps.content.factory.v1` | Phase C.3 |
 | `research-bee-panel` | `research_workspace` | Apps & Tools | `apps.research.briefing.v1` | Phase C.4 |
+| _(planned)_ `analytics-workspace-panel` | `analytics_workspace` | Apps & Tools | `apps.analytics.decision_report.v1` | **Track L DA3** — see [`BUSINESS_DATA_ANALYTICS_OS.md`](BUSINESS_DATA_ANALYTICS_OS.md) |
 | `operator-cockpit` sections `overview/fleet/command/grok/icm` | `agentic_os_core` | Agentic OS | `swarm.orchestrate.v1`, `knowledge.hivemind.query.v1` | Keep in Core |
 | Integrations hub/plugins/tools marketplace | `integration_runtime` | Agentic OS + Integrations | `integrations.connector.invoke.v1` | Keep in Integrations |
 

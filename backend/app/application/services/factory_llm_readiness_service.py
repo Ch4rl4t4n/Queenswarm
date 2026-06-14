@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -262,7 +263,9 @@ async def run_factory_llm_smoke(
     messages = [{"role": "user", "content": "Reply OK"}]
     use_primary_only = model_slug_has_configured_credentials(primary)
 
-    try:
+    timeout_sec = settings.factory_llm_smoke_timeout_sec
+
+    async def _ping() -> None:
         if use_primary_only:
             await router.complete_single_model(
                 session,
@@ -272,16 +275,29 @@ async def run_factory_llm_smoke(
                 swarm_id="factory_llm_readiness",
                 task_id="smoke",
             )
-        else:
-            await router.complete_with_fallback_messages(
-                session,
-                messages=messages,
-                max_tokens=5,
-                swarm_id="factory_llm_readiness",
-                task_id="smoke",
-                primary_override=primary,
-            )
+            return
+        await router.complete_with_fallback_messages(
+            session,
+            messages=messages,
+            max_tokens=5,
+            swarm_id="factory_llm_readiness",
+            task_id="smoke",
+            primary_override=primary,
+        )
+
+    try:
+        await asyncio.wait_for(_ping(), timeout=timeout_sec)
         return status.model_copy(update={"smoke_ok": True, "smoke_error": None})
+    except TimeoutError:
+        return status.model_copy(
+            update={
+                "smoke_ok": False,
+                "smoke_error": (
+                    f"Smoke test timed out after {int(timeout_sec)}s for {primary}. "
+                    "Try OpenRouter Nemotron (free) or re-test keys in Settings → AI · LLM keys."
+                ),
+            },
+        )
     except Exception as exc:
         return status.model_copy(
             update={

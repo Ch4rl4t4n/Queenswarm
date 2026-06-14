@@ -67,6 +67,16 @@ const MissionKanbanPanel = dynamic(
   },
 );
 
+const MissionHomePanel = dynamic(
+  () => import("@/components/hive/mission-home-panel").then((mod) => mod.MissionHomePanel),
+  {
+    ssr: false,
+    loading: () => (
+      <HivePanelSectionSkeleton label="Loading Mission Home" minHeightClass="min-h-[12rem]" />
+    ),
+  },
+);
+
 const LANE_CARDS = [
   {
     href: "/tasks/new",
@@ -295,6 +305,8 @@ export function TasksPageClient() {
       }
     >
       <HubEcosystemStrip preset="tasks" />
+
+      {soloMode && viewMode === "board" ? <MissionHomePanel /> : null}
 
       {viewMode === "board" ? (
         <MissionKanbanPanel onOpenTask={openTask} refreshSignal={kanbanRefresh} />

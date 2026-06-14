@@ -80,6 +80,7 @@ Factory build → export → gumroad-ready/
 |----|------|-------|
 | OBS1 | Obsidian bidirectional vault + wikilink export | ✅ shipped (Vault-MOC + README) |
 | OBS2 | Knowledge Elicitation panel (AI asks, operator approves) | ✅ shipped |
+| DG8 | Data monitor niche → Skill Factory seed (P10 Track I) | ⏳ see `ROADMAP.md` |
 | PA1 | → **BA1 + BA4** Chief Business Operator + Approval Inbox (see `BUSINESS_OS_ORCHESTRATOR_ANALYSIS.md`) | P1 |
 | PA2 | Google Calendar → proactive daily planner (**PA2** in ROADMAP) | ✅ shipped |
 | AOS1 | Project harness profiles (marketing / factory / trading) | ✅ shipped |

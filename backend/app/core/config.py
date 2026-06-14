@@ -977,6 +977,12 @@ class Settings(BaseSettings):
     )
     workflow_breaker_max_output_tokens: int = 4096
     workflow_breaker_temperature: float = 0.15
+    factory_llm_smoke_timeout_sec: float = Field(
+        default=45.0,
+        gt=5.0,
+        le=120.0,
+        description="Max seconds for Factory LLM smoke ping before failing fast in UI.",
+    )
     ballroom_guest_ws: bool = Field(
         default=False,
         description="Allow ballroom transcript sockets without JWT (demo kiosks only).",

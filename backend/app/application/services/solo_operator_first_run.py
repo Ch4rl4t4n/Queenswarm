@@ -52,6 +52,27 @@ class FirstRunStepOut(BaseModel):
     link_label: str
 
 
+class SoloFirstRunCapabilityOut(BaseModel):
+    """Hero copy for first-run capability story (Track Q UX3)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    headline: str
+    subhead: str
+    bullets: list[str] = Field(default_factory=list)
+
+
+CAPABILITY_STORY = SoloFirstRunCapabilityOut(
+    headline="Your verified agent operating system",
+    subhead="Queenswarm runs supervisor missions with simulate-first verify — not raw LLM dumps.",
+    bullets=[
+        "One Process Rail: Setup → Plan → Work → Verify → Learn → Done",
+        "Mission Kanban tracks every deliverable from queue to export",
+        "Brain Pack + curated memory stay human-editable in Knowledge",
+    ],
+)
+
+
 class SoloFirstRunOut(BaseModel):
     """First-run wizard snapshot for solo operators."""
 
@@ -62,6 +83,7 @@ class SoloFirstRunOut(BaseModel):
     progress_pct: int = Field(ge=0, le=100)
     generated_at: datetime
     steps: list[FirstRunStepOut] = Field(default_factory=list)
+    capability: SoloFirstRunCapabilityOut = Field(default_factory=lambda: CAPABILITY_STORY.model_copy())
 
 
 def _llm_keys_configured() -> bool:
@@ -187,7 +209,9 @@ async def apply_starter_project_brief(
 
 
 __all__ = [
+    "CAPABILITY_STORY",
     "FirstRunStepOut",
+    "SoloFirstRunCapabilityOut",
     "SoloFirstRunOut",
     "STARTER_PROJECT_BRIEF",
     "apply_starter_project_brief",

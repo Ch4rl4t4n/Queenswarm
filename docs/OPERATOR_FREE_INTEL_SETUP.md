@@ -43,7 +43,7 @@ UI: [Integrations → Hub](https://queenswarm.love/integrations?tab=hub)
 | GitHub | active | repá, issues |
 | Instagram | active | social |
 | Telegram | active | bot / notifikácie |
-| HiveMind + Forager | env ON | denný scan 6:00 |
+| HiveMind + Forager | env ON | denný scan 6:00 · **P10 DG1–DG8** wizard + alerts → [`ROADMAP.md`](ROADMAP.md) Track I |
 | LSP bridge | env ON | codebase intel |
 
 ---

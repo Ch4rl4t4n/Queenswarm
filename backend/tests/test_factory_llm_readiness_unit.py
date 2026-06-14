@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -297,3 +298,48 @@ async def test_save_factory_llm_primary_persists_tenant_selection() -> None:
     assert saved == "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free"
     assert tenant.operator_settings["factory_llm"]["primary_model"] == saved
     session.flush.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_run_factory_llm_smoke_times_out_fast() -> None:
+    session = AsyncMock()
+    router = MagicMock()
+
+    async def _hang(**kwargs: object) -> tuple[str, float]:
+        await asyncio.sleep(60)
+        return "OK", 0.0
+
+    router.complete_single_model = _hang
+
+    with (
+        patch(
+            "app.application.services.factory_llm_readiness_service.resolve_factory_llm_readiness",
+            new=AsyncMock(
+                return_value=FactoryLlmReadinessOut(
+                    build_allowed=True,
+                    chain_usable=True,
+                    grok_configured=True,
+                    grok_primary=True,
+                    primary_model="xai/grok-3",
+                    decomposition_chain=["xai/grok-3"],
+                ),
+            ),
+        ),
+        patch(
+            "app.application.services.factory_llm_readiness_service.model_slug_has_configured_credentials",
+            return_value=True,
+        ),
+        patch(
+            "app.application.services.factory_llm_readiness_service.LiteLLMRouter",
+            return_value=router,
+        ),
+        patch(
+            "app.application.services.factory_llm_readiness_service.settings.factory_llm_smoke_timeout_sec",
+            0.05,
+        ),
+    ):
+        status = await run_factory_llm_smoke(session)
+
+    assert status.smoke_ok is False
+    assert status.smoke_error is not None
+    assert "timed out" in status.smoke_error.lower()

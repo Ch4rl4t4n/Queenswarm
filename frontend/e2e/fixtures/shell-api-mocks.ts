@@ -1766,6 +1766,46 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("solo-operator/mission-home")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          generated_at: new Date().toISOString(),
+          current_step: "plan",
+          process_steps: [
+            { id: "setup", label: "Setup", short_label: "Setup" },
+            { id: "plan", label: "Plan", short_label: "Plan" },
+            { id: "work", label: "Work", short_label: "Work" },
+            { id: "verify", label: "Verify", short_label: "Verify" },
+            { id: "learn", label: "Learn", short_label: "Learn" },
+            { id: "done", label: "Done", short_label: "Done" },
+          ],
+          brief_bullets: [{ text: "Life OS: triage ready.", source: "trio" }],
+          next_actions: [
+            {
+              id: "po_supervisor_brief",
+              title: "Bank PO brief",
+              detail: "Start a supervisor session.",
+              href: "/agents?preset=bank-po-brief",
+              priority: 2,
+            },
+          ],
+          approvals: [],
+          active_sessions: [],
+          first_run_complete: true,
+          links: {
+            new_session: "/agents#sessions",
+            approvals: "/cockpit#approvals",
+            knowledge: "/knowledge#memory",
+            kanban: "/tasks",
+          },
+        }),
+      });
+      return;
+    }
+
     if (path.startsWith("solo-operator/mission-feed")) {
       await route.fulfill({
         status: 200,

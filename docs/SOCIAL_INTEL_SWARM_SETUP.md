@@ -120,5 +120,19 @@ Forager routine automaticky spustí supervisor session s rolami **researcher + c
 
 - [`OPERATOR_FREE_INTEL_SETUP.md`](OPERATOR_FREE_INTEL_SETUP.md)
 - [`OPERATOR_X_OAUTH_SETUP.md`](OPERATOR_X_OAUTH_SETUP.md)
+- [`ROADMAP.md`](ROADMAP.md) — **P10 Track I** (DG1–DG8 data goldmine: wizard, delta alerts, export)
 - `scripts/operator-social-intel-prep.sh`
 - `scripts/operator-social-intel-provision.sh`
+
+## Roadmap — Track I (data goldmine)
+
+Social Intel is the **backend foundation** for Pikachin-style „public data → intel“. Planned UX on top:
+
+| ID | Item | Builds on |
+|----|------|-----------|
+| DG1 | Data Monitor wizard | forager spawn + Celery schedule |
+| DG3 | Delta alert inbox | `intel_source_cursors` + BA4 Approval Inbox |
+| DG6 | Discovery-first scrape | Serper/Tavily + forager bind |
+| DG7 | Alert → Kanban dispatch | `promote_forager_digest_to_task` |
+
+See [`ROADMAP_EXCELLENCE_RECOMMENDATIONS.md`](ROADMAP_EXCELLENCE_RECOMMENDATIONS.md) Track I.

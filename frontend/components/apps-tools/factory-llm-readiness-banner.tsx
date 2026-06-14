@@ -90,6 +90,7 @@ export function FactoryLlmReadinessBanner({
     return status.available_models.map((row) => ({
       value: row.value,
       label: row.configured ? row.label : `${row.label} (key missing)`,
+      disabled: !row.configured,
     }));
   }, [status]);
 
@@ -168,7 +169,7 @@ export function FactoryLlmReadinessBanner({
                 value={status.primary_model}
                 options={modelOptions}
                 onValueChange={(value) => void savePrimaryModel(value)}
-                disabled={modelBusy || smokeBusy}
+                disabled={modelBusy}
               />
             </label>
           ) : null}
@@ -213,7 +214,7 @@ export function FactoryLlmReadinessBanner({
               value={status.primary_model}
               options={modelOptions}
               onValueChange={(value) => void savePrimaryModel(value)}
-              disabled={modelBusy || smokeBusy}
+              disabled={modelBusy}
             />
           </label>
         ) : null}
@@ -225,7 +226,7 @@ export function FactoryLlmReadinessBanner({
         {ready ? (
           <button
             type="button"
-            className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
+            className="qs-btn qs-btn--secondary qs-btn--sm gap-1"
             disabled={smokeBusy || modelBusy}
             onClick={() => void runSmoke()}
           >

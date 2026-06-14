@@ -10,7 +10,7 @@ Návod pre **solo operátora** na queenswarm.love. Tieto featury **nerozbíjajú
 
 | Hermes | Queenswarm ekvivalent | Náš rozdiel |
 |--------|----------------------|-------------|
-| `SOUL.md` + `MEMORY.md` + `USER.md` | **Operator Brain Pack** | Rovnaké tri vrstvy, ale **verify-first** + swarm-wide pamäť |
+| `SOUL.md` + `MEMORY.md` + `USER.md` | **Operator Brain Pack** | Rovnaké tri vrstvy, ale **verify-first** + swarm-wide pamäť · **MEM1–5** (P10 Track J) |
 | Cron → Telegram brief | **Morning Hive Brief** + trio cycle | Brief z **overených** session, nie raw LLM |
 | 3 agent profily | **My 3 Bees** (mini-swarm **skupina**) | Nevytvára nový hive — len bindne **existujúce routines** |
 | FTS session search | **Hive Session Search** | Hľadá cez **celý swarm** (goals + sub-agent summaries) |
