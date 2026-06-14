@@ -14,7 +14,17 @@ from app.application.services.gumroad_catalog_sync import (
 )
 
 
-def test_match_gumroad_product_to_slug_when_permalink_matches() -> None:
+def test_match_gumroad_product_to_slug_when_short_url_tail_matches() -> None:
+    slug_index = {"seo-content-pipeline": "seo-content-pipeline-with-simulate-first-guardrails-7"}
+    row = {"short_url": "https://seller.gumroad.com/l/seo-content-pipeline"}
+    assert match_gumroad_product_to_slug(row, slug_index) == "seo-content-pipeline-with-simulate-first-guardrails-7"
+
+
+def test_sync_gumroad_urls_to_state_when_no_catalog_then_fails(tmp_path: Path) -> None:
+    result = sync_gumroad_urls_to_state(access_token="tok", export_root=tmp_path, products=[])
+    assert result.ok is False
+    assert "No gumroad-ready" in result.message
+
     slug_index = {"newsletter-growth-loop": "newsletter-growth-loop-with-verified-outcomes-5"}
     row = {"custom_permalink": "newsletter-growth-loop", "short_url": "https://seller.gumroad.com/l/x"}
     assert match_gumroad_product_to_slug(row, slug_index) == "newsletter-growth-loop-with-verified-outcomes-5"
