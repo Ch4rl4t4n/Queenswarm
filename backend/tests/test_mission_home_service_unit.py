@@ -14,6 +14,7 @@ from app.application.services.mission_home_service import (
     STEP_STUDIOS,
     _brief_bullets_from_morning,
     _compose_memory_strip,
+    _loop_progress_from_lanes,
     _resolve_process_step,
     compose_mission_home_snapshot,
 )
@@ -39,6 +40,22 @@ def test_resolve_process_step_verify_when_approvals_pending() -> None:
         has_daily_plan=False,
     )
     assert step == "verify"
+
+
+def test_loop_progress_from_lanes() -> None:
+    from app.application.services.parallel_hive_view import ParallelBeeLaneOut
+
+    lanes = [
+        ParallelBeeLaneOut(lane_id="a", label="Research", status="completed"),
+        ParallelBeeLaneOut(lane_id="b", label="Critic", status="running"),
+    ]
+    pct, chip = _loop_progress_from_lanes(status="running", lanes=lanes)
+    assert pct == 50
+    assert chip == "Work · 50%"
+
+    verify_pct, verify_chip = _loop_progress_from_lanes(status="needs_input", lanes=lanes)
+    assert verify_chip == "Verify"
+    assert verify_pct >= 50
 
 
 def test_brief_bullets_from_morning_sections() -> None:

@@ -13,7 +13,10 @@ from app.application.services.approval_inbox import compose_approval_inbox_snaps
 from app.application.services.brain_pack_starters import starter_kinds
 from app.application.services.curated_memory_service import CuratedMemoryService
 from app.application.services.morning_hive_brief import compose_morning_hive_brief
-from app.application.services.parallel_hive_view import compose_parallel_hive_view_snapshot
+from app.application.services.parallel_hive_view import (
+    ParallelBeeLaneOut,
+    compose_parallel_hive_view_snapshot,
+)
 from app.application.services.solo_daily_plan import compose_solo_daily_plan
 from app.application.services.solo_operator_first_run import compose_solo_first_run
 from app.core.config import settings
@@ -76,6 +79,8 @@ class MissionActiveSessionOut(BaseModel):
     goal: str
     status: str
     progress_label: str
+    progress_pct: int = Field(ge=0, le=100, default=0)
+    loop_chip: str = "Work"
     href: str
 
 
@@ -400,6 +405,34 @@ def _session_progress_label(status: str, lane_count: int) -> str:
     return normalized.replace("_", " ").title()
 
 
+def _loop_progress_from_lanes(
+    *,
+    status: str,
+    lanes: list[ParallelBeeLaneOut],
+) -> tuple[int, str]:
+    """Derive Agent Loop progress chip from parallel bee lane completion (UX10 / AL1-lite)."""
+
+    normalized = status.strip().lower()
+    if normalized == "completed":
+        return 100, "Done"
+    if normalized == "needs_input":
+        pct = _lane_completion_pct(lanes) if lanes else 75
+        return max(pct, 70), "Verify"
+
+    pct = _lane_completion_pct(lanes)
+    return pct, f"Work · {pct}%"
+
+
+def _lane_completion_pct(lanes: list[ParallelBeeLaneOut]) -> int:
+    if not lanes:
+        return 15
+    done = sum(1 for lane in lanes if lane.status == "completed")
+    total = len(lanes)
+    if done >= total:
+        return 99
+    return max(5, min(98, int(round(100.0 * done / total))))
+
+
 async def compose_mission_home_snapshot(
     session: AsyncSession,
     *,
@@ -448,12 +481,15 @@ async def compose_mission_home_snapshot(
     for row in parallel.sessions:
         if row.status not in {"running", "needs_input"}:
             continue
+        progress_pct, loop_chip = _loop_progress_from_lanes(status=row.status, lanes=row.lanes)
         active_sessions.append(
             MissionActiveSessionOut(
                 session_id=row.session_id,
                 goal=row.goal,
                 status=row.status,
                 progress_label=_session_progress_label(row.status, len(row.lanes)),
+                progress_pct=progress_pct,
+                loop_chip=loop_chip,
                 href=f"/agents?session={row.session_id}",
             ),
         )

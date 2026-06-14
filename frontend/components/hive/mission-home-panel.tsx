@@ -41,6 +41,8 @@ interface MissionActiveSession {
   goal: string;
   status: string;
   progress_label: string;
+  progress_pct: number;
+  loop_chip: string;
   href: string;
 }
 
@@ -332,10 +334,11 @@ function MissionHomePanelInner(): JSX.Element | null {
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm font-semibold text-(--qs-text)">{row.goal || "Session"}</span>
+                      <V4Badge tone="info">{row.loop_chip}</V4Badge>
                       {row.status === "needs_input" ? (
                         <V4Badge tone="warn">Needs input</V4Badge>
                       ) : (
-                        <V4Badge tone="info">{row.progress_label}</V4Badge>
+                        <V4Badge tone="purple">{row.progress_pct}%</V4Badge>
                       )}
                     </div>
                     {row.status === "running" ? (

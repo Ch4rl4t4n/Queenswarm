@@ -66,6 +66,7 @@ run_frontend() {
     npm run typecheck
     npm run lint
     npm run test
+    CI=true npx playwright test e2e/first-run-journey.spec.ts
     CI=true npx playwright test e2e/responsive-shell.spec.ts
     CI=true npx playwright test e2e/responsive-visual.spec.ts
     CI=true npx playwright test e2e/pwa-shell.spec.ts

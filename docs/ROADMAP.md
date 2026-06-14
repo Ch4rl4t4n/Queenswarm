@@ -748,7 +748,7 @@ _Signal: [Claude Agent OS / Hermes Mission Control](https://www.youtube.com/watc
 
 | ID | Item | Priority | Est. | Status | Gate / asset |
 |----|------|----------|------|--------|--------------|
-| UX0 | **UX research lock** — task flows · first-run journey · 2026 trend checklist | P0 | 2 d | ⏳ | Canonical UX doc sign-off |
+| UX0 | **UX research lock** — task flows · first-run journey · 2026 trend checklist | P0 | 2 d | ✅ | Canonical UX doc sign-off |
 | UX1 | **Process Rail** — 6-step indicator · current step from tenant/onboarding state | P0 | 3 d | ✅ | OW canonical workflow |
 | UX2 | **Mission Home snapshot** — brief · 3 actions · approvals · active sessions | P0 | 3–4 d | ✅ | `GET /solo-operator/mission-home` · `/tasks` |
 | UX3 | **First-run capability story** — hero + extend OW5 wizard · sample empty states | P0 | 2–3 d | ✅ | OW5 · publish onboarding UX |
@@ -757,8 +757,8 @@ _Signal: [Claude Agent OS / Hermes Mission Control](https://www.youtube.com/watc
 | UX6 | **Responsive + spacing pass** — mobile/tablet layouts · 8px grid · 44px touch | P0 | 3–4 d | ✅ | `breakpoints.ts` · `responsive-shell.spec.ts` |
 | UX7 | **Process-linked studios** — Factory/Trading/Journal from rail step (not parallel maze) | P1 | 2 d | ✅ | Apps & Tools · Tracks N/O/P |
 | UX8 | **Route microcopy** — one-line purpose per primary route | P1 | 1–2 d | ✅ | `section-hints.ts` |
-| UX9 | **E2E first-run journey** — setup → session → verify (mobile/tablet/desktop) | P1 | 2 d | ⏳ | Playwright · OW19 |
-| UX10 | **Session progress on Home** — loop chip + % (same build as **AL1**) | P1 | 1–2 d | ⏳ | AL1 · session events |
+| UX9 | **E2E first-run journey** — setup → session → verify (mobile/tablet/desktop) | P1 | 2 d | ✅ | Playwright · OW19 |
+| UX10 | **Session progress on Home** — loop chip + % (same build as **AL1**) | P1 | 1–2 d | ✅ | AL1 · session events |
 
 **Responsive:** mobile ≤767 · tablet 768–1023 · desktop ≥1024 sidebar+canvas **unchanged** · no `#hive-search` top bar on desktop.
 

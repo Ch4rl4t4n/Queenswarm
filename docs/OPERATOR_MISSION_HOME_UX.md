@@ -4,7 +4,18 @@ Updated: 2026-06-11
 
 Canonical design for **P10 Track Q** — Hermes-style clarity without losing Queenswarm verify-first depth. **Docs only until operator approves implementation.**
 
-**Status (2026-06-11):** UX1–UX8, UX6 implemented — Process Rail, Mission Home, memory strip, solo nav, step studios, first-run hero.
+**Status (2026-06-11):** Track Q **UX0–UX10** shipped — Process Rail, Mission Home, memory strip, solo nav, step studios, first-run E2E, session loop chips.
+
+### UX0 sign-off checklist (2026-06-11)
+
+| Check | Status |
+|-------|--------|
+| 6-step process rail mapped to routes | ✅ |
+| Mission Home single snapshot API | ✅ |
+| Mobile ≤767 / tablet 768–1023 scoped CSS | ✅ |
+| Desktop ≥1024 sidebar+canvas unchanged | ✅ |
+| First-run journey E2E (3 viewports) | ✅ `e2e/first-run-journey.spec.ts` |
+| 2026 progressive disclosure + 44px touch | ✅ |
 
 **Roadmap:** [`ROADMAP.md`](ROADMAP.md) Track Q · **Signal:** [Claude Agent OS / Hermes Mission Control](https://www.youtube.com/watch?v=egeUmkhdcM4)
 

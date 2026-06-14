@@ -1766,6 +1766,34 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("solo-operator/first-run")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          complete: false,
+          progress_pct: 33,
+          steps: [
+            {
+              id: "llm_keys",
+              label: "LLM keys",
+              detail: "Add at least one provider.",
+              done: false,
+              href: "/settings/llm-keys",
+              link_label: "Open LLM keys",
+            },
+          ],
+          capability: {
+            headline: "Your verified agent operating system",
+            subhead: "Queenswarm runs supervisor missions with simulate-first verify.",
+            bullets: ["One Process Rail", "Mission Kanban", "Brain Pack"],
+          },
+        }),
+      });
+      return;
+    }
+
     if (path.startsWith("solo-operator/mission-home")) {
       await route.fulfill({
         status: 200,
