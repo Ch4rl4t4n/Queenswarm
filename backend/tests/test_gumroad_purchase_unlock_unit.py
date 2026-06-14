@@ -6,6 +6,8 @@ import uuid
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from pathlib import Path
+
 import pytest
 
 from app.application.services.gumroad_purchase_unlock import (
@@ -40,7 +42,30 @@ def test_normalize_gumroad_sale_event_provider_is_gumroad() -> None:
     assert event.event_id == "s1"
 
 
-def test_verify_gumroad_webhook_secret() -> None:
+def test_parse_gumroad_ping_payload_when_refund_then_flagged() -> None:
+    sale = parse_gumroad_ping_payload(
+        {"sale_id": "sale_r", "product_id": "prod_r", "refunded": "true", "email": "a@b.c"},
+    )
+    assert sale is not None
+    assert sale.refunded is True
+    event = normalize_gumroad_sale_event(sale)
+    assert event.event_type == "sale.refunded"
+
+
+@pytest.mark.asyncio
+async def test_sync_gumroad_catalog_from_token_when_api_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.application.services.gumroad_catalog_sync import sync_gumroad_catalog_from_token
+
+    async def _empty(*_args: object, **_kwargs: object) -> list[dict[str, object]]:
+        return []
+
+    monkeypatch.setattr(
+        "app.application.services.gumroad_catalog_sync.fetch_gumroad_products",
+        _empty,
+    )
+    result = await sync_gumroad_catalog_from_token(access_token="tok", export_root=Path("/tmp/nope"))
+    assert result.ok is False
+
     assert verify_gumroad_webhook_secret(path_secret="abc", configured_secret="abc") is True
     assert verify_gumroad_webhook_secret(path_secret="wrong", configured_secret="abc") is False
 
