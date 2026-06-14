@@ -9,7 +9,8 @@ import { toast } from "sonner";
 import { HiveAccountIdentity } from "@/components/hive/hive-account-identity";
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
 import { usePlatform } from "@/components/hive/platform-context";
-import { HIVE_NAV_GROUPS, isNavItemActive } from "@/lib/hive-nav-primary";
+import { HIVE_NAV_GROUPS, buildHiveNavGroupsForContext, isNavItemActive } from "@/lib/hive-nav-primary";
+import { PHASE70_CONSOLIDATED_NAV_ENABLED } from "@/lib/feature-flags";
 import { filterNavGroupsByFeatures } from "@/lib/platform-features";
 import { useRouteHash } from "@/lib/hooks/use-route-hash";
 import type { TenantListPayload } from "@/lib/hive-types";
@@ -39,9 +40,12 @@ function tenantSubtitle(tenant: { role: string; platform_mode?: string }, langua
 export function HiveMoreSheet({ open, onClose, pathname, tenants }: HiveMoreSheetProps) {
   const router = useRouter();
   const { language } = useUiLanguage();
-  const { features } = usePlatform();
+  const { features, soloMode } = usePlatform();
   const routeHash = useRouteHash();
-  const navGroups = filterNavGroupsByFeatures(HIVE_NAV_GROUPS, features);
+  const navGroups = filterNavGroupsByFeatures(
+    buildHiveNavGroupsForContext(PHASE70_CONSOLIDATED_NAV_ENABLED, soloMode),
+    features,
+  );
   const navCandidates = navGroups.flatMap((group) => group.items);
   const tenantList = tenants?.tenants ?? [];
   const currentTenant =

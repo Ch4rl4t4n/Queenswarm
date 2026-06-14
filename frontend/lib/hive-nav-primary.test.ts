@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  buildHiveNavGroups,
+  applySoloMissionControlNav,
+  buildHiveNavGroupsForContext,
   buildHiveNavPrimary,
   buildHiveSidebarSecondary,
+  hiveBottomNavItems,
   HIVE_NAV_GROUPS,
   HIVE_NAV_PRIMARY,
   HIVE_SIDEBAR_SECONDARY,
-  hiveBottomNavItems,
   isNavItemActive,
+  SOLO_BOTTOM_NAV_HREFS,
 } from "./hive-nav-primary";
 import { OPERATOR_CONTROL_PLANE_ENABLED } from "./feature-flags";
 import { hiveOverviewHref } from "./hive-home-route";
@@ -50,6 +52,20 @@ describe("hive-nav-primary", () => {
     expect(nav.every((i) => i.bottomNav)).toBe(true);
   });
 
+  it("solo bottom nav uses four canonical primaries (UX4)", () => {
+    const primary = applySoloMissionControlNav(HIVE_NAV_PRIMARY, true);
+    const nav = hiveBottomNavItems(primary, { soloMode: true });
+    expect(nav.map((item) => item.href)).toEqual([...SOLO_BOTTOM_NAV_HREFS]);
+    expect(nav.find((item) => item.href === "/tasks")?.label).toBe("Mission Control");
+  });
+
+  it("solo More sheet prepends Advanced group (UX4)", () => {
+    const groups = buildHiveNavGroupsForContext(true, true);
+    expect(groups[0]?.title).toBe("Advanced");
+    expect(groups[0]?.items.some((item) => item.href === "/agentic-os")).toBe(true);
+    expect(groups[0]?.items.some((item) => item.href === "/apps-tools")).toBe(true);
+  });
+
   it("buildHiveNavPrimary disables consolidated hubs when flag is false", () => {
     const nav = buildHiveNavPrimary(false).map((item) => item.href);
     expect(nav).toContain(hiveOverviewHref());
@@ -80,7 +96,7 @@ describe("hive-nav-primary", () => {
   });
 
   it("buildHiveNavGroups omits hub links when consolidated mode is disabled", () => {
-    const groups = buildHiveNavGroups(false);
+    const groups = buildHiveNavGroupsForContext(false, false);
     const hrefs = groups.flatMap((group) => group.items.map((item) => item.href));
     expect(hrefs).not.toContain("/knowledge");
     expect(hrefs).toContain(hiveOverviewHref());

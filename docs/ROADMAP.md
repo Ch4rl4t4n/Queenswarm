@@ -752,11 +752,11 @@ _Signal: [Claude Agent OS / Hermes Mission Control](https://www.youtube.com/watc
 | UX1 | **Process Rail** — 6-step indicator · current step from tenant/onboarding state | P0 | 3 d | ✅ | OW canonical workflow |
 | UX2 | **Mission Home snapshot** — brief · 3 actions · approvals · active sessions | P0 | 3–4 d | ✅ | `GET /solo-operator/mission-home` · `/tasks` |
 | UX3 | **First-run capability story** — hero + extend OW5 wizard · sample empty states | P0 | 2–3 d | ✅ | OW5 · publish onboarding UX |
-| UX4 | **Progressive solo nav** — 4 primary links · Advanced accordion for rest | P1 | 2 d | ⏳ | OW4 · OW10 |
-| UX5 | **Memory strip on Home** — SOUL/MEMORY/USER preview · token meter | P1 | 2 d | ⏳ | Brain Pack · **MEM3–MEM4** |
+| UX4 | **Progressive solo nav** — 4 primary links · Advanced accordion for rest | P1 | 2 d | ✅ | OW4 · OW10 |
+| UX5 | **Memory strip on Home** — SOUL/MEMORY/USER preview · token meter | P1 | 2 d | ✅ | Brain Pack · **MEM3–MEM4** |
 | UX6 | **Responsive + spacing pass** — mobile/tablet layouts · 8px grid · 44px touch | P0 | 3–4 d | ✅ | `breakpoints.ts` · `responsive-shell.spec.ts` |
-| UX7 | **Process-linked studios** — Factory/Trading/Journal from rail step (not parallel maze) | P1 | 2 d | ⏳ | Apps & Tools · Tracks N/O/P |
-| UX8 | **Route microcopy** — one-line purpose per primary route | P1 | 1–2 d | ⏳ | `section-hints.ts` |
+| UX7 | **Process-linked studios** — Factory/Trading/Journal from rail step (not parallel maze) | P1 | 2 d | ✅ | Apps & Tools · Tracks N/O/P |
+| UX8 | **Route microcopy** — one-line purpose per primary route | P1 | 1–2 d | ✅ | `section-hints.ts` |
 | UX9 | **E2E first-run journey** — setup → session → verify (mobile/tablet/desktop) | P1 | 2 d | ⏳ | Playwright · OW19 |
 | UX10 | **Session progress on Home** — loop chip + % (same build as **AL1**) | P1 | 1–2 d | ⏳ | AL1 · session events |
 

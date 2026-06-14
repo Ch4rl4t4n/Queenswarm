@@ -92,6 +92,24 @@ export function buildHiveNavPrimary(consolidatedEnabled: boolean): HiveNavItem[]
 
 export const HIVE_NAV_PRIMARY: HiveNavItem[] = buildHiveNavPrimary(PHASE70_CONSOLIDATED_NAV_ENABLED);
 
+/** Solo mobile bottom nav — 4 daily primaries; Agentic OS + Apps in More → Advanced (UX4). */
+export const SOLO_BOTTOM_NAV_HREFS: readonly string[] = [
+  "/tasks",
+  "/agents",
+  "/knowledge",
+  "/integrations",
+];
+
+/** Solo More sheet — demoted studios and legacy rails (UX4). */
+export const SOLO_ADVANCED_NAV_HREFS: readonly string[] = [
+  "/agentic-os",
+  "/apps-tools",
+  "/routines",
+  "/swarms",
+  "/ballroom",
+  "/foragers",
+];
+
 /** Solo operator: promote Tasks to first rail slot as Mission Control (OW13). */
 export function applySoloMissionControlNav(primary: HiveNavItem[], soloMode: boolean): HiveNavItem[] {
   if (!soloMode || !OPERATOR_CONTROL_PLANE_ENABLED) {
@@ -130,9 +148,50 @@ export function buildHiveNavGroups(consolidatedEnabled: boolean): { title: strin
   });
 }
 
+/** Grouped nav for More sheet — solo puts Agentic OS / Apps under Advanced (UX4). */
+export function buildHiveNavGroupsForContext(
+  consolidatedEnabled: boolean,
+  soloMode: boolean,
+): { title: string; items: HiveNavItem[] }[] {
+  const base = buildHiveNavGroups(consolidatedEnabled);
+  if (!soloMode || !OPERATOR_CONTROL_PLANE_ENABLED) {
+    return base;
+  }
+
+  const primary = buildHiveNavPrimaryForContext(consolidatedEnabled, soloMode);
+  const advancedItems = SOLO_ADVANCED_NAV_HREFS.map((href) => primary.find((item) => item.href === href)).filter(
+    (item): item is HiveNavItem => item !== undefined,
+  );
+  if (!advancedItems.length) {
+    return base;
+  }
+
+  const advancedHrefs = new Set(SOLO_ADVANCED_NAV_HREFS);
+  const bottomHrefs = new Set(SOLO_BOTTOM_NAV_HREFS);
+  const trimmed = base
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !advancedHrefs.has(item.href) && !bottomHrefs.has(item.href)),
+    }))
+    .filter((group) => group.items.length > 0);
+
+  return [{ title: "Advanced", items: advancedItems }, ...trimmed];
+}
+
 export const HIVE_NAV_GROUPS: { title: string; items: HiveNavItem[] }[] = buildHiveNavGroups(PHASE70_CONSOLIDATED_NAV_ENABLED);
 
-export function hiveBottomNavItems(primary: HiveNavItem[] = HIVE_NAV_PRIMARY): HiveNavItem[] {
+export function hiveBottomNavItems(
+  primary: HiveNavItem[] = HIVE_NAV_PRIMARY,
+  options?: { soloMode?: boolean },
+): HiveNavItem[] {
+  if (options?.soloMode) {
+    const picked = SOLO_BOTTOM_NAV_HREFS.map((href) => primary.find((item) => item.href === href)).filter(
+      (item): item is HiveNavItem => item !== undefined,
+    );
+    if (picked.length >= 3) {
+      return picked;
+    }
+  }
   const flagged = primary.filter((i) => i.bottomNav);
   return flagged.length ? flagged : primary.slice(0, 3);
 }

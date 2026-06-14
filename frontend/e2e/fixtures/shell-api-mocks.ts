@@ -1794,6 +1794,29 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           ],
           approvals: [],
           active_sessions: [],
+          memory_strip: {
+            layers: [
+              {
+                id: "soul",
+                label: "SOUL",
+                preview: "Verify-first bee hive.",
+                char_count: 24,
+                filled: true,
+                href: "/knowledge?tab=memory#brain-pack",
+              },
+            ],
+            total_chars: 24,
+            max_chars: 80000,
+            usage_pct: 0,
+          },
+          step_studios: [
+            {
+              id: "session_presets",
+              title: "Goal templates",
+              detail: "Pick a structured supervisor preset.",
+              href: "/agents#sessions",
+            },
+          ],
           first_run_complete: true,
           links: {
             new_session: "/agents#sessions",

@@ -9,11 +9,15 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.application.services.mission_home_service import (
+    MissionMemoryStripOut,
     PROCESS_STEPS,
+    STEP_STUDIOS,
     _brief_bullets_from_morning,
+    _compose_memory_strip,
     _resolve_process_step,
     compose_mission_home_snapshot,
 )
+from app.domain.memory.curated import CuratedFileKind
 from app.application.services.solo_operator_first_run import SoloFirstRunOut
 
 
@@ -68,6 +72,42 @@ async def test_compose_mission_home_disabled_when_solo_off() -> None:
 
 
 @pytest.mark.asyncio
+async def test_compose_memory_strip_empty_layers() -> None:
+    session = AsyncMock()
+    tenant_id = uuid.uuid4()
+
+    with patch(
+        "app.application.services.mission_home_service.CuratedMemoryService",
+    ) as svc_cls:
+        svc = svc_cls.return_value
+        svc.get_bundle = AsyncMock(
+            return_value={
+                CuratedFileKind.SOUL: "",
+                CuratedFileKind.SKILLS_HIERARCHY: "",
+                CuratedFileKind.MISSION: "",
+                CuratedFileKind.IDEAL_STATE: "",
+                CuratedFileKind.INSTRUCTIONS: "",
+            },
+        )
+        with patch(
+            "app.application.services.mission_home_service.CuratedMemoryService.max_chars_per_file",
+            return_value=16000,
+        ):
+            strip = await _compose_memory_strip(session, tenant_id=tenant_id)
+
+    assert len(strip.layers) == 3
+    assert strip.layers[0].id == "soul"
+    assert strip.layers[0].filled is False
+    assert "Empty" in strip.layers[0].preview
+
+
+@pytest.mark.asyncio
+async def test_step_studios_for_setup() -> None:
+    assert STEP_STUDIOS["setup"][0].id == "llm_keys"
+    assert len(STEP_STUDIOS["verify"]) >= 1
+
+
+@pytest.mark.asyncio
 async def test_compose_mission_home_setup_step() -> None:
     session = AsyncMock()
     tenant_id = uuid.uuid4()
@@ -93,6 +133,7 @@ async def test_compose_mission_home_setup_step() -> None:
         {"enabled": True, "counts": type("C", (), {"total": 0})(), "items": []},
     )()
     parallel = type("Parallel", (), {"sessions": []})()
+    memory_strip = MissionMemoryStripOut()
 
     with patch("app.application.services.mission_home_service.settings") as mock_settings:
         mock_settings.solo_mode_enabled = True
@@ -117,14 +158,19 @@ async def test_compose_mission_home_setup_step() -> None:
                             "app.application.services.mission_home_service.compose_parallel_hive_view_snapshot",
                             AsyncMock(return_value=parallel),
                         ):
-                            snapshot = await compose_mission_home_snapshot(
-                                session,
-                                tenant_id=tenant_id,
-                                dashboard_user_id=user_id,
-                                tenant=None,
-                            )
+                            with patch(
+                                "app.application.services.mission_home_service._compose_memory_strip",
+                                AsyncMock(return_value=memory_strip),
+                            ):
+                                snapshot = await compose_mission_home_snapshot(
+                                    session,
+                                    tenant_id=tenant_id,
+                                    dashboard_user_id=user_id,
+                                    tenant=None,
+                                )
 
     assert snapshot.enabled is True
     assert snapshot.current_step == "setup"
     assert snapshot.first_run_complete is False
     assert len(snapshot.brief_bullets) >= 1
+    assert snapshot.step_studios[0].id == "llm_keys"

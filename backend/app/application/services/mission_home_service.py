@@ -10,14 +10,18 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.approval_inbox import compose_approval_inbox_snapshot
+from app.application.services.brain_pack_starters import starter_kinds
+from app.application.services.curated_memory_service import CuratedMemoryService
 from app.application.services.morning_hive_brief import compose_morning_hive_brief
 from app.application.services.parallel_hive_view import compose_parallel_hive_view_snapshot
 from app.application.services.solo_daily_plan import compose_solo_daily_plan
 from app.application.services.solo_operator_first_run import compose_solo_first_run
 from app.core.config import settings
+from app.domain.memory.curated import CuratedFileKind
 from app.infrastructure.persistence.models.tenant import Tenant
 
 ProcessStepId = Literal["setup", "plan", "work", "verify", "learn", "done"]
+MemoryLayerId = Literal["soul", "memory", "user"]
 
 
 class ProcessStepOut(BaseModel):
@@ -75,6 +79,41 @@ class MissionActiveSessionOut(BaseModel):
     href: str
 
 
+class MissionMemoryLayerOut(BaseModel):
+    """One Brain Pack layer preview (SOUL · MEMORY · USER)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    id: MemoryLayerId
+    label: str
+    preview: str
+    char_count: int
+    filled: bool
+    href: str
+
+
+class MissionMemoryStripOut(BaseModel):
+    """Compact Brain Pack strip for Mission Home (Track Q UX5)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    layers: list[MissionMemoryLayerOut] = Field(default_factory=list)
+    total_chars: int = 0
+    max_chars: int = 0
+    usage_pct: int = Field(ge=0, le=100, default=0)
+
+
+class MissionStudioEntryOut(BaseModel):
+    """Process-linked studio entry (Track Q UX7)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    id: str
+    title: str
+    detail: str
+    href: str
+
+
 class MissionHomeSnapshotOut(BaseModel):
     """Unified Mission Home snapshot for /tasks solo default."""
 
@@ -88,6 +127,8 @@ class MissionHomeSnapshotOut(BaseModel):
     next_actions: list[MissionActionOut] = Field(default_factory=list)
     approvals: list[MissionApprovalOut] = Field(default_factory=list)
     active_sessions: list[MissionActiveSessionOut] = Field(default_factory=list)
+    memory_strip: MissionMemoryStripOut = Field(default_factory=MissionMemoryStripOut)
+    step_studios: list[MissionStudioEntryOut] = Field(default_factory=list)
     first_run_complete: bool = True
     links: dict[str, str] = Field(default_factory=dict)
 
@@ -100,6 +141,169 @@ PROCESS_STEPS: list[ProcessStepOut] = [
     ProcessStepOut(id="learn", label="Learn", short_label="Learn"),
     ProcessStepOut(id="done", label="Done", short_label="Done"),
 ]
+
+STEP_STUDIOS: dict[ProcessStepId, list[MissionStudioEntryOut]] = {
+    "setup": [
+        MissionStudioEntryOut(
+            id="llm_keys",
+            title="LLM keys",
+            detail="Configure Grok or OpenRouter and run smoke test.",
+            href="/settings/llm-keys",
+        ),
+        MissionStudioEntryOut(
+            id="brain_pack",
+            title="Brain Pack",
+            detail="Load SOUL · MEMORY · USER curated context.",
+            href="/knowledge?tab=memory#brain-pack",
+        ),
+    ],
+    "plan": [
+        MissionStudioEntryOut(
+            id="session_presets",
+            title="Goal templates",
+            detail="Pick a structured supervisor preset for today's mission.",
+            href="/agents?preset=web-redesign-discovery#sessions",
+        ),
+        MissionStudioEntryOut(
+            id="daily_plan",
+            title="Today's plan",
+            detail="PO · marketing · trading priorities from Operator Loop.",
+            href="/agentic-os#solo-daily-plan",
+        ),
+    ],
+    "work": [
+        MissionStudioEntryOut(
+            id="new_session",
+            title="Supervisor session",
+            detail="Dispatch bees with simulate-first verify.",
+            href="/agents#sessions",
+        ),
+        MissionStudioEntryOut(
+            id="skill_factory",
+            title="Skill Factory",
+            detail="Forge verified skills when a workflow repeats.",
+            href="/apps-tools/skill-factory",
+        ),
+    ],
+    "verify": [
+        MissionStudioEntryOut(
+            id="approvals",
+            title="Approval inbox",
+            detail="Simulate-first gates — publish, suggestions, digests.",
+            href="/cockpit#approvals",
+        ),
+        MissionStudioEntryOut(
+            id="publish_studio",
+            title="Publish studio",
+            detail="Social simulate before any live post.",
+            href="/integrations?tab=studio#social-publish",
+        ),
+    ],
+    "learn": [
+        MissionStudioEntryOut(
+            id="wiki",
+            title="Wiki capture",
+            detail="Promote verified session output to Hive Mind.",
+            href="/knowledge#wiki",
+        ),
+        MissionStudioEntryOut(
+            id="recipes",
+            title="Recipe library",
+            detail="Reuse verified workflows from past missions.",
+            href="/knowledge#recipes",
+        ),
+    ],
+    "done": [
+        MissionStudioEntryOut(
+            id="kanban",
+            title="Mission Kanban",
+            detail="Move deliverables to Done and export.",
+            href="/tasks",
+        ),
+        MissionStudioEntryOut(
+            id="apps_tools",
+            title="Apps & Tools",
+            detail="Trading cockpit, marketing automation, factories.",
+            href="/apps-tools",
+        ),
+    ],
+}
+
+
+def _preview_text(text: str, *, max_chars: int = 140) -> str:
+    cleaned = " ".join(text.strip().split())
+    if not cleaned:
+        return "Empty — load Brain Pack starter in Knowledge."
+    if len(cleaned) <= max_chars:
+        return cleaned
+    return f"{cleaned[: max_chars - 1]}…"
+
+
+async def _compose_memory_strip(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+) -> MissionMemoryStripOut:
+    """Build SOUL · MEMORY · USER previews from curated bundle."""
+
+    svc = CuratedMemoryService(db=session)
+    bundle = await svc.get_bundle(tenant_id)
+    max_per_file = CuratedMemoryService.max_chars_per_file()
+
+    soul_text = "\n\n".join(
+        part.strip()
+        for part in (
+            bundle.get(CuratedFileKind.SOUL, ""),
+            bundle.get(CuratedFileKind.SKILLS_HIERARCHY, ""),
+        )
+        if part.strip()
+    )
+    memory_text = "\n\n".join(
+        part.strip()
+        for part in (
+            bundle.get(CuratedFileKind.MISSION, ""),
+            bundle.get(CuratedFileKind.IDEAL_STATE, ""),
+        )
+        if part.strip()
+    )
+    user_text = (bundle.get(CuratedFileKind.INSTRUCTIONS) or "").strip()
+
+    layers: list[MissionMemoryLayerOut] = [
+        MissionMemoryLayerOut(
+            id="soul",
+            label="SOUL",
+            preview=_preview_text(soul_text),
+            char_count=len(soul_text),
+            filled=bool(soul_text.strip()),
+            href="/knowledge?tab=memory#brain-pack",
+        ),
+        MissionMemoryLayerOut(
+            id="memory",
+            label="MEMORY",
+            preview=_preview_text(memory_text),
+            char_count=len(memory_text),
+            filled=bool(memory_text.strip()),
+            href="/knowledge?tab=memory#brain-pack",
+        ),
+        MissionMemoryLayerOut(
+            id="user",
+            label="USER",
+            preview=_preview_text(user_text),
+            char_count=len(user_text),
+            filled=bool(user_text.strip()),
+            href="/knowledge?tab=memory#brain-pack",
+        ),
+    ]
+    total_chars = sum(row.char_count for row in layers)
+    max_chars = max_per_file * len(starter_kinds())
+    usage_pct = min(100, round((total_chars / max_chars) * 100)) if max_chars else 0
+
+    return MissionMemoryStripOut(
+        layers=layers,
+        total_chars=total_chars,
+        max_chars=max_chars,
+        usage_pct=usage_pct,
+    )
 
 
 def _brief_bullets_from_morning(morning: dict[str, object]) -> list[MissionBriefBulletOut]:
@@ -287,6 +491,7 @@ async def compose_mission_home_snapshot(
         active_sessions=active_sessions,
         has_daily_plan=bool(daily.enabled and daily.items),
     )
+    memory_strip = await _compose_memory_strip(session, tenant_id=tenant_id)
 
     return MissionHomeSnapshotOut(
         enabled=True,
@@ -297,6 +502,8 @@ async def compose_mission_home_snapshot(
         next_actions=next_actions,
         approvals=approvals,
         active_sessions=active_sessions,
+        memory_strip=memory_strip,
+        step_studios=STEP_STUDIOS.get(current_step, [])[:2],
         first_run_complete=first_run.complete,
         links={
             "new_session": "/agents?preset=web-redesign-discovery#sessions",
@@ -309,7 +516,10 @@ async def compose_mission_home_snapshot(
 
 __all__ = [
     "MissionHomeSnapshotOut",
+    "MissionMemoryStripOut",
     "ProcessStepId",
     "ProcessStepOut",
+    "STEP_STUDIOS",
+    "_compose_memory_strip",
     "compose_mission_home_snapshot",
 ]

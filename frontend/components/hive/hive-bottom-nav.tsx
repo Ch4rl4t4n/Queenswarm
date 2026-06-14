@@ -54,6 +54,7 @@ export function HiveBottomNav({ onMore, pathname, moreOpen = false }: HiveBottom
   const { features, soloMode } = usePlatform();
   const items = hiveBottomNavItems(
     filterNavByFeatures(applySoloMissionControlNav(HIVE_NAV_PRIMARY, soloMode), features),
+    { soloMode },
   );
 
   return (

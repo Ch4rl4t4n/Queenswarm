@@ -6,6 +6,7 @@ import { memo, useCallback, useEffect, useState } from "react";
 
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
 import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { ProcessRail, type ProcessStep, type ProcessStepId } from "@/components/hive/process-rail";
 import { usePlatform } from "@/components/hive/platform-context";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
@@ -43,6 +44,29 @@ interface MissionActiveSession {
   href: string;
 }
 
+interface MissionMemoryLayer {
+  id: "soul" | "memory" | "user";
+  label: string;
+  preview: string;
+  char_count: number;
+  filled: boolean;
+  href: string;
+}
+
+interface MissionMemoryStrip {
+  layers: MissionMemoryLayer[];
+  total_chars: number;
+  max_chars: number;
+  usage_pct: number;
+}
+
+interface MissionStudioEntry {
+  id: string;
+  title: string;
+  detail: string;
+  href: string;
+}
+
 interface MissionHomeSnapshot {
   enabled: boolean;
   current_step: ProcessStepId;
@@ -51,6 +75,8 @@ interface MissionHomeSnapshot {
   next_actions: MissionAction[];
   approvals: MissionApproval[];
   active_sessions: MissionActiveSession[];
+  memory_strip?: MissionMemoryStrip;
+  step_studios?: MissionStudioEntry[];
   first_run_complete: boolean;
   links: Record<string, string>;
 }
@@ -114,6 +140,22 @@ function MissionHomePanelInner(): JSX.Element | null {
         compact
       />
 
+      {snapshot.step_studios && snapshot.step_studios.length > 0 ? (
+        <div className="flex flex-wrap gap-2 max-lg:px-0">
+          {snapshot.step_studios.map((studio) => (
+            <Link
+              key={studio.id}
+              href={studio.href}
+              className="qs-btn qs-btn--ghost qs-btn--sm min-h-[44px] gap-1 border border-(--qs-border)/50"
+              title={studio.detail}
+            >
+              {studio.title}
+              <ArrowRight className="size-3.5" aria-hidden />
+            </Link>
+          ))}
+        </div>
+      ) : null}
+
       {err ? (
         <p className="text-xs text-[#FF3366]" role="alert">
           {err}
@@ -126,6 +168,7 @@ function MissionHomePanelInner(): JSX.Element | null {
             kicker="Today"
             title="Brief"
             description="Verified trio lanes and tech health — simulate-first."
+            hint={sectionHintNode("missionHome")}
             actions={<HiveRefreshButton busy={loading} onClick={() => void reload()} />}
           />
           <ul className="space-y-2 px-4 pb-4">
@@ -179,6 +222,52 @@ function MissionHomePanelInner(): JSX.Element | null {
           )}
         </V4Card>
       </div>
+
+      <V4Card className="md:max-lg:col-span-2">
+        <V4CardHeader
+          kicker="Memory"
+          title="Brain Pack"
+          description="SOUL · MEMORY · USER — human-editable Queen context."
+          hint={sectionHintNode("missionHomeMemory")}
+          actions={
+            <Link href={snapshot.links.knowledge ?? "/knowledge#memory"} className="qs-btn qs-btn--ghost qs-btn--sm">
+              Edit
+            </Link>
+          }
+        />
+        <div
+          className="mx-4 mb-3 h-2 overflow-hidden rounded-full bg-black/40"
+          role="progressbar"
+          aria-valuenow={snapshot.memory_strip?.usage_pct ?? 0}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Brain Pack token usage"
+        >
+          <div
+            className="h-full rounded-full bg-linear-to-r from-cyan to-pollen transition-[width] duration-500"
+            style={{ width: `${snapshot.memory_strip?.usage_pct ?? 0}%` }}
+          />
+        </div>
+        <p className="mb-3 px-4 text-[11px] text-(--qs-muted)">
+          {snapshot.memory_strip?.total_chars ?? 0} / {snapshot.memory_strip?.max_chars ?? 0} chars (
+          {snapshot.memory_strip?.usage_pct ?? 0}%)
+        </p>
+        <div className="grid gap-2 px-4 pb-4 max-lg:grid-cols-1 md:max-lg:grid-cols-3">
+          {(snapshot.memory_strip?.layers ?? []).map((layer) => (
+            <Link
+              key={layer.id}
+              href={layer.href}
+              className="block rounded-lg border border-(--qs-border)/50 bg-black/20 p-3 transition hover:border-cyan/40 min-h-[44px]"
+            >
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xs font-semibold text-cyan">{layer.label}</span>
+                {layer.filled ? <V4Badge tone="ok">Ready</V4Badge> : <V4Badge tone="warn">Empty</V4Badge>}
+              </div>
+              <p className="mt-1 line-clamp-2 text-xs text-(--qs-muted)">{layer.preview}</p>
+            </Link>
+          ))}
+        </div>
+      </V4Card>
 
       <div className="flex flex-col gap-3 md:max-lg:contents">
         <V4Card className="md:max-lg:col-span-1">

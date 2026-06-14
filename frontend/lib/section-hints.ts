@@ -263,15 +263,37 @@ export const SECTION_HINTS = {
     manualHref: "/manual#factory",
   },
   tasks: {
-    title: "Tasks",
+    title: "Mission Control",
     description:
-      "Mission queue for async jobs, workflow lanes, Celery depth, and verified completions before user-facing output.",
+      "Your daily home — Process Rail, verified brief, next actions, approvals, and active sessions above Mission Kanban.",
     options: [
-      "Queue lanes — pending, running, blocked, completed today.",
-      "Workflows DAG — visual factory chains from Tasks tab.",
-      "Sync — poll Redis/Celery-backed queue without blocking UI.",
+      "Process Rail — Setup → Plan → Work → Verify → Learn → Done.",
+      "Memory strip — SOUL · MEMORY · USER preview from Brain Pack.",
+      "Step studios — Factory, Publish, Wiki open from the active rail step.",
     ],
     manualHref: "/manual#tasks",
+  },
+  missionHome: {
+    title: "Mission Home",
+    description:
+      "Single snapshot for solo operators — brief, actions, approvals, sessions, and Brain Pack memory at a glance.",
+    options: [
+      "Polls every cockpit interval — skeleton while loading.",
+      "Mobile max 5 cards — desktop canvas unchanged.",
+      "Finish first-run setup to unlock the full daily loop.",
+    ],
+    manualHref: "/manual#tasks",
+  },
+  missionHomeMemory: {
+    title: "Brain Pack memory",
+    description:
+      "SOUL (identity + skills), MEMORY (mission + ideal state), USER (behavioral instructions) — injected on every Queen bootstrap.",
+    options: [
+      "Token meter — total chars vs Brain Pack ceiling.",
+      "Edit in Knowledge → Curated memory → Brain Pack.",
+      "Load starter pack when any layer is empty.",
+    ],
+    manualHref: "/manual#setup-once",
   },
   routines: {
     title: "Routines",

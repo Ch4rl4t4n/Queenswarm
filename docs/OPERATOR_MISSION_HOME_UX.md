@@ -4,7 +4,7 @@ Updated: 2026-06-11
 
 Canonical design for **P10 Track Q** — Hermes-style clarity without losing Queenswarm verify-first depth. **Docs only until operator approves implementation.**
 
-**Status (2026-06-11):** UX1, UX2, UX3, UX6 implemented — Process Rail + Mission Home on `/tasks`, first-run capability hero, mobile/tablet layouts.
+**Status (2026-06-11):** UX1–UX8, UX6 implemented — Process Rail, Mission Home, memory strip, solo nav, step studios, first-run hero.
 
 **Roadmap:** [`ROADMAP.md`](ROADMAP.md) Track Q · **Signal:** [Claude Agent OS / Hermes Mission Control](https://www.youtube.com/watch?v=egeUmkhdcM4)
 
