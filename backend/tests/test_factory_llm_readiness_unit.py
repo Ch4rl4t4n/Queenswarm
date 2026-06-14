@@ -305,7 +305,7 @@ async def test_run_factory_llm_smoke_times_out_fast() -> None:
     session = AsyncMock()
     router = MagicMock()
 
-    async def _hang(**kwargs: object) -> tuple[str, float]:
+    async def _hang(*args: object, **kwargs: object) -> tuple[str, float]:
         await asyncio.sleep(60)
         return "OK", 0.0
 
