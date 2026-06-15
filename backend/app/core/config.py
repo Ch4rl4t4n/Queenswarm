@@ -1771,6 +1771,10 @@ class Settings(BaseSettings):
         default=True,
         description="LOOP4 — Mid-flight checkpoint UX (pause → approve → continue).",
     )
+    pattern_tool_explainer_enabled: bool = Field(
+        default=True,
+        description="AL4 — Pattern + tool explainer chips per loop phase / sub-agent step.",
+    )
     factory_queue_slo_enabled: bool = Field(
         default=True,
         description="TR4 — Skill Factory queue SLO panel in factory snapshot.",

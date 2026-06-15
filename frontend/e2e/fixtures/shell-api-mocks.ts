@@ -1920,6 +1920,46 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.match(/^agents\/sessions\/[^/]+\/step-explainers$/)) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          visible: true,
+          session_id: path.split("/")[2] ?? "00000000-0000-4000-8000-000000000001",
+          session_status: "needs_input",
+          operator_hint: "Why this tool — without reading raw JSON events.",
+          pattern_rationale: ["baseline: planning + multi-agent + RAG + guardrails"],
+          chips: [
+            {
+              chip_id: "phase:tool:tool_use:post_message",
+              phase_id: "tool",
+              phase_label: "Tool",
+              sub_agent_role: null,
+              pattern_id: "tool_use",
+              pattern_label: "Tool Use",
+              tool_name: "post_message",
+              tool_label: "Slack Post",
+              explainer: "Execute actions via connectors instead of guessing. Tool: Slack Post.",
+            },
+            {
+              chip_id: "sub:publisher:tool_use:post_message",
+              phase_id: null,
+              phase_label: null,
+              sub_agent_role: "publisher",
+              pattern_id: "tool_use",
+              pattern_label: "Tool Use",
+              tool_name: "post_message",
+              tool_label: "Slack Post",
+              explainer: "Execute actions via connectors instead of guessing. Tool: Slack Post.",
+            },
+          ],
+        }),
+      });
+      return;
+    }
+
     if (path.match(/^agents\/sessions\/[^/]+\/mid-flight-checkpoint$/)) {
       await route.fulfill({
         status: 200,

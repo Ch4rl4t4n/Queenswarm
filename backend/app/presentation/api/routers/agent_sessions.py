@@ -1200,6 +1200,27 @@ async def get_agent_session_tool_outcomes(
 
 
 @router.get(
+    "/sessions/{session_id}/step-explainers",
+    summary="AL4 Pattern + tool explainer — why this tool per loop step",
+)
+async def get_agent_session_step_explainers(
+    session_id: uuid.UUID,
+    _sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("supervisor:view")),
+) -> dict[str, Any]:
+    """Return pattern + tool explainer chips without reading raw JSON events."""
+
+    from app.application.services.pattern_tool_explainer_service import compose_pattern_tool_explainer
+
+    row = await get_supervisor_session(db, session_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Supervisor session not found.")
+    panel = await compose_pattern_tool_explainer(db, supervisor_session=row)
+    return panel.model_dump(mode="json")
+
+
+@router.get(
     "/sessions/{session_id}/mid-flight-checkpoint",
     summary="LOOP4 Mid-flight checkpoint — pause, approve, continue CTAs",
 )
