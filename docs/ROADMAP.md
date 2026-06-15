@@ -530,7 +530,7 @@ _MK6/MK7 remain in P0 letagentscook table above._
 | ID | Item | Priority | Est. | Status | Gate / asset |
 |----|------|----------|------|--------|--------------|
 | TR1 | **Injection guard coverage** dashboard | P1 | 2 d | ✅ | Checkpoint hit counts by tool — `injection_guard_coverage_service`, `GET /harness/injection-guard-coverage`, Settings → AI harness |
-| TR2 | **Simulation pass rate** trend in CBO snapshot | P1 | 1–2 d | ⏳ | `GET /business-os/snapshot` |
+| TR2 | **Simulation pass rate** trend in CBO snapshot | P1 | 1–2 d | ✅ | `simulation_pass_rate_service`, `GET /operator/business/snapshot`, Cockpit → Business |
 | TR3 | **Rubric score** in session report pre-approve | P2 | 1 d | ⏳ | `rubric_templates.py` surface |
 | TR4 | **Skill Factory queue SLO** panel | P0 | 2 d | ✅ | awaiting_forge, critic rate, weekly cap |
 

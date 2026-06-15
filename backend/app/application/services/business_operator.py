@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from app.application.services.business_cross_lane_learning import BusinessCrossLaneLearningOut
     from app.application.services.business_goal_stack import BusinessGoalStackOut
     from app.application.services.harness_project_profiles import HarnessProfilesStateOut
+    from app.application.services.simulation_pass_rate_service import SimulationPassRateTrendOut
 from app.application.services.solo_daily_plan import compose_solo_daily_plan
 from app.core.config import settings
 from app.infrastructure.persistence.models.enums import TaskStatus
@@ -119,6 +120,7 @@ class BusinessOperatorSnapshotOut(BaseModel):
     background_team: BackgroundBusinessTeamOut | None = None
     cross_lane_learning: BusinessCrossLaneLearningOut | None = None
     harness_profiles: HarnessProfilesStateOut | None = None
+    simulation_pass_rate: SimulationPassRateTrendOut | None = None
     links: dict[str, str] = Field(default_factory=dict)
 
 
@@ -516,7 +518,9 @@ async def compose_business_operator_snapshot(
         polymarket_live_ready = False
 
     missions = await _mission_counts(db, tenant_id=tenant_id)
-    daily, goal_stack, background_team, cross_lane = await asyncio.gather(
+    from app.application.services.simulation_pass_rate_service import compose_simulation_pass_rate_trend
+
+    daily, goal_stack, background_team, cross_lane, simulation_pass_rate = await asyncio.gather(
         compose_solo_daily_plan(
             db,
             tenant_id=tenant_id,
@@ -536,6 +540,7 @@ async def compose_business_operator_snapshot(
         ),
         compose_background_business_team(db, tenant_id=tenant_id, tenant=tenant),
         compose_business_cross_lane_learning(db, tenant_id=tenant_id),
+        compose_simulation_pass_rate_trend(db, tenant_id=tenant_id),
     )
     harness_profiles = compose_harness_profiles_state(tenant)
     daily_items = [item.model_dump(mode="json") for item in daily.items]
@@ -562,6 +567,7 @@ async def compose_business_operator_snapshot(
         background_team=background_team,
         cross_lane_learning=cross_lane,
         harness_profiles=harness_profiles,
+        simulation_pass_rate=simulation_pass_rate,
         links={
             "agents_sessions": "/agents#sessions",
             "mission_control": "/tasks",
@@ -588,6 +594,7 @@ def _rebuild_business_operator_models() -> None:
     from app.application.services.business_cross_lane_learning import BusinessCrossLaneLearningOut
     from app.application.services.business_goal_stack import BusinessGoalStackOut
     from app.application.services.harness_project_profiles import HarnessProfilesStateOut
+    from app.application.services.simulation_pass_rate_service import SimulationPassRateTrendOut
 
     BusinessOperatorSnapshotOut.model_rebuild(
         _types_namespace={
@@ -595,6 +602,7 @@ def _rebuild_business_operator_models() -> None:
             "BusinessCrossLaneLearningOut": BusinessCrossLaneLearningOut,
             "BusinessGoalStackOut": BusinessGoalStackOut,
             "HarnessProfilesStateOut": HarnessProfilesStateOut,
+            "SimulationPassRateTrendOut": SimulationPassRateTrendOut,
         },
     )
 

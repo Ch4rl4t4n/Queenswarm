@@ -121,6 +121,20 @@ interface BusinessOperatorSnapshot {
     active_profile_id: string;
     profiles: Array<{ profile_id: string; label: string; description: string }>;
   } | null;
+  simulation_pass_rate?: {
+    enabled: boolean;
+    status: "healthy" | "warn" | "critical" | "unknown";
+    trend: "up" | "down" | "stable";
+    pass_rate_7d_pct: number | null;
+    pass_rate_30d_pct: number | null;
+    total_7d: number;
+    passed_7d: number;
+    failed_7d: number;
+    inconclusive_7d: number;
+    gate_threshold_pct: number;
+    operator_hint: string;
+    daily: Array<{ date: string; total: number; passed: number; pass_rate_pct: number }>;
+  } | null;
   links: Record<string, string>;
 }
 
@@ -143,6 +157,25 @@ function priorityTone(priority: BusinessAction["priority"]): V4BadgeTone {
     return "info";
   }
   return "warn";
+}
+
+function sparkBarClass(passRatePct: number, total: number): string {
+  if (total <= 0) {
+    return "h-1";
+  }
+  if (passRatePct >= 90) {
+    return "h-12";
+  }
+  if (passRatePct >= 70) {
+    return "h-9";
+  }
+  if (passRatePct >= 50) {
+    return "h-6";
+  }
+  if (passRatePct >= 25) {
+    return "h-4";
+  }
+  return "h-2";
 }
 
 function BusinessOperatorPanelInner(): JSX.Element | null {
@@ -301,6 +334,81 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
           </p>
         ) : null}
       </V4Card>
+
+      {snapshot.simulation_pass_rate?.enabled ? (
+        <V4Card
+          className={cn(
+            "border-(--qs-border)",
+            snapshot.simulation_pass_rate.status === "critical"
+              ? "border-(--qs-red)/40 bg-(--qs-red)/5"
+              : snapshot.simulation_pass_rate.status === "warn"
+                ? "border-pollen/35 bg-pollen/5"
+                : "border-success/30 bg-success/5",
+          )}
+          data-testid="simulation-pass-rate-panel"
+        >
+          <V4CardHeader
+            kicker="TR2"
+            title="Simulation pass rate"
+            description="Verify-first harness KPI — swarm audits scoped to your tenant tasks."
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <V4Badge
+              tone={
+                snapshot.simulation_pass_rate.status === "healthy"
+                  ? "ok"
+                  : snapshot.simulation_pass_rate.status === "warn"
+                    ? "warn"
+                    : snapshot.simulation_pass_rate.status === "critical"
+                      ? "err"
+                      : "info"
+              }
+            >
+              {snapshot.simulation_pass_rate.status}
+            </V4Badge>
+            <V4Badge tone="info">trend {snapshot.simulation_pass_rate.trend}</V4Badge>
+            <span className="font-mono text-xs text-(--qs-text-3)">
+              gate {snapshot.simulation_pass_rate.gate_threshold_pct}%
+            </span>
+          </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-(--qs-text-4)">7-day pass rate</p>
+              <p className="mt-1 font-mono text-xl font-bold text-success">
+                {snapshot.simulation_pass_rate.pass_rate_7d_pct ?? "—"}%
+              </p>
+              <p className="text-[11px] text-(--qs-text-3)">
+                {snapshot.simulation_pass_rate.passed_7d}/{snapshot.simulation_pass_rate.total_7d} passed
+              </p>
+            </div>
+            <div className="rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-(--qs-text-4)">30-day pass rate</p>
+              <p className="mt-1 font-mono text-xl font-bold text-cyan">
+                {snapshot.simulation_pass_rate.pass_rate_30d_pct ?? "—"}%
+              </p>
+            </div>
+            <div className="rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-(--qs-text-4)">Outcomes (7d)</p>
+              <p className="mt-1 font-mono text-sm text-(--qs-text-2)">
+                fail {snapshot.simulation_pass_rate.failed_7d} · inconclusive{" "}
+                {snapshot.simulation_pass_rate.inconclusive_7d}
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 flex h-16 items-end gap-1" aria-label="7-day simulation pass rate sparkline">
+            {snapshot.simulation_pass_rate.daily.map((day) => (
+              <div key={day.date} className="flex flex-1 flex-col items-center gap-1">
+                <div
+                  className={cn("w-full rounded-sm bg-cyan/30", sparkBarClass(day.pass_rate_pct, day.total))}
+                  title={`${day.date}: ${day.pass_rate_pct}% (${day.passed}/${day.total})`}
+                />
+                <span className="font-mono text-[9px] text-(--qs-text-4)">{day.date.slice(5)}</span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-(--qs-text-3)">{snapshot.simulation_pass_rate.operator_hint}</p>
+        </V4Card>
+      ) : null}
 
       <V4Card>
         <BusinessApprovalInbox />

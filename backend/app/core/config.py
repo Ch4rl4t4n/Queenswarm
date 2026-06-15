@@ -1791,6 +1791,10 @@ class Settings(BaseSettings):
         default=True,
         description="TR1 — Injection guard coverage dashboard (checkpoint hits by tool).",
     )
+    simulation_pass_rate_trend_enabled: bool = Field(
+        default=True,
+        description="TR2 — Simulation pass rate trend in Chief Business Operator snapshot.",
+    )
     factory_queue_slo_enabled: bool = Field(
         default=True,
         description="TR4 — Skill Factory queue SLO panel in factory snapshot.",

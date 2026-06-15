@@ -1005,6 +1005,28 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           top_actions: [
             { id: "gumroad_first_upload", lane: "revenue", title: "First Gumroad upload", detail: "Upload from queue", priority: "high", href: "/factory" },
           ],
+          simulation_pass_rate: {
+            enabled: true,
+            status: "healthy",
+            trend: "up",
+            pass_rate_7d_pct: 85.0,
+            pass_rate_30d_pct: 78.5,
+            total_7d: 20,
+            passed_7d: 17,
+            failed_7d: 2,
+            inconclusive_7d: 1,
+            gate_threshold_pct: 70,
+            operator_hint: "Verify-first gate at 70% — 17/20 simulations passed in 7 days.",
+            daily: [
+              { date: "2026-05-30", total: 2, passed: 2, pass_rate_pct: 100 },
+              { date: "2026-05-31", total: 3, passed: 2, pass_rate_pct: 66.67 },
+              { date: "2026-06-01", total: 4, passed: 3, pass_rate_pct: 75 },
+              { date: "2026-06-02", total: 3, passed: 3, pass_rate_pct: 100 },
+              { date: "2026-06-03", total: 2, passed: 2, pass_rate_pct: 100 },
+              { date: "2026-06-04", total: 4, passed: 3, pass_rate_pct: 75 },
+              { date: "2026-06-05", total: 2, passed: 2, pass_rate_pct: 100 },
+            ],
+          },
           links: { marketing_skills: "https://letagentscook.org/skills", mission_control: "/tasks", factory: "/factory" },
         }),
       });
