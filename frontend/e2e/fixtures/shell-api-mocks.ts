@@ -541,6 +541,32 @@ const STUB_DATA_MONITOR_PLAN = {
   prompt_template: "Extract employer, role title, location.",
 };
 
+const STUB_FORAGER_DISCOVERY_WIZARD = {
+  enabled: true,
+  keys_configured: true,
+  tavily_configured: true,
+  serper_configured: true,
+  max_urls: 8,
+  operator_hint: "Discover public URLs via Serper/Tavily.",
+};
+
+const STUB_FORAGER_DISCOVERY_SEARCH = {
+  enabled: true,
+  query: "EU python job board RSS",
+  hits: [
+    {
+      url: "https://jobs.example.com/feed.xml",
+      title: "Example jobs feed",
+      snippet: "Open roles in EU",
+      provider: "serper",
+      url_kind: "rss",
+    },
+  ],
+  providers_used: ["serper"],
+  keys_configured: true,
+  operator_hint: "Select URLs and bind.",
+};
+
 const STUB_OPERATOR_APPROVALS = {
   enabled: true,
   generated_at: "2026-06-05T10:00:00Z",
@@ -2978,6 +3004,42 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ tenants: [], active_tenant_id: null }),
+      });
+      return;
+    }
+
+    if (path.startsWith("foragers/discovery-wizard/bind")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          forager_id: "e2e-discovery-forager",
+          forager_name: "E2E Discovery Forager",
+          niche: "jobs",
+          source_type: "rss",
+          urls_bound: ["https://jobs.example.com/feed.xml"],
+          created: true,
+          message: "Discovery URLs bound.",
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("foragers/discovery-wizard/search")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_FORAGER_DISCOVERY_SEARCH),
+      });
+      return;
+    }
+
+    if (path.startsWith("foragers/discovery-wizard")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_FORAGER_DISCOVERY_WIZARD),
       });
       return;
     }

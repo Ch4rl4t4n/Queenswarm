@@ -572,7 +572,7 @@ _Signal: [Pikachin — public data → structured intel](https://x.com/pikach_in
 | DG3 | **Delta alert inbox** — „new since last run“ + rule match | P0 | 3–4 d | ✅ | `compose_goldmine_alert_inbox_items` + BA4 Approval Inbox strip |
 | DG4 | **Forager feedback loop** — thumbs on hits → filter tuning | P2 | 2–3 d | ⏳ | `filter_config` + LearningLog |
 | DG5 | **Export lane** — approved rows → Notion DB / Sheet / CSV | P1 | 3–4 d | ⏳ | Connectors + simulate-first |
-| DG6 | **Discovery-first scrape** — Serper/Tavily URL find → bind forager | P1 | 2–3 d | ⏳ | OW9 keys + forager create |
+| DG6 | **Discovery-first scrape** — Serper/Tavily URL find → bind forager | P1 | 2–3 d | ✅ | `forager_discovery_service`, `foragers/discovery-wizard`, Foragers discovery panel |
 | DG7 | **Goldmine → dispatch** — alert → Kanban triage + skill bundle | P0 | 2 d | ✅ | `forager_goldmine_dispatch_service`, `GET /dashboard/forager-goldmine-alerts`, Foragers goldmine panel |
 | DG8 | **Goldmine → product** — monitor niche → Skill Factory seed | P2 | 3 d | ⏳ | Factory queue + scorecard |
 

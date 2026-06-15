@@ -145,6 +145,27 @@ class DataMonitorSubmitRequest(BaseModel):
     trigger_first_run: bool = Field(default=True)
 
 
+class ForagerDiscoverySearchRequest(BaseModel):
+    """DG6 — Serper/Tavily discovery search."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    query: str = Field(min_length=4, max_length=500)
+    limit: int = Field(default=8, ge=1, le=20)
+
+
+class ForagerDiscoveryBindRequest(BaseModel):
+    """DG6 — bind discovered URLs to forager."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    forager_id: uuid.UUID | None = None
+    urls: list[str] = Field(min_length=1, max_length=24)
+    intent: str | None = Field(default=None, max_length=2000)
+    schedule_preset: Literal["6h", "12h", "24h", "daily_6utc"] = Field(default="24h")
+    trigger_first_run: bool = Field(default=True)
+
+
 class ForagerSpawnPolicyView(BaseModel):
     """Tenant forager auto-spawn approval policy."""
 
@@ -369,6 +390,79 @@ async def data_monitor_wizard_submit(
         if str(exc) == "data_monitor_wizard_disabled":
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Wizard disabled.") from exc
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return result.model_dump(mode="json")
+
+
+@router.get("/discovery-wizard", summary="DG6 Discovery wizard snapshot")
+async def forager_discovery_wizard_snapshot(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return Serper/Tavily key status for URL discovery."""
+
+    _require_forager_read(principal)
+    from app.application.services.forager_discovery_service import compose_forager_discovery_wizard_snapshot
+
+    return (await compose_forager_discovery_wizard_snapshot(db)).model_dump(mode="json")
+
+
+@router.post("/discovery-wizard/search", summary="DG6 Discover monitor URLs via Serper/Tavily")
+async def forager_discovery_search(
+    body: ForagerDiscoverySearchRequest,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Search for public monitor URLs before binding a forager."""
+
+    _require_forager_read(principal)
+    from app.application.services.forager_discovery_service import search_forager_discovery_urls
+
+    result = await search_forager_discovery_urls(db, query=body.query, limit=body.limit)
+    return result.model_dump(mode="json")
+
+
+@router.post(
+    "/discovery-wizard/bind",
+    summary="DG6 Bind discovered URLs to forager",
+    status_code=status.HTTP_201_CREATED,
+)
+async def forager_discovery_bind(
+    body: ForagerDiscoveryBindRequest,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Bind Serper/Tavily URLs to an existing forager or create a new monitor."""
+
+    _require_forager_write(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.forager_discovery_service import (
+        ForagerDiscoveryBindIn,
+        submit_forager_discovery_bind,
+    )
+
+    try:
+        result = await submit_forager_discovery_bind(
+            db,
+            tenant_id=tenant_id,
+            body=ForagerDiscoveryBindIn(
+                forager_id=body.forager_id,
+                urls=body.urls,
+                intent=body.intent,
+                schedule_preset=body.schedule_preset,
+                trigger_first_run=body.trigger_first_run,
+            ),
+            created_by_subject=str(principal.get("sub") or "dashboard:forager-discovery"),
+        )
+    except ValueError as exc:
+        err = str(exc)
+        if err == "forager_discovery_disabled":
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Discovery disabled.") from exc
+        if err == "forager_not_found":
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Forager not found.") from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=err) from exc
     await db.commit()
     return result.model_dump(mode="json")
 

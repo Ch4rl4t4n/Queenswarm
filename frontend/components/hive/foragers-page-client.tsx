@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { DataMonitorWizardPanel } from "@/components/hive/data-monitor-wizard-panel";
 import { ForagerConfigurationsPanel } from "@/components/hive/forager-configurations-panel";
+import { ForagerDiscoveryPanel } from "@/components/hive/forager-discovery-panel";
 import { ForagerFormDialog } from "@/components/hive/forager-form-dialog";
 import { ForagerGoldmineAlertsPanel } from "@/components/hive/forager-goldmine-alerts-panel";
 import { ForagerSpawnRuleDialog } from "@/components/hive/forager-spawn-rule-dialog";
@@ -353,6 +354,8 @@ export function ForagersPageClient() {
       </div>
 
       <DataMonitorWizardPanel canManage={canManage} onCreated={reload} />
+
+      <ForagerDiscoveryPanel canManage={canManage} foragers={foragers} onBound={reload} />
 
       <ForagerGoldmineAlertsPanel canManage={canManage} busy={busy} onDispatched={reload} />
 

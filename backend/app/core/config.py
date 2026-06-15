@@ -1839,6 +1839,16 @@ class Settings(BaseSettings):
         default=True,
         description="DG1 — Data Monitor wizard: one-line intent → forager + schedule + schema.",
     )
+    forager_discovery_enabled: bool = Field(
+        default=True,
+        description="DG6 — Serper/Tavily URL discovery → bind forager feeds/channels.",
+    )
+    forager_discovery_max_urls: int = Field(
+        default=12,
+        ge=4,
+        le=24,
+        description="DG6 — Max URLs returned per discovery search.",
+    )
     factory_queue_slo_enabled: bool = Field(
         default=True,
         description="TR4 — Skill Factory queue SLO panel in factory snapshot.",
