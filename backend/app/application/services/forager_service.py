@@ -221,7 +221,11 @@ class ForagerService:
                 if str(tag).strip()
             ]
         inserted = 0
+        extract_schema = str((row.filter_config or {}).get("extract_schema") or (row.filter_config or {}).get("monitor_niche") or "general")
+        from app.application.services.forager_structured_extract_service import normalize_ingest_record_for_schema
+
         for record in records:
+            record = normalize_ingest_record_for_schema(dict(record), extract_schema=extract_schema)
             content_text = str(record.get("content_text") or "").strip()
             if not content_text:
                 continue

@@ -831,6 +831,35 @@ async def get_forager_harvest_report(
 
 
 @router.get(
+    "/{id}/structured-rows",
+    summary="DG2 — Structured extract rows for one forager",
+)
+async def get_forager_structured_rows(
+    id: uuid.UUID,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    limit: int = Query(default=25, ge=1, le=50),
+) -> dict[str, Any]:
+    """Return Pydantic-validated structured rows (jobs, prices, events, listings)."""
+
+    _require_forager_read(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.forager_structured_extract_service import list_forager_structured_rows
+
+    payload = await list_forager_structured_rows(
+        db,
+        tenant_id=tenant_id,
+        forager_id=id,
+        limit=limit,
+    )
+    if payload is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Forager not found.")
+    return payload.model_dump(mode="json")
+
+
+@router.get(
     "/{id}/report/export",
     summary="Export forager harvest report (HTML, Markdown, or PDF)",
 )

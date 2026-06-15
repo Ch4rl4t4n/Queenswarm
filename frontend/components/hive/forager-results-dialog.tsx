@@ -58,6 +58,10 @@ export function ForagerResultsDialog({
   onOpenChange,
 }: ForagerResultsDialogProps): JSX.Element | null {
   const [report, setReport] = useState<ForagerHarvestReportRow | null>(null);
+  const [structuredRows, setStructuredRows] = useState<
+    Array<{ knowledge_id: string; row: Record<string, string | null> }>
+  >([]);
+  const [extractSchema, setExtractSchema] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [exportBusy, setExportBusy] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -72,6 +76,17 @@ export function ForagerResultsDialog({
         `foragers/${encodeURIComponent(targetId)}/report?item_limit=25`,
       );
       setReport(body);
+      try {
+        const structured = await hiveGet<{
+          extract_schema: string;
+          rows: Array<{ knowledge_id: string; row: Record<string, string | null> }>;
+        }>(`foragers/${encodeURIComponent(targetId)}/structured-rows?limit=25`);
+        setExtractSchema(structured.extract_schema);
+        setStructuredRows(structured.rows ?? []);
+      } catch {
+        setExtractSchema(null);
+        setStructuredRows([]);
+      }
     } catch (err) {
       toast.error(err instanceof HiveApiError ? err.message : "Forager report unavailable");
       onOpenChangeRef.current(false);
@@ -83,6 +98,8 @@ export function ForagerResultsDialog({
   useEffect(() => {
     if (!open || !foragerId) {
       setReport(null);
+      setStructuredRows([]);
+      setExtractSchema(null);
       setLoading(false);
       return;
     }
@@ -178,6 +195,41 @@ export function ForagerResultsDialog({
                 {report.executive_summary}
               </p>
             </section>
+
+            {structuredRows.length > 0 ? (
+              <section data-testid="forager-structured-rows">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-cyan">
+                  Structured extract
+                  {extractSchema ? (
+                    <span className="ml-2 font-normal normal-case tracking-normal text-(--qs-text-4)">
+                      schema: {extractSchema}
+                    </span>
+                  ) : null}
+                </p>
+                <div className="mt-3 overflow-x-auto rounded-xl border border-cyan/25 bg-black/20">
+                  <table className="min-w-full text-left text-xs">
+                    <thead className="border-b border-white/10 text-(--qs-text-3)">
+                      <tr>
+                        {Object.keys(structuredRows[0]?.row ?? {}).map((key) => (
+                          <th key={key} className="px-3 py-2 font-medium">{key}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {structuredRows.map((entry) => (
+                        <tr key={entry.knowledge_id} className="border-b border-white/5 last:border-0">
+                          {Object.entries(entry.row).map(([key, value]) => (
+                            <td key={key} className="max-w-[200px] truncate px-3 py-2 text-(--qs-text-2)">
+                              {value ?? "—"}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            ) : null}
 
             <section>
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-(--qs-text-3)">

@@ -1849,6 +1849,10 @@ class Settings(BaseSettings):
         le=24,
         description="DG6 — Max URLs returned per discovery search.",
     )
+    forager_structured_extract_enabled: bool = Field(
+        default=True,
+        description="DG2 — Embed Pydantic structured rows on forager ingest.",
+    )
     factory_queue_slo_enabled: bool = Field(
         default=True,
         description="TR4 — Skill Factory queue SLO panel in factory snapshot.",
