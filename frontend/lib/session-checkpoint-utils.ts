@@ -107,7 +107,12 @@ export function buildSessionCheckpointSnapshot(session: SupervisorSessionRow): S
 /** Whether the session list should show checkpoint resume affordance. */
 export function sessionShowsCheckpointResume(session: SupervisorSessionRow): boolean {
   const snapshot = buildSessionCheckpointSnapshot(session);
-  return snapshot.can_resume_from_checkpoint && (session.status === "paused" || session.status === "failed");
+  const status = session.status.trim().toLowerCase();
+  return (
+    snapshot.can_resume_from_checkpoint
+    && ["paused", "failed", "needs_input", "running"].includes(status)
+    && snapshot.steps.length > 0
+  );
 }
 
 /** Count verified checkpoints in spawn order. */

@@ -103,4 +103,41 @@ describe("session-checkpoint-utils", () => {
     expect(sessionShowsCheckpointResume(row)).toBe(true);
     expect(verifiedCheckpointCount(row.sub_agents)).toBe(1);
   });
+
+  it("sessionShowsCheckpointResume is true for needs_input inprocess sessions", () => {
+    const row = session({
+      status: "needs_input",
+      runtime_mode: "inprocess",
+      sub_agents: [
+        {
+          id: "a1",
+          role: "researcher",
+          status: "completed",
+          runtime_mode: "inprocess",
+          toolset: [],
+          short_memory: {},
+          spawn_order: 0,
+          started_at: null,
+          completed_at: null,
+          last_output: null,
+          error_text: null,
+        },
+        {
+          id: "a2",
+          role: "publisher",
+          status: "needs_input",
+          runtime_mode: "inprocess",
+          toolset: [],
+          short_memory: {},
+          spawn_order: 1,
+          started_at: null,
+          completed_at: null,
+          last_output: null,
+          error_text: null,
+        },
+      ],
+    });
+
+    expect(sessionShowsCheckpointResume(row)).toBe(true);
+  });
 });

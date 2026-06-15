@@ -1775,6 +1775,10 @@ class Settings(BaseSettings):
         default=True,
         description="AL4 — Pattern + tool explainer chips per loop phase / sub-agent step.",
     )
+    checkpoint_resume_cta_enabled: bool = Field(
+        default=True,
+        description="LR1 — Prominent checkpoint resume CTA on supervisor session list.",
+    )
     factory_queue_slo_enabled: bool = Field(
         default=True,
         description="TR4 — Skill Factory queue SLO panel in factory snapshot.",

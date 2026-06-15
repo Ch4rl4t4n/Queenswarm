@@ -1200,6 +1200,27 @@ async def get_agent_session_tool_outcomes(
 
 
 @router.get(
+    "/sessions/{session_id}/checkpoint-resume-cta",
+    summary="LR1 Checkpoint resume CTA — prominent session list affordance",
+)
+async def get_agent_session_checkpoint_resume_cta(
+    session_id: uuid.UUID,
+    _sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("supervisor:view")),
+) -> dict[str, Any]:
+    """Return checkpoint resume headline and primary action for session list."""
+
+    from app.application.services.checkpoint_resume_cta_service import compose_checkpoint_resume_cta
+
+    row = await get_supervisor_session(db, session_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Supervisor session not found.")
+    cta = await compose_checkpoint_resume_cta(db, supervisor_session=row)
+    return cta.model_dump(mode="json")
+
+
+@router.get(
     "/sessions/{session_id}/step-explainers",
     summary="AL4 Pattern + tool explainer — why this tool per loop step",
 )

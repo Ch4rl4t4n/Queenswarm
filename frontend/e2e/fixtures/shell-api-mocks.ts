@@ -1920,6 +1920,31 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.match(/^agents\/sessions\/[^/]+\/checkpoint-resume-cta$/)) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          visible: true,
+          session_id: path.split("/")[2] ?? "00000000-0000-4000-8000-000000000001",
+          session_status: "paused",
+          runtime_mode: "durable",
+          can_resume_from_checkpoint: true,
+          resume_hint: "Resume from verified checkpoint after researcher → publisher.",
+          last_verified_role: "researcher",
+          next_resumable_role: "publisher",
+          verified_steps: 1,
+          total_steps: 2,
+          loop_chip: "Checkpoint 1/2 → publisher",
+          primary_label: "Resume from checkpoint",
+          operator_guidance:
+            "Verified through researcher. Resume continues at publisher without replaying completed lanes.",
+        }),
+      });
+      return;
+    }
+
     if (path.match(/^agents\/sessions\/[^/]+\/step-explainers$/)) {
       await route.fulfill({
         status: 200,

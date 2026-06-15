@@ -538,8 +538,8 @@ _MK6/MK7 remain in P0 letagentscook table above._
 
 | ID | Item | Priority | Est. | Status | Gate / asset |
 |----|------|----------|------|--------|--------------|
-| LR1 | **Checkpoint resume** CTA on session list (prominent) | P1 | 2 d | ⏳ | `checkpoint_resume.py` exists |
-| LR2 | **Progress %** on Kanban lineage | P1 | 2–3 d | ⏳ | Durable step events |
+| LR1 | **Checkpoint resume** CTA on session list (prominent) | P1 | 2 d | ✅ | `checkpoint_resume.py` · session list strip |
+| LR2 | **Progress %** on Kanban lineage | P1 | 2–3 d | ✅ | AL3 `goal_progress_strip_service` |
 | LR3 | Worker crash → auto-resume + mission feed notify | P2 | 3 d | ⏳ | Celery + Redis lease |
 
 ### Track F — Product depth (from P7)

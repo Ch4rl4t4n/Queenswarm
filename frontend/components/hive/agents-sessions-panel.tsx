@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { BrowserHarnessPanel } from "@/components/hive/browser-harness-panel";
 import { AgentsPanelSkeleton } from "@/components/hive/agents-panel-skeleton";
 import { AgentSessionReportDialog } from "@/components/hive/agent-session-report-dialog";
+import { CheckpointResumeCtaStrip } from "@/components/hive/checkpoint-resume-cta-strip";
 import { MidFlightCheckpointPanel } from "@/components/hive/mid-flight-checkpoint-panel";
 import { AutomationLadderPanel } from "@/components/hive/automation-ladder-panel";
 import { InfoHint } from "@/components/hive/info-hint";
@@ -871,6 +872,11 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
                     <SessionPatternSkillsPanel
                       snapshot={extractSessionPatternSkills(session)}
                       variant="compact"
+                    />
+                    <CheckpointResumeCtaStrip
+                      sessionId={session.id}
+                      sessionStatus={session.status}
+                      onChanged={() => void mutate()}
                     />
                     {session.status === "needs_input" || session.status === "paused" ? (
                       <MidFlightCheckpointPanel
