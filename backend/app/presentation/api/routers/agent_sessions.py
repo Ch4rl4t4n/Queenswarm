@@ -1221,6 +1221,27 @@ async def get_agent_session_checkpoint_resume_cta(
 
 
 @router.get(
+    "/sessions/{session_id}/report-rubric",
+    summary="TR3 Session report rubric — subjective score before approve",
+)
+async def get_agent_session_report_rubric(
+    session_id: uuid.UUID,
+    _sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("supervisor:view")),
+) -> dict[str, Any]:
+    """Return rubric template, score floor, and pre-approve status for session report."""
+
+    from app.application.services.session_report_rubric_service import compose_session_report_rubric
+
+    row = await get_supervisor_session(db, session_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Supervisor session not found.")
+    panel = await compose_session_report_rubric(db, supervisor_session=row)
+    return panel.model_dump(mode="json")
+
+
+@router.get(
     "/sessions/{session_id}/step-explainers",
     summary="AL4 Pattern + tool explainer — why this tool per loop step",
 )

@@ -1795,6 +1795,10 @@ class Settings(BaseSettings):
         default=True,
         description="TR2 — Simulation pass rate trend in Chief Business Operator snapshot.",
     )
+    session_report_rubric_enabled: bool = Field(
+        default=True,
+        description="TR3 — Rubric score panel in session report before operator approve.",
+    )
     factory_queue_slo_enabled: bool = Field(
         default=True,
         description="TR4 — Skill Factory queue SLO panel in factory snapshot.",

@@ -2124,6 +2124,38 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.match(/^agents\/sessions\/[^/]+\/report-rubric$/)) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          visible: true,
+          session_id: path.split("/")[2] ?? "00000000-0000-4000-8000-000000000001",
+          session_status: "needs_input",
+          pending_approval: true,
+          template_id: "copy-marketing",
+          template_name: "Marketing Copy",
+          template_category: "copy",
+          pass_threshold_pct: 70,
+          score: 0.86,
+          score_label: "4.3/5",
+          min_score_label: "4.0/5",
+          passed: true,
+          pre_approve_status: "ready",
+          feedback: "CTA is specific; headline could be shorter.",
+          deliverable_preview: "Headline: Verified agent swarms for operators. CTA: Start free trial.",
+          dimensions: [
+            { id: "clarity", label: "Clarity", weight_pct: 30, prompt: "Can a skimming reader grasp the offer?" },
+          ],
+          must_satisfy: ["Single clear value proposition above the fold"],
+          operator_hint: "Rubric meets verify floor — safe to approve live actions after tool outcome review.",
+          evaluate_href: "/settings#harness-loops-rubric",
+        }),
+      });
+      return;
+    }
+
     if (path.match(/^agents\/sessions\/[^/]+\/step-explainers$/)) {
       await route.fulfill({
         status: 200,

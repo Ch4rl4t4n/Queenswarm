@@ -13,6 +13,7 @@ import { MidFlightCheckpointPanel } from "@/components/hive/mid-flight-checkpoin
 import { PatternToolExplainerPanel } from "@/components/hive/pattern-tool-explainer-panel";
 import { SessionCheckpointResumePanel } from "@/components/hive/session-checkpoint-resume-panel";
 import { ToolOutcomePanel } from "@/components/hive/tool-outcome-panel";
+import { SessionReportRubricPanel } from "@/components/hive/session-report-rubric-panel";
 import { SessionLoopGuardrailsStrip } from "@/components/hive/session-loop-guardrails-strip";
 import { HiveModalShell, hiveModalScrollBodyClass } from "@/components/hive/hive-modal-shell";
 import { SessionPatternSkillsPanel } from "@/components/hive/session-pattern-skills-panel";
@@ -278,6 +279,8 @@ export function AgentSessionReportDialog({ sessionId, open, onOpenChange }: Agen
               <AgentLoopTimelinePanel sessionId={session.id} sessionStatus={session.status} />
 
               <PatternToolExplainerPanel sessionId={session.id} sessionStatus={session.status} />
+
+              <SessionReportRubricPanel sessionId={session.id} sessionStatus={session.status} />
 
               <ToolOutcomePanel sessionId={session.id} sessionStatus={session.status} />
 
