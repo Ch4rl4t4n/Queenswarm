@@ -52,6 +52,7 @@ class GumroadWebhookResult(BaseModel):
     message: str = ""
     ingested: bool = False
     unlocked: bool = False
+    onboarding_sent: bool = False
     recipe_id: str | None = None
     tenant_id: str | None = None
 
@@ -307,11 +308,24 @@ async def process_gumroad_webhook_event(
         return unlock_result
 
     grant = await grant_gumroad_purchase_unlock(session, sale=sale)
+
+    onboarding_sent = False
+    if not sale.refunded:
+        catalog_slug = resolve_slug_for_gumroad_product_id(sale.product_id)
+        if catalog_slug is None and sale.permalink:
+            catalog_slug = sale.permalink.strip().lower()
+        if catalog_slug:
+            from app.application.services.purchase_onboarding import send_post_purchase_onboarding
+
+            onboarding = await send_post_purchase_onboarding(sale, catalog_slug=catalog_slug)
+            onboarding_sent = onboarding.sent
+
     return GumroadWebhookResult(
         ok=grant.ok,
         sale_id=sale.sale_id,
         ingested=ingested,
         unlocked=grant.unlocked,
+        onboarding_sent=onboarding_sent,
         recipe_id=grant.recipe_id,
         tenant_id=grant.tenant_id,
         message=grant.message,

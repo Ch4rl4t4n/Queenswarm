@@ -1540,6 +1540,14 @@ class Settings(BaseSettings):
         default=True,
         description="When true, Gumroad sale ping unlocks premium recipe export for matching dashboard email.",
     )
+    gumroad_post_purchase_onboarding_enabled: bool = Field(
+        default=True,
+        description="Send REV1 post-purchase onboarding email + simulate proof JSON on Gumroad sale ping.",
+    )
+    marketing_public_origin: str = Field(
+        default="https://letagentscook.org",
+        description="Public marketing site origin for buyer onboarding links (REV1).",
+    )
     social_publish_rate_limit_window_sec: float = Field(
         default=86400.0,
         gt=0,

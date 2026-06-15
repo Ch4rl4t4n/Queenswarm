@@ -521,7 +521,7 @@ _MK6/MK7 remain in P0 letagentscook table above._
 
 | ID | Item | Priority | Est. | Status | Gate / asset |
 |----|------|----------|------|--------|--------------|
-| REV1 | Post-purchase onboarding email + simulate proof artifact | P1 | 2–3 d | ⏳ | After MK7 webhook |
+| REV1 | Post-purchase onboarding email + simulate proof artifact | P1 | 2–3 d | ✅ | Gumroad webhook + SMTP |
 | REV2 | Public **Eval-as-a-Service** lead magnet | P1 | 3–4 d | ⏳ | `/skills/eval` · Wave 2 catalog |
 | REV3 | **Scorecard badge** on every product detail page | P2 | 1 d | ⏳ | `GUMROAD_SCORECARD.md` fields |
 

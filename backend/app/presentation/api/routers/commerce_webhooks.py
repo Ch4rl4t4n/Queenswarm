@@ -96,6 +96,7 @@ async def gumroad_webhook_ingress(
         "sale_id": result.sale_id,
         "ingested": result.ingested,
         "unlocked": result.unlocked,
+        "onboarding_sent": result.onboarding_sent,
         "recipe_id": result.recipe_id,
         "tenant_id": result.tenant_id,
         "message": result.message,
