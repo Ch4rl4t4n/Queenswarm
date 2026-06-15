@@ -588,7 +588,7 @@ _Signal: [I Built The Best Claude Memory System (Beats Hermes)](https://www.yout
 |----|------|----------|------|--------|--------------|
 | MEM1 | **Auto episodic capture** — completed session → daily summarized log | P1 | 2–3 d | ⏳ | Episodic API + Celery · MemSearch pattern |
 | MEM2 | **Cited recall panel** — answer + source file/session or explicit „not in memory“ | P1 | 3–4 d | ⏳ | Hive search + GBrain-style synthesis |
-| MEM3 | **Tier-0 injection strip** — Brain Pack / injected context before deep Chroma search | P1 | 1–2 d | ⏳ | Harness settings · Hermes frozen snapshot |
+| MEM3 | **Tier-0 injection strip** — Brain Pack / injected context before deep Chroma search | P1 | 1–2 d | ✅ | Harness settings · Hermes frozen snapshot |
 | MEM4 | **Token budget meter** on Brain Pack / harness (char ≈ token estimate) | P2 | 1 d | ✅ | `hive_mind_max_prompt_chars` surfacing |
 | MEM5 | **Client/project memory tags** + recall filter (team slice / RLS-style) | P2 | 4–5 d | ⏳ | Tenant metadata + HiveMind query |
 

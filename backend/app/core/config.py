@@ -1783,6 +1783,10 @@ class Settings(BaseSettings):
         default=True,
         description="MEM4 — Token budget meter on Brain Pack / harness (char ≈ token estimate).",
     )
+    tier0_injection_strip_enabled: bool = Field(
+        default=True,
+        description="MEM3 — Tier-0 Brain Pack injection strip before deep Chroma recall.",
+    )
     factory_queue_slo_enabled: bool = Field(
         default=True,
         description="TR4 — Skill Factory queue SLO panel in factory snapshot.",

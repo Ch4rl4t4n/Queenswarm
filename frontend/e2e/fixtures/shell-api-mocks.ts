@@ -1688,6 +1688,68 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path === "memory/curated/tier0-injection-strip") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          visible: true,
+          frozen_snapshot_label: "Hermes Brain Pack snapshot",
+          recall_mode: "selective",
+          deep_recall_budget_chars: 2400,
+          chroma_enabled: true,
+          operator_hint: "Tier-0 Brain Pack is injected on every Queen bootstrap before HiveMind vector search.",
+          edit_href: "/knowledge?tab=memory#brain-pack",
+          tiers: [
+            {
+              tier_id: "tier0",
+              label: "Tier-0 · Brain Pack",
+              order: 0,
+              char_count: 820,
+              estimated_tokens: 205,
+              active: true,
+              inject_timing: "Always — frozen Hermes snapshot before RAG",
+              preview: "MISSION Ship Queenswarm SOUL Verify-first tone",
+              sections: [
+                {
+                  section_id: "mission",
+                  label: "Mission",
+                  char_count: 120,
+                  estimated_tokens: 30,
+                  preview: "Ship Queenswarm daily harness",
+                  filled: true,
+                },
+              ],
+            },
+            {
+              tier_id: "tier1",
+              label: "Tier-1 · Wiki hot tier",
+              order: 1,
+              char_count: 140,
+              estimated_tokens: 35,
+              active: true,
+              inject_timing: "Hot tier wiki pages before deep raw search",
+              preview: "WIKI LAYER Ops notes",
+              sections: [],
+            },
+            {
+              tier_id: "tier2",
+              label: "Tier-2 · Chroma deep recall",
+              order: 2,
+              char_count: 2400,
+              estimated_tokens: 600,
+              active: true,
+              inject_timing: "On query — vector + graph neighbours after tier-0/1",
+              preview: "Budget 2400 chars · mode selective · runs after frozen Brain Pack snapshot.",
+              sections: [],
+            },
+          ],
+        }),
+      });
+      return;
+    }
+
     if (path === "memory/curated/token-budget-meter") {
       await route.fulfill({
         status: 200,

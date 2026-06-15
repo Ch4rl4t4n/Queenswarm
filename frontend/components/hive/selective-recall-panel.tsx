@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { TokenBudgetMeterPanel } from "@/components/hive/token-budget-meter-panel";
+import { Tier0InjectionStripPanel } from "@/components/hive/tier0-injection-strip-panel";
 import { usePlatform } from "@/components/hive/platform-context";
 import { QsSelect } from "@/components/ui/qs-select";
 import { V4Badge, V4Card, V4CardHeader, V4FormField, V4FormStack } from "@/components/ui/v4";
@@ -114,6 +115,7 @@ export function SelectiveRecallPanel(): JSX.Element | null {
       {settings ? (
         <V4FormStack>
           <TokenBudgetMeterPanel variant="compact" className="mb-1" />
+          <Tier0InjectionStripPanel variant="compact" className="mb-2" />
           <V4FormField label="Recall mode">
             <QsSelect
               value={settings.recall_mode}

@@ -96,6 +96,22 @@ async def get_token_budget_meter(
     return meter.model_dump(mode="json")
 
 
+@router.get("/tier0-injection-strip", summary="MEM3 Tier-0 Brain Pack injection before deep recall")
+async def get_tier0_injection_strip(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return tier-0/1/2 injection ladder with Hermes Brain Pack snapshot preview."""
+
+    from app.application.services.tier0_injection_strip_service import compose_tier0_injection_strip
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    strip = await compose_tier0_injection_strip(db, tenant_id=tenant_id)
+    return strip.model_dump(mode="json")
+
+
 @router.get("", summary="List all curated files for active tenant")
 async def get_curated_bundle(
     db: DbSession,

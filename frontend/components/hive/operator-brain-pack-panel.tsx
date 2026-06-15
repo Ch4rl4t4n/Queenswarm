@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { V4Card, V4CardHeader } from "@/components/ui/v4";
 import { InfoHint } from "@/components/hive/info-hint";
 import { TokenBudgetMeterPanel } from "@/components/hive/token-budget-meter-panel";
+import { Tier0InjectionStripPanel } from "@/components/hive/tier0-injection-strip-panel";
 import { HiveApiError, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
 
 type BrainTab = "soul" | "memory" | "user" | "brand";
@@ -153,6 +154,7 @@ export function OperatorBrainPackPanel() {
       />
       {err ? <p className="mb-3 text-sm text-(--qs-red)">{err}</p> : null}
       <TokenBudgetMeterPanel refreshKey={refreshMeter} className="mb-3" />
+      <Tier0InjectionStripPanel refreshKey={refreshMeter} className="mb-3" />
       <div className="mb-3 flex flex-wrap gap-2">
         {BRAIN_TABS.map((item) => (
           <button
