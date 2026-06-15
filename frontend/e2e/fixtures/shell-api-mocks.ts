@@ -1880,6 +1880,46 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.match(/^agents\/sessions\/[^/]+\/tool-outcomes$/)) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          session_id: path.split("/")[2] ?? "00000000-0000-4000-8000-000000000001",
+          session_status: "needs_input",
+          visible: true,
+          pending_approval: true,
+          approval_reason: "Critical action keyword detected: publish",
+          tools: [
+            {
+              tool_name: "post_message",
+              connector_slug: "slack",
+              mode: "simulate",
+              risk_tier: "write",
+              args_summary: "channel=#launch, text=Ship day",
+              result_summary: "Simulated: slack/post_message",
+              simulated: true,
+              executed: false,
+              sub_agent_role: "publisher",
+              event_type: "tool_execute",
+              occurred_at: new Date().toISOString(),
+            },
+          ],
+          critic: {
+            score: 0.72,
+            score_label: "3.6/5",
+            min_score_label: "4.0/5",
+            passed: false,
+            feedback: "CTA weak — strengthen proof line before live publish.",
+            source: "reflection",
+          },
+          operator_action: "Review simulate results and critic score below, then Approve to continue.",
+        }),
+      });
+      return;
+    }
+
     if (path.startsWith("agents/sessions/")) {
       if (route.request().method() !== "GET") {
         await route.fallback();

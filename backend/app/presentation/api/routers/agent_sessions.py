@@ -1179,6 +1179,27 @@ async def get_agent_session_loop_timeline(
 
 
 @router.get(
+    "/sessions/{session_id}/tool-outcomes",
+    summary="AL2 Tool Outcome Panel — tool evidence at needs_input / approve",
+)
+async def get_agent_session_tool_outcomes(
+    session_id: uuid.UUID,
+    _sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("supervisor:view")),
+) -> dict[str, Any]:
+    """Return tool name, args summary, simulate result, and critic for operator review."""
+
+    from app.application.services.tool_outcome_panel_service import compose_tool_outcome_panel
+
+    row = await get_supervisor_session(db, session_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Supervisor session not found.")
+    panel = await compose_tool_outcome_panel(db, supervisor_session=row)
+    return panel.model_dump(mode="json")
+
+
+@router.get(
     "/sessions/{session_id}/shared-context",
     response_model=SupervisorSharedContextView,
     summary="Resolve shared memory retrieval bundle for one session",

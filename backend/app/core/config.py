@@ -1759,6 +1759,10 @@ class Settings(BaseSettings):
         default=True,
         description="AL1/LOOP3 — Goal → Plan → Tool → Verify timeline in session drawer.",
     )
+    tool_outcome_panel_enabled: bool = Field(
+        default=True,
+        description="AL2 — Tool outcome panel at needs_input / approve (tool, sim, critic).",
+    )
     factory_queue_slo_enabled: bool = Field(
         default=True,
         description="TR4 — Skill Factory queue SLO panel in factory snapshot.",
