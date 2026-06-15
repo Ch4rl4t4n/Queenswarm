@@ -541,6 +541,33 @@ const STUB_DATA_MONITOR_PLAN = {
   prompt_template: "Extract employer, role title, location.",
 };
 
+const STUB_OPERATOR_APPROVALS = {
+  enabled: true,
+  generated_at: "2026-06-05T10:00:00Z",
+  counts: {
+    publish_queue: 0,
+    agent_suggestions: 0,
+    lane_digests: 0,
+    innovation: 0,
+    gumroad_manual: 0,
+    goldmine_alerts: 1,
+    total: 1,
+  },
+  items: [
+    {
+      id: "goldmine:e2e-forager-goldmine-1",
+      kind: "goldmine_alert",
+      lane: "intel",
+      title: "Goldmine · E2E YouTube Intel · 3 new",
+      detail: "3 new signals since last run · Spawn rules: High fit",
+      created_at: null,
+      href: "/foragers",
+      source_id: "e2e-forager-goldmine-1",
+      reject_supported: false,
+    },
+  ],
+};
+
 const STUB_PLATFORM_FEATURES = {
   ...resolvePlatformFeaturesFallback({
     platformMode: "commercial",
@@ -1064,6 +1091,15 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_OPERATOR_COCKPIT),
+      });
+      return;
+    }
+
+    if (path === "operator/approvals" || path.startsWith("operator/approvals?")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_OPERATOR_APPROVALS),
       });
       return;
     }

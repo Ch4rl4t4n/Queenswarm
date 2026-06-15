@@ -23,6 +23,7 @@ ApprovalInboxKind = Literal[
     "lane_digest",
     "innovation",
     "gumroad_manual",
+    "goldmine_alert",
 ]
 
 
@@ -52,6 +53,7 @@ class ApprovalInboxCountsOut(BaseModel):
     lane_digests: int = 0
     innovation: int = 0
     gumroad_manual: int = 0
+    goldmine_alerts: int = 0
     total: int = 0
 
 
@@ -180,6 +182,28 @@ async def compose_approval_inbox_snapshot(
                 ),
             )
 
+    from app.application.services.forager_goldmine_dispatch_service import compose_goldmine_alert_inbox_items
+
+    goldmine_rows = await compose_goldmine_alert_inbox_items(session, tenant_id=tenant_id, limit=cap)
+    for row in goldmine_rows:
+        counts.goldmine_alerts += 1
+        new_count = int(row.get("new_item_count") or 0)
+        forager_name = str(row.get("forager_name") or "Forager")
+        source_type = str(row.get("source_type") or "")
+        items.append(
+            ApprovalInboxItemOut(
+                id=f"goldmine:{row.get('forager_id')}",
+                kind="goldmine_alert",
+                lane="intel",
+                title=f"Goldmine · {forager_name} · {new_count} new",
+                detail=str(row.get("detail") or "New signals since last scheduled run."),
+                created_at=None,
+                href="/foragers",
+                source_id=str(row.get("forager_id") or ""),
+                reject_supported=False,
+            ),
+        )
+
     catalog = build_catalog()
     revenue = compose_revenue_summary()
     gumroad_linked = sum(1 for product in catalog.products if product.gumroad_url)
@@ -202,6 +226,7 @@ async def compose_approval_inbox_snapshot(
     items.sort(
         key=lambda row: (
             0 if row.kind in {"publish_queue", "gumroad_manual"} else 1,
+            0 if row.kind == "goldmine_alert" else 1,
             -(row.created_at.timestamp() if row.created_at else 0),
         ),
     )
@@ -211,6 +236,7 @@ async def compose_approval_inbox_snapshot(
         + counts.lane_digests
         + counts.innovation
         + counts.gumroad_manual
+        + counts.goldmine_alerts
     )
 
     return ApprovalInboxSnapshotOut(

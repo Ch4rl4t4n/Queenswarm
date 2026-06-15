@@ -75,20 +75,25 @@ async def test_compose_approval_inbox_merges_publish_and_suggestions() -> None:
                         pending_count=0,
                         items=[],
                     )
-                    with patch("app.application.services.approval_inbox.build_catalog") as mock_catalog:
-                        mock_catalog.return_value = MagicMock(product_count=0, products=[])
-                        with patch("app.application.services.approval_inbox.compose_revenue_summary") as mock_rev:
-                            mock_rev.return_value = MagicMock(
-                                missing_reports=[],
-                                next_operator_action="",
-                                scorecard_ready_count=None,
-                            )
-                            snapshot = await compose_approval_inbox_snapshot(
-                                session,
-                                tenant_id=tenant_id,
-                                dashboard_user_id=user_id,
-                                tenant=MagicMock(),
-                            )
+                    with patch(
+                        "app.application.services.forager_goldmine_dispatch_service.compose_goldmine_alert_inbox_items",
+                        new_callable=AsyncMock,
+                        return_value=[],
+                    ):
+                        with patch("app.application.services.approval_inbox.build_catalog") as mock_catalog:
+                            mock_catalog.return_value = MagicMock(product_count=0, products=[])
+                            with patch("app.application.services.approval_inbox.compose_revenue_summary") as mock_rev:
+                                mock_rev.return_value = MagicMock(
+                                    missing_reports=[],
+                                    next_operator_action="",
+                                    scorecard_ready_count=None,
+                                )
+                                snapshot = await compose_approval_inbox_snapshot(
+                                    session,
+                                    tenant_id=tenant_id,
+                                    dashboard_user_id=user_id,
+                                    tenant=MagicMock(),
+                                )
 
     assert snapshot.enabled is True
     assert snapshot.counts.publish_queue == 1
@@ -97,3 +102,66 @@ async def test_compose_approval_inbox_merges_publish_and_suggestions() -> None:
     kinds = {item.kind for item in snapshot.items}
     assert "publish_queue" in kinds
     assert "agent_suggestion" in kinds
+
+
+@pytest.mark.asyncio
+async def test_compose_approval_inbox_includes_goldmine_alerts() -> None:
+    session = AsyncMock()
+    tenant_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+    created = datetime.now(tz=UTC)
+
+    with patch("app.application.services.approval_inbox.settings") as mock_settings:
+        mock_settings.operator_control_plane_enabled = True
+        mock_settings.publish_queue_enabled = False
+        mock_settings.hive_innovation_lab_enabled = False
+        with patch(
+            "app.application.services.approval_inbox.list_agent_suggestions",
+            new_callable=AsyncMock,
+            return_value=[],
+        ):
+            with patch(
+                "app.application.services.approval_inbox.compose_four_lane_digest_inbox",
+                new_callable=AsyncMock,
+            ) as mock_digest:
+                from app.application.services.solo_operator_digest_inbox import DigestInboxOut
+
+                mock_digest.return_value = DigestInboxOut(
+                    generated_at=created,
+                    pending_count=0,
+                    items=[],
+                )
+                with patch(
+                    "app.application.services.forager_goldmine_dispatch_service.compose_goldmine_alert_inbox_items",
+                    new_callable=AsyncMock,
+                    return_value=[
+                        {
+                            "forager_id": "f1",
+                            "forager_name": "YouTube Intel",
+                            "source_type": "youtube",
+                            "new_item_count": 4,
+                            "detail": "4 new signals · Spawn rules: high fit",
+                            "skill_bundle": ["competitor-scrape-analyze"],
+                        },
+                    ],
+                ):
+                    with patch("app.application.services.approval_inbox.build_catalog") as mock_catalog:
+                        mock_catalog.return_value = MagicMock(product_count=1, products=[MagicMock(gumroad_url="x")])
+                        with patch("app.application.services.approval_inbox.compose_revenue_summary") as mock_rev:
+                            mock_rev.return_value = MagicMock(
+                                missing_reports=[],
+                                next_operator_action="",
+                                scorecard_ready_count=1,
+                            )
+                            snapshot = await compose_approval_inbox_snapshot(
+                                session,
+                                tenant_id=tenant_id,
+                                dashboard_user_id=user_id,
+                                tenant=MagicMock(),
+                            )
+
+    assert snapshot.counts.goldmine_alerts == 1
+    assert snapshot.counts.total >= 1
+    goldmine = next(item for item in snapshot.items if item.kind == "goldmine_alert")
+    assert goldmine.source_id == "f1"
+    assert goldmine.lane == "intel"

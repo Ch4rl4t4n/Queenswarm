@@ -334,7 +334,7 @@ Hlavný biznis orchestrátor v apke — radí čo robiť, časť organizuje auto
 | BA2 | **Business Goal Stack** — tenant KPIs → mission tagging + drift alerts | ✅ shipped |
 | BA3 | **Background Business Team** — 3 heartbeat bees (marketing / revenue / factory ops); wraps Four Lanes | ✅ shipped (env-gated) |
 | BA4 | **Unified Approval Inbox** — publish, Gumroad, lane digest, agent suggestions | ✅ |
-| BA4+ | **Delta alert strip** in Approval Inbox (P10 DG3 — forager „new since last run“) | ⏳ |
+| BA4+ | **Delta alert strip** in Approval Inbox (P10 DG3 — forager „new since last run“) | ✅ |
 | BA5 | **Proactive Pulse** — midday „what changed / what ran“ (+ existing morning brief) | ✅ shipped |
 | BA6 | **CBO → Dispatch bridge** — one-click skill bundle dispatch (max 3–5 agents) | ✅ |
 | BA7 | **Cross-lane learning** — recipe winners → CBO „apply to lane X“ suggestions | ✅ shipped |
@@ -569,7 +569,7 @@ _Signal: [Pikachin — public data → structured intel](https://x.com/pikach_in
 |----|------|----------|------|--------|--------------|
 | DG1 | **Data Monitor wizard** — one-line intent → forager + schedule + schema | P0 | 4–5 d | ✅ | `data_monitor_wizard_service`, `foragers/data-monitor-wizard`, Foragers wizard panel |
 | DG2 | **Structured extract templates** (jobs, prices, events, listings) | P1 | 3–4 d | ⏳ | Pydantic row models + ingest |
-| DG3 | **Delta alert inbox** — „new since last run“ + rule match | P0 | 3–4 d | ⏳ | CBO / Approval Inbox strip |
+| DG3 | **Delta alert inbox** — „new since last run“ + rule match | P0 | 3–4 d | ✅ | `compose_goldmine_alert_inbox_items` + BA4 Approval Inbox strip |
 | DG4 | **Forager feedback loop** — thumbs on hits → filter tuning | P2 | 2–3 d | ⏳ | `filter_config` + LearningLog |
 | DG5 | **Export lane** — approved rows → Notion DB / Sheet / CSV | P1 | 3–4 d | ⏳ | Connectors + simulate-first |
 | DG6 | **Discovery-first scrape** — Serper/Tavily URL find → bind forager | P1 | 2–3 d | ⏳ | OW9 keys + forager create |

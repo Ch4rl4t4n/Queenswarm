@@ -30,6 +30,21 @@ def test_derive_forager_skill_bundle_unknown_defaults() -> None:
     ]
 
 
+def test_derive_spawn_rule_match_hint_when_rules_enabled() -> None:
+    from app.application.services.forager_goldmine_dispatch_service import derive_spawn_rule_match_hint
+
+    hint = derive_spawn_rule_match_hint(
+        {
+            "auto_spawn_rules": [
+                {"enabled": True, "when_label": "High fit score"},
+                {"enabled": False, "when_label": "Paused"},
+            ],
+        },
+    )
+    assert hint is not None
+    assert "High fit score" in hint
+
+
 @pytest.mark.asyncio
 async def test_compose_forager_goldmine_alerts_when_disabled() -> None:
     session = AsyncMock()

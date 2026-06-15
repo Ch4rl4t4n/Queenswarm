@@ -415,9 +415,84 @@ async def promote_forager_goldmine_dispatch(
     }
 
 
+def derive_spawn_rule_match_hint(filter_config: dict[str, Any] | None) -> str | None:
+    """Return operator hint when auto-spawn rules may match new harvest."""
+
+    cfg = dict(filter_config or {})
+    rules = list(cfg.get("auto_spawn_rules") or [])
+    enabled: list[str] = []
+    for entry in rules:
+        if not isinstance(entry, dict) or not entry.get("enabled", True):
+            continue
+        label = str(entry.get("when_label") or entry.get("when") or "spawn rule").strip()
+        if label:
+            enabled.append(label[:80])
+    if not enabled:
+        return None
+    joined = ", ".join(enabled[:2])
+    if len(enabled) > 2:
+        joined += f" (+{len(enabled) - 2} more)"
+    return f"Spawn rules: {joined}"
+
+
+async def compose_goldmine_alert_inbox_items(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    limit: int = 12,
+) -> list[dict[str, Any]]:
+    """DG3 — Map goldmine delta alerts to approval inbox rows."""
+
+    if not settings.forager_goldmine_dispatch_enabled:
+        return []
+
+    payload = await compose_forager_goldmine_alerts(session, tenant_id=tenant_id, limit=limit)
+    if not payload.enabled or not payload.alerts:
+        return []
+
+    forager_ids = [uuid.UUID(alert.forager_id) for alert in payload.alerts]
+    forager_rows = list(
+        (
+            await session.execute(
+                select(ForagerORM).where(
+                    ForagerORM.tenant_id == tenant_id,
+                    ForagerORM.id.in_(forager_ids),
+                ),
+            )
+        ).scalars().all(),
+    )
+    forager_map = {str(row.id): row for row in forager_rows}
+
+    rows: list[dict[str, Any]] = []
+    for alert in payload.alerts:
+        forager = forager_map.get(alert.forager_id)
+        rule_hint = derive_spawn_rule_match_hint(
+            dict(forager.filter_config or {}) if forager is not None else None,
+        )
+        preview = alert.preview_items[0].title if alert.preview_items else ""
+        detail_parts = [alert.headline]
+        if preview:
+            detail_parts.append(preview)
+        if rule_hint:
+            detail_parts.append(rule_hint)
+        rows.append(
+            {
+                "forager_id": alert.forager_id,
+                "forager_name": alert.forager_name,
+                "source_type": alert.source_type,
+                "new_item_count": alert.new_item_count,
+                "detail": " · ".join(detail_parts)[:320],
+                "skill_bundle": alert.skill_bundle,
+            },
+        )
+    return rows
+
+
 __all__ = [
     "compose_forager_goldmine_alerts",
+    "compose_goldmine_alert_inbox_items",
     "derive_forager_skill_bundle",
+    "derive_spawn_rule_match_hint",
     "ForagerGoldmineAlertRow",
     "ForagerGoldmineAlertsOut",
     "ForagerGoldminePreviewItem",

@@ -33,6 +33,7 @@ interface ApprovalInboxSnapshot {
     lane_digests: number;
     innovation: number;
     gumroad_manual: number;
+    goldmine_alerts: number;
     total: number;
   };
   items: ApprovalInboxItem[];
@@ -42,6 +43,7 @@ function kindBadgeTone(kind: string): "gold" | "purple" | "info" | "warn" | "ok"
   if (kind === "publish_queue") return "info";
   if (kind === "agent_suggestion") return "purple";
   if (kind === "lane_digest") return "ok";
+  if (kind === "goldmine_alert") return "warn";
   if (kind === "gumroad_manual") return "gold";
   return "warn";
 }
@@ -101,6 +103,11 @@ function BusinessApprovalInboxInner(): JSX.Element | null {
             `solo-operator/four-lanes/digest-inbox/${encodeURIComponent(item.source_id)}/promote`,
             { approve_first: true },
           );
+        } else if (item.kind === "goldmine_alert") {
+          await hivePostJson(`foragers/${encodeURIComponent(item.source_id)}/promote-task`, {
+            mode: "alert",
+            include_skill_bundle: true,
+          });
         } else {
           window.open(item.href, item.href.startsWith("http") ? "_blank" : "_self");
           return;
@@ -158,14 +165,30 @@ function BusinessApprovalInboxInner(): JSX.Element | null {
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-cyan">Approval inbox</p>
           <p className="mt-0.5 text-xs text-(--qs-text-2)">
-            Publish · suggestions · lane digests — one queue
+            Publish · goldmine deltas · suggestions · lane digests
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {snapshot.counts.goldmine_alerts > 0 ? (
+            <V4Badge tone="warn">{snapshot.counts.goldmine_alerts} goldmine</V4Badge>
+          ) : null}
           <V4Badge tone="info">{snapshot.counts.total} pending</V4Badge>
           <HiveRefreshButton busy={loading} onClick={() => void load()} />
         </div>
       </div>
+
+      {snapshot.counts.goldmine_alerts > 0 ? (
+        <div
+          data-testid="approval-inbox-goldmine-strip"
+          className="mb-3 rounded-lg border border-pollen/30 bg-pollen/5 px-3 py-2 text-xs text-(--qs-text-2)"
+        >
+          <span className="font-medium text-pollen">DG3 delta alerts</span>
+          {" — "}
+          {snapshot.counts.goldmine_alerts} forager
+          {snapshot.counts.goldmine_alerts === 1 ? "" : "s"} with new signals since last run.
+          Approve dispatches to Mission Kanban with skill bundle.
+        </div>
+      ) : null}
 
       <ApprovalCardDeck
         items={deckItems}
