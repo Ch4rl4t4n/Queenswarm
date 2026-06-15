@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AgentSessionEventLog } from "@/components/hive/agent-session-event-log";
+import { SessionLoopGuardrailsStrip } from "@/components/hive/session-loop-guardrails-strip";
 import { HiveModalShell, hiveModalScrollBodyClass } from "@/components/hive/hive-modal-shell";
 import { SessionPatternSkillsPanel } from "@/components/hive/session-pattern-skills-panel";
 import { SubAgentSessionCard } from "@/components/hive/sub-agent-session-card";
@@ -257,6 +258,8 @@ export function AgentSessionReportDialog({ sessionId, open, onOpenChange }: Agen
                   </p>
                 ) : null}
               </section>
+
+              <SessionLoopGuardrailsStrip sessionId={session.id} sessionStatus={session.status} />
 
               {patternSkillsSnapshot?.routerEnabled ? (
                 <section className="space-y-2">

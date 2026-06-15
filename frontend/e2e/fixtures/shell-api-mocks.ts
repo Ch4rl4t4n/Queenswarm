@@ -1924,6 +1924,43 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("solo-operator/loop-guardrails")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          max_turns: 5,
+          min_score: 0.8,
+          cost_cap_usd: 0.5,
+          cost_warn_ratio: 0.6,
+          source: "deployment",
+        }),
+      });
+      return;
+    }
+
+    if (path.match(/^agents\/sessions\/[^/]+\/loop-guardrails$/)) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          status: "healthy",
+          max_turns: 5,
+          turns_used: 1,
+          min_score_label: "4.0/5",
+          last_rubric_score: null,
+          cost_cap_usd: 0.5,
+          spent_usd: 0.08,
+          cost_utilization: 0.16,
+          alerts: [],
+          next_operator_action: "Loop within guardrails — continue or approve when critic passes.",
+        }),
+      });
+      return;
+    }
+
     if (path.startsWith("solo-operator/first-run")) {
       await route.fulfill({
         status: 200,

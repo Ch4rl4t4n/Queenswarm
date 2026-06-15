@@ -19,11 +19,11 @@ describe("settings-panel-density", () => {
     expect(advanced).toContain("capabilities-mission");
   });
 
-  it("harness loops exposes only trio as essential default-open", () => {
+  it("harness loops exposes guardrails and trio as essential", () => {
     const essential = HARNESS_LOOPS_PANEL_SPECS.filter((row) => row.tier === "essential");
-    expect(essential).toHaveLength(1);
-    expect(essential[0]?.id).toBe("harness-loops-trio");
-    expect(essential[0]?.defaultOpen).toBe(true);
+    expect(essential).toHaveLength(2);
+    expect(essential.map((row) => row.id)).toEqual(["harness-loops-guardrails", "harness-loops-trio"]);
+    expect(essential[1]?.defaultOpen).toBe(true);
   });
 
   it("resolves harness loop panel spec by id", () => {

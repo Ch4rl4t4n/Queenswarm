@@ -34,6 +34,14 @@ export interface HarnessLoopsPanelSpec {
 /** Harness → Rules → Operator loops — solo trio essential; power panels collapsed. */
 export const HARNESS_LOOPS_PANEL_SPECS: readonly HarnessLoopsPanelSpec[] = [
   {
+    id: "harness-loops-guardrails",
+    tier: "essential",
+    title: "Loop guardrails",
+    hint: "Max turns · score · cost cap",
+    hashKey: "harness-loops-guardrails",
+    defaultOpen: false,
+  },
+  {
     id: "harness-loops-trio",
     tier: "essential",
     title: "My 3 Bees trio",

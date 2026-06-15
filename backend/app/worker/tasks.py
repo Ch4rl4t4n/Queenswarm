@@ -393,16 +393,57 @@ def run_supervisor_sub_agent_step_task(
             )
             from app.application.services.session_cost_guardian import measure_session_cost
 
+            from app.application.services.loop_guardrails_service import (
+                count_session_loop_turns,
+                is_loop_guardrails_active,
+                loop_cost_cap_from_summary,
+                loop_cost_warn_ratio_from_summary,
+                loop_max_turns_from_summary,
+            )
+
             summary_snapshot = dict(sup.context_summary or {})
             maintainer_lane = is_maintainer_session(summary_snapshot)
+            loop_guardrails_lane = is_loop_guardrails_active(summary_snapshot)
             heal_attempts: int | None = None
-            if maintainer_lane:
-                heal_attempts = maintainer_self_heal_max_attempts()
+            if loop_guardrails_lane and not maintainer_lane:
+                turns_used = await count_session_loop_turns(session, session_id=sup.id)
+                max_turns = loop_max_turns_from_summary(summary_snapshot)
+                if turns_used >= max_turns:
+                    sup.status = "needs_input"
+                    sub.status = "needs_input"
+                    sub.error_text = (
+                        f"Closed-loop max turns reached ({turns_used}/{max_turns}). "
+                        "Approve partial output or start a smaller scoped session."
+                    )
+                    await append_event(
+                        session,
+                        supervisor_session=sup,
+                        sub_agent=sub,
+                        event_type="loop_turn_cap_reached",
+                        message="Loop guardrails halted session — max turns reached.",
+                        payload={"turns_used": turns_used, "max_turns": max_turns},
+                    )
+                    await session.commit()
+                    return {"ok": False, "reason": "loop_max_turns_reached", "sub_agent_session_id": str(sub.id)}
+
+            if maintainer_lane or loop_guardrails_lane:
+                if maintainer_lane:
+                    heal_attempts = maintainer_self_heal_max_attempts()
+                cap_usd = (
+                    session_cap_from_summary(summary_snapshot)
+                    if maintainer_lane
+                    else loop_cost_cap_from_summary(summary_snapshot)
+                )
+                warn_ratio = (
+                    float(summary_snapshot.get("session_cost_warn_ratio") or 0.60)
+                    if maintainer_lane
+                    else loop_cost_warn_ratio_from_summary(summary_snapshot)
+                )
                 cost_state = await measure_session_cost(
                     session,
                     session_id=sup.id,
-                    cap_usd=session_cap_from_summary(summary_snapshot),
-                    warn_ratio=float(summary_snapshot.get("session_cost_warn_ratio") or 0.60),
+                    cap_usd=cap_usd,
+                    warn_ratio=warn_ratio,
                 )
                 summary_snapshot["session_cost_guardian"] = cost_state.to_payload()
                 sup.context_summary = summary_snapshot
@@ -410,12 +451,18 @@ def run_supervisor_sub_agent_step_task(
                     sup.status = "needs_input"
                     sub.status = "needs_input"
                     sub.error_text = cost_state.hint
+                    halt_event = "session_cost_halt" if maintainer_lane else "loop_cost_cap_reached"
+                    halt_message = (
+                        "Queen Maintainer session halted — budget cap reached."
+                        if maintainer_lane
+                        else "Loop guardrails halted session — cost cap reached."
+                    )
                     await append_event(
                         session,
                         supervisor_session=sup,
                         sub_agent=sub,
-                        event_type="session_cost_halt",
-                        message="Queen Maintainer session halted — budget cap reached.",
+                        event_type=halt_event,
+                        message=halt_message,
                         payload=cost_state.to_payload(),
                     )
                     await session.commit()

@@ -1137,6 +1137,27 @@ async def get_agent_session(
 
 
 @router.get(
+    "/sessions/{session_id}/loop-guardrails",
+    summary="LOOP2 Live closed-loop guardrail state for one session",
+)
+async def get_agent_session_loop_guardrails(
+    session_id: uuid.UUID,
+    _sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("supervisor:view")),
+) -> dict[str, Any]:
+    """Return turns used, cost utilization, and SLO status for session drawer."""
+
+    from app.application.services.loop_guardrails_service import compose_session_loop_guardrails_state
+
+    row = await get_supervisor_session(db, session_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Supervisor session not found.")
+    state = await compose_session_loop_guardrails_state(db, supervisor_session=row)
+    return state.model_dump(mode="json")
+
+
+@router.get(
     "/sessions/{session_id}/shared-context",
     response_model=SupervisorSharedContextView,
     summary="Resolve shared memory retrieval bundle for one session",

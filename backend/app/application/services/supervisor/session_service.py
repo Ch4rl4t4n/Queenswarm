@@ -466,6 +466,23 @@ async def create_supervisor_session(
     }
     if context_seed:
         base_summary.update(dict(context_seed))
+    if tenant_id is not None and settings.loop_guardrails_enabled:
+        from app.application.services.loop_guardrails_service import (
+            apply_loop_guardrails_to_summary,
+            append_loop_guardrails_goal_footer,
+            get_loop_guardrails_policy,
+        )
+        from app.application.services.queen_maintainer.maintainer_guard import is_maintainer_session
+
+        if not is_maintainer_session(base_summary):
+            base_summary = await apply_loop_guardrails_to_summary(
+                db,
+                tenant_id=tenant_id,
+                summary=base_summary,
+            )
+            policy = await get_loop_guardrails_policy(db, tenant_id=tenant_id)
+            if policy.enabled:
+                goal_for_prompt = append_loop_guardrails_goal_footer(goal_for_prompt, policy=policy)
     if settings.swarm_full_autonomy_enabled:
         base_summary = update_session_autonomy_state(
             context_summary=base_summary,

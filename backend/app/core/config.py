@@ -1689,6 +1689,34 @@ class Settings(BaseSettings):
         default=True,
         description="NP5 — Trading thesis brief wizard on Trading cockpit (risk preflight artifact).",
     )
+    loop_guardrails_enabled: bool = Field(
+        default=True,
+        description="LOOP2 — Closed-loop guardrails (max turns, min score, cost cap) on supervisor sessions.",
+    )
+    loop_guardrails_default_max_turns: int = Field(
+        default=5,
+        ge=1,
+        le=25,
+        description="LOOP2 — default max sub-agent turns per closed loop.",
+    )
+    loop_guardrails_default_min_score: float = Field(
+        default=0.8,
+        ge=0.0,
+        le=1.0,
+        description="LOOP2 — default minimum rubric score (0–1, 0.8 = 4/5).",
+    )
+    loop_guardrails_default_cost_cap_usd: float = Field(
+        default=0.50,
+        ge=0.05,
+        le=50.0,
+        description="LOOP2 — default per-session LLM spend cap (USD).",
+    )
+    loop_guardrails_default_cost_warn_ratio: float = Field(
+        default=0.60,
+        ge=0.1,
+        le=1.0,
+        description="LOOP2 — fraction of cost cap that triggers warn state.",
+    )
     factory_queue_slo_enabled: bool = Field(
         default=True,
         description="TR4 — Skill Factory queue SLO panel in factory snapshot.",

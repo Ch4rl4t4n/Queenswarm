@@ -20,6 +20,7 @@ import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { SecondBrainPackWizardPanel } from "@/components/hive/second-brain-pack-wizard-panel";
 import { SoloOperatorTrioPanel } from "@/components/hive/solo-operator-trio-panel";
 import { SlackHarnessTrainerPanel } from "@/components/hive/slack-harness-trainer-panel";
+import { LoopGuardrailsPanel } from "@/components/hive/loop-guardrails-panel";
 import { LspBridgePanel } from "@/components/hive/lsp-bridge-panel";
 import { RubricTemplatesPanel } from "@/components/hive/rubric-templates-panel";
 import { QueenMaintainerWebhookPanel } from "@/components/hive/queen-maintainer-webhook-panel";
@@ -292,6 +293,9 @@ export function SettingsHarnessPanel({ section }: SettingsHarnessPanelProps): JS
           hint={spec.hint}
           defaultOpen={spec.defaultOpen ?? false}
           lazyContent={() => {
+            if (spec.id === "harness-loops-guardrails") {
+              return <LoopGuardrailsPanel />;
+            }
             if (spec.id === "harness-loops-trio") {
               return <SoloOperatorTrioPanel />;
             }

@@ -711,4 +711,45 @@ async def solo_trading_thesis_wizard_submit(
     return result.model_dump(mode="json")
 
 
+@router.get("/loop-guardrails", summary="LOOP2 Tenant closed-loop guardrails policy")
+async def solo_loop_guardrails_get(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return max turns, min score, and cost cap defaults for closed agent loops."""
+
+    from app.application.services.loop_guardrails_service import get_loop_guardrails_policy
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    policy = await get_loop_guardrails_policy(db, tenant_id=tenant_id)
+    return policy.model_dump(mode="json")
+
+
+@router.patch("/loop-guardrails", summary="LOOP2 Update tenant loop guardrails")
+async def solo_loop_guardrails_patch(
+    body: dict[str, Any],
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Persist operator loop guardrail overrides."""
+
+    from app.application.services.loop_guardrails_service import (
+        LoopGuardrailsPolicyPatchIn,
+        save_loop_guardrails_policy,
+    )
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    try:
+        patch = LoopGuardrailsPolicyPatchIn.model_validate(body)
+        saved = await save_loop_guardrails_policy(db, tenant_id=tenant_id, patch=patch)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return saved.model_dump(mode="json")
+
+
 __all__ = ["router"]
