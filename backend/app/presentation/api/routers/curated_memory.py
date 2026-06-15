@@ -80,6 +80,22 @@ async def get_curated_limits() -> dict[str, int]:
     }
 
 
+@router.get("/token-budget-meter", summary="MEM4 Brain Pack + HiveMind token budget meter")
+async def get_token_budget_meter(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return Brain Pack injection size, recall budget, and token estimates."""
+
+    from app.application.services.token_budget_meter_service import compose_token_budget_meter
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    meter = await compose_token_budget_meter(db, tenant_id=tenant_id)
+    return meter.model_dump(mode="json")
+
+
 @router.get("", summary="List all curated files for active tenant")
 async def get_curated_bundle(
     db: DbSession,

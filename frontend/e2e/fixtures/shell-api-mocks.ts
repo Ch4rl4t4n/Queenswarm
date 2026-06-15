@@ -1688,6 +1688,37 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path === "memory/curated/token-budget-meter") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          prompt_prefix_chars: 820,
+          estimated_tokens: 205,
+          storage_total_chars: 760,
+          storage_max_chars: 96000,
+          storage_usage_pct: 1,
+          recall_mode: "selective",
+          recall_char_budget: 2400,
+          estimated_recall_tokens: 600,
+          max_prompt_chars: 4000,
+          selective_max_chars: 2400,
+          recall_usage_pct: 60,
+          combined_estimated_tokens: 805,
+          status: "ok",
+          operator_hint: "Selective recall keeps HiveMind injection under budget; Brain Pack injects on every Queen bootstrap.",
+          layers: [
+            { layer_id: "soul", label: "SOUL", char_count: 220, estimated_tokens: 55, filled: true },
+            { layer_id: "memory", label: "MEMORY", char_count: 310, estimated_tokens: 77, filled: true },
+            { layer_id: "user", label: "USER", char_count: 180, estimated_tokens: 45, filled: true },
+            { layer_id: "brand", label: "BRAND", char_count: 50, estimated_tokens: 12, filled: true },
+          ],
+        }),
+      });
+      return;
+    }
+
     if (path.startsWith("memory/wiki-layer/")) {
       const stubOverview = {
         zones: {

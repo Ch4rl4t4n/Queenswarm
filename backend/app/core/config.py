@@ -1779,6 +1779,10 @@ class Settings(BaseSettings):
         default=True,
         description="LR1 — Prominent checkpoint resume CTA on supervisor session list.",
     )
+    token_budget_meter_enabled: bool = Field(
+        default=True,
+        description="MEM4 — Token budget meter on Brain Pack / harness (char ≈ token estimate).",
+    )
     factory_queue_slo_enabled: bool = Field(
         default=True,
         description="TR4 — Skill Factory queue SLO panel in factory snapshot.",
