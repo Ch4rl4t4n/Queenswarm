@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.cost_governor import BudgetExceededError, CostGovernor
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.core.metrics import observe_llm_cost_usd
+from app.core.metrics import observe_llm_cost_usd, observe_llm_local_inference
 from app.core.observability import build_langfuse_metadata
 from app.core.retry_external import retry_async_call
 from app.models.cost import CostRecord
@@ -136,6 +136,8 @@ def model_api_key(model: str) -> str:
     """Return provider API key for the LiteLLM model slug."""
 
     lowered = model.lower()
+    if lowered.startswith("ollama/"):
+        return "ollama"
     if lowered.startswith("xai/") or "grok" in lowered:
         return provider_effective_grok()
     if lowered.startswith("anthropic/") or lowered.startswith("claude"):
@@ -173,7 +175,20 @@ def _openai_key_looks_configured(raw: str | None) -> bool:
 def model_slug_has_configured_credentials(model_name: str) -> bool:
     """Return ``True`` when ``model_name`` can be routed without empty API keys."""
 
+    from app.application.services.local_inference import (
+        is_local_inference_model,
+        resolve_vllm_model_slug,
+    )
+
     lowered = model_name.lower()
+    if is_local_inference_model(model_name):
+        if lowered.startswith("ollama/"):
+            return bool(settings.local_llm_enabled and settings.ollama_api_base.strip())
+        if settings.vllm_api_base.strip() and lowered == resolve_vllm_model_slug().lower():
+            return bool(settings.local_llm_enabled)
+        return False
+    if settings.llm_airgap:
+        return False
     if lowered.startswith("xai/") or "grok" in lowered:
         return bool(provider_effective_grok())
     if lowered.startswith("anthropic/") or lowered.startswith("claude") or "claude-" in lowered:
@@ -279,6 +294,22 @@ class LiteLLMRouter:
         """Ordered list of model slugs that have usable credentials."""
 
         from app.application.services.llm_routing import DEFAULT_ROUTING_MODE, ordered_model_chain
+        from app.application.services.local_inference import configured_local_model_slugs
+
+        mode = routing_mode or DEFAULT_ROUTING_MODE
+        if mode == "local_sovereign" or settings.llm_airgap:
+            local_usable = [
+                slug
+                for slug in configured_local_model_slugs()
+                if model_slug_has_configured_credentials(slug)
+            ]
+            return ordered_model_chain(
+                routing_mode="local_sovereign",  # type: ignore[arg-type]
+                primary=local_usable[0] if local_usable else "",
+                fallback=local_usable[1] if len(local_usable) > 1 else "",
+                tertiary=local_usable[2] if len(local_usable) > 2 else "",
+                usable=local_usable,
+            )
 
         primary = primary_override or settings.workflow_breaker_primary_model
         fallback = settings.workflow_breaker_fallback_model
@@ -339,8 +370,14 @@ class LiteLLMRouter:
         """
 
         await self._assert_budget(session)
+        from app.application.services.local_inference import (
+            assert_model_allowed_when_airgap,
+            enrich_litellm_completion_kwargs,
+            is_local_inference_model,
+        )
+
+        assert_model_allowed_when_airgap(model_name)
         api_key = model_api_key(model_name)
-        lowered_m = model_name.lower()
         completion_kwargs: dict[str, Any] = {
             "model": model_name,
             "messages": messages,
@@ -348,6 +385,7 @@ class LiteLLMRouter:
             "max_tokens": max_tokens if max_tokens is not None else settings.workflow_breaker_max_output_tokens,
             "api_key": api_key,
         }
+        enrich_litellm_completion_kwargs(completion_kwargs, model_name)
         # Native ``xai/`` routing — remapping to openai/ + custom api_base breaks LiteLLM cost maps
         # and adds ~8–15s failed-hop latency before fallback models run.
         if settings.langfuse_enabled:
@@ -368,8 +406,14 @@ class LiteLLMRouter:
                 max_wait_sec=settings.llm_retry_max_wait_sec,
             )
         content = response.choices[0].message.content or ""
-        hop_cost_usd = _safe_completion_cost(response, model_name=model_name)
-        observe_llm_cost_usd(model_name=model_name, cost_usd=hop_cost_usd)
+        hop_cost_usd = 0.0 if is_local_inference_model(model_name) else _safe_completion_cost(
+            response,
+            model_name=model_name,
+        )
+        if is_local_inference_model(model_name):
+            observe_llm_local_inference(model_name=model_name)
+        else:
+            observe_llm_cost_usd(model_name=model_name, cost_usd=hop_cost_usd)
         await record_llm_cost(
             session,
             response=response,
@@ -447,6 +491,11 @@ class LiteLLMRouter:
         routing_mode = await self._resolve_routing_mode(session)
         hops = self._decomposition_chain(routing_mode=routing_mode, primary_override=primary_override)
         if not hops:
+            if settings.llm_airgap or routing_mode == "local_sovereign":
+                raise RuntimeError(
+                    "Local inference unavailable — configure OLLAMA_API_BASE, pull a model, "
+                    "or set routing_mode away from local_sovereign while LLM_AIRGAP=0.",
+                )
             raise RuntimeError(
                 "LiteLLM router has no credentials for configured models "
                 "(set GROK_API_KEY, ANTHROPIC_API_KEY, and/or OPENAI_API_KEY).",

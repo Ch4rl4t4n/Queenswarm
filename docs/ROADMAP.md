@@ -656,18 +656,18 @@ _Signal: [Unsloth Studio — fine-tune & run locally](https://www.youtube.com/wa
 
 | ID | Item | Priority | Est. | Status | Gate / asset |
 |----|------|----------|------|--------|--------------|
-| LOC1 | **Ollama + vLLM providers** in `LiteLLMRouter` (`ollama/*`, openai-compatible local base) | P0 | 2–3 d | ⏳ | `llm_router.py` · litellm registry |
-| LOC2 | **`local_sovereign` routing mode** + `LLM_AIRGAP=1` hard block cloud hops | P0 | 1–2 d | ⏳ | Settings + startup guard |
-| LOC3 | **Docker profile `local-llm`** — Ollama service + compose overlay | P0 | 1 d | ⏳ | `docker-compose.local-llm.yml` |
-| LOC4 | **Settings → Local Inference** panel — endpoint, model, ping, enable sovereign | P0 | 2–3 d | ⏳ | `/settings/harness` lazy panel |
+| LOC1 | **Ollama + vLLM providers** in `LiteLLMRouter` (`ollama/*`, openai-compatible local base) | P0 | 2–3 d | ✅ | `llm_router.py` · `local_inference.py` |
+| LOC2 | **`local_sovereign` routing mode** + `LLM_AIRGAP=1` hard block cloud hops | P0 | 1–2 d | ✅ | Settings + router guard |
+| LOC3 | **Docker profile `local-llm`** — Ollama service + compose overlay | P0 | 1 d | ✅ | `docker-compose.local-llm.yml` |
+| LOC4 | **Settings → Local Inference** panel — endpoint, model, ping, enable sovereign | P0 | 2–3 d | ✅ | `/settings/llm-keys` |
 | LOC5 | **Verified dataset exporter** — critic-approved sessions/recipes → JSONL (Alpaca) | P1 | 3–4 d | ⏳ | HiveMind + session export API |
 | LOC6 | **Dataset Recipe wizard** — PDF/CSV → Q&A pairs via **local model only** | P1 | 4–5 d | ⏳ | Unsloth-recipes pattern · HITL |
 | LOC7 | **Unsloth bridge** — operator script + doc (`pull adapter → Ollama import`) | P1 | 1–2 d | ⏳ | `scripts/operator-unsloth-bridge.sh` |
 | LOC8 | **Adapter registry** — tenant LoRA/GGUF metadata → LiteLLM model slug | P1 | 2–3 d | ⏳ | Postgres + Settings picker |
 | LOC9 | **Fine-tune job queue** — GPU Celery worker, operator approve start | P2 | 5–7 d | ⏳ | Env-gated · not in API container |
 | LOC10 | **Hardware preflight** — RAM/VRAM/disk model recommendation | P1 | 1 d | ⏳ | `operator-local-llm-preflight.sh` |
-| LOC11 | **CostGovernor local hops** — $0 billing + metrics label `inference=local` | P0 | 1 d | ⏳ | Cost panel UX |
-| LOC12 | **E2E + manual** — air-gap session completes with Ollama only | P0 | 2 d | ⏳ | `docs/OPERATOR_LOCAL_LLM_MANUAL.md` |
+| LOC11 | **CostGovernor local hops** — $0 billing + metrics label `inference=local` | P0 | 1 d | ✅ | `queenswarm_llm_local_inference_total` |
+| LOC12 | **E2E + manual** — air-gap session completes with Ollama only | P0 | 2 d | ✅ | `docs/OPERATOR_LOCAL_LLM_MANUAL.md` · shell mocks |
 | LOC13 | **Track L integration** — Analytics bees default to local model in sovereign mode | P1 | 1 d | ⏳ | DA template env flag |
 | LOC14 | **Recipe tags** — `local-adapter` + imitation hints for sovereign tenants | P2 | 1–2 d | ⏳ | Recipe Library |
 

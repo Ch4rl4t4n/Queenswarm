@@ -11,7 +11,7 @@ from app.core.logging import get_logger
 from app.core.tenant_context import get_current_tenant_uuid
 from app.infrastructure.persistence.models.tenant import Tenant
 
-LlmRoutingMode = Literal["quality", "economy", "free_first"]
+LlmRoutingMode = Literal["quality", "economy", "free_first", "local_sovereign"]
 
 LLM_ROUTING_BUCKET = "llm_routing"
 DEFAULT_ROUTING_MODE: LlmRoutingMode = "quality"
@@ -23,7 +23,7 @@ def normalize_routing_mode(raw: object) -> LlmRoutingMode:
     """Coerce stored value to a supported routing mode."""
 
     text = str(raw or DEFAULT_ROUTING_MODE).strip().lower()
-    if text in {"quality", "economy", "free_first"}:
+    if text in {"quality", "economy", "free_first", "local_sovereign"}:
         return text  # type: ignore[return-value]
     return DEFAULT_ROUTING_MODE
 
@@ -95,6 +95,9 @@ def ordered_model_chain(
     usable: list[str],
 ) -> list[str]:
     """Reorder configured model slugs for the selected routing mode."""
+
+    if routing_mode == "local_sovereign":
+        return list(usable)
 
     tier_map = {primary: "primary", fallback: "fallback", tertiary: "tertiary"}
     ordered_tiers: list[str]

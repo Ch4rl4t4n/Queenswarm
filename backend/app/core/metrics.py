@@ -76,6 +76,12 @@ LLM_COST_USD_TOTAL = Counter(
     ["model"],
 )
 
+LLM_LOCAL_INFERENCE_TOTAL = Counter(
+    "queenswarm_llm_local_inference_total",
+    "Local Ollama/vLLM inference hops (zero USD — Track M LOC11).",
+    ["model"],
+)
+
 SUPERVISOR_SESSIONS_TOTAL = Counter(
     "queenswarm_supervisor_sessions_total",
     "Supervisor session lifecycle counters.",
@@ -234,6 +240,13 @@ def observe_llm_cost_usd(*, model_name: str, cost_usd: float) -> None:
         return
     safe = (model_name or "unknown").replace('"', "")[:128]
     LLM_COST_USD_TOTAL.labels(model=safe).inc(float(cost_usd))
+
+
+def observe_llm_local_inference(*, model_name: str) -> None:
+    """Count zero-cost local inference hops (Track M LOC11)."""
+
+    safe = (model_name or "unknown").replace('"', "")[:128]
+    LLM_LOCAL_INFERENCE_TOTAL.labels(model=safe).inc(1.0)
 
 
 def observe_supervisor_session_event(*, event: str, runtime_mode: str) -> None:

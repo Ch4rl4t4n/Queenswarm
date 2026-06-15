@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2Icon, ShieldCheck } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { usePlatform } from "@/components/hive/platform-context";
@@ -9,20 +9,31 @@ import { QsSelect } from "@/components/ui/qs-select";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePutJson } from "@/lib/api";
 
+type RoutingMode = "quality" | "economy" | "free_first" | "local_sovereign";
+
 interface LlmRoutingSettings {
-  routing_mode: "quality" | "economy" | "free_first";
+  routing_mode: RoutingMode;
   cost_guardian_enabled: boolean;
   auto_upgrade_on_failure: boolean;
   feature_enabled: boolean;
   quality_primary_model: string;
   economy_primary_model: string;
+  local_llm_enabled?: boolean;
+  llm_airgap?: boolean;
+  ollama_default_model?: string;
+  configured_local_models?: string[];
 }
 
-const ROUTING_OPTIONS = [
+const BASE_ROUTING_OPTIONS: { value: RoutingMode; label: string }[] = [
   { value: "quality", label: "Quality first (Grok → Claude → GPT-4o mini)" },
   { value: "economy", label: "Economy (GPT-4o mini → Claude → Grok)" },
   { value: "free_first", label: "Free-first (cheap hop, auto-upgrade on failure)" },
-] as const;
+];
+
+const LOCAL_SOVEREIGN_OPTION = {
+  value: "local_sovereign" as const,
+  label: "Local sovereign (Ollama / vLLM only — $0)",
+};
 
 /** Settings panel — LiteLLM routing mode + Cost Guardian auto-upgrade. */
 export function CostGuardianRoutingPanel(): JSX.Element | null {
@@ -67,6 +78,14 @@ export function CostGuardianRoutingPanel(): JSX.Element | null {
     [settings],
   );
 
+  const routingOptions = useMemo(() => {
+    const opts = [...BASE_ROUTING_OPTIONS];
+    if (settings?.local_llm_enabled) {
+      opts.push(LOCAL_SOVEREIGN_OPTION);
+    }
+    return opts;
+  }, [settings?.local_llm_enabled]);
+
   if (!hasFeature("free_first_routing")) {
     return null;
   }
@@ -97,10 +116,8 @@ export function CostGuardianRoutingPanel(): JSX.Element | null {
             <span className="text-(--qs-text-2)">Routing mode</span>
             <QsSelect
               value={settings.routing_mode}
-              options={ROUTING_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
-              onValueChange={(value) =>
-                void save({ routing_mode: value as LlmRoutingSettings["routing_mode"] })
-              }
+              options={routingOptions.map((o) => ({ value: o.value, label: o.label }))}
+              onValueChange={(value) => void save({ routing_mode: value as RoutingMode })}
               disabled={busy}
             />
           </label>
@@ -130,7 +147,16 @@ export function CostGuardianRoutingPanel(): JSX.Element | null {
           <p className="text-xs text-(--qs-text-3)">
             Quality primary: <span className="font-mono text-cyan">{settings.quality_primary_model}</span> · Economy
             hop: <span className="font-mono text-pollen">{settings.economy_primary_model}</span>
+            {settings.local_llm_enabled && settings.ollama_default_model ? (
+              <>
+                {" "}
+                · Local: <span className="font-mono text-success">{settings.ollama_default_model}</span>
+              </>
+            ) : null}
           </p>
+          {settings.llm_airgap ? (
+            <p className="text-xs text-magenta">LLM_AIRGAP active — cloud models are blocked at runtime.</p>
+          ) : null}
         </div>
       ) : null}
     </V4Card>

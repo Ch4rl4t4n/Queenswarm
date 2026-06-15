@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } 
 import { toast } from "sonner";
 
 import { CostGuardianRoutingPanel } from "@/components/hive/cost-guardian-routing-panel";
+import { LocalInferencePanel } from "@/components/hive/local-inference-panel";
 import { QsSelect } from "@/components/ui/qs-select";
 import { InfoHint } from "@/components/hive/info-hint";
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
@@ -471,6 +472,7 @@ export function SettingsLlmKeysPanel() {
       </p>
 
       <CostGuardianRoutingPanel />
+      <LocalInferencePanel />
 
       <V4Card className="v4-voice-prefs-card">
         <V4CardHeader

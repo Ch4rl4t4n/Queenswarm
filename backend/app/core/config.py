@@ -443,6 +443,30 @@ class Settings(BaseSettings):
         default=True,
         description="Master switch for Free-First / economy LiteLLM routing (Phase 4).",
     )
+    local_llm_enabled: bool = Field(
+        default=True,
+        description="Enable Ollama/vLLM local inference path (Track M LOC1).",
+    )
+    ollama_api_base: str = Field(
+        default="http://127.0.0.1:11434",
+        description="Ollama REST base URL for LiteLLM ollama/* models.",
+    )
+    ollama_default_model: str = Field(
+        default="ollama/qwen2.5:7b",
+        description="Default LiteLLM slug for local_sovereign routing.",
+    )
+    vllm_api_base: str = Field(
+        default="",
+        description="Optional vLLM OpenAI-compatible base (e.g. http://127.0.0.1:8000).",
+    )
+    vllm_default_model: str = Field(
+        default="openai/local-model",
+        description="LiteLLM slug paired with vllm_api_base.",
+    )
+    llm_airgap: bool = Field(
+        default=False,
+        description="When true, block all cloud LLM hops — local inference only (LOC2).",
+    )
     auto_graphify_enabled: bool = Field(
         default=True,
         description="Master switch for Auto-Graphify folder ingest (Phase 4 P1).",

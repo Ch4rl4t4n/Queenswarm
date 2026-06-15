@@ -34,6 +34,10 @@ class LlmRoutingSettingsResponse(BaseModel):
     feature_enabled: bool
     quality_primary_model: str
     economy_primary_model: str
+    local_llm_enabled: bool = False
+    llm_airgap: bool = False
+    ollama_default_model: str = ""
+    configured_local_models: list[str] = Field(default_factory=list)
 
 
 class LlmRoutingSettingsUpdateBody(BaseModel):
@@ -90,6 +94,12 @@ async def get_llm_routing_settings(
 
     tenant_id = await _assert_routing_feature(db, principal)
     cfg = await load_routing_config(db, tenant_id=tenant_id)
+    from app.application.services.local_inference import (
+        compose_local_inference_status,
+        configured_local_model_slugs,
+    )
+
+    local = await compose_local_inference_status(run_ping=False)
     return LlmRoutingSettingsResponse(
         routing_mode=str(cfg.get("routing_mode", "quality")),
         cost_guardian_enabled=bool(cfg.get("cost_guardian_enabled", True)),
@@ -97,6 +107,10 @@ async def get_llm_routing_settings(
         feature_enabled=bool(cfg.get("feature_enabled", True)),
         quality_primary_model=settings.workflow_breaker_primary_model,
         economy_primary_model=settings.workflow_breaker_tertiary_model,
+        local_llm_enabled=local.enabled,
+        llm_airgap=local.llm_airgap,
+        ollama_default_model=local.ollama_default_model,
+        configured_local_models=configured_local_model_slugs(),
     )
 
 
@@ -126,6 +140,9 @@ async def update_llm_routing_settings(
     await db.commit()
     await db.refresh(tenant)
     cfg = routing_config_from_tenant(tenant)
+    from app.application.services.local_inference import compose_local_inference_status, configured_local_model_slugs
+
+    local = await compose_local_inference_status(run_ping=False)
     return LlmRoutingSettingsResponse(
         routing_mode=str(cfg["routing_mode"]),
         cost_guardian_enabled=bool(cfg["cost_guardian_enabled"]),
@@ -133,6 +150,10 @@ async def update_llm_routing_settings(
         feature_enabled=True,
         quality_primary_model=settings.workflow_breaker_primary_model,
         economy_primary_model=settings.workflow_breaker_tertiary_model,
+        local_llm_enabled=local.enabled,
+        llm_airgap=local.llm_airgap,
+        ollama_default_model=local.ollama_default_model,
+        configured_local_models=configured_local_model_slugs(),
     )
 
 
@@ -146,6 +167,37 @@ async def get_cost_savings(
 
     tenant_id = await _assert_routing_feature(db, principal)
     return await build_cost_savings_payload(db, tenant_id=tenant_id, window_days=window_days)
+
+
+@router.get("/local-inference", summary="Local Ollama/vLLM status (Track M LOC4)")
+async def get_local_inference_status(
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    ping: bool = Query(default=False, description="Probe Ollama/vLLM endpoints"),
+) -> dict[str, Any]:
+    """Return deployment local inference config and optional live ping."""
+
+    if not settings.local_llm_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Local LLM disabled on deployment.")
+    _ensure_admin(principal)
+    from app.application.services.local_inference import compose_local_inference_status
+
+    status_out = await compose_local_inference_status(run_ping=ping)
+    return status_out.model_dump(mode="json")
+
+
+@router.post("/local-inference/ping", summary="Ping Ollama/vLLM now")
+async def post_local_inference_ping(
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Live health check for local inference endpoints."""
+
+    if not settings.local_llm_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Local LLM disabled on deployment.")
+    _ensure_admin(principal)
+    from app.application.services.local_inference import compose_local_inference_status
+
+    status_out = await compose_local_inference_status(run_ping=True)
+    return status_out.model_dump(mode="json")
 
 
 __all__ = ["router"]

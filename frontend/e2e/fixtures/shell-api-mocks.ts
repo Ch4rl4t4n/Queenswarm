@@ -240,6 +240,21 @@ const STUB_LLM_ROUTING_SETTINGS = {
   feature_enabled: true,
   quality_primary_model: "grok-3",
   economy_primary_model: "gpt-4o-mini",
+  local_llm_enabled: true,
+  llm_airgap: false,
+  ollama_default_model: "ollama/qwen2.5:7b",
+  configured_local_models: ["ollama/qwen2.5:7b"],
+};
+
+const STUB_LOCAL_INFERENCE = {
+  enabled: true,
+  llm_airgap: false,
+  ollama_api_base: "http://127.0.0.1:11434",
+  ollama_default_model: "ollama/qwen2.5:7b",
+  vllm_api_base: "",
+  vllm_default_model: "openai/local-model",
+  configured_models: ["ollama/qwen2.5:7b"],
+  pings: [],
 };
 
 const STUB_LLM_COST_SAVINGS = {
@@ -1123,6 +1138,35 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           processed_at: new Date().toISOString(),
           error_text: null,
         }),
+      });
+      return;
+    }
+
+    if (path.startsWith("llm-routing/local-inference/ping")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ...STUB_LOCAL_INFERENCE,
+          pings: [
+            {
+              provider: "ollama",
+              ok: true,
+              endpoint: "http://127.0.0.1:11434",
+              model_count: 1,
+              message: "Ollama reachable — 1 model(s) listed.",
+            },
+          ],
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("llm-routing/local-inference")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_LOCAL_INFERENCE),
       });
       return;
     }
