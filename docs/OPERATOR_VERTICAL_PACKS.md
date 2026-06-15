@@ -98,7 +98,7 @@ Canonical design for **P10 Track N** — low-effort operator packs inspired by J
 
 **Reuses:** `seed-brain-pack` · curated memory API · AOS1 marketing profile
 
-**Est.:** 2 d · **Priority:** P1
+**Est.:** 2 d · **Priority:** P1 · **Status:** ✅ (Brain Pack BRAND tab + marketing harness injection · MEM4 cap)
 
 ---
 

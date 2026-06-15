@@ -443,7 +443,18 @@ async def create_supervisor_session(
             prefix_length=len(queen_prompt_prefix),
             wiki_length=len(wiki_prompt_block),
         )
-    prefix_parts = [part for part in (queen_prompt_prefix, wiki_prompt_block) if part.strip()]
+    brand_prompt_block = ""
+    if tenant_id is not None and settings.brand_context_pack_enabled:
+        from app.application.services.brand_context_pack_service import load_marketing_brand_injection
+
+        brand_prompt_block = await load_marketing_brand_injection(
+            db,
+            tenant_id=tenant_id,
+            context_seed=dict(context_seed) if context_seed else None,
+        )
+    prefix_parts = [
+        part for part in (queen_prompt_prefix, wiki_prompt_block, brand_prompt_block) if part.strip()
+    ]
     combined_prefix = "\n\n".join(prefix_parts)
     goal_for_prompt = f"{combined_prefix}\n\n{goal_clean}" if combined_prefix else goal_clean
 
@@ -462,6 +473,7 @@ async def create_supervisor_session(
         "intelligence_layer_version": "phase9-v4",
         "curated_prompt_prefix": queen_prompt_prefix,
         "wiki_prompt_block": wiki_prompt_block,
+        "brand_prompt_block": brand_prompt_block,
         "raw_goal": goal_clean,
     }
     if context_seed:

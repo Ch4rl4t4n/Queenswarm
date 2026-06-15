@@ -81,6 +81,7 @@ async def test_get_bundle_returns_all_four_keys_with_missing_files(monkeypatch) 
         CuratedFileKind.SOUL,
         CuratedFileKind.SKILLS_HIERARCHY,
         CuratedFileKind.INSTRUCTIONS,
+        CuratedFileKind.BRAND,
     }
     assert bundle[CuratedFileKind.MISSION] == "Mission text"
     assert bundle[CuratedFileKind.SOUL] == ""

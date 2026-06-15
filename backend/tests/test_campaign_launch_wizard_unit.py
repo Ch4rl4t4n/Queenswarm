@@ -75,9 +75,9 @@ def test_brand_pack_step_blocked_when_pack_not_ready() -> None:
     packs = [
         CampaignBrandPackOut(
             id="curated-brand",
-            label="Brain Pack",
+            label="Brain Pack brand context",
             source="tenant",
-            detail="Fill Instructions",
+            detail="Fill Brand tab",
             ready=False,
         ),
     ]

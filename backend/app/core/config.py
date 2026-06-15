@@ -1693,6 +1693,16 @@ class Settings(BaseSettings):
         default=True,
         description="NP6 — Campaign launch wizard on Marketing Automation (brand → rubric → simulate).",
     )
+    brand_context_pack_enabled: bool = Field(
+        default=True,
+        description="NP3 — Brand Context Pack tab in Brain Pack + marketing harness injection.",
+    )
+    brand_context_max_injection_chars: int = Field(
+        default=1300,
+        ge=200,
+        le=4000,
+        description="MEM4 — max characters of brand pack injected in marketing profile sessions.",
+    )
     loop_guardrails_enabled: bool = Field(
         default=True,
         description="LOOP2 — Closed-loop guardrails (max turns, min score, cost cap) on supervisor sessions.",

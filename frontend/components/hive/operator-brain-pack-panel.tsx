@@ -7,17 +7,19 @@ import { V4Card, V4CardHeader } from "@/components/ui/v4";
 import { InfoHint } from "@/components/hive/info-hint";
 import { HiveApiError, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
 
-type BrainTab = "soul" | "memory" | "user";
+type BrainTab = "soul" | "memory" | "user" | "brand";
 
 const BRAIN_TABS: { id: BrainTab; label: string; hint: string }[] = [
   { id: "soul", label: "SOUL", hint: "Identity, tone, skills hierarchy" },
   { id: "memory", label: "MEMORY", hint: "Mission + ideal state (project facts)" },
   { id: "user", label: "USER", hint: "Behavioral instructions (operator prefs)" },
+  { id: "brand", label: "BRAND", hint: "Voice, forbidden claims, examples — marketing harness only (NP3)" },
 ];
 
 const SOUL_KINDS = ["soul", "skills_hierarchy"] as const;
 const MEMORY_KINDS = ["mission", "ideal_state"] as const;
 const USER_KINDS = ["instructions"] as const;
+const BRAND_KINDS = ["brand"] as const;
 
 const BRAIN_PACK_HINT = {
   title: { en: "Operator Brain Pack", sk: "Operator Brain Pack" },
@@ -49,11 +51,17 @@ export function OperatorBrainPackPanel() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  const [maxChars, setMaxChars] = useState(16_000);
+
   const reload = useCallback(async () => {
     try {
-      const data = await hiveGet<Record<string, string>>("memory/curated");
+      const [data, limits] = await Promise.all([
+        hiveGet<Record<string, string>>("memory/curated"),
+        hiveGet<{ max_chars_per_file: number }>("memory/curated/limits"),
+      ]);
       setBundle(data);
       setDrafts(data);
+      setMaxChars(limits.max_chars_per_file);
       setErr(null);
     } catch (e) {
       setErr(e instanceof HiveApiError ? e.message : "Brain pack unavailable");
@@ -65,7 +73,18 @@ export function OperatorBrainPackPanel() {
   }, [reload]);
 
   const activeKinds =
-    tab === "soul" ? SOUL_KINDS : tab === "memory" ? MEMORY_KINDS : USER_KINDS;
+    tab === "soul"
+      ? SOUL_KINDS
+      : tab === "memory"
+        ? MEMORY_KINDS
+        : tab === "brand"
+          ? BRAND_KINDS
+          : USER_KINDS;
+
+  const activeCharCount = activeKinds.reduce(
+    (sum, kind) => sum + (drafts[kind] ?? bundle[kind] ?? "").length,
+    0,
+  );
 
   async function saveTab() {
     setBusy(true);
@@ -115,11 +134,11 @@ export function OperatorBrainPackPanel() {
   }
 
   return (
-    <V4Card id="brain-pack">
+    <V4Card id={tab === "brand" ? "brain-pack-brand" : "brain-pack"}>
       <V4CardHeader
         kicker="Operator Brain Pack"
-        title="SOUL · MEMORY · USER"
-        description="Hermes-style three-tier identity — stored as existing curated memory files. Queen reads all on bootstrap."
+        title="SOUL · MEMORY · USER · BRAND"
+        description="Hermes-style identity + NP3 brand context. Queen reads SOUL/MEMORY/USER on every bootstrap; BRAND injects in marketing harness sessions only."
         hint={
           <InfoHint
             title={BRAIN_PACK_HINT.title}
@@ -148,7 +167,14 @@ export function OperatorBrainPackPanel() {
           Export .md
         </button>
       </div>
-      <p className="mb-3 text-xs text-(--qs-muted)">{BRAIN_TABS.find((t) => t.id === tab)?.hint}</p>
+      <p className="mb-3 text-xs text-(--qs-muted)">
+        {BRAIN_TABS.find((t) => t.id === tab)?.hint}
+        {tab === "brand" ? (
+          <span className="ml-2 font-mono text-cyan">
+            {activeCharCount}/{maxChars} chars · injection cap ~1300 in marketing sessions
+          </span>
+        ) : null}
+      </p>
       <div className="space-y-4">
         {activeKinds.map((kind) => (
           <div key={kind}>
@@ -156,7 +182,7 @@ export function OperatorBrainPackPanel() {
             <textarea
               value={drafts[kind] ?? bundle[kind] ?? ""}
               onChange={(e) => setDrafts((prev) => ({ ...prev, [kind]: e.target.value }))}
-              rows={tab === "user" ? 10 : 8}
+              rows={tab === "user" ? 10 : tab === "brand" ? 14 : 8}
               className="qs-input min-h-[160px] w-full font-mono text-xs leading-relaxed"
               placeholder={`Markdown for ${kind}…`}
             />

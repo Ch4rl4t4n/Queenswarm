@@ -24,6 +24,7 @@ class CuratedFileKindORM(StrEnum):
     SOUL = "soul"
     SKILLS_HIERARCHY = "skills_hierarchy"
     INSTRUCTIONS = "instructions"
+    BRAND = "brand"
 
 
 class CuratedMemoryORM(Base):

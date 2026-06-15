@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.curated_memory_service import CuratedMemoryService
+from app.application.services.brand_context_pack_service import is_brand_pack_ready
 from app.application.services.publish_pack import (
     PublishChannel,
     PublishPackArtifact,
@@ -236,20 +237,19 @@ async def _compose_brand_packs(
     packs = list(_BUILTIN_BRAND_PACKS)
     memory = CuratedMemoryService(db=session)
     bundle = await memory.get_bundle(tenant_id)
-    instructions = (bundle.get(CuratedFileKind.INSTRUCTIONS) or "").strip()
-    soul = (bundle.get(CuratedFileKind.SOUL) or "").strip()
-    curated_ready = len(instructions) >= MIN_CURATED_BRAND_CHARS and len(soul) >= 20
+    brand_md = (bundle.get(CuratedFileKind.BRAND) or "").strip()
+    brand_ready = is_brand_pack_ready(brand_md)
     packs.append(
         CampaignBrandPackOut(
             id="curated-brand",
-            label="Brain Pack brand voice",
+            label="Brain Pack brand context",
             source="tenant",
             detail=(
-                f"Instructions + Soul ({len(instructions)} + {len(soul)} chars) — NP3 lightweight slice."
-                if curated_ready
-                else "Fill Instructions + Soul in Knowledge (≥40 chars each)."
+                f"NP3 Brand tab — voice, forbidden claims, examples ({len(brand_md)} chars)."
+                if brand_ready
+                else "Fill Brand tab: voice bullets, forbidden claims, example posts."
             ),
-            ready=curated_ready,
+            ready=brand_ready,
         ),
     )
     return packs
@@ -267,7 +267,7 @@ def _brand_pack_step(
             label="Pick brand pack",
             status="pending",
             detail="Select Queenswarm default or Brain Pack brand voice.",
-            link="/knowledge?tab=memory#brain-pack",
+            link="/knowledge?tab=memory#brain-pack-brand",
         )
     selected = next((row for row in brand_packs if row.id == pack_id), None)
     if selected is None:
@@ -283,7 +283,7 @@ def _brand_pack_step(
             label="Pick brand pack",
             status="blocked",
             detail=selected.detail,
-            link="/knowledge?tab=memory#brain-pack",
+            link="/knowledge?tab=memory#brain-pack-brand",
         )
     return CampaignLaunchStepOut(
         id="brand_pack",

@@ -20,6 +20,7 @@ def test_starter_kinds_cover_all_brain_pack_slots() -> None:
     assert set(starter_kinds()) == set(BRAIN_PACK_STARTERS.keys())
     assert CuratedFileKind.SOUL in BRAIN_PACK_STARTERS
     assert CuratedFileKind.INSTRUCTIONS in BRAIN_PACK_STARTERS
+    assert CuratedFileKind.BRAND in BRAIN_PACK_STARTERS
 
 
 def test_starter_content_under_char_limit() -> None:
@@ -46,6 +47,7 @@ async def test_seed_starter_pack_fills_empty_only(monkeypatch) -> None:
             CuratedFileKind.SOUL: "",
             CuratedFileKind.SKILLS_HIERARCHY: "",
             CuratedFileKind.INSTRUCTIONS: "",
+            CuratedFileKind.BRAND: "",
         }
 
     upsert_calls: list[CuratedFileKind] = []

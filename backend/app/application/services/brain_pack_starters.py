@@ -66,6 +66,32 @@ Decentralized sub-swarms; global hive sync ~5 min; rapid learning loop under 60s
 - Codebase zmeny len cez Queen Maintainer PR na `queen-maintainer/*` — denylist `.env*`, billing, prod compose.
 - Pri marketing contente preferuj `channel` + `media_url` v publish pack JSON; simulate_only=true kým nie je live lane ready.
 """,
+    CuratedFileKind.BRAND: """\
+# Brand Context Pack (NP3)
+
+## Voice bullets
+- Direct, technical, simulate-first — no hype or filler
+- Pollen amber accent (#FFB800) for success; cyan (#00FFFF) for active data
+- Claims must be qualified; never fabricate stats or testimonials
+
+## Forbidden claims
+- Guaranteed returns, risk-free, or "best in class" without proof
+- Regulated financial promises in marketing copy
+- Competitor disparagement or unverified superlatives
+
+## Visual identity (URLs only)
+- Primary hex: #FFB800 (pollen amber)
+- Background hex: #050510 (deep space)
+- Logo URL: https://queenswarm.love/favicon.ico
+
+## Example posts
+- "Simulate-first publish lane — approve in queue, then go live when OAuth is ready."
+- "One bee, one job: verified workflows only reach the operator."
+
+## Competitor tone notes
+- Avoid generic "AI agent platform" hype — emphasize verify-first hive OS
+- Do not mimic enterprise SaaS boilerplate; stay operator-practical
+""",
 }
 
 

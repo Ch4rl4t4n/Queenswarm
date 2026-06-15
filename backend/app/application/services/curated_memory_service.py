@@ -91,6 +91,7 @@ class CuratedMemoryService:
             CuratedFileKind.SOUL: "",
             CuratedFileKind.SKILLS_HIERARCHY: "",
             CuratedFileKind.INSTRUCTIONS: "",
+            CuratedFileKind.BRAND: "",
         }
         for row in rows:
             kind = CuratedFileKind(str(row.kind))
@@ -105,6 +106,7 @@ class CuratedMemoryService:
         mission = bundle.get(CuratedFileKind.MISSION, "")
         ideal = bundle.get(CuratedFileKind.IDEAL_STATE, "")
         instructions = bundle.get(CuratedFileKind.INSTRUCTIONS, "")
+        brand = bundle.get(CuratedFileKind.BRAND, "")
         return (
             "# Operator Brain Pack\n\n"
             "## SOUL\n"
@@ -116,7 +118,9 @@ class CuratedMemoryService:
             "## MEMORY — Ideal state\n"
             f"{ideal}\n\n"
             "## USER — Behavioral instructions\n"
-            f"{instructions}\n"
+            f"{instructions}\n\n"
+            "## BRAND — Context pack (marketing)\n"
+            f"{brand}\n"
         )
 
     def render_prompt_prefix(self, bundle: dict[CuratedFileKind, str]) -> str:

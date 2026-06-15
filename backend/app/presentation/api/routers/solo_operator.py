@@ -752,6 +752,22 @@ async def solo_loop_guardrails_patch(
     return saved.model_dump(mode="json")
 
 
+@router.get("/brand-context-pack", summary="NP3 Brand Context Pack snapshot")
+async def solo_brand_context_pack_snapshot(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return brand pack readiness, sections, and marketing injection preview."""
+
+    from app.application.services.brand_context_pack_service import compose_brand_context_pack_snapshot
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    snapshot = await compose_brand_context_pack_snapshot(db, tenant_id=tenant_id)
+    return snapshot.model_dump(mode="json")
+
+
 @router.get("/campaign-launch-wizard", summary="NP6 Campaign launch wizard snapshot")
 async def solo_campaign_launch_wizard_snapshot(
     db: DbSession,

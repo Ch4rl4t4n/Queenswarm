@@ -16,6 +16,7 @@ class CuratedFileKind(StrEnum):
     SOUL = "soul"
     SKILLS_HIERARCHY = "skills_hierarchy"
     INSTRUCTIONS = "instructions"
+    BRAND = "brand"
 
 
 @dataclass(slots=True)
