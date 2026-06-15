@@ -624,6 +624,17 @@ export const SECTION_HINTS = {
     ],
     manualHref: "/manual#wiki-layer",
   },
+  knowledgeCitedRecall: {
+    title: "Cited recall",
+    description:
+      "MEM2 grill Q&A — synthesized answer with citations to Brain Pack, HiveMind vectors, sessions, or vault. Explicit not-in-memory when nothing matches.",
+    options: [
+      "Found — strong vector or keyword overlap; open source links to verify.",
+      "Partial — weak hits; cross-check before approve or publish.",
+      "Not in memory — ingest URL, update Brain Pack, or complete a session.",
+    ],
+    manualHref: "/manual#cited-recall",
+  },
   knowledgeExplorer: {
     title: "HiveMind explorer",
     description: "Neo4j semantic graph with ChromaDB vector fallback — search, ingest shortcuts, and retrieval-aware prompts.",

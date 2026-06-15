@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict
 from starlette.responses import Response
 
@@ -110,6 +110,23 @@ async def get_tier0_injection_strip(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
     strip = await compose_tier0_injection_strip(db, tenant_id=tenant_id)
     return strip.model_dump(mode="json")
+
+
+@router.get("/cited-recall", summary="MEM2 Cited recall — answer with source citations")
+async def get_cited_recall(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    q: str = Query(min_length=1, max_length=2400),
+) -> dict[str, Any]:
+    """Return GBrain-style cited answer from Brain Pack, HiveMind, sessions, and vault."""
+
+    from app.application.services.cited_recall_service import compose_cited_recall
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    panel = await compose_cited_recall(db, tenant_id=tenant_id, query=q)
+    return panel.model_dump(mode="json")
 
 
 @router.get("", summary="List all curated files for active tenant")

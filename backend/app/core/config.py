@@ -1799,6 +1799,10 @@ class Settings(BaseSettings):
         default=True,
         description="TR3 — Rubric score panel in session report before operator approve.",
     )
+    cited_recall_panel_enabled: bool = Field(
+        default=True,
+        description="MEM2 — Cited recall panel (answer + sources or not-in-memory).",
+    )
     factory_queue_slo_enabled: bool = Field(
         default=True,
         description="TR4 — Skill Factory queue SLO panel in factory snapshot.",

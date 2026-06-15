@@ -1774,6 +1774,41 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("memory/curated/cited-recall")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          query: "gumroad launch",
+          in_memory: true,
+          status: "found",
+          answer: "Hero pack Gumroad listing draft with verified CTA and scorecard gate.",
+          citations: [
+            {
+              source_id: "hive:hero-pack",
+              source_type: "hive_mind",
+              label: "HiveMind · hero-pack",
+              snippet: "Hero pack Gumroad listing draft with CTA.",
+              similarity: 0.86,
+              href: "/knowledge?tab=outputs",
+            },
+            {
+              source_id: "curated:mission",
+              source_type: "curated_memory",
+              label: "Brain Pack · Mission",
+              snippet: "First sellable Gumroad harness this week.",
+              similarity: 0.72,
+              href: "/knowledge?tab=memory#brain-pack",
+            },
+          ],
+          citation_count: 2,
+          operator_hint: "Cited answer ready — open source links to verify before supervisor approve.",
+        }),
+      });
+      return;
+    }
+
     if (path === "memory/curated/tier0-injection-strip") {
       await route.fulfill({
         status: 200,

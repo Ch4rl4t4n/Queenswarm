@@ -18,6 +18,7 @@ import { useSearchParams } from "next/navigation";
 import { useState, useEffect, useCallback, useMemo } from "react";
 
 import { AutoGraphifyPanel } from "@/components/hive/auto-graphify-panel";
+import { CitedRecallPanel } from "@/components/hive/cited-recall-panel";
 import { SelectiveRecallPanel } from "@/components/hive/selective-recall-panel";
 import { ProjectShapeGraphPanel } from "@/components/hive/project-shape-graph-panel";
 import { OperatorBrainPackPanel } from "@/components/hive/operator-brain-pack-panel";
@@ -217,7 +218,12 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
         <div id="hivemind" className="scroll-mt-28 space-y-6">
           {hivemindSection === "graphify" ? <AutoGraphifyPanel /> : null}
           {hivemindSection === "shape" ? <ProjectShapeGraphPanel /> : null}
-          {hivemindSection === "recall" ? <SelectiveRecallPanel /> : null}
+          {hivemindSection === "recall" ? (
+            <>
+              <SelectiveRecallPanel />
+              <CitedRecallPanel />
+            </>
+          ) : null}
           {hivemindSection === "ingest" ? (
             <div id="research-bee" className="scroll-mt-28 space-y-3">
               {ingestError ? (
@@ -292,6 +298,7 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
         <div id="memory" className="scroll-mt-28 space-y-6">
           <SecondBrainPackWizardPanel />
           <OperatorBrainPackPanel />
+          <CitedRecallPanel />
           <HiveSessionSearchPanel />
           <EpisodicMemoryPanel />
         </div>
