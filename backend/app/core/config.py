@@ -1835,6 +1835,10 @@ class Settings(BaseSettings):
         default=True,
         description="DG7 — Goldmine delta alerts and skill-bundle dispatch to Mission Kanban.",
     )
+    data_monitor_wizard_enabled: bool = Field(
+        default=True,
+        description="DG1 — Data Monitor wizard: one-line intent → forager + schedule + schema.",
+    )
     factory_queue_slo_enabled: bool = Field(
         default=True,
         description="TR4 — Skill Factory queue SLO panel in factory snapshot.",

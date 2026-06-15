@@ -567,7 +567,7 @@ _Signal: [Pikachin — public data → structured intel](https://x.com/pikach_in
 
 | ID | Item | Priority | Est. | Status | Gate / asset |
 |----|------|----------|------|--------|--------------|
-| DG1 | **Data Monitor wizard** — one-line intent → forager + schedule + schema | P0 | 4–5 d | ⏳ | Foragers spawn + Celery |
+| DG1 | **Data Monitor wizard** — one-line intent → forager + schedule + schema | P0 | 4–5 d | ✅ | `data_monitor_wizard_service`, `foragers/data-monitor-wizard`, Foragers wizard panel |
 | DG2 | **Structured extract templates** (jobs, prices, events, listings) | P1 | 3–4 d | ⏳ | Pydantic row models + ingest |
 | DG3 | **Delta alert inbox** — „new since last run“ + rule match | P0 | 3–4 d | ⏳ | CBO / Approval Inbox strip |
 | DG4 | **Forager feedback loop** — thumbs on hits → filter tuning | P2 | 2–3 d | ⏳ | `filter_config` + LearningLog |

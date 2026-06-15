@@ -504,6 +504,43 @@ const STUB_FORAGER_GOLDMINE_ALERTS = {
   operator_hint: "Dispatch attaches a skill bundle and parks triage on Mission Kanban.",
 };
 
+const STUB_DATA_MONITOR_WIZARD = {
+  enabled: true,
+  min_intent_chars: 12,
+  examples: [
+    {
+      intent: "Track senior Python remote jobs in EU on public job boards",
+      niche: "jobs",
+      label: "EU Python jobs",
+    },
+  ],
+  niches: [
+    {
+      id: "jobs",
+      label: "Jobs & hiring",
+      description: "Job boards and hiring pages.",
+      extract_schema: "jobs",
+    },
+  ],
+  schedule_presets: ["6h", "12h", "24h", "daily_6utc"],
+  operator_hint: "One sentence → scheduled forager with schema.",
+};
+
+const STUB_DATA_MONITOR_PLAN = {
+  niche: "jobs",
+  niche_label: "Jobs & hiring",
+  source_type: "rss",
+  forager_name: "Monitor · Jobs & hiring · Track senior Python…",
+  description: "Track senior Python remote jobs in EU on public job boards",
+  extract_schema: "jobs",
+  topic_tags: ["jobs", "monitor", "goldmine"],
+  skill_bundle: ["competitor-scrape-analyze", "context", "research"],
+  schedule_label: "every 24h",
+  interval_seconds: 86400,
+  source_config_summary: "Add RSS feed URLs in Edit after create",
+  prompt_template: "Extract employer, role title, location.",
+};
+
 const STUB_PLATFORM_FEATURES = {
   ...resolvePlatformFeaturesFallback({
     platformMode: "commercial",
@@ -2905,6 +2942,44 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ tenants: [], active_tenant_id: null }),
+      });
+      return;
+    }
+
+    if (path.startsWith("foragers/data-monitor-wizard/submit")) {
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          forager_id: "e2e-data-monitor-forager",
+          forager_name: STUB_DATA_MONITOR_PLAN.forager_name,
+          niche: "jobs",
+          source_type: "rss",
+          extract_schema: "jobs",
+          schedule_label: "every 24h",
+          skill_bundle: STUB_DATA_MONITOR_PLAN.skill_bundle,
+          routine_triggered: true,
+          message: "Data monitor created.",
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("foragers/data-monitor-wizard/preview")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_DATA_MONITOR_PLAN),
+      });
+      return;
+    }
+
+    if (path.startsWith("foragers/data-monitor-wizard")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_DATA_MONITOR_WIZARD),
       });
       return;
     }

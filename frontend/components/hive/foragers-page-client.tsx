@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { DataMonitorWizardPanel } from "@/components/hive/data-monitor-wizard-panel";
 import { ForagerConfigurationsPanel } from "@/components/hive/forager-configurations-panel";
 import { ForagerFormDialog } from "@/components/hive/forager-form-dialog";
 import { ForagerGoldmineAlertsPanel } from "@/components/hive/forager-goldmine-alerts-panel";
@@ -350,6 +351,8 @@ export function ForagersPageClient() {
           </>
         )}
       </div>
+
+      <DataMonitorWizardPanel canManage={canManage} onCreated={reload} />
 
       <ForagerGoldmineAlertsPanel canManage={canManage} busy={busy} onDispatched={reload} />
 

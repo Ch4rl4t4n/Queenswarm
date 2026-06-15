@@ -1592,6 +1592,44 @@ export interface ForagerGoldmineAlertsPayload {
   operator_hint?: string;
 }
 
+/** DG1 — `/foragers/data-monitor-wizard` snapshot. */
+export interface DataMonitorExampleRow {
+  intent: string;
+  niche: string;
+  label: string;
+}
+
+export interface DataMonitorNicheRow {
+  id: string;
+  label: string;
+  description: string;
+  extract_schema: string;
+}
+
+export interface DataMonitorWizardPayload {
+  enabled: boolean;
+  min_intent_chars: number;
+  examples: DataMonitorExampleRow[];
+  niches: DataMonitorNicheRow[];
+  schedule_presets: string[];
+  operator_hint?: string;
+}
+
+export interface DataMonitorPlanPayload {
+  niche: string;
+  niche_label: string;
+  source_type: string;
+  forager_name: string;
+  description: string;
+  extract_schema: string;
+  topic_tags: string[];
+  skill_bundle: string[];
+  schedule_label: string;
+  interval_seconds: number;
+  source_config_summary: string;
+  prompt_template: string;
+}
+
 export interface ForagerRow {
   id: string;
   tenant_id: string;

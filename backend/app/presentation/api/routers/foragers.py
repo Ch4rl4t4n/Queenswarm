@@ -135,6 +135,16 @@ class ForagerToggleRequest(BaseModel):
     enabled: bool
 
 
+class DataMonitorSubmitRequest(BaseModel):
+    """DG1 — one-line monitor intent wizard submit."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    intent: str = Field(min_length=12, max_length=2000)
+    schedule_preset: Literal["6h", "12h", "24h", "daily_6utc"] = Field(default="24h")
+    trigger_first_run: bool = Field(default=True)
+
+
 class ForagerSpawnPolicyView(BaseModel):
     """Tenant forager auto-spawn approval policy."""
 
@@ -295,6 +305,72 @@ async def create_forager(
     )
     await db.commit()
     return await _forager_response(db, row)
+
+
+@router.get("/data-monitor-wizard", summary="DG1 Data Monitor wizard snapshot")
+async def data_monitor_wizard_snapshot(
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return examples, niches, and schedule presets for monitor wizard."""
+
+    _require_forager_read(principal)
+    from app.application.services.data_monitor_wizard_service import compose_data_monitor_wizard_snapshot
+
+    return compose_data_monitor_wizard_snapshot().model_dump(mode="json")
+
+
+@router.post("/data-monitor-wizard/preview", summary="DG1 Preview monitor plan from intent")
+async def data_monitor_wizard_preview(
+    body: DataMonitorSubmitRequest,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Derive forager plan without creating rows."""
+
+    _require_forager_read(principal)
+    from app.application.services.data_monitor_wizard_service import derive_data_monitor_plan
+
+    plan = derive_data_monitor_plan(body.intent, schedule_preset=body.schedule_preset)
+    return plan.model_dump(mode="json")
+
+
+@router.post(
+    "/data-monitor-wizard/submit",
+    summary="DG1 Create scheduled forager from monitor intent",
+    status_code=status.HTTP_201_CREATED,
+)
+async def data_monitor_wizard_submit(
+    body: DataMonitorSubmitRequest,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """One-line intent → forager + Celery schedule + extract schema."""
+
+    _require_forager_write(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.data_monitor_wizard_service import (
+        DataMonitorSubmitIn,
+        submit_data_monitor_wizard,
+    )
+
+    try:
+        result = await submit_data_monitor_wizard(
+            db,
+            tenant_id=tenant_id,
+            body=DataMonitorSubmitIn(
+                intent=body.intent,
+                schedule_preset=body.schedule_preset,
+                trigger_first_run=body.trigger_first_run,
+            ),
+            created_by_subject=str(principal.get("sub") or "dashboard:data-monitor-wizard"),
+        )
+    except ValueError as exc:
+        if str(exc) == "data_monitor_wizard_disabled":
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Wizard disabled.") from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return result.model_dump(mode="json")
 
 
 @router.get("/{id}", response_model=ForagerResponse, summary="Get forager by id")
