@@ -46,6 +46,12 @@ def build_beat_schedule() -> dict[str, dict[str, Any]]:
             "schedule": timedelta(seconds=120),
             "options": {"queue": "hive"},
         }
+    if settings.worker_crash_auto_resume_enabled:
+        schedule["hive-worker-crash-auto-resume"] = {
+            "task": "hive.worker_crash_auto_resume_tick",
+            "schedule": timedelta(seconds=120),
+            "options": {"queue": "hive"},
+        }
     # Pollen-driven re-roster advisor — daily at 05:00 UTC, advisory only.
     if settings.pollen_reroster_enabled:
         schedule["hive-pollen-reroster-daily"] = {

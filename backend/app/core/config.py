@@ -1807,6 +1807,22 @@ class Settings(BaseSettings):
         default=True,
         description="MEM1 — Auto episodic capture when supervisor sessions complete.",
     )
+    worker_crash_auto_resume_enabled: bool = Field(
+        default=True,
+        description="LR3 — Auto-resume durable sessions when Celery worker crashes mid-step.",
+    )
+    worker_crash_stale_timeout_sec: int = Field(
+        default=240,
+        ge=60,
+        le=3600,
+        description="LR3 — Seconds a durable sub-agent may stay running before crash-resume sweep.",
+    )
+    worker_crash_resume_cooldown_sec: int = Field(
+        default=600,
+        ge=120,
+        le=7200,
+        description="LR3 — Cooldown per session between auto-resume attempts after worker crash.",
+    )
     factory_queue_slo_enabled: bool = Field(
         default=True,
         description="TR4 — Skill Factory queue SLO panel in factory snapshot.",

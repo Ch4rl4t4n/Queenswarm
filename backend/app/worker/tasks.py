@@ -42,6 +42,7 @@ from app.tools.browser_manager import BrowserGuardrailError, BrowserManager
 from app.application.services.supervisor.shared_context import SharedContextService
 from app.application.services.supervisor.skills import SkillLibrary
 from app.core.config import settings
+from app.core.redis_client import try_acquire_distributed_lock
 from app.application.services.supervisor.routine_service import run_due_routines_tick
 from app.infrastructure.persistence.models.supervisor_session import SubAgentSession, SupervisorSession
 
@@ -923,6 +924,47 @@ def agent_stale_sweep_task() -> dict[str, int]:
     return asyncio.run(_run())
 
 
+@celery_app.task(name="hive.worker_crash_auto_resume_tick", queue="hive")
+def worker_crash_auto_resume_tick_task() -> dict[str, int]:
+    """LR3 — Detect crash-stale durable sub-agents, checkpoint-resume, mission feed notify."""
+
+    if not settings.worker_crash_auto_resume_enabled:
+        return {"resumed": 0, "skipped": 1, "reason": "disabled"}
+
+    lock_name = "lock:worker-crash-auto-resume"
+    lock_owner = str(uuid.uuid4())
+
+    async def _run() -> dict[str, int]:
+        acquired = await try_acquire_distributed_lock(
+            lock_name,
+            owner=lock_owner,
+            ttl_sec=int(settings.distributed_lock_ttl_sec),
+        )
+        if not acquired:
+            return {"resumed": 0, "skipped": 1, "reason": "lock_already_held"}
+
+        from app.application.services.worker_crash_auto_resume_service import (
+            sweep_stale_durable_sub_agents_for_auto_resume,
+        )
+        from app.core.redis_client import release_distributed_lock
+
+        try:
+            async with async_session() as session:
+                result = await sweep_stale_durable_sub_agents_for_auto_resume(session)
+                await session.commit()
+            return {
+                "scanned": result.scanned,
+                "resumed": result.resumed,
+                "skipped_cooldown": result.skipped_cooldown,
+                "skipped_resume_error": result.skipped_resume_error,
+                "notified": result.notified,
+            }
+        finally:
+            await release_distributed_lock(lock_name, owner=lock_owner)
+
+    return asyncio.run(_run())
+
+
 @celery_app.task(name="hive.supervisor_audit_digest_tick", queue="hive")
 def run_supervisor_audit_digest_tick_task() -> dict[str, object]:
     """Email supervisor session operator audit digests to tenant owners/admins."""
@@ -1094,6 +1136,7 @@ __all__ = [
     "execute_universal_agent_task",
     "hourly_youtube_crypto_roll_task",
     "agent_stale_sweep_task",
+    "worker_crash_auto_resume_tick_task",
     "run_supervisor_sub_agent_step_task",
     "run_supervisor_routines_tick_task",
     "run_supervisor_audit_digest_tick_task",
