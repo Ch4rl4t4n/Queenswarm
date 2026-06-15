@@ -195,6 +195,15 @@ class GoldmineFactorySeedSubmitRequest(BaseModel):
     auto_queue_build: bool = Field(default=True)
 
 
+class ForagerHitFeedbackRequest(BaseModel):
+    """DG4 — thumbs on one harvested knowledge hit."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    knowledge_id: uuid.UUID
+    feedback: Literal["up", "down"]
+
+
 class ForagerSpawnPolicyView(BaseModel):
     """Tenant forager auto-spawn approval policy."""
 
@@ -521,6 +530,18 @@ async def goldmine_factory_seed_snapshot(
     return compose_goldmine_factory_seed_snapshot().model_dump(mode="json")
 
 
+@router.get("/hit-feedback", summary="DG4 Forager hit feedback snapshot")
+async def forager_hit_feedback_snapshot(
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return DG4 thumbs feedback lane capabilities."""
+
+    _require_forager_read(principal)
+    from app.application.services.forager_hit_feedback_service import compose_hit_feedback_snapshot
+
+    return compose_hit_feedback_snapshot().model_dump(mode="json")
+
+
 @router.get("/{id}", response_model=ForagerResponse, summary="Get forager by id")
 async def get_forager(
     id: uuid.UUID,
@@ -824,6 +845,7 @@ async def append_forager_sources(
 class ForagerHarvestFindingView(BaseModel):
     """One harvested knowledge row in an operator report."""
 
+    knowledge_id: str | None = None
     title: str
     body: str
     source_url: str | None = None
@@ -1011,6 +1033,42 @@ async def forager_export_lane_approve(
     )
     await db.commit()
     return {"ok": True, "tagged": tagged}
+
+
+@router.post("/{id}/hit-feedback", summary="DG4 Thumbs feedback on one harvest hit")
+async def forager_hit_feedback(
+    id: uuid.UUID,
+    body: ForagerHitFeedbackRequest,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Tune forager filter_config from operator thumbs on a knowledge hit."""
+
+    _require_forager_write(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.forager_hit_feedback_service import submit_forager_hit_feedback
+
+    try:
+        result = await submit_forager_hit_feedback(
+            db,
+            tenant_id=tenant_id,
+            forager_id=id,
+            knowledge_id=body.knowledge_id,
+            feedback=body.feedback,
+        )
+    except ValueError as exc:
+        err = str(exc)
+        if err == "forager_hit_feedback_disabled":
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Hit feedback disabled.") from exc
+        if err == "knowledge_not_found_for_forager":
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Knowledge hit not found.") from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=err) from exc
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Forager not found.")
+    await db.commit()
+    return result.model_dump(mode="json")
 
 
 @router.post("/{id}/goldmine-factory-seed/preview", summary="DG8 Preview Skill Factory seed scorecard")

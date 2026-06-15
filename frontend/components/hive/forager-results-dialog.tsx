@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, ExternalLink, FileText, Loader2Icon, X } from "lucide-react";
+import { Download, ExternalLink, FileText, Loader2Icon, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -20,6 +20,7 @@ export interface ForagerHarvestReportRow {
   items_total: number;
   executive_summary: string;
   items: Array<{
+    knowledge_id?: string | null;
     title: string;
     body: string;
     source_url: string | null;
@@ -66,6 +67,7 @@ export function ForagerResultsDialog({
   const [notionDatabaseId, setNotionDatabaseId] = useState("");
   const [loading, setLoading] = useState(false);
   const [exportBusy, setExportBusy] = useState<string | null>(null);
+  const [feedbackBusy, setFeedbackBusy] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const onOpenChangeRef = useRef(onOpenChange);
   onOpenChangeRef.current = onOpenChange;
@@ -121,6 +123,38 @@ export function ForagerResultsDialog({
       toast.error(err instanceof HiveApiError ? err.message : "Approve failed");
     } finally {
       setExportBusy(null);
+    }
+  }
+
+  async function submitHitFeedback(knowledgeId: string, feedback: "up" | "down"): Promise<void> {
+    if (!foragerId) return;
+    const busyKey = `${feedback}:${knowledgeId}`;
+    setFeedbackBusy(busyKey);
+    try {
+      const res = await hivePostJson<{
+        ok: boolean;
+        confidence_score: number;
+        message: string;
+      }>(`foragers/${encodeURIComponent(foragerId)}/hit-feedback`, {
+        knowledge_id: knowledgeId,
+        feedback,
+      });
+      setReport((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          items: prev.items.map((item) =>
+            item.knowledge_id === knowledgeId
+              ? { ...item, confidence: res.confidence_score }
+              : item,
+          ),
+        };
+      });
+      toast.success(res.message || "Feedback recorded");
+    } catch (err) {
+      toast.error(err instanceof HiveApiError ? err.message : "Feedback failed");
+    } finally {
+      setFeedbackBusy(null);
     }
   }
 
@@ -350,11 +384,45 @@ export function ForagerResultsDialog({
                         <p className="min-w-0 flex-1 text-sm font-medium leading-snug text-(--qs-text)">
                           {item.title}
                         </p>
-                        <span className="shrink-0 text-[10px] leading-relaxed text-(--qs-text-4)">
-                          {item.scraped_at ? formatTimeAgoIso(item.scraped_at) : "—"}
-                          {" · "}
-                          {Math.round(item.confidence * 100)}% conf.
-                        </span>
+                        <div className="flex shrink-0 items-center gap-2">
+                          {item.knowledge_id ? (
+                            <span className="flex items-center gap-1" data-testid="forager-hit-feedback">
+                              <button
+                                type="button"
+                                className="qs-btn qs-btn--ghost qs-btn--icon qs-btn--xs text-success"
+                                aria-label="Thumbs up — boost similar hits"
+                                disabled={Boolean(feedbackBusy)}
+                                data-testid="forager-hit-feedback-up"
+                                onClick={() => void submitHitFeedback(item.knowledge_id!, "up")}
+                              >
+                                {feedbackBusy === `up:${item.knowledge_id}` ? (
+                                  <Loader2Icon className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                                ) : (
+                                  <ThumbsUp className="h-3.5 w-3.5" aria-hidden />
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                className="qs-btn qs-btn--ghost qs-btn--icon qs-btn--xs text-error"
+                                aria-label="Thumbs down — block similar hits"
+                                disabled={Boolean(feedbackBusy)}
+                                data-testid="forager-hit-feedback-down"
+                                onClick={() => void submitHitFeedback(item.knowledge_id!, "down")}
+                              >
+                                {feedbackBusy === `down:${item.knowledge_id}` ? (
+                                  <Loader2Icon className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                                ) : (
+                                  <ThumbsDown className="h-3.5 w-3.5" aria-hidden />
+                                )}
+                              </button>
+                            </span>
+                          ) : null}
+                          <span className="text-[10px] leading-relaxed text-(--qs-text-4)">
+                            {item.scraped_at ? formatTimeAgoIso(item.scraped_at) : "—"}
+                            {" · "}
+                            {Math.round(item.confidence * 100)}% conf.
+                          </span>
+                        </div>
                       </div>
                       <p className="mt-2.5 whitespace-pre-wrap text-xs leading-relaxed text-(--qs-text-2)">
                         {item.body.length > 1200 ? `${item.body.slice(0, 1197)}…` : item.body}

@@ -143,6 +143,7 @@ async def load_forager_harvest_report(
     rows = list((await session.execute(stmt)).scalars().all())
     items = [
         {
+            "knowledge_id": str(row.id),
             "title": _finding_title(str(row.content_text or ""), row.source_url),
             "body": str(row.content_text or "").strip(),
             "source_url": row.source_url,

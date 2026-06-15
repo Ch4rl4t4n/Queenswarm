@@ -1857,6 +1857,10 @@ class Settings(BaseSettings):
         default=True,
         description="DG8 — Seed Skill Factory opportunity from goldmine monitor niche.",
     )
+    forager_hit_feedback_enabled: bool = Field(
+        default=True,
+        description="DG4 — Thumbs on forager hits tune filter_config keywords.",
+    )
     forager_structured_extract_enabled: bool = Field(
         default=True,
         description="DG2 — Embed Pydantic structured rows on forager ingest.",

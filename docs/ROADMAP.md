@@ -570,7 +570,7 @@ _Signal: [Pikachin — public data → structured intel](https://x.com/pikach_in
 | DG1 | **Data Monitor wizard** — one-line intent → forager + schedule + schema | P0 | 4–5 d | ✅ | `data_monitor_wizard_service`, `foragers/data-monitor-wizard`, Foragers wizard panel |
 | DG2 | **Structured extract templates** (jobs, prices, events, listings) | P1 | 3–4 d | ✅ | `extract_templates`, `forager_structured_extract_service`, structured-rows API + report table |
 | DG3 | **Delta alert inbox** — „new since last run“ + rule match | P0 | 3–4 d | ✅ | `compose_goldmine_alert_inbox_items` + BA4 Approval Inbox strip |
-| DG4 | **Forager feedback loop** — thumbs on hits → filter tuning | P2 | 2–3 d | ⏳ | `filter_config` + LearningLog |
+| DG4 | **Forager feedback loop** — thumbs on hits → filter tuning | P2 | 2–3 d | ✅ | `filter_config` + LearningLog |
 | DG5 | **Export lane** — approved rows → Notion DB / Sheet / CSV | P1 | 3–4 d | ✅ | `forager_export_lane_service`, `export-lane` API, Results dialog export |
 | DG6 | **Discovery-first scrape** — Serper/Tavily URL find → bind forager | P1 | 2–3 d | ✅ | `forager_discovery_service`, `foragers/discovery-wizard`, Foragers discovery panel |
 | DG7 | **Goldmine → dispatch** — alert → Kanban triage + skill bundle | P0 | 2 d | ✅ | `forager_goldmine_dispatch_service`, `GET /dashboard/forager-goldmine-alerts`, Foragers goldmine panel |

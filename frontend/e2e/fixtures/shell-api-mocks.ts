@@ -504,6 +504,32 @@ const STUB_FORAGER_GOLDMINE_ALERTS = {
   operator_hint: "Dispatch attaches a skill bundle and parks triage on Mission Kanban.",
 };
 
+const STUB_FORAGER_HIT_FEEDBACK = {
+  enabled: true,
+  operator_hint: "Thumbs on harvest hits tune keyword boost/block filters for future ingests.",
+};
+
+const STUB_FORAGER_REPORT = {
+  forager_id: "e2e-forager-feedback-1",
+  name: "E2E Feedback Forager",
+  description: "Harvest report for DG4 feedback",
+  source_type: "rss",
+  items_total: 1,
+  executive_summary: "One harvested signal ready for operator feedback.",
+  items: [
+    {
+      knowledge_id: "e2e-knowledge-feedback-1",
+      title: "Senior Python remote role",
+      body: "Remote python engineering role in EU — strong match.",
+      source_url: "https://jobs.example.com/role/1",
+      scraped_at: "2026-06-05T12:00:00Z",
+      confidence: 0.72,
+      source_type: "forager:rss",
+    },
+  ],
+  generated_at: "2026-06-05T12:05:00Z",
+};
+
 const STUB_GOLDMINE_FACTORY_SEED_PREVIEW = {
   forager_id: "e2e-forager-goldmine-1",
   forager_name: "E2E YouTube Intel",
@@ -3043,6 +3069,45 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ tenants: [], active_tenant_id: null }),
+      });
+      return;
+    }
+
+    if (path.startsWith("foragers/hit-feedback")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_FORAGER_HIT_FEEDBACK),
+      });
+      return;
+    }
+
+    if (path.match(/^foragers\/[^/]+\/hit-feedback$/)) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          forager_id: "e2e-forager-feedback-1",
+          knowledge_id: "e2e-knowledge-feedback-1",
+          feedback: "up",
+          up_count: 1,
+          down_count: 0,
+          keywords_boost: ["python", "remote", "senior"],
+          keywords_block: [],
+          confidence_score: 0.8,
+          learning_log_written: true,
+          message: "Feedback recorded — future ingests will boost similar keywords.",
+        }),
+      });
+      return;
+    }
+
+    if (path.match(/^foragers\/[^/]+\/report\?/)) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_FORAGER_REPORT),
       });
       return;
     }
