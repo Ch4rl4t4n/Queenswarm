@@ -11,6 +11,17 @@ import { HiveSubnavRow } from "@/components/hive/hive-subnav-row";
 import { ModulePolicyPackPill } from "@/components/apps-tools/module-policy-pack-pill";
 import { scrollBehaviorForMotion } from "@/lib/motion-preferences";
 
+const TradingThesisWizardPanel = dynamic(
+  () =>
+    import("@/components/connectors/trading-thesis-wizard-panel").then((mod) => ({
+      default: mod.TradingThesisWizardPanel,
+    })),
+  {
+    ssr: false,
+    loading: () => <div className="qs-bubble shrink-0 min-h-[6rem] animate-pulse bg-white/5 p-4" aria-hidden />,
+  },
+);
+
 const ExecutionStudioTradingCockpitPanel = dynamic(
   () =>
     import("@/components/connectors/execution-studio-trading-cockpit-panel").then((mod) => ({
@@ -127,7 +138,12 @@ export function TradingAutomationPageClient() {
         />
       }
     >
-      {section === "cockpit" ? <ExecutionStudioTradingCockpitPanel onError={setError} /> : null}
+      {section === "cockpit" ? (
+        <>
+          <TradingThesisWizardPanel />
+          <ExecutionStudioTradingCockpitPanel onError={setError} />
+        </>
+      ) : null}
       {section === "hybrid" ? <ExecutionStudioTradingContentHybridPanel onError={setError} /> : null}
       {section === "live-lane" ? <ExecutionStudioLiveLanePanel onError={setError} /> : null}
     </HivePageShell>

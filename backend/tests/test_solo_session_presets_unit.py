@@ -22,6 +22,7 @@ from app.application.services.solo_session_presets import (
         "competitor-research",
         "lead-gen-lane",
         "investment-product-brief",
+        "trading-thesis",
     ],
 )
 def test_get_solo_session_preset_when_known_returns_row(preset_id: str) -> None:

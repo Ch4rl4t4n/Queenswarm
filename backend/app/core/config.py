@@ -1685,6 +1685,38 @@ class Settings(BaseSettings):
         default=True,
         description="NP1 — Stakeholder Grill wizard on Mission Kanban (structured brief artifact).",
     )
+    trading_thesis_wizard_enabled: bool = Field(
+        default=True,
+        description="NP5 — Trading thesis brief wizard on Trading cockpit (risk preflight artifact).",
+    )
+    factory_queue_slo_enabled: bool = Field(
+        default=True,
+        description="TR4 — Skill Factory queue SLO panel in factory snapshot.",
+    )
+    factory_queue_slo_awaiting_forge_warn: int = Field(
+        default=3,
+        ge=1,
+        le=50,
+        description="TR4 — awaiting_forge count that triggers warn status.",
+    )
+    factory_queue_slo_awaiting_forge_critical: int = Field(
+        default=8,
+        ge=2,
+        le=100,
+        description="TR4 — awaiting_forge count that triggers critical status.",
+    )
+    factory_queue_slo_critic_rate_warn: float = Field(
+        default=0.65,
+        ge=0.1,
+        le=1.0,
+        description="TR4 — critic approval rate floor (0–1) below which SLO warns.",
+    )
+    factory_queue_slo_weekly_cap_warn_pct: float = Field(
+        default=0.85,
+        ge=0.5,
+        le=1.0,
+        description="TR4 — weekly build cap usage ratio (0–1) that triggers warn.",
+    )
     grok_control_plane_enabled: bool = Field(
         default=True,
         description="Enable Grok Control Plane in cockpit (plan/approve/execute).",

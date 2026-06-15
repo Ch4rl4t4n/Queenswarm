@@ -46,6 +46,7 @@ def test_snapshot_out_includes_connector_flags() -> None:
         "launch_queue",
         "launch_near_miss",
         "llm",
+        "queue_slo",
     ):
         assert required in fields
 

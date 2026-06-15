@@ -7,6 +7,10 @@ import { toast } from "sonner";
 
 import { useSkillFactoryNav } from "@/components/apps-tools/skill-factory-nav-context";
 import {
+  FactoryQueueSloPanel,
+  type FactoryQueueSlo,
+} from "@/components/apps-tools/factory-queue-slo-panel";
+import {
   FactoryLlmReadinessBanner,
   factoryBuildDisabled,
   type FactoryLlmReadiness,
@@ -168,6 +172,7 @@ interface SkillFactorySnapshot {
   library_duplicates_hidden?: number;
   library_purge_eligible?: number;
   llm: FactoryLlmReadiness | null;
+  queue_slo?: FactoryQueueSlo | null;
 }
 
 function scorePct(score: number): string {
@@ -1133,7 +1138,9 @@ export function SkillFactoryPageClient(): JSX.Element {
           ) : null}
 
           {tab === "queue" ? (
-            <V4Card className="mt-4">
+            <>
+            <FactoryQueueSloPanel slo={snapshot.queue_slo} />
+            <V4Card className="mt-4" id="factory-queue">
               <V4CardHeader
                 title="Build queue"
                 description={
@@ -1223,6 +1230,7 @@ export function SkillFactoryPageClient(): JSX.Element {
                 </p>
               ) : null}
             </V4Card>
+            </>
           ) : null}
 
           {tab === "library" ? (

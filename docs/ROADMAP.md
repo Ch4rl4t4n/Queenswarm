@@ -532,7 +532,7 @@ _MK6/MK7 remain in P0 letagentscook table above._
 | TR1 | **Injection guard coverage** dashboard | P1 | 2 d | ⏳ | Checkpoint hit counts by tool |
 | TR2 | **Simulation pass rate** trend in CBO snapshot | P1 | 1–2 d | ⏳ | `GET /business-os/snapshot` |
 | TR3 | **Rubric score** in session report pre-approve | P2 | 1 d | ⏳ | `rubric_templates.py` surface |
-| TR4 | **Skill Factory queue SLO** panel | P0 | 2 d | ⏳ | awaiting_forge, critic rate, weekly cap |
+| TR4 | **Skill Factory queue SLO** panel | P0 | 2 d | ✅ | awaiting_forge, critic rate, weekly cap |
 
 ### Track E — Long-running & durable sessions
 
@@ -687,7 +687,7 @@ _Signals: Jun 2026 operator batch — [grill-me](https://www.youtube.com/watch?v
 | NP2 | **Creative rubric presets** — composition · accuracy · brand (Riverflow pattern) | P1 | 1–2 d | ⏳ | `rubric_templates.py` · publish simulate |
 | NP3 | **Brand Context Pack** — voice · refs · forbidden claims in Brain Pack | P1 | 2 d | ⏳ | Curated memory · AOS1 marketing |
 | NP4 | **Investment brief goal template** — problem · KPI · compliance · open Q | P0 | 1–2 d | ✅ | OW7 presets · Research Bee |
-| NP5 | **Trading thesis brief** — prob · edge · kill criteria → risk preflight | P1 | 2 d | ⏳ | Trading cockpit · AOS1 trading |
+| NP5 | **Trading thesis brief** — prob · edge · kill criteria → risk preflight | P1 | 2 d | ✅ | Trading cockpit · AOS1 trading |
 | NP6 | **Campaign launch wizard** — brand → draft → rubric → simulate publish | P1 | 2–3 d | ⏳ | Publish onboarding · **NP2+NP3** |
 | NP7 | **AOS1 `investments` harness profile** — Moneta PM default skills + lane | P0 | 1 d | ✅ | `harness_project_profiles.py` |
 | NP8 | **Video URL batch → intel brief** — paste list → digest → wiki/task | P2 | 2–3 d | ⏳ | Social intel · **DG6** · SB1 capture |

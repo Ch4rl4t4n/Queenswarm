@@ -680,6 +680,20 @@ const STUB_SKILL_FACTORY_SNAPSHOT = {
   sellable_count: 0,
   research_keys_configured: false,
   llm: STUB_FACTORY_LLM_READINESS,
+  queue_slo: {
+    enabled: true,
+    status: "healthy",
+    awaiting_forge: 0,
+    awaiting_forge_warn: 3,
+    awaiting_forge_critical: 8,
+    critic_approval_rate: null,
+    critic_samples: 0,
+    weekly_builds_used: 0,
+    weekly_build_cap: 5,
+    weekly_cap_pct: 0,
+    alerts: [],
+    next_operator_action: "Queue healthy — no action required.",
+  },
 };
 
 const STUB_APPS_TOOLS_INDEX = {
@@ -1856,6 +1870,52 @@ export async function installShellApiMocks(page: Page): Promise<void> {
               id: "kill_criteria",
               title: "Kill criteria",
               prompt: "What would make you stop?",
+              hint: "",
+            },
+          ],
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("solo-operator/trading-thesis-wizard/submit")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          task_id: "00000000-0000-4000-8000-000000000088",
+          deliverable_id: "00000000-0000-4000-8000-000000000087",
+          title: "Trading thesis brief",
+          href: "/tasks?task=00000000-0000-4000-8000-000000000088",
+          session_href: null,
+          paper_cockpit_href: "/apps-tools/trading-automation?section=cockpit#trading-cockpit",
+          message: "Thesis brief saved to Mission Kanban triage and task workspace.",
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("solo-operator/trading-thesis-wizard")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          min_answer_chars: 10,
+          paper_cockpit_href: "/apps-tools/trading-automation?section=cockpit#trading-cockpit",
+          live_gate_skill: "real-money-risk-gate",
+          questions: [
+            {
+              id: "market",
+              title: "Market / event",
+              prompt: "Which market?",
+              hint: "",
+            },
+            {
+              id: "kill_criteria",
+              title: "Kill criteria",
+              prompt: "When exit?",
               hint: "",
             },
           ],

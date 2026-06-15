@@ -20,6 +20,7 @@ from app.application.services.factory_policy_limits import (
 from app.application.services.skill_export import build_export_bundle_from_tenant_skill
 from app.common.schemas.recipes_write import RecipeCreateBody
 from app.application.services.factory_llm_readiness_service import FactoryLlmReadinessOut
+from app.application.services.factory_queue_slo import FactoryQueueSloOut
 from app.application.services.recipe_write import RecipeWriteConflictError, create_recipe_entry
 from app.core.config import settings
 from app.infrastructure.persistence.models.agent_suggestion import AgentSuggestion
@@ -178,6 +179,7 @@ class SkillFactorySnapshotOut(BaseModel):
     library_duplicates_hidden: int = 0
     library_purge_eligible: int = 0
     llm: FactoryLlmReadinessOut | None = None
+    queue_slo: FactoryQueueSloOut | None = None
 
 
 def slugify_skill_name(name: str) -> str:
@@ -1014,6 +1016,8 @@ async def compose_skill_factory_snapshot(
             ),
         )
 
+    from app.application.services.factory_queue_slo import compose_factory_queue_slo
+
     return SkillFactorySnapshotOut(
         policy=policy,
         opportunities=opportunity_out_rows,
@@ -1045,6 +1049,13 @@ async def compose_skill_factory_snapshot(
         library_duplicates_hidden=library_duplicates_hidden,
         library_purge_eligible=library_purge_eligible,
         llm=llm_status,
+        queue_slo=await compose_factory_queue_slo(
+            session,
+            tenant_id=tenant_id,
+            awaiting_forge=status_counts.awaiting_forge,
+            max_builds_per_week=policy.max_builds_per_week,
+            forge_critic_approved=[row.forge_critic_approved for row in opportunity_out_rows],
+        ),
     )
 
 

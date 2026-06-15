@@ -87,6 +87,34 @@ SOLO_SESSION_PRESETS: dict[str, SoloSessionPresetOut] = {
         roles=["researcher", "critic"],
         skills=["context", "execution-studio"],
     ),
+    "trading-thesis": SoloSessionPresetOut(
+        id="trading-thesis",
+        label="Trading — thesis brief",
+        lane="trading",
+        goal=(
+            "PROJECT: Trading thesis brief (probabilities not guesses — verify-first).\n\n"
+            "Complete these sections before any live stake:\n"
+            "1. Market / event — platform, resolution, liquidity\n"
+            "2. Implied probability — market mid-price or order book derivation\n"
+            "3. Your edge — evidence-backed disagreement with market\n"
+            "4. Position size cap — hard $ or % portfolio limit\n"
+            "5. Kill criteria — exit triggers (price, news, time)\n"
+            "6. Paper preflight — simulated session link or gaps\n\n"
+            "Deliverables:\n"
+            "- Structured thesis markdown\n"
+            "- polymarket-prediction-evaluator score vs implied prob\n"
+            "- real-money-risk-gate checklist (live blocked until operator OK)\n"
+            "- Critic APPROVE before operator summary (≤400 words)\n\n"
+            "Simulate-first — no live orders in this session."
+        ),
+        roles=["researcher", "critic"],
+        skills=[
+            "polymarket-prediction-evaluator",
+            "real-money-risk-gate",
+            "decision-frameworks",
+        ],
+        retrieval_contract="customer_history+policy+last_3_tasks",
+    ),
     "web-redesign-discovery": SoloSessionPresetOut(
         id="web-redesign-discovery",
         label="Web redesign — discovery",
