@@ -1927,6 +1927,42 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("solo-operator/video-url-batch/submit")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          task_id: "00000000-0000-4000-8000-000000000090",
+          deliverable_id: "00000000-0000-4000-8000-000000000091",
+          title: "Video intel batch (1 URLs)",
+          href: "/tasks?task=00000000-0000-4000-8000-000000000090",
+          url_count: 1,
+          ok_count: 1,
+          partial_count: 0,
+          error_count: 0,
+          gardener_triggered: true,
+          message: "Digest saved for 1 URLs — 1 OK, 0 partial, 0 failed. Wiki Gardener triggered.",
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("solo-operator/video-url-batch")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          max_urls: 20,
+          excerpt_chars: 1200,
+          knowledge_href: "/knowledge?tab=wiki",
+          tasks_href: "/tasks",
+        }),
+      });
+      return;
+    }
+
     if (path.startsWith("solo-operator/campaign-launch-wizard/submit")) {
       await route.fulfill({
         status: 200,

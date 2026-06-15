@@ -158,7 +158,7 @@ Canonical design for **P10 Track N** — low-effort operator packs inspired by J
 
 **Reuses:** Social intel scrape · **DG6** discovery · SB1 wiki capture
 
-**Est.:** 2–3 d · **Priority:** P2 (nice for your review workflow)
+**Est.:** 2–3 d · **Priority:** P2 · **Status:** ✅ (`/tasks` video URL batch wizard + wiki raw capture)
 
 ---
 

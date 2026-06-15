@@ -1703,6 +1703,22 @@ class Settings(BaseSettings):
         le=4000,
         description="MEM4 — max characters of brand pack injected in marketing profile sessions.",
     )
+    video_url_batch_wizard_enabled: bool = Field(
+        default=True,
+        description="NP8 — Video URL batch wizard on Mission Kanban (1–20 URLs → intel digest).",
+    )
+    video_url_batch_max_urls: int = Field(
+        default=20,
+        ge=1,
+        le=20,
+        description="NP8 — maximum URLs per batch submit.",
+    )
+    video_url_batch_excerpt_chars: int = Field(
+        default=1200,
+        ge=256,
+        le=8000,
+        description="NP8 — max excerpt chars per URL in batch digest.",
+    )
     loop_guardrails_enabled: bool = Field(
         default=True,
         description="LOOP2 — Closed-loop guardrails (max turns, min score, cost cap) on supervisor sessions.",

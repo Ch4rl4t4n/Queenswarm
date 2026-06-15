@@ -768,6 +768,48 @@ async def solo_brand_context_pack_snapshot(
     return snapshot.model_dump(mode="json")
 
 
+@router.get("/video-url-batch", summary="NP8 Video URL batch wizard snapshot")
+async def solo_video_url_batch_snapshot(
+    _principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return max URLs and excerpt limits for batch intel wizard."""
+
+    from app.application.services.video_url_batch_service import compose_video_url_batch_wizard_snapshot
+
+    return compose_video_url_batch_wizard_snapshot().model_dump(mode="json")
+
+
+@router.post("/video-url-batch/submit", summary="NP8 Process URL list → digest → kanban + wiki")
+async def solo_video_url_batch_submit(
+    body: dict[str, Any],
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Fetch oEmbed/transcript excerpts and persist triage digest."""
+
+    from app.application.services.video_url_batch_service import (
+        VideoUrlBatchSubmitIn,
+        submit_video_url_batch_wizard,
+    )
+
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    try:
+        payload = VideoUrlBatchSubmitIn.model_validate(body)
+        result = await submit_video_url_batch_wizard(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=user.id,
+            body=payload,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return result.model_dump(mode="json")
+
+
 @router.get("/campaign-launch-wizard", summary="NP6 Campaign launch wizard snapshot")
 async def solo_campaign_launch_wizard_snapshot(
     db: DbSession,
