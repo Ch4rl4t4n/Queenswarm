@@ -1717,6 +1717,10 @@ class Settings(BaseSettings):
         le=1.0,
         description="LOOP2 — fraction of cost cap that triggers warn state.",
     )
+    closed_review_loop_enabled: bool = Field(
+        default=True,
+        description="LOOP1 — Closed review loop (rubric score → self-heal → re-run).",
+    )
     factory_queue_slo_enabled: bool = Field(
         default=True,
         description="TR4 — Skill Factory queue SLO panel in factory snapshot.",

@@ -86,7 +86,7 @@ Canonical design for **P10 Track N** — low-effort operator packs inspired by J
 
 **Marketing:** Score carousel/copy before queue — no image model integration required initially.
 
-**Est.:** 1–2 d · **Priority:** P1
+**Est.:** 1–2 d · **Priority:** P1 · **Status:** ✅ (`marketing-creative` + `brand-compliance` rubrics + LOOP1 panel)
 
 ---
 

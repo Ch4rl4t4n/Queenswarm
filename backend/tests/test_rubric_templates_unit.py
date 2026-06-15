@@ -21,7 +21,9 @@ def test_list_rubric_templates_includes_design_and_copy() -> None:
     ids = {item.id for item in templates}
     assert "design-ux" in ids
     assert "copy-marketing" in ids
-    assert len(templates) >= 5
+    assert "marketing-creative" in ids
+    assert "brand-compliance" in ids
+    assert len(templates) >= 7
 
 
 def test_merge_rubric_into_criteria_adds_template_metadata() -> None:

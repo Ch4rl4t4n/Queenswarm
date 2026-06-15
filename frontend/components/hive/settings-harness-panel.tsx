@@ -22,6 +22,7 @@ import { SoloOperatorTrioPanel } from "@/components/hive/solo-operator-trio-pane
 import { SlackHarnessTrainerPanel } from "@/components/hive/slack-harness-trainer-panel";
 import { LoopGuardrailsPanel } from "@/components/hive/loop-guardrails-panel";
 import { LspBridgePanel } from "@/components/hive/lsp-bridge-panel";
+import { ClosedReviewLoopPanel } from "@/components/hive/closed-review-loop-panel";
 import { RubricTemplatesPanel } from "@/components/hive/rubric-templates-panel";
 import { QueenMaintainerWebhookPanel } from "@/components/hive/queen-maintainer-webhook-panel";
 import type { HarnessRulesSection } from "@/lib/settings-harness-rules-routes";
@@ -306,7 +307,12 @@ export function SettingsHarnessPanel({ section }: SettingsHarnessPanelProps): JS
               return <LspBridgePanel snapshot={snapshot} />;
             }
             if (spec.id === "harness-loops-rubric" && hasFeature("rubric_templates")) {
-              return <RubricTemplatesPanel snapshot={snapshot} />;
+              return (
+                <>
+                  <RubricTemplatesPanel snapshot={snapshot} />
+                  <ClosedReviewLoopPanel />
+                </>
+              );
             }
             if (spec.id === "harness-loops-maintainer") {
               return <QueenMaintainerWebhookPanel snapshot={snapshot} />;

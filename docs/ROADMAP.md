@@ -600,7 +600,7 @@ _Signal: [WTF Is an AI Agent Loop? Genius or Hype?](https://www.youtube.com/watc
 
 | ID | Item | Priority | Est. | Status | Gate / asset |
 |----|------|----------|------|--------|--------------|
-| LOOP1 | **Closed Review Loop skill** — rubric score → self-heal → re-run (max N turns, min score) | P0 | 3–4 d | ⏳ | Queen Maintainer + `rubric_templates` · Greptile pattern |
+| LOOP1 | **Closed Review Loop skill** — rubric score → self-heal → re-run (max N turns, min score) | P0 | 3–4 d | ✅ | Queen Maintainer + `rubric_templates` · Greptile pattern |
 | LOOP2 | **Loop guardrails panel** — max turns, min score, cost cap per loop | P0 | 2 d | ✅ | CostGovernor + session context |
 | LOOP3 | **Agent Loop Timeline** (Think→Act→Observe) | P0 | — | ⏳ | **Same as AL1** — single implementation |
 | LOOP4 | **Mid-flight checkpoint UX** — pause loop → operator approve → continue | P1 | 2–3 d | ⏳ | `needs_input` prominent CTA |

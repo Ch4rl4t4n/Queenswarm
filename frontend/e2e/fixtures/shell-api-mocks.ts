@@ -1088,6 +1088,55 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("harness/rubric-templates/evaluate")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          is_valid: true,
+          confidence: 0.86,
+          feedback: "Strong sample.",
+          rubric_template_id: "copy-marketing",
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("harness/closed-review-loop/run")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          passed: true,
+          turns_used: 2,
+          max_turns: 5,
+          min_score_label: "4.0/5",
+          template_name: "Marketing Creative (Riverflow)",
+          final_text: "Revised campaign copy with explicit CTA.",
+          iterations: [
+            { turn: 1, score: 0.62, is_valid: false, passed: false, feedback: "CTA vague" },
+            { turn: 2, score: 0.88, is_valid: true, passed: true, feedback: "Pass" },
+          ],
+          message: "Rubric pass on turn 2 (score 88%).",
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("harness/rubric-templates")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([
+          { id: "copy-marketing", name: "Marketing Copy", category: "copy", pass_threshold: 0.7 },
+          { id: "marketing-creative", name: "Marketing Creative", category: "copy", pass_threshold: 0.75 },
+          { id: "brand-compliance", name: "Brand Compliance", category: "copy", pass_threshold: 0.8 },
+        ]),
+      });
+      return;
+    }
+
     if (path.startsWith("memory/episodic/summary")) {
       await route.fulfill({
         status: 200,

@@ -462,4 +462,42 @@ async def harness_rubric_templates_evaluate(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
 
+class ClosedReviewLoopRequest(BaseModel):
+    """LOOP1 — run scored closed review loop on sample text."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=8, max_length=12000)
+    template_id: str = Field(min_length=2, max_length=64)
+    max_turns: int | None = Field(default=None, ge=1, le=25)
+    min_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    task_id: str | None = Field(default=None, max_length=64)
+
+
+@router.post("/closed-review-loop/run", summary="LOOP1 Rubric score → self-heal → re-run")
+async def harness_closed_review_loop_run(
+    body: ClosedReviewLoopRequest,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Evaluate text in a closed loop until rubric pass or max turns."""
+
+    _require_rubric_templates_enabled()
+    from app.application.services.closed_review_loop_service import (
+        ClosedReviewLoopRunIn,
+        run_closed_review_loop,
+    )
+
+    tenant_id = principal.get("tenant_id")
+    try:
+        result = await run_closed_review_loop(
+            db,
+            tenant_id=tenant_id,
+            body=ClosedReviewLoopRunIn.model_validate(body.model_dump()),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    return result.model_dump(mode="json")
+
+
 __all__ = ["router"]

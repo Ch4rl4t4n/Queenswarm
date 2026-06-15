@@ -86,6 +86,52 @@ RUBRIC_TEMPLATES: tuple[RubricTemplate, ...] = (
         },
     ),
     RubricTemplate(
+        id="marketing-creative",
+        name="Marketing Creative (Riverflow)",
+        description="Score carousel, ad, and social creative copy for composition, accuracy, and CTA clarity.",
+        category="copy",
+        pass_threshold=0.75,
+        evaluation_criteria={
+            "must_satisfy": [
+                "Primary message fits one screen / slide without scroll",
+                "CTA is explicit and action-oriented",
+                "No fabricated testimonials, stats, or guarantees",
+            ],
+            "measurable_signals": {
+                "cta_words": "<= 5 words",
+                "body_words_per_slide": "<= 40 words for carousel slides",
+            },
+            "subjective_dimensions": {
+                "composition": _dim(0.3, "Is visual hierarchy implied in copy structure (headline → proof → CTA)?"),
+                "accuracy": _dim(0.25, "Are claims qualified and free of overpromise?"),
+                "cta_clarity": _dim(0.25, "Would a cold reader know exactly what happens on click?"),
+                "brand_voice": _dim(0.2, "Does tone match curated brand pack voice bullets?"),
+            },
+        },
+    ),
+    RubricTemplate(
+        id="brand-compliance",
+        name="Brand Compliance",
+        description="Check copy against forbidden claims, voice rules, and competitor tone boundaries.",
+        category="copy",
+        pass_threshold=0.8,
+        evaluation_criteria={
+            "must_satisfy": [
+                "No forbidden claims from brand pack (guarantees, regulated promises)",
+                "Voice matches approved tone (no off-brand slang or hype)",
+                "Competitor names used only for factual comparison, not disparagement",
+            ],
+            "measurable_signals": {
+                "forbidden_phrase_hits": "0 unqualified superlatives (best, guaranteed, risk-free)",
+            },
+            "subjective_dimensions": {
+                "voice_match": _dim(0.35, "Does copy sound like example posts in brand pack?"),
+                "claim_safety": _dim(0.35, "Are all claims defensible and properly qualified?"),
+                "consistency": _dim(0.3, "Is terminology consistent with brand glossary?"),
+            },
+        },
+    ),
+    RubricTemplate(
         id="product-spec",
         name="Product Spec / PRD",
         description="Score PRDs and tracer-bullet specs for testability, scope control, and measurable outcomes.",
