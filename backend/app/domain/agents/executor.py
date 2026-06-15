@@ -47,7 +47,7 @@ def _guard_external_tool_output(blob: str, *, tool: str) -> str:
         sanitize_untrusted_text,
     )
 
-    safe, scan = sanitize_untrusted_text(blob, checkpoint=InjectionCheckpoint.EXTERNAL_TOOL)
+    safe, scan = sanitize_untrusted_text(blob, checkpoint=InjectionCheckpoint.EXTERNAL_TOOL, tool_name=tool)
     if scan.blocked:
         logger.warning(
             "prompt_injection_guard.tool_output_blocked",

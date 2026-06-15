@@ -55,6 +55,7 @@ def scan_untrusted_text(
     *,
     checkpoint: InjectionCheckpoint = InjectionCheckpoint.EXTERNAL_TOOL,
     max_scan_chars: int = 12_000,
+    tool_name: str | None = None,
 ) -> PromptInjectionScanResult:
     """Return blocked=True when common injection markers are detected."""
 
@@ -68,13 +69,31 @@ def scan_untrusted_text(
 
     for pattern in patterns:
         if pattern.search(blob):
-            return PromptInjectionScanResult(
+            result = PromptInjectionScanResult(
                 blocked=True,
                 checkpoint=checkpoint,
                 reason="Untrusted content matched prompt-injection heuristics.",
                 matched_pattern=pattern.pattern,
             )
-    return PromptInjectionScanResult(blocked=False, checkpoint=checkpoint)
+            _record_scan(result, tool_name=tool_name)
+            return result
+    result = PromptInjectionScanResult(blocked=False, checkpoint=checkpoint)
+    _record_scan(result, tool_name=tool_name)
+    return result
+
+
+def _record_scan(result: PromptInjectionScanResult, *, tool_name: str | None = None) -> None:
+    """Persist scan telemetry when tenant context is available."""
+
+    from app.application.services.injection_guard_telemetry import injection_guard_store
+
+    injection_guard_store.record_scan(
+        tenant_id=None,
+        checkpoint=result.checkpoint,
+        blocked=result.blocked,
+        tool_name=tool_name,
+        matched_pattern=result.matched_pattern,
+    )
 
 
 def sanitize_untrusted_text(
@@ -82,10 +101,16 @@ def sanitize_untrusted_text(
     *,
     checkpoint: InjectionCheckpoint = InjectionCheckpoint.EXTERNAL_TOOL,
     max_scan_chars: int = 12_000,
+    tool_name: str | None = None,
 ) -> tuple[str, PromptInjectionScanResult]:
     """Scan and replace blocked ingest with a safe operator-visible stub (checkpoint 2/3)."""
 
-    scan = scan_untrusted_text(text, checkpoint=checkpoint, max_scan_chars=max_scan_chars)
+    scan = scan_untrusted_text(
+        text,
+        checkpoint=checkpoint,
+        max_scan_chars=max_scan_chars,
+        tool_name=tool_name,
+    )
     if scan.blocked:
         label = {
             InjectionCheckpoint.EXTERNAL_TOOL: "external content",

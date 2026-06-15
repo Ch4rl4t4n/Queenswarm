@@ -967,6 +967,17 @@ export const SECTION_HINTS = {
     ],
     manualHref: "/manual#harness-four-cs",
   },
+  harnessInjectionGuard: {
+    title: "Injection guard coverage",
+    description:
+      "TR1 dashboard for OW15–17: scans and blocks at operator input, external tool ingest, and agent output checkpoints.",
+    options: [
+      "Per-checkpoint block rate — operator input, external tools, agent output.",
+      "Guarded tool table — web search, scrape, Wikipedia, Serper, Tavily, Jina.",
+      "Recent blocks — matched pattern and tool for operator review.",
+    ],
+    manualHref: "/manual#injection-guard-coverage",
+  },
   innovationViability: {
     title: "Innovation viability gate",
     description:

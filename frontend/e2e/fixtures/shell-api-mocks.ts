@@ -180,6 +180,61 @@ const STUB_FOUR_CS_AUDIT = {
   ],
 };
 
+const STUB_INJECTION_GUARD_COVERAGE = {
+  enabled: true,
+  status: "healthy",
+  total_scans: 42,
+  total_blocked: 1,
+  guarded_tool_count: 7,
+  checkpoints: [
+    {
+      checkpoint_id: "operator_input",
+      label: "Operator input",
+      scans: 10,
+      blocked: 0,
+      block_rate_pct: 0,
+      coverage_pct: 100,
+    },
+    {
+      checkpoint_id: "external_tool",
+      label: "External tool",
+      scans: 28,
+      blocked: 1,
+      block_rate_pct: 3.57,
+      coverage_pct: 100,
+    },
+    {
+      checkpoint_id: "agent_output",
+      label: "Agent output",
+      scans: 4,
+      blocked: 0,
+      block_rate_pct: 0,
+      coverage_pct: 100,
+    },
+  ],
+  tools: [
+    {
+      tool_name: "web_search",
+      label: "Web search",
+      scans: 12,
+      blocked: 1,
+      covered: true,
+      checkpoint_id: "external_tool",
+    },
+  ],
+  recent_hits: [
+    {
+      at: "2026-06-05T10:00:00.000Z",
+      checkpoint_id: "external_tool",
+      checkpoint_label: "External tool",
+      tool_name: "web_search",
+      matched_pattern: "ignore\\s+previous",
+    },
+  ],
+  operator_hint: "Guard coverage active — external tools and session outputs scanned at all three checkpoints.",
+  updated_at: "2026-06-05T10:00:00.000Z",
+};
+
 const STUB_INNOVATION_VIABILITY = {
   ok: true,
   status: "pass",
@@ -979,6 +1034,15 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_FOUR_CS_AUDIT),
+      });
+      return;
+    }
+
+    if (path === "harness/injection-guard-coverage" || path.startsWith("harness/injection-guard-coverage?")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_INJECTION_GUARD_COVERAGE),
       });
       return;
     }

@@ -84,6 +84,22 @@ async def harness_four_cs_audit(
     return audit.model_dump(mode="json")
 
 
+@router.get("/injection-guard-coverage", summary="TR1 Injection guard coverage dashboard")
+async def harness_injection_guard_coverage(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return 3-checkpoint injection guard scans, blocks, and tool coverage."""
+
+    from app.application.services.injection_guard_coverage_service import compose_injection_guard_coverage
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    coverage = await compose_injection_guard_coverage(db, tenant_id=tenant_id)
+    return coverage.model_dump(mode="json")
+
+
 @router.get("/pattern-explorer", summary="Agentic pattern usage explorer")
 async def harness_pattern_explorer(
     db: DbSession,

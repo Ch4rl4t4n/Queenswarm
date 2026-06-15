@@ -11,6 +11,7 @@ import { hiveGet, hivePostJson, HiveApiError } from "@/lib/api";
 import type { HarnessIntelligenceScanPayload, HarnessSnapshotPayload } from "@/lib/hive-types";
 import { BehavioralMemoryPanel } from "@/components/hive/behavioral-memory-panel";
 import { FourCsAuditPanel } from "@/components/hive/four-cs-audit-panel";
+import { InjectionGuardCoveragePanel } from "@/components/hive/injection-guard-coverage-panel";
 import {
   HarnessMcpToolGrid,
   HarnessPatternGrid,
@@ -101,6 +102,7 @@ export function SettingsHarnessPanel({ section }: SettingsHarnessPanelProps): JS
     return (
       <div className="space-y-6">
         <FourCsAuditPanel />
+        <InjectionGuardCoveragePanel />
         <V4Card id="rules-overview" className="scroll-mt-28">
         <V4CardHeader
           kicker="AI Layer"

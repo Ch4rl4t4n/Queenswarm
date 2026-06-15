@@ -1787,6 +1787,10 @@ class Settings(BaseSettings):
         default=True,
         description="MEM3 — Tier-0 Brain Pack injection strip before deep Chroma recall.",
     )
+    injection_guard_coverage_enabled: bool = Field(
+        default=True,
+        description="TR1 — Injection guard coverage dashboard (checkpoint hits by tool).",
+    )
     factory_queue_slo_enabled: bool = Field(
         default=True,
         description="TR4 — Skill Factory queue SLO panel in factory snapshot.",
