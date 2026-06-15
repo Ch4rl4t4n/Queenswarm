@@ -1634,6 +1634,10 @@ class Settings(BaseSettings):
         default=True,
         description="OBS2 — Brain Pack gap prompts in Knowledge UI.",
     )
+    stakeholder_grill_wizard_enabled: bool = Field(
+        default=True,
+        description="NP1 — Stakeholder Grill wizard on Mission Kanban (structured brief artifact).",
+    )
     grok_control_plane_enabled: bool = Field(
         default=True,
         description="Enable Grok Control Plane in cockpit (plan/approve/execute).",

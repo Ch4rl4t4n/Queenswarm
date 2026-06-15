@@ -1766,6 +1766,49 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("solo-operator/grill-wizard/submit")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          task_id: "00000000-0000-4000-8000-000000000099",
+          deliverable_id: "00000000-0000-4000-8000-000000000098",
+          title: "Stakeholder grill brief",
+          href: "/tasks?task=00000000-0000-4000-8000-000000000099",
+          session_href: null,
+          message: "Brief saved to Mission Kanban triage and task workspace.",
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("solo-operator/grill-wizard")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          min_answer_chars: 12,
+          questions: [
+            {
+              id: "problem",
+              title: "Problem / opportunity",
+              prompt: "What problem or opportunity are you addressing?",
+              hint: "No PII.",
+            },
+            {
+              id: "kill_criteria",
+              title: "Kill criteria",
+              prompt: "What would make you stop?",
+              hint: "",
+            },
+          ],
+        }),
+      });
+      return;
+    }
+
     if (path.startsWith("solo-operator/first-run")) {
       await route.fulfill({
         status: 200,

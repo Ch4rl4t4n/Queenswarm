@@ -72,7 +72,7 @@ Canonical design for **P10 Track N** — low-effort operator packs inspired by J
 
 **Moneta:** Monday standup prep · PRD sanity check before eng sync.
 
-**Est.:** 2–3 d · **Priority:** P1
+**Est.:** 2–3 d · **Priority:** P1 · **Status:** ✅ shipped (`/tasks` grill wizard + API)
 
 ---
 

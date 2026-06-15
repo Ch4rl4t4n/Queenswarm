@@ -625,4 +625,47 @@ async def solo_mission_feed_dismiss(
     return {"updated": updated}
 
 
+@router.get("/grill-wizard", summary="NP1 Stakeholder Grill wizard questions")
+async def solo_grill_wizard_snapshot(
+    _principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return structured grill interview prompts."""
+
+    from app.application.services.stakeholder_grill_wizard import compose_grill_wizard_snapshot
+
+    return compose_grill_wizard_snapshot().model_dump(mode="json")
+
+
+@router.post("/grill-wizard/submit", summary="NP1 Submit grill answers → kanban brief + workspace")
+async def solo_grill_wizard_submit(
+    body: dict[str, Any],
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Persist stakeholder brief to triage + deliverable; optional research session."""
+
+    from app.application.services.stakeholder_grill_wizard import (
+        StakeholderGrillSubmitIn,
+        submit_stakeholder_grill_wizard,
+    )
+
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    try:
+        payload = StakeholderGrillSubmitIn.model_validate(body)
+        result = await submit_stakeholder_grill_wizard(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=user.id,
+            created_by_subject=str(getattr(user, "email", "") or "operator"),
+            body=payload,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    await db.commit()
+    return result.model_dump(mode="json")
+
+
 __all__ = ["router"]

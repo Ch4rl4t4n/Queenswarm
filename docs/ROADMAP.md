@@ -683,7 +683,7 @@ _Signals: Jun 2026 operator batch — [grill-me](https://www.youtube.com/watch?v
 
 | ID | Item | Priority | Est. | Status | Gate / asset |
 |----|------|----------|------|--------|--------------|
-| NP1 | **Stakeholder Grill wizard** — structured interview → brief artifact | P1 | 2–3 d | ⏳ | `grill-me.md` · task workspace |
+| NP1 | **Stakeholder Grill wizard** — structured interview → brief artifact | P1 | 2–3 d | ✅ | `grill-me.md` · task workspace |
 | NP2 | **Creative rubric presets** — composition · accuracy · brand (Riverflow pattern) | P1 | 1–2 d | ⏳ | `rubric_templates.py` · publish simulate |
 | NP3 | **Brand Context Pack** — voice · refs · forbidden claims in Brain Pack | P1 | 2 d | ⏳ | Curated memory · AOS1 marketing |
 | NP4 | **Investment brief goal template** — problem · KPI · compliance · open Q | P0 | 1–2 d | ✅ | OW7 presets · Research Bee |

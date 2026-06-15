@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { TasksKanbanBoard } from "@/components/hive/tasks-kanban-board";
+import { StakeholderGrillWizardPanel } from "@/components/hive/stakeholder-grill-wizard-panel";
 import { SkillPickerChips } from "@/components/hive/skill-picker-chips";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { celebrateVerifiedOutcome } from "@/lib/celebrate-verified-outcome";
@@ -265,6 +266,7 @@ export function MissionKanbanPanel({ onOpenTask, refreshSignal = 0 }: MissionKan
 
   return (
     <div className="space-y-4">
+      <StakeholderGrillWizardPanel onSubmitted={() => void reload()} />
       <div className="rounded-2xl border border-[color:var(--qs-border)] bg-hive-card/60 p-4">
         <p className="font-[family-name:var(--font-poppins)] text-sm text-(--qs-text-2)">
           Mission Kanban — drop a big prompt into Triage, dispatch to decompose into child tasks, and
