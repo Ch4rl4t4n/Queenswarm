@@ -256,10 +256,23 @@ async def get_task_lineage(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Persistence rejected lineage lookup.",
         )
+
+    from app.application.services.goal_progress_strip_service import compose_task_goal_progress
+
+    goal_progress = await compose_task_goal_progress(
+        db,
+        task_id=task_id,
+        task_title=lineage.task.title,
+        task_status=str(lineage.task.status),
+        task_payload=dict(lineage.task.payload or {}),
+        child_statuses=[str(child.status) for child in lineage.children],
+    )
+
     return TaskLineageResponse(
         task=lineage.task,
         parent=lineage.parent,
         children=lineage.children,
+        goal_progress=goal_progress.model_dump(mode="json"),
     )
 
 

@@ -2676,6 +2676,40 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.match(/^tasks\/[^/]+\/lineage$/)) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          task: STUB_MISSION_KANBAN_TASKS[0],
+          parent: null,
+          children: STUB_MISSION_KANBAN_TASKS.slice(1, 3),
+          goal_progress: {
+            enabled: true,
+            visible: true,
+            task_id: STUB_MISSION_KANBAN_TASKS[0]?.id ?? "00000000-0000-4000-8000-000000000001",
+            session_id: "00000000-0000-4000-8000-000000000099",
+            session_status: "running",
+            session_href: "/agents?session=00000000-0000-4000-8000-000000000099#sessions",
+            goal_preview: "Content week launch pack",
+            progress_pct: 62,
+            loop_chip: "Tool · 62%",
+            current_phase: "tool",
+            durable_steps_done: 1,
+            durable_steps_total: 2,
+            phases: [
+              { phase_id: "goal", label: "Goal", status: "done" },
+              { phase_id: "plan", label: "Plan", status: "done" },
+              { phase_id: "tool", label: "Tool", status: "active" },
+              { phase_id: "verify", label: "Verify", status: "pending" },
+            ],
+            headline: "Supervisor session · Tool · 62%",
+          },
+        }),
+      });
+      return;
+    }
+
     if (path.startsWith("tasks/")) {
       const method = route.request().method();
       if (method === "DELETE") {

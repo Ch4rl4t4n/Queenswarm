@@ -114,6 +114,10 @@ class TaskLineageResponse(BaseModel):
     task: TaskSnapshot
     parent: TaskSnapshot | None = None
     children: list[TaskSnapshot] = Field(default_factory=list)
+    goal_progress: dict[str, Any] | None = Field(
+        default=None,
+        description="AL3 supervisor-linked goal progress strip (when enabled).",
+    )
 
 
 class TaskWorkspaceFileOut(BaseModel):

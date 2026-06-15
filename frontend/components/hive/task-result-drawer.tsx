@@ -5,6 +5,7 @@ import { HiveApiError, hiveDelete, hiveFetchRaw, hiveGet, hivePatchJson, hivePos
 import { COCKPIT_POLL_TASK_DRAWER_MS } from "@/lib/cockpit-poll-profile";
 import { useDocumentVisible } from "@/lib/hooks/use-document-visible";
 import type { TaskLineageResponse, TaskRow, TaskWorkspaceResponse } from "@/lib/hive-types";
+import { GoalProgressStrip } from "@/components/hive/goal-progress-strip";
 import { cn } from "@/lib/utils";
 import { useCallback, useEffect, useState } from "react";
 
@@ -479,6 +480,7 @@ export function TaskResultDrawer({
                   />
                 </div>
               ) : null}
+              <GoalProgressStrip progress={lineage?.goal_progress} />
               {lineage?.parent ? (
                 <LineageSection title="Parent" rows={[lineage.parent]} onOpen={onClose} />
               ) : null}

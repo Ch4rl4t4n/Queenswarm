@@ -454,10 +454,34 @@ export interface TaskRow {
   output_format?: string | null;
 }
 
+export interface TaskGoalProgressPhaseRow {
+  phase_id: "goal" | "plan" | "tool" | "verify";
+  label: string;
+  status: "pending" | "active" | "done";
+}
+
+export interface TaskGoalProgressRow {
+  enabled: boolean;
+  visible: boolean;
+  task_id: string;
+  session_id: string | null;
+  session_status: string | null;
+  session_href: string | null;
+  goal_preview: string;
+  progress_pct: number;
+  loop_chip: string;
+  current_phase: "goal" | "plan" | "tool" | "verify" | null;
+  durable_steps_done: number;
+  durable_steps_total: number;
+  phases: TaskGoalProgressPhaseRow[];
+  headline: string;
+}
+
 export interface TaskLineageResponse {
   task: TaskRow;
   parent: TaskRow | null;
   children: TaskRow[];
+  goal_progress?: TaskGoalProgressRow | null;
 }
 
 export interface TaskWorkspaceFile {

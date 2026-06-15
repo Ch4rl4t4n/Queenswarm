@@ -503,7 +503,7 @@ _Goal → Think → Tools → Verify visible in UI — not buried in event JSON.
 |----|------|----------|------|--------|--------------|
 | AL1 | **Agent Loop Timeline** — Goal → Plan → Tool → Verify per session | P0 | 3–4 d | ✅ | Agents session drawer · reuse `session_events` |
 | AL2 | **Tool Outcome Panel** at approve / `needs_input` | P0 | 2–3 d | ✅ | Tool name, args summary, sim result, critic |
-| AL3 | **Goal progress strip** on Mission Kanban lineage | P1 | 2 d | ⏳ | `supervisor_sessions` + durable step count |
+| AL3 | **Goal progress strip** on Mission Kanban lineage | P1 | 2 d | ✅ | `supervisor_sessions` + durable step count |
 | AL4 | **Pattern + tool explainer** chip per step | P1 | 2 d | ⏳ | Pattern Router payload + tool registry label |
 
 ### Track B — Second brain & wiki layer
