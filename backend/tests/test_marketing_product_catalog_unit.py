@@ -62,3 +62,16 @@ def test_find_product_returns_none_for_missing_slug(tmp_path: Path) -> None:
 
     assert find_product("missing", tmp_path) is None
     assert find_product("alpha-skill", tmp_path) is not None
+
+
+def test_collect_catalog_attaches_scorecard_fields(tmp_path: Path) -> None:
+    _write_ready(tmp_path, "alpha-skill", score=80)
+    (tmp_path / "GUMROAD_SCORECARD.md").write_text(
+        "- `alpha-skill` — 100/100 ready (skill_factory)\n",
+        encoding="utf-8",
+    )
+    products = collect_catalog_products(tmp_path)
+    assert len(products) == 1
+    assert products[0].score == 100
+    assert products[0].scorecard_verdict == "ready"
+    assert products[0].scorecard_clean is True

@@ -7,6 +7,8 @@ export interface MarketingProduct {
   subtitle: string;
   price: string;
   score: number;
+  scorecard_verdict?: string;
+  scorecard_clean?: boolean;
   featured: boolean;
   gumroad_url: string | null;
   package_dir: string | null;

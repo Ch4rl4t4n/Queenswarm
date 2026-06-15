@@ -2,7 +2,16 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+
+from app.application.services.harness_eval_service import HarnessEvalResultOut
+from app.application.services.marketing_public_eval import (
+    MarketingPublicEvalBody,
+    check_marketing_public_eval_rate_limit,
+    run_marketing_public_eval,
+)
+from app.core.config import settings
+from app.presentation.api.middleware.rate_limit import peer_ip_for_rate_limit
 
 from app.application.services.ugc_content_engine import (
     build_landing_payload,
@@ -75,6 +84,28 @@ async def marketing_product_detail(slug: str) -> MarketingProductOut:
     if product is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found.")
     return product
+
+
+@public_router.post(
+    "/eval",
+    response_model=HarnessEvalResultOut,
+    summary="Free Eval-as-a-Service (public, heuristic only)",
+)
+async def marketing_public_eval(
+    body: MarketingPublicEvalBody,
+    request: Request,
+) -> HarnessEvalResultOut:
+    """REV2 lead magnet — structure check + EVAL_REPORT, rate-limited per IP."""
+
+    if not settings.marketing_public_eval_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Public eval disabled.")
+
+    client_key = peer_ip_for_rate_limit(request)
+    allowed, detail = await check_marketing_public_eval_rate_limit(client_key=client_key)
+    if not allowed:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=detail)
+
+    return await run_marketing_public_eval(body)
 
 
 @public_router.get(

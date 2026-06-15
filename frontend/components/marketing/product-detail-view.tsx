@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { LacIcon } from "@/components/marketing/lac-icons";
 import { ProductCard } from "@/components/marketing/product-card";
-import { ScorePill } from "@/components/marketing/score-pill";
+import { ScorecardBadge } from "@/components/marketing/scorecard-badge";
 import { typeLabel, type MarketingProductView } from "@/lib/marketing-catalog-view";
 
 interface ProductDetailViewProps {
@@ -24,7 +24,11 @@ function PurchasePanel({ product }: { readonly product: MarketingProductView }):
             <LacIcon name={product.type === "skill" ? "shield" : "doc"} size={12} />
             {typeLabel(product.type)}
           </span>
-          <ScorePill score={product.score} />
+          <ScorecardBadge
+            score={product.score}
+            verdict={product.scorecardVerdict}
+            clean={product.scorecardClean}
+          />
         </div>
 
         <div style={{ marginTop: 18 }}>
@@ -139,6 +143,11 @@ export function ProductDetailView({ product, related }: ProductDetailViewProps):
               {typeLabel(product.type)}
             </span>
             {product.featured ? <span className="mk-corner featured">Featured</span> : null}
+            {product.scorecardClean ? (
+              <span className="mk-corner featured" style={{ marginLeft: 8 }}>
+                Scorecard clean
+              </span>
+            ) : null}
             {product.status === "soon" ? (
               <span className="mk-soon-label">
                 <span className="d" />

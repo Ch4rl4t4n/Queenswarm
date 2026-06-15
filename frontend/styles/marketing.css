@@ -192,6 +192,28 @@ body:has(.mk-shell)::after {
   background: var(--green-soft); color: oklch(0.86 0.14 155); border: 1px solid oklch(0.78 0.16 155 / 0.3);
 }
 .mk-score svg { width: 12px; height: 12px; }
+.mk-score--clean {
+  background: oklch(0.32 0.12 155 / 0.45);
+  color: oklch(0.92 0.14 155);
+  border: 1px solid oklch(0.78 0.18 155 / 0.45);
+  box-shadow: 0 0 12px oklch(0.72 0.16 155 / 0.15);
+}
+
+.mk-input {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: oklch(0.14 0.02 280 / 0.6);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.mk-input:focus {
+  outline: 2px solid oklch(0.72 0.18 295 / 0.45);
+  outline-offset: 1px;
+}
 
 /* compare checkbox */
 .mk-compare { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-3); cursor: pointer; user-select: none; }

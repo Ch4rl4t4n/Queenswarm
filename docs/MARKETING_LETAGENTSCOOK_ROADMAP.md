@@ -48,7 +48,7 @@ Updated: 2026-06-05
 ### Wave 2 — 50+ listings (4–6 weeks)
 
 - Expand CONTENT_PACK_VERTICAL_SEEDS + SKILL_FACTORY_VERTICAL_SEEDS
-- Eval-as-a-Service as lead magnet on `/skills/eval`
+- Eval-as-a-Service as lead magnet on `/skills/eval` — **live** (`POST /api/v1/marketing/eval`, heuristic, rate-limited)
 - MCP Connector Starter Kit as premium tier listing
 
 ## Implementation phases

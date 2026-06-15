@@ -1548,6 +1548,21 @@ class Settings(BaseSettings):
         default="https://letagentscook.org",
         description="Public marketing site origin for buyer onboarding links (REV1).",
     )
+    marketing_public_eval_enabled: bool = Field(
+        default=True,
+        description="Enable public Eval-as-a-Service on POST /marketing/eval (REV2).",
+    )
+    marketing_public_eval_rate_limit: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        description="Max free eval requests per IP per window (REV2).",
+    )
+    marketing_public_eval_rate_window_sec: float = Field(
+        default=3600.0,
+        gt=0,
+        description="Sliding window seconds for public eval rate limit.",
+    )
     social_publish_rate_limit_window_sec: float = Field(
         default=86400.0,
         gt=0,

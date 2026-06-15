@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { CoverArt } from "@/components/marketing/cover-art";
 import { LacIcon } from "@/components/marketing/lac-icons";
-import { ScorePill } from "@/components/marketing/score-pill";
+import { ScorecardBadge } from "@/components/marketing/scorecard-badge";
 import { typeLabel, type MarketingProductView } from "@/lib/marketing-catalog-view";
 
 interface ProductCardProps {
@@ -62,7 +62,12 @@ export function ProductCard({
               Listing soon
             </span>
           )}
-          <ScorePill score={product.score} />
+          <ScorecardBadge
+            score={product.score}
+            verdict={product.scorecardVerdict}
+            clean={product.scorecardClean}
+            compact
+          />
         </div>
         {compareOn && onToggleCompare ? (
           <label

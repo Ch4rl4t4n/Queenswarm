@@ -17,13 +17,20 @@ interface MarketingShellProps {
 const NAV = [
   { key: "home", label: "Home", route: "/" },
   { key: "skills", label: "Catalog", route: "/skills" },
+  { key: "eval", label: "Free eval", route: "/skills/eval" },
   { key: "how", label: "How it works", route: "/how-it-works" },
   { key: "verify", label: "Verify-first", route: "/verify-first" },
 ] as const;
 
 function isNavActive(pathname: string, route: string): boolean {
+  if (route === "/skills/eval") {
+    return pathname === "/skills/eval";
+  }
   if (route === "/skills") {
-    return pathname === "/skills" || pathname.startsWith("/skills/");
+    return (
+      pathname === "/skills" ||
+      (pathname.startsWith("/skills/") && !pathname.startsWith("/skills/eval"))
+    );
   }
   return pathname === route;
 }

@@ -8,6 +8,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.application.services.marketing_scorecard import load_scorecard_index, scorecard_fields_for_slug
+
 FEATURED_SLUGS: tuple[str, ...] = (
     "newsletter-growth-loop-with-verified-outcomes-5",
     "seo-content-pipeline-with-simulate-first-guardrails-7",
@@ -39,6 +41,8 @@ class MarketingProductOut(BaseModel):
     subtitle: str
     price: str
     score: int
+    scorecard_verdict: str = "review"
+    scorecard_clean: bool = False
     featured: bool = False
     gumroad_url: str | None = None
     package_dir: str | None = None
@@ -125,6 +129,7 @@ def collect_catalog_products(export_root: Path | None = None) -> list[MarketingP
         return []
 
     gumroad_urls = _load_gumroad_urls(root)
+    scorecard_index = load_scorecard_index(root)
     best_by_family: dict[str, MarketingProductOut] = {}
 
     for package_dir in sorted(ready_dir.iterdir()):
@@ -145,6 +150,12 @@ def collect_catalog_products(export_root: Path | None = None) -> list[MarketingP
             continue
         kind = str(manifest.get("kind") or "skill_factory").strip()
         score = int(manifest.get("score") or 0)
+        sc_score, sc_verdict, sc_clean = scorecard_fields_for_slug(
+            slug,
+            manifest_score=score,
+            export_root=root,
+            index=scorecard_index,
+        )
         subtitle = str(manifest.get("subtitle") or manifest.get("description") or "").strip()
         price = str(manifest.get("price") or "").strip()
 
@@ -165,7 +176,9 @@ def collect_catalog_products(export_root: Path | None = None) -> list[MarketingP
             title=title,
             subtitle=subtitle[:280],
             price=price,
-            score=score,
+            score=sc_score,
+            scorecard_verdict=sc_verdict,
+            scorecard_clean=sc_clean,
             featured=slug in FEATURED_SLUGS or family in featured_families,
             gumroad_url=gumroad_urls.get(slug),
             package_dir=str(package_dir),

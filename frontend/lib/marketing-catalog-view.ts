@@ -26,6 +26,8 @@ export interface MarketingProductView {
   price: number;
   priceLabel: string;
   score: number | null;
+  scorecardVerdict: string | null;
+  scorecardClean: boolean;
   featured: boolean;
   status: "listed" | "soon";
   gumroad: string | null;
@@ -104,6 +106,8 @@ export function toMarketingProductView(product: MarketingProduct): MarketingProd
     price: parsePriceAmount(product.price),
     priceLabel: product.price || "€9.00",
     score: product.score > 0 ? product.score : null,
+    scorecardVerdict: product.scorecard_verdict || null,
+    scorecardClean: Boolean(product.scorecard_clean),
     featured: product.featured,
     status: listed ? "listed" : "soon",
     gumroad: listed ? gumroad : null,
