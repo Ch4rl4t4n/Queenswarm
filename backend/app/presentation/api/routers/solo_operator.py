@@ -663,7 +663,7 @@ async def solo_grill_wizard_submit(
             body=payload,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     await db.commit()
     return result.model_dump(mode="json")
 
