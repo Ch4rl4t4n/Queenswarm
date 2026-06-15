@@ -166,6 +166,27 @@ class ForagerDiscoveryBindRequest(BaseModel):
     trigger_first_run: bool = Field(default=True)
 
 
+class ForagerExportLaneRequest(BaseModel):
+    """DG5 — export structured rows to CSV / Notion / Sheet."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    destination: Literal["csv", "notion", "sheet"] = Field(default="csv")
+    mode: Literal["simulate", "live"] = Field(default="simulate")
+    knowledge_ids: list[uuid.UUID] = Field(default_factory=list, max_length=100)
+    approved_only: bool = Field(default=True)
+    notion_database_id: str | None = Field(default=None, max_length=64)
+    operator_confirmed: bool = Field(default=False)
+
+
+class ForagerExportApproveRequest(BaseModel):
+    """DG5 — mark knowledge rows approved for export."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    knowledge_ids: list[uuid.UUID] = Field(min_length=1, max_length=100)
+
+
 class ForagerSpawnPolicyView(BaseModel):
     """Tenant forager auto-spawn approval policy."""
 
@@ -465,6 +486,19 @@ async def forager_discovery_bind(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=err) from exc
     await db.commit()
     return result.model_dump(mode="json")
+
+
+@router.get("/export-lane", summary="DG5 Export lane snapshot")
+async def forager_export_lane_snapshot(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return CSV / Notion / Sheet export lane capabilities."""
+
+    _require_forager_read(principal)
+    from app.application.services.forager_export_lane_service import compose_export_lane_snapshot_async
+
+    return (await compose_export_lane_snapshot_async(db)).model_dump(mode="json")
 
 
 @router.get("/{id}", response_model=ForagerResponse, summary="Get forager by id")
@@ -857,6 +891,106 @@ async def get_forager_structured_rows(
     if payload is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Forager not found.")
     return payload.model_dump(mode="json")
+
+
+@router.post("/{id}/export-lane/preview", summary="DG5 Preview structured row export")
+async def forager_export_lane_preview(
+    id: uuid.UUID,
+    body: ForagerExportLaneRequest,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Simulate-first preview of export bundle."""
+
+    _require_forager_read(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.forager_export_lane_service import preview_forager_export
+
+    try:
+        preview = await preview_forager_export(
+            db,
+            tenant_id=tenant_id,
+            forager_id=id,
+            destination=body.destination,
+            mode=body.mode,
+            knowledge_ids=body.knowledge_ids or None,
+            approved_only=body.approved_only,
+            notion_database_id=body.notion_database_id,
+        )
+    except ValueError as exc:
+        if str(exc) == "forager_export_lane_disabled":
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Export lane disabled.") from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    if preview is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Forager not found.")
+    return preview.model_dump(mode="json")
+
+
+@router.post("/{id}/export-lane/submit", summary="DG5 Submit structured row export")
+async def forager_export_lane_submit(
+    id: uuid.UUID,
+    body: ForagerExportLaneRequest,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Export approved structured rows — simulate-first for Notion/Sheet."""
+
+    _require_forager_write(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    user = principal.get("user")
+    dashboard_user_id = user.id if user is not None else None
+    from app.application.services.forager_export_lane_service import submit_forager_export
+
+    try:
+        result = await submit_forager_export(
+            db,
+            tenant_id=tenant_id,
+            forager_id=id,
+            destination=body.destination,
+            mode=body.mode,
+            knowledge_ids=body.knowledge_ids or None,
+            approved_only=body.approved_only,
+            notion_database_id=body.notion_database_id,
+            dashboard_user_id=dashboard_user_id,
+            operator_confirmed=body.operator_confirmed,
+        )
+    except ValueError as exc:
+        if str(exc) == "forager_export_lane_disabled":
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Export lane disabled.") from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Forager not found.")
+    await db.commit()
+    return result.model_dump(mode="json")
+
+
+@router.post("/{id}/export-lane/approve", summary="DG5 Approve knowledge rows for export")
+async def forager_export_lane_approve(
+    id: uuid.UUID,
+    body: ForagerExportApproveRequest,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Tag structured hits as export-approved."""
+
+    _require_forager_write(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.forager_export_lane_service import approve_forager_export_rows
+
+    tagged = await approve_forager_export_rows(
+        db,
+        tenant_id=tenant_id,
+        forager_id=id,
+        knowledge_ids=body.knowledge_ids,
+    )
+    await db.commit()
+    return {"ok": True, "tagged": tagged}
 
 
 @router.get(

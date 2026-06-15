@@ -567,6 +567,27 @@ const STUB_FORAGER_DISCOVERY_SEARCH = {
   operator_hint: "Select URLs and bind.",
 };
 
+const STUB_FORAGER_EXPORT_PREVIEW = {
+  forager_id: "e2e-forager-export",
+  forager_name: "E2E Export Forager",
+  extract_schema: "jobs",
+  destination: "csv",
+  mode: "simulate",
+  row_count: 1,
+  columns: ["knowledge_id", "title", "employer", "source_url"],
+  preview_rows: [
+    {
+      knowledge_id: "e2e-knowledge-1",
+      title: "Senior Python Engineer",
+      employer: "Acme Corp",
+      source_url: "https://jobs.example.com/1",
+    },
+  ],
+  notion_payloads: [],
+  csv_preview: "knowledge_id,title,employer\n",
+  operator_hint: "Simulate-first — 1 row(s) ready for csv.",
+};
+
 const STUB_OPERATOR_APPROVALS = {
   enabled: true,
   generated_at: "2026-06-05T10:00:00Z",
@@ -3004,6 +3025,59 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ tenants: [], active_tenant_id: null }),
+      });
+      return;
+    }
+
+    if (path.startsWith("foragers/export-lane")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          destinations: ["csv", "notion", "sheet"],
+          notion_configured: false,
+          default_mode: "simulate",
+          operator_hint: "Export structured rows simulate-first.",
+        }),
+      });
+      return;
+    }
+
+    if (path.match(/^foragers\/[^/]+\/export-lane\/submit/)) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          forager_id: "e2e-forager-export",
+          destination: "csv",
+          mode: "simulate",
+          row_count: 1,
+          simulated: true,
+          message: "Exported 1 row(s) to CSV (simulate).",
+          csv_content: "knowledge_id,title\na,Senior Python\n",
+          notion_results: [],
+          approved_tagged: 0,
+        }),
+      });
+      return;
+    }
+
+    if (path.match(/^foragers\/[^/]+\/export-lane\/preview/)) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_FORAGER_EXPORT_PREVIEW),
+      });
+      return;
+    }
+
+    if (path.match(/^foragers\/[^/]+\/export-lane\/approve/)) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, tagged: 1 }),
       });
       return;
     }

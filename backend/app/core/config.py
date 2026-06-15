@@ -1849,6 +1849,10 @@ class Settings(BaseSettings):
         le=24,
         description="DG6 — Max URLs returned per discovery search.",
     )
+    forager_export_lane_enabled: bool = Field(
+        default=True,
+        description="DG5 — Export approved structured rows to CSV / Notion / Sheet.",
+    )
     forager_structured_extract_enabled: bool = Field(
         default=True,
         description="DG2 — Embed Pydantic structured rows on forager ingest.",

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { HiveModalShell, hiveModalScrollBodyClass } from "@/components/hive/hive-modal-shell";
 import { V4Badge } from "@/components/ui/v4";
-import { HiveApiError, hiveGet } from "@/lib/api";
+import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import { foragerKnowledgeHref } from "@/lib/execution-lane-routes";
 import { formatTimeAgoIso } from "@/lib/format-relative-time";
 import { cn } from "@/lib/utils";
@@ -62,6 +62,8 @@ export function ForagerResultsDialog({
     Array<{ knowledge_id: string; row: Record<string, string | null> }>
   >([]);
   const [extractSchema, setExtractSchema] = useState<string | null>(null);
+  const [exportDestination, setExportDestination] = useState<"csv" | "notion" | "sheet">("csv");
+  const [notionDatabaseId, setNotionDatabaseId] = useState("");
   const [loading, setLoading] = useState(false);
   const [exportBusy, setExportBusy] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -105,6 +107,52 @@ export function ForagerResultsDialog({
     }
     void loadReport(foragerId);
   }, [open, foragerId, loadReport]);
+
+  async function approveStructuredForExport(): Promise<void> {
+    if (!foragerId || !structuredRows.length) return;
+    setExportBusy("approve");
+    try {
+      const res = await hivePostJson<{ ok: boolean; tagged: number }>(
+        `foragers/${encodeURIComponent(foragerId)}/export-lane/approve`,
+        { knowledge_ids: structuredRows.map((row) => row.knowledge_id) },
+      );
+      toast.success(`Approved ${res.tagged} row(s) for export`);
+    } catch (err) {
+      toast.error(err instanceof HiveApiError ? err.message : "Approve failed");
+    } finally {
+      setExportBusy(null);
+    }
+  }
+
+  async function runExportLane(): Promise<void> {
+    if (!foragerId) return;
+    setExportBusy("export");
+    try {
+      const res = await hivePostJson<{
+        ok: boolean;
+        message: string;
+        csv_content?: string | null;
+        row_count: number;
+        simulated: boolean;
+      }>(`foragers/${encodeURIComponent(foragerId)}/export-lane/submit`, {
+        destination: exportDestination,
+        mode: "simulate",
+        approved_only: true,
+        knowledge_ids: structuredRows.map((row) => row.knowledge_id),
+        notion_database_id: notionDatabaseId.trim() || null,
+        operator_confirmed: false,
+      });
+      if (res.csv_content && (exportDestination === "csv" || exportDestination === "sheet")) {
+        const blob = new Blob([res.csv_content], { type: "text/csv;charset=utf-8" });
+        await downloadBlob(blob, `forager-export-${foragerId.slice(0, 8)}.csv`);
+      }
+      toast.success(res.message || `Exported ${res.row_count} row(s)`);
+    } catch (err) {
+      toast.error(err instanceof HiveApiError ? err.message : "Export failed");
+    } finally {
+      setExportBusy(null);
+    }
+  }
 
   async function exportReport(format: "html" | "markdown" | "pdf"): Promise<void> {
     if (!foragerId) {
@@ -227,6 +275,48 @@ export function ForagerResultsDialog({
                       ))}
                     </tbody>
                   </table>
+                </div>
+                <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-white/10 pt-3">
+                  <label className="flex min-w-[120px] flex-col gap-1 text-xs">
+                    <span className="text-(--qs-text-3)">Destination</span>
+                    <select
+                      className="qs-input"
+                      value={exportDestination}
+                      onChange={(e) => setExportDestination(e.target.value as "csv" | "notion" | "sheet")}
+                    >
+                      <option value="csv">CSV download</option>
+                      <option value="sheet">Google Sheet (CSV)</option>
+                      <option value="notion">Notion DB (simulate)</option>
+                    </select>
+                  </label>
+                  {exportDestination === "notion" ? (
+                    <label className="flex min-w-[180px] flex-1 flex-col gap-1 text-xs">
+                      <span className="text-(--qs-text-3)">Notion database ID</span>
+                      <input
+                        className="qs-input"
+                        placeholder="Optional — simulate payload"
+                        value={notionDatabaseId}
+                        onChange={(e) => setNotionDatabaseId(e.target.value)}
+                      />
+                    </label>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--ghost qs-btn--sm"
+                    disabled={Boolean(exportBusy) || !structuredRows.length}
+                    onClick={() => void approveStructuredForExport()}
+                  >
+                    Approve for export
+                  </button>
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--primary qs-btn--sm"
+                    disabled={Boolean(exportBusy) || !structuredRows.length}
+                    onClick={() => void runExportLane()}
+                    data-testid="forager-export-lane-submit"
+                  >
+                    Export {structuredRows.length} row{structuredRows.length === 1 ? "" : "s"}
+                  </button>
                 </div>
               </section>
             ) : null}
