@@ -12,8 +12,8 @@ from app.application.services.factory_vertical_seeds import (
 
 def test_vertical_seeds_payload_shape() -> None:
     payload = vertical_seeds_payload()
-    assert len(payload["skill_factory"]) >= 8
-    assert len(payload["content_pack_factory"]) >= 8
+    assert len(payload["skill_factory"]) >= 25
+    assert len(payload["content_pack_factory"]) >= 25
     assert payload["skill_factory_starter"] == list(SKILL_FACTORY_VERTICAL_SEEDS[:8])
 
 

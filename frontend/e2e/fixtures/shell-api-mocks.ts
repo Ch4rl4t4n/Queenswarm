@@ -920,6 +920,17 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           headline: "First Gumroad upload",
           tagline: "Verified skills and revenue — simulate-first, sell with confidence.",
           catalog: { product_count: 14, featured_count: 3, gumroad_linked_count: 0, marketing_origin: "https://letagentscook.org" },
+          catalog_wave: {
+            current_wave: "wave_1",
+            target_next: 25,
+            mk6_target: 50,
+            scorecard_clean_count: 14,
+            catalog_deduped_count: 14,
+            gap_to_next_wave: 11,
+            gap_to_mk6: 36,
+            seed_pending_count: 52,
+            next_operator_action: "Run Skill + Content Pack Factory on pending seeds",
+          },
           revenue: { ready_summary: "Ready: **14/16**", scorecard_ready_count: 14, first_upload_candidate: "`hero-pack`", next_operator_action: "Upload first listing" },
           missions: { triage_count: 0, ready_count: 0, in_progress_count: 0, blocked_count: 0 },
           top_actions: [

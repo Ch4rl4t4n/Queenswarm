@@ -69,6 +69,17 @@ interface BusinessOperatorSnapshot {
     gumroad_linked_count: number;
     marketing_origin: string;
   };
+  catalog_wave?: {
+    current_wave: string;
+    target_next: number;
+    mk6_target: number;
+    scorecard_clean_count: number;
+    catalog_deduped_count: number;
+    gap_to_next_wave: number;
+    gap_to_mk6: number;
+    seed_pending_count: number;
+    next_operator_action: string;
+  };
   revenue: {
     ready_summary?: string;
     scorecard_ready_count?: number | null;
@@ -244,7 +255,7 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
           hint={<InlineSectionHintKey hintKey="businessOperator" />}
           actions={<HiveRefreshButton busy={loading} onClick={() => void load()} />}
         />
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-lg border border-(--qs-border) bg-(--qs-surface-2) p-3">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-(--qs-muted)">Catalog live</p>
             <p className="mt-1 font-[family-name:var(--font-hive-mono)] text-2xl font-bold text-pollen">
@@ -252,6 +263,19 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
             </p>
             <p className="mt-1 text-xs text-(--qs-text-2)">
               {snapshot.catalog.gumroad_linked_count} with Gumroad URL
+            </p>
+          </div>
+          <div className="rounded-lg border border-(--qs-border) bg-(--qs-surface-2) p-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-(--qs-muted)">MK6 wave</p>
+            <p className="mt-1 font-[family-name:var(--font-hive-mono)] text-2xl font-bold text-success">
+              {snapshot.catalog_wave?.scorecard_clean_count ?? snapshot.revenue.scorecard_ready_count ?? "—"}
+              <span className="text-base text-(--qs-text-3)">
+                /{snapshot.catalog_wave?.mk6_target ?? 50}
+              </span>
+            </p>
+            <p className="mt-1 text-xs text-(--qs-text-2)">
+              {snapshot.catalog_wave?.current_wave?.replace("_", " ") ?? "wave"} · gap{" "}
+              {snapshot.catalog_wave?.gap_to_mk6 ?? "—"}
             </p>
           </div>
           <div className="rounded-lg border border-(--qs-border) bg-(--qs-surface-2) p-3">
@@ -271,6 +295,11 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
             </p>
           </div>
         </div>
+        {snapshot.catalog_wave?.next_operator_action ? (
+          <p className="mt-3 text-xs text-(--qs-text-2)">
+            <span className="font-semibold text-pollen">MK6:</span> {snapshot.catalog_wave.next_operator_action}
+          </p>
+        ) : null}
       </V4Card>
 
       <V4Card>

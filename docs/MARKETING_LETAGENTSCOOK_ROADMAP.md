@@ -43,6 +43,7 @@ Updated: 2026-06-05
 - Run Skill Factory + Content Pack Factory on Tier A seeds (`factory_vertical_seeds.py`)
 - `gumroad_ready_package.py --all` after each export batch
 - Scorecard gate: only `100/100` + no QA warnings on web
+- **Wave progress API:** `GET /api/v1/marketing/catalog-wave` · CBO panel · `operator_factory_wave_status.py`
 
 ### Wave 2 — 50+ listings (4–6 weeks)
 

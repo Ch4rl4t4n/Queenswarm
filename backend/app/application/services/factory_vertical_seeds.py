@@ -33,6 +33,27 @@ SKILL_FACTORY_VERTICAL_SEEDS: tuple[str, ...] = (
     "customer support triage skill with guardrails",
     "real estate listing copy skill pack",
     "dental clinic appointment reminder automation",
+    # Wave 1–2 — MK6 catalog depth
+    "MCP connector starter kit for agent teams",
+    "Eval-as-a-service harness for AI skills",
+    "Shopify product description skill pack",
+    "Amazon listing optimization skill",
+    "YouTube SEO title generator skill",
+    "Podcast show notes automation skill",
+    "Cold email sequence skill for B2B SaaS",
+    "Upwork proposal writer skill pack",
+    "Notion knowledge base migration skill",
+    "Zapier to n8n migration runbook skill",
+    "Freelancer invoice chase automation skill",
+    "Course launch email sequence skill",
+    "Community Discord moderation skill pack",
+    "HR onboarding checklist skill for startups",
+    "Legal contract summary skill with guardrails",
+    "Stripe subscription dunning recovery skill",
+    "GitHub issue triage skill for maintainers",
+    "Slack standup summarizer skill pack",
+    "Google Ads RSA copy skill for local biz",
+    "Airtable CRM enrichment skill pack",
 )
 
 # Tier A — sellable social/content packs (simulate-first)
@@ -49,6 +70,25 @@ CONTENT_PACK_VERTICAL_SEEDS: tuple[str, ...] = (
     "SaaS product launch announcement pack",
     "Webinar promo snippet pack for consultants",
     "Black Friday email + social combo pack",
+    # Wave 1 — MK6 catalog depth (marketing roadmap)
+    "Pinterest pin batch for home decor brands",
+    "YouTube Shorts script pack for fitness coaches",
+    "Email win-back sequence for SaaS churn",
+    "Product Hunt launch day social pack",
+    "Case study template pack for agencies",
+    "Podcast promo clip captions pack",
+    "Holiday promo bundle for e-commerce",
+    "Local restaurant menu social pack",
+    "Nonprofit fundraising email pack",
+    "Real estate open house promo pack",
+    "SaaS onboarding email drip pack",
+    "Webinar follow-up nurture pack",
+    "Customer testimonial request templates",
+    "Affiliate recruitment outreach pack",
+    "Course upsell email combo pack",
+    "Membership site launch announcement pack",
+    "Eval-as-a-service demo invite copy pack",
+    "MCP starter kit marketing one-pager pack",
 )
 
 # Curated starter set (8) for one-click operator preset — hero + proven niches

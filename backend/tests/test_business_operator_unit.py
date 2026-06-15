@@ -10,6 +10,7 @@ import pytest
 
 from app.application.services.business_operator import (
     BusinessCatalogSummaryOut,
+    BusinessCatalogWaveSummaryOut,
     BusinessMissionSummaryOut,
     BusinessRevenueSummaryOut,
     _derive_top_actions,
@@ -45,11 +46,29 @@ def test_derive_top_actions_prioritizes_gumroad() -> None:
             next_operator_action="Upload",
         ),
         catalog=BusinessCatalogSummaryOut(product_count=10, gumroad_linked_count=0),
+        catalog_wave=BusinessCatalogWaveSummaryOut(gap_to_mk6=0, current_wave="complete"),
         missions=BusinessMissionSummaryOut(),
         daily_items=[],
     )
     assert actions[0].id == "gumroad_first_upload"
     assert len(actions) <= 3
+
+
+def test_derive_top_actions_prioritizes_mk6_wave() -> None:
+    actions = _derive_top_actions(
+        revenue=BusinessRevenueSummaryOut(missing_reports=[]),
+        catalog=BusinessCatalogSummaryOut(product_count=14, gumroad_linked_count=5),
+        catalog_wave=BusinessCatalogWaveSummaryOut(
+            current_wave="wave_1",
+            gap_to_mk6=36,
+            scorecard_clean_count=14,
+            mk6_target=50,
+            next_operator_action="Run factory batches",
+        ),
+        missions=BusinessMissionSummaryOut(),
+        daily_items=[],
+    )
+    assert actions[0].id == "factory_wave_mk6"
 
 
 @pytest.mark.asyncio
