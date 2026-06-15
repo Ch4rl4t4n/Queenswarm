@@ -477,15 +477,21 @@ class ForagerPromoteTaskResponse(BaseModel):
     task_id: str | None = None
     forager_id: str | None = None
     title: str | None = None
+    mode: str | None = None
+    new_item_count: int | None = None
+    skill_slugs: list[str] = Field(default_factory=list)
     error: str | None = None
 
 
 class ForagerPromoteTaskRequest(BaseModel):
-    """Optional title override when promoting forager harvest to triage."""
+    """Optional overrides when promoting forager harvest or goldmine alert to triage."""
 
     model_config = ConfigDict(extra="forbid")
 
     title: str | None = Field(default=None, max_length=500)
+    mode: Literal["digest", "alert"] = Field(default="digest")
+    knowledge_item_ids: list[uuid.UUID] | None = Field(default=None, max_length=24)
+    include_skill_bundle: bool = Field(default=True)
 
 
 @router.post(
@@ -512,6 +518,9 @@ async def promote_forager_task(
         tenant_id=tenant_id,
         forager_id=id,
         title=body.title,
+        mode=body.mode,
+        knowledge_item_ids=body.knowledge_item_ids,
+        include_skill_bundle=body.include_skill_bundle,
     )
     if not result.get("ok"):
         err = str(result.get("error") or "promote_failed")
@@ -524,6 +533,9 @@ async def promote_forager_task(
         task_id=str(result.get("task_id") or ""),
         forager_id=str(result.get("forager_id") or ""),
         title=str(result.get("title") or ""),
+        mode=str(result.get("mode") or body.mode),
+        new_item_count=int(result.get("new_item_count") or 0),
+        skill_slugs=list(result.get("skill_slugs") or []),
     )
 
 

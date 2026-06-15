@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { ForagerConfigurationsPanel } from "@/components/hive/forager-configurations-panel";
 import { ForagerFormDialog } from "@/components/hive/forager-form-dialog";
+import { ForagerGoldmineAlertsPanel } from "@/components/hive/forager-goldmine-alerts-panel";
 import { ForagerSpawnRuleDialog } from "@/components/hive/forager-spawn-rule-dialog";
 import { HivePageShell } from "@/components/hive/hive-page-shell";
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
@@ -349,6 +350,8 @@ export function ForagersPageClient() {
           </>
         )}
       </div>
+
+      <ForagerGoldmineAlertsPanel canManage={canManage} busy={busy} onDispatched={reload} />
 
       <V4Card>
         <V4CardHeader

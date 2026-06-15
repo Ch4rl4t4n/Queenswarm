@@ -498,6 +498,12 @@ const STUB_FORAGERS_OVERVIEW = {
   configurations: [],
 };
 
+const STUB_FORAGER_GOLDMINE_ALERTS = {
+  enabled: true,
+  alerts: [],
+  operator_hint: "Dispatch attaches a skill bundle and parks triage on Mission Kanban.",
+};
+
 const STUB_PLATFORM_FEATURES = {
   ...resolvePlatformFeaturesFallback({
     platformMode: "commercial",
@@ -1463,6 +1469,15 @@ export async function installShellApiMocks(page: Page): Promise<void> {
 
     if (path.startsWith("learning/bee-badges")) {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
+      return;
+    }
+
+    if (path.startsWith("dashboard/forager-goldmine-alerts")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_FORAGER_GOLDMINE_ALERTS),
+      });
       return;
     }
 

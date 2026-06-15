@@ -1567,6 +1567,31 @@ export interface ForagersOverviewPayload {
   spawn_rules: ForagersSpawnRule[];
 }
 
+/** DG7 — `/dashboard/forager-goldmine-alerts` delta inbox. */
+export interface ForagerGoldminePreviewItem {
+  id: string;
+  title: string;
+  scraped_at?: string | null;
+  source_url?: string | null;
+}
+
+export interface ForagerGoldmineAlertRow {
+  forager_id: string;
+  forager_name: string;
+  source_type: string;
+  new_item_count: number;
+  since_iso: string;
+  headline: string;
+  skill_bundle: string[];
+  preview_items: ForagerGoldminePreviewItem[];
+}
+
+export interface ForagerGoldmineAlertsPayload {
+  enabled: boolean;
+  alerts: ForagerGoldmineAlertRow[];
+  operator_hint?: string;
+}
+
 export interface ForagerRow {
   id: string;
   tenant_id: string;

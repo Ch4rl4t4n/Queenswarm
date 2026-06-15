@@ -137,6 +137,23 @@ async def dashboard_foragers_overview(db: DbSession, _session: DashboardSession)
     return await build_foragers_overview_payload(db)
 
 
+@router.get("/forager-goldmine-alerts")
+async def dashboard_forager_goldmine_alerts(
+    db: DbSession,
+    principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),
+    limit: int = Query(default=20, ge=1, le=40),
+) -> dict[str, object]:
+    """DG7 — Delta alert inbox for goldmine → Mission Kanban dispatch."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        return {"enabled": False, "alerts": [], "operator_hint": "Tenant context missing."}
+    from app.application.services.forager_goldmine_dispatch_service import compose_forager_goldmine_alerts
+
+    payload = await compose_forager_goldmine_alerts(db, tenant_id=tenant_id, limit=limit)
+    return payload.model_dump()
+
+
 @router.get("/rapid-loop")
 async def dashboard_rapid_loop(
     db: DbSession,

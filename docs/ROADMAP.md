@@ -573,7 +573,7 @@ _Signal: [Pikachin — public data → structured intel](https://x.com/pikach_in
 | DG4 | **Forager feedback loop** — thumbs on hits → filter tuning | P2 | 2–3 d | ⏳ | `filter_config` + LearningLog |
 | DG5 | **Export lane** — approved rows → Notion DB / Sheet / CSV | P1 | 3–4 d | ⏳ | Connectors + simulate-first |
 | DG6 | **Discovery-first scrape** — Serper/Tavily URL find → bind forager | P1 | 2–3 d | ⏳ | OW9 keys + forager create |
-| DG7 | **Goldmine → dispatch** — alert → Kanban triage + skill bundle | P0 | 2 d | ⏳ | `promote_forager_digest` extend |
+| DG7 | **Goldmine → dispatch** — alert → Kanban triage + skill bundle | P0 | 2 d | ✅ | `forager_goldmine_dispatch_service`, `GET /dashboard/forager-goldmine-alerts`, Foragers goldmine panel |
 | DG8 | **Goldmine → product** — monitor niche → Skill Factory seed | P2 | 3 d | ⏳ | Factory queue + scorecard |
 
 **Operator workflow (target):** one-line monitor intent → scheduled scrape → structured rows → delta alert → approve → Kanban dispatch **or** Factory seed **or** Notion/Sheet export.
