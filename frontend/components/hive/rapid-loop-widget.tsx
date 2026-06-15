@@ -35,7 +35,7 @@ function fmtSec(value: number | null | undefined): string {
 }
 
 /** Dashboard widget — scrape → reflect → simulate → reward under SLA. */
-export function RapidLoopWidget(): JSX.Element {
+export function RapidLoopWidget({ eager = false }: { eager?: boolean }): JSX.Element {
   const [payload, setPayload] = useState<RapidLoopSummaryPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -53,13 +53,14 @@ export function RapidLoopWidget(): JSX.Element {
   }, []);
 
   useIntervalWhenVisible(() => void load(), COCKPIT_POLL_COLONY_TELEMETRY_MS, {
-    initialDelayMs: DASHBOARD_BOOT_STAGGER_MS.rapidLoop,
+    initialDelayMs: eager ? 0 : DASHBOARD_BOOT_STAGGER_MS.rapidLoop,
   });
 
   const slaPct = payload?.sla_met_pct;
   const slaOk = slaPct == null || slaPct >= 80;
 
   return (
+    <div data-testid="rapid-loop-widget">
     <V4Card className="v4-card-interactive">
       <V4CardHeader
         title="Rapid learning loop"
@@ -151,5 +152,6 @@ export function RapidLoopWidget(): JSX.Element {
         </>
       ) : null}
     </V4Card>
+    </div>
   );
 }

@@ -155,6 +155,7 @@ async def test_compose_mission_home_setup_step() -> None:
     with patch("app.application.services.mission_home_service.settings") as mock_settings:
         mock_settings.solo_mode_enabled = True
         mock_settings.operator_loop_enabled = True
+        mock_settings.rapid_loop_mission_home_enabled = True
         with patch(
             "app.application.services.mission_home_service.compose_solo_first_run",
             AsyncMock(return_value=first_run),
@@ -189,5 +190,6 @@ async def test_compose_mission_home_setup_step() -> None:
     assert snapshot.enabled is True
     assert snapshot.current_step == "setup"
     assert snapshot.first_run_complete is False
+    assert snapshot.rapid_loop_widget_enabled is True
     assert len(snapshot.brief_bullets) >= 1
     assert snapshot.step_studios[0].id == "llm_keys"

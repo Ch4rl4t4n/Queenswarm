@@ -8,6 +8,7 @@ import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-s
 import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { ProcessRail, type ProcessStep, type ProcessStepId } from "@/components/hive/process-rail";
+import { RapidLoopWidget } from "@/components/hive/rapid-loop-widget";
 import { usePlatform } from "@/components/hive/platform-context";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
@@ -81,6 +82,7 @@ interface MissionHomeSnapshot {
   step_studios?: MissionStudioEntry[];
   first_run_complete: boolean;
   links: Record<string, string>;
+  rapid_loop_widget_enabled?: boolean;
 }
 
 function MissionHomePanelInner(): JSX.Element | null {
@@ -141,6 +143,12 @@ function MissionHomePanelInner(): JSX.Element | null {
         currentStep={snapshot.current_step}
         compact
       />
+
+      {snapshot.rapid_loop_widget_enabled ? (
+        <div className="md:max-lg:col-span-2" data-testid="mission-home-rapid-loop">
+          <RapidLoopWidget eager />
+        </div>
+      ) : null}
 
       {snapshot.step_studios && snapshot.step_studios.length > 0 ? (
         <div className="flex flex-wrap gap-2 max-lg:px-0">

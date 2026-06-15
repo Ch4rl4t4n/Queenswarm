@@ -136,6 +136,7 @@ class MissionHomeSnapshotOut(BaseModel):
     step_studios: list[MissionStudioEntryOut] = Field(default_factory=list)
     first_run_complete: bool = True
     links: dict[str, str] = Field(default_factory=dict)
+    rapid_loop_widget_enabled: bool = False
 
 
 PROCESS_STEPS: list[ProcessStepOut] = [
@@ -448,6 +449,7 @@ async def compose_mission_home_snapshot(
             generated_at=datetime.now(tz=UTC),
             current_step="done",
             process_steps=PROCESS_STEPS,
+            rapid_loop_widget_enabled=False,
         )
 
     first_run = await compose_solo_first_run(
@@ -547,6 +549,7 @@ async def compose_mission_home_snapshot(
             "knowledge": "/knowledge#memory",
             "kanban": "/tasks",
         },
+        rapid_loop_widget_enabled=settings.rapid_loop_mission_home_enabled,
     )
 
 

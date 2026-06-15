@@ -1823,6 +1823,10 @@ class Settings(BaseSettings):
         le=7200,
         description="LR3 — Cooldown per session between auto-resume attempts after worker crash.",
     )
+    rapid_loop_mission_home_enabled: bool = Field(
+        default=True,
+        description="FP2 — Rapid learning loop widget on solo Mission Home (/tasks).",
+    )
     factory_queue_slo_enabled: bool = Field(
         default=True,
         description="TR4 — Skill Factory queue SLO panel in factory snapshot.",

@@ -2810,6 +2810,7 @@ export async function installShellApiMocks(page: Page): Promise<void> {
             },
           ],
           first_run_complete: true,
+          rapid_loop_widget_enabled: true,
           links: {
             new_session: "/agents#sessions",
             approvals: "/cockpit#approvals",
