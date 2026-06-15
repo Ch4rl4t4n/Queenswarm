@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 import { AgentLoopTimelinePanel } from "@/components/hive/agent-loop-timeline-panel";
 import { AgentSessionEventLog } from "@/components/hive/agent-session-event-log";
+import { MidFlightCheckpointPanel } from "@/components/hive/mid-flight-checkpoint-panel";
 import { ToolOutcomePanel } from "@/components/hive/tool-outcome-panel";
 import { SessionLoopGuardrailsStrip } from "@/components/hive/session-loop-guardrails-strip";
 import { HiveModalShell, hiveModalScrollBodyClass } from "@/components/hive/hive-modal-shell";
@@ -260,6 +261,12 @@ export function AgentSessionReportDialog({ sessionId, open, onOpenChange }: Agen
                   </p>
                 ) : null}
               </section>
+
+              <MidFlightCheckpointPanel
+                sessionId={session.id}
+                sessionStatus={session.status}
+                onChanged={() => void loadReport(session.id)}
+              />
 
               <AgentLoopTimelinePanel sessionId={session.id} sessionStatus={session.status} />
 

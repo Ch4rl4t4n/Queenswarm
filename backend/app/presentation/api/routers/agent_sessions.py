@@ -1200,6 +1200,27 @@ async def get_agent_session_tool_outcomes(
 
 
 @router.get(
+    "/sessions/{session_id}/mid-flight-checkpoint",
+    summary="LOOP4 Mid-flight checkpoint — pause, approve, continue CTAs",
+)
+async def get_agent_session_mid_flight_checkpoint(
+    session_id: uuid.UUID,
+    _sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("supervisor:view")),
+) -> dict[str, Any]:
+    """Return mid-flight checkpoint actions and guidance for operator approve flow."""
+
+    from app.application.services.mid_flight_checkpoint_service import compose_mid_flight_checkpoint
+
+    row = await get_supervisor_session(db, session_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Supervisor session not found.")
+    checkpoint = await compose_mid_flight_checkpoint(db, supervisor_session=row)
+    return checkpoint.model_dump(mode="json")
+
+
+@router.get(
     "/sessions/{session_id}/shared-context",
     response_model=SupervisorSharedContextView,
     summary="Resolve shared memory retrieval bundle for one session",

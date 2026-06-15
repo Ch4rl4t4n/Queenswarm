@@ -1920,6 +1920,73 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.match(/^agents\/sessions\/[^/]+\/mid-flight-checkpoint$/)) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          visible: true,
+          session_id: path.split("/")[2] ?? "00000000-0000-4000-8000-000000000001",
+          session_status: "needs_input",
+          checkpoint_state: "needs_input",
+          loop_phase: "verify",
+          loop_chip: "Verify · 78%",
+          headline: "Mid-flight checkpoint — approval required",
+          operator_guidance: "Review tool outcomes and critic score, then Approve & continue or Reject & revise.",
+          primary_action_id: "approve_continue",
+          pending_approval: true,
+          approval_reason: "Critical action keyword detected: publish",
+          checkpoint: {
+            can_resume_from_checkpoint: true,
+            resume_hint: "Resume from verified checkpoint after researcher → publisher.",
+            last_verified_role: "researcher",
+            next_resumable_role: "publisher",
+            verified_steps: 1,
+            total_steps: 2,
+          },
+          actions: [
+            {
+              action_id: "pause_loop",
+              label: "Pause loop",
+              enabled: true,
+              variant: "ghost",
+              reason_disabled: null,
+            },
+            {
+              action_id: "approve_continue",
+              label: "Approve gate & continue",
+              enabled: true,
+              variant: "primary",
+              reason_disabled: null,
+            },
+            {
+              action_id: "reject_revise",
+              label: "Reject & revise",
+              enabled: true,
+              variant: "danger",
+              reason_disabled: null,
+            },
+            {
+              action_id: "resume_session",
+              label: "Resume session",
+              enabled: false,
+              variant: "secondary",
+              reason_disabled: "Pause the loop first to use Resume session.",
+            },
+            {
+              action_id: "resume_checkpoint",
+              label: "Resume from checkpoint",
+              enabled: true,
+              variant: "secondary",
+              reason_disabled: null,
+            },
+          ],
+        }),
+      });
+      return;
+    }
+
     if (path.startsWith("agents/sessions/")) {
       if (route.request().method() !== "GET") {
         await route.fallback();

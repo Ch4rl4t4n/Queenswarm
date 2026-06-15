@@ -1763,6 +1763,10 @@ class Settings(BaseSettings):
         default=True,
         description="AL2 — Tool outcome panel at needs_input / approve (tool, sim, critic).",
     )
+    mid_flight_checkpoint_enabled: bool = Field(
+        default=True,
+        description="LOOP4 — Mid-flight checkpoint UX (pause → approve → continue).",
+    )
     factory_queue_slo_enabled: bool = Field(
         default=True,
         description="TR4 — Skill Factory queue SLO panel in factory snapshot.",

@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { BrowserHarnessPanel } from "@/components/hive/browser-harness-panel";
 import { AgentsPanelSkeleton } from "@/components/hive/agents-panel-skeleton";
 import { AgentSessionReportDialog } from "@/components/hive/agent-session-report-dialog";
+import { MidFlightCheckpointPanel } from "@/components/hive/mid-flight-checkpoint-panel";
 import { AutomationLadderPanel } from "@/components/hive/automation-ladder-panel";
 import { InfoHint } from "@/components/hive/info-hint";
 import { SessionPatternSkillsPanel } from "@/components/hive/session-pattern-skills-panel";
@@ -871,6 +872,14 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
                       snapshot={extractSessionPatternSkills(session)}
                       variant="compact"
                     />
+                    {session.status === "needs_input" || session.status === "paused" ? (
+                      <MidFlightCheckpointPanel
+                        sessionId={session.id}
+                        sessionStatus={session.status}
+                        variant="compact"
+                        onChanged={() => void mutate()}
+                      />
+                    ) : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <span className={`qs-pill qs-pill--active-${sessionStatusTone(session.status)}`}>{session.status}</span>
