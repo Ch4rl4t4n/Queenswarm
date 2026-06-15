@@ -1689,6 +1689,10 @@ class Settings(BaseSettings):
         default=True,
         description="NP5 — Trading thesis brief wizard on Trading cockpit (risk preflight artifact).",
     )
+    campaign_launch_wizard_enabled: bool = Field(
+        default=True,
+        description="NP6 — Campaign launch wizard on Marketing Automation (brand → rubric → simulate).",
+    )
     loop_guardrails_enabled: bool = Field(
         default=True,
         description="LOOP2 — Closed-loop guardrails (max turns, min score, cost cap) on supervisor sessions.",

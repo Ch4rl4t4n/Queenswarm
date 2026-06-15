@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, ListChecks, Send } from "lucide-react";
+import { BarChart3, ListChecks, Rocket, Send } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -45,9 +45,21 @@ const ExecutionStudioPublishPerformancePanel = dynamic(
   },
 );
 
-type MarketingSection = "queue" | "publish" | "performance";
+const CampaignLaunchWizardPanel = dynamic(
+  () =>
+    import("@/components/apps-tools/campaign-launch-wizard-panel").then((mod) => ({
+      default: mod.CampaignLaunchWizardPanel,
+    })),
+  {
+    ssr: false,
+    loading: () => <div className="qs-bubble shrink-0 min-h-[10rem] animate-pulse bg-white/5 p-4" aria-hidden />,
+  },
+);
+
+type MarketingSection = "launch" | "queue" | "publish" | "performance";
 
 const SECTION_TO_HASH: Record<MarketingSection, string> = {
+  launch: "campaign-launch-wizard",
   queue: "publish-queue",
   publish: "social-publish",
   performance: "publish-performance",
@@ -55,6 +67,7 @@ const SECTION_TO_HASH: Record<MarketingSection, string> = {
 
 function sectionFromHash(hash: string): MarketingSection | null {
   const key = hash.replace(/^#/, "").trim().toLowerCase();
+  if (key === "campaign-launch-wizard") return "launch";
   if (key === "publish-queue") return "queue";
   if (key === "social-publish") return "publish";
   if (key === "publish-performance") return "performance";
@@ -62,7 +75,7 @@ function sectionFromHash(hash: string): MarketingSection | null {
 }
 
 function sectionFromQuery(raw: string | null): MarketingSection | null {
-  if (raw === "queue" || raw === "publish" || raw === "performance") {
+  if (raw === "launch" || raw === "queue" || raw === "publish" || raw === "performance") {
     return raw;
   }
   return null;
@@ -71,7 +84,7 @@ function sectionFromQuery(raw: string | null): MarketingSection | null {
 export function MarketingAutomationPageClient() {
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
-  const [section, setSection] = useState<MarketingSection>("publish");
+  const [section, setSection] = useState<MarketingSection>("launch");
 
   const updateUrl = useCallback((next: MarketingSection) => {
     const hash = SECTION_TO_HASH[next];
@@ -113,6 +126,7 @@ export function MarketingAutomationPageClient() {
       subnav={
         <HiveSubnavRow
           items={[
+            { id: "launch", label: "Campaign launch", icon: Rocket },
             { id: "queue", label: "Publish queue", icon: ListChecks },
             { id: "publish", label: "Social publish", icon: Send },
             { id: "performance", label: "Performance", icon: BarChart3 },
@@ -128,6 +142,7 @@ export function MarketingAutomationPageClient() {
         />
       }
     >
+      {section === "launch" ? <CampaignLaunchWizardPanel /> : null}
       {section === "queue" ? <ExecutionStudioPublishQueuePanel onError={setError} /> : null}
       {section === "publish" ? <ExecutionStudioSocialPublishPanel onError={setError} /> : null}
       {section === "performance" ? <ExecutionStudioPublishPerformancePanel onError={setError} /> : null}

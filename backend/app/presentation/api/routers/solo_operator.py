@@ -752,4 +752,98 @@ async def solo_loop_guardrails_patch(
     return saved.model_dump(mode="json")
 
 
+@router.get("/campaign-launch-wizard", summary="NP6 Campaign launch wizard snapshot")
+async def solo_campaign_launch_wizard_snapshot(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return 4-step checklist: brand pack → draft → rubric → simulate."""
+
+    from app.application.services.campaign_launch_wizard_service import compose_campaign_launch_wizard_snapshot
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    snapshot = await compose_campaign_launch_wizard_snapshot(db, tenant_id=tenant_id)
+    return snapshot.model_dump(mode="json")
+
+
+@router.patch("/campaign-launch-wizard/draft", summary="NP6 Update campaign draft fields")
+async def solo_campaign_launch_wizard_patch_draft(
+    body: dict[str, Any],
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Persist brand pack and copy draft; resets rubric when copy changes."""
+
+    from app.application.services.campaign_launch_wizard_service import (
+        CampaignLaunchDraftPatchIn,
+        patch_campaign_launch_wizard_draft,
+    )
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    try:
+        patch = CampaignLaunchDraftPatchIn.model_validate(body)
+        snapshot = await patch_campaign_launch_wizard_draft(db, tenant_id=tenant_id, patch=patch)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return snapshot.model_dump(mode="json")
+
+
+@router.post("/campaign-launch-wizard/rubric", summary="NP6 Score draft with marketing rubric")
+async def solo_campaign_launch_wizard_rubric(
+    body: dict[str, Any],
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Run marketing-creative rubric on current draft."""
+
+    from app.application.services.campaign_launch_wizard_service import (
+        CampaignLaunchRubricRunIn,
+        run_campaign_launch_rubric,
+    )
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    try:
+        payload = CampaignLaunchRubricRunIn.model_validate(body or {})
+        result = await run_campaign_launch_rubric(db, tenant_id=tenant_id, body=payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return result.model_dump(mode="json")
+
+
+@router.post("/campaign-launch-wizard/submit", summary="NP6 Archive pack + approve + simulate")
+async def solo_campaign_launch_wizard_submit(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Complete wizard: verified publish pack → queue approve → social simulate."""
+
+    from app.application.services.campaign_launch_wizard_service import submit_campaign_launch_wizard
+
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    try:
+        result = await submit_campaign_launch_wizard(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=user.id,
+            created_by_subject=str(getattr(user, "email", "") or "operator"),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+    await db.commit()
+    return result.model_dump(mode="json")
+
+
 __all__ = ["router"]

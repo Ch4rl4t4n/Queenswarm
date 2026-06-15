@@ -134,7 +134,7 @@ Canonical design for **P10 Track N** — low-effort operator packs inspired by J
 
 **Reuses:** **NP2** · **NP3** · `publish_operator_onboarding` · media agency panel patterns
 
-**Est.:** 2–3 d · **Priority:** P1
+**Est.:** 2–3 d · **Priority:** P1 · **Status:** ✅ (`/apps-tools/marketing-automation` launch tab + snapshot API)
 
 ---
 

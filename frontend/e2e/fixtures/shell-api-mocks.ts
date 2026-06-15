@@ -1927,6 +1927,138 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("solo-operator/campaign-launch-wizard/submit")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          deliverable_id: "00000000-0000-4000-8000-000000000089",
+          queue_status: "approved",
+          simulate_ok: true,
+          simulate_message: "Simulate OK",
+          publish_queue_href: "/apps-tools/marketing-automation?section=queue#publish-queue",
+          social_publish_href: "/apps-tools/marketing-automation?section=publish#social-publish",
+          message: "Campaign pack archived and queue approved. Social simulate completed.",
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("solo-operator/campaign-launch-wizard/rubric")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          passed: true,
+          score: 0.82,
+          pass_threshold: 0.75,
+          template_id: "marketing-creative",
+          template_name: "Marketing Creative (Riverflow)",
+          feedback: "Strong CTA",
+          message: "Rubric pass (82% ≥ 75%).",
+        }),
+      });
+      return;
+    }
+
+    if (path.match(/^solo-operator\/campaign-launch-wizard\/draft$/)) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          progress_pct: 50,
+          steps: [
+            { id: "brand_pack", label: "Pick brand pack", status: "done", detail: "Selected", link: null },
+            { id: "draft_copy", label: "Draft copy", status: "done", detail: "Ready", link: null },
+            { id: "rubric_score", label: "Rubric score", status: "pending", detail: "Run rubric", link: null },
+            { id: "simulate_publish", label: "Simulate publish", status: "pending", detail: "Submit", link: null },
+          ],
+          brand_packs: [
+            {
+              id: "queenswarm-default",
+              label: "Queenswarm default",
+              source: "builtin",
+              detail: "Default voice",
+              ready: true,
+            },
+          ],
+          draft: {
+            brand_pack_id: "queenswarm-default",
+            channel: "instagram",
+            title: "Launch",
+            body: "Campaign body for simulate-first publish lane.",
+            cta: "Try now",
+            hashtags: ["Queenswarm"],
+            media_url: null,
+          },
+          rubric: {
+            template_id: "marketing-creative",
+            template_name: "Marketing Creative",
+            score: null,
+            pass_threshold: 0.75,
+            passed: false,
+            feedback: "",
+          },
+          deliverable_id: null,
+          simulate_ok: null,
+          simulate_message: "",
+          links: {},
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("solo-operator/campaign-launch-wizard")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          progress_pct: 25,
+          steps: [
+            { id: "brand_pack", label: "Pick brand pack", status: "pending", detail: "Select pack", link: null },
+            { id: "draft_copy", label: "Draft copy", status: "pending", detail: "Write copy", link: null },
+            { id: "rubric_score", label: "Rubric score", status: "pending", detail: "Run rubric", link: null },
+            { id: "simulate_publish", label: "Simulate publish", status: "pending", detail: "Submit", link: null },
+          ],
+          brand_packs: [
+            {
+              id: "queenswarm-default",
+              label: "Queenswarm default",
+              source: "builtin",
+              detail: "Default voice",
+              ready: true,
+            },
+          ],
+          draft: {
+            brand_pack_id: null,
+            channel: "instagram",
+            title: "",
+            body: "",
+            cta: "",
+            hashtags: [],
+            media_url: null,
+          },
+          rubric: {
+            template_id: "marketing-creative",
+            template_name: "Marketing Creative",
+            score: null,
+            pass_threshold: 0.75,
+            passed: false,
+            feedback: "",
+          },
+          deliverable_id: null,
+          simulate_ok: null,
+          simulate_message: "",
+          links: {},
+        }),
+      });
+      return;
+    }
+
     if (path.startsWith("solo-operator/trading-thesis-wizard/submit")) {
       await route.fulfill({
         status: 200,
