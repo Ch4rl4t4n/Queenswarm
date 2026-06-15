@@ -43,6 +43,9 @@ async def test_build_episodic_timeline_merges_sources() -> None:
         def __init__(self) -> None:
             self._calls = 0
 
+        async def get(self, _model, _id):  # noqa: ANN001
+            return None
+
         async def scalars(self, _stmt):  # noqa: ANN001
             self._calls += 1
             if self._calls == 1:
@@ -69,6 +72,9 @@ async def test_build_episodic_summary_returns_counts() -> None:
     class _FakeSession:
         def __init__(self) -> None:
             self._scalar_calls = 0
+
+        async def get(self, _model, _id):  # noqa: ANN001
+            return None
 
         async def scalar(self, _stmt):  # noqa: ANN001
             self._scalar_calls += 1

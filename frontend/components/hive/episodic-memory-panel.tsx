@@ -16,6 +16,7 @@ import type { EpisodicMemoryItemRow, EpisodicMemoryPayload, EpisodicSummaryPaylo
 function kindTone(kind: string): "ok" | "warn" | "info" | "err" {
   if (kind === "dump_sleep") return "ok";
   if (kind === "dream_insight") return "info";
+  if (kind === "episodic_capture") return "ok";
   if (kind === "session_summary") return "warn";
   return "info";
 }
@@ -27,7 +28,7 @@ function kindLabel(kind: string): string {
 function filterKind(item: EpisodicMemoryItemRow, tabId: string): boolean {
   if (tabId === "all") return true;
   if (tabId === "events") {
-    return item.kind === "session_event" || item.kind === "session_summary";
+    return item.kind === "session_event" || item.kind === "session_summary" || item.kind === "episodic_capture";
   }
   if (tabId === "insights") return item.kind === "dream_insight";
   if (tabId === "dump") return item.kind === "dump_sleep";

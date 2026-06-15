@@ -1056,6 +1056,24 @@ def run_execution_studio_weekly_rollup_tick_task() -> dict[str, object]:
     return asyncio.run(_run())
 
 
+@celery_app.task(name="hive.episodic_capture_session", queue="hive")
+def episodic_capture_session_task(supervisor_session_id: str, tenant_id: str) -> dict[str, str]:
+    """MEM1 — persist episodic capture after supervisor session completes."""
+
+    async def _run() -> dict[str, str]:
+        async with async_session() as session:
+            from app.application.services.episodic_capture_service import capture_episodic_session
+
+            sup = await session.get(SupervisorSession, uuid.UUID(supervisor_session_id))
+            if sup is None or str(sup.tenant_id) != tenant_id:
+                return {"status": "missing"}
+            ok = await capture_episodic_session(session, session=sup)
+            await session.commit()
+            return {"status": "captured" if ok else "skipped", "session_id": supervisor_session_id}
+
+    return asyncio.run(_run())
+
+
 @celery_app.task(name="hive.grok_control_plane_execute_run", queue="hive")
 def grok_control_plane_execute_run_task(tenant_id: str, run_id: str, execute_commands: bool = False) -> dict[str, str]:
     """Execute one approved Grok Control Plane run."""
@@ -1083,6 +1101,7 @@ __all__ = [
     "run_supervisor_sessions_auto_approve_tick_task",
     "run_execution_studio_codebase_auto_approve_tick_task",
     "run_execution_studio_weekly_rollup_tick_task",
+    "episodic_capture_session_task",
     "grok_control_plane_execute_run_task",
     "run_tenant_audit_retention_tick_task",
     "run_sub_swarm_workflow_cycle_task",

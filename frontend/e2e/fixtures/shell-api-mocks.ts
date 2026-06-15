@@ -452,6 +452,34 @@ const STUB_EPISODIC_TIMELINE = {
   ],
 };
 
+const STUB_EPISODIC_DAILY_LOG = {
+  enabled: true,
+  retention_days: 90,
+  total_captures: 1,
+  operator_hint: "Completed supervisor sessions auto-capture into the daily episodic log.",
+  days: [
+    {
+      date: "2026-05-21",
+      session_count: 1,
+      headline: "Gumroad hero pack",
+      summary_md: "Listing draft with CTA ready for operator approve.",
+      captures: [
+        {
+          capture_id: "capture:stub-1",
+          session_id: "00000000-0000-4000-8000-000000000001",
+          captured_at: "2026-05-21T08:00:00.000Z",
+          day: "2026-05-21",
+          goal: "Gumroad hero pack",
+          summary: "Listing draft with CTA ready for operator approve.",
+          status: "completed",
+          rubric_score: null,
+          href: "/agents?session=stub-1",
+        },
+      ],
+    },
+  ],
+};
+
 const STUB_COST_SUMMARY = {
   window_days: 35,
   series: [{ day: new Date().toISOString().slice(0, 10), spend_usd: 1.25, model: "grok" }],
@@ -1219,6 +1247,15 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           { id: "marketing-creative", name: "Marketing Creative", category: "copy", pass_threshold: 0.75 },
           { id: "brand-compliance", name: "Brand Compliance", category: "copy", pass_threshold: 0.8 },
         ]),
+      });
+      return;
+    }
+
+    if (path.startsWith("memory/episodic/daily-log")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_EPISODIC_DAILY_LOG),
       });
       return;
     }

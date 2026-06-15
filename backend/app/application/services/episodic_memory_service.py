@@ -13,8 +13,9 @@ from app.core.config import settings
 from app.infrastructure.persistence.models.dream_cycle import DreamInsightORM
 from app.infrastructure.persistence.models.dump_sleep_batch import DumpSleepBatchORM, DumpSleepStatusORM
 from app.infrastructure.persistence.models.supervisor_session import SupervisorSession, SupervisorSessionEvent
+from app.infrastructure.persistence.models.tenant import Tenant
 
-EpisodicKind = Literal["session_event", "dream_insight", "dump_sleep", "session_summary"]
+EpisodicKind = Literal["session_event", "dream_insight", "dump_sleep", "session_summary", "episodic_capture"]
 
 
 def _clip(text: str | None, *, max_len: int = 280) -> str:
@@ -82,6 +83,11 @@ async def build_episodic_summary(
         or 0,
     )
 
+    tenant = await session.get(Tenant, tenant_id)
+    from app.application.services.episodic_capture_service import _captures_bucket
+
+    capture_count = len(_captures_bucket(tenant.operator_settings if tenant else None).get("captures") or [])
+
     latest_event = await session.scalar(
         select(SupervisorSessionEvent.occurred_at)
         .where(
@@ -99,8 +105,9 @@ async def build_episodic_summary(
             "dream_insights": insight_count,
             "dump_sleep_batches": dump_count,
             "session_summaries": session_count,
+            "episodic_captures": capture_count,
         },
-        "total_items": event_count + insight_count + dump_count + session_count,
+        "total_items": event_count + insight_count + dump_count + session_count + capture_count,
         "latest_at": latest_event.isoformat() if latest_event else None,
     }
 
@@ -246,6 +253,20 @@ async def build_episodic_timeline(
             },
         )
 
+    items.sort(key=lambda item: str(item.get("occurred_at") or ""), reverse=True)
+
+    tenant = await session.get(Tenant, tenant_id)
+    from app.application.services.episodic_capture_service import (
+        _captures_bucket,
+        list_episodic_capture_timeline_items,
+    )
+
+    capture_items = list_episodic_capture_timeline_items(
+        list(_captures_bucket(tenant.operator_settings if tenant else None).get("captures") or []),
+        cutoff=cutoff,
+        limit=per_source,
+    )
+    items.extend(capture_items)
     items.sort(key=lambda item: str(item.get("occurred_at") or ""), reverse=True)
     trimmed = items[:cap]
 

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.mission_session_index import index_supervisor_session_best_effort
 from app.application.services.operator_mission_feed import push_mission_feed_event
+from app.core.config import settings
 from app.core.logging import get_logger
 from app.infrastructure.persistence.models.supervisor_session import SupervisorSession
 
@@ -61,6 +62,16 @@ async def on_supervisor_session_completed(session: SupervisorSession, *, db: Asy
         from app.application.services.session_learnings_distill import distill_session_learnings_to_curated_memory
 
         await distill_session_learnings_to_curated_memory(db, session=session)
+        if settings.auto_episodic_capture_enabled and settings.episodic_memory_enabled:
+            from app.worker.celery_app import celery_app
+
+            celery_app.send_task(
+                "hive.episodic_capture_session",
+                kwargs={
+                    "supervisor_session_id": str(session.id),
+                    "tenant_id": str(tenant_id),
+                },
+            )
     _logger.info(
         "supervisor.session_completion_hooks.done",
         agent_id="supervisor",

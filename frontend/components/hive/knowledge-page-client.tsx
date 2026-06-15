@@ -24,6 +24,7 @@ import { ProjectShapeGraphPanel } from "@/components/hive/project-shape-graph-pa
 import { OperatorBrainPackPanel } from "@/components/hive/operator-brain-pack-panel";
 import { SecondBrainPackWizardPanel } from "@/components/hive/second-brain-pack-wizard-panel";
 import { HiveSessionSearchPanel } from "@/components/hive/hive-session-search-panel";
+import { EpisodicDailyLogPanel } from "@/components/hive/episodic-daily-log-panel";
 import { EpisodicMemoryPanel } from "@/components/hive/episodic-memory-panel";
 import { DreamingConsole } from "@/components/hive/dreaming-console";
 import { GoalsPanel } from "@/components/hive/goals-panel";
@@ -299,6 +300,8 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
           <SecondBrainPackWizardPanel />
           <OperatorBrainPackPanel />
           <CitedRecallPanel />
+          <EpisodicDailyLogPanel />
+          <EpisodicMemoryPanel />
           <HiveSessionSearchPanel />
           <EpisodicMemoryPanel />
         </div>

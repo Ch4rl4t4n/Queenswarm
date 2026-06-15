@@ -1803,6 +1803,10 @@ class Settings(BaseSettings):
         default=True,
         description="MEM2 — Cited recall panel (answer + sources or not-in-memory).",
     )
+    auto_episodic_capture_enabled: bool = Field(
+        default=True,
+        description="MEM1 — Auto episodic capture when supervisor sessions complete.",
+    )
     factory_queue_slo_enabled: bool = Field(
         default=True,
         description="TR4 — Skill Factory queue SLO panel in factory snapshot.",

@@ -45,6 +45,18 @@ class EpisodicSummaryResponse(BaseModel):
     latest_at: str | None = None
 
 
+class EpisodicDailyLogResponse(BaseModel):
+    """MEM1 daily summarized episodic log."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    enabled: bool = True
+    retention_days: int = 90
+    days: list[dict[str, Any]] = Field(default_factory=list)
+    total_captures: int = 0
+    operator_hint: str = ""
+
+
 def _assert_episodic_enabled() -> None:
     if not settings.episodic_memory_enabled:
         raise HTTPException(
@@ -83,6 +95,21 @@ async def episodic_memory_timeline(
     _assert_episodic_enabled()
     payload = await build_episodic_timeline(db, tenant_id=_tenant_id(principal), limit=limit)
     return EpisodicTimelineResponse(**payload)
+
+
+@router.get("/daily-log", summary="MEM1 Daily episodic capture log")
+async def episodic_daily_log(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    days: int = Query(default=14, ge=1, le=90),
+) -> EpisodicDailyLogResponse:
+    """Return auto-captured session summaries grouped by UTC day."""
+
+    _assert_episodic_enabled()
+    from app.application.services.episodic_capture_service import compose_episodic_daily_log
+
+    payload = await compose_episodic_daily_log(db, tenant_id=_tenant_id(principal), days=days)
+    return EpisodicDailyLogResponse(**payload.model_dump(mode="json"))
 
 
 __all__ = ["router"]
