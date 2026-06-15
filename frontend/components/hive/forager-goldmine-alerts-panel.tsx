@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Send } from "lucide-react";
+import { Loader2, Send, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -41,6 +41,7 @@ export function ForagerGoldmineAlertsPanel({
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [dispatchingId, setDispatchingId] = useState<string | null>(null);
+  const [seedingId, setSeedingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -90,6 +91,30 @@ export function ForagerGoldmineAlertsPanel({
     }
   }
 
+  async function seedFactoryFromAlert(alert: ForagerGoldmineAlertRow) {
+    if (!canManage) return;
+    setSeedingId(alert.forager_id);
+    try {
+      const res = await hivePostJson<{
+        ok: boolean;
+        message: string;
+        opportunity_id?: string;
+        composite_score?: number;
+        build_started?: boolean;
+      }>(`foragers/${encodeURIComponent(alert.forager_id)}/goldmine-factory-seed/submit`, {
+        auto_queue_build: true,
+      });
+      const scoreNote =
+        res.composite_score != null ? ` · score ${Math.round(res.composite_score * 100)}%` : "";
+      toast.success((res.message || "Factory opportunity seeded") + scoreNote);
+      await onDispatched();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Factory seed failed.");
+    } finally {
+      setSeedingId(null);
+    }
+  }
+
   if (!loading && !err && (payload?.enabled === false || !payload?.alerts?.length)) {
     return null;
   }
@@ -101,7 +126,7 @@ export function ForagerGoldmineAlertsPanel({
       <V4Card className="border-pollen/25 bg-pollen/5">
         <V4CardHeader
           title="Goldmine alerts"
-          description="DG7 — new signals since last run · dispatch to Mission Kanban with skill bundle."
+          description="DG7 dispatch · DG8 seed Skill Factory from monitor niche scorecard."
         />
         {loading ? (
           <div className="flex items-center gap-2 text-sm text-(--qs-text-3)">
@@ -116,6 +141,7 @@ export function ForagerGoldmineAlertsPanel({
           <div className="flex flex-col gap-3">
             {alerts.map((alert) => {
               const dispatchBusy = busy === `goldmine-${alert.forager_id}` || dispatchingId === alert.forager_id;
+              const seedBusy = seedingId === alert.forager_id;
               return (
                 <div
                   key={alert.forager_id}
@@ -139,19 +165,35 @@ export function ForagerGoldmineAlertsPanel({
                         </ul>
                       ) : null}
                     </div>
-                    <button
-                      type="button"
-                      className={cn("qs-btn qs-btn--primary qs-btn--sm gap-2 shrink-0")}
-                      disabled={!canManage || dispatchBusy}
-                      onClick={() => void dispatchAlert(alert)}
-                    >
+                    <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+                      <button
+                        type="button"
+                        className={cn("qs-btn qs-btn--ghost qs-btn--sm gap-2")}
+                        disabled={!canManage || seedBusy || dispatchBusy}
+                        data-testid={`goldmine-factory-seed-${alert.forager_id}`}
+                        onClick={() => void seedFactoryFromAlert(alert)}
+                      >
+                        {seedBusy ? (
+                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                        ) : (
+                          <Sparkles className="h-4 w-4" aria-hidden />
+                        )}
+                        Factory seed
+                      </button>
+                      <button
+                        type="button"
+                        className={cn("qs-btn qs-btn--primary qs-btn--sm gap-2")}
+                        disabled={!canManage || dispatchBusy || seedBusy}
+                        onClick={() => void dispatchAlert(alert)}
+                      >
                       {dispatchBusy ? (
                         <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
                       ) : (
                         <Send className="h-4 w-4" aria-hidden />
                       )}
-                      Dispatch
-                    </button>
+                        Dispatch
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

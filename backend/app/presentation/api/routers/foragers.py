@@ -187,6 +187,14 @@ class ForagerExportApproveRequest(BaseModel):
     knowledge_ids: list[uuid.UUID] = Field(min_length=1, max_length=100)
 
 
+class GoldmineFactorySeedSubmitRequest(BaseModel):
+    """DG8 — seed Skill Factory from goldmine monitor."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    auto_queue_build: bool = Field(default=True)
+
+
 class ForagerSpawnPolicyView(BaseModel):
     """Tenant forager auto-spawn approval policy."""
 
@@ -499,6 +507,18 @@ async def forager_export_lane_snapshot(
     from app.application.services.forager_export_lane_service import compose_export_lane_snapshot_async
 
     return (await compose_export_lane_snapshot_async(db)).model_dump(mode="json")
+
+
+@router.get("/goldmine-factory-seed", summary="DG8 Goldmine → Skill Factory seed snapshot")
+async def goldmine_factory_seed_snapshot(
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return DG8 factory seed lane capabilities."""
+
+    _require_forager_read(principal)
+    from app.application.services.forager_goldmine_factory_seed_service import compose_goldmine_factory_seed_snapshot
+
+    return compose_goldmine_factory_seed_snapshot().model_dump(mode="json")
 
 
 @router.get("/{id}", response_model=ForagerResponse, summary="Get forager by id")
@@ -991,6 +1011,74 @@ async def forager_export_lane_approve(
     )
     await db.commit()
     return {"ok": True, "tagged": tagged}
+
+
+@router.post("/{id}/goldmine-factory-seed/preview", summary="DG8 Preview Skill Factory seed scorecard")
+async def goldmine_factory_seed_preview(
+    id: uuid.UUID,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Scorecard preview for goldmine monitor → Skill Factory opportunity."""
+
+    _require_forager_read(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.forager_goldmine_factory_seed_service import preview_goldmine_factory_seed
+
+    try:
+        preview = await preview_goldmine_factory_seed(db, tenant_id=tenant_id, forager_id=id)
+    except ValueError as exc:
+        err = str(exc)
+        if err == "goldmine_factory_seed_disabled":
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Factory seed disabled.") from exc
+        if err == "skill_factory_disabled":
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Skill Factory disabled.") from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=err) from exc
+    if preview is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Forager not found.")
+    return preview.model_dump(mode="json")
+
+
+@router.post(
+    "/{id}/goldmine-factory-seed/submit",
+    summary="DG8 Seed Skill Factory from goldmine monitor",
+    status_code=status.HTTP_201_CREATED,
+)
+async def goldmine_factory_seed_submit(
+    id: uuid.UUID,
+    body: GoldmineFactorySeedSubmitRequest,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Create ranked Skill Factory opportunity from monitor niche."""
+
+    _require_forager_write(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.forager_goldmine_factory_seed_service import submit_goldmine_factory_seed
+
+    try:
+        result = await submit_goldmine_factory_seed(
+            db,
+            tenant_id=tenant_id,
+            forager_id=id,
+            created_by_subject=str(principal.get("sub") or "dashboard:goldmine-factory-seed"),
+            auto_queue_build=body.auto_queue_build,
+        )
+    except ValueError as exc:
+        err = str(exc)
+        if err == "goldmine_factory_seed_disabled":
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Factory seed disabled.") from exc
+        if err == "skill_factory_disabled":
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Skill Factory disabled.") from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=err) from exc
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Forager not found.")
+    await db.commit()
+    return result.model_dump(mode="json")
 
 
 @router.get(

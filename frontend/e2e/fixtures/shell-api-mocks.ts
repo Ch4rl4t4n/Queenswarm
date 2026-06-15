@@ -504,6 +504,24 @@ const STUB_FORAGER_GOLDMINE_ALERTS = {
   operator_hint: "Dispatch attaches a skill bundle and parks triage on Mission Kanban.",
 };
 
+const STUB_GOLDMINE_FACTORY_SEED_PREVIEW = {
+  forager_id: "e2e-forager-goldmine-1",
+  forager_name: "E2E YouTube Intel",
+  niche: "Social channels public data monitor skill pack",
+  title: "Goldmine · E2E YouTube Intel",
+  rationale: "Demand 72% · composite 68%. Goldmine monitor: 12 ingested · 3 new since last run.",
+  demand_score: 0.72,
+  competition_score: 0.28,
+  buildability_score: 0.68,
+  composite_score: 0.68,
+  suggested_price_eur_cents: 1900,
+  items_total: 12,
+  new_item_count: 3,
+  existing_opportunity_id: null,
+  would_queue: false,
+  operator_hint: "Seeds as pending — review in Skill Factory queue.",
+};
+
 const STUB_DATA_MONITOR_WIZARD = {
   enabled: true,
   min_intent_chars: 12,
@@ -3025,6 +3043,45 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ tenants: [], active_tenant_id: null }),
+      });
+      return;
+    }
+
+    if (path.startsWith("foragers/goldmine-factory-seed")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          skill_factory_enabled: true,
+          operator_hint: "Seed Skill Factory from goldmine monitor niche.",
+        }),
+      });
+      return;
+    }
+
+    if (path.match(/^foragers\/[^/]+\/goldmine-factory-seed\/submit/)) {
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          forager_id: "e2e-forager-goldmine-1",
+          opportunity_id: "e2e-opportunity-goldmine-1",
+          status: "pending",
+          composite_score: 0.68,
+          build_started: false,
+          message: "Skill Factory opportunity seeded — composite 68% · status pending",
+        }),
+      });
+      return;
+    }
+
+    if (path.match(/^foragers\/[^/]+\/goldmine-factory-seed\/preview/)) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_GOLDMINE_FACTORY_SEED_PREVIEW),
       });
       return;
     }
