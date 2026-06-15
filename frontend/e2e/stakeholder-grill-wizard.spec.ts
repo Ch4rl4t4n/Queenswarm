@@ -14,7 +14,7 @@ test.describe("Stakeholder Grill wizard (NP1)", () => {
 
   test("mission kanban shows grill wizard entry", async ({ page }) => {
     await page.goto("/tasks");
-    await expect(page.getByRole("heading", { name: e2eTasksHubHeading })).toBeVisible({
+    await expect(page.getByRole("heading", { name: e2eTasksHubHeading() })).toBeVisible({
       timeout: 30_000,
     });
     await expect(page.getByRole("heading", { name: "Grill my brief" })).toBeVisible();
