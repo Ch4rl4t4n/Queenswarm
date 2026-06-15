@@ -21,6 +21,10 @@ export interface FactoryQueueSlo {
   weekly_cap_pct: number;
   alerts: string[];
   next_operator_action: string;
+  loop5_preset_id?: string | null;
+  loop5_preset_label?: string | null;
+  loop5_min_score?: number | null;
+  loop5_max_turns?: number | null;
 }
 
 interface FactoryQueueSloPanelProps {
@@ -110,6 +114,14 @@ export function FactoryQueueSloPanel({ slo }: FactoryQueueSloPanelProps): JSX.El
       <p className="border-t border-white/10 px-4 py-3 text-sm text-white/80">
         <span className="text-white/50">Next: </span>
         {slo.next_operator_action}
+        {slo.loop5_preset_label ? (
+          <span className="mt-1 block text-xs text-white/50">
+            LOOP5 preset: {slo.loop5_preset_label}
+            {slo.loop5_min_score != null && slo.loop5_max_turns != null
+              ? ` · min ${(slo.loop5_min_score * 5).toFixed(1)}/5 · ${slo.loop5_max_turns} turns`
+              : null}
+          </span>
+        ) : null}
         {slo.status !== "healthy" ? (
           <>
             {" "}

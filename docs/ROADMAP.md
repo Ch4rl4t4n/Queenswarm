@@ -604,7 +604,7 @@ _Signal: [WTF Is an AI Agent Loop? Genius or Hype?](https://www.youtube.com/watc
 | LOOP2 | **Loop guardrails panel** — max turns, min score, cost cap per loop | P0 | 2 d | ✅ | CostGovernor + session context |
 | LOOP3 | **Agent Loop Timeline** (Think→Act→Observe) | P0 | — | ⏳ | **Same as AL1** — single implementation |
 | LOOP4 | **Mid-flight checkpoint UX** — pause loop → operator approve → continue | P1 | 2–3 d | ⏳ | `needs_input` prominent CTA |
-| LOOP5 | **Closed-loop presets** — Skill Factory critic loop · Social intel score→task · SEO bulk (simulate-only) | P1 | 2–3 d | ⏳ | Skill bundles + TR4 SLO fields |
+| LOOP5 | **Closed-loop presets** — Skill Factory critic loop · Social intel score→task · SEO bulk (simulate-only) | P1 | 2–3 d | ✅ | Skill bundles + TR4 SLO fields |
 
 **Anti-patterns (⛔ skip):** wide-open `/goal` whole-product loop · loop without objective score · single PR/session >1k LOC without slice.
 

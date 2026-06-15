@@ -83,9 +83,15 @@ async def test_compose_factory_queue_slo_warn_on_weekly_cap(monkeypatch: pytest.
     monkeypatch.setattr(config.settings, "factory_queue_slo_weekly_cap_warn_pct", 0.85)
 
     session = AsyncMock()
-    with patch(
-        "app.application.services.skill_factory_research._weekly_build_count",
-        AsyncMock(return_value=9),
+    with (
+        patch(
+            "app.application.services.skill_factory_research._weekly_build_count",
+            AsyncMock(return_value=9),
+        ),
+        patch(
+            "app.application.services.closed_loop_presets_service.get_active_loop5_preset_for_tenant",
+            AsyncMock(return_value=None),
+        ),
     ):
         result = await compose_factory_queue_slo(
             session,

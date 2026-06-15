@@ -43,9 +43,17 @@ export function ClosedReviewLoopPanel(): JSX.Element {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const rows = await hiveGet<RubricTemplateRow[]>("harness/rubric-templates");
+      const [rows, presets] = await Promise.all([
+        hiveGet<RubricTemplateRow[]>("harness/rubric-templates"),
+        hiveGet<{ active_rubric_template_id: string | null }>("solo-operator/closed-loop-presets").catch(
+          () => ({ active_rubric_template_id: null }),
+        ),
+      ]);
       setTemplates(rows);
-      if (rows.length > 0 && !rows.some((row) => row.id === templateId)) {
+      const activeTemplate = presets.active_rubric_template_id;
+      if (activeTemplate && rows.some((row) => row.id === activeTemplate)) {
+        setTemplateId(activeTemplate);
+      } else if (rows.length > 0 && !rows.some((row) => row.id === templateId)) {
         setTemplateId(rows[0]?.id ?? "copy-marketing");
       }
     } catch {

@@ -2141,6 +2141,49 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("solo-operator/closed-loop-presets/apply")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          preset_id: "factory_forge",
+          label: "Skill Factory critic loop",
+          rubric_template_id: "code-review",
+          max_turns: 6,
+          min_score: 0.8,
+          message: "Applied Skill Factory critic loop — LOOP2 guardrails updated.",
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("solo-operator/closed-loop-presets")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          active_preset_id: "factory_forge",
+          active_rubric_template_id: "code-review",
+          presets: [
+            {
+              preset_id: "factory_forge",
+              label: "Skill Factory critic loop",
+              description: "Forge queue builds",
+              lane: "factory",
+              rubric_template_id: "code-review",
+              max_turns: 6,
+              min_score: 0.8,
+              simulate_only: false,
+              href: "/factory?tab=queue",
+            },
+          ],
+        }),
+      });
+      return;
+    }
+
     if (path.startsWith("solo-operator/loop-guardrails")) {
       await route.fulfill({
         status: 200,

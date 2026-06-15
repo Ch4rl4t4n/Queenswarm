@@ -23,6 +23,7 @@ import { SlackHarnessTrainerPanel } from "@/components/hive/slack-harness-traine
 import { LoopGuardrailsPanel } from "@/components/hive/loop-guardrails-panel";
 import { LspBridgePanel } from "@/components/hive/lsp-bridge-panel";
 import { ClosedReviewLoopPanel } from "@/components/hive/closed-review-loop-panel";
+import { ClosedLoopPresetsPanel } from "@/components/hive/closed-loop-presets-panel";
 import { RubricTemplatesPanel } from "@/components/hive/rubric-templates-panel";
 import { QueenMaintainerWebhookPanel } from "@/components/hive/queen-maintainer-webhook-panel";
 import type { HarnessRulesSection } from "@/lib/settings-harness-rules-routes";
@@ -310,6 +311,7 @@ export function SettingsHarnessPanel({ section }: SettingsHarnessPanelProps): JS
               return (
                 <>
                   <RubricTemplatesPanel snapshot={snapshot} />
+                  <ClosedLoopPresetsPanel />
                   <ClosedReviewLoopPanel />
                 </>
               );

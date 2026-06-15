@@ -752,6 +752,78 @@ async def solo_loop_guardrails_patch(
     return saved.model_dump(mode="json")
 
 
+@router.get("/closed-loop-presets", summary="LOOP5 Closed-loop preset catalog")
+async def solo_closed_loop_presets_snapshot(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return Factory · social intel · publish/SEO bulk preset catalog."""
+
+    from app.application.services.closed_loop_presets_service import compose_closed_loop_presets_snapshot
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    snapshot = await compose_closed_loop_presets_snapshot(db, tenant_id=tenant_id)
+    return snapshot.model_dump(mode="json")
+
+
+@router.post("/closed-loop-presets/apply", summary="LOOP5 Apply preset to loop guardrails")
+async def solo_closed_loop_presets_apply(
+    body: dict[str, Any],
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Set LOOP2 max turns, min score, and default rubric from preset."""
+
+    from app.application.services.closed_loop_presets_service import (
+        ClosedLoopPresetApplyIn,
+        apply_closed_loop_preset,
+    )
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    try:
+        payload = ClosedLoopPresetApplyIn.model_validate(body)
+        result = await apply_closed_loop_preset(db, tenant_id=tenant_id, body=payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return result.model_dump(mode="json")
+
+
+@router.post("/closed-loop-presets/social-intel-score", summary="LOOP5 Score intel → Kanban task")
+async def solo_closed_loop_presets_social_intel(
+    body: dict[str, Any],
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Run social intel preset closed loop; create triage task when rubric passes."""
+
+    from app.application.services.closed_loop_presets_service import (
+        SocialIntelScoreIn,
+        run_social_intel_score_to_task,
+    )
+
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    try:
+        payload = SocialIntelScoreIn.model_validate(body)
+        result = await run_social_intel_score_to_task(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=user.id,
+            body=payload,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return result.model_dump(mode="json")
+
+
 @router.get("/brand-context-pack", summary="NP3 Brand Context Pack snapshot")
 async def solo_brand_context_pack_snapshot(
     db: DbSession,

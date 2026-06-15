@@ -33,6 +33,10 @@ class FactoryQueueSloOut(BaseModel):
     weekly_cap_pct: float = 0.0
     alerts: list[str] = Field(default_factory=list)
     next_operator_action: str = "Queue healthy — no action required."
+    loop5_preset_id: str | None = None
+    loop5_preset_label: str | None = None
+    loop5_min_score: float | None = None
+    loop5_max_turns: int | None = None
 
 
 def _critic_metrics(forge_critic_approved: list[bool | None]) -> tuple[float | None, int]:
@@ -138,6 +142,30 @@ async def compose_factory_queue_slo(
         weekly_cap_warn_pct=settings.factory_queue_slo_weekly_cap_warn_pct,
     )
 
+    loop5_preset_id: str | None = None
+    loop5_preset_label: str | None = None
+    loop5_min_score: float | None = None
+    loop5_max_turns: int | None = None
+    if settings.closed_loop_presets_enabled:
+        from app.application.services.closed_loop_presets_service import get_active_loop5_preset_for_tenant
+
+        active = await get_active_loop5_preset_for_tenant(session, tenant_id=tenant_id)
+        if active is not None:
+            loop5_preset_id = active.preset_id
+            loop5_preset_label = active.label
+            loop5_min_score = active.min_score
+            loop5_max_turns = active.max_turns
+        else:
+            factory_preset = None
+            from app.application.services.closed_loop_presets_service import get_closed_loop_preset
+
+            factory_preset = get_closed_loop_preset("factory_forge")
+            if factory_preset is not None:
+                loop5_preset_id = factory_preset.preset_id
+                loop5_preset_label = factory_preset.label
+                loop5_min_score = factory_preset.min_score
+                loop5_max_turns = factory_preset.max_turns
+
     _logger.info(
         "factory_queue_slo.composed",
         agent_id="factory_queue_slo",
@@ -161,6 +189,10 @@ async def compose_factory_queue_slo(
         weekly_cap_pct=weekly_pct,
         alerts=alerts,
         next_operator_action=next_action,
+        loop5_preset_id=loop5_preset_id,
+        loop5_preset_label=loop5_preset_label,
+        loop5_min_score=loop5_min_score,
+        loop5_max_turns=loop5_max_turns,
     )
 
 

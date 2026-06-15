@@ -1751,6 +1751,10 @@ class Settings(BaseSettings):
         default=True,
         description="LOOP1 — Closed review loop (rubric score → self-heal → re-run).",
     )
+    closed_loop_presets_enabled: bool = Field(
+        default=True,
+        description="LOOP5 — Closed-loop presets (Factory · social intel · publish/SEO bulk).",
+    )
     factory_queue_slo_enabled: bool = Field(
         default=True,
         description="TR4 — Skill Factory queue SLO panel in factory snapshot.",
