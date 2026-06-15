@@ -19,7 +19,9 @@ test.describe("Stakeholder Grill wizard (NP1)", () => {
     });
     await expect(page.getByRole("heading", { name: "Grill my brief" })).toBeVisible();
     await page.getByRole("button", { name: "Open wizard" }).click();
-    await expect(page.getByText("Problem / opportunity")).toBeVisible();
-    await expect(page.getByText("Kill criteria")).toBeVisible();
+    await expect(page.getByText("Problem / opportunity", { exact: true })).toBeVisible();
+    await expect(
+      page.locator("#stakeholder-grill-wizard").getByText("Kill criteria", { exact: true }),
+    ).toBeVisible();
   });
 });
