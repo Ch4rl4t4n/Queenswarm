@@ -1755,6 +1755,10 @@ class Settings(BaseSettings):
         default=True,
         description="LOOP5 — Closed-loop presets (Factory · social intel · publish/SEO bulk).",
     )
+    agent_loop_timeline_enabled: bool = Field(
+        default=True,
+        description="AL1/LOOP3 — Goal → Plan → Tool → Verify timeline in session drawer.",
+    )
     factory_queue_slo_enabled: bool = Field(
         default=True,
         description="TR4 — Skill Factory queue SLO panel in factory snapshot.",

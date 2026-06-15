@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { AgentLoopTimelinePanel } from "@/components/hive/agent-loop-timeline-panel";
 import { AgentSessionEventLog } from "@/components/hive/agent-session-event-log";
 import { SessionLoopGuardrailsStrip } from "@/components/hive/session-loop-guardrails-strip";
 import { HiveModalShell, hiveModalScrollBodyClass } from "@/components/hive/hive-modal-shell";
@@ -258,6 +259,8 @@ export function AgentSessionReportDialog({ sessionId, open, onOpenChange }: Agen
                   </p>
                 ) : null}
               </section>
+
+              <AgentLoopTimelinePanel sessionId={session.id} sessionStatus={session.status} />
 
               <SessionLoopGuardrailsStrip sessionId={session.id} sessionStatus={session.status} />
 

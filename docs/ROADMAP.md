@@ -501,7 +501,7 @@ _Goal → Think → Tools → Verify visible in UI — not buried in event JSON.
 
 | ID | Item | Priority | Est. | Status | Gate / asset |
 |----|------|----------|------|--------|--------------|
-| AL1 | **Agent Loop Timeline** — Goal → Plan → Tool → Verify per session | P0 | 3–4 d | ⏳ | Agents session drawer · reuse `session_events` |
+| AL1 | **Agent Loop Timeline** — Goal → Plan → Tool → Verify per session | P0 | 3–4 d | ✅ | Agents session drawer · reuse `session_events` |
 | AL2 | **Tool Outcome Panel** at approve / `needs_input` | P0 | 2–3 d | ⏳ | Tool name, args summary, sim result, critic |
 | AL3 | **Goal progress strip** on Mission Kanban lineage | P1 | 2 d | ⏳ | `supervisor_sessions` + durable step count |
 | AL4 | **Pattern + tool explainer** chip per step | P1 | 2 d | ⏳ | Pattern Router payload + tool registry label |
@@ -602,7 +602,7 @@ _Signal: [WTF Is an AI Agent Loop? Genius or Hype?](https://www.youtube.com/watc
 |----|------|----------|------|--------|--------------|
 | LOOP1 | **Closed Review Loop skill** — rubric score → self-heal → re-run (max N turns, min score) | P0 | 3–4 d | ✅ | Queen Maintainer + `rubric_templates` · Greptile pattern |
 | LOOP2 | **Loop guardrails panel** — max turns, min score, cost cap per loop | P0 | 2 d | ✅ | CostGovernor + session context |
-| LOOP3 | **Agent Loop Timeline** (Think→Act→Observe) | P0 | — | ⏳ | **Same as AL1** — single implementation |
+| LOOP3 | **Agent Loop Timeline** (Think→Act→Observe) | P0 | — | ✅ | **Same as AL1** — single implementation |
 | LOOP4 | **Mid-flight checkpoint UX** — pause loop → operator approve → continue | P1 | 2–3 d | ⏳ | `needs_input` prominent CTA |
 | LOOP5 | **Closed-loop presets** — Skill Factory critic loop · Social intel score→task · SEO bulk (simulate-only) | P1 | 2–3 d | ✅ | Skill bundles + TR4 SLO fields |
 
@@ -774,7 +774,7 @@ _Signal: [Claude Agent OS / Hermes Mission Control](https://www.youtube.com/watc
 | P0 UX clarity | **UX0–UX3, UX6** | Process rail · Mission Home · first-run · responsive |
 | P0 sovereign | **LOC1–LOC4, LOC11–LOC12** | Ollama · air-gap · local UI · E2E |
 | P0 vertical | **NP7, NP4** | Investments profile · product brief template |
-| P0 trust | TR4, AL1/LOOP3, AL2, **LOOP1, LOOP2** | Factory SLO · agent loop UI · closed loops |
+| P0 trust | TR4, **AL1/LOOP3**, AL2, **LOOP1, LOOP2** | Factory SLO · agent loop UI · closed loops |
 | P1 vertical | **NP1–NP3, NP5–NP6** | Grill · brand · rubric · campaign · thesis |
 | P1 broker | **RA3–RA5, RA1–RA2** | Guardrails · HITL orders · Robinhood MCP |
 | P0 work intel | **DG1, DG3, DG7** | Data Monitor · delta alerts · dispatch |

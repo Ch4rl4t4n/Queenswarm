@@ -1805,6 +1805,81 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.match(/^agents\/sessions\/[^/]+\/loop-guardrails$/)) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          status: "healthy",
+          max_turns: 5,
+          turns_used: 1,
+          min_score_label: "4.0/5",
+          last_rubric_score: null,
+          cost_cap_usd: 0.5,
+          spent_usd: 0.08,
+          cost_utilization: 0.16,
+          alerts: [],
+          next_operator_action: "Loop within guardrails — continue or approve when critic passes.",
+        }),
+      });
+      return;
+    }
+
+    if (path.match(/^agents\/sessions\/[^/]+\/loop-timeline$/)) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          session_id: path.split("/")[2] ?? "00000000-0000-4000-8000-000000000001",
+          session_status: "needs_input",
+          current_phase: "verify",
+          progress_pct: 78,
+          loop_chip: "Verify · 78%",
+          phases: [
+            {
+              phase_id: "goal",
+              label: "Goal",
+              status: "done",
+              summary: "Execution Studio pending approval session",
+              event_count: 1,
+              latest_at: new Date().toISOString(),
+              highlights: ["Session objective set."],
+            },
+            {
+              phase_id: "plan",
+              label: "Plan",
+              status: "done",
+              summary: "2 sub-agent lane(s) planned.",
+              event_count: 2,
+              latest_at: new Date().toISOString(),
+              highlights: ["Spawned researcher"],
+            },
+            {
+              phase_id: "tool",
+              label: "Tool",
+              status: "done",
+              summary: "2/2 sub-agents executed.",
+              event_count: 4,
+              latest_at: new Date().toISOString(),
+              highlights: ["Researcher completed"],
+            },
+            {
+              phase_id: "verify",
+              label: "Verify",
+              status: "active",
+              summary: "Awaiting operator approve or input.",
+              event_count: 1,
+              latest_at: new Date().toISOString(),
+              highlights: ["Approve publish pack"],
+            },
+          ],
+        }),
+      });
+      return;
+    }
+
     if (path.startsWith("agents/sessions/")) {
       if (route.request().method() !== "GET") {
         await route.fallback();
@@ -2195,27 +2270,6 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           cost_cap_usd: 0.5,
           cost_warn_ratio: 0.6,
           source: "deployment",
-        }),
-      });
-      return;
-    }
-
-    if (path.match(/^agents\/sessions\/[^/]+\/loop-guardrails$/)) {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          enabled: true,
-          status: "healthy",
-          max_turns: 5,
-          turns_used: 1,
-          min_score_label: "4.0/5",
-          last_rubric_score: null,
-          cost_cap_usd: 0.5,
-          spent_usd: 0.08,
-          cost_utilization: 0.16,
-          alerts: [],
-          next_operator_action: "Loop within guardrails — continue or approve when critic passes.",
         }),
       });
       return;

@@ -1158,6 +1158,27 @@ async def get_agent_session_loop_guardrails(
 
 
 @router.get(
+    "/sessions/{session_id}/loop-timeline",
+    summary="AL1/LOOP3 Agent Loop Timeline — Goal → Plan → Tool → Verify",
+)
+async def get_agent_session_loop_timeline(
+    session_id: uuid.UUID,
+    _sess: DashboardSession,
+    db: DbSession,
+    _: bool = Depends(require_tenant_permission("supervisor:view")),
+) -> dict[str, Any]:
+    """Return structured loop phases for session drawer narrative."""
+
+    from app.application.services.agent_loop_timeline_service import compose_agent_loop_timeline
+
+    row = await get_supervisor_session(db, session_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Supervisor session not found.")
+    timeline = await compose_agent_loop_timeline(db, supervisor_session=row)
+    return timeline.model_dump(mode="json")
+
+
+@router.get(
     "/sessions/{session_id}/shared-context",
     response_model=SupervisorSharedContextView,
     summary="Resolve shared memory retrieval bundle for one session",
