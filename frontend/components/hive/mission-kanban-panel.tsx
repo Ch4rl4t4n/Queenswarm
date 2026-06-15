@@ -8,6 +8,7 @@ import { TasksKanbanBoard } from "@/components/hive/tasks-kanban-board";
 import { StakeholderGrillWizardPanel } from "@/components/hive/stakeholder-grill-wizard-panel";
 import { VideoUrlBatchWizardPanel } from "@/components/hive/video-url-batch-wizard-panel";
 import { SkillPickerChips } from "@/components/hive/skill-picker-chips";
+import { MissionKanbanRecipeMatchPanel } from "@/components/hive/mission-kanban-recipe-match-panel";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { celebrateVerifiedOutcome } from "@/lib/celebrate-verified-outcome";
 import { HiveApiError, hiveDelete, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
@@ -25,6 +26,7 @@ interface MissionKanbanDispatchResponse {
   task_id: string;
   child_count: number;
   execution: string;
+  recipe_match?: { name: string; similarity: number; postgres_recipe_id?: string | null } | null;
 }
 
 interface MissionKanbanTriageResponse {
@@ -57,11 +59,21 @@ export function MissionKanbanPanel({ onOpenTask, refreshSignal = 0 }: MissionKan
   const [selectedDoneIds, setSelectedDoneIds] = useState<Set<string>>(() => new Set());
   const [dispatchSkills, setDispatchSkills] = useState<string[]>([]);
   const [autoMatchSkills, setAutoMatchSkills] = useState(true);
+  const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
+  const [enrichRecipes, setEnrichRecipes] = useState(true);
 
-  const executionPayload = useMemo(
-    () => (!autoMatchSkills && dispatchSkills.length > 0 ? { skills: dispatchSkills } : {}),
-    [autoMatchSkills, dispatchSkills],
-  );
+  const executionPayload = useMemo(() => {
+    const base: Record<string, unknown> = {
+      enrich_from_chroma_recipes: enrichRecipes,
+    };
+    if (!autoMatchSkills && dispatchSkills.length > 0) {
+      base.skills = dispatchSkills;
+    }
+    if (selectedRecipeId) {
+      base.matching_recipe_id = selectedRecipeId;
+    }
+    return base;
+  }, [autoMatchSkills, dispatchSkills, enrichRecipes, selectedRecipeId]);
 
   const reload = useCallback(async () => {
     try {
@@ -112,9 +124,16 @@ export function MissionKanbanPanel({ onOpenTask, refreshSignal = 0 }: MissionKan
       if (bundle.autoDispatch) {
         const res = await hivePostJson<MissionKanbanDispatchResponse>(
           `operator/mission-kanban/dispatch/${encodeURIComponent(triage.task_id)}`,
-          { start_execution: true, defer_to_worker: true, execution_payload: executionPayload },
+          {
+            start_execution: true,
+            defer_to_worker: true,
+            execution_payload: executionPayload,
+            matching_recipe_id: selectedRecipeId ?? undefined,
+            enrich_from_chroma_recipes: enrichRecipes,
+          },
         );
-        toast.success(`${bundle.label} dispatched · ${res.child_count} child slices`);
+        const recipeHint = res.recipe_match?.name ? ` · recipe ${res.recipe_match.name}` : "";
+        toast.success(`${bundle.label} dispatched · ${res.child_count} child slices${recipeHint}`);
       } else {
         toast.success(`${bundle.label} added to Triage — review then Dispatch.`);
       }
@@ -171,10 +190,17 @@ export function MissionKanbanPanel({ onOpenTask, refreshSignal = 0 }: MissionKan
       for (const t of triageTasks) {
         const res = await hivePostJson<MissionKanbanDispatchResponse>(
           `operator/mission-kanban/dispatch/${encodeURIComponent(t.id)}`,
-          { start_execution: true, defer_to_worker: true, execution_payload: executionPayload },
+          {
+            start_execution: true,
+            defer_to_worker: true,
+            execution_payload: executionPayload,
+            matching_recipe_id: selectedRecipeId ?? undefined,
+            enrich_from_chroma_recipes: enrichRecipes,
+          },
         );
         dispatched += 1;
-        toast.success(`Dispatched "${t.title}" · ${res.child_count} child slices`);
+        const recipeHint = res.recipe_match?.name ? ` · recipe ${res.recipe_match.name}` : "";
+        toast.success(`Dispatched "${t.title}" · ${res.child_count} child slices${recipeHint}`);
       }
       await reload();
       if (dispatched === 0) {
@@ -369,6 +395,14 @@ export function MissionKanbanPanel({ onOpenTask, refreshSignal = 0 }: MissionKan
             + Add
           </button>
         </div>
+
+        <MissionKanbanRecipeMatchPanel
+          query={newTitle}
+          selectedRecipeId={selectedRecipeId}
+          onSelectRecipe={setSelectedRecipeId}
+          enrichRecipes={enrichRecipes}
+          onEnrichRecipesChange={setEnrichRecipes}
+        />
 
         <SkillPickerChips
           className="mt-3"

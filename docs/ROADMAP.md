@@ -546,7 +546,7 @@ _MK6/MK7 remain in P0 letagentscook table above._
 
 | ID | Item | Priority | Est. | Status | Gate / asset |
 |----|------|----------|------|--------|--------------|
-| FP1 | **Recipe cosine matching UI** on dispatch | P1 | 3–4 d | ⏳ | Recipe Library + triage |
+| FP1 | **Recipe cosine matching UI** on dispatch | P1 | 3–4 d | ✅ | `mission_kanban_recipe_match_service`, Mission Kanban panel, dispatch enrich |
 | FP2 | **Rapid loop dashboard widget** on solo home | P1 | 2 d | ✅ | `rapid-loop-widget` on Mission Home · `GET /dashboard/rapid-loop` |
 | FP3 | **Sub-swarm local hive mind UI** | P2 | 5–7 d | ⏳ | 5–10 bee groups + 5 min sync viz |
 | FP4 | **Commercial tier self-serve** (billing + limits) | P2 | 10+ d | ⏳ | Stripe + feature gates |

@@ -22,7 +22,7 @@ from app.infrastructure.persistence.models.swarm import SubSwarm
 from app.infrastructure.persistence.models.task import Task
 from app.infrastructure.persistence.models.workflow import Workflow, WorkflowStep
 from app.common.schemas.recipes_write import RecipeCreateBody
-from app.common.schemas.workflow_breaker import PreviewDecompositionResponse
+from app.common.schemas.workflow_breaker import PreviewDecompositionResponse, RecipeMatchBrief
 from app.common.http.rate_limit import rate_limited_http_exception
 from app.application.services.hive_async_workflow_run_ledger import enqueue_hive_async_workflow_run
 from app.application.services.plugin_hub import bump_plugin_generation, plugin_manifest
@@ -32,6 +32,10 @@ from app.application.services.recipe_write import (
     create_recipe_entry,
 )
 from app.application.services.sub_swarm.runner import run_sub_swarm_workflow_cycle
+from app.application.services.mission_kanban_recipe_match_service import (
+    MissionKanbanRecipeMatchOut,
+    compose_mission_kanban_recipe_match,
+)
 from app.application.services.mission_kanban import (
     MissionKanbanNotFoundError,
     MissionKanbanStateError,
@@ -216,6 +220,11 @@ class MissionKanbanDispatchRequest(BaseModel):
     start_execution: bool = True
     defer_to_worker: bool = True
     execution_payload: dict[str, Any] = Field(default_factory=dict)
+    matching_recipe_id: uuid.UUID | None = None
+    enrich_from_chroma_recipes: bool | None = Field(
+        default=None,
+        description="When true, cosine-match Recipe Library during dispatch (FP1).",
+    )
 
 
 class MissionKanbanDispatchResponse(BaseModel):
@@ -224,6 +233,7 @@ class MissionKanbanDispatchResponse(BaseModel):
     child_count: int
     celery_task_id: str | None = None
     execution: Literal["queued", "inline", "skipped"]
+    recipe_match: RecipeMatchBrief | None = None
 
 
 async def _resolve_target_swarm_id(
@@ -295,6 +305,22 @@ async def _auto_slice_intake_kanban(
         return None
 
 
+@router.get(
+    "/mission-kanban/recipe-match",
+    response_model=MissionKanbanRecipeMatchOut,
+    summary="FP1 — Cosine recipe matches for triage dispatch",
+)
+async def mission_kanban_recipe_match(
+    db: DbSession,
+    _session: DashboardSession,
+    q: str = Query(min_length=1, max_length=5000),
+    limit: int = Query(default=5, ge=1, le=12),
+) -> MissionKanbanRecipeMatchOut:
+    """Rank verified recipes for a triage prompt before Mission Kanban dispatch."""
+
+    return await compose_mission_kanban_recipe_match(db, query=q, limit=limit)
+
+
 @router.post(
     "/mission-kanban/triage",
     response_model=MissionKanbanTriageResponse,
@@ -363,6 +389,8 @@ async def mission_kanban_dispatch(
             defer_to_worker=body.defer_to_worker,
             execution_payload=body.execution_payload,
             requested_by=str(session.get("sub", "dashboard_admin")),
+            matching_recipe_id=body.matching_recipe_id,
+            enrich_from_chroma_recipes=body.enrich_from_chroma_recipes,
         )
         await db.commit()
     except MissionKanbanNotFoundError as exc:
@@ -392,6 +420,7 @@ async def mission_kanban_dispatch(
         child_count=result.child_count,
         celery_task_id=result.celery_task_id,
         execution=result.execution,
+        recipe_match=result.recipe_match,
     )
 
 

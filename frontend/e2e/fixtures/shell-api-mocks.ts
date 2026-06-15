@@ -700,6 +700,24 @@ const STUB_RECIPE_MATCH_CONFIG = {
   hybrid_graph_weight: 0.3,
 };
 
+const STUB_MISSION_KANBAN_RECIPE_MATCH = {
+  enabled: true,
+  query: "Ship Gumroad hero pack listing draft",
+  match_config: STUB_RECIPE_MATCH_CONFIG,
+  operator_hint: "Pick a verified recipe to bind workflow decomposition on dispatch.",
+  hits: [
+    {
+      chroma_document_id: "recipe-hit-stub-1",
+      similarity: 0.91,
+      vector_similarity: 0.91,
+      graph_score: 0.72,
+      document_preview: "Verified Gumroad listing workflow with CTA checklist.",
+      postgres_recipe_id: "11111111-1111-4111-8111-111111111111",
+      postgres_row: STUB_RECIPES_CATALOG[0],
+    },
+  ],
+};
+
 const STUB_FACTORY_LLM_READINESS = {
   grok_configured: false,
   anthropic_configured: false,
@@ -1703,6 +1721,15 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_PREVIEW_DECOMPOSITION),
+      });
+      return;
+    }
+
+    if (path.startsWith("operator/mission-kanban/recipe-match")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_MISSION_KANBAN_RECIPE_MATCH),
       });
       return;
     }

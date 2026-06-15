@@ -1827,6 +1827,10 @@ class Settings(BaseSettings):
         default=True,
         description="FP2 — Rapid learning loop widget on solo Mission Home (/tasks).",
     )
+    mission_kanban_recipe_match_enabled: bool = Field(
+        default=True,
+        description="FP1 — Recipe cosine matching on Mission Kanban triage dispatch.",
+    )
     factory_queue_slo_enabled: bool = Field(
         default=True,
         description="TR4 — Skill Factory queue SLO panel in factory snapshot.",

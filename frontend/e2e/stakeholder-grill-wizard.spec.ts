@@ -18,6 +18,16 @@ test.describe("Stakeholder Grill wizard (NP1)", () => {
       timeout: 30_000,
     });
     await expect(page.getByRole("heading", { name: "Grill my brief" })).toBeVisible();
+    const triageInput = page.locator("input[placeholder*='New task title']");
+    await triageInput.fill("Ship Gumroad hero pack listing with verified CTA");
+    await page.waitForResponse(
+      (res) => res.url().includes("mission-kanban/recipe-match") && res.status() === 200,
+      { timeout: 15_000 },
+    );
+    await expect(page.getByTestId("mission-kanban-recipe-match-panel")).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(page.getByRole("button", { name: "Use on dispatch" })).toBeVisible();
     await page.getByRole("button", { name: "Open wizard" }).click();
     await expect(page.getByText("Problem / opportunity", { exact: true })).toBeVisible();
     await expect(

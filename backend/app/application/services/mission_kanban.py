@@ -15,9 +15,12 @@ from app.application.services.task_presenter import attach_agent_labels, build_t
 from app.application.services.tracer_bullet_kanban import TracerBulletKanbanNotFoundError, slice_workflow_to_kanban
 from app.application.services.workflow_breaker.breaker import WorkflowBreakerService
 from app.common.schemas.task import TaskSnapshot
+from app.common.schemas.workflow_breaker import RecipeMatchBrief
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.infrastructure.persistence.models.enums import TaskStatus, TaskType
+from app.infrastructure.persistence.models.recipe import Recipe
+from app.infrastructure.persistence.models.workflow import Workflow
 from app.infrastructure.persistence.models.task import Task
 from app.worker.tasks import run_sub_swarm_workflow_cycle_task
 
@@ -48,6 +51,7 @@ class MissionKanbanDispatchResult:
     child_count: int
     celery_task_id: str | None
     execution: Literal["queued", "inline", "skipped"]
+    recipe_match: RecipeMatchBrief | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,6 +151,17 @@ async def _auto_slice_kanban(
         return 0
 
 
+def _parse_matching_recipe_id(raw: object) -> uuid.UUID | None:
+    """Parse optional recipe UUID from dispatch execution payload."""
+
+    if raw is None:
+        return None
+    try:
+        return uuid.UUID(str(raw))
+    except ValueError:
+        return None
+
+
 async def dispatch_mission_triage_task(
     session: AsyncSession,
     *,
@@ -156,6 +171,8 @@ async def dispatch_mission_triage_task(
     defer_to_worker: bool,
     execution_payload: dict[str, Any],
     requested_by: str,
+    matching_recipe_id: uuid.UUID | None = None,
+    enrich_from_chroma_recipes: bool | None = None,
 ) -> MissionKanbanDispatchResult:
     """Run workflow breaker on a triage row, slice children, optionally execute."""
 
@@ -185,14 +202,44 @@ async def dispatch_mission_triage_task(
     if merged_skills:
         merged_execution_payload["skills"] = merged_skills
 
+    explicit_recipe_id = matching_recipe_id or _parse_matching_recipe_id(
+        merged_execution_payload.get("matching_recipe_id"),
+    )
+    enrich_recipes = (
+        enrich_from_chroma_recipes
+        if enrich_from_chroma_recipes is not None
+        else bool(
+            merged_execution_payload.get(
+                "enrich_from_chroma_recipes",
+                settings.mission_kanban_recipe_match_enabled,
+            ),
+        )
+    )
+
     breaker = WorkflowBreakerService()
     plan = await breaker.build_workflow_plan(
         session,
         task_text=task_text,
-        matching_recipe_id=None,
-        enrich_from_chroma_recipes=False,
+        matching_recipe_id=explicit_recipe_id,
+        enrich_from_chroma_recipes=enrich_recipes,
         max_steps=7,
     )
+
+    workflow_row = await session.get(Workflow, plan.workflow_id)
+    resolved_recipe_id = explicit_recipe_id or (
+        workflow_row.matching_recipe_id if workflow_row is not None else None
+    )
+    recipe_match: RecipeMatchBrief | None = None
+    recipe_name: str | None = None
+    if resolved_recipe_id is not None:
+        recipe_row = await session.get(Recipe, resolved_recipe_id)
+        if recipe_row is not None:
+            recipe_name = recipe_row.name
+            recipe_match = RecipeMatchBrief(
+                name=recipe_row.name,
+                similarity=1.0 if explicit_recipe_id is not None else 0.92,
+                postgres_recipe_id=recipe_row.id,
+            )
 
     row.workflow_id = plan.workflow_id
     row.status = TaskStatus.RUNNING
@@ -202,6 +249,16 @@ async def dispatch_mission_triage_task(
         "dispatched_at": True,
         "breaker_task_text": task_text,
         **({"skills": merged_skills} if merged_skills else {}),
+        "enrich_from_chroma_recipes": enrich_recipes,
+        **(
+            {
+                "matching_recipe_id": str(resolved_recipe_id),
+                "matching_recipe_name": recipe_name,
+                "matching_recipe_similarity": recipe_match.similarity if recipe_match else None,
+            }
+            if resolved_recipe_id is not None
+            else {}
+        ),
     }
     await session.flush()
 
@@ -269,6 +326,7 @@ async def dispatch_mission_triage_task(
         child_count=child_count,
         celery_task_id=celery_id,
         execution=execution,
+        recipe_match=recipe_match,
     )
 
 
