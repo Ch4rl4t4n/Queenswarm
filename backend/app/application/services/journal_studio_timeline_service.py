@@ -295,6 +295,7 @@ async def compose_journal_timeline(
 def _default_panels() -> list[JournalStudioPanelOut]:
     return [
         JournalStudioPanelOut(id="timeline", label="Timeline", lazy=False, status="ready"),
+        JournalStudioPanelOut(id="entries", label="Trade entries", lazy=True, status="ready"),
         JournalStudioPanelOut(id="settings", label="Studio settings", lazy=True, status="ready"),
     ]
 

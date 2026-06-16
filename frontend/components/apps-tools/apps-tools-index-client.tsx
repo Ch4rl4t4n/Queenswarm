@@ -375,6 +375,7 @@ const MODULE_SECTION_DEEP_LINKS: Record<
   ],
   trading_journal: [
     { label: "Timeline", href: "/apps-tools/trading-journal?section=timeline#journal-studio-timeline" },
+    { label: "Trade entries", href: "/apps-tools/trading-journal?section=entries#journal-studio-entries" },
     { label: "Studio settings", href: "/apps-tools/trading-journal?section=settings#journal-studio-settings" },
   ],
   browser_automation: [

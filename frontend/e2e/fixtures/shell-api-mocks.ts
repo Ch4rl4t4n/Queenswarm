@@ -1422,6 +1422,7 @@ const STUB_JOURNAL_STUDIO_SNAPSHOT = {
   capability_key: "apps.trading.journal_studio.v1",
   panels: [
     { id: "timeline", label: "Timeline", lazy: false, status: "ready" },
+    { id: "entries", label: "Trade entries", lazy: true, status: "ready" },
     { id: "settings", label: "Studio settings", lazy: true, status: "ready" },
   ],
   routine: STUB_JOURNAL_STUDIO_ROUTINE,
@@ -1432,6 +1433,37 @@ const STUB_JOURNAL_STUDIO_SNAPSHOT = {
   mistake_tag_count: 4,
   operator_hint: "2 entries in last 90 days — newest first.",
   workspace_href: "/apps-tools/trading-journal?section=timeline#journal-studio-timeline",
+};
+
+const STUB_JOURNAL_STUDIO_ENTRIES = {
+  enabled: true,
+  entry_count: 1,
+  enabled_fields: ["thesis", "outcome", "lesson", "tags", "mistake_tag"],
+  items: [
+    {
+      id: "entry-1",
+      source: "manual",
+      fill_id: null,
+      thesis: "Breakout retest on BTC",
+      setup: "",
+      entry_price: null,
+      exit_price: null,
+      position_size: null,
+      outcome: "win",
+      pnl_usd: null,
+      emotion: "",
+      lesson: "Wait for confirmation candle",
+      tags: ["breakout"],
+      mistake_tag: null,
+      symbol: "BTC",
+      side: "buy",
+      venue: null,
+      occurred_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+  ],
+  operator_hint: "1 journal entries — thesis, outcome, tags, and lesson tracked.",
 };
 
 const STUB_BROKER_GUARDRAILS = {
@@ -4193,6 +4225,57 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_BROKER_GUARDRAILS),
+      });
+      return;
+    }
+
+    if (path.startsWith("journal-studio/entries/import-fill")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ...STUB_JOURNAL_STUDIO_ENTRIES.items[0],
+          source: "paper_fill",
+          fill_id: "11111111-1111-4111-8111-111111111111",
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("journal-studio/entries")) {
+      if (route.request().method() === "POST") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            id: "entry-new",
+            source: "manual",
+            thesis: "New thesis",
+            outcome: "unknown",
+            lesson: "New lesson",
+            tags: [],
+            occurred_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }),
+        });
+        return;
+      }
+      if (route.request().method() === "PATCH") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            ...STUB_JOURNAL_STUDIO_ENTRIES.items[0],
+            lesson: "Add lesson after review.",
+          }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_JOURNAL_STUDIO_ENTRIES),
       });
       return;
     }

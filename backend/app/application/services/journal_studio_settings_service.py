@@ -304,6 +304,8 @@ async def save_journal_studio_settings(
     saved = JournalStudioSettingsOut.model_validate(data)
 
     root = dict(tenant.operator_settings or {})
+    existing_bucket = dict(root.get(JOURNAL_STUDIO_SETTINGS_KEY) or {})
+    manual_entries = existing_bucket.get("manual_entries")
     root[JOURNAL_STUDIO_SETTINGS_KEY] = {
         "enabled": saved.enabled,
         "field_toggles": saved.field_toggles,
@@ -314,6 +316,8 @@ async def save_journal_studio_settings(
         "mistake_tags": saved.mistake_tags,
         "updated_at": saved.updated_at,
     }
+    if isinstance(manual_entries, list):
+        root[JOURNAL_STUDIO_SETTINGS_KEY]["manual_entries"] = manual_entries
     tenant.operator_settings = root
     await session.flush()
     _logger.info(

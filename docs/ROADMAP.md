@@ -709,7 +709,7 @@ _Signals: [CyrilXBT — Obsidian trading journal](https://x.com/cyrilXBT/status/
 | ID | Item | Priority | Est. | Status | Gate / asset |
 |----|------|----------|------|--------|--------------|
 | TJ1 | **Journal Studio** module — `/apps-tools/trading-journal` config + timeline | P1 | 3–4 d | ✅ | Apps & Tools lazy panel |
-| TJ2 | **Trade entry schema** — thesis · outcome · tags · lesson (manual + paper fill import) | P1 | 2–3 d | ⏳ | `PaperTradingFill` · task workspace |
+| TJ2 | **Trade entry schema** — thesis · outcome · tags · lesson (manual + paper fill import) | P1 | 2–3 d | ✅ | `PaperTradingFill` · task workspace |
 | TJ3 | **Overnight journal gardener** — fills → draft lesson → operator approve → wiki | P1 | 2–3 d | ⏳ | Celery · **SB1** capture · critic |
 | TJ4 | **Studio settings** — fields ON/OFF · review cron · Obsidian subfolder · mistake tags | P0 | 1–2 d | ✅ | Tenant `operator_settings.journal_studio` |
 | TJ5 | **Pre-trade recall** — inject top mistakes / edges before next session | P1 | 2 d | ⏳ | Brain Pack · **NP5** thesis · Hive Mind |

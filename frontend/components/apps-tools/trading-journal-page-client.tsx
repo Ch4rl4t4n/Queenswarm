@@ -1,6 +1,6 @@
 "use client";
 
-import { BookMarked, Clock3, Settings2 } from "lucide-react";
+import { Clock3, NotebookPen, Settings2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 
@@ -8,6 +8,17 @@ import { HivePageShell } from "@/components/hive/hive-page-shell";
 import { HiveSubnavRow } from "@/components/hive/hive-subnav-row";
 import { ModulePolicyPackPill } from "@/components/apps-tools/module-policy-pack-pill";
 import { scrollBehaviorForMotion } from "@/lib/motion-preferences";
+
+const JournalStudioEntriesPanel = dynamic(
+  () =>
+    import("@/components/apps-tools/journal-studio-entries-panel").then((mod) => ({
+      default: mod.JournalStudioEntriesPanel,
+    })),
+  {
+    ssr: false,
+    loading: () => <div className="qs-bubble shrink-0 min-h-[8rem] animate-pulse bg-white/5 p-4" aria-hidden />,
+  },
+);
 
 const JournalStudioTimelinePanel = dynamic(
   () =>
@@ -31,22 +42,25 @@ const JournalStudioSettingsPanel = dynamic(
   },
 );
 
-type JournalSection = "timeline" | "settings";
+type JournalSection = "timeline" | "entries" | "settings";
 
 const SECTION_TO_HASH: Record<JournalSection, string> = {
   timeline: "journal-studio-timeline",
+  entries: "journal-studio-entries",
   settings: "journal-studio-settings",
 };
 
 function sectionFromHash(hash: string): JournalSection | null {
   const key = hash.replace(/^#/, "").trim().toLowerCase();
   if (key === "journal-studio-timeline") return "timeline";
+  if (key === "journal-studio-entries") return "entries";
   if (key === "journal-studio-settings") return "settings";
   return null;
 }
 
 function sectionFromQuery(raw: string | null): JournalSection | null {
   if (raw === "timeline") return "timeline";
+  if (raw === "entries") return "entries";
   if (raw === "settings") return "settings";
   return null;
 }
@@ -76,12 +90,13 @@ export function TradingJournalPageClient(): JSX.Element {
   return (
     <HivePageShell
       title="Trading Journal"
-      subtitle="Learning Loop Studio — timeline, journal fields, review cron, Obsidian vault, mistake recall."
+      subtitle="Learning Loop Studio — timeline, trade entries, journal fields, review cron, Obsidian vault."
       status={<ModulePolicyPackPill moduleKey="trading_journal" />}
       subnav={
         <HiveSubnavRow
           items={[
             { id: "timeline", label: "Timeline", icon: Clock3 },
+            { id: "entries", label: "Trade entries", icon: NotebookPen },
             { id: "settings", label: "Studio settings", icon: Settings2 },
           ]}
           activeId={section}
@@ -96,6 +111,7 @@ export function TradingJournalPageClient(): JSX.Element {
       }
     >
       {section === "timeline" ? <JournalStudioTimelinePanel /> : null}
+      {section === "entries" ? <JournalStudioEntriesPanel /> : null}
       {section === "settings" ? <JournalStudioSettingsPanel /> : null}
     </HivePageShell>
   );

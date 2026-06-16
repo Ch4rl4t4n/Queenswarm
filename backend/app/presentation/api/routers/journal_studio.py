@@ -2,10 +2,22 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.application.services.journal_studio_entry_service import (
+    JournalTradeEntryCreateIn,
+    JournalTradeEntryImportIn,
+    JournalTradeEntryListOut,
+    JournalTradeEntryOut,
+    JournalTradeEntryPatchIn,
+    create_journal_trade_entry,
+    import_journal_entry_from_fill,
+    list_journal_trade_entries,
+    update_journal_trade_entry,
+)
 from app.application.services.journal_studio_settings_service import (
     JournalStudioRoutineKpiOut,
     JournalStudioSettingsOut,
@@ -86,6 +98,93 @@ async def journal_studio_timeline_get(
         window_days=window_days,
     )
     return JournalTimelineOut.model_validate(timeline).model_dump(mode="json")
+
+
+@router.get("/entries", summary="TJ2 List journal trade entries")
+async def journal_studio_entries_get(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return thesis/outcome/tags/lesson entries for trading journal."""
+
+    _require_enabled()
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    payload = await list_journal_trade_entries(db, tenant_id=tenant_id)
+    return JournalTradeEntryListOut.model_validate(payload).model_dump(mode="json")
+
+
+@router.post("/entries", summary="TJ2 Create manual journal entry")
+async def journal_studio_entries_post(
+    body: dict[str, Any],
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Create manual trade journal entry."""
+
+    _require_enabled()
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    try:
+        payload = JournalTradeEntryCreateIn.model_validate(body)
+        entry = await create_journal_trade_entry(db, tenant_id=tenant_id, body=payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return JournalTradeEntryOut.model_validate(entry).model_dump(mode="json")
+
+
+@router.patch("/entries/{entry_id}", summary="TJ2 Update journal entry")
+async def journal_studio_entries_patch(
+    entry_id: str,
+    body: dict[str, Any],
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Patch thesis, outcome, tags, or lesson on an entry."""
+
+    _require_enabled()
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    try:
+        patch = JournalTradeEntryPatchIn.model_validate(body)
+        entry = await update_journal_trade_entry(db, tenant_id=tenant_id, entry_id=entry_id, patch=patch)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return JournalTradeEntryOut.model_validate(entry).model_dump(mode="json")
+
+
+@router.post("/entries/import-fill/{fill_id}", summary="TJ2 Import paper fill as journal entry")
+async def journal_studio_entries_import_fill(
+    fill_id: uuid.UUID,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    body: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Seed journal entry from verified paper trading fill."""
+
+    _require_enabled()
+    user = principal.get("user")
+    tenant_id = principal.get("tenant_id")
+    if user is None or tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    try:
+        overrides = JournalTradeEntryImportIn.model_validate(body or {})
+        entry = await import_journal_entry_from_fill(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=user.id,
+            fill_id=fill_id,
+            overrides=overrides,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return JournalTradeEntryOut.model_validate(entry).model_dump(mode="json")
 
 
 @router.get("/settings", summary="TJ4 Journal studio settings snapshot")

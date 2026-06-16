@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Track O TJ1+TJ4 — Journal Studio timeline + settings audit gate.
+# Track O TJ1+TJ2+TJ4 — Journal Studio timeline, entries, settings audit gate.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -9,13 +9,15 @@ FAIL=0
 pass() { echo "  OK  $*"; }
 fail() { echo "  FAIL $*"; FAIL=$((FAIL + 1)); }
 
-echo "=== Journal Studio (TJ1+TJ4) Audit ==="
+echo "=== Journal Studio (TJ1+TJ2+TJ4) Audit ==="
 
 for f in \
   backend/app/application/services/journal_studio_timeline_service.py \
+  backend/app/application/services/journal_studio_entry_service.py \
   backend/app/application/services/journal_studio_settings_service.py \
   backend/app/presentation/api/routers/journal_studio.py \
   frontend/components/apps-tools/journal-studio-timeline-panel.tsx \
+  frontend/components/apps-tools/journal-studio-entries-panel.tsx \
   frontend/components/apps-tools/journal-studio-settings-panel.tsx \
   frontend/components/apps-tools/trading-journal-page-client.tsx \
   frontend/app/\(dashboard\)/apps-tools/trading-journal/page.tsx; do
@@ -56,6 +58,18 @@ else
   fail "missing trading_journal module"
 fi
 
+if grep -q '"/entries"' backend/app/presentation/api/routers/journal_studio.py; then
+  pass "entries routes in journal_studio router"
+else
+  fail "missing entries routes"
+fi
+
+if [[ -f frontend/e2e/journal-studio-entries.spec.ts ]]; then
+  pass "e2e journal-studio-entries.spec.ts"
+else
+  fail "missing entries e2e spec"
+fi
+
 if [[ -f frontend/e2e/journal-studio-timeline.spec.ts ]]; then
   pass "e2e journal-studio-timeline.spec.ts"
 else
@@ -72,9 +86,11 @@ if [[ -x backend/venv/bin/python ]]; then
   if (cd backend && ./venv/bin/python -m pytest \
     tests/test_journal_studio_timeline_unit.py \
     tests/test_journal_studio_timeline_api_unit.py \
+    tests/test_journal_studio_entry_unit.py \
+    tests/test_journal_studio_entry_api_unit.py \
     tests/test_journal_studio_settings_unit.py \
     -q --no-cov); then
-    pass "pytest journal studio timeline + settings"
+    pass "pytest journal studio timeline + entries + settings"
   else
     fail "pytest journal studio timeline + settings"
   fi
@@ -83,9 +99,9 @@ else
 fi
 
 if [[ "$FAIL" -eq 0 ]]; then
-  echo "=== Journal Studio TJ1+TJ4 gate PASSED ==="
+  echo "=== Journal Studio TJ1+TJ2+TJ4 gate PASSED ==="
   exit 0
 fi
 
-echo "=== Journal Studio TJ1+TJ4 gate FAILED ($FAIL) ==="
+echo "=== Journal Studio TJ1+TJ2+TJ4 gate FAILED ($FAIL) ==="
 exit 1
