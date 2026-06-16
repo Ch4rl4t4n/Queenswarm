@@ -1135,6 +1135,55 @@ _PHASE3_RAW: tuple[Phase3ConnectorTemplate, ...] = (
         ),
     ),
     Phase3ConnectorTemplate(
+        template_id="robinhood_agentic_mcp",
+        category="trading",
+        title="Robinhood · Agentic MCP",
+        summary=(
+            "Robinhood Agentic Trading MCP — OAuth ring-fenced US equities account at "
+            "agent.robinhood.com/mcp/trading. Queenswarm moat: simulate-first + broker guardrails + HITL queue."
+        ),
+        documentation_url="https://robinhood.com/us/en/support/articles/agentic-trading-overview/",
+        suggested_slug="robinhood_agentic",
+        auth_type="oauth2",
+        base_url="https://agent.robinhood.com/mcp/trading",
+        suggested_manager_slugs=("execution_operations", "research_intelligence"),
+        tools=(
+            {
+                "name": "get_portfolio",
+                "path": "/",
+                "method": "POST",
+                "description": "MCP tool — portfolio summary for Agentic ring-fenced account (OAuth required).",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "get_positions",
+                "path": "/",
+                "method": "POST",
+                "description": "MCP tool — open positions and cost basis (read-only lane).",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "get_quotes",
+                "path": "/",
+                "method": "POST",
+                "description": "MCP tool — latest quotes for watchlist symbols.",
+                "cost_tier": "low",
+                "latency_tier": "fast",
+            },
+            {
+                "name": "place_order",
+                "path": "/",
+                "method": "POST",
+                "description": "MCP tool — propose equity order (blocked until HITL approve + guardrails pass).",
+                "required_permission": "tool:write",
+                "cost_tier": "high",
+                "latency_tier": "balanced",
+            },
+        ),
+    ),
+    Phase3ConnectorTemplate(
         template_id="kalshi_markets_api",
         category="trading",
         title="Kalshi · Markets (public)",

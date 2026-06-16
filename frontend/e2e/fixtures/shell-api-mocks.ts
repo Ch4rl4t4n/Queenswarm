@@ -1696,6 +1696,55 @@ const STUB_BROKER_READONLY_SESSION = {
   workspace_href: "/apps-tools/trading-automation?section=connect#broker-readonly-session",
 };
 
+const STUB_BROKER_ROBINHOOD_MCP = {
+  enabled: true,
+  generated_at: new Date().toISOString(),
+  template_id: "robinhood_agentic_mcp",
+  connector_slug: "robinhood_agentic",
+  mcp_server_url: "https://agent.robinhood.com/mcp/trading",
+  preset_available: true,
+  connector_installed: true,
+  oauth_ready: true,
+  guardrails_ready: true,
+  guardrails_kill_switch: false,
+  progress_pct: 75,
+  ready: false,
+  last_probe_at: null,
+  last_probe_status: "missing",
+  last_probe_message: "",
+  steps: [
+    {
+      id: "install_preset",
+      label: "Install marketplace preset",
+      done: true,
+      detail: "Integrations → Marketplace → Robinhood Agentic MCP.",
+    },
+    {
+      id: "oauth",
+      label: "Complete Robinhood OAuth",
+      done: true,
+      detail: "OAuth access token sealed in Connector Vault.",
+    },
+    {
+      id: "guardrails",
+      label: "Configure broker guardrails",
+      done: true,
+      detail: "Robinhood venue enabled with caps configured.",
+    },
+    {
+      id: "probe",
+      label: "Run connection probe",
+      done: false,
+      detail: "Run probe from Broker MCP tab.",
+    },
+  ],
+  operator_hint: "Run connection probe after OAuth — simulate-first before any live order.",
+  install_href: "/integrations?tab=marketplace&template=robinhood_agentic_mcp",
+  vault_href: "/integrations?tab=vault&preset=robinhood_agentic",
+  docs_href: "docs/OPERATOR_ROBINHOOD_MCP_SETUP.md",
+  workspace_href: "/apps-tools/trading-automation?section=mcp#broker-mcp",
+};
+
 const STUB_BROKER_ORDER_QUEUE = {
   enabled: true,
   pending_count: 1,
@@ -4403,6 +4452,29 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           session_href: "/agents/sessions/readonly-session-stub",
           message: "Read-only broker session started.",
         }),
+      });
+      return;
+    }
+
+    if (path.startsWith("trading-cockpit/robinhood-mcp/probe")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          status: "passed",
+          message: "Robinhood MCP connector installed with OAuth sealed.",
+          last_probe_at: new Date().toISOString(),
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("trading-cockpit/robinhood-mcp")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_BROKER_ROBINHOOD_MCP),
       });
       return;
     }

@@ -37,6 +37,7 @@ async def test_compose_trading_cockpit_snapshot_includes_broker_guardrails(monke
             prediction_markets_live_trading_enabled=False,
             journal_studio_enabled=False,
             journal_studio_pretrade_recall_enabled=False,
+            robinhood_mcp_preset_enabled=False,
         ),
     )
 
@@ -111,6 +112,7 @@ async def test_compose_trading_cockpit_snapshot_includes_pretrade_recall(monkeyp
             prediction_markets_live_trading_enabled=False,
             journal_studio_enabled=True,
             journal_studio_pretrade_recall_enabled=True,
+            robinhood_mcp_preset_enabled=False,
         ),
     )
 

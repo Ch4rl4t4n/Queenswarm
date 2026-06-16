@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, ClipboardList, Plug, Shield, ShieldAlert, TrendingUp } from "lucide-react";
+import { Activity, ClipboardList, Plug, Radio, Shield, ShieldAlert, TrendingUp } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -88,10 +88,22 @@ const ExecutionStudioLiveLanePanel = dynamic(
   },
 );
 
-type TradingSection = "connect" | "cockpit" | "guardrails" | "orders" | "hybrid" | "live-lane";
+const BrokerMcpPanel = dynamic(
+  () =>
+    import("@/components/connectors/broker-mcp-panel").then((mod) => ({
+      default: mod.BrokerMcpPanel,
+    })),
+  {
+    ssr: false,
+    loading: () => <div className="qs-bubble shrink-0 min-h-[8rem] animate-pulse bg-white/5 p-4" aria-hidden />,
+  },
+);
+
+type TradingSection = "connect" | "mcp" | "cockpit" | "guardrails" | "orders" | "hybrid" | "live-lane";
 
 const SECTION_TO_HASH: Record<TradingSection, string> = {
   connect: "broker-readonly-session",
+  mcp: "broker-mcp",
   cockpit: "trading-cockpit",
   guardrails: "broker-guardrails",
   orders: "broker-order-queue",
@@ -102,6 +114,7 @@ const SECTION_TO_HASH: Record<TradingSection, string> = {
 function sectionFromHash(hash: string): TradingSection | null {
   const key = hash.replace(/^#/, "").trim().toLowerCase();
   if (key === "broker-readonly-session") return "connect";
+  if (key === "broker-mcp") return "mcp";
   if (key === "trading-cockpit") return "cockpit";
   if (key === "broker-guardrails") return "guardrails";
   if (key === "broker-order-queue") return "orders";
@@ -113,6 +126,7 @@ function sectionFromHash(hash: string): TradingSection | null {
 function sectionFromQuery(raw: string | null): TradingSection | null {
   if (
     raw === "connect" ||
+    raw === "mcp" ||
     raw === "cockpit" ||
     raw === "guardrails" ||
     raw === "orders" ||
@@ -172,6 +186,7 @@ export function TradingAutomationPageClient() {
         <HiveSubnavRow
           items={[
             { id: "connect", label: "Connect", icon: Plug },
+            { id: "mcp", label: "Broker MCP", icon: Radio },
             { id: "cockpit", label: "Trading cockpit", icon: TrendingUp },
             { id: "guardrails", label: "Broker guardrails", icon: Shield },
             { id: "orders", label: "Order queue", icon: ClipboardList },
@@ -190,6 +205,7 @@ export function TradingAutomationPageClient() {
       }
     >
       {section === "connect" ? <BrokerReadonlySessionPanel /> : null}
+      {section === "mcp" ? <BrokerMcpPanel /> : null}
       {section === "cockpit" ? (
         <>
           <TradingThesisWizardPanel />

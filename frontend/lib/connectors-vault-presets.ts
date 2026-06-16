@@ -190,6 +190,18 @@ export const VAULT_VENDOR_PRESETS: readonly VaultVendorPreset[] = [
       "Vault fields: polymarket_api_key, polymarket_api_secret, polymarket_api_passphrase, polymarket_wallet_address (L2 creds from wallet).",
     probeSuggestion: null,
   },
+  {
+    id: "robinhood_agentic",
+    phase3TemplateId: "robinhood_agentic_mcp",
+    slug: "robinhood_agentic",
+    label: "Robinhood · Agentic MCP",
+    kind: "oauth2",
+    tokenEndpoint: null,
+    docsUrl: "https://robinhood.com/us/en/support/articles/agentic-trading-overview/",
+    scopesHint:
+      "OAuth2 access token from Robinhood Agentic MCP authorization — server https://agent.robinhood.com/mcp/trading.",
+    probeSuggestion: null,
+  },
 ] as const;
 
 export function presetById(id: string): VaultVendorPreset | undefined {

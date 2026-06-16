@@ -253,6 +253,7 @@ class TradingCockpitSnapshotOut(BaseModel):
     broker_readonly: dict[str, Any] | None = None
     broker_order_queue: dict[str, Any] | None = None
     pretrade_recall: dict[str, Any] | None = None
+    robinhood_mcp: dict[str, Any] | None = None
 
 
 async def compose_trading_cockpit_snapshot(
@@ -328,6 +329,7 @@ async def compose_trading_cockpit_snapshot(
             halt_reason = readonly_kpi.operator_hint
     broker_order_queue: dict[str, Any] | None = None
     pretrade_recall: dict[str, Any] | None = None
+    robinhood_mcp: dict[str, Any] | None = None
     if tenant is not None and settings.broker_order_queue_enabled:
         from app.application.services.broker_order_queue_service import build_broker_order_queue_snapshot
 
@@ -342,6 +344,16 @@ async def compose_trading_cockpit_snapshot(
             dashboard_user_id=dashboard_user_id,
         )
         pretrade_recall = recall.model_dump(mode="json")
+    if tenant is not None and settings.robinhood_mcp_preset_enabled:
+        from app.application.services.broker_robinhood_mcp_service import compose_robinhood_mcp_readiness
+
+        rh = await compose_robinhood_mcp_readiness(
+            session,
+            tenant_id=tenant.id,
+            dashboard_user_id=dashboard_user_id,
+            tenant=tenant,
+        )
+        robinhood_mcp = rh.model_dump(mode="json")
     performance: dict[str, Any] = {
         "mode": "real",
         "venue": "polymarket",
@@ -380,11 +392,14 @@ async def compose_trading_cockpit_snapshot(
             "broker_guardrails": "/apps-tools/trading-automation?section=guardrails#broker-guardrails",
             "broker_readonly": "/apps-tools/trading-automation?section=connect#broker-readonly-session",
             "broker_order_queue": "/apps-tools/trading-automation?section=orders#broker-order-queue",
+            "broker_mcp": "/apps-tools/trading-automation?section=mcp#broker-mcp",
+            "robinhood_mcp_setup": "docs/OPERATOR_ROBINHOOD_MCP_SETUP.md",
         },
         broker_guardrails=broker_guardrails,
         broker_readonly=broker_readonly,
         broker_order_queue=broker_order_queue,
         pretrade_recall=pretrade_recall,
+        robinhood_mcp=robinhood_mcp,
     )
 
 

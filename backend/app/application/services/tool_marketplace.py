@@ -19,7 +19,7 @@ from app.infrastructure.connectors.phase3.marketplace_meta import marketplace_me
 from app.infrastructure.plugins.manager import discover_plugins
 
 _MARKETPLACE_FEATURED_TEMPLATE_IDS = frozenset(
-    {"venice_mcp", "monid_mcp", "composio_router", "apify_store"},
+    {"venice_mcp", "monid_mcp", "composio_router", "apify_store", "robinhood_agentic_mcp"},
 )
 
 

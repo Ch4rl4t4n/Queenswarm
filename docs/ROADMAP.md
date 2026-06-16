@@ -482,7 +482,7 @@ Strategic backlog from operator competitive reviews. **Harness > hype** — exte
 | Jun 2026 | [David Ondrej — Unsloth Studio local fine-tune](https://www.youtube.com/watch?v=BFH9D05UFvM) | M (LOC1–14) | LiteLLM ✅ · Ollama/air-gap 🔴 |
 | Jun 2026 | Operator batch — 18× YouTube + [Riverflow](https://x.com/riverflow_ai) | N (NP1–8) | Harness ✅ · vertical wizards 🔴 |
 | Jun 2026 | [CyrilXBT — Obsidian trading journal](https://x.com/cyrilXBT/status/2064928168105136433) | O (TJ1–7) | Wiki/Obsidian ✅ · journal studio 🔴 |
-| Jun 2026 | [Ryan Doser — Robinhood AI agent (Claude MCP)](https://www.youtube.com/watch?v=w4QrQdulH0g) | P (RA1–5) | Polymarket ✅ · Robinhood MCP 🔴 |
+| Jun 2026 | [Ryan Doser — Robinhood AI agent (Claude MCP)](https://www.youtube.com/watch?v=w4QrQdulH0g) | P (RA1–5) | Polymarket ✅ · Robinhood MCP ✅ |
 | Jun 2026 | [Julian Goldie — Hermes Agent OS / Mission Control](https://www.youtube.com/watch?v=egeUmkhdcM4) | Q (UX0–10) | Depth ✅ · guided process UX 🔴 |
 
 **Execution order:** **Mission clarity (UX0–UX3, UX6)** parallel early → Cash (MK6–7, REV) → **Local inference MVP (LOC1–4, LOC11)** → Vertical packs (NP7, NP4) → Trust (TR4, LOOP2, AL1/UX10) → Analytics (DA1–4) → Marketing/Trading studios → Work intel (DG) · Memory · Depth.
@@ -724,12 +724,12 @@ _Signal: [How to Build an AI Trading Agent on Robinhood (With Claude)](https://w
 
 **Video flow:** add MCP `https://agent.robinhood.com/mcp/trading` → OAuth desktop → fund Agentic ring-fenced account → NL portfolio + orders in Claude.
 
-**Queenswarm today:** ✅ Polymarket Gamma/CLOB · Trading Cockpit · `real-money-risk-gate` · Connector Hub · external MCP · paper lane · **Track O** journal. 🔴 Robinhood preset · unified broker guardrails UI · HITL order queue.
+**Queenswarm today:** ✅ Polymarket Gamma/CLOB · Trading Cockpit · `real-money-risk-gate` · Connector Hub · external MCP · paper lane · **Track O** journal · **Robinhood MCP preset (RA1/RA2)**. 🔴 unified broker guardrails UI polish · HITL order queue scale.
 
 | ID | Item | Priority | Est. | Status | Gate / asset |
 |----|------|----------|------|--------|--------------|
-| RA1 | **Robinhood Agentic MCP preset** — marketplace template + install doc (`agent.robinhood.com/mcp/trading`) | P1 | 1–2 d | ⏳ | Connector catalog · dynamic MCP |
-| RA2 | **Broker MCP tab** in Trading Cockpit — connect status · OAuth steps · last probe | P1 | 2 d | ⏳ | `execution-studio-trading-cockpit-panel` |
+| RA1 | **Robinhood Agentic MCP preset** — marketplace template + install doc (`agent.robinhood.com/mcp/trading`) | P1 | 1–2 d | ✅ | Connector catalog · dynamic MCP |
+| RA2 | **Broker MCP tab** in Trading Cockpit — connect status · OAuth steps · last probe | P1 | 2 d | ✅ | `execution-studio-trading-cockpit-panel` |
 | RA3 | **Broker guardrails pack** — max order · daily cap · kill switch · approve mode (tenant settings) | P0 | 1–2 d | ✅ | Shared Polymarket + Robinhood |
 | RA4 | **Read-only broker session** — portfolio/quotes tools only until smoke + guardrails set | P0 | 1 d | ✅ | Swarm template · evaluator pattern |
 | RA5 | **HITL order queue** — agent proposes order → Approval Inbox → MCP execute | P0 | 2–3 d | ✅ | Publish simulate pattern · audit log |

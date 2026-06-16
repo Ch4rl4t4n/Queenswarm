@@ -369,6 +369,7 @@ const MODULE_SECTION_DEEP_LINKS: Record<
     { label: "Broker connect", href: "/apps-tools/trading-automation?section=connect#broker-readonly-session" },
     { label: "Trading cockpit", href: "/apps-tools/trading-automation?section=cockpit#trading-cockpit" },
     { label: "Order queue (HITL)", href: "/apps-tools/trading-automation?section=orders#broker-order-queue" },
+    { label: "Broker MCP", href: "/apps-tools/trading-automation?section=mcp#broker-mcp" },
     { label: "Broker guardrails", href: "/apps-tools/trading-automation?section=guardrails#broker-guardrails" },
     { label: "Hybrid loop", href: "/apps-tools/trading-automation?section=hybrid#trading-content-hybrid" },
     { label: "Live lane prep", href: "/apps-tools/trading-automation?section=live-lane#live-lane" },

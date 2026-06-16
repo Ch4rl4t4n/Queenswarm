@@ -190,6 +190,15 @@ TEMPLATE_MARKETPLACE_META: dict[str, dict[str, Any]] = {
             "Order EIP-712 signing stays in your trading bot; Queenswarm proxies signed REST."
         ),
     },
+    "robinhood_agentic_mcp": {
+        "cost_tier": "high",
+        "latency_tier": "balanced",
+        "service_homepage": "https://robinhood.com",
+        "agent_usage": (
+            "US equities via Robinhood Agentic MCP — OAuth ring-fenced account at agent.robinhood.com/mcp/trading. "
+            "Use read-only portfolio tools first; live orders require broker guardrails + HITL queue approval."
+        ),
+    },
     "kalshi_markets_api": {
         "cost_tier": "low",
         "latency_tier": "fast",

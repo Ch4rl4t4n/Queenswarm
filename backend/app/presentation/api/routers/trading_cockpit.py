@@ -28,6 +28,11 @@ from app.application.services.broker_order_queue_service import (
     propose_broker_order,
     review_broker_order,
 )
+from app.application.services.broker_robinhood_mcp_service import (
+    RobinhoodMcpReadinessOut,
+    compose_robinhood_mcp_readiness,
+    run_robinhood_mcp_probe,
+)
 from app.application.services.broker_readonly_session_service import (
     BrokerReadonlyBootstrapOut,
     BrokerReadonlyKpiOut,
@@ -221,6 +226,53 @@ async def post_broker_readonly_bootstrap(
     )
     await db.commit()
     return BrokerReadonlyBootstrapOut.model_validate(result).model_dump(mode="json")
+
+
+@router.get("/robinhood-mcp", summary="RA1/RA2 Robinhood Agentic MCP readiness")
+async def get_robinhood_mcp_readiness(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return Robinhood MCP install checklist for Broker MCP tab."""
+
+    _require_enabled()
+    if not settings.robinhood_mcp_preset_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Robinhood MCP preset disabled.")
+    user = principal.get("user")
+    tenant_id = principal.get("tenant_id")
+    tenant = await _tenant_from_principal(db, principal)
+    if user is None or tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context required.")
+    readiness = await compose_robinhood_mcp_readiness(
+        db,
+        tenant_id=tenant_id,
+        dashboard_user_id=user.id,
+        tenant=tenant,
+    )
+    return RobinhoodMcpReadinessOut.model_validate(readiness).model_dump(mode="json")
+
+
+@router.post("/robinhood-mcp/probe", summary="RA2 Run Robinhood MCP connection probe")
+async def post_robinhood_mcp_probe(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Record lightweight Robinhood MCP readiness probe (no live orders)."""
+
+    _require_enabled()
+    if not settings.robinhood_mcp_preset_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Robinhood MCP preset disabled.")
+    user = principal.get("user")
+    tenant = await _tenant_from_principal(db, principal)
+    if user is None or tenant is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context required.")
+    result = await run_robinhood_mcp_probe(
+        db,
+        tenant=tenant,
+        dashboard_user_id=user.id,
+    )
+    await db.commit()
+    return result
 
 
 @router.get("/order-queue", summary="RA5 Broker HITL order queue snapshot")

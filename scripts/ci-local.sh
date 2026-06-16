@@ -35,6 +35,7 @@ run_backend() {
   ./scripts/audit-broker-guardrails-gate.sh
   ./scripts/audit-broker-readonly-gate.sh
   ./scripts/audit-broker-order-queue-gate.sh
+  ./scripts/audit-broker-robinhood-mcp-gate.sh
 }
 
 run_security() {

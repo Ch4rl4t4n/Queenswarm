@@ -2374,6 +2374,10 @@ class Settings(BaseSettings):
         default=True,
         description="Track P RA5 — HITL broker order queue (propose → Approval Inbox → MCP execute).",
     )
+    robinhood_mcp_preset_enabled: bool = Field(
+        default=True,
+        description="Track P RA1 — Robinhood Agentic MCP marketplace preset and readiness checklist.",
+    )
     research_bee_max_chars: int = Field(
         default=12_000,
         ge=512,
