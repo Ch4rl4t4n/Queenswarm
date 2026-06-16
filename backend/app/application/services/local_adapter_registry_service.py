@@ -59,6 +59,10 @@ class LocalAdapterRegisterIn(BaseModel):
     base_model: str | None = Field(default=None, max_length=128)
     source_path: str | None = Field(default=None, max_length=512)
     activate: bool = False
+    link_recipe_ids: list[str] = Field(
+        default_factory=list,
+        description="Optional Recipe Library UUIDs to tag local-adapter on register.",
+    )
 
     @field_validator("ollama_tag")
     @classmethod
@@ -183,6 +187,26 @@ async def register_local_adapter(
 
     await session.commit()
     await session.refresh(row)
+
+    if payload.link_recipe_ids:
+        from app.application.services.local_sovereign_recipe_tags_service import (
+            apply_local_adapter_tags_to_recipes,
+        )
+
+        recipe_ids: list[uuid.UUID] = []
+        for raw in payload.link_recipe_ids:
+            try:
+                recipe_ids.append(uuid.UUID(str(raw)))
+            except ValueError:
+                continue
+        if recipe_ids:
+            tagged = await apply_local_adapter_tags_to_recipes(session, recipe_ids=recipe_ids)
+            _logger.info(
+                "local_adapter_registry.recipes_tagged",
+                tenant_id=str(tenant_id),
+                tagged_count=tagged,
+            )
+
     _logger.info(
         "local_adapter_registry.registered",
         tenant_id=str(tenant_id),

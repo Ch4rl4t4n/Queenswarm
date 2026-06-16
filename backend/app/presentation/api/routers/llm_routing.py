@@ -620,4 +620,31 @@ async def get_dataset_recipe_export(
     )
 
 
+@router.get(
+    "/sovereign-recipe-hints",
+    summary="Sovereign imitation hints for local-adapter recipes (LOC14)",
+)
+async def get_sovereign_recipe_hints(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return LOC14 recipe imitation hints for local sovereign tenants."""
+
+    if not settings.local_llm_enabled or not settings.local_sovereign_recipe_tags_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sovereign recipe tags disabled.")
+    _ensure_admin(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.local_sovereign_recipe_tags_service import (
+        compose_sovereign_imitation_hints_snapshot,
+    )
+
+    snap = await compose_sovereign_imitation_hints_snapshot(
+        db,
+        tenant_id=uuid.UUID(str(tenant_id)),
+    )
+    return snap.model_dump(mode="json")
+
+
 __all__ = ["router"]

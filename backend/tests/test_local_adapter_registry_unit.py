@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -172,6 +172,35 @@ async def test_register_local_adapter_updates_existing(monkeypatch: pytest.Monke
     assert out.name == "Updated"
     assert out.kind == "lora"
     session.add.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_register_local_adapter_links_recipe_tags(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "local_adapter_registry_enabled", True)
+    monkeypatch.setattr(settings, "local_sovereign_recipe_tags_enabled", True)
+    tenant_id = uuid.uuid4()
+    recipe_id = uuid.uuid4()
+    session = AsyncMock()
+    session.scalar = AsyncMock(return_value=None)
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
+    session.add = AsyncMock()
+    session.execute = AsyncMock()
+
+    with patch(
+        "app.application.services.local_sovereign_recipe_tags_service.apply_local_adapter_tags_to_recipes",
+        new=AsyncMock(return_value=1),
+    ) as tag_mock:
+        await register_local_adapter(
+            session,
+            tenant_id=tenant_id,
+            payload=LocalAdapterRegisterIn(
+                name="Adapter",
+                ollama_tag="queenswarm-v2",
+                link_recipe_ids=[str(recipe_id)],
+            ),
+        )
+    tag_mock.assert_awaited_once()
 
 
 @pytest.mark.asyncio

@@ -380,6 +380,23 @@ const STUB_DATASET_RECIPE_SNAPSHOT = {
   ],
 };
 
+const STUB_SOVEREIGN_RECIPE_HINTS = {
+  enabled: true,
+  sovereign_mode: true,
+  imitation_boost: 0.08,
+  local_adapter_recipe_count: 1,
+  operator_hint: "Link recipes when registering adapters — semantic search boosts local-adapter tags.",
+  hints: [
+    {
+      recipe_id: "11111111-1111-1111-1111-111111111111",
+      name: "Local sovereign ops routine",
+      topic_tags: ["local-adapter", "ops"],
+      success_rate: 0.83,
+      imitation_hint: "Proven on local adapter — prefer for sovereign session routines.",
+    },
+  ],
+};
+
 const STUB_LLM_COST_SAVINGS = {
   window_days: 30,
   call_count: 42,
@@ -1916,6 +1933,15 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_DATASET_RECIPE_SNAPSHOT),
+      });
+      return;
+    }
+
+    if (path.startsWith("llm-routing/sovereign-recipe-hints")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_SOVEREIGN_RECIPE_HINTS),
       });
       return;
     }

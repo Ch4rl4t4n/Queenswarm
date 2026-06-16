@@ -163,6 +163,7 @@ async def search_recipes_semantic(
     limit: int,
     swarm_id: str | None = None,
     task_id: str | None = None,
+    tenant_id: uuid.UUID | None = None,
 ) -> list[RecipeSemanticHit]:
     """Retrieve ranked recipe embeddings and optionally hydrate catalog rows."""
 
@@ -173,6 +174,11 @@ async def search_recipes_semantic(
         return []
 
     ctx = logger.bind(swarm_id=swarm_id or "", task_id=task_id or "")
+    sovereign_mode = False
+    if tenant_id is not None and settings.local_sovereign_recipe_tags_enabled:
+        from app.application.services.local_sovereign_recipe_tags_service import tenant_uses_local_sovereign
+
+        sovereign_mode = await tenant_uses_local_sovereign(session, tenant_id=tenant_id)
     try:
         raw_hits = await semantic_search(trimmed, RECIPE_LIBRARY_COLLECTION, n_results=capped)
     except Exception as exc:
@@ -237,6 +243,14 @@ async def search_recipes_semantic(
             hybrid = _hybrid_similarity(
                 vector_similarity=float(hit.vector_similarity or hit.similarity),
                 graph_signal=graph_signal,
+            )
+            from app.application.services.local_sovereign_recipe_tags_service import (
+                sovereign_recipe_similarity_boost,
+            )
+
+            hybrid = min(
+                1.0,
+                hybrid + sovereign_recipe_similarity_boost(recipe=recipe_orm, sovereign_mode=sovereign_mode),
             )
             rescored.append(
                 hit.model_copy(

@@ -669,7 +669,7 @@ _Signal: [Unsloth Studio — fine-tune & run locally](https://www.youtube.com/wa
 | LOC11 | **CostGovernor local hops** — $0 billing + metrics label `inference=local` | P0 | 1 d | ✅ | `queenswarm_llm_local_inference_total` |
 | LOC12 | **E2E + manual** — air-gap session completes with Ollama only | P0 | 2 d | ✅ | `docs/OPERATOR_LOCAL_LLM_MANUAL.md` · shell mocks |
 | LOC13 | **Track L integration** — Analytics bees default to local model in sovereign mode | P1 | 1 d | ✅ | `analytics_local_inference_service.py` |
-| LOC14 | **Recipe tags** — `local-adapter` + imitation hints for sovereign tenants | P2 | 1–2 d | ⏳ | Recipe Library |
+| LOC14 | **Recipe tags** — `local-adapter` + imitation hints for sovereign tenants | P2 | 1–2 d | ✅ | `local_sovereign_recipe_tags_service.py` |
 
 **Optional (HITL only):** `hybrid_distill` teacher API for dataset LOC6 — budget cap · never default in air-gap.
 

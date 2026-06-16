@@ -529,6 +529,16 @@ class Settings(BaseSettings):
         le=200,
         description="Max PDF pages extracted for LOC6 wizard.",
     )
+    local_sovereign_recipe_tags_enabled: bool = Field(
+        default=True,
+        description="Track M LOC14 — local-adapter recipe tags + sovereign imitation hints.",
+    )
+    local_sovereign_recipe_imitation_boost: float = Field(
+        default=0.08,
+        ge=0.0,
+        le=0.25,
+        description="Hybrid search score boost for local-adapter recipes in sovereign routing.",
+    )
     auto_graphify_enabled: bool = Field(
         default=True,
         description="Master switch for Auto-Graphify folder ingest (Phase 4 P1).",

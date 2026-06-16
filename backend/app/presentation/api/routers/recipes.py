@@ -109,12 +109,20 @@ async def semantic_recipe_search(
     """Rank verified workflow embeddings via cosine similarity (optional Postgres join)."""
 
     _ensure_recipes_enabled()
+    tenant_uuid: uuid.UUID | None = None
+    raw_tenant = _session.get("tenant_id")
+    if raw_tenant is not None:
+        try:
+            tenant_uuid = uuid.UUID(str(raw_tenant))
+        except ValueError:
+            tenant_uuid = None
     try:
         return await search_recipes_semantic(
             db,
             query=q,
             limit=limit,
             task_id=str(_session.get("sub", "dashboard_operator")),
+            tenant_id=tenant_uuid,
         )
     except SQLAlchemyError:
         raise HTTPException(

@@ -97,3 +97,11 @@ After fine-tuning in Unsloth Studio (external GPU):
 2. **Generate Q&A** — local model only (`local_sovereign` or `LLM_AIRGAP=1`)
 3. **Approve all** — HITL gate before export
 4. **Export JSONL** — merge with LOC5 verified export for Unsloth fine-tune
+
+## Sovereign recipe hints (LOC14)
+
+**Settings → LLM keys → Sovereign recipe hints · local-adapter**
+
+- Tag recipes with `local-adapter` when registering an adapter (`link_recipe_ids`)
+- In `local_sovereign` routing, semantic recipe search boosts tagged recipes
+- Panel lists imitation hints for operator session routines

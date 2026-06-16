@@ -137,6 +137,36 @@ else
   fail "missing LOC8 unit tests"
 fi
 
+if [[ -f backend/app/application/services/local_sovereign_recipe_tags_service.py ]]; then
+  pass "local_sovereign_recipe_tags_service.py (LOC14)"
+else
+  fail "missing sovereign recipe tags service"
+fi
+
+if grep -q 'local_sovereign_recipe_tags_enabled' backend/app/core/config.py; then
+  pass "local_sovereign_recipe_tags_enabled config"
+else
+  fail "missing local_sovereign_recipe_tags_enabled"
+fi
+
+if grep -q 'sovereign-recipe-hints' backend/app/presentation/api/routers/llm_routing.py; then
+  pass "sovereign-recipe-hints API route (LOC14)"
+else
+  fail "missing sovereign-recipe-hints route"
+fi
+
+if grep -q 'SovereignRecipeHintsPanel' frontend/components/hive/settings-llm-keys-panel.tsx; then
+  pass "SovereignRecipeHintsPanel wired in settings"
+else
+  fail "sovereign recipe hints panel not wired"
+fi
+
+if [[ -f backend/tests/test_local_sovereign_recipe_tags_unit.py ]]; then
+  pass "test_local_sovereign_recipe_tags_unit.py"
+else
+  fail "missing LOC14 unit tests"
+fi
+
 if [[ -f backend/app/application/services/analytics_local_inference_service.py ]]; then
   pass "analytics_local_inference_service.py (LOC13)"
 else
@@ -162,6 +192,7 @@ if [[ -n "${PYTHON}" ]]; then
       tests/test_dataset_recipe_wizard_unit.py \
       tests/test_unsloth_bridge_unit.py \
       tests/test_local_adapter_registry_unit.py \
+      tests/test_local_sovereign_recipe_tags_unit.py \
       tests/test_analytics_local_inference_unit.py \
       tests/test_local_inference_unit.py
   ) && pass "Track M pytest bundle" || fail "Track M pytest bundle failed"
