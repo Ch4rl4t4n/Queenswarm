@@ -2175,6 +2175,10 @@ class Settings(BaseSettings):
         default=True,
         description="Track L DA7 — Analytics connector profile (GA4 · Sheets · warehouse MCP).",
     )
+    analytics_export_lane_enabled: bool = Field(
+        default=True,
+        description="Track L DA8 — Analytics export lane (Notion page + Google Slides simulate-first).",
+    )
     research_bee_max_chars: int = Field(
         default=12_000,
         ge=512,

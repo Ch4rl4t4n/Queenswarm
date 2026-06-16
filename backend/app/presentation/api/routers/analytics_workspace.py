@@ -32,6 +32,16 @@ from app.application.services.analytics_data_lineage_service import (
     AnalyticsDataLineageSnapshotOut,
     compose_analytics_data_lineage_snapshot,
 )
+from app.application.services.analytics_export_lane_service import (
+    AnalyticsExportLaneSnapshotOut,
+    AnalyticsExportPreviewIn,
+    AnalyticsExportPreviewOut,
+    AnalyticsExportSubmitIn,
+    AnalyticsExportSubmitOut,
+    compose_analytics_export_lane_snapshot,
+    preview_analytics_export,
+    submit_analytics_export,
+)
 from app.application.services.analytics_workspace_service import (
     AnalyticsWorkspaceSnapshotOut,
     compose_analytics_workspace_snapshot,
@@ -69,6 +79,12 @@ def _require_connector_profile() -> None:
     _require_enabled()
     if not settings.analytics_connector_profile_enabled:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Connector profile disabled.")
+
+
+def _require_export_lane() -> None:
+    _require_enabled()
+    if not settings.analytics_export_lane_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analytics export lane disabled.")
 
 
 @router.get("/snapshot", response_model=AnalyticsWorkspaceSnapshotOut, summary="Analytics workspace snapshot")
@@ -250,6 +266,80 @@ async def get_analytics_data_lineage_snapshot(
         task_id=task_id,
         deliverable_id=deliverable_id,
     )
+
+
+@router.get(
+    "/export-lane",
+    response_model=AnalyticsExportLaneSnapshotOut,
+    summary="DA8 Analytics export lane snapshot",
+)
+async def get_analytics_export_lane_snapshot(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> AnalyticsExportLaneSnapshotOut:
+    """Return Notion/Slides export capabilities for verified analytics reports."""
+
+    _require_export_lane()
+    user = principal.get("user")
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Dashboard context missing.")
+    return await compose_analytics_export_lane_snapshot(db, dashboard_user_id=user.id)
+
+
+@router.post(
+    "/export-lane/preview",
+    response_model=AnalyticsExportPreviewOut,
+    summary="DA8 Preview Notion/Slides export staging",
+)
+async def preview_analytics_export_lane(
+    body: AnalyticsExportPreviewIn,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> AnalyticsExportPreviewOut:
+    """Build simulate-first export payload from active analytics artifact."""
+
+    _require_export_lane()
+    user = principal.get("user")
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Dashboard context missing.")
+    try:
+        return await preview_analytics_export(db, dashboard_user_id=user.id, body=body)
+    except ValueError as exc:
+        err = str(exc)
+        if err == "analytics_export_lane_disabled":
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Export lane disabled.") from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=err) from exc
+
+
+@router.post(
+    "/export-lane/submit",
+    response_model=AnalyticsExportSubmitOut,
+    summary="DA8 Submit Notion/Slides export (simulate-first)",
+)
+async def submit_analytics_export_lane(
+    body: AnalyticsExportSubmitIn,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> AnalyticsExportSubmitOut:
+    """Stage or live-export analytics report after critic rubric gate."""
+
+    _require_export_lane()
+    user = principal.get("user")
+    tenant_id = principal.get("tenant_id")
+    if user is None or tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Dashboard context missing.")
+    try:
+        return await submit_analytics_export(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=user.id,
+            body=body,
+        )
+    except ValueError as exc:
+        err = str(exc)
+        if err == "analytics_export_lane_disabled":
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Export lane disabled.") from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=err) from exc
 
 
 __all__ = ["router"]

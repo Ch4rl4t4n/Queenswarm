@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { AnalyticsConnectorProfilePanel } from "@/components/apps-tools/analytics-connector-profile-panel";
 import { AnalyticsDataLineagePanel } from "@/components/apps-tools/analytics-data-lineage-panel";
+import { AnalyticsExportLanePanel } from "@/components/apps-tools/analytics-export-lane-panel";
 import { AnalyticsReportArtifactPanel } from "@/components/apps-tools/analytics-report-artifact-panel";
 import { BusinessQuestionWizardPanel } from "@/components/apps-tools/business-question-wizard-panel";
 import { ModulePolicyPackPill } from "@/components/apps-tools/module-policy-pack-pill";
@@ -251,16 +252,9 @@ export function AnalyticsWorkspacePageClient(): JSX.Element {
       ) : null}
 
       {!loading && snapshot && section === "export" ? (
-        <V4Card id="analytics-export" data-testid="analytics-workspace-export">
-          <V4CardHeader
-            title="Export inbox"
-            description="Simulate-first Notion/Slides staging after critic rubric ≥4/5."
-          />
-          <p className="px-4 pb-4 text-sm text-(--qs-text-2)">
-            Export lane empty — complete a verified analytics report session first. Live export requires operator
-            approval per business-analytics-playbook guardrails.
-          </p>
-        </V4Card>
+        <div data-testid="analytics-workspace-export">
+          <AnalyticsExportLanePanel />
+        </div>
       ) : null}
     </HivePageShell>
   );

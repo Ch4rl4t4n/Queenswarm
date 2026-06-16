@@ -1125,6 +1125,45 @@ const STUB_ANALYTICS_DATA_LINEAGE = {
   ],
 };
 
+const STUB_ANALYTICS_EXPORT_LANE = {
+  enabled: true,
+  destinations: ["notion", "slides"],
+  default_mode: "simulate",
+  notion_configured: true,
+  slides_configured: false,
+  critic_min_score_label: "4.0/5",
+  operator_hint: "Stage verified analytics report to Notion or Slides — simulate-first.",
+};
+
+const STUB_ANALYTICS_EXPORT_PREVIEW = {
+  ok: true,
+  deliverable_id: "55555555-5555-4555-8555-555555555555",
+  report_title: "Signup funnel review",
+  destination: "notion",
+  mode: "simulate",
+  critic_score: 0.9,
+  critic_score_label: "4.5/5",
+  critic_passed: true,
+  export_ready: true,
+  notion_payload: { parent: { type: "workspace" }, properties: { title: { title: [] } }, children: [] },
+  slides_payload: null,
+  lineage_count: 1,
+  chart_count: 1,
+  operator_hint: "Simulate-first — 1 chart(s), 1 lineage row(s) staged.",
+};
+
+const STUB_ANALYTICS_EXPORT_SUBMIT = {
+  ok: true,
+  deliverable_id: "55555555-5555-4555-8555-555555555555",
+  destination: "notion",
+  mode: "simulate",
+  simulated: true,
+  critic_passed: true,
+  message: "Staged Notion page for «Signup funnel review» (simulate).",
+  notion_result: { ok: true, mode: "simulate", executed: false },
+  slides_result: null,
+};
+
 const STUB_ANALYTICS_CONNECTOR_PROFILE = {
   enabled: true,
   generated_at: new Date().toISOString(),
@@ -3589,6 +3628,54 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           ready: true,
           blockers: [],
         }),
+      });
+      return;
+    }
+
+    if (path.startsWith("analytics-workspace/export-lane/preview")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ...STUB_ANALYTICS_EXPORT_PREVIEW,
+          destination: route.request().postDataJSON()?.destination ?? "notion",
+          slides_payload:
+            route.request().postDataJSON()?.destination === "slides"
+              ? { presentation_title: "Signup funnel review", slide_count: 3, slides: [] }
+              : null,
+          notion_payload:
+            route.request().postDataJSON()?.destination === "notion"
+              ? STUB_ANALYTICS_EXPORT_PREVIEW.notion_payload
+              : null,
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("analytics-workspace/export-lane/submit")) {
+      const dest = route.request().postDataJSON()?.destination ?? "notion";
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ...STUB_ANALYTICS_EXPORT_SUBMIT,
+          destination: dest,
+          message:
+            dest === "slides"
+              ? "Staged Google Slides deck for «Signup funnel review» (simulate)."
+              : STUB_ANALYTICS_EXPORT_SUBMIT.message,
+          slides_result: dest === "slides" ? { ok: true, mode: "simulate" } : null,
+          notion_result: dest === "notion" ? STUB_ANALYTICS_EXPORT_SUBMIT.notion_result : null,
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("analytics-workspace/export-lane")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_ANALYTICS_EXPORT_LANE),
       });
       return;
     }

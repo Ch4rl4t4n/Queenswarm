@@ -636,7 +636,7 @@ _Signal: [OpenAI — Codex for data science](https://www.youtube.com/watch?v=Lvk
 | DA5 | **Live report artifact** panel — editable markdown + chart blocks (session-bound) | P1 | 3–4 d | ✅ | Task workspace pattern |
 | DA6 | **Data lineage strip** — connector · query · timestamp per section | P1 | 2–3 d | ✅ | Session events + connector audit |
 | DA7 | **Connector profile** — GA4 + Google Sheets read + warehouse MCP slot (Databricks-ready) | P1 | 3–5 d | ✅ | Integrations hub · read-only |
-| DA8 | **Export lane** — Notion page + Google Slides template (simulate-first) | P1 | 3–4 d | ⏳ | Publish simulate patterns |
+| DA8 | **Export lane** — Notion page + Google Slides template (simulate-first) | P1 | 3–4 d | ✅ | `analytics_export_lane_service`, export-lane API, Export inbox panel |
 | DA9 | **Weekly analytics routine** — leadership deck tick + morning brief KPI | P2 | 2 d | ⏳ | Celery + CBO snapshot |
 | DA10 | **Report critic closed loop** — rubric ≥4/5 before export (LOOP5 preset) | P1 | 1–2 d | ⏳ | `rubric_templates.py` |
 | DA11 | **Snapshot API** `GET /analytics-workspace/snapshot` | P0 | 1 d | ✅ | Single cached read |
