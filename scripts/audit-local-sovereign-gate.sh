@@ -167,6 +167,42 @@ else
   fail "missing LOC14 unit tests"
 fi
 
+if [[ -f backend/app/application/services/local_finetune_queue_service.py ]]; then
+  pass "local_finetune_queue_service.py (LOC9)"
+else
+  fail "missing fine-tune queue service"
+fi
+
+if grep -q 'local_finetune_queue_enabled' backend/app/core/config.py; then
+  pass "local_finetune_queue_enabled config"
+else
+  fail "missing local_finetune_queue_enabled"
+fi
+
+if grep -q 'finetune-jobs' backend/app/presentation/api/routers/llm_routing.py; then
+  pass "finetune-jobs API routes (LOC9)"
+else
+  fail "missing finetune-jobs routes"
+fi
+
+if grep -q 'LocalFinetuneQueuePanel' frontend/components/hive/settings-llm-keys-panel.tsx; then
+  pass "LocalFinetuneQueuePanel wired in settings"
+else
+  fail "fine-tune queue panel not wired"
+fi
+
+if [[ -f backend/tests/test_local_finetune_queue_unit.py ]]; then
+  pass "test_local_finetune_queue_unit.py"
+else
+  fail "missing LOC9 unit tests"
+fi
+
+if [[ -f docker-compose.local-gpu.yml ]]; then
+  pass "docker-compose.local-gpu.yml (LOC9)"
+else
+  fail "missing local-gpu compose overlay"
+fi
+
 if [[ -f backend/app/application/services/analytics_local_inference_service.py ]]; then
   pass "analytics_local_inference_service.py (LOC13)"
 else
@@ -177,6 +213,12 @@ if [[ -f backend/alembic/versions/0063_tenant_local_adapters.py ]]; then
   pass "0063_tenant_local_adapters migration"
 else
   fail "missing tenant_local_adapters migration"
+fi
+
+if [[ -f backend/alembic/versions/0064_tenant_finetune_jobs.py ]]; then
+  pass "0064_tenant_finetune_jobs migration"
+else
+  fail "missing tenant_finetune_jobs migration"
 fi
 
 PYTHON="${ROOT}/backend/venv/bin/python"
@@ -193,6 +235,7 @@ if [[ -n "${PYTHON}" ]]; then
       tests/test_unsloth_bridge_unit.py \
       tests/test_local_adapter_registry_unit.py \
       tests/test_local_sovereign_recipe_tags_unit.py \
+      tests/test_local_finetune_queue_unit.py \
       tests/test_analytics_local_inference_unit.py \
       tests/test_local_inference_unit.py
   ) && pass "Track M pytest bundle" || fail "Track M pytest bundle failed"

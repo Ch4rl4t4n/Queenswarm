@@ -1,0 +1,36 @@
+# Track M LOC9 — optional GPU Celery worker (fine-tune queue only).
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.local-gpu.yml up -d celery-gpu-worker
+#
+# Env on GPU host (.env.prod or worker env):
+#   LOCAL_FINETUNE_QUEUE_ENABLED=true
+#   LOCAL_FINETUNE_GPU_WORKER_ENABLED=true
+#   LOCAL_FINETUNE_EXECUTE=0   # simulation default; set 1 + Unsloth on host to train
+
+services:
+  celery-gpu-worker:
+    extends:
+      file: docker-compose.yml
+      service: celery-worker
+    command:
+      [
+        "celery",
+        "-A",
+        "app.worker.celery_app",
+        "worker",
+        "-l",
+        "info",
+        "-Q",
+        "gpu_finetune",
+        "-c",
+        "1",
+        "-n",
+        "gpu@%h",
+      ]
+    environment:
+      LOCAL_FINETUNE_QUEUE_ENABLED: ${LOCAL_FINETUNE_QUEUE_ENABLED:-true}
+      LOCAL_FINETUNE_GPU_WORKER_ENABLED: ${LOCAL_FINETUNE_GPU_WORKER_ENABLED:-true}
+      LOCAL_FINETUNE_EXECUTE: ${LOCAL_FINETUNE_EXECUTE:-0}
+      CELERY_WORKER_CONCURRENCY: "1"
+    mem_limit: 8192m
+    cpus: "2.0"

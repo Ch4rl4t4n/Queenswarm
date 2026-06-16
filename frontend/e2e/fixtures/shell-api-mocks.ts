@@ -397,6 +397,27 @@ const STUB_SOVEREIGN_RECIPE_HINTS = {
   ],
 };
 
+const STUB_FINETUNE_QUEUE = {
+  enabled: true,
+  gpu_worker_enabled: true,
+  execute_mode: false,
+  operator_hint: "Create job → Approve → GPU Celery worker runs plan.",
+  jobs: [
+    {
+      id: "22222222-2222-2222-2222-222222222222",
+      status: "pending_approval",
+      adapter_name: "qs-v1",
+      base_model: "qwen2.5:7b",
+      dataset_source: "verified_export",
+      dataset_path: "/app/exports/finetune/verified-dataset-latest.jsonl",
+      dataset_row_count: 42,
+      epochs: 1,
+      litellm_slug: "ollama/qs-v1",
+      training_plan_summary: "QLoRA fine-tune 42 rows → qs-v1 (1 epoch(s))",
+    },
+  ],
+};
+
 const STUB_LLM_COST_SAVINGS = {
   window_days: 30,
   call_count: 42,
@@ -1933,6 +1954,37 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_DATASET_RECIPE_SNAPSHOT),
+      });
+      return;
+    }
+
+    if (path.startsWith("llm-routing/finetune-jobs") && method === "POST" && path.includes("/approve")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ...STUB_FINETUNE_QUEUE.jobs[0],
+          status: "queued",
+          celery_task_id: "celery-mock-id",
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("llm-routing/finetune-jobs") && method === "POST") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_FINETUNE_QUEUE.jobs[0]),
+      });
+      return;
+    }
+
+    if (path.startsWith("llm-routing/finetune-jobs")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_FINETUNE_QUEUE),
       });
       return;
     }

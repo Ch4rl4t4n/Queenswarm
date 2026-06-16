@@ -539,6 +539,39 @@ class Settings(BaseSettings):
         le=0.25,
         description="Hybrid search score boost for local-adapter recipes in sovereign routing.",
     )
+    local_finetune_queue_enabled: bool = Field(
+        default=True,
+        description="Track M LOC9 — operator-approved GPU fine-tune job queue.",
+    )
+    local_finetune_gpu_worker_enabled: bool = Field(
+        default=True,
+        description="Expose GPU worker lane in UI (celery -Q gpu_finetune).",
+    )
+    local_finetune_execute_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("LOCAL_FINETUNE_EXECUTE", "LOCAL_FINETUNE_EXECUTE_ENABLED"),
+        description="Run host fine-tune script on GPU worker — off by default (simulation only).",
+    )
+    local_finetune_exports_root: str = Field(
+        default="/app/exports/finetune",
+        description="Root directory for tenant JSONL datasets on GPU worker.",
+    )
+    local_finetune_max_dataset_rows: int = Field(
+        default=5000,
+        ge=10,
+        le=50000,
+        description="Max JSONL rows per fine-tune job.",
+    )
+    local_finetune_host_script: str = Field(
+        default="./scripts/operator-local-finetune-run.sh",
+        description="Host script invoked when LOCAL_FINETUNE_EXECUTE=1 on GPU worker.",
+    )
+    local_finetune_execute_timeout_sec: int = Field(
+        default=7200,
+        ge=60,
+        le=86400,
+        description="Timeout for host fine-tune script execution.",
+    )
     auto_graphify_enabled: bool = Field(
         default=True,
         description="Master switch for Auto-Graphify folder ingest (Phase 4 P1).",

@@ -8,6 +8,7 @@ import { CostGuardianRoutingPanel } from "@/components/hive/cost-guardian-routin
 import { DatasetRecipeWizardPanel } from "@/components/hive/dataset-recipe-wizard-panel";
 import { LocalAdapterRegistryPanel } from "@/components/hive/local-adapter-registry-panel";
 import { SovereignRecipeHintsPanel } from "@/components/hive/sovereign-recipe-hints-panel";
+import { LocalFinetuneQueuePanel } from "@/components/hive/local-finetune-queue-panel";
 import { LocalInferencePanel } from "@/components/hive/local-inference-panel";
 import { VerifiedDatasetExportPanel } from "@/components/hive/verified-dataset-export-panel";
 import { QsSelect } from "@/components/ui/qs-select";
@@ -481,6 +482,7 @@ export function SettingsLlmKeysPanel() {
       <DatasetRecipeWizardPanel />
       <LocalAdapterRegistryPanel />
       <SovereignRecipeHintsPanel />
+      <LocalFinetuneQueuePanel />
 
       <V4Card className="v4-voice-prefs-card">
         <V4CardHeader

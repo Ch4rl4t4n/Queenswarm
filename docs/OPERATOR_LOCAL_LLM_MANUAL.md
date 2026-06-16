@@ -105,3 +105,18 @@ After fine-tuning in Unsloth Studio (external GPU):
 - Tag recipes with `local-adapter` when registering an adapter (`link_recipe_ids`)
 - In `local_sovereign` routing, semantic recipe search boosts tagged recipes
 - Panel lists imitation hints for operator session routines
+
+## Fine-tune queue (LOC9)
+
+**Settings → LLM keys → Fine-tune queue · GPU worker**
+
+1. Export verified JSONL (LOC5) to `/app/exports/finetune/tenant-{id}/verified-dataset-latest.jsonl`
+2. **Create draft** — adapter name + base model
+3. **Approve & enqueue** — HITL gate; Celery `gpu_finetune` worker runs simulation (default) or host script when `LOCAL_FINETUNE_EXECUTE=1`
+4. Import GGUF via LOC7 bridge + register adapter LOC8
+
+GPU worker (optional):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local-gpu.yml up -d celery-gpu-worker
+```

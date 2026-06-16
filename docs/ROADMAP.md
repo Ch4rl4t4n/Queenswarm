@@ -664,7 +664,7 @@ _Signal: [Unsloth Studio — fine-tune & run locally](https://www.youtube.com/wa
 | LOC6 | **Dataset Recipe wizard** — PDF/CSV → Q&A pairs via **local model only** | P1 | 4–5 d | ✅ | `dataset_recipe_wizard_service.py` |
 | LOC7 | **Unsloth bridge** — operator script + doc (`pull adapter → Ollama import`) | P1 | 1–2 d | ✅ | `operator-unsloth-bridge.sh` |
 | LOC8 | **Adapter registry** — tenant LoRA/GGUF metadata → LiteLLM model slug | P1 | 2–3 d | ✅ | `local_adapter_registry_service.py` |
-| LOC9 | **Fine-tune job queue** — GPU Celery worker, operator approve start | P2 | 5–7 d | ⏳ | Env-gated · not in API container |
+| LOC9 | **Fine-tune job queue** — GPU Celery worker, operator approve start | P2 | 5–7 d | ✅ | `local_finetune_queue_service.py` |
 | LOC10 | **Hardware preflight** — RAM/VRAM/disk model recommendation | P1 | 1 d | ✅ | `operator-local-llm-preflight.sh` |
 | LOC11 | **CostGovernor local hops** — $0 billing + metrics label `inference=local` | P0 | 1 d | ✅ | `queenswarm_llm_local_inference_total` |
 | LOC12 | **E2E + manual** — air-gap session completes with Ollama only | P0 | 2 d | ✅ | `docs/OPERATOR_LOCAL_LLM_MANUAL.md` · shell mocks |

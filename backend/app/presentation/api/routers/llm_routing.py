@@ -647,4 +647,121 @@ async def get_sovereign_recipe_hints(
     return snap.model_dump(mode="json")
 
 
+@router.get(
+    "/finetune-jobs",
+    summary="Fine-tune job queue snapshot (Track M LOC9)",
+)
+async def get_finetune_jobs_snapshot(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return LOC9 GPU fine-tune queue for Settings UI."""
+
+    if not settings.local_llm_enabled or not settings.local_finetune_queue_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fine-tune queue disabled.")
+    _ensure_admin(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.local_finetune_queue_service import compose_finetune_queue_snapshot
+
+    snap = await compose_finetune_queue_snapshot(db, tenant_id=uuid.UUID(str(tenant_id)))
+    return snap.model_dump(mode="json")
+
+
+@router.post(
+    "/finetune-jobs",
+    summary="Create fine-tune job draft (LOC9)",
+)
+async def post_finetune_job_create(
+    body: dict[str, Any],
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Create pending_approval fine-tune job."""
+
+    if not settings.local_llm_enabled or not settings.local_finetune_queue_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fine-tune queue disabled.")
+    _ensure_admin(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, uuid.UUID(str(tenant_id)))
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found.")
+    from app.application.services.local_finetune_queue_service import (
+        FinetuneJobCreateIn,
+        create_finetune_job_draft,
+    )
+
+    payload = FinetuneJobCreateIn.model_validate(body)
+    try:
+        job = await create_finetune_job_draft(db, tenant=tenant, payload=payload)
+    except (ValueError, FileNotFoundError) as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    return job.model_dump(mode="json")
+
+
+@router.post(
+    "/finetune-jobs/{job_id}/approve",
+    summary="HITL approve and enqueue fine-tune job (LOC9)",
+)
+async def post_finetune_job_approve(
+    job_id: uuid.UUID,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Operator approve — enqueue GPU Celery worker."""
+
+    if not settings.local_llm_enabled or not settings.local_finetune_queue_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fine-tune queue disabled.")
+    _ensure_admin(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.local_finetune_queue_service import approve_and_enqueue_finetune_job
+
+    subject = str(principal.get("sub") or "dashboard_admin")
+    try:
+        job = await approve_and_enqueue_finetune_job(
+            db,
+            tenant_id=uuid.UUID(str(tenant_id)),
+            job_id=job_id,
+            approved_by_subject=subject,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    return job.model_dump(mode="json")
+
+
+@router.post(
+    "/finetune-jobs/{job_id}/cancel",
+    summary="Cancel fine-tune job (LOC9)",
+)
+async def post_finetune_job_cancel(
+    job_id: uuid.UUID,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Cancel pending or queued fine-tune job."""
+
+    if not settings.local_llm_enabled or not settings.local_finetune_queue_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fine-tune queue disabled.")
+    _ensure_admin(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.local_finetune_queue_service import cancel_finetune_job
+
+    try:
+        job = await cancel_finetune_job(db, tenant_id=uuid.UUID(str(tenant_id)), job_id=job_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    return job.model_dump(mode="json")
+
+
 __all__ = ["router"]
