@@ -2179,6 +2179,28 @@ class Settings(BaseSettings):
         default=True,
         description="Track L DA8 — Analytics export lane (Notion page + Google Slides simulate-first).",
     )
+    analytics_weekly_routine_enabled: bool = Field(
+        default=True,
+        description="Track L DA9 — Weekly leadership analytics deck supervisor routine + CBO KPI.",
+    )
+    analytics_weekly_routine_cron_hour: int = Field(
+        default=7,
+        ge=0,
+        le=23,
+        description="DA9 weekly analytics routine cron hour (UTC).",
+    )
+    analytics_weekly_routine_cron_minute: int = Field(
+        default=0,
+        ge=0,
+        le=59,
+        description="DA9 weekly analytics routine cron minute (UTC).",
+    )
+    analytics_weekly_routine_cron_day_of_week: int = Field(
+        default=1,
+        ge=0,
+        le=6,
+        description="DA9 weekly analytics routine cron day (0=Sun … 1=Mon UTC).",
+    )
     research_bee_max_chars: int = Field(
         default=12_000,
         ge=512,

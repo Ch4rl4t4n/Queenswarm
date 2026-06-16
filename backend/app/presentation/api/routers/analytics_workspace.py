@@ -32,6 +32,11 @@ from app.application.services.analytics_data_lineage_service import (
     AnalyticsDataLineageSnapshotOut,
     compose_analytics_data_lineage_snapshot,
 )
+from app.application.services.analytics_weekly_routine_service import (
+    AnalyticsRoutineKpiOut,
+    compose_analytics_routine_kpi,
+    ensure_analytics_weekly_routine,
+)
 from app.application.services.analytics_export_lane_service import (
     AnalyticsExportLaneSnapshotOut,
     AnalyticsExportPreviewIn,
@@ -85,6 +90,12 @@ def _require_export_lane() -> None:
     _require_enabled()
     if not settings.analytics_export_lane_enabled:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analytics export lane disabled.")
+
+
+def _require_weekly_routine() -> None:
+    _require_enabled()
+    if not settings.analytics_weekly_routine_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analytics weekly routine disabled.")
 
 
 @router.get("/snapshot", response_model=AnalyticsWorkspaceSnapshotOut, summary="Analytics workspace snapshot")
@@ -340,6 +351,52 @@ async def submit_analytics_export_lane(
         if err == "analytics_export_lane_disabled":
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Export lane disabled.") from exc
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=err) from exc
+
+
+@router.get(
+    "/routine",
+    response_model=AnalyticsRoutineKpiOut,
+    summary="DA9 Weekly analytics routine KPI snapshot",
+)
+async def get_analytics_weekly_routine_snapshot(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> AnalyticsRoutineKpiOut:
+    """Return leadership deck routine schedule + latest report KPI for morning brief."""
+
+    _require_weekly_routine()
+    user = principal.get("user")
+    tenant_id = principal.get("tenant_id")
+    if user is None or tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Dashboard context missing.")
+    return await compose_analytics_routine_kpi(
+        db,
+        tenant_id=tenant_id,
+        dashboard_user_id=user.id,
+    )
+
+
+@router.post(
+    "/routine/bootstrap",
+    summary="DA9 Bootstrap weekly analytics supervisor routine",
+)
+async def bootstrap_analytics_weekly_routine(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, object]:
+    """Idempotently register Monday leadership deck routine for tenant."""
+
+    _require_weekly_routine()
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    result = await ensure_analytics_weekly_routine(
+        db,
+        tenant_id=tenant_id,
+        created_by_subject=str(principal.get("sub") or "dashboard:analytics-routine"),
+    )
+    await db.commit()
+    return result
 
 
 __all__ = ["router"]

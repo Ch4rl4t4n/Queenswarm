@@ -1164,6 +1164,26 @@ const STUB_ANALYTICS_EXPORT_SUBMIT = {
   slides_result: null,
 };
 
+const STUB_ANALYTICS_ROUTINE = {
+  enabled: true,
+  routine_status: "scheduled",
+  routine_id: "77777777-7777-4777-8777-777777777777",
+  routine_name: "Weekly leadership analytics deck",
+  next_run_at: new Date(Date.now() + 86400000 * 3).toISOString(),
+  last_run_at: null,
+  last_session_status: null,
+  last_session_href: null,
+  report_title: "Signup funnel review",
+  report_deliverable_id: "55555555-5555-4555-8555-555555555555",
+  critic_score_label: "4.5/5",
+  critic_passed: true,
+  export_ready: true,
+  connector_ready_count: 1,
+  morning_brief_line: "Analytics deck: «Signup funnel review» — critic 4.5/5.",
+  operator_hint: "Routine scheduled — Monday leadership deck via business-analytics-report.",
+  workspace_href: "/apps-tools/analytics?section=overview#analytics-overview",
+};
+
 const STUB_ANALYTICS_CONNECTOR_PROFILE = {
   enabled: true,
   generated_at: new Date().toISOString(),
@@ -1448,7 +1468,8 @@ export async function installShellApiMocks(page: Page): Promise<void> {
               { date: "2026-06-05", total: 2, passed: 2, pass_rate_pct: 100 },
             ],
           },
-          links: { marketing_skills: "https://letagentscook.org/skills", mission_control: "/tasks", factory: "/factory" },
+          analytics_routine: STUB_ANALYTICS_ROUTINE,
+          links: { marketing_skills: "https://letagentscook.org/skills", mission_control: "/tasks", factory: "/factory", analytics_workspace: "/apps-tools/analytics" },
         }),
       });
       return;
@@ -3628,6 +3649,28 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           ready: true,
           blockers: [],
         }),
+      });
+      return;
+    }
+
+    if (path.startsWith("analytics-workspace/routine/bootstrap")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          status: "created",
+          routine_id: STUB_ANALYTICS_ROUTINE.routine_id,
+          next_run_at: STUB_ANALYTICS_ROUTINE.next_run_at,
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("analytics-workspace/routine")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_ANALYTICS_ROUTINE),
       });
       return;
     }

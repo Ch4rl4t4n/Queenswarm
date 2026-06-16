@@ -121,6 +121,7 @@ class BusinessOperatorSnapshotOut(BaseModel):
     cross_lane_learning: BusinessCrossLaneLearningOut | None = None
     harness_profiles: HarnessProfilesStateOut | None = None
     simulation_pass_rate: SimulationPassRateTrendOut | None = None
+    analytics_routine: AnalyticsRoutineKpiOut | None = None
     links: dict[str, str] = Field(default_factory=dict)
 
 
@@ -520,7 +521,17 @@ async def compose_business_operator_snapshot(
     missions = await _mission_counts(db, tenant_id=tenant_id)
     from app.application.services.simulation_pass_rate_service import compose_simulation_pass_rate_trend
 
-    daily, goal_stack, background_team, cross_lane, simulation_pass_rate = await asyncio.gather(
+    analytics_routine_coro = None
+    if settings.analytics_weekly_routine_enabled:
+        from app.application.services.analytics_weekly_routine_service import compose_analytics_routine_kpi
+
+        analytics_routine_coro = compose_analytics_routine_kpi(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=dashboard_user_id,
+        )
+
+    gather_args: list = [
         compose_solo_daily_plan(
             db,
             tenant_id=tenant_id,
@@ -541,7 +552,17 @@ async def compose_business_operator_snapshot(
         compose_background_business_team(db, tenant_id=tenant_id, tenant=tenant),
         compose_business_cross_lane_learning(db, tenant_id=tenant_id),
         compose_simulation_pass_rate_trend(db, tenant_id=tenant_id),
-    )
+    ]
+    if analytics_routine_coro is not None:
+        gather_args.append(analytics_routine_coro)
+
+    gathered = await asyncio.gather(*gather_args)
+    daily = gathered[0]
+    goal_stack = gathered[1]
+    background_team = gathered[2]
+    cross_lane = gathered[3]
+    simulation_pass_rate = gathered[4]
+    analytics_routine = gathered[5] if analytics_routine_coro is not None else None
     harness_profiles = compose_harness_profiles_state(tenant)
     daily_items = [item.model_dump(mode="json") for item in daily.items]
     top_actions = _derive_top_actions(
@@ -568,11 +589,13 @@ async def compose_business_operator_snapshot(
         cross_lane_learning=cross_lane,
         harness_profiles=harness_profiles,
         simulation_pass_rate=simulation_pass_rate,
+        analytics_routine=analytics_routine,
         links={
             "agents_sessions": "/agents#sessions",
             "mission_control": "/tasks",
             "factory": "/factory",
             "marketing_skills": "https://letagentscook.org/skills",
+            "analytics_workspace": "/apps-tools/analytics",
         },
     )
 
@@ -595,6 +618,7 @@ def _rebuild_business_operator_models() -> None:
     from app.application.services.business_goal_stack import BusinessGoalStackOut
     from app.application.services.harness_project_profiles import HarnessProfilesStateOut
     from app.application.services.simulation_pass_rate_service import SimulationPassRateTrendOut
+    from app.application.services.analytics_weekly_routine_service import AnalyticsRoutineKpiOut
 
     BusinessOperatorSnapshotOut.model_rebuild(
         _types_namespace={
@@ -603,6 +627,7 @@ def _rebuild_business_operator_models() -> None:
             "BusinessGoalStackOut": BusinessGoalStackOut,
             "HarnessProfilesStateOut": HarnessProfilesStateOut,
             "SimulationPassRateTrendOut": SimulationPassRateTrendOut,
+            "AnalyticsRoutineKpiOut": AnalyticsRoutineKpiOut,
         },
     )
 

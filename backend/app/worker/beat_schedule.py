@@ -187,6 +187,23 @@ def build_beat_schedule() -> dict[str, dict[str, Any]]:
             "schedule": timedelta(seconds=int(settings.wiki_layer_gardener_interval_sec)),
             "options": {"queue": "hive"},
         }
+    if settings.analytics_weekly_routine_enabled and settings.analytics_workspace_enabled:
+        boot_hour = int(settings.analytics_weekly_routine_cron_hour)
+        boot_minute = int(settings.analytics_weekly_routine_cron_minute)
+        if boot_minute < 5:
+            boot_minute = 55 + boot_minute
+            boot_hour = (boot_hour - 1) % 24
+        else:
+            boot_minute -= 5
+        schedule["hive-analytics-weekly-routine-bootstrap"] = {
+            "task": "hive.analytics_weekly_routine_bootstrap_tick",
+            "schedule": crontab(
+                hour=boot_hour,
+                minute=boot_minute,
+                day_of_week=settings.analytics_weekly_routine_cron_day_of_week,
+            ),
+            "options": {"queue": "hive"},
+        }
     return schedule
 
 

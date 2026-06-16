@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AnalyticsConnectorProfilePanel } from "@/components/apps-tools/analytics-connector-profile-panel";
 import { AnalyticsDataLineagePanel } from "@/components/apps-tools/analytics-data-lineage-panel";
 import { AnalyticsExportLanePanel } from "@/components/apps-tools/analytics-export-lane-panel";
+import { AnalyticsRoutinePanel } from "@/components/apps-tools/analytics-routine-panel";
 import { AnalyticsReportArtifactPanel } from "@/components/apps-tools/analytics-report-artifact-panel";
 import { BusinessQuestionWizardPanel } from "@/components/apps-tools/business-question-wizard-panel";
 import { ModulePolicyPackPill } from "@/components/apps-tools/module-policy-pack-pill";
@@ -181,6 +182,8 @@ export function AnalyticsWorkspacePageClient(): JSX.Element {
               ))}
             </div>
           </V4Card>
+
+          <AnalyticsRoutinePanel />
 
           <V4Card>
             <V4CardHeader title="Connector slots" description="Read-only default — configure in Integrations." />

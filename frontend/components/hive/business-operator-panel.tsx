@@ -135,6 +135,19 @@ interface BusinessOperatorSnapshot {
     operator_hint: string;
     daily: Array<{ date: string; total: number; passed: number; pass_rate_pct: number }>;
   } | null;
+  analytics_routine?: {
+    enabled: boolean;
+    routine_status: string;
+    routine_name: string;
+    report_title: string | null;
+    critic_score_label: string | null;
+    critic_passed: boolean;
+    export_ready: boolean;
+    connector_ready_count: number;
+    morning_brief_line: string;
+    operator_hint: string;
+    workspace_href: string;
+  } | null;
   links: Record<string, string>;
 }
 
@@ -407,6 +420,33 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
             ))}
           </div>
           <p className="mt-3 text-xs text-(--qs-text-3)">{snapshot.simulation_pass_rate.operator_hint}</p>
+        </V4Card>
+      ) : null}
+
+      {snapshot.analytics_routine?.enabled ? (
+        <V4Card data-testid="cbo-analytics-routine">
+          <V4CardHeader
+            kicker="DA9"
+            title="Analytics deck routine"
+            description={snapshot.analytics_routine.operator_hint}
+            actions={
+              <V4Badge tone={snapshot.analytics_routine.export_ready ? "ok" : "info"}>
+                {snapshot.analytics_routine.routine_status}
+              </V4Badge>
+            }
+          />
+          <p className="px-4 text-sm text-(--qs-text-2)">{snapshot.analytics_routine.morning_brief_line}</p>
+          <div className="flex flex-wrap gap-2 px-4 pb-4">
+            <V4Badge tone="info">{snapshot.analytics_routine.connector_ready_count} connectors</V4Badge>
+            {snapshot.analytics_routine.critic_score_label ? (
+              <V4Badge tone={snapshot.analytics_routine.critic_passed ? "ok" : "warn"}>
+                critic {snapshot.analytics_routine.critic_score_label}
+              </V4Badge>
+            ) : null}
+            <Link href={snapshot.analytics_routine.workspace_href} className="qs-btn qs-btn--ghost qs-btn--sm">
+              Analytics workspace
+            </Link>
+          </div>
         </V4Card>
       ) : null}
 

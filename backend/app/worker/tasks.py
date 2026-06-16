@@ -1082,6 +1082,23 @@ def run_execution_studio_codebase_auto_approve_tick_task() -> dict[str, object]:
     return asyncio.run(_run())
 
 
+@celery_app.task(name="hive.analytics_weekly_routine_bootstrap_tick", queue="hive")
+def run_analytics_weekly_routine_bootstrap_tick_task() -> dict[str, int]:
+    """DA9 — ensure weekly leadership analytics routine exists for all tenants."""
+
+    async def _run() -> dict[str, int]:
+        from app.application.services.analytics_weekly_routine_service import (
+            run_analytics_weekly_routine_bootstrap_tick,
+        )
+
+        async with async_session() as session:
+            payload = await run_analytics_weekly_routine_bootstrap_tick(session)
+            await session.commit()
+            return payload
+
+    return asyncio.run(_run())
+
+
 @celery_app.task(name="hive.execution_studio_weekly_rollup_tick", queue="hive")
 def run_execution_studio_weekly_rollup_tick_task() -> dict[str, object]:
     """Send weekly Execution Studio telemetry rollup to tenant webhooks."""
@@ -1144,6 +1161,7 @@ __all__ = [
     "run_supervisor_sessions_auto_approve_tick_task",
     "run_execution_studio_codebase_auto_approve_tick_task",
     "run_execution_studio_weekly_rollup_tick_task",
+    "run_analytics_weekly_routine_bootstrap_tick_task",
     "episodic_capture_session_task",
     "grok_control_plane_execute_run_task",
     "run_tenant_audit_retention_tick_task",
