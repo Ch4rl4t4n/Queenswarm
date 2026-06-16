@@ -24,6 +24,8 @@ test.describe("Analytics question wizard (DA4)", () => {
     await expect(page.getByTestId("analytics-question-preview")).toBeVisible({ timeout: 10_000 });
 
     await page.getByTestId("analytics-question-submit").click();
-    await expect(page.getByText("Analytics session started")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("analytics-question-wizard")).toContainText("Analytics session started", {
+      timeout: 10_000,
+    });
   });
 });

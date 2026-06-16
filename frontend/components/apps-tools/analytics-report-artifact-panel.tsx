@@ -210,12 +210,14 @@ export function AnalyticsReportArtifactPanel(): JSX.Element | null {
 
   if (loading) {
     return (
-      <V4Card data-testid="analytics-report-artifact-loading">
-        <div className="flex items-center gap-2 p-4 text-sm text-(--qs-text-3)">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          Loading report artifact…
-        </div>
-      </V4Card>
+      <div data-testid="analytics-report-artifact-loading">
+        <V4Card>
+          <div className="flex items-center gap-2 p-4 text-sm text-(--qs-text-3)">
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            Loading report artifact…
+          </div>
+        </V4Card>
+      </div>
     );
   }
 
@@ -225,25 +227,28 @@ export function AnalyticsReportArtifactPanel(): JSX.Element | null {
 
   if (!snapshot.has_artifact || !snapshot.artifact) {
     return (
-      <V4Card data-testid="analytics-report-artifact-empty">
-        <V4CardHeader
-          kicker="DA5 · Report artifact"
-          title="No active report"
-          description={snapshot.empty_hint}
-        />
-        <div className="px-4 pb-4">
-          <Link href="/apps-tools/analytics?section=question#analytics-question" className="qs-btn qs-btn--primary qs-btn--sm">
-            Open Business Question wizard
-          </Link>
-        </div>
-      </V4Card>
+      <div data-testid="analytics-report-artifact-empty">
+        <V4Card>
+          <V4CardHeader
+            kicker="DA5 · Report artifact"
+            title="No active report"
+            description={snapshot.empty_hint}
+          />
+          <div className="px-4 pb-4">
+            <Link href="/apps-tools/analytics?section=question#analytics-question" className="qs-btn qs-btn--primary qs-btn--sm">
+              Open Business Question wizard
+            </Link>
+          </div>
+        </V4Card>
+      </div>
     );
   }
 
   const artifact = snapshot.artifact;
 
   return (
-    <V4Card id="analytics-report-artifact" data-testid="analytics-report-artifact">
+    <div id="analytics-report-artifact" data-testid="analytics-report-artifact">
+      <V4Card>
       <V4CardHeader
         kicker="DA5 · Report artifact"
         title={artifact.title}
@@ -419,6 +424,7 @@ export function AnalyticsReportArtifactPanel(): JSX.Element | null {
           </button>
         ) : null}
       </div>
-    </V4Card>
+      </V4Card>
+    </div>
   );
 }

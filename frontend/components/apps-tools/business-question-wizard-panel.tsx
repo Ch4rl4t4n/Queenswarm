@@ -165,12 +165,14 @@ export function BusinessQuestionWizardPanel(): JSX.Element | null {
 
   if (loading) {
     return (
-      <V4Card className="border-cyan/20" data-testid="analytics-question-wizard-loading">
-        <div className="flex items-center gap-2 p-4 text-sm text-(--qs-text-3)">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          Loading Business Question wizard…
-        </div>
-      </V4Card>
+      <div data-testid="analytics-question-wizard-loading">
+        <V4Card className="border-cyan/20">
+          <div className="flex items-center gap-2 p-4 text-sm text-(--qs-text-3)">
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            Loading Business Question wizard…
+          </div>
+        </V4Card>
+      </div>
     );
   }
 
@@ -181,11 +183,8 @@ export function BusinessQuestionWizardPanel(): JSX.Element | null {
   const minChars = snapshot.min_question_chars;
 
   return (
-    <V4Card
-      id="analytics-question-wizard"
-      className="border-cyan/30"
-      data-testid="analytics-question-wizard"
-    >
+    <div id="analytics-question-wizard" data-testid="analytics-question-wizard">
+      <V4Card className="border-cyan/30">
       <V4CardHeader
         kicker="DA4 · Business question"
         title="Question → analytics session"
@@ -338,6 +337,7 @@ export function BusinessQuestionWizardPanel(): JSX.Element | null {
           Mission Kanban lineage + critic rubric ≥4/5 before export simulate.
         </p>
       </div>
-    </V4Card>
+      </V4Card>
+    </div>
   );
 }

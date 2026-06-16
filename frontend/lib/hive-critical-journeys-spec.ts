@@ -88,6 +88,12 @@ export const HIVE_CRITICAL_JOURNEY_SPECS: HiveCriticalJourneySpec[] = [
     requiresCp: true,
   },
   {
+    id: "analytics-workspace-journey",
+    title: "Analytics workspace decision report",
+    description: "Question wizard → session → report critic → lineage → export simulate.",
+    viewport: "desktop",
+  },
+  {
     id: "mobile-more-foragers",
     title: "Mobile more menu → Foragers",
     description: "Overflow sheet reaches Foragers on mobile.",

@@ -29,6 +29,7 @@ run_backend() {
       "${PYTHON}" -m pytest -q --tb=short --cov=app --cov-config=.coveragerc
   )
   ./scripts/audit-operator-control-plane-gate.sh
+  ./scripts/audit-analytics-workspace-gate.sh
 }
 
 run_security() {
@@ -71,6 +72,7 @@ run_frontend() {
     CI=true npx playwright test e2e/responsive-visual.spec.ts
     CI=true npx playwright test e2e/pwa-shell.spec.ts
     CI=true npx playwright test e2e/smoke-shell.spec.ts
+    CI=true npx playwright test e2e/analytics-workspace-journey.spec.ts
   )
 }
 

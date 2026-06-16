@@ -119,6 +119,8 @@ See [`ROADMAP.md`](ROADMAP.md) P10 Track L for status table.
 4. **Critic score ≥4/5** → approve export to Notion/Slides
 5. Optional: save verified flow as **Recipe** for next week
 
+**Operator manual:** [`OPERATOR_ANALYTICS_WORKSPACE_MANUAL.md`](OPERATOR_ANALYTICS_WORKSPACE_MANUAL.md) · prep: `./scripts/operator-analytics-workspace-prep.sh`
+
 ---
 
 ## References

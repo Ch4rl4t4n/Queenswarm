@@ -54,12 +54,14 @@ export function AnalyticsDataLineagePanel(): JSX.Element | null {
 
   if (loading) {
     return (
-      <V4Card data-testid="analytics-data-lineage-loading">
-        <div className="flex items-center gap-2 p-4 text-sm text-(--qs-text-3)">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          Loading data lineage…
-        </div>
-      </V4Card>
+      <div data-testid="analytics-data-lineage-loading">
+        <V4Card>
+          <div className="flex items-center gap-2 p-4 text-sm text-(--qs-text-3)">
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            Loading data lineage…
+          </div>
+        </V4Card>
+      </div>
     );
   }
 
@@ -69,23 +71,26 @@ export function AnalyticsDataLineagePanel(): JSX.Element | null {
 
   if (!snapshot.has_rows) {
     return (
-      <V4Card data-testid="analytics-data-lineage-empty">
-        <V4CardHeader
-          kicker="DA6 · Data lineage"
-          title="No lineage rows yet"
-          description={snapshot.empty_hint}
-        />
-        <div className="px-4 pb-4">
-          <Link href="/apps-tools/analytics?section=question#analytics-question" className="qs-btn qs-btn--primary qs-btn--sm">
-            Dispatch business question
-          </Link>
-        </div>
-      </V4Card>
+      <div data-testid="analytics-data-lineage-empty">
+        <V4Card>
+          <V4CardHeader
+            kicker="DA6 · Data lineage"
+            title="No lineage rows yet"
+            description={snapshot.empty_hint}
+          />
+          <div className="px-4 pb-4">
+            <Link href="/apps-tools/analytics?section=question#analytics-question" className="qs-btn qs-btn--primary qs-btn--sm">
+              Dispatch business question
+            </Link>
+          </div>
+        </V4Card>
+      </div>
     );
   }
 
   return (
-    <V4Card id="analytics-data-lineage" data-testid="analytics-data-lineage">
+    <div id="analytics-data-lineage" data-testid="analytics-data-lineage">
+      <V4Card>
       <V4CardHeader
         kicker="DA6 · Data lineage"
         title={snapshot.report_title ?? "Report lineage"}
@@ -156,6 +161,7 @@ export function AnalyticsDataLineagePanel(): JSX.Element | null {
           edit chart citations in Report tab to close gaps.
         </p>
       ) : null}
-    </V4Card>
+      </V4Card>
+    </div>
   );
 }

@@ -17,8 +17,8 @@ test.describe("Analytics report artifact (DA5)", () => {
       timeout: 60_000,
     });
     await expect(page.getByTestId("analytics-report-artifact")).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText("Signup funnel review")).toBeVisible();
-    await expect(page.getByText("Weekly active users")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Signup funnel review" })).toBeVisible();
+    await expect(page.getByTestId("analytics-report-artifact")).toContainText("Weekly active users");
 
     await page.getByRole("button", { name: "Edit" }).click();
     await page.getByTestId("analytics-report-markdown-editor").fill(

@@ -30,6 +30,7 @@ for script in \
   audit-live-lane-gate.sh \
   audit-operator-hub-settings-gate.sh \
   audit-operator-control-plane-gate.sh \
+  audit-analytics-workspace-gate.sh \
   operator-automation-ladder-audit.sh \
   audit-harness-self-improve-gate.sh \
   audit-phase-e-publish-gate.sh \

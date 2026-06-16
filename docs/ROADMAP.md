@@ -640,7 +640,7 @@ _Signal: [OpenAI — Codex for data science](https://www.youtube.com/watch?v=Lvk
 | DA9 | **Weekly analytics routine** — leadership deck tick + morning brief KPI | P2 | 2 d | ✅ | `analytics_weekly_routine_service`, Celery bootstrap, CBO KPI |
 | DA10 | **Report critic closed loop** — rubric ≥4/5 before export (LOOP5 preset) | P1 | 1–2 d | ✅ | `analytics_report_critic_service.py` |
 | DA11 | **Snapshot API** `GET /analytics-workspace/snapshot` | P0 | 1 d | ✅ | Single cached read |
-| DA12 | **E2E + operator manual** — wizard → session → approve export | P1 | 2 d | ⏳ | `docs/OPERATOR_ANALYTICS_WORKSPACE_MANUAL.md` |
+| DA12 | **E2E + operator manual** — wizard → session → approve export | P1 | 2 d | ✅ | `OPERATOR_ANALYTICS_WORKSPACE_MANUAL.md` · `analytics-workspace-journey.spec.ts` |
 
 **Reuses:** `ga4-analytics-playbook` · Research Bee · analysis consensus (optional) · Hive Mind · AL1 timeline (when shipped).
 

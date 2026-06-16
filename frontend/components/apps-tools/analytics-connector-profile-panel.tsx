@@ -62,12 +62,14 @@ export function AnalyticsConnectorProfilePanel(): JSX.Element | null {
 
   if (loading) {
     return (
-      <V4Card data-testid="analytics-connector-profile-loading">
-        <div className="flex items-center gap-2 p-4 text-sm text-(--qs-text-3)">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          Loading connector profiles…
-        </div>
-      </V4Card>
+      <div data-testid="analytics-connector-profile-loading">
+        <V4Card>
+          <div className="flex items-center gap-2 p-4 text-sm text-(--qs-text-3)">
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            Loading connector profiles…
+          </div>
+        </V4Card>
+      </div>
     );
   }
 
@@ -76,7 +78,8 @@ export function AnalyticsConnectorProfilePanel(): JSX.Element | null {
   }
 
   return (
-    <V4Card id="analytics-connectors" data-testid="analytics-connector-profile">
+    <div id="analytics-connectors" data-testid="analytics-connector-profile">
+      <V4Card>
       <V4CardHeader
         kicker="DA7 · Connector profile"
         title="Read-only data sources"
@@ -140,6 +143,7 @@ export function AnalyticsConnectorProfilePanel(): JSX.Element | null {
           </article>
         ))}
       </div>
-    </V4Card>
+      </V4Card>
+    </div>
   );
 }
