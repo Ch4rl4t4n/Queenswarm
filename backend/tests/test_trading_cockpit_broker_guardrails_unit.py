@@ -82,3 +82,73 @@ async def test_compose_trading_cockpit_snapshot_includes_broker_guardrails(monke
     assert snapshot.broker_guardrails is not None
     assert snapshot.broker_guardrails["kill_switch"] is True
     assert snapshot.performance["is_halted"] is True
+
+
+@pytest.mark.asyncio
+async def test_compose_trading_cockpit_snapshot_includes_pretrade_recall(monkeypatch: pytest.MonkeyPatch) -> None:
+    tenant_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+    tenant = MagicMock()
+    tenant.id = tenant_id
+    tenant.operator_settings = {}
+
+    session = AsyncMock()
+    project = MagicMock()
+    project.id = uuid.uuid4()
+    project.slug = "hive-trader"
+    project.display_name = "Polymarket Trader"
+    project.is_active = True
+    project.settings = {}
+
+    monkeypatch.setattr(
+        "app.application.services.trading_cockpit.settings",
+        MagicMock(
+            trading_cockpit_enabled=True,
+            broker_guardrails_enabled=False,
+            broker_readonly_session_enabled=False,
+            broker_order_queue_enabled=False,
+            prediction_markets_enabled=True,
+            prediction_markets_live_trading_enabled=False,
+            journal_studio_enabled=True,
+            journal_studio_pretrade_recall_enabled=True,
+        ),
+    )
+
+    recall_payload = {"enabled": True, "mistake_count": 1, "top_mistakes": [{"tag": "fomo", "count": 1}]}
+
+    with (
+        patch(
+            "app.application.services.trading_cockpit.ensure_primary_trading_project",
+            AsyncMock(return_value=project),
+        ),
+        patch("app.application.services.trading_cockpit.sync_project_from_lane", AsyncMock()),
+        patch(
+            "app.application.services.trading_cockpit._build_funding_snapshot",
+            AsyncMock(return_value={"status": "needs_credentials", "message": "test"}),
+        ),
+        patch(
+            "app.application.services.trading_cockpit.aggregate_metrics",
+            AsyncMock(return_value={}),
+        ),
+        patch(
+            "app.application.services.trading_cockpit.recent_run_series",
+            AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.application.services.trading_cockpit.build_prediction_markets_status_snapshot",
+            AsyncMock(return_value={"live_trading_enabled": False, "connectors_active": {}}),
+        ),
+        patch(
+            "app.application.services.journal_studio_pretrade_recall_service.compose_pretrade_recall",
+            AsyncMock(return_value=MagicMock(model_dump=lambda mode, **kwargs: recall_payload)),
+        ),
+    ):
+        session.execute = AsyncMock(return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=lambda: []))))
+        snapshot = await compose_trading_cockpit_snapshot(
+            session,
+            dashboard_user_id=user_id,
+            tenant=tenant,
+        )
+
+    assert snapshot.pretrade_recall is not None
+    assert snapshot.pretrade_recall["mistake_count"] == 1

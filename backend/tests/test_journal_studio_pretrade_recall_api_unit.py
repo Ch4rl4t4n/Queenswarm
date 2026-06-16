@@ -55,3 +55,26 @@ async def test_journal_studio_pretrade_recall_get(restore_overrides: None) -> No
 
     assert response.status_code == 200
     assert response.json()["mistake_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_journal_studio_pretrade_recall_get_disabled(restore_overrides: None) -> None:
+    app.dependency_overrides[require_dashboard_user_with_tenant_role] = _owner_principal
+    app.dependency_overrides[get_db] = lambda: AsyncMock()
+
+    with patch(
+        "app.presentation.api.routers.journal_studio.settings",
+        type(
+            "S",
+            (),
+            {"journal_studio_pretrade_recall_enabled": False, "journal_studio_enabled": True},
+        )(),
+    ):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                "/api/v1/journal-studio/pretrade-recall",
+                headers={"Authorization": "Bearer x"},
+            )
+
+    assert response.status_code == 404
