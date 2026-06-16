@@ -92,6 +92,7 @@ WEEK2_SKILLS=(
   seo-audit-playbook
   ga4-analytics-playbook
   email-drip-sequences
+  business-analytics-playbook
 )
 for slug in "${WEEK1_SKILLS[@]}" "${WEEK2_SKILLS[@]}"; do
   if [[ -f "${SKILLS_DIR}/${slug}.md" ]]; then

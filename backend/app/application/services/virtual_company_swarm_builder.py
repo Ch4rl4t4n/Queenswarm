@@ -79,6 +79,7 @@ class SwarmWizardSpec:
     super_router_preset: str | None
     agents: tuple[_AgentSpec, ...]
     routine: _RoutineSpec | None = None
+    routine_skills: tuple[str, ...] = ("execution-studio",)
 
 
 def _exec(prompt: str) -> str:
@@ -483,6 +484,12 @@ SWARM_WIZARD_SPECS: dict[str, SwarmWizardSpec] = {
             "cron",
             cron_expr="0 8 * * 1",
         ),
+        routine_skills=(
+            "business-analytics-playbook",
+            "ga4-analytics-playbook",
+            "self-review-loop",
+            "execution-studio",
+        ),
     ),
 }
 
@@ -678,7 +685,7 @@ async def build_department_swarm(
             runtime_mode="durable",
             roles=[],
             retrieval_contract=None,
-            skills=["execution-studio"],
+            skills=list(spec.routine_skills),
             context_payload={
                 "wizard_template": key,
                 "swarm_id": str(swarm.id),

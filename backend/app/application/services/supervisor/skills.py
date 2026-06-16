@@ -12,6 +12,7 @@ DEFAULT_ROLE_SKILLS: dict[str, list[str]] = {
         "full-swarm-autonomy",
         "agent-initiative-proposals",
         "research-to-pr-proposal",
+        "business-analytics-playbook",
     ],
     "researcher": [
         "context",
@@ -21,6 +22,8 @@ DEFAULT_ROLE_SKILLS: dict[str, list[str]] = {
         "competitor-scrape-analyze",
         "lead-gen-lane",
         "research-to-pr-proposal",
+        "business-analytics-playbook",
+        "ga4-analytics-playbook",
     ],
     "coder": [
         "tdd",
@@ -42,6 +45,7 @@ DEFAULT_ROLE_SKILLS: dict[str, list[str]] = {
         "diagnose",
         "operator-approval-gate",
         "real-money-risk-gate",
+        "business-analytics-playbook",
     ],
     "designer": [
         "context",

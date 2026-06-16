@@ -630,7 +630,7 @@ _Signal: [OpenAI — Codex for data science](https://www.youtube.com/watch?v=Lvk
 | ID | Item | Priority | Est. | Status | Gate / asset |
 |----|------|----------|------|--------|--------------|
 | DA1 | **Swarm template** `business-analytics-report` — Fetch · Analyst · Narrative · Critic · Export staging | P0 | 3–4 d | ✅ | `swarm-wizard-templates.ts` · max 5 bees |
-| DA2 | **Skill** `business-analytics-playbook.md` — workflow + guardrails + connector order | P0 | 1 d | ⏳ | `backend/app/skills/` |
+| DA2 | **Skill** `business-analytics-playbook.md` — workflow + guardrails + connector order | P0 | 1 d | ✅ | `backend/app/skills/` |
 | DA3 | **Analytics Workspace** module — `/apps-tools/analytics` card + lazy panels | P0 | 4–5 d | ⏳ | `apps.analytics.decision_report.v1` |
 | DA4 | **Business Question wizard** — question · range · sources → dispatch session | P0 | 2–3 d | ⏳ | Mission Kanban lineage |
 | DA5 | **Live report artifact** panel — editable markdown + chart blocks (session-bound) | P1 | 3–4 d | ⏳ | Task workspace pattern |

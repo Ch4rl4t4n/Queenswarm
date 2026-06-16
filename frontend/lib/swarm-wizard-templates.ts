@@ -923,7 +923,7 @@ export const SWARM_WIZARD_TEMPLATES: SwarmWizardTemplate[] = [
         name: "Analytics Supervisor",
         hiveTier: "manager",
         systemPrompt:
-          `You supervise one business analytics report session. Decompose the operator question into fetch → analyze → narrative → critic → export staging. Read-only connectors only; never mutate GA4 or warehouse config.${EXEC}`,
+          `You supervise one business analytics report session per business-analytics-playbook. Decompose the operator question into fetch → analyze → narrative → critic → export staging. Read-only connectors only; never mutate GA4 or warehouse config.${EXEC}`,
         tools: DEPT_TOOLS,
       },
       {
