@@ -55,6 +55,7 @@ test.describe("Whole-App page shell — zone headers", () => {
     const modules = [
       "/apps-tools/marketing-automation",
       "/apps-tools/trading-automation",
+      "/apps-tools/trading-journal",
       "/apps-tools/browser-automation",
       "/apps-tools/research-workspace",
       "/apps-tools/analytics",

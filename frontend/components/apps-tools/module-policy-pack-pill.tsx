@@ -14,6 +14,7 @@ export type AppsToolsPolicyModuleKey =
   | "content_factory"
   | "research_workspace"
   | "analytics_workspace"
+  | "trading_journal"
   | "live_lane";
 
 interface ModulePolicyPack {

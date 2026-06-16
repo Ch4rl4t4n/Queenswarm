@@ -370,6 +370,9 @@ const MODULE_SECTION_DEEP_LINKS: Record<
     { label: "Hybrid loop", href: "/apps-tools/trading-automation?section=hybrid#trading-content-hybrid" },
     { label: "Live lane prep", href: "/apps-tools/trading-automation?section=live-lane#live-lane" },
   ],
+  trading_journal: [
+    { label: "Studio settings", href: "/apps-tools/trading-journal?section=settings#journal-studio-settings" },
+  ],
   browser_automation: [
     { label: "Live approvals", href: "/apps-tools/browser-automation?section=approvals#studio-pending-live" },
     { label: "Lane readiness", href: "/apps-tools/browser-automation?section=live-lane#live-lane" },

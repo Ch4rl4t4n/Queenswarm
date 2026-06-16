@@ -13,6 +13,7 @@ export interface AppsToolsModuleDef {
     | "content_factory"
     | "research_workspace"
     | "analytics_workspace"
+    | "trading_journal"
     | "skill_factory";
   slug: string;
   title: string;
@@ -99,6 +100,16 @@ export const APPS_TOOLS_MODULES: AppsToolsModuleDef[] = [
     ],
   },
   {
+    moduleKey: "trading_journal",
+    slug: "trading-journal",
+    title: "Trading Journal",
+    summary: "Learning Loop Studio — fields, review cron, Obsidian export, mistake recall.",
+    status: "beta",
+    tier: "frozen",
+    href: "/apps-tools/trading-journal",
+    capabilityKeys: ["apps.trading.journal_studio.v1"],
+  },
+  {
     moduleKey: "trading_automation",
     slug: "trading-automation",
     title: "Trading Automation",
@@ -145,6 +156,8 @@ const MODULE_AGENT_USAGE: Record<AppsToolsModuleDef["moduleKey"], string> = {
     "Pack factory builds niche content harnesses with critic eval + Gumroad export.",
   analytics_workspace:
     "Codex-style reports via business-analytics-report template — fetch, analyze, critic, export simulate.",
+  trading_journal:
+    "Configure journal fields, overnight review cron, Obsidian subfolder, and mistake tags — HITL before vault write.",
   research_workspace:
     "Use Agents → New session for research; this stub remains for future briefing UX.",
   skill_factory:
@@ -164,6 +177,7 @@ export const APPS_TOOLS_MODULE_CATEGORY: Record<AppsToolsModuleDef["moduleKey"],
   browser_automation: "browser",
   content_factory: "content",
   analytics_workspace: "analytics",
+  trading_journal: "trading",
   research_workspace: "research",
   skill_factory: "harness",
 };

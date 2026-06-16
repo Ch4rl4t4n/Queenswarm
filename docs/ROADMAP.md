@@ -711,7 +711,7 @@ _Signals: [CyrilXBT — Obsidian trading journal](https://x.com/cyrilXBT/status/
 | TJ1 | **Journal Studio** module — `/apps-tools/trading-journal` config + timeline | P1 | 3–4 d | ⏳ | Apps & Tools lazy panel |
 | TJ2 | **Trade entry schema** — thesis · outcome · tags · lesson (manual + paper fill import) | P1 | 2–3 d | ⏳ | `PaperTradingFill` · task workspace |
 | TJ3 | **Overnight journal gardener** — fills → draft lesson → operator approve → wiki | P1 | 2–3 d | ⏳ | Celery · **SB1** capture · critic |
-| TJ4 | **Studio settings** — fields ON/OFF · review cron · Obsidian subfolder · mistake tags | P0 | 1–2 d | ⏳ | Tenant `operator_settings.journal_studio` |
+| TJ4 | **Studio settings** — fields ON/OFF · review cron · Obsidian subfolder · mistake tags | P0 | 1–2 d | ✅ | Tenant `operator_settings.journal_studio` |
 | TJ5 | **Pre-trade recall** — inject top mistakes / edges before next session | P1 | 2 d | ⏳ | Brain Pack · **NP5** thesis · Hive Mind |
 | TJ6 | **30/90-day pattern strip** — win rate by tag · repeat-mistake alert | P2 | 2–3 d | ⏳ | CBO snapshot · morning brief |
 | TJ7 | **Business brain preset** (optional) — same studio shell for Moneta/marketing notes | P2 | 2 d | ⏳ | **NP4** brief · Wiki Layer |
@@ -780,7 +780,7 @@ _Signal: [Claude Agent OS / Hermes Mission Control](https://www.youtube.com/watc
 | P0 work intel | **DG1, DG3, DG7** | Data Monitor · delta alerts · dispatch |
 | P0 analytics | **DA1–DA4, DA11** | Template · wizard · workspace MVP |
 | P1 | LOC5–8, LOC10, LOC13, SB2–3, MEM1–3, … | Dataset · adapters · Unsloth bridge |
-| P2 | LOC9, LOC14, DA9, … | GPU fine-tune queue · recipe tags |
+| P2 | DA9, SB2, … | Analytics export · second-brain automation |
 
 ---
 

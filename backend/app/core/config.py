@@ -2310,6 +2310,26 @@ class Settings(BaseSettings):
         default=True,
         description="Track L DA10 — Report critic closed loop (LOOP5 preset, rubric ≥4/5 before export).",
     )
+    journal_studio_enabled: bool = Field(
+        default=True,
+        description="Track O TJ4 — Learning Loop Studio settings (fields, review cron, Obsidian, mistake tags).",
+    )
+    journal_studio_review_routine_enabled: bool = Field(
+        default=True,
+        description="Track O TJ4 — Supervisor cron routine for trading journal overnight review.",
+    )
+    journal_studio_default_obsidian_subfolder: str = Field(
+        default="Trading/Journal",
+        description="Track O TJ4 — default Obsidian vault subfolder for journal exports.",
+    )
+    journal_studio_default_review_cron: str = Field(
+        default="0 6 * * *",
+        description="Track O TJ4 — default review cron (daily 06:00 UTC).",
+    )
+    journal_studio_default_review_cron_preset: str = Field(
+        default="daily_0600",
+        description="Track O TJ4 — default review cron preset key (daily_0600 | daily_2000 | weekly_monday | custom | off).",
+    )
     research_bee_max_chars: int = Field(
         default=12_000,
         ge=512,

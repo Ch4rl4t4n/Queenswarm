@@ -38,6 +38,7 @@ function routeTable(consolidatedEnabled: boolean): { prefix: string; meta: Mobil
           { prefix: "/apps-tools/marketing-automation", meta: { kicker: "Apps & Tools", staticSubtitle: "Publish queue · social distribution", pageTitleSuffix: "Marketing Automation" } },
           { prefix: "/apps-tools/content-factory", meta: { kicker: "Apps & Tools", staticSubtitle: "Pack Factory · Research", pageTitleSuffix: "Apps & Tools" } },
           { prefix: "/apps-tools/trading-automation", meta: { kicker: "Apps & Tools", staticSubtitle: "Trading cockpit · live lane", pageTitleSuffix: "Trading Automation" } },
+          { prefix: "/apps-tools/trading-journal", meta: { kicker: "Apps & Tools", staticSubtitle: "Studio settings · review cron", pageTitleSuffix: "Trading Journal" } },
           { prefix: "/apps-tools/browser-automation", meta: { kicker: "Apps & Tools", staticSubtitle: "Operator-approved browser harness", pageTitleSuffix: "Browser Automation" } },
           { prefix: "/apps-tools/research-workspace", meta: { kicker: "Apps & Tools", staticSubtitle: "Briefing-first research lane", pageTitleSuffix: "Research Workspace" } },
           { prefix: "/apps-tools/analytics", meta: { kicker: "Apps & Tools", staticSubtitle: "Decision-ready analytics reports", pageTitleSuffix: "Analytics Workspace" } },

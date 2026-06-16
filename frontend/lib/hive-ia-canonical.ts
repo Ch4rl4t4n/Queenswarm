@@ -7,6 +7,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Activity,
   BarChart3,
+  BookMarked,
   Boxes,
   Brain,
   Briefcase,
@@ -353,6 +354,7 @@ export function buildCanonicalNavGroups(options: {
         { href: "/apps-tools", label: "Module index", Icon: Boxes, section: "integrations", iaZone: "apps_tools" },
         { href: "/apps-tools/marketing-automation", label: "Marketing Automation", Icon: Zap, section: "integrations", iaZone: "apps_tools" },
         { href: "/apps-tools/trading-automation", label: "Trading Automation", Icon: Activity, section: "integrations", iaZone: "apps_tools" },
+        { href: "/apps-tools/trading-journal", label: "Trading Journal", Icon: BookMarked, section: "integrations", iaZone: "apps_tools" },
         { href: "/apps-tools/content-factory#research", label: "Pack Factory", Icon: Factory, section: "integrations", iaZone: "apps_tools" },
         { href: "/apps-tools/skill-factory", label: "Skill Factory", Icon: Sparkles, section: "integrations", featureKey: "skill_factory", iaZone: "apps_tools" },
         { href: "/apps-tools/analytics", label: "Analytics Workspace", Icon: BarChart3, section: "integrations", iaZone: "apps_tools" },

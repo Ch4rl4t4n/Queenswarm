@@ -1329,6 +1329,50 @@ const STUB_ANALYTICS_ROUTINE = {
   workspace_href: "/apps-tools/analytics?section=overview#analytics-overview",
 };
 
+const STUB_JOURNAL_STUDIO_SETTINGS = {
+  enabled: true,
+  field_toggles: {
+    thesis: true,
+    setup: true,
+    entry_price: true,
+    exit_price: true,
+    position_size: true,
+    outcome: true,
+    pnl: true,
+    emotion: true,
+    screenshot: false,
+    lesson: true,
+    tags: true,
+    mistake_tag: true,
+  },
+  review_cron_enabled: true,
+  review_cron_preset: "daily_0600",
+  review_cron: "0 6 * * *",
+  obsidian_subfolder: "Trading/Journal",
+  mistake_tags: ["fomo", "revenge_trade", "no_stop", "oversized"],
+  source: "deployment",
+  updated_at: null,
+  workspace_href: "/apps-tools/trading-journal?section=settings#journal-studio-settings",
+};
+
+const STUB_JOURNAL_STUDIO_ROUTINE = {
+  enabled: true,
+  routine_status: "scheduled",
+  routine_id: "88888888-8888-4888-8888-888888888888",
+  routine_name: "Trading journal review",
+  next_run_at: new Date(Date.now() + 86400000).toISOString(),
+  last_run_at: null,
+  last_session_status: null,
+  last_session_href: null,
+  review_cron: "0 6 * * *",
+  review_cron_preset: "daily_0600",
+  obsidian_subfolder: "Trading/Journal",
+  enabled_field_count: 11,
+  mistake_tag_count: 4,
+  operator_hint: "Review routine active — drafts await operator approve before vault write.",
+  workspace_href: "/apps-tools/trading-journal?section=settings#journal-studio-settings",
+};
+
 const STUB_ANALYTICS_CONNECTOR_PROFILE = {
   enabled: true,
   generated_at: new Date().toISOString(),
@@ -3953,6 +3997,37 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           ready: true,
           blockers: [],
         }),
+      });
+      return;
+    }
+
+    if (path.startsWith("journal-studio/routine/bootstrap")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          status: "created",
+          routine_id: STUB_JOURNAL_STUDIO_ROUTINE.routine_id,
+          next_run_at: STUB_JOURNAL_STUDIO_ROUTINE.next_run_at,
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("journal-studio/routine")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_JOURNAL_STUDIO_ROUTINE),
+      });
+      return;
+    }
+
+    if (path.startsWith("journal-studio/settings")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_JOURNAL_STUDIO_SETTINGS),
       });
       return;
     }

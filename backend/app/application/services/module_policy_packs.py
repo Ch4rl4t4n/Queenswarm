@@ -18,6 +18,7 @@ ModuleKey = Literal[
     "content_factory",
     "research_workspace",
     "analytics_workspace",
+    "trading_journal",
     "live_lane",
 ]
 ModuleRiskTier = Literal["read", "write", "publish", "financial"]
@@ -162,6 +163,20 @@ def _module_policy_catalog() -> list[ModulePolicyPackOut]:
                 "Read-only GA4/Sheets/warehouse fetch by default.",
                 "Export to Notion/Slides is simulate-first until operator approve.",
                 "Critic rubric ≥4/5 required before export staging.",
+            ],
+        ),
+        ModulePolicyPackOut(
+            module_key="trading_journal",
+            label="Trading Journal",
+            enabled=bool(settings.journal_studio_enabled),
+            risk_tier="write",
+            requires_approval=True,
+            spend_cap_usd_24h=float(settings.daily_budget_usd),
+            time_limit_sec=max(1, int(settings.dynamic_connector_tool_timeout_ms / 1000)),
+            notes=[
+                "Obsidian vault writes require operator HITL approve.",
+                "Review cron drafts only — never autonomous live trade changes.",
+                "Mistake tags feed pattern strip and session recall (TJ5).",
             ],
         ),
         ModulePolicyPackOut(

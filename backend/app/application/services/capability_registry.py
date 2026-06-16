@@ -272,6 +272,22 @@ def _capability_catalog() -> list[CapabilityContractOut]:
             tags=["apps", "trading", "financial"],
         ),
         CapabilityContractOut(
+            capability_key="apps.trading.journal_studio.v1",
+            label="Trading journal studio",
+            owner_module="trading_journal",
+            surface="apps_tools",
+            summary="Configurable journal fields, review cron, Obsidian export, and mistake tags.",
+            status="beta",
+            risk_tier="write",
+            requires_approval=True,
+            input_schema_ref="schemas/apps.trading.journal_studio.input.v1.json",
+            output_schema_ref="schemas/apps.trading.journal_studio.output.v1.json",
+            enabled=bool(settings.journal_studio_enabled),
+            dependency_keys=["knowledge.hivemind.query.v1", "integrations.connector.invoke.v1"],
+            sla_hint_sec=120,
+            tags=["apps", "trading", "journal", "obsidian"],
+        ),
+        CapabilityContractOut(
             capability_key="apps.polymarket.intel.v1",
             label="Polymarket intelligence",
             owner_module="polymarket_intel",
@@ -517,6 +533,15 @@ def _workspace_catalog(capabilities: list[CapabilityContractOut]) -> list[Capabi
             status="beta",
             enabled=bool(settings.analytics_workspace_enabled),
             capability_keys=grouped.get("analytics_workspace", []),
+        ),
+        CapabilityWorkspaceOut(
+            module_key="trading_journal",
+            label="Trading Journal",
+            layer="apps_tools",
+            summary="Learning loop studio — journal fields, review cron, Obsidian vault, mistake recall.",
+            status="beta",
+            enabled=bool(settings.journal_studio_enabled),
+            capability_keys=grouped.get("trading_journal", []),
         ),
     ]
     return workspaces

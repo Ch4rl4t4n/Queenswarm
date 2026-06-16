@@ -31,6 +31,7 @@ run_backend() {
   ./scripts/audit-operator-control-plane-gate.sh
   ./scripts/audit-analytics-workspace-gate.sh
   ./scripts/audit-local-sovereign-gate.sh
+  ./scripts/audit-journal-studio-gate.sh
 }
 
 run_security() {

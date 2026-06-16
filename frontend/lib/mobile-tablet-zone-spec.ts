@@ -61,6 +61,7 @@ export const MOBILE_TABLET_SECONDARY_ROUTE_SPECS: MobileTabletRouteSpec[] = [
   { path: "/apps-tools/marketing-automation", mobileTitle: "Marketing Automation", shellTitle: "Marketing Automation" },
   { path: "/apps-tools/content-factory", mobileTitle: "Pack Factory", shellTitle: "Apps & Tools" },
   { path: "/apps-tools/trading-automation", mobileTitle: "Trading Automation", shellTitle: "Trading Automation" },
+  { path: "/apps-tools/trading-journal", mobileTitle: "Trading Journal", shellTitle: "Trading Journal" },
   { path: "/apps-tools/browser-automation", mobileTitle: "Browser Automation", shellTitle: "Browser Automation" },
   { path: "/apps-tools/research-workspace", mobileTitle: "Research Workspace", shellTitle: "Research Workspace" },
   { path: "/apps-tools/analytics", mobileTitle: "Analytics", shellTitle: "Analytics Workspace" },
