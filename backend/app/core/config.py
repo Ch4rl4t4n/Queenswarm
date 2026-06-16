@@ -2167,6 +2167,10 @@ class Settings(BaseSettings):
         default=True,
         description="Track L DA5 — Live report artifact panel (editable markdown + chart blocks).",
     )
+    analytics_data_lineage_enabled: bool = Field(
+        default=True,
+        description="Track L DA6 — Data lineage strip (connector · query · timestamp per section).",
+    )
     research_bee_max_chars: int = Field(
         default=12_000,
         ge=512,

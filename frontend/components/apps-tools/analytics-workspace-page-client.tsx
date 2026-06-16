@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { AnalyticsDataLineagePanel } from "@/components/apps-tools/analytics-data-lineage-panel";
 import { AnalyticsReportArtifactPanel } from "@/components/apps-tools/analytics-report-artifact-panel";
 import { BusinessQuestionWizardPanel } from "@/components/apps-tools/business-question-wizard-panel";
 import { ModulePolicyPackPill } from "@/components/apps-tools/module-policy-pack-pill";
@@ -219,23 +220,9 @@ export function AnalyticsWorkspacePageClient(): JSX.Element {
       ) : null}
 
       {!loading && snapshot && section === "lineage" ? (
-        <V4Card id="analytics-lineage" data-testid="analytics-workspace-lineage">
-          <V4CardHeader
-            title="Data lineage strip"
-            description="Each report section cites connector · query · timestamp (DA6 expands live artifact binding)."
-          />
-          <p className="px-4 pb-4 text-sm text-(--qs-text-2)">
-            No active report session — use the{" "}
-            <Link href="/apps-tools/analytics?section=question#analytics-question" className="text-cyan hover:underline">
-              Business Question wizard
-            </Link>{" "}
-            or dispatch{" "}
-            <Link href="/swarm-builder?template=business-analytics-report" className="text-cyan hover:underline">
-              business-analytics-report
-            </Link>{" "}
-            with a business question and date range. Fetch bees tag every metric row for lineage.
-          </p>
-        </V4Card>
+        <div id="analytics-lineage" data-testid="analytics-workspace-lineage">
+          <AnalyticsDataLineagePanel />
+        </div>
       ) : null}
 
       {!loading && snapshot && section === "export" ? (

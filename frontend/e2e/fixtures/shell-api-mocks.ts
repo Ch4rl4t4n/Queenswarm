@@ -1100,6 +1100,30 @@ const STUB_ANALYTICS_REPORT_ARTIFACT = {
   },
 };
 
+const STUB_ANALYTICS_DATA_LINEAGE = {
+  enabled: true,
+  has_rows: true,
+  deliverable_id: "55555555-5555-4555-8555-555555555555",
+  deliverable_version: 1,
+  report_title: "Signup funnel review",
+  verified_count: 1,
+  gap_count: 0,
+  empty_hint: "",
+  rows: [
+    {
+      section_id: "kpi-wau",
+      section_label: "Weekly active users",
+      connector: "ga4",
+      connector_label: "GA4 Data API",
+      query: "sessions",
+      fetched_at: "2026-05-01",
+      bound_to: "chart",
+      verified: true,
+      detail: "",
+    },
+  ],
+};
+
 const STUB_RECIPE_PATTERN_STACKS = [
   {
     id: "exec_assistant",
@@ -3504,6 +3528,15 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           ready: true,
           blockers: [],
         }),
+      });
+      return;
+    }
+
+    if (path.startsWith("analytics-workspace/data-lineage")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_ANALYTICS_DATA_LINEAGE),
       });
       return;
     }

@@ -24,6 +24,10 @@ from app.application.services.analytics_report_artifact_service import (
     compose_analytics_report_artifact_snapshot,
     save_analytics_report_artifact,
 )
+from app.application.services.analytics_data_lineage_service import (
+    AnalyticsDataLineageSnapshotOut,
+    compose_analytics_data_lineage_snapshot,
+)
 from app.application.services.analytics_workspace_service import (
     AnalyticsWorkspaceSnapshotOut,
     compose_analytics_workspace_snapshot,
@@ -49,6 +53,12 @@ def _require_report_artifact() -> None:
     _require_enabled()
     if not settings.analytics_report_artifact_enabled:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report artifact panel disabled.")
+
+
+def _require_data_lineage() -> None:
+    _require_enabled()
+    if not settings.analytics_data_lineage_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Data lineage strip disabled.")
 
 
 @router.get("/snapshot", response_model=AnalyticsWorkspaceSnapshotOut, summary="Analytics workspace snapshot")
@@ -182,6 +192,31 @@ async def patch_analytics_report_artifact(
         if err == "analytics_artifact_not_found":
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analytics artifact not found.") from exc
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=err) from exc
+
+
+@router.get(
+    "/data-lineage",
+    response_model=AnalyticsDataLineageSnapshotOut,
+    summary="DA6 Data lineage strip for active analytics report",
+)
+async def get_analytics_data_lineage_snapshot(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    task_id: uuid.UUID | None = Query(default=None),
+    deliverable_id: uuid.UUID | None = Query(default=None),
+) -> AnalyticsDataLineageSnapshotOut:
+    """Return connector · query · timestamp rows bound to report sections."""
+
+    _require_data_lineage()
+    user = principal.get("user")
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Dashboard context missing.")
+    return await compose_analytics_data_lineage_snapshot(
+        db,
+        dashboard_user_id=user.id,
+        task_id=task_id,
+        deliverable_id=deliverable_id,
+    )
 
 
 __all__ = ["router"]
