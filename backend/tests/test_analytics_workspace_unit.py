@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from app.application.services.analytics_local_inference_service import AnalyticsLocalInferenceOut
 from app.application.services.analytics_workspace_service import compose_analytics_workspace_snapshot
 from app.core import config
 
@@ -21,9 +22,15 @@ async def test_compose_analytics_workspace_snapshot_disabled(monkeypatch: pytest
 @pytest.mark.asyncio
 async def test_compose_analytics_workspace_snapshot_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(config.settings, "analytics_workspace_enabled", True)
-    with patch(
-        "app.application.services.virtual_company_swarm_builder.list_built_wizard_templates",
-        AsyncMock(return_value=["business-analytics-report"]),
+    with (
+        patch(
+            "app.application.services.virtual_company_swarm_builder.list_built_wizard_templates",
+            AsyncMock(return_value=["business-analytics-report"]),
+        ),
+        patch(
+            "app.application.services.analytics_local_inference_service.resolve_analytics_local_inference",
+            AsyncMock(return_value=AnalyticsLocalInferenceOut(active=False)),
+        ),
     ):
         snap = await compose_analytics_workspace_snapshot(AsyncMock(), tenant_id=uuid.uuid4())
     assert snap.enabled is True

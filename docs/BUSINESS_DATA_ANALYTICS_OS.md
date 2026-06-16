@@ -119,6 +119,8 @@ See [`ROADMAP.md`](ROADMAP.md) P10 Track L for status table.
 4. **Critic score ≥4/5** → approve export to Notion/Slides
 5. Optional: save verified flow as **Recipe** for next week
 
+**Local sovereign (LOC13):** When routing mode is `local_sovereign` or `LLM_AIRGAP=1`, analytics bees use Ollama (`analytics_local_sovereign_prefer_enabled`). Overview + Question wizard show **local sovereign** badge.
+
 **Operator manual:** [`OPERATOR_ANALYTICS_WORKSPACE_MANUAL.md`](OPERATOR_ANALYTICS_WORKSPACE_MANUAL.md) · prep: `./scripts/operator-analytics-workspace-prep.sh`
 
 ---

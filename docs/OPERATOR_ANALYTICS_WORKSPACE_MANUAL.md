@@ -147,15 +147,29 @@ ANALYTICS_CONNECTOR_PROFILE_ENABLED=true
 ANALYTICS_EXPORT_LANE_ENABLED=true
 ANALYTICS_WEEKLY_ROUTINE_ENABLED=true
 ANALYTICS_REPORT_CRITIC_ENABLED=true
+ANALYTICS_LOCAL_SOVEREIGN_PREFER_ENABLED=true
 CLOSED_REVIEW_LOOP_ENABLED=true
 CLOSED_LOOP_PRESETS_ENABLED=true
+LOCAL_LLM_ENABLED=true
 ```
 
 Safe defaults: všetko `true`; live Notion/Slides export zostáva simulate until operator enables live lane flags elsewhere.
 
 ---
 
-## 10. E2E proof (DA12)
+## 10. Local sovereign (LOC13)
+
+Keď tenant routing = **local_sovereign** alebo `LLM_AIRGAP=1`:
+
+1. Overview + Question wizard zobrazia badge **local sovereign** + model slug.
+2. Dispatch seeduje session context `analytics_local_sovereign`.
+3. Weekly routine goal obsahuje local inference poznámku.
+
+Preflight: `./scripts/operator-local-llm-preflight.sh` · [`OPERATOR_LOCAL_LLM_MANUAL.md`](OPERATOR_LOCAL_LLM_MANUAL.md)
+
+---
+
+## 11. E2E proof (DA12)
 
 CI journey (mocked API, no LLM):
 

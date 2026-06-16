@@ -17,6 +17,7 @@ from app.application.services.analytics_business_question_wizard_service import 
     preview_business_question_wizard,
     submit_business_question_wizard,
 )
+from app.application.services.analytics_local_inference_service import AnalyticsLocalInferenceOut
 
 
 def test_compose_business_question_wizard_snapshot_enabled() -> None:
@@ -98,6 +99,10 @@ async def test_submit_business_question_wizard_creates_task_and_deliverable(
             "app.application.services.analytics_business_question_wizard_service.OutputEngine.create_final_deliverable",
             AsyncMock(return_value=SimpleNamespace(id=deliverable_id)),
         ),
+        patch(
+            "app.application.services.analytics_local_inference_service.resolve_analytics_local_inference",
+            AsyncMock(return_value=AnalyticsLocalInferenceOut(active=False)),
+        ),
     ):
         result = await submit_business_question_wizard(
             session,
@@ -148,6 +153,10 @@ async def test_submit_business_question_wizard_dispatches_session_when_requested
         patch(
             "app.application.services.analytics_business_question_wizard_service.create_supervisor_session",
             AsyncMock(return_value=SimpleNamespace(id=session_id)),
+        ),
+        patch(
+            "app.application.services.analytics_local_inference_service.resolve_analytics_local_inference",
+            AsyncMock(return_value=AnalyticsLocalInferenceOut(active=False)),
         ),
     ):
         result = await submit_business_question_wizard(

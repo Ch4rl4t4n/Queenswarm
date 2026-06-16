@@ -77,6 +77,9 @@ class BusinessQuestionWizardOut(BaseModel):
     date_range_presets: list[AnalyticsDateRangePresetOut] = Field(default_factory=list)
     default_sources: list[AnalyticsSourceId] = Field(default_factory=lambda: ["ga4", "hivemind"])
     operator_hint: str = ""
+    local_sovereign_active: bool = False
+    local_model_slug: str | None = None
+    inference_hint: str = ""
 
 
 class BusinessQuestionPreviewIn(BaseModel):
@@ -140,7 +143,12 @@ class BusinessQuestionSubmitOut(BaseModel):
     message: str = ""
 
 
-def compose_business_question_wizard_snapshot() -> BusinessQuestionWizardOut:
+def compose_business_question_wizard_snapshot(
+    *,
+    local_sovereign_active: bool = False,
+    local_model_slug: str | None = None,
+    inference_hint: str = "",
+) -> BusinessQuestionWizardOut:
     """Static wizard capabilities for analytics workspace."""
 
     if not settings.analytics_question_wizard_enabled:
@@ -149,12 +157,35 @@ def compose_business_question_wizard_snapshot() -> BusinessQuestionWizardOut:
             generated_at=datetime.now(tz=UTC),
             operator_hint="Business Question wizard disabled.",
         )
+    hint = "Enter one business question, pick date range and sources, then dispatch analytics session."
+    if local_sovereign_active and inference_hint:
+        hint = f"{inference_hint} {hint}"
     return BusinessQuestionWizardOut(
         enabled=True,
         generated_at=datetime.now(tz=UTC),
         source_options=[AnalyticsSourceOptionOut(id=sid, label=label) for sid, label in SOURCE_OPTIONS],
         date_range_presets=[AnalyticsDateRangePresetOut(id=pid, label=label) for pid, label in DATE_RANGE_PRESETS],
-        operator_hint="Enter one business question, pick date range and sources, then dispatch analytics session.",
+        operator_hint=hint,
+        local_sovereign_active=local_sovereign_active,
+        local_model_slug=local_model_slug,
+        inference_hint=inference_hint,
+    )
+
+
+async def compose_business_question_wizard_snapshot_for_tenant(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+) -> BusinessQuestionWizardOut:
+    """Wizard snapshot enriched with LOC13 local sovereign inference lane."""
+
+    from app.application.services.analytics_local_inference_service import resolve_analytics_local_inference
+
+    local = await resolve_analytics_local_inference(session, tenant_id=tenant_id)
+    return compose_business_question_wizard_snapshot(
+        local_sovereign_active=local.active,
+        local_model_slug=local.local_model_slug,
+        inference_hint=local.operator_hint,
     )
 
 
@@ -330,6 +361,14 @@ async def submit_business_question_wizard(
     start = date.fromisoformat(preview.date_start)
     end = date.fromisoformat(preview.date_end)
 
+    from app.application.services.analytics_local_inference_service import (
+        append_local_inference_goal_note,
+        build_analytics_session_local_context,
+        resolve_analytics_local_inference,
+    )
+
+    local = await resolve_analytics_local_inference(session, tenant_id=tenant_id)
+
     triage = await create_mission_triage_task(
         session,
         task_text=preview.brief_markdown,
@@ -381,8 +420,7 @@ async def submit_business_question_wizard(
     session_href: str | None = None
     if body.dispatch_session:
         runtime_mode = "durable" if settings.supervisor_durable_mode_enabled else "inprocess"
-        sup = await create_supervisor_session(
-            session,
+        session_goal = append_local_inference_goal_note(
             goal=_session_goal_from_brief(
                 title=preview.title,
                 business_question=body.business_question,
@@ -390,6 +428,11 @@ async def submit_business_question_wizard(
                 sources=body.sources,
                 brief_markdown=preview.brief_markdown,
             ),
+            local=local,
+        )
+        sup = await create_supervisor_session(
+            session,
+            goal=session_goal,
             created_by_subject=created_by_subject,
             runtime_mode=runtime_mode,
             roles=["orchestrator", "researcher", "critic"],
@@ -405,6 +448,7 @@ async def submit_business_question_wizard(
                 "date_start": preview.date_start,
                 "date_end": preview.date_end,
                 "sources": list(body.sources),
+                **build_analytics_session_local_context(local),
             },
         )
         supervisor_session_id = sup.id
@@ -445,6 +489,7 @@ __all__ = [
     "BusinessQuestionSubmitOut",
     "BusinessQuestionWizardOut",
     "compose_business_question_wizard_snapshot",
+    "compose_business_question_wizard_snapshot_for_tenant",
     "preview_business_question_wizard",
     "submit_business_question_wizard",
 ]

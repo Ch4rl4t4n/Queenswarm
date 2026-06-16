@@ -30,6 +30,9 @@ interface QuestionWizardSnapshot {
   date_range_presets: DatePresetOption[];
   default_sources: AnalyticsSourceId[];
   operator_hint: string;
+  local_sovereign_active?: boolean;
+  local_model_slug?: string | null;
+  inference_hint?: string;
 }
 
 interface QuestionPreview {
@@ -189,7 +192,16 @@ export function BusinessQuestionWizardPanel(): JSX.Element | null {
         kicker="DA4 · Business question"
         title="Question → analytics session"
         description={snapshot.operator_hint}
-        actions={<V4Badge tone="info">{snapshot.template_id}</V4Badge>}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            {snapshot.local_sovereign_active ? (
+              <span data-testid="analytics-wizard-local-sovereign">
+                <V4Badge tone="ok">local sovereign</V4Badge>
+              </span>
+            ) : null}
+            <V4Badge tone="info">{snapshot.template_id}</V4Badge>
+          </div>
+        }
       />
       <div className="space-y-4 px-4 pb-4">
         <label className="block text-sm">

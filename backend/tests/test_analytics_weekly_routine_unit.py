@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.application.services.analytics_local_inference_service import AnalyticsLocalInferenceOut
 from app.application.services.analytics_weekly_routine_service import (
     ROUTINE_NAME,
     compose_analytics_routine_kpi,
@@ -58,9 +59,15 @@ async def test_ensure_analytics_weekly_routine_creates(monkeypatch: pytest.Monke
     session.scalar = AsyncMock(return_value=None)
     created = _routine_row(tenant_id=tenant_id)
 
-    with patch(
-        "app.application.services.analytics_weekly_routine_service.create_supervisor_routine",
-        new=AsyncMock(return_value=created),
+    with (
+        patch(
+            "app.application.services.analytics_weekly_routine_service.create_supervisor_routine",
+            new=AsyncMock(return_value=created),
+        ),
+        patch(
+            "app.application.services.analytics_local_inference_service.resolve_analytics_local_inference",
+            new=AsyncMock(return_value=AnalyticsLocalInferenceOut(active=False)),
+        ),
     ):
         result = await ensure_analytics_weekly_routine(session, tenant_id=tenant_id)
 

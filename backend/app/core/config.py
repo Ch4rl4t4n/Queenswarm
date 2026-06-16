@@ -467,6 +467,10 @@ class Settings(BaseSettings):
         default=False,
         description="When true, block all cloud LLM hops — local inference only (LOC2).",
     )
+    analytics_local_sovereign_prefer_enabled: bool = Field(
+        default=True,
+        description="Track M LOC13 — Analytics bees prefer local Ollama when local_sovereign or LLM_AIRGAP.",
+    )
     auto_graphify_enabled: bool = Field(
         default=True,
         description="Master switch for Auto-Graphify folder ingest (Phase 4 P1).",

@@ -1045,6 +1045,9 @@ const STUB_ANALYTICS_WORKSPACE_SNAPSHOT = {
     },
   ],
   operator_hint: "Dispatch business-analytics-report template → fetch read-only metrics → critic rubric ≥4/5 → export simulate.",
+  local_sovereign_active: false,
+  local_model_slug: null,
+  inference_hint: "",
 };
 
 const STUB_ANALYTICS_QUESTION_WIZARD = {
@@ -1067,6 +1070,9 @@ const STUB_ANALYTICS_QUESTION_WIZARD = {
   ],
   default_sources: ["ga4", "hivemind"],
   operator_hint: "Enter one business question, pick date range and sources, then dispatch analytics session.",
+  local_sovereign_active: false,
+  local_model_slug: null,
+  inference_hint: "",
 };
 
 const STUB_ANALYTICS_REPORT_ARTIFACT = {

@@ -14,6 +14,7 @@ from app.application.services.analytics_business_question_wizard_service import 
     BusinessQuestionSubmitOut,
     BusinessQuestionWizardOut,
     compose_business_question_wizard_snapshot,
+    compose_business_question_wizard_snapshot_for_tenant,
     preview_business_question_wizard,
     submit_business_question_wizard,
 )
@@ -132,12 +133,16 @@ async def get_analytics_workspace_snapshot(
 
 @router.get("/question-wizard", response_model=BusinessQuestionWizardOut, summary="DA4 Business question wizard snapshot")
 async def get_business_question_wizard_snapshot(
+    db: DbSession,
     principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
 ) -> BusinessQuestionWizardOut:
     """Return question wizard capabilities, source options, and date presets."""
 
     _require_question_wizard()
-    return compose_business_question_wizard_snapshot()
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        return compose_business_question_wizard_snapshot()
+    return await compose_business_question_wizard_snapshot_for_tenant(db, tenant_id=tenant_id)
 
 
 @router.post(

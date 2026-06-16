@@ -32,6 +32,7 @@ Redeploy, then in **Settings → LLM keys**:
 ## Verify
 
 ```bash
+./scripts/operator-local-llm-preflight.sh
 curl -s http://127.0.0.1:11434/api/tags | head
 ```
 

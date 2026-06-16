@@ -60,6 +60,9 @@ class AnalyticsWorkspaceSnapshotOut(BaseModel):
     connector_slots: list[AnalyticsConnectorSlotOut] = Field(default_factory=list)
     actions: list[AnalyticsWorkspaceActionOut] = Field(default_factory=list)
     operator_hint: str = ""
+    local_sovereign_active: bool = False
+    local_model_slug: str | None = None
+    inference_hint: str = ""
 
 
 def _default_panels() -> list[AnalyticsPanelOut]:
@@ -182,6 +185,16 @@ async def compose_analytics_workspace_snapshot(
             ),
         )
 
+    from app.application.services.analytics_local_inference_service import resolve_analytics_local_inference
+
+    local = await resolve_analytics_local_inference(session, tenant_id=tenant_id)
+    operator_hint = (
+        "Dispatch business-analytics-report template → fetch read-only metrics → "
+        "critic rubric ≥4/5 → export simulate."
+    )
+    if local.active:
+        operator_hint = f"{local.operator_hint} {operator_hint}"
+
     return AnalyticsWorkspaceSnapshotOut(
         enabled=True,
         generated_at=datetime.now(tz=UTC),
@@ -194,10 +207,10 @@ async def compose_analytics_workspace_snapshot(
         panels=_default_panels(),
         connector_slots=connector_slots,
         actions=actions,
-        operator_hint=(
-            "Dispatch business-analytics-report template → fetch read-only metrics → "
-            "critic rubric ≥4/5 → export simulate."
-        ),
+        operator_hint=operator_hint,
+        local_sovereign_active=local.active,
+        local_model_slug=local.local_model_slug,
+        inference_hint=local.operator_hint,
     )
 
 

@@ -31,6 +31,9 @@ interface AnalyticsSnapshot {
   connector_slots: Array<{ id: string; label: string; ready: boolean; mode: string; detail: string }>;
   actions: Array<{ id: string; label: string; href: string; detail: string }>;
   operator_hint: string;
+  local_sovereign_active?: boolean;
+  local_model_slug?: string | null;
+  inference_hint?: string;
 }
 
 const SECTION_TO_HASH: Record<AnalyticsSection, string> = {
@@ -176,6 +179,14 @@ export function AnalyticsWorkspacePageClient(): JSX.Element {
             <div className="flex flex-wrap gap-2 px-4 pb-4">
               <V4Badge tone="info">{snapshot.capability_key}</V4Badge>
               <V4Badge tone="purple">{snapshot.template_id}</V4Badge>
+              {snapshot.local_sovereign_active ? (
+                <span data-testid="analytics-local-sovereign-badge">
+                  <V4Badge tone="ok">local sovereign</V4Badge>
+                </span>
+              ) : null}
+              {snapshot.local_model_slug ? (
+                <V4Badge tone="info">{snapshot.local_model_slug}</V4Badge>
+              ) : null}
               {snapshot.skill_slugs.map((slug) => (
                 <V4Badge key={slug} tone="gold">
                   {slug}

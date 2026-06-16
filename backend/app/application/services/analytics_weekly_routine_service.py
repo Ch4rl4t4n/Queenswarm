@@ -102,10 +102,19 @@ async def ensure_analytics_weekly_routine(
             "next_run_at": existing.next_run_at.isoformat() if existing.next_run_at else None,
         }
 
+    from app.application.services.analytics_local_inference_service import (
+        append_local_inference_goal_note,
+        build_analytics_session_local_context,
+        resolve_analytics_local_inference,
+    )
+
+    local = await resolve_analytics_local_inference(session, tenant_id=tenant_id)
+    goal_template = append_local_inference_goal_note(goal=GOAL_TEMPLATE, local=local)
+
     row = await create_supervisor_routine(
         session,
         name=ROUTINE_NAME,
-        goal_template=GOAL_TEMPLATE,
+        goal_template=goal_template,
         created_by_subject=created_by_subject or "system:analytics-weekly-routine",
         schedule_kind="cron",
         interval_seconds=None,
@@ -123,6 +132,7 @@ async def ensure_analytics_weekly_routine(
             "simulate_first": True,
             "template_id": "business-analytics-report",
             "critic_min_score": CRITIC_MIN_SCORE,
+            **build_analytics_session_local_context(local),
         },
         tenant_id=tenant_id,
     )

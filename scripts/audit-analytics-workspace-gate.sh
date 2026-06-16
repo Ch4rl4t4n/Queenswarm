@@ -75,6 +75,24 @@ else
   fail "missing swarm template"
 fi
 
+if [[ -f backend/app/application/services/analytics_local_inference_service.py ]]; then
+  pass "analytics_local_inference_service.py (LOC13)"
+else
+  fail "missing analytics_local_inference_service"
+fi
+
+if [[ -f scripts/operator-local-llm-preflight.sh ]]; then
+  pass "operator-local-llm-preflight.sh (LOC10)"
+else
+  fail "missing operator-local-llm-preflight.sh"
+fi
+
+if grep -q 'analytics_local_sovereign_prefer_enabled' backend/app/core/config.py; then
+  pass "analytics_local_sovereign_prefer_enabled config"
+else
+  fail "missing analytics_local_sovereign_prefer_enabled"
+fi
+
 if [[ -f scripts/operator-analytics-workspace-prep.sh ]]; then
   pass "operator-analytics-workspace-prep.sh"
 else
@@ -89,6 +107,7 @@ fi
 if [[ -n "${PYTHON}" ]]; then
   if (cd backend && "${PYTHON}" -m pytest tests/test_analytics_workspace_unit.py \
     tests/test_analytics_report_critic_unit.py tests/test_analytics_export_lane_unit.py \
+    tests/test_analytics_local_inference_unit.py \
     tests/test_business_question_wizard_unit.py -q --tb=line --no-cov 2>/dev/null); then
     pass "pytest analytics workspace bundle"
   else
