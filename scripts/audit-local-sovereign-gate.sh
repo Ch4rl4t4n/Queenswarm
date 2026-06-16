@@ -47,6 +47,36 @@ else
   fail "missing verified dataset export service"
 fi
 
+if [[ -f backend/app/application/services/dataset_recipe_wizard_service.py ]]; then
+  pass "dataset_recipe_wizard_service.py (LOC6)"
+else
+  fail "missing dataset recipe wizard service"
+fi
+
+if grep -q 'dataset_recipe_wizard_enabled' backend/app/core/config.py; then
+  pass "dataset_recipe_wizard_enabled config"
+else
+  fail "missing dataset_recipe_wizard_enabled"
+fi
+
+if grep -q 'dataset-recipe' backend/app/presentation/api/routers/llm_routing.py; then
+  pass "dataset-recipe API routes (LOC6)"
+else
+  fail "missing dataset-recipe routes"
+fi
+
+if grep -q 'DatasetRecipeWizardPanel' frontend/components/hive/settings-llm-keys-panel.tsx; then
+  pass "DatasetRecipeWizardPanel wired in settings"
+else
+  fail "dataset recipe panel not wired"
+fi
+
+if [[ -f backend/tests/test_dataset_recipe_wizard_unit.py ]]; then
+  pass "test_dataset_recipe_wizard_unit.py"
+else
+  fail "missing LOC6 unit tests"
+fi
+
 if [[ -f backend/app/application/services/local_adapter_registry_service.py ]]; then
   pass "local_adapter_registry_service.py (LOC8)"
 else
@@ -129,6 +159,7 @@ if [[ -n "${PYTHON}" ]]; then
     PLUGIN_USER_DIR=/tmp/queenswarm-plugins/user \
       "${PYTHON}" -m pytest -q --no-cov --tb=short \
       tests/test_verified_dataset_export_unit.py \
+      tests/test_dataset_recipe_wizard_unit.py \
       tests/test_unsloth_bridge_unit.py \
       tests/test_local_adapter_registry_unit.py \
       tests/test_analytics_local_inference_unit.py \

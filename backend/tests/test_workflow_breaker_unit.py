@@ -211,6 +211,17 @@ def test_json_snippet_embedded_in_prose() -> None:
     assert model.estimated_duration_sec == 120
 
 
+def test_extract_breaker_json_skips_invalid_brace_runs() -> None:
+    raw = '{bad}{"ok": true}'
+    blob = parsing_module.extract_breaker_json(raw)
+    assert blob == {"ok": True}
+
+
+def test_extract_breaker_json_raises_when_no_object() -> None:
+    with pytest.raises(ValueError, match="JSON object"):
+        parsing_module.extract_breaker_json("no braces here")
+
+
 def test_step_description_requires_multiple_tokens() -> None:
     """Breaker steps should never collapse into a single ambiguous token."""
 

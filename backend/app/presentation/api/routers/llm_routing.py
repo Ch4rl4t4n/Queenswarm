@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -446,6 +447,177 @@ async def delete_local_adapter_route(
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     return {"ok": "true"}
+
+
+@router.get(
+    "/dataset-recipe",
+    summary="Dataset recipe wizard snapshot (Track M LOC6)",
+)
+async def get_dataset_recipe_snapshot(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return LOC6 wizard state for Settings UI."""
+
+    if not settings.local_llm_enabled or not settings.dataset_recipe_wizard_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset recipe wizard disabled.")
+    _ensure_admin(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, uuid.UUID(str(tenant_id)))
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found.")
+    from app.application.services.dataset_recipe_wizard_service import compose_dataset_recipe_snapshot
+
+    snap = await compose_dataset_recipe_snapshot(
+        db,
+        tenant_id=uuid.UUID(str(tenant_id)),
+        tenant=tenant,
+    )
+    return snap.model_dump(mode="json")
+
+
+@router.post(
+    "/dataset-recipe/parse",
+    summary="Parse CSV/PDF/text upload for dataset recipe (LOC6)",
+)
+async def post_dataset_recipe_parse(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    file: UploadFile = File(...),
+) -> dict[str, Any]:
+    """Parse uploaded document and store chunks for local Q&A generation."""
+
+    if not settings.local_llm_enabled or not settings.dataset_recipe_wizard_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset recipe wizard disabled.")
+    _ensure_admin(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, uuid.UUID(str(tenant_id)))
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found.")
+
+    filename = (file.filename or "upload.txt").replace("\\", "/").split("/")[-1]
+    content = await file.read()
+    await file.close()
+    if len(content) > settings.dataset_recipe_max_file_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File exceeds {settings.dataset_recipe_max_file_bytes} bytes.",
+        )
+
+    from app.application.services.dataset_recipe_wizard_service import parse_and_store_upload
+
+    try:
+        result = await parse_and_store_upload(db, tenant=tenant, filename=filename, content=content)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    return result.model_dump(mode="json")
+
+
+@router.post(
+    "/dataset-recipe/generate",
+    summary="Generate Q&A draft via local model (LOC6)",
+)
+async def post_dataset_recipe_generate(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Run local-only LLM to produce draft Alpaca Q&A pairs."""
+
+    if not settings.local_llm_enabled or not settings.dataset_recipe_wizard_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset recipe wizard disabled.")
+    _ensure_admin(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, uuid.UUID(str(tenant_id)))
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found.")
+    from app.application.services.dataset_recipe_wizard_service import generate_dataset_recipe_draft
+
+    try:
+        result = await generate_dataset_recipe_draft(
+            db,
+            tenant_id=uuid.UUID(str(tenant_id)),
+            tenant=tenant,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    return result.model_dump(mode="json")
+
+
+@router.post(
+    "/dataset-recipe/approve",
+    summary="HITL approve dataset recipe pairs (LOC6)",
+)
+async def post_dataset_recipe_approve(
+    body: dict[str, Any],
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Mark draft Q&A rows approved before JSONL export."""
+
+    if not settings.local_llm_enabled or not settings.dataset_recipe_wizard_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset recipe wizard disabled.")
+    _ensure_admin(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, uuid.UUID(str(tenant_id)))
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found.")
+    from app.application.services.dataset_recipe_wizard_service import (
+        DatasetRecipeApproveIn,
+        approve_dataset_recipe_pairs,
+    )
+
+    payload = DatasetRecipeApproveIn.model_validate(body)
+    try:
+        snap = await approve_dataset_recipe_pairs(db, tenant=tenant, payload=payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    return snap.model_dump(mode="json")
+
+
+@router.get(
+    "/dataset-recipe/export",
+    summary="Export approved dataset recipe JSONL (LOC6)",
+)
+async def get_dataset_recipe_export(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> Response:
+    """Download HITL-approved Alpaca JSONL."""
+
+    if not settings.local_llm_enabled or not settings.dataset_recipe_wizard_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset recipe wizard disabled.")
+    _ensure_admin(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, uuid.UUID(str(tenant_id)))
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found.")
+    from app.application.services.dataset_recipe_wizard_service import export_approved_dataset_recipe_jsonl
+
+    try:
+        blob, row_count = export_approved_dataset_recipe_jsonl(tenant)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    fname = f"queenswarm-dataset-recipe-{datetime.now(tz=UTC).strftime('%Y%m%d')}.jsonl"
+    return Response(
+        content=blob,
+        media_type="application/x-ndjson",
+        headers={
+            "Content-Disposition": f'attachment; filename="{fname}"',
+            "X-Queenswarm-Export-Rows": str(row_count),
+        },
+    )
 
 
 __all__ = ["router"]

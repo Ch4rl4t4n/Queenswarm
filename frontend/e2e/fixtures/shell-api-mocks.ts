@@ -358,6 +358,28 @@ const STUB_LOCAL_ADAPTER_REGISTRY = {
   ],
 };
 
+const STUB_DATASET_RECIPE_SNAPSHOT = {
+  enabled: true,
+  local_only: true,
+  local_model_slug: "ollama/qwen2.5:7b",
+  status: "draft",
+  source_filename: "pairs.csv",
+  source_kind: "csv",
+  chunk_count: 0,
+  draft_pair_count: 2,
+  approved_pair_count: 0,
+  operator_hint: "Upload CSV/PDF/text → Generate Q&A (local model) → Approve rows → Export JSONL for Unsloth.",
+  draft_pairs: [
+    {
+      instruction: "Answer the operator question using only the provided business context.",
+      input: "What is WAU?",
+      output: "12400 users",
+      approved: false,
+      source_chunk: 0,
+    },
+  ],
+};
+
 const STUB_LLM_COST_SAVINGS = {
   window_days: 30,
   call_count: 42,
@@ -1835,6 +1857,65 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           processed_at: new Date().toISOString(),
           error_text: null,
         }),
+      });
+      return;
+    }
+
+    if (path.startsWith("llm-routing/dataset-recipe/export")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/x-ndjson",
+        headers: { "Content-Disposition": 'attachment; filename="queenswarm-dataset-recipe.jsonl"' },
+        body: '{"instruction":"A","input":"Q","output":"O"}\n',
+      });
+      return;
+    }
+
+    if (path.startsWith("llm-routing/dataset-recipe/parse") && method === "POST") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          source_filename: "pairs.csv",
+          source_kind: "csv",
+          chunk_count: 0,
+          preview_text: "What is WAU?",
+          message: "Parsed 1 direct Q&A row(s) from CSV.",
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("llm-routing/dataset-recipe/generate") && method === "POST") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          model_slug: "ollama/qwen2.5:7b",
+          pair_count: 2,
+          draft_pairs: STUB_DATASET_RECIPE_SNAPSHOT.draft_pairs,
+          message: "Generated 2 draft Q&A pair(s).",
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("llm-routing/dataset-recipe/approve") && method === "POST") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ...STUB_DATASET_RECIPE_SNAPSHOT, status: "approved", approved_pair_count: 2 }),
+      });
+      return;
+    }
+
+    if (path.startsWith("llm-routing/dataset-recipe")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_DATASET_RECIPE_SNAPSHOT),
       });
       return;
     }

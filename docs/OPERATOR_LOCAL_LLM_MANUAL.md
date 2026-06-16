@@ -88,3 +88,12 @@ After fine-tuning in Unsloth Studio (external GPU):
 ## Adapter registry (LOC8)
 
 **Settings → LLM keys → Local adapter registry** — register Ollama tags, activate one slug for routing hints. Imported models appear in Local Inference configured slugs list.
+
+## Dataset Recipe wizard (LOC6)
+
+**Settings → LLM keys → Dataset Recipe wizard**
+
+1. Upload `.csv` (question/answer columns), `.pdf`, or `.txt`/`.md`
+2. **Generate Q&A** — local model only (`local_sovereign` or `LLM_AIRGAP=1`)
+3. **Approve all** — HITL gate before export
+4. **Export JSONL** — merge with LOC5 verified export for Unsloth fine-tune

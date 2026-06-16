@@ -491,6 +491,44 @@ class Settings(BaseSettings):
         default=True,
         description="Track M LOC8 — tenant LoRA/GGUF adapter registry for local_sovereign routing.",
     )
+    dataset_recipe_wizard_enabled: bool = Field(
+        default=True,
+        description="Track M LOC6 — PDF/CSV dataset recipe wizard (local model Q&A, HITL).",
+    )
+    dataset_recipe_local_only: bool = Field(
+        default=True,
+        description="Block cloud LLM for LOC6 generation unless local_sovereign or air-gap.",
+    )
+    dataset_recipe_max_file_bytes: int = Field(
+        default=2_097_152,
+        ge=1024,
+        le=10_485_760,
+        description="Max upload size for dataset recipe wizard.",
+    )
+    dataset_recipe_max_chunks: int = Field(
+        default=24,
+        ge=1,
+        le=100,
+        description="Max text chunks sent to local model per generate run.",
+    )
+    dataset_recipe_max_pairs_per_chunk: int = Field(
+        default=4,
+        ge=1,
+        le=12,
+        description="Max Q&A pairs requested per chunk from local model.",
+    )
+    dataset_recipe_max_chunk_chars: int = Field(
+        default=4000,
+        ge=500,
+        le=12000,
+        description="Max chars per chunk in LOC6 LLM prompt.",
+    )
+    dataset_recipe_max_pdf_pages: int = Field(
+        default=40,
+        ge=1,
+        le=200,
+        description="Max PDF pages extracted for LOC6 wizard.",
+    )
     auto_graphify_enabled: bool = Field(
         default=True,
         description="Master switch for Auto-Graphify folder ingest (Phase 4 P1).",

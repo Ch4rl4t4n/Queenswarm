@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } 
 import { toast } from "sonner";
 
 import { CostGuardianRoutingPanel } from "@/components/hive/cost-guardian-routing-panel";
+import { DatasetRecipeWizardPanel } from "@/components/hive/dataset-recipe-wizard-panel";
 import { LocalAdapterRegistryPanel } from "@/components/hive/local-adapter-registry-panel";
 import { LocalInferencePanel } from "@/components/hive/local-inference-panel";
 import { VerifiedDatasetExportPanel } from "@/components/hive/verified-dataset-export-panel";
@@ -476,6 +477,7 @@ export function SettingsLlmKeysPanel() {
       <CostGuardianRoutingPanel />
       <LocalInferencePanel />
       <VerifiedDatasetExportPanel />
+      <DatasetRecipeWizardPanel />
       <LocalAdapterRegistryPanel />
 
       <V4Card className="v4-voice-prefs-card">

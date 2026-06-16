@@ -112,6 +112,40 @@ def test_validate_decomposition_requires_guardrail_subkeys() -> None:
     assert any("guardrails missing" in e for e in errs)
 
 
+def test_validate_decomposition_requires_evaluation_subkeys() -> None:
+    payload = {
+        "steps": [
+            {
+                "order": 1,
+                "description": "First valid step",
+                "input_schema": {},
+                "output_schema": {},
+                "guardrails": {"risks": [], "mitigations": [], "stop_conditions": []},
+                "evaluation_criteria": {"must_satisfy": []},
+            },
+            {
+                "order": 2,
+                "description": "Second valid step",
+                "input_schema": {},
+                "output_schema": {},
+                "guardrails": {"risks": [], "mitigations": [], "stop_conditions": []},
+                "evaluation_criteria": {"must_satisfy": [], "measurable_signals": {}},
+            },
+            {
+                "order": 3,
+                "description": "Third valid step",
+                "input_schema": {},
+                "output_schema": {},
+                "guardrails": {"risks": [], "mitigations": [], "stop_conditions": []},
+                "evaluation_criteria": {"must_satisfy": [], "measurable_signals": {}},
+            },
+        ],
+    }
+    ok, errs = WorkflowValidator.validate_decomposition(payload)
+    assert ok is False
+    assert any("evaluation_criteria missing" in e for e in errs)
+
+
 def test_validate_step_result_truthy_for_non_empty_dict() -> None:
     assert WorkflowValidator.validate_step_result(step={}, result={"ok": True}) is True
     assert WorkflowValidator.validate_step_result(step={}, result={}) is False
