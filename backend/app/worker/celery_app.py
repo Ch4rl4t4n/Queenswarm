@@ -57,6 +57,7 @@ from app.worker import morning_publish_tasks as _morning_publish_tasks  # noqa: 
 from app.worker import operator_loop_tasks as _operator_loop_tasks  # noqa: E402, F401
 from app.worker import business_team_tasks as _business_team_tasks  # noqa: E402, F401
 from app.worker import trading_overnight_tasks as _trading_overnight_tasks  # noqa: E402, F401
+from app.worker import journal_studio_gardener_tasks as _journal_studio_gardener_tasks  # noqa: E402, F401
 from app.worker import wiki_gardener_tasks as _wiki_gardener_tasks  # noqa: E402, F401
 from app.worker import skill_factory_tasks as _skill_factory_tasks  # noqa: E402, F401
 from app.worker import local_finetune_tasks as _local_finetune_tasks  # noqa: E402, F401

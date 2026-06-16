@@ -184,5 +184,5 @@ async def test_compose_journal_workspace_snapshot_enabled(monkeypatch: pytest.Mo
         )
 
     assert snap.enabled is True
-    assert len(snap.panels) == 3
+    assert len(snap.panels) == 4
     assert snap.enabled_field_count == 2

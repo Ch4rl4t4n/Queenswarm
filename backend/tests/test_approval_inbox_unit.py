@@ -55,6 +55,8 @@ async def test_compose_approval_inbox_merges_publish_and_suggestions() -> None:
         mock_settings.publish_queue_enabled = True
         mock_settings.hive_innovation_lab_enabled = False
         mock_settings.broker_order_queue_enabled = False
+        mock_settings.journal_studio_enabled = False
+        mock_settings.journal_studio_gardener_enabled = False
         with patch(
             "app.application.services.approval_inbox.build_publish_queue_snapshot",
             new_callable=AsyncMock,
@@ -117,6 +119,10 @@ async def test_compose_approval_inbox_includes_goldmine_alerts() -> None:
         mock_settings.publish_queue_enabled = False
         mock_settings.hive_innovation_lab_enabled = False
         mock_settings.broker_order_queue_enabled = False
+        mock_settings.journal_studio_enabled = False
+        mock_settings.journal_studio_gardener_enabled = False
+        mock_settings.journal_studio_enabled = False
+        mock_settings.journal_studio_gardener_enabled = False
         with patch(
             "app.application.services.approval_inbox.list_agent_suggestions",
             new_callable=AsyncMock,
@@ -181,6 +187,8 @@ async def test_compose_approval_inbox_includes_broker_orders() -> None:
         mock_settings.publish_queue_enabled = False
         mock_settings.hive_innovation_lab_enabled = False
         mock_settings.broker_order_queue_enabled = True
+        mock_settings.journal_studio_enabled = False
+        mock_settings.journal_studio_gardener_enabled = False
         with patch(
             "app.application.services.approval_inbox.list_agent_suggestions",
             new_callable=AsyncMock,
@@ -235,3 +243,66 @@ async def test_compose_approval_inbox_includes_broker_orders() -> None:
     broker = next(item for item in snapshot.items if item.kind == "broker_order")
     assert broker.source_id == "order-1"
     assert broker.lane == "trading"
+
+
+@pytest.mark.asyncio
+async def test_compose_approval_inbox_includes_journal_drafts() -> None:
+    session = AsyncMock()
+    tenant_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+    created = datetime.now(tz=UTC)
+
+    with patch("app.application.services.approval_inbox.settings") as mock_settings:
+        mock_settings.operator_control_plane_enabled = True
+        mock_settings.publish_queue_enabled = False
+        mock_settings.hive_innovation_lab_enabled = False
+        mock_settings.broker_order_queue_enabled = False
+        mock_settings.journal_studio_enabled = True
+        mock_settings.journal_studio_gardener_enabled = True
+        with patch(
+            "app.application.services.approval_inbox.list_agent_suggestions",
+            new_callable=AsyncMock,
+            return_value=[],
+        ):
+            with patch(
+                "app.application.services.approval_inbox.compose_four_lane_digest_inbox",
+                new_callable=AsyncMock,
+            ) as mock_digest:
+                from app.application.services.solo_operator_digest_inbox import DigestInboxOut
+
+                mock_digest.return_value = DigestInboxOut(
+                    generated_at=created,
+                    pending_count=0,
+                    items=[],
+                )
+                with patch(
+                    "app.application.services.journal_studio_gardener_service.compose_journal_draft_inbox_items",
+                    new_callable=AsyncMock,
+                    return_value=[
+                        {
+                            "id": "draft-1",
+                            "title": "Journal draft · BTC",
+                            "detail": "Wait for confirmation",
+                            "created_at": created,
+                        },
+                    ],
+                ):
+                    with patch(
+                        "app.application.services.forager_goldmine_dispatch_service.compose_goldmine_alert_inbox_items",
+                        new_callable=AsyncMock,
+                        return_value=[],
+                    ):
+                        with patch("app.application.services.approval_inbox.build_catalog") as mock_catalog:
+                            mock_catalog.return_value = MagicMock(product_count=0, products=[])
+                            with patch("app.application.services.approval_inbox.compose_revenue_summary") as mock_rev:
+                                mock_rev.return_value = MagicMock(missing_reports=False, next_operator_action="")
+                                snapshot = await compose_approval_inbox_snapshot(
+                                    session,
+                                    tenant_id=tenant_id,
+                                    dashboard_user_id=user_id,
+                                    tenant=MagicMock(),
+                                )
+
+    assert snapshot.counts.journal_drafts == 1
+    draft = next(item for item in snapshot.items if item.kind == "journal_draft")
+    assert draft.source_id == "draft-1"

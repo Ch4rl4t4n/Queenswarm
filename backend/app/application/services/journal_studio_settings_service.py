@@ -318,6 +318,12 @@ async def save_journal_studio_settings(
     }
     if isinstance(manual_entries, list):
         root[JOURNAL_STUDIO_SETTINGS_KEY]["manual_entries"] = manual_entries
+    pending_drafts = existing_bucket.get("pending_drafts")
+    if isinstance(pending_drafts, list):
+        root[JOURNAL_STUDIO_SETTINGS_KEY]["pending_drafts"] = pending_drafts
+    for meta_key in ("gardener_last_run_at", "gardener_last_run_drafts_created"):
+        if meta_key in existing_bucket:
+            root[JOURNAL_STUDIO_SETTINGS_KEY][meta_key] = existing_bucket[meta_key]
     tenant.operator_settings = root
     await session.flush()
     _logger.info(

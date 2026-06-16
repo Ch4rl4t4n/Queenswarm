@@ -35,6 +35,7 @@ interface ApprovalInboxSnapshot {
     gumroad_manual: number;
     goldmine_alerts: number;
     broker_orders: number;
+    journal_drafts: number;
     total: number;
   };
   items: ApprovalInboxItem[];
@@ -43,6 +44,7 @@ interface ApprovalInboxSnapshot {
 function kindBadgeTone(kind: string): "gold" | "purple" | "info" | "warn" | "ok" {
   if (kind === "publish_queue") return "info";
   if (kind === "broker_order") return "warn";
+  if (kind === "journal_draft") return "warn";
   if (kind === "agent_suggestion") return "purple";
   if (kind === "lane_digest") return "ok";
   if (kind === "goldmine_alert") return "warn";
@@ -110,6 +112,11 @@ function BusinessApprovalInboxInner(): JSX.Element | null {
             `trading-cockpit/order-queue/${encodeURIComponent(item.source_id)}/review`,
             { decision: "approve" },
           );
+        } else if (item.kind === "journal_draft") {
+          await hivePostJson(
+            `journal-studio/gardener/drafts/${encodeURIComponent(item.source_id)}/review`,
+            { decision: "approve" },
+          );
         } else if (item.kind === "goldmine_alert") {
           await hivePostJson(`foragers/${encodeURIComponent(item.source_id)}/promote-task`, {
             mode: "alert",
@@ -150,6 +157,11 @@ function BusinessApprovalInboxInner(): JSX.Element | null {
             `trading-cockpit/order-queue/${encodeURIComponent(item.source_id)}/review`,
             { decision: "reject" },
           );
+        } else if (item.kind === "journal_draft") {
+          await hivePostJson(
+            `journal-studio/gardener/drafts/${encodeURIComponent(item.source_id)}/review`,
+            { decision: "reject" },
+          );
         }
         toast.success("Rejected");
         await load();
@@ -177,7 +189,7 @@ function BusinessApprovalInboxInner(): JSX.Element | null {
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-cyan">Approval inbox</p>
           <p className="mt-0.5 text-xs text-(--qs-text-2)">
-            Publish · broker orders · goldmine deltas · suggestions · lane digests
+            Publish · broker orders · journal drafts · goldmine deltas · suggestions · lane digests
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

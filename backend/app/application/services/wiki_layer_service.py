@@ -599,6 +599,27 @@ class WikiLayerService:
         await self._db.flush()
         return 1
 
+    async def upsert_custom_page(
+        self,
+        tenant_id: uuid.UUID,
+        *,
+        slug: str,
+        title: str,
+        content_md: str,
+        source_refs: list[dict[str, Any]] | None = None,
+    ) -> int:
+        """Public upsert for operator-approved wiki pages (TJ3 journal gardener)."""
+
+        if not settings.wiki_layer_enabled:
+            return 0
+        return await self._upsert_page(
+            tenant_id,
+            slug=slug,
+            title=title,
+            content_md=content_md,
+            source_refs=source_refs or [],
+        )
+
 
 __all__ = [
     "DEFAULT_RETRIEVAL_TIER",

@@ -18,6 +18,14 @@ from app.application.services.journal_studio_entry_service import (
     list_journal_trade_entries,
     update_journal_trade_entry,
 )
+from app.application.services.journal_studio_gardener_service import (
+    JournalDraftReviewIn,
+    JournalDraftReviewOut,
+    JournalGardenerSnapshotOut,
+    compose_journal_gardener_snapshot,
+    review_journal_draft,
+    run_journal_studio_gardener_sweep,
+)
 from app.application.services.journal_studio_settings_service import (
     JournalStudioRoutineKpiOut,
     JournalStudioSettingsOut,
@@ -185,6 +193,81 @@ async def journal_studio_entries_import_fill(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     await db.commit()
     return JournalTradeEntryOut.model_validate(entry).model_dump(mode="json")
+
+
+def _require_gardener_enabled() -> None:
+    _require_enabled()
+    if not settings.journal_studio_gardener_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Journal gardener disabled.")
+
+
+@router.get("/gardener", summary="TJ3 Journal gardener snapshot")
+async def journal_studio_gardener_get(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return pending draft lessons and last overnight sweep metadata."""
+
+    _require_gardener_enabled()
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    snapshot = await compose_journal_gardener_snapshot(db, tenant_id=tenant_id)
+    return JournalGardenerSnapshotOut.model_validate(snapshot).model_dump(mode="json")
+
+
+@router.post("/gardener/run", summary="TJ3 Run journal gardener sweep")
+async def journal_studio_gardener_run(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Manually scan recent paper fills and queue draft lessons."""
+
+    _require_gardener_enabled()
+    user = principal.get("user")
+    tenant_id = principal.get("tenant_id")
+    if user is None or tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    try:
+        result = await run_journal_studio_gardener_sweep(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=user.id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return result
+
+
+@router.post("/gardener/drafts/{draft_id}/review", summary="TJ3 Approve or reject journal draft")
+async def journal_studio_gardener_draft_review(
+    draft_id: str,
+    body: dict[str, Any],
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """HITL approve publishes wiki page and updates journal entry lesson."""
+
+    _require_gardener_enabled()
+    user = principal.get("user")
+    tenant_id = principal.get("tenant_id")
+    if user is None or tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    try:
+        review = JournalDraftReviewIn.model_validate(body)
+        result = await review_journal_draft(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=user.id,
+            draft_id=draft_id,
+            body=review,
+            reviewed_by=str(principal.get("sub") or "operator"),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return JournalDraftReviewOut.model_validate(result).model_dump(mode="json")
 
 
 @router.get("/settings", summary="TJ4 Journal studio settings snapshot")

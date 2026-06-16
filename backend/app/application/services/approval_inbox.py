@@ -25,6 +25,7 @@ ApprovalInboxKind = Literal[
     "gumroad_manual",
     "goldmine_alert",
     "broker_order",
+    "journal_draft",
 ]
 
 
@@ -56,6 +57,7 @@ class ApprovalInboxCountsOut(BaseModel):
     gumroad_manual: int = 0
     goldmine_alerts: int = 0
     broker_orders: int = 0
+    journal_drafts: int = 0
     total: int = 0
 
 
@@ -140,6 +142,31 @@ async def compose_approval_inbox_snapshot(
                     detail=str(row.get("detail") or "")[:320],
                     created_at=created_at if isinstance(created_at, datetime) else None,
                     href="/apps-tools/trading-automation?section=orders#broker-order-queue",
+                    source_id=str(row.get("id") or ""),
+                    reject_supported=True,
+                ),
+            )
+
+    if settings.journal_studio_gardener_enabled and settings.journal_studio_enabled:
+        from app.application.services.journal_studio_gardener_service import compose_journal_draft_inbox_items
+
+        journal_rows = await compose_journal_draft_inbox_items(
+            session,
+            tenant_id=tenant_id,
+            limit=cap,
+        )
+        for row in journal_rows:
+            counts.journal_drafts += 1
+            created_at = row.get("created_at")
+            items.append(
+                ApprovalInboxItemOut(
+                    id=f"journal:{row.get('id')}",
+                    kind="journal_draft",
+                    lane="trading",
+                    title=str(row.get("title") or "Journal draft"),
+                    detail=str(row.get("detail") or "")[:320],
+                    created_at=created_at if isinstance(created_at, datetime) else None,
+                    href="/apps-tools/trading-journal?section=gardener#journal-studio-gardener",
                     source_id=str(row.get("id") or ""),
                     reject_supported=True,
                 ),
@@ -252,7 +279,7 @@ async def compose_approval_inbox_snapshot(
 
     items.sort(
         key=lambda row: (
-            0 if row.kind in {"publish_queue", "broker_order", "gumroad_manual"} else 1,
+            0 if row.kind in {"publish_queue", "broker_order", "journal_draft", "gumroad_manual"} else 1,
             0 if row.kind == "goldmine_alert" else 1,
             -(row.created_at.timestamp() if row.created_at else 0),
         ),
@@ -265,6 +292,7 @@ async def compose_approval_inbox_snapshot(
         + counts.gumroad_manual
         + counts.goldmine_alerts
         + counts.broker_orders
+        + counts.journal_drafts
     )
 
     return ApprovalInboxSnapshotOut(

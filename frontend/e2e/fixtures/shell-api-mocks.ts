@@ -1423,6 +1423,7 @@ const STUB_JOURNAL_STUDIO_SNAPSHOT = {
   panels: [
     { id: "timeline", label: "Timeline", lazy: false, status: "ready" },
     { id: "entries", label: "Trade entries", lazy: true, status: "ready" },
+    { id: "gardener", label: "Overnight gardener", lazy: true, status: "ready" },
     { id: "settings", label: "Studio settings", lazy: true, status: "ready" },
   ],
   routine: STUB_JOURNAL_STUDIO_ROUTINE,
@@ -1464,6 +1465,39 @@ const STUB_JOURNAL_STUDIO_ENTRIES = {
     },
   ],
   operator_hint: "1 journal entries — thesis, outcome, tags, and lesson tracked.",
+};
+
+const STUB_JOURNAL_STUDIO_GARDENER = {
+  enabled: true,
+  generated_at: new Date().toISOString(),
+  pending_count: 1,
+  published_count: 0,
+  rejected_count: 0,
+  last_run_at: new Date().toISOString(),
+  last_run_drafts_created: 1,
+  items: [
+    {
+      id: "draft-1",
+      status: "pending",
+      fill_id: "11111111-1111-4111-8111-111111111111",
+      entry_id: null,
+      symbol: "BTC",
+      side: "buy",
+      thesis: "Breakout retest on BTC",
+      draft_lesson: "Wait for confirmation before sizing up; tag FOMO if chased.",
+      markdown_preview: "# Journal draft — BTC",
+      critic_score: 4.2,
+      critic_pass: true,
+      tags: ["paper", "buy", "btc"],
+      mistake_tag: null,
+      created_at: new Date().toISOString(),
+      reviewed_at: null,
+      reviewed_by: null,
+      wiki_slug: null,
+    },
+  ],
+  operator_hint: "1 draft lesson(s) await operator approve before wiki sync.",
+  workspace_href: "/apps-tools/trading-journal?section=gardener#journal-studio-gardener",
 };
 
 const STUB_BROKER_GUARDRAILS = {
@@ -4225,6 +4259,38 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_BROKER_GUARDRAILS),
+      });
+      return;
+    }
+
+    if (path.startsWith("journal-studio/gardener/drafts")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: "draft-1",
+          status: "published",
+          wiki_slug: "trading-journal-btc-draft-1",
+          reviewed_at: new Date().toISOString(),
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("journal-studio/gardener/run")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ enabled: true, drafts_created: 1, pending_total: 1 }),
+      });
+      return;
+    }
+
+    if (path.startsWith("journal-studio/gardener")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_JOURNAL_STUDIO_GARDENER),
       });
       return;
     }

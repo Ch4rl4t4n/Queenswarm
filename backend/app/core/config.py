@@ -2330,6 +2330,10 @@ class Settings(BaseSettings):
         default="daily_0600",
         description="Track O TJ4 — default review cron preset key (daily_0600 | daily_2000 | weekly_monday | custom | off).",
     )
+    journal_studio_gardener_enabled: bool = Field(
+        default=True,
+        description="Track O TJ3 — Overnight journal gardener (fills → draft lesson → HITL → wiki).",
+    )
     broker_guardrails_enabled: bool = Field(
         default=True,
         description="Track P RA3 — Unified broker guardrails (max order, daily cap, kill switch, approve mode).",

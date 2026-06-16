@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock3, NotebookPen, Settings2 } from "lucide-react";
+import { Clock3, Moon, NotebookPen, Settings2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 
@@ -31,6 +31,17 @@ const JournalStudioTimelinePanel = dynamic(
   },
 );
 
+const JournalStudioGardenerPanel = dynamic(
+  () =>
+    import("@/components/apps-tools/journal-studio-gardener-panel").then((mod) => ({
+      default: mod.JournalStudioGardenerPanel,
+    })),
+  {
+    ssr: false,
+    loading: () => <div className="qs-bubble shrink-0 min-h-[8rem] animate-pulse bg-white/5 p-4" aria-hidden />,
+  },
+);
+
 const JournalStudioSettingsPanel = dynamic(
   () =>
     import("@/components/apps-tools/journal-studio-settings-panel").then((mod) => ({
@@ -42,11 +53,12 @@ const JournalStudioSettingsPanel = dynamic(
   },
 );
 
-type JournalSection = "timeline" | "entries" | "settings";
+type JournalSection = "timeline" | "entries" | "gardener" | "settings";
 
 const SECTION_TO_HASH: Record<JournalSection, string> = {
   timeline: "journal-studio-timeline",
   entries: "journal-studio-entries",
+  gardener: "journal-studio-gardener",
   settings: "journal-studio-settings",
 };
 
@@ -54,6 +66,7 @@ function sectionFromHash(hash: string): JournalSection | null {
   const key = hash.replace(/^#/, "").trim().toLowerCase();
   if (key === "journal-studio-timeline") return "timeline";
   if (key === "journal-studio-entries") return "entries";
+  if (key === "journal-studio-gardener") return "gardener";
   if (key === "journal-studio-settings") return "settings";
   return null;
 }
@@ -61,6 +74,7 @@ function sectionFromHash(hash: string): JournalSection | null {
 function sectionFromQuery(raw: string | null): JournalSection | null {
   if (raw === "timeline") return "timeline";
   if (raw === "entries") return "entries";
+  if (raw === "gardener") return "gardener";
   if (raw === "settings") return "settings";
   return null;
 }
@@ -90,13 +104,14 @@ export function TradingJournalPageClient(): JSX.Element {
   return (
     <HivePageShell
       title="Trading Journal"
-      subtitle="Learning Loop Studio — timeline, trade entries, journal fields, review cron, Obsidian vault."
+      subtitle="Learning Loop Studio — timeline, entries, overnight gardener, review cron, Obsidian vault."
       status={<ModulePolicyPackPill moduleKey="trading_journal" />}
       subnav={
         <HiveSubnavRow
           items={[
             { id: "timeline", label: "Timeline", icon: Clock3 },
             { id: "entries", label: "Trade entries", icon: NotebookPen },
+            { id: "gardener", label: "Gardener", icon: Moon },
             { id: "settings", label: "Studio settings", icon: Settings2 },
           ]}
           activeId={section}
@@ -112,6 +127,7 @@ export function TradingJournalPageClient(): JSX.Element {
     >
       {section === "timeline" ? <JournalStudioTimelinePanel /> : null}
       {section === "entries" ? <JournalStudioEntriesPanel /> : null}
+      {section === "gardener" ? <JournalStudioGardenerPanel /> : null}
       {section === "settings" ? <JournalStudioSettingsPanel /> : null}
     </HivePageShell>
   );
