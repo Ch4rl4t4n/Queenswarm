@@ -21,6 +21,7 @@ export const SWARM_TEMPLATE_PATTERN_STACKS: Record<SwarmWizardTemplateId, string
   "faceless-media-agency": ["Prompt Chaining", "Human-in-the-Loop", "Guardrails", "Tool Use", "Learning Adaptation"],
   "micro-saas-factory": ["Planning", "Tool Use", "Guardrails", "Human-in-the-Loop", "Tracer Bullets"],
   "life-os": ["Memory", "Prioritization", "Reflection", "Planning"],
+  "business-analytics-report": ["RAG", "Tool Use", "Reflection", "Guardrails", "Human-in-the-Loop"],
 };
 
 export function patternCountLabel(templateId: SwarmWizardTemplateId): string {

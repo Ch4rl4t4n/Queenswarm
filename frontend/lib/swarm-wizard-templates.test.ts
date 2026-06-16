@@ -102,4 +102,20 @@ describe("swarm-wizard-templates", () => {
       expect(item.accentHex).toMatch(/^#[0-9A-Fa-f]{6}$/);
     }
   });
+
+  it("business-analytics-report includes five-bee Codex pipeline", () => {
+    const template = getSwarmWizardTemplate("business-analytics-report");
+    expect(template?.comingSoon).not.toBe(true);
+    expect(template?.agents).toHaveLength(5);
+    expect(template?.agents.map((a) => a.name)).toEqual(
+      expect.arrayContaining([
+        "Analytics Supervisor",
+        "Data Fetch Bee",
+        "Analyst Bee",
+        "Narrative Bee",
+        "Critic Bee",
+      ]),
+    );
+    expect(template?.routine?.goalTemplate).toMatch(/critic rubric/i);
+  });
 });

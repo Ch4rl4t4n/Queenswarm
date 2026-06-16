@@ -14,6 +14,7 @@ ORCHESTRATION_TEMPLATE_STACKS: dict[str, list[str]] = {
     "research_swarm": ["rag", "reasoning", "exploration", "reflection"],
     "content_flywheel": ["prompt_chaining", "tool_use", "guardrails", "reflection"],
     "product_mission": ["planning", "tool_use", "guardrails", "learning_adaptation"],
+    "business_analytics_report": ["rag", "tool_use", "reflection", "guardrails", "human_in_the_loop"],
 }
 
 ORCHESTRATION_TEMPLATE_LABELS: dict[str, str] = {
@@ -23,6 +24,7 @@ ORCHESTRATION_TEMPLATE_LABELS: dict[str, str] = {
     "research_swarm": "Research Swarm",
     "content_flywheel": "Content Flywheel",
     "product_mission": "Product Mission",
+    "business_analytics_report": "Business Analytics Report",
 }
 
 PATTERN_LABELS: dict[str, str] = {
@@ -54,6 +56,8 @@ _NAME_HINTS: tuple[tuple[str, str], ...] = (
     ("research swarm", "research_swarm"),
     ("content flywheel", "content_flywheel"),
     ("product mission", "product_mission"),
+    ("business analytics", "business_analytics_report"),
+    ("analytics report", "business_analytics_report"),
     ("revenue swarm", "product_mission"),
 )
 

@@ -23,7 +23,8 @@ export type SwarmWizardTemplateId =
   | "life-business-os"
   | "faceless-media-agency"
   | "micro-saas-factory"
-  | "life-os";
+  | "life-os"
+  | "business-analytics-report";
 
 export type SwarmWizardTemplateCategory = "virtual_company" | "sentinel" | "personal";
 
@@ -902,6 +903,64 @@ export const SWARM_WIZARD_TEMPLATES: SwarmWizardTemplate[] = [
         "Factory: MVP scope → landing → auth doc → billing checklist → deploy recipe (simulate).",
       scheduleKind: "cron",
       cronExpr: "0 14 * * 5",
+    },
+  },
+  {
+    id: "business-analytics-report",
+    name: "Business Analytics Report",
+    tagline: "Question → fetch → analyze → narrative → critic → export staging",
+    description:
+      "Codex-style analytics session: pull read-only GA4/Sheets metrics, analyze anomalies, draft executive narrative, critic rubric ≥4/5, stage Notion/Slides export simulate-first.",
+    category: "virtual_company",
+    swarmName: "Business Analytics Report",
+    swarmPurpose: "scout",
+    estimatedMinutes: 12,
+    timeSavedHoursPerWeek: 8,
+    accentHex: "#9966FF",
+    comingSoon: false,
+    agents: [
+      {
+        name: "Analytics Supervisor",
+        hiveTier: "manager",
+        systemPrompt:
+          `You supervise one business analytics report session. Decompose the operator question into fetch → analyze → narrative → critic → export staging. Read-only connectors only; never mutate GA4 or warehouse config.${EXEC}`,
+        tools: DEPT_TOOLS,
+      },
+      {
+        name: "Data Fetch Bee",
+        hiveTier: "worker",
+        systemPrompt:
+          `Pull metrics for the requested date range via ga4-analytics-playbook and read-only Sheets/warehouse MCP slots. Tag every row with source, query, and timestamp for lineage.${EXEC}`,
+        tools: DEPT_TOOLS,
+      },
+      {
+        name: "Analyst Bee",
+        hiveTier: "worker",
+        systemPrompt:
+          `Explain what changed, why it matters, and flag anomalies. Cross-check numbers with HiveMind search. Output structured tables with confidence scores.${EXEC}`,
+        tools: ["hive_memory_search", "task_list", "mcp_invoke"],
+      },
+      {
+        name: "Narrative Bee",
+        hiveTier: "worker",
+        systemPrompt:
+          `Draft executive summary and chart specs in markdown. Keep claims tied to cited metrics only — no invented deltas.${EXEC}`,
+        tools: ["hive_memory_search", "task_list"],
+      },
+      {
+        name: "Critic Bee",
+        hiveTier: "worker",
+        systemPrompt:
+          `Verify every cited number against fetch artifacts. Score report rubric ≥4/5 before export staging. Block export when lineage or data is missing.${EXEC}`,
+        tools: ["hive_memory_search"],
+      },
+    ],
+    routine: {
+      name: "Business analytics report cycle",
+      goalTemplate:
+        "Business analytics report: fetch read-only metrics → analyze deltas → executive narrative → critic rubric ≥4/5 → stage Notion/Slides export simulate-only.",
+      scheduleKind: "cron",
+      cronExpr: "0 8 * * 1",
     },
   },
 ];

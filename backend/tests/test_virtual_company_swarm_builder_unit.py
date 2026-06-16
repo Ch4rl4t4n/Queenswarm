@@ -80,6 +80,17 @@ def test_life_os_wizard_spec_present() -> None:
     assert len(spec.agents) == 4
 
 
+def test_business_analytics_report_wizard_spec() -> None:
+    spec = SWARM_WIZARD_SPECS.get("business-analytics-report")
+    assert spec is not None
+    assert spec.category == "virtual_company"
+    assert len(spec.agents) == 5
+    assert spec.agents[0].name == "Analytics Supervisor"
+    assert spec.agents[-1].name == "Critic Bee"
+    assert spec.routine is not None
+    assert "critic rubric" in spec.routine.goal_template.lower()
+
+
 @pytest.mark.asyncio
 async def test_find_swarm_by_wizard_template_empty() -> None:
     session = AsyncMock()

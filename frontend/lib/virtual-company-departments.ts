@@ -203,6 +203,20 @@ export function buildSwarmLocalMemoryForTemplate(templateId: SwarmWizardTemplate
   if (templateId === "life-os") {
     return { manager_slug: "personal_life" };
   }
+  if (templateId === "business-analytics-report") {
+    return {
+      manager_slug: "research_intelligence",
+      analytics_workspace: true,
+      execution_studio: {
+        default_mode: "simulate",
+        live_requires_approval: true,
+        read_only: true,
+        free_first_routing: true,
+        suggested_connectors: ["notion_workspace"],
+        capability: "apps.analytics.decision_report.v1",
+      },
+    };
+  }
   if (templateId === "content-flywheel") {
     return { manager_slug: "content_creation" };
   }

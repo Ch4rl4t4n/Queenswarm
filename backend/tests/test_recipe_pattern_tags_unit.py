@@ -48,6 +48,13 @@ def test_enrich_workflow_template_injects_stack_for_life_os() -> None:
     assert "prioritization" in enriched["pattern_stack"]
 
 
+def test_enrich_workflow_template_injects_stack_for_business_analytics() -> None:
+    enriched = enrich_workflow_template_patterns({"swarm_wizard_id": "business-analytics-report"})
+    assert enriched["orchestration_template"] == "business_analytics_report"
+    assert "rag" in enriched["pattern_stack"]
+    assert "guardrails" in enriched["pattern_stack"]
+
+
 def test_list_orchestration_pattern_stacks_includes_exec_and_life_os() -> None:
     stacks = list_orchestration_pattern_stacks()
     ids = {row["id"] for row in stacks}

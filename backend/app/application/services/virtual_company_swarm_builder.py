@@ -414,6 +414,76 @@ SWARM_WIZARD_SPECS: dict[str, SwarmWizardSpec] = {
             cron_expr="0 14 * * 5",
         ),
     ),
+    "business-analytics-report": SwarmWizardSpec(
+        template_id="business-analytics-report",
+        name="Business Analytics Report",
+        swarm_name="Business Analytics Report",
+        purpose=SwarmPurpose.SCOUT,
+        description=(
+            "Codex-style analytics: read-only GA4/Sheets fetch, analyst narrative, critic rubric, export simulate."
+        ),
+        accent_hex="#9966FF",
+        category="virtual_company",
+        department_id="digital",
+        manager_slug="research_intelligence",
+        super_router_preset="solo_app_actions",
+        agents=(
+            _AgentSpec(
+                "Analytics Supervisor",
+                "manager",
+                _exec(
+                    "Supervise one business analytics report session. Read-only connectors only; "
+                    "never mutate GA4 or warehouse config.",
+                ),
+                DEPT_TOOLS,
+            ),
+            _AgentSpec(
+                "Data Fetch Bee",
+                "worker",
+                _exec(
+                    "Pull metrics for date range via ga4-analytics-playbook and read-only Sheets MCP. "
+                    "Tag rows with source, query, timestamp.",
+                ),
+                DEPT_TOOLS,
+            ),
+            _AgentSpec(
+                "Analyst Bee",
+                "worker",
+                _exec(
+                    "Explain what changed and flag anomalies. Cross-check with HiveMind. "
+                    "Output structured tables with confidence scores.",
+                ),
+                DEPT_TOOLS,
+            ),
+            _AgentSpec(
+                "Narrative Bee",
+                "worker",
+                _exec(
+                    "Draft executive summary and chart specs in markdown. "
+                    "Claims must cite fetch artifacts only.",
+                ),
+                ("hive_memory_search", "task_list"),
+            ),
+            _AgentSpec(
+                "Critic Bee",
+                "worker",
+                _exec(
+                    "Verify cited numbers. Score rubric ≥4/5 before export staging. "
+                    "Block export when lineage is missing.",
+                ),
+                ("hive_memory_search",),
+            ),
+        ),
+        routine=_RoutineSpec(
+            "Business analytics report cycle",
+            (
+                "Business analytics report: fetch read-only metrics → analyze deltas → "
+                "executive narrative → critic rubric ≥4/5 → stage Notion/Slides export simulate-only."
+            ),
+            "cron",
+            cron_expr="0 8 * * 1",
+        ),
+    ),
 }
 
 VIRTUAL_COMPANY_TEMPLATE_IDS: frozenset[str] = frozenset(
@@ -445,6 +515,20 @@ def _build_local_memory(spec: SwarmWizardSpec) -> dict[str, Any]:
             },
             "dump_sleep_enabled": True,
             "auto_graphify_enabled": True,
+        }
+    if spec.template_id == "business-analytics-report":
+        return {
+            "analytics_workspace": True,
+            "manager_slug": spec.manager_slug,
+            "execution_studio": {
+                "default_mode": "simulate",
+                "live_requires_approval": True,
+                "read_only": True,
+                "free_first_routing": True,
+                "super_router_preset": spec.super_router_preset,
+                "suggested_connectors": ["notion_workspace"],
+                "capability": "apps.analytics.decision_report.v1",
+            },
         }
     dept_id = spec.department_id or ""
     connectors = list(DEPARTMENT_CONNECTOR_MAP.get(dept_id, ()))
