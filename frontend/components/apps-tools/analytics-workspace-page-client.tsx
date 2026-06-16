@@ -1,10 +1,11 @@
 "use client";
 
-import { BarChart3, Download, GitBranch, LayoutDashboard, Loader2Icon } from "lucide-react";
+import { BarChart3, CircleHelp, Download, GitBranch, LayoutDashboard, Loader2Icon } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { BusinessQuestionWizardPanel } from "@/components/apps-tools/business-question-wizard-panel";
 import { ModulePolicyPackPill } from "@/components/apps-tools/module-policy-pack-pill";
 import { HivePageShell } from "@/components/hive/hive-page-shell";
 import { HiveSubnavRow } from "@/components/hive/hive-subnav-row";
@@ -12,7 +13,7 @@ import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
 import { scrollBehaviorForMotion } from "@/lib/motion-preferences";
 
-type AnalyticsSection = "overview" | "lineage" | "export";
+type AnalyticsSection = "overview" | "question" | "lineage" | "export";
 
 interface AnalyticsSnapshot {
   enabled: boolean;
@@ -28,12 +29,13 @@ interface AnalyticsSnapshot {
 
 const SECTION_TO_HASH: Record<AnalyticsSection, string> = {
   overview: "analytics-overview",
+  question: "analytics-question",
   lineage: "analytics-lineage",
   export: "analytics-export",
 };
 
 function sectionFromQuery(raw: string | null): AnalyticsSection | null {
-  if (raw === "overview" || raw === "lineage" || raw === "export") {
+  if (raw === "overview" || raw === "question" || raw === "lineage" || raw === "export") {
     return raw;
   }
   return null;
@@ -42,6 +44,7 @@ function sectionFromQuery(raw: string | null): AnalyticsSection | null {
 function sectionFromHash(hash: string): AnalyticsSection | null {
   const key = hash.replace(/^#/, "").trim().toLowerCase();
   if (key === "analytics-overview") return "overview";
+  if (key === "analytics-question") return "question";
   if (key === "analytics-lineage") return "lineage";
   if (key === "analytics-export") return "export";
   return null;
@@ -122,6 +125,7 @@ export function AnalyticsWorkspacePageClient(): JSX.Element {
         <HiveSubnavRow
           items={[
             { id: "overview", label: "Overview", icon: LayoutDashboard },
+            { id: "question", label: "Question", icon: CircleHelp },
             { id: "lineage", label: "Lineage", icon: GitBranch },
             { id: "export", label: "Export inbox", icon: Download },
           ]}
@@ -198,6 +202,12 @@ export function AnalyticsWorkspacePageClient(): JSX.Element {
         </div>
       ) : null}
 
+      {!loading && snapshot && section === "question" ? (
+        <div id="analytics-question" data-testid="analytics-workspace-question">
+          <BusinessQuestionWizardPanel />
+        </div>
+      ) : null}
+
       {!loading && snapshot && section === "lineage" ? (
         <V4Card id="analytics-lineage" data-testid="analytics-workspace-lineage">
           <V4CardHeader
@@ -205,7 +215,11 @@ export function AnalyticsWorkspacePageClient(): JSX.Element {
             description="Each report section cites connector · query · timestamp (DA6 expands live artifact binding)."
           />
           <p className="px-4 pb-4 text-sm text-(--qs-text-2)">
-            No active report session — dispatch{" "}
+            No active report session — use the{" "}
+            <Link href="/apps-tools/analytics?section=question#analytics-question" className="text-cyan hover:underline">
+              Business Question wizard
+            </Link>{" "}
+            or dispatch{" "}
             <Link href="/swarm-builder?template=business-analytics-report" className="text-cyan hover:underline">
               business-analytics-report
             </Link>{" "}

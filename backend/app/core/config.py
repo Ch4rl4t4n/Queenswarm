@@ -2159,6 +2159,10 @@ class Settings(BaseSettings):
         default=True,
         description="Track L DA3 — Apps & Tools analytics workspace module + snapshot API.",
     )
+    analytics_question_wizard_enabled: bool = Field(
+        default=True,
+        description="Track L DA4 — Business question wizard → analytics session dispatch.",
+    )
     research_bee_max_chars: int = Field(
         default=12_000,
         ge=512,

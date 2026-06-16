@@ -65,7 +65,7 @@ class AnalyticsWorkspaceSnapshotOut(BaseModel):
 def _default_panels() -> list[AnalyticsPanelOut]:
     return [
         AnalyticsPanelOut(id="overview", label="Overview", lazy=False, status="ready"),
-        AnalyticsPanelOut(id="question", label="Business question", lazy=True, status="planned"),
+        AnalyticsPanelOut(id="question", label="Business question", lazy=True, status="ready"),
         AnalyticsPanelOut(id="report", label="Report artifact", lazy=True, status="ready"),
         AnalyticsPanelOut(id="lineage", label="Data lineage", lazy=True, status="ready"),
         AnalyticsPanelOut(id="export", label="Export inbox", lazy=True, status="ready"),

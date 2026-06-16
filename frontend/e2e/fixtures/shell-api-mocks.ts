@@ -1027,7 +1027,7 @@ const STUB_ANALYTICS_WORKSPACE_SNAPSHOT = {
   swarm_template_built: false,
   panels: [
     { id: "overview", label: "Overview", lazy: false, status: "ready" },
-    { id: "question", label: "Business question", lazy: true, status: "planned" },
+    { id: "question", label: "Business question", lazy: true, status: "ready" },
     { id: "report", label: "Report artifact", lazy: true, status: "ready" },
     { id: "lineage", label: "Data lineage", lazy: true, status: "ready" },
     { id: "export", label: "Export inbox", lazy: true, status: "ready" },
@@ -1044,6 +1044,28 @@ const STUB_ANALYTICS_WORKSPACE_SNAPSHOT = {
     },
   ],
   operator_hint: "Dispatch business-analytics-report template → fetch read-only metrics → critic rubric ≥4/5 → export simulate.",
+};
+
+const STUB_ANALYTICS_QUESTION_WIZARD = {
+  enabled: true,
+  generated_at: new Date().toISOString(),
+  min_question_chars: 12,
+  template_id: "business-analytics-report",
+  source_options: [
+    { id: "ga4", label: "GA4 Data API (read-only)" },
+    { id: "google_sheets", label: "Google Sheets read" },
+    { id: "hivemind", label: "HiveMind recall" },
+  ],
+  date_range_presets: [
+    { id: "last_7d", label: "Last 7 days" },
+    { id: "last_30d", label: "Last 30 days" },
+    { id: "last_90d", label: "Last 90 days" },
+    { id: "mtd", label: "Month to date" },
+    { id: "qtd", label: "Quarter to date" },
+    { id: "custom", label: "Custom range" },
+  ],
+  default_sources: ["ga4", "hivemind"],
+  operator_hint: "Enter one business question, pick date range and sources, then dispatch analytics session.",
 };
 
 const STUB_RECIPE_PATTERN_STACKS = [
@@ -3450,6 +3472,52 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           ready: true,
           blockers: [],
         }),
+      });
+      return;
+    }
+
+    if (path.startsWith("analytics-workspace/question-wizard/submit")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          task_id: STUB_MISSION_KANBAN_TASK_ID,
+          deliverable_id: "33333333-3333-4333-8333-333333333333",
+          title: "Analytics brief",
+          brief_markdown: "# Analytics brief\n",
+          href: `/tasks?task=${STUB_MISSION_KANBAN_TASK_ID}`,
+          supervisor_session_id: "44444444-4444-4444-8444-444444444444",
+          session_href: "/agents#sessions?session=44444444-4444-4444-8444-444444444444",
+          message: "Analytics brief saved to Mission Kanban and task workspace. Analytics session started.",
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("analytics-workspace/question-wizard/preview")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          title: "Analytics brief",
+          date_range_label: "Last 30 days",
+          date_start: "2026-05-06",
+          date_end: "2026-06-05",
+          sources: ["ga4", "hivemind"],
+          brief_markdown: "# Analytics brief\n\n## Business question\n\nWhy did signups drop?",
+          session_goal_preview: "Business analytics report using template business-analytics-report",
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("analytics-workspace/question-wizard")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_ANALYTICS_QUESTION_WIZARD),
       });
       return;
     }
