@@ -74,7 +74,7 @@ def resolve_vllm_model_slug() -> str:
     return settings.vllm_default_model.strip() or "openai/local-model"
 
 
-def configured_local_model_slugs() -> list[str]:
+def configured_local_model_slugs(*, extra_slugs: list[str] | None = None) -> list[str]:
     """Ordered local model slugs when deployment local LLM is enabled."""
 
     if not settings.local_llm_enabled:
@@ -84,6 +84,10 @@ def configured_local_model_slugs() -> list[str]:
         slugs.append(resolve_ollama_model_slug())
     if settings.vllm_api_base.strip():
         slugs.append(resolve_vllm_model_slug())
+    for slug in extra_slugs or []:
+        clean = slug.strip()
+        if clean and clean not in slugs:
+            slugs.append(clean)
     return slugs
 
 
@@ -177,10 +181,14 @@ async def ping_vllm(*, timeout_sec: float = 5.0) -> LocalInferencePingOut | None
         )
 
 
-async def compose_local_inference_status(*, run_ping: bool = False) -> LocalInferenceStatusOut:
+async def compose_local_inference_status(
+    *,
+    run_ping: bool = False,
+    extra_model_slugs: list[str] | None = None,
+) -> LocalInferenceStatusOut:
     """Build operator status payload."""
 
-    slugs = configured_local_model_slugs()
+    slugs = configured_local_model_slugs(extra_slugs=extra_model_slugs)
     pings: list[LocalInferencePingOut] = []
     if run_ping and settings.local_llm_enabled:
         pings.append(await ping_ollama())

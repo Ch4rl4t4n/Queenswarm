@@ -73,3 +73,18 @@ export OPERATOR_SMOKE_JWT="<dashboard-bearer>"
 ```
 
 Only critic-approved deliverables and verified recipes are exported — secrets are redacted.
+
+## Unsloth bridge (LOC7)
+
+After fine-tuning in Unsloth Studio (external GPU):
+
+```bash
+./scripts/operator-unsloth-bridge.sh --gguf ./exports/model.gguf --name queenswarm-v1 --dry-run
+./scripts/operator-unsloth-bridge.sh --gguf ./exports/model.gguf --name queenswarm-v1 --register
+```
+
+`--register` requires `OPERATOR_SMOKE_JWT` and posts to the adapter registry (LOC8).
+
+## Adapter registry (LOC8)
+
+**Settings → LLM keys → Local adapter registry** — register Ollama tags, activate one slug for routing hints. Imported models appear in Local Inference configured slugs list.

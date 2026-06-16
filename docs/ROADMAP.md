@@ -662,8 +662,8 @@ _Signal: [Unsloth Studio — fine-tune & run locally](https://www.youtube.com/wa
 | LOC4 | **Settings → Local Inference** panel — endpoint, model, ping, enable sovereign | P0 | 2–3 d | ✅ | `/settings/llm-keys` |
 | LOC5 | **Verified dataset exporter** — critic-approved sessions/recipes → JSONL (Alpaca) | P1 | 3–4 d | ✅ | `verified_dataset_export_service.py` |
 | LOC6 | **Dataset Recipe wizard** — PDF/CSV → Q&A pairs via **local model only** | P1 | 4–5 d | ⏳ | Unsloth-recipes pattern · HITL |
-| LOC7 | **Unsloth bridge** — operator script + doc (`pull adapter → Ollama import`) | P1 | 1–2 d | ⏳ | `scripts/operator-unsloth-bridge.sh` |
-| LOC8 | **Adapter registry** — tenant LoRA/GGUF metadata → LiteLLM model slug | P1 | 2–3 d | ⏳ | Postgres + Settings picker |
+| LOC7 | **Unsloth bridge** — operator script + doc (`pull adapter → Ollama import`) | P1 | 1–2 d | ✅ | `operator-unsloth-bridge.sh` |
+| LOC8 | **Adapter registry** — tenant LoRA/GGUF metadata → LiteLLM model slug | P1 | 2–3 d | ✅ | `local_adapter_registry_service.py` |
 | LOC9 | **Fine-tune job queue** — GPU Celery worker, operator approve start | P2 | 5–7 d | ⏳ | Env-gated · not in API container |
 | LOC10 | **Hardware preflight** — RAM/VRAM/disk model recommendation | P1 | 1 d | ✅ | `operator-local-llm-preflight.sh` |
 | LOC11 | **CostGovernor local hops** — $0 billing + metrics label `inference=local` | P0 | 1 d | ✅ | `queenswarm_llm_local_inference_total` |

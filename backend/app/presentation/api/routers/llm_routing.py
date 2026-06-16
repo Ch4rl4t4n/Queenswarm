@@ -95,12 +95,14 @@ async def get_llm_routing_settings(
 
     tenant_id = await _assert_routing_feature(db, principal)
     cfg = await load_routing_config(db, tenant_id=tenant_id)
+    from app.application.services.local_adapter_registry_service import list_tenant_local_adapter_slugs
     from app.application.services.local_inference import (
         compose_local_inference_status,
         configured_local_model_slugs,
     )
 
-    local = await compose_local_inference_status(run_ping=False)
+    extra = await list_tenant_local_adapter_slugs(db, tenant_id=tenant_id)
+    local = await compose_local_inference_status(run_ping=False, extra_model_slugs=extra)
     return LlmRoutingSettingsResponse(
         routing_mode=str(cfg.get("routing_mode", "quality")),
         cost_guardian_enabled=bool(cfg.get("cost_guardian_enabled", True)),
@@ -111,7 +113,7 @@ async def get_llm_routing_settings(
         local_llm_enabled=local.enabled,
         llm_airgap=local.llm_airgap,
         ollama_default_model=local.ollama_default_model,
-        configured_local_models=configured_local_model_slugs(),
+        configured_local_models=configured_local_model_slugs(extra_slugs=extra),
     )
 
 
@@ -141,9 +143,11 @@ async def update_llm_routing_settings(
     await db.commit()
     await db.refresh(tenant)
     cfg = routing_config_from_tenant(tenant)
+    from app.application.services.local_adapter_registry_service import list_tenant_local_adapter_slugs
     from app.application.services.local_inference import compose_local_inference_status, configured_local_model_slugs
 
-    local = await compose_local_inference_status(run_ping=False)
+    extra = await list_tenant_local_adapter_slugs(db, tenant_id=tenant_id)
+    local = await compose_local_inference_status(run_ping=False, extra_model_slugs=extra)
     return LlmRoutingSettingsResponse(
         routing_mode=str(cfg["routing_mode"]),
         cost_guardian_enabled=bool(cfg["cost_guardian_enabled"]),
@@ -154,7 +158,7 @@ async def update_llm_routing_settings(
         local_llm_enabled=local.enabled,
         llm_airgap=local.llm_airgap,
         ollama_default_model=local.ollama_default_model,
-        configured_local_models=configured_local_model_slugs(),
+        configured_local_models=configured_local_model_slugs(extra_slugs=extra),
     )
 
 
@@ -172,6 +176,7 @@ async def get_cost_savings(
 
 @router.get("/local-inference", summary="Local Ollama/vLLM status (Track M LOC4)")
 async def get_local_inference_status(
+    db: DbSession,
     principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
     ping: bool = Query(default=False, description="Probe Ollama/vLLM endpoints"),
 ) -> dict[str, Any]:
@@ -180,14 +185,20 @@ async def get_local_inference_status(
     if not settings.local_llm_enabled:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Local LLM disabled on deployment.")
     _ensure_admin(principal)
+    from app.application.services.local_adapter_registry_service import list_tenant_local_adapter_slugs
     from app.application.services.local_inference import compose_local_inference_status
 
-    status_out = await compose_local_inference_status(run_ping=ping)
+    extra: list[str] = []
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is not None:
+        extra = await list_tenant_local_adapter_slugs(db, tenant_id=uuid.UUID(str(tenant_id)))
+    status_out = await compose_local_inference_status(run_ping=ping, extra_model_slugs=extra)
     return status_out.model_dump(mode="json")
 
 
 @router.post("/local-inference/ping", summary="Ping Ollama/vLLM now")
 async def post_local_inference_ping(
+    db: DbSession,
     principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
 ) -> dict[str, Any]:
     """Live health check for local inference endpoints."""
@@ -195,9 +206,14 @@ async def post_local_inference_ping(
     if not settings.local_llm_enabled:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Local LLM disabled on deployment.")
     _ensure_admin(principal)
+    from app.application.services.local_adapter_registry_service import list_tenant_local_adapter_slugs
     from app.application.services.local_inference import compose_local_inference_status
 
-    status_out = await compose_local_inference_status(run_ping=True)
+    extra: list[str] = []
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is not None:
+        extra = await list_tenant_local_adapter_slugs(db, tenant_id=uuid.UUID(str(tenant_id)))
+    status_out = await compose_local_inference_status(run_ping=True, extra_model_slugs=extra)
     return status_out.model_dump(mode="json")
 
 
@@ -289,6 +305,147 @@ async def download_verified_dataset_jsonl(
             "X-Queenswarm-Export-Rows": str(row_count),
         },
     )
+
+
+@router.post(
+    "/unsloth-bridge/plan",
+    summary="Validate Unsloth GGUF import plan (Track M LOC7)",
+)
+async def post_unsloth_bridge_plan(
+    body: dict[str, Any],
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return Modelfile + Ollama create command for operator script."""
+
+    if not settings.local_llm_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Local LLM disabled on deployment.")
+    _ensure_admin(principal)
+    from app.application.services.unsloth_bridge_service import (
+        UnslothBridgeValidateIn,
+        build_unsloth_bridge_plan,
+    )
+
+    try:
+        payload = UnslothBridgeValidateIn.model_validate(body)
+        plan = build_unsloth_bridge_plan(payload)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    return plan.model_dump(mode="json")
+
+
+@router.get(
+    "/local-adapters",
+    summary="Tenant local adapter registry snapshot (Track M LOC8)",
+)
+async def get_local_adapter_registry(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """List registered Ollama adapters for tenant."""
+
+    if not settings.local_llm_enabled or not settings.local_adapter_registry_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Local adapter registry disabled.")
+    _ensure_admin(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.local_adapter_registry_service import compose_local_adapter_registry_snapshot
+
+    snap = await compose_local_adapter_registry_snapshot(db, tenant_id=uuid.UUID(str(tenant_id)))
+    return snap.model_dump(mode="json")
+
+
+@router.post(
+    "/local-adapters",
+    summary="Register tenant local adapter (Track M LOC8)",
+)
+async def post_local_adapter_register(
+    body: dict[str, Any],
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Register Ollama tag after Unsloth bridge import."""
+
+    if not settings.local_llm_enabled or not settings.local_adapter_registry_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Local adapter registry disabled.")
+    _ensure_admin(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.local_adapter_registry_service import (
+        LocalAdapterRegisterIn,
+        register_local_adapter,
+    )
+
+    payload = LocalAdapterRegisterIn.model_validate(body)
+    row = await register_local_adapter(
+        db,
+        tenant_id=uuid.UUID(str(tenant_id)),
+        payload=payload,
+    )
+    return row.model_dump(mode="json")
+
+
+@router.post(
+    "/local-adapters/{adapter_id}/activate",
+    summary="Activate tenant local adapter",
+)
+async def post_local_adapter_activate(
+    adapter_id: uuid.UUID,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Set one adapter active for routing hints."""
+
+    if not settings.local_llm_enabled or not settings.local_adapter_registry_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Local adapter registry disabled.")
+    _ensure_admin(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.local_adapter_registry_service import activate_local_adapter
+
+    try:
+        row = await activate_local_adapter(
+            db,
+            tenant_id=uuid.UUID(str(tenant_id)),
+            adapter_id=adapter_id,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return row.model_dump(mode="json")
+
+
+@router.delete(
+    "/local-adapters/{adapter_id}",
+    summary="Delete tenant local adapter registry row",
+)
+async def delete_local_adapter_route(
+    adapter_id: uuid.UUID,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, str]:
+    """Remove adapter metadata (Ollama weights remain on host)."""
+
+    if not settings.local_llm_enabled or not settings.local_adapter_registry_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Local adapter registry disabled.")
+    _ensure_admin(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.local_adapter_registry_service import delete_local_adapter
+
+    try:
+        await delete_local_adapter(
+            db,
+            tenant_id=uuid.UUID(str(tenant_id)),
+            adapter_id=adapter_id,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return {"ok": "true"}
 
 
 __all__ = ["router"]

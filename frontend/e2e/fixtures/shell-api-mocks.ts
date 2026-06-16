@@ -340,6 +340,24 @@ const STUB_VERIFIED_DATASET_PREVIEW = {
   ],
 };
 
+const STUB_LOCAL_ADAPTER_REGISTRY = {
+  enabled: true,
+  active_slug: "ollama/queenswarm-v1",
+  operator_hint: "Import via operator-unsloth-bridge.sh then register the Ollama tag here.",
+  adapters: [
+    {
+      id: "00000000-0000-4000-8000-000000000002",
+      name: "Queenswarm v1",
+      ollama_tag: "queenswarm-v1",
+      litellm_slug: "ollama/queenswarm-v1",
+      kind: "gguf",
+      base_model: null,
+      source_path: null,
+      is_active: true,
+    },
+  ],
+};
+
 const STUB_LLM_COST_SAVINGS = {
   window_days: 30,
   call_count: 42,
@@ -1459,6 +1477,7 @@ export async function installShellApiMocks(page: Page): Promise<void> {
   await page.route("**/api/proxy/**", async (route) => {
     const url = route.request().url();
     const path = new URL(url).pathname.replace(/^\/api\/proxy\/?/, "");
+    const method = route.request().method();
 
     if (path.startsWith("dashboard/cockpit")) {
       await route.fulfill({
@@ -1816,6 +1835,35 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           processed_at: new Date().toISOString(),
           error_text: null,
         }),
+      });
+      return;
+    }
+
+    if (path.startsWith("llm-routing/local-adapters")) {
+      if (method === "POST" && path.includes("/activate")) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ ...STUB_LOCAL_ADAPTER_REGISTRY.adapters[0], is_active: true }),
+        });
+        return;
+      }
+      if (method === "DELETE") {
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: "true" }) });
+        return;
+      }
+      if (method === "POST") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(STUB_LOCAL_ADAPTER_REGISTRY.adapters[0]),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_LOCAL_ADAPTER_REGISTRY),
       });
       return;
     }

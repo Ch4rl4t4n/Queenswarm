@@ -64,6 +64,27 @@ async def test_compose_local_inference_status_without_ping(monkeypatch: pytest.M
     assert resolve_ollama_model_slug() in status.configured_models
 
 
+def test_configured_local_model_slugs_merges_extra(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "local_llm_enabled", True)
+    monkeypatch.setattr(settings, "ollama_api_base", "http://127.0.0.1:11434")
+    monkeypatch.setattr(settings, "vllm_api_base", "")
+    base = resolve_ollama_model_slug()
+    slugs = configured_local_model_slugs(extra_slugs=[base, "ollama/queenswarm-v1"])
+    assert slugs.count(base) == 1
+    assert "ollama/queenswarm-v1" in slugs
+
+
+@pytest.mark.asyncio
+async def test_compose_local_inference_status_with_extra_slugs(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "local_llm_enabled", True)
+    monkeypatch.setattr(settings, "ollama_api_base", "http://127.0.0.1:11434")
+    status = await compose_local_inference_status(
+        run_ping=False,
+        extra_model_slugs=["ollama/queenswarm-v1"],
+    )
+    assert "ollama/queenswarm-v1" in status.configured_models
+
+
 @pytest.mark.asyncio
 async def test_ping_ollama_success(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "ollama_api_base", "http://127.0.0.1:11434")

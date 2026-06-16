@@ -487,6 +487,10 @@ class Settings(BaseSettings):
         le=2000,
         description="Max JSONL rows per verified dataset export.",
     )
+    local_adapter_registry_enabled: bool = Field(
+        default=True,
+        description="Track M LOC8 — tenant LoRA/GGUF adapter registry for local_sovereign routing.",
+    )
     auto_graphify_enabled: bool = Field(
         default=True,
         description="Master switch for Auto-Graphify folder ingest (Phase 4 P1).",
