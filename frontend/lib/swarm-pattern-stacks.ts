@@ -15,6 +15,7 @@ export const SWARM_TEMPLATE_PATTERN_STACKS: Record<SwarmWizardTemplateId, string
   "content-flywheel": ["Prompt Chaining", "Tool Use", "Guardrails"],
   "content-flywheel-v2": ["RAG", "Prompt Chaining", "Learning Adaptation", "Human-in-the-Loop"],
   "polymarket-prediction-evaluator": ["RAG", "Parallelization", "Reflection", "Guardrails"],
+  "broker-readonly-probe": ["Tool Use", "Guardrails", "Human-in-the-Loop", "Reflection"],
   "polymarket-trading": ["Planning", "Guardrails", "Human-in-the-Loop", "Tool Use"],
   "trading-content-hybrid": ["Planning", "Prompt Chaining", "Guardrails", "Learning Adaptation", "Human-in-the-Loop"],
   "life-business-os": ["Memory", "Planning", "Parallelization", "Reflection", "Goal Monitoring"],

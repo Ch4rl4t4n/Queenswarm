@@ -1387,6 +1387,26 @@ const STUB_BROKER_GUARDRAILS = {
   workspace_href: "/apps-tools/trading-automation?section=guardrails#broker-guardrails",
 };
 
+const STUB_BROKER_READONLY_SESSION = {
+  enabled: true,
+  readonly_required: true,
+  live_eligible: false,
+  smoke_status: "missing",
+  smoke_passed_at: null,
+  smoke_message: "",
+  guardrails_ready: false,
+  guardrails_kill_switch: false,
+  gamma_connector_ready: true,
+  clob_connector_ready: false,
+  last_session_id: null,
+  last_session_href: null,
+  template_id: "broker-readonly-probe",
+  template_href: "/swarm-builder?template=broker-readonly-probe",
+  session_bootstrap_href: "/api/v1/trading-cockpit/readonly-session/bootstrap",
+  operator_hint: "Save broker guardrails, then run read-only smoke probe.",
+  workspace_href: "/apps-tools/trading-automation?section=connect#broker-readonly-session",
+};
+
 const STUB_ANALYTICS_CONNECTOR_PROFILE = {
   enabled: true,
   generated_at: new Date().toISOString(),
@@ -4011,6 +4031,45 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           ready: true,
           blockers: [],
         }),
+      });
+      return;
+    }
+
+    if (path.startsWith("trading-cockpit/readonly-session/smoke")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          smoke_status: "passed",
+          message: "Gamma connector ready; read-only smoke passed.",
+          live_eligible: false,
+          gamma_connector_ready: true,
+          guardrails_ready: false,
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("trading-cockpit/readonly-session/bootstrap")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          session_id: "readonly-session-stub",
+          session_href: "/agents/sessions/readonly-session-stub",
+          message: "Read-only broker session started.",
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("trading-cockpit/readonly-session")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_BROKER_READONLY_SESSION),
       });
       return;
     }

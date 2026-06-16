@@ -19,6 +19,7 @@ export type SwarmWizardTemplateId =
   | "content-flywheel-v2"
   | "polymarket-trading"
   | "polymarket-prediction-evaluator"
+  | "broker-readonly-probe"
   | "trading-content-hybrid"
   | "life-business-os"
   | "faceless-media-agency"
@@ -590,6 +591,57 @@ export const SWARM_WIZARD_TEMPLATES: SwarmWizardTemplate[] = [
         "Scan Polymarket, run consensus on top 5 markets, deliver ranked evaluation report — no orders.",
       scheduleKind: "cron",
       cronExpr: "0 8,14 * * 1-5",
+    },
+  },
+  {
+    id: "broker-readonly-probe",
+    name: "Broker Read-Only Probe",
+    tagline: "Connect first — portfolio & quotes only",
+    description:
+      "RA4 read-only lane: verify Polymarket Gamma connector, summarize portfolio/quotes, report guardrails status. Never places orders until smoke + guardrails pass.",
+    category: "personal",
+    swarmName: "Broker Read-Only Probe",
+    swarmPurpose: "scout",
+    estimatedMinutes: 5,
+    timeSavedHoursPerWeek: 4,
+    accentHex: "#00FFFF",
+    comingSoon: false,
+    agents: [
+      {
+        name: "Connect Supervisor",
+        hiveTier: "manager",
+        systemPrompt:
+          `Supervise read-only broker probe — no order_post, no execute_trade.${EXEC}`,
+        tools: DEPT_TOOLS,
+      },
+      {
+        name: "Quotes Bee",
+        hiveTier: "worker",
+        systemPrompt:
+          "Fetch Polymarket Gamma market snapshot (top markets by volume). Read-only — cite market IDs and timestamps.",
+        tools: DEPT_TOOLS,
+      },
+      {
+        name: "Portfolio Bee",
+        hiveTier: "worker",
+        systemPrompt:
+          "Summarize read-only portfolio/exposure data when connectors allow. Flag missing credentials.",
+        tools: DEPT_TOOLS,
+      },
+      {
+        name: "Guardrails Critic",
+        hiveTier: "worker",
+        systemPrompt:
+          "Report tenant broker guardrails status (kill switch, caps, smoke). Block live handoff until operator completes checklist.",
+        tools: [],
+      },
+    ],
+    routine: {
+      name: "Broker connect smoke",
+      goalTemplate:
+        "Run read-only broker probe: Gamma snapshot, portfolio summary, guardrails report — no orders.",
+      scheduleKind: "cron",
+      cronExpr: "0 7 * * 1",
     },
   },
   {

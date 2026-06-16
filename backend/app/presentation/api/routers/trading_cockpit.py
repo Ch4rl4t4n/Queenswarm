@@ -19,6 +19,14 @@ from app.application.services.broker_guardrails_service import (
     get_broker_guardrails,
     save_broker_guardrails,
 )
+from app.application.services.broker_readonly_session_service import (
+    BrokerReadonlyBootstrapOut,
+    BrokerReadonlyKpiOut,
+    BrokerReadonlySmokeOut,
+    bootstrap_broker_readonly_session,
+    compose_broker_readonly_kpi,
+    run_broker_readonly_smoke_probe,
+)
 from app.core.config import settings
 from app.presentation.api.deps import DbSession, require_dashboard_user_with_tenant_role
 from app.infrastructure.persistence.models.tenant import Tenant
@@ -135,6 +143,75 @@ async def patch_broker_guardrails(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     await db.commit()
     return saved.model_dump(mode="json")
+
+
+@router.get("/readonly-session", summary="RA4 Read-only broker session KPI")
+async def get_broker_readonly_session(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return connect-tab KPI for read-only broker lane."""
+
+    _require_enabled()
+    if not settings.broker_readonly_session_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Read-only broker session disabled.")
+    user = principal.get("user")
+    tenant_id = principal.get("tenant_id")
+    if user is None or tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context required.")
+    kpi = await compose_broker_readonly_kpi(db, tenant_id=tenant_id, dashboard_user_id=user.id)
+    return BrokerReadonlyKpiOut.model_validate(kpi).model_dump(mode="json")
+
+
+@router.post("/readonly-session/smoke", summary="RA4 Run read-only broker smoke probe")
+async def post_broker_readonly_smoke(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Verify Gamma connector + guardrails before marking smoke passed."""
+
+    _require_enabled()
+    if not settings.broker_readonly_session_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Read-only broker session disabled.")
+    user = principal.get("user")
+    tenant_id = principal.get("tenant_id")
+    if user is None or tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context required.")
+    try:
+        result = await run_broker_readonly_smoke_probe(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=user.id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return BrokerReadonlySmokeOut.model_validate(result).model_dump(mode="json")
+
+
+@router.post("/readonly-session/bootstrap", summary="RA4 Bootstrap read-only broker session")
+async def post_broker_readonly_bootstrap(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Dispatch supervisor session for portfolio/quotes only."""
+
+    _require_enabled()
+    if not settings.broker_readonly_session_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Read-only broker session disabled.")
+    user = principal.get("user")
+    tenant_id = principal.get("tenant_id")
+    if user is None or tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context required.")
+    subject = principal.get("sub")
+    result = await bootstrap_broker_readonly_session(
+        db,
+        tenant_id=tenant_id,
+        dashboard_user_id=user.id,
+        created_by_subject=str(subject) if subject else None,
+    )
+    await db.commit()
+    return BrokerReadonlyBootstrapOut.model_validate(result).model_dump(mode="json")
 
 
 __all__ = ["router"]

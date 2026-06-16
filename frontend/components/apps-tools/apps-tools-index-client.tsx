@@ -366,6 +366,7 @@ const MODULE_SECTION_DEEP_LINKS: Record<
     { label: "Health checks", href: "/apps-tools/mcp-ops-studio#health" },
   ],
   trading_automation: [
+    { label: "Broker connect", href: "/apps-tools/trading-automation?section=connect#broker-readonly-session" },
     { label: "Trading cockpit", href: "/apps-tools/trading-automation?section=cockpit#trading-cockpit" },
     { label: "Broker guardrails", href: "/apps-tools/trading-automation?section=guardrails#broker-guardrails" },
     { label: "Hybrid loop", href: "/apps-tools/trading-automation?section=hybrid#trading-content-hybrid" },

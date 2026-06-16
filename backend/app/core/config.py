@@ -2350,6 +2350,10 @@ class Settings(BaseSettings):
         default="always",
         description="RA3 default approve mode: always | simulate_first | trusted_auto.",
     )
+    broker_readonly_session_enabled: bool = Field(
+        default=True,
+        description="Track P RA4 — Read-only broker session gate until smoke + guardrails configured.",
+    )
     research_bee_max_chars: int = Field(
         default=12_000,
         ge=512,

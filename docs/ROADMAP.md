@@ -731,7 +731,7 @@ _Signal: [How to Build an AI Trading Agent on Robinhood (With Claude)](https://w
 | RA1 | **Robinhood Agentic MCP preset** — marketplace template + install doc (`agent.robinhood.com/mcp/trading`) | P1 | 1–2 d | ⏳ | Connector catalog · dynamic MCP |
 | RA2 | **Broker MCP tab** in Trading Cockpit — connect status · OAuth steps · last probe | P1 | 2 d | ⏳ | `execution-studio-trading-cockpit-panel` |
 | RA3 | **Broker guardrails pack** — max order · daily cap · kill switch · approve mode (tenant settings) | P0 | 1–2 d | ✅ | Shared Polymarket + Robinhood |
-| RA4 | **Read-only broker session** — portfolio/quotes tools only until smoke + guardrails set | P0 | 1 d | ⏳ | Swarm template · evaluator pattern |
+| RA4 | **Read-only broker session** — portfolio/quotes tools only until smoke + guardrails set | P0 | 1 d | ✅ | Swarm template · evaluator pattern |
 | RA5 | **HITL order queue** — agent proposes order → Approval Inbox → MCP execute | P0 | 2–3 d | ⏳ | Publish simulate pattern · audit log |
 
 **Build order (minmax):** **RA3 → RA4 → RA5** (works for Polymarket immediately) → **RA1 → RA2** (Robinhood US).

@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, Shield, ShieldAlert, TrendingUp } from "lucide-react";
+import { Activity, Plug, Shield, ShieldAlert, TrendingUp } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -44,6 +44,17 @@ const ExecutionStudioTradingContentHybridPanel = dynamic(
   },
 );
 
+const BrokerReadonlySessionPanel = dynamic(
+  () =>
+    import("@/components/connectors/broker-readonly-session-panel").then((mod) => ({
+      default: mod.BrokerReadonlySessionPanel,
+    })),
+  {
+    ssr: false,
+    loading: () => <div className="qs-bubble shrink-0 min-h-[8rem] animate-pulse bg-white/5 p-4" aria-hidden />,
+  },
+);
+
 const BrokerGuardrailsPanel = dynamic(
   () =>
     import("@/components/connectors/broker-guardrails-panel").then((mod) => ({
@@ -66,9 +77,10 @@ const ExecutionStudioLiveLanePanel = dynamic(
   },
 );
 
-type TradingSection = "cockpit" | "guardrails" | "hybrid" | "live-lane";
+type TradingSection = "connect" | "cockpit" | "guardrails" | "hybrid" | "live-lane";
 
 const SECTION_TO_HASH: Record<TradingSection, string> = {
+  connect: "broker-readonly-session",
   cockpit: "trading-cockpit",
   guardrails: "broker-guardrails",
   hybrid: "trading-content-hybrid",
@@ -77,6 +89,7 @@ const SECTION_TO_HASH: Record<TradingSection, string> = {
 
 function sectionFromHash(hash: string): TradingSection | null {
   const key = hash.replace(/^#/, "").trim().toLowerCase();
+  if (key === "broker-readonly-session") return "connect";
   if (key === "trading-cockpit") return "cockpit";
   if (key === "broker-guardrails") return "guardrails";
   if (key === "trading-content-hybrid") return "hybrid";
@@ -85,7 +98,7 @@ function sectionFromHash(hash: string): TradingSection | null {
 }
 
 function sectionFromQuery(raw: string | null): TradingSection | null {
-  if (raw === "cockpit" || raw === "guardrails" || raw === "hybrid" || raw === "live-lane") {
+  if (raw === "connect" || raw === "cockpit" || raw === "guardrails" || raw === "hybrid" || raw === "live-lane") {
     return raw;
   }
   return null;
@@ -138,6 +151,7 @@ export function TradingAutomationPageClient() {
       subnav={
         <HiveSubnavRow
           items={[
+            { id: "connect", label: "Connect", icon: Plug },
             { id: "cockpit", label: "Trading cockpit", icon: TrendingUp },
             { id: "guardrails", label: "Broker guardrails", icon: Shield },
             { id: "hybrid", label: "Hybrid loop", icon: Activity },
@@ -154,6 +168,7 @@ export function TradingAutomationPageClient() {
         />
       }
     >
+      {section === "connect" ? <BrokerReadonlySessionPanel /> : null}
       {section === "cockpit" ? (
         <>
           <TradingThesisWizardPanel />

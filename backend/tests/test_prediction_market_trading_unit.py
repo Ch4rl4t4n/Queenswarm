@@ -52,6 +52,7 @@ async def test_execute_live_blocked_when_flag_off(monkeypatch) -> None:
             prediction_markets_live_trading_enabled=False,
             prediction_markets_max_order_usd=2500,
             broker_guardrails_enabled=False,
+            broker_readonly_session_enabled=False,
         ),
     )
     project = SimpleNamespace(
@@ -79,6 +80,7 @@ async def test_execute_live_blocked_without_operator_confirm(monkeypatch) -> Non
             prediction_markets_live_trading_enabled=True,
             prediction_markets_max_order_usd=2500,
             broker_guardrails_enabled=False,
+            broker_readonly_session_enabled=False,
         ),
     )
     async def _rate_ok(*_args: object, **_kwargs: object) -> tuple[bool, str]:
@@ -114,6 +116,7 @@ async def test_execute_live_blocked_by_broker_kill_switch(monkeypatch) -> None:
             prediction_markets_live_trading_enabled=True,
             prediction_markets_max_order_usd=2500,
             broker_guardrails_enabled=True,
+            broker_readonly_session_enabled=False,
         ),
     )
 
@@ -148,3 +151,54 @@ async def test_execute_live_blocked_by_broker_kill_switch(monkeypatch) -> None:
     )
     assert out["status"] == "blocked"
     assert out["reason"] == "kill_switch"
+
+
+@pytest.mark.asyncio
+async def test_execute_live_blocked_by_readonly_smoke_gate(monkeypatch) -> None:
+    """RA4 read-only gate blocks live execution before broker guardrails evaluate."""
+
+    monkeypatch.setattr(
+        "app.application.services.prediction_market_trading.settings",
+        SimpleNamespace(
+            prediction_markets_enabled=True,
+            prediction_markets_live_trading_enabled=True,
+            prediction_markets_max_order_usd=2500,
+            broker_guardrails_enabled=True,
+            broker_readonly_session_enabled=True,
+        ),
+    )
+
+    async def _rate_ok(*_args: object, **_kwargs: object) -> tuple[bool, str]:
+        return True, ""
+
+    monkeypatch.setattr(
+        "app.application.services.prediction_market_trading.check_prediction_market_rate_limit",
+        _rate_ok,
+    )
+
+    from app.application.services.broker_readonly_session_service import BrokerOrderGateBlock
+
+    async def _readonly_block(*_args: object, **_kwargs: object) -> BrokerOrderGateBlock:
+        return BrokerOrderGateBlock(
+            reason="broker_readonly_smoke_required",
+            detail="Run read-only smoke probe first.",
+        )
+
+    monkeypatch.setattr(
+        "app.application.services.broker_readonly_session_service.assert_live_broker_allowed",
+        _readonly_block,
+    )
+
+    project = SimpleNamespace(
+        id=uuid4(),
+        owner_dashboard_user_id=uuid4(),
+        tenant_id=uuid4(),
+    )
+    out = await execute_live_prediction_trade(
+        SimpleNamespace(),
+        project=project,  # type: ignore[arg-type]
+        payload={"notional_usd": 10, "operator_confirmed": True},
+        project_settings={"venue": "polymarket", "trading_mode": "real", "connector_slug": "polymarket_clob"},
+    )
+    assert out["status"] == "blocked"
+    assert out["reason"] == "broker_readonly_smoke_required"

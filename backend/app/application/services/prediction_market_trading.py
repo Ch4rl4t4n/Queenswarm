@@ -214,6 +214,30 @@ async def execute_live_prediction_trade(
     if not allowed:
         return {"status": "blocked", "reason": "rate_limit", "detail": rate_msg, "venue": venue}
 
+    if settings.broker_readonly_session_enabled:
+        tenant_id = getattr(project, "tenant_id", None)
+        if tenant_id is None:
+            from app.application.services.publish_queue_notify import _resolve_tenant_for_user
+
+            tenant = await _resolve_tenant_for_user(session, dashboard_user_id=project.owner_dashboard_user_id)
+            tenant_id = tenant.id if tenant is not None else None
+
+        if tenant_id is not None:
+            from app.application.services.broker_readonly_session_service import assert_live_broker_allowed
+
+            readonly_block = await assert_live_broker_allowed(
+                session,
+                tenant_id=tenant_id,
+                dashboard_user_id=project.owner_dashboard_user_id,
+            )
+            if readonly_block is not None:
+                return {
+                    "status": "blocked",
+                    "reason": readonly_block.reason,
+                    "detail": readonly_block.detail,
+                    "venue": venue,
+                }
+
     guardrails = await _resolve_tenant_guardrails(session, project=project)
     operator_confirmed = _payload_operator_confirmed(payload)
     if guardrails is not None:

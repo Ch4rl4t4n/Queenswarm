@@ -250,6 +250,7 @@ class TradingCockpitSnapshotOut(BaseModel):
     flags: dict[str, bool]
     links: dict[str, str]
     broker_guardrails: dict[str, Any] | None = None
+    broker_readonly: dict[str, Any] | None = None
 
 
 async def compose_trading_cockpit_snapshot(
@@ -310,6 +311,19 @@ async def compose_trading_cockpit_snapshot(
         if guardrails.kill_switch:
             is_halted = True
             halt_reason = "Broker kill switch is ON."
+    broker_readonly: dict[str, Any] | None = None
+    if tenant is not None and settings.broker_readonly_session_enabled:
+        from app.application.services.broker_readonly_session_service import compose_broker_readonly_kpi
+
+        readonly_kpi = await compose_broker_readonly_kpi(
+            session,
+            tenant_id=tenant.id,
+            dashboard_user_id=dashboard_user_id,
+        )
+        broker_readonly = readonly_kpi.model_dump(mode="json")
+        if readonly_kpi.readonly_required and not is_halted:
+            is_halted = True
+            halt_reason = readonly_kpi.operator_hint
     performance: dict[str, Any] = {
         "mode": "real",
         "venue": "polymarket",
@@ -346,8 +360,10 @@ async def compose_trading_cockpit_snapshot(
             "evaluator_swarm": "/swarms/new?template=polymarket-prediction-evaluator",
             "live_swarm": "/swarms/new?template=polymarket-trading",
             "broker_guardrails": "/apps-tools/trading-automation?section=guardrails#broker-guardrails",
+            "broker_readonly": "/apps-tools/trading-automation?section=connect#broker-readonly-session",
         },
         broker_guardrails=broker_guardrails,
+        broker_readonly=broker_readonly,
     )
 
 

@@ -33,6 +33,7 @@ run_backend() {
   ./scripts/audit-local-sovereign-gate.sh
   ./scripts/audit-journal-studio-gate.sh
   ./scripts/audit-broker-guardrails-gate.sh
+  ./scripts/audit-broker-readonly-gate.sh
 }
 
 run_security() {
