@@ -24,6 +24,10 @@ from app.application.services.analytics_report_artifact_service import (
     compose_analytics_report_artifact_snapshot,
     save_analytics_report_artifact,
 )
+from app.application.services.analytics_connector_profile_service import (
+    AnalyticsConnectorProfileSnapshotOut,
+    compose_analytics_connector_profile_snapshot,
+)
 from app.application.services.analytics_data_lineage_service import (
     AnalyticsDataLineageSnapshotOut,
     compose_analytics_data_lineage_snapshot,
@@ -61,6 +65,12 @@ def _require_data_lineage() -> None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Data lineage strip disabled.")
 
 
+def _require_connector_profile() -> None:
+    _require_enabled()
+    if not settings.analytics_connector_profile_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Connector profile disabled.")
+
+
 @router.get("/snapshot", response_model=AnalyticsWorkspaceSnapshotOut, summary="Analytics workspace snapshot")
 async def get_analytics_workspace_snapshot(
     db: DbSession,
@@ -72,7 +82,12 @@ async def get_analytics_workspace_snapshot(
     tenant_id = principal.get("tenant_id")
     if tenant_id is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
-    return await compose_analytics_workspace_snapshot(db, tenant_id=tenant_id)
+    user = principal.get("user")
+    return await compose_analytics_workspace_snapshot(
+        db,
+        tenant_id=tenant_id,
+        dashboard_user_id=user.id if user is not None else None,
+    )
 
 
 @router.get("/question-wizard", response_model=BusinessQuestionWizardOut, summary="DA4 Business question wizard snapshot")
@@ -192,6 +207,24 @@ async def patch_analytics_report_artifact(
         if err == "analytics_artifact_not_found":
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analytics artifact not found.") from exc
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=err) from exc
+
+
+@router.get(
+    "/connector-profile",
+    response_model=AnalyticsConnectorProfileSnapshotOut,
+    summary="DA7 Analytics connector profile snapshot",
+)
+async def get_analytics_connector_profile_snapshot(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> AnalyticsConnectorProfileSnapshotOut:
+    """Return GA4 · Sheets · warehouse MCP readiness for analytics fetch lane."""
+
+    _require_connector_profile()
+    user = principal.get("user")
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Dashboard context missing.")
+    return await compose_analytics_connector_profile_snapshot(db, dashboard_user_id=user.id)
 
 
 @router.get(

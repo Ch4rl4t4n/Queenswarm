@@ -1027,6 +1027,7 @@ const STUB_ANALYTICS_WORKSPACE_SNAPSHOT = {
   swarm_template_built: false,
   panels: [
     { id: "overview", label: "Overview", lazy: false, status: "ready" },
+    { id: "connectors", label: "Connectors", lazy: true, status: "ready" },
     { id: "question", label: "Business question", lazy: true, status: "ready" },
     { id: "report", label: "Report artifact", lazy: true, status: "ready" },
     { id: "lineage", label: "Data lineage", lazy: true, status: "ready" },
@@ -1120,6 +1121,66 @@ const STUB_ANALYTICS_DATA_LINEAGE = {
       bound_to: "chart",
       verified: true,
       detail: "",
+    },
+  ],
+};
+
+const STUB_ANALYTICS_CONNECTOR_PROFILE = {
+  enabled: true,
+  generated_at: new Date().toISOString(),
+  ready_count: 1,
+  operator_hint: "Read-only connectors only — configure GA4 + Sheets + warehouse MCP in Integrations.",
+  profiles: [
+    {
+      id: "ga4",
+      label: "GA4 Data API",
+      mode: "read_only",
+      ready: true,
+      status: "active",
+      connector_slug: "ga4_data",
+      template_id: "ga4_data_api",
+      skill_slug: "ga4-analytics-playbook",
+      tools: ["get_metadata", "run_report", "run_realtime_report"],
+      property_hint: "123456789",
+      configure_href: "/integrations?tab=hub&hubSection=roster&highlight=ga4_data",
+      test_href: "/integrations?tab=hub&hubSection=roster&highlight=ga4_data",
+      detail: "OAuth analytics.readonly — property ID required for runReport.",
+      last_tested_at: new Date().toISOString(),
+      doc_url: "https://analytics.google.com",
+    },
+    {
+      id: "google_sheets",
+      label: "Google Sheets read",
+      mode: "read_only",
+      ready: false,
+      status: "not_installed",
+      connector_slug: null,
+      template_id: null,
+      skill_slug: "business-analytics-playbook",
+      tools: ["read_range", "list_sheets"],
+      property_hint: "",
+      configure_href: "/integrations?tab=hub&hubSection=roster",
+      test_href: null,
+      detail: "MCP read scope for spreadsheet metrics.",
+      last_tested_at: null,
+      doc_url: null,
+    },
+    {
+      id: "warehouse_mcp",
+      label: "Warehouse MCP slot",
+      mode: "read_only",
+      ready: false,
+      status: "not_installed",
+      connector_slug: null,
+      template_id: null,
+      skill_slug: "business-analytics-playbook",
+      tools: ["run_query"],
+      property_hint: "",
+      configure_href: "/integrations?tab=hub&hubSection=templates",
+      test_href: null,
+      detail: "Databricks/Snowflake read-only SQL slot.",
+      last_tested_at: null,
+      doc_url: null,
     },
   ],
 };
@@ -3528,6 +3589,15 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           ready: true,
           blockers: [],
         }),
+      });
+      return;
+    }
+
+    if (path.startsWith("analytics-workspace/connector-profile")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_ANALYTICS_CONNECTOR_PROFILE),
       });
       return;
     }

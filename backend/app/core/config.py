@@ -2171,6 +2171,10 @@ class Settings(BaseSettings):
         default=True,
         description="Track L DA6 — Data lineage strip (connector · query · timestamp per section).",
     )
+    analytics_connector_profile_enabled: bool = Field(
+        default=True,
+        description="Track L DA7 — Analytics connector profile (GA4 · Sheets · warehouse MCP).",
+    )
     research_bee_max_chars: int = Field(
         default=12_000,
         ge=512,

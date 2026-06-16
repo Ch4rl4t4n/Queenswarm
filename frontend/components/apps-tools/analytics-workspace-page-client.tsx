@@ -1,10 +1,11 @@
 "use client";
 
-import { BarChart3, CircleHelp, Download, FileText, GitBranch, LayoutDashboard, Loader2Icon } from "lucide-react";
+import { BarChart3, CircleHelp, Download, FileText, GitBranch, LayoutDashboard, Loader2Icon, Plug } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { AnalyticsConnectorProfilePanel } from "@/components/apps-tools/analytics-connector-profile-panel";
 import { AnalyticsDataLineagePanel } from "@/components/apps-tools/analytics-data-lineage-panel";
 import { AnalyticsReportArtifactPanel } from "@/components/apps-tools/analytics-report-artifact-panel";
 import { BusinessQuestionWizardPanel } from "@/components/apps-tools/business-question-wizard-panel";
@@ -15,7 +16,7 @@ import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
 import { scrollBehaviorForMotion } from "@/lib/motion-preferences";
 
-type AnalyticsSection = "overview" | "question" | "report" | "lineage" | "export";
+type AnalyticsSection = "overview" | "connectors" | "question" | "report" | "lineage" | "export";
 
 interface AnalyticsSnapshot {
   enabled: boolean;
@@ -31,6 +32,7 @@ interface AnalyticsSnapshot {
 
 const SECTION_TO_HASH: Record<AnalyticsSection, string> = {
   overview: "analytics-overview",
+  connectors: "analytics-connectors",
   question: "analytics-question",
   report: "analytics-report",
   lineage: "analytics-lineage",
@@ -38,7 +40,14 @@ const SECTION_TO_HASH: Record<AnalyticsSection, string> = {
 };
 
 function sectionFromQuery(raw: string | null): AnalyticsSection | null {
-  if (raw === "overview" || raw === "question" || raw === "report" || raw === "lineage" || raw === "export") {
+  if (
+    raw === "overview" ||
+    raw === "connectors" ||
+    raw === "question" ||
+    raw === "report" ||
+    raw === "lineage" ||
+    raw === "export"
+  ) {
     return raw;
   }
   return null;
@@ -47,6 +56,7 @@ function sectionFromQuery(raw: string | null): AnalyticsSection | null {
 function sectionFromHash(hash: string): AnalyticsSection | null {
   const key = hash.replace(/^#/, "").trim().toLowerCase();
   if (key === "analytics-overview") return "overview";
+  if (key === "analytics-connectors") return "connectors";
   if (key === "analytics-question") return "question";
   if (key === "analytics-report") return "report";
   if (key === "analytics-lineage") return "lineage";
@@ -129,6 +139,7 @@ export function AnalyticsWorkspacePageClient(): JSX.Element {
         <HiveSubnavRow
           items={[
             { id: "overview", label: "Overview", icon: LayoutDashboard },
+            { id: "connectors", label: "Connectors", icon: Plug },
             { id: "question", label: "Question", icon: CircleHelp },
             { id: "report", label: "Report", icon: FileText },
             { id: "lineage", label: "Lineage", icon: GitBranch },
@@ -184,6 +195,14 @@ export function AnalyticsWorkspacePageClient(): JSX.Element {
                 </li>
               ))}
             </ul>
+            <div className="px-4 pb-4">
+              <Link
+                href="/apps-tools/analytics?section=connectors#analytics-connectors"
+                className="qs-btn qs-btn--ghost qs-btn--sm"
+              >
+                Open connector profile
+              </Link>
+            </div>
           </V4Card>
 
           <V4Card>
@@ -204,6 +223,12 @@ export function AnalyticsWorkspacePageClient(): JSX.Element {
               ))}
             </div>
           </V4Card>
+        </div>
+      ) : null}
+
+      {!loading && snapshot && section === "connectors" ? (
+        <div id="analytics-connectors" data-testid="analytics-workspace-connectors">
+          <AnalyticsConnectorProfilePanel />
         </div>
       ) : null}
 

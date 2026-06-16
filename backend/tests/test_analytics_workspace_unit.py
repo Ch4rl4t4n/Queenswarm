@@ -31,7 +31,7 @@ async def test_compose_analytics_workspace_snapshot_enabled(monkeypatch: pytest.
     assert snap.template_id == "business-analytics-report"
     assert snap.swarm_template_built is True
     assert "business-analytics-playbook" in snap.skill_slugs
-    assert any(p.id == "question" and p.status == "ready" for p in snap.panels)
+    assert any(p.id == "connectors" and p.status == "ready" for p in snap.panels)
     assert len(snap.connector_slots) >= 3
     assert any(action.id == "open_report" for action in snap.actions)
 

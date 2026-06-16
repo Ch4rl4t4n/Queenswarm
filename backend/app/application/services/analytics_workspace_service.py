@@ -65,6 +65,7 @@ class AnalyticsWorkspaceSnapshotOut(BaseModel):
 def _default_panels() -> list[AnalyticsPanelOut]:
     return [
         AnalyticsPanelOut(id="overview", label="Overview", lazy=False, status="ready"),
+        AnalyticsPanelOut(id="connectors", label="Connectors", lazy=True, status="ready"),
         AnalyticsPanelOut(id="question", label="Business question", lazy=True, status="ready"),
         AnalyticsPanelOut(id="report", label="Report artifact", lazy=True, status="ready"),
         AnalyticsPanelOut(id="lineage", label="Data lineage", lazy=True, status="ready"),
@@ -134,6 +135,7 @@ async def compose_analytics_workspace_snapshot(
     session: AsyncSession,
     *,
     tenant_id: uuid.UUID,
+    dashboard_user_id: uuid.UUID | None = None,
 ) -> AnalyticsWorkspaceSnapshotOut:
     """Compose analytics workspace snapshot — single BE read for module shell."""
 
@@ -154,6 +156,32 @@ async def compose_analytics_workspace_snapshot(
     except Exception:
         swarm_built = False
 
+    connector_slots = _default_connectors()
+    if dashboard_user_id is not None and settings.analytics_connector_profile_enabled:
+        from app.application.services.analytics_connector_profile_service import (
+            compose_analytics_connector_profile_snapshot,
+            connector_slots_from_profiles,
+        )
+
+        profile_snap = await compose_analytics_connector_profile_snapshot(
+            session,
+            dashboard_user_id=dashboard_user_id,
+        )
+        if profile_snap.enabled and profile_snap.profiles:
+            connector_slots = connector_slots_from_profiles(profile_snap.profiles)
+
+    actions = _default_actions(swarm_built=swarm_built)
+    if settings.analytics_connector_profile_enabled:
+        actions.insert(
+            1,
+            AnalyticsWorkspaceActionOut(
+                id="open_connectors",
+                label="Connector profile",
+                href="/apps-tools/analytics?section=connectors#analytics-connectors",
+                detail="DA7 — GA4 · Sheets · warehouse MCP read-only readiness.",
+            ),
+        )
+
     return AnalyticsWorkspaceSnapshotOut(
         enabled=True,
         generated_at=datetime.now(tz=UTC),
@@ -164,8 +192,8 @@ async def compose_analytics_workspace_snapshot(
         ],
         swarm_template_built=swarm_built,
         panels=_default_panels(),
-        connector_slots=_default_connectors(),
-        actions=_default_actions(swarm_built=swarm_built),
+        connector_slots=connector_slots,
+        actions=actions,
         operator_hint=(
             "Dispatch business-analytics-report template → fetch read-only metrics → "
             "critic rubric ≥4/5 → export simulate."
