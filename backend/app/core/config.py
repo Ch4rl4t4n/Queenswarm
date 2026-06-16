@@ -2354,6 +2354,10 @@ class Settings(BaseSettings):
         default=True,
         description="Track P RA4 — Read-only broker session gate until smoke + guardrails configured.",
     )
+    broker_order_queue_enabled: bool = Field(
+        default=True,
+        description="Track P RA5 — HITL broker order queue (propose → Approval Inbox → MCP execute).",
+    )
     research_bee_max_chars: int = Field(
         default=12_000,
         ge=512,

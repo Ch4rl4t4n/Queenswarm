@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, Plug, Shield, ShieldAlert, TrendingUp } from "lucide-react";
+import { Activity, ClipboardList, Plug, Shield, ShieldAlert, TrendingUp } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -55,6 +55,17 @@ const BrokerReadonlySessionPanel = dynamic(
   },
 );
 
+const BrokerOrderQueuePanel = dynamic(
+  () =>
+    import("@/components/connectors/broker-order-queue-panel").then((mod) => ({
+      default: mod.BrokerOrderQueuePanel,
+    })),
+  {
+    ssr: false,
+    loading: () => <div className="qs-bubble shrink-0 min-h-[8rem] animate-pulse bg-white/5 p-4" aria-hidden />,
+  },
+);
+
 const BrokerGuardrailsPanel = dynamic(
   () =>
     import("@/components/connectors/broker-guardrails-panel").then((mod) => ({
@@ -77,12 +88,13 @@ const ExecutionStudioLiveLanePanel = dynamic(
   },
 );
 
-type TradingSection = "connect" | "cockpit" | "guardrails" | "hybrid" | "live-lane";
+type TradingSection = "connect" | "cockpit" | "guardrails" | "orders" | "hybrid" | "live-lane";
 
 const SECTION_TO_HASH: Record<TradingSection, string> = {
   connect: "broker-readonly-session",
   cockpit: "trading-cockpit",
   guardrails: "broker-guardrails",
+  orders: "broker-order-queue",
   hybrid: "trading-content-hybrid",
   "live-lane": "live-lane",
 };
@@ -92,13 +104,21 @@ function sectionFromHash(hash: string): TradingSection | null {
   if (key === "broker-readonly-session") return "connect";
   if (key === "trading-cockpit") return "cockpit";
   if (key === "broker-guardrails") return "guardrails";
+  if (key === "broker-order-queue") return "orders";
   if (key === "trading-content-hybrid") return "hybrid";
   if (key === "live-lane") return "live-lane";
   return null;
 }
 
 function sectionFromQuery(raw: string | null): TradingSection | null {
-  if (raw === "connect" || raw === "cockpit" || raw === "guardrails" || raw === "hybrid" || raw === "live-lane") {
+  if (
+    raw === "connect" ||
+    raw === "cockpit" ||
+    raw === "guardrails" ||
+    raw === "orders" ||
+    raw === "hybrid" ||
+    raw === "live-lane"
+  ) {
     return raw;
   }
   return null;
@@ -154,6 +174,7 @@ export function TradingAutomationPageClient() {
             { id: "connect", label: "Connect", icon: Plug },
             { id: "cockpit", label: "Trading cockpit", icon: TrendingUp },
             { id: "guardrails", label: "Broker guardrails", icon: Shield },
+            { id: "orders", label: "Order queue", icon: ClipboardList },
             { id: "hybrid", label: "Hybrid loop", icon: Activity },
             { id: "live-lane", label: "Live lane prep", icon: ShieldAlert },
           ]}
@@ -176,6 +197,7 @@ export function TradingAutomationPageClient() {
         </>
       ) : null}
       {section === "guardrails" ? <BrokerGuardrailsPanel /> : null}
+      {section === "orders" ? <BrokerOrderQueuePanel /> : null}
       {section === "hybrid" ? <ExecutionStudioTradingContentHybridPanel onError={setError} /> : null}
       {section === "live-lane" ? <ExecutionStudioLiveLanePanel onError={setError} /> : null}
     </HivePageShell>

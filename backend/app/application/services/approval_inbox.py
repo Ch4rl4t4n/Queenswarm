@@ -24,6 +24,7 @@ ApprovalInboxKind = Literal[
     "innovation",
     "gumroad_manual",
     "goldmine_alert",
+    "broker_order",
 ]
 
 
@@ -54,6 +55,7 @@ class ApprovalInboxCountsOut(BaseModel):
     innovation: int = 0
     gumroad_manual: int = 0
     goldmine_alerts: int = 0
+    broker_orders: int = 0
     total: int = 0
 
 
@@ -114,6 +116,31 @@ async def compose_approval_inbox_snapshot(
                     created_at=row.created_at,
                     href="/integrations?tab=studio&section=publish#publish-queue",
                     source_id=str(row.id),
+                    reject_supported=True,
+                ),
+            )
+
+    if settings.broker_order_queue_enabled:
+        from app.application.services.broker_order_queue_service import compose_broker_order_inbox_items
+
+        broker_rows = await compose_broker_order_inbox_items(
+            session,
+            tenant_id=tenant_id,
+            limit=cap,
+        )
+        for row in broker_rows:
+            counts.broker_orders += 1
+            created_at = row.get("created_at")
+            items.append(
+                ApprovalInboxItemOut(
+                    id=f"broker:{row.get('id')}",
+                    kind="broker_order",
+                    lane="trading",
+                    title=str(row.get("title") or "Broker order"),
+                    detail=str(row.get("detail") or "")[:320],
+                    created_at=created_at if isinstance(created_at, datetime) else None,
+                    href="/apps-tools/trading-automation?section=orders#broker-order-queue",
+                    source_id=str(row.get("id") or ""),
                     reject_supported=True,
                 ),
             )
@@ -225,7 +252,7 @@ async def compose_approval_inbox_snapshot(
 
     items.sort(
         key=lambda row: (
-            0 if row.kind in {"publish_queue", "gumroad_manual"} else 1,
+            0 if row.kind in {"publish_queue", "broker_order", "gumroad_manual"} else 1,
             0 if row.kind == "goldmine_alert" else 1,
             -(row.created_at.timestamp() if row.created_at else 0),
         ),
@@ -237,6 +264,7 @@ async def compose_approval_inbox_snapshot(
         + counts.innovation
         + counts.gumroad_manual
         + counts.goldmine_alerts
+        + counts.broker_orders
     )
 
     return ApprovalInboxSnapshotOut(

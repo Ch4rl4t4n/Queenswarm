@@ -19,6 +19,15 @@ from app.application.services.broker_guardrails_service import (
     get_broker_guardrails,
     save_broker_guardrails,
 )
+from app.application.services.broker_order_queue_service import (
+    BrokerOrderProposeIn,
+    BrokerOrderQueueSnapshotOut,
+    BrokerOrderReviewIn,
+    BrokerOrderReviewOut,
+    build_broker_order_queue_snapshot,
+    propose_broker_order,
+    review_broker_order,
+)
 from app.application.services.broker_readonly_session_service import (
     BrokerReadonlyBootstrapOut,
     BrokerReadonlyKpiOut,
@@ -212,6 +221,90 @@ async def post_broker_readonly_bootstrap(
     )
     await db.commit()
     return BrokerReadonlyBootstrapOut.model_validate(result).model_dump(mode="json")
+
+
+@router.get("/order-queue", summary="RA5 Broker HITL order queue snapshot")
+async def get_broker_order_queue(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return pending and recent broker orders for operator approval."""
+
+    _require_enabled()
+    if not settings.broker_order_queue_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Broker order queue disabled.")
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context required.")
+    snapshot = await build_broker_order_queue_snapshot(db, tenant_id=tenant_id)
+    return BrokerOrderQueueSnapshotOut.model_validate(snapshot).model_dump(mode="json")
+
+
+@router.post("/order-queue/propose", summary="RA5 Propose broker order for HITL")
+async def post_broker_order_propose(
+    body: dict[str, Any],
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Queue a live broker order — agent or operator proposal."""
+
+    _require_enabled()
+    if not settings.broker_order_queue_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Broker order queue disabled.")
+    user = principal.get("user")
+    tenant_id = principal.get("tenant_id")
+    if user is None or tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context required.")
+    try:
+        patch = BrokerOrderProposeIn.model_validate(body)
+        if not patch.proposed_by:
+            subject = principal.get("sub")
+            patch = patch.model_copy(update={"proposed_by": str(subject) if subject else None})
+        item = await propose_broker_order(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=user.id,
+            body=patch,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return item.model_dump(mode="json")
+
+
+@router.post("/order-queue/{order_id}/review", summary="RA5 Approve or reject broker order")
+async def post_broker_order_review(
+    order_id: str,
+    body: dict[str, Any],
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Approve executes via MCP; reject closes the proposal."""
+
+    _require_enabled()
+    if not settings.broker_order_queue_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Broker order queue disabled.")
+    user = principal.get("user")
+    tenant_id = principal.get("tenant_id")
+    if user is None or tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context required.")
+    try:
+        review = BrokerOrderReviewIn.model_validate(body)
+        subject = principal.get("sub")
+        result = await review_broker_order(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=user.id,
+            order_id=order_id,
+            body=review,
+            reviewed_by=str(subject) if subject else None,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return BrokerOrderReviewOut.model_validate(result).model_dump(mode="json")
 
 
 __all__ = ["router"]

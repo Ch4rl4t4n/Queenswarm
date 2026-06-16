@@ -1407,6 +1407,35 @@ const STUB_BROKER_READONLY_SESSION = {
   workspace_href: "/apps-tools/trading-automation?section=connect#broker-readonly-session",
 };
 
+const STUB_BROKER_ORDER_QUEUE = {
+  enabled: true,
+  pending_count: 1,
+  executed_count: 0,
+  rejected_count: 0,
+  operator_hint: "1 broker order(s) awaiting operator approval in HITL queue.",
+  workspace_href: "/apps-tools/trading-automation?section=orders#broker-order-queue",
+  items: [
+    {
+      id: "broker-order-stub-1",
+      status: "pending",
+      venue: "polymarket",
+      title: "Buy YES token-1",
+      detail: "Agent proposed live broker order.",
+      notional_usd: 25,
+      payload: { notional_usd: 25, symbol: "token-1" },
+      project_settings: { connector_slug: "polymarket_clob", venue: "polymarket" },
+      session_id: null,
+      proposed_by: "agent:stub",
+      created_at: new Date().toISOString(),
+      reviewed_at: null,
+      reviewed_by: null,
+      review_note: "",
+      execution_status: null,
+      execution_detail: null,
+    },
+  ],
+};
+
 const STUB_ANALYTICS_CONNECTOR_PROFILE = {
   enabled: true,
   generated_at: new Date().toISOString(),
@@ -4031,6 +4060,30 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           ready: true,
           blockers: [],
         }),
+      });
+      return;
+    }
+
+    if (path.startsWith("trading-cockpit/order-queue/") && path.endsWith("/review")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: "broker-order-stub-1",
+          status: "executed",
+          execution_status: "executed",
+          execution_detail: "Simulated execute",
+          reviewed_at: new Date().toISOString(),
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("trading-cockpit/order-queue")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_BROKER_ORDER_QUEUE),
       });
       return;
     }

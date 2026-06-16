@@ -251,6 +251,7 @@ class TradingCockpitSnapshotOut(BaseModel):
     links: dict[str, str]
     broker_guardrails: dict[str, Any] | None = None
     broker_readonly: dict[str, Any] | None = None
+    broker_order_queue: dict[str, Any] | None = None
 
 
 async def compose_trading_cockpit_snapshot(
@@ -324,6 +325,12 @@ async def compose_trading_cockpit_snapshot(
         if readonly_kpi.readonly_required and not is_halted:
             is_halted = True
             halt_reason = readonly_kpi.operator_hint
+    broker_order_queue: dict[str, Any] | None = None
+    if tenant is not None and settings.broker_order_queue_enabled:
+        from app.application.services.broker_order_queue_service import build_broker_order_queue_snapshot
+
+        queue_snapshot = await build_broker_order_queue_snapshot(session, tenant_id=tenant.id)
+        broker_order_queue = queue_snapshot.model_dump(mode="json")
     performance: dict[str, Any] = {
         "mode": "real",
         "venue": "polymarket",
@@ -361,9 +368,11 @@ async def compose_trading_cockpit_snapshot(
             "live_swarm": "/swarms/new?template=polymarket-trading",
             "broker_guardrails": "/apps-tools/trading-automation?section=guardrails#broker-guardrails",
             "broker_readonly": "/apps-tools/trading-automation?section=connect#broker-readonly-session",
+            "broker_order_queue": "/apps-tools/trading-automation?section=orders#broker-order-queue",
         },
         broker_guardrails=broker_guardrails,
         broker_readonly=broker_readonly,
+        broker_order_queue=broker_order_queue,
     )
 
 

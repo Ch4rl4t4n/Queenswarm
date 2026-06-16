@@ -204,6 +204,22 @@ async def route_external_invocation(
             out = await mgr.handle(action=action, payload=payload, project_settings=proj_settings)
             venue = str(proj_settings.get("venue") or "").strip().lower()
             if (
+                out.get("reason") == "human_approval_required"
+                and cfg.broker_order_queue_enabled
+                and project.tenant_id is not None
+            ):
+                from app.application.services.broker_order_queue_service import queue_live_trade_from_agent
+
+                queued = await queue_live_trade_from_agent(
+                    session,
+                    tenant_id=project.tenant_id,
+                    dashboard_user_id=project.owner_dashboard_user_id,
+                    payload=payload,
+                    project_settings=proj_settings,
+                    proposed_by=f"external:{project.slug}",
+                )
+                out = {**out, **queued}
+            elif (
                 out.get("status") == "queued_for_execution"
                 and venue in {"polymarket", "kalshi"}
             ):
