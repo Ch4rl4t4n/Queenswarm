@@ -2330,6 +2330,26 @@ class Settings(BaseSettings):
         default="daily_0600",
         description="Track O TJ4 — default review cron preset key (daily_0600 | daily_2000 | weekly_monday | custom | off).",
     )
+    broker_guardrails_enabled: bool = Field(
+        default=True,
+        description="Track P RA3 — Unified broker guardrails (max order, daily cap, kill switch, approve mode).",
+    )
+    broker_guardrails_default_max_order_usd: float = Field(
+        default=100.0,
+        ge=1.0,
+        le=100_000.0,
+        description="RA3 default per-order notional cap (USD).",
+    )
+    broker_guardrails_default_daily_cap_usd: float = Field(
+        default=500.0,
+        ge=10.0,
+        le=500_000.0,
+        description="RA3 default daily spend cap (USD) across broker venues.",
+    )
+    broker_guardrails_default_approve_mode: str = Field(
+        default="always",
+        description="RA3 default approve mode: always | simulate_first | trusted_auto.",
+    )
     research_bee_max_chars: int = Field(
         default=12_000,
         ge=512,

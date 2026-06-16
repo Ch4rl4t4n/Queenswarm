@@ -145,6 +145,28 @@ async def check_prediction_market_rate_limit(*, owner_user_id: uuid.UUID, venue:
     return True, ""
 
 
+async def _resolve_tenant_guardrails(
+    session: AsyncSession,
+    *,
+    project: ExternalProject,
+) -> Any | None:
+    """Load broker guardrails when tenant scope is available."""
+
+    if not settings.broker_guardrails_enabled:
+        return None
+    tenant_id = getattr(project, "tenant_id", None)
+    if tenant_id is None:
+        from app.application.services.publish_queue_notify import _resolve_tenant_for_user
+
+        tenant = await _resolve_tenant_for_user(session, dashboard_user_id=project.owner_dashboard_user_id)
+        tenant_id = tenant.id if tenant is not None else None
+    if tenant_id is None:
+        return None
+    from app.application.services.broker_guardrails_service import get_broker_guardrails
+
+    return await get_broker_guardrails(session, tenant_id=tenant_id)
+
+
 async def execute_live_prediction_trade(
     session: AsyncSession,
     *,
@@ -192,7 +214,37 @@ async def execute_live_prediction_trade(
     if not allowed:
         return {"status": "blocked", "reason": "rate_limit", "detail": rate_msg, "venue": venue}
 
+    guardrails = await _resolve_tenant_guardrails(session, project=project)
+    operator_confirmed = _payload_operator_confirmed(payload)
+    if guardrails is not None:
+        from app.application.services.broker_guardrails_service import evaluate_broker_order_gate
+
+        notional_pre = float(payload.get("notional_usd") or 0.0)
+        if notional_pre <= 0 and venue == "kalshi":
+            try:
+                count = int(float(payload.get("count") or payload.get("quantity") or 0))
+                cents = int(float(payload.get("yes_price") or payload.get("price_cents") or 0))
+                notional_pre = (count * cents) / 100.0
+            except (TypeError, ValueError):
+                notional_pre = 0.0
+        gate = evaluate_broker_order_gate(
+            guardrails,
+            venue=venue,
+            notional_usd=notional_pre,
+            operator_confirmed=operator_confirmed,
+        )
+        if not gate.allowed:
+            return {
+                "status": "blocked",
+                "reason": gate.reason or "broker_guardrails",
+                "detail": gate.detail or "Broker guardrails blocked live order.",
+                "venue": venue,
+                "approve_mode": gate.approve_mode,
+            }
+
     max_usd = float(project_settings.get("max_order_usd") or settings.prediction_markets_max_order_usd)
+    if guardrails is not None:
+        max_usd = min(max_usd, float(guardrails.max_order_usd))
     notional = float(payload.get("notional_usd") or 0.0)
     if notional <= 0 and venue == "kalshi":
         try:
@@ -209,7 +261,6 @@ async def execute_live_prediction_trade(
             "venue": venue,
         }
 
-    operator_confirmed = _payload_operator_confirmed(payload)
     money_gate = evaluate_real_money_gate(
         operator_confirmed=operator_confirmed,
         action=f"prediction_markets:{venue}:live_order",
@@ -279,6 +330,21 @@ async def execute_live_prediction_trade(
         venue=venue,
         tool_name=tool_name,
     )
+    if guardrails is not None and project.tenant_id is not None:
+        from app.application.services.broker_guardrails_service import record_broker_daily_spend
+
+        await record_broker_daily_spend(
+            session,
+            tenant_id=project.tenant_id,
+            notional_usd=notional,
+        )
+    elif guardrails is not None:
+        from app.application.services.publish_queue_notify import _resolve_tenant_for_user
+        from app.application.services.broker_guardrails_service import record_broker_daily_spend
+
+        tenant = await _resolve_tenant_for_user(session, dashboard_user_id=project.owner_dashboard_user_id)
+        if tenant is not None:
+            await record_broker_daily_spend(session, tenant_id=tenant.id, notional_usd=notional)
     return {
         "status": "executed",
         "mode": "real",

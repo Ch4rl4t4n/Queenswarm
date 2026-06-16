@@ -13,6 +13,12 @@ from app.application.services.trading_cockpit import (
     apply_trading_cockpit_config,
     compose_trading_cockpit_snapshot,
 )
+from app.application.services.broker_guardrails_service import (
+    BrokerGuardrailsOut,
+    BrokerGuardrailsPatchIn,
+    get_broker_guardrails,
+    save_broker_guardrails,
+)
 from app.core.config import settings
 from app.presentation.api.deps import DbSession, require_dashboard_user_with_tenant_role
 from app.infrastructure.persistence.models.tenant import Tenant
@@ -89,6 +95,46 @@ async def patch_trading_cockpit_config(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Persistence rejected trading config update.",
         ) from exc
+
+
+@router.get("/guardrails", summary="RA3 Broker guardrails snapshot")
+async def get_broker_guardrails_snapshot(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return unified broker guardrails for Polymarket + Robinhood."""
+
+    _require_enabled()
+    if not settings.broker_guardrails_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Broker guardrails disabled.")
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context required.")
+    snapshot = await get_broker_guardrails(db, tenant_id=tenant_id)
+    return BrokerGuardrailsOut.model_validate(snapshot).model_dump(mode="json")
+
+
+@router.patch("/guardrails", summary="RA3 Update broker guardrails")
+async def patch_broker_guardrails(
+    body: dict[str, Any],
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Persist max order, daily cap, kill switch, and approve mode."""
+
+    _require_enabled()
+    if not settings.broker_guardrails_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Broker guardrails disabled.")
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context required.")
+    try:
+        patch = BrokerGuardrailsPatchIn.model_validate(body)
+        saved = await save_broker_guardrails(db, tenant_id=tenant_id, patch=patch)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return saved.model_dump(mode="json")
 
 
 __all__ = ["router"]

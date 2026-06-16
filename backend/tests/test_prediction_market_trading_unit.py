@@ -51,6 +51,7 @@ async def test_execute_live_blocked_when_flag_off(monkeypatch) -> None:
             prediction_markets_enabled=True,
             prediction_markets_live_trading_enabled=False,
             prediction_markets_max_order_usd=2500,
+            broker_guardrails_enabled=False,
         ),
     )
     project = SimpleNamespace(
@@ -77,6 +78,7 @@ async def test_execute_live_blocked_without_operator_confirm(monkeypatch) -> Non
             prediction_markets_enabled=True,
             prediction_markets_live_trading_enabled=True,
             prediction_markets_max_order_usd=2500,
+            broker_guardrails_enabled=False,
         ),
     )
     async def _rate_ok(*_args: object, **_kwargs: object) -> tuple[bool, str]:
@@ -99,3 +101,50 @@ async def test_execute_live_blocked_without_operator_confirm(monkeypatch) -> Non
     )
     assert out["status"] == "blocked"
     assert out["reason"] == "real_money_approval_required"
+
+
+@pytest.mark.asyncio
+async def test_execute_live_blocked_by_broker_kill_switch(monkeypatch) -> None:
+    """Broker kill switch blocks live execution before connector invoke."""
+
+    monkeypatch.setattr(
+        "app.application.services.prediction_market_trading.settings",
+        SimpleNamespace(
+            prediction_markets_enabled=True,
+            prediction_markets_live_trading_enabled=True,
+            prediction_markets_max_order_usd=2500,
+            broker_guardrails_enabled=True,
+        ),
+    )
+
+    async def _rate_ok(*_args: object, **_kwargs: object) -> tuple[bool, str]:
+        return True, ""
+
+    monkeypatch.setattr(
+        "app.application.services.prediction_market_trading.check_prediction_market_rate_limit",
+        _rate_ok,
+    )
+
+    from app.application.services.broker_guardrails_service import BrokerGuardrailsOut
+
+    async def _guardrails(*_args: object, **_kwargs: object) -> BrokerGuardrailsOut:
+        return BrokerGuardrailsOut(kill_switch=True)
+
+    monkeypatch.setattr(
+        "app.application.services.prediction_market_trading._resolve_tenant_guardrails",
+        _guardrails,
+    )
+
+    project = SimpleNamespace(
+        id=uuid4(),
+        owner_dashboard_user_id=uuid4(),
+        tenant_id=uuid4(),
+    )
+    out = await execute_live_prediction_trade(
+        SimpleNamespace(),
+        project=project,  # type: ignore[arg-type]
+        payload={"notional_usd": 10, "operator_confirmed": True},
+        project_settings={"venue": "polymarket", "trading_mode": "real", "connector_slug": "polymarket_clob"},
+    )
+    assert out["status"] == "blocked"
+    assert out["reason"] == "kill_switch"

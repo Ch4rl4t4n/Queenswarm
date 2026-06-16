@@ -367,6 +367,7 @@ const MODULE_SECTION_DEEP_LINKS: Record<
   ],
   trading_automation: [
     { label: "Trading cockpit", href: "/apps-tools/trading-automation?section=cockpit#trading-cockpit" },
+    { label: "Broker guardrails", href: "/apps-tools/trading-automation?section=guardrails#broker-guardrails" },
     { label: "Hybrid loop", href: "/apps-tools/trading-automation?section=hybrid#trading-content-hybrid" },
     { label: "Live lane prep", href: "/apps-tools/trading-automation?section=live-lane#live-lane" },
   ],

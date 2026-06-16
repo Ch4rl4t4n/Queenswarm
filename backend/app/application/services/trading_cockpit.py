@@ -249,6 +249,7 @@ class TradingCockpitSnapshotOut(BaseModel):
     prediction_markets: dict[str, Any]
     flags: dict[str, bool]
     links: dict[str, str]
+    broker_guardrails: dict[str, Any] | None = None
 
 
 async def compose_trading_cockpit_snapshot(
@@ -298,12 +299,23 @@ async def compose_trading_cockpit_snapshot(
     ]
 
     pm_status = await build_prediction_markets_status_snapshot(session, dashboard_user_id=dashboard_user_id)
+    broker_guardrails: dict[str, Any] | None = None
+    is_halted = False
+    halt_reason: str | None = None
+    if tenant is not None and settings.broker_guardrails_enabled:
+        from app.application.services.broker_guardrails_service import get_broker_guardrails
+
+        guardrails = await get_broker_guardrails(session, tenant_id=tenant.id)
+        broker_guardrails = guardrails.model_dump(mode="json")
+        if guardrails.kill_switch:
+            is_halted = True
+            halt_reason = "Broker kill switch is ON."
     performance: dict[str, Any] = {
         "mode": "real",
         "venue": "polymarket",
         "external_metrics": metrics,
-        "is_halted": False,
-        "halt_reason": None,
+        "is_halted": is_halted,
+        "halt_reason": halt_reason,
     }
 
     return TradingCockpitSnapshotOut(
@@ -333,7 +345,9 @@ async def compose_trading_cockpit_snapshot(
             "prediction_setup": "docs/OPERATOR_PREDICTION_MARKETS_SETUP.md",
             "evaluator_swarm": "/swarms/new?template=polymarket-prediction-evaluator",
             "live_swarm": "/swarms/new?template=polymarket-trading",
+            "broker_guardrails": "/apps-tools/trading-automation?section=guardrails#broker-guardrails",
         },
+        broker_guardrails=broker_guardrails,
     )
 
 

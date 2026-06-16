@@ -32,6 +32,7 @@ run_backend() {
   ./scripts/audit-analytics-workspace-gate.sh
   ./scripts/audit-local-sovereign-gate.sh
   ./scripts/audit-journal-studio-gate.sh
+  ./scripts/audit-broker-guardrails-gate.sh
 }
 
 run_security() {

@@ -1373,6 +1373,20 @@ const STUB_JOURNAL_STUDIO_ROUTINE = {
   workspace_href: "/apps-tools/trading-journal?section=settings#journal-studio-settings",
 };
 
+const STUB_BROKER_GUARDRAILS = {
+  enabled: true,
+  kill_switch: false,
+  max_order_usd: 100,
+  daily_cap_usd: 500,
+  approve_mode: "always",
+  venues: ["polymarket", "robinhood"],
+  daily_spent_usd: 42.5,
+  daily_spend_date: new Date().toISOString().slice(0, 10),
+  source: "deployment",
+  updated_at: null,
+  workspace_href: "/apps-tools/trading-automation?section=guardrails#broker-guardrails",
+};
+
 const STUB_ANALYTICS_CONNECTOR_PROFILE = {
   enabled: true,
   generated_at: new Date().toISOString(),
@@ -3997,6 +4011,15 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           ready: true,
           blockers: [],
         }),
+      });
+      return;
+    }
+
+    if (path.startsWith("trading-cockpit/guardrails")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_BROKER_GUARDRAILS),
       });
       return;
     }

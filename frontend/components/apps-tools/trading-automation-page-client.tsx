@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, ShieldAlert, TrendingUp } from "lucide-react";
+import { Activity, Shield, ShieldAlert, TrendingUp } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -44,6 +44,17 @@ const ExecutionStudioTradingContentHybridPanel = dynamic(
   },
 );
 
+const BrokerGuardrailsPanel = dynamic(
+  () =>
+    import("@/components/connectors/broker-guardrails-panel").then((mod) => ({
+      default: mod.BrokerGuardrailsPanel,
+    })),
+  {
+    ssr: false,
+    loading: () => <div className="qs-bubble shrink-0 min-h-[8rem] animate-pulse bg-white/5 p-4" aria-hidden />,
+  },
+);
+
 const ExecutionStudioLiveLanePanel = dynamic(
   () =>
     import("@/components/connectors/execution-studio-live-lane-panel").then((mod) => ({
@@ -55,10 +66,11 @@ const ExecutionStudioLiveLanePanel = dynamic(
   },
 );
 
-type TradingSection = "cockpit" | "hybrid" | "live-lane";
+type TradingSection = "cockpit" | "guardrails" | "hybrid" | "live-lane";
 
 const SECTION_TO_HASH: Record<TradingSection, string> = {
   cockpit: "trading-cockpit",
+  guardrails: "broker-guardrails",
   hybrid: "trading-content-hybrid",
   "live-lane": "live-lane",
 };
@@ -66,13 +78,14 @@ const SECTION_TO_HASH: Record<TradingSection, string> = {
 function sectionFromHash(hash: string): TradingSection | null {
   const key = hash.replace(/^#/, "").trim().toLowerCase();
   if (key === "trading-cockpit") return "cockpit";
+  if (key === "broker-guardrails") return "guardrails";
   if (key === "trading-content-hybrid") return "hybrid";
   if (key === "live-lane") return "live-lane";
   return null;
 }
 
 function sectionFromQuery(raw: string | null): TradingSection | null {
-  if (raw === "cockpit" || raw === "hybrid" || raw === "live-lane") {
+  if (raw === "cockpit" || raw === "guardrails" || raw === "hybrid" || raw === "live-lane") {
     return raw;
   }
   return null;
@@ -81,7 +94,9 @@ function sectionFromQuery(raw: string | null): TradingSection | null {
 export function TradingAutomationPageClient() {
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
-  const [section, setSection] = useState<TradingSection>("cockpit");
+  const [section, setSection] = useState<TradingSection>(
+    () => sectionFromQuery(searchParams.get("section")) ?? "cockpit",
+  );
 
   const updateUrl = useCallback((next: TradingSection) => {
     const hash = SECTION_TO_HASH[next];
@@ -124,6 +139,7 @@ export function TradingAutomationPageClient() {
         <HiveSubnavRow
           items={[
             { id: "cockpit", label: "Trading cockpit", icon: TrendingUp },
+            { id: "guardrails", label: "Broker guardrails", icon: Shield },
             { id: "hybrid", label: "Hybrid loop", icon: Activity },
             { id: "live-lane", label: "Live lane prep", icon: ShieldAlert },
           ]}
@@ -144,6 +160,7 @@ export function TradingAutomationPageClient() {
           <ExecutionStudioTradingCockpitPanel onError={setError} />
         </>
       ) : null}
+      {section === "guardrails" ? <BrokerGuardrailsPanel /> : null}
       {section === "hybrid" ? <ExecutionStudioTradingContentHybridPanel onError={setError} /> : null}
       {section === "live-lane" ? <ExecutionStudioLiveLanePanel onError={setError} /> : null}
     </HivePageShell>
