@@ -26,6 +26,10 @@ from app.application.services.journal_studio_gardener_service import (
     review_journal_draft,
     run_journal_studio_gardener_sweep,
 )
+from app.application.services.journal_studio_pattern_service import (
+    JournalPatternStripOut,
+    compose_journal_pattern_strip,
+)
 from app.application.services.journal_studio_pretrade_recall_service import (
     PreTradeRecallOut,
     compose_pretrade_recall,
@@ -296,6 +300,28 @@ async def journal_studio_pretrade_recall_get(
         window_days=window_days,
     )
     return PreTradeRecallOut.model_validate(recall).model_dump(mode="json")
+
+
+@router.get("/pattern-strip", summary="TJ6 30/90-day pattern strip")
+async def journal_studio_pattern_strip_get(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return win rate by tag, repeat-mistake alerts, and edge tags for 30d/90d windows."""
+
+    _require_enabled()
+    if not settings.journal_studio_pattern_strip_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pattern strip disabled.")
+    user = principal.get("user")
+    tenant_id = principal.get("tenant_id")
+    if user is None or tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    strip = await compose_journal_pattern_strip(
+        db,
+        tenant_id=tenant_id,
+        dashboard_user_id=user.id,
+    )
+    return JournalPatternStripOut.model_validate(strip).model_dump(mode="json")
 
 
 @router.get("/settings", summary="TJ4 Journal studio settings snapshot")

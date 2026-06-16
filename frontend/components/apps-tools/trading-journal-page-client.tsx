@@ -1,6 +1,6 @@
 "use client";
 
-import { Brain, Clock3, Moon, NotebookPen, Settings2 } from "lucide-react";
+import { BarChart3, Brain, Clock3, Moon, NotebookPen, Settings2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 
@@ -64,13 +64,25 @@ const JournalStudioPretradeRecallPanel = dynamic(
   },
 );
 
-type JournalSection = "timeline" | "entries" | "gardener" | "recall" | "settings";
+const JournalStudioPatternStripPanel = dynamic(
+  () =>
+    import("@/components/apps-tools/journal-studio-pattern-strip-panel").then((mod) => ({
+      default: mod.JournalStudioPatternStripPanel,
+    })),
+  {
+    ssr: false,
+    loading: () => <div className="qs-bubble shrink-0 min-h-[8rem] animate-pulse bg-white/5 p-4" aria-hidden />,
+  },
+);
+
+type JournalSection = "timeline" | "entries" | "gardener" | "recall" | "patterns" | "settings";
 
 const SECTION_TO_HASH: Record<JournalSection, string> = {
   timeline: "journal-studio-timeline",
   entries: "journal-studio-entries",
   gardener: "journal-studio-gardener",
   recall: "journal-studio-pretrade-recall",
+  patterns: "journal-studio-pattern-strip",
   settings: "journal-studio-settings",
 };
 
@@ -80,6 +92,7 @@ function sectionFromHash(hash: string): JournalSection | null {
   if (key === "journal-studio-entries") return "entries";
   if (key === "journal-studio-gardener") return "gardener";
   if (key === "journal-studio-pretrade-recall") return "recall";
+  if (key === "journal-studio-pattern-strip") return "patterns";
   if (key === "journal-studio-settings") return "settings";
   return null;
 }
@@ -89,6 +102,7 @@ function sectionFromQuery(raw: string | null): JournalSection | null {
   if (raw === "entries") return "entries";
   if (raw === "gardener") return "gardener";
   if (raw === "recall") return "recall";
+  if (raw === "patterns") return "patterns";
   if (raw === "settings") return "settings";
   return null;
 }
@@ -118,7 +132,7 @@ export function TradingJournalPageClient(): JSX.Element {
   return (
     <HivePageShell
       title="Trading Journal"
-      subtitle="Learning Loop Studio — timeline, entries, gardener, pre-trade recall, review cron, Obsidian vault."
+      subtitle="Learning Loop Studio — timeline, entries, gardener, pre-trade recall, pattern strip, review cron, Obsidian vault."
       status={<ModulePolicyPackPill moduleKey="trading_journal" />}
       subnav={
         <HiveSubnavRow
@@ -127,6 +141,7 @@ export function TradingJournalPageClient(): JSX.Element {
             { id: "entries", label: "Trade entries", icon: NotebookPen },
             { id: "gardener", label: "Gardener", icon: Moon },
             { id: "recall", label: "Pre-trade recall", icon: Brain },
+            { id: "patterns", label: "Pattern strip", icon: BarChart3 },
             { id: "settings", label: "Studio settings", icon: Settings2 },
           ]}
           activeId={section}
@@ -144,6 +159,7 @@ export function TradingJournalPageClient(): JSX.Element {
       {section === "entries" ? <JournalStudioEntriesPanel /> : null}
       {section === "gardener" ? <JournalStudioGardenerPanel /> : null}
       {section === "recall" ? <JournalStudioPretradeRecallPanel /> : null}
+      {section === "patterns" ? <JournalStudioPatternStripPanel /> : null}
       {section === "settings" ? <JournalStudioSettingsPanel /> : null}
     </HivePageShell>
   );

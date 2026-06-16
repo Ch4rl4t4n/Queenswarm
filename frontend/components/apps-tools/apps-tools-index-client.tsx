@@ -378,6 +378,7 @@ const MODULE_SECTION_DEEP_LINKS: Record<
     { label: "Trade entries", href: "/apps-tools/trading-journal?section=entries#journal-studio-entries" },
     { label: "Overnight gardener", href: "/apps-tools/trading-journal?section=gardener#journal-studio-gardener" },
     { label: "Pre-trade recall", href: "/apps-tools/trading-journal?section=recall#journal-studio-pretrade-recall" },
+    { label: "Pattern strip", href: "/apps-tools/trading-journal?section=patterns#journal-studio-pattern-strip" },
     { label: "Studio settings", href: "/apps-tools/trading-journal?section=settings#journal-studio-settings" },
   ],
   browser_automation: [

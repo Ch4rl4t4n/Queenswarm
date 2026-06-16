@@ -122,6 +122,7 @@ class BusinessOperatorSnapshotOut(BaseModel):
     harness_profiles: HarnessProfilesStateOut | None = None
     simulation_pass_rate: SimulationPassRateTrendOut | None = None
     analytics_routine: AnalyticsRoutineKpiOut | None = None
+    journal_pattern_strip: JournalPatternStripKpiOut | None = None
     links: dict[str, str] = Field(default_factory=dict)
 
 
@@ -531,6 +532,16 @@ async def compose_business_operator_snapshot(
             dashboard_user_id=dashboard_user_id,
         )
 
+    journal_pattern_strip_coro = None
+    if settings.journal_studio_enabled and settings.journal_studio_pattern_strip_enabled:
+        from app.application.services.journal_studio_pattern_service import compose_journal_pattern_strip_kpi
+
+        journal_pattern_strip_coro = compose_journal_pattern_strip_kpi(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=dashboard_user_id,
+        )
+
     gather_args: list = [
         compose_solo_daily_plan(
             db,
@@ -555,6 +566,8 @@ async def compose_business_operator_snapshot(
     ]
     if analytics_routine_coro is not None:
         gather_args.append(analytics_routine_coro)
+    if journal_pattern_strip_coro is not None:
+        gather_args.append(journal_pattern_strip_coro)
 
     gathered = await asyncio.gather(*gather_args)
     daily = gathered[0]
@@ -562,7 +575,11 @@ async def compose_business_operator_snapshot(
     background_team = gathered[2]
     cross_lane = gathered[3]
     simulation_pass_rate = gathered[4]
-    analytics_routine = gathered[5] if analytics_routine_coro is not None else None
+    idx = 5
+    analytics_routine = gathered[idx] if analytics_routine_coro is not None else None
+    if analytics_routine_coro is not None:
+        idx += 1
+    journal_pattern_strip = gathered[idx] if journal_pattern_strip_coro is not None else None
     harness_profiles = compose_harness_profiles_state(tenant)
     daily_items = [item.model_dump(mode="json") for item in daily.items]
     top_actions = _derive_top_actions(
@@ -590,12 +607,14 @@ async def compose_business_operator_snapshot(
         harness_profiles=harness_profiles,
         simulation_pass_rate=simulation_pass_rate,
         analytics_routine=analytics_routine,
+        journal_pattern_strip=journal_pattern_strip,
         links={
             "agents_sessions": "/agents#sessions",
             "mission_control": "/tasks",
             "factory": "/factory",
             "marketing_skills": "https://letagentscook.org/skills",
             "analytics_workspace": "/apps-tools/analytics",
+            "journal_patterns": "/apps-tools/trading-journal?section=patterns#journal-studio-pattern-strip",
         },
     )
 
@@ -619,6 +638,7 @@ def _rebuild_business_operator_models() -> None:
     from app.application.services.harness_project_profiles import HarnessProfilesStateOut
     from app.application.services.simulation_pass_rate_service import SimulationPassRateTrendOut
     from app.application.services.analytics_weekly_routine_service import AnalyticsRoutineKpiOut
+    from app.application.services.journal_studio_pattern_service import JournalPatternStripKpiOut
 
     BusinessOperatorSnapshotOut.model_rebuild(
         _types_namespace={
@@ -628,6 +648,7 @@ def _rebuild_business_operator_models() -> None:
             "HarnessProfilesStateOut": HarnessProfilesStateOut,
             "SimulationPassRateTrendOut": SimulationPassRateTrendOut,
             "AnalyticsRoutineKpiOut": AnalyticsRoutineKpiOut,
+            "JournalPatternStripKpiOut": JournalPatternStripKpiOut,
         },
     )
 

@@ -2342,6 +2342,10 @@ class Settings(BaseSettings):
         default=True,
         description="Track O TJ5 — Pre-trade recall injection (mistakes + NP5 thesis + wiki edges).",
     )
+    journal_studio_pattern_strip_enabled: bool = Field(
+        default=True,
+        description="Track O TJ6 — 30/90-day pattern strip (win rate by tag · repeat-mistake alerts).",
+    )
     broker_guardrails_enabled: bool = Field(
         default=True,
         description="Track P RA3 — Unified broker guardrails (max order, daily cap, kill switch, approve mode).",

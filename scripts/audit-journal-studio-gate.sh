@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Track O TJ1–TJ5 — Journal Studio audit gate (timeline, entries, gardener, recall, settings).
+# Track O TJ1–TJ6 — Journal Studio audit gate (timeline, entries, gardener, recall, patterns, settings).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -9,13 +9,14 @@ FAIL=0
 pass() { echo "  OK  $*"; }
 fail() { echo "  FAIL $*"; FAIL=$((FAIL + 1)); }
 
-echo "=== Journal Studio (TJ1–TJ5) Audit ==="
+echo "=== Journal Studio (TJ1–TJ6) Audit ==="
 
 for f in \
   backend/app/application/services/journal_studio_timeline_service.py \
   backend/app/application/services/journal_studio_entry_service.py \
   backend/app/application/services/journal_studio_gardener_service.py \
   backend/app/application/services/journal_studio_pretrade_recall_service.py \
+  backend/app/application/services/journal_studio_pattern_service.py \
   backend/app/application/services/journal_studio_settings_service.py \
   backend/app/worker/journal_studio_gardener_tasks.py \
   backend/app/presentation/api/routers/journal_studio.py \
@@ -23,6 +24,7 @@ for f in \
   frontend/components/apps-tools/journal-studio-entries-panel.tsx \
   frontend/components/apps-tools/journal-studio-gardener-panel.tsx \
   frontend/components/apps-tools/journal-studio-pretrade-recall-panel.tsx \
+  frontend/components/apps-tools/journal-studio-pattern-strip-panel.tsx \
   frontend/components/apps-tools/journal-studio-settings-panel.tsx \
   frontend/components/apps-tools/trading-journal-page-client.tsx \
   frontend/app/\(dashboard\)/apps-tools/trading-journal/page.tsx; do
@@ -51,6 +53,12 @@ else
   fail "missing journal_studio_pretrade_recall_enabled"
 fi
 
+if grep -q "journal_studio_pattern_strip_enabled" backend/app/core/config.py; then
+  pass "journal_studio_pattern_strip_enabled config"
+else
+  fail "missing journal_studio_pattern_strip_enabled"
+fi
+
 if grep -q "journal_studio_router" backend/app/presentation/api/v1.py; then
   pass "router registered in v1"
 else
@@ -67,6 +75,24 @@ if grep -q '"/pretrade-recall"' backend/app/presentation/api/routers/journal_stu
   pass "pretrade-recall route in journal_studio router"
 else
   fail "missing pretrade-recall route"
+fi
+
+if grep -q '"/pattern-strip"' backend/app/presentation/api/routers/journal_studio.py; then
+  pass "pattern-strip route in journal_studio router"
+else
+  fail "missing pattern-strip route"
+fi
+
+if grep -q "journal_pattern_strip" backend/app/application/services/business_operator.py; then
+  pass "journal_pattern_strip in CBO snapshot"
+else
+  fail "missing journal_pattern_strip in CBO snapshot"
+fi
+
+if grep -q "journal_patterns" backend/app/application/services/morning_hive_brief.py; then
+  pass "journal_patterns in morning brief"
+else
+  fail "missing journal_patterns in morning brief"
 fi
 
 if grep -q "journal_draft" backend/app/application/services/approval_inbox.py; then
@@ -98,6 +124,7 @@ for spec in \
   journal-studio-entries.spec.ts \
   journal-studio-gardener.spec.ts \
   journal-studio-pretrade-recall.spec.ts \
+  journal-studio-pattern-strip.spec.ts \
   journal-studio-settings.spec.ts; do
   if [[ -f "frontend/e2e/${spec}" ]]; then
     pass "e2e ${spec}"
@@ -116,6 +143,8 @@ if [[ -x backend/venv/bin/python ]]; then
     tests/test_journal_studio_gardener_api_unit.py \
     tests/test_journal_studio_pretrade_recall_unit.py \
     tests/test_journal_studio_pretrade_recall_api_unit.py \
+    tests/test_journal_studio_pattern_unit.py \
+    tests/test_journal_studio_pattern_api_unit.py \
     tests/test_journal_studio_settings_unit.py \
     tests/test_approval_inbox_unit.py \
     -q --no-cov); then
@@ -128,9 +157,9 @@ else
 fi
 
 if [[ "$FAIL" -eq 0 ]]; then
-  echo "=== Journal Studio TJ1–TJ5 gate PASSED ==="
+  echo "=== Journal Studio TJ1–TJ6 gate PASSED ==="
   exit 0
 fi
 
-echo "=== Journal Studio TJ1–TJ5 gate FAILED ($FAIL) ==="
+echo "=== Journal Studio TJ1–TJ6 gate FAILED ($FAIL) ==="
 exit 1

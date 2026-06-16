@@ -148,6 +148,18 @@ interface BusinessOperatorSnapshot {
     operator_hint: string;
     workspace_href: string;
   } | null;
+  journal_pattern_strip?: {
+    enabled: boolean;
+    generated_at: string;
+    window_30_win_rate: number | null;
+    window_90_win_rate: number | null;
+    repeat_mistake_count: number;
+    repeat_mistakes: string[];
+    edge_tags: string[];
+    operator_hint: string;
+    morning_brief_line: string;
+    workspace_href: string;
+  } | null;
   links: Record<string, string>;
 }
 
@@ -445,6 +457,44 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
             ) : null}
             <Link href={snapshot.analytics_routine.workspace_href} className="qs-btn qs-btn--ghost qs-btn--sm">
               Analytics workspace
+            </Link>
+          </div>
+        </V4Card>
+      ) : null}
+
+      {snapshot.journal_pattern_strip?.enabled ? (
+        <V4Card data-testid="cbo-journal-pattern-strip">
+          <V4CardHeader
+            kicker="TJ6"
+            title="Journal pattern strip"
+            description={snapshot.journal_pattern_strip.operator_hint}
+            actions={
+              snapshot.journal_pattern_strip.repeat_mistake_count > 0 ? (
+                <V4Badge tone="warn">{snapshot.journal_pattern_strip.repeat_mistake_count} repeat</V4Badge>
+              ) : (
+                <V4Badge tone="info">30/90d</V4Badge>
+              )
+            }
+          />
+          <p className="px-4 text-sm text-(--qs-text-2)">{snapshot.journal_pattern_strip.morning_brief_line}</p>
+          <div className="flex flex-wrap gap-2 px-4 pb-4">
+            {snapshot.journal_pattern_strip.window_30_win_rate != null ? (
+              <V4Badge tone="info">
+                30d {Math.round(snapshot.journal_pattern_strip.window_30_win_rate * 100)}%
+              </V4Badge>
+            ) : null}
+            {snapshot.journal_pattern_strip.window_90_win_rate != null ? (
+              <V4Badge tone="info">
+                90d {Math.round(snapshot.journal_pattern_strip.window_90_win_rate * 100)}%
+              </V4Badge>
+            ) : null}
+            {snapshot.journal_pattern_strip.repeat_mistakes.slice(0, 3).map((tag) => (
+              <V4Badge key={tag} tone="warn">
+                {tag}
+              </V4Badge>
+            ))}
+            <Link href={snapshot.journal_pattern_strip.workspace_href} className="qs-btn qs-btn--ghost qs-btn--sm">
+              Pattern strip
             </Link>
           </div>
         </V4Card>

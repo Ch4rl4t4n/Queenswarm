@@ -1385,6 +1385,67 @@ const STUB_JOURNAL_STUDIO_PRETRADE_RECALL = {
   cockpit_href: "/apps-tools/trading-automation?section=cockpit#trading-cockpit",
 };
 
+const STUB_JOURNAL_STUDIO_PATTERN_STRIP = {
+  enabled: true,
+  generated_at: new Date().toISOString(),
+  windows: [
+    {
+      window_days: 30,
+      entry_count: 4,
+      resolved_count: 3,
+      overall_win_rate: 0.6667,
+      tag_stats: [
+        {
+          tag: "fomo",
+          window_days: 30,
+          entry_count: 2,
+          win_count: 0,
+          loss_count: 2,
+          breakeven_count: 0,
+          win_rate: 0,
+          repeat_mistake_alert: true,
+        },
+        {
+          tag: "breakout",
+          window_days: 30,
+          entry_count: 2,
+          win_count: 2,
+          loss_count: 0,
+          breakeven_count: 0,
+          win_rate: 1,
+          repeat_mistake_alert: false,
+        },
+      ],
+      edge_tags: ["breakout"],
+      repeat_mistakes: ["fomo"],
+    },
+    {
+      window_days: 90,
+      entry_count: 6,
+      resolved_count: 5,
+      overall_win_rate: 0.6,
+      tag_stats: [
+        {
+          tag: "fomo",
+          window_days: 90,
+          entry_count: 3,
+          win_count: 1,
+          loss_count: 2,
+          breakeven_count: 0,
+          win_rate: 0.3333,
+          repeat_mistake_alert: false,
+        },
+      ],
+      edge_tags: ["breakout", "retest"],
+      repeat_mistakes: [],
+    },
+  ],
+  repeat_mistake_alerts: ["fomo"],
+  operator_hint: "1 repeat mistake pattern(s) in 30d — review before next live session.",
+  morning_brief_line: "Journal 30d win rate 67% · repeat mistakes: fomo (2×)",
+  workspace_href: "/apps-tools/trading-journal?section=patterns#journal-studio-pattern-strip",
+};
+
 const STUB_JOURNAL_STUDIO_ROUTINE = {
   enabled: true,
   routine_status: "scheduled",
@@ -1455,6 +1516,7 @@ const STUB_JOURNAL_STUDIO_SNAPSHOT = {
     { id: "entries", label: "Trade entries", lazy: true, status: "ready" },
     { id: "gardener", label: "Overnight gardener", lazy: true, status: "ready" },
     { id: "recall", label: "Pre-trade recall", lazy: true, status: "ready" },
+    { id: "patterns", label: "Pattern strip", lazy: true, status: "ready" },
     { id: "settings", label: "Studio settings", lazy: true, status: "ready" },
   ],
   routine: STUB_JOURNAL_STUDIO_ROUTINE,
@@ -4527,6 +4589,15 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_JOURNAL_STUDIO_PRETRADE_RECALL),
+      });
+      return;
+    }
+
+    if (path.startsWith("journal-studio/pattern-strip")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_JOURNAL_STUDIO_PATTERN_STRIP),
       });
       return;
     }

@@ -11,8 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.queen_maintainer.tech_health import build_tech_health_report
 from app.application.services.solo_operator_trio import get_solo_trio_status
+from app.core.config import settings
 from app.core.logging import get_logger
 from app.infrastructure.persistence.models.supervisor_session import SubAgentSession, SupervisorSession
+from app.infrastructure.persistence.models.tenant import DashboardUserTenantMembership
 
 logger = get_logger(__name__)
 
@@ -164,6 +166,35 @@ async def compose_morning_hive_brief(
             )
         markdown_parts.append("")
 
+    journal_patterns: dict[str, Any] | None = None
+    if settings.journal_studio_enabled and settings.journal_studio_pattern_strip_enabled:
+        from app.application.services.journal_studio_pattern_service import compose_journal_pattern_strip_kpi
+
+        owner_id = await db.scalar(
+            select(DashboardUserTenantMembership.dashboard_user_id)
+            .where(
+                DashboardUserTenantMembership.tenant_id == tenant_id,
+                DashboardUserTenantMembership.role.in_(("owner", "admin")),
+            )
+            .order_by(DashboardUserTenantMembership.joined_at.asc())
+            .limit(1),
+        )
+        if owner_id is not None:
+            kpi = await compose_journal_pattern_strip_kpi(
+                db,
+                tenant_id=tenant_id,
+                dashboard_user_id=owner_id,
+            )
+            if kpi.enabled and kpi.morning_brief_line:
+                journal_patterns = kpi.model_dump(mode="json")
+                markdown_parts.append("## Journal patterns")
+                markdown_parts.append(kpi.morning_brief_line)
+                if kpi.repeat_mistakes:
+                    markdown_parts.append(
+                        f"_Repeat mistakes (30d): {', '.join(kpi.repeat_mistakes[:5])}_",
+                    )
+                markdown_parts.append("")
+
     markdown = "\n".join(markdown_parts).strip()
     logger.info(
         "morning_brief.composed",
@@ -178,6 +209,7 @@ async def compose_morning_hive_brief(
         "lanes_bound": trio.get("lanes_bound", 0),
         "sections": sections,
         "foragers": foragers,
+        "journal_patterns": journal_patterns,
         "markdown": markdown,
     }
 

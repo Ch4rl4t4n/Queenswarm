@@ -298,6 +298,7 @@ def _default_panels() -> list[JournalStudioPanelOut]:
         JournalStudioPanelOut(id="entries", label="Trade entries", lazy=True, status="ready"),
         JournalStudioPanelOut(id="gardener", label="Overnight gardener", lazy=True, status="ready"),
         JournalStudioPanelOut(id="recall", label="Pre-trade recall", lazy=True, status="ready"),
+        JournalStudioPanelOut(id="patterns", label="Pattern strip", lazy=True, status="ready"),
         JournalStudioPanelOut(id="settings", label="Studio settings", lazy=True, status="ready"),
     ]
 
