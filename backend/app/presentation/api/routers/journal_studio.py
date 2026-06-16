@@ -26,6 +26,10 @@ from app.application.services.journal_studio_gardener_service import (
     review_journal_draft,
     run_journal_studio_gardener_sweep,
 )
+from app.application.services.journal_studio_pretrade_recall_service import (
+    PreTradeRecallOut,
+    compose_pretrade_recall,
+)
 from app.application.services.journal_studio_settings_service import (
     JournalStudioRoutineKpiOut,
     JournalStudioSettingsOut,
@@ -268,6 +272,30 @@ async def journal_studio_gardener_draft_review(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     await db.commit()
     return JournalDraftReviewOut.model_validate(result).model_dump(mode="json")
+
+
+@router.get("/pretrade-recall", summary="TJ5 Pre-trade recall snapshot")
+async def journal_studio_pretrade_recall_get(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    window_days: int = 30,
+) -> dict[str, Any]:
+    """Return ranked mistakes, thesis snippet, and injection block before trading."""
+
+    _require_enabled()
+    if not settings.journal_studio_pretrade_recall_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pre-trade recall disabled.")
+    user = principal.get("user")
+    tenant_id = principal.get("tenant_id")
+    if user is None or tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    recall = await compose_pretrade_recall(
+        db,
+        tenant_id=tenant_id,
+        dashboard_user_id=user.id,
+        window_days=window_days,
+    )
+    return PreTradeRecallOut.model_validate(recall).model_dump(mode="json")
 
 
 @router.get("/settings", summary="TJ4 Journal studio settings snapshot")

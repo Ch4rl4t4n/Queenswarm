@@ -2334,6 +2334,10 @@ class Settings(BaseSettings):
         default=True,
         description="Track O TJ3 — Overnight journal gardener (fills → draft lesson → HITL → wiki).",
     )
+    journal_studio_pretrade_recall_enabled: bool = Field(
+        default=True,
+        description="Track O TJ5 — Pre-trade recall injection (mistakes + NP5 thesis + wiki edges).",
+    )
     broker_guardrails_enabled: bool = Field(
         default=True,
         description="Track P RA3 — Unified broker guardrails (max order, daily cap, kill switch, approve mode).",

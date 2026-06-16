@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ExternalLink, Loader2, TrendingUp, Wallet } from "lucide-react";
+import { ExternalLink, Loader2, TrendingUp, Wallet, Brain } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -63,6 +63,15 @@ interface TradingCockpitSnapshot {
     live_trading_enabled: boolean;
   };
   links: Record<string, string>;
+  pretrade_recall?: {
+    enabled?: boolean;
+    mistake_count?: number;
+    top_mistakes?: Array<{ tag: string; count: number; latest_lesson?: string }>;
+    thesis_title?: string | null;
+    thesis_snippet?: string;
+    operator_hint?: string;
+    journal_href?: string;
+  } | null;
 }
 
 export interface ExecutionStudioTradingCockpitPanelProps {
@@ -161,6 +170,35 @@ function ExecutionStudioTradingCockpitPanelInner({ onError }: ExecutionStudioTra
           Spawn live executor swarm
         </Link>
       </div>
+
+      {snapshot.pretrade_recall?.enabled ? (
+        <article
+          className="mb-4 rounded-lg border border-cyan-500/25 bg-cyan-500/5 p-4"
+          data-testid="trading-cockpit-pretrade-recall-strip"
+        >
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-cyan-300">
+            <Brain className="h-3.5 w-3.5" aria-hidden />
+            Pre-trade recall
+          </p>
+          <p className="mt-2 text-xs text-(--qs-text-2)">{snapshot.pretrade_recall.operator_hint}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <V4Badge tone="warn">{snapshot.pretrade_recall.mistake_count ?? 0} mistake patterns</V4Badge>
+            {(snapshot.pretrade_recall.top_mistakes ?? []).slice(0, 3).map((row) => (
+              <V4Badge key={row.tag} tone="warn">
+                {row.tag} ×{row.count}
+              </V4Badge>
+            ))}
+          </div>
+          {snapshot.pretrade_recall.thesis_snippet ? (
+            <p className="mt-2 line-clamp-3 font-mono text-[11px] text-white/70">{snapshot.pretrade_recall.thesis_snippet}</p>
+          ) : null}
+          {snapshot.pretrade_recall.journal_href ? (
+            <Link href={snapshot.pretrade_recall.journal_href} className="mt-2 inline-block text-xs text-cyan-300 hover:underline">
+              Open journal recall
+            </Link>
+          ) : null}
+        </article>
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <article className="qs-bubble-inner space-y-3 p-4">

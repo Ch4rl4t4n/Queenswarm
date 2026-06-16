@@ -377,6 +377,7 @@ const MODULE_SECTION_DEEP_LINKS: Record<
     { label: "Timeline", href: "/apps-tools/trading-journal?section=timeline#journal-studio-timeline" },
     { label: "Trade entries", href: "/apps-tools/trading-journal?section=entries#journal-studio-entries" },
     { label: "Overnight gardener", href: "/apps-tools/trading-journal?section=gardener#journal-studio-gardener" },
+    { label: "Pre-trade recall", href: "/apps-tools/trading-journal?section=recall#journal-studio-pretrade-recall" },
     { label: "Studio settings", href: "/apps-tools/trading-journal?section=settings#journal-studio-settings" },
   ],
   browser_automation: [

@@ -712,7 +712,7 @@ _Signals: [CyrilXBT — Obsidian trading journal](https://x.com/cyrilXBT/status/
 | TJ2 | **Trade entry schema** — thesis · outcome · tags · lesson (manual + paper fill import) | P1 | 2–3 d | ✅ | `PaperTradingFill` · task workspace |
 | TJ3 | **Overnight journal gardener** — fills → draft lesson → operator approve → wiki | P1 | 2–3 d | ✅ | Celery · **SB1** capture · critic |
 | TJ4 | **Studio settings** — fields ON/OFF · review cron · Obsidian subfolder · mistake tags | P0 | 1–2 d | ✅ | Tenant `operator_settings.journal_studio` |
-| TJ5 | **Pre-trade recall** — inject top mistakes / edges before next session | P1 | 2 d | ⏳ | Brain Pack · **NP5** thesis · Hive Mind |
+| TJ5 | **Pre-trade recall** — inject top mistakes / edges before next session | P1 | 2 d | ✅ Shipped | Brain Pack · **NP5** thesis · Hive Mind |
 | TJ6 | **30/90-day pattern strip** — win rate by tag · repeat-mistake alert | P2 | 2–3 d | ⏳ | CBO snapshot · morning brief |
 | TJ7 | **Business brain preset** (optional) — same studio shell for Moneta/marketing notes | P2 | 2 d | ⏳ | **NP4** brief · Wiki Layer |
 

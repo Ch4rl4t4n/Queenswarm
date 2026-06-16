@@ -35,6 +35,8 @@ async def test_compose_trading_cockpit_snapshot_includes_broker_guardrails(monke
             broker_order_queue_enabled=False,
             prediction_markets_enabled=True,
             prediction_markets_live_trading_enabled=False,
+            journal_studio_enabled=False,
+            journal_studio_pretrade_recall_enabled=False,
         ),
     )
 

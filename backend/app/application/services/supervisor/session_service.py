@@ -452,8 +452,29 @@ async def create_supervisor_session(
             tenant_id=tenant_id,
             context_seed=dict(context_seed) if context_seed else None,
         )
+    pretrade_prompt_block = ""
+    dashboard_user_id: uuid.UUID | None = None
+    if isinstance(context_seed, dict):
+        raw_uid = context_seed.get("dashboard_user_id")
+        if raw_uid is not None:
+            try:
+                dashboard_user_id = uuid.UUID(str(raw_uid))
+            except ValueError:
+                dashboard_user_id = None
+    if tenant_id is not None and dashboard_user_id is not None:
+        from app.application.services.journal_studio_pretrade_recall_service import load_trading_pretrade_recall_injection
+
+        pretrade_prompt_block = await load_trading_pretrade_recall_injection(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=dashboard_user_id,
+            context_seed=dict(context_seed) if context_seed else None,
+            goal=goal_clean,
+        )
     prefix_parts = [
-        part for part in (queen_prompt_prefix, wiki_prompt_block, brand_prompt_block) if part.strip()
+        part
+        for part in (queen_prompt_prefix, wiki_prompt_block, brand_prompt_block, pretrade_prompt_block)
+        if part.strip()
     ]
     combined_prefix = "\n\n".join(prefix_parts)
     goal_for_prompt = f"{combined_prefix}\n\n{goal_clean}" if combined_prefix else goal_clean
@@ -474,6 +495,7 @@ async def create_supervisor_session(
         "curated_prompt_prefix": queen_prompt_prefix,
         "wiki_prompt_block": wiki_prompt_block,
         "brand_prompt_block": brand_prompt_block,
+        "pretrade_prompt_block": pretrade_prompt_block,
         "raw_goal": goal_clean,
     }
     if context_seed:

@@ -1355,6 +1355,36 @@ const STUB_JOURNAL_STUDIO_SETTINGS = {
   workspace_href: "/apps-tools/trading-journal?section=settings#journal-studio-settings",
 };
 
+const STUB_JOURNAL_STUDIO_PRETRADE_RECALL = {
+  enabled: true,
+  generated_at: new Date().toISOString(),
+  window_days: 30,
+  mistake_count: 2,
+  top_mistakes: [
+    {
+      tag: "fomo",
+      count: 2,
+      latest_lesson: "Wait for setup confirmation before sizing up.",
+      last_seen_at: new Date().toISOString(),
+    },
+    {
+      tag: "oversized",
+      count: 1,
+      latest_lesson: "Cut size when conviction is low.",
+      last_seen_at: new Date().toISOString(),
+    },
+  ],
+  edge_reminders: ["Paper fills tagged fomo — slow down on re-entries."],
+  thesis_title: "BTC range thesis",
+  thesis_snippet: "Kill if daily close below support with rising funding.",
+  wiki_snippets: [],
+  injection_block: "=== PRE-TRADE RECALL (TJ5) ===",
+  operator_hint: "Review top mistakes and thesis kill criteria before live orders.",
+  thesis_wizard_href: "/solo-operator/trading-thesis",
+  journal_href: "/apps-tools/trading-journal?section=recall#journal-studio-pretrade-recall",
+  cockpit_href: "/apps-tools/trading-automation?section=cockpit#trading-cockpit",
+};
+
 const STUB_JOURNAL_STUDIO_ROUTINE = {
   enabled: true,
   routine_status: "scheduled",
@@ -1424,6 +1454,7 @@ const STUB_JOURNAL_STUDIO_SNAPSHOT = {
     { id: "timeline", label: "Timeline", lazy: false, status: "ready" },
     { id: "entries", label: "Trade entries", lazy: true, status: "ready" },
     { id: "gardener", label: "Overnight gardener", lazy: true, status: "ready" },
+    { id: "recall", label: "Pre-trade recall", lazy: true, status: "ready" },
     { id: "settings", label: "Studio settings", lazy: true, status: "ready" },
   ],
   routine: STUB_JOURNAL_STUDIO_ROUTINE,
@@ -4382,6 +4413,15 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_JOURNAL_STUDIO_ROUTINE),
+      });
+      return;
+    }
+
+    if (path.startsWith("journal-studio/pretrade-recall")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_JOURNAL_STUDIO_PRETRADE_RECALL),
       });
       return;
     }

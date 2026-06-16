@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock3, Moon, NotebookPen, Settings2 } from "lucide-react";
+import { Brain, Clock3, Moon, NotebookPen, Settings2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 
@@ -53,12 +53,24 @@ const JournalStudioSettingsPanel = dynamic(
   },
 );
 
-type JournalSection = "timeline" | "entries" | "gardener" | "settings";
+const JournalStudioPretradeRecallPanel = dynamic(
+  () =>
+    import("@/components/apps-tools/journal-studio-pretrade-recall-panel").then((mod) => ({
+      default: mod.JournalStudioPretradeRecallPanel,
+    })),
+  {
+    ssr: false,
+    loading: () => <div className="qs-bubble shrink-0 min-h-[8rem] animate-pulse bg-white/5 p-4" aria-hidden />,
+  },
+);
+
+type JournalSection = "timeline" | "entries" | "gardener" | "recall" | "settings";
 
 const SECTION_TO_HASH: Record<JournalSection, string> = {
   timeline: "journal-studio-timeline",
   entries: "journal-studio-entries",
   gardener: "journal-studio-gardener",
+  recall: "journal-studio-pretrade-recall",
   settings: "journal-studio-settings",
 };
 
@@ -67,6 +79,7 @@ function sectionFromHash(hash: string): JournalSection | null {
   if (key === "journal-studio-timeline") return "timeline";
   if (key === "journal-studio-entries") return "entries";
   if (key === "journal-studio-gardener") return "gardener";
+  if (key === "journal-studio-pretrade-recall") return "recall";
   if (key === "journal-studio-settings") return "settings";
   return null;
 }
@@ -75,6 +88,7 @@ function sectionFromQuery(raw: string | null): JournalSection | null {
   if (raw === "timeline") return "timeline";
   if (raw === "entries") return "entries";
   if (raw === "gardener") return "gardener";
+  if (raw === "recall") return "recall";
   if (raw === "settings") return "settings";
   return null;
 }
@@ -104,7 +118,7 @@ export function TradingJournalPageClient(): JSX.Element {
   return (
     <HivePageShell
       title="Trading Journal"
-      subtitle="Learning Loop Studio — timeline, entries, overnight gardener, review cron, Obsidian vault."
+      subtitle="Learning Loop Studio — timeline, entries, gardener, pre-trade recall, review cron, Obsidian vault."
       status={<ModulePolicyPackPill moduleKey="trading_journal" />}
       subnav={
         <HiveSubnavRow
@@ -112,6 +126,7 @@ export function TradingJournalPageClient(): JSX.Element {
             { id: "timeline", label: "Timeline", icon: Clock3 },
             { id: "entries", label: "Trade entries", icon: NotebookPen },
             { id: "gardener", label: "Gardener", icon: Moon },
+            { id: "recall", label: "Pre-trade recall", icon: Brain },
             { id: "settings", label: "Studio settings", icon: Settings2 },
           ]}
           activeId={section}
@@ -128,6 +143,7 @@ export function TradingJournalPageClient(): JSX.Element {
       {section === "timeline" ? <JournalStudioTimelinePanel /> : null}
       {section === "entries" ? <JournalStudioEntriesPanel /> : null}
       {section === "gardener" ? <JournalStudioGardenerPanel /> : null}
+      {section === "recall" ? <JournalStudioPretradeRecallPanel /> : null}
       {section === "settings" ? <JournalStudioSettingsPanel /> : null}
     </HivePageShell>
   );
