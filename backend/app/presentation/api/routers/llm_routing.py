@@ -6,6 +6,7 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.application.services.cost_savings import build_cost_savings_payload
@@ -198,6 +199,96 @@ async def post_local_inference_ping(
 
     status_out = await compose_local_inference_status(run_ping=True)
     return status_out.model_dump(mode="json")
+
+
+@router.get(
+    "/verified-dataset",
+    summary="Verified dataset export snapshot (Track M LOC5)",
+)
+async def get_verified_dataset_snapshot(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return critic-approved row counts for Alpaca JSONL export."""
+
+    if not settings.local_llm_enabled or not settings.verified_dataset_export_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Verified dataset export disabled on deployment.",
+        )
+    _ensure_admin(principal)
+    from app.application.services.verified_dataset_export_service import compose_verified_dataset_snapshot
+
+    uid = uuid.UUID(str(principal["dashboard_user_id"]))
+    snap = await compose_verified_dataset_snapshot(db, dashboard_user_id=uid)
+    return snap.model_dump(mode="json")
+
+
+@router.get(
+    "/verified-dataset/preview",
+    summary="Preview verified dataset rows (Track M LOC5)",
+)
+async def get_verified_dataset_preview(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    sample_limit: int = Query(default=5, ge=1, le=20),
+) -> dict[str, Any]:
+    """Return sample Alpaca rows before JSONL download."""
+
+    if not settings.local_llm_enabled or not settings.verified_dataset_export_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Verified dataset export disabled on deployment.",
+        )
+    _ensure_admin(principal)
+    from app.application.services.verified_dataset_export_service import compose_verified_dataset_preview
+
+    uid = uuid.UUID(str(principal["dashboard_user_id"]))
+    preview = await compose_verified_dataset_preview(
+        db,
+        dashboard_user_id=uid,
+        sample_limit=sample_limit,
+    )
+    return preview.model_dump(mode="json")
+
+
+@router.get(
+    "/verified-dataset/export",
+    summary="Download verified dataset JSONL (Track M LOC5)",
+)
+async def download_verified_dataset_jsonl(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> Response:
+    """Download Alpaca-compatible JSONL from critic-approved harness outputs."""
+
+    if not settings.local_llm_enabled or not settings.verified_dataset_export_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Verified dataset export disabled on deployment.",
+        )
+    _ensure_admin(principal)
+    from app.application.services.verified_dataset_export_service import (
+        export_filename,
+        export_verified_dataset_jsonl_bytes,
+    )
+
+    uid = uuid.UUID(str(principal["dashboard_user_id"]))
+    blob, row_count = await export_verified_dataset_jsonl_bytes(db, dashboard_user_id=uid)
+    if row_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="No critic-approved rows to export — run closed review loop first.",
+        )
+    fname = export_filename(dashboard_user_id=uid)
+    return Response(
+        content=blob,
+        media_type="application/x-ndjson",
+        headers={
+            "Content-Disposition": f'attachment; filename="{fname}"',
+            "X-Queenswarm-Export-Rows": str(row_count),
+        },
+    )
 
 
 __all__ = ["router"]

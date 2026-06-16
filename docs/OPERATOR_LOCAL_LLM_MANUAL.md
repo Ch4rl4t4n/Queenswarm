@@ -56,3 +56,20 @@ VLLM_DEFAULT_MODEL=openai/local-model
 ```
 
 Ping uses `GET /v1/models`.
+
+## Verified dataset export (LOC5)
+
+After critic-approved sessions (closed review loop ≥4/5):
+
+1. **Settings → LLM keys** → **Verified dataset export · Alpaca JSONL**
+2. Preview sample rows → **Download JSONL**
+3. Import into Unsloth Studio or Hugging Face for QLoRA fine-tune
+
+CLI (requires operator JWT):
+
+```bash
+export OPERATOR_SMOKE_JWT="<dashboard-bearer>"
+./scripts/operator-verified-dataset-export.sh ./my-tenant-dataset.jsonl
+```
+
+Only critic-approved deliverables and verified recipes are exported — secrets are redacted.

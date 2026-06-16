@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { CostGuardianRoutingPanel } from "@/components/hive/cost-guardian-routing-panel";
 import { LocalInferencePanel } from "@/components/hive/local-inference-panel";
+import { VerifiedDatasetExportPanel } from "@/components/hive/verified-dataset-export-panel";
 import { QsSelect } from "@/components/ui/qs-select";
 import { InfoHint } from "@/components/hive/info-hint";
 import { useUiLanguage } from "@/components/hive/ui-language-provider";
@@ -473,6 +474,7 @@ export function SettingsLlmKeysPanel() {
 
       <CostGuardianRoutingPanel />
       <LocalInferencePanel />
+      <VerifiedDatasetExportPanel />
 
       <V4Card className="v4-voice-prefs-card">
         <V4CardHeader

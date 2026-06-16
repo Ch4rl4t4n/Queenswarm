@@ -660,7 +660,7 @@ _Signal: [Unsloth Studio — fine-tune & run locally](https://www.youtube.com/wa
 | LOC2 | **`local_sovereign` routing mode** + `LLM_AIRGAP=1` hard block cloud hops | P0 | 1–2 d | ✅ | Settings + router guard |
 | LOC3 | **Docker profile `local-llm`** — Ollama service + compose overlay | P0 | 1 d | ✅ | `docker-compose.local-llm.yml` |
 | LOC4 | **Settings → Local Inference** panel — endpoint, model, ping, enable sovereign | P0 | 2–3 d | ✅ | `/settings/llm-keys` |
-| LOC5 | **Verified dataset exporter** — critic-approved sessions/recipes → JSONL (Alpaca) | P1 | 3–4 d | ⏳ | HiveMind + session export API |
+| LOC5 | **Verified dataset exporter** — critic-approved sessions/recipes → JSONL (Alpaca) | P1 | 3–4 d | ✅ | `verified_dataset_export_service.py` |
 | LOC6 | **Dataset Recipe wizard** — PDF/CSV → Q&A pairs via **local model only** | P1 | 4–5 d | ⏳ | Unsloth-recipes pattern · HITL |
 | LOC7 | **Unsloth bridge** — operator script + doc (`pull adapter → Ollama import`) | P1 | 1–2 d | ⏳ | `scripts/operator-unsloth-bridge.sh` |
 | LOC8 | **Adapter registry** — tenant LoRA/GGUF metadata → LiteLLM model slug | P1 | 2–3 d | ⏳ | Postgres + Settings picker |

@@ -312,6 +312,34 @@ const STUB_LOCAL_INFERENCE = {
   pings: [],
 };
 
+const STUB_VERIFIED_DATASET_SNAPSHOT = {
+  enabled: true,
+  min_score: 0.8,
+  min_score_label: "4.0/5",
+  deliverable_candidates: 2,
+  recipe_candidates: 1,
+  exportable_rows: 3,
+  max_rows: 500,
+  operator_hint: "Export critic-approved deliverables and verified recipes as Alpaca JSONL for Unsloth fine-tune.",
+};
+
+const STUB_VERIFIED_DATASET_PREVIEW = {
+  ok: true,
+  total_rows: 3,
+  message: "3 row(s) ready for Alpaca JSONL export.",
+  sample_rows: [
+    {
+      instruction: "You are a Queenswarm operator assistant.",
+      input: "Why did WAU drop?",
+      output: "# Report\nVerified KPI narrative.",
+      source_type: "deliverable",
+      source_id: "00000000-0000-4000-8000-000000000001",
+      source_label: "Weekly analytics report",
+      critic_score: 0.85,
+    },
+  ],
+};
+
 const STUB_LLM_COST_SAVINGS = {
   window_days: 30,
   call_count: 42,
@@ -1788,6 +1816,36 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           processed_at: new Date().toISOString(),
           error_text: null,
         }),
+      });
+      return;
+    }
+
+    if (path.startsWith("llm-routing/verified-dataset/export")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/x-ndjson",
+        headers: {
+          "Content-Disposition": 'attachment; filename="queenswarm-verified-dataset-stub.jsonl"',
+        },
+        body: '{"instruction":"test","input":"goal","output":"verified"}\n',
+      });
+      return;
+    }
+
+    if (path.startsWith("llm-routing/verified-dataset/preview")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_VERIFIED_DATASET_PREVIEW),
+      });
+      return;
+    }
+
+    if (path.startsWith("llm-routing/verified-dataset")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_VERIFIED_DATASET_SNAPSHOT),
       });
       return;
     }

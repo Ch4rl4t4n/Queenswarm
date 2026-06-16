@@ -471,6 +471,22 @@ class Settings(BaseSettings):
         default=True,
         description="Track M LOC13 — Analytics bees prefer local Ollama when local_sovereign or LLM_AIRGAP.",
     )
+    verified_dataset_export_enabled: bool = Field(
+        default=True,
+        description="Track M LOC5 — export critic-approved deliverables/recipes as Alpaca JSONL.",
+    )
+    verified_dataset_export_min_score: float = Field(
+        default=0.8,
+        ge=0.5,
+        le=1.0,
+        description="Minimum critic rubric score (0–1) for deliverable rows in LOC5 export.",
+    )
+    verified_dataset_export_max_rows: int = Field(
+        default=500,
+        ge=10,
+        le=2000,
+        description="Max JSONL rows per verified dataset export.",
+    )
     auto_graphify_enabled: bool = Field(
         default=True,
         description="Master switch for Auto-Graphify folder ingest (Phase 4 P1).",
