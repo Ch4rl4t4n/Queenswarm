@@ -57,6 +57,7 @@ test.describe("Whole-App page shell — zone headers", () => {
       "/apps-tools/trading-automation",
       "/apps-tools/browser-automation",
       "/apps-tools/research-workspace",
+      "/apps-tools/analytics",
     ];
 
     await page.setViewportSize({ width: 1280, height: 900 });

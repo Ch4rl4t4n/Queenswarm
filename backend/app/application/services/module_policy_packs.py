@@ -17,6 +17,7 @@ ModuleKey = Literal[
     "browser_automation",
     "content_factory",
     "research_workspace",
+    "analytics_workspace",
     "live_lane",
 ]
 ModuleRiskTier = Literal["read", "write", "publish", "financial"]
@@ -147,6 +148,20 @@ def _module_policy_catalog() -> list[ModulePolicyPackOut]:
             time_limit_sec=max(1, int(settings.dynamic_connector_tool_timeout_ms / 1000)),
             notes=[
                 "Research outputs are structured briefs; optional persistence is operator-controlled.",
+            ],
+        ),
+        ModulePolicyPackOut(
+            module_key="analytics_workspace",
+            label="Analytics Workspace",
+            enabled=bool(settings.analytics_workspace_enabled),
+            risk_tier="read",
+            requires_approval=True,
+            spend_cap_usd_24h=float(settings.daily_budget_usd),
+            time_limit_sec=max(1, int(settings.dynamic_connector_tool_timeout_ms / 1000)),
+            notes=[
+                "Read-only GA4/Sheets/warehouse fetch by default.",
+                "Export to Notion/Slides is simulate-first until operator approve.",
+                "Critic rubric ≥4/5 required before export staging.",
             ],
         ),
         ModulePolicyPackOut(

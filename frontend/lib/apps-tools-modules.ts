@@ -12,6 +12,7 @@ export interface AppsToolsModuleDef {
     | "browser_automation"
     | "content_factory"
     | "research_workspace"
+    | "analytics_workspace"
     | "skill_factory";
   slug: string;
   title: string;
@@ -42,6 +43,16 @@ export const APPS_TOOLS_MODULES: AppsToolsModuleDef[] = [
     tier: "core",
     href: "/apps-tools/content-factory#research",
     capabilityKeys: ["apps.content.factory.v1"],
+  },
+  {
+    moduleKey: "analytics_workspace",
+    slug: "analytics",
+    title: "Analytics Workspace",
+    summary: "Business question → read-only metrics → decision report with lineage and export staging.",
+    status: "beta",
+    tier: "core",
+    href: "/apps-tools/analytics",
+    capabilityKeys: ["apps.analytics.decision_report.v1"],
   },
   {
     moduleKey: "mcp_ops_studio",
@@ -132,6 +143,8 @@ const MODULE_AGENT_USAGE: Record<AppsToolsModuleDef["moduleKey"], string> = {
     "Frozen — supervised browser via Agents when explicitly needed.",
   content_factory:
     "Pack factory builds niche content harnesses with critic eval + Gumroad export.",
+  analytics_workspace:
+    "Codex-style reports via business-analytics-report template — fetch, analyze, critic, export simulate.",
   research_workspace:
     "Use Agents → New session for research; this stub remains for future briefing UX.",
   skill_factory:
@@ -150,6 +163,7 @@ export const APPS_TOOLS_MODULE_CATEGORY: Record<AppsToolsModuleDef["moduleKey"],
   trading_automation: "trading",
   browser_automation: "browser",
   content_factory: "content",
+  analytics_workspace: "analytics",
   research_workspace: "research",
   skill_factory: "harness",
 };

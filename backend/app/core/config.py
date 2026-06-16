@@ -2155,6 +2155,10 @@ class Settings(BaseSettings):
         default=True,
         description="P2 #78 — NotebookLM-style URL/text → structured HiveMind brief.",
     )
+    analytics_workspace_enabled: bool = Field(
+        default=True,
+        description="Track L DA3 — Apps & Tools analytics workspace module + snapshot API.",
+    )
     research_bee_max_chars: int = Field(
         default=12_000,
         ge=512,

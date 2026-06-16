@@ -13,6 +13,7 @@ export type AppsToolsPolicyModuleKey =
   | "browser_automation"
   | "content_factory"
   | "research_workspace"
+  | "analytics_workspace"
   | "live_lane";
 
 interface ModulePolicyPack {

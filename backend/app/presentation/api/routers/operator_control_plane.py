@@ -480,6 +480,7 @@ async def operator_module_policy_pack_detail(
         "browser_automation",
         "content_factory",
         "research_workspace",
+        "analytics_workspace",
         "live_lane",
     )
     if module_key not in allowed_keys:

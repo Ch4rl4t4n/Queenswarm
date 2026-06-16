@@ -1019,6 +1019,33 @@ const STUB_APPS_TOOLS_ANALYTICS = {
   recommendation: null,
 };
 
+const STUB_ANALYTICS_WORKSPACE_SNAPSHOT = {
+  enabled: true,
+  capability_key: "apps.analytics.decision_report.v1",
+  template_id: "business-analytics-report",
+  skill_slugs: ["business-analytics-playbook", "ga4-analytics-playbook", "self-review-loop"],
+  swarm_template_built: false,
+  panels: [
+    { id: "overview", label: "Overview", lazy: false, status: "ready" },
+    { id: "question", label: "Business question", lazy: true, status: "planned" },
+    { id: "report", label: "Report artifact", lazy: true, status: "ready" },
+    { id: "lineage", label: "Data lineage", lazy: true, status: "ready" },
+    { id: "export", label: "Export inbox", lazy: true, status: "ready" },
+  ],
+  connector_slots: [
+    { id: "ga4", label: "GA4 Data API", ready: true, mode: "read_only", detail: "Read-only via ga4-analytics-playbook." },
+  ],
+  actions: [
+    {
+      id: "build_template",
+      label: "Build analytics swarm",
+      href: "/swarm-builder?template=business-analytics-report",
+      detail: "DA1 five-bee Codex pipeline preset.",
+    },
+  ],
+  operator_hint: "Dispatch business-analytics-report template → fetch read-only metrics → critic rubric ≥4/5 → export simulate.",
+};
+
 const STUB_RECIPE_PATTERN_STACKS = [
   {
     id: "exec_assistant",
@@ -3423,6 +3450,15 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           ready: true,
           blockers: [],
         }),
+      });
+      return;
+    }
+
+    if (path.startsWith("analytics-workspace/snapshot")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_ANALYTICS_WORKSPACE_SNAPSHOT),
       });
       return;
     }

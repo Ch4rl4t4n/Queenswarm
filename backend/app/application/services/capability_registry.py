@@ -383,6 +383,22 @@ def _capability_catalog() -> list[CapabilityContractOut]:
             sla_hint_sec=60,
             tags=["apps", "marketing", "ga4", "analytics"],
         ),
+        CapabilityContractOut(
+            capability_key="apps.analytics.decision_report.v1",
+            label="Business analytics decision report",
+            owner_module="analytics_workspace",
+            surface="apps_tools",
+            summary="Codex-style read-only fetch, analyst narrative, critic rubric, export staging.",
+            status="beta",
+            risk_tier="read",
+            requires_approval=True,
+            input_schema_ref="schemas/apps.analytics.decision_report.input.v1.json",
+            output_schema_ref="schemas/apps.analytics.decision_report.output.v1.json",
+            enabled=bool(settings.analytics_workspace_enabled),
+            dependency_keys=["integrations.connector.invoke.v1"],
+            sla_hint_sec=120,
+            tags=["apps", "analytics", "report", "decision"],
+        ),
     ]
 
 
@@ -492,6 +508,15 @@ def _workspace_catalog(capabilities: list[CapabilityContractOut]) -> list[Capabi
             status="beta",
             enabled=bool(settings.execution_studio_enabled),
             capability_keys=grouped.get("ecommerce_workspace", []),
+        ),
+        CapabilityWorkspaceOut(
+            module_key="analytics_workspace",
+            label="Analytics Workspace",
+            layer="apps_tools",
+            summary="Business question → decision-ready report with lineage and export staging.",
+            status="beta",
+            enabled=bool(settings.analytics_workspace_enabled),
+            capability_keys=grouped.get("analytics_workspace", []),
         ),
     ]
     return workspaces

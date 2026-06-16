@@ -384,6 +384,11 @@ const MODULE_SECTION_DEEP_LINKS: Record<
     { label: "HiveMind recall", href: "/apps-tools/research-workspace?section=hivemind#hivemind-links" },
     { label: "Automation handoff", href: "/apps-tools/research-workspace?section=automation#research-automation" },
   ],
+  analytics_workspace: [
+    { label: "Overview", href: "/apps-tools/analytics?section=overview#analytics-overview" },
+    { label: "Data lineage", href: "/apps-tools/analytics?section=lineage#analytics-lineage" },
+    { label: "Export inbox", href: "/apps-tools/analytics?section=export#analytics-export" },
+  ],
   skill_factory: [
     { label: "Research", href: "/apps-tools/skill-factory" },
     { label: "Sessions", href: "/agents#sessions" },
