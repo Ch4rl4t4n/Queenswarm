@@ -2163,6 +2163,10 @@ class Settings(BaseSettings):
         default=True,
         description="Track L DA4 — Business question wizard → analytics session dispatch.",
     )
+    analytics_report_artifact_enabled: bool = Field(
+        default=True,
+        description="Track L DA5 — Live report artifact panel (editable markdown + chart blocks).",
+    )
     research_bee_max_chars: int = Field(
         default=12_000,
         ge=512,

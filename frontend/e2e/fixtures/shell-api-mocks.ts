@@ -1068,6 +1068,38 @@ const STUB_ANALYTICS_QUESTION_WIZARD = {
   operator_hint: "Enter one business question, pick date range and sources, then dispatch analytics session.",
 };
 
+const STUB_ANALYTICS_REPORT_ARTIFACT = {
+  enabled: true,
+  has_artifact: true,
+  empty_hint: "",
+  artifact: {
+    deliverable_id: "55555555-5555-4555-8555-555555555555",
+    lineage_id: "66666666-6666-4666-8666-666666666666",
+    version: 1,
+    title: "Signup funnel review",
+    markdown_body: "# Signup funnel\n\nOrganic dropped 18% week over week.",
+    chart_blocks: [
+      {
+        id: "kpi-wau",
+        chart_type: "kpi",
+        title: "Weekly active users",
+        labels: [],
+        values: [12400],
+        unit: "users",
+        source_citation: "ga4 · sessions · 2026-05-01",
+      },
+    ],
+    task_id: STUB_MISSION_KANBAN_TASK_ID,
+    task_href: `/tasks?task=${STUB_MISSION_KANBAN_TASK_ID}`,
+    session_id: "44444444-4444-4444-8444-444444444444",
+    session_href: "/agents#sessions?session=44444444-4444-4444-8444-444444444444",
+    session_status: "running",
+    editable: true,
+    updated_at: new Date().toISOString(),
+    format: "queenswarm.analytics_report.v1",
+  },
+};
+
 const STUB_RECIPE_PATTERN_STACKS = [
   {
     id: "exec_assistant",
@@ -3472,6 +3504,28 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           ready: true,
           blockers: [],
         }),
+      });
+      return;
+    }
+
+    if (path.match(/^analytics-workspace\/report-artifact\/[^/]+$/)) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ...STUB_ANALYTICS_REPORT_ARTIFACT.artifact,
+          version: 2,
+          markdown_body: "# Signup funnel\n\nOrganic dropped 18% week over week.\n\nOperator note added.",
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("analytics-workspace/report-artifact")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_ANALYTICS_REPORT_ARTIFACT),
       });
       return;
     }

@@ -1,10 +1,11 @@
 "use client";
 
-import { BarChart3, CircleHelp, Download, GitBranch, LayoutDashboard, Loader2Icon } from "lucide-react";
+import { BarChart3, CircleHelp, Download, FileText, GitBranch, LayoutDashboard, Loader2Icon } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { AnalyticsReportArtifactPanel } from "@/components/apps-tools/analytics-report-artifact-panel";
 import { BusinessQuestionWizardPanel } from "@/components/apps-tools/business-question-wizard-panel";
 import { ModulePolicyPackPill } from "@/components/apps-tools/module-policy-pack-pill";
 import { HivePageShell } from "@/components/hive/hive-page-shell";
@@ -13,7 +14,7 @@ import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
 import { scrollBehaviorForMotion } from "@/lib/motion-preferences";
 
-type AnalyticsSection = "overview" | "question" | "lineage" | "export";
+type AnalyticsSection = "overview" | "question" | "report" | "lineage" | "export";
 
 interface AnalyticsSnapshot {
   enabled: boolean;
@@ -30,12 +31,13 @@ interface AnalyticsSnapshot {
 const SECTION_TO_HASH: Record<AnalyticsSection, string> = {
   overview: "analytics-overview",
   question: "analytics-question",
+  report: "analytics-report",
   lineage: "analytics-lineage",
   export: "analytics-export",
 };
 
 function sectionFromQuery(raw: string | null): AnalyticsSection | null {
-  if (raw === "overview" || raw === "question" || raw === "lineage" || raw === "export") {
+  if (raw === "overview" || raw === "question" || raw === "report" || raw === "lineage" || raw === "export") {
     return raw;
   }
   return null;
@@ -45,6 +47,7 @@ function sectionFromHash(hash: string): AnalyticsSection | null {
   const key = hash.replace(/^#/, "").trim().toLowerCase();
   if (key === "analytics-overview") return "overview";
   if (key === "analytics-question") return "question";
+  if (key === "analytics-report") return "report";
   if (key === "analytics-lineage") return "lineage";
   if (key === "analytics-export") return "export";
   return null;
@@ -126,6 +129,7 @@ export function AnalyticsWorkspacePageClient(): JSX.Element {
           items={[
             { id: "overview", label: "Overview", icon: LayoutDashboard },
             { id: "question", label: "Question", icon: CircleHelp },
+            { id: "report", label: "Report", icon: FileText },
             { id: "lineage", label: "Lineage", icon: GitBranch },
             { id: "export", label: "Export inbox", icon: Download },
           ]}
@@ -205,6 +209,12 @@ export function AnalyticsWorkspacePageClient(): JSX.Element {
       {!loading && snapshot && section === "question" ? (
         <div id="analytics-question" data-testid="analytics-workspace-question">
           <BusinessQuestionWizardPanel />
+        </div>
+      ) : null}
+
+      {!loading && snapshot && section === "report" ? (
+        <div id="analytics-report" data-testid="analytics-workspace-report">
+          <AnalyticsReportArtifactPanel />
         </div>
       ) : null}
 

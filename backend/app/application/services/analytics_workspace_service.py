@@ -104,6 +104,12 @@ def _default_connectors() -> list[AnalyticsConnectorSlotOut]:
 def _default_actions(*, swarm_built: bool) -> list[AnalyticsWorkspaceActionOut]:
     return [
         AnalyticsWorkspaceActionOut(
+            id="open_report",
+            label="Live report artifact",
+            href="/apps-tools/analytics?section=report#analytics-report",
+            detail="DA5 — edit markdown + chart blocks bound to session lineage.",
+        ),
+        AnalyticsWorkspaceActionOut(
             id="build_template",
             label="Build analytics swarm" if not swarm_built else "Open analytics swarm",
             href="/swarm-builder?template=business-analytics-report",
