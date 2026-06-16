@@ -1535,6 +1535,10 @@ class Settings(BaseSettings):
         default=True,
         description="Expose curated subjective scoring rubrics in harness + workflow evaluation.",
     )
+    publish_creative_rubric_enabled: bool = Field(
+        default=True,
+        description="Track N NP2 — Weighted marketing-creative rubric on publish simulate.",
+    )
     forager_intelligence_loop_enabled: bool = Field(
         default=False,
         description="Schedule daily read-only Forager Intelligence Loop scan via Celery beat.",

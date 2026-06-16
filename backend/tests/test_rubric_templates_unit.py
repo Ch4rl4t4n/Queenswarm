@@ -36,6 +36,24 @@ def test_business_analytics_report_template_pass_threshold() -> None:
     assert template.category == "analytics"
 
 
+def test_marketing_creative_template_has_riverflow_dimensions() -> None:
+    """NP2 marketing-creative rubric exposes composition/accuracy/CTA/brand weights."""
+
+    template = get_rubric_template("marketing-creative")
+    assert template is not None
+    assert template.pass_threshold == 0.75
+    dims = template.evaluation_criteria.get("subjective_dimensions") or {}
+    assert set(dims.keys()) == {"composition", "accuracy", "cta_clarity", "brand_voice"}
+
+
+def test_brand_compliance_template_pass_threshold() -> None:
+    """NP2 brand-compliance rubric should be stricter than marketing-creative."""
+
+    template = get_rubric_template("brand-compliance")
+    assert template is not None
+    assert template.pass_threshold == 0.8
+
+
 def test_merge_rubric_into_criteria_adds_template_metadata() -> None:
     """Merged criteria should include template id and pass threshold."""
 

@@ -1545,6 +1545,75 @@ const STUB_BROKER_GUARDRAILS = {
   workspace_href: "/apps-tools/trading-automation?section=guardrails#broker-guardrails",
 };
 
+const STUB_PUBLISH_CREATIVE_RUBRIC = {
+  enabled: true,
+  generated_at: new Date().toISOString(),
+  template_id: "marketing-creative",
+  template_name: "Marketing Creative (Riverflow)",
+  overall_score: 0.82,
+  pass_threshold: 0.75,
+  passed: true,
+  dimensions: [
+    { id: "composition", label: "Composition", weight: 0.3, score: 0.85, weighted_score: 0.255 },
+    { id: "accuracy", label: "Accuracy", weight: 0.25, score: 0.8, weighted_score: 0.2 },
+    { id: "cta_clarity", label: "Cta Clarity", weight: 0.25, score: 0.88, weighted_score: 0.22 },
+    { id: "brand_voice", label: "Brand Voice", weight: 0.2, score: 0.75, weighted_score: 0.15 },
+  ],
+  feedback: "Strong CTA and clear hierarchy.",
+  operator_hint: "Creative rubric pass (82% ≥ 75%) — safe to queue simulate/live.",
+};
+
+const STUB_SOCIAL_PUBLISH = {
+  enabled: true,
+  live_enabled: false,
+  generated_at: new Date().toISOString(),
+  channels: [
+    {
+      channel: "instagram",
+      label: "Instagram",
+      connector_slug: "instagram_graph",
+      template_id: "instagram_graph_api",
+      installed: true,
+      active: true,
+      credentials_ok: true,
+      publish_tool: "media_create",
+      live_allowed: false,
+    },
+  ],
+  ready_items: [
+    {
+      deliverable_id: "22222222-2222-4222-8222-222222222222",
+      title: "Launch carousel",
+      channel: "instagram",
+      body_preview: "Verified workflows before you publish to social.",
+      media_url: "https://cdn.example.com/post.jpg",
+      media_kind: "image",
+      social_account_id: null,
+      tags: ["publish-pack-verified", "simulate-only"],
+      creative_rubric: STUB_PUBLISH_CREATIVE_RUBRIC,
+    },
+  ],
+  audit: { enabled: true, count: 0, entries: [] },
+  trusted_auto: {
+    global_enabled: false,
+    tenant_enabled: false,
+    min_simulates_required: 5,
+    live_enabled: false,
+    channels: [],
+  },
+  rate_limit: {
+    enabled: true,
+    fail_closed: true,
+    window_hours: 24,
+    global_used: 0,
+    global_max: 30,
+    global_remaining: 30,
+    redis_ok: true,
+    channels: [],
+  },
+  links: { publish_queue: "/integrations?tab=studio&section=publish#publish-queue" },
+};
+
 const STUB_BROKER_READONLY_SESSION = {
   enabled: true,
   readonly_required: true,
@@ -4290,6 +4359,42 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_BROKER_GUARDRAILS),
+      });
+      return;
+    }
+
+    if (path.startsWith("social-publish/") && path.endsWith("/simulate") && method === "POST") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          mode: "simulate",
+          channel: "instagram",
+          deliverable_id: "22222222-2222-4222-8222-222222222222",
+          connector_slug: "instagram_graph",
+          tool_name: "media_create",
+          message: "Simulated publish OK",
+          creative_rubric: STUB_PUBLISH_CREATIVE_RUBRIC,
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("social-publish/") && path.endsWith("/creative-rubric") && method === "POST") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_PUBLISH_CREATIVE_RUBRIC),
+      });
+      return;
+    }
+
+    if (path === "social-publish" || path.startsWith("social-publish?")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_SOCIAL_PUBLISH),
       });
       return;
     }

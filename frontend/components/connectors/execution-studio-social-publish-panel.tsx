@@ -33,6 +33,27 @@ interface SocialReadyItem {
   media_kind: string | null;
   social_account_id: string | null;
   tags: string[];
+  creative_rubric?: PublishCreativeRubric | null;
+}
+
+interface PublishCreativeRubricDimension {
+  id: string;
+  label: string;
+  weight: number;
+  score: number;
+  weighted_score: number;
+}
+
+interface PublishCreativeRubric {
+  enabled?: boolean;
+  template_id?: string;
+  template_name?: string;
+  overall_score?: number;
+  pass_threshold?: number;
+  passed?: boolean;
+  dimensions?: PublishCreativeRubricDimension[];
+  feedback?: string;
+  operator_hint?: string;
 }
 
 interface ConnectedSocialAccount {
@@ -137,6 +158,42 @@ export interface ExecutionStudioSocialPublishPanelProps {
   onOpenHub?: () => void;
 }
 
+function PublishCreativeRubricStrip({ rubric }: { rubric: PublishCreativeRubric }): JSX.Element | null {
+  if (!rubric.enabled) {
+    return null;
+  }
+  return (
+    <div
+      className="mt-3 rounded-lg border border-cyan-500/25 bg-cyan-500/5 p-3"
+      data-testid="publish-creative-rubric-strip"
+    >
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-300">NP2 creative rubric</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <V4Badge tone={rubric.passed ? "ok" : "warn"}>
+          {typeof rubric.overall_score === "number" ? `${(rubric.overall_score * 100).toFixed(0)}%` : "—"} overall
+        </V4Badge>
+        {typeof rubric.pass_threshold === "number" ? (
+          <V4Badge tone="info">Pass ≥ {(rubric.pass_threshold * 100).toFixed(0)}%</V4Badge>
+        ) : null}
+        {rubric.template_name ? <V4Badge tone="gold">{rubric.template_name}</V4Badge> : null}
+      </div>
+      {(rubric.dimensions ?? []).length > 0 ? (
+        <ul className="mt-3 space-y-1 text-xs text-(--qs-text-2)">
+          {(rubric.dimensions ?? []).map((row) => (
+            <li key={row.id} className="flex flex-wrap items-center justify-between gap-2">
+              <span>{row.label}</span>
+              <span className="font-mono text-cyan-300">
+                {(row.score * 100).toFixed(0)}% · w{(row.weight * 100).toFixed(0)}%
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {rubric.operator_hint ? <p className="mt-2 text-xs text-(--qs-text-3)">{rubric.operator_hint}</p> : null}
+    </div>
+  );
+}
+
 function normalizeChannelKey(raw: string): string {
   const lowered = raw.trim().toLowerCase();
   if (lowered === "x" || lowered === "x-twitter") return "twitter";
@@ -217,6 +274,7 @@ function ExecutionStudioSocialPublishPanelInner({
           ok: boolean;
           message?: string;
           tiktok_status?: { status?: string; message?: string };
+          creative_rubric?: PublishCreativeRubric | null;
         }>(path, body);
         if (result.ok) {
           const tiktokNote =
@@ -741,6 +799,7 @@ function ExecutionStudioSocialPublishPanelInner({
                     )}
                   </div>
                   <p className="mt-2 line-clamp-3 text-(--qs-text-3)">{item.body_preview}</p>
+                  {item.creative_rubric ? <PublishCreativeRubricStrip rubric={item.creative_rubric} /> : null}
                   <div className="mt-2 max-w-xs">
                     <PublishMediaPreview url={item.media_url} channel={item.channel} title={item.title} compact />
                     <PublishMediaMissingBadge channel={item.channel} mediaUrl={item.media_url} />

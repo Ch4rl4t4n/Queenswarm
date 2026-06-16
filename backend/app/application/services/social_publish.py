@@ -18,6 +18,10 @@ from app.application.services.publish_audit import (
     build_publish_audit_snapshot,
     record_publish_audit_event,
 )
+from app.application.services.publish_creative_rubric_service import (
+    creative_rubric_summary_from_structured,
+    evaluate_publish_pack_creative_rubric,
+)
 from app.application.services.social_connected_accounts import (
     SocialConnectedAccountsSnapshotOut,
     build_social_accounts_snapshot,
@@ -116,6 +120,7 @@ class SocialPublishReadyItemOut(BaseModel):
     media_kind: str | None = None
     social_account_id: str | None = None
     tags: list[str] = Field(default_factory=list)
+    creative_rubric: dict[str, Any] | None = None
 
 
 class SocialPublishSnapshotOut(BaseModel):
@@ -155,6 +160,7 @@ class SocialPublishResultOut(BaseModel):
     message: str = ""
     tags_applied: list[str] = Field(default_factory=list)
     tiktok_status: dict[str, Any] | None = None
+    creative_rubric: dict[str, Any] | None = None
 
 
 class SocialPublishRequestBody(BaseModel):
@@ -419,6 +425,7 @@ async def build_social_publish_snapshot(
                 media_kind=str(structured.get("media_kind") or "").strip() or None,
                 social_account_id=str(structured.get("social_account_id") or "").strip() or None,
                 tags=list(row.tags or []),
+                creative_rubric=creative_rubric_summary_from_structured(structured),
             ),
         )
         if len(ready_items) >= limit:
@@ -601,6 +608,26 @@ async def run_social_publish(
             preview=preview,
             message=media_message,
         )
+
+    creative_rubric_payload: dict[str, Any] | None = None
+    if mode == "simulate" and settings.publish_creative_rubric_enabled and settings.rubric_templates_enabled:
+        try:
+            rubric = await evaluate_publish_pack_creative_rubric(
+                session,
+                structured=structured,
+                deliverable_id=deliverable_id,
+            )
+            creative_rubric_payload = rubric.model_dump(mode="json")
+            structured["creative_rubric"] = creative_rubric_payload
+            row.structured_json = structured
+            await session.flush()
+        except ValueError as exc:
+            logger.warning(
+                "social_publish.creative_rubric_skipped",
+                agent_id="social_publish",
+                task_id=str(deliverable_id),
+                detail=str(exc),
+            )
 
     if mode == "live" and not settings.social_publish_live_enabled:
         return SocialPublishResultOut(
@@ -802,6 +829,7 @@ async def run_social_publish(
         message=message,
         tags_applied=tags_applied,
         tiktok_status=tiktok_status_payload,
+        creative_rubric=creative_rubric_payload,
     )
 
 
