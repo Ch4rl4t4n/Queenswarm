@@ -48,8 +48,10 @@ frontend/e2e/.auth/
 # Rendered Alertmanager config (contains Slack webhook when configured)
 deploy/alertmanager/alertmanager.generated.yml
 
-# IDE
-.vscode/
+# IDE (track shared workspace settings)
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo

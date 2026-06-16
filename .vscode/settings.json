@@ -1,0 +1,38 @@
+{
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/**": true,
+    "**/backend/venv/**": true,
+    "**/.venv/**": true,
+    "**/.next/**": true,
+    "**/__pycache__/**": true,
+    "**/htmlcov/**": true,
+    "**/frontend/playwright-report/**": true,
+    "**/frontend/test-results/**": true,
+    "**/postgres_data/**": true,
+    "**/redis_data/**": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/backend/venv": true,
+    "**/.venv": true,
+    "**/.next": true,
+    "**/htmlcov": true,
+    "**/frontend/playwright-report": true,
+    "**/frontend/test-results": true,
+    "**/coverage": true
+  },
+  "python.defaultInterpreterPath": "${workspaceFolder}/backend/venv/bin/python",
+  "python.analysis.exclude": [
+    "**/node_modules",
+    "**/venv",
+    "**/.venv",
+    "**/.next",
+    "**/htmlcov"
+  ],
+  "eslint.workingDirectories": [{ "mode": "auto" }],
+  "typescript.tsdk": "frontend/node_modules/typescript/lib",
+  "editor.formatOnSave": false,
+  "files.eol": "\n"
+}

@@ -1,0 +1,11 @@
+# Excluded from automatic indexing — still reachable via @ in chat.
+
+# Large E2E stub (~4.7k lines) — @shell-api-mocks.ts when editing e2e
+frontend/e2e/fixtures/shell-api-mocks.ts
+
+# Operator-only artifacts (if present locally)
+reports/
+frontend/reports/
+backups/
+exports/
+design-reference/

@@ -1,0 +1,68 @@
+# Cursor index exclusions — same syntax as .gitignore.
+# Queenswarm: keep agent context on source + config, skip deps/build/cache.
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.venv-test/
+.venv-ci/
+venv/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.json
+*.egg-info/
+
+# Node / frontend build
+node_modules/
+**/node_modules/
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+
+# Playwright / test artifacts
+frontend/playwright-report/
+frontend/test-results/
+frontend/blob-report/
+frontend/e2e/.auth/
+
+# Local data & Docker volumes
+*.db
+*.sqlite
+postgres_data/
+redis_data/
+neo4j_data/
+chroma_data/
+qdrant_data/
+.docker/
+*.tar
+
+# Logs & operator-only artifacts
+logs/
+*.log
+reports/
+frontend/reports/
+backups/
+exports/
+design-reference/
+
+# Secrets (never index)
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# IDE / backups (keep shared workspace settings indexable)
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+.cursor.OLD-backup/
+.cursor.hermes-backup/
+
+# Git metadata
+.git/
