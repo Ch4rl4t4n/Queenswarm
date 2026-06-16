@@ -1373,6 +1373,67 @@ const STUB_JOURNAL_STUDIO_ROUTINE = {
   workspace_href: "/apps-tools/trading-journal?section=settings#journal-studio-settings",
 };
 
+const STUB_JOURNAL_STUDIO_TIMELINE = {
+  enabled: true,
+  generated_at: new Date().toISOString(),
+  window_days: 90,
+  entry_count: 2,
+  paper_fill_count: 1,
+  live_run_count: 0,
+  manual_entry_count: 1,
+  review_session_count: 0,
+  items: [
+    {
+      id: "fill:11111111-1111-4111-8111-111111111111",
+      kind: "paper_fill",
+      title: "BUY BTC",
+      detail: "Breakout retest",
+      occurred_at: new Date().toISOString(),
+      venue: "paper",
+      symbol: "BTC",
+      side: "buy",
+      notional_usd: 100,
+      pnl_usd: null,
+      tags: ["paper"],
+      href: "/apps-tools/trading-automation?section=cockpit#trading-cockpit",
+    },
+    {
+      id: "manual:e1",
+      kind: "manual_entry",
+      title: "FOMO re-entry",
+      detail: "Wait for setup confirmation",
+      occurred_at: new Date().toISOString(),
+      venue: null,
+      symbol: null,
+      side: null,
+      notional_usd: null,
+      pnl_usd: null,
+      tags: ["fomo"],
+      href: "/apps-tools/trading-journal?section=timeline#entry-e1",
+    },
+  ],
+  operator_hint: "2 entries in last 90 days — newest first.",
+  workspace_href: "/apps-tools/trading-journal?section=timeline#journal-studio-timeline",
+};
+
+const STUB_JOURNAL_STUDIO_SNAPSHOT = {
+  enabled: true,
+  generated_at: new Date().toISOString(),
+  capability_key: "apps.trading.journal_studio.v1",
+  panels: [
+    { id: "timeline", label: "Timeline", lazy: false, status: "ready" },
+    { id: "settings", label: "Studio settings", lazy: true, status: "ready" },
+  ],
+  routine: STUB_JOURNAL_STUDIO_ROUTINE,
+  timeline_preview: STUB_JOURNAL_STUDIO_TIMELINE.items,
+  settings_enabled: true,
+  obsidian_subfolder: "Trading/Journal",
+  enabled_field_count: 11,
+  mistake_tag_count: 4,
+  operator_hint: "2 entries in last 90 days — newest first.",
+  workspace_href: "/apps-tools/trading-journal?section=timeline#journal-studio-timeline",
+};
+
 const STUB_BROKER_GUARDRAILS = {
   enabled: true,
   kill_switch: false,
@@ -4132,6 +4193,24 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_BROKER_GUARDRAILS),
+      });
+      return;
+    }
+
+    if (path.startsWith("journal-studio/snapshot")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_JOURNAL_STUDIO_SNAPSHOT),
+      });
+      return;
+    }
+
+    if (path.startsWith("journal-studio/timeline")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_JOURNAL_STUDIO_TIMELINE),
       });
       return;
     }

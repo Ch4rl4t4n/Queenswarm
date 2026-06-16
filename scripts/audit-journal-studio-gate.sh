@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Track O TJ4 — Journal Studio settings audit gate.
+# Track O TJ1+TJ4 — Journal Studio timeline + settings audit gate.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -9,11 +9,13 @@ FAIL=0
 pass() { echo "  OK  $*"; }
 fail() { echo "  FAIL $*"; FAIL=$((FAIL + 1)); }
 
-echo "=== Journal Studio (TJ4) Audit ==="
+echo "=== Journal Studio (TJ1+TJ4) Audit ==="
 
 for f in \
+  backend/app/application/services/journal_studio_timeline_service.py \
   backend/app/application/services/journal_studio_settings_service.py \
   backend/app/presentation/api/routers/journal_studio.py \
+  frontend/components/apps-tools/journal-studio-timeline-panel.tsx \
   frontend/components/apps-tools/journal-studio-settings-panel.tsx \
   frontend/components/apps-tools/trading-journal-page-client.tsx \
   frontend/app/\(dashboard\)/apps-tools/trading-journal/page.tsx; do
@@ -36,32 +38,54 @@ else
   fail "journal_studio router not in v1"
 fi
 
+if grep -q '"/timeline"' backend/app/presentation/api/routers/journal_studio.py; then
+  pass "timeline route in journal_studio router"
+else
+  fail "missing timeline route"
+fi
+
+if grep -q '"/snapshot"' backend/app/presentation/api/routers/journal_studio.py; then
+  pass "snapshot route in journal_studio router"
+else
+  fail "missing snapshot route"
+fi
+
 if grep -q "trading_journal" frontend/lib/apps-tools-modules.ts; then
   pass "trading_journal module in apps-tools-modules"
 else
   fail "missing trading_journal module"
 fi
 
+if [[ -f frontend/e2e/journal-studio-timeline.spec.ts ]]; then
+  pass "e2e journal-studio-timeline.spec.ts"
+else
+  fail "missing timeline e2e spec"
+fi
+
 if [[ -f frontend/e2e/journal-studio-settings.spec.ts ]]; then
   pass "e2e journal-studio-settings.spec.ts"
 else
-  fail "missing e2e spec"
+  fail "missing settings e2e spec"
 fi
 
 if [[ -x backend/venv/bin/python ]]; then
-  if (cd backend && ./venv/bin/python -m pytest tests/test_journal_studio_settings_unit.py -q --no-cov); then
-    pass "pytest journal studio settings"
+  if (cd backend && ./venv/bin/python -m pytest \
+    tests/test_journal_studio_timeline_unit.py \
+    tests/test_journal_studio_timeline_api_unit.py \
+    tests/test_journal_studio_settings_unit.py \
+    -q --no-cov); then
+    pass "pytest journal studio timeline + settings"
   else
-    fail "pytest journal studio settings"
+    fail "pytest journal studio timeline + settings"
   fi
 else
   fail "backend venv missing — cannot run pytest"
 fi
 
 if [[ "$FAIL" -eq 0 ]]; then
-  echo "=== Journal Studio TJ4 gate PASSED ==="
+  echo "=== Journal Studio TJ1+TJ4 gate PASSED ==="
   exit 0
 fi
 
-echo "=== Journal Studio TJ4 gate FAILED ($FAIL) ==="
+echo "=== Journal Studio TJ1+TJ4 gate FAILED ($FAIL) ==="
 exit 1

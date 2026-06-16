@@ -374,6 +374,7 @@ const MODULE_SECTION_DEEP_LINKS: Record<
     { label: "Live lane prep", href: "/apps-tools/trading-automation?section=live-lane#live-lane" },
   ],
   trading_journal: [
+    { label: "Timeline", href: "/apps-tools/trading-journal?section=timeline#journal-studio-timeline" },
     { label: "Studio settings", href: "/apps-tools/trading-journal?section=settings#journal-studio-settings" },
   ],
   browser_automation: [
