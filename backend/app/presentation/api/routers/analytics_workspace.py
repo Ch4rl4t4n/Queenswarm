@@ -47,6 +47,13 @@ from app.application.services.analytics_export_lane_service import (
     preview_analytics_export,
     submit_analytics_export,
 )
+from app.application.services.analytics_report_critic_service import (
+    AnalyticsReportCriticRunIn,
+    AnalyticsReportCriticRunOut,
+    AnalyticsReportCriticSnapshotOut,
+    compose_analytics_report_critic_snapshot,
+    run_analytics_report_critic_loop,
+)
 from app.application.services.analytics_workspace_service import (
     AnalyticsWorkspaceSnapshotOut,
     compose_analytics_workspace_snapshot,
@@ -96,6 +103,12 @@ def _require_weekly_routine() -> None:
     _require_enabled()
     if not settings.analytics_weekly_routine_enabled:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analytics weekly routine disabled.")
+
+
+def _require_report_critic() -> None:
+    _require_enabled()
+    if not settings.analytics_report_critic_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analytics report critic disabled.")
 
 
 @router.get("/snapshot", response_model=AnalyticsWorkspaceSnapshotOut, summary="Analytics workspace snapshot")
@@ -397,6 +410,66 @@ async def bootstrap_analytics_weekly_routine(
     )
     await db.commit()
     return result
+
+
+@router.get(
+    "/report-critic",
+    response_model=AnalyticsReportCriticSnapshotOut,
+    summary="DA10 Analytics report critic snapshot",
+)
+async def get_analytics_report_critic_snapshot(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    task_id: uuid.UUID | None = Query(default=None),
+    deliverable_id: uuid.UUID | None = Query(default=None),
+) -> AnalyticsReportCriticSnapshotOut:
+    """Return LOOP5 critic gate for active analytics report artifact."""
+
+    _require_report_critic()
+    user = principal.get("user")
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Dashboard context missing.")
+    return await compose_analytics_report_critic_snapshot(
+        db,
+        dashboard_user_id=user.id,
+        task_id=task_id,
+        deliverable_id=deliverable_id,
+    )
+
+
+@router.post(
+    "/report-critic/run",
+    response_model=AnalyticsReportCriticRunOut,
+    summary="DA10 Run analytics report critic closed loop",
+)
+async def run_analytics_report_critic(
+    db: DbSession,
+    body: AnalyticsReportCriticRunIn,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> AnalyticsReportCriticRunOut:
+    """Run LOOP5 preset critic loop and persist rubric score on deliverable."""
+
+    _require_report_critic()
+    user = principal.get("user")
+    tenant_id = principal.get("tenant_id")
+    if user is None or tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Dashboard context missing.")
+    try:
+        result = await run_analytics_report_critic_loop(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=user.id,
+            body=body,
+        )
+        await db.commit()
+        return result
+    except ValueError as exc:
+        err = str(exc)
+        if err == "analytics_report_critic_disabled":
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Report critic disabled.") from exc
+        if err == "analytics_report_critic_preset_unavailable":
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Critic preset unavailable.") from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=err) from exc
 
 
 __all__ = ["router"]

@@ -1164,6 +1164,39 @@ const STUB_ANALYTICS_EXPORT_SUBMIT = {
   slides_result: null,
 };
 
+const STUB_ANALYTICS_REPORT_CRITIC = {
+  enabled: true,
+  has_artifact: true,
+  deliverable_id: "55555555-5555-4555-8555-555555555555",
+  report_title: "Signup funnel review",
+  preset_id: "analytics_report",
+  preset_label: "Analytics report critic loop",
+  rubric_template_id: "business-analytics-report",
+  min_score: 0.8,
+  min_score_label: "4.0/5",
+  critic_score: 0.85,
+  critic_score_label: "4.3/5",
+  critic_passed: true,
+  export_ready: true,
+  last_run_at: new Date().toISOString(),
+  turns_used: 2,
+  operator_hint: "Critic PASS — 4.3/5 ≥ 4.0/5. Export lane unlocked (simulate-first).",
+};
+
+const STUB_ANALYTICS_REPORT_CRITIC_RUN = {
+  ok: true,
+  passed: true,
+  deliverable_id: "55555555-5555-4555-8555-555555555555",
+  report_title: "Signup funnel review",
+  critic_score: 0.85,
+  critic_score_label: "4.3/5",
+  export_ready: true,
+  turns_used: 2,
+  max_turns: 5,
+  message: "Critic PASS — 4.3/5 (export ready).",
+  loop: null,
+};
+
 const STUB_ANALYTICS_ROUTINE = {
   enabled: true,
   routine_status: "scheduled",
@@ -3671,6 +3704,24 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_ANALYTICS_ROUTINE),
+      });
+      return;
+    }
+
+    if (path.startsWith("analytics-workspace/report-critic/run")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_ANALYTICS_REPORT_CRITIC_RUN),
+      });
+      return;
+    }
+
+    if (path.startsWith("analytics-workspace/report-critic")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_ANALYTICS_REPORT_CRITIC),
       });
       return;
     }

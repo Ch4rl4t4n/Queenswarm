@@ -50,6 +50,14 @@ def test_infer_rubric_template_id_prefers_context() -> None:
     assert template_id == "code-review"
 
 
+def test_infer_rubric_template_id_analytics_report() -> None:
+    template_id = infer_rubric_template_id(
+        goal="Weekly business analytics report for leadership deck",
+        context_summary={},
+    )
+    assert template_id == "business-analytics-report"
+
+
 def test_derive_session_report_rubric_ready_when_above_floor() -> None:
     session = _session()
     panel = derive_session_report_rubric(session_id=session.id, session=session)

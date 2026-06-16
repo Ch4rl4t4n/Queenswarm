@@ -23,7 +23,17 @@ def test_list_rubric_templates_includes_design_and_copy() -> None:
     assert "copy-marketing" in ids
     assert "marketing-creative" in ids
     assert "brand-compliance" in ids
-    assert len(templates) >= 7
+    assert "business-analytics-report" in ids
+    assert len(templates) >= 8
+
+
+def test_business_analytics_report_template_pass_threshold() -> None:
+    """DA10 template should require ≥4/5 before export gate."""
+
+    template = get_rubric_template("business-analytics-report")
+    assert template is not None
+    assert template.pass_threshold == 0.8
+    assert template.category == "analytics"
 
 
 def test_merge_rubric_into_criteria_adds_template_metadata() -> None:

@@ -25,6 +25,15 @@ def test_list_closed_loop_presets_has_factory_and_social() -> None:
     assert "factory_forge" in ids
     assert "social_intel" in ids
     assert "publish_bulk" in ids
+    assert "analytics_report" in ids
+
+
+def test_get_analytics_report_preset_metadata() -> None:
+    preset = get_closed_loop_preset("analytics_report")
+    assert preset is not None
+    assert preset.rubric_template_id == "business-analytics-report"
+    assert preset.min_score == 0.8
+    assert preset.lane == "analytics"
 
 
 def test_get_closed_loop_preset_returns_metadata() -> None:

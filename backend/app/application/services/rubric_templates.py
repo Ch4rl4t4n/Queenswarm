@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 logger = structlog.get_logger(__name__)
 
-RubricCategory = Literal["design", "copy", "product", "code", "accessibility"]
+RubricCategory = Literal["design", "copy", "product", "code", "accessibility", "analytics"]
 
 
 class RubricDimension(BaseModel):
@@ -196,6 +196,43 @@ RUBRIC_TEMPLATES: tuple[RubricTemplate, ...] = (
                 "keyboard_flow": _dim(0.35, "Can a keyboard-only user complete the primary flow?"),
                 "screen_reader": _dim(0.35, "Are landmarks, headings, and live regions sensible?"),
                 "responsive_a11y": _dim(0.3, "Do mobile/tablet layouts preserve accessibility affordances?"),
+            },
+        },
+    ),
+    RubricTemplate(
+        id="business-analytics-report",
+        name="Business Analytics Report",
+        description="Score decision-ready analytics reports — cited metrics, lineage, executive narrative, export gate ≥4/5.",
+        category="analytics",
+        pass_threshold=0.8,
+        evaluation_criteria={
+            "must_satisfy": [
+                "Every KPI cites connector · query · timestamp lineage",
+                "Executive summary answers the business question in ≤400 words",
+                "No fabricated metrics or unsourced deltas",
+                "Recommendations are actionable and tied to cited data",
+            ],
+            "measurable_signals": {
+                "lineage_rows": ">= 1 verified connector citation per chart block",
+                "critic_floor": ">= 4.0/5 before export staging",
+            },
+            "subjective_dimensions": {
+                "metric_citations": _dim(
+                    0.3,
+                    "Are numbers traceable to read-only sources with connector and query noted?",
+                ),
+                "decision_readiness": _dim(
+                    0.25,
+                    "Would a leadership reader act on this without asking for missing context?",
+                ),
+                "anomaly_clarity": _dim(
+                    0.25,
+                    "Are deltas and anomalies explained with proportionate confidence?",
+                ),
+                "export_safety": _dim(
+                    0.2,
+                    "Is the report safe to stage externally without PII or unverified claims?",
+                ),
             },
         },
     ),

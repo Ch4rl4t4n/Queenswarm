@@ -28,8 +28,8 @@ _logger = get_logger(__name__)
 
 CLOSED_LOOP_PRESETS_SETTINGS_KEY = "closed_loop_presets"
 
-ClosedLoopPresetId = Literal["factory_forge", "social_intel", "publish_bulk", "seo_bulk"]
-ClosedLoopPresetLane = Literal["factory", "social", "marketing", "seo"]
+ClosedLoopPresetId = Literal["factory_forge", "social_intel", "publish_bulk", "seo_bulk", "analytics_report"]
+ClosedLoopPresetLane = Literal["factory", "social", "marketing", "seo", "analytics"]
 
 
 class ClosedLoopPresetOut(BaseModel):
@@ -157,6 +157,17 @@ CLOSED_LOOP_PRESETS: tuple[ClosedLoopPresetOut, ...] = (
         cost_cap_usd=0.6,
         simulate_only=True,
         href="/apps-tools/marketing-automation?section=publish#social-publish",
+    ),
+    ClosedLoopPresetOut(
+        preset_id="analytics_report",
+        label="Analytics report critic loop",
+        description="Business analytics artifact — business-analytics-report rubric ≥4/5 before export.",
+        lane="analytics",
+        rubric_template_id="business-analytics-report",
+        max_turns=5,
+        min_score=0.8,
+        cost_cap_usd=0.55,
+        href="/apps-tools/analytics?section=report#analytics-report-critic",
     ),
 )
 

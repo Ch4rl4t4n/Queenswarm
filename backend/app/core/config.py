@@ -2201,6 +2201,10 @@ class Settings(BaseSettings):
         le=6,
         description="DA9 weekly analytics routine cron day (0=Sun … 1=Mon UTC).",
     )
+    analytics_report_critic_enabled: bool = Field(
+        default=True,
+        description="Track L DA10 — Report critic closed loop (LOOP5 preset, rubric ≥4/5 before export).",
+    )
     research_bee_max_chars: int = Field(
         default=12_000,
         ge=512,

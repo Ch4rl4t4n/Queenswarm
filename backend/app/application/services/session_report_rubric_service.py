@@ -100,6 +100,18 @@ def infer_rubric_template_id(*, goal: str, context_summary: dict[str, Any]) -> s
         return "accessibility"
     if any(token in blob for token in ("spec", "prd", "roadmap", "tracer")):
         return "product-spec"
+    if any(
+        token in blob
+        for token in (
+            "analytics report",
+            "business analytics",
+            "ga4",
+            "leadership deck",
+            "decision report",
+            "business-analytics",
+        )
+    ):
+        return "business-analytics-report"
     return "copy-marketing"
 
 

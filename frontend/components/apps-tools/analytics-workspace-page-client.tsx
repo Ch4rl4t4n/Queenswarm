@@ -10,6 +10,7 @@ import { AnalyticsDataLineagePanel } from "@/components/apps-tools/analytics-dat
 import { AnalyticsExportLanePanel } from "@/components/apps-tools/analytics-export-lane-panel";
 import { AnalyticsRoutinePanel } from "@/components/apps-tools/analytics-routine-panel";
 import { AnalyticsReportArtifactPanel } from "@/components/apps-tools/analytics-report-artifact-panel";
+import { AnalyticsReportCriticPanel } from "@/components/apps-tools/analytics-report-critic-panel";
 import { BusinessQuestionWizardPanel } from "@/components/apps-tools/business-question-wizard-panel";
 import { ModulePolicyPackPill } from "@/components/apps-tools/module-policy-pack-pill";
 import { HivePageShell } from "@/components/hive/hive-page-shell";
@@ -245,6 +246,9 @@ export function AnalyticsWorkspacePageClient(): JSX.Element {
       {!loading && snapshot && section === "report" ? (
         <div id="analytics-report" data-testid="analytics-workspace-report">
           <AnalyticsReportArtifactPanel />
+          <div className="mt-4">
+            <AnalyticsReportCriticPanel />
+          </div>
         </div>
       ) : null}
 
