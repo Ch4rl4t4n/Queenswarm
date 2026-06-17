@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Loader2Icon, PackageIcon, RocketIcon, StoreIcon } from "lucide-react";
+import { Loader2Icon, PackageIcon, RocketIcon, ShieldCheckIcon, StoreIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
@@ -16,6 +16,7 @@ import type {
   FactoryLaunchGumroadPublishPayload,
   FactoryLaunchPayload,
   FactoryLaunchPreparePayload,
+  FactoryLaunchRevenueSmokePayload,
 } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +28,7 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
   const [prepareBusy, setPrepareBusy] = useState(false);
   const [draftBusy, setDraftBusy] = useState(false);
   const [publishBusy, setPublishBusy] = useState(false);
+  const [smokeBusy, setSmokeBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -100,12 +102,38 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
     }
   }, [load]);
 
+  const verifyRevenueLoop = useCallback(async () => {
+    setSmokeBusy(true);
+    try {
+      const result = await hivePostJson<FactoryLaunchRevenueSmokePayload>(
+        "dashboard/factory-launch/revenue-smoke",
+        {},
+      );
+      if (result.ok) {
+        toast.success(result.message ?? "Revenue loop verified.");
+      } else {
+        const failing = result.checks.filter((row) => !row.ok).map((row) => row.label);
+        toast.message(
+          failing.length > 0
+            ? `${result.message ?? "Revenue loop incomplete."} Missing: ${failing.join(", ")}.`
+            : (result.message ?? "Revenue loop incomplete."),
+        );
+      }
+      await load();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Revenue loop smoke failed.");
+    } finally {
+      setSmokeBusy(false);
+    }
+  }, [load]);
+
   useIntervalWhenVisible(() => void load(), COCKPIT_POLL_COLONY_TELEMETRY_MS, {
     initialDelayMs: eager ? 0 : DASHBOARD_BOOT_STAGGER_MS.factoryLaunch,
   });
 
   const funnelReady = payload?.funnel_ready ?? false;
   const gumroadReady = payload?.gumroad_ready ?? false;
+  const revenueLoopReady = payload?.revenue_loop_ready ?? false;
 
   return (
     <div data-testid="factory-launch-widget">
@@ -115,9 +143,9 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
           description="Research → build → approve → Gumroad queue"
           actions={
             payload?.enabled ? (
-              <V4Badge tone={funnelReady && gumroadReady ? "ok" : "warn"}>
+              <V4Badge tone={revenueLoopReady ? "ok" : funnelReady && gumroadReady ? "ok" : "warn"}>
                 <RocketIcon className="mr-1 inline h-3 w-3" aria-hidden />
-                {funnelReady ? (gumroadReady ? "sellable" : "queue ready") : "building"}
+                {revenueLoopReady ? "loop closed" : funnelReady ? (gumroadReady ? "sellable" : "queue ready") : "building"}
               </V4Badge>
             ) : null
           }
@@ -154,6 +182,14 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
                 Pending publish{" "}
                 <span className="font-mono text-(--qs-green)">{payload.pending_gumroad_publish_count}</span>
               </span>
+              <span>
+                Live{" "}
+                <span className="font-mono text-(--qs-green)">{payload.published_gumroad_count}</span>
+              </span>
+              <span>
+                Webhook{" "}
+                <span className="font-mono">{payload.purchase_webhook_ready ? "ready" : "setup"}</span>
+              </span>
               <span className={cn(!gumroadReady && payload.launch_queue_count > 0 && "text-(--qs-magenta)")}>
                 Gumroad{" "}
                 <span className="font-mono">{gumroadReady ? "ready" : "setup"}</span>
@@ -174,6 +210,22 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
             <p className="mb-3 text-sm text-(--qs-text-3)">{payload.operator_hint}</p>
 
             <div className="flex flex-wrap items-center gap-2">
+              {payload.revenue_smoke_available ? (
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--ghost qs-btn--sm min-h-[44px] gap-1 border border-(--qs-border)/50"
+                  disabled={smokeBusy}
+                  onClick={() => void verifyRevenueLoop()}
+                  data-testid="factory-launch-revenue-smoke-btn"
+                >
+                  {smokeBusy ? (
+                    <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <ShieldCheckIcon className="size-3.5" aria-hidden />
+                  )}
+                  Verify revenue loop
+                </button>
+              ) : null}
               {payload.gumroad_auto_publish_available ? (
                 <button
                   type="button"
@@ -239,6 +291,12 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
                 className="qs-btn qs-btn--ghost qs-btn--sm min-h-[44px] border border-(--qs-border)/50"
               >
                 Skill Factory
+              </Link>
+              <Link
+                href={payload.catalog_href}
+                className="qs-btn qs-btn--ghost qs-btn--sm min-h-[44px] border border-(--qs-border)/50"
+              >
+                Skills catalog
               </Link>
               <HiveRefreshButton onClick={() => void load()} label="Refresh launch funnel" />
             </div>

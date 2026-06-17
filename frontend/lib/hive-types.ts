@@ -1035,6 +1035,12 @@ export interface FactoryLaunchPayload {
   pending_gumroad_draft_count: number;
   pending_gumroad_publish_count: number;
   gumroad_auto_publish_available: boolean;
+  published_gumroad_count: number;
+  purchase_webhook_ready: boolean;
+  post_purchase_onboarding_ready: boolean;
+  revenue_loop_ready: boolean;
+  revenue_smoke_available: boolean;
+  catalog_href: string;
   operator_hint: string;
   factory_href: string;
   launch_href: string;
@@ -1088,6 +1094,20 @@ export interface FactoryLaunchGumroadPublishPayload {
     product_id?: string | null;
     published?: boolean | null;
     error?: string | null;
+  }>;
+}
+
+/** ``POST /api/v1/dashboard/factory-launch/revenue-smoke`` — REV8 buyer loop checklist. */
+export interface FactoryLaunchRevenueSmokePayload {
+  ok: boolean;
+  message: string;
+  gumroad_webhook_url_template: string;
+  catalog_href: string;
+  checks: Array<{
+    id: string;
+    label: string;
+    ok: boolean;
+    detail: string;
   }>;
 }
 

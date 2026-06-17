@@ -130,6 +130,30 @@ else
   fail "missing factory launch gumroad publish button"
 fi
 
+if grep -q "revenue_loop_ready" backend/app/application/services/factory_launch_widget_service.py; then
+  pass "revenue_loop_ready flag"
+else
+  fail "missing revenue_loop_ready flag"
+fi
+
+if grep -q "/factory-launch/revenue-smoke" backend/app/presentation/api/routers/dashboard.py; then
+  pass "dashboard REV8 revenue-smoke route"
+else
+  fail "missing dashboard REV8 revenue-smoke route"
+fi
+
+if grep -q "run_factory_launch_revenue_smoke" backend/app/application/services/factory_launch_widget_service.py; then
+  pass "run_factory_launch_revenue_smoke"
+else
+  fail "missing run_factory_launch_revenue_smoke"
+fi
+
+if grep -q "factory-launch-revenue-smoke-btn" frontend/components/hive/factory-launch-widget.tsx; then
+  pass "factory launch revenue smoke button"
+else
+  fail "missing factory launch revenue smoke button"
+fi
+
 if [[ -x backend/venv/bin/python ]]; then
   if (cd backend && ./venv/bin/python -m pytest \
     tests/test_factory_launch_widget_unit.py \

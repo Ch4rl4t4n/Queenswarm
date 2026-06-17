@@ -274,6 +274,23 @@ async def dashboard_factory_launch_gumroad_publish(
     return result
 
 
+@router.post("/factory-launch/revenue-smoke")
+async def dashboard_factory_launch_revenue_smoke(
+    db: DbSession,
+    principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, object]:
+    """REV8 — Verify buyer loop: live listing → Gumroad ping → post-purchase onboarding."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.factory_launch_widget_service import run_factory_launch_revenue_smoke
+
+    return await run_factory_launch_revenue_smoke(db, tenant_id=tenant_id)
+
+
 @router.get("/time-saved")
 async def dashboard_time_saved(
     db: DbSession,

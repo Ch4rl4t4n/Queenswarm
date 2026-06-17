@@ -335,7 +335,13 @@ const STUB_FACTORY_LAUNCH = {
   pending_gumroad_draft_count: 1,
   pending_gumroad_publish_count: 0,
   gumroad_auto_publish_available: false,
-  operator_hint: "Revenue funnel ready — 1 harness pack(s) queued for Gumroad.",
+  published_gumroad_count: 0,
+  purchase_webhook_ready: true,
+  post_purchase_onboarding_ready: false,
+  revenue_loop_ready: false,
+  revenue_smoke_available: true,
+  catalog_href: "https://letagentscook.org/skills",
+  operator_hint: "1 harness pack(s) ready — create Gumroad drafts or use Prepare batch for manual upload.",
   factory_href: "/apps-tools/skill-factory",
   launch_href: "/apps-tools/skill-factory?section=launch#launch",
   top_launch_titles: ["Queenswarm Harness Pack"],
@@ -2297,6 +2303,28 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_SUB_SWARM_FLEET),
+      });
+      return;
+    }
+
+    if (path.startsWith("dashboard/factory-launch/revenue-smoke")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: false,
+          message: "Revenue loop incomplete — fix failing checks before first sale.",
+          gumroad_webhook_url_template:
+            "https://queenswarm.love/api/v1/commerce/webhooks/gumroad/<GUMROAD_WEBHOOK_SECRET>",
+          catalog_href: "https://letagentscook.org/skills",
+          checks: [
+            { id: "sellable_harness", label: "Sellable harness in library", ok: true, detail: "1 sellable skill(s)" },
+            { id: "live_gumroad_listing", label: "Live Gumroad listing", ok: false, detail: "0 published in launch queue" },
+            { id: "gumroad_webhook", label: "Gumroad sale ping webhook", ok: true, detail: "COMMERCE_WEBHOOKS_ENABLED + GUMROAD_WEBHOOK_SECRET configured" },
+            { id: "post_purchase_onboarding", label: "Post-purchase onboarding email", ok: false, detail: "Enable GUMROAD_POST_PURCHASE_ONBOARDING + SMTP credentials" },
+            { id: "marketing_catalog", label: "Public skills catalog", ok: true, detail: "Buyer catalog at https://letagentscook.org/skills" },
+          ],
+        }),
       });
       return;
     }

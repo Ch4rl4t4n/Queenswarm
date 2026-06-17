@@ -1,4 +1,4 @@
-"""REV4–REV7 — Factory Launch widget for Mission Home (Gumroad sellable harness funnel)."""
+"""REV4–REV8 — Factory Launch widget for Mission Home (Gumroad sellable harness funnel)."""
 
 from __future__ import annotations
 
@@ -12,6 +12,31 @@ from app.core.config import settings
 from app.core.logging import get_logger
 
 _logger = get_logger(__name__)
+
+
+def _smtp_ready() -> bool:
+    """True when SMTP credentials exist for REV1 buyer onboarding email."""
+
+    return bool((settings.smtp_user or "").strip() and (settings.smtp_pass or "").strip())
+
+
+def _purchase_webhook_ready() -> bool:
+    """True when Gumroad sale ping ingress is configured."""
+
+    return bool(settings.commerce_webhooks_enabled and (settings.gumroad_webhook_secret or "").strip())
+
+
+def _post_purchase_onboarding_ready() -> bool:
+    """True when REV1 post-purchase onboarding can send email."""
+
+    return bool(settings.gumroad_post_purchase_onboarding_enabled and _smtp_ready())
+
+
+def _gumroad_webhook_url_template() -> str:
+    """Operator-facing Gumroad ping URL pattern (secret placeholder)."""
+
+    domain = (settings.domain or "queenswarm.love").strip()
+    return f"https://{domain}/api/v1/commerce/webhooks/gumroad/<GUMROAD_WEBHOOK_SECRET>"
 
 
 class FactoryLaunchWidgetOut(BaseModel):
@@ -34,6 +59,12 @@ class FactoryLaunchWidgetOut(BaseModel):
     pending_gumroad_draft_count: int = 0
     pending_gumroad_publish_count: int = 0
     gumroad_auto_publish_available: bool = False
+    published_gumroad_count: int = 0
+    purchase_webhook_ready: bool = False
+    post_purchase_onboarding_ready: bool = False
+    revenue_loop_ready: bool = False
+    revenue_smoke_available: bool = False
+    catalog_href: str = "/skills"
     operator_hint: str = ""
     factory_href: str = "/apps-tools/skill-factory"
     launch_href: str = "/apps-tools/skill-factory?section=launch#launch"
@@ -93,6 +124,29 @@ class FactoryLaunchGumroadPublishOut(BaseModel):
     message: str = ""
 
 
+class FactoryLaunchRevenueSmokeCheckOut(BaseModel):
+    """One checklist row for buyer revenue loop verification."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    id: str
+    label: str
+    ok: bool
+    detail: str
+
+
+class FactoryLaunchRevenueSmokeOut(BaseModel):
+    """Dry-run buyer loop readiness — publish → webhook → onboarding."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    ok: bool = False
+    checks: list[FactoryLaunchRevenueSmokeCheckOut] = Field(default_factory=list)
+    message: str = ""
+    gumroad_webhook_url_template: str = ""
+    catalog_href: str = "/skills"
+
+
 async def compose_factory_launch_widget_snapshot(
     session: AsyncSession,
     *,
@@ -127,6 +181,17 @@ async def compose_factory_launch_widget_snapshot(
     )
     gumroad_auto_draft_available = bool(snapshot.gumroad_listing_ready and pending_gumroad_draft_count > 0)
     gumroad_auto_publish_available = bool(snapshot.gumroad_publish_ready and pending_gumroad_publish_count > 0)
+    published_gumroad_count = sum(1 for row in launch_queue if row.gumroad_published is True)
+    purchase_webhook_ready = _purchase_webhook_ready()
+    post_purchase_onboarding_ready = _post_purchase_onboarding_ready()
+    revenue_loop_ready = bool(
+        published_gumroad_count > 0 and purchase_webhook_ready and post_purchase_onboarding_ready
+    )
+    revenue_smoke_available = bool(published_gumroad_count > 0 or (launch_queue and sellable > 0))
+
+    from app.application.services.purchase_onboarding import marketing_public_origin
+
+    catalog_href = f"{marketing_public_origin()}/skills"
 
     if sellable == 0:
         hint = "No sellable harness yet — run Factory research → build → approve forge."
@@ -143,6 +208,16 @@ async def compose_factory_launch_widget_snapshot(
         hint = (
             f"{pending_gumroad_publish_count} Gumroad draft(s) ready — "
             "publish live listings when copy and assets are verified."
+        )
+    elif published_gumroad_count > 0 and not revenue_loop_ready:
+        hint = (
+            f"{published_gumroad_count} live listing(s) — wire Gumroad ping webhook + SMTP "
+            "for post-purchase buyer onboarding."
+        )
+    elif revenue_loop_ready:
+        hint = (
+            f"Revenue loop closed — {published_gumroad_count} live listing(s), "
+            "webhook + onboarding ready."
         )
     else:
         hint = f"Revenue funnel ready — {len(launch_queue)} harness pack(s) queued for Gumroad."
@@ -172,6 +247,12 @@ async def compose_factory_launch_widget_snapshot(
         pending_gumroad_draft_count=pending_gumroad_draft_count,
         pending_gumroad_publish_count=pending_gumroad_publish_count,
         gumroad_auto_publish_available=gumroad_auto_publish_available,
+        published_gumroad_count=published_gumroad_count,
+        purchase_webhook_ready=purchase_webhook_ready,
+        post_purchase_onboarding_ready=post_purchase_onboarding_ready,
+        revenue_loop_ready=revenue_loop_ready,
+        revenue_smoke_available=revenue_smoke_available,
+        catalog_href=catalog_href,
         operator_hint=hint,
         top_launch_titles=titles,
     )
@@ -378,14 +459,96 @@ async def publish_factory_launch_gumroad_from_widget(
     return out.model_dump(mode="json")
 
 
+async def run_factory_launch_revenue_smoke(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+) -> dict[str, object]:
+    """Dry-run buyer loop checklist: live listing → Gumroad ping → REV1 email."""
+
+    if not settings.factory_launch_mission_home_enabled or not settings.skill_factory_enabled:
+        return FactoryLaunchRevenueSmokeOut(
+            message="Factory launch widget disabled.",
+        ).model_dump(mode="json") | {"ok": False, "error": "factory_launch_disabled"}
+
+    snapshot = await compose_factory_launch_widget_snapshot(session, tenant_id=tenant_id)
+    from app.application.services.purchase_onboarding import marketing_public_origin
+
+    catalog_href = f"{marketing_public_origin()}/skills"
+    checks = [
+        FactoryLaunchRevenueSmokeCheckOut(
+            id="sellable_harness",
+            label="Sellable harness in library",
+            ok=snapshot.sellable_count > 0,
+            detail=f"{snapshot.sellable_count} sellable skill(s)",
+        ),
+        FactoryLaunchRevenueSmokeCheckOut(
+            id="live_gumroad_listing",
+            label="Live Gumroad listing",
+            ok=snapshot.published_gumroad_count > 0,
+            detail=f"{snapshot.published_gumroad_count} published in launch queue",
+        ),
+        FactoryLaunchRevenueSmokeCheckOut(
+            id="gumroad_webhook",
+            label="Gumroad sale ping webhook",
+            ok=snapshot.purchase_webhook_ready,
+            detail=(
+                "COMMERCE_WEBHOOKS_ENABLED + GUMROAD_WEBHOOK_SECRET configured"
+                if snapshot.purchase_webhook_ready
+                else "Set webhook secret and enable commerce webhooks"
+            ),
+        ),
+        FactoryLaunchRevenueSmokeCheckOut(
+            id="post_purchase_onboarding",
+            label="Post-purchase onboarding email",
+            ok=snapshot.post_purchase_onboarding_ready,
+            detail=(
+                "REV1 onboarding + SMTP ready"
+                if snapshot.post_purchase_onboarding_ready
+                else "Enable GUMROAD_POST_PURCHASE_ONBOARDING + SMTP credentials"
+            ),
+        ),
+        FactoryLaunchRevenueSmokeCheckOut(
+            id="marketing_catalog",
+            label="Public skills catalog",
+            ok=bool((settings.marketing_public_origin or "").strip()),
+            detail=f"Buyer catalog at {catalog_href}",
+        ),
+    ]
+    loop_ok = all(row.ok for row in checks if row.id != "sellable_harness")
+    message = (
+        "Revenue loop verified — buyer ping will unlock + send onboarding."
+        if loop_ok and snapshot.published_gumroad_count > 0
+        else "Revenue loop incomplete — fix failing checks before first sale."
+    )
+    _logger.info(
+        "factory_launch_widget.revenue_smoke",
+        agent_id="factory_launch_widget",
+        swarm_id=str(tenant_id),
+        ok=loop_ok,
+        published_count=snapshot.published_gumroad_count,
+    )
+    out = FactoryLaunchRevenueSmokeOut(
+        ok=loop_ok and snapshot.published_gumroad_count > 0,
+        checks=checks,
+        message=message,
+        gumroad_webhook_url_template=_gumroad_webhook_url_template(),
+        catalog_href=catalog_href,
+    )
+    return out.model_dump(mode="json")
+
+
 __all__ = [
     "FactoryLaunchGumroadDraftOut",
     "FactoryLaunchGumroadDraftRowOut",
     "FactoryLaunchGumroadPublishOut",
     "FactoryLaunchGumroadPublishRowOut",
+    "FactoryLaunchRevenueSmokeCheckOut",
+    "FactoryLaunchRevenueSmokeOut",
     "FactoryLaunchWidgetOut",
     "compose_factory_launch_widget_snapshot",
     "draft_factory_launch_gumroad_from_widget",
     "prepare_factory_launch_batch_from_widget",
     "publish_factory_launch_gumroad_from_widget",
+    "run_factory_launch_revenue_smoke",
 ]

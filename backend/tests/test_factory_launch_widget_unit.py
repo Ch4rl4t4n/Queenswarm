@@ -342,3 +342,74 @@ async def test_publish_factory_launch_gumroad_batch(monkeypatch: pytest.MonkeyPa
     assert result.get("published_count") == 1
     assert len(result.get("publishes") or []) == 1
     mock_publish.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_factory_launch_revenue_loop_ready(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.core.config import settings
+
+    queue = [
+        _skill(
+            slug="harness-pack",
+            title="Harness Pack",
+            gumroad_product_id="prod_abc",
+            gumroad_published=True,
+        ),
+    ]
+    monkeypatch.setattr(settings, "factory_launch_mission_home_enabled", True)
+    monkeypatch.setattr(settings, "skill_factory_enabled", True)
+    monkeypatch.setattr(settings, "commerce_webhooks_enabled", True)
+    monkeypatch.setattr(settings, "gumroad_webhook_secret", "secret-test")
+    monkeypatch.setattr(settings, "gumroad_post_purchase_onboarding_enabled", True)
+    monkeypatch.setattr(settings, "smtp_user", "ops@example.com")
+    monkeypatch.setattr(settings, "smtp_pass", "pass")
+    monkeypatch.setattr(
+        "app.application.services.skill_factory_service.compose_skill_factory_snapshot",
+        AsyncMock(
+            return_value=_factory_snapshot(
+                sellable=1,
+                launch_queue=queue,
+                gumroad_listing_ready=True,
+                gumroad_publish_ready=True,
+            ),
+        ),
+    )
+    session = AsyncMock()
+
+    snapshot = await compose_factory_launch_widget_snapshot(session, tenant_id=uuid.uuid4())
+
+    assert snapshot.published_gumroad_count == 1
+    assert snapshot.revenue_loop_ready is True
+    assert snapshot.revenue_smoke_available is True
+    assert "revenue loop closed" in snapshot.operator_hint.lower()
+
+
+@pytest.mark.asyncio
+async def test_run_factory_launch_revenue_smoke_incomplete(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.application.services.factory_launch_widget_service import run_factory_launch_revenue_smoke
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "factory_launch_mission_home_enabled", True)
+    monkeypatch.setattr(settings, "skill_factory_enabled", True)
+    monkeypatch.setattr(
+        "app.application.services.factory_launch_widget_service.compose_factory_launch_widget_snapshot",
+        AsyncMock(
+            return_value=type(
+                "Snap",
+                (),
+                {
+                    "sellable_count": 1,
+                    "published_gumroad_count": 0,
+                    "purchase_webhook_ready": False,
+                    "post_purchase_onboarding_ready": False,
+                },
+            )(),
+        ),
+    )
+    session = AsyncMock()
+
+    result = await run_factory_launch_revenue_smoke(session, tenant_id=uuid.uuid4())
+
+    assert result.get("ok") is False
+    assert len(result.get("checks") or []) >= 4
+    assert "gumroad_webhook_url_template" in result
