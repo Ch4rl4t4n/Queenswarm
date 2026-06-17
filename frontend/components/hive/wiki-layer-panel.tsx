@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { KnowledgeElicitationPanel } from "@/components/hive/knowledge-elicitation-panel";
+import { SecondBrainCaptureApprovePanel } from "@/components/hive/second-brain-capture-approve-panel";
 import { SecondBrainCapturePanel } from "@/components/hive/second-brain-capture-panel";
 import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { QsSelect } from "@/components/ui/qs-select";
@@ -173,6 +174,7 @@ export function WikiLayerPanel(): JSX.Element {
     <div className="space-y-4">
       <KnowledgeElicitationPanel />
       <SecondBrainCapturePanel onCaptured={() => void reload()} />
+      <SecondBrainCaptureApprovePanel onApproved={() => void reload()} />
       <V4Card>
         <V4CardHeader
           title="Wiki Layer"

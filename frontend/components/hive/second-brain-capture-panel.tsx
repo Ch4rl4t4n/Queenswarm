@@ -43,7 +43,7 @@ export function SecondBrainCapturePanel({ onCaptured }: SecondBrainCapturePanelP
         might_use_for: mightUseFor.trim(),
         key_tension: keyTension.trim(),
       });
-      toast.success("Capture saved — run Wiki Gardener to refresh MOC + connections.");
+      toast.success("Capture saved — approve below for Obsidian wikilinks.");
       setIdea("");
       setConnectsTo("");
       setMightUseFor("");

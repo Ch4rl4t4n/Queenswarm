@@ -16,9 +16,13 @@ from app.application.services.knowledge_elicitation import (
     compose_knowledge_elicitation_snapshot,
 )
 from app.application.services.second_brain_capture import (
+    SecondBrainCaptureApproveOut,
     SecondBrainCaptureIn,
     SecondBrainCaptureOut,
+    SecondBrainCapturePendingOut,
+    approve_capture_note,
     empty_capture_template,
+    list_pending_capture_notes,
     persist_capture_note,
 )
 from app.application.services.wiki_layer_service import (
@@ -279,12 +283,62 @@ async def capture_second_brain_note(
     db: DbSession,
     principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
 ) -> SecondBrainCaptureOut:
-    """Persist structured capture into raw tier; Gardener compiles MOC + connections."""
+    """Persist structured capture into raw tier; approve before Obsidian wikilink export."""
 
     if not settings.wiki_layer_enabled:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Wiki Layer disabled.")
     tenant_id = _tenant_id_from(principal)
     result = await persist_capture_note(db, tenant_id=tenant_id, payload=body)
+    await db.commit()
+    return result
+
+
+@router.get(
+    "/capture/pending",
+    response_model=list[SecondBrainCapturePendingOut],
+    summary="List pending second-brain captures (SB3)",
+)
+async def list_pending_captures(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> list[SecondBrainCapturePendingOut]:
+    """Return capture notes awaiting operator approval."""
+
+    if not settings.wiki_layer_enabled or not settings.second_brain_capture_approve_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Capture approve lane disabled.")
+    tenant_id = _tenant_id_from(principal)
+    return await list_pending_capture_notes(db, tenant_id=tenant_id)
+
+
+@router.post(
+    "/capture/{capture_id}/approve",
+    response_model=SecondBrainCaptureApproveOut,
+    summary="Approve capture for wiki + Obsidian wikilinks (SB3)",
+)
+async def approve_second_brain_capture(
+    capture_id: str,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> SecondBrainCaptureApproveOut:
+    """Verify capture, compile wiki page, and enable Obsidian export wikilinks."""
+
+    _require_admin(principal)
+    if not settings.wiki_layer_enabled or not settings.second_brain_capture_approve_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Capture approve lane disabled.")
+    tenant_id = _tenant_id_from(principal)
+    try:
+        capture_uuid = uuid.UUID(capture_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Invalid capture id.") from exc
+    try:
+        result = await approve_capture_note(db, tenant_id=tenant_id, capture_id=capture_uuid)
+    except ValueError as exc:
+        code = str(exc)
+        if code == "capture_not_found":
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Capture not found.") from exc
+        if code == "capture_already_approved":
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Capture already approved.") from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=code) from exc
     await db.commit()
     return result
 

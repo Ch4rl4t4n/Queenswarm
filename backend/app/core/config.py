@@ -743,6 +743,16 @@ class Settings(BaseSettings):
         le=6,
         description="SB2 weekly connection-intelligence cron day (0=Sun … 6=Sat UTC).",
     )
+    second_brain_capture_approve_enabled: bool = Field(
+        default=True,
+        description="SB3 — require operator approve before capture wikilinks appear in Obsidian export.",
+    )
+    second_brain_capture_approve_pollen: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=50.0,
+        description="Pollen awarded when operator approves a second-brain capture note.",
+    )
     external_integration_audit_to_vault: bool = Field(
         default=True,
         description="Mirror external integration audit lines into HiveMind vault.",

@@ -515,15 +515,33 @@ class WikiLayerService:
         await self._db.flush()
 
     async def export_obsidian_vault(self, tenant_id: uuid.UUID) -> bytes:
-        """Export Brain Pack + wiki pages as Obsidian-compatible ZIP."""
+        """Export Brain Pack + wiki pages + approved captures as Obsidian-compatible ZIP."""
+
+        from app.application.services.second_brain_capture import (
+            build_obsidian_export_markdown,
+            obsidian_safe_filename,
+            parse_capture_fields,
+        )
 
         curated = CuratedMemoryService(db=self._db)
         bundle = await curated.get_bundle(tenant_id)
         brain_md = curated.render_brain_pack_export(bundle)
         pages = await self.list_wiki_pages(tenant_id)
+        approved_captures = await self._fetch_approved_capture_knowledge(tenant_id)
+        wiki_slug_stems = {
+            re.sub(r"[^\w\-]+", "-", page.slug).strip("-") or "page" for page in pages
+        }
 
         buf = io.BytesIO()
-        moc_lines = ["# Queenswarm Vault MOC", "", "## Brain Pack", "- [[Brain-Pack]]", "- [[Instructions]]", "", "## Wiki"]
+        moc_lines = [
+            "# Queenswarm Vault MOC",
+            "",
+            "## Brain Pack",
+            "- [[Brain-Pack]]",
+            "- [[Instructions]]",
+            "",
+            "## Wiki",
+        ]
         with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
             zf.writestr("Brain-Pack.md", brain_md)
             zf.writestr("Instructions.md", bundle.get(CuratedFileKind.INSTRUCTIONS, ""))
@@ -533,13 +551,29 @@ class WikiLayerService:
                 moc_lines.append(f"- {wikilink} — {page.title}")
                 body = f"# {page.title}\n\n{page.content_md}\n\n---\nBacklinks: [[Vault-MOC]]\n"
                 zf.writestr(f"wiki/{safe_name}.md", body)
+            if approved_captures:
+                moc_lines.extend(["", "## Captures"])
+                for capture in approved_captures:
+                    fields = parse_capture_fields(capture.content_text)
+                    obsidian_name = obsidian_safe_filename(idea=str(fields["idea"]), capture_id=capture.id)
+                    wikilink = f"[[{obsidian_name}]]"
+                    idea_preview = _truncate(str(fields["idea"]), 80)
+                    moc_lines.append(f"- {wikilink} — {idea_preview}")
+                    export_md = build_obsidian_export_markdown(
+                        content_md=capture.content_text,
+                        obsidian_filename=obsidian_name,
+                        connects_to=list(fields["connects_to"]),
+                        wiki_slug_stems=wiki_slug_stems,
+                    )
+                    zf.writestr(f"captures/{obsidian_name}.md", export_md)
             zf.writestr("Vault-MOC.md", "\n".join(moc_lines) + "\n")
             zf.writestr(
                 "README-Obsidian-Sync.md",
-                "# Obsidian sync (OBS1)\n\n"
+                "# Obsidian sync (OBS1 + SB3)\n\n"
                 "1. Unzip into your vault.\n"
-                "2. Edit wiki/*.md locally — use Integrations → Obsidian sync to ingest.\n"
-                "3. Vault-MOC uses wikilinks for bidirectional navigation.\n",
+                "2. Approve captures in Knowledge → Wiki Layer before export.\n"
+                "3. `captures/*.md` include auto wikilinks from CONNECTS TO.\n"
+                "4. Vault-MOC uses wikilinks for bidirectional navigation.\n",
             )
         return buf.getvalue()
 
@@ -628,7 +662,7 @@ class WikiLayerService:
         )
 
     async def _fetch_capture_knowledge(self, tenant_id: uuid.UUID, *, limit: int = 80) -> list[KnowledgeItem]:
-        """Load second-brain capture notes for MOC / connection intelligence."""
+        """Load approved second-brain capture notes for MOC / connection intelligence."""
 
         since = datetime.now(tz=UTC) - timedelta(days=180)
         return list(
@@ -639,8 +673,32 @@ class WikiLayerService:
                         KnowledgeItem.tenant_id == tenant_id,
                         KnowledgeItem.scraped_at >= since,
                         KnowledgeItem.source_type == "second_brain_capture",
+                        KnowledgeItem.verified_at.isnot(None),
                     )
                     .order_by(desc(KnowledgeItem.scraped_at))
+                    .limit(limit),
+                )
+            ).all(),
+        )
+
+    async def _fetch_approved_capture_knowledge(
+        self,
+        tenant_id: uuid.UUID,
+        *,
+        limit: int = 120,
+    ) -> list[KnowledgeItem]:
+        """Load operator-approved captures for Obsidian export (SB3)."""
+
+        return list(
+            (
+                await self._db.scalars(
+                    select(KnowledgeItem)
+                    .where(
+                        KnowledgeItem.tenant_id == tenant_id,
+                        KnowledgeItem.source_type == "second_brain_capture",
+                        KnowledgeItem.verified_at.isnot(None),
+                    )
+                    .order_by(desc(KnowledgeItem.verified_at))
                     .limit(limit),
                 )
             ).all(),

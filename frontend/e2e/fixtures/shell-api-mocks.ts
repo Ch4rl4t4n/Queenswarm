@@ -3151,7 +3151,44 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         await route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify({ id: "capture-stub", markdown: "", topic_tags: ["second_brain:capture"] }),
+          body: JSON.stringify({
+            id: "capture-stub",
+            markdown: "",
+            topic_tags: ["second_brain:capture", "second_brain:pending"],
+            status: "pending",
+          }),
+        });
+        return;
+      }
+      if (path === "memory/wiki-layer/capture/pending") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify([
+            {
+              id: "capture-pending-stub",
+              idea: "Stub pending capture",
+              connects_to: ["seo-pipeline"],
+              might_use_for: "Obsidian export",
+              key_tension: "Approve gate",
+              captured_at: new Date().toISOString(),
+            },
+          ]),
+        });
+        return;
+      }
+      if (path.match(/^memory\/wiki-layer\/capture\/[^/]+\/approve$/) && route.request().method() === "POST") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            id: "capture-pending-stub",
+            status: "approved",
+            obsidian_filename: "stub-pending-capture-capture",
+            wiki_slug: "capture-stub-pending-capture-capture",
+            wikilinks: ["seo-pipeline"],
+            approved_at: new Date().toISOString(),
+          }),
         });
         return;
       }
