@@ -2010,6 +2010,14 @@ class Settings(BaseSettings):
         default=True,
         description="FP2 — Rapid learning loop widget on solo Mission Home (/tasks).",
     )
+    sub_swarm_fleet_widget_enabled: bool = Field(
+        default=True,
+        description="FP3 — Sub-swarm fleet widget (5–10 bee groups + 5 min sync viz).",
+    )
+    sub_swarm_fleet_mission_home_enabled: bool = Field(
+        default=True,
+        description="FP3 — Mount sub-swarm fleet widget on Mission Home.",
+    )
     mission_kanban_recipe_match_enabled: bool = Field(
         default=True,
         description="FP1 — Recipe cosine matching on Mission Kanban triage dispatch.",

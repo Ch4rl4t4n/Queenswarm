@@ -89,6 +89,7 @@ const STUB_MISSION_HOME_SETUP = {
   ],
   first_run_complete: false,
   rapid_loop_widget_enabled: true,
+  sub_swarm_fleet_widget_enabled: true,
   links: {
     new_session: "/agents#sessions",
     approvals: "/cockpit#approvals",

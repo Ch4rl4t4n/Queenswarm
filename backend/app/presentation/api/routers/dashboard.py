@@ -166,6 +166,38 @@ async def dashboard_rapid_loop(
     return await build_rapid_loop_payload(db, window_hours=window_hours, tenant_id=tenant_id)
 
 
+@router.get("/sub-swarm-fleet")
+async def dashboard_sub_swarm_fleet(
+    db: DbSession,
+    _session: DashboardSession,
+) -> dict[str, object]:
+    """FP3 — Fleet snapshot: up to 10 colonies with local hive mind sync rings."""
+
+    from app.application.services.sub_swarm_fleet_service import compose_sub_swarm_fleet_snapshot
+
+    payload = await compose_sub_swarm_fleet_snapshot(db)
+    return payload.model_dump(mode="json")
+
+
+@router.post("/sub-swarm-fleet/sync-due")
+async def dashboard_sub_swarm_fleet_sync_due(
+    db: DbSession,
+    _session: DashboardSession,
+) -> dict[str, object]:
+    """FP3 — Batch record global sync for all due colonies."""
+
+    from app.application.services.sub_swarm_fleet_service import sync_due_sub_swarm_fleet
+
+    try:
+        result = await sync_due_sub_swarm_fleet(db)
+    except ValueError as exc:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return result.model_dump(mode="json")
+
+
 @router.get("/time-saved")
 async def dashboard_time_saved(
     db: DbSession,

@@ -9,6 +9,7 @@ import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { ProcessRail, type ProcessStep, type ProcessStepId } from "@/components/hive/process-rail";
 import { RapidLoopWidget } from "@/components/hive/rapid-loop-widget";
+import { SubSwarmFleetWidget } from "@/components/hive/sub-swarm-fleet-widget";
 import { usePlatform } from "@/components/hive/platform-context";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
@@ -83,6 +84,7 @@ interface MissionHomeSnapshot {
   first_run_complete: boolean;
   links: Record<string, string>;
   rapid_loop_widget_enabled?: boolean;
+  sub_swarm_fleet_widget_enabled?: boolean;
 }
 
 function MissionHomePanelInner(): JSX.Element | null {
@@ -147,6 +149,12 @@ function MissionHomePanelInner(): JSX.Element | null {
       {snapshot.rapid_loop_widget_enabled ? (
         <div className="md:max-lg:col-span-2" data-testid="mission-home-rapid-loop">
           <RapidLoopWidget eager />
+        </div>
+      ) : null}
+
+      {snapshot.sub_swarm_fleet_widget_enabled ? (
+        <div className="md:max-lg:col-span-2" data-testid="mission-home-sub-swarm-fleet">
+          <SubSwarmFleetWidget eager />
         </div>
       ) : null}
 

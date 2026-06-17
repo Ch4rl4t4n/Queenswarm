@@ -278,6 +278,47 @@ const STUB_RAPID_LOOP = {
   ],
 };
 
+const STUB_SUB_SWARM_FLEET = {
+  enabled: true,
+  generated_at: new Date().toISOString(),
+  hive_sync_interval_sec: 300,
+  colony_count: 2,
+  due_sync_count: 1,
+  total_bees: 8,
+  colonies: [
+    {
+      id: "00000000-0000-4000-8000-000000000001",
+      slug: "colony-scout",
+      display_name: "Scout · Research",
+      lane: "scout",
+      lane_label: "Scout",
+      member_count: 4,
+      recommended_bee_count: 5,
+      is_active: true,
+      needs_sync: true,
+      sync_due_in_sec: 0,
+      sync_progress_pct: 100,
+      workspace_href: "/swarms?colony=00000000-0000-4000-8000-000000000001",
+    },
+    {
+      id: "00000000-0000-4000-8000-000000000002",
+      slug: "colony-eval",
+      display_name: "Eval · Quality",
+      lane: "eval",
+      lane_label: "Eval",
+      member_count: 4,
+      recommended_bee_count: 5,
+      is_active: true,
+      needs_sync: false,
+      sync_due_in_sec: 180,
+      sync_progress_pct: 40,
+      workspace_href: "/swarms?colony=00000000-0000-4000-8000-000000000002",
+    },
+  ],
+  operator_hint: "1 colony/colonies due for global sync (~every 5 min).",
+  swarms_href: "/swarms",
+};
+
 const STUB_TIME_SAVED = {
   generated_at: new Date().toISOString(),
   window_days: 30,
@@ -2215,6 +2256,29 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("dashboard/sub-swarm-fleet/sync-due")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          synced_count: 1,
+          synced_colony_ids: ["00000000-0000-4000-8000-000000000001"],
+          message: "Recorded global sync for 1 colony/colonies.",
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("dashboard/sub-swarm-fleet")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_SUB_SWARM_FLEET),
+      });
+      return;
+    }
+
     if (path.startsWith("dashboard/unified-savings")) {
       await route.fulfill({
         status: 200,
@@ -4127,6 +4191,7 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           ],
           first_run_complete: true,
           rapid_loop_widget_enabled: true,
+          sub_swarm_fleet_widget_enabled: true,
           links: {
             new_session: "/agents#sessions",
             approvals: "/cockpit#approvals",

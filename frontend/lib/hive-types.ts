@@ -988,6 +988,36 @@ export interface RapidLoopSummaryPayload {
   pattern_telemetry?: RapidLoopPatternTelemetryPayload | null;
 }
 
+/** ``GET /api/v1/dashboard/sub-swarm-fleet`` — FP3 fleet snapshot. */
+export interface SubSwarmFleetColonyRow {
+  id: string;
+  slug: string;
+  display_name: string;
+  lane: string;
+  lane_label: string;
+  member_count: number;
+  recommended_bee_count: number;
+  is_active: boolean;
+  needs_sync: boolean;
+  sync_due_in_sec: number;
+  sync_progress_pct: number;
+  wizard_template?: string | null;
+  goal_preview?: string | null;
+  workspace_href: string;
+}
+
+export interface SubSwarmFleetPayload {
+  enabled: boolean;
+  generated_at: string;
+  hive_sync_interval_sec: number;
+  colony_count: number;
+  due_sync_count: number;
+  total_bees: number;
+  colonies: SubSwarmFleetColonyRow[];
+  operator_hint: string;
+  swarms_href: string;
+}
+
 export type TimeSavedSourceKind = "template" | "recipe" | "custom";
 
 export interface TimeSavedBreakdownRow {

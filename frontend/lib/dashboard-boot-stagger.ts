@@ -12,6 +12,7 @@ export const DASHBOARD_BOOT_STAGGER_MS = {
   workflows: 4800,
   agentSuggestions: 5600,
   rapidLoop: 6000,
+  subSwarmFleet: 6200,
   dreamingSummary: 6400,
   patternExplorer: 6600,
   timeSaved: 6800,
