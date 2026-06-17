@@ -13,6 +13,7 @@ echo "=== Research Bee + Transparency Audit ==="
 
 for f in \
   backend/app/application/services/research_bee.py \
+  backend/app/application/services/research_project_service.py \
   backend/app/presentation/api/routers/research_bee.py \
   frontend/components/hive/research-bee-panel.tsx \
   frontend/app/transparency/page.tsx; do
@@ -41,11 +42,27 @@ else
   fail "SSRF guard missing"
 fi
 
+if grep -q 'research-bee-project' frontend/components/hive/research-bee-panel.tsx; then
+  pass "research project UI testid"
+else
+  fail "research project UI missing"
+fi
+
+if grep -q '"/project"' backend/app/presentation/api/routers/research_bee.py; then
+  pass "POST /research-bee/project"
+else
+  fail "research project route missing"
+fi
+
 if [[ -x backend/venv/bin/python ]]; then
-  if (cd backend && ./venv/bin/python -m pytest tests/test_research_bee_unit.py -q --no-cov); then
-    pass "pytest research bee"
+  set +e
+  (cd backend && ./venv/bin/python -m pytest tests/test_research_bee_unit.py tests/test_research_project_unit.py -q --no-cov)
+  pytest_rc=$?
+  set -e
+  if [[ "$pytest_rc" -eq 0 ]]; then
+    pass "pytest research bee + project"
   else
-    fail "pytest research bee"
+    fail "pytest research bee + project"
   fi
 else
   echo "  SKIP pytest (no venv)"

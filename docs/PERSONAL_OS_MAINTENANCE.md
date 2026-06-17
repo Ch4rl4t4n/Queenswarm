@@ -68,6 +68,7 @@ Expected Personal OS prod:
 | **POS-F** | Skill Factory lite — strip Gumroad tabs | ✅ Shipped |
 | **POS-G** | Dead code deletion (commercial routes) — after 2 weeks stable | Planned · prep: `./scripts/audit-personal-os-dead-code-inventory.sh` |
 | **POS-H** | Intelligence Wave — Jarvis advisor · research project · weak signals · agent quality | ✅ Shipped · `./scripts/audit-jarvis-intelligence-gate.sh` |
+| **POS-I** | I1 Research project UI · I2–I5 Jarvis nudge / weekly / brand studio / MCP | I1 ✅ · I2–I5 planned |
 
 ## Rollback
 

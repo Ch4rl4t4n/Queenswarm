@@ -81,6 +81,7 @@ function ResearchBeePanelInner({ onError }: ResearchBeePanelProps) {
   }, [url, paste, titleHint, persist, triggerGardener, onError]);
 
   return (
+    <div className="space-y-4">
     <V4Card className="border-(--qs-cyan)/25">
       <V4CardHeader
         leadingIcon={BookOpen}
@@ -193,6 +194,164 @@ function ResearchBeePanelInner({ onError }: ResearchBeePanelProps) {
       ) : null}
       </div>
     </V4Card>
+
+    <V4Card className="border-pollen/25" data-testid="research-bee-project">
+      <V4CardHeader
+        leadingIcon={BookOpen}
+        leadingIconTone="cyan"
+        title="Research project"
+        description="Batch public URLs → one merged Hive Mind brief (POS-H3). No raw LLM dump."
+      />
+      <ResearchProjectForm onError={onError} />
+    </V4Card>
+    </div>
+  );
+}
+
+interface ResearchProjectSource {
+  url: string;
+  ok: boolean;
+  title: string;
+  error: string | null;
+}
+
+interface ResearchProjectBrief {
+  enabled: boolean;
+  project_title: string;
+  source_count: number;
+  sources: ResearchProjectSource[];
+  summary: string;
+  key_points: string[];
+  topic_tags: string[];
+  persisted: boolean;
+  knowledge_item_id: string | null;
+}
+
+interface ResearchProjectFormProps {
+  onError: (message: string | null) => void;
+}
+
+function parseProjectUrls(raw: string): string[] {
+  const seen = new Set<string>();
+  const urls: string[] = [];
+  for (const line of raw.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || seen.has(trimmed)) {
+      continue;
+    }
+    seen.add(trimmed);
+    urls.push(trimmed);
+    if (urls.length >= 8) {
+      break;
+    }
+  }
+  return urls;
+}
+
+function ResearchProjectForm({ onError }: ResearchProjectFormProps) {
+  const [urlsText, setUrlsText] = useState("");
+  const [projectTitle, setProjectTitle] = useState("");
+  const [persistProject, setPersistProject] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [project, setProject] = useState<ResearchProjectBrief | null>(null);
+
+  const submitProject = useCallback(async () => {
+    const source_urls = parseProjectUrls(urlsText);
+    if (source_urls.length === 0) {
+      onError("Add at least one public https URL (one per line).");
+      return;
+    }
+    setLoading(true);
+    onError(null);
+    try {
+      const data = await hivePostJson<ResearchProjectBrief>("research-bee/project", {
+        source_urls,
+        project_title: projectTitle.trim() || null,
+        persist: persistProject,
+      });
+      setProject(data);
+    } catch (err) {
+      onError(err instanceof HiveApiError ? err.message : "Research project failed.");
+    } finally {
+      setLoading(false);
+    }
+  }, [urlsText, projectTitle, persistProject, onError]);
+
+  const urlCount = parseProjectUrls(urlsText).length;
+
+  return (
+    <div className="space-y-3 p-4 pt-0">
+      <p className="text-xs text-(--qs-text-3)">
+        Paste up to 8 article or report URLs — merged brief for supervisor sessions and Wiki capture.
+      </p>
+      <label className="block space-y-1 text-xs">
+        <span className="text-(--qs-text-3)">URLs (one per line)</span>
+        <textarea
+          value={urlsText}
+          onChange={(e) => setUrlsText(e.target.value)}
+          rows={5}
+          placeholder={"https://example.com/report-a\nhttps://example.com/report-b"}
+          className="qs-input w-full font-mono text-[11px]"
+          disabled={loading}
+          data-testid="research-project-urls"
+        />
+      </label>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <label className="space-y-1 text-xs">
+          <span className="text-(--qs-text-3)">Project title (optional)</span>
+          <input
+            value={projectTitle}
+            onChange={(e) => setProjectTitle(e.target.value)}
+            placeholder="Q2 competitor scan"
+            className="qs-input w-full"
+            disabled={loading}
+          />
+        </label>
+        <p className="flex items-end text-xs text-(--qs-muted)">{urlCount}/8 URLs</p>
+      </div>
+      <label className="flex items-center gap-2 text-xs text-(--qs-text-2)">
+        <input
+          type="checkbox"
+          checked={persistProject}
+          onChange={(e) => setPersistProject(e.target.checked)}
+        />
+        Persist merged brief to HiveMind
+      </label>
+      <button
+        type="button"
+        className="qs-btn qs-btn--primary qs-btn--sm"
+        disabled={loading || urlCount === 0}
+        data-testid="research-project-submit"
+        onClick={() => void submitProject()}
+      >
+        {loading ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+        Run research project
+      </button>
+      {project ? (
+        <article className="space-y-2 rounded-lg border border-pollen/20 bg-black/25 p-3 text-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <h4 className="font-medium text-(--qs-text)">{project.project_title}</h4>
+            <V4Badge tone="info">{project.source_count} sources</V4Badge>
+            {project.persisted ? <V4Badge tone="ok">Saved</V4Badge> : null}
+          </div>
+          <p className="text-xs text-(--qs-text-2)">{project.summary}</p>
+          {project.key_points.length > 0 ? (
+            <ul className="list-disc space-y-1 pl-4 text-xs text-(--qs-text-3)">
+              {project.key_points.slice(0, 5).map((point) => (
+                <li key={point.slice(0, 40)}>{point}</li>
+              ))}
+            </ul>
+          ) : null}
+          <ul className="space-y-1 text-[10px] text-(--qs-muted)">
+            {project.sources.map((row) => (
+              <li key={row.url} className={row.ok ? "text-[#00FF88]" : "text-[#FF3366]"}>
+                {row.ok ? "OK" : "FAIL"} · {row.title || row.url}
+              </li>
+            ))}
+          </ul>
+        </article>
+      ) : null}
+    </div>
   );
 }
 

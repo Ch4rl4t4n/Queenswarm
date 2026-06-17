@@ -96,6 +96,20 @@ Living backlog for **queenswarm.love** — ordered by impact. Status reflects pr
 
 Audit: `./scripts/audit-jarvis-intelligence-gate.sh`
 
+## Personal OS — Intelligence Wave follow-up (POS-I)
+
+**Goal:** Dokončiť adopciu POS-H — UI + Jarvis J2/J3 bez nového harnessu.
+
+| ID | Scope | Status |
+|----|-------|--------|
+| I1 | Research project UI — batch URLs v Knowledge → Research Bee | ✅ |
+| I2 | Jarvis J2 — proactive nudge cez mission feed (digest / Brain Pack empty) | Planned |
+| I3 | Jarvis J3 — weekly reflection strip (Ballroom + episodic) | Planned |
+| I4 | Marketing Team — Brand studio rubric preview (simulate-only) | Planned |
+| I5 | H7 — codebase-memory MCP connector pre Tech SCV lane | Planned P2 |
+
+Audit: `./scripts/audit-research-bee-gate.sh` (I1) · `./scripts/audit-jarvis-intelligence-gate.sh`
+
 **Maintenance audits:** `./scripts/audit-personal-os-gate.sh` · weekly: social publish + solo daily plan gates.
 
 | Step | Scope | Status |
