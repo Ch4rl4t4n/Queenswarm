@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Loader2, Shield } from "lucide-react";
+import { ArrowRight, CalendarClock, CheckCircle2, Loader2, Shield } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
@@ -74,6 +74,24 @@ interface MissionStudioEntry {
   href: string;
 }
 
+interface MissionCalendarEvent {
+  id: string;
+  title: string;
+  start_at: string | null;
+  end_at: string | null;
+  detail: string;
+  href: string;
+}
+
+interface MissionLifeOsStrip {
+  enabled: boolean;
+  connected: boolean;
+  event_count: number;
+  message: string;
+  events: MissionCalendarEvent[];
+  connect_href: string;
+}
+
 interface MissionHomeSnapshot {
   enabled: boolean;
   current_step: ProcessStepId;
@@ -84,6 +102,7 @@ interface MissionHomeSnapshot {
   active_sessions: MissionActiveSession[];
   memory_strip?: MissionMemoryStrip;
   step_studios?: MissionStudioEntry[];
+  life_os_strip?: MissionLifeOsStrip;
   first_run_complete: boolean;
   links: Record<string, string>;
   rapid_loop_widget_enabled?: boolean;
@@ -135,6 +154,20 @@ function MissionHomePanelInner(): JSX.Element | null {
   }
 
   const newSessionHref = snapshot.links.new_session ?? "/agents#sessions";
+  const lifeOs = snapshot.life_os_strip;
+  const calendarConnectHref =
+    lifeOs?.connect_href ?? snapshot.links.calendar_connect ?? "/integrations?tab=connectors";
+
+  function formatEventTime(iso: string | null): string {
+    if (!iso) {
+      return "All day";
+    }
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) {
+      return "—";
+    }
+    return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  }
 
   return (
     <section
@@ -222,6 +255,55 @@ function MissionHomePanelInner(): JSX.Element | null {
             ))}
           </ul>
         </V4Card>
+
+        {lifeOs?.enabled ? (
+          <V4Card className="md:max-lg:col-span-1" data-testid="mission-home-life-os">
+            <V4CardHeader
+              kicker="Life OS"
+              title="Calendar"
+              description="Google Calendar blocks — plan work around meetings."
+              actions={
+                !lifeOs.connected ? (
+                  <Link href={calendarConnectHref} className="qs-btn qs-btn--ghost qs-btn--sm">
+                    Connect
+                  </Link>
+                ) : null
+              }
+            />
+            {!lifeOs.connected ? (
+              <div className="px-4 pb-4">
+                <p className="text-sm text-(--qs-muted)">{lifeOs.message}</p>
+                <Link
+                  href={calendarConnectHref}
+                  className="qs-btn qs-btn--primary qs-btn--sm mt-3 inline-flex gap-1"
+                >
+                  <CalendarClock className="size-3.5" aria-hidden />
+                  Connect Google Calendar
+                </Link>
+              </div>
+            ) : lifeOs.events.length === 0 ? (
+              <p className="px-4 pb-4 text-sm text-(--qs-muted)">{lifeOs.message}</p>
+            ) : (
+              <ul className="space-y-2 px-4 pb-4">
+                {lifeOs.events.map((event) => (
+                  <li
+                    key={event.id}
+                    className="rounded-lg border border-(--qs-border)/50 bg-black/20 p-3"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <CalendarClock className="size-4 text-pollen" aria-hidden />
+                      <span className="font-mono text-xs text-pollen">{formatEventTime(event.start_at)}</span>
+                      <span className="text-sm font-semibold text-(--qs-text)">{event.title}</span>
+                    </div>
+                    {event.detail ? (
+                      <p className="mt-1 text-xs text-(--qs-muted)">{event.detail}</p>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </V4Card>
+        ) : null}
 
         <V4Card className="md:max-lg:col-span-1">
           <V4CardHeader

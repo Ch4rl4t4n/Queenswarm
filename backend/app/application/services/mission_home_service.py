@@ -119,6 +119,32 @@ class MissionStudioEntryOut(BaseModel):
     href: str
 
 
+class MissionCalendarEventOut(BaseModel):
+    """One Google Calendar block on Mission Home (POS-D Life OS strip)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    id: str
+    title: str
+    start_at: datetime | None = None
+    end_at: datetime | None = None
+    detail: str = ""
+    href: str = "/integrations?tab=connectors"
+
+
+class MissionLifeOsStripOut(BaseModel):
+    """Life OS morning strip — calendar + connect state for Mission Home."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    enabled: bool = False
+    connected: bool = False
+    event_count: int = 0
+    message: str = ""
+    events: list[MissionCalendarEventOut] = Field(default_factory=list)
+    connect_href: str = "/integrations?tab=connectors"
+
+
 class MissionHomeSnapshotOut(BaseModel):
     """Unified Mission Home snapshot for /tasks solo default."""
 
@@ -134,6 +160,7 @@ class MissionHomeSnapshotOut(BaseModel):
     active_sessions: list[MissionActiveSessionOut] = Field(default_factory=list)
     memory_strip: MissionMemoryStripOut = Field(default_factory=MissionMemoryStripOut)
     step_studios: list[MissionStudioEntryOut] = Field(default_factory=list)
+    life_os_strip: MissionLifeOsStripOut = Field(default_factory=MissionLifeOsStripOut)
     first_run_complete: bool = True
     links: dict[str, str] = Field(default_factory=dict)
     rapid_loop_widget_enabled: bool = False
@@ -313,6 +340,48 @@ async def _compose_memory_strip(
         total_chars=total_chars,
         max_chars=max_chars,
         usage_pct=usage_pct,
+    )
+
+
+async def _compose_life_os_strip(
+    session: AsyncSession,
+    *,
+    dashboard_user_id: uuid.UUID,
+) -> MissionLifeOsStripOut:
+    """Build Life OS calendar strip from Google Calendar connector (read-only)."""
+
+    connect_href = "/integrations?tab=connectors"
+    if not settings.calendar_daily_planner_enabled:
+        return MissionLifeOsStripOut(
+            enabled=False,
+            message="Calendar daily planner disabled.",
+            connect_href=connect_href,
+        )
+
+    from app.application.services.calendar_daily_planner import compose_calendar_daily_planner
+
+    calendar = await compose_calendar_daily_planner(
+        session,
+        dashboard_user_id=dashboard_user_id,
+    )
+    events = [
+        MissionCalendarEventOut(
+            id=row.id,
+            title=row.title,
+            start_at=row.start_at,
+            end_at=row.end_at,
+            detail=row.detail,
+            href=row.href,
+        )
+        for row in calendar.items[:5]
+    ]
+    return MissionLifeOsStripOut(
+        enabled=calendar.enabled,
+        connected=calendar.connected,
+        event_count=calendar.event_count,
+        message=calendar.message,
+        events=events,
+        connect_href=connect_href,
     )
 
 
@@ -563,6 +632,10 @@ async def compose_mission_home_snapshot(
         has_daily_plan=bool(daily.enabled and daily.items),
     )
     memory_strip = await _compose_memory_strip(session, tenant_id=tenant_id)
+    life_os_strip = await _compose_life_os_strip(
+        session,
+        dashboard_user_id=dashboard_user_id,
+    )
 
     return MissionHomeSnapshotOut(
         enabled=True,
@@ -575,12 +648,15 @@ async def compose_mission_home_snapshot(
         active_sessions=active_sessions,
         memory_strip=memory_strip,
         step_studios=STEP_STUDIOS.get(current_step, [])[:2],
+        life_os_strip=life_os_strip,
         first_run_complete=first_run.complete,
         links={
             "new_session": "/agents?preset=web-redesign-discovery#sessions",
             "approvals": "/cockpit#approvals",
             "knowledge": "/knowledge#memory",
             "kanban": "/tasks",
+            "calendar_connect": life_os_strip.connect_href,
+            "marketing_team": "/apps-tools/marketing-team",
         },
         rapid_loop_widget_enabled=settings.rapid_loop_mission_home_enabled,
         sub_swarm_fleet_widget_enabled=settings.sub_swarm_fleet_mission_home_enabled,
@@ -598,10 +674,12 @@ async def compose_mission_home_snapshot(
 
 __all__ = [
     "MissionHomeSnapshotOut",
+    "MissionLifeOsStripOut",
     "MissionMemoryStripOut",
     "ProcessStepId",
     "ProcessStepOut",
     "STEP_STUDIOS",
+    "_compose_life_os_strip",
     "_compose_memory_strip",
     "compose_mission_home_snapshot",
 ]

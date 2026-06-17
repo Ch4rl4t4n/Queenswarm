@@ -9,10 +9,12 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.application.services.mission_home_service import (
+    MissionLifeOsStripOut,
     MissionMemoryStripOut,
     PROCESS_STEPS,
     STEP_STUDIOS,
     _brief_bullets_from_morning,
+    _compose_life_os_strip,
     _compose_memory_strip,
     _loop_progress_from_lanes,
     _resolve_process_step,
@@ -151,6 +153,7 @@ async def test_compose_mission_home_setup_step() -> None:
     )()
     parallel = type("Parallel", (), {"sessions": []})()
     memory_strip = MissionMemoryStripOut()
+    life_os_strip = MissionLifeOsStripOut(enabled=True, connected=False, message="Connect Google Calendar")
 
     with patch("app.application.services.mission_home_service.settings") as mock_settings:
         mock_settings.solo_mode_enabled = True
@@ -184,12 +187,16 @@ async def test_compose_mission_home_setup_step() -> None:
                                 "app.application.services.mission_home_service._compose_memory_strip",
                                 AsyncMock(return_value=memory_strip),
                             ):
-                                snapshot = await compose_mission_home_snapshot(
-                                    session,
-                                    tenant_id=tenant_id,
-                                    dashboard_user_id=user_id,
-                                    tenant=None,
-                                )
+                                with patch(
+                                    "app.application.services.mission_home_service._compose_life_os_strip",
+                                    AsyncMock(return_value=life_os_strip),
+                                ):
+                                    snapshot = await compose_mission_home_snapshot(
+                                        session,
+                                        tenant_id=tenant_id,
+                                        dashboard_user_id=user_id,
+                                        tenant=None,
+                                    )
 
     assert snapshot.enabled is True
     assert snapshot.current_step == "setup"
@@ -197,3 +204,57 @@ async def test_compose_mission_home_setup_step() -> None:
     assert snapshot.rapid_loop_widget_enabled is True
     assert len(snapshot.brief_bullets) >= 1
     assert snapshot.step_studios[0].id == "llm_keys"
+
+
+@pytest.mark.asyncio
+async def test_compose_life_os_strip_disabled() -> None:
+    session = AsyncMock()
+    with patch("app.application.services.mission_home_service.settings") as mock_settings:
+        mock_settings.calendar_daily_planner_enabled = False
+        strip = await _compose_life_os_strip(session, dashboard_user_id=uuid.uuid4())
+
+    assert strip.enabled is False
+    assert "disabled" in strip.message.lower()
+
+
+@pytest.mark.asyncio
+async def test_compose_life_os_strip_maps_calendar_events() -> None:
+    session = AsyncMock()
+    now = datetime.now(tz=UTC)
+    calendar = type(
+        "Cal",
+        (),
+        {
+            "enabled": True,
+            "connected": True,
+            "event_count": 1,
+            "message": "1 upcoming event(s).",
+            "items": [
+                type(
+                    "Item",
+                    (),
+                    {
+                        "id": "cal_abc",
+                        "title": "Focus block",
+                        "start_at": now,
+                        "end_at": None,
+                        "detail": "Deep work",
+                        "href": "/integrations?tab=connectors",
+                    },
+                )(),
+            ],
+        },
+    )()
+
+    with patch("app.application.services.mission_home_service.settings") as mock_settings:
+        mock_settings.calendar_daily_planner_enabled = True
+        with patch(
+            "app.application.services.calendar_daily_planner.compose_calendar_daily_planner",
+            AsyncMock(return_value=calendar),
+        ):
+            strip = await _compose_life_os_strip(session, dashboard_user_id=uuid.uuid4())
+
+    assert strip.enabled is True
+    assert strip.connected is True
+    assert len(strip.events) == 1
+    assert strip.events[0].title == "Focus block"

@@ -4527,6 +4527,23 @@ export async function installShellApiMocks(page: Page): Promise<void> {
               href: "/agents#sessions",
             },
           ],
+          life_os_strip: {
+            enabled: true,
+            connected: true,
+            event_count: 1,
+            message: "1 upcoming event(s).",
+            events: [
+              {
+                id: "cal_standup",
+                title: "Morning standup",
+                start_at: new Date(Date.now() + 3600000).toISOString(),
+                end_at: null,
+                detail: "From Google Calendar — plan supervisor work around this block.",
+                href: "/integrations?tab=connectors",
+              },
+            ],
+            connect_href: "/integrations?tab=connectors",
+          },
           first_run_complete: true,
           rapid_loop_widget_enabled: true,
           sub_swarm_fleet_widget_enabled: true,
@@ -4538,6 +4555,8 @@ export async function installShellApiMocks(page: Page): Promise<void> {
             approvals: "/cockpit#approvals",
             knowledge: "/knowledge#memory",
             kanban: "/tasks",
+            calendar_connect: "/integrations?tab=connectors",
+            marketing_team: "/apps-tools/marketing-team",
           },
         }),
       });
