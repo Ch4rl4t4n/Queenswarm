@@ -14,6 +14,7 @@ echo "=== Jarvis Intelligence Wave Gate (POS-H) ==="
 for f in \
   backend/app/application/services/jarvis_advisor_service.py \
   backend/app/application/services/jarvis_proactive_nudge_service.py \
+  backend/app/application/services/jarvis_weekly_reflection_service.py \
   backend/app/worker/jarvis_nudge_tasks.py \
   backend/app/application/services/weak_signal_bee_service.py \
   backend/app/application/services/agent_quality_scorecard_service.py \
@@ -34,6 +35,18 @@ else
   fail "Jarvis advisor UI missing"
 fi
 
+if grep -q 'mission-home-jarvis-weekly-reflection' frontend/components/hive/mission-home-panel.tsx; then
+  pass "Jarvis weekly reflection UI testid"
+else
+  fail "Jarvis weekly reflection UI missing"
+fi
+
+if grep -q 'jarvis_weekly_reflection_strip' backend/app/application/services/mission_home_service.py; then
+  pass "MissionHomeSnapshot jarvis_weekly_reflection_strip"
+else
+  fail "jarvis_weekly_reflection_strip missing"
+fi
+
 if grep -q '"/project"' backend/app/presentation/api/routers/research_bee.py; then
   pass "POST /research-bee/project"
 else
@@ -51,6 +64,7 @@ if [[ -x backend/venv/bin/python ]]; then
   (cd backend && ./venv/bin/python -m pytest \
     tests/test_jarvis_advisor_unit.py \
     tests/test_jarvis_proactive_nudge_unit.py \
+    tests/test_jarvis_weekly_reflection_unit.py \
     tests/test_research_project_unit.py \
     tests/test_mission_home_service_unit.py \
     -q --no-cov)

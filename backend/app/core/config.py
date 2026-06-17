@@ -1927,6 +1927,10 @@ class Settings(BaseSettings):
         default=False,
         description="POS-I2 — Optional browser push for Jarvis nudges (requires Execution Studio subscription).",
     )
+    jarvis_weekly_reflection_enabled: bool = Field(
+        default=True,
+        description="POS-I3 — Jarvis weekly reflection strip on Mission Home (Ballroom + episodic → Hive Mind).",
+    )
     knowledge_elicitation_enabled: bool = Field(
         default=True,
         description="OBS2 — Brain Pack gap prompts in Knowledge UI.",

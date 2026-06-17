@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CalendarClock, CheckCircle2, Loader2, Shield, Sparkles, Zap } from "lucide-react";
+import { ArrowRight, CalendarClock, CheckCircle2, Loader2, Shield, Sparkles, Zap, Brain } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
@@ -149,6 +149,28 @@ interface MissionAgentQualityStrip {
   scorecard_href: string;
 }
 
+interface MissionWeeklyReflectionHighlight {
+  source: "ballroom" | "episodic" | "learning" | "session";
+  title: string;
+  excerpt: string;
+  href: string;
+}
+
+interface MissionJarvisWeeklyReflectionStrip {
+  enabled: boolean;
+  headline: string;
+  message: string;
+  week_label: string;
+  ballroom_post_mortems_7d: number;
+  episodic_captures_7d: number;
+  sessions_completed_7d: number;
+  learning_logs_7d: number;
+  highlights: MissionWeeklyReflectionHighlight[];
+  hive_mind_href: string;
+  episodic_href: string;
+  ballroom_href: string;
+}
+
 interface MissionHomeSnapshot {
   enabled: boolean;
   current_step: ProcessStepId;
@@ -163,6 +185,7 @@ interface MissionHomeSnapshot {
   autopilot_strip?: MissionAutopilotStrip;
   jarvis_advisor_strip?: MissionJarvisAdvisorStrip;
   agent_quality_strip?: MissionAgentQualityStrip;
+  jarvis_weekly_reflection_strip?: MissionJarvisWeeklyReflectionStrip;
   first_run_complete: boolean;
   links: Record<string, string>;
   rapid_loop_widget_enabled?: boolean;
@@ -220,6 +243,7 @@ function MissionHomePanelInner(): JSX.Element | null {
   const autopilot = snapshot.autopilot_strip;
   const jarvis = snapshot.jarvis_advisor_strip;
   const agentQuality = snapshot.agent_quality_strip;
+  const weeklyReflection = snapshot.jarvis_weekly_reflection_strip;
 
   function qualityTone(status: MissionAgentQualityStrip["status"]): "ok" | "warn" | "err" | "info" {
     if (status === "healthy") return "ok";
@@ -307,6 +331,65 @@ function MissionHomePanelInner(): JSX.Element | null {
               </li>
             ))}
           </ol>
+        </V4Card>
+      ) : null}
+
+      {weeklyReflection?.enabled && weeklyReflection.highlights.length > 0 ? (
+        <V4Card
+          className="md:max-lg:col-span-2 border-cyan/30 shadow-[0_0_20px_rgba(0,255,255,0.08)]"
+          data-testid="mission-home-jarvis-weekly-reflection"
+        >
+          <V4CardHeader
+            kicker="Weekly"
+            title={weeklyReflection.headline}
+            description={weeklyReflection.message}
+            actions={
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href={weeklyReflection.hive_mind_href}
+                  className="qs-btn qs-btn--ghost qs-btn--sm inline-flex gap-1"
+                >
+                  <Brain className="size-3.5" aria-hidden />
+                  Hive Mind
+                </Link>
+                <Link href={weeklyReflection.episodic_href} className="qs-btn qs-btn--ghost qs-btn--sm">
+                  Episodic log
+                </Link>
+              </div>
+            }
+          />
+          {weeklyReflection.week_label ? (
+            <p className="px-4 text-xs font-mono text-cyan/80">{weeklyReflection.week_label}</p>
+          ) : null}
+          <div className="flex flex-wrap gap-2 px-4 pt-2">
+            {weeklyReflection.ballroom_post_mortems_7d > 0 ? (
+              <V4Badge tone="info">{weeklyReflection.ballroom_post_mortems_7d} post-mortem</V4Badge>
+            ) : null}
+            {weeklyReflection.episodic_captures_7d > 0 ? (
+              <V4Badge tone="purple">{weeklyReflection.episodic_captures_7d} episodic</V4Badge>
+            ) : null}
+            {weeklyReflection.sessions_completed_7d > 0 ? (
+              <V4Badge tone="ok">{weeklyReflection.sessions_completed_7d} sessions</V4Badge>
+            ) : null}
+          </div>
+          <ul className="space-y-2 px-4 pb-4 pt-3">
+            {weeklyReflection.highlights.map((item) => (
+              <li
+                key={`${item.source}-${item.title}`}
+                className="rounded-lg border border-cyan/20 bg-black/30 p-3"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold text-(--qs-text)">{item.title}</span>
+                  <V4Badge tone="info">{item.source}</V4Badge>
+                </div>
+                <p className="mt-1 text-xs text-(--qs-muted)">{item.excerpt}</p>
+                <Link href={item.href} className="qs-btn qs-btn--ghost qs-btn--sm mt-2 inline-flex gap-1">
+                  Review
+                  <ArrowRight className="size-3.5" aria-hidden />
+                </Link>
+              </li>
+            ))}
+          </ul>
         </V4Card>
       ) : null}
 

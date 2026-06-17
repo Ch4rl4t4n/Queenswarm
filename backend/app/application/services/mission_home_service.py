@@ -28,6 +28,10 @@ from app.application.services.jarvis_advisor_service import (
     MissionJarvisAdvisorStripOut,
     _compose_jarvis_advisor_strip,
 )
+from app.application.services.jarvis_weekly_reflection_service import (
+    MissionJarvisWeeklyReflectionStripOut,
+    compose_jarvis_weekly_reflection_strip,
+)
 from app.application.services.morning_hive_brief import compose_morning_hive_brief
 from app.application.services.parallel_hive_view import (
     ParallelBeeLaneOut,
@@ -217,6 +221,9 @@ class MissionHomeSnapshotOut(BaseModel):
     )
     agent_quality_strip: MissionAgentQualityStripOut = Field(
         default_factory=lambda: MissionAgentQualityStripOut(enabled=False),
+    )
+    jarvis_weekly_reflection_strip: MissionJarvisWeeklyReflectionStripOut = Field(
+        default_factory=lambda: MissionJarvisWeeklyReflectionStripOut(enabled=False),
     )
     first_run_complete: bool = True
     links: dict[str, str] = Field(default_factory=dict)
@@ -868,6 +875,11 @@ async def compose_mission_home_snapshot(
         weak_signal_hint=weak_signal.advisor_hint,
     )
     agent_quality = await compose_agent_quality_strip(session, tenant_id=tenant_id)
+    weekly_reflection = await compose_jarvis_weekly_reflection_strip(
+        session,
+        tenant_id=tenant_id,
+        first_run_complete=first_run.complete,
+    )
 
     return MissionHomeSnapshotOut(
         enabled=True,
@@ -884,6 +896,7 @@ async def compose_mission_home_snapshot(
         autopilot_strip=autopilot_strip,
         jarvis_advisor_strip=jarvis_advisor,
         agent_quality_strip=agent_quality,
+        jarvis_weekly_reflection_strip=weekly_reflection,
         first_run_complete=first_run.complete,
         links={
             "new_session": "/agents?preset=web-redesign-discovery#sessions",
