@@ -303,6 +303,34 @@ async def dashboard_factory_launch_catalog_sync(
     return await sync_factory_launch_catalog_from_widget(db)
 
 
+@router.post("/factory-launch/purchase-smoke")
+async def dashboard_factory_launch_purchase_smoke(
+    db: DbSession,
+    principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, object]:
+    """REV10 — Simulate Gumroad sale ping for operator buyer-loop verification."""
+
+    from fastapi import HTTPException, status
+
+    role = str(principal.get("tenant_role") or "guest")
+    if role not in {"owner", "admin"}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Owner or admin tenant role required.")
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    email = getattr(user, "email", None)
+    from app.application.services.factory_launch_widget_service import run_factory_launch_purchase_smoke
+
+    result = await run_factory_launch_purchase_smoke(
+        db,
+        tenant_id=tenant_id,
+        buyer_email=str(email) if email else "",
+    )
+    await db.commit()
+    return result
+
+
 @router.get("/time-saved")
 async def dashboard_time_saved(
     db: DbSession,

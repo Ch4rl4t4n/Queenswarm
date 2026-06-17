@@ -1041,6 +1041,7 @@ export interface FactoryLaunchPayload {
   revenue_loop_ready: boolean;
   revenue_smoke_available: boolean;
   catalog_sync_available: boolean;
+  purchase_smoke_available: boolean;
   catalog_href: string;
   operator_hint: string;
   factory_href: string;
@@ -1106,6 +1107,18 @@ export interface FactoryLaunchCatalogSyncPayload {
   api_product_count: number;
   message: string;
   state_path: string;
+}
+
+/** ``POST /api/v1/dashboard/factory-launch/purchase-smoke`` — REV10 simulated Gumroad sale. */
+export interface FactoryLaunchPurchaseSmokePayload {
+  ok: boolean;
+  sale_id: string | null;
+  product_id: string | null;
+  catalog_slug: string | null;
+  ingested: boolean;
+  unlocked: boolean;
+  onboarding_sent: boolean;
+  message: string;
 }
 
 /** ``POST /api/v1/dashboard/factory-launch/revenue-smoke`` — REV8 buyer loop checklist. */

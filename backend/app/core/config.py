@@ -2054,6 +2054,10 @@ class Settings(BaseSettings):
         default=True,
         description="REV4 — Factory Launch widget on Mission Home (Gumroad sellable funnel).",
     )
+    factory_launch_purchase_smoke_enabled: bool = Field(
+        default=True,
+        description="REV10 — Operator simulate Gumroad purchase from Mission Home.",
+    )
     mission_kanban_recipe_match_enabled: bool = Field(
         default=True,
         description="FP1 — Recipe cosine matching on Mission Kanban triage dispatch.",

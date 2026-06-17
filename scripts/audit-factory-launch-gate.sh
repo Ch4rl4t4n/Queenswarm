@@ -178,6 +178,36 @@ else
   fail "missing factory launch catalog sync button"
 fi
 
+if grep -q "factory_launch_purchase_smoke_enabled" backend/app/core/config.py; then
+  pass "factory_launch_purchase_smoke_enabled config"
+else
+  fail "missing factory_launch_purchase_smoke_enabled config"
+fi
+
+if grep -q "purchase_smoke_available" backend/app/application/services/factory_launch_widget_service.py; then
+  pass "purchase_smoke_available flag"
+else
+  fail "missing purchase_smoke_available flag"
+fi
+
+if grep -q "/factory-launch/purchase-smoke" backend/app/presentation/api/routers/dashboard.py; then
+  pass "dashboard REV10 purchase-smoke route"
+else
+  fail "missing dashboard REV10 purchase-smoke route"
+fi
+
+if grep -q "run_factory_launch_purchase_smoke" backend/app/application/services/factory_launch_widget_service.py; then
+  pass "run_factory_launch_purchase_smoke"
+else
+  fail "missing run_factory_launch_purchase_smoke"
+fi
+
+if grep -q "factory-launch-purchase-smoke-btn" frontend/components/hive/factory-launch-widget.tsx; then
+  pass "factory launch purchase smoke button"
+else
+  fail "missing factory launch purchase smoke button"
+fi
+
 if [[ -x backend/venv/bin/python ]]; then
   if (cd backend && ./venv/bin/python -m pytest \
     tests/test_factory_launch_widget_unit.py \

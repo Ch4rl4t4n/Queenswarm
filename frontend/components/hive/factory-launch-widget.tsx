@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Loader2Icon, PackageIcon, RefreshCwIcon, RocketIcon, ShieldCheckIcon, StoreIcon } from "lucide-react";
+import { Loader2Icon, PackageIcon, RefreshCwIcon, RocketIcon, ShieldCheckIcon, StoreIcon, TestTubeDiagonalIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
@@ -17,6 +17,7 @@ import type {
   FactoryLaunchGumroadPublishPayload,
   FactoryLaunchPayload,
   FactoryLaunchPreparePayload,
+  FactoryLaunchPurchaseSmokePayload,
   FactoryLaunchRevenueSmokePayload,
 } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
   const [publishBusy, setPublishBusy] = useState(false);
   const [smokeBusy, setSmokeBusy] = useState(false);
   const [catalogSyncBusy, setCatalogSyncBusy] = useState(false);
+  const [purchaseSmokeBusy, setPurchaseSmokeBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -149,6 +151,26 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
     }
   }, [load]);
 
+  const simulatePurchase = useCallback(async () => {
+    setPurchaseSmokeBusy(true);
+    try {
+      const result = await hivePostJson<FactoryLaunchPurchaseSmokePayload>(
+        "dashboard/factory-launch/purchase-smoke",
+        {},
+      );
+      if (result.ok) {
+        toast.success(result.message ?? "Purchase smoke completed.");
+      } else {
+        toast.message(result.message ?? "Purchase smoke did not complete.");
+      }
+      await load();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Purchase smoke failed.");
+    } finally {
+      setPurchaseSmokeBusy(false);
+    }
+  }, [load]);
+
   useIntervalWhenVisible(() => void load(), COCKPIT_POLL_COLONY_TELEMETRY_MS, {
     initialDelayMs: eager ? 0 : DASHBOARD_BOOT_STAGGER_MS.factoryLaunch,
   });
@@ -232,6 +254,22 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
             <p className="mb-3 text-sm text-(--qs-text-3)">{payload.operator_hint}</p>
 
             <div className="flex flex-wrap items-center gap-2">
+              {payload.purchase_smoke_available ? (
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--ghost qs-btn--sm min-h-[44px] gap-1 border border-(--qs-border)/50"
+                  disabled={purchaseSmokeBusy}
+                  onClick={() => void simulatePurchase()}
+                  data-testid="factory-launch-purchase-smoke-btn"
+                >
+                  {purchaseSmokeBusy ? (
+                    <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <TestTubeDiagonalIcon className="size-3.5" aria-hidden />
+                  )}
+                  Simulate purchase
+                </button>
+              ) : null}
               {payload.catalog_sync_available ? (
                 <button
                   type="button"

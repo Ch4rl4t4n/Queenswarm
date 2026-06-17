@@ -387,6 +387,7 @@ async def test_factory_launch_revenue_loop_ready(monkeypatch: pytest.MonkeyPatch
     assert snapshot.revenue_loop_ready is True
     assert snapshot.revenue_smoke_available is True
     assert snapshot.catalog_sync_available is True
+    assert snapshot.purchase_smoke_available is True
     assert "revenue loop closed" in snapshot.operator_hint.lower()
 
 
@@ -475,3 +476,78 @@ async def test_sync_factory_launch_catalog_delegates(monkeypatch: pytest.MonkeyP
 
     assert result.get("ok") is True
     assert result.get("synced_count") == 2
+
+
+@pytest.mark.asyncio
+async def test_run_factory_launch_purchase_smoke_no_published(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.application.services.factory_launch_widget_service import run_factory_launch_purchase_smoke
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "factory_launch_mission_home_enabled", True)
+    monkeypatch.setattr(settings, "skill_factory_enabled", True)
+    monkeypatch.setattr(settings, "factory_launch_purchase_smoke_enabled", True)
+    monkeypatch.setattr(
+        "app.application.services.skill_factory_service.compose_skill_factory_snapshot",
+        AsyncMock(return_value=_factory_snapshot(sellable=1, launch_queue=[])),
+    )
+    session = AsyncMock()
+
+    result = await run_factory_launch_purchase_smoke(
+        session,
+        tenant_id=uuid.uuid4(),
+        buyer_email="ops@example.com",
+    )
+
+    assert result.get("ok") is False
+    assert result.get("error") == "no_published_listing"
+
+
+@pytest.mark.asyncio
+async def test_run_factory_launch_purchase_smoke_processes_ping(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.application.services.factory_launch_widget_service import run_factory_launch_purchase_smoke
+    from app.application.services.gumroad_purchase_unlock import GumroadWebhookResult
+    from app.core.config import settings
+
+    skill = _skill(
+        slug="harness-pack",
+        title="Harness Pack",
+        gumroad_product_id="prod_abc",
+        gumroad_published=True,
+    )
+    monkeypatch.setattr(settings, "factory_launch_mission_home_enabled", True)
+    monkeypatch.setattr(settings, "skill_factory_enabled", True)
+    monkeypatch.setattr(settings, "factory_launch_purchase_smoke_enabled", True)
+    monkeypatch.setattr(settings, "commerce_webhooks_enabled", True)
+    monkeypatch.setattr(
+        "app.application.services.skill_factory_service.compose_skill_factory_snapshot",
+        AsyncMock(return_value=_factory_snapshot(sellable=1, launch_queue=[skill], gumroad_publish_ready=True)),
+    )
+    monkeypatch.setattr(
+        "app.application.services.gumroad_purchase_unlock.process_gumroad_webhook_event",
+        AsyncMock(
+            return_value=GumroadWebhookResult(
+                ok=True,
+                sale_id="smoke_test",
+                ingested=True,
+                unlocked=True,
+                onboarding_sent=True,
+                message="Purchase unlock granted for matching dashboard account.",
+            ),
+        ),
+    )
+    monkeypatch.setattr(
+        "app.application.services.gumroad_catalog_sync.resolve_slug_for_gumroad_product_id",
+        lambda product_id: "harness-pack",
+    )
+    session = AsyncMock()
+
+    result = await run_factory_launch_purchase_smoke(
+        session,
+        tenant_id=uuid.uuid4(),
+        buyer_email="ops@example.com",
+    )
+
+    assert result.get("ok") is True
+    assert result.get("unlocked") is True
+    assert result.get("onboarding_sent") is True
+    assert result.get("catalog_slug") == "harness-pack"

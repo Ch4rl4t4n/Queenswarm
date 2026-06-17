@@ -1,4 +1,4 @@
-"""REV4–REV9 — Factory Launch widget for Mission Home (Gumroad sellable harness funnel)."""
+"""REV4–REV10 — Factory Launch widget for Mission Home (Gumroad sellable harness funnel)."""
 
 from __future__ import annotations
 
@@ -65,6 +65,7 @@ class FactoryLaunchWidgetOut(BaseModel):
     revenue_loop_ready: bool = False
     revenue_smoke_available: bool = False
     catalog_sync_available: bool = False
+    purchase_smoke_available: bool = False
     catalog_href: str = "/skills"
     operator_hint: str = ""
     factory_href: str = "/apps-tools/skill-factory"
@@ -161,6 +162,21 @@ class FactoryLaunchCatalogSyncOut(BaseModel):
     state_path: str = ""
 
 
+class FactoryLaunchPurchaseSmokeOut(BaseModel):
+    """Simulated Gumroad sale ping for operator buyer-loop verification."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    ok: bool = False
+    sale_id: str | None = None
+    product_id: str | None = None
+    catalog_slug: str | None = None
+    ingested: bool = False
+    unlocked: bool = False
+    onboarding_sent: bool = False
+    message: str = ""
+
+
 async def compose_factory_launch_widget_snapshot(
     session: AsyncSession,
     *,
@@ -203,6 +219,11 @@ async def compose_factory_launch_widget_snapshot(
     )
     revenue_smoke_available = bool(published_gumroad_count > 0 or (launch_queue and sellable > 0))
     catalog_sync_available = bool(snapshot.gumroad_listing_ready and published_gumroad_count > 0)
+    purchase_smoke_available = bool(
+        settings.factory_launch_purchase_smoke_enabled
+        and published_gumroad_count > 0
+        and purchase_webhook_ready
+    )
 
     from app.application.services.purchase_onboarding import marketing_public_origin
 
@@ -232,7 +253,7 @@ async def compose_factory_launch_widget_snapshot(
     elif revenue_loop_ready:
         hint = (
             f"Revenue loop closed — {published_gumroad_count} live listing(s), "
-            "webhook + onboarding ready."
+            "webhook + onboarding ready. Run Simulate purchase to verify unlock."
         )
     else:
         hint = f"Revenue funnel ready — {len(launch_queue)} harness pack(s) queued for Gumroad."
@@ -268,6 +289,7 @@ async def compose_factory_launch_widget_snapshot(
         revenue_loop_ready=revenue_loop_ready,
         revenue_smoke_available=revenue_smoke_available,
         catalog_sync_available=catalog_sync_available,
+        purchase_smoke_available=purchase_smoke_available,
         catalog_href=catalog_href,
         operator_hint=hint,
         top_launch_titles=titles,
@@ -614,12 +636,91 @@ async def run_factory_launch_revenue_smoke(
     return out.model_dump(mode="json")
 
 
+async def run_factory_launch_purchase_smoke(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    buyer_email: str,
+) -> dict[str, object]:
+    """Simulate a Gumroad sale ping against the operator account (REV10)."""
+
+    if not settings.factory_launch_mission_home_enabled or not settings.skill_factory_enabled:
+        return FactoryLaunchPurchaseSmokeOut(
+            message="Factory launch widget disabled.",
+        ).model_dump(mode="json") | {"ok": False, "error": "factory_launch_disabled"}
+
+    if not settings.factory_launch_purchase_smoke_enabled:
+        return FactoryLaunchPurchaseSmokeOut(
+            message="Purchase smoke disabled — set factory_launch_purchase_smoke_enabled.",
+        ).model_dump(mode="json") | {"ok": False, "error": "purchase_smoke_disabled"}
+
+    email = buyer_email.strip().lower()
+    if not email:
+        return FactoryLaunchPurchaseSmokeOut(
+            message="Operator email missing — cannot simulate buyer unlock.",
+        ).model_dump(mode="json") | {"ok": False, "error": "buyer_email_missing"}
+
+    from app.application.services.gumroad_catalog_sync import resolve_slug_for_gumroad_product_id
+    from app.application.services.gumroad_purchase_unlock import process_gumroad_webhook_event
+    from app.application.services.skill_factory_service import compose_skill_factory_snapshot
+
+    factory = await compose_skill_factory_snapshot(session, tenant_id=tenant_id)
+    published = [
+        row
+        for row in (factory.launch_queue or [])
+        if row.gumroad_published is True and row.gumroad_product_id
+    ]
+    if not published:
+        return FactoryLaunchPurchaseSmokeOut(
+            message="No published Gumroad listing in launch queue — publish first.",
+        ).model_dump(mode="json") | {"ok": False, "error": "no_published_listing"}
+
+    skill = published[0]
+    product_id = str(skill.gumroad_product_id or "").strip()
+    sale_id = f"smoke_{uuid.uuid4()}"
+    ping_payload = {
+        "sale_id": sale_id,
+        "product_id": product_id,
+        "product_name": skill.title,
+        "email": email,
+        "price": "1900",
+        "currency": "eur",
+    }
+    result = await process_gumroad_webhook_event(ping_payload, session=session)
+    catalog_slug = resolve_slug_for_gumroad_product_id(product_id)
+    message = result.message or "Purchase smoke processed."
+    if result.onboarding_sent:
+        message = f"{message} Post-purchase onboarding email sent."
+    elif result.unlocked:
+        message = f"{message} Recipe unlock granted for operator account."
+    _logger.info(
+        "factory_launch_widget.purchase_smoke",
+        agent_id="factory_launch_widget",
+        swarm_id=str(tenant_id),
+        sale_id=sale_id,
+        unlocked=result.unlocked,
+        onboarding_sent=result.onboarding_sent,
+    )
+    out = FactoryLaunchPurchaseSmokeOut(
+        ok=result.ok,
+        sale_id=result.sale_id or sale_id,
+        product_id=product_id,
+        catalog_slug=catalog_slug,
+        ingested=result.ingested,
+        unlocked=result.unlocked,
+        onboarding_sent=result.onboarding_sent,
+        message=message,
+    )
+    return out.model_dump(mode="json")
+
+
 __all__ = [
     "FactoryLaunchCatalogSyncOut",
     "FactoryLaunchGumroadDraftOut",
     "FactoryLaunchGumroadDraftRowOut",
     "FactoryLaunchGumroadPublishOut",
     "FactoryLaunchGumroadPublishRowOut",
+    "FactoryLaunchPurchaseSmokeOut",
     "FactoryLaunchRevenueSmokeCheckOut",
     "FactoryLaunchRevenueSmokeOut",
     "FactoryLaunchWidgetOut",
@@ -627,6 +728,7 @@ __all__ = [
     "draft_factory_launch_gumroad_from_widget",
     "prepare_factory_launch_batch_from_widget",
     "publish_factory_launch_gumroad_from_widget",
+    "run_factory_launch_purchase_smoke",
     "run_factory_launch_revenue_smoke",
     "sync_factory_launch_catalog_from_widget",
 ]
