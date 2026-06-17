@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { MarketingShell } from "@/components/marketing/marketing-shell";
 import { ProductDetailView } from "@/components/marketing/product-detail-view";
+import { marketingPublicOrigin } from "@/lib/marketing-host";
 import { toMarketingProductView } from "@/lib/marketing-catalog-view";
 import { fetchMarketingCatalog, fetchMarketingProduct } from "@/lib/marketing-products";
 
@@ -16,9 +17,24 @@ export async function generateMetadata({ params }: SkillDetailPageProps): Promis
   if (!product) {
     return { title: "Product not found · Let Agents Cook" };
   }
+  const origin = marketingPublicOrigin();
+  const ogPath = `/skills/${encodeURIComponent(slug)}/opengraph-image`;
   return {
     title: `${product.title} · Let Agents Cook`,
     description: product.subtitle,
+    openGraph: {
+      title: product.title,
+      description: product.subtitle,
+      type: "website",
+      url: `${origin}/skills/${slug}`,
+      images: [{ url: ogPath, width: 1200, height: 630, alt: product.title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: product.title,
+      description: product.subtitle,
+      images: [ogPath],
+    },
   };
 }
 

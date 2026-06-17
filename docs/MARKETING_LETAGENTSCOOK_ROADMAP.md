@@ -60,7 +60,7 @@ Updated: 2026-06-05
 | M2 | Next.js host middleware (marketing vs app layout) | Agent | ✅ |
 | M3 | `marketing_catalog_sync.py` + `GET /api/v1/marketing/products` | Agent | ✅ |
 | M4 | Pages: `/`, `/skills`, `/skills/[slug]` (`/start` → `/skills` redirect) | Agent | ✅ |
-| M5 | Playwright smoke + OG images from `cover.html` | Agent | pending M4 |
+| M5 | Playwright smoke + OG images from `cover.html` | Agent | ✅ Shipped | `marketing-og-image.tsx` · `opengraph-image` routes · `marketing-site-smoke.spec.ts` |
 | M6 | Gumroad URL sync from upload tracker → catalog | Agent | ✅ |
 | M7 | Multi-marketplace URL sync (Gumroad + future stores) in catalog | Agent | ✅ |
 

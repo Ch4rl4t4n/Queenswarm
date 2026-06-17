@@ -26,6 +26,14 @@ export function isMarketingHost(host: string | null | undefined): boolean {
   return MARKETING_HOSTS.has(normalized);
 }
 
+/** True on letagentscook.org or Playwright `x-e2e-marketing-site: 1` header (M5 smoke). */
+export function isMarketingSiteRequest(
+  host: string | null | undefined,
+  e2eMarketingHeader: string | null | undefined = null,
+): boolean {
+  return isMarketingHost(host) || e2eMarketingHeader === "1";
+}
+
 export function isAppDashboardPath(pathname: string): boolean {
   const blockedPrefixes = [
     "/cockpit",

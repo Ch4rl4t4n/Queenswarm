@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import { VerifyFirstPage } from "@/components/marketing/marketing-static-pages";
 import { MarketingShell } from "@/components/marketing/marketing-shell";
-import { isMarketingHost, marketingPublicOrigin } from "@/lib/marketing-host";
+import { isMarketingSiteRequest, marketingPublicOrigin } from "@/lib/marketing-host";
 
 export const metadata: Metadata = {
   title: "Verify-first · Let Agents Cook",
@@ -12,8 +12,10 @@ export const metadata: Metadata = {
 };
 
 export default async function VerifyFirstRoute(): Promise<JSX.Element> {
-  const host = (await headers()).get("host");
-  if (!isMarketingHost(host)) {
+  const headerStore = await headers();
+  const host = headerStore.get("host");
+  const e2eMarketing = headerStore.get("x-e2e-marketing-site");
+  if (!isMarketingSiteRequest(host, e2eMarketing)) {
     redirect(`${marketingPublicOrigin()}/verify-first`);
   }
 

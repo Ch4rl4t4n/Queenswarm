@@ -38,6 +38,7 @@ run_backend() {
   ./scripts/audit-memory-project-tags-gate.sh
   ./scripts/audit-commercial-self-serve-gate.sh
   ./scripts/audit-factory-launch-gate.sh
+  ./scripts/audit-marketing-site-gate.sh
   ./scripts/audit-broker-guardrails-gate.sh
   ./scripts/audit-broker-readonly-gate.sh
   ./scripts/audit-broker-order-queue-gate.sh
@@ -84,6 +85,7 @@ run_frontend() {
     CI=true npx playwright test e2e/responsive-visual.spec.ts
     CI=true npx playwright test e2e/pwa-shell.spec.ts
     CI=true npx playwright test e2e/smoke-shell.spec.ts
+    CI=true npx playwright test e2e/marketing-site-smoke.spec.ts
     CI=true npx playwright test e2e/analytics-workspace-journey.spec.ts
   )
 }

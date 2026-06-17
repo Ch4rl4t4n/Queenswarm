@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { QS_ACCESS, QS_REFRESH } from "@/lib/auth-cookies";
 import { isLikelyValidDashboardAccessToken } from "@/lib/dashboard-access-jwt";
 import { hiveOverviewHref } from "@/lib/hive-home-route";
-import { appPublicOrigin, isAppDashboardPath, isMarketingHost, marketingPublicOrigin } from "@/lib/marketing-host";
+import { appPublicOrigin, isAppDashboardPath, isMarketingHost, isMarketingSiteRequest, marketingPublicOrigin } from "@/lib/marketing-host";
 
 function controlPlaneHome(): string {
   return hiveOverviewHref();
@@ -59,7 +59,8 @@ export function middleware(request: NextRequest) {
 
   const host = request.headers.get("host") ?? "";
   const { pathname } = request.nextUrl;
-  const marketingHost = isMarketingHost(host);
+  const e2eMarketing = request.headers.get("x-e2e-marketing-site") === "1";
+  const marketingHost = isMarketingSiteRequest(host, e2eMarketing ? "1" : null);
 
   if (marketingHost && isAppDashboardPath(pathname)) {
     const target = new URL(pathname, appPublicOrigin());
