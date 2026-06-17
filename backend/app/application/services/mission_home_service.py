@@ -531,7 +531,10 @@ async def compose_mission_home_snapshot(
                 ),
             )
 
-    if settings.revenue_funnel_mission_home_enabled:
+    from app.application.services.personal_os_mode import personal_os_mission_home_revenue_widgets_enabled
+
+    revenue_widgets = personal_os_mission_home_revenue_widgets_enabled()
+    if settings.revenue_funnel_mission_home_enabled and revenue_widgets:
         from app.application.services.revenue_funnel_widget_service import (
             compose_revenue_funnel_widget_snapshot,
         )
@@ -581,9 +584,15 @@ async def compose_mission_home_snapshot(
         },
         rapid_loop_widget_enabled=settings.rapid_loop_mission_home_enabled,
         sub_swarm_fleet_widget_enabled=settings.sub_swarm_fleet_mission_home_enabled,
-        factory_launch_widget_enabled=settings.factory_launch_mission_home_enabled,
-        catalog_wave_widget_enabled=settings.catalog_wave_mission_home_enabled,
-        revenue_funnel_widget_enabled=settings.revenue_funnel_mission_home_enabled,
+        factory_launch_widget_enabled=(
+            settings.factory_launch_mission_home_enabled and revenue_widgets
+        ),
+        catalog_wave_widget_enabled=(
+            settings.catalog_wave_mission_home_enabled and revenue_widgets
+        ),
+        revenue_funnel_widget_enabled=(
+            settings.revenue_funnel_mission_home_enabled and revenue_widgets
+        ),
     )
 
 

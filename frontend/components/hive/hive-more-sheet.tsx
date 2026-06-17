@@ -40,10 +40,10 @@ function tenantSubtitle(tenant: { role: string; platform_mode?: string }, langua
 export function HiveMoreSheet({ open, onClose, pathname, tenants }: HiveMoreSheetProps) {
   const router = useRouter();
   const { language } = useUiLanguage();
-  const { features, soloMode } = usePlatform();
+  const { features, soloMode, personalOsMode } = usePlatform();
   const routeHash = useRouteHash();
   const navGroups = filterNavGroupsByFeatures(
-    buildHiveNavGroupsForContext(PHASE70_CONSOLIDATED_NAV_ENABLED, soloMode),
+    buildHiveNavGroupsForContext(PHASE70_CONSOLIDATED_NAV_ENABLED, soloMode, personalOsMode),
     features,
   );
   const navCandidates = navGroups.flatMap((group) => group.items);

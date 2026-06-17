@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
+import { usePlatform } from "@/components/hive/platform-context";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import {
   formatRelativeMinutes,
@@ -19,6 +20,7 @@ import {
   APPS_TOOLS_MODULES_CORE,
   APPS_TOOLS_MODULES_FROZEN,
 } from "@/lib/apps-tools-modules";
+import { filterAppsToolsModulesForPersonalOs } from "@/lib/personal-os-mode";
 import { contentFactoryAgencyHref, contentFactoryMicroSaasHref } from "@/lib/factory-content-factory-routes";
 
 type PolicyRiskTier = "read" | "write" | "publish" | "financial";
@@ -416,7 +418,16 @@ const MCP_RETRY_LIFECYCLE_RECOMMENDATION_AT_STORAGE_KEY = "apps-tools:mcp-lifecy
 
 export function AppsToolsIndexClient() {
   const { language } = useUiLanguage();
+  const { personalOsMode } = usePlatform();
   const copy = resolveAppsToolsAnalyticsCopy(language);
+  const coreModules = useMemo(
+    () => filterAppsToolsModulesForPersonalOs(APPS_TOOLS_MODULES_CORE, personalOsMode),
+    [personalOsMode],
+  );
+  const frozenModules = useMemo(
+    () => filterAppsToolsModulesForPersonalOs(APPS_TOOLS_MODULES_FROZEN, personalOsMode),
+    [personalOsMode],
+  );
   const [policyByModule, setPolicyByModule] = useState<Record<string, ModulePolicyPack>>({});
   const [workspaceByModule, setWorkspaceByModule] = useState<Record<string, CapabilityWorkspace>>({});
   const [capabilitiesByModule, setCapabilitiesByModule] = useState<Record<string, CapabilityContract[]>>({});
@@ -1305,7 +1316,7 @@ export function AppsToolsIndexClient() {
       ) : null}
       <AppsToolsModuleGrid
         loading={loading}
-        modules={APPS_TOOLS_MODULES_CORE}
+        modules={coreModules}
         sectionLabel="CORE MODULES"
         policyByModule={policyByModule}
         workspaceByModule={workspaceByModule}
@@ -1339,15 +1350,15 @@ export function AppsToolsIndexClient() {
           })}
       />
 
-      {!loading && APPS_TOOLS_MODULES_FROZEN.length > 0 ? (
+      {!loading && frozenModules.length > 0 ? (
         <details className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4">
           <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-(--qs-text-3)">
-            Frozen modules ({APPS_TOOLS_MODULES_FROZEN.length}) — maintained, not first-revenue priority
+            Frozen modules ({frozenModules.length}) — maintained, not first-revenue priority
           </summary>
           <div className="mt-4">
             <AppsToolsModuleGrid
               loading={false}
-              modules={APPS_TOOLS_MODULES_FROZEN}
+              modules={frozenModules}
               sectionLabel="FROZEN"
               policyByModule={policyByModule}
               workspaceByModule={workspaceByModule}

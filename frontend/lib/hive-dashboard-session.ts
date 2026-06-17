@@ -38,6 +38,8 @@ export interface DashboardOperatorMe {
   platform_features?: Record<string, boolean>;
   /** True when deployment runs SOLO_MODE preset (commercial surfaces hidden). */
   solo_mode?: boolean;
+  /** True when deployment runs Personal OS preset (revenue funnel + beta labs hidden). */
+  personal_os_mode?: boolean;
   /** True when deployment enforces strict single-admin invariants. */
   single_admin_mode?: boolean;
   tenant_branding?: {

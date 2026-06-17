@@ -65,6 +65,24 @@ Living backlog for **queenswarm.love** — ordered by impact. Status reflects pr
 
 **OW20 note:** Foragers page — **Results / Task / Delete** row actions; **Add rule** spawn dialog; progress tooltip + deep link. `POST /foragers/{id}/promote-task` → Mission Kanban triage. Morning brief includes forager KPI cards. Mission feed events fan out to Web Push (Execution Studio subscription store). Kanban **Done** triggers pollen confetti. Task edit/remove + bulk clear Done column. Solo home → **Mission Control** (`/tasks`).
 
+## Personal OS — solo operator cleanup (Jun 2026)
+
+**Goal:** One admin daily stack — agents, memory, marketing lane — **without** Gumroad/revenue funnel, trading cockpit, or beta lab noise.
+
+**Canonical doc:** [`docs/PERSONAL_OS_MAINTENANCE.md`](PERSONAL_OS_MAINTENANCE.md) · preset: `.env.solo.example` · `./scripts/apply-solo-mode.sh`
+
+| Phase | Scope | Status |
+|-------|-------|--------|
+| POS-A | `PERSONAL_OS_MODE` preset · strip Mission Home revenue widgets · nav/apps-tools filter · cockpit business tab hidden | ✅ Shipped |
+| POS-B | Marketing Team unified module (post-bridge calendar + publish lane) | Planned |
+| POS-C | Faceless content pipeline (idea → post/video → schedule) | Planned |
+| POS-D | Life OS — Calendar → daily planner in Mission Home | Planned |
+| POS-E | Autopilot — `routines_enabled` + Four Lanes + My 3 Bees cron | Planned |
+| POS-F | Skill Factory lite — strip Gumroad tabs | Planned |
+| POS-G | Dead code deletion (commercial routes) — after 2 weeks stable | Planned |
+
+**Maintenance audits:** `./scripts/audit-personal-os-gate.sh` · weekly: social publish + solo daily plan gates.
+
 | Step | Scope | Status |
 |------|-------|--------|
 | OW21 | ⌘K Chroma re-rank (sessions + tasks via deliverables) + backend EN notifications | ✅ |

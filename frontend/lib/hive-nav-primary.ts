@@ -32,6 +32,7 @@ import {
   type HiveIaZone,
 } from "@/lib/hive-ia-canonical";
 import { hiveOverviewHref } from "@/lib/hive-home-route";
+import { PERSONAL_OS_MORE_HIDDEN_HREFS } from "@/lib/personal-os-mode";
 
 export type { HiveIaZone };
 
@@ -152,8 +153,17 @@ export function buildHiveNavGroups(consolidatedEnabled: boolean): { title: strin
 export function buildHiveNavGroupsForContext(
   consolidatedEnabled: boolean,
   soloMode: boolean,
+  personalOsMode = false,
 ): { title: string; items: HiveNavItem[] }[] {
-  const base = buildHiveNavGroups(consolidatedEnabled);
+  const base = buildHiveNavGroups(consolidatedEnabled).map((group) => ({
+    ...group,
+    items: group.items.filter((item) => {
+      if (!personalOsMode) {
+        return true;
+      }
+      return !PERSONAL_OS_MORE_HIDDEN_HREFS.has(item.href);
+    }),
+  })).filter((group) => group.items.length > 0);
   if (!soloMode || !OPERATOR_CONTROL_PLANE_ENABLED) {
     return base;
   }

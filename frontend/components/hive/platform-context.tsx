@@ -8,6 +8,10 @@ import { DASHBOARD_BOOT_STAGGER_MS } from "@/lib/dashboard-boot-stagger";
 import { SINGLE_ADMIN_MODE } from "@/lib/feature-flags";
 import type { DashboardOperatorMe } from "@/lib/hive-dashboard-session";
 import {
+  applyPersonalOsModeOverrides,
+  PERSONAL_OS_MODE_BUILD_HINT,
+} from "@/lib/personal-os-mode";
+import {
   applySoloModeOverrides,
   SOLO_MODE_BUILD_HINT,
 } from "@/lib/solo-mode";
@@ -24,6 +28,7 @@ import { isCustomTenantBranding, resolveTenantBranding } from "@/lib/tenant-bran
 export interface PlatformContextValue {
   loading: boolean;
   soloMode: boolean;
+  personalOsMode: boolean;
   platformMode: PlatformMode;
   subscriptionTier: string;
   isAdmin: boolean;
@@ -51,6 +56,7 @@ const DEFAULT_FEATURES = applySoloModeOverrides(
 export function PlatformProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [soloMode, setSoloMode] = useState(SOLO_MODE_BUILD_HINT);
+  const [personalOsMode, setPersonalOsMode] = useState(PERSONAL_OS_MODE_BUILD_HINT);
   const [platformMode, setPlatformMode] = useState<PlatformMode>("internal");
   const [subscriptionTier, setSubscriptionTier] = useState("free");
   const [isAdmin, setIsAdmin] = useState(false);
@@ -74,6 +80,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     setTenantBranding(me.tenant_branding ? resolveTenantBranding(me.tenant_branding) : null);
     const activeSolo = activeSingleAdmin ? true : Boolean(me.solo_mode ?? SOLO_MODE_BUILD_HINT);
     setSoloMode(activeSolo);
+    setPersonalOsMode(Boolean(me.personal_os_mode ?? PERSONAL_OS_MODE_BUILD_HINT));
     if (me.platform_features && Object.keys(me.platform_features).length > 0) {
       setFeatures(me.platform_features);
     } else {
@@ -84,6 +91,9 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
       });
       if (activeSolo) {
         nextFeatures = applySoloModeOverrides(nextFeatures, { isAdmin: admin });
+      }
+      if (me.personal_os_mode ?? PERSONAL_OS_MODE_BUILD_HINT) {
+        nextFeatures = applyPersonalOsModeOverrides(nextFeatures, { isAdmin: admin });
       }
       setFeatures(nextFeatures);
     }
@@ -133,6 +143,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     () => ({
       loading,
       soloMode,
+      personalOsMode,
       platformMode,
       subscriptionTier,
       isAdmin,
@@ -145,7 +156,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
       isPathAllowed: (pathname: string) => isRouteAllowed(pathname, features),
       refresh,
     }),
-    [loading, soloMode, platformMode, subscriptionTier, isAdmin, totpEnabled, displayName, email, features, tenantBranding, refresh],
+    [loading, soloMode, personalOsMode, platformMode, subscriptionTier, isAdmin, totpEnabled, displayName, email, features, tenantBranding, refresh],
   );
 
   return <PlatformContext.Provider value={value}>{children}</PlatformContext.Provider>;
@@ -157,6 +168,7 @@ export function usePlatform(): PlatformContextValue {
     return {
       loading: false,
       soloMode: SOLO_MODE_BUILD_HINT,
+      personalOsMode: PERSONAL_OS_MODE_BUILD_HINT,
       platformMode: "internal",
       subscriptionTier: "free",
       isAdmin: true,

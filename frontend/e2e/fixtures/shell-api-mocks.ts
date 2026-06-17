@@ -953,6 +953,7 @@ const STUB_OPERATOR_ME = {
   platform_mode: "commercial",
   subscription_tier: "free",
   solo_mode: true,
+  personal_os_mode: true,
   platform_features: STUB_PLATFORM_FEATURES,
   scopes: ["dash:admin", "dash:operator", "dash:read"],
 };
@@ -4529,9 +4530,9 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           first_run_complete: true,
           rapid_loop_widget_enabled: true,
           sub_swarm_fleet_widget_enabled: true,
-          factory_launch_widget_enabled: true,
-          catalog_wave_widget_enabled: true,
-          revenue_funnel_widget_enabled: true,
+          factory_launch_widget_enabled: false,
+          catalog_wave_widget_enabled: false,
+          revenue_funnel_widget_enabled: false,
           links: {
             new_session: "/agents#sessions",
             approvals: "/cockpit#approvals",

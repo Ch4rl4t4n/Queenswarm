@@ -41,6 +41,7 @@ run_backend() {
   ./scripts/audit-marketing-site-gate.sh
   ./scripts/audit-catalog-wave-gate.sh
   ./scripts/audit-revenue-funnel-gate.sh
+  ./scripts/audit-personal-os-gate.sh
   ./scripts/audit-broker-guardrails-gate.sh
   ./scripts/audit-broker-readonly-gate.sh
   ./scripts/audit-broker-order-queue-gate.sh

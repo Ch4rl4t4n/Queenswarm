@@ -240,14 +240,14 @@ const COCKPIT_SECTIONS: {
 const COCKPIT_SECTION_IDS: CockpitSection[] = COCKPIT_SECTIONS.map((row) => row.id);
 
 function OperatorCockpitPanelInner() {
-  const { soloMode } = usePlatform();
+  const { soloMode, personalOsMode } = usePlatform();
   const visibleSectionIds = useMemo(
-    () => visibleCockpitSections(soloMode, COCKPIT_SECTION_IDS),
-    [soloMode],
+    () => visibleCockpitSections(soloMode, COCKPIT_SECTION_IDS, personalOsMode),
+    [soloMode, personalOsMode],
   );
   const cockpitNavSplit = useMemo(
-    () => cockpitNavSections(soloMode, COCKPIT_SECTION_IDS),
-    [soloMode],
+    () => cockpitNavSections(soloMode, COCKPIT_SECTION_IDS, personalOsMode),
+    [soloMode, personalOsMode],
   );
   const primaryCockpitNav = useMemo(
     () => COCKPIT_SECTIONS.filter((row) => cockpitNavSplit.primary.includes(row.id)),

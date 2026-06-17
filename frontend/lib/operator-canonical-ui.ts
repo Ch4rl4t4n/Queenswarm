@@ -8,6 +8,9 @@ import type { CockpitSection } from "@/lib/cockpit-routes";
 /** Agentic OS sections hidden in solo mode (legacy VC infra — manual §4). */
 export const SOLO_COCKPIT_HIDDEN_SECTIONS: readonly CockpitSection[] = ["fleet"];
 
+/** Extra sections hidden in Personal OS (revenue operator lane). */
+export const PERSONAL_OS_COCKPIT_HIDDEN_SECTIONS: readonly CockpitSection[] = ["business"];
+
 /** Sections visible only in solo operator mode. */
 export const SOLO_ONLY_COCKPIT_SECTIONS: readonly CockpitSection[] = ["business"];
 
@@ -15,6 +18,12 @@ export const SOLO_ONLY_COCKPIT_SECTIONS: readonly CockpitSection[] = ["business"
 export const SOLO_COCKPIT_PRIMARY_SECTIONS: readonly CockpitSection[] = [
   "overview",
   "business",
+  "innovation",
+];
+
+/** Personal OS primary tabs — revenue business lane removed. */
+export const PERSONAL_OS_COCKPIT_PRIMARY_SECTIONS: readonly CockpitSection[] = [
+  "overview",
   "innovation",
 ];
 
@@ -171,10 +180,14 @@ export const OPERATOR_UI_CONTROL_AUDIT: readonly OperatorUiControlAudit[] = [
 export function visibleCockpitSections(
   soloMode: boolean,
   all: readonly CockpitSection[],
+  personalOsMode = false,
 ): CockpitSection[] {
-  const filtered = soloMode
+  let filtered = soloMode
     ? all.filter((id) => !SOLO_COCKPIT_HIDDEN_SECTIONS.includes(id))
     : all.filter((id) => !SOLO_ONLY_COCKPIT_SECTIONS.includes(id));
+  if (personalOsMode) {
+    filtered = filtered.filter((id) => !PERSONAL_OS_COCKPIT_HIDDEN_SECTIONS.includes(id));
+  }
   if (!soloMode) {
     return filtered;
   }
@@ -189,13 +202,17 @@ export function visibleCockpitSections(
 export function cockpitNavSections(
   soloMode: boolean,
   all: readonly CockpitSection[],
+  personalOsMode = false,
 ): CockpitNavSplit {
-  const visible = visibleCockpitSections(soloMode, all);
+  const visible = visibleCockpitSections(soloMode, all, personalOsMode);
   if (!soloMode) {
     return { primary: visible, advanced: [] };
   }
+  const primarySections = personalOsMode
+    ? PERSONAL_OS_COCKPIT_PRIMARY_SECTIONS
+    : SOLO_COCKPIT_PRIMARY_SECTIONS;
   return {
-    primary: visible.filter((id) => (SOLO_COCKPIT_PRIMARY_SECTIONS as readonly string[]).includes(id)),
+    primary: visible.filter((id) => (primarySections as readonly string[]).includes(id)),
     advanced: visible.filter((id) => (SOLO_COCKPIT_ADVANCED_SECTIONS as readonly string[]).includes(id)),
   };
 }

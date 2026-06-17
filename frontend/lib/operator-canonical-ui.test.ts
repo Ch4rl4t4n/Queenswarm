@@ -51,4 +51,17 @@ describe("operator-canonical-ui", () => {
     expect(split.primary).toEqual(ALL.filter((id) => id !== "business"));
     expect(split.advanced).toEqual([]);
   });
+
+  it("visibleCockpitSections_hides_business_in_personal_os", () => {
+    const visible = visibleCockpitSections(true, ALL, true);
+    expect(visible).not.toContain("business");
+    expect(visible).toContain("overview");
+    expect(visible).toContain("innovation");
+  });
+
+  it("cockpitNavSections_omits_business_primary_in_personal_os", () => {
+    const split = cockpitNavSections(true, ALL, true);
+    expect(split.primary).not.toContain("business");
+    expect(split.primary).toContain("overview");
+  });
 });

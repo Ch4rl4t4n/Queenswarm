@@ -787,6 +787,13 @@ class Settings(BaseSettings):
             "feature preset. Code remains for future commercial re-enable."
         ),
     )
+    personal_os_mode_enabled: bool = Field(
+        default=False,
+        description=(
+            "Personal OS preset for one operator: strip revenue funnel, Gumroad widgets, "
+            "beta labs, and commercial nav. Stacks on SOLO_MODE_ENABLED."
+        ),
+    )
     single_admin_mode: bool = Field(
         default=False,
         description=(
@@ -3018,6 +3025,17 @@ class Settings(BaseSettings):
             return self
         if not self.solo_mode_enabled:
             msg = "When SINGLE_ADMIN_MODE=true, SOLO_MODE_ENABLED must also be true."
+            raise ValueError(msg)
+        return self
+
+    @model_validator(mode="after")
+    def personal_os_mode_requirements(self) -> Self:
+        """Personal OS stacks on solo operator preset."""
+
+        if not self.personal_os_mode_enabled:
+            return self
+        if not self.solo_mode_enabled:
+            msg = "When PERSONAL_OS_MODE_ENABLED=true, SOLO_MODE_ENABLED must also be true."
             raise ValueError(msg)
         return self
 

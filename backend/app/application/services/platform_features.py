@@ -10,6 +10,7 @@ from app.application.services.billing import (
     TIER_PRO,
     resolve_plan_features,
 )
+from app.application.services.personal_os_mode import apply_personal_os_overrides
 from app.application.services.solo_mode import apply_solo_mode_overrides
 from app.core.config import settings
 from app.infrastructure.persistence.models.billing import TenantSubscription
@@ -376,6 +377,12 @@ def resolve_platform_features(
 
     if settings.solo_mode_enabled:
         resolved = apply_solo_mode_overrides(
+            resolved,
+            policy_overrides=overrides,
+            is_admin=is_admin,
+        )
+    if settings.personal_os_mode_enabled:
+        resolved = apply_personal_os_overrides(
             resolved,
             policy_overrides=overrides,
             is_admin=is_admin,

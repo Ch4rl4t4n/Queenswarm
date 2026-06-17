@@ -686,6 +686,7 @@ class MeDetailResponse(BaseModel):
     subscription_tier: str = "free"
     platform_features: dict[str, bool] = Field(default_factory=dict)
     solo_mode: bool = False
+    personal_os_mode: bool = False
     single_admin_mode: bool = False
     tenant_branding: TenantBrandingBrief | None = None
 
@@ -773,6 +774,7 @@ def _serialize_me(
     subscription_tier: str = "free",
     platform_features: dict[str, bool] | None = None,
     solo_mode: bool = False,
+    personal_os_mode: bool = False,
     single_admin_mode: bool = False,
     tenant_branding: dict[str, Any] | None = None,
 ) -> MeDetailResponse:
@@ -800,6 +802,7 @@ def _serialize_me(
         subscription_tier=str(subscription_tier),
         platform_features=dict(platform_features or {}),
         solo_mode=bool(solo_mode),
+        personal_os_mode=bool(personal_os_mode),
         single_admin_mode=bool(single_admin_mode),
         tenant_branding=TenantBrandingBrief.model_validate(tenant_branding) if tenant_branding else None,
     )
@@ -846,6 +849,7 @@ async def dashboard_me_detail(sess: DashboardSession, db: DbSession) -> MeDetail
         platform_features=platform_features,
         tenant_branding=tenant_branding,
         solo_mode=bool(settings.solo_mode_enabled),
+        personal_os_mode=bool(settings.personal_os_mode_enabled),
         single_admin_mode=bool(settings.single_admin_mode),
     )
 
