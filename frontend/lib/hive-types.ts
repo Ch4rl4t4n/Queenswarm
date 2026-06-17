@@ -1018,6 +1018,24 @@ export interface SubSwarmFleetPayload {
   swarms_href: string;
 }
 
+/** ``GET /api/v1/dashboard/factory-launch`` — REV4 Gumroad launch funnel widget. */
+export interface FactoryLaunchPayload {
+  enabled: boolean;
+  generated_at: string;
+  sellable_count: number;
+  launch_queue_count: number;
+  draft_count: number;
+  rejected_count: number;
+  library_count: number;
+  building_count: number;
+  gumroad_ready: boolean;
+  funnel_ready: boolean;
+  operator_hint: string;
+  factory_href: string;
+  launch_href: string;
+  top_launch_titles: string[];
+}
+
 /** ``GET /api/v1/memory/curated/project-tags`` — MEM5 tag registry. */
 export interface MemoryProjectTagRow {
   id: string;

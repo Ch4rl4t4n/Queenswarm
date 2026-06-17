@@ -524,6 +524,7 @@ _MK6/MK7 remain in P0 letagentscook table above._
 | REV1 | Post-purchase onboarding email + simulate proof artifact | P1 | 2–3 d | ✅ | Gumroad webhook + SMTP |
 | REV2 | Public **Eval-as-a-Service** lead magnet | P1 | 3–4 d | ✅ | `/skills/eval` · `POST /marketing/eval` |
 | REV3 | **Scorecard badge** on every product detail page | P2 | 1 d | ✅ | `marketing_scorecard.py` · `ScorecardBadge` |
+| REV4 | **Factory Launch widget** on Mission Home (Gumroad funnel) | P0 | 1–2 d | ✅ Shipped | `factory_launch_widget_service` · `GET /dashboard/factory-launch` · Mission Home mount |
 
 ### Track D — Operator trust & factory SLOs
 

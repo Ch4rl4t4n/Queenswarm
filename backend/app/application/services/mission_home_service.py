@@ -138,6 +138,7 @@ class MissionHomeSnapshotOut(BaseModel):
     links: dict[str, str] = Field(default_factory=dict)
     rapid_loop_widget_enabled: bool = False
     sub_swarm_fleet_widget_enabled: bool = False
+    factory_launch_widget_enabled: bool = False
 
 
 PROCESS_STEPS: list[ProcessStepOut] = [
@@ -452,6 +453,7 @@ async def compose_mission_home_snapshot(
             process_steps=PROCESS_STEPS,
             rapid_loop_widget_enabled=False,
             sub_swarm_fleet_widget_enabled=False,
+            factory_launch_widget_enabled=False,
         )
 
     first_run = await compose_solo_first_run(
@@ -553,6 +555,7 @@ async def compose_mission_home_snapshot(
         },
         rapid_loop_widget_enabled=settings.rapid_loop_mission_home_enabled,
         sub_swarm_fleet_widget_enabled=settings.sub_swarm_fleet_mission_home_enabled,
+        factory_launch_widget_enabled=settings.factory_launch_mission_home_enabled,
     )
 
 

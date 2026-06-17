@@ -198,6 +198,22 @@ async def dashboard_sub_swarm_fleet_sync_due(
     return result.model_dump(mode="json")
 
 
+@router.get("/factory-launch")
+async def dashboard_factory_launch(
+    db: DbSession,
+    principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, object]:
+    """REV4 — Skill Factory launch funnel snapshot for Mission Home widget."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        return {"enabled": False, "operator_hint": "Tenant context missing."}
+    from app.application.services.factory_launch_widget_service import compose_factory_launch_widget_snapshot
+
+    payload = await compose_factory_launch_widget_snapshot(db, tenant_id=tenant_id)
+    return payload.model_dump(mode="json")
+
+
 @router.get("/time-saved")
 async def dashboard_time_saved(
     db: DbSession,

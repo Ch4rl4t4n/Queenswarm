@@ -319,6 +319,23 @@ const STUB_SUB_SWARM_FLEET = {
   swarms_href: "/swarms",
 };
 
+const STUB_FACTORY_LAUNCH = {
+  enabled: true,
+  generated_at: new Date().toISOString(),
+  sellable_count: 1,
+  launch_queue_count: 1,
+  draft_count: 0,
+  rejected_count: 0,
+  library_count: 3,
+  building_count: 0,
+  gumroad_ready: true,
+  funnel_ready: true,
+  operator_hint: "Revenue funnel ready — 1 harness pack(s) queued for Gumroad.",
+  factory_href: "/apps-tools/skill-factory",
+  launch_href: "/apps-tools/skill-factory?section=launch#launch",
+  top_launch_titles: ["Queenswarm Harness Pack"],
+};
+
 const STUB_TIME_SAVED = {
   generated_at: new Date().toISOString(),
   window_days: 30,
@@ -2275,6 +2292,15 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_SUB_SWARM_FLEET),
+      });
+      return;
+    }
+
+    if (path.startsWith("dashboard/factory-launch")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_FACTORY_LAUNCH),
       });
       return;
     }
@@ -4241,6 +4267,7 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           first_run_complete: true,
           rapid_loop_widget_enabled: true,
           sub_swarm_fleet_widget_enabled: true,
+          factory_launch_widget_enabled: true,
           links: {
             new_session: "/agents#sessions",
             approvals: "/cockpit#approvals",
