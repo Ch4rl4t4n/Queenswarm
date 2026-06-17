@@ -107,7 +107,7 @@ export function MemoryProjectTagsPanel(): JSX.Element | null {
     <V4Card className="border-pollen/25" data-testid="memory-project-tags-panel">
       <V4CardHeader
         leadingIcon={Tag}
-        leadingIconTone="gold"
+        leadingIconTone="purple"
         title="Client / project memory tags"
         description="GBrain-style company brain slices — filter cited recall to tagged hive memory."
         hint={sectionHintNode("knowledgeMemoryProjectTags")}
