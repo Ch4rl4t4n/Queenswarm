@@ -77,7 +77,7 @@ Living backlog for **queenswarm.love** — ordered by impact. Status reflects pr
 | POS-B | Marketing Team unified module (post-bridge calendar + publish lane) | ✅ Shipped |
 | POS-C | Faceless content pipeline (idea → post/video → schedule) | ✅ Shipped |
 | POS-D | Life OS — Calendar → daily planner in Mission Home | ✅ Shipped |
-| POS-E | Autopilot — `routines_enabled` + Four Lanes + My 3 Bees cron | Planned |
+| POS-E | Autopilot — `routines_enabled` + Four Lanes + My 3 Bees cron | ✅ Shipped |
 | POS-F | Skill Factory lite — strip Gumroad tabs | Planned |
 | POS-G | Dead code deletion (commercial routes) — after 2 weeks stable | Planned |
 

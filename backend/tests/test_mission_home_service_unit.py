@@ -9,11 +9,13 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.application.services.mission_home_service import (
+    MissionAutopilotStripOut,
     MissionLifeOsStripOut,
     MissionMemoryStripOut,
     PROCESS_STEPS,
     STEP_STUDIOS,
     _brief_bullets_from_morning,
+    _compose_autopilot_strip,
     _compose_life_os_strip,
     _compose_memory_strip,
     _loop_progress_from_lanes,
@@ -154,6 +156,7 @@ async def test_compose_mission_home_setup_step() -> None:
     parallel = type("Parallel", (), {"sessions": []})()
     memory_strip = MissionMemoryStripOut()
     life_os_strip = MissionLifeOsStripOut(enabled=True, connected=False, message="Connect Google Calendar")
+    autopilot_strip = MissionAutopilotStripOut(enabled=True, routines_enabled=True, trio_bound=2)
 
     with patch("app.application.services.mission_home_service.settings") as mock_settings:
         mock_settings.solo_mode_enabled = True
@@ -191,12 +194,16 @@ async def test_compose_mission_home_setup_step() -> None:
                                     "app.application.services.mission_home_service._compose_life_os_strip",
                                     AsyncMock(return_value=life_os_strip),
                                 ):
-                                    snapshot = await compose_mission_home_snapshot(
-                                        session,
-                                        tenant_id=tenant_id,
-                                        dashboard_user_id=user_id,
-                                        tenant=None,
-                                    )
+                                    with patch(
+                                        "app.application.services.mission_home_service._compose_autopilot_strip",
+                                        AsyncMock(return_value=autopilot_strip),
+                                    ):
+                                        snapshot = await compose_mission_home_snapshot(
+                                            session,
+                                            tenant_id=tenant_id,
+                                            dashboard_user_id=user_id,
+                                            tenant=None,
+                                        )
 
     assert snapshot.enabled is True
     assert snapshot.current_step == "setup"
@@ -258,3 +265,58 @@ async def test_compose_life_os_strip_maps_calendar_events() -> None:
     assert strip.connected is True
     assert len(strip.events) == 1
     assert strip.events[0].title == "Focus block"
+
+
+@pytest.mark.asyncio
+async def test_compose_autopilot_strip_disabled_when_routines_off() -> None:
+    session = AsyncMock()
+    with patch("app.application.services.mission_home_service.settings") as mock_settings:
+        mock_settings.routines_enabled = False
+        strip = await _compose_autopilot_strip(session, tenant_id=uuid.uuid4())
+
+    assert strip.enabled is False
+    assert strip.routines_enabled is False
+    assert "disabled" in strip.message.lower()
+
+
+@pytest.mark.asyncio
+async def test_compose_autopilot_strip_maps_trio_and_four_lanes() -> None:
+    session = AsyncMock()
+    tenant_id = uuid.uuid4()
+
+    trio = {
+        "lanes_bound": 2,
+        "lanes_total": 3,
+        "lanes": [
+            {
+                "lane_id": "life_os",
+                "label": "Life OS",
+                "description": "Morning briefing",
+                "binding": "context_payload",
+                "routine_active": True,
+            },
+        ],
+    }
+    digest = type("Digest", (), {"pending_count": 2, "items": []})()
+
+    with patch("app.application.services.mission_home_service.settings") as mock_settings:
+        mock_settings.routines_enabled = True
+        with patch(
+            "app.application.services.solo_operator_trio.get_solo_trio_status",
+            AsyncMock(return_value=trio),
+        ):
+            with patch(
+                "app.application.services.solo_operator_digest_inbox.compose_four_lane_digest_inbox",
+                AsyncMock(return_value=digest),
+            ):
+                with patch(
+                    "app.application.services.solo_operator_four_lanes._load_tenant_routines",
+                    AsyncMock(return_value=[]),
+                ):
+                    strip = await _compose_autopilot_strip(session, tenant_id=tenant_id)
+
+    assert strip.enabled is True
+    assert strip.trio_bound == 2
+    assert strip.digest_pending == 2
+    assert any(row.group == "trio" for row in strip.lanes)
+    assert any(row.group == "four_lane" for row in strip.lanes)

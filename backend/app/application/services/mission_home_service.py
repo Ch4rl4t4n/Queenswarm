@@ -145,6 +145,39 @@ class MissionLifeOsStripOut(BaseModel):
     connect_href: str = "/integrations?tab=connectors"
 
 
+class MissionAutopilotLaneOut(BaseModel):
+    """One autopilot lane row (My 3 Bees or Four Lanes)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    id: str
+    label: str
+    group: Literal["trio", "four_lane"] = "trio"
+    status: Literal["active", "bound", "missing", "paused"] = "missing"
+    detail: str = ""
+    schedule_cron: str | None = None
+
+
+class MissionAutopilotStripOut(BaseModel):
+    """Background autopilot status — My 3 Bees + Four Lanes (POS-E)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    enabled: bool = False
+    routines_enabled: bool = False
+    trio_bound: int = 0
+    trio_total: int = 3
+    four_lanes_active: int = 0
+    four_lanes_total: int = 4
+    digest_pending: int = 0
+    cron_lane_count: int = 0
+    message: str = ""
+    lanes: list[MissionAutopilotLaneOut] = Field(default_factory=list)
+    harness_href: str = "/settings/harness"
+    four_lanes_href: str = "/agentic-os#lanes"
+    digest_href: str = "/cockpit#four-lanes"
+
+
 class MissionHomeSnapshotOut(BaseModel):
     """Unified Mission Home snapshot for /tasks solo default."""
 
@@ -161,6 +194,7 @@ class MissionHomeSnapshotOut(BaseModel):
     memory_strip: MissionMemoryStripOut = Field(default_factory=MissionMemoryStripOut)
     step_studios: list[MissionStudioEntryOut] = Field(default_factory=list)
     life_os_strip: MissionLifeOsStripOut = Field(default_factory=MissionLifeOsStripOut)
+    autopilot_strip: MissionAutopilotStripOut = Field(default_factory=MissionAutopilotStripOut)
     first_run_complete: bool = True
     links: dict[str, str] = Field(default_factory=dict)
     rapid_loop_widget_enabled: bool = False
@@ -382,6 +416,125 @@ async def _compose_life_os_strip(
         message=calendar.message,
         events=events,
         connect_href=connect_href,
+    )
+
+
+async def _compose_autopilot_strip(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+) -> MissionAutopilotStripOut:
+    """Build My 3 Bees + Four Lanes autopilot status for Mission Home."""
+
+    harness_href = "/settings/harness"
+    four_lanes_href = "/agentic-os#lanes"
+    digest_href = "/cockpit#four-lanes"
+
+    if not settings.routines_enabled:
+        return MissionAutopilotStripOut(
+            enabled=False,
+            routines_enabled=False,
+            message="Background routines disabled — enable in Settings → AI harness.",
+            harness_href=harness_href,
+            four_lanes_href=four_lanes_href,
+            digest_href=digest_href,
+        )
+
+    from app.application.services.solo_operator_digest_inbox import compose_four_lane_digest_inbox
+    from app.application.services.solo_operator_four_lanes import (
+        FOUR_LANE_IDS,
+        LANE_CRON,
+        LANE_META,
+        _lane_from_payload,
+        _load_tenant_routines,
+    )
+    from app.application.services.solo_operator_trio import get_solo_trio_status
+
+    trio = await get_solo_trio_status(session, tenant_id=tenant_id)
+    digest = await compose_four_lane_digest_inbox(session, tenant_id=tenant_id, limit=20)
+    routines = await _load_tenant_routines(session, tenant_id=tenant_id)
+
+    lanes: list[MissionAutopilotLaneOut] = []
+    for row in trio.get("lanes") or []:
+        if not isinstance(row, dict):
+            continue
+        binding = str(row.get("binding") or "missing")
+        routine_active = bool(row.get("routine_active"))
+        if binding == "missing":
+            status: Literal["active", "bound", "missing", "paused"] = "missing"
+        elif routine_active:
+            status = "active"
+        else:
+            status = "paused"
+        lanes.append(
+            MissionAutopilotLaneOut(
+                id=str(row.get("lane_id") or ""),
+                label=str(row.get("label") or "Bee"),
+                group="trio",
+                status=status,
+                detail=str(row.get("description") or "")[:120],
+            ),
+        )
+
+    active_four = 0
+    cron_lane_count = 0
+    for lane_id in FOUR_LANE_IDS:
+        meta = LANE_META[lane_id]
+        routine_row = next(
+            (
+                r
+                for r in routines
+                if _lane_from_payload(dict(r.context_payload or {})) == lane_id
+            ),
+            None,
+        )
+        cron = LANE_CRON.get(lane_id)
+        if routine_row is not None and routine_row.is_active:
+            active_four += 1
+            if cron:
+                cron_lane_count += 1
+            lane_status: Literal["active", "bound", "missing", "paused"] = "active"
+        elif routine_row is not None:
+            lane_status = "paused"
+        else:
+            lane_status = "missing"
+        lanes.append(
+            MissionAutopilotLaneOut(
+                id=lane_id,
+                label=str(meta.get("label") or lane_id),
+                group="four_lane",
+                status=lane_status,
+                detail=str(meta.get("operator_hint") or "")[:120],
+                schedule_cron=cron,
+            ),
+        )
+
+    trio_bound = int(trio.get("lanes_bound") or trio.get("bound_lane_count") or 0)
+    digest_pending = int(digest.pending_count or 0)
+
+    if active_four == 0:
+        message = "Bootstrap Four Lanes in Agentic OS → Lanes to enable background digests."
+    elif trio_bound < 2:
+        message = f"My 3 Bees {trio_bound}/3 bound — link routines in Settings → AI harness."
+    elif digest_pending > 0:
+        message = f"{digest_pending} digest(s) waiting — review in Digest Inbox."
+    else:
+        message = f"Autopilot live — {cron_lane_count} cron lane(s), {active_four}/4 four-lanes active."
+
+    return MissionAutopilotStripOut(
+        enabled=True,
+        routines_enabled=True,
+        trio_bound=trio_bound,
+        trio_total=int(trio.get("lanes_total") or 3),
+        four_lanes_active=active_four,
+        four_lanes_total=len(FOUR_LANE_IDS),
+        digest_pending=digest_pending,
+        cron_lane_count=cron_lane_count,
+        message=message,
+        lanes=lanes,
+        harness_href=harness_href,
+        four_lanes_href=four_lanes_href,
+        digest_href=digest_href,
     )
 
 
@@ -636,6 +789,7 @@ async def compose_mission_home_snapshot(
         session,
         dashboard_user_id=dashboard_user_id,
     )
+    autopilot_strip = await _compose_autopilot_strip(session, tenant_id=tenant_id)
 
     return MissionHomeSnapshotOut(
         enabled=True,
@@ -649,6 +803,7 @@ async def compose_mission_home_snapshot(
         memory_strip=memory_strip,
         step_studios=STEP_STUDIOS.get(current_step, [])[:2],
         life_os_strip=life_os_strip,
+        autopilot_strip=autopilot_strip,
         first_run_complete=first_run.complete,
         links={
             "new_session": "/agents?preset=web-redesign-discovery#sessions",
@@ -657,6 +812,9 @@ async def compose_mission_home_snapshot(
             "kanban": "/tasks",
             "calendar_connect": life_os_strip.connect_href,
             "marketing_team": "/apps-tools/marketing-team",
+            "harness": autopilot_strip.harness_href,
+            "four_lanes": autopilot_strip.four_lanes_href,
+            "digest_inbox": autopilot_strip.digest_href,
         },
         rapid_loop_widget_enabled=settings.rapid_loop_mission_home_enabled,
         sub_swarm_fleet_widget_enabled=settings.sub_swarm_fleet_mission_home_enabled,
@@ -673,12 +831,14 @@ async def compose_mission_home_snapshot(
 
 
 __all__ = [
+    "MissionAutopilotStripOut",
     "MissionHomeSnapshotOut",
     "MissionLifeOsStripOut",
     "MissionMemoryStripOut",
     "ProcessStepId",
     "ProcessStepOut",
     "STEP_STUDIOS",
+    "_compose_autopilot_strip",
     "_compose_life_os_strip",
     "_compose_memory_strip",
     "compose_mission_home_snapshot",

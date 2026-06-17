@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CalendarClock, CheckCircle2, Loader2, Shield } from "lucide-react";
+import { ArrowRight, CalendarClock, CheckCircle2, Loader2, Shield, Zap } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
@@ -92,6 +92,33 @@ interface MissionLifeOsStrip {
   connect_href: string;
 }
 
+type AutopilotLaneStatus = "active" | "bound" | "missing" | "paused";
+
+interface MissionAutopilotLane {
+  id: string;
+  label: string;
+  group: "trio" | "four_lane";
+  status: AutopilotLaneStatus;
+  detail: string;
+  schedule_cron: string | null;
+}
+
+interface MissionAutopilotStrip {
+  enabled: boolean;
+  routines_enabled: boolean;
+  trio_bound: number;
+  trio_total: number;
+  four_lanes_active: number;
+  four_lanes_total: number;
+  digest_pending: number;
+  cron_lane_count: number;
+  message: string;
+  lanes: MissionAutopilotLane[];
+  harness_href: string;
+  four_lanes_href: string;
+  digest_href: string;
+}
+
 interface MissionHomeSnapshot {
   enabled: boolean;
   current_step: ProcessStepId;
@@ -103,6 +130,7 @@ interface MissionHomeSnapshot {
   memory_strip?: MissionMemoryStrip;
   step_studios?: MissionStudioEntry[];
   life_os_strip?: MissionLifeOsStrip;
+  autopilot_strip?: MissionAutopilotStrip;
   first_run_complete: boolean;
   links: Record<string, string>;
   rapid_loop_widget_enabled?: boolean;
@@ -157,6 +185,7 @@ function MissionHomePanelInner(): JSX.Element | null {
   const lifeOs = snapshot.life_os_strip;
   const calendarConnectHref =
     lifeOs?.connect_href ?? snapshot.links.calendar_connect ?? "/integrations?tab=connectors";
+  const autopilot = snapshot.autopilot_strip;
 
   function formatEventTime(iso: string | null): string {
     if (!iso) {
@@ -235,6 +264,84 @@ function MissionHomePanelInner(): JSX.Element | null {
         <p className="text-xs text-[#FF3366]" role="alert">
           {err}
         </p>
+      ) : null}
+
+      {autopilot?.enabled ? (
+        <V4Card className="md:max-lg:col-span-2" data-testid="mission-home-autopilot">
+          <V4CardHeader
+            kicker="Background"
+            title="Autopilot"
+            description="My 3 Bees + Four Lanes cron — simulate-first digests."
+            actions={
+              <div className="flex flex-wrap gap-2">
+                <Link href={autopilot.harness_href} className="qs-btn qs-btn--ghost qs-btn--sm">
+                  Harness
+                </Link>
+                <Link href={autopilot.four_lanes_href} className="qs-btn qs-btn--ghost qs-btn--sm">
+                  Lanes
+                </Link>
+                {autopilot.digest_pending > 0 ? (
+                  <Link href={autopilot.digest_href} className="qs-btn qs-btn--primary qs-btn--sm">
+                    Digest ({autopilot.digest_pending})
+                  </Link>
+                ) : null}
+              </div>
+            }
+          />
+          <p className="px-4 text-sm text-(--qs-text-2)">{autopilot.message}</p>
+          <div className="flex flex-wrap gap-2 px-4 pb-4 pt-3">
+            <V4Badge tone="info">
+              My 3 Bees {autopilot.trio_bound}/{autopilot.trio_total}
+            </V4Badge>
+            <V4Badge tone="purple">
+              Four Lanes {autopilot.four_lanes_active}/{autopilot.four_lanes_total}
+            </V4Badge>
+            {autopilot.cron_lane_count > 0 ? (
+              <V4Badge tone="ok">{autopilot.cron_lane_count} cron</V4Badge>
+            ) : null}
+          </div>
+          <ul className="grid gap-2 px-4 pb-4 max-lg:grid-cols-1 md:max-lg:grid-cols-2 lg:grid-cols-3">
+            {autopilot.lanes.map((lane) => (
+              <li
+                key={`${lane.group}-${lane.id}`}
+                className="rounded-lg border border-(--qs-border)/50 bg-black/20 p-3"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <Zap
+                    className={cn(
+                      "size-3.5",
+                      lane.status === "active" ? "text-[#00FF88]" : "text-(--qs-muted)",
+                    )}
+                    aria-hidden
+                  />
+                  <span className="text-xs font-semibold text-(--qs-text)">{lane.label}</span>
+                  <V4Badge
+                    tone={
+                      lane.status === "active"
+                        ? "ok"
+                        : lane.status === "missing"
+                          ? "warn"
+                          : "info"
+                    }
+                  >
+                    {lane.status}
+                  </V4Badge>
+                  {lane.group === "four_lane" && lane.schedule_cron ? (
+                    <span className="font-mono text-[10px] text-(--qs-muted)">{lane.schedule_cron}</span>
+                  ) : null}
+                </div>
+                {lane.detail ? (
+                  <p className="mt-1 line-clamp-2 text-[11px] text-(--qs-muted)">{lane.detail}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </V4Card>
+      ) : autopilot && !autopilot.routines_enabled ? (
+        <V4Card className="md:max-lg:col-span-2" data-testid="mission-home-autopilot">
+          <V4CardHeader kicker="Background" title="Autopilot" description="Routines disabled." />
+          <p className="px-4 pb-4 text-sm text-(--qs-muted)">{autopilot.message}</p>
+        </V4Card>
       ) : null}
 
       <div className="flex flex-col gap-3 md:max-lg:contents">
