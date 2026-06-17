@@ -1035,6 +1035,23 @@ export interface CatalogWavePayload {
   factory_href: string;
   catalog_href: string;
   pending_seeds_preview: string[];
+  seed_batch_available: boolean;
+}
+
+/** ``POST /api/v1/dashboard/catalog-wave/seed-batch`` — MK11 pending seed batch. */
+export interface CatalogWaveSeedBatchPayload {
+  ok: boolean;
+  message: string;
+  pending_before: number;
+  researched_count: number;
+  builds_started: number;
+  seeds: string[];
+  rows: Array<{
+    niche: string;
+    opportunity_id: string | null;
+    status: string;
+  }>;
+  factory_href: string;
 }
 
 /** ``GET /api/v1/dashboard/revenue-funnel`` — MK10 unified revenue funnel strip. */

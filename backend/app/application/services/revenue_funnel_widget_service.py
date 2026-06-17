@@ -95,6 +95,13 @@ def _derive_primary_action(
             priority="high",
         )
     if catalog_enabled and seed_pending_count > 0 and gap_to_mk6 > 0:
+        if settings.catalog_wave_seed_batch_enabled and settings.skill_factory_enabled:
+            return RevenueFunnelPrimaryActionOut(
+                id="factory_seeds",
+                label="Seed factory batch",
+                post_path="dashboard/catalog-wave/seed-batch",
+                priority="medium",
+            )
         return RevenueFunnelPrimaryActionOut(
             id="factory_seeds",
             label="Build pending catalog seeds",

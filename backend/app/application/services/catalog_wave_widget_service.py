@@ -37,6 +37,7 @@ class CatalogWaveWidgetOut(BaseModel):
     factory_href: str = "/apps-tools/skill-factory"
     catalog_href: str = "/skills"
     pending_seeds_preview: list[str] = Field(default_factory=list)
+    seed_batch_available: bool = False
 
 
 def compose_catalog_wave_widget_snapshot() -> CatalogWaveWidgetOut:
@@ -91,6 +92,11 @@ def compose_catalog_wave_widget_snapshot() -> CatalogWaveWidgetOut:
         factory_href="/apps-tools/skill-factory",
         catalog_href=f"{marketing_origin}/skills",
         pending_seeds_preview=wave.pending_seeds_preview,
+        seed_batch_available=(
+            wave.seed_pending_count > 0
+            and settings.catalog_wave_seed_batch_enabled
+            and settings.skill_factory_enabled
+        ),
     )
 
 

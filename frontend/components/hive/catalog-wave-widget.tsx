@@ -1,16 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart3Icon, Loader2Icon } from "lucide-react";
+import { BarChart3Icon, Loader2Icon, SproutIcon } from "lucide-react";
 import { useCallback, useState } from "react";
+import { toast } from "sonner";
 
 import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { COCKPIT_POLL_COLONY_TELEMETRY_MS } from "@/lib/cockpit-poll-profile";
 import { DASHBOARD_BOOT_STAGGER_MS } from "@/lib/dashboard-boot-stagger";
-import { HiveApiError, hiveGet } from "@/lib/api";
+import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
-import type { CatalogWavePayload } from "@/lib/hive-types";
+import type { CatalogWavePayload, CatalogWaveSeedBatchPayload } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
 /** MK9 — MK6 catalog wave progress toward 50+ scorecard-clean listings. */
@@ -18,6 +19,7 @@ export function CatalogWaveWidget({ eager = false }: { eager?: boolean }): JSX.E
   const [payload, setPayload] = useState<CatalogWavePayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [seedBatchBusy, setSeedBatchBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -30,6 +32,26 @@ export function CatalogWaveWidget({ eager = false }: { eager?: boolean }): JSX.E
       setLoading(false);
     }
   }, []);
+
+  const runSeedBatch = useCallback(async () => {
+    setSeedBatchBusy(true);
+    try {
+      const result = await hivePostJson<CatalogWaveSeedBatchPayload>(
+        "dashboard/catalog-wave/seed-batch?limit=3",
+        {},
+      );
+      if (result.ok) {
+        toast.success(result.message);
+      } else {
+        toast.message(result.message);
+      }
+      await load();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Seed batch failed.");
+    } finally {
+      setSeedBatchBusy(false);
+    }
+  }, [load]);
 
   useIntervalWhenVisible(() => void load(), COCKPIT_POLL_COLONY_TELEMETRY_MS, {
     initialDelayMs: eager ? 0 : DASHBOARD_BOOT_STAGGER_MS.catalogWave,
@@ -117,12 +139,36 @@ export function CatalogWaveWidget({ eager = false }: { eager?: boolean }): JSX.E
             <p className="mb-3 text-sm text-(--qs-text-3)">{payload.operator_hint}</p>
 
             <div className="flex flex-wrap items-center gap-2">
+              {payload.seed_batch_available ? (
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--primary qs-btn--sm min-h-[44px] gap-1"
+                  disabled={seedBatchBusy}
+                  data-testid="catalog-wave-seed-batch"
+                  onClick={() => void runSeedBatch()}
+                >
+                  {seedBatchBusy ? (
+                    <Loader2Icon className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <SproutIcon className="h-4 w-4" aria-hidden />
+                  )}
+                  Seed factory batch
+                </button>
+              ) : (
+                <Link
+                  href={payload.factory_href}
+                  className="qs-btn qs-btn--primary qs-btn--sm min-h-[44px]"
+                  data-testid="catalog-wave-factory-link"
+                >
+                  Open Skill Factory
+                </Link>
+              )}
               <Link
                 href={payload.factory_href}
-                className="qs-btn qs-btn--primary qs-btn--sm min-h-[44px]"
-                data-testid="catalog-wave-factory-link"
+                className="qs-btn qs-btn--ghost qs-btn--sm min-h-[44px] border border-(--qs-border)/50"
+                data-testid="catalog-wave-factory-secondary"
               >
-                Open Skill Factory
+                Skill Factory
               </Link>
               <a
                 href={payload.catalog_href}

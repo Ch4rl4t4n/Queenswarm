@@ -209,6 +209,32 @@ async def dashboard_catalog_wave(
     return compose_catalog_wave_widget_snapshot().model_dump(mode="json")
 
 
+@router.post("/catalog-wave/seed-batch")
+async def dashboard_catalog_wave_seed_batch(
+    db: DbSession,
+    principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),
+    limit: int = Query(default=3, ge=1, le=6),
+) -> dict[str, object]:
+    """MK11 — Research pending MK6 vertical seeds and optionally auto-start builds."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.catalog_wave_seed_batch_service import run_catalog_wave_seed_batch
+
+    subject = str(principal.get("sub") or "operator")
+    result = await run_catalog_wave_seed_batch(
+        db,
+        tenant_id=tenant_id,
+        created_by_subject=subject,
+        limit=limit,
+    )
+    await db.commit()
+    return result.model_dump(mode="json")
+
+
 @router.get("/revenue-funnel")
 async def dashboard_revenue_funnel(
     db: DbSession,

@@ -12,6 +12,7 @@ import { DASHBOARD_BOOT_STAGGER_MS } from "@/lib/dashboard-boot-stagger";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import type {
+  CatalogWaveSeedBatchPayload,
   FactoryLaunchFullFunnelPayload,
   FactoryLaunchLaunchAndVerifyPayload,
   FactoryLaunchPreparePayload,
@@ -67,6 +68,16 @@ export function RevenueFunnelStrip({ eager = false }: { eager?: boolean }): JSX.
           {},
         );
         toast.message(result.message ?? (result.ok ? "Batch prepared." : "Prepare batch skipped."));
+      } else if (action.id === "factory_seeds") {
+        const result = await hivePostJson<CatalogWaveSeedBatchPayload>(
+          `${action.post_path}?limit=3`,
+          {},
+        );
+        if (result.ok) {
+          toast.success(result.message);
+        } else {
+          toast.message(result.message);
+        }
       }
       await load();
     } catch (e) {

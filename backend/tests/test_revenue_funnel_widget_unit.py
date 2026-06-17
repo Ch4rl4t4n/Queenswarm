@@ -123,6 +123,8 @@ async def test_revenue_funnel_scale_when_no_sellable(monkeypatch: pytest.MonkeyP
     monkeypatch.setattr(settings, "revenue_funnel_mission_home_enabled", True)
     monkeypatch.setattr(settings, "catalog_wave_mission_home_enabled", True)
     monkeypatch.setattr(settings, "factory_launch_mission_home_enabled", True)
+    monkeypatch.setattr(settings, "catalog_wave_seed_batch_enabled", True)
+    monkeypatch.setattr(settings, "skill_factory_enabled", True)
 
     now = datetime.now(tz=UTC)
     monkeypatch.setattr(
@@ -157,3 +159,4 @@ async def test_revenue_funnel_scale_when_no_sellable(monkeypatch: pytest.MonkeyP
     snapshot = await compose_revenue_funnel_widget_snapshot(object(), tenant_id=uuid.uuid4())
     assert snapshot.primary_action is not None
     assert snapshot.primary_action.id == "factory_seeds"
+    assert snapshot.primary_action.post_path == "dashboard/catalog-wave/seed-batch"

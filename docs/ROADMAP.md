@@ -320,6 +320,7 @@ Sales domain for verified skills/content packs. App remains **queenswarm.love**.
 | MK8 | Marketing OG images + Playwright smoke (M5) | ✅ | `opengraph-image` · `audit-marketing-site-gate.sh` |
 | MK9 | **Catalog wave widget** on Mission Home (MK6 progress) | ✅ Shipped | `catalog_wave_widget_service` · `GET /dashboard/catalog-wave` |
 | MK10 | **Revenue funnel strip** — unified MK6 + Gumroad launch on Mission Home | ✅ Shipped | `revenue_funnel_widget_service` · `GET /dashboard/revenue-funnel` |
+| MK11 | **Seed factory batch** — one-click research from pending MK6 vertical seeds | ✅ Shipped | `catalog_wave_seed_batch_service` · `POST /dashboard/catalog-wave/seed-batch` |
 
 **Featured homepage (agent-picked):** newsletter growth loop · SEO simulate-first pipeline · 30-day Instagram calendar.
 

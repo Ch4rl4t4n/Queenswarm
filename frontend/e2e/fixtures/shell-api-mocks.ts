@@ -335,6 +335,7 @@ const STUB_CATALOG_WAVE = {
   factory_href: "/apps-tools/skill-factory",
   catalog_href: "https://letagentscook.org/skills",
   pending_seeds_preview: ["newsletter-growth-loop", "seo-content-pipeline"],
+  seed_batch_available: true,
 };
 
 const STUB_REVENUE_FUNNEL = {
@@ -2354,6 +2355,27 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_SUB_SWARM_FLEET),
+      });
+      return;
+    }
+
+    if (path.startsWith("dashboard/catalog-wave/seed-batch")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          message: "Researched 2 pending seed(s) — review queue in Skill Factory.",
+          pending_before: 3,
+          researched_count: 2,
+          builds_started: 0,
+          seeds: ["newsletter-growth-loop", "seo-content-pipeline"],
+          rows: [
+            { niche: "newsletter-growth-loop", opportunity_id: "00000000-0000-4000-8000-0000000000aa", status: "pending" },
+            { niche: "seo-content-pipeline", opportunity_id: "00000000-0000-4000-8000-0000000000ab", status: "pending" },
+          ],
+          factory_href: "/apps-tools/skill-factory?section=queue#queue",
+        }),
       });
       return;
     }

@@ -58,9 +58,40 @@ else
   fail "missing mission home catalog wave mount"
 fi
 
+if grep -q "seed_batch_available" backend/app/application/services/catalog_wave_widget_service.py; then
+  pass "catalog wave seed_batch_available"
+else
+  fail "missing catalog wave seed_batch_available"
+fi
+
+if grep -q "catalog_wave_seed_batch_enabled" backend/app/core/config.py; then
+  pass "catalog_wave_seed_batch_enabled config"
+else
+  fail "missing catalog_wave_seed_batch_enabled config"
+fi
+
+if grep -q "run_catalog_wave_seed_batch" backend/app/application/services/catalog_wave_seed_batch_service.py; then
+  pass "run_catalog_wave_seed_batch"
+else
+  fail "missing run_catalog_wave_seed_batch"
+fi
+
+if grep -q "/catalog-wave/seed-batch" backend/app/presentation/api/routers/dashboard.py; then
+  pass "dashboard MK11 seed-batch route"
+else
+  fail "missing dashboard MK11 seed-batch route"
+fi
+
+if grep -q "catalog-wave-seed-batch" frontend/components/hive/catalog-wave-widget.tsx; then
+  pass "catalog wave seed batch button"
+else
+  fail "missing catalog wave seed batch button"
+fi
+
 if [[ -x backend/venv/bin/python ]]; then
   if (cd backend && ./venv/bin/python -m pytest \
     tests/test_catalog_wave_widget_unit.py \
+    tests/test_catalog_wave_seed_batch_unit.py \
     tests/test_factory_catalog_wave_unit.py \
     -q --no-cov); then
     pass "pytest MK9 unit tests"

@@ -23,6 +23,8 @@ def test_catalog_wave_widget_delegates_to_mk6_planner(monkeypatch: pytest.Monkey
     from app.core.config import settings
 
     monkeypatch.setattr(settings, "catalog_wave_mission_home_enabled", True)
+    monkeypatch.setattr(settings, "catalog_wave_seed_batch_enabled", True)
+    monkeypatch.setattr(settings, "skill_factory_enabled", True)
     monkeypatch.setattr(settings, "marketing_public_origin", "https://letagentscook.org")
     monkeypatch.setattr(
         "app.application.services.catalog_wave_widget_service.build_factory_catalog_wave",
@@ -48,6 +50,30 @@ def test_catalog_wave_widget_delegates_to_mk6_planner(monkeypatch: pytest.Monkey
     assert snapshot.wave_complete is False
     assert snapshot.catalog_href == "https://letagentscook.org/skills"
     assert len(snapshot.pending_seeds_preview) == 2
+    assert snapshot.seed_batch_available is True
+
+
+def test_catalog_wave_widget_seed_batch_off_when_no_pending(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.application.services.factory_catalog_wave import FactoryCatalogWaveOut
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "catalog_wave_mission_home_enabled", True)
+    monkeypatch.setattr(settings, "catalog_wave_seed_batch_enabled", True)
+    monkeypatch.setattr(settings, "skill_factory_enabled", True)
+    monkeypatch.setattr(
+        "app.application.services.catalog_wave_widget_service.build_factory_catalog_wave",
+        lambda export_root=None: FactoryCatalogWaveOut(
+            current_wave="complete",
+            target_next=50,
+            scorecard_clean_count=52,
+            gap_to_mk6=0,
+            seed_pending_count=0,
+        ),
+    )
+
+    snapshot = compose_catalog_wave_widget_snapshot()
+
+    assert snapshot.seed_batch_available is False
 
 
 def test_catalog_wave_widget_complete_when_mk6_met(monkeypatch: pytest.MonkeyPatch) -> None:
