@@ -1030,10 +1030,26 @@ export interface FactoryLaunchPayload {
   building_count: number;
   gumroad_ready: boolean;
   funnel_ready: boolean;
+  prepare_available: boolean;
   operator_hint: string;
   factory_href: string;
   launch_href: string;
   top_launch_titles: string[];
+}
+
+/** ``POST /api/v1/dashboard/factory-launch/prepare`` — REV5 batch export result. */
+export interface FactoryLaunchPreparePayload {
+  ok: boolean;
+  exported_count: number;
+  sellable_recommended: number;
+  message: string;
+  exports: Array<{
+    skill_id: string;
+    slug: string;
+    title: string;
+    score: number;
+    tier: string;
+  }>;
 }
 
 /** ``GET /api/v1/memory/curated/project-tags`` — MEM5 tag registry. */

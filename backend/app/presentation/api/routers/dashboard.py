@@ -214,6 +214,26 @@ async def dashboard_factory_launch(
     return payload.model_dump(mode="json")
 
 
+@router.post("/factory-launch/prepare")
+async def dashboard_factory_launch_prepare(
+    db: DbSession,
+    principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),
+    limit: int = Query(default=3, ge=1, le=12),
+) -> dict[str, object]:
+    """REV5 — Export sellable harness batch for Gumroad upload from Mission Home."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.factory_launch_widget_service import prepare_factory_launch_batch_from_widget
+
+    result = await prepare_factory_launch_batch_from_widget(db, tenant_id=tenant_id, limit=limit)
+    await db.commit()
+    return result
+
+
 @router.get("/time-saved")
 async def dashboard_time_saved(
     db: DbSession,

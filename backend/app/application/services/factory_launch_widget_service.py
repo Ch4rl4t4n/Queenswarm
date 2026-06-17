@@ -1,4 +1,4 @@
-"""REV4 — Factory Launch widget for Mission Home (Gumroad sellable harness funnel)."""
+"""REV4/REV5 — Factory Launch widget for Mission Home (Gumroad sellable harness funnel)."""
 
 from __future__ import annotations
 
@@ -29,6 +29,7 @@ class FactoryLaunchWidgetOut(BaseModel):
     building_count: int = 0
     gumroad_ready: bool = False
     funnel_ready: bool = False
+    prepare_available: bool = False
     operator_hint: str = ""
     factory_href: str = "/apps-tools/skill-factory"
     launch_href: str = "/apps-tools/skill-factory?section=launch#launch"
@@ -93,9 +94,41 @@ async def compose_factory_launch_widget_snapshot(
         building_count=int(snapshot.building_count or 0),
         gumroad_ready=gumroad_ready,
         funnel_ready=funnel_ready,
+        prepare_available=sellable > 0,
         operator_hint=hint,
         top_launch_titles=titles,
     )
 
 
-__all__ = ["FactoryLaunchWidgetOut", "compose_factory_launch_widget_snapshot"]
+async def prepare_factory_launch_batch_from_widget(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    limit: int = 3,
+) -> dict[str, object]:
+    """Export top sellable skills for Gumroad upload (Mission Home one-click)."""
+
+    if not settings.factory_launch_mission_home_enabled or not settings.skill_factory_enabled:
+        return {"ok": False, "error": "factory_launch_disabled", "message": "Factory launch widget disabled."}
+
+    from app.application.services.skill_factory_launch import LaunchPrepareOut, prepare_launch_batch
+
+    capped = max(1, min(limit, 12))
+    result: LaunchPrepareOut = await prepare_launch_batch(session, tenant_id=tenant_id, limit=capped)
+    _logger.info(
+        "factory_launch_widget.prepare_batch",
+        agent_id="factory_launch_widget",
+        swarm_id=str(tenant_id),
+        exported_count=result.exported_count,
+        sellable_recommended=result.sellable_recommended,
+    )
+    payload = result.model_dump(mode="json")
+    payload["ok"] = result.exported_count > 0
+    return payload
+
+
+__all__ = [
+    "FactoryLaunchWidgetOut",
+    "compose_factory_launch_widget_snapshot",
+    "prepare_factory_launch_batch_from_widget",
+]

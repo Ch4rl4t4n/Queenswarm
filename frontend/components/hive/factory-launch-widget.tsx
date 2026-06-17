@@ -1,16 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { Loader2Icon, RocketIcon, StoreIcon } from "lucide-react";
+import { Loader2Icon, PackageIcon, RocketIcon, StoreIcon } from "lucide-react";
 import { useCallback, useState } from "react";
+import { toast } from "sonner";
 
 import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { COCKPIT_POLL_COLONY_TELEMETRY_MS } from "@/lib/cockpit-poll-profile";
 import { DASHBOARD_BOOT_STAGGER_MS } from "@/lib/dashboard-boot-stagger";
-import { HiveApiError, hiveGet } from "@/lib/api";
+import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
-import type { FactoryLaunchPayload } from "@/lib/hive-types";
+import type { FactoryLaunchPayload, FactoryLaunchPreparePayload } from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
 /** REV4 — Factory Queue → Launch funnel for first Gumroad sellable harness. */
@@ -18,6 +19,7 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
   const [payload, setPayload] = useState<FactoryLaunchPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [prepareBusy, setPrepareBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -30,6 +32,26 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
       setLoading(false);
     }
   }, []);
+
+  const prepareBatch = useCallback(async () => {
+    setPrepareBusy(true);
+    try {
+      const result = await hivePostJson<FactoryLaunchPreparePayload>(
+        "dashboard/factory-launch/prepare?limit=3",
+        {},
+      );
+      if (result.ok && result.exported_count > 0) {
+        toast.success(result.message ?? `Exported ${result.exported_count} harness pack(s).`);
+      } else {
+        toast.message(result.message ?? "No sellable skills ready for export yet.");
+      }
+      await load();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Launch batch export failed.");
+    } finally {
+      setPrepareBusy(false);
+    }
+  }, [load]);
 
   useIntervalWhenVisible(() => void load(), COCKPIT_POLL_COLONY_TELEMETRY_MS, {
     initialDelayMs: eager ? 0 : DASHBOARD_BOOT_STAGGER_MS.factoryLaunch,
@@ -97,9 +119,30 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
             <p className="mb-3 text-sm text-(--qs-text-3)">{payload.operator_hint}</p>
 
             <div className="flex flex-wrap items-center gap-2">
+              {payload.prepare_available ? (
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--primary qs-btn--sm min-h-[44px] gap-1"
+                  disabled={prepareBusy}
+                  onClick={() => void prepareBatch()}
+                  data-testid="factory-launch-prepare-btn"
+                >
+                  {prepareBusy ? (
+                    <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <PackageIcon className="size-3.5" aria-hidden />
+                  )}
+                  Prepare Gumroad batch
+                </button>
+              ) : null}
               <Link
                 href={payload.launch_href}
-                className="qs-btn qs-btn--primary qs-btn--sm min-h-[44px] gap-1"
+                className={cn(
+                  "qs-btn qs-btn--sm min-h-[44px] gap-1",
+                  payload.prepare_available
+                    ? "qs-btn--ghost border border-(--qs-border)/50"
+                    : "qs-btn--primary",
+                )}
               >
                 Open launch queue
                 <RocketIcon className="size-3.5" aria-hidden />

@@ -58,6 +58,30 @@ else
   fail "missing mission home factory launch mount"
 fi
 
+if grep -q "/factory-launch/prepare" backend/app/presentation/api/routers/dashboard.py; then
+  pass "dashboard REV5 prepare route"
+else
+  fail "missing dashboard REV5 prepare route"
+fi
+
+if grep -q "prepare_factory_launch_batch_from_widget" backend/app/application/services/factory_launch_widget_service.py; then
+  pass "prepare_factory_launch_batch_from_widget"
+else
+  fail "missing prepare_factory_launch_batch_from_widget"
+fi
+
+if grep -q "factory-launch-prepare-btn" frontend/components/hive/factory-launch-widget.tsx; then
+  pass "factory launch prepare button"
+else
+  fail "missing factory launch prepare button"
+fi
+
+if grep -q "prepare_available" backend/app/application/services/factory_launch_widget_service.py; then
+  pass "prepare_available flag"
+else
+  fail "missing prepare_available flag"
+fi
+
 if [[ -x backend/venv/bin/python ]]; then
   if (cd backend && ./venv/bin/python -m pytest \
     tests/test_factory_launch_widget_unit.py \

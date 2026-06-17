@@ -107,7 +107,61 @@ async def test_factory_launch_widget_funnel_ready_with_queue(monkeypatch: pytest
     snapshot = await compose_factory_launch_widget_snapshot(session, tenant_id=uuid.uuid4())
 
     assert snapshot.funnel_ready is True
+    assert snapshot.prepare_available is True
     assert snapshot.gumroad_ready is True
     assert snapshot.launch_queue_count == 1
     assert snapshot.top_launch_titles == ["Queenswarm Harness Pack"]
     assert "revenue funnel ready" in snapshot.operator_hint.lower()
+
+
+@pytest.mark.asyncio
+async def test_prepare_factory_launch_batch_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "factory_launch_mission_home_enabled", False)
+    session = AsyncMock()
+
+    from app.application.services.factory_launch_widget_service import prepare_factory_launch_batch_from_widget
+
+    result = await prepare_factory_launch_batch_from_widget(session, tenant_id=uuid.uuid4())
+
+    assert result.get("ok") is False
+    assert result.get("error") == "factory_launch_disabled"
+
+
+@pytest.mark.asyncio
+async def test_prepare_factory_launch_batch_delegates(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.application.services.skill_factory_launch import LaunchPrepareOut, LaunchPrepareExportOut
+    from app.application.services.factory_launch_widget_service import prepare_factory_launch_batch_from_widget
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "factory_launch_mission_home_enabled", True)
+    monkeypatch.setattr(settings, "skill_factory_enabled", True)
+    mock_prepare = AsyncMock(
+        return_value=LaunchPrepareOut(
+            exported_count=1,
+            sellable_recommended=2,
+            message="Exported 1 skill(s).",
+            exports=[
+                LaunchPrepareExportOut(
+                    skill_id=str(uuid.uuid4()),
+                    slug="harness-pack",
+                    title="Harness Pack",
+                    score=0.92,
+                    tier="sellable",
+                ),
+            ],
+        ),
+    )
+    monkeypatch.setattr(
+        "app.application.services.skill_factory_launch.prepare_launch_batch",
+        mock_prepare,
+    )
+    session = AsyncMock()
+    tenant_id = uuid.uuid4()
+
+    result = await prepare_factory_launch_batch_from_widget(session, tenant_id=tenant_id, limit=3)
+
+    assert result.get("ok") is True
+    assert result.get("exported_count") == 1
+    mock_prepare.assert_awaited_once_with(session, tenant_id=tenant_id, limit=3)

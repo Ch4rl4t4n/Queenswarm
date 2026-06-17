@@ -330,6 +330,7 @@ const STUB_FACTORY_LAUNCH = {
   building_count: 0,
   gumroad_ready: true,
   funnel_ready: true,
+  prepare_available: true,
   operator_hint: "Revenue funnel ready — 1 harness pack(s) queued for Gumroad.",
   factory_href: "/apps-tools/skill-factory",
   launch_href: "/apps-tools/skill-factory?section=launch#launch",
@@ -2292,6 +2293,29 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_SUB_SWARM_FLEET),
+      });
+      return;
+    }
+
+    if (path.startsWith("dashboard/factory-launch/prepare")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          exported_count: 1,
+          sellable_recommended: 1,
+          message: "Exported 1 skill(s) to exports/launch-batch.",
+          exports: [
+            {
+              skill_id: "00000000-0000-4000-8000-000000000099",
+              slug: "queenswarm-harness-pack",
+              title: "Queenswarm Harness Pack",
+              score: 0.92,
+              tier: "sellable",
+            },
+          ],
+        }),
       });
       return;
     }
