@@ -11,7 +11,11 @@ import { COCKPIT_POLL_COLONY_TELEMETRY_MS } from "@/lib/cockpit-poll-profile";
 import { DASHBOARD_BOOT_STAGGER_MS } from "@/lib/dashboard-boot-stagger";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
-import type { FactoryLaunchPayload, FactoryLaunchPreparePayload } from "@/lib/hive-types";
+import type {
+  FactoryLaunchGumroadDraftPayload,
+  FactoryLaunchPayload,
+  FactoryLaunchPreparePayload,
+} from "@/lib/hive-types";
 import { cn } from "@/lib/utils";
 
 /** REV4 — Factory Queue → Launch funnel for first Gumroad sellable harness. */
@@ -20,6 +24,7 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [prepareBusy, setPrepareBusy] = useState(false);
+  const [draftBusy, setDraftBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -50,6 +55,26 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
       toast.error(e instanceof HiveApiError ? e.message : "Launch batch export failed.");
     } finally {
       setPrepareBusy(false);
+    }
+  }, [load]);
+
+  const createGumroadDrafts = useCallback(async () => {
+    setDraftBusy(true);
+    try {
+      const result = await hivePostJson<FactoryLaunchGumroadDraftPayload>(
+        "dashboard/factory-launch/gumroad-draft?limit=3",
+        {},
+      );
+      if (result.ok && result.drafted_count > 0) {
+        toast.success(result.message ?? `Created ${result.drafted_count} Gumroad draft(s).`);
+      } else {
+        toast.message(result.message ?? "No Gumroad drafts created.");
+      }
+      await load();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Gumroad draft batch failed.");
+    } finally {
+      setDraftBusy(false);
     }
   }, [load]);
 
@@ -99,6 +124,10 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
                 Building{" "}
                 <span className="font-mono">{payload.building_count}</span>
               </span>
+              <span>
+                Pending drafts{" "}
+                <span className="font-mono">{payload.pending_gumroad_draft_count}</span>
+              </span>
               <span className={cn(!gumroadReady && payload.launch_queue_count > 0 && "text-(--qs-magenta)")}>
                 Gumroad{" "}
                 <span className="font-mono">{gumroadReady ? "ready" : "setup"}</span>
@@ -119,6 +148,22 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
             <p className="mb-3 text-sm text-(--qs-text-3)">{payload.operator_hint}</p>
 
             <div className="flex flex-wrap items-center gap-2">
+              {payload.gumroad_auto_draft_available ? (
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--primary qs-btn--sm min-h-[44px] gap-1"
+                  disabled={draftBusy}
+                  onClick={() => void createGumroadDrafts()}
+                  data-testid="factory-launch-gumroad-draft-btn"
+                >
+                  {draftBusy ? (
+                    <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <StoreIcon className="size-3.5" aria-hidden />
+                  )}
+                  Create Gumroad drafts
+                </button>
+              ) : null}
               {payload.prepare_available ? (
                 <button
                   type="button"

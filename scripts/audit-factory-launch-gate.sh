@@ -82,6 +82,30 @@ else
   fail "missing prepare_available flag"
 fi
 
+if grep -q "gumroad_auto_draft_available" backend/app/application/services/factory_launch_widget_service.py; then
+  pass "gumroad_auto_draft_available flag"
+else
+  fail "missing gumroad_auto_draft_available flag"
+fi
+
+if grep -q "/factory-launch/gumroad-draft" backend/app/presentation/api/routers/dashboard.py; then
+  pass "dashboard REV6 gumroad-draft route"
+else
+  fail "missing dashboard REV6 gumroad-draft route"
+fi
+
+if grep -q "draft_factory_launch_gumroad_from_widget" backend/app/application/services/factory_launch_widget_service.py; then
+  pass "draft_factory_launch_gumroad_from_widget"
+else
+  fail "missing draft_factory_launch_gumroad_from_widget"
+fi
+
+if grep -q "factory-launch-gumroad-draft-btn" frontend/components/hive/factory-launch-widget.tsx; then
+  pass "factory launch gumroad draft button"
+else
+  fail "missing factory launch gumroad draft button"
+fi
+
 if [[ -x backend/venv/bin/python ]]; then
   if (cd backend && ./venv/bin/python -m pytest \
     tests/test_factory_launch_widget_unit.py \

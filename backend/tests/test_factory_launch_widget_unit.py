@@ -17,7 +17,7 @@ from app.application.services.skill_factory_service import (
 )
 
 
-def _skill(*, slug: str, title: str) -> TenantSkillOut:
+def _skill(*, slug: str, title: str, gumroad_product_id: str | None = None) -> TenantSkillOut:
     return TenantSkillOut(
         id=str(uuid.uuid4()),
         slug=slug,
@@ -31,6 +31,7 @@ def _skill(*, slug: str, title: str) -> TenantSkillOut:
         recipe_id=None,
         verified_at=datetime.now(tz=UTC),
         github_exported_at=None,
+        gumroad_product_id=gumroad_product_id,
         is_active=True,
     )
 
@@ -108,10 +109,12 @@ async def test_factory_launch_widget_funnel_ready_with_queue(monkeypatch: pytest
 
     assert snapshot.funnel_ready is True
     assert snapshot.prepare_available is True
+    assert snapshot.gumroad_auto_draft_available is True
+    assert snapshot.pending_gumroad_draft_count == 1
     assert snapshot.gumroad_ready is True
     assert snapshot.launch_queue_count == 1
     assert snapshot.top_launch_titles == ["Queenswarm Harness Pack"]
-    assert "revenue funnel ready" in snapshot.operator_hint.lower()
+    assert "gumroad drafts" in snapshot.operator_hint.lower()
 
 
 @pytest.mark.asyncio
@@ -165,3 +168,62 @@ async def test_prepare_factory_launch_batch_delegates(monkeypatch: pytest.Monkey
     assert result.get("ok") is True
     assert result.get("exported_count") == 1
     mock_prepare.assert_awaited_once_with(session, tenant_id=tenant_id, limit=3)
+
+
+@pytest.mark.asyncio
+async def test_draft_factory_launch_gumroad_not_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.application.services.factory_launch_widget_service import draft_factory_launch_gumroad_from_widget
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "factory_launch_mission_home_enabled", True)
+    monkeypatch.setattr(settings, "skill_factory_enabled", True)
+    monkeypatch.setattr(settings, "skill_factory_gumroad_listing_enabled", True)
+    monkeypatch.setattr(
+        "app.application.services.skill_factory_gumroad_listing.gumroad_listing_ready",
+        AsyncMock(return_value=False),
+    )
+    session = AsyncMock()
+
+    result = await draft_factory_launch_gumroad_from_widget(session, tenant_id=uuid.uuid4())
+
+    assert result.get("ok") is False
+    assert result.get("error") == "gumroad_not_configured"
+
+
+@pytest.mark.asyncio
+async def test_draft_factory_launch_gumroad_batch(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.application.services.factory_launch_widget_service import draft_factory_launch_gumroad_from_widget
+    from app.core.config import settings
+
+    skill = _skill(slug="harness-pack", title="Harness Pack")
+    monkeypatch.setattr(settings, "factory_launch_mission_home_enabled", True)
+    monkeypatch.setattr(settings, "skill_factory_enabled", True)
+    monkeypatch.setattr(settings, "skill_factory_gumroad_listing_enabled", True)
+    monkeypatch.setattr(
+        "app.application.services.skill_factory_gumroad_listing.gumroad_listing_ready",
+        AsyncMock(return_value=True),
+    )
+    monkeypatch.setattr(
+        "app.application.services.skill_factory_service.compose_skill_factory_snapshot",
+        AsyncMock(return_value=_factory_snapshot(sellable=1, launch_queue=[skill], gumroad_listing_ready=True)),
+    )
+    mock_draft = AsyncMock(
+        return_value={
+            "ok": True,
+            "product_id": "prod_abc",
+            "product_url": "https://example.gumroad.com/l/harness-pack",
+        },
+    )
+    monkeypatch.setattr(
+        "app.application.services.skill_factory_gumroad_listing.create_gumroad_draft_from_skill",
+        mock_draft,
+    )
+    session = AsyncMock()
+    tenant_id = uuid.uuid4()
+
+    result = await draft_factory_launch_gumroad_from_widget(session, tenant_id=tenant_id, limit=3)
+
+    assert result.get("ok") is True
+    assert result.get("drafted_count") == 1
+    assert len(result.get("drafts") or []) == 1
+    mock_draft.assert_awaited_once()

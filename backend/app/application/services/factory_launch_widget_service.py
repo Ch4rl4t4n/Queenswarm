@@ -1,4 +1,4 @@
-"""REV4/REV5 — Factory Launch widget for Mission Home (Gumroad sellable harness funnel)."""
+"""REV4–REV6 — Factory Launch widget for Mission Home (Gumroad sellable harness funnel)."""
 
 from __future__ import annotations
 
@@ -30,10 +30,38 @@ class FactoryLaunchWidgetOut(BaseModel):
     gumroad_ready: bool = False
     funnel_ready: bool = False
     prepare_available: bool = False
+    gumroad_auto_draft_available: bool = False
+    pending_gumroad_draft_count: int = 0
     operator_hint: str = ""
     factory_href: str = "/apps-tools/skill-factory"
     launch_href: str = "/apps-tools/skill-factory?section=launch#launch"
     top_launch_titles: list[str] = Field(default_factory=list)
+
+
+class FactoryLaunchGumroadDraftRowOut(BaseModel):
+    """One Gumroad draft attempt in a Mission Home batch."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    skill_id: str
+    slug: str
+    title: str
+    ok: bool
+    product_url: str | None = None
+    product_id: str | None = None
+    error: str | None = None
+
+
+class FactoryLaunchGumroadDraftOut(BaseModel):
+    """Batch Gumroad draft result for Mission Home widget."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    ok: bool = False
+    drafted_count: int = 0
+    skipped_count: int = 0
+    drafts: list[FactoryLaunchGumroadDraftRowOut] = Field(default_factory=list)
+    message: str = ""
 
 
 async def compose_factory_launch_widget_snapshot(
@@ -64,6 +92,8 @@ async def compose_factory_launch_widget_snapshot(
         or (launch is not None and (launch.gumroad_token_configured or launch.gumroad_manual_ready)),
     )
     funnel_ready = sellable > 0 and len(launch_queue) > 0
+    pending_gumroad_draft_count = sum(1 for row in launch_queue if not row.gumroad_product_id)
+    gumroad_auto_draft_available = bool(snapshot.gumroad_listing_ready and pending_gumroad_draft_count > 0)
 
     if sellable == 0:
         hint = "No sellable harness yet — run Factory research → build → approve forge."
@@ -71,6 +101,11 @@ async def compose_factory_launch_widget_snapshot(
         hint = f"{sellable} sellable skill(s) — open Launch tab to queue Gumroad export."
     elif not gumroad_ready:
         hint = f"{len(launch_queue)} in launch queue — set Gumroad token or manual upload path."
+    elif pending_gumroad_draft_count > 0:
+        hint = (
+            f"{pending_gumroad_draft_count} harness pack(s) ready — "
+            "create Gumroad drafts or use Prepare batch for manual upload."
+        )
     else:
         hint = f"Revenue funnel ready — {len(launch_queue)} harness pack(s) queued for Gumroad."
 
@@ -95,6 +130,8 @@ async def compose_factory_launch_widget_snapshot(
         gumroad_ready=gumroad_ready,
         funnel_ready=funnel_ready,
         prepare_available=sellable > 0,
+        gumroad_auto_draft_available=gumroad_auto_draft_available,
+        pending_gumroad_draft_count=pending_gumroad_draft_count,
         operator_hint=hint,
         top_launch_titles=titles,
     )
@@ -127,8 +164,96 @@ async def prepare_factory_launch_batch_from_widget(
     return payload
 
 
+async def draft_factory_launch_gumroad_from_widget(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    limit: int = 3,
+) -> dict[str, object]:
+    """Create Gumroad draft listings for launch-queue skills (Mission Home one-click)."""
+
+    if not settings.factory_launch_mission_home_enabled or not settings.skill_factory_enabled:
+        return FactoryLaunchGumroadDraftOut(
+            message="Factory launch widget disabled.",
+        ).model_dump(mode="json") | {"ok": False, "error": "factory_launch_disabled"}
+
+    if not settings.skill_factory_gumroad_listing_enabled:
+        return FactoryLaunchGumroadDraftOut(
+            message="Gumroad listing is disabled — enable skill_factory_gumroad_listing_enabled.",
+        ).model_dump(mode="json") | {"ok": False, "error": "gumroad_listing_disabled"}
+
+    from app.application.services.skill_factory_gumroad_listing import (
+        create_gumroad_draft_from_skill,
+        gumroad_listing_ready,
+    )
+    from app.application.services.skill_factory_service import compose_skill_factory_snapshot
+
+    if not await gumroad_listing_ready(session):
+        return FactoryLaunchGumroadDraftOut(
+            message="Gumroad token not configured — add connector or SKILL_FACTORY_GUMROAD_ACCESS_TOKEN.",
+        ).model_dump(mode="json") | {"ok": False, "error": "gumroad_not_configured"}
+
+    snapshot = await compose_skill_factory_snapshot(session, tenant_id=tenant_id)
+    launch_queue = list(snapshot.launch_queue or [])
+    pending = [row for row in launch_queue if not row.gumroad_product_id]
+    if not pending:
+        return FactoryLaunchGumroadDraftOut(
+            message="Launch queue skills already have Gumroad product IDs.",
+        ).model_dump(mode="json") | {"ok": False, "error": "no_pending_drafts"}
+
+    capped = pending[: max(1, min(limit, 12))]
+    draft_rows: list[FactoryLaunchGumroadDraftRowOut] = []
+    drafted_count = 0
+    for skill in capped:
+        skill_uuid = uuid.UUID(str(skill.id))
+        result = await create_gumroad_draft_from_skill(
+            session,
+            tenant_id=tenant_id,
+            skill_id=skill_uuid,
+        )
+        ok = bool(result.get("ok"))
+        if ok:
+            drafted_count += 1
+        draft_rows.append(
+            FactoryLaunchGumroadDraftRowOut(
+                skill_id=str(skill.id),
+                slug=skill.slug,
+                title=skill.title,
+                ok=ok,
+                product_url=str(result.get("product_url") or "") or None,
+                product_id=str(result.get("product_id") or "") or None,
+                error=None if ok else str(result.get("error") or result.get("message") or "gumroad_draft_failed"),
+            ),
+        )
+
+    skipped_count = len(capped) - drafted_count
+    message = (
+        f"Created {drafted_count} Gumroad draft(s)."
+        if drafted_count
+        else "No Gumroad drafts created — check token and LISTING.md content."
+    )
+    _logger.info(
+        "factory_launch_widget.gumroad_draft_batch",
+        agent_id="factory_launch_widget",
+        swarm_id=str(tenant_id),
+        drafted_count=drafted_count,
+        skipped_count=skipped_count,
+    )
+    out = FactoryLaunchGumroadDraftOut(
+        ok=drafted_count > 0,
+        drafted_count=drafted_count,
+        skipped_count=skipped_count,
+        drafts=draft_rows,
+        message=message,
+    )
+    return out.model_dump(mode="json")
+
+
 __all__ = [
+    "FactoryLaunchGumroadDraftOut",
+    "FactoryLaunchGumroadDraftRowOut",
     "FactoryLaunchWidgetOut",
     "compose_factory_launch_widget_snapshot",
+    "draft_factory_launch_gumroad_from_widget",
     "prepare_factory_launch_batch_from_widget",
 ]

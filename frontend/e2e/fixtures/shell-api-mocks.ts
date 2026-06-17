@@ -331,6 +331,8 @@ const STUB_FACTORY_LAUNCH = {
   gumroad_ready: true,
   funnel_ready: true,
   prepare_available: true,
+  gumroad_auto_draft_available: true,
+  pending_gumroad_draft_count: 1,
   operator_hint: "Revenue funnel ready — 1 harness pack(s) queued for Gumroad.",
   factory_href: "/apps-tools/skill-factory",
   launch_href: "/apps-tools/skill-factory?section=launch#launch",
@@ -2293,6 +2295,30 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_SUB_SWARM_FLEET),
+      });
+      return;
+    }
+
+    if (path.startsWith("dashboard/factory-launch/gumroad-draft")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          drafted_count: 1,
+          skipped_count: 0,
+          message: "Created 1 Gumroad draft(s).",
+          drafts: [
+            {
+              skill_id: "00000000-0000-4000-8000-000000000099",
+              slug: "queenswarm-harness-pack",
+              title: "Queenswarm Harness Pack",
+              ok: true,
+              product_url: "https://queenswarm.gumroad.com/l/harness-pack",
+              product_id: "prod_stub",
+            },
+          ],
+        }),
       });
       return;
     }

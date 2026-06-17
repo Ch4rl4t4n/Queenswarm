@@ -526,6 +526,7 @@ _MK6/MK7 remain in P0 letagentscook table above._
 | REV3 | **Scorecard badge** on every product detail page | P2 | 1 d | ✅ | `marketing_scorecard.py` · `ScorecardBadge` |
 | REV4 | **Factory Launch widget** on Mission Home (Gumroad funnel) | P0 | 1–2 d | ✅ Shipped | `factory_launch_widget_service` · `GET /dashboard/factory-launch` · Mission Home mount |
 | REV5 | **Prepare Gumroad batch** one-click from Mission Home | P0 | 1 d | ✅ Shipped | `POST /dashboard/factory-launch/prepare` · widget CTA |
+| REV6 | **Gumroad draft batch** one-click from Mission Home (token required) | P0 | 1 d | ✅ Shipped | `POST /dashboard/factory-launch/gumroad-draft` · auto-draft CTA |
 
 ### Track D — Operator trust & factory SLOs
 

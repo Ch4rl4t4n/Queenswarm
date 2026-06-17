@@ -1031,6 +1031,8 @@ export interface FactoryLaunchPayload {
   gumroad_ready: boolean;
   funnel_ready: boolean;
   prepare_available: boolean;
+  gumroad_auto_draft_available: boolean;
+  pending_gumroad_draft_count: number;
   operator_hint: string;
   factory_href: string;
   launch_href: string;
@@ -1049,6 +1051,23 @@ export interface FactoryLaunchPreparePayload {
     title: string;
     score: number;
     tier: string;
+  }>;
+}
+
+/** ``POST /api/v1/dashboard/factory-launch/gumroad-draft`` — REV6 Gumroad draft batch. */
+export interface FactoryLaunchGumroadDraftPayload {
+  ok: boolean;
+  drafted_count: number;
+  skipped_count: number;
+  message: string;
+  drafts: Array<{
+    skill_id: string;
+    slug: string;
+    title: string;
+    ok: boolean;
+    product_url?: string | null;
+    product_id?: string | null;
+    error?: string | null;
   }>;
 }
 
