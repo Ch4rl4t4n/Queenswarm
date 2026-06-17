@@ -154,8 +154,8 @@ class CampaignLaunchSubmitOut(BaseModel):
     queue_status: str
     simulate_ok: bool
     simulate_message: str = ""
-    publish_queue_href: str = "/apps-tools/marketing-automation?section=queue#publish-queue"
-    social_publish_href: str = "/apps-tools/marketing-automation?section=publish#social-publish"
+    publish_queue_href: str = "/apps-tools/marketing-team?section=queue#publish-queue"
+    social_publish_href: str = "/apps-tools/marketing-team?section=publish#social-publish"
     message: str = ""
 
 
@@ -173,8 +173,8 @@ _BUILTIN_BRAND_PACKS: tuple[CampaignBrandPackOut, ...] = (
 def _default_links() -> dict[str, str]:
     return {
         "brain_pack": "/knowledge?tab=memory#brain-pack",
-        "publish_queue": "/apps-tools/marketing-automation?section=queue#publish-queue",
-        "social_publish": "/apps-tools/marketing-automation?section=publish#social-publish",
+        "publish_queue": "/apps-tools/marketing-team?section=queue#publish-queue",
+        "social_publish": "/apps-tools/marketing-team?section=publish#social-publish",
         "closed_review_loop": "/settings?tab=harness#harness-closed-review-loop",
     }
 
@@ -359,7 +359,7 @@ def _simulate_step(
             label="Simulate publish",
             status="done",
             detail=msg[:280],
-            link="/apps-tools/marketing-automation?section=publish#social-publish",
+            link="/apps-tools/marketing-team?section=publish#social-publish",
         )
     if deliverable_id and not bool(bucket.get("simulate_completed")):
         sim_msg = str(bucket.get("simulate_message") or "").strip()
@@ -369,7 +369,7 @@ def _simulate_step(
             label="Simulate publish",
             status="ready",
             detail=detail[:280],
-            link="/apps-tools/marketing-automation?section=publish#social-publish",
+            link="/apps-tools/marketing-team?section=publish#social-publish",
         )
     return CampaignLaunchStepOut(
         id="simulate_publish",

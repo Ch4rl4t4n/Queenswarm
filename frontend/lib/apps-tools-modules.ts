@@ -67,12 +67,12 @@ export const APPS_TOOLS_MODULES: AppsToolsModuleDef[] = [
   },
   {
     moduleKey: "marketing_automation",
-    slug: "marketing-automation",
-    title: "Marketing Automation",
-    summary: "Publish queue and social distribution — frozen until first Gumroad revenue.",
+    slug: "marketing-team",
+    title: "Marketing Team",
+    summary: "Unified calendar, publish queue, and social distribution — simulate-first personal OS lane.",
     status: "live",
-    tier: "frozen",
-    href: "/apps-tools/marketing-automation",
+    tier: "core",
+    href: "/apps-tools/marketing-team",
     capabilityKeys: ["apps.marketing.publish_pipeline.v1", "apps.marketing.omni_publish.compose.v1"],
   },
   {
@@ -143,7 +143,7 @@ export const APPS_TOOLS_MODULES_FROZEN: AppsToolsModuleDef[] = APPS_TOOLS_MODULE
 
 const MODULE_AGENT_USAGE: Record<AppsToolsModuleDef["moduleKey"], string> = {
   marketing_automation:
-    "Frozen lane — publish after first harness products sell on Gumroad.",
+    "Calendar + publish queue + social simulate-first — connect OAuth in Integrations before live.",
   ecommerce_workspace:
     "Frozen — eshop sync when a commerce niche harness proves revenue.",
   mcp_ops_studio:

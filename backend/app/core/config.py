@@ -1670,6 +1670,10 @@ class Settings(BaseSettings):
         default=True,
         description="Publish Queue Phase B — operator approval inbox for verified publish packs (simulate-only).",
     )
+    marketing_team_enabled: bool = Field(
+        default=True,
+        description="POS-B — Unified Marketing Team module (calendar + queue + social publish).",
+    )
     morning_publish_pipeline_enabled: bool = Field(
         default=True,
         description="Phase D — Life OS brief → content draft → critic verify → Publish Queue timeline.",

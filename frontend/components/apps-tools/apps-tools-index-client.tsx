@@ -353,9 +353,10 @@ const MODULE_SECTION_DEEP_LINKS: Record<
   Array<{ label: string; href: string }>
 > = {
   marketing_automation: [
-    { label: "Publish queue", href: "/apps-tools/marketing-automation?section=queue#publish-queue" },
-    { label: "Social publish", href: "/apps-tools/marketing-automation?section=publish#social-publish" },
-    { label: "Performance", href: "/apps-tools/marketing-automation?section=performance#publish-performance" },
+    { label: "Calendar", href: "/apps-tools/marketing-team?section=calendar#marketing-calendar" },
+    { label: "Publish queue", href: "/apps-tools/marketing-team?section=queue#publish-queue" },
+    { label: "Social publish", href: "/apps-tools/marketing-team?section=publish#social-publish" },
+    { label: "Performance", href: "/apps-tools/marketing-team?section=performance#publish-performance" },
   ],
   ecommerce_workspace: [
     { label: "Order events", href: "/apps-tools/ecommerce-automation?section=orders" },

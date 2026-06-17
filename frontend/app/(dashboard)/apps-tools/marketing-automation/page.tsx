@@ -1,22 +1,21 @@
-import nextDynamic from "next/dynamic";
-import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
-import { SettingsPanelSkeleton } from "@/components/hive/settings-panel-skeleton";
+interface MarketingAutomationLegacyRedirectPageProps {
+  searchParams: Promise<{ section?: string | string[] }>;
+}
 
-const MarketingAutomationPageClient = nextDynamic(
-  () =>
-    import("@/components/apps-tools/marketing-automation-page-client").then((mod) => ({
-      default: mod.MarketingAutomationPageClient,
-    })),
-  { loading: () => <SettingsPanelSkeleton /> },
-);
-
-export const dynamic = "force-dynamic";
-
-export default function MarketingAutomationModulePage() {
-  return (
-    <Suspense fallback={<SettingsPanelSkeleton />}>
-      <MarketingAutomationPageClient />
-    </Suspense>
-  );
+export default async function MarketingAutomationLegacyRedirectPage({
+  searchParams,
+}: MarketingAutomationLegacyRedirectPageProps) {
+  const params = await searchParams;
+  const sectionRaw = params.section;
+  const section = Array.isArray(sectionRaw) ? sectionRaw[0] : sectionRaw;
+  const mapped =
+    section === "queue" ||
+    section === "publish" ||
+    section === "performance" ||
+    section === "launch"
+      ? section
+      : "calendar";
+  redirect(`/apps-tools/marketing-team?section=${encodeURIComponent(mapped)}`);
 }

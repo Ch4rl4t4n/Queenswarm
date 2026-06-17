@@ -4901,6 +4901,49 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path === "operator/marketing-team" || path.startsWith("operator/marketing-team?")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          generated_at: new Date().toISOString(),
+          horizon_days: 14,
+          calendar_entries: [
+            {
+              id: "00000000-0000-4000-8000-000000000099",
+              title: "Stub launch post",
+              channel: "instagram",
+              status: "scheduled",
+              scheduled_at: "2026-06-20T09:00:00Z",
+              body_preview: "Verified publish pack",
+              media_kind: "image",
+              href: "/apps-tools/marketing-team?section=publish#social-publish",
+            },
+          ],
+          unscheduled_approved_count: 0,
+          queue_pending_count: 1,
+          queue_approved_count: 2,
+          channels_ready_count: 2,
+          channels_total: 4,
+          channel_summaries: [
+            { channel: "instagram", label: "Instagram", active: true, live_allowed: false },
+            { channel: "facebook", label: "Facebook", active: true, live_allowed: false },
+          ],
+          live_publish_enabled: false,
+          scheduled_publish_enabled: true,
+          links: {
+            queue: "/apps-tools/marketing-team?section=queue#publish-queue",
+            publish: "/apps-tools/marketing-team?section=publish#social-publish",
+            integrations: "/integrations?tab=studio&section=publish#social-publish",
+            agents: "/agents?preset=marketing-campaign#sessions",
+          },
+          operator_hint: "1 pack(s) awaiting queue approval",
+        }),
+      });
+      return;
+    }
+
     if (path === "operator/apps-tools-index" || path.startsWith("operator/apps-tools-index?")) {
       await route.fulfill({
         status: 200,

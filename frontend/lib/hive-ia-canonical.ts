@@ -352,7 +352,7 @@ export function buildCanonicalNavGroups(options: {
       title: "Apps & Tools",
       items: [
         { href: "/apps-tools", label: "Module index", Icon: Boxes, section: "integrations", iaZone: "apps_tools" },
-        { href: "/apps-tools/marketing-automation", label: "Marketing Automation", Icon: Zap, section: "integrations", iaZone: "apps_tools" },
+        { href: "/apps-tools/marketing-team", label: "Marketing Team", Icon: Zap, section: "integrations", iaZone: "apps_tools" },
         { href: "/apps-tools/trading-automation", label: "Trading Automation", Icon: Activity, section: "integrations", iaZone: "apps_tools" },
         { href: "/apps-tools/trading-journal", label: "Trading Journal", Icon: BookMarked, section: "integrations", iaZone: "apps_tools" },
         { href: "/apps-tools/content-factory#research", label: "Pack Factory", Icon: Factory, section: "integrations", iaZone: "apps_tools" },

@@ -23,6 +23,10 @@ from app.application.services.apps_tools_index_analytics import (
 )
 from app.application.services.apps_tools_index_snapshot import compose_apps_tools_index_snapshot
 from app.application.services.capability_registry import compose_capability_registry_snapshot
+from app.application.services.marketing_team_service import (
+    MarketingTeamSnapshotOut,
+    compose_marketing_team_snapshot,
+)
 from app.application.services.module_policy_packs import (
     ModuleKey,
     compose_module_policy_pack_snapshot,
@@ -489,6 +493,31 @@ async def operator_module_policy_pack_detail(
     if pack is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Module policy pack not found.")
     return pack.model_dump(mode="json")
+
+
+@router.get(
+    "/marketing-team",
+    response_model=MarketingTeamSnapshotOut,
+    summary="Marketing Team unified snapshot (POS-B)",
+)
+async def operator_marketing_team(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+    horizon_days: int = Query(default=14, ge=1, le=30),
+) -> MarketingTeamSnapshotOut:
+    """Calendar, queue counts, and channel readiness for Marketing Team module."""
+
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    return await compose_marketing_team_snapshot(
+        db,
+        dashboard_user_id=user.id,
+        tenant=tenant,
+        horizon_days=horizon_days,
+    )
 
 
 @router.get("/apps-tools-index", summary="Unified Apps & Tools index snapshot")
