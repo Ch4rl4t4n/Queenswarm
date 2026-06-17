@@ -208,6 +208,30 @@ else
   fail "missing factory launch purchase smoke button"
 fi
 
+if grep -q "full_funnel_available" backend/app/application/services/factory_launch_widget_service.py; then
+  pass "full_funnel_available flag"
+else
+  fail "missing full_funnel_available flag"
+fi
+
+if grep -q "/factory-launch/full-funnel" backend/app/presentation/api/routers/dashboard.py; then
+  pass "dashboard REV11 full-funnel route"
+else
+  fail "missing dashboard REV11 full-funnel route"
+fi
+
+if grep -q "run_factory_launch_full_funnel" backend/app/application/services/factory_launch_widget_service.py; then
+  pass "run_factory_launch_full_funnel"
+else
+  fail "missing run_factory_launch_full_funnel"
+fi
+
+if grep -q "factory-launch-full-funnel-btn" frontend/components/hive/factory-launch-widget.tsx; then
+  pass "factory launch full funnel button"
+else
+  fail "missing factory launch full funnel button object"
+fi
+
 if [[ -x backend/venv/bin/python ]]; then
   if (cd backend && ./venv/bin/python -m pytest \
     tests/test_factory_launch_widget_unit.py \

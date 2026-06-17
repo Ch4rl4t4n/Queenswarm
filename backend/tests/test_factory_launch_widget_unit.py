@@ -388,6 +388,7 @@ async def test_factory_launch_revenue_loop_ready(monkeypatch: pytest.MonkeyPatch
     assert snapshot.revenue_smoke_available is True
     assert snapshot.catalog_sync_available is True
     assert snapshot.purchase_smoke_available is True
+    assert snapshot.full_funnel_available is True
     assert "revenue loop closed" in snapshot.operator_hint.lower()
 
 
@@ -551,3 +552,119 @@ async def test_run_factory_launch_purchase_smoke_processes_ping(monkeypatch: pyt
     assert result.get("unlocked") is True
     assert result.get("onboarding_sent") is True
     assert result.get("catalog_slug") == "harness-pack"
+
+
+@pytest.mark.asyncio
+async def test_run_factory_launch_full_funnel_orchestrates_draft_then_publish(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.application.services.factory_launch_widget_service import run_factory_launch_full_funnel
+    from app.core.config import settings
+
+    snap_draft = type(
+        "Snap",
+        (),
+        {
+            "gumroad_auto_draft_available": True,
+            "gumroad_auto_publish_available": False,
+            "catalog_sync_available": False,
+            "published_gumroad_count": 0,
+            "revenue_loop_ready": False,
+        },
+    )()
+    snap_publish = type(
+        "Snap",
+        (),
+        {
+            "gumroad_auto_draft_available": False,
+            "gumroad_auto_publish_available": True,
+            "catalog_sync_available": False,
+            "published_gumroad_count": 0,
+            "revenue_loop_ready": False,
+        },
+    )()
+    snap_done = type(
+        "Snap",
+        (),
+        {
+            "gumroad_auto_draft_available": False,
+            "gumroad_auto_publish_available": False,
+            "catalog_sync_available": False,
+            "published_gumroad_count": 1,
+            "revenue_loop_ready": True,
+        },
+    )()
+
+    monkeypatch.setattr(settings, "factory_launch_mission_home_enabled", True)
+    monkeypatch.setattr(settings, "skill_factory_enabled", True)
+    monkeypatch.setattr(
+        "app.application.services.factory_launch_widget_service.compose_factory_launch_widget_snapshot",
+        AsyncMock(side_effect=[snap_draft, snap_publish, snap_done]),
+    )
+    monkeypatch.setattr(
+        "app.application.services.factory_launch_widget_service.draft_factory_launch_gumroad_from_widget",
+        AsyncMock(return_value={"ok": True, "message": "Created 1 Gumroad draft."}),
+    )
+    monkeypatch.setattr(
+        "app.application.services.factory_launch_widget_service.publish_factory_launch_gumroad_from_widget",
+        AsyncMock(return_value={"ok": True, "message": "Published 1 Gumroad listing."}),
+    )
+    session = AsyncMock()
+
+    result = await run_factory_launch_full_funnel(session, tenant_id=uuid.uuid4(), limit=3)
+
+    assert result.get("ok") is True
+    steps = result.get("steps") or []
+    assert len(steps) == 2
+    assert steps[0]["step"] == "gumroad_draft"
+    assert steps[1]["step"] == "gumroad_publish"
+    assert result.get("published_gumroad_count") == 1
+    assert result.get("revenue_loop_ready") is True
+
+
+@pytest.mark.asyncio
+async def test_run_factory_launch_full_funnel_catalog_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.application.services.factory_launch_widget_service import run_factory_launch_full_funnel
+    from app.core.config import settings
+
+    snap_sync = type(
+        "Snap",
+        (),
+        {
+            "gumroad_auto_draft_available": False,
+            "gumroad_auto_publish_available": False,
+            "catalog_sync_available": True,
+            "published_gumroad_count": 1,
+            "revenue_loop_ready": False,
+        },
+    )()
+    snap_done = type(
+        "Snap",
+        (),
+        {
+            "gumroad_auto_draft_available": False,
+            "gumroad_auto_publish_available": False,
+            "catalog_sync_available": False,
+            "published_gumroad_count": 1,
+            "revenue_loop_ready": True,
+        },
+    )()
+
+    monkeypatch.setattr(settings, "factory_launch_mission_home_enabled", True)
+    monkeypatch.setattr(settings, "skill_factory_enabled", True)
+    monkeypatch.setattr(
+        "app.application.services.factory_launch_widget_service.compose_factory_launch_widget_snapshot",
+        AsyncMock(side_effect=[snap_sync, snap_done]),
+    )
+    monkeypatch.setattr(
+        "app.application.services.factory_launch_widget_service.sync_factory_launch_catalog_from_widget",
+        AsyncMock(return_value={"ok": True, "message": "Synced 1 Gumroad URLs into upload tracker."}),
+    )
+    session = AsyncMock()
+
+    result = await run_factory_launch_full_funnel(session, tenant_id=uuid.uuid4())
+
+    assert result.get("ok") is True
+    steps = result.get("steps") or []
+    assert len(steps) == 1
+    assert steps[0]["step"] == "catalog_sync"

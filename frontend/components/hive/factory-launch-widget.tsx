@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Loader2Icon, PackageIcon, RefreshCwIcon, RocketIcon, ShieldCheckIcon, StoreIcon, TestTubeDiagonalIcon } from "lucide-react";
+import { Loader2Icon, PackageIcon, PlayIcon, RefreshCwIcon, RocketIcon, ShieldCheckIcon, StoreIcon, TestTubeDiagonalIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
@@ -13,6 +13,7 @@ import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import type {
   FactoryLaunchCatalogSyncPayload,
+  FactoryLaunchFullFunnelPayload,
   FactoryLaunchGumroadDraftPayload,
   FactoryLaunchGumroadPublishPayload,
   FactoryLaunchPayload,
@@ -33,6 +34,7 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
   const [smokeBusy, setSmokeBusy] = useState(false);
   const [catalogSyncBusy, setCatalogSyncBusy] = useState(false);
   const [purchaseSmokeBusy, setPurchaseSmokeBusy] = useState(false);
+  const [fullFunnelBusy, setFullFunnelBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -171,6 +173,29 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
     }
   }, [load]);
 
+  const runFullLaunchFunnel = useCallback(async () => {
+    setFullFunnelBusy(true);
+    try {
+      const result = await hivePostJson<FactoryLaunchFullFunnelPayload>(
+        "dashboard/factory-launch/full-funnel?limit=3",
+        {},
+      );
+      if (result.ok) {
+        const stepLabels = result.steps.map((row) => row.step.replace(/_/g, " ")).join(" → ");
+        toast.success(
+          result.message ?? (stepLabels ? `Full funnel: ${stepLabels}` : "Full launch funnel complete."),
+        );
+      } else {
+        toast.message(result.message ?? "Full launch funnel did not complete.");
+      }
+      await load();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Full launch funnel failed.");
+    } finally {
+      setFullFunnelBusy(false);
+    }
+  }, [load]);
+
   useIntervalWhenVisible(() => void load(), COCKPIT_POLL_COLONY_TELEMETRY_MS, {
     initialDelayMs: eager ? 0 : DASHBOARD_BOOT_STAGGER_MS.factoryLaunch,
   });
@@ -254,6 +279,22 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
             <p className="mb-3 text-sm text-(--qs-text-3)">{payload.operator_hint}</p>
 
             <div className="flex flex-wrap items-center gap-2">
+              {payload.full_funnel_available ? (
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--primary qs-btn--sm min-h-[44px] gap-1"
+                  disabled={fullFunnelBusy}
+                  onClick={() => void runFullLaunchFunnel()}
+                  data-testid="factory-launch-full-funnel-btn"
+                >
+                  {fullFunnelBusy ? (
+                    <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <PlayIcon className="size-3.5" aria-hidden />
+                  )}
+                  Run full launch
+                </button>
+              ) : null}
               {payload.purchase_smoke_available ? (
                 <button
                   type="button"

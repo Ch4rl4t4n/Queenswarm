@@ -1042,6 +1042,7 @@ export interface FactoryLaunchPayload {
   revenue_smoke_available: boolean;
   catalog_sync_available: boolean;
   purchase_smoke_available: boolean;
+  full_funnel_available: boolean;
   catalog_href: string;
   operator_hint: string;
   factory_href: string;
@@ -1119,6 +1120,19 @@ export interface FactoryLaunchPurchaseSmokePayload {
   unlocked: boolean;
   onboarding_sent: boolean;
   message: string;
+}
+
+/** ``POST /api/v1/dashboard/factory-launch/full-funnel`` — REV11 orchestrated launch funnel. */
+export interface FactoryLaunchFullFunnelPayload {
+  ok: boolean;
+  message: string;
+  published_gumroad_count: number;
+  revenue_loop_ready: boolean;
+  steps: Array<{
+    step: string;
+    ok: boolean;
+    message: string;
+  }>;
 }
 
 /** ``POST /api/v1/dashboard/factory-launch/revenue-smoke`` — REV8 buyer loop checklist. */

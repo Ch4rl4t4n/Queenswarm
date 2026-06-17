@@ -331,6 +331,26 @@ async def dashboard_factory_launch_purchase_smoke(
     return result
 
 
+@router.post("/factory-launch/full-funnel")
+async def dashboard_factory_launch_full_funnel(
+    db: DbSession,
+    principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),
+    limit: int = Query(default=3, ge=1, le=12),
+) -> dict[str, object]:
+    """REV11 — Orchestrate Gumroad draft → publish → catalog sync from Mission Home."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    from app.application.services.factory_launch_widget_service import run_factory_launch_full_funnel
+
+    result = await run_factory_launch_full_funnel(db, tenant_id=tenant_id, limit=limit)
+    await db.commit()
+    return result
+
+
 @router.get("/time-saved")
 async def dashboard_time_saved(
     db: DbSession,

@@ -1,4 +1,4 @@
-"""REV4–REV10 — Factory Launch widget for Mission Home (Gumroad sellable harness funnel)."""
+"""REV4–REV11 — Factory Launch widget for Mission Home (Gumroad sellable harness funnel)."""
 
 from __future__ import annotations
 
@@ -66,6 +66,7 @@ class FactoryLaunchWidgetOut(BaseModel):
     revenue_smoke_available: bool = False
     catalog_sync_available: bool = False
     purchase_smoke_available: bool = False
+    full_funnel_available: bool = False
     catalog_href: str = "/skills"
     operator_hint: str = ""
     factory_href: str = "/apps-tools/skill-factory"
@@ -177,6 +178,28 @@ class FactoryLaunchPurchaseSmokeOut(BaseModel):
     message: str = ""
 
 
+class FactoryLaunchFullFunnelStepOut(BaseModel):
+    """One orchestrated step in the REV11 full launch funnel."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    step: str
+    ok: bool
+    message: str = ""
+
+
+class FactoryLaunchFullFunnelOut(BaseModel):
+    """Orchestrated draft → publish → catalog sync launch funnel."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    ok: bool = False
+    steps: list[FactoryLaunchFullFunnelStepOut] = Field(default_factory=list)
+    message: str = ""
+    published_gumroad_count: int = 0
+    revenue_loop_ready: bool = False
+
+
 async def compose_factory_launch_widget_snapshot(
     session: AsyncSession,
     *,
@@ -223,6 +246,9 @@ async def compose_factory_launch_widget_snapshot(
         settings.factory_launch_purchase_smoke_enabled
         and published_gumroad_count > 0
         and purchase_webhook_ready
+    )
+    full_funnel_available = bool(
+        gumroad_auto_draft_available or gumroad_auto_publish_available or catalog_sync_available
     )
 
     from app.application.services.purchase_onboarding import marketing_public_origin
@@ -290,6 +316,7 @@ async def compose_factory_launch_widget_snapshot(
         revenue_smoke_available=revenue_smoke_available,
         catalog_sync_available=catalog_sync_available,
         purchase_smoke_available=purchase_smoke_available,
+        full_funnel_available=full_funnel_available,
         catalog_href=catalog_href,
         operator_hint=hint,
         top_launch_titles=titles,
@@ -714,8 +741,96 @@ async def run_factory_launch_purchase_smoke(
     return out.model_dump(mode="json")
 
 
+async def run_factory_launch_full_funnel(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    limit: int = 3,
+) -> dict[str, object]:
+    """Orchestrate draft → publish → catalog sync for the current launch queue (REV11)."""
+
+    if not settings.factory_launch_mission_home_enabled or not settings.skill_factory_enabled:
+        return FactoryLaunchFullFunnelOut(
+            message="Factory launch widget disabled.",
+        ).model_dump(mode="json") | {"ok": False, "error": "factory_launch_disabled"}
+
+    capped = max(1, min(limit, 12))
+    steps: list[FactoryLaunchFullFunnelStepOut] = []
+    snapshot = await compose_factory_launch_widget_snapshot(session, tenant_id=tenant_id)
+
+    if snapshot.gumroad_auto_draft_available:
+        draft_payload = await draft_factory_launch_gumroad_from_widget(
+            session,
+            tenant_id=tenant_id,
+            limit=capped,
+        )
+        steps.append(
+            FactoryLaunchFullFunnelStepOut(
+                step="gumroad_draft",
+                ok=bool(draft_payload.get("ok")),
+                message=str(draft_payload.get("message") or ""),
+            ),
+        )
+        snapshot = await compose_factory_launch_widget_snapshot(session, tenant_id=tenant_id)
+
+    if snapshot.gumroad_auto_publish_available:
+        publish_payload = await publish_factory_launch_gumroad_from_widget(
+            session,
+            tenant_id=tenant_id,
+            limit=capped,
+        )
+        steps.append(
+            FactoryLaunchFullFunnelStepOut(
+                step="gumroad_publish",
+                ok=bool(publish_payload.get("ok")),
+                message=str(publish_payload.get("message") or ""),
+            ),
+        )
+        snapshot = await compose_factory_launch_widget_snapshot(session, tenant_id=tenant_id)
+    elif snapshot.catalog_sync_available:
+        sync_payload = await sync_factory_launch_catalog_from_widget(session)
+        steps.append(
+            FactoryLaunchFullFunnelStepOut(
+                step="catalog_sync",
+                ok=bool(sync_payload.get("ok")),
+                message=str(sync_payload.get("message") or ""),
+            ),
+        )
+        snapshot = await compose_factory_launch_widget_snapshot(session, tenant_id=tenant_id)
+
+    any_ok = any(step.ok for step in steps)
+    if not steps:
+        message = "Nothing to run — build sellable skills and configure Gumroad token first."
+    elif any_ok:
+        message = (
+            f"Full funnel complete — {snapshot.published_gumroad_count} live listing(s). "
+            "Verify revenue loop and simulate purchase when ready."
+        )
+    else:
+        message = "Full funnel ran but no steps succeeded — check Gumroad token and launch queue."
+
+    _logger.info(
+        "factory_launch_widget.full_funnel",
+        agent_id="factory_launch_widget",
+        swarm_id=str(tenant_id),
+        step_count=len(steps),
+        any_ok=any_ok,
+        published_count=snapshot.published_gumroad_count,
+    )
+    out = FactoryLaunchFullFunnelOut(
+        ok=any_ok,
+        steps=steps,
+        message=message,
+        published_gumroad_count=snapshot.published_gumroad_count,
+        revenue_loop_ready=snapshot.revenue_loop_ready,
+    )
+    return out.model_dump(mode="json")
+
+
 __all__ = [
     "FactoryLaunchCatalogSyncOut",
+    "FactoryLaunchFullFunnelOut",
+    "FactoryLaunchFullFunnelStepOut",
     "FactoryLaunchGumroadDraftOut",
     "FactoryLaunchGumroadDraftRowOut",
     "FactoryLaunchGumroadPublishOut",
@@ -728,6 +843,7 @@ __all__ = [
     "draft_factory_launch_gumroad_from_widget",
     "prepare_factory_launch_batch_from_widget",
     "publish_factory_launch_gumroad_from_widget",
+    "run_factory_launch_full_funnel",
     "run_factory_launch_purchase_smoke",
     "run_factory_launch_revenue_smoke",
     "sync_factory_launch_catalog_from_widget",
