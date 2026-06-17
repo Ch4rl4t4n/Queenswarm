@@ -196,7 +196,7 @@ export const VAULT_VENDOR_PRESETS: readonly VaultVendorPreset[] = [
     slug: "robinhood_agentic",
     label: "Robinhood · Agentic MCP",
     kind: "oauth2",
-    tokenEndpoint: null,
+    tokenEndpoint: "https://api.robinhood.com/oauth2/token/",
     docsUrl: "https://robinhood.com/us/en/support/articles/agentic-trading-overview/",
     scopesHint:
       "OAuth2 access token from Robinhood Agentic MCP authorization — server https://agent.robinhood.com/mcp/trading.",

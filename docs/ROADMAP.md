@@ -475,7 +475,7 @@ Strategic backlog from operator competitive reviews. **Harness > hype** — exte
 |------|--------|-------|---------|
 | Jun 2026 | [Rahul — Goal → Think → Tools](https://x.com/sairahul1/status/2064988918630736353) | A (AL1–4) | Architecture ✅ · UX visibility 🔴 |
 | Jun 2026 | [Pikachin — Data Goldmine Engine](https://x.com/pikach_in/status/2064450336589242818) | I (DG1–8) | Foragers ✅ · Track I complete ✅ |
-| Jun 2026 | Second-brain / Obsidian threads | B (SB1–4) | SB1 ✅ · automation ⏳ |
+| Jun 2026 | Second-brain / Obsidian threads | B (SB1–4) | SB1 ✅ · SB2 ✅ · automation ⏳ |
 | Jun 2026 | [Simon Scrapes — Memory beats Hermes](https://www.youtube.com/watch?v=H9BUkgDf5Y4) | J (MEM1–5) | Hive Mind ✅ · cited recall UX 🔴 |
 | Jun 2026 | [Greg Isenberg — Agent loop hype vs closed loops](https://www.youtube.com/watch?v=7clJ8IH784Q) | K (LOOP1–5) | HITL + critic ✅ · guardrails UX 🔴 |
 | Jun 2026 | [OpenAI — Codex for data science](https://www.youtube.com/watch?v=Lvk_VZOppIY) | L (DA1–12) | Connectors ✅ · analytics workspace 🔴 |
@@ -511,7 +511,7 @@ _Goal → Think → Tools → Verify visible in UI — not buried in event JSON.
 | ID | Item | Priority | Est. | Status | Gate / asset |
 |----|------|----------|------|--------|--------------|
 | SB1 | Structured capture (IDEA / CONNECTS / TENSION) API + Wiki UI | P0 | 3 d | ✅ Shipped | `POST /memory/wiki-layer/capture` |
-| SB2 | Weekly **connection-intelligence** Celery tick | P1 | 1–2 d | ⏳ | Gardener wiki pages refresh |
+| SB2 | Weekly **connection-intelligence** Celery tick | P1 | 1–2 d | ✅ Shipped | MOC + connections weekly beat · operator POST |
 | SB3 | Capture approve → auto wikilink in vault export | P1 | 2 d | ⏳ | Obsidian export path |
 | SB4 | Wiki-layer hits in ⌘K mission search | P2 | 2–3 d | ⏳ | Chroma + `search_mission_operator` |
 

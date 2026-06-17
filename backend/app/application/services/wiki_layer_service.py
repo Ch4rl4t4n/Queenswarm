@@ -372,28 +372,11 @@ class WikiLayerService:
                 source_refs=[{"type": "recipe", "ids": [str(r.id) for r in recipes]}],
             )
 
-            from app.application.services.wiki_connection_synthesizer import (
-                compile_connection_intelligence,
-                compile_maps_of_content,
-            )
-
-            capture_items = await self._fetch_capture_knowledge(tenant_id)
-            moc_md = compile_maps_of_content(capture_items or raw_items)
-            pages_updated += await self._upsert_page(
+            conn_pages, capture_items, _conn_meta = await self._refresh_connection_intelligence_pages(
                 tenant_id,
-                slug="maps-of-content",
-                title="Maps of content",
-                content_md=moc_md,
-                source_refs=[{"type": "knowledge_item", "ids": [str(r.id) for r in capture_items[:24]]}],
+                raw_items=raw_items,
             )
-            intel_md = compile_connection_intelligence(capture_items or raw_items)
-            pages_updated += await self._upsert_page(
-                tenant_id,
-                slug="connection-intelligence",
-                title="Connection intelligence",
-                content_md=intel_md,
-                source_refs=[{"type": "knowledge_item", "ids": [str(r.id) for r in capture_items[:24]]}],
-            )
+            pages_updated += conn_pages
 
             run.status = WikiGardenerStatusORM.COMPLETED
             run.pages_updated = pages_updated
@@ -427,6 +410,78 @@ class WikiLayerService:
             await self._db.flush()
             logger.exception(
                 "wiki_layer.gardener.failed",
+                agent_id=agent_id,
+                swarm_id=swarm_id,
+                task_id=task_id or str(run.id),
+            )
+            raise
+
+    async def run_connection_intelligence_refresh(
+        self,
+        tenant_id: uuid.UUID,
+        *,
+        agent_id: str = "connection-intelligence-bee",
+        swarm_id: str = "",
+        task_id: str = "",
+    ) -> WikiGardenerRunORM:
+        """Refresh MOC + connection-intelligence pages only (SB2 weekly tick)."""
+
+        if not settings.wiki_layer_enabled:
+            raise ValueError("wiki_layer_disabled")
+        if not settings.second_brain_connection_intelligence_tick_enabled:
+            raise ValueError("connection_intelligence_tick_disabled")
+
+        run = WikiGardenerRunORM(
+            tenant_id=tenant_id,
+            status=WikiGardenerStatusORM.RUNNING,
+            summary_md="",
+            stats={"tick_type": "connection_intelligence_weekly"},
+            pages_updated=0,
+            raw_scanned=0,
+        )
+        self._db.add(run)
+        await self._db.flush()
+
+        logger.info(
+            "wiki_layer.connection_intelligence.start",
+            agent_id=agent_id,
+            swarm_id=swarm_id,
+            task_id=task_id or str(run.id),
+            tenant_id=str(tenant_id),
+        )
+
+        try:
+            pages_updated, capture_items, meta = await self._refresh_connection_intelligence_pages(tenant_id)
+            run.status = WikiGardenerStatusORM.COMPLETED
+            run.pages_updated = pages_updated
+            run.raw_scanned = len(capture_items)
+            run.summary_md = (
+                f"Weekly connection-intelligence refresh: updated {pages_updated} page(s) "
+                f"from {len(capture_items)} capture note(s)."
+            )
+            run.stats = {**meta, "tick_type": "connection_intelligence_weekly"}
+            run.pollen_awarded = (
+                settings.second_brain_connection_intelligence_pollen if pages_updated > 0 else 0.0
+            )
+            run.completed_at = datetime.now(tz=UTC)
+            await self._db.flush()
+
+            logger.info(
+                "wiki_layer.connection_intelligence.completed",
+                agent_id=agent_id,
+                swarm_id=swarm_id,
+                task_id=task_id or str(run.id),
+                pages_updated=pages_updated,
+                capture_notes=len(capture_items),
+            )
+            return run
+        except Exception as exc:
+            run.status = WikiGardenerStatusORM.FAILED
+            run.summary_md = f"Connection-intelligence refresh failed: {exc}"
+            run.completed_at = datetime.now(tz=UTC)
+            await self._db.flush()
+            logger.exception(
+                "wiki_layer.connection_intelligence.failed",
                 agent_id=agent_id,
                 swarm_id=swarm_id,
                 task_id=task_id or str(run.id),
@@ -513,6 +568,48 @@ class WikiLayerService:
         if skills:
             parts.append(f"**Skills**\n{skills}")
         return "\n\n".join(parts) if parts else "_Operator context empty — seed Brain Pack._"
+
+    async def _refresh_connection_intelligence_pages(
+        self,
+        tenant_id: uuid.UUID,
+        *,
+        raw_items: list[KnowledgeItem] | None = None,
+    ) -> tuple[int, list[KnowledgeItem], dict[str, Any]]:
+        """Compile maps-of-content and connection-intelligence from capture notes."""
+
+        from app.application.services.wiki_connection_synthesizer import (
+            compile_connection_intelligence,
+            compile_maps_of_content,
+        )
+
+        if raw_items is None:
+            raw_items = await self._fetch_recent_knowledge(tenant_id)
+        capture_items = await self._fetch_capture_knowledge(tenant_id)
+        source_rows = capture_items or raw_items
+        pages_updated = 0
+
+        moc_md = compile_maps_of_content(source_rows)
+        pages_updated += await self._upsert_page(
+            tenant_id,
+            slug="maps-of-content",
+            title="Maps of content",
+            content_md=moc_md,
+            source_refs=[{"type": "knowledge_item", "ids": [str(r.id) for r in capture_items[:24]]}],
+        )
+        intel_md = compile_connection_intelligence(source_rows)
+        pages_updated += await self._upsert_page(
+            tenant_id,
+            slug="connection-intelligence",
+            title="Connection intelligence",
+            content_md=intel_md,
+            source_refs=[{"type": "knowledge_item", "ids": [str(r.id) for r in capture_items[:24]]}],
+        )
+        meta = {
+            "capture_notes": len(capture_items),
+            "raw_knowledge_items": len(raw_items),
+            "page_slugs": ["maps-of-content", "connection-intelligence"],
+        }
+        return pages_updated, capture_items, meta
 
     async def _fetch_recent_knowledge(self, tenant_id: uuid.UUID, *, limit: int = 24) -> list[KnowledgeItem]:
         since = datetime.now(tz=UTC) - timedelta(days=7)

@@ -201,6 +201,44 @@ async def run_wiki_gardener(
     )
 
 
+@router.post(
+    "/connection-intelligence/run",
+    response_model=WikiGardenerRunResponse,
+    summary="Run connection-intelligence refresh (MOC + connections)",
+)
+async def run_connection_intelligence_refresh(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> WikiGardenerRunResponse:
+    """Refresh maps-of-content and connection-intelligence wiki pages only (SB2)."""
+
+    _require_admin(principal)
+    if not settings.wiki_layer_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Wiki Layer disabled.")
+    if not settings.second_brain_connection_intelligence_tick_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Connection-intelligence tick disabled.",
+        )
+    tenant_id = _tenant_id_from(principal)
+    service = WikiLayerService(db=db)
+    try:
+        run = await service.run_connection_intelligence_refresh(tenant_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    await db.commit()
+    return WikiGardenerRunResponse(
+        id=str(run.id),
+        status=run.status,
+        summary_md=run.summary_md,
+        pages_updated=run.pages_updated,
+        raw_scanned=run.raw_scanned,
+        pollen_awarded=float(run.pollen_awarded),
+        created_at=run.created_at.isoformat() if run.created_at else None,
+        completed_at=run.completed_at.isoformat() if run.completed_at else None,
+    )
+
+
 @router.get("/gardener/latest", response_model=WikiGardenerRunResponse | None, summary="Latest gardener run")
 async def latest_gardener_run(
     db: DbSession,

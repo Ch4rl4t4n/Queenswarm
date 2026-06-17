@@ -715,6 +715,34 @@ class Settings(BaseSettings):
         le=3600,
         description="Interval between Wiki Gardener tenant sweeps (seconds).",
     )
+    second_brain_connection_intelligence_tick_enabled: bool = Field(
+        default=True,
+        description="SB2 — Weekly Celery tick refreshing MOC + connection-intelligence wiki pages.",
+    )
+    second_brain_connection_intelligence_pollen: float = Field(
+        default=2.0,
+        ge=0.0,
+        le=50.0,
+        description="Pollen awarded when weekly connection-intelligence refresh updates pages.",
+    )
+    second_brain_connection_intelligence_cron_hour: int = Field(
+        default=5,
+        ge=0,
+        le=23,
+        description="SB2 weekly connection-intelligence cron hour (UTC).",
+    )
+    second_brain_connection_intelligence_cron_minute: int = Field(
+        default=0,
+        ge=0,
+        le=59,
+        description="SB2 weekly connection-intelligence cron minute (UTC).",
+    )
+    second_brain_connection_intelligence_cron_day_of_week: int = Field(
+        default=0,
+        ge=0,
+        le=6,
+        description="SB2 weekly connection-intelligence cron day (0=Sun … 6=Sat UTC).",
+    )
     external_integration_audit_to_vault: bool = Field(
         default=True,
         description="Mirror external integration audit lines into HiveMind vault.",

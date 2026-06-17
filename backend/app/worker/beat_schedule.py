@@ -193,6 +193,16 @@ def build_beat_schedule() -> dict[str, dict[str, Any]]:
             "schedule": timedelta(seconds=int(settings.wiki_layer_gardener_interval_sec)),
             "options": {"queue": "hive"},
         }
+    if settings.wiki_layer_enabled and settings.second_brain_connection_intelligence_tick_enabled:
+        schedule["hive-connection-intelligence-weekly"] = {
+            "task": "hive.connection_intelligence_refresh_tick",
+            "schedule": crontab(
+                hour=int(settings.second_brain_connection_intelligence_cron_hour),
+                minute=int(settings.second_brain_connection_intelligence_cron_minute),
+                day_of_week=int(settings.second_brain_connection_intelligence_cron_day_of_week),
+            ),
+            "options": {"queue": "hive"},
+        }
     if settings.analytics_weekly_routine_enabled and settings.analytics_workspace_enabled:
         boot_hour = int(settings.analytics_weekly_routine_cron_hour)
         boot_minute = int(settings.analytics_weekly_routine_cron_minute)
