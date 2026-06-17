@@ -1715,6 +1715,34 @@ class Settings(BaseSettings):
         default="",
         description="Stripe webhook signing secret (whsec_...) — never log or expose.",
     )
+    commercial_self_serve_enabled: bool = Field(
+        default=True,
+        description="FP4 — Commercial tier self-serve Stripe checkout for Pro/Enterprise upgrades.",
+    )
+    stripe_secret_key: str = Field(
+        default="",
+        description="Stripe secret API key (sk_...) for self-serve checkout — env only.",
+    )
+    stripe_pro_price_id: str = Field(
+        default="",
+        description="Stripe Price id (price_...) for Commercial Pro subscription checkout.",
+    )
+    stripe_enterprise_price_id: str = Field(
+        default="",
+        description="Stripe Price id for Commercial Enterprise subscription checkout.",
+    )
+    commercial_pro_price_eur_cents: int = Field(
+        default=2900,
+        ge=0,
+        le=999_999,
+        description="Display price for Pro tier in billing UI (EUR cents).",
+    )
+    commercial_enterprise_price_eur_cents: int = Field(
+        default=9900,
+        ge=0,
+        le=999_999,
+        description="Display price for Enterprise tier in billing UI (EUR cents).",
+    )
     gumroad_webhook_secret: str = Field(
         default="",
         description="Path secret for POST /commerce/webhooks/gumroad/{secret} Gumroad ping ingress.",

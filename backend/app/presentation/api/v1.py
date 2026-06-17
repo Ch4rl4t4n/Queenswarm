@@ -9,6 +9,7 @@ from app.presentation.api.routers import agents as agents_router
 from app.presentation.api.routers import agent_sessions as agent_sessions_router
 from app.presentation.api.routers import auth as auth_router
 from app.presentation.api.routers import connectors as connectors_router
+from app.presentation.api.routers import billing as billing_router
 from app.presentation.api.routers import commerce as commerce_router
 from app.presentation.api.routers import commerce_webhooks as commerce_webhooks_router
 from app.presentation.api.routers import connectors_dynamic as connectors_dynamic_router
@@ -115,6 +116,7 @@ api_v1.include_router(operator_monitoring_router.router)
 api_v1.include_router(system_status_router.router)
 api_v1.include_router(dashboard_router.router)
 api_v1.include_router(settings_team_router.router)
+api_v1.include_router(billing_router.router)
 api_v1.include_router(settings_operator_router.router)
 api_v1.include_router(settings_enterprise_router.router)
 api_v1.include_router(shares_router.router)

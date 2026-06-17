@@ -65,6 +65,7 @@ export function BillingSettingsPanel({ variant = "standalone" }: BillingSettings
   const [plans, setPlans] = useState<BillingPlansPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -94,6 +95,38 @@ export function BillingSettingsPanel({ variant = "standalone" }: BillingSettings
   useEffect(() => {
     void load();
   }, [load]);
+
+  const startCheckout = useCallback(
+    async (tier: "pro" | "enterprise") => {
+      setCheckoutBusy(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/proxy/billing/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tier,
+            success_path: "/settings/costs?checkout=success",
+            cancel_path: "/settings/costs?checkout=cancel",
+          }),
+        });
+        const body = (await res.json().catch(() => ({}))) as { checkout_url?: string; detail?: string };
+        if (!res.ok) {
+          throw new Error(body.detail ?? "Checkout failed");
+        }
+        if (body.checkout_url) {
+          window.location.href = body.checkout_url;
+          return;
+        }
+        throw new Error("Stripe checkout URL missing.");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Checkout unavailable.");
+      } finally {
+        setCheckoutBusy(false);
+      }
+    },
+    [],
+  );
 
   const topMetrics = useMemo(() => {
     if (!usage) {
@@ -169,7 +202,19 @@ export function BillingSettingsPanel({ variant = "standalone" }: BillingSettings
             ))}
           </ul>
           <div className="flex flex-wrap items-center gap-3">
-            <p className="text-xs text-(--qs-text-3)">Self-serve checkout is not enabled on this deployment.</p>
+            {plans?.pro_checkout_ready ? (
+              <button
+                type="button"
+                className="qs-btn qs-btn--primary qs-btn--sm"
+                disabled={checkoutBusy}
+                data-testid="billing-upgrade-pro"
+                onClick={() => void startCheckout("pro")}
+              >
+                {checkoutBusy ? "Opening Stripe…" : `Upgrade to Pro · ${proPriceLabel}`}
+              </button>
+            ) : (
+              <p className="text-xs text-(--qs-text-3)">Self-serve checkout is not enabled on this deployment.</p>
+            )}
             {showCostCockpitLink ? (
               <Link href="/settings/costs" className="qs-btn qs-btn--ghost qs-btn--sm">
                 Open cost cockpit
@@ -198,7 +243,19 @@ export function BillingSettingsPanel({ variant = "standalone" }: BillingSettings
             ))}
           </ul>
           <div className="flex flex-wrap items-center gap-3">
-            <p className="text-xs text-(--qs-text-3)">Enterprise checkout is not enabled on this deployment.</p>
+            {plans?.enterprise_checkout_ready ? (
+              <button
+                type="button"
+                className="qs-btn qs-btn--primary qs-btn--sm"
+                disabled={checkoutBusy}
+                data-testid="billing-upgrade-enterprise"
+                onClick={() => void startCheckout("enterprise")}
+              >
+                {checkoutBusy ? "Opening Stripe…" : `Upgrade to Enterprise · ${enterprisePriceLabel}`}
+              </button>
+            ) : (
+              <p className="text-xs text-(--qs-text-3)">Enterprise checkout is not enabled on this deployment.</p>
+            )}
             <Link href="/settings/enterprise" className="qs-btn qs-btn--ghost qs-btn--sm">
               Preview Enterprise workspace
             </Link>

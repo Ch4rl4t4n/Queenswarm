@@ -129,7 +129,21 @@ async def process_stripe_webhook_event(
         )
 
     normalized = normalize_stripe_event(body)
+    upgraded = False
+    if event_type == "checkout.session.completed" and session is not None:
+        from app.application.services.commercial_self_serve_service import apply_commercial_checkout_session
+
+        upgraded = await apply_commercial_checkout_session(session, checkout_object=inner)
+
     if normalized is None:
+        if upgraded:
+            return CommerceWebhookResult(
+                ok=True,
+                event_type=event_type,
+                event_id=event_id,
+                message="Commercial tier upgraded via checkout.session.completed.",
+                ingested=True,
+            )
         return CommerceWebhookResult(
             ok=True,
             event_type=event_type,
@@ -144,16 +158,21 @@ async def process_stripe_webhook_event(
         tenant_id=tenant_id,
         firm_id=firm_id,
     )
+    message = (
+        "Commercial tier upgraded via checkout.session.completed."
+        if upgraded
+        else (
+            "Event ingested for HiveMind order sync."
+            if newly_ingested
+            else "Duplicate event — idempotent ack."
+        )
+    )
     return CommerceWebhookResult(
         ok=True,
         event_type=event_type,
         event_id=event_id,
-        message=(
-            "Event ingested for HiveMind order sync."
-            if newly_ingested
-            else "Duplicate event — idempotent ack."
-        ),
-        ingested=newly_ingested,
+        message=message,
+        ingested=newly_ingested or upgraded,
     )
 
 

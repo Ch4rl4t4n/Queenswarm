@@ -2855,6 +2855,20 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("billing/checkout")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          checkout_url: "https://checkout.stripe.test/c/pay/stub",
+          session_id: "cs_stub",
+          message: "Stub checkout",
+        }),
+      });
+      return;
+    }
+
     if (path.startsWith("settings/enterprise/config")) {
       await route.fulfill({
         status: 200,

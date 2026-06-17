@@ -36,6 +36,7 @@ run_backend() {
   ./scripts/audit-competitive-signal-gate.sh
   ./scripts/audit-sub-swarm-fleet-gate.sh
   ./scripts/audit-memory-project-tags-gate.sh
+  ./scripts/audit-commercial-self-serve-gate.sh
   ./scripts/audit-broker-guardrails-gate.sh
   ./scripts/audit-broker-readonly-gate.sh
   ./scripts/audit-broker-order-queue-gate.sh
