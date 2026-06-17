@@ -75,7 +75,7 @@ Living backlog for **queenswarm.love** — ordered by impact. Status reflects pr
 |-------|-------|--------|
 | POS-A | `PERSONAL_OS_MODE` preset · strip Mission Home revenue widgets · nav/apps-tools filter · cockpit business tab hidden | ✅ Shipped |
 | POS-B | Marketing Team unified module (post-bridge calendar + publish lane) | ✅ Shipped |
-| POS-C | Faceless content pipeline (idea → post/video → schedule) | Planned |
+| POS-C | Faceless content pipeline (idea → post/video → schedule) | ✅ Shipped |
 | POS-D | Life OS — Calendar → daily planner in Mission Home | Planned |
 | POS-E | Autopilot — `routines_enabled` + Four Lanes + My 3 Bees cron | Planned |
 | POS-F | Skill Factory lite — strip Gumroad tabs | Planned |

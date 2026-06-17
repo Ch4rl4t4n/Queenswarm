@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, CalendarDays, ListChecks, Rocket, Send } from "lucide-react";
+import { BarChart3, CalendarDays, Clapperboard, ListChecks, Rocket, Send } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -67,10 +67,22 @@ const CampaignLaunchWizardPanel = dynamic(
   },
 );
 
-type MarketingTeamSection = "calendar" | "queue" | "publish" | "performance" | "launch";
+const FacelessStudioPanel = dynamic(
+  () =>
+    import("@/components/apps-tools/faceless-studio-panel").then((mod) => ({
+      default: mod.FacelessStudioPanel,
+    })),
+  {
+    ssr: false,
+    loading: () => <div className="qs-bubble shrink-0 min-h-[10rem] animate-pulse bg-white/5 p-4" aria-hidden />,
+  },
+);
+
+type MarketingTeamSection = "calendar" | "studio" | "queue" | "publish" | "performance" | "launch";
 
 const SECTION_TO_HASH: Record<MarketingTeamSection, string> = {
   calendar: "marketing-calendar",
+  studio: "faceless-studio",
   launch: "campaign-launch-wizard",
   queue: "publish-queue",
   publish: "social-publish",
@@ -80,6 +92,7 @@ const SECTION_TO_HASH: Record<MarketingTeamSection, string> = {
 function sectionFromHash(hash: string): MarketingTeamSection | null {
   const key = hash.replace(/^#/, "").trim().toLowerCase();
   if (key === "marketing-calendar") return "calendar";
+  if (key === "faceless-studio") return "studio";
   if (key === "campaign-launch-wizard") return "launch";
   if (key === "publish-queue") return "queue";
   if (key === "social-publish") return "publish";
@@ -90,6 +103,7 @@ function sectionFromHash(hash: string): MarketingTeamSection | null {
 function sectionFromQuery(raw: string | null): MarketingTeamSection | null {
   if (
     raw === "calendar" ||
+    raw === "studio" ||
     raw === "launch" ||
     raw === "queue" ||
     raw === "publish" ||
@@ -137,8 +151,8 @@ export function MarketingTeamPageClient() {
           <Link href={integrationsHubOAuthHref()} className="qs-btn qs-btn--ghost qs-btn--sm">
             Connect OAuth
           </Link>
-          <Link href="/agents?preset=marketing-campaign#sessions" className="qs-btn qs-btn--ghost qs-btn--sm">
-            New marketing session
+          <Link href="/agents?preset=faceless-video#sessions" className="qs-btn qs-btn--ghost qs-btn--sm">
+            Faceless agent session
           </Link>
         </div>
       }
@@ -146,6 +160,7 @@ export function MarketingTeamPageClient() {
         <HiveSubnavRow
           items={[
             { id: "calendar", label: "Calendar", icon: CalendarDays },
+            { id: "studio", label: "Faceless studio", icon: Clapperboard },
             { id: "queue", label: "Publish queue", icon: ListChecks },
             { id: "publish", label: "Social publish", icon: Send },
             { id: "performance", label: "Performance", icon: BarChart3 },
@@ -164,6 +179,9 @@ export function MarketingTeamPageClient() {
     >
       <div id="marketing-calendar" className={section === "calendar" ? "" : "hidden"} aria-hidden={section !== "calendar"}>
         {section === "calendar" ? <MarketingTeamCalendarPanel /> : null}
+      </div>
+      <div id="faceless-studio" className={section === "studio" ? "" : "hidden"} aria-hidden={section !== "studio"}>
+        {section === "studio" ? <FacelessStudioPanel /> : null}
       </div>
       <div id="campaign-launch-wizard" className={section === "launch" ? "" : "hidden"}>
         {section === "launch" ? <CampaignLaunchWizardPanel /> : null}

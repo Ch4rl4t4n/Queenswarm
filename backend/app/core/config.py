@@ -1674,6 +1674,10 @@ class Settings(BaseSettings):
         default=True,
         description="POS-B — Unified Marketing Team module (calendar + queue + social publish).",
     )
+    faceless_content_pipeline_enabled: bool = Field(
+        default=True,
+        description="POS-C — Faceless content pipeline (idea intake → template draft → schedule).",
+    )
     morning_publish_pipeline_enabled: bool = Field(
         default=True,
         description="Phase D — Life OS brief → content draft → critic verify → Publish Queue timeline.",

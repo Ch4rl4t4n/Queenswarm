@@ -4901,6 +4901,36 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path === "operator/faceless-pipeline" || path.startsWith("operator/faceless-pipeline")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          draft_count: 1,
+          scheduled_count: 1,
+          recent_items: [
+            {
+              deliverable_id: "00000000-0000-4000-8000-000000000088",
+              title: "Faceless · test hook",
+              channel: "instagram",
+              status: "pending",
+              scheduled_at: "2026-06-20T09:00:00Z",
+              body_preview: "Hook: test",
+              href: "/apps-tools/marketing-team?section=queue#publish-queue",
+            },
+          ],
+          links: {
+            studio: "/apps-tools/marketing-team?section=studio#faceless-studio",
+            queue: "/apps-tools/marketing-team?section=queue#publish-queue",
+            agents: "/agents?preset=faceless-video#sessions",
+          },
+          operator_hint: "Paste a hook → Draft creates simulate pack.",
+        }),
+      });
+      return;
+    }
+
     if (path === "operator/marketing-team" || path.startsWith("operator/marketing-team?")) {
       await route.fulfill({
         status: 200,

@@ -23,6 +23,18 @@ from app.application.services.apps_tools_index_analytics import (
 )
 from app.application.services.apps_tools_index_snapshot import compose_apps_tools_index_snapshot
 from app.application.services.capability_registry import compose_capability_registry_snapshot
+from app.application.services.faceless_content_pipeline_service import (
+    FacelessDraftIn,
+    FacelessDraftOut,
+    FacelessIntakeIn,
+    FacelessIntakeOut,
+    FacelessPipelineSnapshotOut,
+    FacelessScheduleIn,
+    compose_faceless_pipeline_snapshot,
+    create_faceless_intake_task,
+    run_faceless_draft,
+    schedule_faceless_deliverable,
+)
 from app.application.services.marketing_team_service import (
     MarketingTeamSnapshotOut,
     compose_marketing_team_snapshot,
@@ -493,6 +505,100 @@ async def operator_module_policy_pack_detail(
     if pack is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Module policy pack not found.")
     return pack.model_dump(mode="json")
+
+
+@router.get(
+    "/faceless-pipeline",
+    response_model=FacelessPipelineSnapshotOut,
+    summary="Faceless content pipeline snapshot (POS-C)",
+)
+async def operator_faceless_pipeline(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> FacelessPipelineSnapshotOut:
+    """Recent faceless drafts and operator hints."""
+
+    user = principal.get("user")
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User context missing.")
+    return await compose_faceless_pipeline_snapshot(db, dashboard_user_id=user.id)
+
+
+@router.post(
+    "/faceless-pipeline/intake",
+    response_model=FacelessIntakeOut,
+    summary="Create faceless idea intake on Mission Kanban",
+)
+async def operator_faceless_intake(
+    body: FacelessIntakeIn,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> FacelessIntakeOut:
+    """Park faceless content idea on triage column."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    result = await create_faceless_intake_task(db, tenant_id=tenant_id, body=body)
+    if not result.ok:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=result.title or "intake_failed")
+    await db.commit()
+    return result
+
+
+@router.post(
+    "/faceless-pipeline/draft",
+    response_model=FacelessDraftOut,
+    summary="Generate template faceless publish pack",
+)
+async def operator_faceless_draft(
+    body: FacelessDraftIn,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> FacelessDraftOut:
+    """Create simulate-first publish pack from hook idea."""
+
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    result = await run_faceless_draft(
+        db,
+        dashboard_user_id=user.id,
+        tenant_id=tenant_id,
+        body=body,
+    )
+    if not result.ok:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=result.title or "draft_failed")
+    await db.commit()
+    return result
+
+
+@router.post(
+    "/faceless-pipeline/{deliverable_id}/schedule",
+    summary="Set scheduled_at on faceless publish pack",
+)
+async def operator_faceless_schedule(
+    deliverable_id: uuid.UUID,
+    body: FacelessScheduleIn,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Schedule an existing publish pack for Celery simulate tick."""
+
+    user = principal.get("user")
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User context missing.")
+    result = await schedule_faceless_deliverable(
+        db,
+        dashboard_user_id=user.id,
+        deliverable_id=deliverable_id,
+        scheduled_at=body.scheduled_at,
+    )
+    if not result.get("ok"):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(result.get("error") or "schedule_failed"))
+    await db.commit()
+    return result
 
 
 @router.get(

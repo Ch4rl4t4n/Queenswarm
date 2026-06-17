@@ -19,6 +19,7 @@ from app.application.services.solo_session_presets import (
         "paper-trading-review",
         "web-redesign-discovery",
         "marketing-campaign",
+        "faceless-video",
         "competitor-research",
         "lead-gen-lane",
         "investment-product-brief",

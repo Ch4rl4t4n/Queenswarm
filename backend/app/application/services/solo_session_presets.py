@@ -147,6 +147,22 @@ SOLO_SESSION_PRESETS: dict[str, SoloSessionPresetOut] = {
         ),
         skills=["context", "execution-studio", "publish_pack"],
     ),
+    "faceless-video": SoloSessionPresetOut(
+        id="faceless-video",
+        label="Faceless — video/post pipeline",
+        lane="marketing",
+        goal=(
+            "PROJECT: Faceless content pipeline (simulate-first).\n\n"
+            "Deliverables:\n"
+            "1. Hook + 3-beat script (60–90s reel or carousel)\n"
+            "2. Caption + hashtags for primary channel\n"
+            "3. publish_pack JSON (simulate_only=true) with scheduled_at\n"
+            "4. Critic APPROVE before queue approve\n\n"
+            "No live publish. Use Marketing Team → Publish Queue after verify."
+        ),
+        roles=["designer", "critic"],
+        skills=["publish_pack", "execution-studio", "marketing-campaign-playbook"],
+    ),
     "investment-product-brief": SoloSessionPresetOut(
         id="investment-product-brief",
         label="Investments — product brief",
