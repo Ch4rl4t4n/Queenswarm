@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { redirect } from "next/navigation";
 
 interface MarketingAutomationLegacyRedirectPageProps {
@@ -17,5 +18,7 @@ export default async function MarketingAutomationLegacyRedirectPage({
     section === "launch"
       ? section
       : "calendar";
-  redirect(`/apps-tools/marketing-team?section=${encodeURIComponent(mapped)}`);
+  redirect(
+    `/apps-tools/marketing-team?section=${encodeURIComponent(mapped)}` as Route,
+  );
 }
