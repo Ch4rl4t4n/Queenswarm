@@ -319,6 +319,24 @@ const STUB_SUB_SWARM_FLEET = {
   swarms_href: "/swarms",
 };
 
+const STUB_CATALOG_WAVE = {
+  enabled: true,
+  generated_at: new Date().toISOString(),
+  current_wave: "wave_1",
+  target_next: 25,
+  mk6_target: 50,
+  scorecard_clean_count: 18,
+  catalog_deduped_count: 14,
+  gap_to_next_wave: 7,
+  gap_to_mk6: 32,
+  seed_pending_count: 3,
+  wave_complete: false,
+  operator_hint: "Run Skill Factory on pending seeds → export → Launch & verify.",
+  factory_href: "/apps-tools/skill-factory",
+  catalog_href: "https://letagentscook.org/skills",
+  pending_seeds_preview: ["newsletter-growth-loop", "seo-content-pipeline"],
+};
+
 const STUB_FACTORY_LAUNCH = {
   enabled: true,
   generated_at: new Date().toISOString(),
@@ -2307,6 +2325,15 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_SUB_SWARM_FLEET),
+      });
+      return;
+    }
+
+    if (path.startsWith("dashboard/catalog-wave")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_CATALOG_WAVE),
       });
       return;
     }
@@ -4411,6 +4438,7 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           rapid_loop_widget_enabled: true,
           sub_swarm_fleet_widget_enabled: true,
           factory_launch_widget_enabled: true,
+          catalog_wave_widget_enabled: true,
           links: {
             new_session: "/agents#sessions",
             approvals: "/cockpit#approvals",

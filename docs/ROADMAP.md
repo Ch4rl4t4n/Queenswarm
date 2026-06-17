@@ -318,6 +318,7 @@ Sales domain for verified skills/content packs. App remains **queenswarm.love**.
 | MK6 | Scale factory → **50+** scorecard-clean listings | ✅ Wave planner + 70+ seeds SSOT |
 | MK7 | Gumroad URL auto-sync + purchase webhook unlock | ✅ |
 | MK8 | Marketing OG images + Playwright smoke (M5) | ✅ | `opengraph-image` · `audit-marketing-site-gate.sh` |
+| MK9 | **Catalog wave widget** on Mission Home (MK6 progress) | ✅ Shipped | `catalog_wave_widget_service` · `GET /dashboard/catalog-wave` |
 
 **Featured homepage (agent-picked):** newsletter growth loop · SEO simulate-first pipeline · 30-day Instagram calendar.
 

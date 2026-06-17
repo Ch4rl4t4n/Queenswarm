@@ -1018,6 +1018,25 @@ export interface SubSwarmFleetPayload {
   swarms_href: string;
 }
 
+/** ``GET /api/v1/dashboard/catalog-wave`` — MK9 MK6 catalog wave widget. */
+export interface CatalogWavePayload {
+  enabled: boolean;
+  generated_at: string;
+  current_wave: string;
+  target_next: number;
+  mk6_target: number;
+  scorecard_clean_count: number;
+  catalog_deduped_count: number;
+  gap_to_next_wave: number;
+  gap_to_mk6: number;
+  seed_pending_count: number;
+  wave_complete: boolean;
+  operator_hint: string;
+  factory_href: string;
+  catalog_href: string;
+  pending_seeds_preview: string[];
+}
+
 /** ``GET /api/v1/dashboard/factory-launch`` — REV4 Gumroad launch funnel widget. */
 export interface FactoryLaunchPayload {
   enabled: boolean;

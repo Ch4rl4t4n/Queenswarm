@@ -198,6 +198,17 @@ async def dashboard_sub_swarm_fleet_sync_due(
     return result.model_dump(mode="json")
 
 
+@router.get("/catalog-wave")
+async def dashboard_catalog_wave(
+    _principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, object]:
+    """MK9 — MK6 factory catalog wave progress for Mission Home."""
+
+    from app.application.services.catalog_wave_widget_service import compose_catalog_wave_widget_snapshot
+
+    return compose_catalog_wave_widget_snapshot().model_dump(mode="json")
+
+
 @router.get("/factory-launch")
 async def dashboard_factory_launch(
     db: DbSession,

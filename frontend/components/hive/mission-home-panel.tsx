@@ -8,6 +8,7 @@ import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-s
 import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { ProcessRail, type ProcessStep, type ProcessStepId } from "@/components/hive/process-rail";
+import { CatalogWaveWidget } from "@/components/hive/catalog-wave-widget";
 import { FactoryLaunchWidget } from "@/components/hive/factory-launch-widget";
 import { RapidLoopWidget } from "@/components/hive/rapid-loop-widget";
 import { SubSwarmFleetWidget } from "@/components/hive/sub-swarm-fleet-widget";
@@ -87,6 +88,7 @@ interface MissionHomeSnapshot {
   rapid_loop_widget_enabled?: boolean;
   sub_swarm_fleet_widget_enabled?: boolean;
   factory_launch_widget_enabled?: boolean;
+  catalog_wave_widget_enabled?: boolean;
 }
 
 function MissionHomePanelInner(): JSX.Element | null {
@@ -163,6 +165,12 @@ function MissionHomePanelInner(): JSX.Element | null {
       {snapshot.factory_launch_widget_enabled ? (
         <div className="md:max-lg:col-span-2" data-testid="mission-home-factory-launch">
           <FactoryLaunchWidget eager />
+        </div>
+      ) : null}
+
+      {snapshot.catalog_wave_widget_enabled ? (
+        <div className="md:max-lg:col-span-2" data-testid="mission-home-catalog-wave">
+          <CatalogWaveWidget eager />
         </div>
       ) : null}
 
