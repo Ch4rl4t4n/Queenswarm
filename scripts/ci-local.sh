@@ -40,6 +40,7 @@ run_backend() {
   ./scripts/audit-factory-launch-gate.sh
   ./scripts/audit-marketing-site-gate.sh
   ./scripts/audit-catalog-wave-gate.sh
+  ./scripts/audit-revenue-funnel-gate.sh
   ./scripts/audit-broker-guardrails-gate.sh
   ./scripts/audit-broker-readonly-gate.sh
   ./scripts/audit-broker-order-queue-gate.sh

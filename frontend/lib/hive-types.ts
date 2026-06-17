@@ -1037,6 +1037,36 @@ export interface CatalogWavePayload {
   pending_seeds_preview: string[];
 }
 
+/** ``GET /api/v1/dashboard/revenue-funnel`` — MK10 unified revenue funnel strip. */
+export interface RevenueFunnelPayload {
+  enabled: boolean;
+  generated_at: string;
+  scorecard_clean_count: number;
+  mk6_target: number;
+  gap_to_mk6: number;
+  sellable_count: number;
+  published_gumroad_count: number;
+  revenue_loop_ready: boolean;
+  funnel_complete: boolean;
+  steps: Array<{
+    id: string;
+    label: string;
+    done: boolean;
+    detail: string;
+  }>;
+  primary_action: {
+    id: string;
+    label: string;
+    href: string | null;
+    post_path: string | null;
+    priority: string;
+  } | null;
+  operator_hint: string;
+  factory_href: string;
+  catalog_href: string;
+  launch_href: string;
+}
+
 /** ``GET /api/v1/dashboard/factory-launch`` — REV4 Gumroad launch funnel widget. */
 export interface FactoryLaunchPayload {
   enabled: boolean;

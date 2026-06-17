@@ -2062,6 +2062,10 @@ class Settings(BaseSettings):
         default=True,
         description="MK9 — MK6 catalog wave progress widget on Mission Home.",
     )
+    revenue_funnel_mission_home_enabled: bool = Field(
+        default=True,
+        description="MK10 — Unified revenue funnel strip on Mission Home (MK6 + Gumroad launch).",
+    )
     mission_kanban_recipe_match_enabled: bool = Field(
         default=True,
         description="FP1 — Recipe cosine matching on Mission Kanban triage dispatch.",

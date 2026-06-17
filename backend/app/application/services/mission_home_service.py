@@ -140,6 +140,7 @@ class MissionHomeSnapshotOut(BaseModel):
     sub_swarm_fleet_widget_enabled: bool = False
     factory_launch_widget_enabled: bool = False
     catalog_wave_widget_enabled: bool = False
+    revenue_funnel_widget_enabled: bool = False
 
 
 PROCESS_STEPS: list[ProcessStepOut] = [
@@ -456,6 +457,7 @@ async def compose_mission_home_snapshot(
             sub_swarm_fleet_widget_enabled=False,
             factory_launch_widget_enabled=False,
             catalog_wave_widget_enabled=False,
+            revenue_funnel_widget_enabled=False,
         )
 
     first_run = await compose_solo_first_run(
@@ -529,6 +531,28 @@ async def compose_mission_home_snapshot(
                 ),
             )
 
+    if settings.revenue_funnel_mission_home_enabled:
+        from app.application.services.revenue_funnel_widget_service import (
+            compose_revenue_funnel_widget_snapshot,
+        )
+
+        funnel = await compose_revenue_funnel_widget_snapshot(session, tenant_id=tenant_id)
+        if funnel.enabled and not funnel.funnel_complete and funnel.primary_action is not None:
+            action = funnel.primary_action
+            href = action.href or funnel.launch_href
+            if action.post_path:
+                href = "/tasks#revenue-funnel"
+            next_actions.insert(
+                0,
+                MissionActionOut(
+                    id=f"funnel_{action.id}",
+                    title=action.label,
+                    detail=funnel.operator_hint[:240],
+                    href=href,
+                    priority=action.priority,
+                ),
+            )
+
     current_step = _resolve_process_step(
         first_run_complete=first_run.complete,
         approval_count=inbox.counts.total if inbox.enabled else 0,
@@ -559,6 +583,7 @@ async def compose_mission_home_snapshot(
         sub_swarm_fleet_widget_enabled=settings.sub_swarm_fleet_mission_home_enabled,
         factory_launch_widget_enabled=settings.factory_launch_mission_home_enabled,
         catalog_wave_widget_enabled=settings.catalog_wave_mission_home_enabled,
+        revenue_funnel_widget_enabled=settings.revenue_funnel_mission_home_enabled,
     )
 
 

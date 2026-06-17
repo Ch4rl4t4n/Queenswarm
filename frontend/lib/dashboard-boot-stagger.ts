@@ -15,6 +15,7 @@ export const DASHBOARD_BOOT_STAGGER_MS = {
   subSwarmFleet: 6200,
   factoryLaunch: 6300,
   catalogWave: 6350,
+  revenueFunnel: 6200,
   dreamingSummary: 6400,
   patternExplorer: 6600,
   timeSaved: 6800,

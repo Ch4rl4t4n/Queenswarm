@@ -209,6 +209,22 @@ async def dashboard_catalog_wave(
     return compose_catalog_wave_widget_snapshot().model_dump(mode="json")
 
 
+@router.get("/revenue-funnel")
+async def dashboard_revenue_funnel(
+    db: DbSession,
+    principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, object]:
+    """MK10 — Unified MK6 catalog + Gumroad launch funnel for Mission Home."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        return {"enabled": False, "operator_hint": "Tenant context missing."}
+    from app.application.services.revenue_funnel_widget_service import compose_revenue_funnel_widget_snapshot
+
+    payload = await compose_revenue_funnel_widget_snapshot(db, tenant_id=tenant_id)
+    return payload.model_dump(mode="json")
+
+
 @router.get("/factory-launch")
 async def dashboard_factory_launch(
     db: DbSession,

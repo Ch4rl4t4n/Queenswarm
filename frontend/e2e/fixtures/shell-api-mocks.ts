@@ -337,6 +337,35 @@ const STUB_CATALOG_WAVE = {
   pending_seeds_preview: ["newsletter-growth-loop", "seo-content-pipeline"],
 };
 
+const STUB_REVENUE_FUNNEL = {
+  enabled: true,
+  generated_at: new Date().toISOString(),
+  scorecard_clean_count: 18,
+  mk6_target: 50,
+  gap_to_mk6: 32,
+  sellable_count: 1,
+  published_gumroad_count: 0,
+  revenue_loop_ready: false,
+  funnel_complete: false,
+  steps: [
+    { id: "catalog_scale", label: "MK6 catalog scale", done: false, detail: "18/50 scorecard-clean" },
+    { id: "sellable_harness", label: "Sellable harness", done: true, detail: "1 sellable in library" },
+    { id: "gumroad_live", label: "Live Gumroad listing", done: false, detail: "0 published" },
+    { id: "revenue_loop", label: "Revenue loop closed", done: false, detail: "verify purchase path" },
+  ],
+  primary_action: {
+    id: "launch_and_verify",
+    label: "Launch & verify",
+    href: null,
+    post_path: "dashboard/factory-launch/launch-and-verify",
+    priority: "high",
+  },
+  operator_hint: "Run Launch & verify to publish first Gumroad listing and close the loop.",
+  factory_href: "/apps-tools/skill-factory",
+  catalog_href: "https://letagentscook.org/skills",
+  launch_href: "/apps-tools/skill-factory?section=launch#launch",
+};
+
 const STUB_FACTORY_LAUNCH = {
   enabled: true,
   generated_at: new Date().toISOString(),
@@ -2334,6 +2363,47 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_CATALOG_WAVE),
+      });
+      return;
+    }
+
+    if (path.startsWith("dashboard/revenue-funnel")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(STUB_REVENUE_FUNNEL),
+      });
+      return;
+    }
+
+    if (path.startsWith("dashboard/factory-launch/launch-and-verify")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          message: "Launch & verify complete (stub).",
+          phases: [
+            { phase: "prepare", ok: true, detail: "exported" },
+            { phase: "gumroad_draft", ok: true, detail: "drafted" },
+            { phase: "gumroad_publish", ok: true, detail: "published" },
+            { phase: "catalog_sync", ok: true, detail: "synced" },
+            { phase: "revenue_smoke", ok: true, detail: "checks passed" },
+          ],
+        }),
+      });
+      return;
+    }
+
+    if (path.startsWith("dashboard/factory-launch/full-funnel")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          message: "Full funnel complete (stub).",
+          phases: [],
+        }),
       });
       return;
     }
@@ -4439,6 +4509,7 @@ export async function installShellApiMocks(page: Page): Promise<void> {
           sub_swarm_fleet_widget_enabled: true,
           factory_launch_widget_enabled: true,
           catalog_wave_widget_enabled: true,
+          revenue_funnel_widget_enabled: true,
           links: {
             new_session: "/agents#sessions",
             approvals: "/cockpit#approvals",

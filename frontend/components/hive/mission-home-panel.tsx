@@ -10,6 +10,7 @@ import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { ProcessRail, type ProcessStep, type ProcessStepId } from "@/components/hive/process-rail";
 import { CatalogWaveWidget } from "@/components/hive/catalog-wave-widget";
 import { FactoryLaunchWidget } from "@/components/hive/factory-launch-widget";
+import { RevenueFunnelStrip } from "@/components/hive/revenue-funnel-strip";
 import { RapidLoopWidget } from "@/components/hive/rapid-loop-widget";
 import { SubSwarmFleetWidget } from "@/components/hive/sub-swarm-fleet-widget";
 import { usePlatform } from "@/components/hive/platform-context";
@@ -89,6 +90,7 @@ interface MissionHomeSnapshot {
   sub_swarm_fleet_widget_enabled?: boolean;
   factory_launch_widget_enabled?: boolean;
   catalog_wave_widget_enabled?: boolean;
+  revenue_funnel_widget_enabled?: boolean;
 }
 
 function MissionHomePanelInner(): JSX.Element | null {
@@ -159,6 +161,12 @@ function MissionHomePanelInner(): JSX.Element | null {
       {snapshot.sub_swarm_fleet_widget_enabled ? (
         <div className="md:max-lg:col-span-2" data-testid="mission-home-sub-swarm-fleet">
           <SubSwarmFleetWidget eager />
+        </div>
+      ) : null}
+
+      {snapshot.revenue_funnel_widget_enabled ? (
+        <div className="md:max-lg:col-span-2" data-testid="mission-home-revenue-funnel">
+          <RevenueFunnelStrip eager />
         </div>
       ) : null}
 
