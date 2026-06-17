@@ -22,6 +22,9 @@ if TYPE_CHECKING:
     from app.application.services.business_goal_stack import BusinessGoalStackOut
     from app.application.services.harness_project_profiles import HarnessProfilesStateOut
     from app.application.services.simulation_pass_rate_service import SimulationPassRateTrendOut
+    from app.application.services.social_intel_roadmap_refresh_service import (
+        SocialIntelRoadmapRefreshKpiOut,
+    )
 from app.application.services.solo_daily_plan import compose_solo_daily_plan
 from app.core.config import settings
 from app.infrastructure.persistence.models.enums import TaskStatus
@@ -123,6 +126,7 @@ class BusinessOperatorSnapshotOut(BaseModel):
     simulation_pass_rate: SimulationPassRateTrendOut | None = None
     analytics_routine: AnalyticsRoutineKpiOut | None = None
     journal_pattern_strip: JournalPatternStripKpiOut | None = None
+    social_intel_roadmap_refresh: SocialIntelRoadmapRefreshKpiOut | None = None
     links: dict[str, str] = Field(default_factory=dict)
 
 
@@ -252,8 +256,24 @@ def _derive_top_actions(
     daily_items: list[dict[str, object]],
     goal_stack: BusinessGoalStackOut | None = None,
     cross_lane: BusinessCrossLaneLearningOut | None = None,
+    social_intel_roadmap: SocialIntelRoadmapRefreshKpiOut | None = None,
 ) -> list[BusinessOperatorActionOut]:
     candidates: list[tuple[int, BusinessOperatorActionOut]] = []
+
+    if social_intel_roadmap is not None and social_intel_roadmap.enabled and social_intel_roadmap.due:
+        candidates.append(
+            (
+                1,
+                BusinessOperatorActionOut(
+                    id="sig2_quarterly_roadmap_refresh",
+                    lane="ops",
+                    title="Quarterly roadmap refresh (SIG2)",
+                    detail=social_intel_roadmap.operator_hint,
+                    priority="high",
+                    href="/cockpit#business",
+                ),
+            ),
+        )
 
     if cross_lane is not None and cross_lane.suggestions:
         top = cross_lane.suggestions[0]
@@ -542,6 +562,18 @@ async def compose_business_operator_snapshot(
             dashboard_user_id=dashboard_user_id,
         )
 
+    social_intel_roadmap_coro = None
+    if settings.social_intel_roadmap_refresh_enabled:
+        from app.application.services.social_intel_roadmap_refresh_service import (
+            compose_social_intel_roadmap_refresh_kpi,
+        )
+
+        social_intel_roadmap_coro = compose_social_intel_roadmap_refresh_kpi(
+            db,
+            tenant_id=tenant_id,
+            tenant=tenant,
+        )
+
     gather_args: list = [
         compose_solo_daily_plan(
             db,
@@ -568,6 +600,8 @@ async def compose_business_operator_snapshot(
         gather_args.append(analytics_routine_coro)
     if journal_pattern_strip_coro is not None:
         gather_args.append(journal_pattern_strip_coro)
+    if social_intel_roadmap_coro is not None:
+        gather_args.append(social_intel_roadmap_coro)
 
     gathered = await asyncio.gather(*gather_args)
     daily = gathered[0]
@@ -580,6 +614,9 @@ async def compose_business_operator_snapshot(
     if analytics_routine_coro is not None:
         idx += 1
     journal_pattern_strip = gathered[idx] if journal_pattern_strip_coro is not None else None
+    if journal_pattern_strip_coro is not None:
+        idx += 1
+    social_intel_roadmap = gathered[idx] if social_intel_roadmap_coro is not None else None
     harness_profiles = compose_harness_profiles_state(tenant)
     daily_items = [item.model_dump(mode="json") for item in daily.items]
     top_actions = _derive_top_actions(
@@ -590,6 +627,7 @@ async def compose_business_operator_snapshot(
         daily_items=daily_items,
         goal_stack=goal_stack,
         cross_lane=cross_lane,
+        social_intel_roadmap=social_intel_roadmap,
     )
 
     return BusinessOperatorSnapshotOut(
@@ -608,6 +646,7 @@ async def compose_business_operator_snapshot(
         simulation_pass_rate=simulation_pass_rate,
         analytics_routine=analytics_routine,
         journal_pattern_strip=journal_pattern_strip,
+        social_intel_roadmap_refresh=social_intel_roadmap,
         links={
             "agents_sessions": "/agents#sessions",
             "mission_control": "/tasks",
@@ -615,6 +654,7 @@ async def compose_business_operator_snapshot(
             "marketing_skills": "https://letagentscook.org/skills",
             "analytics_workspace": "/apps-tools/analytics",
             "journal_patterns": "/apps-tools/trading-journal?section=patterns#journal-studio-pattern-strip",
+            "innovation_lab": "/innovation-lab",
         },
     )
 
@@ -639,6 +679,9 @@ def _rebuild_business_operator_models() -> None:
     from app.application.services.simulation_pass_rate_service import SimulationPassRateTrendOut
     from app.application.services.analytics_weekly_routine_service import AnalyticsRoutineKpiOut
     from app.application.services.journal_studio_pattern_service import JournalPatternStripKpiOut
+    from app.application.services.social_intel_roadmap_refresh_service import (
+        SocialIntelRoadmapRefreshKpiOut,
+    )
 
     BusinessOperatorSnapshotOut.model_rebuild(
         _types_namespace={
@@ -649,6 +692,7 @@ def _rebuild_business_operator_models() -> None:
             "SimulationPassRateTrendOut": SimulationPassRateTrendOut,
             "AnalyticsRoutineKpiOut": AnalyticsRoutineKpiOut,
             "JournalPatternStripKpiOut": JournalPatternStripKpiOut,
+            "SocialIntelRoadmapRefreshKpiOut": SocialIntelRoadmapRefreshKpiOut,
         },
     )
 

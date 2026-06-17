@@ -160,6 +160,24 @@ interface BusinessOperatorSnapshot {
     morning_brief_line: string;
     workspace_href: string;
   } | null;
+  social_intel_roadmap_refresh?: {
+    enabled: boolean;
+    generated_at: string;
+    status: "due" | "scheduled" | "recent" | "disabled" | "insufficient_signals";
+    window_days: number;
+    signal_count: number;
+    due: boolean;
+    last_refresh_at: string | null;
+    next_due_at: string | null;
+    operator_hint: string;
+    innovation_lab_href: string;
+    preview_signals: Array<{
+      id: string;
+      title: string;
+      source_type: string;
+      source_url: string | null;
+    }>;
+  } | null;
   links: Record<string, string>;
 }
 
@@ -495,6 +513,40 @@ function BusinessOperatorPanelInner(): JSX.Element | null {
             ))}
             <Link href={snapshot.journal_pattern_strip.workspace_href} className="qs-btn qs-btn--ghost qs-btn--sm">
               Pattern strip
+            </Link>
+          </div>
+        </V4Card>
+      ) : null}
+
+      {snapshot.social_intel_roadmap_refresh?.enabled ? (
+        <V4Card data-testid="cbo-sig2-roadmap-refresh">
+          <V4CardHeader
+            kicker="SIG2"
+            title="Quarterly roadmap refresh"
+            description={snapshot.social_intel_roadmap_refresh.operator_hint}
+            actions={
+              snapshot.social_intel_roadmap_refresh.due ? (
+                <V4Badge tone="gold">due</V4Badge>
+              ) : (
+                <V4Badge tone="info">{snapshot.social_intel_roadmap_refresh.status}</V4Badge>
+              )
+            }
+          />
+          <div className="flex flex-wrap gap-2 px-4 pb-4">
+            <V4Badge tone="info">
+              {snapshot.social_intel_roadmap_refresh.signal_count} signals /{" "}
+              {snapshot.social_intel_roadmap_refresh.window_days}d
+            </V4Badge>
+            {snapshot.social_intel_roadmap_refresh.preview_signals.slice(0, 3).map((signal) => (
+              <V4Badge key={signal.id} tone="warn">
+                {signal.title.slice(0, 48)}
+              </V4Badge>
+            ))}
+            <Link
+              href={snapshot.links.innovation_lab ?? snapshot.social_intel_roadmap_refresh.innovation_lab_href}
+              className="qs-btn qs-btn--ghost qs-btn--sm"
+            >
+              Innovation Lab
             </Link>
           </div>
         </V4Card>

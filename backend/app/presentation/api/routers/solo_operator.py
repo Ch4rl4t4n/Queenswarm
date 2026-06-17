@@ -826,6 +826,63 @@ async def solo_closed_loop_presets_social_intel(
     return result.model_dump(mode="json")
 
 
+@router.get("/social-intel-roadmap-refresh", summary="SIG2 Quarterly roadmap refresh snapshot")
+async def solo_social_intel_roadmap_refresh_snapshot(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return social intel signal rollup and quarterly refresh due status."""
+
+    from app.application.services.social_intel_roadmap_refresh_service import (
+        compose_social_intel_roadmap_refresh_snapshot,
+    )
+    from app.infrastructure.persistence.models.tenant import Tenant
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    snapshot = await compose_social_intel_roadmap_refresh_snapshot(
+        db,
+        tenant_id=tenant_id,
+        tenant=tenant,
+    )
+    return snapshot.model_dump(mode="json")
+
+
+@router.post("/social-intel-roadmap-refresh/run", summary="SIG2 Run quarterly roadmap refresh")
+async def solo_social_intel_roadmap_refresh_run(
+    body: dict[str, Any],
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Create Tech SCV triage task from social intel digest (operator HITL)."""
+
+    from app.application.services.social_intel_roadmap_refresh_service import (
+        run_social_intel_roadmap_refresh,
+    )
+    from app.infrastructure.persistence.models.tenant import Tenant
+
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    force = bool(body.get("force", False))
+    tenant = await db.get(Tenant, tenant_id)
+    try:
+        result = await run_social_intel_roadmap_refresh(
+            db,
+            tenant_id=tenant_id,
+            tenant=tenant,
+            created_by_subject=str(user.id),
+            force=force,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return result.model_dump(mode="json")
+
+
 @router.get("/brand-context-pack", summary="NP3 Brand Context Pack snapshot")
 async def solo_brand_context_pack_snapshot(
     db: DbSession,

@@ -1619,6 +1619,28 @@ class Settings(BaseSettings):
         le=59,
         description="UTC minute for daily social intel forager scrape tick.",
     )
+    social_intel_roadmap_refresh_enabled: bool = Field(
+        default=True,
+        description="SIG2 — Social intel → quarterly Tech SCV roadmap refresh (CBO action).",
+    )
+    social_intel_roadmap_refresh_window_days: int = Field(
+        default=90,
+        ge=30,
+        le=120,
+        description="SIG2 — rolling window for social intel signal aggregation.",
+    )
+    social_intel_roadmap_refresh_interval_days: int = Field(
+        default=90,
+        ge=30,
+        le=120,
+        description="SIG2 — days between quarterly roadmap refresh runs per tenant.",
+    )
+    social_intel_roadmap_refresh_min_signals: int = Field(
+        default=3,
+        ge=1,
+        le=50,
+        description="SIG2 — minimum social intel signals required before refresh task.",
+    )
     self_extending_tool_marketplace_enabled: bool = Field(
         default=True,
         description="Forager intelligence scan → one-click MCP preset install via harness apply.",

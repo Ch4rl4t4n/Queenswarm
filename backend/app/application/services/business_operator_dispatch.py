@@ -26,6 +26,7 @@ from app.core.logging import get_logger
 from app.infrastructure.persistence.models.enums import TaskStatus
 from app.infrastructure.persistence.models.swarm import SubSwarm
 from app.infrastructure.persistence.models.task import Task
+from app.infrastructure.persistence.models.tenant import Tenant
 
 _logger = get_logger(__name__)
 
@@ -129,6 +130,24 @@ def resolve_dispatch_template(
 
     skills = _skills_for_lane(lane)
     goal = _supervisor_goal(action_id=action_id, title=title, detail=detail, lane=lane)
+
+    if action_id == "sig2_quarterly_roadmap_refresh":
+        sig2_goal = (
+            f"=== SIG2 QUARTERLY ROADMAP REFRESH ===\n"
+            f"# {title}\n\n"
+            f"{detail}\n\n"
+            "Tech SCV lane — simulate-first ROADMAP delta proposal.\n"
+            "Route platform upgrades to Innovation Lab after operator review."
+        )
+        return _DispatchTemplate(
+            mode="mission_kanban",
+            goal=sig2_goal,
+            session_title=title[:120],
+            skills=["social-intel-evaluator", "competitor-scrape-analyze", "decision-frameworks"],
+            roles=DEFAULT_ROLES,
+            kanban_title="SIG2 — quarterly roadmap refresh",
+            auto_dispatch_kanban=False,
+        )
 
     if action_id.startswith("cross_lane_"):
         recipe_goal = (
@@ -286,6 +305,28 @@ async def dispatch_business_operator_action(
     if not settings.operator_control_plane_enabled:
         msg = "Operator Control Plane disabled."
         raise ValueError(msg)
+
+    if body.action_id.strip() == "sig2_quarterly_roadmap_refresh":
+        from app.application.services.social_intel_roadmap_refresh_service import (
+            run_social_intel_roadmap_refresh,
+        )
+
+        result = await run_social_intel_roadmap_refresh(
+            session,
+            tenant_id=tenant_id,
+            tenant=await session.get(Tenant, tenant_id),
+            created_by_subject=created_by_subject,
+            force=False,
+        )
+        if not result.ok or result.task_id is None:
+            raise ValueError(result.message or "SIG2 roadmap refresh not due.")
+        return BusinessOperatorDispatchOut(
+            kind="mission_kanban",
+            message=result.message,
+            href=result.href,
+            task_id=uuid.UUID(result.task_id),
+        )
+
     if not settings.supervisor_dynamic_subagents_enabled and body.dispatch_mode != "triage_flush":
         msg = "Supervisor sessions are disabled."
         raise ValueError(msg)

@@ -2087,7 +2087,33 @@ export async function installShellApiMocks(page: Page): Promise<void> {
             ],
           },
           analytics_routine: STUB_ANALYTICS_ROUTINE,
-          links: { marketing_skills: "https://letagentscook.org/skills", mission_control: "/tasks", factory: "/factory", analytics_workspace: "/apps-tools/analytics" },
+          social_intel_roadmap_refresh: {
+            enabled: true,
+            generated_at: new Date().toISOString(),
+            status: "due",
+            window_days: 90,
+            signal_count: 5,
+            due: true,
+            last_refresh_at: null,
+            next_due_at: null,
+            operator_hint: "First quarterly refresh — review weak signals and propose ROADMAP deltas.",
+            innovation_lab_href: "/innovation-lab",
+            preview_signals: [
+              {
+                id: "sig-1",
+                title: "Agent loop hype vs closed loops",
+                source_type: "youtube",
+                source_url: "https://youtube.com/watch?v=example",
+              },
+            ],
+          },
+          links: {
+            marketing_skills: "https://letagentscook.org/skills",
+            mission_control: "/tasks",
+            factory: "/factory",
+            analytics_workspace: "/apps-tools/analytics",
+            innovation_lab: "/innovation-lab",
+          },
         }),
       });
       return;
