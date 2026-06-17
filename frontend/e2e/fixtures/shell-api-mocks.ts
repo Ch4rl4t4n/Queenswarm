@@ -5056,6 +5056,58 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path === "operator/brand-studio") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          generated_at: new Date().toISOString(),
+          simulate_only: true,
+          brand_ready: true,
+          brand_char_count: 640,
+          brand_usage_pct: 18,
+          sections_filled: 3,
+          operator_hint: "Paste draft copy and simulate rubric — no live publish.",
+          links: {
+            brand_pack: "/knowledge#memory",
+            campaign_launch: "/apps-tools/marketing-team?section=launch#campaign-launch-wizard",
+            publish_queue: "/apps-tools/marketing-team?section=queue#publish-queue",
+          },
+        }),
+      });
+      return;
+    }
+
+    if (path === "operator/brand-studio/rubric-preview") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          simulate_only: true,
+          brand_ready: true,
+          operator_hint: "Simulate-only — approve via publish queue when ready.",
+          rubric: {
+            enabled: true,
+            template_id: "marketing-creative",
+            template_name: "Marketing Creative",
+            overall_score: 0.84,
+            pass_threshold: 0.75,
+            passed: true,
+            dimensions: [
+              { id: "composition", label: "Composition", weight: 0.25, score: 0.9, weighted_score: 0.225 },
+              { id: "cta", label: "CTA clarity", weight: 0.25, score: 0.8, weighted_score: 0.2 },
+            ],
+            feedback: "Strong verify-first hook.",
+            operator_hint: "Ready for publish queue simulate step.",
+            brand_compliance: { passed: true, overall_score: 0.88, pass_threshold: 0.8 },
+          },
+        }),
+      });
+      return;
+    }
+
     if (path === "operator/marketing-team" || path.startsWith("operator/marketing-team?")) {
       await route.fulfill({
         status: 200,

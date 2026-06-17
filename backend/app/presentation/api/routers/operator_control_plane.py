@@ -39,6 +39,13 @@ from app.application.services.marketing_team_service import (
     MarketingTeamSnapshotOut,
     compose_marketing_team_snapshot,
 )
+from app.application.services.brand_studio_rubric_service import (
+    BrandStudioRubricPreviewIn,
+    BrandStudioRubricPreviewOut,
+    BrandStudioSnapshotOut,
+    compose_brand_studio_snapshot,
+    run_brand_studio_rubric_preview,
+)
 from app.application.services.module_policy_packs import (
     ModuleKey,
     compose_module_policy_pack_snapshot,
@@ -624,6 +631,45 @@ async def operator_marketing_team(
         tenant=tenant,
         horizon_days=horizon_days,
     )
+
+
+@router.get(
+    "/brand-studio",
+    response_model=BrandStudioSnapshotOut,
+    summary="POS-I4 Brand studio snapshot (simulate-only rubric preview)",
+)
+async def operator_brand_studio_snapshot(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> BrandStudioSnapshotOut:
+    """Brand pack readiness for Marketing Team Brand studio tab."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    return await compose_brand_studio_snapshot(db, tenant_id=tenant_id)
+
+
+@router.post(
+    "/brand-studio/rubric-preview",
+    response_model=BrandStudioRubricPreviewOut,
+    summary="POS-I4 Simulate marketing + brand compliance rubric on draft copy",
+)
+async def operator_brand_studio_rubric_preview(
+    body: BrandStudioRubricPreviewIn,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> BrandStudioRubricPreviewOut:
+    """Run NP2 creative rubric + brand compliance — simulate-only, no publish."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    try:
+        result = await run_brand_studio_rubric_preview(db, tenant_id=tenant_id, body=body)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    return result
 
 
 @router.get("/apps-tools-index", summary="Unified Apps & Tools index snapshot")

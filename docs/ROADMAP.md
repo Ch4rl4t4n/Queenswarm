@@ -105,7 +105,7 @@ Audit: `./scripts/audit-jarvis-intelligence-gate.sh`
 | I1 | Research project UI — batch URLs v Knowledge → Research Bee | ✅ |
 | I2 | Jarvis J2 — proactive nudge cez mission feed (digest / Brain Pack empty) | ✅ |
 | I3 | Jarvis J3 — weekly reflection strip (Ballroom + episodic) | ✅ |
-| I4 | Marketing Team — Brand studio rubric preview (simulate-only) | Planned |
+| I4 | Marketing Team — Brand studio rubric preview (simulate-only) | ✅ |
 | I5 | H7 — codebase-memory MCP connector pre Tech SCV lane | Planned P2 |
 
 Audit: `./scripts/audit-research-bee-gate.sh` (I1) · `./scripts/audit-jarvis-intelligence-gate.sh`

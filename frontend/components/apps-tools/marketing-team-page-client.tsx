@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, CalendarDays, Clapperboard, ListChecks, Rocket, Send } from "lucide-react";
+import { BarChart3, CalendarDays, Clapperboard, ListChecks, Palette, Rocket, Send } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -78,11 +78,23 @@ const FacelessStudioPanel = dynamic(
   },
 );
 
-type MarketingTeamSection = "calendar" | "studio" | "queue" | "publish" | "performance" | "launch";
+const BrandStudioPanel = dynamic(
+  () =>
+    import("@/components/apps-tools/brand-studio-panel").then((mod) => ({
+      default: mod.BrandStudioPanel,
+    })),
+  {
+    ssr: false,
+    loading: () => <div className="qs-bubble shrink-0 min-h-[10rem] animate-pulse bg-white/5 p-4" aria-hidden />,
+  },
+);
+
+type MarketingTeamSection = "calendar" | "studio" | "brand" | "queue" | "publish" | "performance" | "launch";
 
 const SECTION_TO_HASH: Record<MarketingTeamSection, string> = {
   calendar: "marketing-calendar",
   studio: "faceless-studio",
+  brand: "brand-studio",
   launch: "campaign-launch-wizard",
   queue: "publish-queue",
   publish: "social-publish",
@@ -93,6 +105,7 @@ function sectionFromHash(hash: string): MarketingTeamSection | null {
   const key = hash.replace(/^#/, "").trim().toLowerCase();
   if (key === "marketing-calendar") return "calendar";
   if (key === "faceless-studio") return "studio";
+  if (key === "brand-studio") return "brand";
   if (key === "campaign-launch-wizard") return "launch";
   if (key === "publish-queue") return "queue";
   if (key === "social-publish") return "publish";
@@ -104,6 +117,7 @@ function sectionFromQuery(raw: string | null): MarketingTeamSection | null {
   if (
     raw === "calendar" ||
     raw === "studio" ||
+    raw === "brand" ||
     raw === "launch" ||
     raw === "queue" ||
     raw === "publish" ||
@@ -161,6 +175,7 @@ export function MarketingTeamPageClient() {
           items={[
             { id: "calendar", label: "Calendar", icon: CalendarDays },
             { id: "studio", label: "Faceless studio", icon: Clapperboard },
+            { id: "brand", label: "Brand studio", icon: Palette },
             { id: "queue", label: "Publish queue", icon: ListChecks },
             { id: "publish", label: "Social publish", icon: Send },
             { id: "performance", label: "Performance", icon: BarChart3 },
@@ -182,6 +197,9 @@ export function MarketingTeamPageClient() {
       </div>
       <div id="faceless-studio" className={section === "studio" ? "" : "hidden"} aria-hidden={section !== "studio"}>
         {section === "studio" ? <FacelessStudioPanel /> : null}
+      </div>
+      <div id="brand-studio" className={section === "brand" ? "" : "hidden"} aria-hidden={section !== "brand"}>
+        {section === "brand" ? <BrandStudioPanel /> : null}
       </div>
       <div id="campaign-launch-wizard" className={section === "launch" ? "" : "hidden"}>
         {section === "launch" ? <CampaignLaunchWizardPanel /> : null}

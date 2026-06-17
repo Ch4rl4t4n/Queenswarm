@@ -1931,6 +1931,10 @@ class Settings(BaseSettings):
         default=True,
         description="POS-I3 — Jarvis weekly reflection strip on Mission Home (Ballroom + episodic → Hive Mind).",
     )
+    brand_studio_rubric_preview_enabled: bool = Field(
+        default=True,
+        description="POS-I4 — Brand studio rubric preview in Marketing Team (simulate-only).",
+    )
     knowledge_elicitation_enabled: bool = Field(
         default=True,
         description="OBS2 — Brain Pack gap prompts in Knowledge UI.",
