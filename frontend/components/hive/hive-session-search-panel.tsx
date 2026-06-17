@@ -25,6 +25,20 @@ export function HiveSessionSearchPanel() {
       {busy ? <p className="mt-2 text-xs text-pollen">Searching…</p> : null}
       {error ? <p className="mt-2 text-sm text-(--qs-red)">{error}</p> : null}
 
+      {result.wiki_hits.length ? (
+        <ul className="mt-4 space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Wiki layer</p>
+          {result.wiki_hits.map((hit) => (
+            <li key={hit.wiki_hit_id} className="rounded-lg border border-(--qs-border) bg-black/20 px-3 py-2 text-sm">
+              <Link href={hit.href} className="font-semibold text-pollen hover:underline">
+                {hit.title}
+              </Link>
+              <p className="line-clamp-2 text-xs text-(--qs-muted)">{hit.snippet}</p>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
       {result.tasks.length ? (
         <ul className="mt-4 space-y-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Tasks</p>

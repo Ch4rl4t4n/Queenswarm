@@ -365,9 +365,10 @@ async def mission_search(
     q: str = Query(..., min_length=2, max_length=200),
     session_limit: int = Query(12, ge=1, le=30),
     task_limit: int = Query(12, ge=1, le=30),
+    wiki_limit: int = Query(8, ge=0, le=20),
     principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
 ) -> dict[str, Any]:
-    """Hermes-style instant search across supervisor sessions and kanban tasks."""
+    """Hermes-style instant search across supervisor sessions, kanban tasks, and wiki layer."""
 
     tenant_id = principal.get("tenant_id")
     if tenant_id is None:
@@ -378,6 +379,7 @@ async def mission_search(
         query=q,
         session_limit=session_limit,
         task_limit=task_limit,
+        wiki_limit=wiki_limit,
     )
 
 

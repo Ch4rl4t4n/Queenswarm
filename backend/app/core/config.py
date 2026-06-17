@@ -753,6 +753,10 @@ class Settings(BaseSettings):
         le=50.0,
         description="Pollen awarded when operator approves a second-brain capture note.",
     )
+    wiki_layer_mission_search_enabled: bool = Field(
+        default=True,
+        description="SB4 — Include wiki pages + approved captures in ⌘K mission search.",
+    )
     external_integration_audit_to_vault: bool = Field(
         default=True,
         description="Mirror external integration audit lines into HiveMind vault.",

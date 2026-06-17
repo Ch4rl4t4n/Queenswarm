@@ -65,12 +65,17 @@ async def test_search_mission_operator_merges_sessions_and_tasks() -> None:
         "app.application.services.mission_operator_search._semantic_task_hits",
         new_callable=AsyncMock,
         return_value=[],
+    ), patch(
+        "app.application.services.mission_operator_search.search_mission_wiki_hits",
+        new_callable=AsyncMock,
+        return_value=[{"wiki_hit_id": "maps-of-content", "title": "Maps of content"}],
     ):
         payload = await search_mission_operator(session, tenant_id=tenant_id, query="landing")
 
-    assert payload["total"] == 2
+    assert payload["total"] == 3
     assert len(payload["sessions"]) == 1
     assert len(payload["tasks"]) == 1
+    assert len(payload["wiki_hits"]) == 1
 
 
 @pytest.mark.asyncio
@@ -95,6 +100,10 @@ async def test_search_mission_operator_uses_ttl_cache() -> None:
         return_value=[],
     ), patch(
         "app.application.services.mission_operator_search._semantic_task_hits",
+        new_callable=AsyncMock,
+        return_value=[],
+    ), patch(
+        "app.application.services.mission_operator_search.search_mission_wiki_hits",
         new_callable=AsyncMock,
         return_value=[],
     ):

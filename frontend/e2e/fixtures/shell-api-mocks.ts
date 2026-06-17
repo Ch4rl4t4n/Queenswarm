@@ -4062,7 +4062,7 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ query: "", sessions: [], tasks: [], total: 0 }),
+        body: JSON.stringify({ query: "", sessions: [], tasks: [], wiki_hits: [], total: 0 }),
       });
       return;
     }

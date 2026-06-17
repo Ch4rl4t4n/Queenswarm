@@ -21,10 +21,23 @@ export interface MissionSearchTaskHit {
   updated_at?: string | null;
 }
 
+export interface MissionSearchWikiHit {
+  wiki_hit_id: string;
+  kind: "wiki_page" | "capture";
+  title: string;
+  slug: string;
+  snippet: string;
+  href: string;
+  match_source: string;
+  relevance_score?: number;
+  updated_at?: string | null;
+}
+
 export interface MissionSearchResult {
   query: string;
   sessions: MissionSearchSessionHit[];
   tasks: MissionSearchTaskHit[];
+  wiki_hits: MissionSearchWikiHit[];
   total: number;
 }
 
@@ -32,6 +45,7 @@ const EMPTY: MissionSearchResult = {
   query: "",
   sessions: [],
   tasks: [],
+  wiki_hits: [],
   total: 0,
 };
 

@@ -10,6 +10,7 @@ from sqlalchemy import desc, or_, select, Text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.hive_session_search import search_supervisor_sessions
+from app.application.services.mission_wiki_layer_search import search_mission_wiki_hits
 from app.core.chroma_client import TASK_DELIVERABLES_COLLECTION, semantic_search
 from app.core.logging import get_logger
 from app.infrastructure.persistence.models.task import Task
@@ -73,12 +74,13 @@ async def search_mission_operator(
     query: str,
     session_limit: int = 12,
     task_limit: int = 12,
+    wiki_limit: int = 8,
 ) -> dict[str, Any]:
     """Hermes-style unified search for Mission Control."""
 
     needle = (query or "").strip()
     if len(needle) < 2:
-        return {"query": needle, "sessions": [], "tasks": [], "total": 0}
+        return {"query": needle, "sessions": [], "tasks": [], "wiki_hits": [], "total": 0}
 
     cache_key = (str(tenant_id), needle.lower())
     now = time.monotonic()
@@ -115,11 +117,19 @@ async def search_mission_operator(
         cap=task_limit,
     )
 
+    wiki_hits = await search_mission_wiki_hits(
+        db,
+        tenant_id=tenant_id,
+        query=needle,
+        limit=wiki_limit,
+    )
+
     payload = {
         "query": needle,
         "sessions": sessions,
         "tasks": tasks,
-        "total": len(sessions) + len(tasks),
+        "wiki_hits": wiki_hits,
+        "total": len(sessions) + len(tasks) + len(wiki_hits),
     }
     _search_cache[cache_key] = (now, payload)
     if len(_search_cache) > 256:

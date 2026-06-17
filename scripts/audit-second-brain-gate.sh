@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Track B SB1–SB3 — Second-brain capture, weekly tick, approve → Obsidian wikilinks.
+# Track B SB1–SB4 — Second-brain capture, weekly tick, approve export, ⌘K wiki hits.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -9,15 +9,17 @@ FAIL=0
 pass() { echo "  OK  $*"; }
 fail() { echo "  FAIL $*"; FAIL=$((FAIL + 1)); }
 
-echo "=== Second Brain (SB1–SB3) Audit ==="
+echo "=== Second Brain (SB1–SB4) Audit ==="
 
 for f in \
   backend/app/application/services/second_brain_capture.py \
   backend/app/application/services/wiki_connection_synthesizer.py \
   backend/app/application/services/connection_intelligence_bee.py \
+  backend/app/application/services/mission_wiki_layer_search.py \
   backend/app/worker/connection_intelligence_tasks.py \
   backend/app/presentation/api/routers/wiki_layer.py \
   frontend/components/hive/second-brain-capture-approve-panel.tsx \
+  frontend/components/hive/hive-command-palette.tsx \
   frontend/components/hive/wiki-layer-panel.tsx; do
   if [[ -f "$f" ]]; then
     pass "file $f"
@@ -86,10 +88,34 @@ else
   fail "missing test_second_brain_capture_approve_unit.py"
 fi
 
+if grep -q "wiki_layer_mission_search_enabled" backend/app/core/config.py; then
+  pass "wiki_layer_mission_search_enabled config"
+else
+  fail "missing wiki_layer_mission_search_enabled"
+fi
+
+if grep -q "search_mission_wiki_hits" backend/app/application/services/mission_operator_search.py; then
+  pass "search_mission_operator includes wiki_hits"
+else
+  fail "missing wiki_hits in search_mission_operator"
+fi
+
+if grep -q "wiki_hits" frontend/lib/use-mission-search.ts; then
+  pass "frontend mission search wiki_hits type"
+else
+  fail "missing wiki_hits in use-mission-search"
+fi
+
+if [[ -f backend/tests/test_mission_wiki_layer_search_unit.py ]]; then
+  pass "mission wiki layer search unit tests"
+else
+  fail "missing test_mission_wiki_layer_search_unit.py"
+fi
+
 if [[ $FAIL -eq 0 ]]; then
-  echo "=== Second Brain SB1–SB3 gate PASSED ==="
+  echo "=== Second Brain SB1–SB4 gate PASSED ==="
   exit 0
 fi
 
-echo "=== Second Brain SB1–SB3 gate FAILED ($FAIL checks) ==="
+echo "=== Second Brain SB1–SB4 gate FAILED ($FAIL checks) ==="
 exit 1

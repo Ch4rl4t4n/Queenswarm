@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Loader2, Search, X } from "lucide-react";
+import { BookMarked, Loader2, Search, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 import { useMissionSearch } from "@/lib/use-mission-search";
@@ -12,7 +12,7 @@ interface HiveCommandPaletteProps {
   onClose: () => void;
 }
 
-/** Hermes-style ⌘K mission search — sessions + kanban tasks. */
+/** Hermes-style ⌘K mission search — sessions, kanban tasks, wiki layer. */
 export function HiveCommandPalette({ open, onClose }: HiveCommandPaletteProps): JSX.Element | null {
   const inputRef = useRef<HTMLInputElement>(null);
   const { query, setQuery, result, busy, error } = useMissionSearch(220);
@@ -53,7 +53,7 @@ export function HiveCommandPalette({ open, onClose }: HiveCommandPaletteProps): 
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search sessions, tasks, goals…"
+            placeholder="Search sessions, tasks, wiki…"
             className="min-w-0 flex-1 bg-transparent text-sm text-[#fafafa] placeholder:text-zinc-500 focus:outline-none"
           />
           {busy ? <Loader2 className="h-4 w-4 animate-spin text-pollen" aria-hidden /> : null}
@@ -69,6 +69,34 @@ export function HiveCommandPalette({ open, onClose }: HiveCommandPaletteProps): 
           ) : null}
           {!error && query.trim().length >= 2 && !busy && !hasHits ? (
             <p className="px-2 py-6 text-center text-sm text-zinc-500">No matches.</p>
+          ) : null}
+
+          {result.wiki_hits.length ? (
+            <section className="mb-4">
+              <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Wiki layer</p>
+              <ul className="space-y-1">
+                {result.wiki_hits.map((hit) => (
+                  <li key={hit.wiki_hit_id}>
+                    <Link
+                      href={hit.href}
+                      onClick={onClose}
+                      className="block rounded-lg px-3 py-2 transition hover:bg-white/5"
+                    >
+                      <p className="flex items-center gap-1.5 text-sm font-medium text-[#fafafa]">
+                        <BookMarked className="size-3.5 shrink-0 text-pollen" aria-hidden />
+                        {hit.title}
+                      </p>
+                      <p className="line-clamp-2 text-[11px] text-zinc-500">
+                        {hit.snippet}
+                        {hit.match_source.includes("semantic") ? (
+                          <span className="ml-1 text-data">· vector</span>
+                        ) : null}
+                      </p>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
           ) : null}
 
           {result.tasks.length ? (
