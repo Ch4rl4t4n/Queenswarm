@@ -112,20 +112,154 @@ async def get_tier0_injection_strip(
     return strip.model_dump(mode="json")
 
 
+@router.get("/project-tags", summary="MEM5 Client/project memory tags + active recall filter")
+async def get_memory_project_tags(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    from app.application.services.memory_project_tags_service import compose_memory_project_tags_snapshot
+    from app.infrastructure.persistence.models.tenant import Tenant
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    snapshot = await compose_memory_project_tags_snapshot(db, tenant_id=tenant_id, tenant=tenant)
+    return snapshot.model_dump(mode="json")
+
+
+@router.post("/project-tags", summary="MEM5 Upsert client/project memory tag")
+async def upsert_memory_project_tag_route(
+    body: dict[str, Any],
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    from app.application.services.memory_project_tags_service import (
+        MemoryProjectTagUpsertIn,
+        upsert_memory_project_tag,
+    )
+    from app.infrastructure.persistence.models.tenant import Tenant
+
+    _require_owner_or_admin(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found.")
+    try:
+        payload = MemoryProjectTagUpsertIn.model_validate(body)
+        row = upsert_memory_project_tag(tenant, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return row.model_dump(mode="json")
+
+
+@router.delete("/project-tags/{tag_id}", status_code=status.HTTP_204_NO_CONTENT, summary="MEM5 Delete memory tag")
+async def delete_memory_project_tag_route(
+    tag_id: str,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> Response:
+    from app.application.services.memory_project_tags_service import delete_memory_project_tag
+    from app.infrastructure.persistence.models.tenant import Tenant
+
+    _require_owner_or_admin(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found.")
+    if not delete_memory_project_tag(tenant, tag_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found.")
+    await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/project-tags/active-filter", summary="MEM5 Set active recall slice filter")
+async def set_memory_project_active_filter(
+    body: dict[str, Any],
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    from app.application.services.memory_project_tags_service import ActiveRecallFilterPatch, set_active_recall_filter
+    from app.infrastructure.persistence.models.tenant import Tenant
+
+    _require_owner_or_admin(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found.")
+    try:
+        patch = ActiveRecallFilterPatch.model_validate(body)
+        active = set_active_recall_filter(tenant, patch)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return {"ok": True, "active_filter_tag_ids": active}
+
+
+@router.post("/project-tags/assign-knowledge", summary="MEM5 Assign tags to knowledge item")
+async def assign_memory_project_tags_route(
+    body: dict[str, Any],
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    from app.application.services.memory_project_tags_service import (
+        MemoryProjectTagAssignIn,
+        assign_memory_project_tags_to_knowledge,
+    )
+    from app.infrastructure.persistence.models.tenant import Tenant
+
+    _require_owner_or_admin(principal)
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found.")
+    try:
+        payload = MemoryProjectTagAssignIn.model_validate(body)
+        assigned = await assign_memory_project_tags_to_knowledge(
+            db,
+            tenant_id=tenant_id,
+            payload=payload,
+            tenant=tenant,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return {"ok": True, "tag_ids": assigned}
+
+
 @router.get("/cited-recall", summary="MEM2 Cited recall — answer with source citations")
 async def get_cited_recall(
     db: DbSession,
     principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
     q: str = Query(min_length=1, max_length=2400),
+    tags: str | None = Query(default=None, max_length=240, description="Comma-separated MEM5 tag ids"),
 ) -> dict[str, Any]:
     """Return GBrain-style cited answer from Brain Pack, HiveMind, sessions, and vault."""
 
     from app.application.services.cited_recall_service import compose_cited_recall
+    from app.infrastructure.persistence.models.tenant import Tenant
 
     tenant_id = principal.get("tenant_id")
     if tenant_id is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
-    panel = await compose_cited_recall(db, tenant_id=tenant_id, query=q)
+    tenant = await db.get(Tenant, tenant_id)
+    requested = [part.strip() for part in (tags or "").split(",") if part.strip()] or None
+    panel = await compose_cited_recall(
+        db,
+        tenant_id=tenant_id,
+        query=q,
+        filter_tag_ids=requested,
+        tenant=tenant,
+    )
     return panel.model_dump(mode="json")
 
 

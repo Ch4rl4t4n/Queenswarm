@@ -590,7 +590,7 @@ _Signal: [I Built The Best Claude Memory System (Beats Hermes)](https://www.yout
 | MEM2 | **Cited recall panel** — answer + source file/session or explicit „not in memory“ | P1 | 3–4 d | ✅ | `cited_recall_service`, `GET /memory/curated/cited-recall`, Knowledge → Memory / HiveMind recall |
 | MEM3 | **Tier-0 injection strip** — Brain Pack / injected context before deep Chroma search | P1 | 1–2 d | ✅ | Harness settings · Hermes frozen snapshot |
 | MEM4 | **Token budget meter** on Brain Pack / harness (char ≈ token estimate) | P2 | 1 d | ✅ | `hive_mind_max_prompt_chars` surfacing |
-| MEM5 | **Client/project memory tags** + recall filter (team slice / RLS-style) | P2 | 4–5 d | ⏳ | Tenant metadata + HiveMind query |
+| MEM5 | **Client/project memory tags** + recall filter (team slice / RLS-style) | P2 | 4–5 d | ✅ | Tenant metadata + HiveMind query |
 
 **Do not:** port MemSearch/Hermes/GBrain as parallel Claude Code stack — extend Hive Mind + verify moat.
 

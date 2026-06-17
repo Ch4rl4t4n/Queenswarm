@@ -1018,6 +1018,26 @@ export interface SubSwarmFleetPayload {
   swarms_href: string;
 }
 
+/** ``GET /api/v1/memory/curated/project-tags`` — MEM5 tag registry. */
+export interface MemoryProjectTagRow {
+  id: string;
+  label: string;
+  kind: "client" | "project";
+  description: string;
+  color_hex: string | null;
+  created_at: string;
+  knowledge_count: number;
+}
+
+export interface MemoryProjectTagsPayload {
+  enabled: boolean;
+  tags: MemoryProjectTagRow[];
+  active_filter_tag_ids: string[];
+  active_filter_labels: string[];
+  filter_active: boolean;
+  operator_hint: string;
+}
+
 export type TimeSavedSourceKind = "template" | "recipe" | "custom";
 
 export interface TimeSavedBreakdownRow {

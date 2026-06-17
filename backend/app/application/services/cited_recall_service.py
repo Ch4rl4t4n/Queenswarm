@@ -11,12 +11,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.curated_memory_service import CuratedMemoryService
 from app.application.services.hive_session_search import search_supervisor_sessions
+from app.application.services.memory_project_tags_service import (
+    curated_kind_tag_ids,
+    parse_memory_project_tag_ids_from_metadata,
+    resolve_recall_filter_tag_ids,
+    source_matches_memory_project_filter,
+    tags_from_tenant,
+)
 from app.application.services.selective_recall import query_tokens, score_vector_similarity
 from app.core.chroma_client import HIVE_MIND_COLLECTION, semantic_search
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.domain.hive_mind.graph import vault_document_recall_for_prompt
 from app.domain.memory.curated import CuratedFileKind
+from app.infrastructure.persistence.models.tenant import Tenant
 
 _logger = get_logger(__name__)
 
@@ -63,6 +71,9 @@ class CitedRecallOut(BaseModel):
     citations: list[CitedRecallSourceOut] = Field(default_factory=list)
     citation_count: int = 0
     operator_hint: str = "Ask a question — cited answer pulls Brain Pack, HiveMind vectors, sessions, and vault."
+    filter_active: bool = False
+    active_filter_tag_ids: list[str] = Field(default_factory=list)
+    active_filter_labels: list[str] = Field(default_factory=list)
 
 
 def _clip(text: str, limit: int = 280) -> str:
@@ -120,18 +131,33 @@ def _build_answer(query: str, citations: list[CitedRecallSourceOut], status: Rec
     return answer
 
 
-def _curated_citations(query: str, bundle: dict[CuratedFileKind, str]) -> list[CitedRecallSourceOut]:
+def _curated_citations(
+    query: str,
+    bundle: dict[CuratedFileKind, str],
+    *,
+    tenant: Tenant | None = None,
+    filter_tag_ids: list[str] | None = None,
+) -> tuple[list[CitedRecallSourceOut], dict[str, list[str]]]:
     rows: list[CitedRecallSourceOut] = []
+    tag_map: dict[str, list[str]] = {}
     for kind, label in _CURATED_LABELS.items():
         content = str(bundle.get(kind) or "").strip()
         if len(content) < 8:
+            continue
+        source_id = f"curated:{kind.value}"
+        kind_tags = _curated_kind_tag_ids(tenant, kind)
+        tag_map[source_id] = kind_tags
+        if filter_tag_ids and not source_matches_memory_project_filter(
+            source_tag_ids=kind_tags,
+            filter_tag_ids=filter_tag_ids,
+        ):
             continue
         overlap = _keyword_overlap(query, content)
         if overlap <= 0:
             continue
         rows.append(
             CitedRecallSourceOut(
-                source_id=f"curated:{kind.value}",
+                source_id=source_id,
                 source_type="curated_memory",
                 label=label,
                 snippet=_extract_snippet(content, query),
@@ -140,11 +166,12 @@ def _curated_citations(query: str, bundle: dict[CuratedFileKind, str]) -> list[C
             ),
         )
     rows.sort(key=lambda row: row.similarity or 0.0, reverse=True)
-    return rows[:4]
+    return rows[:4], tag_map
 
 
-def _hive_mind_citations(query: str, hits: list[dict]) -> list[CitedRecallSourceOut]:  # noqa: ANN001
+def _hive_mind_citations(query: str, hits: list[dict]) -> tuple[list[CitedRecallSourceOut], dict[str, list[str]]]:  # noqa: ANN001
     rows: list[CitedRecallSourceOut] = []
+    tag_map: dict[str, list[str]] = {}
     for hit in hits:
         document = str(hit.get("document") or "").strip()
         if len(document) < 8:
@@ -156,9 +183,11 @@ def _hive_mind_citations(query: str, hits: list[dict]) -> list[CitedRecallSource
         href = "/knowledge?tab=outputs"
         if deliverable_id:
             href = f"/knowledge?tab=outputs&deliverable={deliverable_id}"
+        source_id = f"hive:{deliverable_id or title}"
+        tag_map[source_id] = parse_memory_project_tag_ids_from_metadata(meta)
         rows.append(
             CitedRecallSourceOut(
-                source_id=f"hive:{deliverable_id or title}",
+                source_id=source_id,
                 source_type="hive_mind",
                 label=f"HiveMind · {title}",
                 snippet=_extract_snippet(document, query),
@@ -167,11 +196,12 @@ def _hive_mind_citations(query: str, hits: list[dict]) -> list[CitedRecallSource
             ),
         )
     rows.sort(key=lambda row: row.similarity or 0.0, reverse=True)
-    return rows[:5]
+    return rows[:5], tag_map
 
 
-def _session_citations(query: str, session_hits: list[dict]) -> list[CitedRecallSourceOut]:  # noqa: ANN001
+def _session_citations(query: str, session_hits: list[dict]) -> tuple[list[CitedRecallSourceOut], dict[str, list[str]]]:  # noqa: ANN001
     rows: list[CitedRecallSourceOut] = []
+    tag_map: dict[str, list[str]] = {}
     for hit in session_hits:
         session_id = str(hit.get("session_id") or "").strip()
         if not session_id:
@@ -181,9 +211,11 @@ def _session_citations(query: str, session_hits: list[dict]) -> list[CitedRecall
         overlap = _keyword_overlap(query, f"{goal} {snippet}")
         if overlap <= 0 and not snippet:
             continue
+        source_id = f"session:{session_id}"
+        tag_map[source_id] = list(hit.get("memory_project_tag_ids") or [])
         rows.append(
             CitedRecallSourceOut(
-                source_id=f"session:{session_id}",
+                source_id=source_id,
                 source_type="session",
                 label=f"Session · {goal[:72] or session_id[:8]}",
                 snippet=_clip(snippet or goal, 240),
@@ -191,11 +223,12 @@ def _session_citations(query: str, session_hits: list[dict]) -> list[CitedRecall
                 href=f"/agents?session={session_id}",
             ),
         )
-    return rows[:4]
+    return rows[:4], tag_map
 
 
-def _vault_citations(query: str, vault_lines: list[str]) -> list[CitedRecallSourceOut]:
+def _vault_citations(query: str, vault_lines: list[str]) -> tuple[list[CitedRecallSourceOut], dict[str, list[str]]]:
     rows: list[CitedRecallSourceOut] = []
+    tag_map: dict[str, list[str]] = {}
     for line in vault_lines:
         cleaned = line.strip().lstrip("-").strip()
         if not cleaned:
@@ -207,9 +240,11 @@ def _vault_citations(query: str, vault_lines: list[str]) -> list[CitedRecallSour
         rel_path = rel_match.group(1) if rel_match else ""
         label = cleaned.split(":")[0].strip() if ":" in cleaned else "Vault document"
         snippet = cleaned.split(":", 1)[-1].strip() if ":" in cleaned else cleaned
+        source_id = f"vault:{rel_path or label}"
+        tag_map[source_id] = []
         rows.append(
             CitedRecallSourceOut(
-                source_id=f"vault:{rel_path or label}",
+                source_id=source_id,
                 source_type="vault",
                 label=label[:80],
                 snippet=_clip(snippet, 240),
@@ -217,7 +252,7 @@ def _vault_citations(query: str, vault_lines: list[str]) -> list[CitedRecallSour
                 href="/knowledge?tab=hivemind#explorer",
             ),
         )
-    return rows[:3]
+    return rows[:3], tag_map
 
 
 def _merge_citations(candidates: list[CitedRecallSourceOut], *, limit: int = 8) -> list[CitedRecallSourceOut]:
@@ -233,6 +268,26 @@ def _merge_citations(candidates: list[CitedRecallSourceOut], *, limit: int = 8) 
     return merged
 
 
+def _curated_kind_tag_ids(tenant: Tenant | None, kind: CuratedFileKind) -> list[str]:
+    return curated_kind_tag_ids(tenant, kind.value)
+
+
+def _filter_citations_by_tags(
+    citations: list[CitedRecallSourceOut],
+    *,
+    filter_tag_ids: list[str],
+    source_tag_ids_by_id: dict[str, list[str]],
+) -> list[CitedRecallSourceOut]:
+    if not filter_tag_ids:
+        return citations
+    kept: list[CitedRecallSourceOut] = []
+    for row in citations:
+        tag_ids = source_tag_ids_by_id.get(row.source_id, [])
+        if source_matches_memory_project_filter(source_tag_ids=tag_ids, filter_tag_ids=filter_tag_ids):
+            kept.append(row)
+    return kept
+
+
 def derive_cited_recall(
     *,
     query: str,
@@ -240,6 +295,9 @@ def derive_cited_recall(
     hive_hits: list[CitedRecallSourceOut],
     session_hits: list[CitedRecallSourceOut],
     vault_hits: list[CitedRecallSourceOut],
+    filter_tag_ids: list[str] | None = None,
+    filter_labels: list[str] | None = None,
+    source_tag_ids_by_id: dict[str, list[str]] | None = None,
 ) -> CitedRecallOut:
     """Pure MEM2 cited recall assembly."""
 
@@ -255,6 +313,13 @@ def derive_cited_recall(
         )
 
     citations = _merge_citations([*curated_hits, *hive_hits, *session_hits, *vault_hits])
+    active_filter = list(filter_tag_ids or [])
+    if active_filter and source_tag_ids_by_id is not None:
+        citations = _filter_citations_by_tags(
+            citations,
+            filter_tag_ids=active_filter,
+            source_tag_ids_by_id=source_tag_ids_by_id,
+        )
     status = _resolve_status(citations)
     in_memory = status != "not_in_memory"
     answer = _build_answer(trimmed, citations, status)
@@ -265,6 +330,9 @@ def derive_cited_recall(
         hint = "Weak or sparse hits — cross-check Brain Pack and session report before trusting answer."
     else:
         hint = "Not in memory — ingest URL, update Brain Pack, or complete a session to capture this topic."
+    if active_filter:
+        labels = ", ".join(filter_labels or active_filter)
+        hint = f"MEM5 slice active ({labels}). {hint}"
 
     return CitedRecallOut(
         enabled=True,
@@ -275,6 +343,9 @@ def derive_cited_recall(
         citations=citations,
         citation_count=len(citations),
         operator_hint=hint,
+        filter_active=bool(active_filter),
+        active_filter_tag_ids=active_filter,
+        active_filter_labels=list(filter_labels or []),
     )
 
 
@@ -283,11 +354,20 @@ async def compose_cited_recall(
     *,
     tenant_id: uuid.UUID,
     query: str,
+    filter_tag_ids: list[str] | None = None,
+    tenant: Tenant | None = None,
 ) -> CitedRecallOut:
     """Compose MEM2 cited recall from Brain Pack, HiveMind, sessions, and vault."""
 
     if not settings.cited_recall_panel_enabled:
         return CitedRecallOut(enabled=False)
+
+    if tenant is None:
+        tenant = await session.get(Tenant, tenant_id)
+
+    active_filter = resolve_recall_filter_tag_ids(tenant, requested_tag_ids=filter_tag_ids)
+    label_by_id = {row["id"]: row["label"] for row in tags_from_tenant(tenant)}
+    filter_labels = [label_by_id.get(tag_id, tag_id) for tag_id in active_filter]
 
     trimmed = query.strip()
     if len(trimmed) < _MIN_QUERY_LEN:
@@ -297,13 +377,22 @@ async def compose_cited_recall(
             hive_hits=[],
             session_hits=[],
             vault_hits=[],
+            filter_tag_ids=active_filter,
+            filter_labels=filter_labels,
+            source_tag_ids_by_id={},
         )
 
     memory_service = CuratedMemoryService(db=session)
     bundle = await memory_service.get_bundle(tenant_id)
-    curated_hits = _curated_citations(trimmed, bundle)
+    curated_hits, curated_tags = _curated_citations(
+        trimmed,
+        bundle,
+        tenant=tenant,
+        filter_tag_ids=active_filter,
+    )
 
     hive_hits: list[CitedRecallSourceOut] = []
+    hive_tags: dict[str, list[str]] = {}
     if settings.hive_mind_enabled and settings.hive_mind_chroma_enabled:
         try:
             raw_hits = await semantic_search(
@@ -311,7 +400,7 @@ async def compose_cited_recall(
                 HIVE_MIND_COLLECTION,
                 n_results=min(settings.hive_mind_max_query_hits_vector, 8),
             )
-            hive_hits = _hive_mind_citations(trimmed, raw_hits)
+            hive_hits, hive_tags = _hive_mind_citations(trimmed, raw_hits)
         except Exception as exc:
             _logger.warning(
                 "cited_recall.hive_search_failed",
@@ -321,9 +410,10 @@ async def compose_cited_recall(
             )
 
     session_rows = await search_supervisor_sessions(session, tenant_id=tenant_id, query=trimmed, limit=6)
-    session_hits = _session_citations(trimmed, session_rows)
+    session_hits, session_tags = _session_citations(trimmed, session_rows)
 
     vault_hits: list[CitedRecallSourceOut] = []
+    vault_tags: dict[str, list[str]] = {}
     if settings.hive_mind_enabled:
         try:
             vault_lines = await vault_document_recall_for_prompt(
@@ -331,7 +421,7 @@ async def compose_cited_recall(
                 query=trimmed,
                 limit=4,
             )
-            vault_hits = _vault_citations(trimmed, vault_lines)
+            vault_hits, vault_tags = _vault_citations(trimmed, vault_lines)
         except Exception as exc:
             _logger.warning(
                 "cited_recall.vault_failed",
@@ -340,12 +430,16 @@ async def compose_cited_recall(
                 error=str(exc),
             )
 
+    tag_map = {**curated_tags, **hive_tags, **session_tags, **vault_tags}
     result = derive_cited_recall(
         query=trimmed,
         curated_hits=curated_hits,
         hive_hits=hive_hits,
         session_hits=session_hits,
         vault_hits=vault_hits,
+        filter_tag_ids=active_filter,
+        filter_labels=filter_labels,
+        source_tag_ids_by_id=tag_map,
     )
     _logger.info(
         "cited_recall.composed",

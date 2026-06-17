@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -142,7 +142,13 @@ async def test_compose_cited_recall_merges_sources() -> None:
         mock_settings.hive_mind_max_query_hits_vector = 8
         service = mock_service_cls.return_value
         service.get_bundle = AsyncMock(return_value=bundle)
-        out = await compose_cited_recall(session, tenant_id=tenant_id, query="gumroad hero")
+        tenant = MagicMock(operator_settings={})
+        out = await compose_cited_recall(
+            session,
+            tenant_id=tenant_id,
+            query="gumroad hero",
+            tenant=tenant,
+        )
 
     assert out.enabled is True
     assert out.citation_count >= 2

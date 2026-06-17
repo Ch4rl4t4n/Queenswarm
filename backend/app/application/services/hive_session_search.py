@@ -72,6 +72,7 @@ async def search_supervisor_sessions(
                 "completed_at": session.completed_at.isoformat() if session.completed_at else None,
                 "hivemind_verify_status": ctx.get("hivemind_verify_status"),
                 "routine_id": ctx.get("routine_id"),
+                "memory_project_tag_ids": list(ctx.get("memory_project_tag_ids") or []),
                 "match_source": match_source,
                 "snippet": snippet[:400],
             },

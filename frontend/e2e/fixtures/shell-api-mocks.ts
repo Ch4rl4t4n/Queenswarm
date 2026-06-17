@@ -3154,6 +3154,41 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("memory/curated/project-tags/active-filter")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, active_filter_tag_ids: ["acme"] }),
+      });
+      return;
+    }
+
+    if (path.startsWith("memory/curated/project-tags")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          tags: [
+            {
+              id: "acme",
+              label: "Acme Corp",
+              kind: "client",
+              description: "",
+              color_hex: null,
+              created_at: new Date().toISOString(),
+              knowledge_count: 2,
+            },
+          ],
+          active_filter_tag_ids: [],
+          active_filter_labels: [],
+          filter_active: false,
+          operator_hint: "Create client or project tags — assign them on knowledge captures to slice recall.",
+        }),
+      });
+      return;
+    }
+
     if (path.startsWith("memory/curated/cited-recall")) {
       await route.fulfill({
         status: 200,

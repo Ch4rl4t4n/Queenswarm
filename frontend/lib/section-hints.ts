@@ -632,8 +632,20 @@ export const SECTION_HINTS = {
       "Found — strong vector or keyword overlap; open source links to verify.",
       "Partial — weak hits; cross-check before approve or publish.",
       "Not in memory — ingest URL, update Brain Pack, or complete a session.",
+      "MEM5 slice — active client/project tags filter cited sources (RLS-style).",
     ],
     manualHref: "/manual#cited-recall",
+  },
+  knowledgeMemoryProjectTags: {
+    title: "Client / project memory tags",
+    description:
+      "MEM5 GBrain-style company brain slices — tag knowledge captures and filter cited recall to matching hive memory only.",
+    options: [
+      "Client — customer or account-level memory boundary.",
+      "Project — initiative or deliverable slice within a tenant.",
+      "Active filter — click tags to toggle recall slice; untagged sources excluded when filter on.",
+    ],
+    manualHref: "/manual#memory-project-tags",
   },
   knowledgeExplorer: {
     title: "HiveMind explorer",

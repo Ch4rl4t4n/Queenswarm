@@ -28,6 +28,9 @@ interface CitedRecallState {
   citations: CitedRecallSource[];
   citation_count: number;
   operator_hint: string;
+  filter_active?: boolean;
+  active_filter_tag_ids?: string[];
+  active_filter_labels?: string[];
 }
 
 function statusTone(status: CitedRecallState["status"]): string {
@@ -47,6 +50,13 @@ export function CitedRecallPanel(): JSX.Element | null {
   const [state, setState] = useState<CitedRecallState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeTagIds, setActiveTagIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    void hiveGet<{ active_filter_tag_ids?: string[] }>("memory/curated/project-tags")
+      .then((payload) => setActiveTagIds(payload.active_filter_tag_ids ?? []))
+      .catch(() => setActiveTagIds([]));
+  }, []);
 
   const runSearch = useCallback(async (searchQuery: string) => {
     const trimmed = searchQuery.trim();
@@ -58,8 +68,10 @@ export function CitedRecallPanel(): JSX.Element | null {
     setLoading(true);
     setError(null);
     try {
+      const tagQuery =
+        activeTagIds.length > 0 ? `&tags=${encodeURIComponent(activeTagIds.join(","))}` : "";
       const data = await hiveGet<CitedRecallState>(
-        `memory/curated/cited-recall?q=${encodeURIComponent(trimmed)}`,
+        `memory/curated/cited-recall?q=${encodeURIComponent(trimmed)}${tagQuery}`,
       );
       setState(data);
     } catch (e) {
@@ -68,7 +80,7 @@ export function CitedRecallPanel(): JSX.Element | null {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeTagIds]);
 
   useEffect(() => {
     void runSearch(query);
@@ -124,6 +136,11 @@ export function CitedRecallPanel(): JSX.Element | null {
             <V4Badge tone={state.in_memory ? "ok" : "err"}>
               {state.in_memory ? "in memory" : "not in memory"}
             </V4Badge>
+            {state.filter_active ? (
+              <V4Badge tone="warn">
+                MEM5 · {(state.active_filter_labels ?? []).join(", ") || "slice"}
+              </V4Badge>
+            ) : null}
             <span className="font-mono text-[10px] text-(--qs-text-4)">{state.citation_count} cites</span>
           </div>
 

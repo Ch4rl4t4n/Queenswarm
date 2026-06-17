@@ -1986,6 +1986,10 @@ class Settings(BaseSettings):
         default=True,
         description="MEM2 — Cited recall panel (answer + sources or not-in-memory).",
     )
+    memory_project_tags_enabled: bool = Field(
+        default=True,
+        description="MEM5 — Client/project memory tags + recall filter (RLS-style slice).",
+    )
     auto_episodic_capture_enabled: bool = Field(
         default=True,
         description="MEM1 — Auto episodic capture when supervisor sessions complete.",

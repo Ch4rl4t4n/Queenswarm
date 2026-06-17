@@ -19,6 +19,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 
 import { AutoGraphifyPanel } from "@/components/hive/auto-graphify-panel";
 import { CitedRecallPanel } from "@/components/hive/cited-recall-panel";
+import { MemoryProjectTagsPanel } from "@/components/hive/memory-project-tags-panel";
 import { SelectiveRecallPanel } from "@/components/hive/selective-recall-panel";
 import { ProjectShapeGraphPanel } from "@/components/hive/project-shape-graph-panel";
 import { OperatorBrainPackPanel } from "@/components/hive/operator-brain-pack-panel";
@@ -299,6 +300,7 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
         <div id="memory" className="scroll-mt-28 space-y-6">
           <SecondBrainPackWizardPanel />
           <OperatorBrainPackPanel />
+          <MemoryProjectTagsPanel />
           <CitedRecallPanel />
           <EpisodicDailyLogPanel />
           <EpisodicMemoryPanel />
