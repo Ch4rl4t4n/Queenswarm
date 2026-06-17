@@ -221,10 +221,10 @@ function MissionHomePanelInner(): JSX.Element | null {
   const jarvis = snapshot.jarvis_advisor_strip;
   const agentQuality = snapshot.agent_quality_strip;
 
-  function qualityTone(status: MissionAgentQualityStrip["status"]): "ok" | "warn" | "error" | "info" {
+  function qualityTone(status: MissionAgentQualityStrip["status"]): "ok" | "warn" | "err" | "info" {
     if (status === "healthy") return "ok";
     if (status === "warn") return "warn";
-    if (status === "critical") return "error";
+    if (status === "critical") return "err";
     return "info";
   }
 
