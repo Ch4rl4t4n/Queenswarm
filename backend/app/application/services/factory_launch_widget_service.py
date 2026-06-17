@@ -1,4 +1,4 @@
-"""REV4–REV11 — Factory Launch widget for Mission Home (Gumroad sellable harness funnel)."""
+"""REV4–REV12 — Factory Launch widget for Mission Home (Gumroad sellable harness funnel)."""
 
 from __future__ import annotations
 
@@ -67,6 +67,7 @@ class FactoryLaunchWidgetOut(BaseModel):
     catalog_sync_available: bool = False
     purchase_smoke_available: bool = False
     full_funnel_available: bool = False
+    launch_and_verify_available: bool = False
     catalog_href: str = "/skills"
     operator_hint: str = ""
     factory_href: str = "/apps-tools/skill-factory"
@@ -200,6 +201,28 @@ class FactoryLaunchFullFunnelOut(BaseModel):
     revenue_loop_ready: bool = False
 
 
+class FactoryLaunchLaunchAndVerifyPhaseOut(BaseModel):
+    """One phase in the REV12 launch-and-verify capstone."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    phase: str
+    ok: bool
+    message: str = ""
+
+
+class FactoryLaunchLaunchAndVerifyOut(BaseModel):
+    """Full funnel + revenue smoke + optional purchase smoke capstone."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    ok: bool = False
+    phases: list[FactoryLaunchLaunchAndVerifyPhaseOut] = Field(default_factory=list)
+    message: str = ""
+    published_gumroad_count: int = 0
+    revenue_loop_ready: bool = False
+
+
 async def compose_factory_launch_widget_snapshot(
     session: AsyncSession,
     *,
@@ -249,6 +272,9 @@ async def compose_factory_launch_widget_snapshot(
     )
     full_funnel_available = bool(
         gumroad_auto_draft_available or gumroad_auto_publish_available or catalog_sync_available
+    )
+    launch_and_verify_available = bool(
+        full_funnel_available or revenue_smoke_available or purchase_smoke_available
     )
 
     from app.application.services.purchase_onboarding import marketing_public_origin
@@ -317,6 +343,7 @@ async def compose_factory_launch_widget_snapshot(
         catalog_sync_available=catalog_sync_available,
         purchase_smoke_available=purchase_smoke_available,
         full_funnel_available=full_funnel_available,
+        launch_and_verify_available=launch_and_verify_available,
         catalog_href=catalog_href,
         operator_hint=hint,
         top_launch_titles=titles,
@@ -827,10 +854,110 @@ async def run_factory_launch_full_funnel(
     return out.model_dump(mode="json")
 
 
+async def run_factory_launch_launch_and_verify(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    buyer_email: str = "",
+    include_purchase_smoke: bool = False,
+    limit: int = 3,
+) -> dict[str, object]:
+    """Orchestrate full funnel → revenue smoke → optional purchase smoke (REV12)."""
+
+    if not settings.factory_launch_mission_home_enabled or not settings.skill_factory_enabled:
+        return FactoryLaunchLaunchAndVerifyOut(
+            message="Factory launch widget disabled.",
+        ).model_dump(mode="json") | {"ok": False, "error": "factory_launch_disabled"}
+
+    capped = max(1, min(limit, 12))
+    phases: list[FactoryLaunchLaunchAndVerifyPhaseOut] = []
+    snapshot = await compose_factory_launch_widget_snapshot(session, tenant_id=tenant_id)
+
+    if snapshot.full_funnel_available:
+        funnel_payload = await run_factory_launch_full_funnel(
+            session,
+            tenant_id=tenant_id,
+            limit=capped,
+        )
+        phases.append(
+            FactoryLaunchLaunchAndVerifyPhaseOut(
+                phase="full_funnel",
+                ok=bool(funnel_payload.get("ok")),
+                message=str(funnel_payload.get("message") or ""),
+            ),
+        )
+        snapshot = await compose_factory_launch_widget_snapshot(session, tenant_id=tenant_id)
+
+    revenue_payload = await run_factory_launch_revenue_smoke(session, tenant_id=tenant_id)
+    phases.append(
+        FactoryLaunchLaunchAndVerifyPhaseOut(
+            phase="revenue_smoke",
+            ok=bool(revenue_payload.get("ok")),
+            message=str(revenue_payload.get("message") or ""),
+        ),
+    )
+    snapshot = await compose_factory_launch_widget_snapshot(session, tenant_id=tenant_id)
+
+    if include_purchase_smoke and snapshot.purchase_smoke_available:
+        purchase_payload = await run_factory_launch_purchase_smoke(
+            session,
+            tenant_id=tenant_id,
+            buyer_email=buyer_email,
+        )
+        phases.append(
+            FactoryLaunchLaunchAndVerifyPhaseOut(
+                phase="purchase_smoke",
+                ok=bool(purchase_payload.get("ok")),
+                message=str(purchase_payload.get("message") or ""),
+            ),
+        )
+        snapshot = await compose_factory_launch_widget_snapshot(session, tenant_id=tenant_id)
+
+    revenue_ok = bool(revenue_payload.get("ok"))
+    purchase_phase = next((row for row in phases if row.phase == "purchase_smoke"), None)
+    purchase_ok = purchase_phase.ok if purchase_phase is not None else True
+    any_ok = any(phase.ok for phase in phases)
+    capstone_ok = revenue_ok and purchase_ok and snapshot.published_gumroad_count > 0
+
+    if capstone_ok and snapshot.revenue_loop_ready:
+        message = (
+            f"Launch & verify complete — {snapshot.published_gumroad_count} live listing(s). "
+            "Revenue loop closed; drive traffic to letagentscook.org."
+        )
+    elif revenue_ok and snapshot.published_gumroad_count > 0:
+        message = (
+            f"Listings live ({snapshot.published_gumroad_count}) — revenue checks passed. "
+            "Configure remaining buyer-loop items before first sale."
+        )
+    elif any_ok:
+        message = "Launch & verify ran — review phase messages and fix failing checks."
+    else:
+        message = "Launch & verify did not complete — configure Gumroad token and build sellable skills."
+
+    _logger.info(
+        "factory_launch_widget.launch_and_verify",
+        agent_id="factory_launch_widget",
+        swarm_id=str(tenant_id),
+        phase_count=len(phases),
+        capstone_ok=capstone_ok,
+        published_count=snapshot.published_gumroad_count,
+    )
+    out = FactoryLaunchLaunchAndVerifyOut(
+        ok=capstone_ok,
+        phases=phases,
+        message=message,
+        published_gumroad_count=snapshot.published_gumroad_count,
+        revenue_loop_ready=snapshot.revenue_loop_ready,
+    )
+    return out.model_dump(mode="json")
+
+
 __all__ = [
     "FactoryLaunchCatalogSyncOut",
     "FactoryLaunchFullFunnelOut",
     "FactoryLaunchFullFunnelStepOut",
+    "FactoryLaunchLaunchAndVerifyOut",
+    "FactoryLaunchLaunchAndVerifyPhaseOut",
     "FactoryLaunchGumroadDraftOut",
     "FactoryLaunchGumroadDraftRowOut",
     "FactoryLaunchGumroadPublishOut",
@@ -844,6 +971,7 @@ __all__ = [
     "prepare_factory_launch_batch_from_widget",
     "publish_factory_launch_gumroad_from_widget",
     "run_factory_launch_full_funnel",
+    "run_factory_launch_launch_and_verify",
     "run_factory_launch_purchase_smoke",
     "run_factory_launch_revenue_smoke",
     "sync_factory_launch_catalog_from_widget",

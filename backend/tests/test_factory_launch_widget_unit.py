@@ -389,6 +389,7 @@ async def test_factory_launch_revenue_loop_ready(monkeypatch: pytest.MonkeyPatch
     assert snapshot.catalog_sync_available is True
     assert snapshot.purchase_smoke_available is True
     assert snapshot.full_funnel_available is True
+    assert snapshot.launch_and_verify_available is True
     assert "revenue loop closed" in snapshot.operator_hint.lower()
 
 
@@ -668,3 +669,57 @@ async def test_run_factory_launch_full_funnel_catalog_only(monkeypatch: pytest.M
     steps = result.get("steps") or []
     assert len(steps) == 1
     assert steps[0]["step"] == "catalog_sync"
+
+
+@pytest.mark.asyncio
+async def test_run_factory_launch_launch_and_verify_orchestrates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.application.services.factory_launch_widget_service import run_factory_launch_launch_and_verify
+    from app.core.config import settings
+
+    snap_funnel = type(
+        "Snap",
+        (),
+        {
+            "full_funnel_available": True,
+            "purchase_smoke_available": False,
+            "published_gumroad_count": 0,
+            "revenue_loop_ready": False,
+        },
+    )()
+    snap_revenue = type(
+        "Snap",
+        (),
+        {
+            "full_funnel_available": False,
+            "purchase_smoke_available": False,
+            "published_gumroad_count": 1,
+            "revenue_loop_ready": True,
+        },
+    )()
+
+    monkeypatch.setattr(settings, "factory_launch_mission_home_enabled", True)
+    monkeypatch.setattr(settings, "skill_factory_enabled", True)
+    monkeypatch.setattr(
+        "app.application.services.factory_launch_widget_service.compose_factory_launch_widget_snapshot",
+        AsyncMock(side_effect=[snap_funnel, snap_revenue, snap_revenue]),
+    )
+    monkeypatch.setattr(
+        "app.application.services.factory_launch_widget_service.run_factory_launch_full_funnel",
+        AsyncMock(return_value={"ok": True, "message": "Full funnel complete."}),
+    )
+    monkeypatch.setattr(
+        "app.application.services.factory_launch_widget_service.run_factory_launch_revenue_smoke",
+        AsyncMock(return_value={"ok": True, "message": "Revenue loop verified."}),
+    )
+    session = AsyncMock()
+
+    result = await run_factory_launch_launch_and_verify(session, tenant_id=uuid.uuid4(), limit=3)
+
+    assert result.get("ok") is True
+    phases = result.get("phases") or []
+    assert len(phases) == 2
+    assert phases[0]["phase"] == "full_funnel"
+    assert phases[1]["phase"] == "revenue_smoke"
+    assert result.get("revenue_loop_ready") is True

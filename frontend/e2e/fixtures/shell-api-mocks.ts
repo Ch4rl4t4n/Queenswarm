@@ -343,6 +343,7 @@ const STUB_FACTORY_LAUNCH = {
   catalog_sync_available: false,
   purchase_smoke_available: false,
   full_funnel_available: true,
+  launch_and_verify_available: true,
   catalog_href: "https://letagentscook.org/skills",
   operator_hint: "1 harness pack(s) ready — create Gumroad drafts or use Prepare batch for manual upload.",
   factory_href: "/apps-tools/skill-factory",

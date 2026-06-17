@@ -232,6 +232,30 @@ else
   fail "missing factory launch full funnel button object"
 fi
 
+if grep -q "launch_and_verify_available" backend/app/application/services/factory_launch_widget_service.py; then
+  pass "launch_and_verify_available flag"
+else
+  fail "missing launch_and_verify_available flag"
+fi
+
+if grep -q "/factory-launch/launch-and-verify" backend/app/presentation/api/routers/dashboard.py; then
+  pass "dashboard REV12 launch-and-verify route"
+else
+  fail "missing dashboard REV12 launch-and-verify route"
+fi
+
+if grep -q "run_factory_launch_launch_and_verify" backend/app/application/services/factory_launch_widget_service.py; then
+  pass "run_factory_launch_launch_and_verify"
+else
+  fail "missing run_factory_launch_launch_and_verify"
+fi
+
+if grep -q "factory-launch-launch-and-verify-btn" frontend/components/hive/factory-launch-widget.tsx; then
+  pass "factory launch launch and verify button"
+else
+  fail "missing factory launch launch and verify button"
+fi
+
 if [[ -x backend/venv/bin/python ]]; then
   if (cd backend && ./venv/bin/python -m pytest \
     tests/test_factory_launch_widget_unit.py \

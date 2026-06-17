@@ -532,6 +532,7 @@ _MK6/MK7 remain in P0 letagentscook table above._
 | REV9 | **Catalog URL sync** after publish from Mission Home (MK7) | P0 | 1 d | ✅ Shipped | `POST /dashboard/factory-launch/catalog-sync` · auto-sync on publish |
 | REV10 | **Simulate Gumroad purchase** — operator buyer-loop smoke from Mission Home | P0 | 1 d | ✅ Shipped | `POST /dashboard/factory-launch/purchase-smoke` · unlock + REV1 email test |
 | REV11 | **Full launch funnel** — one-click draft → publish → catalog sync from Mission Home | P0 | 1 d | ✅ Shipped | `POST /dashboard/factory-launch/full-funnel` · orchestrated REV6–9 capstone |
+| REV12 | **Launch & verify** — full funnel + revenue smoke + purchase smoke capstone | P0 | 1 d | ✅ Shipped | `POST /dashboard/factory-launch/launch-and-verify` · first-sale readiness gate |
 
 ### Track D — Operator trust & factory SLOs
 

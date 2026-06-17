@@ -1043,6 +1043,7 @@ export interface FactoryLaunchPayload {
   catalog_sync_available: boolean;
   purchase_smoke_available: boolean;
   full_funnel_available: boolean;
+  launch_and_verify_available: boolean;
   catalog_href: string;
   operator_hint: string;
   factory_href: string;
@@ -1130,6 +1131,19 @@ export interface FactoryLaunchFullFunnelPayload {
   revenue_loop_ready: boolean;
   steps: Array<{
     step: string;
+    ok: boolean;
+    message: string;
+  }>;
+}
+
+/** ``POST /api/v1/dashboard/factory-launch/launch-and-verify`` — REV12 capstone launch + verify. */
+export interface FactoryLaunchLaunchAndVerifyPayload {
+  ok: boolean;
+  message: string;
+  published_gumroad_count: number;
+  revenue_loop_ready: boolean;
+  phases: Array<{
+    phase: string;
     ok: boolean;
     message: string;
   }>;

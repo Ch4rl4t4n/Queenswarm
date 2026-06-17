@@ -13,6 +13,7 @@ import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import type {
   FactoryLaunchCatalogSyncPayload,
+  FactoryLaunchLaunchAndVerifyPayload,
   FactoryLaunchFullFunnelPayload,
   FactoryLaunchGumroadDraftPayload,
   FactoryLaunchGumroadPublishPayload,
@@ -35,6 +36,7 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
   const [catalogSyncBusy, setCatalogSyncBusy] = useState(false);
   const [purchaseSmokeBusy, setPurchaseSmokeBusy] = useState(false);
   const [fullFunnelBusy, setFullFunnelBusy] = useState(false);
+  const [launchVerifyBusy, setLaunchVerifyBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -196,6 +198,31 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
     }
   }, [load]);
 
+  const runLaunchAndVerify = useCallback(async () => {
+    setLaunchVerifyBusy(true);
+    try {
+      const result = await hivePostJson<FactoryLaunchLaunchAndVerifyPayload>(
+        "dashboard/factory-launch/launch-and-verify?limit=3",
+        {},
+      );
+      if (result.ok) {
+        toast.success(result.message ?? "Launch & verify complete.");
+      } else {
+        const failing = result.phases.filter((row) => !row.ok).map((row) => row.phase.replace(/_/g, " "));
+        toast.message(
+          failing.length > 0
+            ? `${result.message ?? "Launch & verify incomplete."} Failed: ${failing.join(", ")}.`
+            : (result.message ?? "Launch & verify incomplete."),
+        );
+      }
+      await load();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Launch & verify failed.");
+    } finally {
+      setLaunchVerifyBusy(false);
+    }
+  }, [load]);
+
   useIntervalWhenVisible(() => void load(), COCKPIT_POLL_COLONY_TELEMETRY_MS, {
     initialDelayMs: eager ? 0 : DASHBOARD_BOOT_STAGGER_MS.factoryLaunch,
   });
@@ -279,6 +306,22 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
             <p className="mb-3 text-sm text-(--qs-text-3)">{payload.operator_hint}</p>
 
             <div className="flex flex-wrap items-center gap-2">
+              {payload.launch_and_verify_available ? (
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--primary qs-btn--sm min-h-[44px] gap-1"
+                  disabled={launchVerifyBusy}
+                  onClick={() => void runLaunchAndVerify()}
+                  data-testid="factory-launch-launch-and-verify-btn"
+                >
+                  {launchVerifyBusy ? (
+                    <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <ShieldCheckIcon className="size-3.5" aria-hidden />
+                  )}
+                  Launch & verify
+                </button>
+              ) : null}
               {payload.full_funnel_available ? (
                 <button
                   type="button"
