@@ -58,6 +58,9 @@ PENDING_JSON="$(./scripts/operator-pending-status.sh 2>/dev/null || echo '{}')"
 solo_mode=false
 check_bool_env SOLO_MODE_ENABLED && solo_mode=true
 
+personal_os_mode=false
+check_bool_env PERSONAL_OS_MODE_ENABLED && personal_os_mode=true
+
 # LLM keys (env layer — tenant keys may also exist in DB)
 llm_grok=false
 llm_anthropic=false
@@ -162,6 +165,10 @@ cat >"$JSON_OUT" <<EOF
     "operator_email": "${operator_email}",
     "active_dashboard_accounts": ${active_accounts:-0},
     "extra_active_accounts": ${extra_accounts:-0}
+  },
+  "personal_os_mode": {
+    "enabled": ${personal_os_mode},
+    "expected_revenue_widgets_off": $([[ "$personal_os_mode" == true ]] && echo true || echo false)
   },
   "llm_keys": {
     "any_configured": ${llm_any},

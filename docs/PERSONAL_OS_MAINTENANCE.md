@@ -24,6 +24,8 @@ Apply preset: `./scripts/apply-solo-mode.sh` (merges `.env.solo.example` → `.e
 | **Life OS calendar** | `./scripts/audit-life-os-gate.sh` | Weekly / after Mission Home changes | Calendar strip + planner wiring |
 | **Autopilot** | `./scripts/audit-autopilot-gate.sh` | Weekly / after harness or lanes changes | My 3 Bees + Four Lanes + digest inbox |
 | **Skill Factory lite** | `./scripts/audit-skill-factory-lite-gate.sh` | After Skill Factory UI changes | Gumroad Launch tab hidden in Personal OS |
+| **Weekly verify (all POS)** | `./scripts/operator-personal-os-verify.sh` | Weekly operator ritual | All POS gates + prod flags + API smoke |
+| **POS-G inventory** | `./scripts/audit-personal-os-dead-code-inventory.sh` | Before dead-code delete | Read-only commercial route list |
 | **Solo daily plan** | `./scripts/audit-solo-daily-plan-gate.sh` | Weekly | Morning brief + kanban wiring |
 | **Social publish** | `./scripts/audit-social-publish-gate.sh` | Before enabling live publish | OAuth + simulate-first queue |
 | **Publish queue** | `./scripts/audit-publish-queue-gate.sh` | Before Marketing Team Phase B | Queue + calendar backend |
@@ -63,7 +65,7 @@ Expected Personal OS prod:
 | **POS-D** | Life OS — Calendar → daily planner in Mission Home | ✅ Shipped |
 | **POS-E** | Autopilot — routines cron + My 3 Bees + Four Lanes | ✅ Shipped |
 | **POS-F** | Skill Factory lite — strip Gumroad tabs | ✅ Shipped |
-| **POS-G** | Dead code deletion (commercial routes) — after 2 weeks stable | Planned |
+| **POS-G** | Dead code deletion (commercial routes) — after 2 weeks stable | Planned · prep: `./scripts/audit-personal-os-dead-code-inventory.sh` |
 
 ## Rollback
 

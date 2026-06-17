@@ -46,7 +46,7 @@ if [[ "${RUN_PERSONAL_OS_TESTS:-0}" == "1" ]]; then
   if [[ ! -x "${PYTHON}" ]]; then
     PYTHON="$(command -v python3 || true)"
   fi
-  (cd backend && "${PYTHON}" -m pytest -q tests/test_personal_os_mode_unit.py tests/test_mission_home_service_unit.py)
+  (cd backend && "${PYTHON}" -m pytest -q tests/test_personal_os_mode_unit.py tests/test_mission_home_service_unit.py --no-cov)
   pass "pytest subset"
 fi
 
