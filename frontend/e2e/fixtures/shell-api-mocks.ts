@@ -2233,6 +2233,51 @@ export async function installShellApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path.startsWith("harness/capabilities-atlas/highlights/ack")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, acked_count: 1 }),
+      });
+      return;
+    }
+
+    if (path.startsWith("harness/capabilities-atlas/highlights")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          generated_at: new Date().toISOString(),
+          window_days: 90,
+          signal_count: 4,
+          highlight_count: 2,
+          unseen_count: 2,
+          operator_hint: "🟡 2 atlas row(s) flagged from external synthesis — review highlighted cards.",
+          settings_href: "/settings/capabilities",
+          highlights: [
+            {
+              capability_id: "hivemind",
+              kind: "live",
+              reason: "External signal matches «memory» theme",
+              signal_title: "Hermes memory beats MemSearch",
+              signal_id: "sig-mock-1",
+              synthesized_at: new Date().toISOString(),
+            },
+            {
+              capability_id: "forager-intelligence-v2",
+              kind: "planned",
+              reason: "Roadmap gap flagged by «forager» synthesis",
+              signal_title: "Public data goldmine engine",
+              signal_id: "sig-mock-2",
+              synthesized_at: new Date().toISOString(),
+            },
+          ],
+        }),
+      });
+      return;
+    }
+
     if (path.startsWith("harness/snapshot")) {
       await route.fulfill({
         status: 200,

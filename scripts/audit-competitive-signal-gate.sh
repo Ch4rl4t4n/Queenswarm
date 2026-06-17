@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Track G SIG2 — Social intel quarterly roadmap refresh audit gate.
+# Track G SIG2–SIG3 — Competitive signal pipeline audit gate.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -9,12 +9,14 @@ FAIL=0
 pass() { echo "  OK  $*"; }
 fail() { echo "  FAIL $*"; FAIL=$((FAIL + 1)); }
 
-echo "=== Competitive Signal SIG2 Audit ==="
+echo "=== Competitive Signal SIG2–SIG3 Audit ==="
 
 for f in \
   backend/app/application/services/social_intel_roadmap_refresh_service.py \
+  backend/app/application/services/capabilities_atlas_highlight_service.py \
   backend/app/application/services/business_operator_dispatch.py \
-  frontend/components/hive/business-operator-panel.tsx; do
+  frontend/components/hive/business-operator-panel.tsx \
+  frontend/components/hive/settings-capabilities-panel.tsx; do
   if [[ -f "$f" ]]; then
     pass "file $f"
   else
@@ -58,20 +60,41 @@ else
   fail "missing CBO SIG2 panel strip"
 fi
 
+if grep -q "capabilities_atlas_highlight_enabled" backend/app/core/config.py; then
+  pass "capabilities_atlas_highlight_enabled config"
+else
+  fail "missing capabilities_atlas_highlight_enabled config"
+fi
+
+if grep -q "capabilities-atlas/highlights" backend/app/presentation/api/routers/harness.py; then
+  pass "harness SIG3 highlight routes"
+else
+  fail "missing harness SIG3 highlight routes"
+fi
+
+if grep -q "capabilities-atlas-synthesis-banner" frontend/components/hive/settings-capabilities-panel.tsx; then
+  pass "Settings SIG3 synthesis banner"
+else
+  fail "missing Settings SIG3 synthesis banner"
+fi
+
 if [[ -x backend/venv/bin/python ]]; then
-  if (cd backend && ./venv/bin/python -m pytest tests/test_social_intel_roadmap_refresh_unit.py -q --no-cov); then
-    pass "pytest SIG2 unit tests"
+  if (cd backend && ./venv/bin/python -m pytest \
+    tests/test_social_intel_roadmap_refresh_unit.py \
+    tests/test_capabilities_atlas_highlight_unit.py \
+    -q --no-cov); then
+    pass "pytest SIG2 + SIG3 unit tests"
   else
-    fail "pytest SIG2 unit tests"
+    fail "pytest SIG2 + SIG3 unit tests"
   fi
 else
   fail "backend venv missing — cannot run pytest"
 fi
 
 if [[ "$FAIL" -eq 0 ]]; then
-  echo "=== Competitive Signal SIG2 gate PASSED ==="
+  echo "=== Competitive Signal SIG2–SIG3 gate PASSED ==="
   exit 0
 fi
 
-echo "=== Competitive Signal SIG2 gate FAILED ($FAIL) ==="
+echo "=== Competitive Signal SIG2–SIG3 gate FAILED ($FAIL) ==="
 exit 1

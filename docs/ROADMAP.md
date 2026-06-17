@@ -559,7 +559,7 @@ _For operator-fed links — next review cycle._
 |----|------|----------|------|--------|--------------|
 | SIG1 | **Competitive triage runbook** — link → 8-dimension score → roadmap delta | P0 | ✅ doc | ✅ | `ROADMAP_EXCELLENCE_RECOMMENDATIONS.md` |
 | SIG2 | Social Intel → quarterly roadmap refresh (Tech SCV) | P2 | 2 d | ✅ | Forager + CBO action |
-| SIG3 | Capabilities Atlas auto-highlight 🟡 after synthesis | P2 | 2–3 d | ⏳ | `/settings/capabilities` |
+| SIG3 | Capabilities Atlas auto-highlight 🟡 after synthesis | P2 | 2–3 d | ✅ | `/settings/capabilities` |
 
 ### Track I — Data goldmine engine
 

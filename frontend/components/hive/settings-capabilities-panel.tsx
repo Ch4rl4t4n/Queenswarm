@@ -8,13 +8,14 @@ import {
   Loader2,
   Printer,
 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { CollapsibleLazyPanel } from "@/components/hive/collapsible-lazy-panel";
 import { InfoHint } from "@/components/hive/info-hint";
 import { ListPaginator, ViewportBoundedPanel } from "@/components/ui/list-paginator";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
+import { hiveGet, hivePostJson } from "@/lib/api";
 import {
   LIVE_PLATFORM_CAPABILITIES,
   PLANNED_PLATFORM_CAPABILITIES,
@@ -69,7 +70,33 @@ const IMPACT_LABEL: Record<PlannedCapability["impact"], string> = {
   low: "Low impact",
 };
 
-function CapabilityCard({ cap }: { cap: PlatformCapability }): JSX.Element {
+interface AtlasHighlightRow {
+  capability_id: string;
+  kind: "live" | "planned";
+  reason: string;
+  signal_title: string;
+}
+
+interface AtlasHighlightsSnapshot {
+  enabled: boolean;
+  unseen_count: number;
+  highlight_count: number;
+  signal_count: number;
+  operator_hint: string;
+  highlights: AtlasHighlightRow[];
+}
+
+function capabilityHighlightKey(kind: "live" | "planned", capabilityId: string): string {
+  return `${kind}:${capabilityId}`;
+}
+
+function CapabilityCard({
+  cap,
+  highlight,
+}: {
+  cap: PlatformCapability;
+  highlight?: AtlasHighlightRow;
+}): JSX.Element {
   const [busy, setBusy] = useState<"md" | "txt" | null>(null);
 
   async function exportOne(format: "md" | "txt"): Promise<void> {
@@ -96,13 +123,20 @@ function CapabilityCard({ cap }: { cap: PlatformCapability }): JSX.Element {
   }
 
   return (
-    <article className="v4-dream-cycle-card flex h-full flex-col gap-3">
+    <article
+      className={cn(
+        "v4-dream-cycle-card flex h-full flex-col gap-3",
+        highlight ? "ring-1 ring-pollen/50 shadow-[0_0_12px_rgba(255,184,0,0.15)]" : undefined,
+      )}
+      data-testid={highlight ? `capability-highlight-${cap.id}` : undefined}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 space-y-1">
           <p className="text-sm font-semibold text-(--qs-text)">{cap.name}</p>
           <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-(--qs-text-3)">{cap.section}</p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          {highlight ? <V4Badge tone="gold">🟡 synthesis</V4Badge> : null}
           <V4Badge tone={STATUS_TONE[cap.status]}>{cap.status}</V4Badge>
           <InfoHint
             title={cap.name}
@@ -113,6 +147,12 @@ function CapabilityCard({ cap }: { cap: PlatformCapability }): JSX.Element {
       </div>
 
       <p className="text-xs leading-relaxed text-(--qs-text-3)">{cap.summary}</p>
+
+      {highlight ? (
+        <p className="rounded-xl border border-pollen/25 bg-pollen/[0.06] px-3 py-2 text-[11px] text-(--qs-text-2)">
+          {highlight.reason} — <span className="text-(--qs-text-3)">{highlight.signal_title}</span>
+        </p>
+      ) : null}
 
       <div className="rounded-xl bg-cyan-500/5 px-3 py-2">
         <p className="v4-field-label text-[10px] text-cyan-300/90">How it works</p>
@@ -153,7 +193,13 @@ function CapabilityCard({ cap }: { cap: PlatformCapability }): JSX.Element {
   );
 }
 
-function PlannedCard({ item }: { item: PlannedCapability }): JSX.Element {
+function PlannedCard({
+  item,
+  highlight,
+}: {
+  item: PlannedCapability;
+  highlight?: AtlasHighlightRow;
+}): JSX.Element {
   const [busy, setBusy] = useState(false);
 
   async function exportPlanned(): Promise<void> {
@@ -172,7 +218,13 @@ function PlannedCard({ item }: { item: PlannedCapability }): JSX.Element {
   }
 
   return (
-    <article className="v4-dream-cycle-card flex h-full flex-col gap-3">
+    <article
+      className={cn(
+        "v4-dream-cycle-card flex h-full flex-col gap-3",
+        highlight ? "ring-1 ring-pollen/50 shadow-[0_0_12px_rgba(255,184,0,0.15)]" : undefined,
+      )}
+      data-testid={highlight ? `planned-highlight-${item.id}` : undefined}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 space-y-1">
           <p className="text-sm font-semibold text-(--qs-text)">{item.name}</p>
@@ -181,6 +233,7 @@ function PlannedCard({ item }: { item: PlannedCapability }): JSX.Element {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          {highlight ? <V4Badge tone="gold">🟡 synthesis</V4Badge> : null}
           <span
             className={cn(
               "rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
@@ -196,6 +249,12 @@ function PlannedCard({ item }: { item: PlannedCapability }): JSX.Element {
       </div>
 
       <p className="text-xs leading-relaxed text-(--qs-text-3)">{item.summary}</p>
+
+      {highlight ? (
+        <p className="rounded-xl border border-pollen/25 bg-pollen/[0.06] px-3 py-2 text-[11px] text-(--qs-text-2)">
+          {highlight.reason} — <span className="text-(--qs-text-3)">{highlight.signal_title}</span>
+        </p>
+      ) : null}
 
       <div className="rounded-xl bg-pollen-500/5 px-3 py-2">
         <p className="v4-field-label text-[10px] text-pollen/90">Why</p>
@@ -241,24 +300,91 @@ export function SettingsCapabilitiesPanel(): JSX.Element {
   const [exportBusy, setExportBusy] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<string>("all");
   const [activePhase, setActivePhase] = useState<string>("all");
+  const [atlasHighlights, setAtlasHighlights] = useState<AtlasHighlightsSnapshot | null>(null);
+  const [ackBusy, setAckBusy] = useState(false);
   const grouped = useMemo(() => groupCapabilitiesBySection(LIVE_PLATFORM_CAPABILITIES), []);
   const plannedPhases = useMemo(() => groupPlannedByRolloutPhase(PLANNED_PLATFORM_CAPABILITIES), []);
   const pageSize = useGridTwoRowPageSize({ columns: 2 });
 
+  const highlightByKey = useMemo(() => {
+    const map = new Map<string, AtlasHighlightRow>();
+    for (const row of atlasHighlights?.highlights ?? []) {
+      map.set(capabilityHighlightKey(row.kind, row.capability_id), row);
+    }
+    return map;
+  }, [atlasHighlights]);
+
+  const liveHighlightIds = useMemo(
+    () =>
+      new Set(
+        (atlasHighlights?.highlights ?? [])
+          .filter((row) => row.kind === "live")
+          .map((row) => row.capability_id),
+      ),
+    [atlasHighlights],
+  );
+
+  const plannedHighlightIds = useMemo(
+    () =>
+      new Set(
+        (atlasHighlights?.highlights ?? [])
+          .filter((row) => row.kind === "planned")
+          .map((row) => row.capability_id),
+      ),
+    [atlasHighlights],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    void hiveGet<AtlasHighlightsSnapshot>("harness/capabilities-atlas/highlights")
+      .then((payload) => {
+        if (!cancelled) {
+          setAtlasHighlights(payload);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAtlasHighlights(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const ackHighlights = useCallback(async () => {
+    setAckBusy(true);
+    try {
+      await hivePostJson("harness/capabilities-atlas/highlights/ack", { ack_all: true });
+      setAtlasHighlights((prev) => (prev ? { ...prev, unseen_count: 0 } : prev));
+      toast.success("Synthesis highlights acknowledged");
+    } catch {
+      toast.error("Could not acknowledge highlights");
+    } finally {
+      setAckBusy(false);
+    }
+  }, []);
+
   const sectionTabs = useMemo(
     () => [
       { id: "all", label: "All", count: LIVE_PLATFORM_CAPABILITIES.length },
+      ...(liveHighlightIds.size > 0
+        ? [{ id: "highlighted", label: "🟡 Highlighted", count: liveHighlightIds.size }]
+        : []),
       ...grouped.map(({ section, items }) => ({ id: section, label: section, count: items.length })),
     ],
-    [grouped],
+    [grouped, liveHighlightIds.size],
   );
 
   const filteredCapabilities = useMemo(() => {
+    if (activeSection === "highlighted") {
+      return LIVE_PLATFORM_CAPABILITIES.filter((cap) => liveHighlightIds.has(cap.id));
+    }
     if (activeSection === "all") {
       return LIVE_PLATFORM_CAPABILITIES;
     }
     return grouped.find(({ section }) => section === activeSection)?.items ?? [];
-  }, [activeSection, grouped]);
+  }, [activeSection, grouped, liveHighlightIds]);
 
   const capabilitiesPagination = usePaginatedSlice(
     filteredCapabilities,
@@ -269,17 +395,23 @@ export function SettingsCapabilitiesPanel(): JSX.Element {
   const phaseTabs = useMemo(
     () => [
       { id: "all", label: "All", count: PLANNED_PLATFORM_CAPABILITIES.length },
+      ...(plannedHighlightIds.size > 0
+        ? [{ id: "highlighted", label: "🟡 Highlighted", count: plannedHighlightIds.size }]
+        : []),
       ...plannedPhases.map(({ phase, label, items }) => ({ id: phase, label, count: items.length })),
     ],
-    [plannedPhases],
+    [plannedPhases, plannedHighlightIds.size],
   );
 
   const filteredPlanned = useMemo(() => {
+    if (activePhase === "highlighted") {
+      return PLANNED_PLATFORM_CAPABILITIES.filter((item) => plannedHighlightIds.has(item.id));
+    }
     if (activePhase === "all") {
       return PLANNED_PLATFORM_CAPABILITIES;
     }
     return plannedPhases.find(({ phase }) => phase === activePhase)?.items ?? [];
-  }, [activePhase, plannedPhases]);
+  }, [activePhase, plannedPhases, plannedHighlightIds]);
 
   const plannedPagination = usePaginatedSlice(filteredPlanned, pageSize, `${activePhase}|${pageSize}`);
 
@@ -369,6 +501,30 @@ export function SettingsCapabilitiesPanel(): JSX.Element {
         </div>
       </V4Card>
 
+      {atlasHighlights?.enabled && atlasHighlights.unseen_count > 0 ? (
+        <V4Card data-testid="capabilities-atlas-synthesis-banner" className="border-pollen/30">
+          <V4CardHeader
+            kicker="SIG3"
+            title="External synthesis diff"
+            description={atlasHighlights.operator_hint}
+            actions={<V4Badge tone="gold">{atlasHighlights.unseen_count} new</V4Badge>}
+          />
+          <div className="flex flex-wrap gap-2 px-4 pb-4">
+            <V4Badge tone="info">{atlasHighlights.signal_count} signals</V4Badge>
+            <V4Badge tone="warn">{atlasHighlights.highlight_count} atlas rows</V4Badge>
+            <button
+              type="button"
+              className="qs-btn qs-btn--primary qs-btn--sm"
+              disabled={ackBusy}
+              onClick={() => void ackHighlights()}
+            >
+              {ackBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
+              Acknowledge
+            </button>
+          </div>
+        </V4Card>
+      ) : null}
+
       <V4Card id={CAPABILITIES_DENSITY_SECTIONS[1]?.id}>
         <V4CardHeader
           as="h2"
@@ -418,7 +574,11 @@ export function SettingsCapabilitiesPanel(): JSX.Element {
         >
           <div className="grid gap-3 md:grid-cols-2">
             {capabilitiesPagination.slice.map((cap) => (
-              <CapabilityCard key={cap.id} cap={cap} />
+              <CapabilityCard
+                key={cap.id}
+                cap={cap}
+                highlight={highlightByKey.get(capabilityHighlightKey("live", cap.id))}
+              />
             ))}
           </div>
         </ViewportBoundedPanel>
@@ -546,7 +706,11 @@ export function SettingsCapabilitiesPanel(): JSX.Element {
             >
               <div className="grid gap-3 md:grid-cols-2">
                 {plannedPagination.slice.map((item) => (
-                  <PlannedCard key={item.id} item={item} />
+                  <PlannedCard
+                    key={item.id}
+                    item={item}
+                    highlight={highlightByKey.get(capabilityHighlightKey("planned", item.id))}
+                  />
                 ))}
               </div>
             </ViewportBoundedPanel>

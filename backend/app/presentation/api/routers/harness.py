@@ -516,4 +516,56 @@ async def harness_closed_review_loop_run(
     return result.model_dump(mode="json")
 
 
+@router.get("/capabilities-atlas/highlights", summary="SIG3 Capabilities Atlas synthesis highlights")
+async def harness_capabilities_atlas_highlights(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Return atlas rows flagged by recent social intel / external synthesis."""
+
+    from app.application.services.capabilities_atlas_highlight_service import (
+        compose_capabilities_atlas_highlights,
+    )
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    tenant = await db.get(Tenant, tenant_id)
+    snapshot = await compose_capabilities_atlas_highlights(
+        db,
+        tenant_id=tenant_id,
+        tenant=tenant,
+    )
+    return snapshot.model_dump(mode="json")
+
+
+@router.post("/capabilities-atlas/highlights/ack", summary="SIG3 Acknowledge atlas synthesis highlights")
+async def harness_capabilities_atlas_highlights_ack(
+    body: dict[str, Any],
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Mark highlighted atlas rows as reviewed by operator."""
+
+    from app.application.services.capabilities_atlas_highlight_service import (
+        CapabilitiesAtlasHighlightAckIn,
+        acknowledge_capabilities_atlas_highlights,
+    )
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    try:
+        payload = CapabilitiesAtlasHighlightAckIn.model_validate(body)
+        result = await acknowledge_capabilities_atlas_highlights(
+            db,
+            tenant_id=tenant_id,
+            body=payload,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return result.model_dump(mode="json")
+
+
 __all__ = ["router"]

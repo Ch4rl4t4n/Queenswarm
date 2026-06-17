@@ -1641,6 +1641,16 @@ class Settings(BaseSettings):
         le=50,
         description="SIG2 — minimum social intel signals required before refresh task.",
     )
+    capabilities_atlas_highlight_enabled: bool = Field(
+        default=True,
+        description="SIG3 — Auto-highlight Capabilities Atlas rows after external synthesis diff.",
+    )
+    capabilities_atlas_highlight_window_days: int = Field(
+        default=90,
+        ge=30,
+        le=120,
+        description="SIG3 — rolling window for social intel → atlas highlight mapping.",
+    )
     self_extending_tool_marketplace_enabled: bool = Field(
         default=True,
         description="Forager intelligence scan → one-click MCP preset install via harness apply.",
