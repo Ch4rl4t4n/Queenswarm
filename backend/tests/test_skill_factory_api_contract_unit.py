@@ -45,6 +45,7 @@ def test_snapshot_out_includes_connector_flags() -> None:
         "launch_readiness",
         "launch_queue",
         "launch_near_miss",
+        "commercial_launch_enabled",
         "llm",
         "queue_slo",
     ):

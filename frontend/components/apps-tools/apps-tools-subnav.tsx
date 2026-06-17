@@ -22,6 +22,7 @@ import {
   resolveSkillFactoryTab,
   skillFactoryTabHref,
   SKILL_FACTORY_TABS,
+  filterSkillFactoryTabsForPersonalOs,
   type ContentPackFactoryTab,
   type McpOpsStudioTab,
   type SkillFactoryTab,
@@ -33,7 +34,7 @@ export function AppsToolsSubnav(): JSX.Element | null {
   const pathname = usePathname();
   const router = useRouter();
   const routeHash = useRouteHash();
-  const { hasFeature } = usePlatform();
+  const { hasFeature, personalOsMode } = usePlatform();
   const { queueBadge, packQueueBadge } = useSkillFactoryNav();
 
   const primarySection = appsToolsPrimaryFromPathname(pathname);
@@ -48,14 +49,16 @@ export function AppsToolsSubnav(): JSX.Element | null {
         id: "skill_factory",
         label: "Skill Factory",
         icon: Sparkles,
-        href: skillFactoryTabHref("launch"),
+        href: skillFactoryTabHref(personalOsMode ? "research" : "launch"),
       });
-      rows.push({
-        id: "content_factory",
-        label: "Pack Factory",
-        icon: Package,
-        href: contentPackFactoryTabHref("research"),
-      });
+      if (!personalOsMode) {
+        rows.push({
+          id: "content_factory",
+          label: "Pack Factory",
+          icon: Package,
+          href: contentPackFactoryTabHref("research"),
+        });
+      }
     }
     rows.push({
       id: "mcp_ops_studio",
@@ -64,11 +67,11 @@ export function AppsToolsSubnav(): JSX.Element | null {
       href: mcpOpsStudioTabHref("catalog"),
     });
     return rows;
-  }, [skillFactoryEnabled]);
+  }, [personalOsMode, skillFactoryEnabled]);
 
   const activeSkillFactoryTab = useMemo(
-    () => resolveSkillFactoryTab({ hash: routeHash }),
-    [routeHash],
+    () => resolveSkillFactoryTab({ hash: routeHash, personalOsMode }),
+    [personalOsMode, routeHash],
   );
 
   const activeContentFactoryTab = useMemo(
@@ -80,13 +83,13 @@ export function AppsToolsSubnav(): JSX.Element | null {
 
   const secondaryItems = useMemo(() => {
     if (primarySection === "skill_factory" && skillFactoryEnabled) {
-      return SKILL_FACTORY_TABS.map((row) => ({
+      return filterSkillFactoryTabsForPersonalOs(SKILL_FACTORY_TABS, personalOsMode).map((row) => ({
         id: row.id,
         label: row.label,
         badge: row.id === "queue" && queueBadge !== undefined && queueBadge > 0 ? queueBadge : undefined,
       }));
     }
-    if (primarySection === "content_factory" && skillFactoryEnabled) {
+    if (primarySection === "content_factory" && skillFactoryEnabled && !personalOsMode) {
       return CONTENT_PACK_FACTORY_TABS.map((row) => ({
         id: row.id,
         label: row.label,
@@ -98,12 +101,12 @@ export function AppsToolsSubnav(): JSX.Element | null {
       return MCP_OPS_STUDIO_TABS.map((row) => ({ id: row.id, label: row.label }));
     }
     return [];
-  }, [packQueueBadge, primarySection, queueBadge, skillFactoryEnabled]);
+  }, [packQueueBadge, personalOsMode, primarySection, queueBadge, skillFactoryEnabled]);
 
   const onPrimaryChange = useCallback(
     (id: string) => {
       if (id === "skill_factory") {
-        router.push(skillFactoryTabHref("launch"));
+        router.push(skillFactoryTabHref(personalOsMode ? "research" : "launch"));
         return;
       }
       if (id === "content_factory") {
@@ -116,7 +119,7 @@ export function AppsToolsSubnav(): JSX.Element | null {
       }
       router.push(APPS_TOOLS_MODULE_INDEX_HREF);
     },
-    [router],
+    [personalOsMode, router],
   );
 
   const onSecondaryChange = useCallback(

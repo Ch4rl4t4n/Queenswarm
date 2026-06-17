@@ -123,10 +123,21 @@ def personal_os_mission_home_revenue_widgets_enabled() -> bool:
     return False
 
 
+def personal_os_skill_factory_commercial_enabled() -> bool:
+    """Return False when Personal OS hides Gumroad launch/commercial Skill Factory tabs."""
+
+    from app.core.config import settings
+
+    if not settings.personal_os_mode_enabled:
+        return True
+    return False
+
+
 __all__ = [
     "PERSONAL_OS_CORE_FEATURES",
     "PERSONAL_OS_HIDDEN_FEATURES",
     "PERSONAL_OS_OPTIONAL_FEATURES",
     "apply_personal_os_overrides",
     "personal_os_mission_home_revenue_widgets_enabled",
+    "personal_os_skill_factory_commercial_enabled",
 ]

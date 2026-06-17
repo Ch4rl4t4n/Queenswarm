@@ -26,9 +26,21 @@ function gapLabel(status: "done" | "operator" | "planned"): string {
 }
 
 /** Full operator guide — prerequisites, step-by-step pipeline, recommendations, gaps. */
-export function SkillFactoryManualPanel(): JSX.Element {
+export function SkillFactoryManualPanel({
+  personalOsLite = false,
+}: {
+  personalOsLite?: boolean;
+}): JSX.Element {
   return (
     <div className="space-y-4">
+      {personalOsLite ? (
+        <V4Card>
+          <p className="px-4 py-3 text-sm text-(--qs-muted)">
+            Personal OS lite — Launch tab and Gumroad upload steps are hidden. Use Research → Queue → Library
+            to build verified harness skills for your agent OS.
+          </p>
+        </V4Card>
+      ) : null}
       <V4Card id="skill-factory-prerequisites">
         <V4CardHeader
           kicker="Before you start"

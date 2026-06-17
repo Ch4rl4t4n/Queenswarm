@@ -173,6 +173,7 @@ class SkillFactorySnapshotOut(BaseModel):
     github_pr_export_ready: bool = False
     gumroad_listing_ready: bool = False
     gumroad_publish_ready: bool = False
+    commercial_launch_enabled: bool = True
     launch_readiness: LaunchReadinessOut | None = None
     launch_queue: list[TenantSkillOut] = Field(default_factory=list)
     launch_near_miss: list[TenantSkillOut] = Field(default_factory=list)
@@ -1017,6 +1018,18 @@ async def compose_skill_factory_snapshot(
         )
 
     from app.application.services.factory_queue_slo import compose_factory_queue_slo
+    from app.application.services.personal_os_mode import personal_os_skill_factory_commercial_enabled
+
+    commercial_launch = personal_os_skill_factory_commercial_enabled()
+    launch_readiness_out = LaunchReadinessOut(
+        sellable_count=sellable_count,
+        draft_count=draft_count,
+        rejected_count=rejected_count,
+        gumroad_token_configured=gumroad_ready,
+        gumroad_manual_ready=True,
+        github_pat_configured=github_ready,
+        hero_niches_confirmed=hero_niches,
+    )
 
     return SkillFactorySnapshotOut(
         policy=policy,
@@ -1033,19 +1046,12 @@ async def compose_skill_factory_snapshot(
         apify_connector_ready=apify_ready,
         monid_connector_ready=monid_ready,
         github_pr_export_ready=github_ready,
-        gumroad_listing_ready=gumroad_ready,
-        gumroad_publish_ready=gumroad_publish,
-        launch_readiness=LaunchReadinessOut(
-            sellable_count=sellable_count,
-            draft_count=draft_count,
-            rejected_count=rejected_count,
-            gumroad_token_configured=gumroad_ready,
-            gumroad_manual_ready=True,
-            github_pat_configured=github_ready,
-            hero_niches_confirmed=hero_niches,
-        ),
-        launch_queue=launch_queue,
-        launch_near_miss=launch_near_miss,
+        gumroad_listing_ready=gumroad_ready if commercial_launch else False,
+        gumroad_publish_ready=gumroad_publish if commercial_launch else False,
+        commercial_launch_enabled=commercial_launch,
+        launch_readiness=launch_readiness_out if commercial_launch else None,
+        launch_queue=launch_queue if commercial_launch else [],
+        launch_near_miss=launch_near_miss if commercial_launch else [],
         library_duplicates_hidden=library_duplicates_hidden,
         library_purge_eligible=library_purge_eligible,
         llm=llm_status,

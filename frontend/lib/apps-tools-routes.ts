@@ -25,6 +25,19 @@ export const SKILL_FACTORY_TABS: { id: SkillFactoryTab; label: string }[] = [
   { id: "guide", label: "Guide" },
 ];
 
+/** Gumroad/commercial tabs hidden in Personal OS Skill Factory lite. */
+export const PERSONAL_OS_HIDDEN_SKILL_FACTORY_TABS = new Set<SkillFactoryTab>(["launch"]);
+
+export function filterSkillFactoryTabsForPersonalOs(
+  tabs: readonly { id: SkillFactoryTab; label: string }[],
+  personalOsMode: boolean,
+): { id: SkillFactoryTab; label: string }[] {
+  if (!personalOsMode) {
+    return [...tabs];
+  }
+  return tabs.filter((row) => !PERSONAL_OS_HIDDEN_SKILL_FACTORY_TABS.has(row.id));
+}
+
 export const CONTENT_PACK_FACTORY_TABS: { id: ContentPackFactoryTab; label: string }[] = [
   { id: "research", label: "Research" },
   { id: "queue", label: "Queue" },
@@ -79,9 +92,16 @@ export function navigateSkillFactoryTab(tab: SkillFactoryTab): void {
   window.dispatchEvent(new HashChangeEvent("hashchange"));
 }
 
-export function resolveSkillFactoryTab(options: { hash?: string; fallback?: SkillFactoryTab }): SkillFactoryTab {
+export function resolveSkillFactoryTab(options: {
+  hash?: string;
+  fallback?: SkillFactoryTab;
+  personalOsMode?: boolean;
+}): SkillFactoryTab {
   const fromHash = skillFactoryTabFromHash(options.hash ?? "");
   if (fromHash) {
+    if (options.personalOsMode && PERSONAL_OS_HIDDEN_SKILL_FACTORY_TABS.has(fromHash)) {
+      return "research";
+    }
     return fromHash;
   }
   return options.fallback ?? "research";

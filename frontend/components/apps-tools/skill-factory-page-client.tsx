@@ -33,6 +33,7 @@ import { HiveSwitch } from "@/components/ui/hive-switch";
 import { QsSelect } from "@/components/ui/qs-select";
 import { V4Badge, V4Card, V4CardHeader, V4Chip } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson, hivePutJson } from "@/lib/api";
+import { usePlatform } from "@/components/hive/platform-context";
 import {
   LIBRARY_SIEVE_LABELS,
   type LibrarySieveVerdict,
@@ -169,6 +170,7 @@ interface SkillFactorySnapshot {
   github_pr_export_ready: boolean;
   gumroad_listing_ready: boolean;
   gumroad_publish_ready: boolean;
+  commercial_launch_enabled?: boolean;
   library_duplicates_hidden?: number;
   library_purge_eligible?: number;
   llm: FactoryLlmReadiness | null;
@@ -194,8 +196,12 @@ function isLibrarySmartRebuildEligible(row: TenantSkillRow): boolean {
 
 export function SkillFactoryPageClient(): JSX.Element {
   const routeHash = useRouteHash();
+  const { personalOsMode } = usePlatform();
   const { setQueueBadge } = useSkillFactoryNav();
-  const tab = useMemo(() => resolveSkillFactoryTab({ hash: routeHash }), [routeHash]);
+  const tab = useMemo(
+    () => resolveSkillFactoryTab({ hash: routeHash, personalOsMode }),
+    [personalOsMode, routeHash],
+  );
   const [snapshot, setSnapshot] = useState<SkillFactorySnapshot | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -944,6 +950,7 @@ export function SkillFactoryPageClient(): JSX.Element {
   };
 
   const buildBlocked = factoryBuildDisabled(snapshot?.llm);
+  const commercialLaunchEnabled = snapshot?.commercial_launch_enabled ?? !personalOsMode;
 
   return (
     <div className="space-y-4">
@@ -951,7 +958,9 @@ export function SkillFactoryPageClient(): JSX.Element {
         <div className="min-w-0">
           <p className="text-sm font-semibold text-(--qs-text)">Skill Factory</p>
           <p className="mt-0.5 text-xs text-(--qs-text-3)">
-            Research → build → export Verified Niche Harness packs (SKILL + HARNESS + EVAL + TOOLS). Sell on Gumroad — not in-app.
+            {commercialLaunchEnabled
+              ? "Research → build → export Verified Niche Harness packs (SKILL + HARNESS + EVAL + TOOLS). Sell on Gumroad — not in-app."
+              : "Research → build → export verified harness packs for your personal agent OS — no Gumroad launch lane."}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -991,16 +1000,18 @@ export function SkillFactoryPageClient(): JSX.Element {
         <>
           {tab === "guide" ? (
             <div className="space-y-4">
-              <SkillFactoryRevenueFunnelPanel
-                launchReadiness={snapshot.launch_readiness}
-                libraryCount={(snapshot.library ?? []).length}
-                buildingCount={snapshot.building_count}
-                launchQueueCount={(snapshot.launch_queue ?? []).length}
-                nearMiss={snapshot.launch_near_miss ?? []}
-                onSmartRebuild={(id) => void smartRebuildSkill(id)}
-                busyId={busyId}
-              />
-              <SkillFactoryManualPanel />
+              {commercialLaunchEnabled ? (
+                <SkillFactoryRevenueFunnelPanel
+                  launchReadiness={snapshot.launch_readiness}
+                  libraryCount={(snapshot.library ?? []).length}
+                  buildingCount={snapshot.building_count}
+                  launchQueueCount={(snapshot.launch_queue ?? []).length}
+                  nearMiss={snapshot.launch_near_miss ?? []}
+                  onSmartRebuild={(id) => void smartRebuildSkill(id)}
+                  busyId={busyId}
+                />
+              ) : null}
+              <SkillFactoryManualPanel personalOsLite={!commercialLaunchEnabled} />
             </div>
           ) : null}
 
@@ -1329,8 +1340,8 @@ export function SkillFactoryPageClient(): JSX.Element {
                         row={row}
                         busyId={busyId}
                         githubPrReady={snapshot.github_pr_export_ready}
-                        gumroadListingReady={snapshot.gumroad_listing_ready}
-                        gumroadPublishReady={snapshot.gumroad_publish_ready}
+                        gumroadListingReady={commercialLaunchEnabled && snapshot.gumroad_listing_ready}
+                        gumroadPublishReady={commercialLaunchEnabled && snapshot.gumroad_publish_ready}
                         inlineEval={inlineEvalBySkill[row.id] ?? null}
                         rebuildQueued={libraryRebuildQueued.has(row.id)}
                         onSmartRebuild={(id) => void smartRebuildSkill(id)}
@@ -1341,8 +1352,14 @@ export function SkillFactoryPageClient(): JSX.Element {
                         onDownloadEvalReport={(id, title) => void downloadEvalReport(id, title)}
                         onExport={(id) => void exportSkill(id)}
                         onGithubPr={(id) => void pushGithubPr(id)}
-                        onGumroadDraft={(id) => void createGumroadDraft(id)}
-                        onGumroadPublish={(id) => void publishGumroadListing(id, !row.gumroad_product_id)}
+                        onGumroadDraft={
+                          commercialLaunchEnabled ? (id) => void createGumroadDraft(id) : undefined
+                        }
+                        onGumroadPublish={
+                          commercialLaunchEnabled
+                            ? (id) => void publishGumroadListing(id, !row.gumroad_product_id)
+                            : undefined
+                        }
                       />
                     ))
                   )}
@@ -1396,7 +1413,7 @@ export function SkillFactoryPageClient(): JSX.Element {
             </V4Card>
           ) : null}
 
-          {tab === "launch" ? (
+          {commercialLaunchEnabled && tab === "launch" ? (
             <>
             <SkillFactoryRevenueFunnelPanel
               launchReadiness={snapshot.launch_readiness}

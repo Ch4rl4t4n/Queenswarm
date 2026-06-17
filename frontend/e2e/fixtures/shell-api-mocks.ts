@@ -1184,6 +1184,8 @@ const STUB_SKILL_FACTORY_SNAPSHOT = {
     alerts: [],
     next_operator_action: "Queue healthy — no action required.",
   },
+  commercial_launch_enabled: true,
+  library: [],
 };
 
 const STUB_APPS_TOOLS_INDEX = {
