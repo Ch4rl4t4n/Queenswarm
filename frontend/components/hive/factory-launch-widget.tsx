@@ -13,6 +13,7 @@ import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import type {
   FactoryLaunchGumroadDraftPayload,
+  FactoryLaunchGumroadPublishPayload,
   FactoryLaunchPayload,
   FactoryLaunchPreparePayload,
 } from "@/lib/hive-types";
@@ -25,6 +26,7 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
   const [err, setErr] = useState<string | null>(null);
   const [prepareBusy, setPrepareBusy] = useState(false);
   const [draftBusy, setDraftBusy] = useState(false);
+  const [publishBusy, setPublishBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -78,6 +80,26 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
     }
   }, [load]);
 
+  const publishGumroadListings = useCallback(async () => {
+    setPublishBusy(true);
+    try {
+      const result = await hivePostJson<FactoryLaunchGumroadPublishPayload>(
+        "dashboard/factory-launch/gumroad-publish?limit=3",
+        {},
+      );
+      if (result.ok && result.published_count > 0) {
+        toast.success(result.message ?? `Published ${result.published_count} Gumroad listing(s).`);
+      } else {
+        toast.message(result.message ?? "No Gumroad listings published.");
+      }
+      await load();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Gumroad publish batch failed.");
+    } finally {
+      setPublishBusy(false);
+    }
+  }, [load]);
+
   useIntervalWhenVisible(() => void load(), COCKPIT_POLL_COLONY_TELEMETRY_MS, {
     initialDelayMs: eager ? 0 : DASHBOARD_BOOT_STAGGER_MS.factoryLaunch,
   });
@@ -128,6 +150,10 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
                 Pending drafts{" "}
                 <span className="font-mono">{payload.pending_gumroad_draft_count}</span>
               </span>
+              <span>
+                Pending publish{" "}
+                <span className="font-mono text-(--qs-green)">{payload.pending_gumroad_publish_count}</span>
+              </span>
               <span className={cn(!gumroadReady && payload.launch_queue_count > 0 && "text-(--qs-magenta)")}>
                 Gumroad{" "}
                 <span className="font-mono">{gumroadReady ? "ready" : "setup"}</span>
@@ -148,6 +174,22 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
             <p className="mb-3 text-sm text-(--qs-text-3)">{payload.operator_hint}</p>
 
             <div className="flex flex-wrap items-center gap-2">
+              {payload.gumroad_auto_publish_available ? (
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--primary qs-btn--sm min-h-[44px] gap-1"
+                  disabled={publishBusy}
+                  onClick={() => void publishGumroadListings()}
+                  data-testid="factory-launch-gumroad-publish-btn"
+                >
+                  {publishBusy ? (
+                    <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <RocketIcon className="size-3.5" aria-hidden />
+                  )}
+                  Publish Gumroad listings
+                </button>
+              ) : null}
               {payload.gumroad_auto_draft_available ? (
                 <button
                   type="button"

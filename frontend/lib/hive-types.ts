@@ -1033,6 +1033,8 @@ export interface FactoryLaunchPayload {
   prepare_available: boolean;
   gumroad_auto_draft_available: boolean;
   pending_gumroad_draft_count: number;
+  pending_gumroad_publish_count: number;
+  gumroad_auto_publish_available: boolean;
   operator_hint: string;
   factory_href: string;
   launch_href: string;
@@ -1067,6 +1069,24 @@ export interface FactoryLaunchGumroadDraftPayload {
     ok: boolean;
     product_url?: string | null;
     product_id?: string | null;
+    error?: string | null;
+  }>;
+}
+
+/** ``POST /api/v1/dashboard/factory-launch/gumroad-publish`` — REV7 Gumroad publish batch. */
+export interface FactoryLaunchGumroadPublishPayload {
+  ok: boolean;
+  published_count: number;
+  skipped_count: number;
+  message: string;
+  publishes: Array<{
+    skill_id: string;
+    slug: string;
+    title: string;
+    ok: boolean;
+    product_url?: string | null;
+    product_id?: string | null;
+    published?: boolean | null;
     error?: string | null;
   }>;
 }

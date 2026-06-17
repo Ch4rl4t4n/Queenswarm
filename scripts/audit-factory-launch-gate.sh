@@ -106,6 +106,30 @@ else
   fail "missing factory launch gumroad draft button"
 fi
 
+if grep -q "gumroad_auto_publish_available" backend/app/application/services/factory_launch_widget_service.py; then
+  pass "gumroad_auto_publish_available flag"
+else
+  fail "missing gumroad_auto_publish_available flag"
+fi
+
+if grep -q "/factory-launch/gumroad-publish" backend/app/presentation/api/routers/dashboard.py; then
+  pass "dashboard REV7 gumroad-publish route"
+else
+  fail "missing dashboard REV7 gumroad-publish route"
+fi
+
+if grep -q "publish_factory_launch_gumroad_from_widget" backend/app/application/services/factory_launch_widget_service.py; then
+  pass "publish_factory_launch_gumroad_from_widget"
+else
+  fail "missing publish_factory_launch_gumroad_from_widget"
+fi
+
+if grep -q "factory-launch-gumroad-publish-btn" frontend/components/hive/factory-launch-widget.tsx; then
+  pass "factory launch gumroad publish button"
+else
+  fail "missing factory launch gumroad publish button"
+fi
+
 if [[ -x backend/venv/bin/python ]]; then
   if (cd backend && ./venv/bin/python -m pytest \
     tests/test_factory_launch_widget_unit.py \

@@ -527,6 +527,7 @@ _MK6/MK7 remain in P0 letagentscook table above._
 | REV4 | **Factory Launch widget** on Mission Home (Gumroad funnel) | P0 | 1–2 d | ✅ Shipped | `factory_launch_widget_service` · `GET /dashboard/factory-launch` · Mission Home mount |
 | REV5 | **Prepare Gumroad batch** one-click from Mission Home | P0 | 1 d | ✅ Shipped | `POST /dashboard/factory-launch/prepare` · widget CTA |
 | REV6 | **Gumroad draft batch** one-click from Mission Home (token required) | P0 | 1 d | ✅ Shipped | `POST /dashboard/factory-launch/gumroad-draft` · auto-draft CTA |
+| REV7 | **Gumroad publish batch** one-click from Mission Home (live listing) | P0 | 1 d | ✅ Shipped | `POST /dashboard/factory-launch/gumroad-publish` · publish CTA |
 
 ### Track D — Operator trust & factory SLOs
 
