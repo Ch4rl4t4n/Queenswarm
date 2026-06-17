@@ -1040,6 +1040,7 @@ export interface FactoryLaunchPayload {
   post_purchase_onboarding_ready: boolean;
   revenue_loop_ready: boolean;
   revenue_smoke_available: boolean;
+  catalog_sync_available: boolean;
   catalog_href: string;
   operator_hint: string;
   factory_href: string;
@@ -1095,6 +1096,16 @@ export interface FactoryLaunchGumroadPublishPayload {
     published?: boolean | null;
     error?: string | null;
   }>;
+}
+
+/** ``POST /api/v1/dashboard/factory-launch/catalog-sync`` — REV9 MK7 catalog URL sync. */
+export interface FactoryLaunchCatalogSyncPayload {
+  ok: boolean;
+  synced_count: number;
+  skipped_count: number;
+  api_product_count: number;
+  message: string;
+  state_path: string;
 }
 
 /** ``POST /api/v1/dashboard/factory-launch/revenue-smoke`` — REV8 buyer loop checklist. */

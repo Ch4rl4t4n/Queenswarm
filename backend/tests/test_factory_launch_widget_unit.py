@@ -333,6 +333,10 @@ async def test_publish_factory_launch_gumroad_batch(monkeypatch: pytest.MonkeyPa
         "app.application.services.skill_factory_gumroad_listing.publish_gumroad_listing_for_skill",
         mock_publish,
     )
+    monkeypatch.setattr(
+        "app.application.services.factory_launch_widget_service.sync_factory_launch_catalog_from_widget",
+        AsyncMock(return_value={"ok": True, "synced_count": 1, "message": "Synced 1 Gumroad URLs into upload tracker."}),
+    )
     session = AsyncMock()
     tenant_id = uuid.uuid4()
 
@@ -341,6 +345,7 @@ async def test_publish_factory_launch_gumroad_batch(monkeypatch: pytest.MonkeyPa
     assert result.get("ok") is True
     assert result.get("published_count") == 1
     assert len(result.get("publishes") or []) == 1
+    assert result.get("catalog_sync", {}).get("synced_count") == 1
     mock_publish.assert_awaited_once()
 
 
@@ -381,6 +386,7 @@ async def test_factory_launch_revenue_loop_ready(monkeypatch: pytest.MonkeyPatch
     assert snapshot.published_gumroad_count == 1
     assert snapshot.revenue_loop_ready is True
     assert snapshot.revenue_smoke_available is True
+    assert snapshot.catalog_sync_available is True
     assert "revenue loop closed" in snapshot.operator_hint.lower()
 
 
@@ -402,6 +408,7 @@ async def test_run_factory_launch_revenue_smoke_incomplete(monkeypatch: pytest.M
                     "published_gumroad_count": 0,
                     "purchase_webhook_ready": False,
                     "post_purchase_onboarding_ready": False,
+                    "catalog_sync_available": False,
                 },
             )(),
         ),
@@ -413,3 +420,58 @@ async def test_run_factory_launch_revenue_smoke_incomplete(monkeypatch: pytest.M
     assert result.get("ok") is False
     assert len(result.get("checks") or []) >= 4
     assert "gumroad_webhook_url_template" in result
+
+
+@pytest.mark.asyncio
+async def test_sync_factory_launch_catalog_not_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.application.services.factory_launch_widget_service import sync_factory_launch_catalog_from_widget
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "factory_launch_mission_home_enabled", True)
+    monkeypatch.setattr(settings, "skill_factory_enabled", True)
+    monkeypatch.setattr(
+        "app.application.services.skill_factory_gumroad_listing.gumroad_listing_ready",
+        AsyncMock(return_value=False),
+    )
+    session = AsyncMock()
+
+    result = await sync_factory_launch_catalog_from_widget(session)
+
+    assert result.get("ok") is False
+    assert result.get("error") == "gumroad_not_configured"
+
+
+@pytest.mark.asyncio
+async def test_sync_factory_launch_catalog_delegates(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.application.services.factory_launch_widget_service import sync_factory_launch_catalog_from_widget
+    from app.application.services.gumroad_catalog_sync import GumroadCatalogSyncResult
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "factory_launch_mission_home_enabled", True)
+    monkeypatch.setattr(settings, "skill_factory_enabled", True)
+    monkeypatch.setattr(
+        "app.application.services.skill_factory_gumroad_listing.gumroad_listing_ready",
+        AsyncMock(return_value=True),
+    )
+    monkeypatch.setattr(
+        "app.application.services.skill_factory_gumroad_listing._gumroad_token_for_session",
+        AsyncMock(return_value="tok_test"),
+    )
+    monkeypatch.setattr(
+        "app.application.services.gumroad_catalog_sync.sync_gumroad_catalog_from_settings",
+        AsyncMock(
+            return_value=GumroadCatalogSyncResult(
+                ok=True,
+                synced_count=2,
+                api_product_count=2,
+                message="Synced 2 Gumroad URLs into upload tracker.",
+                state_path="exports/gumroad-upload-status.json",
+            ),
+        ),
+    )
+    session = AsyncMock()
+
+    result = await sync_factory_launch_catalog_from_widget(session)
+
+    assert result.get("ok") is True
+    assert result.get("synced_count") == 2

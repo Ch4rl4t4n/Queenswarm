@@ -291,6 +291,18 @@ async def dashboard_factory_launch_revenue_smoke(
     return await run_factory_launch_revenue_smoke(db, tenant_id=tenant_id)
 
 
+@router.post("/factory-launch/catalog-sync")
+async def dashboard_factory_launch_catalog_sync(
+    db: DbSession,
+    _principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, object]:
+    """REV9 — Sync Gumroad product URLs into skills catalog (MK7) from Mission Home."""
+
+    from app.application.services.factory_launch_widget_service import sync_factory_launch_catalog_from_widget
+
+    return await sync_factory_launch_catalog_from_widget(db)
+
+
 @router.get("/time-saved")
 async def dashboard_time_saved(
     db: DbSession,

@@ -340,6 +340,7 @@ const STUB_FACTORY_LAUNCH = {
   post_purchase_onboarding_ready: false,
   revenue_loop_ready: false,
   revenue_smoke_available: true,
+  catalog_sync_available: false,
   catalog_href: "https://letagentscook.org/skills",
   operator_hint: "1 harness pack(s) ready — create Gumroad drafts or use Prepare batch for manual upload.",
   factory_href: "/apps-tools/skill-factory",
@@ -2303,6 +2304,22 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_SUB_SWARM_FLEET),
+      });
+      return;
+    }
+
+    if (path.startsWith("dashboard/factory-launch/catalog-sync")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          synced_count: 2,
+          skipped_count: 0,
+          api_product_count: 2,
+          message: "Synced 2 Gumroad URLs into upload tracker.",
+          state_path: "exports/gumroad-upload-status.json",
+        }),
       });
       return;
     }

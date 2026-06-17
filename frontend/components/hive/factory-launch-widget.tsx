@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Loader2Icon, PackageIcon, RocketIcon, ShieldCheckIcon, StoreIcon } from "lucide-react";
+import { Loader2Icon, PackageIcon, RefreshCwIcon, RocketIcon, ShieldCheckIcon, StoreIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
@@ -12,6 +12,7 @@ import { DASHBOARD_BOOT_STAGGER_MS } from "@/lib/dashboard-boot-stagger";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import { useIntervalWhenVisible } from "@/lib/hooks/use-interval-when-visible";
 import type {
+  FactoryLaunchCatalogSyncPayload,
   FactoryLaunchGumroadDraftPayload,
   FactoryLaunchGumroadPublishPayload,
   FactoryLaunchPayload,
@@ -29,6 +30,7 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
   const [draftBusy, setDraftBusy] = useState(false);
   const [publishBusy, setPublishBusy] = useState(false);
   const [smokeBusy, setSmokeBusy] = useState(false);
+  const [catalogSyncBusy, setCatalogSyncBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -127,6 +129,26 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
     }
   }, [load]);
 
+  const syncSkillsCatalog = useCallback(async () => {
+    setCatalogSyncBusy(true);
+    try {
+      const result = await hivePostJson<FactoryLaunchCatalogSyncPayload>(
+        "dashboard/factory-launch/catalog-sync",
+        {},
+      );
+      if (result.ok && result.synced_count > 0) {
+        toast.success(result.message ?? `Synced ${result.synced_count} catalog URL(s).`);
+      } else {
+        toast.message(result.message ?? "Catalog sync completed with no new URLs.");
+      }
+      await load();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Catalog sync failed.");
+    } finally {
+      setCatalogSyncBusy(false);
+    }
+  }, [load]);
+
   useIntervalWhenVisible(() => void load(), COCKPIT_POLL_COLONY_TELEMETRY_MS, {
     initialDelayMs: eager ? 0 : DASHBOARD_BOOT_STAGGER_MS.factoryLaunch,
   });
@@ -210,6 +232,22 @@ export function FactoryLaunchWidget({ eager = false }: { eager?: boolean }): JSX
             <p className="mb-3 text-sm text-(--qs-text-3)">{payload.operator_hint}</p>
 
             <div className="flex flex-wrap items-center gap-2">
+              {payload.catalog_sync_available ? (
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--ghost qs-btn--sm min-h-[44px] gap-1 border border-(--qs-border)/50"
+                  disabled={catalogSyncBusy}
+                  onClick={() => void syncSkillsCatalog()}
+                  data-testid="factory-launch-catalog-sync-btn"
+                >
+                  {catalogSyncBusy ? (
+                    <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <RefreshCwIcon className="size-3.5" aria-hidden />
+                  )}
+                  Sync skills catalog
+                </button>
+              ) : null}
               {payload.revenue_smoke_available ? (
                 <button
                   type="button"

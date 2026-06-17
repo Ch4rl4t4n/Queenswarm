@@ -1,4 +1,4 @@
-"""REV4–REV8 — Factory Launch widget for Mission Home (Gumroad sellable harness funnel)."""
+"""REV4–REV9 — Factory Launch widget for Mission Home (Gumroad sellable harness funnel)."""
 
 from __future__ import annotations
 
@@ -64,6 +64,7 @@ class FactoryLaunchWidgetOut(BaseModel):
     post_purchase_onboarding_ready: bool = False
     revenue_loop_ready: bool = False
     revenue_smoke_available: bool = False
+    catalog_sync_available: bool = False
     catalog_href: str = "/skills"
     operator_hint: str = ""
     factory_href: str = "/apps-tools/skill-factory"
@@ -147,6 +148,19 @@ class FactoryLaunchRevenueSmokeOut(BaseModel):
     catalog_href: str = "/skills"
 
 
+class FactoryLaunchCatalogSyncOut(BaseModel):
+    """MK7 catalog URL sync result for Mission Home."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    ok: bool = False
+    synced_count: int = 0
+    skipped_count: int = 0
+    api_product_count: int = 0
+    message: str = ""
+    state_path: str = ""
+
+
 async def compose_factory_launch_widget_snapshot(
     session: AsyncSession,
     *,
@@ -188,6 +202,7 @@ async def compose_factory_launch_widget_snapshot(
         published_gumroad_count > 0 and purchase_webhook_ready and post_purchase_onboarding_ready
     )
     revenue_smoke_available = bool(published_gumroad_count > 0 or (launch_queue and sellable > 0))
+    catalog_sync_available = bool(snapshot.gumroad_listing_ready and published_gumroad_count > 0)
 
     from app.application.services.purchase_onboarding import marketing_public_origin
 
@@ -211,8 +226,8 @@ async def compose_factory_launch_widget_snapshot(
         )
     elif published_gumroad_count > 0 and not revenue_loop_ready:
         hint = (
-            f"{published_gumroad_count} live listing(s) — wire Gumroad ping webhook + SMTP "
-            "for post-purchase buyer onboarding."
+            f"{published_gumroad_count} live listing(s) — sync skills catalog, wire Gumroad ping webhook "
+            "+ SMTP for post-purchase buyer onboarding."
         )
     elif revenue_loop_ready:
         hint = (
@@ -252,6 +267,7 @@ async def compose_factory_launch_widget_snapshot(
         post_purchase_onboarding_ready=post_purchase_onboarding_ready,
         revenue_loop_ready=revenue_loop_ready,
         revenue_smoke_available=revenue_smoke_available,
+        catalog_sync_available=catalog_sync_available,
         catalog_href=catalog_href,
         operator_hint=hint,
         top_launch_titles=titles,
@@ -456,7 +472,53 @@ async def publish_factory_launch_gumroad_from_widget(
         publishes=publish_rows,
         message=message,
     )
-    return out.model_dump(mode="json")
+    payload = out.model_dump(mode="json")
+    if published_count > 0:
+        sync_result = await sync_factory_launch_catalog_from_widget(session)
+        payload["catalog_sync"] = sync_result
+        if sync_result.get("ok") and sync_result.get("synced_count", 0) > 0:
+            payload["message"] = (
+                f"{message} Synced {sync_result.get('synced_count')} catalog URL(s) for letagentscook.org."
+            )
+    return payload
+
+
+async def sync_factory_launch_catalog_from_widget(
+    session: AsyncSession,
+) -> dict[str, object]:
+    """Sync Gumroad product URLs into catalog upload tracker (MK7 / REV9)."""
+
+    if not settings.factory_launch_mission_home_enabled or not settings.skill_factory_enabled:
+        return FactoryLaunchCatalogSyncOut(
+            message="Factory launch widget disabled.",
+        ).model_dump(mode="json") | {"ok": False, "error": "factory_launch_disabled"}
+
+    from app.application.services.gumroad_catalog_sync import sync_gumroad_catalog_from_settings
+    from app.application.services.skill_factory_gumroad_listing import (
+        _gumroad_token_for_session,
+        gumroad_listing_ready,
+    )
+
+    if not await gumroad_listing_ready(session):
+        return FactoryLaunchCatalogSyncOut(
+            message="Gumroad token not configured — add connector or access token.",
+        ).model_dump(mode="json") | {"ok": False, "error": "gumroad_not_configured"}
+
+    token = await _gumroad_token_for_session(session)
+    if not token:
+        return FactoryLaunchCatalogSyncOut(
+            message="Gumroad access token missing.",
+        ).model_dump(mode="json") | {"ok": False, "error": "gumroad_not_configured"}
+
+    result = await sync_gumroad_catalog_from_settings(connector_secrets={"access_token": token})
+    _logger.info(
+        "factory_launch_widget.catalog_sync",
+        agent_id="factory_launch_widget",
+        ok=result.ok,
+        synced_count=result.synced_count,
+    )
+    payload = result.model_dump(mode="json")
+    return payload
 
 
 async def run_factory_launch_revenue_smoke(
@@ -514,8 +576,22 @@ async def run_factory_launch_revenue_smoke(
             ok=bool((settings.marketing_public_origin or "").strip()),
             detail=f"Buyer catalog at {catalog_href}",
         ),
+        FactoryLaunchRevenueSmokeCheckOut(
+            id="catalog_url_sync",
+            label="Gumroad URL catalog sync (MK7)",
+            ok=snapshot.catalog_sync_available,
+            detail=(
+                "Run Sync skills catalog after publish to map product IDs → slugs"
+                if not snapshot.catalog_sync_available
+                else f"{snapshot.published_gumroad_count} live listing(s) — sync available"
+            ),
+        ),
     ]
-    loop_ok = all(row.ok for row in checks if row.id != "sellable_harness")
+    loop_ok = all(
+        row.ok
+        for row in checks
+        if row.id not in {"sellable_harness", "catalog_url_sync"}
+    )
     message = (
         "Revenue loop verified — buyer ping will unlock + send onboarding."
         if loop_ok and snapshot.published_gumroad_count > 0
@@ -539,6 +615,7 @@ async def run_factory_launch_revenue_smoke(
 
 
 __all__ = [
+    "FactoryLaunchCatalogSyncOut",
     "FactoryLaunchGumroadDraftOut",
     "FactoryLaunchGumroadDraftRowOut",
     "FactoryLaunchGumroadPublishOut",
@@ -551,4 +628,5 @@ __all__ = [
     "prepare_factory_launch_batch_from_widget",
     "publish_factory_launch_gumroad_from_widget",
     "run_factory_launch_revenue_smoke",
+    "sync_factory_launch_catalog_from_widget",
 ]

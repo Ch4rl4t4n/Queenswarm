@@ -154,6 +154,30 @@ else
   fail "missing factory launch revenue smoke button"
 fi
 
+if grep -q "catalog_sync_available" backend/app/application/services/factory_launch_widget_service.py; then
+  pass "catalog_sync_available flag"
+else
+  fail "missing catalog_sync_available flag"
+fi
+
+if grep -q "/factory-launch/catalog-sync" backend/app/presentation/api/routers/dashboard.py; then
+  pass "dashboard REV9 catalog-sync route"
+else
+  fail "missing dashboard REV9 catalog-sync route"
+fi
+
+if grep -q "sync_factory_launch_catalog_from_widget" backend/app/application/services/factory_launch_widget_service.py; then
+  pass "sync_factory_launch_catalog_from_widget"
+else
+  fail "missing sync_factory_launch_catalog_from_widget"
+fi
+
+if grep -q "factory-launch-catalog-sync-btn" frontend/components/hive/factory-launch-widget.tsx; then
+  pass "factory launch catalog sync button"
+else
+  fail "missing factory launch catalog sync button"
+fi
+
 if [[ -x backend/venv/bin/python ]]; then
   if (cd backend && ./venv/bin/python -m pytest \
     tests/test_factory_launch_widget_unit.py \
