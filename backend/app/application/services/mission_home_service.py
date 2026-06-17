@@ -10,8 +10,24 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.approval_inbox import compose_approval_inbox_snapshot
+from app.application.services.agent_quality_scorecard_service import (
+    MissionAgentQualityStripOut,
+    compose_agent_quality_strip,
+)
 from app.application.services.brain_pack_starters import starter_kinds
 from app.application.services.curated_memory_service import CuratedMemoryService
+from app.application.services.jarvis_advisor_service import (
+    JarvisActionIn,
+    JarvisApprovalIn,
+    JarvisAutopilotIn,
+    JarvisLifeOsIn,
+    JarvisMemoryIn,
+    JarvisCalendarEventIn,
+    JarvisMemoryLayerIn,
+    JarvisSessionIn,
+    MissionJarvisAdvisorStripOut,
+    _compose_jarvis_advisor_strip,
+)
 from app.application.services.morning_hive_brief import compose_morning_hive_brief
 from app.application.services.parallel_hive_view import (
     ParallelBeeLaneOut,
@@ -19,6 +35,7 @@ from app.application.services.parallel_hive_view import (
 )
 from app.application.services.solo_daily_plan import compose_solo_daily_plan
 from app.application.services.solo_operator_first_run import compose_solo_first_run
+from app.application.services.weak_signal_bee_service import compose_weak_signal_preview
 from app.core.config import settings
 from app.domain.memory.curated import CuratedFileKind
 from app.infrastructure.persistence.models.tenant import Tenant
@@ -195,6 +212,12 @@ class MissionHomeSnapshotOut(BaseModel):
     step_studios: list[MissionStudioEntryOut] = Field(default_factory=list)
     life_os_strip: MissionLifeOsStripOut = Field(default_factory=MissionLifeOsStripOut)
     autopilot_strip: MissionAutopilotStripOut = Field(default_factory=MissionAutopilotStripOut)
+    jarvis_advisor_strip: MissionJarvisAdvisorStripOut = Field(
+        default_factory=lambda: MissionJarvisAdvisorStripOut(enabled=False),
+    )
+    agent_quality_strip: MissionAgentQualityStripOut = Field(
+        default_factory=lambda: MissionAgentQualityStripOut(enabled=False),
+    )
     first_run_complete: bool = True
     links: dict[str, str] = Field(default_factory=dict)
     rapid_loop_widget_enabled: bool = False
@@ -791,6 +814,61 @@ async def compose_mission_home_snapshot(
     )
     autopilot_strip = await _compose_autopilot_strip(session, tenant_id=tenant_id)
 
+    weak_signal = await compose_weak_signal_preview(session, tenant_id=tenant_id)
+    jarvis_advisor = _compose_jarvis_advisor_strip(
+        first_run_complete=first_run.complete,
+        approvals=[
+            JarvisApprovalIn.model_validate(row.model_dump())
+            for row in approvals
+        ],
+        active_sessions=[
+            JarvisSessionIn(
+                session_id=row.session_id,
+                goal=row.goal,
+                status=row.status,
+                href=row.href,
+            )
+            for row in active_sessions
+        ],
+        next_actions=[
+            JarvisActionIn.model_validate(row.model_dump()) for row in next_actions
+        ],
+        life_os=JarvisLifeOsIn(
+            enabled=life_os_strip.enabled,
+            connected=life_os_strip.connected,
+            connect_href=life_os_strip.connect_href,
+            events=[
+                JarvisCalendarEventIn(
+                    id=event.id,
+                    title=event.title,
+                    start_at=event.start_at,
+                    href=event.href,
+                )
+                for event in life_os_strip.events
+            ],
+        ),
+        autopilot=JarvisAutopilotIn(
+            enabled=autopilot_strip.enabled,
+            routines_enabled=autopilot_strip.routines_enabled,
+            trio_bound=autopilot_strip.trio_bound,
+            trio_total=autopilot_strip.trio_total,
+            four_lanes_active=autopilot_strip.four_lanes_active,
+            digest_pending=autopilot_strip.digest_pending,
+            harness_href=autopilot_strip.harness_href,
+            four_lanes_href=autopilot_strip.four_lanes_href,
+            digest_href=autopilot_strip.digest_href,
+        ),
+        memory_strip=JarvisMemoryIn(
+            usage_pct=memory_strip.usage_pct,
+            layers=[
+                JarvisMemoryLayerIn(id=layer.id, label=layer.label, filled=layer.filled)
+                for layer in memory_strip.layers
+            ],
+        ),
+        weak_signal_hint=weak_signal.advisor_hint,
+    )
+    agent_quality = await compose_agent_quality_strip(session, tenant_id=tenant_id)
+
     return MissionHomeSnapshotOut(
         enabled=True,
         generated_at=datetime.now(tz=UTC),
@@ -804,6 +882,8 @@ async def compose_mission_home_snapshot(
         step_studios=STEP_STUDIOS.get(current_step, [])[:2],
         life_os_strip=life_os_strip,
         autopilot_strip=autopilot_strip,
+        jarvis_advisor_strip=jarvis_advisor,
+        agent_quality_strip=agent_quality,
         first_run_complete=first_run.complete,
         links={
             "new_session": "/agents?preset=web-redesign-discovery#sessions",
@@ -815,6 +895,9 @@ async def compose_mission_home_snapshot(
             "harness": autopilot_strip.harness_href,
             "four_lanes": autopilot_strip.four_lanes_href,
             "digest_inbox": autopilot_strip.digest_href,
+            "analytics": "/apps-tools/analytics",
+            "research_bee": "/knowledge#research-bee",
+            "loop_presets": "/settings/harness#harness-closed-loop-presets",
         },
         rapid_loop_widget_enabled=settings.rapid_loop_mission_home_enabled,
         sub_swarm_fleet_widget_enabled=settings.sub_swarm_fleet_mission_home_enabled,

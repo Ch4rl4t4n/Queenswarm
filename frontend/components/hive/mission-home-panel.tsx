@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CalendarClock, CheckCircle2, Loader2, Shield, Zap } from "lucide-react";
+import { ArrowRight, CalendarClock, CheckCircle2, Loader2, Shield, Sparkles, Zap } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
@@ -119,6 +119,36 @@ interface MissionAutopilotStrip {
   digest_href: string;
 }
 
+interface MissionJarvisStep {
+  order: number;
+  title: string;
+  detail: string;
+  href: string;
+  kind: string;
+}
+
+interface MissionJarvisAdvisorStrip {
+  enabled: boolean;
+  headline: string;
+  message: string;
+  steps: MissionJarvisStep[];
+  analytics_href: string;
+  research_href: string;
+  loops_href: string;
+}
+
+interface MissionAgentQualityStrip {
+  enabled: boolean;
+  status: "healthy" | "warn" | "critical" | "unknown";
+  pass_rate_7d_pct: number | null;
+  pass_rate_trend: string;
+  stuck_sessions: number;
+  active_sessions: number;
+  operator_hint: string;
+  harness_href: string;
+  scorecard_href: string;
+}
+
 interface MissionHomeSnapshot {
   enabled: boolean;
   current_step: ProcessStepId;
@@ -131,6 +161,8 @@ interface MissionHomeSnapshot {
   step_studios?: MissionStudioEntry[];
   life_os_strip?: MissionLifeOsStrip;
   autopilot_strip?: MissionAutopilotStrip;
+  jarvis_advisor_strip?: MissionJarvisAdvisorStrip;
+  agent_quality_strip?: MissionAgentQualityStrip;
   first_run_complete: boolean;
   links: Record<string, string>;
   rapid_loop_widget_enabled?: boolean;
@@ -186,6 +218,15 @@ function MissionHomePanelInner(): JSX.Element | null {
   const calendarConnectHref =
     lifeOs?.connect_href ?? snapshot.links.calendar_connect ?? "/integrations?tab=connectors";
   const autopilot = snapshot.autopilot_strip;
+  const jarvis = snapshot.jarvis_advisor_strip;
+  const agentQuality = snapshot.agent_quality_strip;
+
+  function qualityTone(status: MissionAgentQualityStrip["status"]): "ok" | "warn" | "error" | "info" {
+    if (status === "healthy") return "ok";
+    if (status === "warn") return "warn";
+    if (status === "critical") return "error";
+    return "info";
+  }
 
   function formatEventTime(iso: string | null): string {
     if (!iso) {
@@ -213,6 +254,89 @@ function MissionHomePanelInner(): JSX.Element | null {
         currentStep={snapshot.current_step}
         compact
       />
+
+      {jarvis?.enabled && jarvis.steps.length > 0 ? (
+        <V4Card
+          className="md:max-lg:col-span-2 border-pollen/40 shadow-[0_0_24px_rgba(255,184,0,0.12)]"
+          data-testid="mission-home-jarvis-advisor"
+        >
+          <V4CardHeader
+            kicker="Advisor"
+            title={jarvis.headline}
+            description={jarvis.message}
+            actions={
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href={jarvis.analytics_href}
+                  className="qs-btn qs-btn--ghost qs-btn--sm"
+                >
+                  Analyst
+                </Link>
+                <Link href={jarvis.loops_href} className="qs-btn qs-btn--ghost qs-btn--sm">
+                  Loops
+                </Link>
+              </div>
+            }
+          />
+          <ol className="space-y-2 px-4 pb-4">
+            {jarvis.steps.map((step) => (
+              <li
+                key={`${step.order}-${step.title}`}
+                className="rounded-lg border border-pollen/30 bg-black/30 p-3"
+              >
+                <div className="flex flex-wrap items-start gap-3">
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-pollen/20 font-mono text-sm font-bold text-pollen">
+                    {step.order}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Sparkles className="size-3.5 text-pollen" aria-hidden />
+                      <span className="text-sm font-semibold text-(--qs-text)">{step.title}</span>
+                      <V4Badge tone="info">{step.kind}</V4Badge>
+                    </div>
+                    <p className="mt-1 text-xs text-(--qs-muted)">{step.detail}</p>
+                    <Link
+                      href={step.href}
+                      className="qs-btn qs-btn--primary qs-btn--sm mt-2 inline-flex gap-1"
+                    >
+                      Do this
+                      <ArrowRight className="size-3.5" aria-hidden />
+                    </Link>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </V4Card>
+      ) : null}
+
+      {agentQuality?.enabled ? (
+        <V4Card className="md:max-lg:col-span-2" data-testid="mission-home-agent-quality">
+          <V4CardHeader
+            kicker="Quality"
+            title="Agent scorecard"
+            description="Simulation pass rate + session health — verify-first harness."
+            actions={
+              <Link href={agentQuality.harness_href} className="qs-btn qs-btn--ghost qs-btn--sm">
+                Review loop
+              </Link>
+            }
+          />
+          <div className="flex flex-wrap gap-2 px-4 pb-4">
+            <V4Badge tone={qualityTone(agentQuality.status)}>{agentQuality.status}</V4Badge>
+            {agentQuality.pass_rate_7d_pct != null ? (
+              <V4Badge tone="info">{agentQuality.pass_rate_7d_pct}% pass (7d)</V4Badge>
+            ) : null}
+            {agentQuality.stuck_sessions > 0 ? (
+              <V4Badge tone="warn">{agentQuality.stuck_sessions} stuck</V4Badge>
+            ) : null}
+            {agentQuality.active_sessions > 0 ? (
+              <V4Badge tone="purple">{agentQuality.active_sessions} running</V4Badge>
+            ) : null}
+          </div>
+          <p className="px-4 pb-4 text-sm text-(--qs-text-2)">{agentQuality.operator_hint}</p>
+        </V4Card>
+      ) : null}
 
       {snapshot.rapid_loop_widget_enabled ? (
         <div className="md:max-lg:col-span-2" data-testid="mission-home-rapid-loop">

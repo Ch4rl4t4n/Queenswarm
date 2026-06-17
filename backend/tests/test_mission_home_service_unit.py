@@ -22,6 +22,7 @@ from app.application.services.mission_home_service import (
     _resolve_process_step,
     compose_mission_home_snapshot,
 )
+from app.application.services.agent_quality_scorecard_service import MissionAgentQualityStripOut
 from app.domain.memory.curated import CuratedFileKind
 from app.application.services.solo_operator_first_run import SoloFirstRunOut
 
@@ -198,12 +199,30 @@ async def test_compose_mission_home_setup_step() -> None:
                                         "app.application.services.mission_home_service._compose_autopilot_strip",
                                         AsyncMock(return_value=autopilot_strip),
                                     ):
-                                        snapshot = await compose_mission_home_snapshot(
-                                            session,
-                                            tenant_id=tenant_id,
-                                            dashboard_user_id=user_id,
-                                            tenant=None,
-                                        )
+                                        with patch(
+                                            "app.application.services.mission_home_service.compose_weak_signal_preview",
+                                            AsyncMock(
+                                                return_value=type(
+                                                    "WS",
+                                                    (),
+                                                    {"advisor_hint": None},
+                                                )(),
+                                            ),
+                                        ):
+                                                with patch(
+                                                    "app.application.services.mission_home_service.compose_agent_quality_strip",
+                                                    AsyncMock(
+                                                        return_value=MissionAgentQualityStripOut(
+                                                            enabled=False,
+                                                        ),
+                                                    ),
+                                                ):
+                                                        snapshot = await compose_mission_home_snapshot(
+                                                    session,
+                                                    tenant_id=tenant_id,
+                                                    dashboard_user_id=user_id,
+                                                    tenant=None,
+                                                )
 
     assert snapshot.enabled is True
     assert snapshot.current_step == "setup"

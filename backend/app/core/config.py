@@ -1903,6 +1903,22 @@ class Settings(BaseSettings):
         default=True,
         description="PA2 — Google Calendar events in solo daily plan (read-only connector).",
     )
+    jarvis_advisor_mission_home_enabled: bool = Field(
+        default=True,
+        description="POS-H1 — Jarvis daily advisor strip on Mission Home (ordered verify-first steps).",
+    )
+    weak_signal_bee_enabled: bool = Field(
+        default=True,
+        description="POS-H4 — Weak signal intel hint in Jarvis advisor (social/forager rollup).",
+    )
+    research_project_enabled: bool = Field(
+        default=True,
+        description="POS-H3 — Batch URL research project brief (Research Bee extension).",
+    )
+    agent_quality_scorecard_enabled: bool = Field(
+        default=True,
+        description="POS-H6 — Agent quality scorecard on Mission Home (simulation pass rate + stuck sessions).",
+    )
     knowledge_elicitation_enabled: bool = Field(
         default=True,
         description="OBS2 — Brain Pack gap prompts in Knowledge UI.",

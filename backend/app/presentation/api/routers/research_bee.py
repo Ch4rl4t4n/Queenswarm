@@ -126,4 +126,47 @@ async def export_research_brief_bundle(
         ) from exc
 
 
+class ResearchProjectRequest(BaseModel):
+    """Batch URL research project (POS-H3)."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    source_urls: list[str] = Field(..., min_length=1, max_length=8)
+    project_title: str | None = Field(default=None, max_length=200)
+    persist: bool = False
+
+
+@router.post("/project", summary="Batch URLs → merged research project brief")
+async def create_research_project(
+    body: ResearchProjectRequest,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Fetch multiple public URLs → one structured Hive Mind brief."""
+
+    _require_enabled()
+    if not settings.research_project_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Research project disabled.")
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+
+    from app.application.services.research_project_service import compose_research_project_brief
+
+    try:
+        brief = await compose_research_project_brief(
+            db,
+            tenant_id=tenant_id,
+            source_urls=body.source_urls,
+            project_title=body.project_title,
+            persist=body.persist,
+        )
+        await db.commit()
+        return brief.model_dump(mode="json")
+    except ValueError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+
+
 __all__ = ["router"]

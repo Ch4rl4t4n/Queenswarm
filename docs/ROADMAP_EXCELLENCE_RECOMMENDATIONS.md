@@ -21,6 +21,7 @@ Use this doc when evaluating external posts (X threads, YouTube, competitor laun
 | Jun 2026 | [CyrilXBT — Obsidian trading journal](https://x.com/cyrilXBT/status/2064928168105136433) | O | TJ1–TJ7 |
 | Jun 2026 | [Ryan Doser — Robinhood AI agent MCP](https://www.youtube.com/watch?v=w4QrQdulH0g) | P | RA1–RA5 |
 | Jun 2026 | [Julian Goldie — Hermes Agent OS Mission Control](https://www.youtube.com/watch?v=egeUmkhdcM4) | Q | UX0–UX10 |
+| Jun 2026 | X batch — Jarvis/Obsidian · Boris loops · NotebookLM analyst · weak signals · research project | H | POS-H1–H7 |
 
 _Next link from operator → run [Evaluation template](#evaluation-template-for-new-links) → add row here + item to [`ROADMAP.md`](ROADMAP.md) P10 if 🔴 gap._
 

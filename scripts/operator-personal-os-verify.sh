@@ -66,6 +66,7 @@ GATES=(
   "audit-skill-factory-lite-gate.sh"
   "audit-marketing-team-gate.sh"
   "audit-faceless-pipeline-gate.sh"
+  "audit-jarvis-intelligence-gate.sh"
   "audit-solo-daily-plan-gate.sh"
   "audit-publish-queue-gate.sh"
   "audit-social-publish-gate.sh"

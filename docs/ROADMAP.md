@@ -80,6 +80,21 @@ Living backlog for **queenswarm.love** — ordered by impact. Status reflects pr
 | POS-E | Autopilot — `routines_enabled` + Four Lanes + My 3 Bees cron | ✅ Shipped |
 | POS-F | Skill Factory lite — strip Gumroad tabs | ✅ Shipped |
 | POS-G | Dead code deletion (commercial routes) — after 2 weeks stable | Planned |
+| POS-H | **Intelligence Wave** — Jarvis advisor · weak signals · research project · agent quality · loop shortcuts | ✅ Shipped |
+
+**POS-H scope (Jun 2026 X-signals triage):**
+
+| ID | Scope | Status |
+|----|-------|--------|
+| H1 | Jarvis daily advisor strip on Mission Home (3 ordered verify-first steps) | ✅ |
+| H2 | Analytics analyst shortcut (Jarvis + Mission Home links) | ✅ |
+| H3 | Research project — `POST /research-bee/project` batch URLs → merged brief | ✅ |
+| H4 | Weak Signal Bee — social/forager hint in Jarvis advisor | ✅ |
+| H5 | Loop presets shortcut (Jarvis + harness link) | ✅ |
+| H6 | Agent Quality scorecard on Mission Home | ✅ |
+| H7 | codebase-memory MCP for SCV lane | Planned P2 |
+
+Audit: `./scripts/audit-jarvis-intelligence-gate.sh`
 
 **Maintenance audits:** `./scripts/audit-personal-os-gate.sh` · weekly: social publish + solo daily plan gates.
 
