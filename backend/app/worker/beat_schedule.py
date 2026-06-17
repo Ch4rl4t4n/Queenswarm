@@ -203,6 +203,12 @@ def build_beat_schedule() -> dict[str, dict[str, Any]]:
             ),
             "options": {"queue": "hive"},
         }
+    if settings.jarvis_proactive_nudge_enabled and settings.solo_mode_enabled:
+        schedule["hive-jarvis-proactive-nudge"] = {
+            "task": "hive.jarvis_proactive_nudge_tick",
+            "schedule": crontab(minute=45, hour="*/2"),
+            "options": {"queue": "hive"},
+        }
     if settings.analytics_weekly_routine_enabled and settings.analytics_workspace_enabled:
         boot_hour = int(settings.analytics_weekly_routine_cron_hour)
         boot_minute = int(settings.analytics_weekly_routine_cron_minute)

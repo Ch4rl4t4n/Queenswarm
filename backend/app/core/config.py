@@ -1919,6 +1919,14 @@ class Settings(BaseSettings):
         default=True,
         description="POS-H6 — Agent quality scorecard on Mission Home (simulation pass rate + stuck sessions).",
     )
+    jarvis_proactive_nudge_enabled: bool = Field(
+        default=True,
+        description="POS-I2 — Push Jarvis top-step hints to mission feed (6h dedup per kind).",
+    )
+    jarvis_proactive_nudge_web_push_enabled: bool = Field(
+        default=False,
+        description="POS-I2 — Optional browser push for Jarvis nudges (requires Execution Studio subscription).",
+    )
     knowledge_elicitation_enabled: bool = Field(
         default=True,
         description="OBS2 — Brain Pack gap prompts in Knowledge UI.",

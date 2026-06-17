@@ -13,6 +13,8 @@ echo "=== Jarvis Intelligence Wave Gate (POS-H) ==="
 
 for f in \
   backend/app/application/services/jarvis_advisor_service.py \
+  backend/app/application/services/jarvis_proactive_nudge_service.py \
+  backend/app/worker/jarvis_nudge_tasks.py \
   backend/app/application/services/weak_signal_bee_service.py \
   backend/app/application/services/agent_quality_scorecard_service.py \
   backend/app/application/services/research_project_service.py \
@@ -38,10 +40,17 @@ else
   fail "research project route missing"
 fi
 
+if grep -q 'jarvis_proactive_nudge_tick' backend/app/worker/beat_schedule.py; then
+  pass "Jarvis nudge beat schedule"
+else
+  fail "Jarvis nudge beat schedule missing"
+fi
+
 if [[ -x backend/venv/bin/python ]]; then
   set +e
   (cd backend && ./venv/bin/python -m pytest \
     tests/test_jarvis_advisor_unit.py \
+    tests/test_jarvis_proactive_nudge_unit.py \
     tests/test_research_project_unit.py \
     tests/test_mission_home_service_unit.py \
     -q --no-cov)
