@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import { HivePageShell } from "@/components/hive/hive-page-shell";
 import { HiveSubnavRow } from "@/components/hive/hive-subnav-row";
 import { ModulePolicyPackPill } from "@/components/apps-tools/module-policy-pack-pill";
+import { hiveGet } from "@/lib/api";
 import { scrollBehaviorForMotion } from "@/lib/motion-preferences";
 
 const JournalStudioEntriesPanel = dynamic(
@@ -109,6 +110,26 @@ function sectionFromQuery(raw: string | null): JournalSection | null {
 
 export function TradingJournalPageClient(): JSX.Element {
   const [section, setSection] = useState<JournalSection>("timeline");
+  const [moduleTitle, setModuleTitle] = useState("Trading Journal");
+  const [moduleSubtitle, setModuleSubtitle] = useState(
+    "Learning Loop Studio — timeline, entries, gardener, pre-trade recall, pattern strip, review cron, Obsidian vault.",
+  );
+  const [recallLabel, setRecallLabel] = useState("Pre-trade recall");
+
+  useEffect(() => {
+    void hiveGet<{
+      module_title?: string;
+      module_subtitle?: string;
+      panels?: Array<{ id: string; label: string }>;
+    }>("journal-studio/snapshot")
+      .then((snapshot) => {
+        if (snapshot.module_title) setModuleTitle(snapshot.module_title);
+        if (snapshot.module_subtitle) setModuleSubtitle(snapshot.module_subtitle);
+        const recall = snapshot.panels?.find((panel) => panel.id === "recall");
+        if (recall?.label) setRecallLabel(recall.label);
+      })
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     const hashSection = sectionFromHash(window.location.hash);
@@ -131,8 +152,8 @@ export function TradingJournalPageClient(): JSX.Element {
 
   return (
     <HivePageShell
-      title="Trading Journal"
-      subtitle="Learning Loop Studio — timeline, entries, gardener, pre-trade recall, pattern strip, review cron, Obsidian vault."
+      title={moduleTitle}
+      subtitle={moduleSubtitle}
       status={<ModulePolicyPackPill moduleKey="trading_journal" />}
       subnav={
         <HiveSubnavRow
@@ -140,7 +161,7 @@ export function TradingJournalPageClient(): JSX.Element {
             { id: "timeline", label: "Timeline", icon: Clock3 },
             { id: "entries", label: "Trade entries", icon: NotebookPen },
             { id: "gardener", label: "Gardener", icon: Moon },
-            { id: "recall", label: "Pre-trade recall", icon: Brain },
+            { id: "recall", label: recallLabel, icon: Brain },
             { id: "patterns", label: "Pattern strip", icon: BarChart3 },
             { id: "settings", label: "Studio settings", icon: Settings2 },
           ]}

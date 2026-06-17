@@ -91,6 +91,9 @@ class JournalStudioWorkspaceSnapshotOut(BaseModel):
     obsidian_subfolder: str = "Trading/Journal"
     enabled_field_count: int = 0
     mistake_tag_count: int = 0
+    studio_preset: str = "trading"
+    module_title: str = "Trading Journal"
+    module_subtitle: str = ""
     operator_hint: str = ""
     workspace_href: str = "/apps-tools/trading-journal?section=timeline#journal-studio-timeline"
 
@@ -292,12 +295,12 @@ async def compose_journal_timeline(
     )
 
 
-def _default_panels() -> list[JournalStudioPanelOut]:
+def _default_panels(*, recall_label: str = "Pre-trade recall") -> list[JournalStudioPanelOut]:
     return [
         JournalStudioPanelOut(id="timeline", label="Timeline", lazy=False, status="ready"),
         JournalStudioPanelOut(id="entries", label="Trade entries", lazy=True, status="ready"),
         JournalStudioPanelOut(id="gardener", label="Overnight gardener", lazy=True, status="ready"),
-        JournalStudioPanelOut(id="recall", label="Pre-trade recall", lazy=True, status="ready"),
+        JournalStudioPanelOut(id="recall", label=recall_label, lazy=True, status="ready"),
         JournalStudioPanelOut(id="patterns", label="Pattern strip", lazy=True, status="ready"),
         JournalStudioPanelOut(id="settings", label="Studio settings", lazy=True, status="ready"),
     ]
@@ -332,20 +335,23 @@ async def compose_journal_studio_workspace_snapshot(
     )
     enabled_fields = sum(1 for enabled in studio.field_toggles.values() if enabled)
 
-    hint = timeline.operator_hint
+    hint = timeline.operator_hint or studio.operator_hint
     if routine.routine_status == "missing" and studio.review_cron_enabled:
         hint = "Bootstrap review routine in Studio settings for overnight journal reviews."
 
     return JournalStudioWorkspaceSnapshotOut(
         enabled=True,
         generated_at=now,
-        panels=_default_panels(),
+        panels=_default_panels(recall_label=studio.recall_panel_label),
         routine=routine,
         timeline_preview=timeline.items[:8],
         settings_enabled=studio.enabled,
         obsidian_subfolder=studio.obsidian_subfolder,
         enabled_field_count=enabled_fields,
         mistake_tag_count=len(studio.mistake_tags),
+        studio_preset=studio.studio_preset,
+        module_title=studio.module_title,
+        module_subtitle=studio.module_subtitle,
         operator_hint=hint,
     )
 

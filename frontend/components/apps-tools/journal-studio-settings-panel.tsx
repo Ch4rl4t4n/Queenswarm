@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { BookOpen, CalendarClock, Loader2, Settings2, Tag } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -9,6 +10,7 @@ import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePatchJson, hivePostJson } from "@/lib/api";
 
 type ReviewCronPreset = "off" | "daily_0600" | "daily_2000" | "weekly_monday" | "custom";
+type StudioPreset = "trading" | "business_brain";
 
 interface JournalStudioSettings {
   enabled: boolean;
@@ -18,6 +20,11 @@ interface JournalStudioSettings {
   review_cron: string;
   obsidian_subfolder: string;
   mistake_tags: string[];
+  studio_preset: StudioPreset;
+  field_labels: Record<string, string>;
+  pattern_tags_label: string;
+  wiki_capture_href: string;
+  brief_dispatch_href: string;
   source: "deployment" | "tenant";
 }
 
@@ -49,6 +56,11 @@ const FIELD_LABELS: Record<string, string> = {
   tags: "Tags",
   mistake_tag: "Mistake tag",
 };
+
+const PRESET_OPTIONS: { value: StudioPreset; label: string }[] = [
+  { value: "trading", label: "Trading journal" },
+  { value: "business_brain", label: "Business brain (Moneta / marketing)" },
+];
 
 const CRON_PRESET_OPTIONS: { value: ReviewCronPreset; label: string }[] = [
   { value: "off", label: "Off" },
@@ -109,6 +121,7 @@ export function JournalStudioSettingsPanel(): JSX.Element | null {
         review_cron: draft.review_cron,
         obsidian_subfolder: draft.obsidian_subfolder,
         mistake_tags: draft.mistake_tags,
+        studio_preset: draft.studio_preset,
       });
       setSettings(data);
       setDraft(data);
@@ -182,6 +195,38 @@ export function JournalStudioSettingsPanel(): JSX.Element | null {
           }
         />
         <div className="space-y-4 px-4 pb-4">
+          <label className="block text-sm">
+            <span className="text-white/60">Studio preset (TJ7)</span>
+            <select
+              className="qs-input mt-1 w-full"
+              value={draft.studio_preset}
+              onChange={(e) =>
+                setDraft({
+                  ...draft,
+                  studio_preset: e.target.value as StudioPreset,
+                })
+              }
+            >
+              {PRESET_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {draft.studio_preset === "business_brain" ? (
+            <div className="flex flex-wrap gap-2 text-xs">
+              <Link href={draft.wiki_capture_href} className="qs-btn qs-btn--ghost qs-btn--sm inline-flex items-center gap-1">
+                <BookOpen className="size-3.5" aria-hidden />
+                Wiki capture
+              </Link>
+              <Link href={draft.brief_dispatch_href} className="qs-btn qs-btn--ghost qs-btn--sm">
+                NP4 brief dispatch
+              </Link>
+            </div>
+          ) : null}
+
           <label className="flex items-center gap-2 text-sm text-white/80">
             <input
               type="checkbox"
@@ -194,7 +239,7 @@ export function JournalStudioSettingsPanel(): JSX.Element | null {
           <div>
             <p className="mb-2 text-sm font-medium text-white/80">Journal fields</p>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {Object.entries(FIELD_LABELS).map(([key, label]) => (
+              {Object.entries(draft.field_labels ?? FIELD_LABELS).map(([key, label]) => (
                 <label key={key} className="flex items-center gap-2 text-sm text-white/70">
                   <input
                     type="checkbox"
@@ -259,7 +304,7 @@ export function JournalStudioSettingsPanel(): JSX.Element | null {
           <div>
             <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-white/80">
               <Tag className="size-4" aria-hidden />
-              Mistake tags
+              {draft.pattern_tags_label || "Mistake tags"}
             </p>
             <div className="flex flex-wrap gap-2">
               {draft.mistake_tags.map((tag) => (

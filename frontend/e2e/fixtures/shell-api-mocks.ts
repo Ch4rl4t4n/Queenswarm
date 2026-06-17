@@ -1331,6 +1331,29 @@ const STUB_ANALYTICS_ROUTINE = {
 
 const STUB_JOURNAL_STUDIO_SETTINGS = {
   enabled: true,
+  studio_preset: "trading",
+  module_title: "Trading Journal",
+  module_subtitle:
+    "Learning Loop Studio — timeline, entries, gardener, pre-trade recall, pattern strip.",
+  field_labels: {
+    thesis: "Thesis",
+    setup: "Setup",
+    entry_price: "Entry price",
+    exit_price: "Exit price",
+    position_size: "Position size",
+    outcome: "Outcome",
+    pnl: "P&L",
+    emotion: "Emotion",
+    screenshot: "Screenshot",
+    lesson: "Lesson learned",
+    tags: "Tags",
+    mistake_tag: "Mistake tag",
+  },
+  pattern_tags_label: "Mistake tags",
+  recall_panel_label: "Pre-trade recall",
+  wiki_capture_href: "/knowledge?tab=wiki",
+  brief_dispatch_href: "/tasks?goal_preset=trading-thesis",
+  operator_hint: "Capture trades, run gardener, export Obsidian vault after approve.",
   field_toggles: {
     thesis: true,
     setup: true,
@@ -1511,6 +1534,10 @@ const STUB_JOURNAL_STUDIO_SNAPSHOT = {
   enabled: true,
   generated_at: new Date().toISOString(),
   capability_key: "apps.trading.journal_studio.v1",
+  studio_preset: "trading",
+  module_title: "Trading Journal",
+  module_subtitle:
+    "Learning Loop Studio — timeline, entries, gardener, pre-trade recall, pattern strip.",
   panels: [
     { id: "timeline", label: "Timeline", lazy: false, status: "ready" },
     { id: "entries", label: "Trade entries", lazy: true, status: "ready" },

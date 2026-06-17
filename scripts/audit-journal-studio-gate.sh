@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Track O TJ1–TJ6 — Journal Studio audit gate (timeline, entries, gardener, recall, patterns, settings).
+# Track O TJ1–TJ7 — Journal Studio audit gate (timeline, entries, gardener, recall, patterns, settings, presets).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -9,9 +9,10 @@ FAIL=0
 pass() { echo "  OK  $*"; }
 fail() { echo "  FAIL $*"; FAIL=$((FAIL + 1)); }
 
-echo "=== Journal Studio (TJ1–TJ6) Audit ==="
+echo "=== Journal Studio (TJ1–TJ7) Audit ==="
 
 for f in \
+  backend/app/application/services/journal_studio_preset_catalog.py \
   backend/app/application/services/journal_studio_timeline_service.py \
   backend/app/application/services/journal_studio_entry_service.py \
   backend/app/application/services/journal_studio_gardener_service.py \
@@ -57,6 +58,24 @@ if grep -q "journal_studio_pattern_strip_enabled" backend/app/core/config.py; th
   pass "journal_studio_pattern_strip_enabled config"
 else
   fail "missing journal_studio_pattern_strip_enabled"
+fi
+
+if grep -q "journal_studio_business_brain_preset_enabled" backend/app/core/config.py; then
+  pass "journal_studio_business_brain_preset_enabled config"
+else
+  fail "missing journal_studio_business_brain_preset_enabled"
+fi
+
+if grep -q "studio_preset" backend/app/application/services/journal_studio_settings_service.py; then
+  pass "studio_preset in settings service"
+else
+  fail "missing studio_preset in settings service"
+fi
+
+if grep -q "business_brain" backend/app/application/services/journal_studio_preset_catalog.py; then
+  pass "business_brain preset catalog"
+else
+  fail "missing business_brain preset catalog"
 fi
 
 if grep -q "journal_studio_router" backend/app/presentation/api/v1.py; then
@@ -146,6 +165,7 @@ if [[ -x backend/venv/bin/python ]]; then
     tests/test_journal_studio_pattern_unit.py \
     tests/test_journal_studio_pattern_api_unit.py \
     tests/test_journal_studio_settings_unit.py \
+    tests/test_journal_studio_preset_unit.py \
     tests/test_approval_inbox_unit.py \
     -q --no-cov); then
     pass "pytest journal studio + approval inbox"
@@ -157,9 +177,9 @@ else
 fi
 
 if [[ "$FAIL" -eq 0 ]]; then
-  echo "=== Journal Studio TJ1–TJ6 gate PASSED ==="
+  echo "=== Journal Studio TJ1–TJ7 gate PASSED ==="
   exit 0
 fi
 
-echo "=== Journal Studio TJ1–TJ6 gate FAILED ($FAIL) ==="
+echo "=== Journal Studio TJ1–TJ7 gate FAILED ($FAIL) ==="
 exit 1

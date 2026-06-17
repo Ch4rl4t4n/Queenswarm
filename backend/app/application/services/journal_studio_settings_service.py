@@ -11,6 +11,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.services.journal_studio_preset_catalog import (
+    get_preset_definition,
+    normalize_studio_preset,
+    preset_field_toggles,
+    preset_meta,
+    preset_mistake_tags,
+)
 from app.application.services.supervisor.routine_service import create_supervisor_routine
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -25,35 +32,14 @@ ROUTINE_NAME = "Trading journal review"
 JOURNAL_REVIEW_LANE = "journal_studio_review"
 
 ReviewCronPreset = Literal["off", "daily_0600", "daily_2000", "weekly_monday", "custom"]
+StudioPreset = Literal["trading", "business_brain"]
 RoutineStatus = Literal["missing", "scheduled", "running", "ready", "disabled"]
 
 CRON_FIELD_RE = re.compile(r"^[\d*,/-]+$")
 
-DEFAULT_FIELD_TOGGLES: dict[str, bool] = {
-    "thesis": True,
-    "setup": True,
-    "entry_price": True,
-    "exit_price": True,
-    "position_size": True,
-    "outcome": True,
-    "pnl": True,
-    "emotion": True,
-    "screenshot": False,
-    "lesson": True,
-    "tags": True,
-    "mistake_tag": True,
-}
+DEFAULT_FIELD_TOGGLES: dict[str, bool] = dict(preset_field_toggles("trading"))
 
-DEFAULT_MISTAKE_TAGS: list[str] = [
-    "fomo",
-    "revenge_trade",
-    "no_stop",
-    "oversized",
-    "early_exit",
-    "late_entry",
-    "ignored_plan",
-    "chased_price",
-]
+DEFAULT_MISTAKE_TAGS: list[str] = list(preset_mistake_tags("trading"))
 
 REVIEW_CRON_PRESETS: dict[str, str] = {
     "daily_0600": "0 6 * * *",
@@ -61,18 +47,7 @@ REVIEW_CRON_PRESETS: dict[str, str] = {
     "weekly_monday": "0 7 * * 1",
 }
 
-GOAL_TEMPLATE = """\
-Trading journal review (verify-first, operator approve before vault write).
-
-Review recent paper fills and manual journal entries for this tenant:
-1. Summarize what worked and repeat mistakes (use configured mistake tags).
-2. Draft Obsidian-ready markdown for operator approval — never write vault without HITL.
-3. Cross-link thesis brief (NP5) when available.
-4. Tag entries for pattern strip (30d / 90d) — simulate export only.
-
-Skills: trading-journal-playbook, self-review-loop, obsidian-export-playbook.
-Save deliverable tagged journal-review. Operator approve before Obsidian sync.
-""".strip()
+GOAL_TEMPLATE = get_preset_definition("trading")["goal_template"]
 
 
 class JournalStudioSettingsOut(BaseModel):
@@ -87,6 +62,15 @@ class JournalStudioSettingsOut(BaseModel):
     review_cron: str = "0 6 * * *"
     obsidian_subfolder: str = "Trading/Journal"
     mistake_tags: list[str] = Field(default_factory=lambda: list(DEFAULT_MISTAKE_TAGS))
+    studio_preset: StudioPreset = "trading"
+    module_title: str = "Trading Journal"
+    module_subtitle: str = ""
+    field_labels: dict[str, str] = Field(default_factory=dict)
+    pattern_tags_label: str = "Mistake tags"
+    recall_panel_label: str = "Pre-trade recall"
+    wiki_capture_href: str = "/knowledge?tab=wiki"
+    brief_dispatch_href: str = "/tasks?goal_preset=trading-thesis"
+    operator_hint: str = ""
     source: Literal["deployment", "tenant"] = "deployment"
     updated_at: datetime | None = None
     workspace_href: str = "/apps-tools/trading-journal?section=settings#journal-studio-settings"
@@ -104,6 +88,14 @@ class JournalStudioSettingsPatchIn(BaseModel):
     review_cron: str | None = None
     obsidian_subfolder: str | None = None
     mistake_tags: list[str] | None = None
+    studio_preset: StudioPreset | None = None
+
+    @field_validator("studio_preset")
+    @classmethod
+    def _normalize_preset(cls, value: str | None) -> StudioPreset | None:
+        if value is None:
+            return None
+        return normalize_studio_preset(value)
 
     @field_validator("obsidian_subfolder")
     @classmethod
@@ -166,15 +158,19 @@ def _deployment_defaults() -> JournalStudioSettingsOut:
     if preset_raw in {"off", "daily_0600", "daily_2000", "weekly_monday", "custom"}:
         preset = preset_raw  # type: ignore[assignment]
     cron = resolve_review_cron(preset, settings.journal_studio_default_review_cron)
-    return JournalStudioSettingsOut(
-        enabled=settings.journal_studio_enabled,
-        field_toggles=dict(DEFAULT_FIELD_TOGGLES),
-        review_cron_enabled=settings.journal_studio_review_routine_enabled,
-        review_cron_preset=preset,
-        review_cron=cron,
-        obsidian_subfolder=settings.journal_studio_default_obsidian_subfolder,
-        mistake_tags=list(DEFAULT_MISTAKE_TAGS),
-        source="deployment",
+    studio_preset: StudioPreset = "trading"
+    return _attach_preset_meta(
+        JournalStudioSettingsOut(
+            enabled=settings.journal_studio_enabled,
+            field_toggles=preset_field_toggles(studio_preset),
+            review_cron_enabled=settings.journal_studio_review_routine_enabled,
+            review_cron_preset=preset,
+            review_cron=cron,
+            obsidian_subfolder=settings.journal_studio_default_obsidian_subfolder,
+            mistake_tags=preset_mistake_tags(studio_preset),
+            studio_preset=studio_preset,
+            source="deployment",
+        ),
     )
 
 
@@ -210,15 +206,26 @@ def resolve_review_cron(preset: str, custom: str | None = None) -> str:
     return validate_cron_expr(settings.journal_studio_default_review_cron)
 
 
-def merge_field_toggles(raw: dict[str, Any] | None) -> dict[str, bool]:
-    """Merge tenant field toggles over defaults."""
+def merge_field_toggles(
+    raw: dict[str, Any] | None,
+    *,
+    preset: StudioPreset = "trading",
+) -> dict[str, bool]:
+    """Merge tenant field toggles over preset defaults."""
 
-    merged = dict(DEFAULT_FIELD_TOGGLES)
+    merged = preset_field_toggles(preset)
     if isinstance(raw, dict):
-        for key in DEFAULT_FIELD_TOGGLES:
+        for key in merged:
             if key in raw:
                 merged[key] = bool(raw[key])
     return merged
+
+
+def _attach_preset_meta(settings_out: JournalStudioSettingsOut) -> JournalStudioSettingsOut:
+    """Attach TJ7 preset labels and deep links for UI shell."""
+
+    meta = preset_meta(settings_out.studio_preset)
+    return settings_out.model_copy(update=meta)
 
 
 def enabled_field_keys(field_toggles: dict[str, bool]) -> list[str]:
@@ -239,27 +246,30 @@ def _settings_from_bucket(bucket: dict[str, Any]) -> JournalStudioSettingsOut:
         preset = base.review_cron_preset
     cron_raw = bucket.get("review_cron")
     cron = resolve_review_cron(preset, str(cron_raw) if cron_raw is not None else None)
+    studio_preset = normalize_studio_preset(bucket.get("studio_preset", base.studio_preset))
     tags_raw = bucket.get("mistake_tags")
-    tags = list(DEFAULT_MISTAKE_TAGS)
+    tags = preset_mistake_tags(studio_preset)
     if isinstance(tags_raw, list):
         try:
             tags = JournalStudioSettingsPatchIn.model_validate({"mistake_tags": tags_raw}).mistake_tags or tags
         except ValueError:
-            tags = list(DEFAULT_MISTAKE_TAGS)
+            tags = preset_mistake_tags(studio_preset)
+    preset_def = get_preset_definition(studio_preset)
     merged = base.model_copy(
         update={
             "enabled": bool(bucket.get("enabled", base.enabled)),
-            "field_toggles": merge_field_toggles(bucket.get("field_toggles")),
+            "field_toggles": merge_field_toggles(bucket.get("field_toggles"), preset=studio_preset),
             "review_cron_enabled": bool(bucket.get("review_cron_enabled", base.review_cron_enabled)),
             "review_cron_preset": preset,
             "review_cron": cron,
-            "obsidian_subfolder": str(bucket.get("obsidian_subfolder", base.obsidian_subfolder)),
+            "obsidian_subfolder": str(bucket.get("obsidian_subfolder", preset_def["obsidian_subfolder"])),
             "mistake_tags": tags,
+            "studio_preset": studio_preset,
             "source": "tenant",
             "updated_at": bucket.get("updated_at"),
         },
     )
-    return JournalStudioSettingsOut.model_validate(merged.model_dump(mode="python"))
+    return _attach_preset_meta(JournalStudioSettingsOut.model_validate(merged.model_dump(mode="python")))
 
 
 async def get_journal_studio_settings(
@@ -293,15 +303,25 @@ async def save_journal_studio_settings(
     for key, value in patch_data.items():
         if value is not None:
             data[key] = value
+    if patch.studio_preset is not None and patch.studio_preset != current.studio_preset:
+        if patch.studio_preset == "business_brain" and not settings.journal_studio_business_brain_preset_enabled:
+            msg = "Business brain preset disabled in deployment config."
+            raise ValueError(msg)
+        preset_def = get_preset_definition(patch.studio_preset)
+        data["studio_preset"] = patch.studio_preset
+        data["field_toggles"] = dict(preset_def["field_toggles"])
+        data["mistake_tags"] = list(preset_def["mistake_tags"])
+        data["obsidian_subfolder"] = preset_def["obsidian_subfolder"]
     preset = data.get("review_cron_preset", current.review_cron_preset)
     cron_override = patch.review_cron if patch.review_cron is not None else data.get("review_cron")
     data["review_cron"] = resolve_review_cron(str(preset), str(cron_override) if cron_override else None)
     if preset == "off":
         data["review_cron_enabled"] = False
-    data["field_toggles"] = merge_field_toggles(data.get("field_toggles"))
+    studio_preset = normalize_studio_preset(data.get("studio_preset", current.studio_preset))
+    data["field_toggles"] = merge_field_toggles(data.get("field_toggles"), preset=studio_preset)
     data["source"] = "tenant"
     data["updated_at"] = datetime.now(tz=UTC).isoformat()
-    saved = JournalStudioSettingsOut.model_validate(data)
+    saved = _attach_preset_meta(JournalStudioSettingsOut.model_validate(data))
 
     root = dict(tenant.operator_settings or {})
     existing_bucket = dict(root.get(JOURNAL_STUDIO_SETTINGS_KEY) or {})
@@ -314,6 +334,7 @@ async def save_journal_studio_settings(
         "review_cron": saved.review_cron,
         "obsidian_subfolder": saved.obsidian_subfolder,
         "mistake_tags": saved.mistake_tags,
+        "studio_preset": saved.studio_preset,
         "updated_at": saved.updated_at,
     }
     if isinstance(manual_entries, list):
@@ -352,12 +373,15 @@ async def ensure_journal_review_routine(
     if not studio.enabled or not studio.review_cron_enabled or studio.review_cron_preset == "off":
         return {"status": "disabled", "routine_id": None, "reason": "review_cron_off"}
 
+    preset_def = get_preset_definition(studio.studio_preset)
+    routine_name = str(preset_def["routine_name"])
+    goal_template = str(preset_def["goal_template"])
     cron_expr = studio.review_cron
     existing = await session.scalar(
         select(SupervisorRoutine)
         .where(
             SupervisorRoutine.tenant_id == tenant_id,
-            SupervisorRoutine.name == ROUTINE_NAME,
+            SupervisorRoutine.name == routine_name,
         )
         .limit(1),
     )
@@ -374,8 +398,8 @@ async def ensure_journal_review_routine(
 
     row = await create_supervisor_routine(
         session,
-        name=ROUTINE_NAME,
-        goal_template=GOAL_TEMPLATE,
+        name=routine_name,
+        goal_template=goal_template,
         created_by_subject=created_by_subject or "system:journal-studio-review",
         schedule_kind="cron",
         interval_seconds=None,
@@ -459,11 +483,14 @@ async def compose_journal_studio_routine_kpi(
             operator_hint="Turn on review cron or bootstrap routine to schedule overnight reviews.",
         )
 
+    preset_def = get_preset_definition(studio.studio_preset)
+    routine_name = str(preset_def["routine_name"])
+
     routine = await session.scalar(
         select(SupervisorRoutine)
         .where(
             SupervisorRoutine.tenant_id == tenant_id,
-            SupervisorRoutine.name == ROUTINE_NAME,
+            SupervisorRoutine.name == routine_name,
         )
         .limit(1),
     )
@@ -495,6 +522,7 @@ async def compose_journal_studio_routine_kpi(
         enabled=True,
         routine_status=status,
         routine_id=str(routine.id),
+        routine_name=routine_name,
         next_run_at=routine.next_run_at,
         last_run_at=last_session.started_at if last_session else None,
         last_session_status=last_session.status if last_session else None,
@@ -504,7 +532,7 @@ async def compose_journal_studio_routine_kpi(
         obsidian_subfolder=studio.obsidian_subfolder,
         enabled_field_count=enabled_count,
         mistake_tag_count=len(studio.mistake_tags),
-        operator_hint="Review routine active — drafts await operator approve before vault write.",
+        operator_hint=str(studio.operator_hint or preset_def["operator_hint"]),
     )
 
 
