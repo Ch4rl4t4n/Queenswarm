@@ -57,6 +57,8 @@ async def test_compose_approval_inbox_merges_publish_and_suggestions() -> None:
         mock_settings.broker_order_queue_enabled = False
         mock_settings.journal_studio_enabled = False
         mock_settings.journal_studio_gardener_enabled = False
+        mock_settings.weekly_compound_gardener_enabled = False
+        mock_settings.email_draft_outer_loop_enabled = False
         with patch(
             "app.application.services.approval_inbox.build_publish_queue_snapshot",
             new_callable=AsyncMock,
@@ -121,8 +123,12 @@ async def test_compose_approval_inbox_includes_goldmine_alerts() -> None:
         mock_settings.broker_order_queue_enabled = False
         mock_settings.journal_studio_enabled = False
         mock_settings.journal_studio_gardener_enabled = False
+        mock_settings.weekly_compound_gardener_enabled = False
+        mock_settings.email_draft_outer_loop_enabled = False
         mock_settings.journal_studio_enabled = False
         mock_settings.journal_studio_gardener_enabled = False
+        mock_settings.weekly_compound_gardener_enabled = False
+        mock_settings.email_draft_outer_loop_enabled = False
         with patch(
             "app.application.services.approval_inbox.list_agent_suggestions",
             new_callable=AsyncMock,
@@ -189,6 +195,8 @@ async def test_compose_approval_inbox_includes_broker_orders() -> None:
         mock_settings.broker_order_queue_enabled = True
         mock_settings.journal_studio_enabled = False
         mock_settings.journal_studio_gardener_enabled = False
+        mock_settings.weekly_compound_gardener_enabled = False
+        mock_settings.email_draft_outer_loop_enabled = False
         with patch(
             "app.application.services.approval_inbox.list_agent_suggestions",
             new_callable=AsyncMock,
@@ -259,6 +267,8 @@ async def test_compose_approval_inbox_includes_journal_drafts() -> None:
         mock_settings.broker_order_queue_enabled = False
         mock_settings.journal_studio_enabled = True
         mock_settings.journal_studio_gardener_enabled = True
+        mock_settings.weekly_compound_gardener_enabled = False
+        mock_settings.email_draft_outer_loop_enabled = False
         with patch(
             "app.application.services.approval_inbox.list_agent_suggestions",
             new_callable=AsyncMock,
