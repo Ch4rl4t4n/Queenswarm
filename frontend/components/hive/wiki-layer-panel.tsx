@@ -174,7 +174,9 @@ export function WikiLayerPanel(): JSX.Element {
     <div className="space-y-4">
       <KnowledgeElicitationPanel />
       <SecondBrainCapturePanel onCaptured={() => void reload()} />
-      <SecondBrainCaptureApprovePanel onApproved={() => void reload()} />
+      <div id="second-brain-capture-approve" className="scroll-mt-28">
+        <SecondBrainCaptureApprovePanel onApproved={() => void reload()} />
+      </div>
       <V4Card>
         <V4CardHeader
           title="Wiki Layer"

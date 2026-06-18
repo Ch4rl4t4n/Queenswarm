@@ -160,6 +160,7 @@ def _compose_jarvis_advisor_strip(
     autopilot: JarvisAutopilotIn,
     memory_strip: JarvisMemoryIn,
     weak_signal_hint: str | None = None,
+    pending_wiki_captures: int = 0,
 ) -> MissionJarvisAdvisorStripOut:
     """Build up to three prioritized steps — verify blockers before new work."""
 
@@ -193,6 +194,19 @@ def _compose_jarvis_advisor_strip(
                     title=f"Review {len(approvals)} approval(s)",
                     detail=top.detail[:200] or "Simulate-first gates waiting for your sign-off.",
                     href=top.href,
+                    kind="verify",
+                ),
+            ),
+        )
+
+    if pending_wiki_captures > 0:
+        candidates.append(
+            (
+                2,
+                _JarvisCandidate(
+                    title=f"Approve {pending_wiki_captures} wiki capture(s)",
+                    detail="Second-brain notes waiting — compile into Wiki Layer before cited recall.",
+                    href="/knowledge?tab=wiki#second-brain-capture-approve",
                     kind="verify",
                 ),
             ),

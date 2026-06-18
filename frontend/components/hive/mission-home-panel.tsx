@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CalendarClock, CheckCircle2, Loader2, Shield, Sparkles, Zap, Brain } from "lucide-react";
+import { ArrowRight, BookMarked, CalendarClock, CheckCircle2, Loader2, Shield, Sparkles, Zap, Brain } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
@@ -184,6 +184,17 @@ interface MissionWeeklyCompoundStrip {
   approvals_href: string;
 }
 
+interface MissionSecondBrainStrip {
+  enabled: boolean;
+  headline: string;
+  message: string;
+  pending_captures: number;
+  connection_intelligence_weekly: boolean;
+  wiki_href: string;
+  captures_href: string;
+  closed_loop_href: string;
+}
+
 interface MissionHomeSnapshot {
   enabled: boolean;
   current_step: ProcessStepId;
@@ -200,6 +211,7 @@ interface MissionHomeSnapshot {
   agent_quality_strip?: MissionAgentQualityStrip;
   jarvis_weekly_reflection_strip?: MissionJarvisWeeklyReflectionStrip;
   weekly_compound_strip?: MissionWeeklyCompoundStrip;
+  second_brain_strip?: MissionSecondBrainStrip;
   first_run_complete: boolean;
   links: Record<string, string>;
   rapid_loop_widget_enabled?: boolean;
@@ -259,6 +271,7 @@ function MissionHomePanelInner(): JSX.Element | null {
   const agentQuality = snapshot.agent_quality_strip;
   const weeklyReflection = snapshot.jarvis_weekly_reflection_strip;
   const weeklyCompound = snapshot.weekly_compound_strip;
+  const secondBrain = snapshot.second_brain_strip;
 
   function qualityTone(status: MissionAgentQualityStrip["status"]): "ok" | "warn" | "err" | "info" {
     if (status === "healthy") return "ok";
@@ -775,6 +788,48 @@ function MissionHomePanelInner(): JSX.Element | null {
           ))}
         </div>
       </V4Card>
+
+      {secondBrain?.enabled ? (
+        <V4Card className="md:max-lg:col-span-2" data-testid="mission-home-second-brain">
+          <V4CardHeader
+            kicker="Learn"
+            title={secondBrain.headline}
+            description={secondBrain.message}
+            actions={
+              <div className="flex flex-wrap gap-2">
+                {secondBrain.pending_captures > 0 ? (
+                  <Link
+                    href={secondBrain.captures_href}
+                    className="qs-btn qs-btn--primary qs-btn--sm inline-flex gap-1"
+                    data-testid="mission-home-wiki-captures"
+                  >
+                    <CheckCircle2 className="size-3.5" aria-hidden />
+                    Approve captures
+                  </Link>
+                ) : null}
+                <Link
+                  href={secondBrain.wiki_href}
+                  className="qs-btn qs-btn--ghost qs-btn--sm inline-flex gap-1"
+                >
+                  <BookMarked className="size-3.5" aria-hidden />
+                  Wiki Layer
+                </Link>
+                <Link href={secondBrain.closed_loop_href} className="qs-btn qs-btn--ghost qs-btn--sm">
+                  Closed loops
+                </Link>
+              </div>
+            }
+          />
+          <div className="flex flex-wrap gap-2 px-4 pb-4">
+            {secondBrain.pending_captures > 0 ? (
+              <V4Badge tone="warn">{secondBrain.pending_captures} capture(s)</V4Badge>
+            ) : null}
+            {secondBrain.connection_intelligence_weekly ? (
+              <V4Badge tone="info">Weekly MOC tick</V4Badge>
+            ) : null}
+          </div>
+        </V4Card>
+      ) : null}
 
       <div className="flex flex-col gap-3 md:max-lg:contents">
         <V4Card className="md:max-lg:col-span-1">

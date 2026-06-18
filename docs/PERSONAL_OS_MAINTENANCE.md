@@ -32,6 +32,8 @@ Apply preset: `./scripts/apply-solo-mode.sh` (merges `.env.solo.example` → `.e
 | **POS-K adoption wave** | `./scripts/audit-personal-os-adoption-gate.sh` | After POS-J UI wiring | Compound panel · Approval Inbox · Faceless cut · Research dedupe |
 | **POS-L daily flow** | `./scripts/audit-personal-os-daily-flow-gate.sh` | After POS-L changes | Cockpit shortcut · Telegram pending pings |
 | **POS-M memory adoption** | `./scripts/audit-personal-os-memory-adoption-gate.sh` | After MEM2 UX wiring | Cited recall shortcut · Jarvis nudge |
+| **POS-N second brain** | `./scripts/audit-personal-os-second-brain-adoption-gate.sh` | After SB/LOOP UX wiring | Wiki captures · closed loops · MOC tick |
+| **Second brain SB1–4** | `./scripts/audit-second-brain-gate.sh` | Weekly | Capture approve · connection intelligence · ⌘K wiki |
 | **MEM5 project tags** | `./scripts/audit-memory-project-tags-gate.sh` | After memory tag changes | Client/project recall slice |
 | **Solo daily plan** | `./scripts/audit-solo-daily-plan-gate.sh` | Weekly | Morning brief + kanban wiring |
 | **Social publish** | `./scripts/audit-social-publish-gate.sh` | Before enabling live publish | OAuth + simulate-first queue |
@@ -79,6 +81,7 @@ Expected Personal OS prod:
 | **POS-K** | K1–K5 adoption wave (UI wiring for POS-J — Knowledge · Cockpit · Faceless · Research dedupe) | ✅ Shipped |
 | **POS-L** | L1–L3 daily flow (Mission Home → Cockpit · Telegram on pending drafts) | ✅ Shipped |
 | **POS-M** | M1–M4 memory adoption (Cited recall daily flow · Jarvis nudge) | ✅ Shipped |
+| **POS-N** | N1–N4 second brain adoption (Wiki captures · closed loops · Jarvis) | ✅ Shipped |
 
 ## Rollback
 

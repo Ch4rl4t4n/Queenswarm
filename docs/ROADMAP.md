@@ -189,6 +189,19 @@ Audit: `./scripts/audit-personal-os-daily-flow-gate.sh`
 
 Audit: `./scripts/audit-personal-os-memory-adoption-gate.sh` · `./scripts/audit-memory-project-tags-gate.sh`
 
+## Personal OS — second brain adoption wave (POS-N)
+
+**Goal:** SB2/SB3 Wiki Layer + LOOP1 closed loops in daily operator flow — not buried in Settings.
+
+| ID | Scope | Status |
+|----|-------|--------|
+| N1 | Mission Home Wiki Layer strip — pending captures + Wiki / Closed loops links | ✅ |
+| N2 | Jarvis nudge when wiki captures await approve (SB3) | ✅ |
+| N3 | Verify rail closed-loop preset studio + wiki deep-link anchor | ✅ |
+| N4 | Audit gates (SB1–4 + POS-N) in operator verify | ✅ |
+
+Audit: `./scripts/audit-personal-os-second-brain-adoption-gate.sh` · `./scripts/audit-second-brain-gate.sh`
+
 **Operator daily stack:** `/tasks` (Jarvis · weekly compound) · `/cockpit` (Approval Inbox) · `/knowledge` (Research Bee · compound gardener) · `/ballroom` · `/foragers`
 
 **Maintenance audits:** `./scripts/audit-personal-os-gate.sh` · weekly: social publish + solo daily plan gates.

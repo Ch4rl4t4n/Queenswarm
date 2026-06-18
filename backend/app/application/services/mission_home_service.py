@@ -203,6 +203,21 @@ class MissionAutopilotStripOut(BaseModel):
     digest_href: str = "/cockpit#four-lanes"
 
 
+class MissionSecondBrainStripOut(BaseModel):
+    """Wiki Layer + SB3 capture approve + LOOP1 presets on Mission Home (POS-N)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    enabled: bool = False
+    headline: str = "Second brain · Wiki Layer"
+    message: str = ""
+    pending_captures: int = 0
+    connection_intelligence_weekly: bool = False
+    wiki_href: str = "/knowledge?tab=wiki"
+    captures_href: str = "/knowledge?tab=wiki#second-brain-capture-approve"
+    closed_loop_href: str = "/settings/harness#harness-closed-loop-presets"
+
+
 class MissionHomeSnapshotOut(BaseModel):
     """Unified Mission Home snapshot for /tasks solo default."""
 
@@ -231,6 +246,9 @@ class MissionHomeSnapshotOut(BaseModel):
     )
     weekly_compound_strip: MissionWeeklyCompoundStripOut = Field(
         default_factory=lambda: MissionWeeklyCompoundStripOut(enabled=False),
+    )
+    second_brain_strip: MissionSecondBrainStripOut = Field(
+        default_factory=lambda: MissionSecondBrainStripOut(enabled=False),
     )
     first_run_complete: bool = True
     links: dict[str, str] = Field(default_factory=dict)
@@ -306,13 +324,19 @@ STEP_STUDIOS: dict[ProcessStepId, list[MissionStudioEntryOut]] = {
             detail="Social simulate before any live post.",
             href="/integrations?tab=studio#social-publish",
         ),
+        MissionStudioEntryOut(
+            id="closed_loop",
+            title="Closed loop presets",
+            detail="Greptile-style rubric loops — max turns, min score before merge.",
+            href="/settings/harness#harness-closed-loop-presets",
+        ),
     ],
     "learn": [
         MissionStudioEntryOut(
             id="wiki",
             title="Wiki capture",
-            detail="Promote verified session output to Hive Mind.",
-            href="/knowledge#wiki",
+            detail="Capture → approve → MOC refresh — second-brain closed loop.",
+            href="/knowledge?tab=wiki",
         ),
         MissionStudioEntryOut(
             id="recipes",
@@ -411,6 +435,45 @@ async def _compose_memory_strip(
         total_chars=total_chars,
         max_chars=max_chars,
         usage_pct=usage_pct,
+    )
+
+
+async def _compose_second_brain_strip(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    first_run_complete: bool,
+) -> MissionSecondBrainStripOut:
+    """Wiki Layer adoption strip — pending captures + weekly connection intelligence (POS-N)."""
+
+    if not settings.wiki_layer_enabled or not first_run_complete:
+        return MissionSecondBrainStripOut(enabled=False)
+
+    pending_count = 0
+    if settings.second_brain_capture_approve_enabled:
+        from app.application.services.second_brain_capture import list_pending_capture_notes
+
+        pending = await list_pending_capture_notes(session, tenant_id=tenant_id, limit=20)
+        pending_count = len(pending)
+
+    conn_weekly = settings.second_brain_connection_intelligence_tick_enabled
+    message_parts: list[str] = []
+    if pending_count:
+        message_parts.append(f"{pending_count} capture(s) awaiting approve")
+    if conn_weekly:
+        message_parts.append("weekly MOC + connection-intelligence tick")
+    message = (
+        " · ".join(message_parts) + " — capture → approve → cited recall."
+        if message_parts
+        else "Capture ideas in Wiki Layer — approve before Obsidian export and recall."
+    )
+
+    return MissionSecondBrainStripOut(
+        enabled=True,
+        headline="Second brain · Wiki Layer",
+        message=message,
+        pending_captures=pending_count,
+        connection_intelligence_weekly=conn_weekly,
     )
 
 
@@ -822,6 +885,11 @@ async def compose_mission_home_snapshot(
         has_daily_plan=bool(daily.enabled and daily.items),
     )
     memory_strip = await _compose_memory_strip(session, tenant_id=tenant_id)
+    second_brain_strip = await _compose_second_brain_strip(
+        session,
+        tenant_id=tenant_id,
+        first_run_complete=first_run.complete,
+    )
     life_os_strip = await _compose_life_os_strip(
         session,
         dashboard_user_id=dashboard_user_id,
@@ -880,6 +948,7 @@ async def compose_mission_home_snapshot(
             ],
         ),
         weak_signal_hint=weak_signal.advisor_hint,
+        pending_wiki_captures=second_brain_strip.pending_captures,
     )
     agent_quality = await compose_agent_quality_strip(session, tenant_id=tenant_id)
     weekly_reflection = await compose_jarvis_weekly_reflection_strip(
@@ -910,6 +979,7 @@ async def compose_mission_home_snapshot(
         agent_quality_strip=agent_quality,
         jarvis_weekly_reflection_strip=weekly_reflection,
         weekly_compound_strip=weekly_compound,
+        second_brain_strip=second_brain_strip,
         first_run_complete=first_run.complete,
         links={
             "new_session": "/agents?preset=web-redesign-discovery#sessions",
@@ -924,6 +994,7 @@ async def compose_mission_home_snapshot(
             "analytics": "/apps-tools/analytics",
             "research_bee": "/knowledge#research-bee",
             "cited_recall": "/knowledge?tab=memory#cited-recall",
+            "wiki_layer": "/knowledge?tab=wiki",
             "loop_presets": "/settings/harness#harness-closed-loop-presets",
         },
         rapid_loop_widget_enabled=settings.rapid_loop_mission_home_enabled,
