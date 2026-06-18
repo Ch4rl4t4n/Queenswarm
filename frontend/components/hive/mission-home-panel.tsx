@@ -196,7 +196,7 @@ interface MissionHomeSnapshot {
 }
 
 function MissionHomePanelInner(): JSX.Element | null {
-  const { soloMode } = usePlatform();
+  const { soloMode, personalOsMode } = usePlatform();
   const [snapshot, setSnapshot] = useState<MissionHomeSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -433,19 +433,19 @@ function MissionHomePanelInner(): JSX.Element | null {
         </div>
       ) : null}
 
-      {snapshot.revenue_funnel_widget_enabled ? (
+      {snapshot.revenue_funnel_widget_enabled && !personalOsMode ? (
         <div className="md:max-lg:col-span-2" data-testid="mission-home-revenue-funnel">
           <RevenueFunnelStrip eager />
         </div>
       ) : null}
 
-      {snapshot.factory_launch_widget_enabled ? (
+      {snapshot.factory_launch_widget_enabled && !personalOsMode ? (
         <div className="md:max-lg:col-span-2" data-testid="mission-home-factory-launch">
           <FactoryLaunchWidget eager />
         </div>
       ) : null}
 
-      {snapshot.catalog_wave_widget_enabled ? (
+      {snapshot.catalog_wave_widget_enabled && !personalOsMode ? (
         <div className="md:max-lg:col-span-2" data-testid="mission-home-catalog-wave">
           <CatalogWaveWidget eager />
         </div>

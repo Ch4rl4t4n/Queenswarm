@@ -79,7 +79,7 @@ Living backlog for **queenswarm.love** — ordered by impact. Status reflects pr
 | POS-D | Life OS — Calendar → daily planner in Mission Home | ✅ Shipped |
 | POS-E | Autopilot — `routines_enabled` + Four Lanes + My 3 Bees cron | ✅ Shipped |
 | POS-F | Skill Factory lite — strip Gumroad tabs | ✅ Shipped |
-| POS-G | Dead code deletion (commercial routes) — after 2 weeks stable | Planned |
+| POS-G | Dead code deletion (commercial routes) — after 2 weeks stable | In progress |
 | POS-H | **Intelligence Wave** — Jarvis advisor · weak signals · research project · agent quality · loop shortcuts | ✅ Shipped |
 
 **POS-H scope (Jun 2026 X-signals triage):**
@@ -109,6 +109,20 @@ Audit: `./scripts/audit-jarvis-intelligence-gate.sh`
 | I5 | H7 — codebase-memory MCP connector pre Tech SCV lane | ✅ |
 
 Audit: `./scripts/audit-research-bee-gate.sh` (I1) · `./scripts/audit-jarvis-intelligence-gate.sh` · `./scripts/audit-codebase-memory-mcp-gate.sh` (I5)
+
+## Personal OS — dead code cleanup (POS-G)
+
+**Goal:** Odstrániť commercial/revenue leak v Personal OS bez rozbitia multi-tenant rollbacku.
+
+| ID | Scope | Status |
+|----|-------|--------|
+| G1 | `/factory` redirect → `/tasks` v Personal OS + leak audit gate | ✅ |
+| G2 | Mission Home commercial widgets double-gated (`personalOsMode`) | ✅ |
+| G3 | Operator verify — POS-I gates v weekly ritual | ✅ |
+| G4 | Backend commercial router archival (feature-flag removal) | Planned |
+| G5 | Frontend route + service deletion (inventory-driven) | Planned |
+
+Audit: `./scripts/audit-personal-os-dead-code-gate.sh` · prep inventory: `./scripts/audit-personal-os-dead-code-inventory.sh`
 
 **Maintenance audits:** `./scripts/audit-personal-os-gate.sh` · weekly: social publish + solo daily plan gates.
 

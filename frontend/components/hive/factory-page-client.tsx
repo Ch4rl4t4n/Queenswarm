@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Factory, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { ExecutionStudioMicroSaasFactoryPanel } from "@/components/connectors/execution-studio-micro-saas-factory-panel";
+import { usePlatform } from "@/components/hive/platform-context";
 import { HivePageShell } from "@/components/hive/hive-page-shell";
 import { V4Card } from "@/components/ui/v4";
 import { hiveGet } from "@/lib/api";
@@ -21,9 +23,17 @@ interface MicroSaasBlueprint {
 }
 
 export function FactoryPageClient(): JSX.Element {
+  const router = useRouter();
+  const { personalOsMode, loading: platformLoading } = usePlatform();
   const [blueprint, setBlueprint] = useState<MicroSaasBlueprint | null>(null);
   const [loading, setLoading] = useState(true);
   const [panelErr, setPanelErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!platformLoading && personalOsMode) {
+      router.replace("/tasks");
+    }
+  }, [personalOsMode, platformLoading, router]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -40,6 +50,15 @@ export function FactoryPageClient(): JSX.Element {
   useEffect(() => {
     void load();
   }, [load]);
+
+  if (platformLoading || personalOsMode) {
+    return (
+      <div className="flex min-h-[12rem] items-center justify-center gap-2 text-sm text-(--qs-text-3)">
+        <Loader2 className="size-4 animate-spin" aria-hidden />
+        Redirecting to Mission Home…
+      </div>
+    );
+  }
 
   return (
     <HivePageShell
