@@ -176,6 +176,19 @@ Audit: `./scripts/audit-personal-os-adoption-gate.sh`
 
 Audit: `./scripts/audit-personal-os-daily-flow-gate.sh`
 
+## Personal OS — memory adoption wave (POS-M)
+
+**Goal:** MEM2 cited recall in daily operator loop — Mission Home shortcut, Jarvis nudge, neutral Personal OS defaults.
+
+| ID | Scope | Status |
+|----|-------|--------|
+| M1 | Mission Home Brain Pack strip → Cited recall (`#cited-recall`) | ✅ |
+| M2 | Cited recall panel — no commercial default query · deep-link anchor | ✅ |
+| M3 | Jarvis nudge when Brain Pack ≥25% — test cited recall before dispatch | ✅ |
+| M4 | Audit gates + operator verify (MEM2 + MEM5) | ✅ |
+
+Audit: `./scripts/audit-personal-os-memory-adoption-gate.sh` · `./scripts/audit-memory-project-tags-gate.sh`
+
 **Operator daily stack:** `/tasks` (Jarvis · weekly compound) · `/cockpit` (Approval Inbox) · `/knowledge` (Research Bee · compound gardener) · `/ballroom` · `/foragers`
 
 **Maintenance audits:** `./scripts/audit-personal-os-gate.sh` · weekly: social publish + solo daily plan gates.

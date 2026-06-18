@@ -46,7 +46,7 @@ function statusTone(status: CitedRecallState["status"]): string {
 /** MEM2 — Cited recall: answer + source file/session or explicit not-in-memory. */
 export function CitedRecallPanel(): JSX.Element | null {
   const { hasFeature } = usePlatform();
-  const [query, setQuery] = useState("gumroad launch priorities");
+  const [query, setQuery] = useState("");
   const [state, setState] = useState<CitedRecallState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,16 +82,12 @@ export function CitedRecallPanel(): JSX.Element | null {
     }
   }, [activeTagIds]);
 
-  useEffect(() => {
-    void runSearch(query);
-  }, [query, runSearch]);
-
   if (!hasFeature("selective_recall")) {
     return null;
   }
 
   return (
-    <V4Card className="border-cyan/25" data-testid="cited-recall-panel">
+    <V4Card id="cited-recall" className="scroll-mt-28 border-cyan/25" data-testid="cited-recall-panel">
       <V4CardHeader
         leadingIcon={BookMarked}
         leadingIconTone="cyan"
@@ -100,6 +96,7 @@ export function CitedRecallPanel(): JSX.Element | null {
         hint={sectionHintNode("knowledgeCitedRecall")}
       />
 
+      <div className="space-y-3 p-4 pt-0">
       <div className="flex flex-wrap gap-2">
         <div className="relative min-w-[220px] flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-(--qs-text-4)" aria-hidden />
@@ -107,6 +104,11 @@ export function CitedRecallPanel(): JSX.Element | null {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                void runSearch(query);
+              }
+            }}
             placeholder="Ask what hive memory knows…"
             className="qs-input w-full pl-9"
             aria-label="Cited recall question"
@@ -169,7 +171,10 @@ export function CitedRecallPanel(): JSX.Element | null {
             </ul>
           ) : null}
         </div>
+      ) : query.trim().length >= 3 && !loading && !error ? (
+        <p className="mt-3 text-sm text-(--qs-text-3)">Press Enter or Search memory to query hive recall.</p>
       ) : null}
+      </div>
     </V4Card>
   );
 }

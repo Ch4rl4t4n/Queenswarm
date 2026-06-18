@@ -253,6 +253,18 @@ def _compose_jarvis_advisor_strip(
                 ),
             ),
         )
+    elif settings.cited_recall_panel_enabled and memory_strip.usage_pct >= 25:
+        candidates.append(
+            (
+                7,
+                _JarvisCandidate(
+                    title="Test cited recall",
+                    detail="Ask hive memory with source citations before dispatch — explicit not-in-memory when missing.",
+                    href="/knowledge?tab=memory#cited-recall",
+                    kind="learn",
+                ),
+            ),
+        )
 
     if life_os.enabled and life_os.connected and life_os.events:
         event = life_os.events[0]

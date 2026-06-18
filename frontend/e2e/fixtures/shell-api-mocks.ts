@@ -4696,6 +4696,7 @@ export async function installShellApiMocks(page: Page): Promise<void> {
             harness: "/settings/harness",
             four_lanes: "/agentic-os#lanes",
             digest_inbox: "/cockpit#four-lanes",
+            cited_recall: "/knowledge?tab=memory#cited-recall",
           },
         }),
       });

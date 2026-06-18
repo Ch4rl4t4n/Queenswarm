@@ -72,6 +72,8 @@ GATES=(
   "audit-personal-os-compound-gate.sh"
   "audit-personal-os-adoption-gate.sh"
   "audit-personal-os-daily-flow-gate.sh"
+  "audit-personal-os-memory-adoption-gate.sh"
+  "audit-memory-project-tags-gate.sh"
   "audit-personal-os-dead-code-gate.sh"
   "audit-solo-daily-plan-gate.sh"
   "audit-publish-queue-gate.sh"

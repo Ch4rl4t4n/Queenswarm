@@ -728,9 +728,18 @@ function MissionHomePanelInner(): JSX.Element | null {
           description="SOUL · MEMORY · USER — human-editable Queen context."
           hint={sectionHintNode("missionHomeMemory")}
           actions={
-            <Link href={snapshot.links.knowledge ?? "/knowledge#memory"} className="qs-btn qs-btn--ghost qs-btn--sm">
-              Edit
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href={snapshot.links.cited_recall ?? "/knowledge?tab=memory#cited-recall"}
+                className="qs-btn qs-btn--ghost qs-btn--sm"
+                data-testid="mission-home-cited-recall"
+              >
+                Cited recall
+              </Link>
+              <Link href={snapshot.links.knowledge ?? "/knowledge#memory"} className="qs-btn qs-btn--ghost qs-btn--sm">
+                Edit
+              </Link>
+            </div>
           }
         />
         <div

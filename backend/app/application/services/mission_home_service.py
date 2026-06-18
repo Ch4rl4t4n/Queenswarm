@@ -923,6 +923,7 @@ async def compose_mission_home_snapshot(
             "digest_inbox": autopilot_strip.digest_href,
             "analytics": "/apps-tools/analytics",
             "research_bee": "/knowledge#research-bee",
+            "cited_recall": "/knowledge?tab=memory#cited-recall",
             "loop_presets": "/settings/harness#harness-closed-loop-presets",
         },
         rapid_loop_widget_enabled=settings.rapid_loop_mission_home_enabled,
