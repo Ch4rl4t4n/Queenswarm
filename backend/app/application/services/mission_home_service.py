@@ -202,6 +202,22 @@ class MissionDataMonitorStripOut(BaseModel):
     foragers_href: str = "/foragers"
 
 
+class MissionDiscoveryStripOut(BaseModel):
+    """DG6 Discovery-first scrape visibility on Mission Home (POS-T)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    enabled: bool = False
+    headline: str = "Discovery-first scrape"
+    message: str = ""
+    keys_configured: bool = False
+    tavily_configured: bool = False
+    serper_configured: bool = False
+    example_query: str = "EU python job board RSS feed"
+    wizard_href: str = "/foragers#discovery-wizard"
+    foragers_href: str = "/foragers"
+
+
 class MissionMemoryLayerOut(BaseModel):
     """One Brain Pack layer preview (SOUL · MEMORY · USER)."""
 
@@ -361,6 +377,9 @@ class MissionHomeSnapshotOut(BaseModel):
     data_monitor_strip: MissionDataMonitorStripOut = Field(
         default_factory=lambda: MissionDataMonitorStripOut(enabled=False),
     )
+    discovery_strip: MissionDiscoveryStripOut = Field(
+        default_factory=lambda: MissionDiscoveryStripOut(enabled=False),
+    )
     first_run_complete: bool = True
     links: dict[str, str] = Field(default_factory=dict)
     rapid_loop_widget_enabled: bool = False
@@ -412,6 +431,12 @@ STEP_STUDIOS: dict[ProcessStepId, list[MissionStudioEntryOut]] = {
             title="Data Monitor wizard",
             detail="DG1 one-line intent → scheduled forager + extract schema.",
             href="/foragers#data-monitor-wizard",
+        ),
+        MissionStudioEntryOut(
+            id="discovery_wizard",
+            title="URL discovery",
+            detail="DG6 Serper/Tavily find → bind forager feeds.",
+            href="/foragers#discovery-wizard",
         ),
     ],
     "work": [
@@ -877,6 +902,38 @@ async def _compose_data_monitor_strip(
     )
 
 
+async def _compose_discovery_strip(session: AsyncSession) -> MissionDiscoveryStripOut:
+    """DG6 visibility strip — Serper/Tavily URL find → bind forager (POS-T)."""
+
+    if not settings.forager_discovery_enabled:
+        return MissionDiscoveryStripOut(enabled=False)
+
+    from app.application.services.forager_discovery_service import compose_forager_discovery_wizard_snapshot
+
+    snapshot = await compose_forager_discovery_wizard_snapshot(session)
+    if not snapshot.enabled:
+        return MissionDiscoveryStripOut(enabled=False)
+
+    if not snapshot.keys_configured:
+        message = (
+            "Add Tavily or Serper research keys — then search public URLs and bind feeds to a forager."
+        )
+    else:
+        message = snapshot.operator_hint
+
+    return MissionDiscoveryStripOut(
+        enabled=True,
+        headline="Discovery-first scrape · DG6",
+        message=message,
+        keys_configured=snapshot.keys_configured,
+        tavily_configured=snapshot.tavily_configured,
+        serper_configured=snapshot.serper_configured,
+        example_query="EU python job board RSS feed",
+        wizard_href="/foragers#discovery-wizard",
+        foragers_href="/foragers",
+    )
+
+
 async def _compose_life_os_strip(
     session: AsyncSession,
     *,
@@ -1237,6 +1294,7 @@ async def compose_mission_home_snapshot(
     )
     goldmine_strip = await _compose_goldmine_strip(session, tenant_id=tenant_id)
     data_monitor_strip = await _compose_data_monitor_strip(session, tenant_id=tenant_id)
+    discovery_strip = await _compose_discovery_strip(session)
 
     approvals: list[MissionApprovalOut] = []
     if inbox.enabled:
@@ -1369,6 +1427,7 @@ async def compose_mission_home_snapshot(
         social_intel_signal_count=social_intel_strip.weekly_signal_count if social_intel_strip.enabled else 0,
         social_intel_refresh_due=social_intel_strip.roadmap_refresh_due if social_intel_strip.enabled else False,
         data_monitor_count=data_monitor_strip.monitor_count if data_monitor_strip.enabled else 0,
+        discovery_keys_configured=discovery_strip.keys_configured if discovery_strip.enabled else False,
     )
     agent_quality = await compose_agent_quality_strip(session, tenant_id=tenant_id)
     weekly_reflection = await compose_jarvis_weekly_reflection_strip(
@@ -1406,6 +1465,7 @@ async def compose_mission_home_snapshot(
         goldmine_strip=goldmine_strip,
         social_intel_strip=social_intel_strip,
         data_monitor_strip=data_monitor_strip,
+        discovery_strip=discovery_strip,
         first_run_complete=first_run.complete,
         links={
             "new_session": "/agents?preset=web-redesign-discovery#sessions",
@@ -1428,6 +1488,7 @@ async def compose_mission_home_snapshot(
             "research_bee": "/knowledge#research-bee",
             "social_intel_loop5": "/knowledge#research-bee",
             "data_monitor": "/foragers#data-monitor-wizard",
+            "discovery_wizard": "/foragers#discovery-wizard",
             "loop_presets": "/settings/harness#harness-closed-loop-presets",
         },
         rapid_loop_widget_enabled=settings.rapid_loop_mission_home_enabled,

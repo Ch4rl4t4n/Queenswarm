@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BookMarked, CalendarClock, CheckCircle2, Loader2, Radar, Repeat, Shield, Sparkles, Wrench, Zap, Brain, ScanSearch } from "lucide-react";
+import { ArrowRight, BookMarked, CalendarClock, CheckCircle2, Loader2, Radar, Repeat, Search, Shield, Sparkles, Wrench, Zap, Brain, ScanSearch } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
@@ -264,6 +264,18 @@ interface MissionDataMonitorStrip {
   foragers_href: string;
 }
 
+interface MissionDiscoveryStrip {
+  enabled: boolean;
+  headline: string;
+  message: string;
+  keys_configured: boolean;
+  tavily_configured: boolean;
+  serper_configured: boolean;
+  example_query: string;
+  wizard_href: string;
+  foragers_href: string;
+}
+
 interface MissionHomeSnapshot {
   enabled: boolean;
   current_step: ProcessStepId;
@@ -287,6 +299,7 @@ interface MissionHomeSnapshot {
   goldmine_strip?: MissionGoldmineStrip;
   social_intel_strip?: MissionSocialIntelStrip;
   data_monitor_strip?: MissionDataMonitorStrip;
+  discovery_strip?: MissionDiscoveryStrip;
   first_run_complete: boolean;
   links: Record<string, string>;
   rapid_loop_widget_enabled?: boolean;
@@ -353,6 +366,7 @@ function MissionHomePanelInner(): JSX.Element | null {
   const goldmine = snapshot.goldmine_strip;
   const socialIntel = snapshot.social_intel_strip;
   const dataMonitor = snapshot.data_monitor_strip;
+  const discovery = snapshot.discovery_strip;
 
   function qualityTone(status: MissionAgentQualityStrip["status"]): "ok" | "warn" | "err" | "info" {
     if (status === "healthy") return "ok";
@@ -1032,6 +1046,46 @@ function MissionHomePanelInner(): JSX.Element | null {
             {dataMonitor.example_intent ? (
               <V4Badge tone="purple" className="max-w-full truncate">
                 e.g. {dataMonitor.example_intent.slice(0, 48)}
+              </V4Badge>
+            ) : null}
+          </div>
+        </V4Card>
+      ) : null}
+
+      {discovery?.enabled ? (
+        <V4Card
+          className="md:max-lg:col-span-2 border-magenta/30 shadow-[0_0_20px_rgba(255,0,170,0.08)]"
+          data-testid="mission-home-discovery"
+        >
+          <V4CardHeader
+            kicker="Plan"
+            title={discovery.headline}
+            description={discovery.message}
+            actions={
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href={discovery.wizard_href}
+                  className="qs-btn qs-btn--primary qs-btn--sm inline-flex gap-1"
+                  data-testid="mission-home-discovery-open"
+                >
+                  <Search className="size-3.5" aria-hidden />
+                  Discover URLs
+                </Link>
+                <Link href={discovery.foragers_href} className="qs-btn qs-btn--ghost qs-btn--sm">
+                  Foragers
+                </Link>
+              </div>
+            }
+          />
+          <div className="flex flex-wrap gap-2 px-4 pb-4">
+            <V4Badge tone={discovery.keys_configured ? "ok" : "warn"}>
+              {discovery.keys_configured ? "Keys ready" : "Add research keys"}
+            </V4Badge>
+            {discovery.tavily_configured ? <V4Badge tone="info">Tavily</V4Badge> : null}
+            {discovery.serper_configured ? <V4Badge tone="info">Serper</V4Badge> : null}
+            {discovery.example_query ? (
+              <V4Badge tone="purple" className="max-w-full truncate">
+                e.g. {discovery.example_query.slice(0, 48)}
               </V4Badge>
             ) : null}
           </div>

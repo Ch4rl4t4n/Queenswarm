@@ -165,6 +165,7 @@ def _compose_jarvis_advisor_strip(
     social_intel_signal_count: int = 0,
     social_intel_refresh_due: bool = False,
     data_monitor_count: int = 0,
+    discovery_keys_configured: bool = False,
 ) -> MissionJarvisAdvisorStripOut:
     """Build up to three prioritized steps — verify blockers before new work."""
 
@@ -263,6 +264,19 @@ def _compose_jarvis_advisor_strip(
                     title="Create data monitor",
                     detail="DG1 wizard — one sentence spawns scheduled forager with extract schema and Celery tick.",
                     href="/foragers#data-monitor-wizard",
+                    kind="work",
+                ),
+            ),
+        )
+
+    if settings.forager_discovery_enabled and discovery_keys_configured:
+        candidates.append(
+            (
+                5,
+                _JarvisCandidate(
+                    title="Discover monitor URLs",
+                    detail="DG6 — Serper/Tavily search, then bind RSS or channels to a forager.",
+                    href="/foragers#discovery-wizard",
                     kind="work",
                 ),
             ),

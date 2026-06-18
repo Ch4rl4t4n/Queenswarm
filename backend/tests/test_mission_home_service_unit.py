@@ -19,6 +19,7 @@ from app.application.services.mission_home_service import (
     _compose_agent_loop_strip,
     _compose_autopilot_strip,
     _compose_data_monitor_strip,
+    _compose_discovery_strip,
     _compose_goldmine_strip,
     _compose_loop_guardrails_strip,
     _compose_social_intel_strip,
@@ -178,6 +179,7 @@ async def test_compose_mission_home_setup_step() -> None:
         mock_settings.forager_goldmine_dispatch_enabled = False
         mock_settings.closed_loop_presets_enabled = False
         mock_settings.data_monitor_wizard_enabled = False
+        mock_settings.forager_discovery_enabled = False
         with patch(
             "app.application.services.mission_home_service.compose_solo_first_run",
             AsyncMock(return_value=first_run),
@@ -576,3 +578,32 @@ async def test_compose_data_monitor_strip_when_no_monitors() -> None:
     assert strip.enabled is True
     assert strip.monitor_count == 0
     assert strip.wizard_href.endswith("#data-monitor-wizard")
+
+
+@pytest.mark.asyncio
+async def test_compose_discovery_strip_when_keys_ready() -> None:
+    session = AsyncMock()
+
+    with patch("app.application.services.mission_home_service.settings") as mock_settings:
+        mock_settings.forager_discovery_enabled = True
+        with patch(
+            "app.application.services.forager_discovery_service.compose_forager_discovery_wizard_snapshot",
+            AsyncMock(
+                return_value=type(
+                    "Snap",
+                    (),
+                    {
+                        "enabled": True,
+                        "keys_configured": True,
+                        "tavily_configured": True,
+                        "serper_configured": False,
+                        "operator_hint": "Discover public URLs via Serper/Tavily.",
+                    },
+                )(),
+            ),
+        ):
+            strip = await _compose_discovery_strip(session)
+
+    assert strip.enabled is True
+    assert strip.keys_configured is True
+    assert strip.wizard_href.endswith("#discovery-wizard")

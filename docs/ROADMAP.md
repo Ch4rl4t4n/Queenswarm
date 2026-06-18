@@ -269,6 +269,21 @@ Audit: `./scripts/audit-personal-os-data-monitor-adoption-gate.sh`
 
 **Operator daily stack:** `/tasks` (Plan strip) · `/foragers#data-monitor-wizard` · `/foragers#goldmine-alerts` · `/knowledge#research-bee`
 
+## Personal OS — Discovery-first scrape adoption wave (POS-T)
+
+**Goal:** DG6 Serper/Tavily URL find → bind forager in daily operator flow — Mission Home + Jarvis, not buried on Foragers page only.
+
+| ID | Scope | Status |
+|----|-------|--------|
+| T1 | Mission Home discovery strip — keys status + wizard deep link | ✅ |
+| T2 | Jarvis nudge “Discover monitor URLs” when research keys configured | ✅ |
+| T3 | Plan rail DG6 studio + `#discovery-wizard` anchor | ✅ |
+| T4 | Audit gates (DG6 + POS-T) in operator verify | ✅ |
+
+Audit: `./scripts/audit-personal-os-discovery-adoption-gate.sh`
+
+**Operator daily stack:** `/tasks` (Plan strip) · `/foragers#discovery-wizard` · `/foragers#data-monitor-wizard` · `/foragers#goldmine-alerts`
+
 **Maintenance audits:** `./scripts/audit-personal-os-gate.sh` · weekly: social publish + solo daily plan gates.
 
 | Step | Scope | Status |

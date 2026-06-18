@@ -154,7 +154,7 @@ export function ForagerDiscoveryPanel({
   ];
 
   return (
-    <div data-testid="forager-discovery-panel">
+    <div id="discovery-wizard" data-testid="forager-discovery-panel">
       <V4Card className="border-magenta/20 bg-magenta/5">
         <V4CardHeader
           title="Discovery-first scrape"
