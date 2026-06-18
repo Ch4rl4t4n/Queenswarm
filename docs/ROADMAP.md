@@ -215,7 +215,20 @@ Audit: `./scripts/audit-personal-os-second-brain-adoption-gate.sh` · `./scripts
 
 Audit: `./scripts/audit-personal-os-agent-loop-adoption-gate.sh`
 
-**Operator daily stack:** `/tasks` (Jarvis · weekly compound · agent loop) · `/cockpit` (Approval Inbox) · `/knowledge` (Research Bee · compound gardener) · `/agents` (loop timeline) · `/ballroom` · `/foragers`
+## Personal OS — closed loop verify adoption wave (POS-P)
+
+**Goal:** AL2 Tool Outcome Panel + LOOP2 guardrails in daily operator flow — verify rail, not buried in session drawer.
+
+| ID | Scope | Status |
+|----|-------|--------|
+| P1 | Mission Home tool outcome strip + per-session `#tool-outcome-panel` deep links | ✅ |
+| P2 | Mission Home LOOP2 guardrails strip + session caps link | ✅ |
+| P3 | Jarvis nudge “Review tool outcomes” at `needs_input` + hash scroll | ✅ |
+| P4 | Audit gates (AL2 + LOOP2 + POS-P) in operator verify | ✅ |
+
+Audit: `./scripts/audit-personal-os-closed-loop-verify-gate.sh`
+
+**Operator daily stack:** `/tasks` (Jarvis · agent loop · tool verify · guardrails) · `/cockpit` (Approval Inbox) · `/knowledge` · `/agents` (loop timeline · tool outcomes · guardrails) · `/settings/harness` (closed loop presets)
 
 **Maintenance audits:** `./scripts/audit-personal-os-gate.sh` · weekly: social publish + solo daily plan gates.
 

@@ -18,8 +18,10 @@ from app.application.services.mission_home_service import (
     _brief_bullets_from_morning,
     _compose_agent_loop_strip,
     _compose_autopilot_strip,
+    _compose_loop_guardrails_strip,
     _compose_life_os_strip,
     _compose_memory_strip,
+    _compose_tool_outcome_strip,
     _loop_progress_from_lanes,
     _resolve_process_step,
     compose_mission_home_snapshot,
@@ -384,3 +386,87 @@ def test_compose_agent_loop_strip_maps_primary_session() -> None:
     assert strip.primary_session_id == "s1"
     assert strip.progress_pct == 40
     assert strip.loop_timeline_href.endswith("#agent-loop-timeline")
+
+
+def test_compose_tool_outcome_strip_when_needs_input() -> None:
+    sessions = [
+        MissionActiveSessionOut(
+            session_id="s1",
+            goal="Approve publish",
+            status="needs_input",
+            progress_label="Awaiting input",
+            progress_pct=80,
+            loop_chip="Verify",
+            href="/agents?session=s1",
+            tool_outcome_href="/agents?session=s1#tool-outcome-panel",
+        ),
+    ]
+    with patch("app.application.services.mission_home_service.settings") as mock_settings:
+        mock_settings.tool_outcome_panel_enabled = True
+        strip = _compose_tool_outcome_strip(sessions)
+
+    assert strip.enabled is True
+    assert strip.pending_count == 1
+    assert strip.tool_outcome_href.endswith("#tool-outcome-panel")
+
+
+def test_compose_tool_outcome_strip_disabled_without_needs_input() -> None:
+    sessions = [
+        MissionActiveSessionOut(
+            session_id="s1",
+            goal="Running",
+            status="running",
+            progress_label="Planning",
+            progress_pct=20,
+            loop_chip="Work",
+            href="/agents?session=s1",
+        ),
+    ]
+    with patch("app.application.services.mission_home_service.settings") as mock_settings:
+        mock_settings.tool_outcome_panel_enabled = True
+        strip = _compose_tool_outcome_strip(sessions)
+
+    assert strip.enabled is False
+
+
+@pytest.mark.asyncio
+async def test_compose_loop_guardrails_strip_maps_policy() -> None:
+    session = AsyncMock()
+    tenant_id = uuid.uuid4()
+    active = [
+        MissionActiveSessionOut(
+            session_id="s1",
+            goal="Ship",
+            status="running",
+            progress_label="Planning",
+            progress_pct=30,
+            loop_chip="Work",
+            href="/agents?session=s1",
+        ),
+    ]
+    policy = type(
+        "Policy",
+        (),
+        {
+            "enabled": True,
+            "max_turns": 4,
+            "min_score": 0.8,
+            "cost_cap_usd": 1.5,
+        },
+    )()
+
+    with patch("app.application.services.mission_home_service.settings") as mock_settings:
+        mock_settings.loop_guardrails_enabled = True
+        with patch(
+            "app.application.services.loop_guardrails_service.get_loop_guardrails_policy",
+            AsyncMock(return_value=policy),
+        ):
+            strip = await _compose_loop_guardrails_strip(
+                session,
+                tenant_id=tenant_id,
+                active_sessions=active,
+            )
+
+    assert strip.enabled is True
+    assert strip.max_turns == 4
+    assert strip.session_guardrails_href.endswith("#session-loop-guardrails")

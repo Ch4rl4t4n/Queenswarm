@@ -107,11 +107,23 @@ export function AgentSessionReportDialog({ sessionId, open, onOpenChange }: Agen
     if (!open || !sessionId || !session || loading) {
       return;
     }
-    if (typeof window === "undefined" || window.location.hash !== "#agent-loop-timeline") {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const hash = window.location.hash;
+    const scrollTarget =
+      hash === "#agent-loop-timeline"
+        ? "agent-loop-timeline"
+        : hash === "#tool-outcome-panel"
+          ? "tool-outcome-panel"
+          : hash === "#session-loop-guardrails"
+            ? "session-loop-guardrails"
+            : null;
+    if (!scrollTarget) {
       return;
     }
     const timer = window.setTimeout(() => {
-      document.getElementById("agent-loop-timeline")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById(scrollTarget)?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 120);
     return () => window.clearTimeout(timer);
   }, [loading, open, session, sessionId]);

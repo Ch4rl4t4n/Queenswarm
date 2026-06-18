@@ -216,11 +216,12 @@ def _compose_jarvis_advisor_strip(
         if session.status == "needs_input":
             candidates.append(
                 (
-                    2,
+                    1,
                     _JarvisCandidate(
-                        title="Unblock active session",
-                        detail=session.goal[:200] or "Supervisor needs your input to continue verify loop.",
-                        href=session.href,
+                        title="Review tool outcomes",
+                        detail=(session.goal[:160] or "Supervisor session")
+                        + " — sim results and critic score before approve.",
+                        href=f"/agents?session={session.session_id}#tool-outcome-panel",
                         kind="verify",
                     ),
                 ),

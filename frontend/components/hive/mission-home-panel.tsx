@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BookMarked, CalendarClock, CheckCircle2, Loader2, Repeat, Shield, Sparkles, Zap, Brain } from "lucide-react";
+import { ArrowRight, BookMarked, CalendarClock, CheckCircle2, Loader2, Repeat, Shield, Sparkles, Wrench, Zap, Brain } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
@@ -50,6 +50,7 @@ interface MissionActiveSession {
   loop_chip: string;
   href: string;
   loop_timeline_href?: string;
+  tool_outcome_href?: string;
 }
 
 interface MissionMemoryLayer {
@@ -207,6 +208,27 @@ interface MissionAgentLoopStrip {
   loop_timeline_href: string;
 }
 
+interface MissionToolOutcomeStrip {
+  enabled: boolean;
+  headline: string;
+  message: string;
+  pending_count: number;
+  primary_session_id: string;
+  tool_outcome_href: string;
+}
+
+interface MissionLoopGuardrailsStrip {
+  enabled: boolean;
+  headline: string;
+  message: string;
+  max_turns: number;
+  min_score_label: string;
+  cost_cap_usd: number;
+  active_count: number;
+  guardrails_href: string;
+  session_guardrails_href: string;
+}
+
 interface MissionHomeSnapshot {
   enabled: boolean;
   current_step: ProcessStepId;
@@ -225,6 +247,8 @@ interface MissionHomeSnapshot {
   weekly_compound_strip?: MissionWeeklyCompoundStrip;
   second_brain_strip?: MissionSecondBrainStrip;
   agent_loop_strip?: MissionAgentLoopStrip;
+  tool_outcome_strip?: MissionToolOutcomeStrip;
+  loop_guardrails_strip?: MissionLoopGuardrailsStrip;
   first_run_complete: boolean;
   links: Record<string, string>;
   rapid_loop_widget_enabled?: boolean;
@@ -286,6 +310,8 @@ function MissionHomePanelInner(): JSX.Element | null {
   const weeklyCompound = snapshot.weekly_compound_strip;
   const secondBrain = snapshot.second_brain_strip;
   const agentLoop = snapshot.agent_loop_strip;
+  const toolOutcome = snapshot.tool_outcome_strip;
+  const loopGuardrails = snapshot.loop_guardrails_strip;
 
   function qualityTone(status: MissionAgentQualityStrip["status"]): "ok" | "warn" | "err" | "info" {
     if (status === "healthy") return "ok";
@@ -875,6 +901,66 @@ function MissionHomePanelInner(): JSX.Element | null {
         </V4Card>
       ) : null}
 
+      {toolOutcome?.enabled ? (
+        <V4Card
+          className="md:max-lg:col-span-2 border-[#FF00AA]/35 shadow-[0_0_20px_rgba(255,0,170,0.12)]"
+          data-testid="mission-home-tool-outcome"
+        >
+          <V4CardHeader
+            kicker="Verify"
+            title={toolOutcome.headline}
+            description={toolOutcome.message}
+            actions={
+              <Link
+                href={toolOutcome.tool_outcome_href}
+                className="qs-btn qs-btn--primary qs-btn--sm inline-flex gap-1"
+                data-testid="mission-home-tool-outcome-open"
+              >
+                <Wrench className="size-3.5" aria-hidden />
+                Review tools
+              </Link>
+            }
+          />
+          <div className="flex flex-wrap gap-2 px-4 pb-4">
+            <V4Badge tone="warn">{toolOutcome.pending_count} awaiting verify</V4Badge>
+          </div>
+        </V4Card>
+      ) : null}
+
+      {loopGuardrails?.enabled ? (
+        <V4Card
+          className="md:max-lg:col-span-2 border-pollen/30 shadow-[0_0_20px_rgba(255,184,0,0.08)]"
+          data-testid="mission-home-loop-guardrails"
+        >
+          <V4CardHeader
+            kicker="Verify"
+            title={loopGuardrails.headline}
+            description={loopGuardrails.message}
+            actions={
+              <div className="flex flex-wrap gap-2">
+                {loopGuardrails.session_guardrails_href ? (
+                  <Link
+                    href={loopGuardrails.session_guardrails_href}
+                    className="qs-btn qs-btn--primary qs-btn--sm inline-flex gap-1"
+                    data-testid="mission-home-session-guardrails"
+                  >
+                    Session caps
+                  </Link>
+                ) : null}
+                <Link href={loopGuardrails.guardrails_href} className="qs-btn qs-btn--ghost qs-btn--sm">
+                  Presets
+                </Link>
+              </div>
+            }
+          />
+          <div className="flex flex-wrap gap-2 px-4 pb-4">
+            <V4Badge tone="info">Max {loopGuardrails.max_turns} turns</V4Badge>
+            <V4Badge tone="gold">Min {loopGuardrails.min_score_label}</V4Badge>
+            <V4Badge tone="purple">${loopGuardrails.cost_cap_usd.toFixed(2)} cap</V4Badge>
+          </div>
+        </V4Card>
+      ) : null}
+
       <div className="flex flex-col gap-3 md:max-lg:contents">
         <V4Card className="md:max-lg:col-span-1">
           <V4CardHeader
@@ -958,6 +1044,16 @@ function MissionHomePanelInner(): JSX.Element | null {
                       >
                         <Repeat className="size-3.5" aria-hidden />
                         Loop timeline
+                      </Link>
+                    ) : null}
+                    {row.status === "needs_input" && row.tool_outcome_href ? (
+                      <Link
+                        href={row.tool_outcome_href}
+                        className="qs-btn qs-btn--primary qs-btn--sm mt-2 ml-0 inline-flex gap-1 lg:ml-2"
+                        data-testid={`mission-home-session-tools-${row.session_id}`}
+                      >
+                        <Wrench className="size-3.5" aria-hidden />
+                        Tool outcomes
                       </Link>
                     ) : null}
                   </div>

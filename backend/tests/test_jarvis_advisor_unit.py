@@ -173,6 +173,37 @@ def test_jarvis_suggests_agent_loop_for_running_session() -> None:
     assert any(href.endswith("#agent-loop-timeline") for href in hrefs)
 
 
+def test_jarvis_prioritizes_tool_outcomes_at_needs_input() -> None:
+    with patch("app.application.services.jarvis_advisor_service.settings") as mock_settings:
+        mock_settings.jarvis_advisor_mission_home_enabled = True
+        mock_settings.analytics_workspace_enabled = False
+        mock_settings.research_bee_enabled = False
+        mock_settings.closed_loop_presets_enabled = False
+
+        strip = _compose_jarvis_advisor_strip(
+            first_run_complete=True,
+            approvals=[],
+            active_sessions=[
+                JarvisSessionIn(
+                    session_id="sess-1",
+                    goal="Publish draft",
+                    status="needs_input",
+                    href="/agents?session=sess-1",
+                ),
+            ],
+            next_actions=[],
+            life_os=JarvisLifeOsIn(enabled=False),
+            autopilot=JarvisAutopilotIn(enabled=False),
+            memory_strip=JarvisMemoryIn(usage_pct=50),
+            weak_signal_hint=None,
+        )
+
+    titles = [step.title.lower() for step in strip.steps]
+    hrefs = [step.href for step in strip.steps]
+    assert any("review tool outcomes" in title for title in titles)
+    assert any(href.endswith("#tool-outcome-panel") for href in hrefs)
+
+
 @pytest.mark.asyncio
 async def test_weak_signal_preview_disabled() -> None:
     session = AsyncMock()

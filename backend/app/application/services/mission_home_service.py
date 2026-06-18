@@ -108,6 +108,7 @@ class MissionActiveSessionOut(BaseModel):
     loop_chip: str = "Work"
     href: str
     loop_timeline_href: str = ""
+    tool_outcome_href: str = ""
 
 
 class MissionAgentLoopStripOut(BaseModel):
@@ -123,6 +124,35 @@ class MissionAgentLoopStripOut(BaseModel):
     loop_chip: str = "Work"
     progress_pct: int = Field(ge=0, le=100, default=0)
     loop_timeline_href: str = "/agents#sessions"
+
+
+class MissionToolOutcomeStripOut(BaseModel):
+    """AL2 tool outcome visibility on Mission Home (POS-P)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    enabled: bool = False
+    headline: str = "Verify · tool outcomes"
+    message: str = ""
+    pending_count: int = 0
+    primary_session_id: str = ""
+    tool_outcome_href: str = "/agents#sessions"
+
+
+class MissionLoopGuardrailsStripOut(BaseModel):
+    """LOOP2 closed-loop guardrails visibility on Mission Home (POS-P)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    enabled: bool = False
+    headline: str = "Closed loop · guardrails"
+    message: str = ""
+    max_turns: int = 5
+    min_score_label: str = "4.0/5"
+    cost_cap_usd: float = 2.0
+    active_count: int = 0
+    guardrails_href: str = "/settings/harness#harness-closed-loop-presets"
+    session_guardrails_href: str = ""
 
 
 class MissionMemoryLayerOut(BaseModel):
@@ -269,6 +299,12 @@ class MissionHomeSnapshotOut(BaseModel):
     agent_loop_strip: MissionAgentLoopStripOut = Field(
         default_factory=lambda: MissionAgentLoopStripOut(enabled=False),
     )
+    tool_outcome_strip: MissionToolOutcomeStripOut = Field(
+        default_factory=lambda: MissionToolOutcomeStripOut(enabled=False),
+    )
+    loop_guardrails_strip: MissionLoopGuardrailsStripOut = Field(
+        default_factory=lambda: MissionLoopGuardrailsStripOut(enabled=False),
+    )
     first_run_complete: bool = True
     links: dict[str, str] = Field(default_factory=dict)
     rapid_loop_widget_enabled: bool = False
@@ -354,6 +390,12 @@ STEP_STUDIOS: dict[ProcessStepId, list[MissionStudioEntryOut]] = {
             title="Closed loop presets",
             detail="Greptile-style rubric loops — max turns, min score before merge.",
             href="/settings/harness#harness-closed-loop-presets",
+        ),
+        MissionStudioEntryOut(
+            id="tool_outcomes",
+            title="Tool outcomes",
+            detail="AL2 evidence — sim results, critic score before approve.",
+            href="/agents#sessions",
         ),
     ],
     "learn": [
@@ -528,6 +570,76 @@ def _compose_agent_loop_strip(
         loop_chip=primary.loop_chip,
         progress_pct=primary.progress_pct,
         loop_timeline_href=timeline_href,
+    )
+
+
+def _compose_tool_outcome_strip(
+    active_sessions: list[MissionActiveSessionOut],
+) -> MissionToolOutcomeStripOut:
+    """AL2 visibility strip when supervisor sessions await operator verify (POS-P)."""
+
+    if not settings.tool_outcome_panel_enabled:
+        return MissionToolOutcomeStripOut(enabled=False)
+
+    pending = [row for row in active_sessions if row.status == "needs_input"]
+    if not pending:
+        return MissionToolOutcomeStripOut(enabled=False)
+
+    primary = pending[0]
+    tool_href = primary.tool_outcome_href or f"/agents?session={primary.session_id}#tool-outcome-panel"
+    message = (
+        f"{len(pending)} session(s) need approve — review sim results and critic score before live."
+        if len(pending) > 1
+        else (primary.goal[:120] or "Supervisor session") + " — tool evidence ready for verify."
+    )
+
+    return MissionToolOutcomeStripOut(
+        enabled=True,
+        headline="Verify · tool outcomes",
+        message=message,
+        pending_count=len(pending),
+        primary_session_id=primary.session_id,
+        tool_outcome_href=tool_href,
+    )
+
+
+async def _compose_loop_guardrails_strip(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    active_sessions: list[MissionActiveSessionOut],
+) -> MissionLoopGuardrailsStripOut:
+    """LOOP2 guardrails strip when in-flight sessions run under closed-loop caps (POS-P)."""
+
+    if not settings.loop_guardrails_enabled or not active_sessions:
+        return MissionLoopGuardrailsStripOut(enabled=False)
+
+    from app.application.services.loop_guardrails_service import (
+        get_loop_guardrails_policy,
+        min_score_to_five_scale,
+    )
+
+    policy = await get_loop_guardrails_policy(session, tenant_id=tenant_id)
+    if not policy.enabled:
+        return MissionLoopGuardrailsStripOut(enabled=False)
+
+    primary = active_sessions[0]
+    min_label = min_score_to_five_scale(policy.min_score)
+    message = (
+        f"Max {policy.max_turns} turns · min {min_label} · ${policy.cost_cap_usd:.2f} cap — "
+        f"{len(active_sessions)} session(s) in flight."
+    )
+
+    return MissionLoopGuardrailsStripOut(
+        enabled=True,
+        headline="Closed loop · guardrails",
+        message=message,
+        max_turns=policy.max_turns,
+        min_score_label=min_label,
+        cost_cap_usd=policy.cost_cap_usd,
+        active_count=len(active_sessions),
+        guardrails_href="/settings/harness#harness-closed-loop-presets",
+        session_guardrails_href=f"/agents?session={primary.session_id}#session-loop-guardrails",
     )
 
 
@@ -878,10 +990,17 @@ async def compose_mission_home_snapshot(
                 loop_chip=loop_chip,
                 href=f"/agents?session={row.session_id}",
                 loop_timeline_href=f"/agents?session={row.session_id}#agent-loop-timeline",
+                tool_outcome_href=f"/agents?session={row.session_id}#tool-outcome-panel",
             ),
         )
     active_sessions = active_sessions[:3]
     agent_loop_strip = _compose_agent_loop_strip(active_sessions)
+    tool_outcome_strip = _compose_tool_outcome_strip(active_sessions)
+    loop_guardrails_strip = await _compose_loop_guardrails_strip(
+        session,
+        tenant_id=tenant_id,
+        active_sessions=active_sessions,
+    )
 
     approvals: list[MissionApprovalOut] = []
     if inbox.enabled:
@@ -1037,6 +1156,8 @@ async def compose_mission_home_snapshot(
         weekly_compound_strip=weekly_compound,
         second_brain_strip=second_brain_strip,
         agent_loop_strip=agent_loop_strip,
+        tool_outcome_strip=tool_outcome_strip,
+        loop_guardrails_strip=loop_guardrails_strip,
         first_run_complete=first_run.complete,
         links={
             "new_session": "/agents?preset=web-redesign-discovery#sessions",
@@ -1053,6 +1174,7 @@ async def compose_mission_home_snapshot(
             "cited_recall": "/knowledge?tab=memory#cited-recall",
             "wiki_layer": "/knowledge?tab=wiki",
             "agent_loop": "/agents#sessions",
+            "tool_outcomes": "/agents#sessions",
             "loop_presets": "/settings/harness#harness-closed-loop-presets",
         },
         rapid_loop_widget_enabled=settings.rapid_loop_mission_home_enabled,
