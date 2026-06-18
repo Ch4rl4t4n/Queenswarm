@@ -180,6 +180,7 @@ async def test_compose_mission_home_setup_step() -> None:
         mock_settings.closed_loop_presets_enabled = False
         mock_settings.data_monitor_wizard_enabled = False
         mock_settings.forager_discovery_enabled = False
+        mock_settings.skill_factory_enabled = False
         with patch(
             "app.application.services.mission_home_service.compose_solo_first_run",
             AsyncMock(return_value=first_run),

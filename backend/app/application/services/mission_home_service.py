@@ -36,6 +36,10 @@ from app.application.services.weekly_compound_gardener_service import (
     MissionWeeklyCompoundStripOut,
     compose_mission_weekly_compound_strip,
 )
+from app.application.services.mission_skill_factory_harness_service import (
+    MissionSkillFactoryHarnessStripOut,
+    compose_mission_skill_factory_harness_strip,
+)
 from app.application.services.morning_hive_brief import compose_morning_hive_brief
 from app.application.services.parallel_hive_view import (
     ParallelBeeLaneOut,
@@ -380,6 +384,9 @@ class MissionHomeSnapshotOut(BaseModel):
     discovery_strip: MissionDiscoveryStripOut = Field(
         default_factory=lambda: MissionDiscoveryStripOut(enabled=False),
     )
+    skill_factory_harness_strip: MissionSkillFactoryHarnessStripOut = Field(
+        default_factory=lambda: MissionSkillFactoryHarnessStripOut(enabled=False),
+    )
     first_run_complete: bool = True
     links: dict[str, str] = Field(default_factory=dict)
     rapid_loop_widget_enabled: bool = False
@@ -454,9 +461,9 @@ STEP_STUDIOS: dict[ProcessStepId, list[MissionStudioEntryOut]] = {
         ),
         MissionStudioEntryOut(
             id="skill_factory",
-            title="Skill Factory",
-            detail="Forge verified skills when a workflow repeats.",
-            href="/apps-tools/skill-factory",
+            title="Skill Factory queue",
+            detail="Research → build → approve forge — verified harness for your agent OS.",
+            href="/apps-tools/skill-factory#queue",
         ),
     ],
     "verify": [
@@ -1393,6 +1400,11 @@ async def compose_mission_home_snapshot(
         tenant_id=tenant_id,
         first_run_complete=first_run.complete,
     )
+    skill_factory_harness_strip = await compose_mission_skill_factory_harness_strip(
+        session,
+        tenant_id=tenant_id,
+        first_run_complete=first_run.complete,
+    )
     jarvis_advisor = _compose_jarvis_advisor_strip(
         first_run_complete=first_run.complete,
         approvals=[
@@ -1452,6 +1464,13 @@ async def compose_mission_home_snapshot(
         discovery_keys_configured=discovery_strip.keys_configured if discovery_strip.enabled else False,
         weekly_compound_pending=weekly_compound.pending_drafts if weekly_compound.enabled else 0,
         weekly_reflection_active=weekly_reflection.enabled,
+        factory_llm_ready=skill_factory_harness_strip.llm_ready if skill_factory_harness_strip.enabled else False,
+        factory_queue_actionable=skill_factory_harness_strip.queue_actionable
+        if skill_factory_harness_strip.enabled
+        else 0,
+        factory_verified_count=skill_factory_harness_strip.verified_count
+        if skill_factory_harness_strip.enabled
+        else 0,
     )
     agent_quality = await compose_agent_quality_strip(session, tenant_id=tenant_id)
 
@@ -1480,6 +1499,7 @@ async def compose_mission_home_snapshot(
         social_intel_strip=social_intel_strip,
         data_monitor_strip=data_monitor_strip,
         discovery_strip=discovery_strip,
+        skill_factory_harness_strip=skill_factory_harness_strip,
         first_run_complete=first_run.complete,
         links={
             "new_session": "/agents?preset=web-redesign-discovery#sessions",
@@ -1505,6 +1525,8 @@ async def compose_mission_home_snapshot(
             "discovery_wizard": "/foragers#discovery-wizard",
             "ballroom_learn": "/ballroom#ballroom-learn-rail",
             "weekly_compound": "/knowledge?tab=hivemind#evolution",
+            "skill_factory_queue": "/apps-tools/skill-factory#queue",
+            "skill_factory_library": "/apps-tools/skill-factory#library",
             "loop_presets": "/settings/harness#harness-closed-loop-presets",
         },
         rapid_loop_widget_enabled=settings.rapid_loop_mission_home_enabled,

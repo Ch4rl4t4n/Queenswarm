@@ -1245,7 +1245,7 @@ export function SkillFactoryPageClient(): JSX.Element {
           ) : null}
 
           {tab === "library" ? (
-            <V4Card className="mt-4">
+            <V4Card id="skill-factory-library" className="mt-4 scroll-mt-28">
               <V4CardHeader
                 title="Tenant skill library"
                 description="Same row pattern as Forager — ID, verdict badges, sellable progress, inline actions. Sieve + eval + export unchanged."

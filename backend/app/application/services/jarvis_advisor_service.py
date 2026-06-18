@@ -168,6 +168,9 @@ def _compose_jarvis_advisor_strip(
     discovery_keys_configured: bool = False,
     weekly_compound_pending: int = 0,
     weekly_reflection_active: bool = False,
+    factory_llm_ready: bool = False,
+    factory_queue_actionable: int = 0,
+    factory_verified_count: int = 0,
 ) -> MissionJarvisAdvisorStripOut:
     """Build up to three prioritized steps — verify blockers before new work."""
 
@@ -306,6 +309,45 @@ def _compose_jarvis_advisor_strip(
                     detail="Post-mortems and episodic captures this week — route insights to Hive Mind.",
                     href="/ballroom#ballroom-learn-rail",
                     kind="learn",
+                ),
+            ),
+        )
+
+    if settings.skill_factory_enabled and not factory_llm_ready:
+        candidates.append(
+            (
+                2,
+                _JarvisCandidate(
+                    title="Run factory LLM smoke",
+                    detail="Skill Factory builds blocked until decomposition chain passes smoke test.",
+                    href="/apps-tools/skill-factory#research",
+                    kind="setup",
+                ),
+            ),
+        )
+
+    if settings.skill_factory_enabled and factory_queue_actionable > 0:
+        candidates.append(
+            (
+                3,
+                _JarvisCandidate(
+                    title="Review factory queue",
+                    detail="Builds awaiting forge approve or failed rebuild — drain queue in Skill Factory.",
+                    href="/apps-tools/skill-factory#queue",
+                    kind="work",
+                ),
+            ),
+        )
+
+    if settings.skill_factory_enabled and factory_verified_count > 0:
+        candidates.append(
+            (
+                6,
+                _JarvisCandidate(
+                    title="Export verified harness",
+                    detail="Verified skills in library — attach via skill picker or export bundle.",
+                    href="/apps-tools/skill-factory#library",
+                    kind="work",
                 ),
             ),
         )

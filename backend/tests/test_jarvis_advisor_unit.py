@@ -148,6 +148,7 @@ def test_jarvis_suggests_agent_loop_for_running_session() -> None:
         mock_settings.analytics_workspace_enabled = False
         mock_settings.research_bee_enabled = False
         mock_settings.closed_loop_presets_enabled = False
+        mock_settings.skill_factory_enabled = False
 
         strip = _compose_jarvis_advisor_strip(
             first_run_complete=True,
@@ -353,6 +354,83 @@ def test_jarvis_suggests_ballroom_reflection_when_active() -> None:
     hrefs = [step.href for step in strip.steps]
     assert any("review ballroom reflection" in title for title in titles)
     assert any(href.endswith("#ballroom-learn-rail") for href in hrefs)
+
+
+def test_jarvis_suggests_factory_llm_smoke_when_not_ready() -> None:
+    with patch("app.application.services.jarvis_advisor_service.settings") as mock_settings:
+        mock_settings.jarvis_advisor_mission_home_enabled = True
+        mock_settings.skill_factory_enabled = True
+        mock_settings.analytics_workspace_enabled = False
+        mock_settings.research_bee_enabled = False
+
+        strip = _compose_jarvis_advisor_strip(
+            first_run_complete=True,
+            approvals=[],
+            active_sessions=[],
+            next_actions=[],
+            life_os=JarvisLifeOsIn(enabled=False),
+            autopilot=JarvisAutopilotIn(enabled=False),
+            memory_strip=JarvisMemoryIn(usage_pct=50),
+            weak_signal_hint=None,
+            factory_llm_ready=False,
+        )
+
+    titles = [step.title.lower() for step in strip.steps]
+    hrefs = [step.href for step in strip.steps]
+    assert any("factory llm smoke" in title for title in titles)
+    assert any(href.endswith("#research") for href in hrefs)
+
+
+def test_jarvis_suggests_factory_queue_when_actionable() -> None:
+    with patch("app.application.services.jarvis_advisor_service.settings") as mock_settings:
+        mock_settings.jarvis_advisor_mission_home_enabled = True
+        mock_settings.skill_factory_enabled = True
+        mock_settings.analytics_workspace_enabled = False
+        mock_settings.research_bee_enabled = False
+
+        strip = _compose_jarvis_advisor_strip(
+            first_run_complete=True,
+            approvals=[],
+            active_sessions=[],
+            next_actions=[],
+            life_os=JarvisLifeOsIn(enabled=False),
+            autopilot=JarvisAutopilotIn(enabled=False),
+            memory_strip=JarvisMemoryIn(usage_pct=50),
+            weak_signal_hint=None,
+            factory_llm_ready=True,
+            factory_queue_actionable=2,
+        )
+
+    titles = [step.title.lower() for step in strip.steps]
+    hrefs = [step.href for step in strip.steps]
+    assert any("review factory queue" in title for title in titles)
+    assert any(href.endswith("#queue") for href in hrefs)
+
+
+def test_jarvis_suggests_export_harness_when_verified() -> None:
+    with patch("app.application.services.jarvis_advisor_service.settings") as mock_settings:
+        mock_settings.jarvis_advisor_mission_home_enabled = True
+        mock_settings.skill_factory_enabled = True
+        mock_settings.analytics_workspace_enabled = False
+        mock_settings.research_bee_enabled = False
+
+        strip = _compose_jarvis_advisor_strip(
+            first_run_complete=True,
+            approvals=[],
+            active_sessions=[],
+            next_actions=[],
+            life_os=JarvisLifeOsIn(enabled=False),
+            autopilot=JarvisAutopilotIn(enabled=False),
+            memory_strip=JarvisMemoryIn(usage_pct=50),
+            weak_signal_hint=None,
+            factory_llm_ready=True,
+            factory_verified_count=1,
+        )
+
+    titles = [step.title.lower() for step in strip.steps]
+    hrefs = [step.href for step in strip.steps]
+    assert any("export verified harness" in title for title in titles)
+    assert any(href.endswith("#library") for href in hrefs)
 
 
 @pytest.mark.asyncio

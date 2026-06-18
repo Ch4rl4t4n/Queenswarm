@@ -276,6 +276,24 @@ interface MissionDiscoveryStrip {
   foragers_href: string;
 }
 
+interface MissionSkillFactoryHarnessStrip {
+  enabled: boolean;
+  headline: string;
+  message: string;
+  personal_os_lite: boolean;
+  llm_ready: boolean;
+  llm_smoke_ok: boolean | null;
+  queue_actionable: number;
+  building_count: number;
+  failed_count: number;
+  verified_count: number;
+  library_count: number;
+  research_href: string;
+  queue_href: string;
+  library_href: string;
+  guide_href: string;
+}
+
 interface MissionHomeSnapshot {
   enabled: boolean;
   current_step: ProcessStepId;
@@ -300,6 +318,7 @@ interface MissionHomeSnapshot {
   social_intel_strip?: MissionSocialIntelStrip;
   data_monitor_strip?: MissionDataMonitorStrip;
   discovery_strip?: MissionDiscoveryStrip;
+  skill_factory_harness_strip?: MissionSkillFactoryHarnessStrip;
   first_run_complete: boolean;
   links: Record<string, string>;
   rapid_loop_widget_enabled?: boolean;
@@ -367,6 +386,7 @@ function MissionHomePanelInner(): JSX.Element | null {
   const socialIntel = snapshot.social_intel_strip;
   const dataMonitor = snapshot.data_monitor_strip;
   const discovery = snapshot.discovery_strip;
+  const skillFactoryHarness = snapshot.skill_factory_harness_strip;
 
   function qualityTone(status: MissionAgentQualityStrip["status"]): "ok" | "warn" | "err" | "info" {
     if (status === "healthy") return "ok";
@@ -1090,6 +1110,59 @@ function MissionHomePanelInner(): JSX.Element | null {
               <V4Badge tone="purple" className="max-w-full truncate">
                 e.g. {discovery.example_query.slice(0, 48)}
               </V4Badge>
+            ) : null}
+          </div>
+        </V4Card>
+      ) : null}
+
+      {skillFactoryHarness?.enabled ? (
+        <V4Card
+          className="md:max-lg:col-span-2 border-pollen/35 shadow-[0_0_20px_rgba(255,184,0,0.1)]"
+          data-testid="mission-home-skill-factory-harness"
+        >
+          <V4CardHeader
+            kicker="Work"
+            title={skillFactoryHarness.headline}
+            description={skillFactoryHarness.message}
+            actions={
+              <div className="flex flex-wrap gap-2">
+                {!skillFactoryHarness.llm_ready || skillFactoryHarness.llm_smoke_ok === false ? (
+                  <Link
+                    href={skillFactoryHarness.research_href}
+                    className="qs-btn qs-btn--primary qs-btn--sm inline-flex gap-1"
+                    data-testid="mission-home-skill-factory-smoke"
+                  >
+                    <Sparkles className="size-3.5" aria-hidden />
+                    LLM smoke
+                  </Link>
+                ) : (
+                  <Link
+                    href={skillFactoryHarness.queue_href}
+                    className="qs-btn qs-btn--primary qs-btn--sm inline-flex gap-1"
+                    data-testid="mission-home-skill-factory-queue"
+                  >
+                    <Wrench className="size-3.5" aria-hidden />
+                    Open queue
+                  </Link>
+                )}
+                <Link href={skillFactoryHarness.library_href} className="qs-btn qs-btn--ghost qs-btn--sm">
+                  Library
+                </Link>
+              </div>
+            }
+          />
+          <div className="flex flex-wrap gap-2 px-4 pb-4">
+            <V4Badge tone={skillFactoryHarness.llm_ready ? "ok" : "warn"}>
+              {skillFactoryHarness.llm_ready ? "LLM ready" : "LLM blocked"}
+            </V4Badge>
+            {skillFactoryHarness.queue_actionable > 0 ? (
+              <V4Badge tone="info">{skillFactoryHarness.queue_actionable} in queue</V4Badge>
+            ) : null}
+            {skillFactoryHarness.verified_count > 0 ? (
+              <V4Badge tone="gold">{skillFactoryHarness.verified_count} verified</V4Badge>
+            ) : null}
+            {skillFactoryHarness.personal_os_lite ? (
+              <V4Badge tone="purple">Personal OS lite</V4Badge>
             ) : null}
           </div>
         </V4Card>

@@ -299,6 +299,21 @@ Audit: `./scripts/audit-personal-os-learn-rail-adoption-gate.sh`
 
 **Operator daily stack:** `/tasks` · `/ballroom#ballroom-learn-rail` · `/knowledge?tab=hivemind#evolution` · `/cockpit#approvals`
 
+## Personal OS — Verified harness adoption wave (POS-V)
+
+**Goal:** Skill Factory queue → verified library in daily operator flow — Personal OS lite (no Gumroad tab), Mission Home + Jarvis.
+
+| ID | Scope | Status |
+|----|-------|--------|
+| V1 | Mission Home harness strip — LLM/queue/verified counts + Skill Factory deep links | ✅ |
+| V2 | Jarvis nudges — LLM smoke · factory queue · export verified harness | ✅ |
+| V3 | Work rail studio + `#queue` / `#skill-factory-library` anchors | ✅ |
+| V4 | Audit gates (POS-V) in operator verify | ✅ |
+
+Audit: `./scripts/audit-personal-os-harness-adoption-gate.sh`
+
+**Operator daily stack:** `/tasks` · `/apps-tools/skill-factory#queue` · `/apps-tools/skill-factory#library` · `./scripts/factory-first-revenue-bootstrap.sh` (commercial host)
+
 **Maintenance audits:** `./scripts/audit-personal-os-gate.sh` · weekly: social publish + solo daily plan gates.
 
 | Step | Scope | Status |
