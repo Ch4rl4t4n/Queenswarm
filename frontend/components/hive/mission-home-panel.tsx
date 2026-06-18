@@ -478,6 +478,9 @@ function MissionHomePanelInner(): JSX.Element | null {
                 <Link href={weeklyReflection.episodic_href} className="qs-btn qs-btn--ghost qs-btn--sm">
                   Episodic log
                 </Link>
+                <Link href={weeklyReflection.ballroom_href} className="qs-btn qs-btn--ghost qs-btn--sm">
+                  Ballroom
+                </Link>
               </div>
             }
           />

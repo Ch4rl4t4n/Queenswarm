@@ -284,6 +284,21 @@ Audit: `./scripts/audit-personal-os-discovery-adoption-gate.sh`
 
 **Operator daily stack:** `/tasks` (Plan strip) · `/foragers#discovery-wizard` · `/foragers#data-monitor-wizard` · `/foragers#goldmine-alerts`
 
+## Personal OS — Learn rail adoption wave (POS-U)
+
+**Goal:** Ballroom reflection + weekly compound reachable from Jarvis and Learn rail — not only buried strips.
+
+| ID | Scope | Status |
+|----|-------|--------|
+| U1 | Jarvis nudges — weekly compound drafts + Ballroom reflection | ✅ |
+| U2 | Learn rail studio entries — Ballroom + Memory Evolution | ✅ |
+| U3 | Deep-link anchors — `#ballroom-learn-rail` · `#evolution` | ✅ |
+| U4 | Audit gates (POS-U) in operator verify | ✅ |
+
+Audit: `./scripts/audit-personal-os-learn-rail-adoption-gate.sh`
+
+**Operator daily stack:** `/tasks` · `/ballroom#ballroom-learn-rail` · `/knowledge?tab=hivemind#evolution` · `/cockpit#approvals`
+
 **Maintenance audits:** `./scripts/audit-personal-os-gate.sh` · weekly: social publish + solo daily plan gates.
 
 | Step | Scope | Status |

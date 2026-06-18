@@ -4788,6 +4788,8 @@ export async function installShellApiMocks(page: Page): Promise<void> {
             social_intel_loop5: "/knowledge#research-bee",
             data_monitor: "/foragers#data-monitor-wizard",
             discovery_wizard: "/foragers#discovery-wizard",
+            ballroom_learn: "/ballroom#ballroom-learn-rail",
+            weekly_compound: "/knowledge?tab=hivemind#evolution",
             loop_presets: "/settings/harness#harness-closed-loop-presets",
           },
         }),

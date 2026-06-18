@@ -510,6 +510,18 @@ STEP_STUDIOS: dict[ProcessStepId, list[MissionStudioEntryOut]] = {
             detail="Score paste intel with rubric → Kanban task on pass.",
             href="/knowledge#research-bee",
         ),
+        MissionStudioEntryOut(
+            id="ballroom_reflection",
+            title="Ballroom · learn rail",
+            detail="Dump & Sleep + voice lane — post-mortems to Hive Mind.",
+            href="/ballroom#ballroom-learn-rail",
+        ),
+        MissionStudioEntryOut(
+            id="weekly_compound",
+            title="Weekly compound",
+            detail="Gardener drafts + Brain Pack gaps — Memory Evolution review.",
+            href="/knowledge?tab=hivemind#evolution",
+        ),
     ],
     "done": [
         MissionStudioEntryOut(
@@ -1371,6 +1383,16 @@ async def compose_mission_home_snapshot(
         tenant_id=tenant_id,
         weak_signal=weak_signal,
     )
+    weekly_reflection = await compose_jarvis_weekly_reflection_strip(
+        session,
+        tenant_id=tenant_id,
+        first_run_complete=first_run.complete,
+    )
+    weekly_compound = await compose_mission_weekly_compound_strip(
+        session,
+        tenant_id=tenant_id,
+        first_run_complete=first_run.complete,
+    )
     jarvis_advisor = _compose_jarvis_advisor_strip(
         first_run_complete=first_run.complete,
         approvals=[
@@ -1428,18 +1450,10 @@ async def compose_mission_home_snapshot(
         social_intel_refresh_due=social_intel_strip.roadmap_refresh_due if social_intel_strip.enabled else False,
         data_monitor_count=data_monitor_strip.monitor_count if data_monitor_strip.enabled else 0,
         discovery_keys_configured=discovery_strip.keys_configured if discovery_strip.enabled else False,
+        weekly_compound_pending=weekly_compound.pending_drafts if weekly_compound.enabled else 0,
+        weekly_reflection_active=weekly_reflection.enabled,
     )
     agent_quality = await compose_agent_quality_strip(session, tenant_id=tenant_id)
-    weekly_reflection = await compose_jarvis_weekly_reflection_strip(
-        session,
-        tenant_id=tenant_id,
-        first_run_complete=first_run.complete,
-    )
-    weekly_compound = await compose_mission_weekly_compound_strip(
-        session,
-        tenant_id=tenant_id,
-        first_run_complete=first_run.complete,
-    )
 
     return MissionHomeSnapshotOut(
         enabled=True,
@@ -1489,6 +1503,8 @@ async def compose_mission_home_snapshot(
             "social_intel_loop5": "/knowledge#research-bee",
             "data_monitor": "/foragers#data-monitor-wizard",
             "discovery_wizard": "/foragers#discovery-wizard",
+            "ballroom_learn": "/ballroom#ballroom-learn-rail",
+            "weekly_compound": "/knowledge?tab=hivemind#evolution",
             "loop_presets": "/settings/harness#harness-closed-loop-presets",
         },
         rapid_loop_widget_enabled=settings.rapid_loop_mission_home_enabled,

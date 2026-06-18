@@ -166,6 +166,8 @@ def _compose_jarvis_advisor_strip(
     social_intel_refresh_due: bool = False,
     data_monitor_count: int = 0,
     discovery_keys_configured: bool = False,
+    weekly_compound_pending: int = 0,
+    weekly_reflection_active: bool = False,
 ) -> MissionJarvisAdvisorStripOut:
     """Build up to three prioritized steps — verify blockers before new work."""
 
@@ -278,6 +280,32 @@ def _compose_jarvis_advisor_strip(
                     detail="DG6 — Serper/Tavily search, then bind RSS or channels to a forager.",
                     href="/foragers#discovery-wizard",
                     kind="work",
+                ),
+            ),
+        )
+
+    if weekly_compound_pending > 0 and settings.weekly_compound_gardener_enabled:
+        candidates.append(
+            (
+                3,
+                _JarvisCandidate(
+                    title="Review weekly compound",
+                    detail="Gardener draft(s) waiting — approve in Cockpit before Hive Mind apply.",
+                    href="/cockpit#approvals",
+                    kind="learn",
+                ),
+            ),
+        )
+
+    if weekly_reflection_active and settings.jarvis_weekly_reflection_enabled:
+        candidates.append(
+            (
+                4,
+                _JarvisCandidate(
+                    title="Review Ballroom reflection",
+                    detail="Post-mortems and episodic captures this week — route insights to Hive Mind.",
+                    href="/ballroom#ballroom-learn-rail",
+                    kind="learn",
                 ),
             ),
         )

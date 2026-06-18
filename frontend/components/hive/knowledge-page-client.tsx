@@ -262,7 +262,7 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
             </V4Card>
           ) : null}
           {hivemindSection === "evolution" ? (
-            <div className="space-y-6">
+            <div id="evolution" className="scroll-mt-28 space-y-6">
               <WeeklyCompoundGardenerPanel />
               <MemoryEvolutionPanel />
             </div>

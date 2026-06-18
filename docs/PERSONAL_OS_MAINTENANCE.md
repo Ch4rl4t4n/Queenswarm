@@ -39,6 +39,7 @@ Apply preset: `./scripts/apply-solo-mode.sh` (merges `.env.solo.example` → `.e
 | **POS-R social intel LOOP5** | `./scripts/audit-personal-os-social-intel-adoption-gate.sh` | After LOOP5 UX wiring | Research Bee strip · Jarvis score→task · SIG2 refresh |
 | **POS-S data monitor DG1** | `./scripts/audit-personal-os-data-monitor-adoption-gate.sh` | After DG1 UX wiring | Wizard strip · Jarvis nudge · foragers anchor |
 | **POS-T discovery DG6** | `./scripts/audit-personal-os-discovery-adoption-gate.sh` | After DG6 UX wiring | Discovery strip · Jarvis nudge · foragers anchor |
+| **POS-U learn rail** | `./scripts/audit-personal-os-learn-rail-adoption-gate.sh` | After Ballroom/compound UX wiring | Jarvis nudges · learn studio · deep-link anchors |
 | **Second brain SB1–4** | `./scripts/audit-second-brain-gate.sh` | Weekly | Capture approve · connection intelligence · ⌘K wiki |
 | **MEM5 project tags** | `./scripts/audit-memory-project-tags-gate.sh` | After memory tag changes | Client/project recall slice |
 | **Solo daily plan** | `./scripts/audit-solo-daily-plan-gate.sh` | Weekly | Morning brief + kanban wiring |
@@ -94,6 +95,7 @@ Expected Personal OS prod:
 | **POS-R** | R1–R4 LOOP5 social intel (Research Bee · Jarvis · SIG2 refresh) | ✅ Shipped |
 | **POS-S** | S1–S4 Data Monitor DG1 (wizard strip · Jarvis · foragers anchor) | ✅ Shipped |
 | **POS-T** | T1–T4 Discovery DG6 (URL find strip · Jarvis · foragers anchor) | ✅ Shipped |
+| **POS-U** | U1–U4 Learn rail (Ballroom reflection · weekly compound · Jarvis · anchors) | ✅ Shipped |
 
 ## Rollback
 
