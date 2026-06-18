@@ -7,6 +7,7 @@ import uuid
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.services.factory_export_readiness_service import resolve_factory_export_readiness
 from app.application.services.factory_llm_readiness_service import resolve_factory_llm_readiness
 from app.application.services.personal_os_mode import personal_os_skill_factory_commercial_enabled
 from app.application.services.skill_factory_disposition import derive_niche_from_skill, resolve_skill_disposition
@@ -40,10 +41,16 @@ class MissionSkillFactoryHarnessStripOut(BaseModel):
     library_count: int = 0
     export_ready: bool = False
     export_batch_limit: int = 3
+    manual_export_ready: bool = True
+    github_pr_ready: bool = False
+    gumroad_draft_ready: bool = False
+    gumroad_publish_ready: bool = False
+    gumroad_setup_hint: str = ""
     research_href: str = "/apps-tools/skill-factory#research"
     queue_href: str = "/apps-tools/skill-factory#queue"
     library_href: str = "/apps-tools/skill-factory#skill-factory-library"
     export_batch_href: str = "/apps-tools/skill-factory#export-batch"
+    export_channels_href: str = "/apps-tools/skill-factory#export-channels"
     guide_href: str = "/apps-tools/skill-factory#guide"
 
 
@@ -60,6 +67,7 @@ async def compose_mission_skill_factory_harness_strip(
 
     personal_os_lite = not personal_os_skill_factory_commercial_enabled()
     llm = await resolve_factory_llm_readiness(session)
+    export_channels = await resolve_factory_export_readiness(session)
     status_counts = await count_skill_opportunity_statuses(session, tenant_id=tenant_id)
     library_rows = await list_tenant_skills(session, tenant_id=tenant_id, limit=80)
     forge_quality = await _forge_quality_by_skill_id(
@@ -154,4 +162,9 @@ async def compose_mission_skill_factory_harness_strip(
         library_count=library_count,
         export_ready=export_ready,
         export_batch_limit=3,
+        manual_export_ready=export_channels.manual_export_ready,
+        github_pr_ready=export_channels.github_pr_ready,
+        gumroad_draft_ready=export_channels.gumroad_draft_ready,
+        gumroad_publish_ready=export_channels.gumroad_publish_ready,
+        gumroad_setup_hint=export_channels.gumroad_setup_hint[:240],
     )

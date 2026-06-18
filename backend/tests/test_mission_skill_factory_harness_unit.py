@@ -11,6 +11,26 @@ from app.application.services.mission_skill_factory_harness_service import (
     compose_mission_skill_factory_harness_strip,
 )
 
+_MOCK_EXPORT_CHANNELS = type(
+    "ExportChannels",
+    (),
+    {
+        "manual_export_ready": True,
+        "github_pr_ready": False,
+        "gumroad_draft_ready": False,
+        "gumroad_publish_ready": False,
+        "gumroad_setup_hint": "Manual upload: exports/gumroad-upload/*.tar.gz",
+        "github_setup_hint": "",
+    },
+)()
+
+
+def _patch_export_channels():
+    return patch(
+        "app.application.services.mission_skill_factory_harness_service.resolve_factory_export_readiness",
+        AsyncMock(return_value=_MOCK_EXPORT_CHANNELS),
+    )
+
 
 @pytest.mark.asyncio
 async def test_compose_harness_strip_when_llm_blocked() -> None:
@@ -51,18 +71,21 @@ async def test_compose_harness_strip_when_llm_blocked() -> None:
                             "app.application.services.mission_skill_factory_harness_service._forge_quality_by_skill_id",
                             AsyncMock(return_value={}),
                         ):
-                            session.get = AsyncMock(
-                                return_value=type("Tenant", (), {"operator_settings": {}})(),
-                            )
-                            strip = await compose_mission_skill_factory_harness_strip(
-                                session,
-                                tenant_id=tenant_id,
-                                first_run_complete=True,
-                            )
+                            with _patch_export_channels():
+                                session.get = AsyncMock(
+                                    return_value=type("Tenant", (), {"operator_settings": {}})(),
+                                )
+                                strip = await compose_mission_skill_factory_harness_strip(
+                                    session,
+                                    tenant_id=tenant_id,
+                                    first_run_complete=True,
+                                )
 
     assert strip.enabled is True
     assert strip.llm_ready is False
     assert strip.personal_os_lite is True
+    assert strip.manual_export_ready is True
+    assert strip.export_channels_href.endswith("#export-channels")
     assert strip.queue_href.endswith("#queue")
 
 
@@ -122,11 +145,12 @@ async def test_compose_harness_strip_when_verified_in_library() -> None:
                                     },
                                 )(),
                             ):
-                                strip = await compose_mission_skill_factory_harness_strip(
-                                    session,
-                                    tenant_id=tenant_id,
-                                    first_run_complete=True,
-                                )
+                                with _patch_export_channels():
+                                    strip = await compose_mission_skill_factory_harness_strip(
+                                        session,
+                                        tenant_id=tenant_id,
+                                        first_run_complete=True,
+                                    )
 
     assert strip.enabled is True
     assert strip.verified_count == 1
@@ -202,11 +226,12 @@ async def test_compose_harness_strip_counts_rebuild_eligible() -> None:
                                                 {"verdict": "worth_retry"},
                                             )(),
                                         ):
-                                            strip = await compose_mission_skill_factory_harness_strip(
-                                                session,
-                                                tenant_id=tenant_id,
-                                                first_run_complete=True,
-                                            )
+                                            with _patch_export_channels():
+                                                strip = await compose_mission_skill_factory_harness_strip(
+                                                    session,
+                                                    tenant_id=tenant_id,
+                                                    first_run_complete=True,
+                                                )
 
     assert strip.rebuild_eligible_count == 1
     assert strip.near_miss_count == 1

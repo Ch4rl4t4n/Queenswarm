@@ -58,6 +58,7 @@ const SKILL_FACTORY_TAB_IDS = new Set<string>(SKILL_FACTORY_TABS.map((row) => ro
 export const SKILL_FACTORY_LIBRARY_ANCHOR_HASHES = new Set<string>([
   "skill-factory-library",
   "export-batch",
+  "export-channels",
 ]);
 const CONTENT_PACK_FACTORY_TAB_IDS = new Set<string>(CONTENT_PACK_FACTORY_TABS.map((row) => row.id));
 const MCP_OPS_STUDIO_TAB_IDS = new Set<string>(MCP_OPS_STUDIO_TABS.map((row) => row.id));

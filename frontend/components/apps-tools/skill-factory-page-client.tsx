@@ -1339,6 +1339,65 @@ export function SkillFactoryPageClient(): JSX.Element {
                   </div>
                 </div>
               ) : null}
+              <div
+                id="export-channels"
+                className="scroll-mt-28 mt-4 rounded-xl border border-cyan/30 bg-cyan/5 px-4 py-4"
+                data-testid="skill-factory-export-channels"
+              >
+                <p className="text-sm font-semibold text-(--qs-text)">Export channels · Gumroad lane</p>
+                <p className="mt-1 text-xs text-(--qs-text-3)">
+                  Personal OS keeps Launch tab hidden — use manual tarball upload or enable Gumroad API when selling.
+                </p>
+                <ul className="mt-3 space-y-2 text-xs text-(--qs-text-2)">
+                  <li className="flex flex-wrap items-center gap-2">
+                    <V4Badge tone="ok">Manual bundle</V4Badge>
+                    <span>
+                      <code className="font-mono text-[10px]">exports/gumroad-upload/*.tar.gz</code>
+                      {" · "}
+                      <code className="font-mono text-[10px]">LAUNCH_CHECKLIST.md</code>
+                    </span>
+                  </li>
+                  <li className="flex flex-wrap items-center gap-2">
+                    <V4Badge tone={snapshot.github_pr_export_ready ? "ok" : "warn"}>
+                      GitHub PR
+                    </V4Badge>
+                    <span>
+                      {snapshot.github_pr_export_ready
+                        ? "Auto PR export ready from Library rows."
+                        : "Connect github_rest + SKILL_FACTORY_GITHUB_PR_ENABLED for auto PR."}
+                    </span>
+                  </li>
+                  <li className="flex flex-wrap items-center gap-2">
+                    <V4Badge tone={snapshot.gumroad_listing_ready ? "ok" : "warn"}>
+                      Gumroad API
+                    </V4Badge>
+                    <span>
+                      {snapshot.gumroad_listing_ready
+                        ? "Draft API ready — enable commercial host or operator script with token."
+                        : "Manual upload lane — or set SKILL_FACTORY_GUMROAD_LISTING_ENABLED + Gumroad token."}
+                    </span>
+                  </li>
+                </ul>
+                {snapshot.launch_readiness?.exports_on_disk_hint ? (
+                  <p className="mt-2 font-mono text-[10px] text-(--qs-text-4)">
+                    Server bundles: {snapshot.launch_readiness.exports_on_disk_hint}
+                  </p>
+                ) : null}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
+                    disabled={busyId === "launch-prepare" || sellableLibraryCount === 0}
+                    onClick={() => void prepareLaunchBatch()}
+                  >
+                    <DownloadIcon className="size-3.5" aria-hidden />
+                    Refresh launch batch
+                  </button>
+                  <Link href="/integrations?tab=connectors" className="qs-btn qs-btn--ghost qs-btn--sm">
+                    Gumroad connector
+                  </Link>
+                </div>
+              </div>
               <div className="mt-4 px-1">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-(--qs-text-3)">

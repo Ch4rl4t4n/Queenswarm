@@ -344,6 +344,21 @@ Audit: `./scripts/audit-personal-os-export-harness-adoption-gate.sh`
 
 **Operator daily stack:** `/tasks` · `/apps-tools/skill-factory#export-batch` · Mission Home **Export batch**
 
+## Personal OS — Export channels adoption wave (POS-Y)
+
+**Goal:** Gumroad manual/API readiness visible in Personal OS lite — export channels checklist + operator launch script.
+
+| ID | Scope | Status |
+|----|-------|--------|
+| Y1 | Harness strip — manual/github/gumroad channel badges + hints | ✅ |
+| Y2 | Library `#export-channels` checklist + Gumroad connector link | ✅ |
+| Y3 | Jarvis nudges — Prepare Gumroad upload / Draft Gumroad batch | ✅ |
+| Y4 | `operator-gumroad-launch-batch.sh` + audit gates | ✅ |
+
+Audit: `./scripts/audit-personal-os-export-channels-adoption-gate.sh`
+
+**Operator daily stack:** `/apps-tools/skill-factory#export-channels` · `./scripts/operator-gumroad-launch-batch.sh`
+
 **Maintenance audits:** `./scripts/audit-personal-os-gate.sh` · weekly: social publish + solo daily plan gates.
 
 | Step | Scope | Status |

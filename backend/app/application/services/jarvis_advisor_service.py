@@ -172,6 +172,8 @@ def _compose_jarvis_advisor_strip(
     factory_queue_actionable: int = 0,
     factory_verified_count: int = 0,
     factory_rebuild_eligible: int = 0,
+    factory_export_ready: bool = False,
+    factory_gumroad_draft_ready: bool = False,
 ) -> MissionJarvisAdvisorStripOut:
     """Build up to three prioritized steps — verify blockers before new work."""
 
@@ -348,6 +350,32 @@ def _compose_jarvis_advisor_strip(
                     title="Export verified harness",
                     detail="One-click export batch — verified SKILL.md bundles to your agent OS.",
                     href="/apps-tools/skill-factory#export-batch",
+                    kind="work",
+                ),
+            ),
+        )
+
+    if settings.skill_factory_enabled and factory_export_ready and not factory_gumroad_draft_ready:
+        candidates.append(
+            (
+                5,
+                _JarvisCandidate(
+                    title="Prepare Gumroad upload",
+                    detail="Manual tarball lane — exports/gumroad-upload + LAUNCH_CHECKLIST.md (Personal OS lite).",
+                    href="/apps-tools/skill-factory#export-channels",
+                    kind="work",
+                ),
+            ),
+        )
+
+    if settings.skill_factory_enabled and factory_export_ready and factory_gumroad_draft_ready:
+        candidates.append(
+            (
+                5,
+                _JarvisCandidate(
+                    title="Draft Gumroad batch",
+                    detail="Gumroad API ready — run operator launch batch or Library export channels.",
+                    href="/apps-tools/skill-factory#export-channels",
                     kind="work",
                 ),
             ),

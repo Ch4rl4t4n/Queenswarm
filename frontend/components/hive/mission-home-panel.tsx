@@ -293,10 +293,16 @@ interface MissionSkillFactoryHarnessStrip {
   library_count: number;
   export_ready: boolean;
   export_batch_limit: number;
+  manual_export_ready: boolean;
+  github_pr_ready: boolean;
+  gumroad_draft_ready: boolean;
+  gumroad_publish_ready: boolean;
+  gumroad_setup_hint: string;
   research_href: string;
   queue_href: string;
   library_href: string;
   export_batch_href: string;
+  export_channels_href: string;
   guide_href: string;
 }
 
@@ -1164,8 +1170,8 @@ function MissionHomePanelInner(): JSX.Element | null {
                   </Link>
                 )}
                 {skillFactoryHarness.export_ready ? (
-                  <Link href={skillFactoryHarness.export_batch_href} className="qs-btn qs-btn--ghost qs-btn--sm">
-                    Library export
+                  <Link href={skillFactoryHarness.export_channels_href} className="qs-btn qs-btn--ghost qs-btn--sm">
+                    Gumroad lane
                   </Link>
                 ) : (
                   <Link href={skillFactoryHarness.library_href} className="qs-btn qs-btn--ghost qs-btn--sm">
@@ -1187,6 +1193,14 @@ function MissionHomePanelInner(): JSX.Element | null {
             ) : null}
             {skillFactoryHarness.export_ready ? (
               <V4Badge tone="ok">Export ready</V4Badge>
+            ) : null}
+            {skillFactoryHarness.manual_export_ready ? (
+              <V4Badge tone="info">Manual export</V4Badge>
+            ) : null}
+            {skillFactoryHarness.gumroad_draft_ready ? (
+              <V4Badge tone="gold">Gumroad API</V4Badge>
+            ) : skillFactoryHarness.export_ready ? (
+              <V4Badge tone="warn">Gumroad manual</V4Badge>
             ) : null}
             {skillFactoryHarness.rebuild_eligible_count > 0 ? (
               <V4Badge tone="warn">{skillFactoryHarness.rebuild_eligible_count} smart rebuild</V4Badge>
