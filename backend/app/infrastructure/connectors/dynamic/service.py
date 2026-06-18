@@ -507,6 +507,18 @@ async def invoke_dynamic_tool(
     if cfg_tool is None:
         return f"dynamic_invoke_error: tool `{tool_name}` missing from manifest"
 
+    if (
+        isinstance(row.builtin_kind, str)
+        and row.builtin_kind.lower() == "codebase_memory"
+        and settings.codebase_memory_mcp_enabled
+    ):
+        from app.application.services.codebase_memory_mcp_service import invoke_codebase_memory_tool
+
+        return await invoke_codebase_memory_tool(
+            tool_name=tool_name,
+            arguments=arguments,
+        )
+
     normalized_manager = (manager_slug or "").strip().lower()
     tool_manager_filters = cfg_tool.get("allowed_manager_slugs")
     if isinstance(tool_manager_filters, list):

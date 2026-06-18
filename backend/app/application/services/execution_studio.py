@@ -842,6 +842,10 @@ async def build_codebase_lane_snapshot(
     if tenant is not None:
         runs_today = await count_maintainer_runs_today(session, tenant_id=tenant.id)
 
+    from app.application.services.codebase_memory_mcp_service import compose_codebase_memory_mcp_readiness
+
+    codebase_memory_mcp = await compose_codebase_memory_mcp_readiness(session)
+
     return {
         "lane": "internal_codebase",
         "queen_maintainer_enabled": bool(settings.queen_maintainer_enabled),
@@ -867,6 +871,7 @@ async def build_codebase_lane_snapshot(
         "agent_roles": list(MAINTAINER_ROLES),
         "agent_skills": list(MAINTAINER_SKILLS),
         "setup_steps": list(CODEBASE_SETUP_STEPS),
+        "codebase_memory_mcp": codebase_memory_mcp,
     }
 
 

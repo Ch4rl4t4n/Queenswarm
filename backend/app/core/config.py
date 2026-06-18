@@ -1931,6 +1931,10 @@ class Settings(BaseSettings):
         default=True,
         description="POS-I3 — Jarvis weekly reflection strip on Mission Home (Ballroom + episodic → Hive Mind).",
     )
+    codebase_memory_mcp_enabled: bool = Field(
+        default=True,
+        description="POS-I5 / H7 — Internal codebase-memory MCP connector for Tech SCV lane.",
+    )
     brand_studio_rubric_preview_enabled: bool = Field(
         default=True,
         description="POS-I4 — Brand studio rubric preview in Marketing Team (simulate-only).",

@@ -92,7 +92,7 @@ Living backlog for **queenswarm.love** — ordered by impact. Status reflects pr
 | H4 | Weak Signal Bee — social/forager hint in Jarvis advisor | ✅ |
 | H5 | Loop presets shortcut (Jarvis + harness link) | ✅ |
 | H6 | Agent Quality scorecard on Mission Home | ✅ |
-| H7 | codebase-memory MCP for SCV lane | Planned P2 |
+| H7 | codebase-memory MCP for SCV lane | ✅ |
 
 Audit: `./scripts/audit-jarvis-intelligence-gate.sh`
 
@@ -106,9 +106,9 @@ Audit: `./scripts/audit-jarvis-intelligence-gate.sh`
 | I2 | Jarvis J2 — proactive nudge cez mission feed (digest / Brain Pack empty) | ✅ |
 | I3 | Jarvis J3 — weekly reflection strip (Ballroom + episodic) | ✅ |
 | I4 | Marketing Team — Brand studio rubric preview (simulate-only) | ✅ |
-| I5 | H7 — codebase-memory MCP connector pre Tech SCV lane | Planned P2 |
+| I5 | H7 — codebase-memory MCP connector pre Tech SCV lane | ✅ |
 
-Audit: `./scripts/audit-research-bee-gate.sh` (I1) · `./scripts/audit-jarvis-intelligence-gate.sh`
+Audit: `./scripts/audit-research-bee-gate.sh` (I1) · `./scripts/audit-jarvis-intelligence-gate.sh` · `./scripts/audit-codebase-memory-mcp-gate.sh` (I5)
 
 **Maintenance audits:** `./scripts/audit-personal-os-gate.sh` · weekly: social publish + solo daily plan gates.
 
