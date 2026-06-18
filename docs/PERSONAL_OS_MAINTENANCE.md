@@ -42,8 +42,7 @@ Apply preset: `./scripts/apply-solo-mode.sh` (merges `.env.solo.example` → `.e
 | **POS-U learn rail** | `./scripts/audit-personal-os-learn-rail-adoption-gate.sh` | After Ballroom/compound UX wiring | Jarvis nudges · learn studio · deep-link anchors |
 | **POS-V verified harness** | `./scripts/audit-personal-os-harness-adoption-gate.sh` | After Skill Factory UX wiring | Harness strip · Jarvis · factory anchors |
 | **POS-W smart rebuild** | `./scripts/audit-personal-os-smart-rebuild-adoption-gate.sh` | After library sieve UX wiring | Near-miss counts · Jarvis · library anchor |
-| **POS-X export harness** | `./scripts/audit-personal-os-export-harness-adoption-gate.sh` | After export batch UX wiring | export_ready · Mission Home CTA · `#export-batch` |
-| **POS-Y export channels** | `./scripts/audit-personal-os-export-channels-adoption-gate.sh` | After Gumroad lane UX wiring | Channel badges · `#export-channels` · operator script |
+| **In-app skills (no Gumroad)** | `./scripts/audit-personal-os-in-app-skills-gate.sh` | After Skill Factory Personal OS changes | attach_ready · Sessions picker · no export lanes |
 | **Second brain SB1–4** | `./scripts/audit-second-brain-gate.sh` | Weekly | Capture approve · connection intelligence · ⌘K wiki |
 | **MEM5 project tags** | `./scripts/audit-memory-project-tags-gate.sh` | After memory tag changes | Client/project recall slice |
 | **Solo daily plan** | `./scripts/audit-solo-daily-plan-gate.sh` | Weekly | Morning brief + kanban wiring |

@@ -7,7 +7,6 @@ import uuid
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.services.factory_export_readiness_service import resolve_factory_export_readiness
 from app.application.services.factory_llm_readiness_service import resolve_factory_llm_readiness
 from app.application.services.personal_os_mode import personal_os_skill_factory_commercial_enabled
 from app.application.services.skill_factory_disposition import derive_niche_from_skill, resolve_skill_disposition
@@ -22,12 +21,12 @@ from app.core.config import settings
 
 
 class MissionSkillFactoryHarnessStripOut(BaseModel):
-    """Skill Factory harness pipeline visibility on Mission Home (POS-V)."""
+    """Skill Factory harness pipeline visibility on Mission Home (in-app agent skills)."""
 
     model_config = ConfigDict(extra="ignore")
 
     enabled: bool = False
-    headline: str = "Verified harness · Skill Factory"
+    headline: str = "Verified skills · Skill Factory"
     message: str = ""
     personal_os_lite: bool = True
     llm_ready: bool = False
@@ -39,18 +38,11 @@ class MissionSkillFactoryHarnessStripOut(BaseModel):
     near_miss_count: int = 0
     rebuild_eligible_count: int = 0
     library_count: int = 0
-    export_ready: bool = False
-    export_batch_limit: int = 3
-    manual_export_ready: bool = True
-    github_pr_ready: bool = False
-    gumroad_draft_ready: bool = False
-    gumroad_publish_ready: bool = False
-    gumroad_setup_hint: str = ""
+    attach_ready: bool = False
     research_href: str = "/apps-tools/skill-factory#research"
     queue_href: str = "/apps-tools/skill-factory#queue"
     library_href: str = "/apps-tools/skill-factory#skill-factory-library"
-    export_batch_href: str = "/apps-tools/skill-factory#export-batch"
-    export_channels_href: str = "/apps-tools/skill-factory#export-channels"
+    agents_href: str = "/agents#sessions"
     guide_href: str = "/apps-tools/skill-factory#guide"
 
 
@@ -60,14 +52,13 @@ async def compose_mission_skill_factory_harness_strip(
     tenant_id: uuid.UUID,
     first_run_complete: bool,
 ) -> MissionSkillFactoryHarnessStripOut:
-    """Lightweight Skill Factory strip — queue → verified library (no Gumroad UI)."""
+    """Lightweight Skill Factory strip — queue → verified library for in-app agent use."""
 
     if not settings.skill_factory_enabled or not first_run_complete:
         return MissionSkillFactoryHarnessStripOut(enabled=False)
 
     personal_os_lite = not personal_os_skill_factory_commercial_enabled()
     llm = await resolve_factory_llm_readiness(session)
-    export_channels = await resolve_factory_export_readiness(session)
     status_counts = await count_skill_opportunity_statuses(session, tenant_id=tenant_id)
     library_rows = await list_tenant_skills(session, tenant_id=tenant_id, limit=80)
     forge_quality = await _forge_quality_by_skill_id(
@@ -132,23 +123,22 @@ async def compose_mission_skill_factory_harness_strip(
         )
     elif verified_count == 0:
         message = (
-            "No verified harness yet — Research → Queue → Library "
-            "(Personal OS lite — export skills to your agent OS, no Gumroad tab)."
+            "No verified skills yet — Research → Queue → Library, then attach in agent Sessions."
             if personal_os_lite
-            else "No sellable harness yet — run research → build → approve forge."
+            else "No verified skills yet — run research → build → approve forge."
         )
     else:
         message = (
-            f"{verified_count} verified harness skill(s) in library — export or attach via skill picker."
+            f"{verified_count} verified skill(s) in library — attach via skill picker in Sessions or Tasks."
             if personal_os_lite
-            else f"{verified_count} sellable harness(s) ready — open Launch tab or export bundle."
+            else f"{verified_count} verified skill(s) in library — attach via skill picker or open Launch tab."
         )
 
-    export_ready = llm_ready and queue_actionable == 0 and verified_count > 0
+    attach_ready = llm_ready and queue_actionable == 0 and verified_count > 0
 
     return MissionSkillFactoryHarnessStripOut(
         enabled=True,
-        headline="Verified harness · Skill Factory",
+        headline="Verified skills · Skill Factory",
         message=message,
         personal_os_lite=personal_os_lite,
         llm_ready=llm_ready,
@@ -160,11 +150,5 @@ async def compose_mission_skill_factory_harness_strip(
         near_miss_count=near_miss_count,
         rebuild_eligible_count=rebuild_eligible_count,
         library_count=library_count,
-        export_ready=export_ready,
-        export_batch_limit=3,
-        manual_export_ready=export_channels.manual_export_ready,
-        github_pr_ready=export_channels.github_pr_ready,
-        gumroad_draft_ready=export_channels.gumroad_draft_ready,
-        gumroad_publish_ready=export_channels.gumroad_publish_ready,
-        gumroad_setup_hint=export_channels.gumroad_setup_hint[:240],
+        attach_ready=attach_ready,
     )

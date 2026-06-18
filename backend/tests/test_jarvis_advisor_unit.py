@@ -407,7 +407,7 @@ def test_jarvis_suggests_factory_queue_when_actionable() -> None:
     assert any(href.endswith("#queue") for href in hrefs)
 
 
-def test_jarvis_suggests_export_harness_when_verified() -> None:
+def test_jarvis_suggests_attach_skills_when_verified() -> None:
     with patch("app.application.services.jarvis_advisor_service.settings") as mock_settings:
         mock_settings.jarvis_advisor_mission_home_enabled = True
         mock_settings.skill_factory_enabled = True
@@ -429,11 +429,11 @@ def test_jarvis_suggests_export_harness_when_verified() -> None:
 
     titles = [step.title.lower() for step in strip.steps]
     hrefs = [step.href for step in strip.steps]
-    assert any("export verified harness" in title for title in titles)
-    assert any(href.endswith("#export-batch") for href in hrefs)
+    assert any("attach verified skills" in title for title in titles)
+    assert any(href.endswith("#skill-factory-library") for href in hrefs)
 
 
-def test_jarvis_suggests_gumroad_manual_upload_when_export_ready() -> None:
+def test_jarvis_suggests_sessions_when_attach_ready() -> None:
     with patch("app.application.services.jarvis_advisor_service.settings") as mock_settings:
         mock_settings.jarvis_advisor_mission_home_enabled = True
         mock_settings.skill_factory_enabled = True
@@ -451,14 +451,13 @@ def test_jarvis_suggests_gumroad_manual_upload_when_export_ready() -> None:
             weak_signal_hint=None,
             factory_llm_ready=True,
             factory_verified_count=1,
-            factory_export_ready=True,
-            factory_gumroad_draft_ready=False,
+            factory_attach_ready=True,
         )
 
     titles = [step.title.lower() for step in strip.steps]
     hrefs = [step.href for step in strip.steps]
-    assert any("prepare gumroad upload" in title for title in titles)
-    assert any(href.endswith("#export-channels") for href in hrefs)
+    assert any("start agent with library skills" in title for title in titles)
+    assert any(href.endswith("#sessions") for href in hrefs)
 
 
 def test_jarvis_suggests_smart_rebuild_when_near_miss_eligible() -> None:

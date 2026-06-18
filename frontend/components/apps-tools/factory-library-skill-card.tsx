@@ -93,7 +93,7 @@ interface FactoryLibrarySkillCardProps {
   onRetire: (id: string) => void;
   onRemove: (id: string, title: string) => void;
   onEval: (id: string, title: string) => void;
-  onExport: (id: string) => void;
+  onExport?: (id: string) => void;
   onGithubPr?: (id: string) => void;
   onGumroadDraft?: (id: string) => void;
   onGumroadPublish?: (id: string) => void;
@@ -250,15 +250,17 @@ export function FactoryLibrarySkillCard({
           {inlineEval ? "Re-eval" : "Eval"}
         </button>
 
-        <button
-          type="button"
-          className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
-          disabled={busy}
-          onClick={() => onExport(row.id)}
-        >
-          <DownloadIcon className="h-3.5 w-3.5" aria-hidden />
-          Pack
-        </button>
+        {onExport ? (
+          <button
+            type="button"
+            className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
+            disabled={busy}
+            onClick={() => onExport(row.id)}
+          >
+            <DownloadIcon className="h-3.5 w-3.5" aria-hidden />
+            Pack
+          </button>
+        ) : null}
 
         {canSmartRebuild ? (
           <button

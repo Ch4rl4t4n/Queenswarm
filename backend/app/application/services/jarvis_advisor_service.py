@@ -172,8 +172,7 @@ def _compose_jarvis_advisor_strip(
     factory_queue_actionable: int = 0,
     factory_verified_count: int = 0,
     factory_rebuild_eligible: int = 0,
-    factory_export_ready: bool = False,
-    factory_gumroad_draft_ready: bool = False,
+    factory_attach_ready: bool = False,
 ) -> MissionJarvisAdvisorStripOut:
     """Build up to three prioritized steps — verify blockers before new work."""
 
@@ -347,35 +346,22 @@ def _compose_jarvis_advisor_strip(
             (
                 6,
                 _JarvisCandidate(
-                    title="Export verified harness",
-                    detail="One-click export batch — verified SKILL.md bundles to your agent OS.",
-                    href="/apps-tools/skill-factory#export-batch",
+                    title="Attach verified skills",
+                    detail="Open Library or Sessions skill picker — use tenant skills directly in agent runs.",
+                    href="/apps-tools/skill-factory#skill-factory-library",
                     kind="work",
                 ),
             ),
         )
 
-    if settings.skill_factory_enabled and factory_export_ready and not factory_gumroad_draft_ready:
+    if settings.skill_factory_enabled and factory_attach_ready:
         candidates.append(
             (
                 5,
                 _JarvisCandidate(
-                    title="Prepare Gumroad upload",
-                    detail="Manual tarball lane — exports/gumroad-upload + LAUNCH_CHECKLIST.md (Personal OS lite).",
-                    href="/apps-tools/skill-factory#export-channels",
-                    kind="work",
-                ),
-            ),
-        )
-
-    if settings.skill_factory_enabled and factory_export_ready and factory_gumroad_draft_ready:
-        candidates.append(
-            (
-                5,
-                _JarvisCandidate(
-                    title="Draft Gumroad batch",
-                    detail="Gumroad API ready — run operator launch batch or Library export channels.",
-                    href="/apps-tools/skill-factory#export-channels",
+                    title="Start agent with library skills",
+                    detail="Verified skills ready — pick them in Sessions before your next supervisor run.",
+                    href="/agents#sessions",
                     kind="work",
                 ),
             ),

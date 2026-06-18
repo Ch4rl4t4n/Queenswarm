@@ -472,16 +472,10 @@ STEP_STUDIOS: dict[ProcessStepId, list[MissionStudioEntryOut]] = {
             href="/apps-tools/skill-factory#skill-factory-library",
         ),
         MissionStudioEntryOut(
-            id="skill_factory_export",
-            title="Export verified batch",
-            detail="One-click SKILL.md bundles — Personal OS lite export lane (no Gumroad tab).",
-            href="/apps-tools/skill-factory#export-batch",
-        ),
-        MissionStudioEntryOut(
-            id="skill_factory_export_channels",
-            title="Export channels · Gumroad",
-            detail="Manual tarball upload or API draft when token configured — readiness checklist.",
-            href="/apps-tools/skill-factory#export-channels",
+            id="skill_factory_agents",
+            title="Attach skills in Sessions",
+            detail="Pick verified tenant skills in the supervisor skill picker before agent runs.",
+            href="/agents#sessions",
         ),
     ],
     "verify": [
@@ -1492,10 +1486,7 @@ async def compose_mission_home_snapshot(
         factory_rebuild_eligible=skill_factory_harness_strip.rebuild_eligible_count
         if skill_factory_harness_strip.enabled
         else 0,
-        factory_export_ready=skill_factory_harness_strip.export_ready
-        if skill_factory_harness_strip.enabled
-        else False,
-        factory_gumroad_draft_ready=skill_factory_harness_strip.gumroad_draft_ready
+        factory_attach_ready=skill_factory_harness_strip.attach_ready
         if skill_factory_harness_strip.enabled
         else False,
     )
@@ -1554,8 +1545,7 @@ async def compose_mission_home_snapshot(
             "weekly_compound": "/knowledge?tab=hivemind#evolution",
             "skill_factory_queue": "/apps-tools/skill-factory#queue",
             "skill_factory_library": "/apps-tools/skill-factory#skill-factory-library",
-            "skill_factory_export": "/apps-tools/skill-factory#export-batch",
-            "skill_factory_export_channels": "/apps-tools/skill-factory#export-channels",
+            "skill_factory_agents": "/agents#sessions",
             "loop_presets": "/settings/harness#harness-closed-loop-presets",
         },
         rapid_loop_widget_enabled=settings.rapid_loop_mission_home_enabled,

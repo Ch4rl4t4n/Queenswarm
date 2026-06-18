@@ -329,35 +329,19 @@ Audit: `./scripts/audit-personal-os-smart-rebuild-adoption-gate.sh`
 
 **Operator daily stack:** `/tasks` · `/apps-tools/skill-factory#skill-factory-library` · `./scripts/factory-first-revenue-bootstrap.sh`
 
-## Personal OS — Export verified harness adoption wave (POS-X)
+## Personal OS — In-app agent skills (POS-V/W retained, POS-X/Y removed)
 
-**Goal:** One-click verified SKILL.md export in Personal OS lite — Launch tab hidden, Mission Home + Library `#export-batch`.
-
-| ID | Scope | Status |
-|----|-------|--------|
-| X1 | Harness strip — export_ready + export_batch_href | ✅ |
-| X2 | Mission Home one-click Export batch CTA (`launch/prepare`) | ✅ |
-| X3 | Library tab `#export-batch` anchor (Personal OS lite) | ✅ |
-| X4 | Jarvis nudge + work studio + audit gates | ✅ |
-
-Audit: `./scripts/audit-personal-os-export-harness-adoption-gate.sh`
-
-**Operator daily stack:** `/tasks` · `/apps-tools/skill-factory#export-batch` · Mission Home **Export batch**
-
-## Personal OS — Export channels adoption wave (POS-Y)
-
-**Goal:** Gumroad manual/API readiness visible in Personal OS lite — export channels checklist + operator launch script.
+**Goal:** Skill Factory = verified tenant skills for **in-app agent use only** (Sessions skill picker). No Gumroad, no external export batch, no revenue lanes in Personal OS.
 
 | ID | Scope | Status |
 |----|-------|--------|
-| Y1 | Harness strip — manual/github/gumroad channel badges + hints | ✅ |
-| Y2 | Library `#export-channels` checklist + Gumroad connector link | ✅ |
-| Y3 | Jarvis nudges — Prepare Gumroad upload / Draft Gumroad batch | ✅ |
-| Y4 | `operator-gumroad-launch-batch.sh` + audit gates | ✅ |
+| V/W | Queue → Library → Smart rebuild on Mission Home + Jarvis | ✅ |
+| X/Y | ~~Export batch / Gumroad channels~~ | ⛔ **Removed** — operator decision: no Gumroad in app |
+| Z | In-app attach lane — Library + Sessions CTAs, audit gate | ✅ |
 
-Audit: `./scripts/audit-personal-os-export-channels-adoption-gate.sh`
+Audit: `./scripts/audit-personal-os-in-app-skills-gate.sh`
 
-**Operator daily stack:** `/apps-tools/skill-factory#export-channels` · `./scripts/operator-gumroad-launch-batch.sh`
+**Operator daily stack:** `/tasks` · `/apps-tools/skill-factory#skill-factory-library` · `/agents#sessions` (skill picker)
 
 **Maintenance audits:** `./scripts/audit-personal-os-gate.sh` · weekly: social publish + solo daily plan gates.
 

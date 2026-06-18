@@ -1,4 +1,4 @@
-"""Unit tests for Mission Home Skill Factory harness strip (POS-V)."""
+"""Unit tests for Mission Home Skill Factory harness strip (in-app agent skills)."""
 
 from __future__ import annotations
 
@@ -10,26 +10,6 @@ import pytest
 from app.application.services.mission_skill_factory_harness_service import (
     compose_mission_skill_factory_harness_strip,
 )
-
-_MOCK_EXPORT_CHANNELS = type(
-    "ExportChannels",
-    (),
-    {
-        "manual_export_ready": True,
-        "github_pr_ready": False,
-        "gumroad_draft_ready": False,
-        "gumroad_publish_ready": False,
-        "gumroad_setup_hint": "Manual upload: exports/gumroad-upload/*.tar.gz",
-        "github_setup_hint": "",
-    },
-)()
-
-
-def _patch_export_channels():
-    return patch(
-        "app.application.services.mission_skill_factory_harness_service.resolve_factory_export_readiness",
-        AsyncMock(return_value=_MOCK_EXPORT_CHANNELS),
-    )
 
 
 @pytest.mark.asyncio
@@ -71,22 +51,19 @@ async def test_compose_harness_strip_when_llm_blocked() -> None:
                             "app.application.services.mission_skill_factory_harness_service._forge_quality_by_skill_id",
                             AsyncMock(return_value={}),
                         ):
-                            with _patch_export_channels():
-                                session.get = AsyncMock(
-                                    return_value=type("Tenant", (), {"operator_settings": {}})(),
-                                )
-                                strip = await compose_mission_skill_factory_harness_strip(
-                                    session,
-                                    tenant_id=tenant_id,
-                                    first_run_complete=True,
-                                )
+                            session.get = AsyncMock(
+                                return_value=type("Tenant", (), {"operator_settings": {}})(),
+                            )
+                            strip = await compose_mission_skill_factory_harness_strip(
+                                session,
+                                tenant_id=tenant_id,
+                                first_run_complete=True,
+                            )
 
     assert strip.enabled is True
     assert strip.llm_ready is False
     assert strip.personal_os_lite is True
-    assert strip.manual_export_ready is True
-    assert strip.export_channels_href.endswith("#export-channels")
-    assert strip.queue_href.endswith("#queue")
+    assert strip.agents_href.endswith("#sessions")
 
 
 @pytest.mark.asyncio
@@ -145,17 +122,16 @@ async def test_compose_harness_strip_when_verified_in_library() -> None:
                                     },
                                 )(),
                             ):
-                                with _patch_export_channels():
-                                    strip = await compose_mission_skill_factory_harness_strip(
-                                        session,
-                                        tenant_id=tenant_id,
-                                        first_run_complete=True,
-                                    )
+                                strip = await compose_mission_skill_factory_harness_strip(
+                                    session,
+                                    tenant_id=tenant_id,
+                                    first_run_complete=True,
+                                )
 
     assert strip.enabled is True
     assert strip.verified_count == 1
-    assert strip.export_ready is True
-    assert strip.export_batch_href.endswith("#export-batch")
+    assert strip.attach_ready is True
+    assert "skill picker" in strip.message.lower()
     assert strip.library_href.endswith("#skill-factory-library")
 
 
@@ -203,35 +179,34 @@ async def test_compose_harness_strip_counts_rebuild_eligible() -> None:
                                 return_value=type("Tenant", (), {"operator_settings": {}})(),
                             )
                             with patch(
-                                    "app.application.services.mission_skill_factory_harness_service.assess_tenant_skill_sellable",
+                                "app.application.services.mission_skill_factory_harness_service.assess_tenant_skill_sellable",
+                                return_value=type(
+                                    "Assessment",
+                                    (),
+                                    {"tier": "draft", "score": 0.7, "issues": [], "recommended_for_launch": False},
+                                )(),
+                            ):
+                                with patch(
+                                    "app.application.services.mission_skill_factory_harness_service.resolve_skill_disposition",
                                     return_value=type(
-                                        "Assessment",
+                                        "Disposition",
                                         (),
-                                        {"tier": "draft", "score": 0.7, "issues": [], "recommended_for_launch": False},
+                                        {"disposition": None, "attempt_count": 1},
                                     )(),
                                 ):
                                     with patch(
-                                        "app.application.services.mission_skill_factory_harness_service.resolve_skill_disposition",
+                                        "app.application.services.mission_skill_factory_harness_service.compute_library_sieve_verdict",
                                         return_value=type(
-                                            "Disposition",
+                                            "Sieve",
                                             (),
-                                            {"disposition": None, "attempt_count": 1},
+                                            {"verdict": "worth_retry"},
                                         )(),
                                     ):
-                                        with patch(
-                                            "app.application.services.mission_skill_factory_harness_service.compute_library_sieve_verdict",
-                                            return_value=type(
-                                                "Sieve",
-                                                (),
-                                                {"verdict": "worth_retry"},
-                                            )(),
-                                        ):
-                                            with _patch_export_channels():
-                                                strip = await compose_mission_skill_factory_harness_strip(
-                                                    session,
-                                                    tenant_id=tenant_id,
-                                                    first_run_complete=True,
-                                                )
+                                        strip = await compose_mission_skill_factory_harness_strip(
+                                            session,
+                                            tenant_id=tenant_id,
+                                            first_run_complete=True,
+                                        )
 
     assert strip.rebuild_eligible_count == 1
     assert strip.near_miss_count == 1

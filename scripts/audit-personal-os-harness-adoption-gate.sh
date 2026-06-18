@@ -35,10 +35,10 @@ else
   fail "Jarvis factory queue nudge missing"
 fi
 
-if grep -q 'Export verified harness' backend/app/application/services/jarvis_advisor_service.py; then
-  pass "Jarvis export harness nudge"
+if grep -q 'Attach verified skills' backend/app/application/services/jarvis_advisor_service.py; then
+  pass "Jarvis attach skills nudge"
 else
-  fail "Jarvis export harness nudge missing"
+  fail "Jarvis attach skills nudge missing"
 fi
 
 if grep -q 'id="skill-factory-library"' frontend/components/apps-tools/skill-factory-page-client.tsx; then
