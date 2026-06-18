@@ -241,7 +241,20 @@ Audit: `./scripts/audit-personal-os-closed-loop-verify-gate.sh`
 
 Audit: `./scripts/audit-personal-os-intel-adoption-gate.sh`
 
-**Operator daily stack:** `/tasks` (Jarvis · goldmine deltas) · `/foragers#goldmine-alerts` (dispatch) · `/cockpit` (Approval Inbox) · `/knowledge` · `/agents`
+## Personal OS — LOOP5 social intel adoption wave (POS-R)
+
+**Goal:** LOOP5 score→task + SIG2 quarterly refresh in daily operator flow — Mission Home + Jarvis, not buried in Harness/Research Bee only.
+
+| ID | Scope | Status |
+|----|-------|--------|
+| R1 | Mission Home social intel strip — weak signals + SIG2 due + Research Bee link | ✅ |
+| R2 | Jarvis nudges “Score social intel → task” + “Run quarterly intel refresh” | ✅ |
+| R3 | Learn rail LOOP5 studio entry | ✅ |
+| R4 | Audit gates (LOOP5 + POS-R) in operator verify | ✅ |
+
+Audit: `./scripts/audit-personal-os-social-intel-adoption-gate.sh`
+
+**Operator daily stack:** `/tasks` (Jarvis · social intel) · `/knowledge#research-bee` (LOOP5 paste) · `/settings/harness` (presets) · `/foragers#goldmine-alerts`
 
 **Maintenance audits:** `./scripts/audit-personal-os-gate.sh` · weekly: social publish + solo daily plan gates.
 

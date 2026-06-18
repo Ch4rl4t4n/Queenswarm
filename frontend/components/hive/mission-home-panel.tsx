@@ -241,6 +241,19 @@ interface MissionGoldmineStrip {
   cockpit_href: string;
 }
 
+interface MissionSocialIntelStrip {
+  enabled: boolean;
+  headline: string;
+  message: string;
+  signal_count: number;
+  weekly_signal_count: number;
+  roadmap_refresh_due: boolean;
+  loop5_preset_active: boolean;
+  research_href: string;
+  loop5_href: string;
+  refresh_href: string;
+}
+
 interface MissionHomeSnapshot {
   enabled: boolean;
   current_step: ProcessStepId;
@@ -262,6 +275,7 @@ interface MissionHomeSnapshot {
   tool_outcome_strip?: MissionToolOutcomeStrip;
   loop_guardrails_strip?: MissionLoopGuardrailsStrip;
   goldmine_strip?: MissionGoldmineStrip;
+  social_intel_strip?: MissionSocialIntelStrip;
   first_run_complete: boolean;
   links: Record<string, string>;
   rapid_loop_widget_enabled?: boolean;
@@ -326,6 +340,7 @@ function MissionHomePanelInner(): JSX.Element | null {
   const toolOutcome = snapshot.tool_outcome_strip;
   const loopGuardrails = snapshot.loop_guardrails_strip;
   const goldmine = snapshot.goldmine_strip;
+  const socialIntel = snapshot.social_intel_strip;
 
   function qualityTone(status: MissionAgentQualityStrip["status"]): "ok" | "warn" | "err" | "info" {
     if (status === "healthy") return "ok";
@@ -1005,6 +1020,50 @@ function MissionHomePanelInner(): JSX.Element | null {
             <V4Badge tone="gold">{goldmine.new_items_total} new</V4Badge>
             {goldmine.primary_forager_name ? (
               <V4Badge tone="info">{goldmine.primary_forager_name}</V4Badge>
+            ) : null}
+          </div>
+        </V4Card>
+      ) : null}
+
+      {socialIntel?.enabled ? (
+        <V4Card
+          className="md:max-lg:col-span-2 border-cyan/25 shadow-[0_0_20px_rgba(0,255,255,0.08)]"
+          data-testid="mission-home-social-intel"
+        >
+          <V4CardHeader
+            kicker="Learn"
+            title={socialIntel.headline}
+            description={socialIntel.message}
+            actions={
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href={socialIntel.research_href}
+                  className="qs-btn qs-btn--primary qs-btn--sm inline-flex gap-1"
+                  data-testid="mission-home-social-intel-research"
+                >
+                  <Sparkles className="size-3.5" aria-hidden />
+                  Research Bee
+                </Link>
+                {socialIntel.roadmap_refresh_due ? (
+                  <Link href={socialIntel.refresh_href} className="qs-btn qs-btn--ghost qs-btn--sm">
+                    SIG2 refresh
+                  </Link>
+                ) : null}
+                <Link href={socialIntel.loop5_href} className="qs-btn qs-btn--ghost qs-btn--sm">
+                  LOOP5 presets
+                </Link>
+              </div>
+            }
+          />
+          <div className="flex flex-wrap gap-2 px-4 pb-4">
+            {socialIntel.weekly_signal_count > 0 ? (
+              <V4Badge tone="info">{socialIntel.weekly_signal_count} weekly</V4Badge>
+            ) : null}
+            {socialIntel.roadmap_refresh_due ? (
+              <V4Badge tone="warn">Refresh due</V4Badge>
+            ) : null}
+            {socialIntel.loop5_preset_active ? (
+              <V4Badge tone="ok">Preset active</V4Badge>
             ) : null}
           </div>
         </V4Card>

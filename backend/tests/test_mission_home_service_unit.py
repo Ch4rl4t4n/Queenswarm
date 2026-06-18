@@ -20,6 +20,7 @@ from app.application.services.mission_home_service import (
     _compose_autopilot_strip,
     _compose_goldmine_strip,
     _compose_loop_guardrails_strip,
+    _compose_social_intel_strip,
     _compose_life_os_strip,
     _compose_memory_strip,
     _compose_tool_outcome_strip,
@@ -28,6 +29,7 @@ from app.application.services.mission_home_service import (
     compose_mission_home_snapshot,
 )
 from app.application.services.agent_quality_scorecard_service import MissionAgentQualityStripOut
+from app.application.services.weak_signal_bee_service import WeakSignalPreviewOut
 from app.domain.memory.curated import CuratedFileKind
 from app.application.services.solo_operator_first_run import SoloFirstRunOut
 
@@ -173,6 +175,7 @@ async def test_compose_mission_home_setup_step() -> None:
         mock_settings.catalog_wave_mission_home_enabled = False
         mock_settings.sub_swarm_fleet_mission_home_enabled = False
         mock_settings.forager_goldmine_dispatch_enabled = False
+        mock_settings.closed_loop_presets_enabled = False
         with patch(
             "app.application.services.mission_home_service.compose_solo_first_run",
             AsyncMock(return_value=first_run),
@@ -499,3 +502,46 @@ async def test_compose_goldmine_strip_maps_alerts() -> None:
     assert strip.alert_count == 1
     assert strip.new_items_total == 3
     assert strip.foragers_href.endswith("#goldmine-alerts")
+
+
+@pytest.mark.asyncio
+async def test_compose_social_intel_strip_maps_weak_signals() -> None:
+    session = AsyncMock()
+    tenant_id = uuid.uuid4()
+    weak = WeakSignalPreviewOut(
+        enabled=True,
+        signal_count=2,
+        top_title="Agent loop hype",
+        advisor_hint="hint",
+    )
+    roadmap = type(
+        "Roadmap",
+        (),
+        {
+            "enabled": True,
+            "signal_count": 5,
+            "window_days": 90,
+            "due": False,
+            "innovation_lab_href": "/innovation-lab",
+        },
+    )()
+
+    with patch("app.application.services.mission_home_service.settings") as mock_settings:
+        mock_settings.closed_loop_presets_enabled = True
+        with patch(
+            "app.application.services.social_intel_roadmap_refresh_service.compose_social_intel_roadmap_refresh_kpi",
+            AsyncMock(return_value=roadmap),
+        ):
+            with patch(
+                "app.application.services.closed_loop_presets_service.get_active_loop5_preset_for_tenant",
+                AsyncMock(return_value=None),
+            ):
+                strip = await _compose_social_intel_strip(
+                    session,
+                    tenant_id=tenant_id,
+                    weak_signal=weak,
+                )
+
+    assert strip.enabled is True
+    assert strip.weekly_signal_count == 2
+    assert strip.research_href.endswith("#research-bee")

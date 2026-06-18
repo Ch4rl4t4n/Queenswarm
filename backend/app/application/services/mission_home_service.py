@@ -43,7 +43,7 @@ from app.application.services.parallel_hive_view import (
 )
 from app.application.services.solo_daily_plan import compose_solo_daily_plan
 from app.application.services.solo_operator_first_run import compose_solo_first_run
-from app.application.services.weak_signal_bee_service import compose_weak_signal_preview
+from app.application.services.weak_signal_bee_service import WeakSignalPreviewOut, compose_weak_signal_preview
 from app.core.config import settings
 from app.domain.memory.curated import CuratedFileKind
 from app.infrastructure.persistence.models.tenant import Tenant
@@ -169,6 +169,23 @@ class MissionGoldmineStripOut(BaseModel):
     primary_forager_id: str = ""
     foragers_href: str = "/foragers#goldmine-alerts"
     cockpit_href: str = "/cockpit#approvals"
+
+
+class MissionSocialIntelStripOut(BaseModel):
+    """LOOP5 social intel score→task + SIG2 refresh on Mission Home (POS-R)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    enabled: bool = False
+    headline: str = "Social intel · LOOP5"
+    message: str = ""
+    signal_count: int = 0
+    weekly_signal_count: int = 0
+    roadmap_refresh_due: bool = False
+    loop5_preset_active: bool = False
+    research_href: str = "/knowledge#research-bee"
+    loop5_href: str = "/settings/harness#harness-closed-loop-presets"
+    refresh_href: str = "/innovation-lab"
 
 
 class MissionMemoryLayerOut(BaseModel):
@@ -324,6 +341,9 @@ class MissionHomeSnapshotOut(BaseModel):
     goldmine_strip: MissionGoldmineStripOut = Field(
         default_factory=lambda: MissionGoldmineStripOut(enabled=False),
     )
+    social_intel_strip: MissionSocialIntelStripOut = Field(
+        default_factory=lambda: MissionSocialIntelStripOut(enabled=False),
+    )
     first_run_complete: bool = True
     links: dict[str, str] = Field(default_factory=dict)
     rapid_loop_widget_enabled: bool = False
@@ -435,6 +455,12 @@ STEP_STUDIOS: dict[ProcessStepId, list[MissionStudioEntryOut]] = {
             title="Recipe library",
             detail="Reuse verified workflows from past missions.",
             href="/knowledge#recipes",
+        ),
+        MissionStudioEntryOut(
+            id="social_intel_loop5",
+            title="Social intel · LOOP5",
+            detail="Score paste intel with rubric → Kanban task on pass.",
+            href="/knowledge#research-bee",
         ),
     ],
     "done": [
@@ -705,6 +731,58 @@ async def _compose_goldmine_strip(
         primary_forager_id=forager_id,
         foragers_href="/foragers#goldmine-alerts",
         cockpit_href="/cockpit#approvals",
+    )
+
+
+async def _compose_social_intel_strip(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    weak_signal: WeakSignalPreviewOut,
+) -> MissionSocialIntelStripOut:
+    """LOOP5 + SIG2 social intel visibility on Mission Home (POS-R)."""
+
+    if not settings.closed_loop_presets_enabled:
+        return MissionSocialIntelStripOut(enabled=False)
+
+    from app.application.services.closed_loop_presets_service import get_active_loop5_preset_for_tenant
+    from app.application.services.social_intel_roadmap_refresh_service import compose_social_intel_roadmap_refresh_kpi
+
+    roadmap = await compose_social_intel_roadmap_refresh_kpi(session, tenant_id=tenant_id)
+    active_preset = await get_active_loop5_preset_for_tenant(session, tenant_id=tenant_id)
+    loop5_active = active_preset is not None and active_preset.preset_id == "social_intel"
+
+    weekly_count = weak_signal.signal_count if weak_signal.enabled else 0
+    roadmap_count = roadmap.signal_count if roadmap.enabled else 0
+    signal_count = max(weekly_count, roadmap_count)
+
+    if signal_count == 0 and not roadmap.due:
+        return MissionSocialIntelStripOut(enabled=False)
+
+    message_parts: list[str] = []
+    if weekly_count > 0:
+        message_parts.append(f"{weekly_count} weak signal(s) this week")
+    if roadmap.due:
+        message_parts.append(
+            f"quarterly refresh due ({roadmap_count} signals / {roadmap.window_days}d)",
+        )
+    message = (
+        " · ".join(message_parts) + " — LOOP5 rubric score → Kanban task via Research Bee."
+        if message_parts
+        else "Social intel LOOP5 preset ready — paste intel in Research Bee, triage on pass."
+    )
+
+    return MissionSocialIntelStripOut(
+        enabled=True,
+        headline="Social intel · LOOP5",
+        message=message,
+        signal_count=signal_count,
+        weekly_signal_count=weekly_count,
+        roadmap_refresh_due=roadmap.due,
+        loop5_preset_active=loop5_active,
+        research_href="/knowledge#research-bee",
+        loop5_href="/settings/harness#harness-closed-loop-presets",
+        refresh_href=roadmap.innovation_lab_href if roadmap.enabled else "/innovation-lab",
     )
 
 
@@ -1138,6 +1216,11 @@ async def compose_mission_home_snapshot(
     autopilot_strip = await _compose_autopilot_strip(session, tenant_id=tenant_id)
 
     weak_signal = await compose_weak_signal_preview(session, tenant_id=tenant_id)
+    social_intel_strip = await _compose_social_intel_strip(
+        session,
+        tenant_id=tenant_id,
+        weak_signal=weak_signal,
+    )
     jarvis_advisor = _compose_jarvis_advisor_strip(
         first_run_complete=first_run.complete,
         approvals=[
@@ -1191,6 +1274,8 @@ async def compose_mission_home_snapshot(
         weak_signal_hint=weak_signal.advisor_hint,
         pending_wiki_captures=second_brain_strip.pending_captures,
         goldmine_alert_count=goldmine_strip.alert_count if goldmine_strip.enabled else 0,
+        social_intel_signal_count=social_intel_strip.weekly_signal_count if social_intel_strip.enabled else 0,
+        social_intel_refresh_due=social_intel_strip.roadmap_refresh_due if social_intel_strip.enabled else False,
     )
     agent_quality = await compose_agent_quality_strip(session, tenant_id=tenant_id)
     weekly_reflection = await compose_jarvis_weekly_reflection_strip(
@@ -1226,6 +1311,7 @@ async def compose_mission_home_snapshot(
         tool_outcome_strip=tool_outcome_strip,
         loop_guardrails_strip=loop_guardrails_strip,
         goldmine_strip=goldmine_strip,
+        social_intel_strip=social_intel_strip,
         first_run_complete=first_run.complete,
         links={
             "new_session": "/agents?preset=web-redesign-discovery#sessions",
@@ -1245,6 +1331,8 @@ async def compose_mission_home_snapshot(
             "tool_outcomes": "/agents#sessions",
             "goldmine": "/foragers#goldmine-alerts",
             "foragers": "/foragers#goldmine-alerts",
+            "research_bee": "/knowledge#research-bee",
+            "social_intel_loop5": "/knowledge#research-bee",
             "loop_presets": "/settings/harness#harness-closed-loop-presets",
         },
         rapid_loop_widget_enabled=settings.rapid_loop_mission_home_enabled,

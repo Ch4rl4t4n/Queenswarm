@@ -162,6 +162,8 @@ def _compose_jarvis_advisor_strip(
     weak_signal_hint: str | None = None,
     pending_wiki_captures: int = 0,
     goldmine_alert_count: int = 0,
+    social_intel_signal_count: int = 0,
+    social_intel_refresh_due: bool = False,
 ) -> MissionJarvisAdvisorStripOut:
     """Build up to three prioritized steps — verify blockers before new work."""
 
@@ -222,6 +224,32 @@ def _compose_jarvis_advisor_strip(
                     detail="New forager signals since last run — dispatch to Kanban with skill bundle.",
                     href="/foragers#goldmine-alerts",
                     kind="verify",
+                ),
+            ),
+        )
+
+    if social_intel_refresh_due:
+        candidates.append(
+            (
+                3,
+                _JarvisCandidate(
+                    title="Run quarterly intel refresh",
+                    detail="SIG2 roadmap refresh due — Tech SCV triage from 90d social intel rollup.",
+                    href="/innovation-lab",
+                    kind="learn",
+                ),
+            ),
+        )
+
+    if social_intel_signal_count > 0 and settings.closed_loop_presets_enabled:
+        candidates.append(
+            (
+                4,
+                _JarvisCandidate(
+                    title="Score social intel → task",
+                    detail="Paste intel in Research Bee — LOOP5 copy-marketing rubric creates Kanban triage on pass.",
+                    href="/knowledge#research-bee",
+                    kind="learn",
                 ),
             ),
         )
