@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BookMarked, CalendarClock, CheckCircle2, Loader2, Radar, Repeat, Shield, Sparkles, Wrench, Zap, Brain } from "lucide-react";
+import { ArrowRight, BookMarked, CalendarClock, CheckCircle2, Loader2, Radar, Repeat, Shield, Sparkles, Wrench, Zap, Brain, ScanSearch } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
@@ -254,6 +254,16 @@ interface MissionSocialIntelStrip {
   refresh_href: string;
 }
 
+interface MissionDataMonitorStrip {
+  enabled: boolean;
+  headline: string;
+  message: string;
+  monitor_count: number;
+  example_intent: string;
+  wizard_href: string;
+  foragers_href: string;
+}
+
 interface MissionHomeSnapshot {
   enabled: boolean;
   current_step: ProcessStepId;
@@ -276,6 +286,7 @@ interface MissionHomeSnapshot {
   loop_guardrails_strip?: MissionLoopGuardrailsStrip;
   goldmine_strip?: MissionGoldmineStrip;
   social_intel_strip?: MissionSocialIntelStrip;
+  data_monitor_strip?: MissionDataMonitorStrip;
   first_run_complete: boolean;
   links: Record<string, string>;
   rapid_loop_widget_enabled?: boolean;
@@ -341,6 +352,7 @@ function MissionHomePanelInner(): JSX.Element | null {
   const loopGuardrails = snapshot.loop_guardrails_strip;
   const goldmine = snapshot.goldmine_strip;
   const socialIntel = snapshot.social_intel_strip;
+  const dataMonitor = snapshot.data_monitor_strip;
 
   function qualityTone(status: MissionAgentQualityStrip["status"]): "ok" | "warn" | "err" | "info" {
     if (status === "healthy") return "ok";
@@ -986,6 +998,42 @@ function MissionHomePanelInner(): JSX.Element | null {
             <V4Badge tone="info">Max {loopGuardrails.max_turns} turns</V4Badge>
             <V4Badge tone="gold">Min {loopGuardrails.min_score_label}</V4Badge>
             <V4Badge tone="purple">${loopGuardrails.cost_cap_usd.toFixed(2)} cap</V4Badge>
+          </div>
+        </V4Card>
+      ) : null}
+
+      {dataMonitor?.enabled ? (
+        <V4Card
+          className="md:max-lg:col-span-2 border-cyan/30 shadow-[0_0_20px_rgba(0,255,255,0.08)]"
+          data-testid="mission-home-data-monitor"
+        >
+          <V4CardHeader
+            kicker="Plan"
+            title={dataMonitor.headline}
+            description={dataMonitor.message}
+            actions={
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href={dataMonitor.wizard_href}
+                  className="qs-btn qs-btn--primary qs-btn--sm inline-flex gap-1"
+                  data-testid="mission-home-data-monitor-open"
+                >
+                  <ScanSearch className="size-3.5" aria-hidden />
+                  Open wizard
+                </Link>
+                <Link href={dataMonitor.foragers_href} className="qs-btn qs-btn--ghost qs-btn--sm">
+                  Foragers
+                </Link>
+              </div>
+            }
+          />
+          <div className="flex flex-wrap gap-2 px-4 pb-4">
+            <V4Badge tone="info">{dataMonitor.monitor_count} monitor(s)</V4Badge>
+            {dataMonitor.example_intent ? (
+              <V4Badge tone="purple" className="max-w-full truncate">
+                e.g. {dataMonitor.example_intent.slice(0, 48)}
+              </V4Badge>
+            ) : null}
           </div>
         </V4Card>
       ) : null}

@@ -120,7 +120,7 @@ export function DataMonitorWizardPanel({
   }
 
   return (
-    <div data-testid="data-monitor-wizard-panel">
+    <div id="data-monitor-wizard" data-testid="data-monitor-wizard-panel">
       <V4Card className="border-cyan/20 bg-cyan/5">
         <V4CardHeader
           title="Data Monitor wizard"

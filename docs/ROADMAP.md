@@ -254,7 +254,20 @@ Audit: `./scripts/audit-personal-os-intel-adoption-gate.sh`
 
 Audit: `./scripts/audit-personal-os-social-intel-adoption-gate.sh`
 
-**Operator daily stack:** `/tasks` (Jarvis · social intel) · `/knowledge#research-bee` (LOOP5 paste) · `/settings/harness` (presets) · `/foragers#goldmine-alerts`
+## Personal OS — Data Monitor wizard adoption wave (POS-S)
+
+**Goal:** DG1 one-line intent → scheduled forager in daily operator flow — Mission Home + Jarvis, not buried on Foragers page only.
+
+| ID | Scope | Status |
+|----|-------|--------|
+| S1 | Mission Home data monitor strip — monitor count + wizard deep link | ✅ |
+| S2 | Jarvis nudge “Create data monitor” when none active | ✅ |
+| S3 | Plan rail DG1 studio + `#data-monitor-wizard` anchor | ✅ |
+| S4 | Audit gates (DG1 + POS-S) in operator verify | ✅ |
+
+Audit: `./scripts/audit-personal-os-data-monitor-adoption-gate.sh`
+
+**Operator daily stack:** `/tasks` (Plan strip) · `/foragers#data-monitor-wizard` · `/foragers#goldmine-alerts` · `/knowledge#research-bee`
 
 **Maintenance audits:** `./scripts/audit-personal-os-gate.sh` · weekly: social publish + solo daily plan gates.
 

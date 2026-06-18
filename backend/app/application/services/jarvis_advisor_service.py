@@ -164,6 +164,7 @@ def _compose_jarvis_advisor_strip(
     goldmine_alert_count: int = 0,
     social_intel_signal_count: int = 0,
     social_intel_refresh_due: bool = False,
+    data_monitor_count: int = 0,
 ) -> MissionJarvisAdvisorStripOut:
     """Build up to three prioritized steps — verify blockers before new work."""
 
@@ -250,6 +251,19 @@ def _compose_jarvis_advisor_strip(
                     detail="Paste intel in Research Bee — LOOP5 copy-marketing rubric creates Kanban triage on pass.",
                     href="/knowledge#research-bee",
                     kind="learn",
+                ),
+            ),
+        )
+
+    if data_monitor_count == 0 and settings.data_monitor_wizard_enabled:
+        candidates.append(
+            (
+                5,
+                _JarvisCandidate(
+                    title="Create data monitor",
+                    detail="DG1 wizard — one sentence spawns scheduled forager with extract schema and Celery tick.",
+                    href="/foragers#data-monitor-wizard",
+                    kind="work",
                 ),
             ),
         )

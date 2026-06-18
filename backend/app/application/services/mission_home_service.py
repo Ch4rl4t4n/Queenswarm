@@ -188,6 +188,20 @@ class MissionSocialIntelStripOut(BaseModel):
     refresh_href: str = "/innovation-lab"
 
 
+class MissionDataMonitorStripOut(BaseModel):
+    """DG1 Data Monitor wizard visibility on Mission Home (POS-S)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    enabled: bool = False
+    headline: str = "Data Monitor wizard"
+    message: str = ""
+    monitor_count: int = 0
+    example_intent: str = ""
+    wizard_href: str = "/foragers#data-monitor-wizard"
+    foragers_href: str = "/foragers"
+
+
 class MissionMemoryLayerOut(BaseModel):
     """One Brain Pack layer preview (SOUL · MEMORY · USER)."""
 
@@ -344,6 +358,9 @@ class MissionHomeSnapshotOut(BaseModel):
     social_intel_strip: MissionSocialIntelStripOut = Field(
         default_factory=lambda: MissionSocialIntelStripOut(enabled=False),
     )
+    data_monitor_strip: MissionDataMonitorStripOut = Field(
+        default_factory=lambda: MissionDataMonitorStripOut(enabled=False),
+    )
     first_run_complete: bool = True
     links: dict[str, str] = Field(default_factory=dict)
     rapid_loop_widget_enabled: bool = False
@@ -389,6 +406,12 @@ STEP_STUDIOS: dict[ProcessStepId, list[MissionStudioEntryOut]] = {
             title="Today's plan",
             detail="PO · marketing · trading priorities from Operator Loop.",
             href="/agentic-os#solo-daily-plan",
+        ),
+        MissionStudioEntryOut(
+            id="data_monitor",
+            title="Data Monitor wizard",
+            detail="DG1 one-line intent → scheduled forager + extract schema.",
+            href="/foragers#data-monitor-wizard",
         ),
     ],
     "work": [
@@ -786,6 +809,74 @@ async def _compose_social_intel_strip(
     )
 
 
+async def _count_data_monitor_foragers(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+) -> int:
+    """Count active foragers spawned via DG1 Data Monitor wizard."""
+
+    from sqlalchemy import select
+
+    from app.infrastructure.persistence.models.forager import ForagerORM
+
+    rows = list(
+        (
+            await session.scalars(
+                select(ForagerORM).where(
+                    ForagerORM.tenant_id == tenant_id,
+                    ForagerORM.is_active.is_(True),
+                ),
+            )
+        ).all(),
+    )
+    count = 0
+    for row in rows:
+        filter_config = dict(row.filter_config or {})
+        if filter_config.get("data_monitor_wizard"):
+            count += 1
+    return count
+
+
+async def _compose_data_monitor_strip(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+) -> MissionDataMonitorStripOut:
+    """DG1 visibility strip — one-line intent → scheduled forager (POS-S)."""
+
+    if not settings.data_monitor_wizard_enabled:
+        return MissionDataMonitorStripOut(enabled=False)
+
+    from app.application.services.data_monitor_wizard_service import compose_data_monitor_wizard_snapshot
+
+    snapshot = compose_data_monitor_wizard_snapshot()
+    if not snapshot.enabled:
+        return MissionDataMonitorStripOut(enabled=False)
+
+    monitor_count = await _count_data_monitor_foragers(session, tenant_id=tenant_id)
+    example = snapshot.examples[0].intent if snapshot.examples else "Track public job listings daily"
+    if monitor_count == 0:
+        message = (
+            "No data monitors yet — one sentence spawns a scheduled forager with extract schema "
+            "(jobs · prices · listings · news)."
+        )
+    else:
+        message = (
+            f"{monitor_count} monitor(s) active — add another feed or tune schedule in Foragers."
+        )
+
+    return MissionDataMonitorStripOut(
+        enabled=True,
+        headline="Data Monitor · wizard",
+        message=message,
+        monitor_count=monitor_count,
+        example_intent=example,
+        wizard_href="/foragers#data-monitor-wizard",
+        foragers_href="/foragers",
+    )
+
+
 async def _compose_life_os_strip(
     session: AsyncSession,
     *,
@@ -1145,6 +1236,7 @@ async def compose_mission_home_snapshot(
         active_sessions=active_sessions,
     )
     goldmine_strip = await _compose_goldmine_strip(session, tenant_id=tenant_id)
+    data_monitor_strip = await _compose_data_monitor_strip(session, tenant_id=tenant_id)
 
     approvals: list[MissionApprovalOut] = []
     if inbox.enabled:
@@ -1276,6 +1368,7 @@ async def compose_mission_home_snapshot(
         goldmine_alert_count=goldmine_strip.alert_count if goldmine_strip.enabled else 0,
         social_intel_signal_count=social_intel_strip.weekly_signal_count if social_intel_strip.enabled else 0,
         social_intel_refresh_due=social_intel_strip.roadmap_refresh_due if social_intel_strip.enabled else False,
+        data_monitor_count=data_monitor_strip.monitor_count if data_monitor_strip.enabled else 0,
     )
     agent_quality = await compose_agent_quality_strip(session, tenant_id=tenant_id)
     weekly_reflection = await compose_jarvis_weekly_reflection_strip(
@@ -1312,6 +1405,7 @@ async def compose_mission_home_snapshot(
         loop_guardrails_strip=loop_guardrails_strip,
         goldmine_strip=goldmine_strip,
         social_intel_strip=social_intel_strip,
+        data_monitor_strip=data_monitor_strip,
         first_run_complete=first_run.complete,
         links={
             "new_session": "/agents?preset=web-redesign-discovery#sessions",
@@ -1333,6 +1427,7 @@ async def compose_mission_home_snapshot(
             "foragers": "/foragers#goldmine-alerts",
             "research_bee": "/knowledge#research-bee",
             "social_intel_loop5": "/knowledge#research-bee",
+            "data_monitor": "/foragers#data-monitor-wizard",
             "loop_presets": "/settings/harness#harness-closed-loop-presets",
         },
         rapid_loop_widget_enabled=settings.rapid_loop_mission_home_enabled,

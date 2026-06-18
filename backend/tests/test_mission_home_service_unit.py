@@ -18,6 +18,7 @@ from app.application.services.mission_home_service import (
     _brief_bullets_from_morning,
     _compose_agent_loop_strip,
     _compose_autopilot_strip,
+    _compose_data_monitor_strip,
     _compose_goldmine_strip,
     _compose_loop_guardrails_strip,
     _compose_social_intel_strip,
@@ -176,6 +177,7 @@ async def test_compose_mission_home_setup_step() -> None:
         mock_settings.sub_swarm_fleet_mission_home_enabled = False
         mock_settings.forager_goldmine_dispatch_enabled = False
         mock_settings.closed_loop_presets_enabled = False
+        mock_settings.data_monitor_wizard_enabled = False
         with patch(
             "app.application.services.mission_home_service.compose_solo_first_run",
             AsyncMock(return_value=first_run),
@@ -545,3 +547,32 @@ async def test_compose_social_intel_strip_maps_weak_signals() -> None:
     assert strip.enabled is True
     assert strip.weekly_signal_count == 2
     assert strip.research_href.endswith("#research-bee")
+
+
+@pytest.mark.asyncio
+async def test_compose_data_monitor_strip_when_no_monitors() -> None:
+    session = AsyncMock()
+    tenant_id = uuid.uuid4()
+
+    with patch("app.application.services.mission_home_service.settings") as mock_settings:
+        mock_settings.data_monitor_wizard_enabled = True
+        with patch(
+            "app.application.services.mission_home_service._count_data_monitor_foragers",
+            AsyncMock(return_value=0),
+        ):
+            with patch(
+                "app.application.services.data_monitor_wizard_service.compose_data_monitor_wizard_snapshot",
+                return_value=type(
+                    "Snap",
+                    (),
+                    {
+                        "enabled": True,
+                        "examples": [type("Ex", (), {"intent": "Track EU remote jobs"})()],
+                    },
+                )(),
+            ):
+                strip = await _compose_data_monitor_strip(session, tenant_id=tenant_id)
+
+    assert strip.enabled is True
+    assert strip.monitor_count == 0
+    assert strip.wizard_href.endswith("#data-monitor-wizard")
