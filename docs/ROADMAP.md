@@ -329,6 +329,21 @@ Audit: `./scripts/audit-personal-os-smart-rebuild-adoption-gate.sh`
 
 **Operator daily stack:** `/tasks` · `/apps-tools/skill-factory#skill-factory-library` · `./scripts/factory-first-revenue-bootstrap.sh`
 
+## Personal OS — Export verified harness adoption wave (POS-X)
+
+**Goal:** One-click verified SKILL.md export in Personal OS lite — Launch tab hidden, Mission Home + Library `#export-batch`.
+
+| ID | Scope | Status |
+|----|-------|--------|
+| X1 | Harness strip — export_ready + export_batch_href | ✅ |
+| X2 | Mission Home one-click Export batch CTA (`launch/prepare`) | ✅ |
+| X3 | Library tab `#export-batch` anchor (Personal OS lite) | ✅ |
+| X4 | Jarvis nudge + work studio + audit gates | ✅ |
+
+Audit: `./scripts/audit-personal-os-export-harness-adoption-gate.sh`
+
+**Operator daily stack:** `/tasks` · `/apps-tools/skill-factory#export-batch` · Mission Home **Export batch**
+
 **Maintenance audits:** `./scripts/audit-personal-os-gate.sh` · weekly: social publish + solo daily plan gates.
 
 | Step | Scope | Status |

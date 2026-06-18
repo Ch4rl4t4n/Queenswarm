@@ -130,6 +130,8 @@ async def test_compose_harness_strip_when_verified_in_library() -> None:
 
     assert strip.enabled is True
     assert strip.verified_count == 1
+    assert strip.export_ready is True
+    assert strip.export_batch_href.endswith("#export-batch")
     assert strip.library_href.endswith("#skill-factory-library")
 
 

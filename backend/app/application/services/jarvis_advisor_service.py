@@ -346,8 +346,8 @@ def _compose_jarvis_advisor_strip(
                 6,
                 _JarvisCandidate(
                     title="Export verified harness",
-                    detail="Verified skills in library — attach via skill picker or export bundle.",
-                    href="/apps-tools/skill-factory#skill-factory-library",
+                    detail="One-click export batch — verified SKILL.md bundles to your agent OS.",
+                    href="/apps-tools/skill-factory#export-batch",
                     kind="work",
                 ),
             ),

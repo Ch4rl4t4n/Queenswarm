@@ -471,6 +471,12 @@ STEP_STUDIOS: dict[ProcessStepId, list[MissionStudioEntryOut]] = {
             detail="Sieve verdict worth_retry — Smart rebuild injects learnings into factory goal.",
             href="/apps-tools/skill-factory#skill-factory-library",
         ),
+        MissionStudioEntryOut(
+            id="skill_factory_export",
+            title="Export verified batch",
+            detail="One-click SKILL.md bundles — Personal OS lite export lane (no Gumroad tab).",
+            href="/apps-tools/skill-factory#export-batch",
+        ),
     ],
     "verify": [
         MissionStudioEntryOut(
@@ -1536,6 +1542,7 @@ async def compose_mission_home_snapshot(
             "weekly_compound": "/knowledge?tab=hivemind#evolution",
             "skill_factory_queue": "/apps-tools/skill-factory#queue",
             "skill_factory_library": "/apps-tools/skill-factory#skill-factory-library",
+            "skill_factory_export": "/apps-tools/skill-factory#export-batch",
             "loop_presets": "/settings/harness#harness-closed-loop-presets",
         },
         rapid_loop_widget_enabled=settings.rapid_loop_mission_home_enabled,

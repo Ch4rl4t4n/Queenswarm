@@ -45,6 +45,7 @@ import {
 } from "@/lib/apps-tools-routes";
 import { cn } from "@/lib/utils";
 import { useRouteHash } from "@/lib/hooks/use-route-hash";
+import { useRouteHashScroll } from "@/lib/hooks/use-route-hash-scroll";
 import { downloadSkillExportBundle, downloadTextFile } from "@/lib/skill-export-utils";
 import type { FactoryProductPreset, HarnessEvalResult, LaunchPrepareResult, SkillExportResponse } from "@/lib/hive-types";
 
@@ -196,6 +197,7 @@ function isLibrarySmartRebuildEligible(row: TenantSkillRow): boolean {
 
 export function SkillFactoryPageClient(): JSX.Element {
   const routeHash = useRouteHash();
+  useRouteHashScroll();
   const { personalOsMode } = usePlatform();
   const { setQueueBadge } = useSkillFactoryNav();
   const tab = useMemo(
@@ -420,6 +422,11 @@ export function SkillFactoryPageClient(): JSX.Element {
 
   const libraryRebuildEligible = useMemo(
     () => (snapshot?.library ?? []).filter(isLibrarySmartRebuildEligible),
+    [snapshot?.library],
+  );
+
+  const sellableLibraryCount = useMemo(
+    () => (snapshot?.library ?? []).filter((row) => row.sellable_tier === "sellable").length,
     [snapshot?.library],
   );
 
@@ -1299,6 +1306,39 @@ export function SkillFactoryPageClient(): JSX.Element {
                   Open Queue →
                 </button>
               </div>
+              {!commercialLaunchEnabled ? (
+                <div
+                  id="export-batch"
+                  className="scroll-mt-28 mt-4 rounded-xl border border-pollen/35 bg-pollen/5 px-4 py-4"
+                  data-testid="skill-factory-export-batch"
+                >
+                  <p className="text-sm font-semibold text-(--qs-text)">Export verified batch</p>
+                  <p className="mt-1 text-xs text-(--qs-text-3)">
+                    Personal OS lite — prepare up to 3 sellable SKILL.md bundles (Launch tab hidden; same as
+                    {" "}
+                    <code className="font-mono text-[10px]">launch/prepare</code>
+                    ).
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      className="qs-btn qs-btn--primary qs-btn--sm gap-1"
+                      disabled={busyId === "launch-prepare" || sellableLibraryCount === 0}
+                      onClick={() => void prepareLaunchBatch()}
+                    >
+                      {busyId === "launch-prepare" ? (
+                        <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
+                      ) : (
+                        <DownloadIcon className="size-3.5" aria-hidden />
+                      )}
+                      Export verified batch ({Math.min(3, sellableLibraryCount) || 0})
+                    </button>
+                    {sellableLibraryCount === 0 ? (
+                      <span className="text-xs text-(--qs-text-4)">No sellable skills yet — approve quality forges first.</span>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
               <div className="mt-4 px-1">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-(--qs-text-3)">

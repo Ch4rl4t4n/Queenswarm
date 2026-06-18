@@ -41,6 +41,8 @@ describe("apps-tools-routes", () => {
     expect(resolveSkillFactoryTab({ hash: "" })).toBe("research");
     expect(resolveSkillFactoryTab({ hash: "#launch", personalOsMode: true })).toBe("research");
     expect(resolveSkillFactoryTab({ hash: "#launch", personalOsMode: false })).toBe("launch");
+    expect(resolveSkillFactoryTab({ hash: "#export-batch", personalOsMode: true })).toBe("library");
+    expect(resolveSkillFactoryTab({ hash: "#skill-factory-library" })).toBe("library");
     expect(skillFactoryTabHref("settings")).toBe("/apps-tools/skill-factory#settings");
   });
 

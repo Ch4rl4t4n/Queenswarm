@@ -430,7 +430,7 @@ def test_jarvis_suggests_export_harness_when_verified() -> None:
     titles = [step.title.lower() for step in strip.steps]
     hrefs = [step.href for step in strip.steps]
     assert any("export verified harness" in title for title in titles)
-    assert any(href.endswith("#skill-factory-library") for href in hrefs)
+    assert any(href.endswith("#export-batch") for href in hrefs)
 
 
 def test_jarvis_suggests_smart_rebuild_when_near_miss_eligible() -> None:

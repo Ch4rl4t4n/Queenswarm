@@ -38,9 +38,12 @@ class MissionSkillFactoryHarnessStripOut(BaseModel):
     near_miss_count: int = 0
     rebuild_eligible_count: int = 0
     library_count: int = 0
+    export_ready: bool = False
+    export_batch_limit: int = 3
     research_href: str = "/apps-tools/skill-factory#research"
     queue_href: str = "/apps-tools/skill-factory#queue"
     library_href: str = "/apps-tools/skill-factory#skill-factory-library"
+    export_batch_href: str = "/apps-tools/skill-factory#export-batch"
     guide_href: str = "/apps-tools/skill-factory#guide"
 
 
@@ -133,6 +136,8 @@ async def compose_mission_skill_factory_harness_strip(
             else f"{verified_count} sellable harness(s) ready — open Launch tab or export bundle."
         )
 
+    export_ready = llm_ready and queue_actionable == 0 and verified_count > 0
+
     return MissionSkillFactoryHarnessStripOut(
         enabled=True,
         headline="Verified harness · Skill Factory",
@@ -147,4 +152,6 @@ async def compose_mission_skill_factory_harness_strip(
         near_miss_count=near_miss_count,
         rebuild_eligible_count=rebuild_eligible_count,
         library_count=library_count,
+        export_ready=export_ready,
+        export_batch_limit=3,
     )

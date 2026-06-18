@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRight, BookMarked, CalendarClock, CheckCircle2, Loader2, Radar, Repeat, Search, Shield, Sparkles, Wrench, Zap, Brain, ScanSearch } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 
+import { MissionHomeExportHarnessButton } from "@/components/hive/mission-home-export-harness-button";
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
 import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { sectionHintNode } from "@/components/hive/inline-section-hint";
@@ -290,9 +291,12 @@ interface MissionSkillFactoryHarnessStrip {
   near_miss_count: number;
   rebuild_eligible_count: number;
   library_count: number;
+  export_ready: boolean;
+  export_batch_limit: number;
   research_href: string;
   queue_href: string;
   library_href: string;
+  export_batch_href: string;
   guide_href: string;
 }
 
@@ -1128,6 +1132,9 @@ function MissionHomePanelInner(): JSX.Element | null {
             description={skillFactoryHarness.message}
             actions={
               <div className="flex flex-wrap gap-2">
+                {skillFactoryHarness.export_ready ? (
+                  <MissionHomeExportHarnessButton limit={skillFactoryHarness.export_batch_limit} />
+                ) : null}
                 {!skillFactoryHarness.llm_ready || skillFactoryHarness.llm_smoke_ok === false ? (
                   <Link
                     href={skillFactoryHarness.research_href}
@@ -1136,6 +1143,15 @@ function MissionHomePanelInner(): JSX.Element | null {
                   >
                     <Sparkles className="size-3.5" aria-hidden />
                     LLM smoke
+                  </Link>
+                ) : skillFactoryHarness.export_ready ? (
+                  <Link
+                    href={skillFactoryHarness.queue_href}
+                    className="qs-btn qs-btn--ghost qs-btn--sm inline-flex gap-1"
+                    data-testid="mission-home-skill-factory-queue"
+                  >
+                    <Wrench className="size-3.5" aria-hidden />
+                    Open queue
                   </Link>
                 ) : (
                   <Link
@@ -1147,9 +1163,15 @@ function MissionHomePanelInner(): JSX.Element | null {
                     Open queue
                   </Link>
                 )}
-                <Link href={skillFactoryHarness.library_href} className="qs-btn qs-btn--ghost qs-btn--sm">
-                  {skillFactoryHarness.rebuild_eligible_count > 0 ? "Smart rebuild" : "Library"}
-                </Link>
+                {skillFactoryHarness.export_ready ? (
+                  <Link href={skillFactoryHarness.export_batch_href} className="qs-btn qs-btn--ghost qs-btn--sm">
+                    Library export
+                  </Link>
+                ) : (
+                  <Link href={skillFactoryHarness.library_href} className="qs-btn qs-btn--ghost qs-btn--sm">
+                    {skillFactoryHarness.rebuild_eligible_count > 0 ? "Smart rebuild" : "Library"}
+                  </Link>
+                )}
               </div>
             }
           />
@@ -1162,6 +1184,9 @@ function MissionHomePanelInner(): JSX.Element | null {
             ) : null}
             {skillFactoryHarness.verified_count > 0 ? (
               <V4Badge tone="gold">{skillFactoryHarness.verified_count} verified</V4Badge>
+            ) : null}
+            {skillFactoryHarness.export_ready ? (
+              <V4Badge tone="ok">Export ready</V4Badge>
             ) : null}
             {skillFactoryHarness.rebuild_eligible_count > 0 ? (
               <V4Badge tone="warn">{skillFactoryHarness.rebuild_eligible_count} smart rebuild</V4Badge>

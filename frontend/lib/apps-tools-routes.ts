@@ -53,6 +53,12 @@ export const MCP_OPS_STUDIO_TABS: { id: McpOpsStudioTab; label: string }[] = [
 ];
 
 const SKILL_FACTORY_TAB_IDS = new Set<string>(SKILL_FACTORY_TABS.map((row) => row.id));
+
+/** Deep-link anchors on the Library tab (not tab ids). */
+export const SKILL_FACTORY_LIBRARY_ANCHOR_HASHES = new Set<string>([
+  "skill-factory-library",
+  "export-batch",
+]);
 const CONTENT_PACK_FACTORY_TAB_IDS = new Set<string>(CONTENT_PACK_FACTORY_TABS.map((row) => row.id));
 const MCP_OPS_STUDIO_TAB_IDS = new Set<string>(MCP_OPS_STUDIO_TABS.map((row) => row.id));
 
@@ -97,6 +103,10 @@ export function resolveSkillFactoryTab(options: {
   fallback?: SkillFactoryTab;
   personalOsMode?: boolean;
 }): SkillFactoryTab {
+  const key = (options.hash ?? "").replace(/^#/, "").trim().toLowerCase();
+  if (SKILL_FACTORY_LIBRARY_ANCHOR_HASHES.has(key)) {
+    return "library";
+  }
   const fromHash = skillFactoryTabFromHash(options.hash ?? "");
   if (fromHash) {
     if (options.personalOsMode && PERSONAL_OS_HIDDEN_SKILL_FACTORY_TABS.has(fromHash)) {
