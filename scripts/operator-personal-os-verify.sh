@@ -82,6 +82,7 @@ GATES=(
   "audit-personal-os-discovery-adoption-gate.sh"
   "audit-personal-os-learn-rail-adoption-gate.sh"
   "audit-personal-os-harness-adoption-gate.sh"
+  "audit-personal-os-smart-rebuild-adoption-gate.sh"
   "audit-second-brain-gate.sh"
   "audit-memory-project-tags-gate.sh"
   "audit-personal-os-dead-code-gate.sh"

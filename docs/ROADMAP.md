@@ -314,6 +314,21 @@ Audit: `./scripts/audit-personal-os-harness-adoption-gate.sh`
 
 **Operator daily stack:** `/tasks` · `/apps-tools/skill-factory#queue` · `/apps-tools/skill-factory#library` · `./scripts/factory-first-revenue-bootstrap.sh` (commercial host)
 
+## Personal OS — Smart rebuild adoption wave (POS-W)
+
+**Goal:** Library sieve near-miss → Smart rebuild in daily operator flow — Mission Home + Jarvis, not buried on Library tab only.
+
+| ID | Scope | Status |
+|----|-------|--------|
+| W1 | Harness strip — near-miss + rebuild_eligible counts | ✅ |
+| W2 | Jarvis nudge “Smart rebuild near-miss” when sieve worth_retry | ✅ |
+| W3 | Work rail library studio + `#skill-factory-library` anchor | ✅ |
+| W4 | Audit gates (POS-W) in operator verify | ✅ |
+
+Audit: `./scripts/audit-personal-os-smart-rebuild-adoption-gate.sh`
+
+**Operator daily stack:** `/tasks` · `/apps-tools/skill-factory#skill-factory-library` · `./scripts/factory-first-revenue-bootstrap.sh`
+
 **Maintenance audits:** `./scripts/audit-personal-os-gate.sh` · weekly: social publish + solo daily plan gates.
 
 | Step | Scope | Status |

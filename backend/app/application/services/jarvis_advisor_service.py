@@ -171,6 +171,7 @@ def _compose_jarvis_advisor_strip(
     factory_llm_ready: bool = False,
     factory_queue_actionable: int = 0,
     factory_verified_count: int = 0,
+    factory_rebuild_eligible: int = 0,
 ) -> MissionJarvisAdvisorStripOut:
     """Build up to three prioritized steps — verify blockers before new work."""
 
@@ -346,7 +347,20 @@ def _compose_jarvis_advisor_strip(
                 _JarvisCandidate(
                     title="Export verified harness",
                     detail="Verified skills in library — attach via skill picker or export bundle.",
-                    href="/apps-tools/skill-factory#library",
+                    href="/apps-tools/skill-factory#skill-factory-library",
+                    kind="work",
+                ),
+            ),
+        )
+
+    if settings.skill_factory_enabled and factory_rebuild_eligible > 0 and factory_llm_ready:
+        candidates.append(
+            (
+                4,
+                _JarvisCandidate(
+                    title="Smart rebuild near-miss",
+                    detail="Draft-tier library skills with fixable issues — learnings injected into factory goal.",
+                    href="/apps-tools/skill-factory#skill-factory-library",
                     kind="work",
                 ),
             ),

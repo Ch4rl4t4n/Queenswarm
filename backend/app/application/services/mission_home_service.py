@@ -465,6 +465,12 @@ STEP_STUDIOS: dict[ProcessStepId, list[MissionStudioEntryOut]] = {
             detail="Research → build → approve forge — verified harness for your agent OS.",
             href="/apps-tools/skill-factory#queue",
         ),
+        MissionStudioEntryOut(
+            id="skill_factory_library",
+            title="Library · smart rebuild",
+            detail="Sieve verdict worth_retry — Smart rebuild injects learnings into factory goal.",
+            href="/apps-tools/skill-factory#skill-factory-library",
+        ),
     ],
     "verify": [
         MissionStudioEntryOut(
@@ -1471,6 +1477,9 @@ async def compose_mission_home_snapshot(
         factory_verified_count=skill_factory_harness_strip.verified_count
         if skill_factory_harness_strip.enabled
         else 0,
+        factory_rebuild_eligible=skill_factory_harness_strip.rebuild_eligible_count
+        if skill_factory_harness_strip.enabled
+        else 0,
     )
     agent_quality = await compose_agent_quality_strip(session, tenant_id=tenant_id)
 
@@ -1526,7 +1535,7 @@ async def compose_mission_home_snapshot(
             "ballroom_learn": "/ballroom#ballroom-learn-rail",
             "weekly_compound": "/knowledge?tab=hivemind#evolution",
             "skill_factory_queue": "/apps-tools/skill-factory#queue",
-            "skill_factory_library": "/apps-tools/skill-factory#library",
+            "skill_factory_library": "/apps-tools/skill-factory#skill-factory-library",
             "loop_presets": "/settings/harness#harness-closed-loop-presets",
         },
         rapid_loop_widget_enabled=settings.rapid_loop_mission_home_enabled,

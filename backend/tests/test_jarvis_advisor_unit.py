@@ -430,7 +430,33 @@ def test_jarvis_suggests_export_harness_when_verified() -> None:
     titles = [step.title.lower() for step in strip.steps]
     hrefs = [step.href for step in strip.steps]
     assert any("export verified harness" in title for title in titles)
-    assert any(href.endswith("#library") for href in hrefs)
+    assert any(href.endswith("#skill-factory-library") for href in hrefs)
+
+
+def test_jarvis_suggests_smart_rebuild_when_near_miss_eligible() -> None:
+    with patch("app.application.services.jarvis_advisor_service.settings") as mock_settings:
+        mock_settings.jarvis_advisor_mission_home_enabled = True
+        mock_settings.skill_factory_enabled = True
+        mock_settings.analytics_workspace_enabled = False
+        mock_settings.research_bee_enabled = False
+
+        strip = _compose_jarvis_advisor_strip(
+            first_run_complete=True,
+            approvals=[],
+            active_sessions=[],
+            next_actions=[],
+            life_os=JarvisLifeOsIn(enabled=False),
+            autopilot=JarvisAutopilotIn(enabled=False),
+            memory_strip=JarvisMemoryIn(usage_pct=50),
+            weak_signal_hint=None,
+            factory_llm_ready=True,
+            factory_rebuild_eligible=2,
+        )
+
+    titles = [step.title.lower() for step in strip.steps]
+    hrefs = [step.href for step in strip.steps]
+    assert any("smart rebuild near-miss" in title for title in titles)
+    assert any(href.endswith("#skill-factory-library") for href in hrefs)
 
 
 @pytest.mark.asyncio

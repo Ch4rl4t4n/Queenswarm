@@ -41,6 +41,7 @@ Apply preset: `./scripts/apply-solo-mode.sh` (merges `.env.solo.example` → `.e
 | **POS-T discovery DG6** | `./scripts/audit-personal-os-discovery-adoption-gate.sh` | After DG6 UX wiring | Discovery strip · Jarvis nudge · foragers anchor |
 | **POS-U learn rail** | `./scripts/audit-personal-os-learn-rail-adoption-gate.sh` | After Ballroom/compound UX wiring | Jarvis nudges · learn studio · deep-link anchors |
 | **POS-V verified harness** | `./scripts/audit-personal-os-harness-adoption-gate.sh` | After Skill Factory UX wiring | Harness strip · Jarvis · factory anchors |
+| **POS-W smart rebuild** | `./scripts/audit-personal-os-smart-rebuild-adoption-gate.sh` | After library sieve UX wiring | Near-miss counts · Jarvis · library anchor |
 | **Second brain SB1–4** | `./scripts/audit-second-brain-gate.sh` | Weekly | Capture approve · connection intelligence · ⌘K wiki |
 | **MEM5 project tags** | `./scripts/audit-memory-project-tags-gate.sh` | After memory tag changes | Client/project recall slice |
 | **Solo daily plan** | `./scripts/audit-solo-daily-plan-gate.sh` | Weekly | Morning brief + kanban wiring |
@@ -98,6 +99,7 @@ Expected Personal OS prod:
 | **POS-T** | T1–T4 Discovery DG6 (URL find strip · Jarvis · foragers anchor) | ✅ Shipped |
 | **POS-U** | U1–U4 Learn rail (Ballroom reflection · weekly compound · Jarvis · anchors) | ✅ Shipped |
 | **POS-V** | V1–V4 Verified harness (Skill Factory strip · Jarvis · queue/library anchors) | ✅ Shipped |
+| **POS-W** | W1–W4 Smart rebuild (near-miss strip · Jarvis · library sieve anchor) | ✅ Shipped |
 
 ## Rollback
 

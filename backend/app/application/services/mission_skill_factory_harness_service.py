@@ -9,7 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.factory_llm_readiness_service import resolve_factory_llm_readiness
 from app.application.services.personal_os_mode import personal_os_skill_factory_commercial_enabled
+from app.application.services.skill_factory_disposition import derive_niche_from_skill, resolve_skill_disposition
 from app.application.services.skill_factory_sellable import assess_tenant_skill_sellable
+from app.application.services.skill_library_sieve import compute_library_sieve_verdict
 from app.application.services.skill_factory_service import (
     _forge_quality_by_skill_id,
     count_skill_opportunity_statuses,
@@ -33,10 +35,12 @@ class MissionSkillFactoryHarnessStripOut(BaseModel):
     building_count: int = 0
     failed_count: int = 0
     verified_count: int = 0
+    near_miss_count: int = 0
+    rebuild_eligible_count: int = 0
     library_count: int = 0
     research_href: str = "/apps-tools/skill-factory#research"
     queue_href: str = "/apps-tools/skill-factory#queue"
-    library_href: str = "/apps-tools/skill-factory#library"
+    library_href: str = "/apps-tools/skill-factory#skill-factory-library"
     guide_href: str = "/apps-tools/skill-factory#guide"
 
 
@@ -61,7 +65,14 @@ async def compose_mission_skill_factory_harness_strip(
         skill_ids=[row.id for row in library_rows],
     )
 
+    from app.infrastructure.persistence.models.tenant import Tenant
+
+    tenant = await session.get(Tenant, tenant_id)
+    tenant_settings = dict(tenant.operator_settings or {}) if tenant else {}
+
     verified_count = 0
+    near_miss_count = 0
+    rebuild_eligible_count = 0
     for row in library_rows:
         assessment = assess_tenant_skill_sellable(
             row,
@@ -69,6 +80,22 @@ async def compose_mission_skill_factory_harness_strip(
         )
         if assessment.tier == "sellable":
             verified_count += 1
+        if assessment.tier == "draft":
+            near_miss_count += 1
+        disposition = resolve_skill_disposition(
+            slug=row.slug,
+            niche=derive_niche_from_skill(row),
+            settings=tenant_settings,
+        )
+        if disposition.disposition == "retired":
+            continue
+        sieve = compute_library_sieve_verdict(
+            assessment,
+            attempt_count=int(disposition.attempt_count),
+            disposition=disposition.disposition,
+        )
+        if sieve.verdict == "worth_retry":
+            rebuild_eligible_count += 1
 
     llm_ready = bool(llm.build_allowed)
     llm_smoke_ok = llm.smoke_ok
@@ -86,6 +113,11 @@ async def compose_mission_skill_factory_harness_strip(
             f"{queue_actionable} build(s) in pipeline"
             + (f" · {failed_count} failed" if failed_count else "")
             + " — review queue and approve forges."
+        )
+    elif rebuild_eligible_count > 0:
+        message = (
+            f"{rebuild_eligible_count} near-miss skill(s) eligible for Smart rebuild "
+            "— library sieve verdict worth_retry with learnings in factory goal."
         )
     elif verified_count == 0:
         message = (
@@ -112,5 +144,7 @@ async def compose_mission_skill_factory_harness_strip(
         building_count=building_count,
         failed_count=failed_count,
         verified_count=verified_count,
+        near_miss_count=near_miss_count,
+        rebuild_eligible_count=rebuild_eligible_count,
         library_count=library_count,
     )

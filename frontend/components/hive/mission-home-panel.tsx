@@ -287,6 +287,8 @@ interface MissionSkillFactoryHarnessStrip {
   building_count: number;
   failed_count: number;
   verified_count: number;
+  near_miss_count: number;
+  rebuild_eligible_count: number;
   library_count: number;
   research_href: string;
   queue_href: string;
@@ -1146,7 +1148,7 @@ function MissionHomePanelInner(): JSX.Element | null {
                   </Link>
                 )}
                 <Link href={skillFactoryHarness.library_href} className="qs-btn qs-btn--ghost qs-btn--sm">
-                  Library
+                  {skillFactoryHarness.rebuild_eligible_count > 0 ? "Smart rebuild" : "Library"}
                 </Link>
               </div>
             }
@@ -1160,6 +1162,12 @@ function MissionHomePanelInner(): JSX.Element | null {
             ) : null}
             {skillFactoryHarness.verified_count > 0 ? (
               <V4Badge tone="gold">{skillFactoryHarness.verified_count} verified</V4Badge>
+            ) : null}
+            {skillFactoryHarness.rebuild_eligible_count > 0 ? (
+              <V4Badge tone="warn">{skillFactoryHarness.rebuild_eligible_count} smart rebuild</V4Badge>
+            ) : null}
+            {skillFactoryHarness.near_miss_count > 0 ? (
+              <V4Badge tone="info">{skillFactoryHarness.near_miss_count} near-miss</V4Badge>
             ) : null}
             {skillFactoryHarness.personal_os_lite ? (
               <V4Badge tone="purple">Personal OS lite</V4Badge>
