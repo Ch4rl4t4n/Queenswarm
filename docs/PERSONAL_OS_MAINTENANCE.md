@@ -35,6 +35,7 @@ Apply preset: `./scripts/apply-solo-mode.sh` (merges `.env.solo.example` → `.e
 | **POS-N second brain** | `./scripts/audit-personal-os-second-brain-adoption-gate.sh` | After SB/LOOP UX wiring | Wiki captures · closed loops · MOC tick |
 | **POS-O agent loop** | `./scripts/audit-personal-os-agent-loop-adoption-gate.sh` | After AL1 UX wiring | Loop timeline strip · Jarvis nudge · deep-link scroll |
 | **POS-P closed loop verify** | `./scripts/audit-personal-os-closed-loop-verify-gate.sh` | After AL2/LOOP2 UX wiring | Tool outcomes · guardrails strip · Jarvis verify |
+| **POS-Q intel / goldmine** | `./scripts/audit-personal-os-intel-adoption-gate.sh` | After DG3 UX wiring | Goldmine strip · Jarvis delta nudge · foragers anchor |
 | **Second brain SB1–4** | `./scripts/audit-second-brain-gate.sh` | Weekly | Capture approve · connection intelligence · ⌘K wiki |
 | **MEM5 project tags** | `./scripts/audit-memory-project-tags-gate.sh` | After memory tag changes | Client/project recall slice |
 | **Solo daily plan** | `./scripts/audit-solo-daily-plan-gate.sh` | Weekly | Morning brief + kanban wiring |
@@ -86,6 +87,7 @@ Expected Personal OS prod:
 | **POS-N** | N1–N4 second brain adoption (Wiki captures · closed loops · Jarvis) | ✅ Shipped |
 | **POS-O** | O1–O4 agent loop adoption (Mission Home strip · Jarvis · deep-link scroll) | ✅ Shipped |
 | **POS-P** | P1–P4 closed loop verify (AL2 tool outcomes · LOOP2 guardrails · Jarvis) | ✅ Shipped |
+| **POS-Q** | Q1–Q4 intel adoption (DG3 goldmine strip · Jarvis · foragers anchor) | ✅ Shipped |
 
 ## Rollback
 

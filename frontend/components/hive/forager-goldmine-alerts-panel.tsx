@@ -122,7 +122,7 @@ export function ForagerGoldmineAlertsPanel({
   const alerts = payload?.alerts ?? [];
 
   return (
-    <div data-testid="forager-goldmine-alerts-panel">
+    <div id="goldmine-alerts" data-testid="forager-goldmine-alerts-panel">
       <V4Card className="border-pollen/25 bg-pollen/5">
         <V4CardHeader
           title="Goldmine alerts"

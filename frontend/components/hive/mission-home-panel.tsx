@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BookMarked, CalendarClock, CheckCircle2, Loader2, Repeat, Shield, Sparkles, Wrench, Zap, Brain } from "lucide-react";
+import { ArrowRight, BookMarked, CalendarClock, CheckCircle2, Loader2, Radar, Repeat, Shield, Sparkles, Wrench, Zap, Brain } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
@@ -229,6 +229,18 @@ interface MissionLoopGuardrailsStrip {
   session_guardrails_href: string;
 }
 
+interface MissionGoldmineStrip {
+  enabled: boolean;
+  headline: string;
+  message: string;
+  alert_count: number;
+  new_items_total: number;
+  primary_forager_name: string;
+  primary_forager_id: string;
+  foragers_href: string;
+  cockpit_href: string;
+}
+
 interface MissionHomeSnapshot {
   enabled: boolean;
   current_step: ProcessStepId;
@@ -249,6 +261,7 @@ interface MissionHomeSnapshot {
   agent_loop_strip?: MissionAgentLoopStrip;
   tool_outcome_strip?: MissionToolOutcomeStrip;
   loop_guardrails_strip?: MissionLoopGuardrailsStrip;
+  goldmine_strip?: MissionGoldmineStrip;
   first_run_complete: boolean;
   links: Record<string, string>;
   rapid_loop_widget_enabled?: boolean;
@@ -312,6 +325,7 @@ function MissionHomePanelInner(): JSX.Element | null {
   const agentLoop = snapshot.agent_loop_strip;
   const toolOutcome = snapshot.tool_outcome_strip;
   const loopGuardrails = snapshot.loop_guardrails_strip;
+  const goldmine = snapshot.goldmine_strip;
 
   function qualityTone(status: MissionAgentQualityStrip["status"]): "ok" | "warn" | "err" | "info" {
     if (status === "healthy") return "ok";
@@ -957,6 +971,41 @@ function MissionHomePanelInner(): JSX.Element | null {
             <V4Badge tone="info">Max {loopGuardrails.max_turns} turns</V4Badge>
             <V4Badge tone="gold">Min {loopGuardrails.min_score_label}</V4Badge>
             <V4Badge tone="purple">${loopGuardrails.cost_cap_usd.toFixed(2)} cap</V4Badge>
+          </div>
+        </V4Card>
+      ) : null}
+
+      {goldmine?.enabled ? (
+        <V4Card
+          className="md:max-lg:col-span-2 border-pollen/35 shadow-[0_0_20px_rgba(255,184,0,0.12)]"
+          data-testid="mission-home-goldmine"
+        >
+          <V4CardHeader
+            kicker="Learn"
+            title={goldmine.headline}
+            description={goldmine.message}
+            actions={
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href={goldmine.foragers_href}
+                  className="qs-btn qs-btn--primary qs-btn--sm inline-flex gap-1"
+                  data-testid="mission-home-goldmine-open"
+                >
+                  <Radar className="size-3.5" aria-hidden />
+                  Dispatch
+                </Link>
+                <Link href={goldmine.cockpit_href} className="qs-btn qs-btn--ghost qs-btn--sm">
+                  Approvals
+                </Link>
+              </div>
+            }
+          />
+          <div className="flex flex-wrap gap-2 px-4 pb-4">
+            <V4Badge tone="warn">{goldmine.alert_count} monitor(s)</V4Badge>
+            <V4Badge tone="gold">{goldmine.new_items_total} new</V4Badge>
+            {goldmine.primary_forager_name ? (
+              <V4Badge tone="info">{goldmine.primary_forager_name}</V4Badge>
+            ) : null}
           </div>
         </V4Card>
       ) : null}

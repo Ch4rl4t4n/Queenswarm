@@ -161,6 +161,7 @@ def _compose_jarvis_advisor_strip(
     memory_strip: JarvisMemoryIn,
     weak_signal_hint: str | None = None,
     pending_wiki_captures: int = 0,
+    goldmine_alert_count: int = 0,
 ) -> MissionJarvisAdvisorStripOut:
     """Build up to three prioritized steps — verify blockers before new work."""
 
@@ -207,6 +208,19 @@ def _compose_jarvis_advisor_strip(
                     title=f"Approve {pending_wiki_captures} wiki capture(s)",
                     detail="Second-brain notes waiting — compile into Wiki Layer before cited recall.",
                     href="/knowledge?tab=wiki#second-brain-capture-approve",
+                    kind="verify",
+                ),
+            ),
+        )
+
+    if goldmine_alert_count > 0:
+        candidates.append(
+            (
+                2,
+                _JarvisCandidate(
+                    title=f"Review {goldmine_alert_count} goldmine delta(s)",
+                    detail="New forager signals since last run — dispatch to Kanban with skill bundle.",
+                    href="/foragers#goldmine-alerts",
                     kind="verify",
                 ),
             ),

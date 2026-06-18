@@ -18,6 +18,7 @@ from app.application.services.mission_home_service import (
     _brief_bullets_from_morning,
     _compose_agent_loop_strip,
     _compose_autopilot_strip,
+    _compose_goldmine_strip,
     _compose_loop_guardrails_strip,
     _compose_life_os_strip,
     _compose_memory_strip,
@@ -171,6 +172,7 @@ async def test_compose_mission_home_setup_step() -> None:
         mock_settings.factory_launch_mission_home_enabled = False
         mock_settings.catalog_wave_mission_home_enabled = False
         mock_settings.sub_swarm_fleet_mission_home_enabled = False
+        mock_settings.forager_goldmine_dispatch_enabled = False
         with patch(
             "app.application.services.mission_home_service.compose_solo_first_run",
             AsyncMock(return_value=first_run),
@@ -470,3 +472,30 @@ async def test_compose_loop_guardrails_strip_maps_policy() -> None:
     assert strip.enabled is True
     assert strip.max_turns == 4
     assert strip.session_guardrails_href.endswith("#session-loop-guardrails")
+
+
+@pytest.mark.asyncio
+async def test_compose_goldmine_strip_maps_alerts() -> None:
+    session = AsyncMock()
+    tenant_id = uuid.uuid4()
+    rows = [
+        {
+            "forager_id": "f1",
+            "forager_name": "Jobs Monitor",
+            "new_item_count": 3,
+            "detail": "3 new listings",
+        },
+    ]
+
+    with patch("app.application.services.mission_home_service.settings") as mock_settings:
+        mock_settings.forager_goldmine_dispatch_enabled = True
+        with patch(
+            "app.application.services.forager_goldmine_dispatch_service.compose_goldmine_alert_inbox_items",
+            AsyncMock(return_value=rows),
+        ):
+            strip = await _compose_goldmine_strip(session, tenant_id=tenant_id)
+
+    assert strip.enabled is True
+    assert strip.alert_count == 1
+    assert strip.new_items_total == 3
+    assert strip.foragers_href.endswith("#goldmine-alerts")

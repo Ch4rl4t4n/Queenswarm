@@ -228,7 +228,20 @@ Audit: `./scripts/audit-personal-os-agent-loop-adoption-gate.sh`
 
 Audit: `./scripts/audit-personal-os-closed-loop-verify-gate.sh`
 
-**Operator daily stack:** `/tasks` (Jarvis · agent loop · tool verify · guardrails) · `/cockpit` (Approval Inbox) · `/knowledge` · `/agents` (loop timeline · tool outcomes · guardrails) · `/settings/harness` (closed loop presets)
+## Personal OS — intel / goldmine adoption wave (POS-Q)
+
+**Goal:** DG3 delta alerts + DG7 dispatch in daily operator flow — Mission Home + Jarvis, not buried in Foragers/Cockpit only.
+
+| ID | Scope | Status |
+|----|-------|--------|
+| Q1 | Mission Home goldmine strip — delta count + dispatch / approvals links | ✅ |
+| Q2 | Jarvis nudge “Review goldmine delta(s)” → `#goldmine-alerts` | ✅ |
+| Q3 | Verify rail goldmine studio + Foragers deep-link anchor | ✅ |
+| Q4 | Audit gates (DG3/DG7 + POS-Q) in operator verify | ✅ |
+
+Audit: `./scripts/audit-personal-os-intel-adoption-gate.sh`
+
+**Operator daily stack:** `/tasks` (Jarvis · goldmine deltas) · `/foragers#goldmine-alerts` (dispatch) · `/cockpit` (Approval Inbox) · `/knowledge` · `/agents`
 
 **Maintenance audits:** `./scripts/audit-personal-os-gate.sh` · weekly: social publish + solo daily plan gates.
 

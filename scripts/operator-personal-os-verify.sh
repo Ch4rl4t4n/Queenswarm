@@ -76,6 +76,7 @@ GATES=(
   "audit-personal-os-second-brain-adoption-gate.sh"
   "audit-personal-os-agent-loop-adoption-gate.sh"
   "audit-personal-os-closed-loop-verify-gate.sh"
+  "audit-personal-os-intel-adoption-gate.sh"
   "audit-second-brain-gate.sh"
   "audit-memory-project-tags-gate.sh"
   "audit-personal-os-dead-code-gate.sh"

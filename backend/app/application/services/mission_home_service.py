@@ -155,6 +155,22 @@ class MissionLoopGuardrailsStripOut(BaseModel):
     session_guardrails_href: str = ""
 
 
+class MissionGoldmineStripOut(BaseModel):
+    """DG3/DG7 goldmine delta alerts on Mission Home (POS-Q)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    enabled: bool = False
+    headline: str = "Goldmine · delta alerts"
+    message: str = ""
+    alert_count: int = 0
+    new_items_total: int = 0
+    primary_forager_name: str = ""
+    primary_forager_id: str = ""
+    foragers_href: str = "/foragers#goldmine-alerts"
+    cockpit_href: str = "/cockpit#approvals"
+
+
 class MissionMemoryLayerOut(BaseModel):
     """One Brain Pack layer preview (SOUL · MEMORY · USER)."""
 
@@ -305,6 +321,9 @@ class MissionHomeSnapshotOut(BaseModel):
     loop_guardrails_strip: MissionLoopGuardrailsStripOut = Field(
         default_factory=lambda: MissionLoopGuardrailsStripOut(enabled=False),
     )
+    goldmine_strip: MissionGoldmineStripOut = Field(
+        default_factory=lambda: MissionGoldmineStripOut(enabled=False),
+    )
     first_run_complete: bool = True
     links: dict[str, str] = Field(default_factory=dict)
     rapid_loop_widget_enabled: bool = False
@@ -396,6 +415,12 @@ STEP_STUDIOS: dict[ProcessStepId, list[MissionStudioEntryOut]] = {
             title="Tool outcomes",
             detail="AL2 evidence — sim results, critic score before approve.",
             href="/agents#sessions",
+        ),
+        MissionStudioEntryOut(
+            id="goldmine_alerts",
+            title="Goldmine deltas",
+            detail="DG3 new-since-last-run — dispatch to Kanban with skill bundle.",
+            href="/foragers#goldmine-alerts",
         ),
     ],
     "learn": [
@@ -640,6 +665,46 @@ async def _compose_loop_guardrails_strip(
         active_count=len(active_sessions),
         guardrails_href="/settings/harness#harness-closed-loop-presets",
         session_guardrails_href=f"/agents?session={primary.session_id}#session-loop-guardrails",
+    )
+
+
+async def _compose_goldmine_strip(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+) -> MissionGoldmineStripOut:
+    """DG3/DG7 visibility strip when forager monitors have new delta signals (POS-Q)."""
+
+    if not settings.forager_goldmine_dispatch_enabled:
+        return MissionGoldmineStripOut(enabled=False)
+
+    from app.application.services.forager_goldmine_dispatch_service import compose_goldmine_alert_inbox_items
+
+    rows = await compose_goldmine_alert_inbox_items(session, tenant_id=tenant_id, limit=5)
+    if not rows:
+        return MissionGoldmineStripOut(enabled=False)
+
+    primary = rows[0]
+    alert_count = len(rows)
+    new_items_total = sum(int(row.get("new_item_count") or 0) for row in rows)
+    forager_name = str(primary.get("forager_name") or "Forager")
+    forager_id = str(primary.get("forager_id") or "")
+    message = (
+        f"{alert_count} monitor(s) · {new_items_total} new signal(s) — approve dispatch to Mission Kanban."
+        if alert_count > 1
+        else f"{forager_name} · {new_items_total} new since last run — review before dispatch."
+    )
+
+    return MissionGoldmineStripOut(
+        enabled=True,
+        headline="Goldmine · delta alerts",
+        message=message,
+        alert_count=alert_count,
+        new_items_total=new_items_total,
+        primary_forager_name=forager_name,
+        primary_forager_id=forager_id,
+        foragers_href="/foragers#goldmine-alerts",
+        cockpit_href="/cockpit#approvals",
     )
 
 
@@ -1001,6 +1066,7 @@ async def compose_mission_home_snapshot(
         tenant_id=tenant_id,
         active_sessions=active_sessions,
     )
+    goldmine_strip = await _compose_goldmine_strip(session, tenant_id=tenant_id)
 
     approvals: list[MissionApprovalOut] = []
     if inbox.enabled:
@@ -1124,6 +1190,7 @@ async def compose_mission_home_snapshot(
         ),
         weak_signal_hint=weak_signal.advisor_hint,
         pending_wiki_captures=second_brain_strip.pending_captures,
+        goldmine_alert_count=goldmine_strip.alert_count if goldmine_strip.enabled else 0,
     )
     agent_quality = await compose_agent_quality_strip(session, tenant_id=tenant_id)
     weekly_reflection = await compose_jarvis_weekly_reflection_strip(
@@ -1158,6 +1225,7 @@ async def compose_mission_home_snapshot(
         agent_loop_strip=agent_loop_strip,
         tool_outcome_strip=tool_outcome_strip,
         loop_guardrails_strip=loop_guardrails_strip,
+        goldmine_strip=goldmine_strip,
         first_run_complete=first_run.complete,
         links={
             "new_session": "/agents?preset=web-redesign-discovery#sessions",
@@ -1175,6 +1243,8 @@ async def compose_mission_home_snapshot(
             "wiki_layer": "/knowledge?tab=wiki",
             "agent_loop": "/agents#sessions",
             "tool_outcomes": "/agents#sessions",
+            "goldmine": "/foragers#goldmine-alerts",
+            "foragers": "/foragers#goldmine-alerts",
             "loop_presets": "/settings/harness#harness-closed-loop-presets",
         },
         rapid_loop_widget_enabled=settings.rapid_loop_mission_home_enabled,
