@@ -107,6 +107,22 @@ class MissionActiveSessionOut(BaseModel):
     progress_pct: int = Field(ge=0, le=100, default=0)
     loop_chip: str = "Work"
     href: str
+    loop_timeline_href: str = ""
+
+
+class MissionAgentLoopStripOut(BaseModel):
+    """AL1/LOOP3 agent loop visibility on Mission Home (POS-O)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    enabled: bool = False
+    headline: str = "Agent loop"
+    message: str = ""
+    active_count: int = 0
+    primary_session_id: str = ""
+    loop_chip: str = "Work"
+    progress_pct: int = Field(ge=0, le=100, default=0)
+    loop_timeline_href: str = "/agents#sessions"
 
 
 class MissionMemoryLayerOut(BaseModel):
@@ -250,6 +266,9 @@ class MissionHomeSnapshotOut(BaseModel):
     second_brain_strip: MissionSecondBrainStripOut = Field(
         default_factory=lambda: MissionSecondBrainStripOut(enabled=False),
     )
+    agent_loop_strip: MissionAgentLoopStripOut = Field(
+        default_factory=lambda: MissionAgentLoopStripOut(enabled=False),
+    )
     first_run_complete: bool = True
     links: dict[str, str] = Field(default_factory=dict)
     rapid_loop_widget_enabled: bool = False
@@ -302,6 +321,12 @@ STEP_STUDIOS: dict[ProcessStepId, list[MissionStudioEntryOut]] = {
             id="new_session",
             title="Supervisor session",
             detail="Dispatch bees with simulate-first verify.",
+            href="/agents#sessions",
+        ),
+        MissionStudioEntryOut(
+            id="agent_loop",
+            title="Agent loop timeline",
+            detail="Goal → Plan → Tool → Verify — watch the real agent loop.",
             href="/agents#sessions",
         ),
         MissionStudioEntryOut(
@@ -474,6 +499,35 @@ async def _compose_second_brain_strip(
         message=message,
         pending_captures=pending_count,
         connection_intelligence_weekly=conn_weekly,
+    )
+
+
+def _compose_agent_loop_strip(
+    active_sessions: list[MissionActiveSessionOut],
+) -> MissionAgentLoopStripOut:
+    """AL1 visibility strip when supervisor sessions are in flight (POS-O)."""
+
+    if not settings.agent_loop_timeline_enabled or not active_sessions:
+        return MissionAgentLoopStripOut(enabled=False)
+
+    primary = active_sessions[0]
+    timeline_href = primary.loop_timeline_href or f"/agents?session={primary.session_id}#agent-loop-timeline"
+    running = sum(1 for row in active_sessions if row.status == "running")
+    message = (
+        f"{primary.loop_chip} · {primary.progress_pct}% — Goal → Plan → Tool → Verify."
+        if running
+        else f"{len(active_sessions)} session(s) in flight — open loop timeline before approve."
+    )
+
+    return MissionAgentLoopStripOut(
+        enabled=True,
+        headline="Agent loop · in flight",
+        message=message,
+        active_count=len(active_sessions),
+        primary_session_id=primary.session_id,
+        loop_chip=primary.loop_chip,
+        progress_pct=primary.progress_pct,
+        loop_timeline_href=timeline_href,
     )
 
 
@@ -823,9 +877,11 @@ async def compose_mission_home_snapshot(
                 progress_pct=progress_pct,
                 loop_chip=loop_chip,
                 href=f"/agents?session={row.session_id}",
+                loop_timeline_href=f"/agents?session={row.session_id}#agent-loop-timeline",
             ),
         )
     active_sessions = active_sessions[:3]
+    agent_loop_strip = _compose_agent_loop_strip(active_sessions)
 
     approvals: list[MissionApprovalOut] = []
     if inbox.enabled:
@@ -980,6 +1036,7 @@ async def compose_mission_home_snapshot(
         jarvis_weekly_reflection_strip=weekly_reflection,
         weekly_compound_strip=weekly_compound,
         second_brain_strip=second_brain_strip,
+        agent_loop_strip=agent_loop_strip,
         first_run_complete=first_run.complete,
         links={
             "new_session": "/agents?preset=web-redesign-discovery#sessions",
@@ -995,6 +1052,7 @@ async def compose_mission_home_snapshot(
             "research_bee": "/knowledge#research-bee",
             "cited_recall": "/knowledge?tab=memory#cited-recall",
             "wiki_layer": "/knowledge?tab=wiki",
+            "agent_loop": "/agents#sessions",
             "loop_presets": "/settings/harness#harness-closed-loop-presets",
         },
         rapid_loop_widget_enabled=settings.rapid_loop_mission_home_enabled,

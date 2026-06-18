@@ -9,12 +9,14 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.application.services.mission_home_service import (
+    MissionActiveSessionOut,
     MissionAutopilotStripOut,
     MissionLifeOsStripOut,
     MissionMemoryStripOut,
     PROCESS_STEPS,
     STEP_STUDIOS,
     _brief_bullets_from_morning,
+    _compose_agent_loop_strip,
     _compose_autopilot_strip,
     _compose_life_os_strip,
     _compose_memory_strip,
@@ -339,3 +341,46 @@ async def test_compose_autopilot_strip_maps_trio_and_four_lanes() -> None:
     assert strip.digest_pending == 2
     assert any(row.group == "trio" for row in strip.lanes)
     assert any(row.group == "four_lane" for row in strip.lanes)
+
+
+def test_compose_agent_loop_strip_disabled_when_flag_off() -> None:
+    sessions = [
+        MissionActiveSessionOut(
+            session_id="s1",
+            goal="Ship POS-O",
+            status="running",
+            progress_label="Planning",
+            progress_pct=40,
+            loop_chip="Work",
+            href="/agents?session=s1",
+            loop_timeline_href="/agents?session=s1#agent-loop-timeline",
+        ),
+    ]
+    with patch("app.application.services.mission_home_service.settings") as mock_settings:
+        mock_settings.agent_loop_timeline_enabled = False
+        strip = _compose_agent_loop_strip(sessions)
+
+    assert strip.enabled is False
+
+
+def test_compose_agent_loop_strip_maps_primary_session() -> None:
+    sessions = [
+        MissionActiveSessionOut(
+            session_id="s1",
+            goal="Ship POS-O",
+            status="running",
+            progress_label="Planning",
+            progress_pct=40,
+            loop_chip="Work",
+            href="/agents?session=s1",
+            loop_timeline_href="/agents?session=s1#agent-loop-timeline",
+        ),
+    ]
+    with patch("app.application.services.mission_home_service.settings") as mock_settings:
+        mock_settings.agent_loop_timeline_enabled = True
+        strip = _compose_agent_loop_strip(sessions)
+
+    assert strip.enabled is True
+    assert strip.primary_session_id == "s1"
+    assert strip.progress_pct == 40
+    assert strip.loop_timeline_href.endswith("#agent-loop-timeline")

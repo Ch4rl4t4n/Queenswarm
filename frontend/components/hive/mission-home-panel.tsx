@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BookMarked, CalendarClock, CheckCircle2, Loader2, Shield, Sparkles, Zap, Brain } from "lucide-react";
+import { ArrowRight, BookMarked, CalendarClock, CheckCircle2, Loader2, Repeat, Shield, Sparkles, Zap, Brain } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
@@ -49,6 +49,7 @@ interface MissionActiveSession {
   progress_pct: number;
   loop_chip: string;
   href: string;
+  loop_timeline_href?: string;
 }
 
 interface MissionMemoryLayer {
@@ -195,6 +196,17 @@ interface MissionSecondBrainStrip {
   closed_loop_href: string;
 }
 
+interface MissionAgentLoopStrip {
+  enabled: boolean;
+  headline: string;
+  message: string;
+  active_count: number;
+  primary_session_id: string;
+  loop_chip: string;
+  progress_pct: number;
+  loop_timeline_href: string;
+}
+
 interface MissionHomeSnapshot {
   enabled: boolean;
   current_step: ProcessStepId;
@@ -212,6 +224,7 @@ interface MissionHomeSnapshot {
   jarvis_weekly_reflection_strip?: MissionJarvisWeeklyReflectionStrip;
   weekly_compound_strip?: MissionWeeklyCompoundStrip;
   second_brain_strip?: MissionSecondBrainStrip;
+  agent_loop_strip?: MissionAgentLoopStrip;
   first_run_complete: boolean;
   links: Record<string, string>;
   rapid_loop_widget_enabled?: boolean;
@@ -272,6 +285,7 @@ function MissionHomePanelInner(): JSX.Element | null {
   const weeklyReflection = snapshot.jarvis_weekly_reflection_strip;
   const weeklyCompound = snapshot.weekly_compound_strip;
   const secondBrain = snapshot.second_brain_strip;
+  const agentLoop = snapshot.agent_loop_strip;
 
   function qualityTone(status: MissionAgentQualityStrip["status"]): "ok" | "warn" | "err" | "info" {
     if (status === "healthy") return "ok";
@@ -831,6 +845,36 @@ function MissionHomePanelInner(): JSX.Element | null {
         </V4Card>
       ) : null}
 
+      {agentLoop?.enabled ? (
+        <V4Card
+          className="md:max-lg:col-span-2 border-cyan/30 shadow-[0_0_20px_rgba(0,255,255,0.08)]"
+          data-testid="mission-home-agent-loop"
+        >
+          <V4CardHeader
+            kicker="Work"
+            title={agentLoop.headline}
+            description={agentLoop.message}
+            actions={
+              <Link
+                href={agentLoop.loop_timeline_href}
+                className="qs-btn qs-btn--primary qs-btn--sm inline-flex gap-1"
+                data-testid="mission-home-agent-loop-open"
+              >
+                <Repeat className="size-3.5" aria-hidden />
+                Loop timeline
+              </Link>
+            }
+          />
+          <div className="flex flex-wrap gap-2 px-4 pb-4">
+            <V4Badge tone="info">{agentLoop.loop_chip}</V4Badge>
+            <V4Badge tone="purple">{agentLoop.progress_pct}%</V4Badge>
+            {agentLoop.active_count > 1 ? (
+              <V4Badge tone="warn">{agentLoop.active_count} in flight</V4Badge>
+            ) : null}
+          </div>
+        </V4Card>
+      ) : null}
+
       <div className="flex flex-col gap-3 md:max-lg:contents">
         <V4Card className="md:max-lg:col-span-1">
           <V4CardHeader
@@ -888,26 +932,35 @@ function MissionHomePanelInner(): JSX.Element | null {
             <ul className="space-y-2 px-4 pb-4">
               {snapshot.active_sessions.map((row) => (
                 <li key={row.session_id}>
-                  <Link
-                    href={row.href}
-                    className="block rounded-lg border border-(--qs-border)/50 bg-black/20 p-3 transition hover:border-cyan/40"
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-semibold text-(--qs-text)">{row.goal || "Session"}</span>
-                      <V4Badge tone="info">{row.loop_chip}</V4Badge>
-                      {row.status === "needs_input" ? (
-                        <V4Badge tone="warn">Needs input</V4Badge>
-                      ) : (
-                        <V4Badge tone="purple">{row.progress_pct}%</V4Badge>
-                      )}
-                    </div>
-                    {row.status === "running" ? (
-                      <p className="mt-2 flex items-center gap-2 text-xs text-cyan">
-                        <Loader2 className="size-3 animate-spin" aria-hidden />
-                        {row.progress_label}
-                      </p>
+                  <div className="rounded-lg border border-(--qs-border)/50 bg-black/20 p-3 transition hover:border-cyan/40">
+                    <Link href={row.href} className="block">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold text-(--qs-text)">{row.goal || "Session"}</span>
+                        <V4Badge tone="info">{row.loop_chip}</V4Badge>
+                        {row.status === "needs_input" ? (
+                          <V4Badge tone="warn">Needs input</V4Badge>
+                        ) : (
+                          <V4Badge tone="purple">{row.progress_pct}%</V4Badge>
+                        )}
+                      </div>
+                      {row.status === "running" ? (
+                        <p className="mt-2 flex items-center gap-2 text-xs text-cyan">
+                          <Loader2 className="size-3 animate-spin" aria-hidden />
+                          {row.progress_label}
+                        </p>
+                      ) : null}
+                    </Link>
+                    {row.loop_timeline_href ? (
+                      <Link
+                        href={row.loop_timeline_href}
+                        className="qs-btn qs-btn--ghost qs-btn--sm mt-2 inline-flex gap-1"
+                        data-testid={`mission-home-session-loop-${row.session_id}`}
+                      >
+                        <Repeat className="size-3.5" aria-hidden />
+                        Loop timeline
+                      </Link>
                     ) : null}
-                  </Link>
+                  </div>
                 </li>
               ))}
             </ul>

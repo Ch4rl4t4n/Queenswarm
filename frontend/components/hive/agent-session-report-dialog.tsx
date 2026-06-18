@@ -104,6 +104,19 @@ export function AgentSessionReportDialog({ sessionId, open, onOpenChange }: Agen
   }, [open, sessionId, loadReport]);
 
   useEffect(() => {
+    if (!open || !sessionId || !session || loading) {
+      return;
+    }
+    if (typeof window === "undefined" || window.location.hash !== "#agent-loop-timeline") {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      document.getElementById("agent-loop-timeline")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [loading, open, session, sessionId]);
+
+  useEffect(() => {
     if (!open || !sessionId || !session) {
       return;
     }

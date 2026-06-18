@@ -227,6 +227,22 @@ def _compose_jarvis_advisor_strip(
             )
             break
 
+    for session in active_sessions:
+        if session.status == "running":
+            candidates.append(
+                (
+                    8,
+                    _JarvisCandidate(
+                        title="Watch agent loop",
+                        detail=(session.goal[:160] or "Supervisor session")
+                        + " — Goal → Plan → Tool → Verify timeline.",
+                        href=f"/agents?session={session.session_id}#agent-loop-timeline",
+                        kind="work",
+                    ),
+                ),
+            )
+            break
+
     if autopilot.enabled and autopilot.digest_pending > 0:
         candidates.append(
             (

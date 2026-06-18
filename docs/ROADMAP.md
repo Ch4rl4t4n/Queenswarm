@@ -202,7 +202,20 @@ Audit: `./scripts/audit-personal-os-memory-adoption-gate.sh` · `./scripts/audit
 
 Audit: `./scripts/audit-personal-os-second-brain-adoption-gate.sh` · `./scripts/audit-second-brain-gate.sh`
 
-**Operator daily stack:** `/tasks` (Jarvis · weekly compound) · `/cockpit` (Approval Inbox) · `/knowledge` (Research Bee · compound gardener) · `/ballroom` · `/foragers`
+## Personal OS — agent loop adoption wave (POS-O)
+
+**Goal:** AL1/LOOP3 Agent Loop Timeline in daily operator flow — Mission Home + Jarvis, not buried in session drawer.
+
+| ID | Scope | Status |
+|----|-------|--------|
+| O1 | Mission Home agent loop strip + per-session loop timeline deep links | ✅ |
+| O2 | Jarvis nudge “Watch agent loop” for running sessions | ✅ |
+| O3 | Session report scroll-to `#agent-loop-timeline` from Mission Home links | ✅ |
+| O4 | Audit gates (AL1 + POS-O) in operator verify | ✅ |
+
+Audit: `./scripts/audit-personal-os-agent-loop-adoption-gate.sh`
+
+**Operator daily stack:** `/tasks` (Jarvis · weekly compound · agent loop) · `/cockpit` (Approval Inbox) · `/knowledge` (Research Bee · compound gardener) · `/agents` (loop timeline) · `/ballroom` · `/foragers`
 
 **Maintenance audits:** `./scripts/audit-personal-os-gate.sh` · weekly: social publish + solo daily plan gates.
 

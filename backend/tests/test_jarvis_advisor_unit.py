@@ -15,6 +15,7 @@ from app.application.services.jarvis_advisor_service import (
     JarvisLifeOsIn,
     JarvisMemoryIn,
     JarvisMemoryLayerIn,
+    JarvisSessionIn,
     _compose_jarvis_advisor_strip,
 )
 from app.application.services.weak_signal_bee_service import compose_weak_signal_preview
@@ -139,6 +140,37 @@ def test_jarvis_prioritizes_wiki_capture_approve() -> None:
 
     titles = [step.title.lower() for step in strip.steps]
     assert any("wiki capture" in title for title in titles)
+
+
+def test_jarvis_suggests_agent_loop_for_running_session() -> None:
+    with patch("app.application.services.jarvis_advisor_service.settings") as mock_settings:
+        mock_settings.jarvis_advisor_mission_home_enabled = True
+        mock_settings.analytics_workspace_enabled = False
+        mock_settings.research_bee_enabled = False
+        mock_settings.closed_loop_presets_enabled = False
+
+        strip = _compose_jarvis_advisor_strip(
+            first_run_complete=True,
+            approvals=[],
+            active_sessions=[
+                JarvisSessionIn(
+                    session_id="sess-1",
+                    goal="Refactor mission home",
+                    status="running",
+                    href="/agents?session=sess-1",
+                ),
+            ],
+            next_actions=[],
+            life_os=JarvisLifeOsIn(enabled=False),
+            autopilot=JarvisAutopilotIn(enabled=False),
+            memory_strip=JarvisMemoryIn(usage_pct=50),
+            weak_signal_hint=None,
+        )
+
+    titles = [step.title.lower() for step in strip.steps]
+    hrefs = [step.href for step in strip.steps]
+    assert any("watch agent loop" in title for title in titles)
+    assert any(href.endswith("#agent-loop-timeline") for href in hrefs)
 
 
 @pytest.mark.asyncio
