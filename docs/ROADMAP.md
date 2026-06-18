@@ -150,6 +150,22 @@ Audit: `./scripts/audit-personal-os-dead-code-gate.sh` · prep inventory: `./scr
 
 Audit: `./scripts/audit-personal-os-compound-gate.sh`
 
+## Personal OS — adoption wave (POS-K)
+
+**Goal:** POS-J backend features usable daily — Knowledge review, Approval Inbox, Faceless cut, Research dedupe hint.
+
+| ID | Scope | Status |
+|----|-------|--------|
+| K1 | Weekly compound gardener panel — Knowledge → evolution (approve/reject) | ✅ |
+| K2 | Approval Inbox — `compound_draft` + `email_draft` review routes | ✅ |
+| K3 | Faceless Studio — Attach cut template on recent items | ✅ |
+| K4 | Research project — client dedupe mirror + hint (POS-J4 parity) | ✅ |
+| K5 | Audit gate + operator verify ritual | ✅ |
+
+Audit: `./scripts/audit-personal-os-adoption-gate.sh`
+
+**Operator daily stack:** `/tasks` (Jarvis · weekly compound) · `/cockpit` (Approval Inbox) · `/knowledge` (Research Bee · compound gardener) · `/ballroom` · `/foragers`
+
 **Maintenance audits:** `./scripts/audit-personal-os-gate.sh` · weekly: social publish + solo daily plan gates.
 
 | Step | Scope | Status |

@@ -70,6 +70,7 @@ GATES=(
   "audit-codebase-memory-mcp-gate.sh"
   "audit-research-bee-gate.sh"
   "audit-personal-os-compound-gate.sh"
+  "audit-personal-os-adoption-gate.sh"
   "audit-personal-os-dead-code-gate.sh"
   "audit-solo-daily-plan-gate.sh"
   "audit-publish-queue-gate.sh"

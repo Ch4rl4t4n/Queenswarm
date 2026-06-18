@@ -29,6 +29,7 @@ Apply preset: `./scripts/apply-solo-mode.sh` (merges `.env.solo.example` → `.e
 | **POS-G inventory** | `./scripts/audit-personal-os-dead-code-inventory.sh` | Before G4–G5 deletion | Read-only commercial route list |
 | **Jarvis Intelligence (POS-H)** | `./scripts/audit-jarvis-intelligence-gate.sh` | After Mission Home advisor changes | Jarvis strip · weak signal · agent quality · research project |
 | **POS-J compound wave** | `./scripts/audit-personal-os-compound-gate.sh` | After POS-J changes | Weekly gardener · email drafts · research rank · faceless cut |
+| **POS-K adoption wave** | `./scripts/audit-personal-os-adoption-gate.sh` | After POS-J UI wiring | Compound panel · Approval Inbox · Faceless cut · Research dedupe |
 | **Solo daily plan** | `./scripts/audit-solo-daily-plan-gate.sh` | Weekly | Morning brief + kanban wiring |
 | **Social publish** | `./scripts/audit-social-publish-gate.sh` | Before enabling live publish | OAuth + simulate-first queue |
 | **Publish queue** | `./scripts/audit-publish-queue-gate.sh` | Before Marketing Team Phase B | Queue + calendar backend |
@@ -72,6 +73,7 @@ Expected Personal OS prod:
 | **POS-H** | Intelligence Wave — Jarvis advisor · research project · weak signals · agent quality | ✅ Shipped · `./scripts/audit-jarvis-intelligence-gate.sh` |
 | **POS-I** | I1–I5 Intelligence Wave follow-up (Jarvis · research · brand · MCP) | ✅ komplet |
 | **POS-J** | J1–J5 compound automation (weekly gardener · email drafts · research rank · faceless cut) | ✅ Shipped |
+| **POS-K** | K1–K5 adoption wave (UI wiring for POS-J — Knowledge · Cockpit · Faceless · Research dedupe) | ✅ Shipped |
 
 ## Rollback
 

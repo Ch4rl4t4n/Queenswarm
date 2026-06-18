@@ -869,6 +869,10 @@ const STUB_OPERATOR_APPROVALS = {
     innovation: 0,
     gumroad_manual: 0,
     goldmine_alerts: 1,
+    broker_orders: 0,
+    journal_drafts: 0,
+    compound_drafts: 0,
+    email_drafts: 0,
     total: 1,
   },
   items: [
@@ -2149,6 +2153,23 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_OPERATOR_COCKPIT),
+      });
+      return;
+    }
+
+    if (path === "operator/weekly-compound-gardener" || path.startsWith("operator/weekly-compound-gardener?")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          enabled: true,
+          pending_count: 0,
+          last_run_at: "2026-06-02T09:00:00Z",
+          last_run_drafts_created: 1,
+          items: [],
+          brain_pack_gaps: [],
+          operator_hint: "Next tick Sunday UTC — approve compound drafts in Cockpit or here.",
+        }),
       });
       return;
     }
@@ -5033,6 +5054,15 @@ export async function installShellApiMocks(page: Page): Promise<void> {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(STUB_MISSION_KANBAN_TASKS),
+      });
+      return;
+    }
+
+    if (path === "operator/faceless-pipeline/cut" && route.request().method() === "POST") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, segment_count: 3 }),
       });
       return;
     }

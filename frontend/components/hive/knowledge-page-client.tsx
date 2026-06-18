@@ -36,6 +36,7 @@ import { HiveSubnavContent } from "@/components/hive/hive-subnav-stack";
 import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { LearningConsole } from "@/components/hive/learning-console";
 import { MemoryEvolutionPanel } from "@/components/hive/memory-evolution-panel";
+import { WeeklyCompoundGardenerPanel } from "@/components/hive/weekly-compound-gardener-panel";
 import { OutputsInteractivePanel } from "@/components/hive/outputs-interactive-panel";
 import { RecipesPageClient } from "@/components/hive/recipes-page-client";
 import { ResearchBeePanel } from "@/components/hive/research-bee-panel";
@@ -260,7 +261,12 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
               />
             </V4Card>
           ) : null}
-          {hivemindSection === "evolution" ? <MemoryEvolutionPanel /> : null}
+          {hivemindSection === "evolution" ? (
+            <div className="space-y-6">
+              <WeeklyCompoundGardenerPanel />
+              <MemoryEvolutionPanel />
+            </div>
+          ) : null}
         </div>
       ) : null}
 

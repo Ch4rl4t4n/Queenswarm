@@ -36,6 +36,8 @@ interface ApprovalInboxSnapshot {
     goldmine_alerts: number;
     broker_orders: number;
     journal_drafts: number;
+    compound_drafts: number;
+    email_drafts: number;
     total: number;
   };
   items: ApprovalInboxItem[];
@@ -45,6 +47,8 @@ function kindBadgeTone(kind: string): "gold" | "purple" | "info" | "warn" | "ok"
   if (kind === "publish_queue") return "info";
   if (kind === "broker_order") return "warn";
   if (kind === "journal_draft") return "warn";
+  if (kind === "compound_draft") return "purple";
+  if (kind === "email_draft") return "info";
   if (kind === "agent_suggestion") return "purple";
   if (kind === "lane_digest") return "ok";
   if (kind === "goldmine_alert") return "warn";
@@ -117,6 +121,16 @@ function BusinessApprovalInboxInner(): JSX.Element | null {
             `journal-studio/gardener/drafts/${encodeURIComponent(item.source_id)}/review`,
             { decision: "approve" },
           );
+        } else if (item.kind === "compound_draft") {
+          await hivePostJson(
+            `operator/weekly-compound-gardener/${encodeURIComponent(item.source_id)}/review`,
+            { decision: "approve" },
+          );
+        } else if (item.kind === "email_draft") {
+          await hivePostJson(
+            `operator/email-draft-outer-loop/${encodeURIComponent(item.source_id)}/review`,
+            { decision: "approve" },
+          );
         } else if (item.kind === "goldmine_alert") {
           await hivePostJson(`foragers/${encodeURIComponent(item.source_id)}/promote-task`, {
             mode: "alert",
@@ -162,6 +176,16 @@ function BusinessApprovalInboxInner(): JSX.Element | null {
             `journal-studio/gardener/drafts/${encodeURIComponent(item.source_id)}/review`,
             { decision: "reject" },
           );
+        } else if (item.kind === "compound_draft") {
+          await hivePostJson(
+            `operator/weekly-compound-gardener/${encodeURIComponent(item.source_id)}/review`,
+            { decision: "reject" },
+          );
+        } else if (item.kind === "email_draft") {
+          await hivePostJson(
+            `operator/email-draft-outer-loop/${encodeURIComponent(item.source_id)}/review`,
+            { decision: "reject" },
+          );
         }
         toast.success("Rejected");
         await load();
@@ -189,10 +213,16 @@ function BusinessApprovalInboxInner(): JSX.Element | null {
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-cyan">Approval inbox</p>
           <p className="mt-0.5 text-xs text-(--qs-text-2)">
-            Publish · broker orders · journal drafts · goldmine deltas · suggestions · lane digests
+            Publish · compound · email drafts · broker orders · journal drafts · goldmine deltas · suggestions
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {snapshot.counts.compound_drafts > 0 ? (
+            <V4Badge tone="purple">{snapshot.counts.compound_drafts} compound</V4Badge>
+          ) : null}
+          {snapshot.counts.email_drafts > 0 ? (
+            <V4Badge tone="info">{snapshot.counts.email_drafts} email</V4Badge>
+          ) : null}
           {snapshot.counts.goldmine_alerts > 0 ? (
             <V4Badge tone="warn">{snapshot.counts.goldmine_alerts} goldmine</V4Badge>
           ) : null}

@@ -7,6 +7,7 @@ import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hivePostJson } from "@/lib/api";
 import { downloadResearchBriefExportBundle, type ResearchBriefExportResponse } from "@/lib/research-brief-export-utils";
+import { parseResearchProjectUrls } from "@/lib/research-project-urls";
 import { cn } from "@/lib/utils";
 
 interface ResearchBrief {
@@ -232,20 +233,11 @@ interface ResearchProjectFormProps {
 }
 
 function parseProjectUrls(raw: string): string[] {
-  const seen = new Set<string>();
-  const urls: string[] = [];
-  for (const line of raw.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || seen.has(trimmed)) {
-      continue;
-    }
-    seen.add(trimmed);
-    urls.push(trimmed);
-    if (urls.length >= 8) {
-      break;
-    }
-  }
-  return urls;
+  return parseResearchProjectUrls(raw, 8);
+}
+
+function countRawProjectUrlLines(raw: string): number {
+  return raw.split("\n").filter((line) => line.trim().length > 0).length;
 }
 
 function ResearchProjectForm({ onError }: ResearchProjectFormProps) {
@@ -278,6 +270,8 @@ function ResearchProjectForm({ onError }: ResearchProjectFormProps) {
   }, [urlsText, projectTitle, persistProject, onError]);
 
   const urlCount = parseProjectUrls(urlsText).length;
+  const rawLineCount = countRawProjectUrlLines(urlsText);
+  const dedupedCount = rawLineCount - urlCount;
 
   return (
     <div className="space-y-3 p-4 pt-0">
@@ -307,7 +301,14 @@ function ResearchProjectForm({ onError }: ResearchProjectFormProps) {
             disabled={loading}
           />
         </label>
-        <p className="flex items-end text-xs text-(--qs-muted)">{urlCount}/8 URLs</p>
+        <p className="flex items-end text-xs text-(--qs-muted)">
+          {urlCount}/8 unique URLs
+          {dedupedCount > 0 ? (
+            <span className="ml-2 text-(--qs-cyan)" data-testid="research-project-dedupe-hint">
+              ({rawLineCount} lines → {urlCount} after dedupe)
+            </span>
+          ) : null}
+        </p>
       </div>
       <label className="flex items-center gap-2 text-xs text-(--qs-text-2)">
         <input

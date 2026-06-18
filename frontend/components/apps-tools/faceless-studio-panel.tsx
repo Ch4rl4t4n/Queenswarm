@@ -42,6 +42,7 @@ function FacelessStudioPanelInner(): JSX.Element {
   const [idea, setIdea] = useState("");
   const [channel, setChannel] = useState<PublishChannel>("instagram");
   const [createTask, setCreateTask] = useState(false);
+  const [cutBusyId, setCutBusyId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -86,6 +87,24 @@ function FacelessStudioPanelInner(): JSX.Element {
       toast.error(e instanceof HiveApiError ? e.message : "Draft failed");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function runCut(deliverableId: string) {
+    setCutBusyId(deliverableId);
+    try {
+      const res = await hivePostJson<{ ok: boolean; segment_count?: number }>(
+        "operator/faceless-pipeline/cut",
+        { deliverable_id: deliverableId },
+      );
+      toast.success(
+        res.segment_count ? `Cut template attached · ${res.segment_count} segments` : "Cut template attached",
+      );
+      await reload();
+    } catch (e) {
+      toast.error(e instanceof HiveApiError ? e.message : "Cut step failed");
+    } finally {
+      setCutBusyId(null);
     }
   }
 
@@ -186,6 +205,23 @@ function FacelessStudioPanelInner(): JSX.Element {
                   {item.channel}
                   {item.scheduled_at ? ` · ${new Date(item.scheduled_at).toLocaleString()}` : ""}
                 </p>
+                <button
+                  type="button"
+                  className="qs-btn qs-btn--ghost qs-btn--sm mt-2"
+                  disabled={cutBusyId === item.deliverable_id}
+                  data-testid={`faceless-cut-${item.deliverable_id}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    void runCut(item.deliverable_id);
+                  }}
+                >
+                  {cutBusyId === item.deliverable_id ? (
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <Wand2 className="size-3.5" aria-hidden />
+                  )}
+                  Attach cut template
+                </button>
               </Link>
             </li>
           ))}
