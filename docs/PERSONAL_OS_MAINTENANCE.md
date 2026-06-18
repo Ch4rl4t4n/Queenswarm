@@ -68,7 +68,7 @@ Expected Personal OS prod:
 | **POS-D** | Life OS — Calendar → daily planner in Mission Home | ✅ Shipped |
 | **POS-E** | Autopilot — routines cron + My 3 Bees + Four Lanes | ✅ Shipped |
 | **POS-F** | Skill Factory lite — strip Gumroad tabs | ✅ Shipped |
-| **POS-G** | G1–G3 dead-code leak gates · G4–G5 archival delete | G1–G3 ✅ · G4–G5 planned |
+| **POS-G** | G1–G5 dead-code leak gates + commercial API/page archive | ✅ Shipped |
 | **POS-H** | Intelligence Wave — Jarvis advisor · research project · weak signals · agent quality | ✅ Shipped · `./scripts/audit-jarvis-intelligence-gate.sh` |
 | **POS-I** | I1–I5 Intelligence Wave follow-up (Jarvis · research · brand · MCP) | ✅ komplet |
 | **POS-J** | J1–J5 compound automation (weekly gardener · email drafts · research rank · faceless cut) | ✅ Shipped |

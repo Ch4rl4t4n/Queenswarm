@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { QS_ACCESS, QS_REFRESH } from "@/lib/auth-cookies";
 import { isLikelyValidDashboardAccessToken } from "@/lib/dashboard-access-jwt";
 import { hiveOverviewHref } from "@/lib/hive-home-route";
+import { isPersonalOsArchivedPage, PERSONAL_OS_MODE_BUILD_HINT } from "@/lib/personal-os-mode";
 import { appPublicOrigin, isAppDashboardPath, isMarketingHost, isMarketingSiteRequest, marketingPublicOrigin } from "@/lib/marketing-host";
 
 function controlPlaneHome(): string {
@@ -113,6 +114,10 @@ export function middleware(request: NextRequest) {
     if (home !== "/dashboard") {
       return NextResponse.redirect(new URL(home, request.url));
     }
+  }
+
+  if (PERSONAL_OS_MODE_BUILD_HINT && isPersonalOsArchivedPage(pathname)) {
+    return NextResponse.redirect(new URL("/tasks", request.url));
   }
 
   if (pathname.startsWith("/api/auth")) {

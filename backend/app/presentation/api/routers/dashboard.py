@@ -23,6 +23,7 @@ from app.application.services.dashboard_time_saved import build_time_saved_paylo
 from app.application.services.unified_savings import build_unified_savings_payload
 from app.application.services.dashboard_workflows import build_workflows_dashboard_payload
 from app.application.services.hive_tier import resolve_hive_tier
+from app.application.services.personal_os_router_archive import require_commercial_api
 
 router = APIRouter(
     prefix="/dashboard",
@@ -198,7 +199,7 @@ async def dashboard_sub_swarm_fleet_sync_due(
     return result.model_dump(mode="json")
 
 
-@router.get("/catalog-wave")
+@router.get("/catalog-wave", dependencies=[Depends(require_commercial_api)])
 async def dashboard_catalog_wave(
     _principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),
 ) -> dict[str, object]:
@@ -209,7 +210,7 @@ async def dashboard_catalog_wave(
     return compose_catalog_wave_widget_snapshot().model_dump(mode="json")
 
 
-@router.post("/catalog-wave/seed-batch")
+@router.post("/catalog-wave/seed-batch", dependencies=[Depends(require_commercial_api)])
 async def dashboard_catalog_wave_seed_batch(
     db: DbSession,
     principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),
@@ -235,7 +236,7 @@ async def dashboard_catalog_wave_seed_batch(
     return result.model_dump(mode="json")
 
 
-@router.get("/revenue-funnel")
+@router.get("/revenue-funnel", dependencies=[Depends(require_commercial_api)])
 async def dashboard_revenue_funnel(
     db: DbSession,
     principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),
@@ -251,7 +252,7 @@ async def dashboard_revenue_funnel(
     return payload.model_dump(mode="json")
 
 
-@router.get("/factory-launch")
+@router.get("/factory-launch", dependencies=[Depends(require_commercial_api)])
 async def dashboard_factory_launch(
     db: DbSession,
     principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),
@@ -267,7 +268,7 @@ async def dashboard_factory_launch(
     return payload.model_dump(mode="json")
 
 
-@router.post("/factory-launch/prepare")
+@router.post("/factory-launch/prepare", dependencies=[Depends(require_commercial_api)])
 async def dashboard_factory_launch_prepare(
     db: DbSession,
     principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),
@@ -287,7 +288,7 @@ async def dashboard_factory_launch_prepare(
     return result
 
 
-@router.post("/factory-launch/gumroad-draft")
+@router.post("/factory-launch/gumroad-draft", dependencies=[Depends(require_commercial_api)])
 async def dashboard_factory_launch_gumroad_draft(
     db: DbSession,
     principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),
@@ -307,7 +308,7 @@ async def dashboard_factory_launch_gumroad_draft(
     return result
 
 
-@router.post("/factory-launch/gumroad-publish")
+@router.post("/factory-launch/gumroad-publish", dependencies=[Depends(require_commercial_api)])
 async def dashboard_factory_launch_gumroad_publish(
     db: DbSession,
     principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),
@@ -327,7 +328,7 @@ async def dashboard_factory_launch_gumroad_publish(
     return result
 
 
-@router.post("/factory-launch/revenue-smoke")
+@router.post("/factory-launch/revenue-smoke", dependencies=[Depends(require_commercial_api)])
 async def dashboard_factory_launch_revenue_smoke(
     db: DbSession,
     principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),
@@ -344,7 +345,7 @@ async def dashboard_factory_launch_revenue_smoke(
     return await run_factory_launch_revenue_smoke(db, tenant_id=tenant_id)
 
 
-@router.post("/factory-launch/catalog-sync")
+@router.post("/factory-launch/catalog-sync", dependencies=[Depends(require_commercial_api)])
 async def dashboard_factory_launch_catalog_sync(
     db: DbSession,
     _principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),
@@ -356,7 +357,7 @@ async def dashboard_factory_launch_catalog_sync(
     return await sync_factory_launch_catalog_from_widget(db)
 
 
-@router.post("/factory-launch/purchase-smoke")
+@router.post("/factory-launch/purchase-smoke", dependencies=[Depends(require_commercial_api)])
 async def dashboard_factory_launch_purchase_smoke(
     db: DbSession,
     principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),
@@ -384,7 +385,7 @@ async def dashboard_factory_launch_purchase_smoke(
     return result
 
 
-@router.post("/factory-launch/full-funnel")
+@router.post("/factory-launch/full-funnel", dependencies=[Depends(require_commercial_api)])
 async def dashboard_factory_launch_full_funnel(
     db: DbSession,
     principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),
@@ -404,7 +405,7 @@ async def dashboard_factory_launch_full_funnel(
     return result
 
 
-@router.post("/factory-launch/launch-and-verify")
+@router.post("/factory-launch/launch-and-verify", dependencies=[Depends(require_commercial_api)])
 async def dashboard_factory_launch_launch_and_verify(
     db: DbSession,
     principal: dict[str, object] = Depends(require_dashboard_user_with_tenant_role),

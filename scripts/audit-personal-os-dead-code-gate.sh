@@ -36,6 +36,24 @@ else
   fail "mission home personalOsMode commercial gate missing"
 fi
 
+if grep -q 'personal_os_mode_enabled' backend/app/presentation/api/v1.py; then
+  pass "v1 commercial router archive guard"
+else
+  fail "v1 commercial router archive guard missing"
+fi
+
+if grep -q 'require_commercial_api' backend/app/presentation/api/routers/dashboard.py; then
+  pass "dashboard commercial endpoints archived"
+else
+  fail "dashboard commercial archive missing"
+fi
+
+if grep -q 'isPersonalOsArchivedPage' frontend/middleware.ts; then
+  pass "middleware Personal OS archived page redirect (G5)"
+else
+  fail "middleware archived page redirect missing"
+fi
+
 if [[ -x backend/venv/bin/python ]]; then
   set +e
   (cd backend && ./venv/bin/python -m pytest tests/test_personal_os_mode_unit.py -q --no-cov)

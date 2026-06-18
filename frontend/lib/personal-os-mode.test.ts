@@ -4,6 +4,7 @@ import {
   PERSONAL_OS_MORE_HIDDEN_HREFS,
   applyPersonalOsModeOverrides,
   filterAppsToolsModulesForPersonalOs,
+  isPersonalOsArchivedPage,
   parsePersonalOsModeFlag,
 } from "@/lib/personal-os-mode";
 
@@ -16,6 +17,12 @@ describe("personal-os-mode", () => {
 
   it("hides commercial more-menu hrefs including factory", () => {
     expect(PERSONAL_OS_MORE_HIDDEN_HREFS.has("/factory")).toBe(true);
+  });
+
+  it("detects archived Personal OS page paths", () => {
+    expect(isPersonalOsArchivedPage("/factory")).toBe(true);
+    expect(isPersonalOsArchivedPage("/apps-tools/trading-automation")).toBe(true);
+    expect(isPersonalOsArchivedPage("/tasks")).toBe(false);
   });
 
   it("filters commercial apps-tools modules", () => {

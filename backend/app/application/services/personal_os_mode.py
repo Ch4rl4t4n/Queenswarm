@@ -133,11 +133,20 @@ def personal_os_skill_factory_commercial_enabled() -> bool:
     return False
 
 
+def personal_os_commercial_api_enabled() -> bool:
+    """Return False when Personal OS archives commercial HTTP routers (POS-G4)."""
+
+    from app.core.config import settings
+
+    return not settings.personal_os_mode_enabled
+
+
 __all__ = [
     "PERSONAL_OS_CORE_FEATURES",
     "PERSONAL_OS_HIDDEN_FEATURES",
     "PERSONAL_OS_OPTIONAL_FEATURES",
     "apply_personal_os_overrides",
+    "personal_os_commercial_api_enabled",
     "personal_os_mission_home_revenue_widgets_enabled",
     "personal_os_skill_factory_commercial_enabled",
 ]

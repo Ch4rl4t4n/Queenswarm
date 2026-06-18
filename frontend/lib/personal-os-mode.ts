@@ -84,6 +84,26 @@ export const PERSONAL_OS_MORE_HIDDEN_HREFS = new Set([
   "/workflows",
 ]);
 
+/** Page paths archived in Personal OS — middleware redirects to Mission Home (POS-G5). */
+export const PERSONAL_OS_ARCHIVED_PAGE_PREFIXES = [
+  "/factory",
+  "/jobs",
+  "/simulations",
+  "/apps-tools/trading-automation",
+  "/apps-tools/browser-automation",
+  "/apps-tools/ecommerce-automation",
+  "/apps-tools/research-workspace",
+  "/apps-tools/content-factory",
+  "/apps-tools/mcp-ops-studio",
+] as const;
+
+export function isPersonalOsArchivedPage(pathname: string): boolean {
+  const path = pathname.split("?")[0] ?? pathname;
+  return PERSONAL_OS_ARCHIVED_PAGE_PREFIXES.some(
+    (prefix) => path === prefix || path.startsWith(`${prefix}/`),
+  );
+}
+
 export function parsePersonalOsModeFlag(raw: string | undefined): boolean {
   if (raw === undefined) {
     return false;

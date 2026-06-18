@@ -453,6 +453,9 @@ async def skill_factory_export_gumroad_draft(
     """Create a Gumroad draft product from LISTING.md (operator finishes in Gumroad UI)."""
 
     _ensure_enabled()
+    from app.application.services.personal_os_router_archive import require_commercial_api
+
+    require_commercial_api()
     from app.application.services.skill_factory_gumroad_listing import create_gumroad_draft_from_skill
 
     result = await create_gumroad_draft_from_skill(
@@ -491,6 +494,9 @@ async def skill_factory_export_gumroad_publish(
     """Enable (publish) a Gumroad product linked to this skill."""
 
     _ensure_enabled()
+    from app.application.services.personal_os_router_archive import require_commercial_api
+
+    require_commercial_api()
     from app.application.services.skill_factory_gumroad_listing import publish_gumroad_listing_for_skill
 
     result = await publish_gumroad_listing_for_skill(
