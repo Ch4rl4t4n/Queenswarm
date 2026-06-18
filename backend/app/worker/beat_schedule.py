@@ -209,6 +209,22 @@ def build_beat_schedule() -> dict[str, dict[str, Any]]:
             "schedule": crontab(minute=45, hour="*/2"),
             "options": {"queue": "hive"},
         }
+    if settings.weekly_compound_gardener_enabled and settings.solo_mode_enabled:
+        schedule["hive-weekly-compound-gardener"] = {
+            "task": "hive.weekly_compound_gardener_tick",
+            "schedule": crontab(
+                hour=int(settings.weekly_compound_gardener_cron_hour),
+                minute=int(settings.weekly_compound_gardener_cron_minute),
+                day_of_week=int(settings.weekly_compound_gardener_cron_day_of_week),
+            ),
+            "options": {"queue": "hive"},
+        }
+    if settings.email_draft_outer_loop_enabled and settings.solo_mode_enabled:
+        schedule["hive-email-draft-outer-loop"] = {
+            "task": "hive.email_draft_outer_loop_tick",
+            "schedule": crontab(hour=int(settings.email_draft_outer_loop_cron_hour), minute=15),
+            "options": {"queue": "hive"},
+        }
     if settings.analytics_weekly_routine_enabled and settings.analytics_workspace_enabled:
         boot_hour = int(settings.analytics_weekly_routine_cron_hour)
         boot_minute = int(settings.analytics_weekly_routine_cron_minute)

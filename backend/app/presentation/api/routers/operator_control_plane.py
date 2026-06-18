@@ -24,6 +24,8 @@ from app.application.services.apps_tools_index_analytics import (
 from app.application.services.apps_tools_index_snapshot import compose_apps_tools_index_snapshot
 from app.application.services.capability_registry import compose_capability_registry_snapshot
 from app.application.services.faceless_content_pipeline_service import (
+    FacelessCutIn,
+    FacelessCutOut,
     FacelessDraftIn,
     FacelessDraftOut,
     FacelessIntakeIn,
@@ -32,8 +34,23 @@ from app.application.services.faceless_content_pipeline_service import (
     FacelessScheduleIn,
     compose_faceless_pipeline_snapshot,
     create_faceless_intake_task,
+    run_faceless_cut,
     run_faceless_draft,
     schedule_faceless_deliverable,
+)
+from app.application.services.weekly_compound_gardener_service import (
+    WeeklyCompoundDraftReviewIn,
+    WeeklyCompoundDraftReviewOut,
+    WeeklyCompoundGardenerSnapshotOut,
+    compose_weekly_compound_gardener_snapshot,
+    review_weekly_compound_draft,
+)
+from app.application.services.email_draft_outer_loop_service import (
+    EmailDraftOuterLoopSnapshotOut,
+    EmailDraftReviewIn,
+    EmailDraftReviewOut,
+    compose_email_draft_outer_loop_snapshot,
+    review_email_draft,
 )
 from app.application.services.marketing_team_service import (
     MarketingTeamSnapshotOut,
@@ -604,6 +621,125 @@ async def operator_faceless_schedule(
     )
     if not result.get("ok"):
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(result.get("error") or "schedule_failed"))
+    await db.commit()
+    return result
+
+
+@router.post(
+    "/faceless-pipeline/cut",
+    response_model=FacelessCutOut,
+    summary="POS-J5 — Attach faceless cut/template segments to publish pack",
+)
+async def operator_faceless_cut(
+    body: FacelessCutIn,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> FacelessCutOut:
+    """Add simulate-first cut segment list to an existing faceless deliverable."""
+
+    user = principal.get("user")
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User context missing.")
+    result = await run_faceless_cut(db, dashboard_user_id=user.id, body=body)
+    if not result.ok:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="cut_failed")
+    await db.commit()
+    return result
+
+
+@router.get(
+    "/weekly-compound-gardener",
+    response_model=WeeklyCompoundGardenerSnapshotOut,
+    summary="POS-J1 — Weekly compound gardener snapshot",
+)
+async def operator_weekly_compound_gardener(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> WeeklyCompoundGardenerSnapshotOut:
+    """Pending weekly compound drafts and Brain Pack gap hints."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    return await compose_weekly_compound_gardener_snapshot(db, tenant_id=tenant_id)
+
+
+@router.post(
+    "/weekly-compound-gardener/{draft_id}/review",
+    response_model=WeeklyCompoundDraftReviewOut,
+    summary="Approve or reject weekly compound draft",
+)
+async def operator_weekly_compound_review(
+    draft_id: str,
+    body: WeeklyCompoundDraftReviewIn,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> WeeklyCompoundDraftReviewOut:
+    """HITL review for weekly compound memory evolution draft."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    try:
+        result = await review_weekly_compound_draft(
+            db,
+            tenant_id=tenant_id,
+            draft_id=draft_id,
+            body=body,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    await db.commit()
+    return result
+
+
+@router.get(
+    "/email-draft-outer-loop",
+    response_model=EmailDraftOuterLoopSnapshotOut,
+    summary="POS-J3 — Email draft outer loop snapshot",
+)
+async def operator_email_draft_outer_loop(
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> EmailDraftOuterLoopSnapshotOut:
+    """Simulate-first Gmail reply drafts awaiting approval."""
+
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    return await compose_email_draft_outer_loop_snapshot(
+        db,
+        tenant_id=tenant_id,
+        dashboard_user_id=user.id,
+    )
+
+
+@router.post(
+    "/email-draft-outer-loop/{draft_id}/review",
+    response_model=EmailDraftReviewOut,
+    summary="Approve or reject email reply draft (no auto-send)",
+)
+async def operator_email_draft_review(
+    draft_id: str,
+    body: EmailDraftReviewIn,
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> EmailDraftReviewOut:
+    """HITL review for simulate-first email drafts."""
+
+    tenant_id = principal.get("tenant_id")
+    if tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    try:
+        result = await review_email_draft(
+            db,
+            tenant_id=tenant_id,
+            draft_id=draft_id,
+            body=body,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     await db.commit()
     return result
 

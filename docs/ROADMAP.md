@@ -124,6 +124,32 @@ Audit: `./scripts/audit-research-bee-gate.sh` (I1) · `./scripts/audit-jarvis-in
 
 Audit: `./scripts/audit-personal-os-dead-code-gate.sh` · prep inventory: `./scripts/audit-personal-os-dead-code-inventory.sh`
 
+## Personal OS — compound automation (POS-J)
+
+**Goal:** Týždenná automatizácia pamäte + outer loops — vždy simulate-first, HITL na apply/send.
+
+| ID | Scope | Status |
+|----|-------|--------|
+| J1 | Weekly auto-compound gardener — reflection → memory evolution proposal + wiki draft (Celery Sun UTC) | ✅ |
+| J2 | Brain Pack gap hints v gardener tick (OBS2 extension) | ✅ |
+| J3 | Email outer loop — Gmail read-only → simulate reply drafts → Approval Inbox (no auto-send) | ✅ |
+| J4 | Research Bee parallel rank — dedupe/normalize batch URLs pred merge | ✅ |
+| J5 | Faceless cut/template step — segment list na publish pack | ✅ |
+
+**Integration map:**
+
+| Layer | J1–J2 | J3 | J4 | J5 |
+|-------|-------|----|----|-----|
+| Celery beat | `hive-weekly-compound-gardener` | `hive-email-draft-outer-loop` | — | — |
+| Mission Home | `weekly_compound_strip` | — | — | — |
+| Approval Inbox | `compound_draft` | `email_draft` | — | — |
+| Knowledge | Memory Evolution proposals | — | Research Bee project | — |
+| Marketing | — | — | — | Faceless pipeline `/cut` |
+
+**⛔ Skip (operator Personal OS):** OpenClaw/Hermes clone · ruflo meta-harness · Zerops demo · wide-open autopilot · Gumroad/commercial layers.
+
+Audit: `./scripts/audit-personal-os-compound-gate.sh`
+
 **Maintenance audits:** `./scripts/audit-personal-os-gate.sh` · weekly: social publish + solo daily plan gates.
 
 | Step | Scope | Status |

@@ -1939,6 +1939,46 @@ class Settings(BaseSettings):
         default=True,
         description="POS-I4 — Brand studio rubric preview in Marketing Team (simulate-only).",
     )
+    weekly_compound_gardener_enabled: bool = Field(
+        default=True,
+        description="POS-J1 — Weekly auto-compound gardener (reflection → memory evolution + wiki draft, HITL).",
+    )
+    weekly_compound_gardener_cron_hour: int = Field(
+        default=7,
+        ge=0,
+        le=23,
+        description="POS-J1 weekly compound gardener cron hour (UTC).",
+    )
+    weekly_compound_gardener_cron_minute: int = Field(
+        default=0,
+        ge=0,
+        le=59,
+        description="POS-J1 weekly compound gardener cron minute (UTC).",
+    )
+    weekly_compound_gardener_cron_day_of_week: int = Field(
+        default=0,
+        ge=0,
+        le=6,
+        description="POS-J1 weekly compound gardener cron day (0=Sun … 6=Sat UTC).",
+    )
+    email_draft_outer_loop_enabled: bool = Field(
+        default=True,
+        description="POS-J3 — Gmail read-only → simulate reply drafts → Approval Inbox (no auto-send).",
+    )
+    email_draft_outer_loop_cron_hour: int = Field(
+        default=8,
+        ge=0,
+        le=23,
+        description="POS-J3 email draft outer loop cron hour (UTC).",
+    )
+    research_project_parallel_rank_enabled: bool = Field(
+        default=True,
+        description="POS-J4 — Dedupe and rank batch URLs before Research Bee merge.",
+    )
+    faceless_cut_template_enabled: bool = Field(
+        default=True,
+        description="POS-J5 — Faceless cut/template step (segment list on publish pack).",
+    )
     knowledge_elicitation_enabled: bool = Field(
         default=True,
         description="OBS2 — Brain Pack gap prompts in Knowledge UI.",

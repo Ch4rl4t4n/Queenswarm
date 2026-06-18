@@ -22,6 +22,7 @@ Use this doc when evaluating external posts (X threads, YouTube, competitor laun
 | Jun 2026 | [Ryan Doser — Robinhood AI agent MCP](https://www.youtube.com/watch?v=w4QrQdulH0g) | P | RA1–RA5 |
 | Jun 2026 | [Julian Goldie — Hermes Agent OS Mission Control](https://www.youtube.com/watch?v=egeUmkhdcM4) | Q | UX0–UX10 |
 | Jun 2026 | X batch — Jarvis/Obsidian · Boris loops · NotebookLM analyst · weak signals · research project | H | POS-H1–H7 |
+| Jun 2026 | [CyrilXBT — Personal AI infra smarter every week](https://x.com/cyrilXBT/status/2065618897089253592) · Gabriel Chua email loop · Eliana faceless cut | J | POS-J1–J5 |
 
 _Next link from operator → run [Evaluation template](#evaluation-template-for-new-links) → add row here + item to [`ROADMAP.md`](ROADMAP.md) P10 if 🔴 gap._
 

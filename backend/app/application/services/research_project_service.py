@@ -1,9 +1,10 @@
-"""POS-H3 — Research project: batch URLs → merged Hive Mind brief."""
+"""POS-H3 / POS-J4 — Research project: batch URLs → merged Hive Mind brief."""
 
 from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from urllib.parse import urlparse
 
 import structlog
 from pydantic import BaseModel, ConfigDict, Field
@@ -16,6 +17,36 @@ from app.infrastructure.persistence.models.knowledge import KnowledgeItem
 logger = structlog.get_logger(__name__)
 
 MAX_PROJECT_URLS = 8
+
+
+def _normalize_url(url: str) -> str:
+    parsed = urlparse(url.strip())
+    host = (parsed.netloc or "").lower().removeprefix("www.")
+    path = parsed.path.rstrip("/") or "/"
+    return f"{host}{path}"
+
+
+def rank_and_dedupe_research_urls(source_urls: list[str]) -> list[str]:
+    """POS-J4 — Dedupe by normalized path; prefer shorter canonical URLs first."""
+
+    if not settings.research_project_parallel_rank_enabled:
+        return [url.strip() for url in source_urls if url.strip()][:MAX_PROJECT_URLS]
+
+    seen: set[str] = set()
+    ranked: list[tuple[int, str]] = []
+    for raw in source_urls:
+        url = raw.strip()
+        if not url:
+            continue
+        key = _normalize_url(url)
+        if key in seen:
+            continue
+        seen.add(key)
+        score = len(key) + (10 if url.endswith("/") else 0)
+        ranked.append((score, url))
+
+    ranked.sort(key=lambda row: row[0])
+    return [url for _, url in ranked[:MAX_PROJECT_URLS]]
 
 
 class ResearchProjectSourceOut(BaseModel):
@@ -64,7 +95,7 @@ async def compose_research_project_brief(
             project_title=project_title or "Research project",
         )
 
-    urls = [url.strip() for url in source_urls if url.strip()][:MAX_PROJECT_URLS]
+    urls = rank_and_dedupe_research_urls(source_urls)
     if not urls:
         raise ValueError("At least one source URL is required.")
 
@@ -170,4 +201,5 @@ __all__ = [
     "ResearchProjectBriefOut",
     "ResearchProjectSourceOut",
     "compose_research_project_brief",
+    "rank_and_dedupe_research_urls",
 ]

@@ -65,6 +65,37 @@ class FacelessScheduleIn(BaseModel):
     scheduled_at: str = Field(min_length=10, max_length=64)
 
 
+class FacelessCutIn(BaseModel):
+    """POS-J5 — Attach cut/template segment list to an existing faceless pack."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    deliverable_id: uuid.UUID
+
+
+class FacelessCutSegmentOut(BaseModel):
+    """One faceless video cut segment."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    index: int
+    label: str
+    duration_sec: int
+    script: str
+
+
+class FacelessCutOut(BaseModel):
+    """Result of faceless cut/template step."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    ok: bool
+    deliverable_id: uuid.UUID | None = None
+    segment_count: int = 0
+    segments: list[FacelessCutSegmentOut] = Field(default_factory=list)
+    href: str = ""
+
+
 class FacelessPipelineItemOut(BaseModel):
     """Recent faceless draft in pipeline."""
 
@@ -156,6 +187,72 @@ def build_faceless_draft_pack(
         cta="Follow for more verified workflows",
         scheduled_at=default_schedule,
         simulate_only=True,
+    )
+
+
+def build_faceless_cut_segments(*, idea: str, channel: PublishChannel = "instagram") -> list[FacelessCutSegmentOut]:
+    """POS-J5 — Template cut list for faceless reel/short (no LLM, simulate-first)."""
+
+    hook = idea.strip().split("\n", maxsplit=1)[0][:120]
+    beats = [
+        ("Hook", 5, hook),
+        ("Problem", 8, "What most builders get wrong with AI workflows"),
+        ("Insight 1", 10, "Verify-first beats raw LLM output every time"),
+        ("Insight 2", 10, "One bee = one job — decompose before you automate"),
+        ("CTA", 7, "Save + follow for verified agent recipes"),
+    ]
+    if channel == "tiktok":
+        beats = beats[:4] + [("CTA", 5, "Follow for daily agent tips")]
+
+    return [
+        FacelessCutSegmentOut(index=i + 1, label=label, duration_sec=dur, script=script)
+        for i, (label, dur, script) in enumerate(beats)
+    ]
+
+
+async def run_faceless_cut(
+    session: AsyncSession,
+    *,
+    dashboard_user_id: uuid.UUID,
+    body: FacelessCutIn,
+) -> FacelessCutOut:
+    """Attach cut/template segments to a faceless publish pack deliverable."""
+
+    from app.domain.outputs.service import fetch_owned_deliverable
+
+    if not settings.faceless_content_pipeline_enabled or not settings.faceless_cut_template_enabled:
+        return FacelessCutOut(ok=False)
+
+    row = await fetch_owned_deliverable(
+        session,
+        deliverable_id=body.deliverable_id,
+        dashboard_user_id=dashboard_user_id,
+    )
+    if row is None:
+        return FacelessCutOut(ok=False)
+
+    structured = dict(row.structured_json or {})
+    idea = str(structured.get("body") or row.markdown_body or "Faceless workflow tip")
+    channel = str(structured.get("channel") or "instagram")
+    segments = build_faceless_cut_segments(idea=idea, channel=channel)  # type: ignore[arg-type]
+    structured["faceless_cut_segments"] = [s.model_dump() for s in segments]
+    structured["faceless_cut_template_v1"] = True
+    structured["simulate_only"] = True
+    row.structured_json = structured
+    await session.flush()
+
+    _logger.info(
+        "faceless_pipeline.cut_attached",
+        agent_id="faceless_pipeline",
+        task_id=str(row.id),
+        segment_count=len(segments),
+    )
+    return FacelessCutOut(
+        ok=True,
+        deliverable_id=row.id,
+        segment_count=len(segments),
+        segments=segments,
+        href=f"/apps-tools/marketing-team?section=queue#publish-queue&pack={row.id}",
     )
 
 

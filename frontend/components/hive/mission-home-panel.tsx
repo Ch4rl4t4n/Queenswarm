@@ -171,6 +171,18 @@ interface MissionJarvisWeeklyReflectionStrip {
   ballroom_href: string;
 }
 
+interface MissionWeeklyCompoundStrip {
+  enabled: boolean;
+  headline: string;
+  message: string;
+  week_label: string;
+  pending_drafts: number;
+  brain_pack_gap_count: number;
+  last_run_at: string | null;
+  hive_mind_href: string;
+  evolution_href: string;
+}
+
 interface MissionHomeSnapshot {
   enabled: boolean;
   current_step: ProcessStepId;
@@ -186,6 +198,7 @@ interface MissionHomeSnapshot {
   jarvis_advisor_strip?: MissionJarvisAdvisorStrip;
   agent_quality_strip?: MissionAgentQualityStrip;
   jarvis_weekly_reflection_strip?: MissionJarvisWeeklyReflectionStrip;
+  weekly_compound_strip?: MissionWeeklyCompoundStrip;
   first_run_complete: boolean;
   links: Record<string, string>;
   rapid_loop_widget_enabled?: boolean;
@@ -244,6 +257,7 @@ function MissionHomePanelInner(): JSX.Element | null {
   const jarvis = snapshot.jarvis_advisor_strip;
   const agentQuality = snapshot.agent_quality_strip;
   const weeklyReflection = snapshot.jarvis_weekly_reflection_strip;
+  const weeklyCompound = snapshot.weekly_compound_strip;
 
   function qualityTone(status: MissionAgentQualityStrip["status"]): "ok" | "warn" | "err" | "info" {
     if (status === "healthy") return "ok";
@@ -390,6 +404,41 @@ function MissionHomePanelInner(): JSX.Element | null {
               </li>
             ))}
           </ul>
+        </V4Card>
+      ) : null}
+
+      {weeklyCompound?.enabled ? (
+        <V4Card className="md:max-lg:col-span-2" data-testid="mission-home-weekly-compound">
+          <V4CardHeader
+            kicker="Compound"
+            title={weeklyCompound.headline}
+            description={weeklyCompound.message}
+            actions={
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href={weeklyCompound.evolution_href}
+                  className="qs-btn qs-btn--ghost qs-btn--sm inline-flex gap-1"
+                >
+                  <Brain className="size-3.5" aria-hidden />
+                  Evolution
+                </Link>
+                <Link href={weeklyCompound.hive_mind_href} className="qs-btn qs-btn--ghost qs-btn--sm">
+                  Hive Mind
+                </Link>
+              </div>
+            }
+          />
+          {weeklyCompound.week_label ? (
+            <p className="px-4 text-xs font-mono text-cyan/80">{weeklyCompound.week_label}</p>
+          ) : null}
+          <div className="flex flex-wrap gap-2 px-4 pb-4 pt-2">
+            {weeklyCompound.pending_drafts > 0 ? (
+              <V4Badge tone="warn">{weeklyCompound.pending_drafts} draft(s)</V4Badge>
+            ) : null}
+            {weeklyCompound.brain_pack_gap_count > 0 ? (
+              <V4Badge tone="info">{weeklyCompound.brain_pack_gap_count} Brain Pack gap(s)</V4Badge>
+            ) : null}
+          </div>
         </V4Card>
       ) : null}
 

@@ -26,6 +26,8 @@ ApprovalInboxKind = Literal[
     "goldmine_alert",
     "broker_order",
     "journal_draft",
+    "compound_draft",
+    "email_draft",
 ]
 
 
@@ -58,6 +60,8 @@ class ApprovalInboxCountsOut(BaseModel):
     goldmine_alerts: int = 0
     broker_orders: int = 0
     journal_drafts: int = 0
+    compound_drafts: int = 0
+    email_drafts: int = 0
     total: int = 0
 
 
@@ -167,6 +171,57 @@ async def compose_approval_inbox_snapshot(
                     detail=str(row.get("detail") or "")[:320],
                     created_at=created_at if isinstance(created_at, datetime) else None,
                     href="/apps-tools/trading-journal?section=gardener#journal-studio-gardener",
+                    source_id=str(row.get("id") or ""),
+                    reject_supported=True,
+                ),
+            )
+
+    if settings.weekly_compound_gardener_enabled:
+        from app.application.services.weekly_compound_gardener_service import compose_compound_draft_inbox_items
+
+        compound_rows = await compose_compound_draft_inbox_items(
+            session,
+            tenant_id=tenant_id,
+            limit=cap,
+        )
+        for row in compound_rows:
+            counts.compound_drafts += 1
+            created_at = row.get("created_at")
+            items.append(
+                ApprovalInboxItemOut(
+                    id=f"compound:{row.get('id')}",
+                    kind="compound_draft",
+                    lane="memory",
+                    title=str(row.get("title") or "Weekly compound draft"),
+                    detail=str(row.get("detail") or "")[:320],
+                    created_at=created_at if isinstance(created_at, datetime) else None,
+                    href="/knowledge?tab=hivemind#evolution",
+                    source_id=str(row.get("id") or ""),
+                    reject_supported=True,
+                ),
+            )
+
+    if settings.email_draft_outer_loop_enabled:
+        from app.application.services.email_draft_outer_loop_service import compose_email_draft_inbox_items
+
+        email_rows = await compose_email_draft_inbox_items(
+            session,
+            tenant_id=tenant_id,
+            dashboard_user_id=dashboard_user_id,
+            limit=cap,
+        )
+        for row in email_rows:
+            counts.email_drafts += 1
+            created_at = row.get("created_at")
+            items.append(
+                ApprovalInboxItemOut(
+                    id=f"email:{row.get('id')}",
+                    kind="email_draft",
+                    lane="personal",
+                    title=str(row.get("title") or "Email draft"),
+                    detail=str(row.get("detail") or "")[:320],
+                    created_at=created_at if isinstance(created_at, datetime) else None,
+                    href="/cockpit#approvals",
                     source_id=str(row.get("id") or ""),
                     reject_supported=True,
                 ),
@@ -293,6 +348,8 @@ async def compose_approval_inbox_snapshot(
         + counts.goldmine_alerts
         + counts.broker_orders
         + counts.journal_drafts
+        + counts.compound_drafts
+        + counts.email_drafts
     )
 
     return ApprovalInboxSnapshotOut(

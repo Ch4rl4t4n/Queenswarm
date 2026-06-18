@@ -62,5 +62,6 @@ from app.worker import wiki_gardener_tasks as _wiki_gardener_tasks  # noqa: E402
 from app.worker import connection_intelligence_tasks as _connection_intelligence_tasks  # noqa: E402, F401
 from app.worker import skill_factory_tasks as _skill_factory_tasks  # noqa: E402, F401
 from app.worker import local_finetune_tasks as _local_finetune_tasks  # noqa: E402, F401
+from app.worker import personal_os_compound_tasks as _personal_os_compound_tasks  # noqa: E402, F401
 
 __all__ = ["celery_app", "create_celery_app"]
