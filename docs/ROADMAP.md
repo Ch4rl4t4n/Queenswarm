@@ -164,6 +164,18 @@ Audit: `./scripts/audit-personal-os-compound-gate.sh`
 
 Audit: `./scripts/audit-personal-os-adoption-gate.sh`
 
+## Personal OS — daily flow polish (POS-L)
+
+**Goal:** POS-J/K features reach operator without opening the wrong surface — Cockpit shortcut + Telegram when drafts land.
+
+| ID | Scope | Status |
+|----|-------|--------|
+| L1 | Mission Home weekly compound strip → Cockpit approvals when pending drafts | ✅ |
+| L2 | Zero-UI Telegram ping on compound draft + email draft creation (deduped) | ✅ |
+| L3 | Audit gate + operator verify ritual | ✅ |
+
+Audit: `./scripts/audit-personal-os-daily-flow-gate.sh`
+
 **Operator daily stack:** `/tasks` (Jarvis · weekly compound) · `/cockpit` (Approval Inbox) · `/knowledge` (Research Bee · compound gardener) · `/ballroom` · `/foragers`
 
 **Maintenance audits:** `./scripts/audit-personal-os-gate.sh` · weekly: social publish + solo daily plan gates.

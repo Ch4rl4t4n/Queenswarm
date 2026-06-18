@@ -181,6 +181,7 @@ interface MissionWeeklyCompoundStrip {
   last_run_at: string | null;
   hive_mind_href: string;
   evolution_href: string;
+  approvals_href: string;
 }
 
 interface MissionHomeSnapshot {
@@ -415,6 +416,16 @@ function MissionHomePanelInner(): JSX.Element | null {
             description={weeklyCompound.message}
             actions={
               <div className="flex flex-wrap gap-2">
+                {weeklyCompound.pending_drafts > 0 ? (
+                  <Link
+                    href={weeklyCompound.approvals_href ?? "/cockpit#approvals"}
+                    className="qs-btn qs-btn--primary qs-btn--sm inline-flex gap-1"
+                    data-testid="mission-home-weekly-compound-cockpit"
+                  >
+                    <Shield className="size-3.5" aria-hidden />
+                    Cockpit
+                  </Link>
+                ) : null}
                 <Link
                   href={weeklyCompound.evolution_href}
                   className="qs-btn qs-btn--ghost qs-btn--sm inline-flex gap-1"

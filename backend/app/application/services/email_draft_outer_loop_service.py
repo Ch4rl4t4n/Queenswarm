@@ -322,6 +322,14 @@ async def run_email_draft_outer_loop_for_tenant(
         task_id=str(dashboard_user_id),
         count=created,
     )
+    from app.application.services.personal_os_pending_notify_service import notify_email_drafts_pending
+
+    await notify_email_drafts_pending(
+        session,
+        tenant_id=tenant_id,
+        dashboard_user_id=dashboard_user_id,
+        created_count=created,
+    )
     return created
 
 

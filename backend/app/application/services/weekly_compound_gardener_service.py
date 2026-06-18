@@ -70,6 +70,7 @@ class MissionWeeklyCompoundStripOut(BaseModel):
     last_run_at: datetime | None = None
     hive_mind_href: str = "/knowledge#hivemind"
     evolution_href: str = "/knowledge?tab=hivemind#evolution"
+    approvals_href: str = "/cockpit#approvals"
 
 
 class WeeklyCompoundGardenerSnapshotOut(BaseModel):
@@ -409,6 +410,18 @@ async def run_weekly_compound_gardener_for_tenant(
         proposal_id=str(proposal.id),
         gap_count=len(brain_gaps),
     )
+    if proposed_by_user_id is not None:
+        from app.application.services.personal_os_pending_notify_service import (
+            notify_weekly_compound_draft_pending,
+        )
+
+        await notify_weekly_compound_draft_pending(
+            session,
+            tenant_id=tenant_id,
+            dashboard_user_id=proposed_by_user_id,
+            week_key=week_key,
+            draft_title=title,
+        )
     return 1
 
 

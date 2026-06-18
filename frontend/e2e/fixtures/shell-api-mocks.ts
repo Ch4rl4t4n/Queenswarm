@@ -4678,6 +4678,7 @@ export async function installShellApiMocks(page: Page): Promise<void> {
             last_run_at: null,
             hive_mind_href: "/knowledge#hivemind",
             evolution_href: "/knowledge?tab=hivemind#evolution",
+            approvals_href: "/cockpit#approvals",
           },
           first_run_complete: true,
           rapid_loop_widget_enabled: true,
