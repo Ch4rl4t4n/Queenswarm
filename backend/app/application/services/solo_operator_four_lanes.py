@@ -372,6 +372,19 @@ async def _ensure_lane_routine(
     if existing.name != canonical and _normalize_name(existing.name) != _normalize_name(canonical):
         existing.name = canonical
     existing.goal_template = LANE_ROUTINE_GOALS[lane_id]
+    expected_roles = ["researcher", "critic"]
+    if lane_id != "automation" and list(existing.roles or []) != expected_roles:
+        existing.roles = expected_roles
+    existing.runtime_mode = "durable"
+    expected_skills = (
+        ["context", "execution-studio", "marketing-campaign-playbook"]
+        if lane_id == "marketing_najman"
+        else ["context", "execution-studio", "queen-maintainer"]
+        if lane_id == "tech_scv"
+        else ["context", "execution-studio"]
+    )
+    if lane_id != "automation" and list(existing.skills or []) != expected_skills:
+        existing.skills = expected_skills
     cron = LANE_CRON[lane_id]
     if cron is not None:
         existing.schedule_kind = "cron"

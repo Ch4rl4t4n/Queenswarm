@@ -423,6 +423,9 @@ async def trigger_supervisor_routine_now(
             or "insight" in goal_lower
             or "sentinel" in goal_lower
             or "marketing" in goal_lower
+            or "digest" in goal_lower
+            or "briefing" in goal_lower
+            or "verify-first" in goal_lower
             or "publish pack" in goal_lower
             or "publish" in goal_lower
         )

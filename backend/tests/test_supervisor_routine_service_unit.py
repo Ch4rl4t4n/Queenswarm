@@ -303,3 +303,47 @@ async def test_trigger_supervisor_routine_now_when_called_then_tracks_history(
     context_seed = dict(captured["context_seed"])  # type: ignore[index]
     assert "continuous_intelligence_report" in context_seed
     assert list(routine.context_payload.get("run_history") or [])
+
+
+@pytest.mark.asyncio
+async def test_trigger_supervisor_routine_now_when_digest_briefing_roles_then_hivemind_verify(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Four-lane / Life OS digests enable researcher→critic verify chain."""
+
+    routine = SimpleNamespace(
+        id="r6",
+        tenant_id=None,
+        goal_template="Four Lane · Najman marketing digest (CZ)",
+        runtime_mode="durable",
+        roles=["researcher", "critic"],
+        retrieval_contract="default_v2",
+        skills=["context"],
+        schedule_kind="cron",
+        interval_seconds=None,
+        cron_expr="0 9 * * 1,3,5",
+        context_payload={},
+        last_run_at=None,
+        next_run_at=None,
+        last_error=None,
+        status="scheduled",
+    )
+    captured: dict[str, object] = {}
+
+    async def _fake_create(*args, **kwargs):  # noqa: ANN002, ANN003
+        del args
+        captured.update(kwargs)
+        return SimpleNamespace(id="sess-digest")
+
+    async def _flush() -> None:
+        return None
+
+    db = SimpleNamespace(flush=_flush)
+    monkeypatch.setattr(
+        "app.application.services.supervisor.session_service.create_supervisor_session",
+        _fake_create,
+    )
+    session_id = await trigger_supervisor_routine_now(db, routine=routine)
+    assert str(session_id) == "sess-digest"
+    context_seed = dict(captured["context_seed"])  # type: ignore[index]
+    assert context_seed.get("hivemind_verify_before_ingest") is True

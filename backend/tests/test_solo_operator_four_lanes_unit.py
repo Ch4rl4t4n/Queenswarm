@@ -9,6 +9,7 @@ import pytest
 
 from app.application.services.solo_operator_four_lanes import (
     FOUR_LANE_PAYLOAD_KEY,
+    _ensure_lane_routine,
     ensure_four_lane_bootstrap,
     pause_legacy_routines,
     set_four_lane_active,
@@ -220,3 +221,31 @@ async def test_ensure_four_lane_bootstrap_when_called_then_returns_ok(
     )
     assert result["ok"] is True
     assert len(result["lanes"]) == 4
+
+
+@pytest.mark.asyncio
+async def test_ensure_lane_routine_when_existing_empty_roles_then_repairs() -> None:
+    """Legacy four-lane rows with empty roles must be repaired on bootstrap."""
+
+    db = AsyncMock()
+    tenant_id = uuid.uuid4()
+    broken = _routine(name="Four Lane · Najman marketing digest", lane="marketing_najman")
+    broken.roles = []
+    broken.skills = []
+    broken.runtime_mode = "inprocess"
+
+    async def _load(_db, *, tenant_id: uuid.UUID):  # noqa: ANN001, ARG001
+        return [broken]
+
+    db.flush = AsyncMock()
+    row, action = await _ensure_lane_routine(
+        db,
+        tenant_id=tenant_id,
+        lane_id="marketing_najman",
+        routines=[broken],
+        created_by_subject="test",
+    )
+    assert action == "updated"
+    assert row.roles == ["researcher", "critic"]
+    assert row.runtime_mode == "durable"
+    assert "marketing-campaign-playbook" in row.skills
