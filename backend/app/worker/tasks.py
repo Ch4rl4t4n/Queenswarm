@@ -345,8 +345,8 @@ def dynamic_agent_schedule_tick_task() -> dict[str, Any]:
 @celery_app.task(
     name="hive.supervisor_sub_agent_step",
     queue="hive",
-    soft_time_limit=600,
-    time_limit=720,
+    soft_time_limit=900,
+    time_limit=1080,
 )
 def run_supervisor_sub_agent_step_task(
     *,

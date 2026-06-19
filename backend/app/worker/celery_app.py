@@ -17,9 +17,9 @@ def create_celery_app() -> Celery:
 
     broker = settings.celery_broker_url or settings.redis_url
     backend = settings.celery_result_backend or settings.redis_url
-    # Durable supervisor / factory steps need ≥600s; do not cap below task decorators.
-    _global_soft_limit = max(int(settings.rapid_loop_timeout_sec * 3), 600)
-    _global_hard_limit = max(int(settings.rapid_loop_timeout_sec * 4), 720)
+    # Durable supervisor / factory steps need ≥900s for Brain Pack + tool loops.
+    _global_soft_limit = max(int(settings.rapid_loop_timeout_sec * 3), 900)
+    _global_hard_limit = max(int(settings.rapid_loop_timeout_sec * 4), 1080)
     celery = Celery(
         "queenswarm",
         broker=broker,
