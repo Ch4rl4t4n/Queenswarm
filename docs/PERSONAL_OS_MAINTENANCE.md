@@ -29,6 +29,7 @@ Apply preset: `./scripts/apply-solo-mode.sh` (merges `.env.solo.example` → `.e
 | **ST5+** | `./scripts/audit-personal-os-procedures-gate.sh` | Procedures registry |
 | **Readiness** | `./scripts/operator-solo-readiness-audit.sh` | Caps at partial until ST1 PASS; then checklist score |
 | **Weekly** | `./scripts/operator-personal-os-verify.sh` | Core gates block; adoption gates warn |
+| **ST7 signoff** | `./scripts/operator-personal-os-signoff.sh` | ST1–ST7 gates + OP5/IL human backlog snapshot |
 
 ## Automated gates (CI + weekly operator)
 

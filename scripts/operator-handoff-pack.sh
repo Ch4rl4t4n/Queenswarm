@@ -42,6 +42,9 @@ run_step "prod-walkthrough" env SKIP_E2E="$SKIP_E2E" ./scripts/prod-walkthrough-
 run_step "host-exposure" ./scripts/audit-host-exposure.sh
 run_step "hetzner-reply-draft" ./scripts/hetzner-abuse-reply.sh
 run_step "operator-pending-status" ./scripts/operator-pending-status.sh
+run_step "personal-os-truth-gate" ./scripts/audit-personal-os-truth-gate.sh
+run_step "personal-os-verify" ./scripts/operator-personal-os-verify.sh
+run_step "personal-os-signoff" ./scripts/operator-personal-os-signoff.sh
 run_step "publish-lane-status" ./scripts/operator-publish-lane-status.sh --json-only
 run_step "social-oauth-status" ./scripts/operator-social-oauth-status.sh
 

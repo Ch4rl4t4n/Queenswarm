@@ -114,6 +114,9 @@ Memory Manager · repo MEMORY.md · Jarvis Core module · n8n primary · Reddit 
 
 # Weekly ritual (core blocks, adoption warns)
 ./scripts/operator-personal-os-verify.sh
+
+# ST1–ST7 closure snapshot (gates + human backlog)
+./scripts/operator-personal-os-signoff.sh
 ```
 
 Maintenance cadence: [`docs/PERSONAL_OS_MAINTENANCE.md`](PERSONAL_OS_MAINTENANCE.md)
