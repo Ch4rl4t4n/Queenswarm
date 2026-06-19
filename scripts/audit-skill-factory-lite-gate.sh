@@ -38,16 +38,16 @@ else
   fail "tab filter missing"
 fi
 
-if grep -q 'PERSONAL_OS_HIDDEN_SKILL_FACTORY_TABS' frontend/lib/apps-tools-routes.ts; then
-  pass "launch tab hidden in personal os"
+if ! grep -q '"launch"' frontend/lib/apps-tools-routes.ts; then
+  pass "launch tab removed from Skill Factory"
 else
-  fail "PERSONAL_OS_HIDDEN_SKILL_FACTORY_TABS missing"
+  fail "launch tab still in routes"
 fi
 
-if grep -q 'commercialLaunchEnabled' frontend/components/apps-tools/skill-factory-page-client.tsx; then
-  pass "Skill Factory page commercial gate"
+if grep -q 'In-app agent skills' frontend/components/apps-tools/skill-factory-page-client.tsx; then
+  pass "Skill Factory in-app skills panel"
 else
-  fail "Skill Factory page gate missing"
+  fail "Skill Factory in-app panel missing"
 fi
 
 if [[ -x backend/venv/bin/python ]]; then

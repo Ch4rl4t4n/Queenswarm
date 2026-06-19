@@ -14,11 +14,6 @@ if str(ROOT) not in sys.path:
 
 from sqlalchemy import select
 
-from app.application.services.content_pack_factory_gumroad_listing import (
-    gumroad_listing_ready,
-    gumroad_publish_ready,
-    read_gumroad_listing_ref,
-)
 from app.application.services.content_pack_factory_service import compose_content_pack_factory_snapshot
 from app.core.config import settings
 from app.core.database import async_session
@@ -56,18 +51,11 @@ async def _run() -> int:
         ).all()
 
         by_status = Counter(str(row.status or "unknown") for row in opp_rows)
-        gumroad_draft_ready = await gumroad_listing_ready(session)
-        gumroad_live_ready = await gumroad_publish_ready(session)
 
         print("== Content Pack Factory cycle status ==")
         print(f"factory_enabled={settings.content_pack_factory_enabled}")
         print(f"opportunities_total={len(opp_rows)} by_status={dict(by_status)}")
         print(f"library_active={len(pack_rows)}")
-        print(
-            "export_flags:",
-            f"gumroad_draft={gumroad_draft_ready}",
-            f"gumroad_publish={gumroad_live_ready}",
-        )
 
         awaiting = [row for row in opp_rows if row.status == "awaiting_forge"]
         if awaiting:
@@ -84,12 +72,9 @@ async def _run() -> int:
         if pack_rows:
             print("\n-- Library export state --")
             for pack in pack_rows[:10]:
-                opp = next((o for o in opp_rows if o.tenant_content_pack_id == pack.id), None)
-                gumroad_ref = read_gumroad_listing_ref(opp)
                 print(
                     f"  {pack.slug}: github_exported={bool(pack.github_exported_at)} "
-                    f"gumroad_product={bool(gumroad_ref and gumroad_ref.get('product_id'))} "
-                    f"gumroad_live={bool(gumroad_ref and gumroad_ref.get('published'))}",
+                    f"verified={bool(pack.verified_at)}",
                 )
 
         print("\n-- Recommended next step --")
@@ -102,12 +87,8 @@ async def _run() -> int:
             print("Content Factory → Pack factory → Run research → Build top opportunity.")
         elif not any(pack.github_exported_at for pack in pack_rows):
             print("Library → Export bundle on best verified pack.")
-        elif gumroad_draft_ready and not gumroad_live_ready:
-            print("Library → Gumroad draft (enable SKILL_FACTORY_GUMROAD_PUBLISH_ENABLED for live).")
-        elif gumroad_live_ready:
-            print("Library → Gumroad publish, or research next vertical niche.")
         else:
-            print("Configure Gumroad env flags or manual upload from export bundle.")
+            print("Research next vertical niche or attach packs in your workflow.")
 
         return 0
 

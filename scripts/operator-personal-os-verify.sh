@@ -150,7 +150,6 @@ checks = {
   'solo_mode_enabled': settings.solo_mode_enabled,
   'personal_os_mode_enabled': settings.personal_os_mode_enabled,
   'routines_enabled': settings.routines_enabled,
-  'revenue_funnel_mission_home_enabled': settings.revenue_funnel_mission_home_enabled,
   'trading_cockpit_enabled': settings.trading_cockpit_enabled,
   'calendar_daily_planner_enabled': settings.calendar_daily_planner_enabled,
   'marketing_team_enabled': getattr(settings, 'marketing_team_enabled', False),

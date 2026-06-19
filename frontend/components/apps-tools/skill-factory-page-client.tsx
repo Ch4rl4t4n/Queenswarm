@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { DownloadIcon, GitBranchIcon, Loader2Icon, PlayIcon, RefreshCwIcon, RocketIcon, SparklesIcon, StoreIcon, XIcon } from "lucide-react";
+import { DownloadIcon, GitBranchIcon, Loader2Icon, PlayIcon, RefreshCwIcon, SparklesIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -23,12 +23,9 @@ import {
   FactoryQueueTaskCard,
   isStuckFactoryBuild,
 } from "@/components/apps-tools/factory-queue-task-card";
-import { HarnessEvalPanel } from "@/components/apps-tools/harness-eval-panel";
-import { HarnessProductLinesPanel } from "@/components/apps-tools/harness-product-lines-panel";
 import { AgentSessionReportDialog } from "@/components/hive/agent-session-report-dialog";
 import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { SkillFactoryManualPanel } from "@/components/apps-tools/skill-factory-manual-panel";
-import { SkillFactoryRevenueFunnelPanel } from "@/components/apps-tools/skill-factory-revenue-funnel-panel";
 import { HiveSwitch } from "@/components/ui/hive-switch";
 import { QsSelect } from "@/components/ui/qs-select";
 import { V4Badge, V4Card, V4CardHeader, V4Chip } from "@/components/ui/v4";
@@ -47,7 +44,7 @@ import { cn } from "@/lib/utils";
 import { useRouteHash } from "@/lib/hooks/use-route-hash";
 import { useRouteHashScroll } from "@/lib/hooks/use-route-hash-scroll";
 import { downloadSkillExportBundle, downloadTextFile } from "@/lib/skill-export-utils";
-import type { FactoryProductPreset, HarnessEvalResult, LaunchPrepareResult, SkillExportResponse } from "@/lib/hive-types";
+import type { FactoryProductPreset, HarnessEvalResult, SkillExportResponse } from "@/lib/hive-types";
 
 interface SkillFactoryPolicy {
   enabled: boolean;
@@ -98,7 +95,7 @@ const FALLBACK_STARTER_PRESETS: string[] = [
   "SEO content pipeline with simulate-first guardrails",
   "competitor monitoring skill for B2B founders",
   "newsletter growth loop with verified outcomes",
-  "Gumroad-ready AI workflow listing packs",
+  "verified agent workflow packs for in-app sessions",
   "lead research + outreach simulate-first",
   "social content calendar with brand guardrails",
 ];
@@ -111,9 +108,6 @@ interface TenantSkillRow {
   source: string;
   verified_at: string | null;
   github_exported_at: string | null;
-  gumroad_product_id: string | null;
-  gumroad_product_url: string | null;
-  gumroad_published: boolean | null;
   sellable_tier: string;
   sellable_score: number;
   sellable_issues: string[];
@@ -126,17 +120,6 @@ interface TenantSkillRow {
   library_verdict_reason: string | null;
   library_verdict_action: string | null;
   purge_eligible?: boolean;
-}
-
-interface LaunchReadiness {
-  sellable_count: number;
-  draft_count: number;
-  rejected_count: number;
-  gumroad_token_configured: boolean;
-  gumroad_manual_ready: boolean;
-  github_pat_configured: boolean;
-  hero_niches_confirmed: boolean;
-  exports_on_disk_hint: string;
 }
 
 interface SkillFactoryOpportunityCounts {
@@ -155,9 +138,6 @@ interface SkillFactorySnapshot {
   policy: SkillFactoryPolicy;
   opportunities: SkillOpportunityRow[];
   library: TenantSkillRow[];
-  launch_queue: TenantSkillRow[];
-  launch_near_miss: TenantSkillRow[];
-  launch_readiness: LaunchReadiness | null;
   queue_count: number;
   building_count: number;
   failed_count?: number;
@@ -169,9 +149,6 @@ interface SkillFactorySnapshot {
   apify_connector_ready: boolean;
   monid_connector_ready: boolean;
   github_pr_export_ready: boolean;
-  gumroad_listing_ready: boolean;
-  gumroad_publish_ready: boolean;
-  commercial_launch_enabled?: boolean;
   library_duplicates_hidden?: number;
   library_purge_eligible?: number;
   llm: FactoryLlmReadiness | null;
@@ -687,30 +664,6 @@ export function SkillFactoryPageClient(): JSX.Element {
     downloadTextFile(`${title.slice(0, 40).replace(/[^a-z0-9]+/gi, "-")}-EVAL_REPORT.md`, md);
   };
 
-  const prepareLaunchBatch = async (): Promise<void> => {
-    setBusyId("launch-prepare");
-    try {
-      const result = await hivePostJson<LaunchPrepareResult>("skill-factory/launch/prepare", { limit: 3 });
-      if (result.exported_count > 0) {
-        toast.success(`Prepared ${result.exported_count} launch pack(s).`, { description: result.message });
-        downloadTextFile("LAUNCH_CHECKLIST.md", result.checklist_md);
-        for (const row of result.exports) {
-          await exportSkill(row.skill_id);
-        }
-      } else {
-        toast.info(result.message, {
-          description: `${result.tier_counts.draft ?? 0} drafts · ${result.tier_counts.rejected ?? 0} rejected — approve quality forges only.`,
-        });
-        downloadTextFile("LAUNCH_CHECKLIST.md", result.checklist_md);
-      }
-      await load();
-    } catch (e) {
-      toast.error(e instanceof HiveApiError ? e.message : "Launch prepare failed.");
-    } finally {
-      setBusyId(null);
-    }
-  };
-
   const rejectForge = async (opportunityId: string, suggestionId: string): Promise<void> => {
     setBusyId(opportunityId);
     try {
@@ -900,42 +853,6 @@ export function SkillFactoryPageClient(): JSX.Element {
     }
   };
 
-  const createGumroadDraft = async (id: string): Promise<void> => {
-    setBusyId(id);
-    try {
-      const res = await hivePostJson<{ product_url: string | null; edit_url: string }>(
-        `skill-factory/skills/${id}/export/gumroad-draft`,
-        {},
-      );
-      toast.success("Gumroad draft created.", {
-        description: res.product_url ?? "Open Gumroad products to finish listing.",
-      });
-      await load();
-    } catch (e) {
-      toast.error(e instanceof HiveApiError ? e.message : "Gumroad draft failed.");
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const publishGumroadListing = async (id: string, createIfMissing: boolean): Promise<void> => {
-    setBusyId(id);
-    try {
-      const res = await hivePostJson<{ short_url: string; published: boolean }>(
-        `skill-factory/skills/${id}/export/gumroad-publish`,
-        { create_if_missing: createIfMissing },
-      );
-      toast.success("Gumroad listing published.", {
-        description: res.short_url || "Product is live on Gumroad.",
-      });
-      await load();
-    } catch (e) {
-      toast.error(e instanceof HiveApiError ? e.message : "Gumroad publish failed.");
-    } finally {
-      setBusyId(null);
-    }
-  };
-
   const savePolicy = async (): Promise<void> => {
     if (!policyDraft) return;
     setBusyId("policy");
@@ -952,7 +869,6 @@ export function SkillFactoryPageClient(): JSX.Element {
   };
 
   const buildBlocked = factoryBuildDisabled(snapshot?.llm);
-  const commercialLaunchEnabled = snapshot?.commercial_launch_enabled ?? !personalOsMode;
 
   return (
     <div className="space-y-4">
@@ -960,9 +876,7 @@ export function SkillFactoryPageClient(): JSX.Element {
         <div className="min-w-0">
           <p className="text-sm font-semibold text-(--qs-text)">Skill Factory</p>
           <p className="mt-0.5 text-xs text-(--qs-text-3)">
-            {commercialLaunchEnabled
-              ? "Research → build → export Verified Niche Harness packs (SKILL + HARNESS + EVAL + TOOLS). Sell on Gumroad — not in-app."
-              : "Research → build → verified tenant skills for in-app agent runs (Sessions skill picker)."}
+            Research → Queue → Library → attach verified skills in Sessions (optional export bundle or GitHub PR).
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -1002,18 +916,7 @@ export function SkillFactoryPageClient(): JSX.Element {
         <>
           {tab === "guide" ? (
             <div className="space-y-4">
-              {commercialLaunchEnabled ? (
-                <SkillFactoryRevenueFunnelPanel
-                  launchReadiness={snapshot.launch_readiness}
-                  libraryCount={(snapshot.library ?? []).length}
-                  buildingCount={snapshot.building_count}
-                  launchQueueCount={(snapshot.launch_queue ?? []).length}
-                  nearMiss={snapshot.launch_near_miss ?? []}
-                  onSmartRebuild={(id) => void smartRebuildSkill(id)}
-                  busyId={busyId}
-                />
-              ) : null}
-              <SkillFactoryManualPanel personalOsLite={!commercialLaunchEnabled} />
+              <SkillFactoryManualPanel personalOsLite />
             </div>
           ) : null}
 
@@ -1036,7 +939,7 @@ export function SkillFactoryPageClient(): JSX.Element {
                   <Link href="/settings/api-keys#research-keys" className="text-cyan underline">
                     Settings → API keys
                   </Link>{" "}
-                  for live Gumroad/GitHub market signals.
+                  for live GitHub and web market signals.
                 </p>
               ) : null}
               <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -1301,19 +1204,17 @@ export function SkillFactoryPageClient(): JSX.Element {
                   Open Queue →
                 </button>
               </div>
-              {!commercialLaunchEnabled ? (
-                <div className="mt-4 rounded-xl border border-success/25 bg-success/5 px-4 py-3 text-xs text-(--qs-text-2)">
-                  <p className="font-semibold text-(--qs-text)">In-app agent skills</p>
-                  <p className="mt-1">
-                    Verified library skills attach in{" "}
-                    <Link href="/agents#sessions" className="text-cyan underline">
-                      Sessions skill picker
-                    </Link>
-                    {" "}
-                    or Tasks — no external export lane in Personal OS.
-                  </p>
-                </div>
-              ) : null}
+              <div className="mt-4 rounded-xl border border-success/25 bg-success/5 px-4 py-3 text-xs text-(--qs-text-2)">
+                <p className="font-semibold text-(--qs-text)">In-app agent skills</p>
+                <p className="mt-1">
+                  Verified library skills attach in{" "}
+                  <Link href="/agents#sessions" className="text-cyan underline">
+                    Sessions skill picker
+                  </Link>
+                  {" "}
+                  or Tasks. Optional export bundle or GitHub PR when you want files off-platform.
+                </p>
+              </div>
               <div className="mt-4 px-1">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-(--qs-text-3)">
@@ -1355,8 +1256,6 @@ export function SkillFactoryPageClient(): JSX.Element {
                         row={row}
                         busyId={busyId}
                         githubPrReady={snapshot.github_pr_export_ready}
-                        gumroadListingReady={commercialLaunchEnabled && snapshot.gumroad_listing_ready}
-                        gumroadPublishReady={commercialLaunchEnabled && snapshot.gumroad_publish_ready}
                         inlineEval={inlineEvalBySkill[row.id] ?? null}
                         rebuildQueued={libraryRebuildQueued.has(row.id)}
                         onSmartRebuild={(id) => void smartRebuildSkill(id)}
@@ -1365,16 +1264,8 @@ export function SkillFactoryPageClient(): JSX.Element {
                         onRemove={(id, title) => void removeLibrarySkill(id, title)}
                         onEval={(id, title) => void evalSkill(id, title)}
                         onDownloadEvalReport={(id, title) => void downloadEvalReport(id, title)}
-                        onExport={commercialLaunchEnabled ? (id) => void exportSkill(id) : undefined}
+                        onExport={(id) => void exportSkill(id)}
                         onGithubPr={(id) => void pushGithubPr(id)}
-                        onGumroadDraft={
-                          commercialLaunchEnabled ? (id) => void createGumroadDraft(id) : undefined
-                        }
-                        onGumroadPublish={
-                          commercialLaunchEnabled
-                            ? (id) => void publishGumroadListing(id, !row.gumroad_product_id)
-                            : undefined
-                        }
                       />
                     ))
                   )}
@@ -1426,188 +1317,6 @@ export function SkillFactoryPageClient(): JSX.Element {
                 ) : null}
               </div>
             </V4Card>
-          ) : null}
-
-          {commercialLaunchEnabled && tab === "launch" ? (
-            <>
-            <SkillFactoryRevenueFunnelPanel
-              launchReadiness={snapshot.launch_readiness}
-              libraryCount={(snapshot.library ?? []).length}
-              buildingCount={snapshot.building_count}
-              launchQueueCount={(snapshot.launch_queue ?? []).length}
-              nearMiss={snapshot.launch_near_miss ?? []}
-              onSmartRebuild={(id) => void smartRebuildSkill(id)}
-              busyId={busyId}
-            />
-            <HarnessProductLinesPanel />
-            <HarnessEvalPanel llm={snapshot?.llm ?? null} />
-            <V4Card className="mt-4">
-              <V4CardHeader
-                title="Launch queue"
-                description="Hero products ready for Gumroad — manual upload works without API token or your own website."
-                hint={sectionHintNode("skillFactoryLaunch")}
-              />
-              {snapshot.launch_readiness ? (
-                <ul className="mt-3 space-y-2 text-xs text-(--qs-text-3)">
-                  <li className="flex flex-wrap items-center gap-2">
-                    <V4Badge tone={snapshot.launch_readiness.sellable_count >= 3 ? "ok" : "info"}>
-                      {snapshot.launch_readiness.sellable_count} sellable
-                    </V4Badge>
-                    <span>{snapshot.launch_readiness.draft_count} drafts · {snapshot.launch_readiness.rejected_count} rejected</span>
-                  </li>
-                  <li>
-                    Gumroad token (optional API drafts):{" "}
-                    {snapshot.launch_readiness.gumroad_token_configured ? (
-                      <span className="text-success">configured</span>
-                    ) : (
-                      <span>
-                        not set —{" "}
-                        <Link href="/apps-tools/skill-factory#guide" className="text-cyan underline">
-                          Guide tab + GUMROAD_SETUP_SK.md
-                        </Link>
-                      </span>
-                    )}
-                  </li>
-                  <li>
-                    GitHub PAT (optional teaser repos):{" "}
-                    {snapshot.launch_readiness.github_pat_configured ? (
-                      <span className="text-success">ready</span>
-                    ) : (
-                      <span className="text-(--qs-text-4)">optional — connect in Integrations</span>
-                    )}
-                  </li>
-                  <li>
-                    Hero niches (Settings seeds):{" "}
-                    {snapshot.launch_readiness.hero_niches_confirmed ? (
-                      <span className="text-success">3+ configured</span>
-                    ) : (
-                      <button
-                        type="button"
-                        className="text-cyan underline"
-                        onClick={() => navigateSkillFactoryTab("settings")}
-                      >
-                        add niche seeds
-                      </button>
-                    )}
-                  </li>
-                  <li className="font-mono text-[10px] text-(--qs-text-4)">
-                    Server bundles: {snapshot.launch_readiness.exports_on_disk_hint}
-                  </li>
-                </ul>
-              ) : null}
-              <div className="mt-4 flex flex-wrap gap-2 px-4 pb-4">
-                <button
-                  type="button"
-                  className="qs-btn qs-btn--primary qs-btn--sm gap-1"
-                  disabled={busyId === "launch-prepare"}
-                  onClick={() => void prepareLaunchBatch()}
-                >
-                  {busyId === "launch-prepare" ? (
-                    <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
-                  ) : (
-                    <RocketIcon className="size-3.5" aria-hidden />
-                  )}
-                  Prepare launch batch
-                </button>
-              </div>
-              <ul className="mt-2 space-y-2">
-                {(snapshot.launch_queue ?? []).map((row) => (
-                  <li key={row.id} className="rounded-xl border border-success/30 bg-success/5 px-3 py-3 text-sm">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <p className="font-medium">{row.title}</p>
-                        <p className="mt-1 font-mono text-[10px] text-pollen">{row.slug} · harness pack</p>
-                        {row.sellable_issues.length > 0 ? (
-                          <p className="mt-1 text-[10px] text-(--qs-text-4)">
-                            Notes: {row.sellable_issues.join(", ")}
-                          </p>
-                        ) : null}
-                      </div>
-                      <V4Badge tone="ok">launch · {scorePct(row.sellable_score)}</V4Badge>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        className="qs-btn qs-btn--primary qs-btn--sm gap-1"
-                        disabled={busyId === row.id}
-                        onClick={() => void exportSkill(row.id)}
-                      >
-                        <DownloadIcon className="size-3.5" aria-hidden />
-                        Harness pack
-                      </button>
-                      {snapshot.gumroad_listing_ready ? (
-                        <button
-                          type="button"
-                          className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
-                          disabled={busyId === row.id}
-                          onClick={() => void createGumroadDraft(row.id)}
-                        >
-                          <StoreIcon className="size-3.5" aria-hidden />
-                          API draft
-                        </button>
-                      ) : (
-                        <a
-                          href="https://gumroad.com/products/new"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="qs-btn qs-btn--ghost qs-btn--sm gap-1"
-                        >
-                          <StoreIcon className="size-3.5" aria-hidden />
-                          Manual Gumroad upload
-                        </a>
-                      )}
-                    </div>
-                  </li>
-                ))}
-                {(snapshot.launch_queue ?? []).length === 0 ? (
-                  <div className="space-y-3 text-xs text-(--qs-text-4)">
-                    <p>
-                      No sellable skills yet — most factory drafts need critic APPROVE + valid SKILL.md.
-                      {snapshot.building_count > 0 ? (
-                        <span className="text-cyan"> {snapshot.building_count} builds in progress…</span>
-                      ) : null}
-                    </p>
-                    {(snapshot.launch_near_miss ?? []).length > 0 ? (
-                      <div>
-                        <p className="font-medium text-(--qs-text-3)">Closest to launch (draft tier)</p>
-                        <ul className="mt-2 space-y-2">
-                          {(snapshot.launch_near_miss ?? []).map((row) => (
-                            <li key={row.id} className="rounded-lg border border-(--qs-border-2) px-3 py-2">
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <span className="font-medium text-(--qs-text-2)">{row.title}</span>
-                                <V4Badge tone="info">{scorePct(row.sellable_score)}</V4Badge>
-                              </div>
-                              {row.sellable_issues.length > 0 ? (
-                                <p className="mt-1 text-[10px] text-(--qs-text-4)">
-                                  fix: {row.sellable_issues.slice(0, 2).join(", ")}
-                                </p>
-                              ) : null}
-                              <button
-                                type="button"
-                                className="mt-2 qs-btn qs-btn--primary qs-btn--sm gap-1"
-                                disabled={busyId === row.id}
-                                onClick={() => void smartRebuildSkill(row.id)}
-                              >
-                                <RefreshCwIcon className="size-3.5" aria-hidden />
-                                Smart rebuild
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                        <button
-                          type="button"
-                          className="mt-2 text-cyan underline"
-                          onClick={() => navigateSkillFactoryTab("library")}
-                        >
-                          Open Library → rebuild or approve forge
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-              </ul>
-            </V4Card>
-            </>
           ) : null}
 
           {tab === "settings" && policyDraft ? (

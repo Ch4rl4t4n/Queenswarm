@@ -57,10 +57,6 @@ class TenantContentPackOut(BaseModel):
     source: str
     verified_at: datetime | None
     github_exported_at: datetime | None
-    gumroad_exported_at: datetime | None
-    gumroad_product_id: str | None = None
-    gumroad_product_url: str | None = None
-    gumroad_published: bool | None = None
     is_active: bool
     snippet_count: int = 0
 
@@ -100,8 +96,6 @@ class ContentPackFactorySnapshotOut(BaseModel):
     building_count: int
     research_keys_configured: bool = False
     export_ready: bool = True
-    gumroad_listing_ready: bool = False
-    gumroad_publish_ready: bool = False
     llm: FactoryLlmReadinessOut | None = None
 
 
@@ -162,10 +156,9 @@ async def save_content_pack_factory_policy(
     return policy
 
 
-def _tenant_pack_out(row: TenantContentPackORM, *, gumroad_ref: dict[str, Any] | None = None) -> TenantContentPackOut:
+def _tenant_pack_out(row: TenantContentPackORM) -> TenantContentPackOut:
     payload = dict(row.pack_payload or {})
     snippets = payload.get("snippets") or []
-    ref = gumroad_ref or {}
     return TenantContentPackOut(
         id=str(row.id),
         slug=row.slug,
@@ -177,10 +170,6 @@ def _tenant_pack_out(row: TenantContentPackORM, *, gumroad_ref: dict[str, Any] |
         source=row.source,
         verified_at=row.verified_at,
         github_exported_at=row.github_exported_at,
-        gumroad_exported_at=row.gumroad_exported_at,
-        gumroad_product_id=str(ref.get("product_id") or "") or None,
-        gumroad_product_url=str(ref.get("product_url") or "") or None,
-        gumroad_published=bool(ref.get("published")) if ref.get("product_id") else None,
         is_active=row.is_active,
         snippet_count=len(snippets) if isinstance(snippets, list) else 0,
     )
@@ -452,26 +441,9 @@ async def compose_content_pack_factory_snapshot(
     research_keys = await resolve_research_keys(session)
     research_configured = bool(research_keys.get("tavily") or research_keys.get("serper"))
 
-    from app.application.services.content_pack_factory_gumroad_listing import (
-        gumroad_listing_ready,
-        gumroad_publish_ready,
-        read_gumroad_listing_ref,
-    )
-
-    gumroad_ready = await gumroad_listing_ready(session)
-    gumroad_publish = await gumroad_publish_ready(session)
-
     from app.application.services.factory_llm_readiness_service import resolve_factory_llm_readiness
 
     llm_status = await resolve_factory_llm_readiness(session, tenant_id=tenant_id)
-
-    gumroad_by_pack: dict[uuid.UUID, dict[str, Any]] = {}
-    for opp in opportunities:
-        if opp.tenant_content_pack_id is None:
-            continue
-        ref = read_gumroad_listing_ref(opp)
-        if ref is not None:
-            gumroad_by_pack[opp.tenant_content_pack_id] = ref
 
     return ContentPackFactorySnapshotOut(
         policy=policy,
@@ -487,13 +459,11 @@ async def compose_content_pack_factory_snapshot(
             )
             for row in opportunities
         ],
-        library=[_tenant_pack_out(row, gumroad_ref=gumroad_by_pack.get(row.id)) for row in library],
+        library=[_tenant_pack_out(row) for row in library],
         queue_count=queue_count,
         building_count=building_count,
         research_keys_configured=research_configured,
         export_ready=settings.content_pack_factory_enabled,
-        gumroad_listing_ready=gumroad_ready,
-        gumroad_publish_ready=gumroad_publish,
         llm=llm_status,
     )
 

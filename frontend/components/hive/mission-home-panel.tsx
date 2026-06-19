@@ -8,9 +8,6 @@ import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-s
 import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { ProcessRail, type ProcessStep, type ProcessStepId } from "@/components/hive/process-rail";
-import { CatalogWaveWidget } from "@/components/hive/catalog-wave-widget";
-import { FactoryLaunchWidget } from "@/components/hive/factory-launch-widget";
-import { RevenueFunnelStrip } from "@/components/hive/revenue-funnel-strip";
 import { RapidLoopWidget } from "@/components/hive/rapid-loop-widget";
 import { SubSwarmFleetWidget } from "@/components/hive/sub-swarm-fleet-widget";
 import { usePlatform } from "@/components/hive/platform-context";
@@ -327,9 +324,6 @@ interface MissionHomeSnapshot {
   links: Record<string, string>;
   rapid_loop_widget_enabled?: boolean;
   sub_swarm_fleet_widget_enabled?: boolean;
-  factory_launch_widget_enabled?: boolean;
-  catalog_wave_widget_enabled?: boolean;
-  revenue_funnel_widget_enabled?: boolean;
 }
 
 function MissionHomePanelInner(): JSX.Element | null {
@@ -628,23 +622,6 @@ function MissionHomePanelInner(): JSX.Element | null {
         </div>
       ) : null}
 
-      {snapshot.revenue_funnel_widget_enabled && !personalOsMode ? (
-        <div className="md:max-lg:col-span-2" data-testid="mission-home-revenue-funnel">
-          <RevenueFunnelStrip eager />
-        </div>
-      ) : null}
-
-      {snapshot.factory_launch_widget_enabled && !personalOsMode ? (
-        <div className="md:max-lg:col-span-2" data-testid="mission-home-factory-launch">
-          <FactoryLaunchWidget eager />
-        </div>
-      ) : null}
-
-      {snapshot.catalog_wave_widget_enabled && !personalOsMode ? (
-        <div className="md:max-lg:col-span-2" data-testid="mission-home-catalog-wave">
-          <CatalogWaveWidget eager />
-        </div>
-      ) : null}
 
       {snapshot.step_studios && snapshot.step_studios.length > 0 ? (
         <div className="flex flex-wrap gap-2 max-lg:px-0">

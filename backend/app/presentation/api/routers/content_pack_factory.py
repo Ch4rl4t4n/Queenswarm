@@ -169,7 +169,7 @@ async def content_pack_factory_dismiss(
     return {"id": str(row.id), "status": row.status}
 
 
-@router.post("/packs/{pack_id}/export", summary="Export Gumroad bundle")
+@router.post("/packs/{pack_id}/export", summary="Export content pack bundle")
 async def content_pack_factory_export(
     pack_id: uuid.UUID,
     db: DbSession,
@@ -188,74 +188,6 @@ async def content_pack_factory_export(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     await db.commit()
     return bundle
-
-
-class GumroadPublishBody(BaseModel):
-    """Optional Gumroad publish overrides."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    product_id: str | None = None
-    create_if_missing: bool = False
-
-
-@router.post("/packs/{pack_id}/export/gumroad-draft", summary="Create Gumroad draft listing")
-async def content_pack_factory_export_gumroad_draft(
-    pack_id: uuid.UUID,
-    db: DbSession,
-    principal: dict = Depends(require_dashboard_user_with_tenant_role),
-) -> dict:
-    """Create a Gumroad draft product from content pack LISTING.md."""
-
-    _ensure_enabled()
-    from app.application.services.content_pack_factory_gumroad_listing import create_gumroad_draft_from_content_pack
-
-    result = await create_gumroad_draft_from_content_pack(
-        db,
-        tenant_id=_tenant_id(principal),
-        pack_id=pack_id,
-    )
-    if not result.get("ok"):
-        detail = str(result.get("error") or "gumroad_draft_failed")
-        status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-        if detail == "pack_not_found":
-            status_code = status.HTTP_404_NOT_FOUND
-        elif detail in {"gumroad_listing_disabled", "gumroad_not_configured"}:
-            status_code = status.HTTP_404_NOT_FOUND
-        raise HTTPException(status_code=status_code, detail=detail)
-    await db.commit()
-    return result
-
-
-@router.post("/packs/{pack_id}/export/gumroad-publish", summary="Publish Gumroad listing")
-async def content_pack_factory_export_gumroad_publish(
-    pack_id: uuid.UUID,
-    body: GumroadPublishBody,
-    db: DbSession,
-    principal: dict = Depends(require_dashboard_user_with_tenant_role),
-) -> dict:
-    """Enable (publish) a Gumroad product linked to this content pack."""
-
-    _ensure_enabled()
-    from app.application.services.content_pack_factory_gumroad_listing import publish_gumroad_listing_for_content_pack
-
-    result = await publish_gumroad_listing_for_content_pack(
-        db,
-        tenant_id=_tenant_id(principal),
-        pack_id=pack_id,
-        product_id=body.product_id,
-        create_if_missing=body.create_if_missing,
-    )
-    if not result.get("ok"):
-        detail = str(result.get("error") or "gumroad_publish_failed")
-        status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-        if detail == "pack_not_found":
-            status_code = status.HTTP_404_NOT_FOUND
-        elif detail in {"gumroad_publish_disabled", "gumroad_not_configured", "gumroad_product_id_missing"}:
-            status_code = status.HTTP_404_NOT_FOUND
-        raise HTTPException(status_code=status_code, detail=detail)
-    await db.commit()
-    return result
 
 
 @router.get("/vertical-seeds", summary="Monetization vertical niche catalog")

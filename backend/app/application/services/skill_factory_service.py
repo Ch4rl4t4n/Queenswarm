@@ -72,9 +72,6 @@ class TenantSkillOut(BaseModel):
     recipe_id: str | None
     verified_at: datetime | None
     github_exported_at: datetime | None
-    gumroad_product_id: str | None = None
-    gumroad_product_url: str | None = None
-    gumroad_published: bool | None = None
     sellable_tier: str = "draft"
     sellable_score: float = 0.0
     sellable_issues: list[str] = Field(default_factory=list)
@@ -91,18 +88,15 @@ class TenantSkillOut(BaseModel):
 
 
 class LaunchReadinessOut(BaseModel):
-    """Operator checklist for first Gumroad / GitHub launch."""
+    """Operator checklist for verified in-app skills."""
 
     model_config = ConfigDict(extra="ignore")
 
     sellable_count: int = 0
     draft_count: int = 0
     rejected_count: int = 0
-    gumroad_token_configured: bool = False
-    gumroad_manual_ready: bool = True
     github_pat_configured: bool = False
     hero_niches_confirmed: bool = False
-    exports_on_disk_hint: str = "exports/gumroad-upload/*.tar.gz"
 
 
 class SkillOpportunityOut(BaseModel):
@@ -171,9 +165,7 @@ class SkillFactorySnapshotOut(BaseModel):
     apify_connector_ready: bool = False
     monid_connector_ready: bool = False
     github_pr_export_ready: bool = False
-    gumroad_listing_ready: bool = False
-    gumroad_publish_ready: bool = False
-    commercial_launch_enabled: bool = True
+    commercial_launch_enabled: bool = False
     launch_readiness: LaunchReadinessOut | None = None
     launch_queue: list[TenantSkillOut] = Field(default_factory=list)
     launch_near_miss: list[TenantSkillOut] = Field(default_factory=list)
@@ -245,21 +237,9 @@ async def save_skill_factory_policy(
     return policy
 
 
-def _gumroad_ref_from_opportunity(row: SkillOpportunityORM | None) -> dict[str, Any] | None:
-    """Read persisted Gumroad listing ref from opportunity source_refs."""
-
-    if row is None:
-        return None
-    for item in list(row.source_refs or []):
-        if isinstance(item, dict) and str(item.get("kind") or "") == "gumroad_listing":
-            return item
-    return None
-
-
 def _tenant_skill_out(
     row: TenantSkillORM,
     *,
-    gumroad_ref: dict[str, Any] | None = None,
     sellable: Any | None = None,
     disposition: Any | None = None,
     sieve: Any | None = None,
@@ -269,7 +249,6 @@ def _tenant_skill_out(
     from app.application.services.skill_factory_library_purge import is_library_purge_eligible
 
     assessment: SkillSellableAssessment = sellable or assess_tenant_skill_sellable(row)
-    ref = gumroad_ref or {}
     disp = disposition
     sieve_out = sieve
     purge_eligible = False
@@ -292,9 +271,6 @@ def _tenant_skill_out(
         recipe_id=str(row.recipe_id) if row.recipe_id else None,
         verified_at=row.verified_at,
         github_exported_at=row.github_exported_at,
-        gumroad_product_id=str(ref.get("product_id") or "") or None,
-        gumroad_product_url=str(ref.get("product_url") or "") or None,
-        gumroad_published=bool(ref.get("published")) if ref.get("product_id") else None,
         sellable_tier=assessment.tier,
         sellable_score=assessment.score,
         sellable_issues=list(assessment.issues),
@@ -906,25 +882,9 @@ async def compose_skill_factory_snapshot(
 
     github_ready = await github_pr_export_ready(session)
 
-    from app.application.services.skill_factory_gumroad_listing import gumroad_listing_ready
-
-    gumroad_ready = await gumroad_listing_ready(session)
-
-    from app.application.services.skill_factory_gumroad_listing import gumroad_publish_ready
-
-    gumroad_publish = await gumroad_publish_ready(session)
-
     from app.application.services.factory_llm_readiness_service import resolve_factory_llm_readiness
 
     llm_status = await resolve_factory_llm_readiness(session, tenant_id=tenant_id)
-
-    gumroad_by_skill: dict[uuid.UUID, dict[str, Any]] = {}
-    for opp in opportunities:
-        if opp.tenant_skill_id is None:
-            continue
-        ref = _gumroad_ref_from_opportunity(opp)
-        if ref is not None:
-            gumroad_by_skill[opp.tenant_skill_id] = ref
 
     from app.application.services.skill_factory_sellable import assess_tenant_skill_sellable, launch_queue_sort_key
 
@@ -965,7 +925,6 @@ async def compose_skill_factory_snapshot(
         )
         skill_out = _tenant_skill_out(
             row,
-            gumroad_ref=gumroad_by_skill.get(row.id),
             sellable=assessment,
             disposition=disposition,
             sieve=sieve,
@@ -1018,15 +977,11 @@ async def compose_skill_factory_snapshot(
         )
 
     from app.application.services.factory_queue_slo import compose_factory_queue_slo
-    from app.application.services.personal_os_mode import personal_os_skill_factory_commercial_enabled
 
-    commercial_launch = personal_os_skill_factory_commercial_enabled()
     launch_readiness_out = LaunchReadinessOut(
         sellable_count=sellable_count,
         draft_count=draft_count,
         rejected_count=rejected_count,
-        gumroad_token_configured=gumroad_ready,
-        gumroad_manual_ready=True,
         github_pat_configured=github_ready,
         hero_niches_confirmed=hero_niches,
     )
@@ -1046,12 +1001,10 @@ async def compose_skill_factory_snapshot(
         apify_connector_ready=apify_ready,
         monid_connector_ready=monid_ready,
         github_pr_export_ready=github_ready,
-        gumroad_listing_ready=gumroad_ready if commercial_launch else False,
-        gumroad_publish_ready=gumroad_publish if commercial_launch else False,
-        commercial_launch_enabled=commercial_launch,
-        launch_readiness=launch_readiness_out if commercial_launch else None,
-        launch_queue=launch_queue if commercial_launch else [],
-        launch_near_miss=launch_near_miss if commercial_launch else [],
+        commercial_launch_enabled=False,
+        launch_readiness=launch_readiness_out,
+        launch_queue=launch_queue,
+        launch_near_miss=launch_near_miss,
         library_duplicates_hidden=library_duplicates_hidden,
         library_purge_eligible=library_purge_eligible,
         llm=llm_status,

@@ -17,10 +17,10 @@ else
   fail "factory not hidden in personal OS nav"
 fi
 
-if grep -q 'personal_os_mission_home_revenue_widgets_enabled' backend/app/application/services/mission_home_service.py; then
-  pass "backend revenue widget strip"
+if ! grep -q 'factory_launch_widget_enabled' backend/app/application/services/mission_home_service.py; then
+  pass "backend revenue widget flags removed"
 else
-  fail "backend revenue widget strip missing"
+  fail "backend still exposes revenue widget flags"
 fi
 
 if grep -q 'personalOsMode' frontend/components/hive/factory-page-client.tsx \
@@ -30,10 +30,10 @@ else
   fail "factory Personal OS redirect missing"
 fi
 
-if grep -q '!personalOsMode' frontend/components/hive/mission-home-panel.tsx; then
-  pass "mission home commercial widgets gated by personalOsMode"
+if ! grep -q 'FactoryLaunchWidget\|RevenueFunnelStrip\|CatalogWaveWidget' frontend/components/hive/mission-home-panel.tsx; then
+  pass "mission home revenue widgets removed from UI"
 else
-  fail "mission home personalOsMode commercial gate missing"
+  fail "mission home still imports commercial widgets"
 fi
 
 if grep -q 'personal_os_mode_enabled' backend/app/presentation/api/v1.py; then

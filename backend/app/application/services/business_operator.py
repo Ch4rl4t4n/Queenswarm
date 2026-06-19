@@ -490,26 +490,17 @@ async def compose_business_operator_snapshot(
     from app.application.services.business_goal_stack import compose_business_goal_stack
     from app.application.services.harness_project_profiles import compose_harness_profiles_state
 
-    from app.application.services.factory_catalog_wave import build_factory_catalog_wave
-
     catalog_payload = build_catalog(export_root)
-    wave_payload = build_factory_catalog_wave(export_root)
-    gumroad_linked = sum(1 for product in catalog_payload.products if product.gumroad_url)
     catalog = BusinessCatalogSummaryOut(
         product_count=catalog_payload.product_count,
         featured_count=sum(1 for product in catalog_payload.products if product.featured),
-        gumroad_linked_count=max(gumroad_linked, _count_gumroad_uploads(_resolve_export_root(export_root))),
+        gumroad_linked_count=sum(1 for product in catalog_payload.products if product.gumroad_url),
     )
     catalog_wave = BusinessCatalogWaveSummaryOut(
-        current_wave=wave_payload.current_wave,
-        target_next=wave_payload.target_next,
-        mk6_target=wave_payload.mk6_target,
-        scorecard_clean_count=wave_payload.scorecard_clean_count,
-        catalog_deduped_count=wave_payload.catalog_deduped_count,
-        gap_to_next_wave=wave_payload.gap_to_next_wave,
-        gap_to_mk6=wave_payload.gap_to_mk6,
-        seed_pending_count=wave_payload.seed_pending_count,
-        next_operator_action=wave_payload.next_operator_action,
+        current_wave="archived",
+        gap_to_mk6=0,
+        gap_to_next_wave=0,
+        next_operator_action="Use Skill Factory library — Gumroad catalog wave removed from Personal OS.",
     )
     revenue = compose_revenue_summary(export_root)
     factory_queue_count = 0

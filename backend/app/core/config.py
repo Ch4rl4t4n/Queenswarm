@@ -1758,18 +1758,6 @@ class Settings(BaseSettings):
         le=999_999,
         description="Display price for Enterprise tier in billing UI (EUR cents).",
     )
-    gumroad_webhook_secret: str = Field(
-        default="",
-        description="Path secret for POST /commerce/webhooks/gumroad/{secret} Gumroad ping ingress.",
-    )
-    gumroad_purchase_unlock_enabled: bool = Field(
-        default=True,
-        description="When true, Gumroad sale ping unlocks premium recipe export for matching dashboard email.",
-    )
-    gumroad_post_purchase_onboarding_enabled: bool = Field(
-        default=True,
-        description="Send REV1 post-purchase onboarding email + simulate proof JSON on Gumroad sale ping.",
-    )
     marketing_public_origin: str = Field(
         default="https://letagentscook.org",
         description="Public marketing site origin for buyer onboarding links (REV1).",
@@ -2140,26 +2128,6 @@ class Settings(BaseSettings):
     sub_swarm_fleet_mission_home_enabled: bool = Field(
         default=True,
         description="FP3 — Mount sub-swarm fleet widget on Mission Home.",
-    )
-    factory_launch_mission_home_enabled: bool = Field(
-        default=True,
-        description="REV4 — Factory Launch widget on Mission Home (Gumroad sellable funnel).",
-    )
-    factory_launch_purchase_smoke_enabled: bool = Field(
-        default=True,
-        description="REV10 — Operator simulate Gumroad purchase from Mission Home.",
-    )
-    catalog_wave_mission_home_enabled: bool = Field(
-        default=True,
-        description="MK9 — MK6 catalog wave progress widget on Mission Home.",
-    )
-    revenue_funnel_mission_home_enabled: bool = Field(
-        default=True,
-        description="MK10 — Unified revenue funnel strip on Mission Home (MK6 + Gumroad launch).",
-    )
-    catalog_wave_seed_batch_enabled: bool = Field(
-        default=True,
-        description="MK11 — One-click Skill Factory seed batch from pending MK6 vertical seeds.",
     )
     mission_kanban_recipe_match_enabled: bool = Field(
         default=True,
@@ -2707,26 +2675,6 @@ class Settings(BaseSettings):
     skill_factory_github_base_branch: str = Field(
         default="main",
         description="Base branch for Skill Factory export PRs.",
-    )
-    skill_factory_gumroad_listing_enabled: bool = Field(
-        default=False,
-        description="Allow Skill Factory Library → Gumroad draft product API.",
-    )
-    skill_factory_gumroad_access_token: str = Field(
-        default="",
-        description="Gumroad OAuth access token fallback when gumroad_rest connector is not installed.",
-    )
-    skill_factory_gumroad_attach_bundle_enabled: bool = Field(
-        default=True,
-        description="Upload GitHub pack ZIP as Gumroad deliverable after draft create.",
-    )
-    skill_factory_gumroad_cover_from_preview_enabled: bool = Field(
-        default=True,
-        description="Attach listing video_preview_url as Gumroad cover when present.",
-    )
-    skill_factory_gumroad_publish_enabled: bool = Field(
-        default=False,
-        description="Allow Library → Gumroad publish (PUT /products/:id/enable).",
     )
     content_pack_factory_enabled: bool = Field(
         default=True,

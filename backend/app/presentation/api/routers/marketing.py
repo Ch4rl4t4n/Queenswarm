@@ -25,7 +25,6 @@ from app.application.services.marketing_product_catalog import (
     build_catalog,
     find_product,
 )
-from app.application.services.factory_catalog_wave import FactoryCatalogWaveOut, build_factory_catalog_wave
 from app.application.services.public_trading_transparency import (
     PublicTradingTransparencyOut,
     build_public_trading_transparency,
@@ -59,17 +58,6 @@ async def list_marketing_products() -> MarketingCatalogOut:
     """Return deduped gumroad-ready catalog for letagentscook.org."""
 
     return build_catalog()
-
-
-@public_router.get(
-    "/catalog-wave",
-    response_model=FactoryCatalogWaveOut,
-    summary="MK6 factory catalog wave progress (public)",
-)
-async def marketing_catalog_wave() -> FactoryCatalogWaveOut:
-    """Return scorecard-clean progress toward 50+ listings."""
-
-    return build_factory_catalog_wave()
 
 
 @public_router.get(

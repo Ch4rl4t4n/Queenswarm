@@ -21,9 +21,11 @@ grep -q "apply_personal_os_overrides" backend/app/application/services/platform_
   || fail "platform_features must apply personal os overrides"
 pass "platform_features wiring"
 
-grep -q "personal_os_mission_home_revenue_widgets_enabled" backend/app/application/services/mission_home_service.py \
-  || fail "mission_home must strip revenue widgets in personal os"
-pass "mission home revenue strip"
+grep -q "FactoryLaunchWidget\|RevenueFunnelStrip\|CatalogWaveWidget" frontend/components/hive/mission-home-panel.tsx \
+  && fail "mission_home must not import revenue widgets" || true
+grep -q "factory_launch_widget_enabled" backend/app/application/services/mission_home_service.py \
+  && fail "mission_home must not expose revenue widget flags" || true
+pass "mission home revenue widgets removed"
 
 grep -q "personal_os_mode" backend/app/presentation/api/routers/dashboard_session.py \
   || fail "auth/me must expose personal_os_mode"

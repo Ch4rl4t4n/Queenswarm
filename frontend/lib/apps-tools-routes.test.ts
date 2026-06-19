@@ -9,9 +9,6 @@ import {
   mcpOpsStudioTabHref,
   resolveContentPackFactoryTab,
   resolveMcpOpsStudioTab,
-  filterSkillFactoryTabsForPersonalOs,
-  PERSONAL_OS_HIDDEN_SKILL_FACTORY_TABS,
-  SKILL_FACTORY_TABS,
   resolveSkillFactoryTab,
   skillFactoryTabFromHash,
   skillFactoryTabHref,
@@ -39,17 +36,8 @@ describe("apps-tools-routes", () => {
     expect(skillFactoryTabFromHash("")).toBeNull();
     expect(resolveSkillFactoryTab({ hash: "#library" })).toBe("library");
     expect(resolveSkillFactoryTab({ hash: "" })).toBe("research");
-    expect(resolveSkillFactoryTab({ hash: "#launch", personalOsMode: true })).toBe("research");
-    expect(resolveSkillFactoryTab({ hash: "#launch", personalOsMode: false })).toBe("launch");
     expect(resolveSkillFactoryTab({ hash: "#skill-factory-library" })).toBe("library");
     expect(skillFactoryTabHref("settings")).toBe("/apps-tools/skill-factory#settings");
-  });
-
-  it("filters launch tab in personal os mode", () => {
-    const filtered = filterSkillFactoryTabsForPersonalOs(SKILL_FACTORY_TABS, true);
-    expect(filtered.map((row) => row.id)).not.toContain("launch");
-    expect(PERSONAL_OS_HIDDEN_SKILL_FACTORY_TABS.has("launch")).toBe(true);
-    expect(filterSkillFactoryTabsForPersonalOs(SKILL_FACTORY_TABS, false)).toHaveLength(SKILL_FACTORY_TABS.length);
   });
 
   it("resolves content pack factory tabs from hash", () => {

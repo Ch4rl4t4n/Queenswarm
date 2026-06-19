@@ -16,9 +16,6 @@ cd backend
   tests/test_skill_factory_listing_unit.py \
   tests/test_skill_factory_listing_preview_unit.py \
   tests/test_skill_factory_github_export_unit.py \
-  tests/test_skill_factory_gumroad_listing_unit.py \
-  tests/test_skill_factory_gumroad_publish_unit.py \
-  tests/test_skill_factory_gumroad_assets_unit.py \
   tests/test_skill_market_intel_external_unit.py \
   tests/test_skill_market_intel_monid_unit.py \
   -q --no-cov

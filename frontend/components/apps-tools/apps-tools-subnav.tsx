@@ -49,7 +49,7 @@ export function AppsToolsSubnav(): JSX.Element | null {
         id: "skill_factory",
         label: "Skill Factory",
         icon: Sparkles,
-        href: skillFactoryTabHref(personalOsMode ? "research" : "launch"),
+        href: skillFactoryTabHref("research"),
       });
       if (!personalOsMode) {
         rows.push({
@@ -106,7 +106,7 @@ export function AppsToolsSubnav(): JSX.Element | null {
   const onPrimaryChange = useCallback(
     (id: string) => {
       if (id === "skill_factory") {
-        router.push(skillFactoryTabHref(personalOsMode ? "research" : "launch"));
+        router.push(skillFactoryTabHref("research"));
         return;
       }
       if (id === "content_factory") {

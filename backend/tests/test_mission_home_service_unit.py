@@ -172,9 +172,6 @@ async def test_compose_mission_home_setup_step() -> None:
         mock_settings.solo_mode_enabled = True
         mock_settings.operator_loop_enabled = True
         mock_settings.rapid_loop_mission_home_enabled = True
-        mock_settings.revenue_funnel_mission_home_enabled = False
-        mock_settings.factory_launch_mission_home_enabled = False
-        mock_settings.catalog_wave_mission_home_enabled = False
         mock_settings.sub_swarm_fleet_mission_home_enabled = False
         mock_settings.forager_goldmine_dispatch_enabled = False
         mock_settings.closed_loop_presets_enabled = False

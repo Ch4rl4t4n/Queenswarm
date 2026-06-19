@@ -26,14 +26,6 @@ def test_library_out_includes_snippet_count() -> None:
     assert "snippet_count" in TenantContentPackOut.model_fields
 
 
-def test_library_out_includes_gumroad_fields() -> None:
-    fields = set(TenantContentPackOut.model_fields.keys())
-    assert "gumroad_product_id" in fields
-    assert "gumroad_published" in fields
-
-
-def test_snapshot_includes_gumroad_ready_flags() -> None:
+def test_snapshot_includes_llm_readiness() -> None:
     fields = set(ContentPackFactorySnapshotOut.model_fields.keys())
-    assert "gumroad_listing_ready" in fields
-    assert "gumroad_publish_ready" in fields
     assert "llm" in fields

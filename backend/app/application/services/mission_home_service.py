@@ -391,9 +391,6 @@ class MissionHomeSnapshotOut(BaseModel):
     links: dict[str, str] = Field(default_factory=dict)
     rapid_loop_widget_enabled: bool = False
     sub_swarm_fleet_widget_enabled: bool = False
-    factory_launch_widget_enabled: bool = False
-    catalog_wave_widget_enabled: bool = False
-    revenue_funnel_widget_enabled: bool = False
 
 
 PROCESS_STEPS: list[ProcessStepOut] = [
@@ -1265,9 +1262,6 @@ async def compose_mission_home_snapshot(
             process_steps=PROCESS_STEPS,
             rapid_loop_widget_enabled=False,
             sub_swarm_fleet_widget_enabled=False,
-            factory_launch_widget_enabled=False,
-            catalog_wave_widget_enabled=False,
-            revenue_funnel_widget_enabled=False,
         )
 
     first_run = await compose_solo_first_run(
@@ -1350,31 +1344,6 @@ async def compose_mission_home_snapshot(
                     detail=item.detail,
                     href=item.href,
                     priority=item.priority,
-                ),
-            )
-
-    from app.application.services.personal_os_mode import personal_os_mission_home_revenue_widgets_enabled
-
-    revenue_widgets = personal_os_mission_home_revenue_widgets_enabled()
-    if settings.revenue_funnel_mission_home_enabled and revenue_widgets:
-        from app.application.services.revenue_funnel_widget_service import (
-            compose_revenue_funnel_widget_snapshot,
-        )
-
-        funnel = await compose_revenue_funnel_widget_snapshot(session, tenant_id=tenant_id)
-        if funnel.enabled and not funnel.funnel_complete and funnel.primary_action is not None:
-            action = funnel.primary_action
-            href = action.href or funnel.launch_href
-            if action.post_path:
-                href = "/tasks#revenue-funnel"
-            next_actions.insert(
-                0,
-                MissionActionOut(
-                    id=f"funnel_{action.id}",
-                    title=action.label,
-                    detail=funnel.operator_hint[:240],
-                    href=href,
-                    priority=action.priority,
                 ),
             )
 
@@ -1550,15 +1519,6 @@ async def compose_mission_home_snapshot(
         },
         rapid_loop_widget_enabled=settings.rapid_loop_mission_home_enabled,
         sub_swarm_fleet_widget_enabled=settings.sub_swarm_fleet_mission_home_enabled,
-        factory_launch_widget_enabled=(
-            settings.factory_launch_mission_home_enabled and revenue_widgets
-        ),
-        catalog_wave_widget_enabled=(
-            settings.catalog_wave_mission_home_enabled and revenue_widgets
-        ),
-        revenue_funnel_widget_enabled=(
-            settings.revenue_funnel_mission_home_enabled and revenue_widgets
-        ),
     )
 
 

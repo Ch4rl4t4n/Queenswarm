@@ -19,7 +19,6 @@ from app.application.services.factory_product_presets import (
 )
 from app.application.services.skill_factory_research import auto_queue_factory_builds, run_skill_market_research
 from app.application.services.harness_eval_service import HarnessEvalResultOut
-from app.application.services.skill_factory_launch import LaunchPrepareOut, prepare_launch_batch
 from app.application.services.skill_factory_service import (
     SkillFactoryPolicyOut,
     SkillFactorySnapshotOut,
@@ -440,106 +439,6 @@ async def skill_factory_export_github_pr(
         elif detail in {"github_pr_disabled", "github_target_not_configured"}:
             status_code = status.HTTP_404_NOT_FOUND
         raise HTTPException(status_code=status_code, detail=detail)
-    await db.commit()
-    return result
-
-
-@router.post("/skills/{skill_id}/export/gumroad-draft", summary="Create Gumroad draft listing")
-async def skill_factory_export_gumroad_draft(
-    skill_id: uuid.UUID,
-    db: DbSession,
-    principal: dict = Depends(require_dashboard_user_with_tenant_role),
-) -> dict:
-    """Create a Gumroad draft product from LISTING.md (operator finishes in Gumroad UI)."""
-
-    _ensure_enabled()
-    from app.application.services.personal_os_router_archive import require_commercial_api
-
-    require_commercial_api()
-    from app.application.services.skill_factory_gumroad_listing import create_gumroad_draft_from_skill
-
-    result = await create_gumroad_draft_from_skill(
-        db,
-        tenant_id=_tenant_id(principal),
-        skill_id=skill_id,
-    )
-    if not result.get("ok"):
-        detail = str(result.get("error") or "gumroad_draft_failed")
-        status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-        if detail == "skill_not_found":
-            status_code = status.HTTP_404_NOT_FOUND
-        elif detail in {"gumroad_listing_disabled", "gumroad_not_configured"}:
-            status_code = status.HTTP_404_NOT_FOUND
-        raise HTTPException(status_code=status_code, detail=detail)
-    await db.commit()
-    return result
-
-
-class GumroadPublishBody(BaseModel):
-    """Optional Gumroad publish overrides."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    product_id: str | None = None
-    create_if_missing: bool = False
-
-
-@router.post("/skills/{skill_id}/export/gumroad-publish", summary="Publish Gumroad listing")
-async def skill_factory_export_gumroad_publish(
-    skill_id: uuid.UUID,
-    body: GumroadPublishBody,
-    db: DbSession,
-    principal: dict = Depends(require_dashboard_user_with_tenant_role),
-) -> dict:
-    """Enable (publish) a Gumroad product linked to this skill."""
-
-    _ensure_enabled()
-    from app.application.services.personal_os_router_archive import require_commercial_api
-
-    require_commercial_api()
-    from app.application.services.skill_factory_gumroad_listing import publish_gumroad_listing_for_skill
-
-    result = await publish_gumroad_listing_for_skill(
-        db,
-        tenant_id=_tenant_id(principal),
-        skill_id=skill_id,
-        product_id=body.product_id,
-        create_if_missing=body.create_if_missing,
-    )
-    if not result.get("ok"):
-        detail = str(result.get("error") or "gumroad_publish_failed")
-        status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-        if detail == "skill_not_found":
-            status_code = status.HTTP_404_NOT_FOUND
-        elif detail in {"gumroad_publish_disabled", "gumroad_not_configured", "gumroad_product_id_missing"}:
-            status_code = status.HTTP_404_NOT_FOUND
-        raise HTTPException(status_code=status_code, detail=detail)
-    await db.commit()
-    return result
-
-
-class LaunchPrepareBody(BaseModel):
-    """Launch batch preparation options."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    limit: int = Field(default=3, ge=1, le=12)
-
-
-@router.post("/launch/prepare", response_model=LaunchPrepareOut, summary="Prepare Gumroad launch batch")
-async def skill_factory_launch_prepare(
-    body: LaunchPrepareBody,
-    db: DbSession,
-    principal: dict = Depends(require_dashboard_user_with_tenant_role),
-) -> LaunchPrepareOut:
-    """Export sellable skills server-side and return operator checklist."""
-
-    _ensure_enabled()
-    result = await prepare_launch_batch(
-        db,
-        tenant_id=_tenant_id(principal),
-        limit=body.limit,
-    )
     await db.commit()
     return result
 

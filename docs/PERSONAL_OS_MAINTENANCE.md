@@ -70,7 +70,7 @@ for k in keys: print(k, getattr(settings, k))
 Expected Personal OS prod:
 
 - `personal_os_mode_enabled=True`
-- `revenue_funnel_*` / `catalog_wave_*` / `factory_launch_mission_home_*` → `False`
+- `revenue_funnel_*` / `catalog_wave_*` / `factory_launch_mission_home_*` → removed (Gumroad purge 2026-06)
 - `routines_enabled=True` (Phase E — enable Four Lanes cron)
 - `trading_cockpit_enabled=False`
 

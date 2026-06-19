@@ -2,7 +2,7 @@
 
 export type AppsToolsPrimarySection = "module_index" | "skill_factory" | "content_factory" | "mcp_ops_studio";
 
-export type SkillFactoryTab = "research" | "queue" | "library" | "launch" | "settings" | "guide";
+export type SkillFactoryTab = "research" | "queue" | "library" | "settings" | "guide";
 
 export type ContentPackFactoryTab = "research" | "queue" | "library" | "settings" | "guide";
 
@@ -20,22 +20,15 @@ export const SKILL_FACTORY_TABS: { id: SkillFactoryTab; label: string }[] = [
   { id: "research", label: "Research" },
   { id: "queue", label: "Queue" },
   { id: "library", label: "Library" },
-  { id: "launch", label: "Launch" },
   { id: "settings", label: "Settings" },
   { id: "guide", label: "Guide" },
 ];
 
-/** Gumroad/commercial tabs hidden in Personal OS Skill Factory lite. */
-export const PERSONAL_OS_HIDDEN_SKILL_FACTORY_TABS = new Set<SkillFactoryTab>(["launch"]);
-
 export function filterSkillFactoryTabsForPersonalOs(
   tabs: readonly { id: SkillFactoryTab; label: string }[],
-  personalOsMode: boolean,
+  _personalOsMode: boolean,
 ): { id: SkillFactoryTab; label: string }[] {
-  if (!personalOsMode) {
-    return [...tabs];
-  }
-  return tabs.filter((row) => !PERSONAL_OS_HIDDEN_SKILL_FACTORY_TABS.has(row.id));
+  return [...tabs];
 }
 
 export const CONTENT_PACK_FACTORY_TABS: { id: ContentPackFactoryTab; label: string }[] = [
@@ -106,9 +99,6 @@ export function resolveSkillFactoryTab(options: {
   }
   const fromHash = skillFactoryTabFromHash(options.hash ?? "");
   if (fromHash) {
-    if (options.personalOsMode && PERSONAL_OS_HIDDEN_SKILL_FACTORY_TABS.has(fromHash)) {
-      return "research";
-    }
     return fromHash;
   }
   return options.fallback ?? "research";

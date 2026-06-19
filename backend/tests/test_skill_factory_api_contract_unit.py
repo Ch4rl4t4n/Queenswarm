@@ -40,8 +40,6 @@ def test_snapshot_out_includes_connector_flags() -> None:
         "apify_connector_ready",
         "monid_connector_ready",
         "github_pr_export_ready",
-        "gumroad_listing_ready",
-        "gumroad_publish_ready",
         "launch_readiness",
         "launch_queue",
         "launch_near_miss",
@@ -58,11 +56,3 @@ def test_opportunity_out_includes_forge_quality_fields() -> None:
     fields = set(SkillOpportunityOut.model_fields.keys())
     assert {"forge_quality_passed", "forge_critic_approved", "forge_issues"} <= fields
     assert {"progress_phase", "progress_label", "progress_detail"} <= fields
-
-
-def test_launch_prepare_out_in_snapshot_contract_fields() -> None:
-    """Launch prepare API uses LaunchPrepareOut — not embedded in snapshot."""
-
-    from app.application.services.skill_factory_launch import LaunchPrepareOut
-
-    assert "exports" in LaunchPrepareOut.model_fields

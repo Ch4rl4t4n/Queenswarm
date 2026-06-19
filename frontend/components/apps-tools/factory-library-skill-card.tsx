@@ -4,13 +4,10 @@ import {
   ArchiveIcon,
   BanIcon,
   DownloadIcon,
-  ExternalLinkIcon,
   GitBranchIcon,
   Loader2Icon,
   RefreshCwIcon,
-  RocketIcon,
   SparklesIcon,
-  StoreIcon,
   Trash2Icon,
 } from "lucide-react";
 
@@ -36,9 +33,6 @@ export interface FactoryLibrarySkillRow {
   sellable_score: number;
   sellable_issues: string[];
   github_exported_at: string | null;
-  gumroad_product_id: string | null;
-  gumroad_product_url: string | null;
-  gumroad_published: boolean | null;
   factory_disposition: string | null;
   factory_attempt_count: number;
   factory_disposition_note: string | null;
@@ -86,8 +80,6 @@ interface FactoryLibrarySkillCardProps {
   row: FactoryLibrarySkillRow;
   busyId: string | null;
   githubPrReady: boolean;
-  gumroadListingReady: boolean;
-  gumroadPublishReady: boolean;
   onSmartRebuild: (id: string) => void;
   onDeprioritize: (id: string) => void;
   onRetire: (id: string) => void;
@@ -95,8 +87,6 @@ interface FactoryLibrarySkillCardProps {
   onEval: (id: string, title: string) => void;
   onExport?: (id: string) => void;
   onGithubPr?: (id: string) => void;
-  onGumroadDraft?: (id: string) => void;
-  onGumroadPublish?: (id: string) => void;
   inlineEval?: InlineEvalResult | null;
   rebuildQueued?: boolean;
   onDownloadEvalReport?: (id: string, title: string) => void;
@@ -106,8 +96,6 @@ export function FactoryLibrarySkillCard({
   row,
   busyId,
   githubPrReady,
-  gumroadListingReady,
-  gumroadPublishReady,
   onSmartRebuild,
   onDeprioritize,
   onRetire,
@@ -115,8 +103,6 @@ export function FactoryLibrarySkillCard({
   onEval,
   onExport,
   onGithubPr,
-  onGumroadDraft,
-  onGumroadPublish,
   inlineEval,
   rebuildQueued,
   onDownloadEvalReport,
@@ -170,7 +156,7 @@ export function FactoryLibrarySkillCard({
           {row.title}
         </p>
         <p className="mt-1 line-clamp-2 text-xs text-(--qs-text-3)">
-          {progressDetail || "Tenant harness skill from Skill Factory — export when sellable."}
+          {progressDetail || "Tenant harness skill from Skill Factory — attach in Sessions when verified."}
         </p>
         <p className="mt-1 font-(family-name:--font-jetbrains-mono) text-[10px] text-pollen">{row.slug}</p>
 
@@ -191,17 +177,6 @@ export function FactoryLibrarySkillCard({
                   </V4Badge>
                 ))}
               </div>
-            </div>
-          ) : null}
-
-          {row.gumroad_product_id ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-(--qs-text-3)">
-                Launch channel
-              </p>
-              <V4Badge tone={row.gumroad_published ? "ok" : "gold"}>
-                {row.gumroad_published ? "gumroad live" : "gumroad draft"}
-              </V4Badge>
             </div>
           ) : null}
 
@@ -288,42 +263,6 @@ export function FactoryLibrarySkillCard({
             <GitBranchIcon className="h-3.5 w-3.5" aria-hidden />
             PR
           </button>
-        ) : null}
-
-        {gumroadListingReady && onGumroadDraft ? (
-          <button
-            type="button"
-            className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
-            disabled={busy}
-            onClick={() => onGumroadDraft(row.id)}
-          >
-            <StoreIcon className="h-3.5 w-3.5" aria-hidden />
-            Gumroad
-          </button>
-        ) : null}
-
-        {gumroadPublishReady && onGumroadPublish && row.gumroad_product_id ? (
-          <button
-            type="button"
-            className="qs-btn qs-btn--green qs-btn--sm gap-1.5"
-            disabled={busy || row.gumroad_published === true}
-            onClick={() => onGumroadPublish(row.id)}
-          >
-            <RocketIcon className="h-3.5 w-3.5" aria-hidden />
-            Publish
-          </button>
-        ) : null}
-
-        {row.gumroad_product_url ? (
-          <a
-            href={row.gumroad_product_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
-          >
-            <ExternalLinkIcon className="h-3.5 w-3.5" aria-hidden />
-            Open
-          </a>
         ) : null}
 
         {canSmartRebuild ? (

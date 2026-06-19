@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { DownloadIcon, Loader2Icon, PlayIcon, SparklesIcon, SquareIcon, StoreIcon, XIcon } from "lucide-react";
+import { DownloadIcon, Loader2Icon, PlayIcon, SparklesIcon, SquareIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -54,9 +53,6 @@ interface TenantContentPackRow {
   source: string;
   verified_at: string | null;
   github_exported_at: string | null;
-  gumroad_product_id: string | null;
-  gumroad_product_url: string | null;
-  gumroad_published: boolean | null;
   snippet_count: number;
 }
 
@@ -68,8 +64,6 @@ interface ContentPackFactorySnapshot {
   building_count: number;
   research_keys_configured: boolean;
   export_ready: boolean;
-  gumroad_listing_ready: boolean;
-  gumroad_publish_ready: boolean;
   llm: FactoryLlmReadiness | null;
 }
 
@@ -224,38 +218,6 @@ export function ContentPackFactoryPanel({
       await loadSnapshot();
     } catch (err) {
       toast.error(err instanceof HiveApiError ? err.message : "Export failed");
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const createGumroadDraft = async (packId: string) => {
-    setBusyId(packId);
-    try {
-      const res = await hivePostJson<{ product_url: string | null }>(
-        `/content-pack-factory/packs/${packId}/export/gumroad-draft`,
-        {},
-      );
-      toast.success("Gumroad draft created.", { description: res.product_url ?? "Finish in Gumroad UI." });
-      await loadSnapshot();
-    } catch (err) {
-      toast.error(err instanceof HiveApiError ? err.message : "Gumroad draft failed");
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const publishGumroadListing = async (packId: string, createIfMissing: boolean) => {
-    setBusyId(packId);
-    try {
-      const res = await hivePostJson<{ short_url: string; published: boolean }>(
-        `/content-pack-factory/packs/${packId}/export/gumroad-publish`,
-        { create_if_missing: createIfMissing },
-      );
-      toast.success("Gumroad listing published.", { description: res.short_url || "Product is live." });
-      await loadSnapshot();
-    } catch (err) {
-      toast.error(err instanceof HiveApiError ? err.message : "Gumroad publish failed");
     } finally {
       setBusyId(null);
     }
@@ -450,7 +412,7 @@ export function ContentPackFactoryPanel({
         <V4Card>
           <V4CardHeader
             title="Library"
-            description="Verified packs — export bundles for Gumroad."
+            description="Verified packs — download export bundles when you need files off-platform."
             hint={sectionHintNode("contentPackFactoryLibrary")}
           />
           <div className="space-y-2 px-4 pb-4">
@@ -482,32 +444,6 @@ export function ContentPackFactoryPanel({
                     )}
                     Export
                   </button>
-                  {snapshot?.gumroad_listing_ready ? (
-                    <button
-                      type="button"
-                      className="qs-btn qs-btn--ghost qs-btn--sm"
-                      disabled={busyId === pack.id}
-                      onClick={() => void createGumroadDraft(pack.id)}
-                    >
-                      <StoreIcon className="size-3.5" />
-                      Gumroad draft
-                    </button>
-                  ) : null}
-                  {snapshot?.gumroad_publish_ready ? (
-                    <button
-                      type="button"
-                      className="qs-btn qs-btn--ghost qs-btn--sm"
-                      disabled={busyId === pack.id || pack.gumroad_published === true}
-                      onClick={() => void publishGumroadListing(pack.id, !pack.gumroad_product_id)}
-                    >
-                      {pack.gumroad_published ? "Published" : "Gumroad publish"}
-                    </button>
-                  ) : null}
-                  {pack.gumroad_product_url ? (
-                    <Link href={pack.gumroad_product_url} className="qs-btn qs-btn--ghost qs-btn--sm" target="_blank" rel="noopener noreferrer">
-                      Open Gumroad
-                    </Link>
-                  ) : null}
                 </div>
               </div>
             ))

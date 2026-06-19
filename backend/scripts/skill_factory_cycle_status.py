@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Skill Factory operator cycle status — research → build → approve → export readiness."""
+"""Skill Factory operator cycle status — research → build → approve → library readiness."""
 
 from __future__ import annotations
 
@@ -9,10 +9,6 @@ from collections import Counter
 
 from sqlalchemy import select
 
-from app.application.services.skill_factory_gumroad_listing import (
-    gumroad_listing_ready,
-    gumroad_publish_ready,
-)
 from app.application.services.skill_factory_github_export import github_pr_export_ready
 from app.core.config import settings
 from app.core.database import async_session
@@ -35,19 +31,12 @@ async def _run() -> int:
 
         by_status = Counter(str(row.status or "unknown") for row in opp_rows)
         github_ready = await github_pr_export_ready(session)
-        gumroad_draft_ready = await gumroad_listing_ready(session)
-        gumroad_live_ready = await gumroad_publish_ready(session)
 
         print("== Skill Factory cycle status ==")
         print(f"factory_enabled={settings.skill_factory_enabled}")
         print(f"opportunities_total={len(opp_rows)} by_status={dict(by_status)}")
         print(f"library_active={len(skill_rows)}")
-        print(
-            "export_flags:",
-            f"github_pr={github_ready}",
-            f"gumroad_draft={gumroad_draft_ready}",
-            f"gumroad_publish={gumroad_live_ready}",
-        )
+        print("export_flags:", f"github_pr={github_ready}")
 
         from app.application.services.skill_factory_service import _forge_quality_by_skill_id
         from app.application.services.skill_factory_sellable import assess_tenant_skill_sellable
@@ -79,47 +68,9 @@ async def _run() -> int:
 
         pending_approve = [row for row in opp_rows if row.status == "completed" and not row.tenant_skill_id]
         if pending_approve:
-            print(f"\n-- Queue: {len(pending_approve)} completed awaiting approve --")
-            for row in pending_approve[:5]:
-                print(f"  {row.niche!r} score={row.composite_score:.2f} id={row.id}")
+            print(f"pending_approve={len(pending_approve)} (completed builds awaiting library approve)")
 
-        if skill_rows:
-            print("\n-- Library export state --")
-            for skill in skill_rows[:10]:
-                opp = next((o for o in opp_rows if o.tenant_skill_id == skill.id), None)
-                gumroad_ref = next(
-                    (ref for ref in (opp.source_refs or []) if ref.get("kind") == "gumroad_listing"),
-                    None,
-                ) if opp else None
-                print(
-                    f"  {skill.slug}: github_exported={bool(skill.github_exported_at)} "
-                    f"gumroad_product={bool(gumroad_ref and gumroad_ref.get('product_id'))} "
-                    f"gumroad_live={bool(gumroad_ref and gumroad_ref.get('published'))}",
-                )
-
-        print("\n-- Recommended next step --")
-        if pending_approve:
-            print("Approve completed build in Skill Factory → Queue tab.")
-        elif not skill_rows:
-            print("Run Research → Build on top opportunity, then Approve skill.")
-        elif recommended == 0:
-            print(
-                "Launch queue empty — rebuild hero niches (critic APPROVE + valid SKILL.md). "
-                "Run: ./scripts/prepare-launch-batch.sh"
-            )
-        elif not any(skill.github_exported_at for skill in skill_rows):
-            print("Library → Download GitHub pack or Push GitHub PR on best skill.")
-        elif gumroad_draft_ready and not gumroad_live_ready:
-            print("Library → Gumroad draft (set SKILL_FACTORY_GUMROAD_PUBLISH_ENABLED for live publish).")
-        elif gumroad_live_ready:
-            print("Library → Gumroad publish on exported skill, or start next niche build.")
-        else:
-            print(
-                "Run ./scripts/prepare-launch-batch.sh then manual Gumroad upload "
-                "(docs/operators/GUMROAD_SETUP_SK.md)."
-            )
-
-        return 0
+    return 0
 
 
 def main() -> None:
