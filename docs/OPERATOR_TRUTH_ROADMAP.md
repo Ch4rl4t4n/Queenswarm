@@ -58,23 +58,23 @@ Setup guides: [`JARVIS_PERSONAL_ADVISOR_SETUP.md`](JARVIS_PERSONAL_ADVISOR_SETUP
 
 **Merges:** OP2 · OP3 · LN2
 
-**Exit:** `./scripts/audit-personal-os-st2-gate.sh` → **PASS**
+**Exit:** `./scripts/audit-personal-os-st2-gate.sh` → **PASS** (2026-06-19)
 
 ---
 
-### ST3 — Proof sprint ⏳ P0
+### ST3 — Proof sprint ✅ P0
 
 **Merges:** OP4
 
-**Exit:** `./scripts/operator-tech-scv-proof.sh` · `./scripts/audit-jarvis-intelligence-gate.sh`
+**Exit:** `./scripts/audit-personal-os-st3-gate.sh` · `./scripts/operator-tech-scv-seed.sh`
 
 ---
 
-### ST4 — Config adoption ⏳ P1 (operator)
+### ST4 — Config adoption ✅ P1 (operator)
 
 **Merges:** CE ops · JAR ops · JA2 · OP5/OP6
 
-**Exit:** `./scripts/operator-community-engagement-provision.sh` · curated MISSION filled
+**Exit:** `./scripts/operator-st4-adoption.sh` · `./scripts/audit-personal-os-st4-gate.sh` → **PASS**
 
 ---
 
@@ -101,7 +101,9 @@ Setup guides: [`JARVIS_PERSONAL_ADVISOR_SETUP.md`](JARVIS_PERSONAL_ADVISOR_SETUP
 
 **Merges:** HN4+JA6 · LN3+LN5 · CE7+CE8
 
-Mission Home `strategic_today_strip` + `afk_running_strip` (backend API).
+Mission Home `strategic_today_strip` + `afk_running_strip` (backend API + frontend wiring).
+
+**Exit:** `./scripts/audit-personal-os-truth-gate.sh` → **PASS** (2026-06-19)
 
 ---
 
@@ -109,7 +111,7 @@ Mission Home `strategic_today_strip` + `afk_running_strip` (backend API).
 
 **Merges:** HN5 · JA5 · MM9 · MM10
 
-`personal_os_eval_metrics_service` · `procedures/coach-compound.md`
+`personal_os_eval_metrics_service` · `procedures/coach-compound.md` · unit coverage gates.
 
 ---
 

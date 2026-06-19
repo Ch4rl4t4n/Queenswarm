@@ -21,5 +21,5 @@ if [[ "${PENDING:-0}" -ge "$MIN_PENDING" ]]; then
   echo "TECH_SCV_PROOF: PASS (pending_proposals=$PENDING)"
   exit 0
 fi
-echo "TECH_SCV_PROOF: WARN (pending_proposals=$PENDING) — run Tech SCV lane + brainstorm"
-exit 0
+echo "TECH_SCV_PROOF: FAIL (pending_proposals=$PENDING, min=$MIN_PENDING) — run seed_tech_scv_innovation_drafts.py"
+exit 1

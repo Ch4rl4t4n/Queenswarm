@@ -34,6 +34,8 @@ run_gate() {
 echo "--- L2 Discipline (ST1) ---"
 run_gate "audit-personal-os-discipline-gate.sh"
 run_gate "audit-personal-os-st2-gate.sh"
+run_gate "audit-personal-os-st3-gate.sh"
+run_gate "audit-personal-os-st4-gate.sh"
 
 if [[ "$TIER" == "core" ]]; then
   echo ""
