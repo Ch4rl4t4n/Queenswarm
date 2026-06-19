@@ -115,11 +115,21 @@ Mission Home `strategic_today_strip` + `afk_running_strip` (backend API + fronte
 
 ---
 
-### ST8 — Optional ⏸ P3
+### ST8 — Optional ops ✅ P3 (operator opt-in)
 
-CE6 Reddit live · JA7 voice · OP7 Slack · OP8 GitHub · OP9 automation · HN6 learn-from-source · Track M local LLM
+**Merges:** CE6 · JA7 · OP7 · OP8 · OP9 · HN6 · Track M
 
-**Rule:** Each requires ST1–ST7 green + explicit operator approval.
+| Item | Deliverable | Prep / gate |
+|------|-------------|-------------|
+| HN6 | `/learn-from-source` procedure + API | `procedures/learn-from-source.md` · `POST /solo-operator/learn-from-source` |
+| CE6 | Reddit live cap policy (default off) | `reddit_live_enabled` · `reddit_live_post_allowed()` |
+| JA7 | Voice stack (Grok live + STT/TTS) | `./scripts/operator-voice-prep.sh` |
+| OP7 | Slack Alertmanager | `./scripts/operator-slack-alertmanager-prep.sh` |
+| OP8 | GitHub webhook + Maintainer | `./scripts/operator-github-webhook-prep.sh` |
+| OP9 | Automation lane manual trigger | `POST /four-lanes/automation/trigger` |
+| Track M | Local sovereign LLM LOC5–14 | `./scripts/audit-local-sovereign-gate.sh` |
+
+**Exit:** `./scripts/operator-st8-adoption.sh` · `./scripts/audit-personal-os-st8-gate.sh` → **PASS**
 
 **Remaining operator habit (not code):** OP5 — review promoted marketing/eshop digest tasks on `/tasks`.
 
@@ -179,9 +189,9 @@ CE6 Reddit live · JA7 voice · OP7 Slack · OP8 GitHub · OP9 automation · HN6
 
 1. **ST1** → 2. **ST2** → 3. **ST3** → 4. **ST4** → 5. **ST5** → 6. **ST6** → 7. **ST7** → 8. **ST8**
 
-**Status (2026-06-19):** ST1–ST7 ✅ shipped · prod deploy green · `OPERATOR TRUTH (full): PASS` · **ST8** ⏸ optional.
+**Status (2026-06-19):** ST1–ST8 ✅ shipped · prod deploy green · `OPERATOR TRUTH (full): PASS`.
 
-After **ST3**: entire L1 platform is **trustworthy + proven**. ST4–ST7 = comfort & speed. ST8 = explicit opt-in only.
+After **ST3**: entire L1 platform is **trustworthy + proven**. ST4–ST7 = comfort & speed. ST8 = optional ops wired with explicit adoption scripts.
 
 ---
 

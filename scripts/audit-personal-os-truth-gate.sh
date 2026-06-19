@@ -49,7 +49,8 @@ if [[ "$TIER" == "core" ]]; then
 fi
 
 echo ""
-echo "--- L1 Core platform ---"
+echo "--- L4 Optional (ST8) ---"
+run_gate "audit-personal-os-st8-gate.sh"
 for gate in \
   audit-personal-os-gate.sh \
   audit-autopilot-gate.sh \

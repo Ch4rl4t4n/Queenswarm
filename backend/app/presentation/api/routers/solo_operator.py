@@ -941,6 +941,37 @@ async def solo_video_url_batch_submit(
     return result.model_dump(mode="json")
 
 
+@router.post("/learn-from-source", summary="HN6 Verified URL/video → digest task + wiki")
+async def solo_learn_from_source(
+    body: dict[str, Any],
+    db: DbSession,
+    principal: dict[str, Any] = Depends(require_dashboard_user_with_tenant_role),
+) -> dict[str, Any]:
+    """Single-URL learn-from-source (ST8) — delegates to NP8 batch wizard."""
+
+    from app.application.services.learn_from_source_service import (
+        LearnFromSourceIn,
+        submit_learn_from_source,
+    )
+
+    tenant_id = principal.get("tenant_id")
+    user = principal.get("user")
+    if tenant_id is None or user is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant context missing.")
+    try:
+        payload = LearnFromSourceIn.model_validate(body)
+        result = await submit_learn_from_source(
+            db,
+            tenant_id=tenant_id,
+            dashboard_user_id=user.id,
+            body=payload,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    await db.commit()
+    return result.model_dump(mode="json")
+
+
 @router.get("/campaign-launch-wizard", summary="NP6 Campaign launch wizard snapshot")
 async def solo_campaign_launch_wizard_snapshot(
     db: DbSession,

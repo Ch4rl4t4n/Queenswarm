@@ -71,6 +71,7 @@ for gate in \
   audit-personal-os-st2-gate.sh \
   audit-personal-os-st3-gate.sh \
   audit-personal-os-st4-gate.sh \
+  audit-personal-os-st8-gate.sh \
   audit-personal-os-truth-gate.sh; do
   if [[ -x "${ROOT}/scripts/${gate}" ]]; then
     if "${ROOT}/scripts/${gate}" >/tmp/personal-os-core-$$.log 2>&1; then

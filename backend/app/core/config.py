@@ -2009,6 +2009,20 @@ class Settings(BaseSettings):
         le=8000,
         description="NP8 — max excerpt chars per URL in batch digest.",
     )
+    learn_from_source_enabled: bool = Field(
+        default=True,
+        description="HN6/ST8 — single-URL learn-from-source procedure (NP8 delegate).",
+    )
+    reddit_live_enabled: bool = Field(
+        default=False,
+        description="CE6/ST8 — Reddit live outbound posts (opt-in; default simulate-only).",
+    )
+    reddit_live_max_posts_per_day: int = Field(
+        default=0,
+        ge=0,
+        le=10,
+        description="CE6 — daily cap for live Reddit posts (0 = simulate-only).",
+    )
     loop_guardrails_enabled: bool = Field(
         default=True,
         description="LOOP2 — Closed-loop guardrails (max turns, min score, cost cap) on supervisor sessions.",

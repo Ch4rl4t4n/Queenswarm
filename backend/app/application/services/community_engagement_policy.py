@@ -84,6 +84,21 @@ def reddit_urls_to_rss_feeds(text: str) -> list[str]:
     return feeds
 
 
+def reddit_live_post_allowed(*, posts_today: int = 0) -> tuple[bool, str]:
+    """CE6/ST8 — enforce simulate-first until operator raises cap + enables live."""
+
+    from app.core.config import settings
+
+    if not settings.reddit_live_enabled:
+        return False, "reddit_live_disabled"
+    cap = int(settings.reddit_live_max_posts_per_day)
+    if cap <= 0:
+        return False, "reddit_live_cap_zero"
+    if posts_today >= cap:
+        return False, "reddit_live_daily_cap_reached"
+    return True, "ok"
+
+
 def merge_community_engagement_context(context_payload: dict[str, Any] | None) -> dict[str, Any]:
     """Merge POS-CE lane defaults into supervisor routine context."""
 
@@ -116,5 +131,6 @@ __all__ = [
     "DEFAULT_MAX_DRAFT_REPLIES_PER_DIGEST",
     "merge_community_engagement_context",
     "monitor_skill_bundle",
+    "reddit_live_post_allowed",
     "reddit_urls_to_rss_feeds",
 ]

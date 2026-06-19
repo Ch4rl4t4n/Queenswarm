@@ -18,7 +18,7 @@ Full historical backlog: [`docs/ROADMAP.md`](ROADMAP.md) — POS-ARCH · POS-STA
 | **L1 Platform** | Shipped code (Jarvis, lanes, foragers, CE, compound) | Use daily |
 | **L2 Discipline** | ST1 — OP1 · MM8 · LN1 | ✅ discipline gate PASS |
 | **L3 Adoption** | ST4–ST7 — config · procedures · UX | ✅ ST1–ST7 PASS (2026-06-19) |
-| **L4 Optional** | ST8 — voice · Reddit live · Slack | Operator opt-in |
+| **L4 Optional** | ST8 — voice · Reddit live · Slack · Track M | ✅ shipped (opt-in scripts) |
 
 **Rule:** L1 at 100 % + L2 red = **partial**, not AFK-trust. Solo-readiness was capped at **84 % / partial** until ST1 PASS — now reflects checklist when discipline gate is green.
 
@@ -48,7 +48,7 @@ Full historical backlog: [`docs/ROADMAP.md`](ROADMAP.md) — POS-ARCH · POS-STA
 | **ST5** | HN1–3 · MM7 · CE5 · JA3–4 | ✅ P1 | `audit-personal-os-procedures-gate.sh` PASS |
 | **ST6** | HN4/JA6 · LN3/5 · CE7/8 | ✅ P2 | Mission Home strategic/AFK strips |
 | **ST7** | HN5/JA5 · MM9–10 | ✅ P2 | `personal_os_eval_metrics_service` |
-| **ST8** | CE6 · JA7 · OP7–9 · HN6 | ⏸ P3 | explicit approve |
+| **ST8** | CE6 · JA7 · OP7–9 · HN6 · Track M | ✅ P3 | `audit-personal-os-st8-gate.sh` PASS |
 
 **Freeze lifted (ST1–ST7 green):** new Mission Home strips still require **AR3** demotion · new POS-* waves require **AR2** (one entry per sprint).
 
@@ -64,7 +64,7 @@ Full historical backlog: [`docs/ROADMAP.md`](ROADMAP.md) — POS-ARCH · POS-STA
 | JA1 | Skill `personal-advisor-playbook` | ✅ |
 | JA2 | Curated MISSION/IDEAL_STATE seeded | ✅ |
 | JA3–JA4 | Procedures `/advisor` · `/advisor-eval` | ✅ ST5 |
-| JA5–JA7 | → ST7 · ST8 | ST7 ✅ · ST8 ⏸ |
+| JA5–JA7 | → ST7 · ST8 | ST7 ✅ · JA7 voice prep ✅ |
 
 ### POS-CE — community engagement
 
@@ -72,7 +72,7 @@ Full historical backlog: [`docs/ROADMAP.md`](ROADMAP.md) — POS-ARCH · POS-STA
 |----|------|--------|
 | CE1–CE4 | Skill · wizard · seed · lane caps | ✅ |
 | CE5–CE8 | Procedures · Mission Home UX | ✅ ST5–ST6 |
-| CE6 Reddit live | → ST8 | ⏸ |
+| CE6 Reddit live | → ST8 | ✅ policy + cap (default off) |
 
 ```bash
 ./scripts/audit-community-engagement-gate.sh

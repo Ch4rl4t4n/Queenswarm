@@ -47,6 +47,7 @@ for gate in \
   audit-personal-os-st3-gate.sh \
   audit-personal-os-st4-gate.sh \
   audit-personal-os-procedures-gate.sh \
+  audit-personal-os-st8-gate.sh \
   audit-personal-os-truth-gate.sh; do
   run_gate "$gate" || true
 done
@@ -104,7 +105,7 @@ Canonical plan: \`docs/OPERATOR_TRUTH_ROADMAP.md\`
 |------|--------|
 | OP5 | Review promoted digest tasks on \`/tasks\` |
 | Innovation Lab | Review ${IL_PENDING} pending Tech SCV proposals |
-| ST8 | Voice · Reddit live · Slack — explicit opt-in only |
+| ST8 | Voice · Slack · GitHub · learn-from-source · Track M — configure via operator-st8-adoption.sh |
 
 ## OP5 task snapshot
 
