@@ -65,8 +65,8 @@ CREATE_BODY="$(python3 - <<PY
 import json
 print(json.dumps({
     "goal": """${GOAL}""",
-    "runtime_mode": "inprocess",
-    "roles": ["researcher", "critic"],
+    "runtime_mode": "durable",
+    "roles": ["researcher"],
     "retrieval_contract": "policy+last_3_tasks",
 }))
 PY

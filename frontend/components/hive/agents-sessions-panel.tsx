@@ -94,7 +94,9 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
   const { soloMode } = usePlatform();
   const searchParams = useSearchParams();
   const [goal, setGoal] = useState("");
-  const [runtimeMode, setRuntimeMode] = useState<"inprocess" | "durable">("inprocess");
+  const [runtimeMode, setRuntimeMode] = useState<"inprocess" | "durable">(
+    soloMode ? "durable" : "inprocess",
+  );
   const [sessionRoles, setSessionRoles] = useState<string[]>([...ROLE_OPTIONS]);
   const [sessionSkills, setSessionSkills] = useState<string[]>([]);
   const [autoMatchSkills, setAutoMatchSkills] = useState(true);

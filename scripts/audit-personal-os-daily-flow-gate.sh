@@ -47,6 +47,13 @@ else
   fail "Daily flow gate not in operator verify"
 fi
 
+if grep -q 'SUPERVISOR_DURABLE_MODE_ENABLED=true' .env.solo.example \
+  && grep -q 'SUPERVISOR_DEFAULT_RUNTIME_MODE=durable' .env.solo.example; then
+  pass "solo preset enables durable supervisor sessions"
+else
+  fail "solo preset missing durable supervisor session flags"
+fi
+
 if [[ -x backend/venv/bin/python ]]; then
   set +e
   (cd backend && ./venv/bin/python -m pytest tests/test_personal_os_pending_notify_unit.py -q --no-cov)
