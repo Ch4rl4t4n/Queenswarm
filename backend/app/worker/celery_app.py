@@ -17,6 +17,9 @@ def create_celery_app() -> Celery:
 
     broker = settings.celery_broker_url or settings.redis_url
     backend = settings.celery_result_backend or settings.redis_url
+    # Durable supervisor / factory steps need ≥600s; do not cap below task decorators.
+    _global_soft_limit = max(int(settings.rapid_loop_timeout_sec * 3), 600)
+    _global_hard_limit = max(int(settings.rapid_loop_timeout_sec * 4), 720)
     celery = Celery(
         "queenswarm",
         broker=broker,
@@ -31,8 +34,8 @@ def create_celery_app() -> Celery:
         enable_utc=True,
         task_default_queue="hive",
         task_track_started=True,
-        task_time_limit=int(settings.rapid_loop_timeout_sec * 4),
-        task_soft_time_limit=int(settings.rapid_loop_timeout_sec * 3),
+        task_time_limit=_global_hard_limit,
+        task_soft_time_limit=_global_soft_limit,
         worker_prefetch_multiplier=1,
         worker_concurrency=int(settings.celery_worker_concurrency),
         worker_max_tasks_per_child=300,
