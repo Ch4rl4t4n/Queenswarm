@@ -1012,7 +1012,12 @@ def run_supervisor_audit_rollup_email_tick_task() -> dict[str, object]:
     return asyncio.run(_run())
 
 
-@celery_app.task(name="hive.supervisor_sessions_auto_approve_tick", queue="hive")
+@celery_app.task(
+    name="hive.supervisor_sessions_auto_approve_tick",
+    queue="hive",
+    soft_time_limit=90,
+    time_limit=120,
+)
 def run_supervisor_sessions_auto_approve_tick_task() -> dict[str, object]:
     """Drain needs_input supervisor sessions for tenants with auto-approve enabled."""
 

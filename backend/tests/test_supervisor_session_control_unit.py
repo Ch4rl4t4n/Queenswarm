@@ -165,6 +165,7 @@ async def test_auto_approve_pending_when_enabled_then_approves_non_critical(
     row.goal = "Four Lane digest"
     row.context_summary = {}
     row.status = "needs_input"
+    row.runtime_mode = "durable"
 
     async def _scalars(_stmt):  # noqa: ANN001
         result = MagicMock()
@@ -204,6 +205,7 @@ async def test_maybe_auto_approve_when_eligible_then_applies_review(
     row.goal = "Digest"
     row.context_summary = {}
     row.id = uuid.uuid4()
+    row.runtime_mode = "durable"
 
     hydrated = MagicMock()
     hydrated.status = "needs_input"
@@ -232,6 +234,42 @@ async def test_maybe_auto_approve_when_eligible_then_applies_review(
 
     assert approved is True
     apply_mock.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_auto_approve_pending_skips_inprocess_sessions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = AsyncMock()
+    tenant_id = uuid.uuid4()
+    row = MagicMock()
+    row.id = uuid.uuid4()
+    row.goal = "Routine digest"
+    row.context_summary = {}
+    row.status = "needs_input"
+    row.runtime_mode = "inprocess"
+
+    async def _scalars(_stmt):  # noqa: ANN001
+        result = MagicMock()
+        result.all.return_value = [row]
+        return result
+
+    db.scalars = _scalars  # type: ignore[method-assign]
+    db.get = AsyncMock(
+        return_value=SimpleNamespace(
+            operator_settings={"supervisor_sessions": {"auto_approve_enabled": True}},
+        ),
+    )
+    apply_mock = AsyncMock()
+    monkeypatch.setattr(
+        "app.application.services.supervisor_session_control.apply_session_review",
+        apply_mock,
+    )
+
+    result = await auto_approve_pending_supervisor_sessions(db, tenant_id=tenant_id)
+    assert result["approved_count"] == 0
+    assert result["skipped_critical"] == 1
+    apply_mock.assert_not_awaited()
 
 
 @pytest.mark.asyncio

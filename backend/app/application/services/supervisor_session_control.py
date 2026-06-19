@@ -113,6 +113,8 @@ async def maybe_auto_approve_supervisor_session(
     summary = dict(session_row.context_summary or {})
     if is_session_auto_approve_blocked(goal=session_row.goal, context_summary=summary):
         return False
+    if str(session_row.runtime_mode or "").strip().lower() != "durable":
+        return False
 
     hydrated = await get_supervisor_session(db, session_row.id)
     if hydrated is None:
@@ -164,6 +166,10 @@ async def auto_approve_pending_supervisor_sessions(
     skipped_critical = 0
     for row in rows:
         if is_session_auto_approve_blocked(goal=row.goal, context_summary=dict(row.context_summary or {})):
+            skipped_critical += 1
+            continue
+        # In-process approve runs LLM inside the caller (Celery/API) and starves workers.
+        if str(row.runtime_mode or "").strip().lower() != "durable":
             skipped_critical += 1
             continue
         await apply_session_review(
