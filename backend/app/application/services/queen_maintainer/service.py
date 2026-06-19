@@ -279,7 +279,13 @@ async def trigger_maintainer_run(
 def is_queen_maintainer_routine(row: SupervisorRoutine) -> bool:
     """Return True when routine payload marks Queen Maintainer kind."""
 
-    return str((row.context_payload or {}).get("routine_kind") or "").strip().lower() == MAINTAINER_ROUTINE_KIND
+    payload = dict(row.context_payload or {})
+    from app.application.services.solo_operator_four_lanes import FOUR_LANE_PAYLOAD_KEY, FOUR_LANE_IDS
+
+    lane = str(payload.get(FOUR_LANE_PAYLOAD_KEY) or "").strip().lower()
+    if lane in FOUR_LANE_IDS:
+        return False
+    return str(payload.get("routine_kind") or "").strip().lower() == MAINTAINER_ROUTINE_KIND
 
 
 __all__ = [

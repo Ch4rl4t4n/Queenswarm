@@ -101,10 +101,35 @@ def _extract_excerpt(session_row: SupervisorSession, *, max_len: int = 420) -> s
     return goal
 
 
+def _resolve_lane_id(
+    session_row: SupervisorSession,
+    *,
+    routine_lane: dict[str, FourLaneId],
+    allow_goal_hint: bool = True,
+) -> FourLaneId | None:
+    """Resolve four-lane id from session context; optional goal substring fallback."""
+
+    ctx = dict(session_row.context_summary or {})
+    routine_id = str(ctx.get("routine_id") or "").strip()
+    lane_id = routine_lane.get(routine_id)
+    if lane_id is not None:
+        return lane_id
+    if not allow_goal_hint:
+        return None
+    goal_norm = str(session_row.goal or "").lower()
+    for fid in FOUR_LANE_IDS:
+        hint = LANE_ROUTINE_NAMES[fid][:20].lower()
+        if hint and hint in goal_norm:
+            return fid
+    return None
+
+
 def _inbox_status(session_row: SupervisorSession, *, approval_state: str | None) -> DigestInboxStatus:
     status = str(session_row.status or "").lower()
     if session_row.task_id is not None:
         return "done"
+    if status in {"stopped", "cancelled"}:
+        return "rejected"
     if approval_state == "reject" or approval_state == "rejected":
         return "rejected"
     if approval_state == "approve" or approval_state == "approved":
@@ -160,14 +185,7 @@ async def compose_four_lane_digest_inbox(
     for session_row in rows:
         ctx = dict(session_row.context_summary or {})
         routine_id = str(ctx.get("routine_id") or "").strip()
-        lane_id: FourLaneId | None = routine_lane.get(routine_id)
-        if lane_id is None:
-            goal_norm = str(session_row.goal or "").lower()
-            for fid in FOUR_LANE_IDS:
-                hint = LANE_ROUTINE_NAMES[fid][:20].lower()
-                if hint and hint in goal_norm:
-                    lane_id = fid
-                    break
+        lane_id = _resolve_lane_id(session_row, routine_lane=routine_lane, allow_goal_hint=True)
         if lane_id is None:
             continue
 
@@ -242,13 +260,17 @@ async def promote_digest_session_to_task(
             "session_id": str(session_id),
         }
 
+    status_norm = str(session_row.status or "").strip().lower()
+    if status_norm in {"stopped", "cancelled", "failed", "error"}:
+        return {"ok": False, "error": "session_not_promotable", "status": status_norm}
+
     routines = await _load_tenant_routines(db, tenant_id=tenant_id)
     routine_lane = _lane_routine_map(routines)
     ctx = dict(session_row.context_summary or {})
     routine_id = str(ctx.get("routine_id") or "")
-    lane_id = routine_lane.get(routine_id)
+    lane_id = _resolve_lane_id(session_row, routine_lane=routine_lane, allow_goal_hint=False)
     if lane_id is None:
-        lane_id = "marketing_najman"
+        return {"ok": False, "error": "not_four_lane_digest"}
 
     approval_state = str(ctx.get("approval_state") or "").lower()
     if approve_first and approval_state not in {"approve", "approved"}:

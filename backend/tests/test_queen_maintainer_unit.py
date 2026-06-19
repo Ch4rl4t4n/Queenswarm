@@ -65,3 +65,13 @@ def test_build_post_merge_maintainer_goal_includes_merge_context() -> None:
     assert "Post-merge trigger context" in goal
     assert "feat: rubrics" in goal
     assert "org/repo" in goal
+
+
+def test_is_queen_maintainer_routine_when_four_lane_tagged_then_false() -> None:
+    from unittest.mock import MagicMock
+
+    from app.application.services.queen_maintainer.service import is_queen_maintainer_routine
+
+    row = MagicMock()
+    row.context_payload = {"routine_kind": "queen_maintainer", "four_lane_id": "tech_scv"}
+    assert is_queen_maintainer_routine(row) is False

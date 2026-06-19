@@ -309,6 +309,7 @@ async def _tag_routine_lane(
     payload[FOUR_LANE_PAYLOAD_KEY] = lane_id
     payload["solo_operator_four_lane"] = True
     payload["simulate_first"] = True
+    payload.pop("routine_kind", None)
     routine.context_payload = payload
 
 

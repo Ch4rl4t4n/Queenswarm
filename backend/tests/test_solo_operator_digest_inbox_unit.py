@@ -83,7 +83,7 @@ async def test_compose_digest_inbox_when_lane_session_then_lists_item(
 @pytest.mark.asyncio
 async def test_promote_digest_when_missing_session_then_not_ok(monkeypatch: pytest.MonkeyPatch) -> None:
     db = AsyncMock()
-    db.get = AsyncMock(return_value=None)
+    db.scalar = AsyncMock(return_value=None)
     result = await promote_digest_session_to_task(
         db,
         tenant_id=uuid.uuid4(),
@@ -91,3 +91,60 @@ async def test_promote_digest_when_missing_session_then_not_ok(monkeypatch: pyte
         reviewer_subject="test",
     )
     assert result["ok"] is False
+
+
+@pytest.mark.asyncio
+async def test_promote_digest_when_not_four_lane_then_rejects(monkeypatch: pytest.MonkeyPatch) -> None:
+    tenant_id = uuid.uuid4()
+    session_id = uuid.uuid4()
+    session_row = _session(sid=session_id, routine_id=str(uuid.uuid4()), status="completed")
+    session_row.tenant_id = tenant_id
+    db = AsyncMock()
+    db.scalar = AsyncMock(return_value=session_row)
+
+    async def _load(_db, *, tenant_id: uuid.UUID):  # noqa: ARG001
+        return [_routine(rid=uuid.uuid4(), lane="marketing_najman")]
+
+    monkeypatch.setattr(
+        "app.application.services.solo_operator_digest_inbox._load_tenant_routines",
+        _load,
+    )
+
+    result = await promote_digest_session_to_task(
+        db,
+        tenant_id=tenant_id,
+        session_id=session_id,
+        reviewer_subject="test",
+    )
+    assert result["ok"] is False
+    assert result["error"] == "not_four_lane_digest"
+
+
+@pytest.mark.asyncio
+async def test_compose_digest_inbox_when_session_stopped_then_skipped(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    tenant_id = uuid.uuid4()
+    routine_id = uuid.uuid4()
+    session_id = uuid.uuid4()
+    db = AsyncMock()
+
+    async def _load(_db, *, tenant_id: uuid.UUID):  # noqa: ARG001
+        return [_routine(rid=routine_id, lane="marketing_najman")]
+
+    async def _scalars(_stmt):  # noqa: ANN001
+        result = MagicMock()
+        result.all.return_value = [
+            _session(sid=session_id, routine_id=str(routine_id), status="stopped"),
+        ]
+        return result
+
+    db.scalars = _scalars
+    monkeypatch.setattr(
+        "app.application.services.solo_operator_digest_inbox._load_tenant_routines",
+        _load,
+    )
+
+    inbox = await compose_four_lane_digest_inbox(db, tenant_id=tenant_id, limit=10)
+    assert inbox.pending_count == 0
+    assert inbox.items == []

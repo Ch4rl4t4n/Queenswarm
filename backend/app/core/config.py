@@ -2779,8 +2779,8 @@ class Settings(BaseSettings):
         description="Cheap model slug for Maintainer coder role.",
     )
     queen_maintainer_critic_model: str = Field(
-        default="openai/gpt-4o-mini",
-        description="Cheap model slug for Maintainer critic role.",
+        default="xai/grok-3-mini",
+        description="Cheap model slug for Maintainer critic role (Grok free-first; avoid OpenAI-only without key).",
     )
     queen_maintainer_self_heal_max_attempts: int = Field(
         default=1,
