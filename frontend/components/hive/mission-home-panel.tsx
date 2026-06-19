@@ -50,6 +50,20 @@ interface MissionActiveSession {
   tool_outcome_href?: string;
 }
 
+interface MissionStrategicTodayStrip {
+  enabled: boolean;
+  headline: string;
+  items: MissionAction[];
+  more_href: string;
+}
+
+interface MissionAfkRunningStrip {
+  enabled: boolean;
+  headline: string;
+  sessions: MissionActiveSession[];
+  lanes_href: string;
+}
+
 interface MissionMemoryLayer {
   id: "soul" | "memory" | "user";
   label: string;
@@ -320,6 +334,8 @@ interface MissionHomeSnapshot {
   data_monitor_strip?: MissionDataMonitorStrip;
   discovery_strip?: MissionDiscoveryStrip;
   skill_factory_harness_strip?: MissionSkillFactoryHarnessStrip;
+  strategic_today_strip?: MissionStrategicTodayStrip;
+  afk_running_strip?: MissionAfkRunningStrip;
   first_run_complete: boolean;
   links: Record<string, string>;
   rapid_loop_widget_enabled?: boolean;
@@ -385,6 +401,12 @@ function MissionHomePanelInner(): JSX.Element | null {
   const dataMonitor = snapshot.data_monitor_strip;
   const discovery = snapshot.discovery_strip;
   const skillFactoryHarness = snapshot.skill_factory_harness_strip;
+  const strategicStrip = snapshot.strategic_today_strip;
+  const afkStrip = snapshot.afk_running_strip;
+  const strategicActions =
+    strategicStrip?.enabled === true ? strategicStrip.items : snapshot.next_actions.slice(0, 3);
+  const afkSessions =
+    afkStrip?.enabled === true ? afkStrip.sessions : snapshot.active_sessions;
 
   function qualityTone(status: MissionAgentQualityStrip["status"]): "ok" | "warn" | "err" | "info" {
     if (status === "healthy") return "ok";
@@ -791,13 +813,20 @@ function MissionHomePanelInner(): JSX.Element | null {
           </V4Card>
         ) : null}
 
-        <V4Card className="md:max-lg:col-span-1">
+        <V4Card className="md:max-lg:col-span-1" data-testid="mission-home-strategic-today">
           <V4CardHeader
             kicker="Next"
-            title="Actions"
+            title={strategicStrip?.enabled ? strategicStrip.headline : "Actions"}
             description="Top 3 priorities from your daily plan."
+            actions={
+              strategicStrip?.enabled && strategicStrip.more_href ? (
+                <Link href={strategicStrip.more_href} className="qs-btn qs-btn--ghost qs-btn--sm">
+                  All tasks
+                </Link>
+              ) : undefined
+            }
           />
-          {snapshot.next_actions.length === 0 ? (
+          {strategicActions.length === 0 ? (
             <p className="px-4 pb-4 text-sm text-(--qs-muted)">
               No queued actions —{" "}
               <Link href={newSessionHref} className="text-cyan underline">
@@ -807,7 +836,7 @@ function MissionHomePanelInner(): JSX.Element | null {
             </p>
           ) : (
             <ul className="space-y-2 px-4 pb-4">
-              {snapshot.next_actions.map((action) => (
+              {strategicActions.map((action) => (
                 <li
                   key={action.id}
                   className="rounded-lg border border-(--qs-border)/50 bg-black/20 p-3"
@@ -1282,13 +1311,20 @@ function MissionHomePanelInner(): JSX.Element | null {
           )}
         </V4Card>
 
-        <V4Card className="md:max-lg:col-span-1">
+        <V4Card className="md:max-lg:col-span-1" data-testid="mission-home-afk-running">
           <V4CardHeader
             kicker="Work"
-            title="Active sessions"
+            title={afkStrip?.enabled ? afkStrip.headline : "Active sessions"}
             description="Supervisor missions in flight."
+            actions={
+              afkStrip?.enabled && afkStrip.lanes_href ? (
+                <Link href={afkStrip.lanes_href} className="qs-btn qs-btn--ghost qs-btn--sm">
+                  Four lanes
+                </Link>
+              ) : undefined
+            }
           />
-          {snapshot.active_sessions.length === 0 ? (
+          {afkSessions.length === 0 ? (
             <div className="px-4 pb-4">
               <p className="text-sm text-(--qs-muted)">No active sessions.</p>
               <Link href={newSessionHref} className="qs-btn qs-btn--primary qs-btn--sm mt-3 inline-flex gap-1">
@@ -1298,7 +1334,7 @@ function MissionHomePanelInner(): JSX.Element | null {
             </div>
           ) : (
             <ul className="space-y-2 px-4 pb-4">
-              {snapshot.active_sessions.map((row) => (
+              {afkSessions.map((row) => (
                 <li key={row.session_id}>
                   <div className="rounded-lg border border-(--qs-border)/50 bg-black/20 p-3 transition hover:border-cyan/40">
                     <Link href={row.href} className="block">
