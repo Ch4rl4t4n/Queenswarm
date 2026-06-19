@@ -236,6 +236,11 @@ def test_parse_pdf_bytes(tmp_path) -> None:
     except ImportError:
         pytest.skip("fpdf2 not installed")
 
+    try:
+        from pypdf import PdfReader  # noqa: F401
+    except ImportError:
+        pytest.skip("pypdf not installed")
+
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Helvetica", size=12)
