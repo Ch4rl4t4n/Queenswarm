@@ -16,7 +16,6 @@ PERSONAL_OS_ARCHIVED_API_TAGS: Final[frozenset[str]] = frozenset(
         "micro_saas_factory",
         "harness_products",
         "content_pack_factory",
-        "factory_readiness",
         "trading_cockpit",
         "trading_content_hybrid",
         "prediction_markets",

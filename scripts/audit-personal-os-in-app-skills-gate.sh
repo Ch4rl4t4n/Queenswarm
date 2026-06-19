@@ -59,6 +59,12 @@ else
   fail "in-app skills gate not in operator verify"
 fi
 
+if grep -q 'In-app Skill Factory LLM smoke/readiness' backend/app/presentation/api/v1.py; then
+  pass "factory-readiness router mounted in Personal OS"
+else
+  fail "factory-readiness router still gated behind commercial-only block"
+fi
+
 if [[ -x backend/venv/bin/python ]]; then
   set +e
   (cd backend && ./venv/bin/python -m pytest \

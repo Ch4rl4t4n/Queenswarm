@@ -94,7 +94,7 @@ echo
 
 echo "── Core ──"
 echo "  Health:              $([[ "$health_ok" == true ]] && echo '✓ OK' || echo '✗ FAIL')"
-echo "  Solo mode:           $([[ "$solo_mode" == true ]] && echo 'ON (multi-tenant B2B hidden; revenue ON)' || echo 'OFF')"
+echo "  Solo mode:           $([[ "$solo_mode" == true ]] && echo 'ON (Personal OS; in-app Skill Factory)' || echo 'OFF')"
 echo "  VC readiness:        ${vc_readiness}%"
 echo "  Simulate path:       $([[ "$vc_simulate" == true ]] && echo '✓ complete' || echo '○ pending')"
 echo "  Life OS first-run:   $([[ "$life_os" == true ]] && echo '✓ done' || echo '○ pending')"

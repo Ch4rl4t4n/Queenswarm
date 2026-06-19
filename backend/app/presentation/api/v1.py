@@ -173,7 +173,8 @@ if not settings.personal_os_mode_enabled:
     api_v1.include_router(micro_saas_factory_router.router)
     api_v1.include_router(harness_products_router.router)
     api_v1.include_router(content_pack_factory_router.router)
-    api_v1.include_router(factory_readiness_router.router)
+# In-app Skill Factory LLM smoke/readiness — required in Personal OS daily stack.
+api_v1.include_router(factory_readiness_router.router)
 api_v1.include_router(research_bee_router.router)
 api_v1.include_router(analytics_workspace_router.router)
 api_v1.include_router(skill_factory_router.router)
