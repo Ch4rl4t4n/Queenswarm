@@ -693,6 +693,8 @@ def run_supervisor_sub_agent_step_task(
                 return {"ok": False, "reason": "approval_required", "sub_agent_session_id": str(sub.id)}
 
             if not healing.resolved:
+                from app.application.services.supervisor_session_discipline import handle_unresolved_supervisor_step
+
                 sup.status = "needs_input"
                 sup.context_summary = append_reflection_journal(
                     context_summary=dict(sup.context_summary or {}),
@@ -730,13 +732,22 @@ def run_supervisor_sub_agent_step_task(
                     payload=dict(healing.needs_input_request or {}),
                     level="warning",
                 )
-                from app.application.services.supervisor_session_control import maybe_auto_approve_supervisor_session
-
-                if await maybe_auto_approve_supervisor_session(session, session_row=sup):
+                if await handle_unresolved_supervisor_step(
+                    session,
+                    session_row=sup,
+                    sub_agent=sub,
+                    issues=list(healing.issues or []),
+                ):
                     await session.commit()
-                    return {"ok": True, "reason": "auto_approved", "sub_agent_session_id": str(sub.id)}
+                    return {"ok": False, "reason": "discipline_halt", "sub_agent_session_id": str(sub.id)}
                 await session.commit()
                 return {"ok": False, "reason": "needs_input", "sub_agent_session_id": str(sub.id)}
+
+            from app.application.services.supervisor_session_discipline import handle_critic_rejection_if_any
+
+            if await handle_critic_rejection_if_any(session, session_row=sup, sub_agent=sub):
+                await session.commit()
+                return {"ok": False, "reason": "critic_rejected", "sub_agent_session_id": str(sub.id)}
 
             memory_result = await shared_context.write_step_context(
                 supervisor_session_id=sup.id,

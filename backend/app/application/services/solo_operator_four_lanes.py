@@ -15,6 +15,8 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.forager_service import ForagerService
+from app.application.services.community_engagement_policy import merge_community_engagement_context
+from app.application.services.four_lane_llm_service import build_four_lane_llm_context_seed
 from app.application.services.queen_maintainer.service import ensure_queen_maintainer_routine
 from app.application.services.supervisor.routine_service import create_supervisor_routine
 from app.core.logging import get_logger
@@ -78,6 +80,7 @@ Použij curated memory „Najman Marketing Colony“ a forager „Vcelarstvi Com
 1. Z posledních 72 h HiveMind/forager signálů vyber top 5 insightů pro marketing.
 2. SWOT fragment (1 silná stránka, 1 riziko, 1 příležitost) vs CZ/SK konkurence.
 3. 3 návrhy obsahu (IG/FB/blog) s hookem a CTA — simulate only.
+3b. Volitelně: až 3 draft odpovědí pro řádky tagged engagement-candidate (skill community-engagement-playbook, rubric community-authenticity, simulate only).
 4. 1 konkrétní návrh tasku/automatizace (routine nebo publish queue) — operator schvaluje.
 
 Výstup: operator_reply v češtině, max 400 slov, strukturované bullets.
@@ -307,7 +310,7 @@ async def _tag_routine_lane(
 ) -> None:
     payload = dict(routine.context_payload or {})
     payload[FOUR_LANE_PAYLOAD_KEY] = lane_id
-    payload["solo_operator_four_lane"] = True
+    payload.update(build_four_lane_llm_context_seed())
     payload["simulate_first"] = True
     payload.pop("routine_kind", None)
     routine.context_payload = payload
@@ -352,14 +355,22 @@ async def _ensure_lane_routine(
             runtime_mode="durable",
             roles=["researcher", "critic"],
             retrieval_contract="default_v2",
-            skills=["context", "execution-studio", "marketing-campaign-playbook"]
+            skills=["context", "execution-studio", "marketing-campaign-playbook", "community-engagement-playbook"]
             if lane_id == "marketing_najman"
             else ["context", "execution-studio", "queen-maintainer"]
             if lane_id == "tech_scv"
             else ["context", "execution-studio"],
-            context_payload={
+            context_payload=merge_community_engagement_context(
+                {
+                    FOUR_LANE_PAYLOAD_KEY: lane_id,
+                    **build_four_lane_llm_context_seed(),
+                    "simulate_first": True,
+                },
+            )
+            if lane_id == "marketing_najman"
+            else {
                 FOUR_LANE_PAYLOAD_KEY: lane_id,
-                "solo_operator_four_lane": True,
+                **build_four_lane_llm_context_seed(),
                 "simulate_first": True,
             },
             tenant_id=tenant_id,
@@ -378,7 +389,7 @@ async def _ensure_lane_routine(
         existing.roles = expected_roles
     existing.runtime_mode = "durable"
     expected_skills = (
-        ["context", "execution-studio", "marketing-campaign-playbook"]
+        ["context", "execution-studio", "marketing-campaign-playbook", "community-engagement-playbook"]
         if lane_id == "marketing_najman"
         else ["context", "execution-studio", "queen-maintainer"]
         if lane_id == "tech_scv"
@@ -386,6 +397,8 @@ async def _ensure_lane_routine(
     )
     if lane_id != "automation" and list(existing.skills or []) != expected_skills:
         existing.skills = expected_skills
+    if lane_id == "marketing_najman":
+        existing.context_payload = merge_community_engagement_context(dict(existing.context_payload or {}))
     cron = LANE_CRON[lane_id]
     if cron is not None:
         existing.schedule_kind = "cron"

@@ -380,6 +380,51 @@ def _resolve_loop_status(
     return status, alerts, next_action
 
 
+def failure_signature(
+    *,
+    issues: list[str] | None = None,
+    role: str = "",
+    error_text: str = "",
+) -> str:
+    """Stable key for duplicate_failure detection (LN1)."""
+
+    normalized = sorted({str(item).strip().lower() for item in (issues or []) if str(item).strip()})
+    if normalized:
+        return f"{role.strip().lower()}:{'|'.join(normalized)}"
+    cleaned = error_text.strip().lower()[:160]
+    return f"{role.strip().lower()}:{cleaned}" if cleaned else ""
+
+
+def record_same_failure_signature(
+    context_summary: dict[str, Any] | None,
+    *,
+    issues: list[str] | None = None,
+    role: str = "",
+    error_text: str = "",
+) -> tuple[bool, dict[str, Any]]:
+    """LN1 — same_failure_twice halts loop; returns (should_halt, updated_summary)."""
+
+    summary = dict(context_summary or {})
+    sig = failure_signature(issues=issues, role=role, error_text=error_text)
+    if not sig or sig.endswith(":"):
+        return False, summary
+
+    previous = str(summary.get("loop_last_failure_signature") or "")
+    count = int(summary.get("loop_same_failure_count") or 0)
+    if sig == previous:
+        count += 1
+    else:
+        count = 1
+
+    summary["loop_last_failure_signature"] = sig
+    summary["loop_same_failure_count"] = count
+    if count >= 2:
+        summary["same_failure_twice"] = True
+        summary["discipline_halt_reason"] = f"same_failure_twice:{sig}"
+        return True, summary
+    return False, summary
+
+
 async def compose_session_loop_guardrails_state(
     session: AsyncSession,
     *,
@@ -436,6 +481,7 @@ __all__ = [
     "build_loop_guardrails_context_seed",
     "compose_session_loop_guardrails_state",
     "count_session_loop_turns",
+    "failure_signature",
     "get_loop_guardrails_policy",
     "is_loop_guardrails_active",
     "loop_cost_cap_from_summary",
@@ -443,5 +489,6 @@ __all__ = [
     "loop_max_turns_from_summary",
     "loop_min_score_from_summary",
     "min_score_to_five_scale",
+    "record_same_failure_signature",
     "save_loop_guardrails_policy",
 ]

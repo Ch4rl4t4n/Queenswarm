@@ -10,7 +10,11 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.services.forager_goldmine_dispatch_service import derive_forager_skill_bundle
+from app.application.services.community_engagement_policy import (
+    merge_community_engagement_context,
+    monitor_skill_bundle,
+    reddit_urls_to_rss_feeds,
+)
 from app.application.services.forager_service import ForagerService
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -28,6 +32,7 @@ MonitorNiche = Literal[
     "repos",
     "events",
     "social",
+    "community",
     "general",
 ]
 
@@ -188,6 +193,16 @@ _NICHE_META: dict[MonitorNiche, dict[str, Any]] = {
         "tools": ["youtube", "web_search"],
         "prompt": "Summarize new posts with key claims — simulate-first before downstream spawn.",
     },
+    "community": {
+        "label": "Community & forums",
+        "description": "Reddit subreddits and public forum RSS — engagement candidates, not auto-post.",
+        "keywords": ("reddit", "subreddit", "forum", "community", "discourse", "hn", "lobsters"),
+        "extract_schema": "community_engagement",
+        "topic_tags": ["community", "engagement-candidate", "monitor"],
+        "source_type": "rss",
+        "tools": ["rss", "web_search", "scrape_url"],
+        "prompt": "Extract thread title, question/intent, community tone, URL — tag engagement-candidate; never auto-post.",
+    },
     "general": {
         "label": "General monitor",
         "description": "Catch-all public data monitor.",
@@ -226,6 +241,11 @@ _EXAMPLES: tuple[DataMonitorExampleOut, ...] = (
         niche="repos",
         label="OSS releases",
     ),
+    DataMonitorExampleOut(
+        intent="Monitor r/Beekeeping and r/slovakia for honey and wellness questions (engagement candidates)",
+        niche="community",
+        label="Reddit community intel",
+    ),
 )
 
 _SCHEDULE_PRESETS: dict[SchedulePreset, tuple[int, str]] = {
@@ -255,10 +275,14 @@ def _detect_source_type(intent: str, niche: MonitorNiche) -> str:
     """Infer forager source_type from intent keywords."""
 
     lower = intent.lower()
+    if "reddit.com" in lower or re.search(r"\breddit\b", lower) or re.search(r"\bsubreddit\b", lower):
+        return "rss"
     if "youtube.com" in lower or "youtu.be" in lower or re.search(r"\byoutube\b", lower):
         return "youtube"
     if "twitter.com" in lower or "x.com" in lower or _X_HANDLE_RE.search(intent):
         return "twitter"
+    if niche == "community":
+        return "rss"
     if niche == "social":
         return "youtube"
     meta = _NICHE_META.get(niche, _NICHE_META["general"])
@@ -280,6 +304,9 @@ def classify_monitor_niche(intent: str) -> MonitorNiche:
             best = niche_id
     if re.search(r"\byoutube\b", lower) or re.search(r"\btwitter\b", lower) or "@ " in lower:
         return "social"
+    community_score = sum(1 for kw in _NICHE_META["community"]["keywords"] if kw in lower)
+    if community_score >= 1:
+        return "community"
     return best
 
 
@@ -311,6 +338,10 @@ def _build_source_config(intent: str, source_type: str) -> tuple[dict[str, Any],
         summary = f"X accounts: {len(accounts)} bound" if accounts else "Add @handles or profile URLs in Edit"
         return cfg, summary
     feeds = [url for url in urls if url.endswith(".xml") or "/feed" in url.lower() or "rss" in url.lower()]
+    reddit_feeds = reddit_urls_to_rss_feeds(intent)
+    for feed in reddit_feeds:
+        if feed not in feeds:
+            feeds.append(feed)
     if not feeds and urls:
         feeds = urls[:3]
     cfg = {"feeds": feeds}
@@ -363,7 +394,7 @@ def derive_data_monitor_plan(
     source_type = _detect_source_type(trimmed, niche)
     source_config, source_summary = _build_source_config(trimmed, source_type)
     _, schedule_label, interval_seconds = _schedule_from_preset(schedule_preset)
-    skill_bundle = derive_forager_skill_bundle(source_type)
+    skill_bundle = monitor_skill_bundle(niche=niche, source_type=source_type)
     filter_config = {
         "monitor_niche": niche,
         "extract_schema": meta["extract_schema"],

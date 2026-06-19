@@ -907,7 +907,18 @@ async def apply_session_review(
     )
     runtime_mode = str(getattr(session_row, "runtime_mode", "inprocess") or "inprocess")
     observe_supervisor_session_event(event=f"review_{decision}", runtime_mode=runtime_mode)
+    session_row.context_summary = summary
     await db.flush()
+
+    if decision == "approve":
+        summary["verified_distill"] = True
+        session_row.context_summary = summary
+        from app.application.services.session_learnings_distill import distill_session_learnings_to_curated_memory
+
+        status_norm = str(session_row.status or "").strip().lower()
+        if status_norm in {"completed", "stopped", "needs_input"}:
+            await distill_session_learnings_to_curated_memory(db, session=session_row)
+
     return session_row
 
 

@@ -1,59 +1,117 @@
 # Personal OS Roadmap — Focused (post Gumroad purge)
 
-> **Scope:** queenswarm.love solo operator daily stack. Gumroad / MK6 cash funnel / export-batch lanes **removed from app code** (2026-06). Archived commercial docs live under `PERSONAL_OS_MODE` notes in git history only.
+> **Updated:** 2026-06-05  
+> **Scope:** queenswarm.love solo operator daily stack. Gumroad / MK6 / export-batch **removed** — do not re-add.
 
-## What moves you forward (keep & use daily)
+**Canonical execution plan (read first):** [`docs/OPERATOR_TRUTH_ROADMAP.md`](OPERATOR_TRUTH_ROADMAP.md) — ST1–ST8 sprint packages · daily stack · audit tiers · AR1–AR6 anti-drift.
 
-| Area | Routes | Why it matters |
-|------|--------|----------------|
-| **Mission Home + Jarvis** | `/tasks` | Morning brief, process rail, next actions |
-| **Kanban triage** | `/tasks` | Plan → work handoff |
-| **Supervisor + skill picker** | `/agents#sessions` | Run agents with verified library skills |
-| **Skill Factory (in-app)** | `/apps-tools/skill-factory` | Research → Queue → Library → attach in Sessions |
-| **Ballroom Dump & Sleep** | `/ballroom` | Evening capture + learn rail |
-| **Foragers / Hive Mind** | `/foragers` | Background scrape → curated memory |
-| **Knowledge / Brain Pack** | `/knowledge#memory` | Curated memory — **P0 operator blocker** if empty |
-| **Weekly compound / reflection** | `/knowledge`, Mission Home strips | Long-horizon learnings without revenue funnel |
-| **Life OS calendar** | Settings + Mission Home | Optional but high value when connected |
-| **Autopilot harness** | `/settings/harness` | Routines, four lanes, digest |
+Full historical backlog: [`docs/ROADMAP.md`](ROADMAP.md) — POS-ARCH · POS-STAB · POS-* waves (reference only).
 
-## Operator readiness (P0 — not missing POS waves)
+**Setup guides:** [`JARVIS_PERSONAL_ADVISOR_SETUP.md`](JARVIS_PERSONAL_ADVISOR_SETUP.md) · [`COMMUNITY_ENGAGEMENT_SETUP.md`](COMMUNITY_ENGAGEMENT_SETUP.md)
 
-1. **LLM keys** — Settings → AI · LLM keys + Skill Factory smoke test  
-2. **Brain Pack** — Knowledge → Memory / Settings → AI harness  
-3. **First supervisor session** — `/agents#sessions` with ≥1 verified library skill  
-4. **Daily habit** — tasks → sessions → ballroom → foragers (background)
+---
 
-## Removed from product (do not re-add without explicit decision)
+## Four layers (never confuse again)
 
-- Gumroad draft/publish API, webhooks, purchase unlock, post-purchase onboarding  
-- Mission Home: Factory Launch, Revenue Funnel, Catalog Wave widgets  
-- Skill Factory **Launch** tab, export-batch, Gumroad CTAs  
-- MK6/MK7/REV4–REV12 revenue automation waves  
-- Operator scripts: `prepare-gumroad-*`, `operator-gumroad-*`, `factory-first-revenue-*`
+| Layer | Meaning | Trust |
+|-------|---------|-------|
+| **L1 Platform** | Shipped code (Jarvis, lanes, foragers, CE, compound) | Use daily |
+| **L2 Discipline** | ST1 — OP1 · MM8 · LN1 | ✅ discipline gate PASS |
+| **L3 Adoption** | ST4–ST7 — config · procedures · UX | After L2 |
+| **L4 Optional** | ST8 — voice · Reddit live · Slack | Operator opt-in |
 
-## Optional / later (only if you want them — not blockers)
+**Rule:** L1 at 100 % + L2 red = **partial**, not AFK-trust. Solo-readiness caps at **84 % / partial** until discipline gate PASS.
 
-| Item | Notes |
-|------|-------|
-| Analytics depth | Useful if you track time ROI |
-| Vertical research packs | Skill Factory seeds, not Gumroad catalog waves |
-| Marketing site (letagentscook) | Separate from Personal OS; may keep filesystem manifests |
-| Trading cockpit | Off in Personal OS |
-| HA drill / secrets rotation / Grafana | P2/P3 ops |
+---
 
-## Verification commands
+## Daily stack (L1 — use today)
+
+| Step | Route | Module |
+|------|-------|--------|
+| Morning triage | `/tasks` | Jarvis strip · Kanban |
+| Delegate | `/agents` | Sessions · four-lane digests |
+| Intel | `/foragers` · `/knowledge` | Social Intel · CE forager · Brain Pack |
+| Lanes | `/agentic-os#lanes` | Digest inbox → promote |
+| Approvals | Approval Inbox · publish queue | J3 email · compound drafts |
+| Evening | `/ballroom` | Dump & Sleep |
+
+---
+
+## Sprint packages (what to build next)
+
+| Sprint | Merges | Priority | Exit |
+|--------|--------|----------|------|
+| **ST1** | OP1 · MM8 · LN1 | ✅ P0 | `audit-personal-os-discipline-gate.sh` PASS |
+| **ST2** | OP2 · OP3 · LN2 | 🔴 P0 | truth gate core |
+| **ST3** | OP4 tech_scv | 🔴 P0 | IL proposals |
+| **ST4** | CE/JAR ops · JA2 · OP5/6 | ⏳ P1 config | truth gate full |
+| **ST5** | HN1–3 · MM7 · CE5 · JA3–4 | ⏳ P1 | procedures gate |
+| **ST6** | HN4/JA6 · LN3/5 · CE7/8 | ⏳ P2 | Mission Home split |
+| **ST7** | HN5/JA5 · MM9–10 | ⏳ P2 | eval metrics |
+| **ST8** | CE6 · JA7 · OP7–9 · HN6 | ⏸ P3 | explicit approve |
+
+**Next freeze lift:** ST2–ST3 before new Mission Home strips · POS-* waves · CE/JAR procedure code.
+
+---
+
+## Shipped modules (reference)
+
+### POS-JAR — Jarvis / personal advisor
+
+| ID | What | Status |
+|----|------|--------|
+| Shipped | H1 Jarvis · I2 nudge · I3 · J1 · J3 · PA2 | ✅ |
+| JA1 | Skill `personal-advisor-playbook` | ✅ |
+| JA2–JA7 | → ST4–ST8 | ⏳ |
+
+### POS-CE — community engagement
+
+| ID | What | Status |
+|----|------|--------|
+| CE1–CE4 | Skill · wizard · seed · lane caps | ✅ |
+| CE5–CE8 | → ST5–ST6 | ⏳ |
+| CE6 Reddit live | → ST8 | ⏸ |
 
 ```bash
-./scripts/audit-personal-os-in-app-skills-gate.sh
-./scripts/operator-personal-os-verify.sh
-./scripts/ci-local.sh all
+./scripts/audit-community-engagement-gate.sh
+./scripts/operator-community-engagement-provision.sh
 ```
 
-## Autopilot priority stack (unchanged)
+---
 
-1. Operator readiness (LLM + Brain Pack + first session)  
-2. Skill Factory in-app polish (queue drain, library attach UX)  
-3. OS features ≤2d only if they unblock daily use  
+## Anti-drift (AR1–AR6)
 
-**No more Gumroad/revenue waves** unless product direction explicitly changes.
+| ID | Rule |
+|----|------|
+| AR1 | Readiness cannot be `ready` without discipline gate PASS |
+| AR2 | Max **one** new operator entry per sprint |
+| AR3 | New Mission Home strip → demote one to Advanced |
+| AR4 | No new POS-* wave until ST1 PASS |
+| AR5 | POS-ARCH AG1–AG5 on every feature |
+| AR6 | Weekly `./scripts/audit-personal-os-truth-gate.sh` |
+
+---
+
+## Deferred ⏸
+
+Memory Manager · repo MEMORY.md · Jarvis Core module · n8n primary · Reddit autopilot · Agent Template System · new strips without AR3
+
+---
+
+## Operator audits
+
+```bash
+# L2 core (ST1–ST3 blockers)
+TIER=core ./scripts/audit-personal-os-truth-gate.sh
+
+# Full truth + platform
+./scripts/audit-personal-os-truth-gate.sh
+
+# Readiness (caps at partial until ST1)
+./scripts/operator-solo-readiness-audit.sh
+
+# Weekly ritual (core blocks, adoption warns)
+./scripts/operator-personal-os-verify.sh
+```
+
+Maintenance cadence: [`docs/PERSONAL_OS_MAINTENANCE.md`](PERSONAL_OS_MAINTENANCE.md)

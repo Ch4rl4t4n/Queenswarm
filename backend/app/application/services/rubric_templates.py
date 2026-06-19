@@ -132,6 +132,31 @@ RUBRIC_TEMPLATES: tuple[RubricTemplate, ...] = (
         },
     ),
     RubricTemplate(
+        id="community-authenticity",
+        name="Community Authenticity (POS-CE)",
+        description="Score forum/Reddit reply drafts for helpfulness, natural tone, and non-spammy promotion.",
+        category="copy",
+        pass_threshold=0.8,
+        evaluation_criteria={
+            "must_satisfy": [
+                "Reply directly addresses the thread question or pain — not generic paste",
+                "No hard sales pitch, urgency tricks, or link-dump spam patterns",
+                "Product mention (if any) is optional, subtle, and contextually earned",
+                "Tone fits community norms (no corporate boilerplate or obvious bot voice)",
+            ],
+            "measurable_signals": {
+                "promo_sentences": "<= 1 sentence with product/brand mention unless thread asks for recommendations",
+                "reply_words": "40–220 words for Reddit-style replies",
+            },
+            "subjective_dimensions": {
+                "helpfulness": _dim(0.35, "Would a community member find this reply genuinely useful?"),
+                "authenticity": _dim(0.3, "Does it read human, specific, and non-promotional?"),
+                "community_fit": _dim(0.2, "Does tone match subreddit/forum culture?"),
+                "promo_subtlety": _dim(0.15, "Is any promotion earned rather than forced?"),
+            },
+        },
+    ),
+    RubricTemplate(
         id="product-spec",
         name="Product Spec / PRD",
         description="Score PRDs and tracer-bullet specs for testability, scope control, and measurable outcomes.",

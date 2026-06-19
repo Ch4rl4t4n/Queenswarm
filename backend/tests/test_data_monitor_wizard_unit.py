@@ -48,6 +48,17 @@ def test_derive_data_monitor_plan_binds_rss_url() -> None:
     assert "RSS feeds" in plan.source_config_summary
 
 
+def test_derive_data_monitor_plan_reddit_converts_to_rss_feed() -> None:
+    plan = derive_data_monitor_plan(
+        "Monitor https://www.reddit.com/r/Beekeeping/ for engagement candidates",
+        schedule_preset="24h",
+    )
+    assert plan.niche == "community"
+    assert plan.source_type == "rss"
+    assert "RSS feeds" in plan.source_config_summary
+    assert "community-engagement-playbook" in plan.skill_bundle
+
+
 def test_compose_data_monitor_wizard_when_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(config.settings, "data_monitor_wizard_enabled", False)
     snap = compose_data_monitor_wizard_snapshot()

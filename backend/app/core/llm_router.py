@@ -30,6 +30,12 @@ from app.services.llm_runtime_credentials import (
     provider_effective_openrouter,
 )
 
+
+def _is_grok_model_slug(model_name: str) -> bool:
+    lowered = str(model_name or "").lower()
+    return lowered.startswith("xai/") or "grok" in lowered
+
+
 def _decomposition_exhaustion_message(errors: list[str]) -> str:
     """Summarize LiteLLM hop failures plus operator-visible remediation."""
 
@@ -474,6 +480,7 @@ class LiteLLMRouter:
         workflow_id: str | None = None,
         task_id: str | None = None,
         primary_override: str | None = None,
+        routing_mode_override: str | None = None,
     ) -> tuple[str, float]:
         """Try Grok → Claude → optional GPT using the configured decomposition chain.
 
@@ -488,8 +495,10 @@ class LiteLLMRouter:
             "task_id": task_id or "",
             "workflow_id": workflow_id or "",
         }
-        routing_mode = await self._resolve_routing_mode(session)
+        routing_mode = routing_mode_override or await self._resolve_routing_mode(session)
         hops = self._decomposition_chain(routing_mode=routing_mode, primary_override=primary_override)
+        if primary_override and _is_grok_model_slug(primary_override):
+            hops = [h for h in hops if not h.lower().startswith("openrouter/")]
         if not hops:
             if settings.llm_airgap or routing_mode == "local_sovereign":
                 raise RuntimeError(

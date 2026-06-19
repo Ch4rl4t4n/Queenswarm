@@ -267,6 +267,16 @@ async def execute_supervisor_sub_agent_llm(
     router = LiteLLMRouter()
     model_override: str | None = None
     factory_primary_override: str | None = None
+    four_lane_primary_override: str | None = None
+    routing_mode_override: str | None = None
+    from app.application.services.four_lane_llm_service import is_four_lane_session, resolve_four_lane_primary_model
+
+    if is_four_lane_session(summary) and supervisor_session.tenant_id is not None:
+        four_lane_primary_override = await resolve_four_lane_primary_model(
+            db,
+            tenant_id=supervisor_session.tenant_id,
+        )
+        routing_mode_override = str(summary.get("llm_routing_mode_override") or "quality")
     if (factory_lane or content_pack_lane) and supervisor_session.tenant_id is not None:
         from app.application.services.factory_llm_readiness_service import (
             resolve_effective_factory_primary_model,
@@ -304,7 +314,8 @@ async def execute_supervisor_sub_agent_llm(
                 messages=messages,
                 swarm_id=str(supervisor_session.id),
                 task_id=None,
-                primary_override=factory_primary_override,
+                primary_override=four_lane_primary_override or factory_primary_override,
+                routing_mode_override=routing_mode_override,
             )
     except Exception as exc:  # noqa: BLE001
         logger.error(

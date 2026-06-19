@@ -2,6 +2,8 @@
 
 Updated: 2026-06-05
 
+**Canonical execution:** [`docs/OPERATOR_TRUTH_ROADMAP.md`](OPERATOR_TRUTH_ROADMAP.md) (ST1–ST8) · focused mirror [`ROADMAP_PERSONAL_OS_FOCUSED.md`](ROADMAP_PERSONAL_OS_FOCUSED.md).
+
 Personal OS is the **solo operator daily stack** without revenue funnel, Gumroad widgets, trading cockpit, or beta lab noise. Toggle: `PERSONAL_OS_MODE_ENABLED=true` (requires `SOLO_MODE_ENABLED=true`).
 
 Apply preset: `./scripts/apply-solo-mode.sh` (merges `.env.solo.example` → `.env.prod` + redeploy).
@@ -14,6 +16,17 @@ Apply preset: `./scripts/apply-solo-mode.sh` (merges `.env.solo.example` → `.e
 | Day | `/agents` or Marketing lane | Supervisor sessions / publish queue |
 | Evening | `/ballroom` | Dump & Sleep overnight ingest |
 | Background | `/foragers` | Scrape → Hive Mind |
+
+## ST sprint audit cadence
+
+| Sprint | Gate | When |
+|--------|------|------|
+| **ST1** | `./scripts/audit-personal-os-discipline-gate.sh` | Every PR touching supervisor / distill / loop guardrails |
+| **ST1–ST3** | `TIER=core ./scripts/audit-personal-os-truth-gate.sh` | Before ST4 config sprint |
+| **ST4+** | `./scripts/audit-personal-os-truth-gate.sh` | Full platform + CE/JAR assets |
+| **ST5+** | `./scripts/audit-personal-os-procedures-gate.sh` | After procedures registry shipped |
+| **Readiness** | `./scripts/operator-solo-readiness-audit.sh` | Caps at **partial / 84%** until ST1 PASS (AR1) |
+| **Weekly** | `./scripts/operator-personal-os-verify.sh` | Core gates block; adoption gates warn |
 
 ## Automated gates (CI + weekly operator)
 
@@ -86,6 +99,7 @@ Expected Personal OS prod:
 | **POS-F** | Skill Factory lite — strip Gumroad tabs | ✅ Shipped |
 | **POS-G** | G1–G5 dead-code leak gates + commercial API/page archive | ✅ Shipped |
 | **POS-H** | Intelligence Wave — Jarvis advisor · research project · weak signals · agent quality | ✅ Shipped · `./scripts/audit-jarvis-intelligence-gate.sh` |
+| **POS-JAR** | Jarvis/coach compose — skill + setup guide · procedures `/advisor` pending | ✅ JA1 · [`JARVIS_PERSONAL_ADVISOR_SETUP.md`](JARVIS_PERSONAL_ADVISOR_SETUP.md) |
 | **POS-I** | I1–I5 Intelligence Wave follow-up (Jarvis · research · brand · MCP) | ✅ komplet |
 | **POS-J** | J1–J5 compound automation (weekly gardener · email drafts · research rank · faceless cut) | ✅ Shipped |
 | **POS-K** | K1–K5 adoption wave (UI wiring for POS-J — Knowledge · Cockpit · Faceless · Research dedupe) | ✅ Shipped |

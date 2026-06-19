@@ -281,6 +281,11 @@ async def promote_digest_session_to_task(
             note="Promoted from four-lane digest inbox.",
         )
 
+    ctx_after = dict(session_row.context_summary or {})
+    ctx_after["verified_distill"] = True
+    ctx_after["digest_promoted"] = True
+    session_row.context_summary = ctx_after
+
     task_title = (title or _digest_title(lane_id, session_row)).strip()[:500]
     excerpt = _extract_excerpt(session_row, max_len=2000)
     task_row = await create_task_record(
@@ -303,6 +308,10 @@ async def promote_digest_session_to_task(
     task_row.tenant_id = tenant_id
     session_row.task_id = task_row.id
     await db.flush()
+
+    from app.application.services.session_learnings_distill import distill_session_learnings_to_curated_memory
+
+    await distill_session_learnings_to_curated_memory(db, session=session_row)
 
     logger.info(
         "solo_four_lanes.digest_promoted",

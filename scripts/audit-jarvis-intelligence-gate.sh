@@ -19,6 +19,8 @@ for f in \
   backend/app/application/services/weak_signal_bee_service.py \
   backend/app/application/services/agent_quality_scorecard_service.py \
   backend/app/application/services/research_project_service.py \
+  backend/app/skills/personal-advisor-playbook.md \
+  docs/JARVIS_PERSONAL_ADVISOR_SETUP.md \
   frontend/components/hive/mission-home-panel.tsx; do
   if [[ -f "$f" ]]; then pass "$f"; else fail "missing $f"; fi
 done

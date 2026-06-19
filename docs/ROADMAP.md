@@ -1,8 +1,14 @@
 # Queenswarm Roadmap & Backlog
 
-Updated: 2026-06-11 (P10 Track Q — Mission Home & Guided UX)
+Updated: 2026-06-05 (POS-ARCH · OP · LOOP · MEM · HN · CE · **JAR**)
 
 Living backlog for **queenswarm.love** — ordered by impact. Status reflects production host as of last deploy.
+
+**Personal OS operator backlog (focused):** [`docs/ROADMAP_PERSONAL_OS_FOCUSED.md`](ROADMAP_PERSONAL_OS_FOCUSED.md) — what remains for daily use; Gumroad/revenue waves excluded.
+
+**Canonical execution plan (ST1–ST8):** [`docs/OPERATOR_TRUTH_ROADMAP.md`](OPERATOR_TRUTH_ROADMAP.md) — **read this first** · daily stack · sprint packages · audit tiers.
+
+**Before adding any POS-* item:** pass [`POS-ARCH` admission gate](#personal-os--integration-gate-pos-arch) · **ST1 discipline gate** must be green ([`AR1`](#personal-os--stabilization-pos-stab)).
 
 **Whole-App UI Reorder:** see [`docs/WHOLE_APP_UI_REORDER.md`](WHOLE_APP_UI_REORDER.md) — ✅ Phase 1–23 shipped to production (`v2026.05-whole-app-ui`).
 
@@ -370,10 +376,315 @@ Background cron digests — **not** the primary operator workflow. See **Operato
 | FL4 | Manual + section hints | ✅ |
 | FL5 | Unified digest inbox (report → task one-click) | ✅ |
 | FL6 | Disable VC auto-bootstrap for `SOLO_MODE` new tenants | ✅ |
+| FL7 | Digest promote guard — reject non-four-lane sessions; filter stopped/cancelled inbox rows | ✅ Shipped `fd13a83fc` |
+| FL8 | Tech SCV routine — strip stale `routine_kind=queen_maintainer` from four-lane retag | ✅ DB + `_tag_routine_lane` |
+| FL9 | **End-to-end lane proof:** marketing + eshop digest → promote → Tasks | ✅ prod 2026-06-19 |
+| FL10 | **Tech SCV digest** — one verified session → Innovation Lab proposals | 🔴 Blocked — AFK queue (see POS-OP) |
+| FL11 | Celery durable critic limit 900s for tool-heavy digests | ✅ Shipped `aa5a5efe8` |
+| FL12 | Automation lane manual trigger after A/B/C approvals | ⏳ After FL10 |
 
 Doc: [`docs/SOLO_OPERATOR_FOUR_LANE.md`](SOLO_OPERATOR_FOUR_LANE.md) · UI: `/agentic-os#lanes` · `./scripts/operator-four-lane-provision.sh`
 
 **Deprecated for solo:** Virtual Company department routines (Sales, Finance, Bank PO, generic E-shop ops), My 3 Bees as primary control model.
+
+## Personal OS — operator completion (POS-OP) — Jun 2026
+
+**Goal:** Daily Personal OS stack **green end-to-end** — four-lane AFK digests, verified outputs only, no zombie sessions. Not new product surface; finish what exists.
+
+**Canonical verify:** `./scripts/operator-solo-readiness-audit.sh` (100%) · `./scripts/operator-personal-os-verify.sh`
+
+| ID | Scope | Priority | Status |
+|----|-------|----------|--------|
+| OP1 | **AFK queue discipline** — no auto-approve on critic/LLM failure; hard `control/stop` + Celery revoke | P0 | ✅ ST1 |
+| OP2 | **Tenant Grok primary** for four-lane durable sessions (no OpenRouter free decomposition fallback) | P0 | 🔴 |
+| OP3 | **Zombie session cleanup** — purge stopped `running` rows from digest inbox + cancel orphan Celery tasks | P0 | 🔴 |
+| OP4 | **Tech SCV** — one clean digest run → 3 IL proposal drafts (simulate) | P0 | 🔴 Depends OP1–OP3 |
+| OP5 | Operator review promoted tasks (marketing `168b102b…`, eshop `7ed17531…`) | P1 | ⏳ Operator |
+| OP6 | Remove mistaken Life OS task from digest promote (`c59c8b87…`) | P1 | ⏳ Operator optional |
+| OP7 | **Slack** `SLACK_WEBHOOK_URL` → Alertmanager (alerts not blackhole) | P2 | ⏳ |
+| OP8 | **GitHub webhook** + Queen Maintainer post-merge (readiness audit open) | P2 | ⏳ `./scripts/operator-github-webhook-prep.sh` |
+| OP9 | **Automation lane** — manual trigger after approved A/B/C digests | P2 | ⏳ After OP4 |
+
+**Done (POS-OP context):** readiness 100% · walkthrough gate PASS · Brain Pack · durable mode · marketing + eshop promote loop · digest promote guard · maintainer critic → Grok default.
+
+## Personal OS — integration gate (POS-ARCH)
+
+**Goal:** Every new capability **extends** the whole app — faster together, never a parallel stack operators must learn separately.
+
+**Rule:** No POS-* item ships unless it passes all five gates. When in doubt, **defer** (backlog ⏸) instead of shipping unused surface.
+
+| Gate | Question | Pass example | Fail (do not build) |
+|------|----------|--------------|---------------------|
+| **AG1 Compose** | Reuses existing service/API? | LN1 → `loop_guardrails_service` | New loop orchestrator engine |
+| **AG2 One entry** | Single primary path for operators? | `/loop` procedure → durable session | Duplicate UI + CLI + cron for same job |
+| **AG3 Hot path** | Default request/session unchanged? | Guardrails opt-in per routine; MM8 async distill | Sync memory write on every chat turn |
+| **AG4 Cooperate** | Plugs into Tasks · Agents · Knowledge · four-lane? | Stuck loop → Task `needs_input` | Standalone inbox nobody opens |
+| **AG5 Prove** | One audit script or metric? | HN5 APPROVE rate · `./scripts/operator-solo-readiness-audit.sh` | Feature with no verify gate |
+
+**Whole-app anchors (do not fork):**
+
+| Surface | Role | New work lands here |
+|---------|------|---------------------|
+| `/tasks` | Triage · human checkpoints · promote targets | LN5 stuck → Task |
+| `/agents` | AFK execution · sessions · LOOP2 | LN3 `/loop` · OP1 stop |
+| `/knowledge` | Curated memory · HiveMind · Brain Pack | MM7 · MM9 |
+| `/foragers` | Multi-source collect (RSS · Reddit · YT · X · web) | **POS-CE** CE2 · DG1 · Social Intel |
+| `/agentic-os#lanes` | Scheduled four-lane AFK | OP2–OP4 · FL10 · CE4 marketing |
+| Settings → harness | Loop guardrails · injection · presets | LN1 · LN2 · HN5 |
+| Mission Home | Max 3 strategic + AFK status strip | HN4 · LN5 (read-only) |
+
+**Deferred ⏸ (explicit no until daily stack green):** Memory Manager microservice · repo `MEMORY.md` · `.claude/agents/` tree · Sandcastle/Temporal · extra loop roles (architect/documenter default) · Teach HTML tutors · trading cockpit · Gumroad funnel · **Reddit/forum autopilot posting** · **Agent Template System** · **standalone Jarvis Core module** · **n8n/Lovable as primary orchestrator** · **repo `memory/plan.md` four-file clone** · **new Mission Home strip without AR3 demotion**.
+
+## Personal OS — stabilization (POS-STAB) — fix friction, prevent drift
+
+**Goal:** After full roadmap: **zero blockers**, trustworthy AFK, one daily path — without deleting shipped platform (POS-H…O, CE, JAR).
+
+**Canonical plan:** [`docs/OPERATOR_TRUTH_ROADMAP.md`](OPERATOR_TRUTH_ROADMAP.md)
+
+### Four layers
+
+| Layer | Content | Trust |
+|-------|---------|-------|
+| **L1 Platform** | Shipped modules (Jarvis, lanes, foragers, compound, CE, skills) | Use daily |
+| **L2 Discipline** | ST1 — OP1 · MM8 · LN1 | **Blocks „ready“ until PASS** |
+| **L3 Adoption** | ST4–ST7 — config · procedures · UX · metrics | After L2 |
+| **L4 Optional** | ST8 — voice · Reddit live · Slack | Operator opt-in |
+
+### Sprint packages (merged — one sprint = one package)
+
+| Sprint | Merges | Priority | Exit audit |
+|--------|--------|----------|------------|
+| **ST1** | OP1 · MM8 · LN1 | ✅ P0 | `audit-personal-os-discipline-gate.sh` PASS |
+| **ST2** | OP2 · OP3 · LN2 | 🔴 P0 | truth gate core + zombie cleanup |
+| **ST3** | OP4 tech_scv proof | 🔴 P0 | IL proposals exist |
+| **ST4** | CE/JAR ops · JA2 · OP5/6 | ⏳ P1 config | truth gate full |
+| **ST5** | HN1–3 · MM7 · CE5 · JA3–4 | ⏳ P1 | `audit-personal-os-procedures-gate.sh` |
+| **ST6** | HN4/JA6 · LN3/5 · CE7/8 | ⏳ P2 | Mission Home split + inbox |
+| **ST7** | HN5/JA5 · MM9–10 | ⏳ P2 | eval metrics |
+| **ST8** | CE6 · JA7 · OP7–9 · HN6 | ⏸ P3 | explicit approve |
+
+**Freeze until ST1 PASS:** new Mission Home strips · new POS-* adoption waves · CE/JAR procedures code.
+
+### Anti-drift rules (AR1–AR6)
+
+| ID | Rule |
+|----|------|
+| AR1 | `operator-solo-readiness-audit.sh` **cannot** report `ready` unless discipline gate PASS |
+| AR2 | Max **one** new operator entry per sprint (procedure OR strip) |
+| AR3 | New Mission Home strip → demote one strip to Advanced accordion |
+| AR4 | New POS-* adoption wave forbidden until ST1 PASS |
+| AR5 | POS-ARCH AG1–AG5 on every feature |
+| AR6 | Weekly `./scripts/audit-personal-os-truth-gate.sh` |
+
+### Audit tiers
+
+| Tier | Scripts |
+|------|---------|
+| **L2 Core** | `audit-personal-os-discipline-gate.sh` · `audit-personal-os-truth-gate.sh TIER=core` |
+| **L1+L3 Full** | `audit-personal-os-truth-gate.sh` · core platform gates in verify |
+| **Weekly** | `operator-personal-os-verify.sh` (core gates block; adoption gates warn) |
+| **ST5+** | `audit-personal-os-procedures-gate.sh` |
+
+**Readiness fix (shipped):** solo-readiness caps at **partial / max 84%** until ST1 discipline PASS — no more „100 % but OP1 red“.
+
+## Personal OS — Agentic stack map (Matt + Rahul + zodchiii → Queenswarm)
+
+**Equation:** Model + **Memory** + Retrieval + **Feedback** + **Iterate-until-green** = useful agent. **Harness > model** (Matt). Queenswarm adds **verify-first** so loops and memory compound without noise.
+
+| Layer | External signal | Queenswarm implementation | Roadmap |
+|-------|-----------------|---------------------------|---------|
+| Human rules | AGENTS.md · CLAUDE.md | `AGENTS.md` + scoped docs · `.cursor/rules/*.mdc` | ✅ |
+| Operator profile | CLAUDE.local.md | Tenant curated memory (DB) · Settings → harness | ✅ |
+| Auto-learn | MEMORY.md | `session_learnings_distill` → INSTRUCTIONS · Dump & Sleep | ✅ base · **MM8** |
+| Retrieval | RAG | HiveMind · Neo4j · Brain Pack · selective recall cap | ✅ |
+| Feedback | Critic | APPROVE · Grok truth gate · pollen · Recipe Library | ✅ · **OP1** fix |
+| **Loop team** | builder + checker + loop cmd | `run_self_healing_cycle` · `closed_review_loop` · Maintainer roles · LOOP2 | ✅ base · **LN1–LN5** |
+| **Community HITL** | Reddit agent (Rahul) | Forager collect → digest compose → `community-authenticity` → publish queue approve | ✅ CE1–CE4 · **CE5–CE7** |
+| **Personal advisor** | Jarvis / Peter Yang coach | Jarvis strip · curated PLAN · delegate AFK · eval scorecard · J1 compound | ✅ POS-H/I/J · **JA3–JA7** |
+| Procedures | user skills | digest inbox · grill wizard · Tasks API | **HN1–HN3** · **LN3** · **CE5** · **JA3** |
+| AFK queue | Sandcastle | Celery durable · four-lane cron · Execution Studio | **OP1–OP4** |
+| Memory hygiene | /init cleanup | — | **MM7** |
+| Eval | — | loop + memory metrics | **HN5** |
+
+**Do not add:** parallel loop engine · repo `memory/MEMORY.md` · fork `mattpocock/skills` · raw auto-write · feature without AG1–AG5 pass.
+
+## Personal OS — persistent memory (POS-MEM) — Rahul Forgetting Loop, Queenswarm-native
+
+**Goal:** End **Forgetting Loop** without duplicating file-based memory — use **tenant curated memory + verified HiveMind**, not flat `MEMORY.md` in git.
+
+**Canonical surfaces:** Settings → AI · harness · Knowledge → Curated memory · `/ballroom` Dump & Sleep · `distill_session_learnings_to_curated_memory`
+
+| ID | Scope | Priority | Status |
+|----|-------|----------|--------|
+| MM1 | Scoped **AGENTS.md** + Cursor rules (human-written harness) | — | ✅ |
+| MM2 | **Curated memory** bundle — MISSION · SOUL · IDEAL_STATE · SKILLS · INSTRUCTIONS · BRAND (tenant DB) | — | ✅ |
+| MM3 | **HiveMind RAG** + Grok truth gate before verified ingest | — | ✅ |
+| MM4 | **Session distill** → INSTRUCTIONS (`<!-- qs-session-learning -->` blocks) | — | ✅ base |
+| MM5 | **Dump & Sleep** evening capture + forager overnight ingest | — | ✅ |
+| MM6 | **Recipe Library** — verified workflow replay (compounding execution, not prompts) | — | ✅ |
+| MM7 | **`/memory-review` procedure** — dedupe INSTRUCTIONS blocks, conflict report, trim to `curated_memory_max_chars` | P1 | ⏳ |
+| MM8 | **Verified distill gate** — auto-append learnings only after critic APPROVE or digest promote (block on LLM error / auto-approve) | P0 | ⏳ Ties **OP1** |
+| MM9 | **Brain Pack `@import` syntax** in export — link scoped docs instead of inline bloat (MEM4 token budget) | P2 | ⏳ |
+| MM10 | **Hive search in procedures** — document `hive_memory_search` + curated slice in HN3 procedure registry | P2 | ⏳ After HN1 |
+
+**Out of scope:** `memory/MEMORY.md` in repo · manual „update your memory“ at session end · unverified LLM writes to INSTRUCTIONS.
+
+## Personal OS — looping teams (POS-LOOP) — @zodchiii, compose-only
+
+**Goal:** Iterate-until-green **without** a new orchestrator — tighten existing LOOP1/LOOP2 + self-heal + critic separation. **Optional** for complex work only; simple tasks stay one-shot + simulate.
+
+**Already shipped (do not duplicate):** `closed_review_loop` · `loop_guardrails_service` (LOOP2) · `run_self_healing_cycle` · Queen Maintainer researcher/coder/critic · Docker simulate · `needs_input_request`.
+
+| ID | Scope | Priority | Status | Composes (AG1) |
+|----|-------|----------|--------|----------------|
+| LN1 | **Same-failure-twice** — hash last failure signature; 2× identical → halt loop + `needs_input` (no further turns) | P0 | ⏳ | `loop_guardrails_service` |
+| LN2 | **Anti-cheat checker** — critic pass blocked if output weakens tests/guardrails (diff heuristics + denylist extend) | P0 | ⏳ | Maintainer denylist · rubric eval |
+| LN3 | **Procedure `/loop`** — one-shot: create durable session + LOOP2 preset + recipe stack (`tdd` + `closed-review-loop`); **not** default for triage/copy | P1 | ⏳ | HN1 · existing supervisor API |
+| LN4 | **Role separation** — code/maintainer paths: critic model ≠ coder model; no self-heal without separate eval turn | P1 | ⏳ | Maintainer routing · runtime |
+| LN5 | **Stuck → Task** — loop halt surfaces Mission Home + Kanban `needs_input` task (operator one place) | P1 | ⏳ | `/tasks` · mission feed |
+
+**Out of scope:** `.claude/commands/loop.md` fork · default 4+ agent teams · unlimited cycles · builder-only self-review · new Celery queue type.
+
+**Performance contract:** LN1/LN2 add O(1) checks per turn only — no extra LLM call on hot path. LN3 invoked manually or from Jarvis shortcut, never on dashboard boot.
+
+## Personal OS — community engagement (POS-CE) — Rahul Reddit pattern, HITL-native
+
+**Goal:** Multi-source **collect → compose → commit** for forums/Reddit/X-replies — agents draft, operator approves. **Not** full autopilot posting.
+
+**Pattern:** `COLLECT (forager)` → `COMPOSE (marketing digest + playbook)` → `VERIFY (community-authenticity + LOOP2)` → `COMMIT (publish queue simulate → operator approve)`.
+
+**Guide:** [`docs/COMMUNITY_ENGAGEMENT_SETUP.md`](COMMUNITY_ENGAGEMENT_SETUP.md) · `./scripts/operator-community-engagement-provision.sh` · `./scripts/audit-community-engagement-gate.sh`
+
+| ID | Scope | Priority | Status | Composes (AG1) |
+|----|-------|----------|--------|----------------|
+| CE1 | Skill `community-engagement-playbook` + rubric `community-authenticity` + `community_engagement_policy.py` | P1 | ✅ | closed-review-loop |
+| CE2 | Data Monitor **community** niche (Reddit URL → `.rss` feeds) | P1 | ✅ | data_monitor_wizard |
+| CE3 | `seed_community_engagement.py` + provision + audit gate scripts | P1 | ✅ | forager RSS |
+| CE4 | Marketing lane: skill + context caps (`max_draft_replies_per_digest: 3`, `max_live_posts_per_day: 0`) | P1 | ✅ | four-lane |
+| CE5 | Procedure **`/community-engage`** in HN1 registry → durable session + playbook | P2 | ⏳ | HN1 · supervisor API |
+| CE6 | Reddit **live** connector + enforced daily cap (only after simulate proof) | P3 | ⏳ | operator-approval-gate |
+| CE7 | BA4 / Mission Home strip — pending `community-reply-draft` rows | P2 | ⏳ | approval inbox |
+| CE8 | **Multi-source recipe** doc in Recipe Library after first verified digest→approve loop | P2 | ⏳ | Recipe Library · MM8 |
+
+### Combine with (recommended)
+
+| Stack | Use when |
+|-------|----------|
+| Marketing lane `marketing_najman` + Najman BRAND memory | CZ client community + content same voice |
+| `competitor-scrape-analyze` + Vcelarstvi Intel forager | Thread context + competitor tone |
+| Social Intel (YT/X) + `social-intel-evaluator` | **Inbound intel only** — not outbound drafts |
+| Goldmine alerts → Kanban dispatch | High-signal thread triage |
+| Data Monitor / Discovery wizard | New subreddit or forum RSS in one intent |
+| POS-LOOP LN1/LN2 + MM8 | Quality + verified learnings after approve |
+
+### Do not combine (clutter / risk)
+
+| Avoid | Why |
+|-------|-----|
+| `social-intel-evaluator` on outbound reply drafts | Wrong skill — inbound scoring only |
+| Live X publish + Reddit drafts same session | Mixed channels confuse critic |
+| Auto-approve on critic fail | OP1 blocker |
+| Multiple foragers same subreddit | Duplicate alerts — merge feeds |
+| CE6 before CE4 simulate proof | Platform ban / trust risk |
+
+**Out of scope:** autonomous Reddit bot · Agent Template marketplace · repo `MEMORY.md` · unverified auto-post.
+
+**Performance:** collect async via forager cron (08:00 UTC default); compose on marketing digest schedule only — **no hot-path LLM on dashboard boot**.
+
+**Operator bootstrap (config, no new code):** `./scripts/operator-community-engagement-provision.sh` → edit subreddit RSS → four-lane bootstrap → first digest promote.
+
+## Personal OS — Jarvis / personal advisor (POS-JAR) — Peter Yang + delegation videos, compose-only
+
+**Goal:** Jarvis-like **life/business coach** as orchestration layer over existing stack — **not** a separate Python Jarvis app, `memory/` folder, or n8n primary brain.
+
+**Pattern:** `PLAN (curated)` → `Jarvis 3 steps` → `delegate AFK` → `eval checklist` → `verified learnings (MM8/J1)`.
+
+**Guide:** [`docs/JARVIS_PERSONAL_ADVISOR_SETUP.md`](JARVIS_PERSONAL_ADVISOR_SETUP.md) · `./scripts/audit-jarvis-intelligence-gate.sh`
+
+### Peter Yang 4-file → Queenswarm (no duplicate files)
+
+| Video file | Queenswarm equivalent | Status |
+|------------|----------------------|--------|
+| `skill.md` | `personal-advisor-playbook` + procedures `/advisor` | ✅ skill · ⏳ JA3 |
+| `plan.md` | Curated **MISSION** + **IDEAL_STATE** + solo daily plan | ✅ edit in UI |
+| `learnings.md` | INSTRUCTIONS distill + episodic + J1 weekly compound | ✅ base · MM8 gate |
+| `eval.md` | H6 scorecard + closed review + **HN5** metrics + `/advisor-eval` | ✅ partial · **JA4** |
+
+### Shipped foundation (POS-H · POS-I · POS-J — do not rebuild)
+
+| ID | Capability |
+|----|------------|
+| H1 | Jarvis daily advisor strip (max 3 verify-first steps) |
+| H3/H4/H6 | Research project · weak signals · agent quality scorecard |
+| I2/I3 | Proactive nudge · weekly reflection strip |
+| J1/J3 | Weekly compound gardener · email outer loop (simulate) |
+| PA2 | Life OS calendar in daily plan |
+| Operator Loop | Morning/evening compose |
+
+| ID | Scope | Priority | Status | Composes (AG1) |
+|----|-------|----------|--------|----------------|
+| JA1 | Skill **`personal-advisor-playbook`** — coach workflow + 4-file mapping doc | P1 | ✅ | Jarvis · curated memory |
+| JA2 | **PLAN template** — seed MISSION/IDEAL_STATE blocks in curated bundle (operator edits, not git files) | P1 | ⏳ | CuratedMemoryService |
+| JA3 | Procedure **`/advisor`** — Jarvis context + delegate durable session / lane / `/loop` | P2 | ⏳ | HN1 · supervisor API |
+| JA4 | Procedure **`/advisor-eval`** — pre-advice checklist + link H6 scorecard + rubric gate | P2 | ⏳ | HN5 · agent quality |
+| JA5 | **Coach compound ritual** — Sun J1 gardener + MM7 memory review + HN5 metrics (one operator runbook section) | P2 | ⏳ | J1 · MM7 · HN5 |
+| JA6 | **Strategic vs AFK UI** — same as **HN4** Mission Home split (Jarvis = strategic panel) | P2 | ⏳ | HN4 |
+| JA7 | **Voice interface** (ElevenLabs/LiveKit) — optional mobile; chat-first remains default | P3 | ⏳ | defer until OP1 green |
+
+### Better than video recommendations
+
+| Videos suggest | Queenswarm advantage |
+|----------------|---------------------|
+| 4 markdown files in repo | Tenant curated DB + Brain Pack export |
+| Separate Jarvis module | Jarvis strip + procedures compose existing APIs |
+| n8n/no-code orchestration | Four-lane + Celery + Recipe Library |
+| Autonomous email/voice | J3 simulate + Approval Inbox · voice P3 only |
+| Chat-only coach loop | **Delegate** to AFK bees with critic + simulate |
+
+### Combine with ✅ / avoid ❌
+
+| Combine | Avoid |
+|---------|-------|
+| Operator Loop morning · Dump & Sleep evening | Repo `memory/plan.md` |
+| POS-CE community · POS-LOOP `/loop` delegation | Memory Manager microservice |
+| MM7 memory review · J1 compound | Autopilot send/trade |
+| HN4 strategic panel | Duplicate Jarvis Core service |
+
+**Performance:** Jarvis strip is snapshot compose on `/tasks` load — no extra LLM on Mission Home unless operator starts `/advisor` session.
+
+## Personal OS — harness next (POS-HN) — Matt Pocock patterns, Queenswarm-native
+
+**Goal:** Harness > model — **procedures + AFK queue + verify + memory hygiene**, not fork of external skill repos or new Sandcastle stack.
+
+**Explicitly out of scope:** Gumroad/revenue · fork `mattpocock/skills` wholesale · Temporal/Sandcastle rewrite · HTML `/teach` tutors · trading cockpit · HA drill as blocker · repo-root MEMORY files.
+
+| ID | Scope | Priority | Status |
+|----|-------|----------|--------|
+| HN1 | **Procedure registry** — `procedures/` (`/grill-me`, `/to-tasks`, `/triage-digest`, `/memory-review`, **`/loop`**, **`/community-engage`**, **`/advisor`**, **`/advisor-eval`**) vs `abilities/` | P1 | ⏳ |
+| HN2 | **`setup-queenswarm-harness`** — one-shot tenant bootstrap: curated bundle, four-lane labels, triage vocabulary, Tasks mapping | P1 | ⏳ |
+| HN3 | Map existing flows to procedures (no duplicate UI): grill wizard → `/grill-me`, digest inbox → `/triage-digest`, IL → `/to-prd`, curated editor → `/memory-review`, community playbook → `/community-engage`, **Jarvis + `personal-advisor-playbook` → `/advisor`**, **scorecard + checklist → `/advisor-eval`** | P1 | ⏳ After HN1 |
+| HN4 | **Mission Home split** — „Strategic today“ (max 3 checkpoints) vs „AFK running“ (max 1 session per lane) | P2 | ⏳ |
+| HN5 | **Eval harness** — critic APPROVE rate, time trigger→promote, recipe reuse, **INSTRUCTIONS block growth**, cost per verified outcome | P2 | ⏳ |
+| HN6 | **`/learn-from-source`** — verified URL/video → HiveMind insight → optional Task (Grok cross-check; overlaps MM3, no tutor HTML) | P3 | ⏳ |
+
+**Competitive moat (keep, don't replace):** simulate-first gate · Recipe Library · four-lane operator model · pollen/imitation · curated+HiveMind memory · Personal OS daily stack (`/tasks` → `/agents` → `/ballroom` → `/foragers`).
+
+### Unified execution order → ST1–ST8 (canonical)
+
+**Primary guide:** [`docs/OPERATOR_TRUTH_ROADMAP.md`](OPERATOR_TRUTH_ROADMAP.md) — sprint packages, audit tiers, anti-drift AR1–AR6.
+
+| Sprint | Merges | Exit audit |
+|--------|--------|--------------|
+| **ST1** | OP1 · MM8 · LN1 | `audit-personal-os-discipline-gate.sh` |
+| **ST2** | OP2 · OP3 · LN2 | truth gate `TIER=core` + zombie cleanup |
+| **ST3** | OP4 tech_scv | IL proposals exist |
+| **ST4** | CE/JAR ops · JA2 · OP5/6 | `audit-personal-os-truth-gate.sh` full |
+| **ST5** | HN1–3 · MM7 · CE5 · JA3–4 | `audit-personal-os-procedures-gate.sh` |
+| **ST6** | HN4/JA6 · LN3/5 · CE7/8 | Mission Home split + inbox |
+| **ST7** | HN5/JA5 · MM9–10 | eval metrics |
+| **ST8** | CE6 · JA7 · OP7–9 · HN6 | explicit operator opt-in |
+
+Legacy POS-OP/LOOP/MEM/HN/CE/JAR IDs map to ST sprints in OPERATOR_TRUTH doc. **Freeze until ST1 PASS:** new Mission Home strips · new POS-* adoption waves · CE/JAR procedure code.
 
 ## Social Intel Swarm (May 2026)
 
@@ -1115,7 +1426,9 @@ PLAYWRIGHT_BASE_URL=https://queenswarm.love ./scripts/prod-walkthrough-gate.sh
 - `docs/HARNESS_SELF_MAINTAINING_ANALYSIS.md` — harness videos + Queen Maintainer
 - `docs/TOMORROW_OPERATOR_RUNBOOK.md` — audit + operator morning checklist
 - `docs/CAPABILITIES_SYNTHESIS_MAY2026.md` — YouTube + X + Atlas gap analysis (May 2026)
-- `docs/ROADMAP_EXCELLENCE_RECOMMENDATIONS.md` — P10 tracks + competitive triage template (Jun 2026)
+- `docs/JARVIS_PERSONAL_ADVISOR_SETUP.md` — POS-JAR Jarvis/coach setup (Peter Yang 4-file mapping)
+- `docs/COMMUNITY_ENGAGEMENT_SETUP.md` — POS-CE collect/compose/commit guide
+- `docs/ROADMAP_PERSONAL_OS_FOCUSED.md` — solo operator focused backlog (POS-ARCH · POS-OP · POS-LOOP · POS-MEM · POS-HN · POS-CE · POS-JAR)
 - `docs/BUSINESS_DATA_ANALYTICS_OS.md` — Codex-style analytics workspace (Track L)
 - `docs/LOCAL_SOVEREIGN_LLM_OS.md` — Local/air-gap LLM + fine-tune lane (Track M)
 - `docs/OPERATOR_VERTICAL_PACKS.md` — Moneta · marketing · trading packs (Track N)

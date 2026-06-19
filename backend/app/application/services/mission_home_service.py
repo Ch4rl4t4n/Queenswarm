@@ -115,6 +115,28 @@ class MissionActiveSessionOut(BaseModel):
     tool_outcome_href: str = ""
 
 
+class MissionStrategicTodayOut(BaseModel):
+    """Max 3 Jarvis/strategic checkpoints (ST6 / HN4)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    enabled: bool = False
+    headline: str = "Strategic today"
+    items: list[MissionActionOut] = Field(default_factory=list)
+    more_href: str = "/tasks"
+
+
+class MissionAfkRunningOut(BaseModel):
+    """Max one running AFK session per lane (ST6 / JA6)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    enabled: bool = False
+    headline: str = "AFK running"
+    sessions: list[MissionActiveSessionOut] = Field(default_factory=list)
+    lanes_href: str = "/agentic-os#lanes"
+
+
 class MissionAgentLoopStripOut(BaseModel):
     """AL1/LOOP3 agent loop visibility on Mission Home (POS-O)."""
 
@@ -387,6 +409,12 @@ class MissionHomeSnapshotOut(BaseModel):
     skill_factory_harness_strip: MissionSkillFactoryHarnessStripOut = Field(
         default_factory=lambda: MissionSkillFactoryHarnessStripOut(enabled=False),
     )
+    strategic_today_strip: MissionStrategicTodayOut = Field(
+        default_factory=lambda: MissionStrategicTodayOut(enabled=False),
+    )
+    afk_running_strip: MissionAfkRunningOut = Field(
+        default_factory=lambda: MissionAfkRunningOut(enabled=False),
+    )
     first_run_complete: bool = True
     links: dict[str, str] = Field(default_factory=dict)
     rapid_loop_widget_enabled: bool = False
@@ -401,6 +429,32 @@ PROCESS_STEPS: list[ProcessStepOut] = [
     ProcessStepOut(id="learn", label="Learn", short_label="Learn"),
     ProcessStepOut(id="done", label="Done", short_label="Done"),
 ]
+
+
+def _compose_strategic_afk_split(
+    *,
+    enabled: bool,
+    next_actions: list[MissionActionOut],
+    active_sessions: list[MissionActiveSessionOut],
+) -> tuple[MissionStrategicTodayOut, MissionAfkRunningOut]:
+    """Demote clutter — strategic max 3, AFK max 4 unique goals (ST6)."""
+
+    if not enabled:
+        return MissionStrategicTodayOut(enabled=False), MissionAfkRunningOut(enabled=False)
+
+    strategic = MissionStrategicTodayOut(enabled=True, items=next_actions[:3])
+    seen_lanes: set[str] = set()
+    afk_sessions: list[MissionActiveSessionOut] = []
+    for session in active_sessions:
+        lane_key = session.goal[:48].lower()
+        if lane_key in seen_lanes:
+            continue
+        seen_lanes.add(lane_key)
+        afk_sessions.append(session)
+        if len(afk_sessions) >= 4:
+            break
+    return strategic, MissionAfkRunningOut(enabled=bool(afk_sessions), sessions=afk_sessions)
+
 
 STEP_STUDIOS: dict[ProcessStepId, list[MissionStudioEntryOut]] = {
     "setup": [
@@ -1460,6 +1514,11 @@ async def compose_mission_home_snapshot(
         else False,
     )
     agent_quality = await compose_agent_quality_strip(session, tenant_id=tenant_id)
+    strategic_today_strip, afk_running_strip = _compose_strategic_afk_split(
+        enabled=True,
+        next_actions=next_actions,
+        active_sessions=active_sessions,
+    )
 
     return MissionHomeSnapshotOut(
         enabled=True,
@@ -1487,6 +1546,8 @@ async def compose_mission_home_snapshot(
         data_monitor_strip=data_monitor_strip,
         discovery_strip=discovery_strip,
         skill_factory_harness_strip=skill_factory_harness_strip,
+        strategic_today_strip=strategic_today_strip,
+        afk_running_strip=afk_running_strip,
         first_run_complete=first_run.complete,
         links={
             "new_session": "/agents?preset=web-redesign-discovery#sessions",

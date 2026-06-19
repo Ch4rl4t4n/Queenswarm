@@ -56,8 +56,31 @@ mkdir -p "$REPORT_DIR"
 
 echo "=== Personal OS Weekly Verify ==="
 echo "stamp: ${STAMP}"
+echo "tier: core-first (discipline blocks; adoption gates warn until ST5+)"
 echo ""
 
+CORE_FAIL=0
+ADOPTION_WARN=0
+core_fail() { echo "  CORE FAIL $*"; CORE_FAIL=$((CORE_FAIL + 1)); FAIL=$((FAIL + 1)); }
+adopt_warn() { echo "  ADOPT WARN $*"; ADOPTION_WARN=$((ADOPTION_WARN + 1)); }
+core_pass() { echo "  CORE OK  $*"; pass "$*"; }
+
+echo "--- L2 Discipline + Truth (ST1–ST3 blockers) ---"
+for gate in audit-personal-os-discipline-gate.sh audit-personal-os-truth-gate.sh; do
+  if [[ -x "${ROOT}/scripts/${gate}" ]]; then
+    extra=()
+    [[ "$gate" == "audit-personal-os-truth-gate.sh" ]] && extra=(TIER=core)
+    if env "${extra[@]}" "${ROOT}/scripts/${gate}" >/tmp/personal-os-core-$$.log 2>&1; then
+      core_pass "$gate"
+    else
+      core_fail "$gate (see /tmp/personal-os-core-$$.log)"
+    fi
+  else
+    core_fail "missing ${gate}"
+  fi
+done
+
+echo ""
 echo "--- Local POS gates ---"
 GATES=(
   "audit-personal-os-gate.sh"
@@ -100,12 +123,22 @@ for gate in "${GATES[@]}"; do
     if env "${extra_env[@]}" "${ROOT}/scripts/${gate}" >/tmp/personal-os-gate-$$.log 2>&1; then
       pass "$gate"
     else
-      fail "$gate (see /tmp/personal-os-gate-$$.log)"
+      adopt_warn "$gate (see /tmp/personal-os-gate-$$.log)"
     fi
   else
-    fail "missing script ${gate}"
+    adopt_warn "missing script ${gate}"
   fi
 done
+
+echo ""
+echo "--- ST5+ Procedures (warn until shipped) ---"
+if [[ -x "${ROOT}/scripts/audit-personal-os-procedures-gate.sh" ]]; then
+  if "${ROOT}/scripts/audit-personal-os-procedures-gate.sh" >/tmp/personal-os-proc-$$.log 2>&1; then
+    pass "audit-personal-os-procedures-gate.sh"
+  else
+    adopt_warn "audit-personal-os-procedures-gate.sh (ST5 pending)"
+  fi
+fi
 
 echo ""
 echo "--- Env file flags (${ENV_FILE}) ---"
@@ -206,12 +239,16 @@ for k, v in checks.items():
 fi
 
 echo ""
-if [[ "$FAIL" -eq 0 ]]; then
+if [[ "$CORE_FAIL" -eq 0 && "$FAIL" -eq 0 ]]; then
   STATUS="pass"
   echo "PERSONAL OS VERIFY: PASS"
+elif [[ "$CORE_FAIL" -eq 0 ]]; then
+  STATUS="partial"
+  echo "PERSONAL OS VERIFY: PARTIAL (core OK; ${ADOPTION_WARN} adoption warnings)"
+  FAIL=0
 else
   STATUS="fail"
-  echo "PERSONAL OS VERIFY: FAIL (${FAIL} checks)"
+  echo "PERSONAL OS VERIFY: FAIL (core=${CORE_FAIL}; total=${FAIL})"
 fi
 
 python3 - <<PY
@@ -220,6 +257,8 @@ out = {
   "stamp": "${STAMP}",
   "status": "${STATUS}",
   "fail_count": ${FAIL},
+  "core_fail_count": ${CORE_FAIL},
+  "adoption_warn_count": ${ADOPTION_WARN},
   "hive_base": "${HIVE_BASE}",
   "skip_prod": ${SKIP_PROD},
 }

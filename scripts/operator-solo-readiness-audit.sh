@@ -148,7 +148,7 @@ core_solo_env_ok=$([[ "$solo_mode" == true ]] && echo true || echo false)
 
 # Score: how many checklist items pass
 checks_passed=0
-checks_total=8
+checks_total=9
 [[ "$solo_mode" == true ]] && checks_passed=$((checks_passed + 1))
 [[ "$llm_any" == true ]] && checks_passed=$((checks_passed + 1))
 [[ "$enabled_count" -ge 9 ]] && checks_passed=$((checks_passed + 1))
@@ -158,8 +158,23 @@ checks_total=8
 [[ "$(python3 -c "import json; d=json.loads('''${PENDING_JSON}'''); print(d.get('automated',{}).get('command_center_gate', False))" 2>/dev/null)" == "True" ]] && checks_passed=$((checks_passed + 1))
 [[ "$(python3 -c "import json; d=json.loads('''${PENDING_JSON}'''); print(d.get('hetzner',{}).get('marked_sent', False))" 2>/dev/null)" == "True" ]] && checks_passed=$((checks_passed + 1))
 
+discipline_ok=false
+if [[ -x "${ROOT}/scripts/audit-personal-os-discipline-gate.sh" ]]; then
+  if "${ROOT}/scripts/audit-personal-os-discipline-gate.sh" >/tmp/solo-discipline-$$.log 2>&1; then
+    discipline_ok=true
+    checks_passed=$((checks_passed + 1))
+  fi
+else
+  discipline_ok=false
+fi
+
 readiness_pct=$((checks_passed * 100 / checks_total))
-if [[ "$readiness_pct" -ge 85 ]]; then
+if [[ "$discipline_ok" != true ]]; then
+  readiness_status="partial"
+  if [[ "$readiness_pct" -ge 85 ]]; then
+    readiness_pct=84
+  fi
+elif [[ "$readiness_pct" -ge 89 ]]; then
   readiness_status="ready"
 elif [[ "$readiness_pct" -ge 50 ]]; then
   readiness_status="partial"
@@ -175,7 +190,9 @@ cat >"$JSON_OUT" <<EOF
     "status": "${readiness_status}",
     "score_pct": ${readiness_pct},
     "checks_passed": ${checks_passed},
-    "checks_total": ${checks_total}
+    "checks_total": ${checks_total},
+    "discipline_gate_pass": ${discipline_ok},
+    "note": "score capped at partial until audit-personal-os-discipline-gate.sh PASS (ST1)"
   },
   "solo_mode": {
     "enabled": ${solo_mode},

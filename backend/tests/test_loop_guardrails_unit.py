@@ -52,6 +52,29 @@ def test_resolve_loop_status_halt_on_turn_cap() -> None:
     assert "pause" in action.lower() or "approve" in action.lower()
 
 
+def test_record_same_failure_signature_halts_on_second() -> None:
+    from app.application.services.loop_guardrails_service import record_same_failure_signature
+
+    summary: dict[str, object] = {}
+    halt1, summary = record_same_failure_signature(summary, issues=["bad_output"], role="coder")
+    assert halt1 is False
+    assert summary.get("loop_same_failure_count") == 1
+
+    halt2, summary = record_same_failure_signature(summary, issues=["bad_output"], role="coder")
+    assert halt2 is True
+    assert summary.get("same_failure_twice") is True
+
+
+def test_record_same_failure_signature_resets_on_different_issue() -> None:
+    from app.application.services.loop_guardrails_service import record_same_failure_signature
+
+    summary: dict[str, object] = {}
+    _, summary = record_same_failure_signature(summary, issues=["bad_output"], role="coder")
+    halt, summary = record_same_failure_signature(summary, issues=["tool_failure"], role="coder")
+    assert halt is False
+    assert summary.get("loop_same_failure_count") == 1
+
+
 @pytest.mark.asyncio
 async def test_save_loop_guardrails_policy_persists_tenant_bucket(monkeypatch: pytest.MonkeyPatch) -> None:
     tenant_id = uuid.uuid4()

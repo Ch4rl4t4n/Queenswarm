@@ -12,6 +12,7 @@ from sqlalchemy.orm import selectinload
 
 from app.application.services.supervisor.runtime import is_approval_required
 from app.application.services.supervisor.session_service import apply_session_review, get_supervisor_session
+from app.application.services.supervisor_session_discipline import critic_failure_blocks_auto_approve
 from app.infrastructure.persistence.models.supervisor_session import SupervisorSession
 from app.infrastructure.persistence.models.tenant import Tenant
 
@@ -48,6 +49,11 @@ def explain_session_manual_approve(
     summary = dict(context_summary or {})
     if not auto_approve_enabled:
         return "Auto approve is OFF — click Approve or enable the toggle."
+    if critic_failure_blocks_auto_approve(goal=goal, context_summary=summary):
+        reason = str(summary.get("discipline_halt_reason") or "").strip()
+        if reason:
+            return f"Auto approve blocked — discipline halt: {reason[:240]}"
+        return "Auto approve blocked — critic or LLM failure (OP1). Manual review required."
     if is_session_auto_approve_blocked(goal=goal, context_summary=summary):
         reason = str(summary.get("approval_reason") or "").strip()
         return reason or "Critical action (billing, secrets, live PR) — manual approve required."
@@ -58,6 +64,8 @@ def is_session_auto_approve_blocked(*, goal: str, context_summary: dict[str, Any
     """Critical maintainer / billing actions stay manual even in auto-approve mode."""
 
     summary = dict(context_summary or {})
+    if critic_failure_blocks_auto_approve(goal=goal, context_summary=summary):
+        return True
     if not summary.get("approval_required"):
         return False
     required, _reason = is_approval_required(
@@ -165,7 +173,8 @@ async def auto_approve_pending_supervisor_sessions(
     approved_ids: list[str] = []
     skipped_critical = 0
     for row in rows:
-        if is_session_auto_approve_blocked(goal=row.goal, context_summary=dict(row.context_summary or {})):
+        ctx = dict(row.context_summary or {})
+        if is_session_auto_approve_blocked(goal=row.goal, context_summary=ctx):
             skipped_critical += 1
             continue
         # In-process approve runs LLM inside the caller (Celery/API) and starves workers.

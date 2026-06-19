@@ -272,6 +272,71 @@ async def test_auto_approve_pending_skips_inprocess_sessions(
     apply_mock.assert_not_awaited()
 
 
+def test_is_session_auto_approve_blocked_when_critic_failure_flag() -> None:
+    blocked = is_session_auto_approve_blocked(
+        goal="Digest",
+        context_summary={"critic_failure": True},
+    )
+    assert blocked is True
+
+
+def test_is_session_auto_approve_blocked_when_llm_failure_flag() -> None:
+    blocked = is_session_auto_approve_blocked(
+        goal="Digest",
+        context_summary={"llm_failure": True, "self_heal_exhausted": True},
+    )
+    assert blocked is True
+
+
+def test_explain_session_manual_approve_when_discipline_blocked() -> None:
+    hint = explain_session_manual_approve(
+        status="needs_input",
+        goal="Digest",
+        context_summary={"critic_failure": True, "discipline_halt_reason": "critic rejected"},
+        auto_approve_enabled=True,
+    )
+    assert hint is not None
+    assert "blocked" in hint.lower()
+
+
+@pytest.mark.asyncio
+async def test_maybe_auto_approve_skips_when_critic_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    tenant_id = uuid.uuid4()
+    row = MagicMock()
+    row.status = "needs_input"
+    row.tenant_id = tenant_id
+    row.goal = "Digest"
+    row.context_summary = {"critic_failure": True}
+    row.id = uuid.uuid4()
+    row.runtime_mode = "durable"
+
+    hydrated = MagicMock()
+    hydrated.status = "needs_input"
+
+    db = AsyncMock()
+    db.get = AsyncMock(
+        return_value=SimpleNamespace(
+            operator_settings={"supervisor_sessions": {"auto_approve_enabled": True}},
+        ),
+    )
+    apply_mock = AsyncMock()
+    monkeypatch.setattr(
+        "app.application.services.supervisor_session_control.apply_session_review",
+        apply_mock,
+    )
+    monkeypatch.setattr(
+        "app.application.services.supervisor_session_control.get_supervisor_session",
+        AsyncMock(return_value=hydrated),
+    )
+
+    approved = await maybe_auto_approve_supervisor_session(db, session_row=row)
+
+    assert approved is False
+    apply_mock.assert_not_awaited()
+
+
 @pytest.mark.asyncio
 async def test_auto_approve_pending_skips_critical_sessions(
     monkeypatch: pytest.MonkeyPatch,

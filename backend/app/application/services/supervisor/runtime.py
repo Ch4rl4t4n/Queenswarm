@@ -728,6 +728,8 @@ async def run_sub_agent_inprocess(
         return
 
     if not healing.resolved:
+        from app.application.services.supervisor_session_discipline import handle_unresolved_supervisor_step
+
         supervisor_session.status = "needs_input"
         supervisor_session.context_summary = append_reflection_journal(
             context_summary=dict(supervisor_session.context_summary or {}),
@@ -766,10 +768,18 @@ async def run_sub_agent_inprocess(
             "browser_session_id": str(browser_session_id) if browser_session_id else None,
             "discovered_tools": discovered_tools[:8],
         }
-        from app.application.services.supervisor_session_control import maybe_auto_approve_supervisor_session
-
-        if await maybe_auto_approve_supervisor_session(db, session_row=supervisor_session):
+        if await handle_unresolved_supervisor_step(
+            db,
+            session_row=supervisor_session,
+            sub_agent=sub_agent,
+            issues=list(healing.issues or []),
+        ):
             return
+        return
+
+    from app.application.services.supervisor_session_discipline import handle_critic_rejection_if_any
+
+    if await handle_critic_rejection_if_any(db, session_row=supervisor_session, sub_agent=sub_agent):
         return
 
     sub_agent.last_output = result_msg

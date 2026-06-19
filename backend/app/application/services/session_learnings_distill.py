@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +18,17 @@ _logger = get_logger(__name__)
 _LEARNING_MARKER = "<!-- qs-session-learning -->"
 _MAX_BLOCK_CHARS = 900
 _MIN_EXCERPT_CHARS = 80
+
+
+def _verified_distill_allowed(context_summary: dict[str, Any]) -> bool:
+    """MM8 — append to INSTRUCTIONS only after operator APPROVE or digest promote."""
+
+    if context_summary.get("verified_distill") is True:
+        return True
+    if context_summary.get("digest_promoted") is True:
+        return True
+    approval_state = str(context_summary.get("approval_state") or "").strip().lower()
+    return approval_state in {"approve", "approved"}
 
 
 def _learning_block(*, session_id: uuid.UUID, goal: str, excerpt: str) -> str:
@@ -75,6 +87,15 @@ async def distill_session_learnings_to_curated_memory(
         return False
     ctx = dict(session.context_summary or {})
     if ctx.get("skip_learnings_distill") is True:
+        return False
+    if not _verified_distill_allowed(ctx):
+        _logger.info(
+            "session_learnings.distill_skipped_unverified",
+            agent_id="session_learnings",
+            swarm_id=str(session.tenant_id),
+            task_id=str(session.id),
+            reason="MM8 verified_distill gate — requires APPROVE or promote",
+        )
         return False
     if ctx.get("skill_factory") is True:
         # Factory lane has its own quality gate + recipe library — avoid noise in harness memory.

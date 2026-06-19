@@ -249,3 +249,4 @@ async def test_ensure_lane_routine_when_existing_empty_roles_then_repairs() -> N
     assert row.roles == ["researcher", "critic"]
     assert row.runtime_mode == "durable"
     assert "marketing-campaign-playbook" in row.skills
+    assert "community-engagement-playbook" in row.skills
