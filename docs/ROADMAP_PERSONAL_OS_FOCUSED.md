@@ -17,10 +17,10 @@ Full historical backlog: [`docs/ROADMAP.md`](ROADMAP.md) — POS-ARCH · POS-STA
 |-------|---------|-------|
 | **L1 Platform** | Shipped code (Jarvis, lanes, foragers, CE, compound) | Use daily |
 | **L2 Discipline** | ST1 — OP1 · MM8 · LN1 | ✅ discipline gate PASS |
-| **L3 Adoption** | ST4–ST7 — config · procedures · UX | After L2 |
+| **L3 Adoption** | ST4–ST7 — config · procedures · UX | ✅ ST1–ST7 PASS (2026-06-19) |
 | **L4 Optional** | ST8 — voice · Reddit live · Slack | Operator opt-in |
 
-**Rule:** L1 at 100 % + L2 red = **partial**, not AFK-trust. Solo-readiness caps at **84 % / partial** until discipline gate PASS.
+**Rule:** L1 at 100 % + L2 red = **partial**, not AFK-trust. Solo-readiness was capped at **84 % / partial** until ST1 PASS — now reflects checklist when discipline gate is green.
 
 ---
 
@@ -42,15 +42,15 @@ Full historical backlog: [`docs/ROADMAP.md`](ROADMAP.md) — POS-ARCH · POS-STA
 | Sprint | Merges | Priority | Exit |
 |--------|--------|----------|------|
 | **ST1** | OP1 · MM8 · LN1 | ✅ P0 | `audit-personal-os-discipline-gate.sh` PASS |
-| **ST2** | OP2 · OP3 · LN2 | 🔴 P0 | truth gate core |
-| **ST3** | OP4 tech_scv | 🔴 P0 | IL proposals |
-| **ST4** | CE/JAR ops · JA2 · OP5/6 | ⏳ P1 config | truth gate full |
-| **ST5** | HN1–3 · MM7 · CE5 · JA3–4 | ⏳ P1 | procedures gate |
-| **ST6** | HN4/JA6 · LN3/5 · CE7/8 | ⏳ P2 | Mission Home split |
-| **ST7** | HN5/JA5 · MM9–10 | ⏳ P2 | eval metrics |
+| **ST2** | OP2 · OP3 · LN2 | ✅ P0 | `audit-personal-os-st2-gate.sh` PASS |
+| **ST3** | OP4 tech_scv | ✅ P0 | `audit-personal-os-st3-gate.sh` · 3 IL proposals |
+| **ST4** | CE/JAR ops · JA2 · OP5/6 | ✅ P1 | `audit-personal-os-st4-gate.sh` PASS |
+| **ST5** | HN1–3 · MM7 · CE5 · JA3–4 | ✅ P1 | `audit-personal-os-procedures-gate.sh` PASS |
+| **ST6** | HN4/JA6 · LN3/5 · CE7/8 | ✅ P2 | Mission Home strategic/AFK strips |
+| **ST7** | HN5/JA5 · MM9–10 | ✅ P2 | `personal_os_eval_metrics_service` |
 | **ST8** | CE6 · JA7 · OP7–9 · HN6 | ⏸ P3 | explicit approve |
 
-**Next freeze lift:** ST2–ST3 before new Mission Home strips · POS-* waves · CE/JAR procedure code.
+**Freeze lifted (ST1–ST7 green):** new Mission Home strips still require **AR3** demotion · new POS-* waves require **AR2** (one entry per sprint).
 
 ---
 
@@ -62,14 +62,16 @@ Full historical backlog: [`docs/ROADMAP.md`](ROADMAP.md) — POS-ARCH · POS-STA
 |----|------|--------|
 | Shipped | H1 Jarvis · I2 nudge · I3 · J1 · J3 · PA2 | ✅ |
 | JA1 | Skill `personal-advisor-playbook` | ✅ |
-| JA2–JA7 | → ST4–ST8 | ⏳ |
+| JA2 | Curated MISSION/IDEAL_STATE seeded | ✅ |
+| JA3–JA4 | Procedures `/advisor` · `/advisor-eval` | ✅ ST5 |
+| JA5–JA7 | → ST7 · ST8 | ST7 ✅ · ST8 ⏸ |
 
 ### POS-CE — community engagement
 
 | ID | What | Status |
 |----|------|--------|
 | CE1–CE4 | Skill · wizard · seed · lane caps | ✅ |
-| CE5–CE8 | → ST5–ST6 | ⏳ |
+| CE5–CE8 | Procedures · Mission Home UX | ✅ ST5–ST6 |
 | CE6 Reddit live | → ST8 | ⏸ |
 
 ```bash
@@ -86,7 +88,7 @@ Full historical backlog: [`docs/ROADMAP.md`](ROADMAP.md) — POS-ARCH · POS-STA
 | AR1 | Readiness cannot be `ready` without discipline gate PASS |
 | AR2 | Max **one** new operator entry per sprint |
 | AR3 | New Mission Home strip → demote one to Advanced |
-| AR4 | No new POS-* wave until ST1 PASS |
+| AR4 | No new POS-* wave until ST1 PASS (✅ lifted — use AR2 per sprint) |
 | AR5 | POS-ARCH AG1–AG5 on every feature |
 | AR6 | Weekly `./scripts/audit-personal-os-truth-gate.sh` |
 
@@ -101,13 +103,13 @@ Memory Manager · repo MEMORY.md · Jarvis Core module · n8n primary · Reddit 
 ## Operator audits
 
 ```bash
-# L2 core (ST1–ST3 blockers)
-TIER=core ./scripts/audit-personal-os-truth-gate.sh
-
-# Full truth + platform
+# L2 core (discipline + ST2–ST4)
 ./scripts/audit-personal-os-truth-gate.sh
 
-# Readiness (caps at partial until ST1)
+# Full truth + platform (same — ST3/ST4 in L2 section)
+./scripts/audit-personal-os-truth-gate.sh
+
+# Readiness (reflects checklist when ST1 discipline PASS)
 ./scripts/operator-solo-readiness-audit.sh
 
 # Weekly ritual (core blocks, adoption warns)

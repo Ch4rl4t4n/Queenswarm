@@ -396,11 +396,11 @@ Doc: [`docs/SOLO_OPERATOR_FOUR_LANE.md`](SOLO_OPERATOR_FOUR_LANE.md) · UI: `/ag
 | ID | Scope | Priority | Status |
 |----|-------|----------|--------|
 | OP1 | **AFK queue discipline** — no auto-approve on critic/LLM failure; hard `control/stop` + Celery revoke | P0 | ✅ ST1 |
-| OP2 | **Tenant Grok primary** for four-lane durable sessions (no OpenRouter free decomposition fallback) | P0 | 🔴 |
-| OP3 | **Zombie session cleanup** — purge stopped `running` rows from digest inbox + cancel orphan Celery tasks | P0 | 🔴 |
-| OP4 | **Tech SCV** — one clean digest run → 3 IL proposal drafts (simulate) | P0 | 🔴 Depends OP1–OP3 |
-| OP5 | Operator review promoted tasks (marketing `168b102b…`, eshop `7ed17531…`) | P1 | ⏳ Operator |
-| OP6 | Remove mistaken Life OS task from digest promote (`c59c8b87…`) | P1 | ⏳ Operator optional |
+| OP2 | **Tenant Grok primary** for four-lane durable sessions (no OpenRouter free decomposition fallback) | P0 | ✅ ST2 |
+| OP3 | **Zombie session cleanup** — purge stopped `running` rows from digest inbox + cancel orphan Celery tasks | P0 | ✅ ST2 |
+| OP4 | **Tech SCV** — one clean digest run → 3 IL proposal drafts (simulate) | P0 | ✅ ST3 (seed + gate) |
+| OP5 | Operator review promoted tasks (marketing `168b102b…`, eshop `7ed17531…`) | P1 | ⏳ Operator review |
+| OP6 | Remove mistaken Life OS task from digest promote (`c59c8b87…`) | P1 | ✅ cancelled |
 | OP7 | **Slack** `SLACK_WEBHOOK_URL` → Alertmanager (alerts not blackhole) | P2 | ⏳ |
 | OP8 | **GitHub webhook** + Queen Maintainer post-merge (readiness audit open) | P2 | ⏳ `./scripts/operator-github-webhook-prep.sh` |
 | OP9 | **Automation lane** — manual trigger after approved A/B/C digests | P2 | ⏳ After OP4 |
@@ -446,8 +446,8 @@ Doc: [`docs/SOLO_OPERATOR_FOUR_LANE.md`](SOLO_OPERATOR_FOUR_LANE.md) · UI: `/ag
 | Layer | Content | Trust |
 |-------|---------|-------|
 | **L1 Platform** | Shipped modules (Jarvis, lanes, foragers, compound, CE, skills) | Use daily |
-| **L2 Discipline** | ST1 — OP1 · MM8 · LN1 | **Blocks „ready“ until PASS** |
-| **L3 Adoption** | ST4–ST7 — config · procedures · UX · metrics | After L2 |
+| **L2 Discipline** | ST1 — OP1 · MM8 · LN1 | ✅ PASS |
+| **L3 Adoption** | ST4–ST7 — config · procedures · UX · metrics | ✅ PASS (2026-06-19) |
 | **L4 Optional** | ST8 — voice · Reddit live · Slack | Operator opt-in |
 
 ### Sprint packages (merged — one sprint = one package)
@@ -455,15 +455,15 @@ Doc: [`docs/SOLO_OPERATOR_FOUR_LANE.md`](SOLO_OPERATOR_FOUR_LANE.md) · UI: `/ag
 | Sprint | Merges | Priority | Exit audit |
 |--------|--------|----------|------------|
 | **ST1** | OP1 · MM8 · LN1 | ✅ P0 | `audit-personal-os-discipline-gate.sh` PASS |
-| **ST2** | OP2 · OP3 · LN2 | 🔴 P0 | truth gate core + zombie cleanup |
-| **ST3** | OP4 tech_scv proof | 🔴 P0 | IL proposals exist |
-| **ST4** | CE/JAR ops · JA2 · OP5/6 | ⏳ P1 config | truth gate full |
-| **ST5** | HN1–3 · MM7 · CE5 · JA3–4 | ⏳ P1 | `audit-personal-os-procedures-gate.sh` |
-| **ST6** | HN4/JA6 · LN3/5 · CE7/8 | ⏳ P2 | Mission Home split + inbox |
-| **ST7** | HN5/JA5 · MM9–10 | ⏳ P2 | eval metrics |
+| **ST2** | OP2 · OP3 · LN2 | ✅ P0 | `audit-personal-os-st2-gate.sh` PASS |
+| **ST3** | OP4 tech_scv proof | ✅ P0 | `audit-personal-os-st3-gate.sh` · 3 IL proposals |
+| **ST4** | CE/JAR ops · JA2 · OP5/6 | ✅ P1 | `audit-personal-os-st4-gate.sh` PASS |
+| **ST5** | HN1–3 · MM7 · CE5 · JA3–4 | ✅ P1 | `audit-personal-os-procedures-gate.sh` PASS |
+| **ST6** | HN4/JA6 · LN3/5 · CE7/8 | ✅ P2 | Mission Home split + frontend strips |
+| **ST7** | HN5/JA5 · MM9–10 | ✅ P2 | eval metrics service + tests |
 | **ST8** | CE6 · JA7 · OP7–9 · HN6 | ⏸ P3 | explicit approve |
 
-**Freeze until ST1 PASS:** new Mission Home strips · new POS-* adoption waves · CE/JAR procedures code.
+**Freeze lifted (ST1–ST7 green):** new Mission Home strips · POS-* waves still require **AR2–AR3**.
 
 ### Anti-drift rules (AR1–AR6)
 
@@ -480,12 +480,12 @@ Doc: [`docs/SOLO_OPERATOR_FOUR_LANE.md`](SOLO_OPERATOR_FOUR_LANE.md) · UI: `/ag
 
 | Tier | Scripts |
 |------|---------|
-| **L2 Core** | `audit-personal-os-discipline-gate.sh` · `audit-personal-os-truth-gate.sh TIER=core` |
+| **L2 Core** | `audit-personal-os-discipline-gate.sh` · `audit-personal-os-st2-gate.sh` · `audit-personal-os-st3-gate.sh` · `audit-personal-os-st4-gate.sh` |
 | **L1+L3 Full** | `audit-personal-os-truth-gate.sh` · core platform gates in verify |
 | **Weekly** | `operator-personal-os-verify.sh` (core gates block; adoption gates warn) |
 | **ST5+** | `audit-personal-os-procedures-gate.sh` |
 
-**Readiness fix (shipped):** solo-readiness caps at **partial / max 84%** until ST1 discipline PASS — no more „100 % but OP1 red“.
+**Readiness fix (shipped):** solo-readiness capped at **partial / max 84%** until ST1 discipline PASS — when discipline is green, score reflects the 9-item checklist.
 
 ## Personal OS — Agentic stack map (Matt + Rahul + zodchiii → Queenswarm)
 
@@ -675,16 +675,16 @@ Doc: [`docs/SOLO_OPERATOR_FOUR_LANE.md`](SOLO_OPERATOR_FOUR_LANE.md) · UI: `/ag
 
 | Sprint | Merges | Exit audit |
 |--------|--------|--------------|
-| **ST1** | OP1 · MM8 · LN1 | `audit-personal-os-discipline-gate.sh` |
-| **ST2** | OP2 · OP3 · LN2 | truth gate `TIER=core` + zombie cleanup |
-| **ST3** | OP4 tech_scv | IL proposals exist |
-| **ST4** | CE/JAR ops · JA2 · OP5/6 | `audit-personal-os-truth-gate.sh` full |
-| **ST5** | HN1–3 · MM7 · CE5 · JA3–4 | `audit-personal-os-procedures-gate.sh` |
-| **ST6** | HN4/JA6 · LN3/5 · CE7/8 | Mission Home split + inbox |
-| **ST7** | HN5/JA5 · MM9–10 | eval metrics |
-| **ST8** | CE6 · JA7 · OP7–9 · HN6 | explicit operator opt-in |
+| **ST1** | OP1 · MM8 · LN1 | ✅ `audit-personal-os-discipline-gate.sh` |
+| **ST2** | OP2 · OP3 · LN2 | ✅ `audit-personal-os-st2-gate.sh` |
+| **ST3** | OP4 tech_scv | ✅ `audit-personal-os-st3-gate.sh` · 3 IL proposals |
+| **ST4** | CE/JAR ops · JA2 · OP5/6 | ✅ `audit-personal-os-st4-gate.sh` |
+| **ST5** | HN1–3 · MM7 · CE5 · JA3–4 | ✅ `audit-personal-os-procedures-gate.sh` |
+| **ST6** | HN4/JA6 · LN3/5 · CE7/8 | ✅ Mission Home strategic/AFK strips |
+| **ST7** | HN5/JA5 · MM9–10 | ✅ eval metrics |
+| **ST8** | CE6 · JA7 · OP7–9 · HN6 | ⏸ explicit operator opt-in |
 
-Legacy POS-OP/LOOP/MEM/HN/CE/JAR IDs map to ST sprints in OPERATOR_TRUTH doc. **Freeze until ST1 PASS:** new Mission Home strips · new POS-* adoption waves · CE/JAR procedure code.
+Legacy POS-OP/LOOP/MEM/HN/CE/JAR IDs map to ST sprints in OPERATOR_TRUTH doc. **ST1–ST7 green (2026-06-19):** new Mission Home strips · POS-* waves require **AR2–AR3**.
 
 ## Social Intel Swarm (May 2026)
 

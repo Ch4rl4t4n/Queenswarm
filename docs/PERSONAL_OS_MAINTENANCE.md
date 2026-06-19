@@ -22,10 +22,12 @@ Apply preset: `./scripts/apply-solo-mode.sh` (merges `.env.solo.example` → `.e
 | Sprint | Gate | When |
 |--------|------|------|
 | **ST1** | `./scripts/audit-personal-os-discipline-gate.sh` | Every PR touching supervisor / distill / loop guardrails |
-| **ST1–ST3** | `TIER=core ./scripts/audit-personal-os-truth-gate.sh` | Before ST4 config sprint |
-| **ST4+** | `./scripts/audit-personal-os-truth-gate.sh` | Full platform + CE/JAR assets |
-| **ST5+** | `./scripts/audit-personal-os-procedures-gate.sh` | After procedures registry shipped |
-| **Readiness** | `./scripts/operator-solo-readiness-audit.sh` | Caps at **partial / 84%** until ST1 PASS (AR1) |
+| **ST2–ST4** | `./scripts/audit-personal-os-st2-gate.sh` … `st4-gate.sh` | Deploy · truth gate L2 section |
+| **ST3 seed** | `./scripts/operator-tech-scv-seed.sh` | Innovation Lab proof (3 proposals) |
+| **ST4 adoption** | `./scripts/operator-st4-adoption.sh` | JA2 · CE · OP6 hygiene |
+| **Full truth** | `./scripts/audit-personal-os-truth-gate.sh` | Weekly · includes ST1–ST4 + platform |
+| **ST5+** | `./scripts/audit-personal-os-procedures-gate.sh` | Procedures registry |
+| **Readiness** | `./scripts/operator-solo-readiness-audit.sh` | Caps at partial until ST1 PASS; then checklist score |
 | **Weekly** | `./scripts/operator-personal-os-verify.sh` | Core gates block; adoption gates warn |
 
 ## Automated gates (CI + weekly operator)

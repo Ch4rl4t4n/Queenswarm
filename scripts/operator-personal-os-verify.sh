@@ -56,7 +56,7 @@ mkdir -p "$REPORT_DIR"
 
 echo "=== Personal OS Weekly Verify ==="
 echo "stamp: ${STAMP}"
-echo "tier: core-first (discipline blocks; adoption gates warn until ST5+)"
+echo "tier: ST1–ST4 core gates block; adoption gates warn until ST5+"
 echo ""
 
 CORE_FAIL=0
@@ -65,12 +65,15 @@ core_fail() { echo "  CORE FAIL $*"; CORE_FAIL=$((CORE_FAIL + 1)); FAIL=$((FAIL 
 adopt_warn() { echo "  ADOPT WARN $*"; ADOPTION_WARN=$((ADOPTION_WARN + 1)); }
 core_pass() { echo "  CORE OK  $*"; pass "$*"; }
 
-echo "--- L2 Discipline + Truth (ST1–ST3 blockers) ---"
-for gate in audit-personal-os-discipline-gate.sh audit-personal-os-truth-gate.sh; do
+echo "--- L2 Discipline + Truth (ST1–ST4) ---"
+for gate in \
+  audit-personal-os-discipline-gate.sh \
+  audit-personal-os-st2-gate.sh \
+  audit-personal-os-st3-gate.sh \
+  audit-personal-os-st4-gate.sh \
+  audit-personal-os-truth-gate.sh; do
   if [[ -x "${ROOT}/scripts/${gate}" ]]; then
-    extra=()
-    [[ "$gate" == "audit-personal-os-truth-gate.sh" ]] && extra=(TIER=core)
-    if env "${extra[@]}" "${ROOT}/scripts/${gate}" >/tmp/personal-os-core-$$.log 2>&1; then
+    if "${ROOT}/scripts/${gate}" >/tmp/personal-os-core-$$.log 2>&1; then
       core_pass "$gate"
     else
       core_fail "$gate (see /tmp/personal-os-core-$$.log)"

@@ -182,6 +182,12 @@ else
   readiness_status="blocked"
 fi
 
+if [[ "$discipline_ok" == true ]]; then
+  readiness_note="ST1 discipline gate PASS — score reflects operator checklist"
+else
+  readiness_note="score capped at partial until audit-personal-os-discipline-gate.sh PASS (ST1)"
+fi
+
 cat >"$JSON_OUT" <<EOF
 {
   "timestamp_utc": "${STAMP}",
@@ -192,7 +198,7 @@ cat >"$JSON_OUT" <<EOF
     "checks_passed": ${checks_passed},
     "checks_total": ${checks_total},
     "discipline_gate_pass": ${discipline_ok},
-    "note": "score capped at partial until audit-personal-os-discipline-gate.sh PASS (ST1)"
+    "note": "${readiness_note}"
   },
   "solo_mode": {
     "enabled": ${solo_mode},

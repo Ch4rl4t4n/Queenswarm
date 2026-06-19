@@ -119,7 +119,9 @@ Mission Home `strategic_today_strip` + `afk_running_strip` (backend API + fronte
 
 CE6 Reddit live · JA7 voice · OP7 Slack · OP8 GitHub · OP9 automation · HN6 learn-from-source · Track M local LLM
 
-**Rule:** Each requires ST1–ST3 green + explicit operator approval.
+**Rule:** Each requires ST1–ST7 green + explicit operator approval.
+
+**Remaining operator habit (not code):** OP5 — review promoted marketing/eshop digest tasks on `/tasks`.
 
 ---
 
@@ -177,7 +179,9 @@ CE6 Reddit live · JA7 voice · OP7 Slack · OP8 GitHub · OP9 automation · HN6
 
 1. **ST1** → 2. **ST2** → 3. **ST3** → 4. **ST4** → 5. **ST5** → 6. **ST6** → 7. **ST7** → 8. **ST8**
 
-After **ST3**: entire L1 platform is **trustworthy + proven**. ST4–ST7 = comfort & speed, not survival.
+**Status (2026-06-19):** ST1–ST7 ✅ shipped · prod deploy green · `OPERATOR TRUTH (full): PASS` · **ST8** ⏸ optional.
+
+After **ST3**: entire L1 platform is **trustworthy + proven**. ST4–ST7 = comfort & speed. ST8 = explicit opt-in only.
 
 ---
 
