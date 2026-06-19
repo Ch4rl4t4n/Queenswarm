@@ -16,6 +16,11 @@ def test_is_four_lane_session_when_lane_only() -> None:
     assert is_four_lane_session({"four_lane_id": "marketing_najman"}) is True
 
 
+def test_is_four_lane_session_when_not_dict_then_false() -> None:
+    assert is_four_lane_session(None) is False
+    assert is_four_lane_session([]) is False  # type: ignore[arg-type]
+
+
 def test_build_four_lane_llm_context_seed_quality_mode() -> None:
     seed = build_four_lane_llm_context_seed()
     assert seed["four_lane_grok_primary"] is True
