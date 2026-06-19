@@ -9,6 +9,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.application.services.solo_operator_four_lanes import (
     FOUR_LANE_IDS,
@@ -147,6 +148,7 @@ async def compose_four_lane_digest_inbox(
             await db.scalars(
                 select(SupervisorSession)
                 .where(SupervisorSession.tenant_id == tenant_id)
+                .options(selectinload(SupervisorSession.sub_agents))
                 .order_by(desc(SupervisorSession.created_at))
                 .limit(max(limit * 4, 40)),
             )
@@ -223,7 +225,12 @@ async def promote_digest_session_to_task(
 ) -> dict[str, Any]:
     """Approve digest session (optional) and create a backlog task linked to it."""
 
-    session_row = await db.get(SupervisorSession, session_id)
+    session_row = await db.scalar(
+        select(SupervisorSession)
+        .where(SupervisorSession.id == session_id)
+        .options(selectinload(SupervisorSession.sub_agents))
+        .limit(1),
+    )
     if session_row is None or session_row.tenant_id != tenant_id:
         return {"ok": False, "error": "session_not_found"}
 
