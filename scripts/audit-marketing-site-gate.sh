@@ -49,17 +49,17 @@ else
   fail "missing product openGraph metadata"
 fi
 
-if grep -q "factory-launch-launch-and-verify-btn" frontend/components/hive/factory-launch-widget.tsx 2>/dev/null; then
-  pass "REV12 launch verify still mounted"
+if [[ ! -f frontend/components/hive/factory-launch-widget.tsx ]]; then
+  pass "factory launch widget removed (Personal OS purge)"
 else
-  fail "missing REV12 launch verify button"
+  fail "factory-launch-widget should be removed"
 fi
 
 if [[ -x backend/venv/bin/python ]]; then
-  if (cd backend && ./venv/bin/python -m pytest tests/test_gumroad_ready_package_unit.py -q --no-cov); then
-    pass "pytest gumroad cover.html package"
+  if (cd backend && ./venv/bin/python -m pytest tests/test_marketing_product_catalog_unit.py tests/test_marketing_router_unit.py -q --no-cov); then
+    pass "pytest marketing catalog + router"
   else
-    fail "pytest gumroad cover.html package"
+    fail "pytest marketing catalog bundle"
   fi
 else
   fail "backend venv missing — cannot run pytest"
