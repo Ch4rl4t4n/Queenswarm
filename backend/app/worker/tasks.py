@@ -342,7 +342,12 @@ def dynamic_agent_schedule_tick_task() -> dict[str, Any]:
     return asyncio.run(_tick())
 
 
-@celery_app.task(name="hive.supervisor_sub_agent_step", queue="hive")
+@celery_app.task(
+    name="hive.supervisor_sub_agent_step",
+    queue="hive",
+    soft_time_limit=600,
+    time_limit=720,
+)
 def run_supervisor_sub_agent_step_task(
     *,
     supervisor_session_id: str,
