@@ -37,10 +37,9 @@ run_backend() {
   ./scripts/audit-sub-swarm-fleet-gate.sh
   ./scripts/audit-memory-project-tags-gate.sh
   ./scripts/audit-commercial-self-serve-gate.sh
-  ./scripts/audit-factory-launch-gate.sh
   ./scripts/audit-marketing-site-gate.sh
-  ./scripts/audit-catalog-wave-gate.sh
-  ./scripts/audit-revenue-funnel-gate.sh
+  ./scripts/audit-personal-os-in-app-skills-gate.sh
+  ./scripts/audit-skill-factory-lite-gate.sh
   ./scripts/audit-personal-os-gate.sh
   ./scripts/audit-marketing-team-gate.sh
   ./scripts/audit-faceless-pipeline-gate.sh
