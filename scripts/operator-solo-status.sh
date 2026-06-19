@@ -37,7 +37,9 @@ load_kv() {
 slack_env=false
 [[ -n "$(load_kv .env.prod SLACK_WEBHOOK_URL || true)" ]] && slack_env=true
 solo_mode=false
+personal_os_mode=false
 [[ "$(load_kv .env.prod SOLO_MODE_ENABLED || true)" =~ ^(1|true|yes|on)$ ]] && solo_mode=true
+[[ "$(load_kv .env.prod PERSONAL_OS_MODE_ENABLED || true)" =~ ^(1|true|yes|on)$ ]] && personal_os_mode=true
 
 health_ok=false
 curl -sf "${HIVE_BASE}/health" >/dev/null 2>&1 && health_ok=true
@@ -51,10 +53,27 @@ vc_readiness=0
 vc_simulate=false
 life_os=false
 if [[ -n "${JWT// }" ]]; then
-  audit="$(curl -sk -H "Authorization: Bearer ${JWT}" "${HIVE_BASE}/api/v1/virtual-company/readiness-audit" 2>/dev/null || echo '{}')"
-  vc_readiness="$(echo "$audit" | python3 -c "import json,sys; print(json.load(sys.stdin).get('readiness_score',0))" 2>/dev/null || echo 0)"
-  vc_simulate="$(echo "$audit" | python3 -c "import json,sys; d=json.load(sys.stdin); print(str(d.get('checklist',{}).get('simulate_path_complete',False)).lower())" 2>/dev/null || echo false)"
-  life_os="$(echo "$audit" | python3 -c "import json,sys; d=json.load(sys.stdin); print(str(d.get('checklist',{}).get('first_run',{}).get('life_os_first_run_completed',False)).lower())" 2>/dev/null || echo false)"
+  if [[ "$personal_os_mode" == true ]]; then
+    trio="$(curl -sk -H "Authorization: Bearer ${JWT}" "${HIVE_BASE}/api/v1/solo-operator/trio" 2>/dev/null || echo '{}')"
+    life_os="$(echo "$trio" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+for lane in d.get('lanes') or []:
+    if lane.get('lane_id') == 'life_os' and lane.get('routine_id'):
+        st=str(lane.get('last_session_status') or '').lower()
+        print('true' if st in {'completed','done','success','needs_input','running'} else 'bound')
+        break
+else:
+    print('false')
+" 2>/dev/null || echo false)"
+    [[ "$life_os" == "bound" ]] && life_os=true
+    vc_readiness="n/a"
+  else
+    audit="$(curl -sk -H "Authorization: Bearer ${JWT}" "${HIVE_BASE}/api/v1/virtual-company/readiness-audit" 2>/dev/null || echo '{}')"
+    vc_readiness="$(echo "$audit" | python3 -c "import json,sys; print(json.load(sys.stdin).get('readiness_score',0))" 2>/dev/null || echo 0)"
+    vc_simulate="$(echo "$audit" | python3 -c "import json,sys; d=json.load(sys.stdin); print(str(d.get('checklist',{}).get('simulate_path_complete',False)).lower())" 2>/dev/null || echo false)"
+    life_os="$(echo "$audit" | python3 -c "import json,sys; d=json.load(sys.stdin); print(str(d.get('checklist',{}).get('first_run',{}).get('life_os_first_run_completed',False)).lower())" 2>/dev/null || echo false)"
+  fi
 fi
 
 routines=0
@@ -95,9 +114,9 @@ echo
 echo "── Core ──"
 echo "  Health:              $([[ "$health_ok" == true ]] && echo '✓ OK' || echo '✗ FAIL')"
 echo "  Solo mode:           $([[ "$solo_mode" == true ]] && echo 'ON (Personal OS; in-app Skill Factory)' || echo 'OFF')"
-echo "  VC readiness:        ${vc_readiness}%"
-echo "  Simulate path:       $([[ "$vc_simulate" == true ]] && echo '✓ complete' || echo '○ pending')"
-echo "  Life OS first-run:   $([[ "$life_os" == true ]] && echo '✓ done' || echo '○ pending')"
+echo "  VC readiness:        ${vc_readiness}$([[ "$vc_readiness" == "n/a" ]] && echo ' (Personal OS — use trio/four-lanes)' || echo '%')"
+echo "  Simulate path:       $([[ "$personal_os_mode" == true ]] && echo '— VC archived' || ([[ "$vc_simulate" == true ]] && echo '✓ complete' || echo '○ pending'))"
+echo "  Life OS lane:        $([[ "$life_os" == true ]] && echo '✓ bound' || echo '○ pending')"
 echo
 
 echo "── Automation ──"

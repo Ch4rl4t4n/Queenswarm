@@ -21,7 +21,15 @@ if ! docker ps --format '{{.Names}}' | grep -qx "$BACKEND"; then
   exit 1
 fi
 
-docker exec "$BACKEND" python scripts/bootstrap_solo_operator_lane.py --email "$EMAIL"
+RAW="$(docker exec "$BACKEND" python scripts/bootstrap_solo_operator_lane.py --email "$EMAIL" 2>/dev/null || true)"
+printf '%s' "$RAW" | python3 -c "
+import sys
+text = sys.stdin.read()
+start = text.find('{')
+if start < 0:
+    raise SystemExit('bootstrap returned no JSON')
+print(text[start:].strip())
+" | python3 -m json.tool
 
 echo
 echo "Verify trio: curl -H \"Authorization: Bearer \$TOKEN\" ${HIVE_BASE:-https://queenswarm.love}/api/v1/solo-operator/trio"

@@ -28,6 +28,7 @@ def step(n, title, why, commands, doc=None):
 hetzner = d.get("hetzner", {})
 harness = d.get("harness", {})
 solo = False
+personal_os = False
 try:
     import pathlib
     env_path = pathlib.Path(os.environ.get("ENV_FILE", ".env.prod"))
@@ -35,11 +36,26 @@ try:
         for line in env_path.read_text(encoding="utf-8", errors="replace").splitlines():
             if line.strip().startswith("SOLO_MODE_ENABLED="):
                 solo = line.split("=", 1)[1].strip().lower() in ("1", "true", "yes", "on")
-                break
+            if line.strip().startswith("PERSONAL_OS_MODE_ENABLED="):
+                personal_os = line.split("=", 1)[1].strip().lower() in ("1", "true", "yes", "on")
 except OSError:
     pass
 
-if solo and not harness.get("webhook_ready"):
+if solo and personal_os and harness.get("webhook_ready"):
+    out = step(
+        1,
+        "Personal OS daily operator stack",
+        "Readiness green — mission-home, four-lanes, durable sessions. Run daily stack + evening loop.",
+        [
+            "./scripts/operator-personal-os-verify.sh",
+            "./scripts/operator-evening-loop-smoke.sh",
+            "./scripts/operator-life-os-smoke.sh",
+            "./scripts/prod-session-walkthrough-gate.sh",
+            "Mission Home → Daily plan → /agents#sessions → /ballroom → /foragers",
+        ],
+        "docs/SOLO_OPERATOR_MODE.md",
+    )
+elif solo and not harness.get("webhook_ready"):
     out = step(
         1,
         "Solo harness automation",
