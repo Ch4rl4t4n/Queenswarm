@@ -10,7 +10,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 BACKEND="${BACKEND:-queenswarm_prod-backend-1}"
-SCRAPE="${SCAPE:-1}"
+SCRAPE="${SCRAPE:-1}"
 
 echo "╔══════════════════════════════════════════════════════════╗"
 echo "║  Community Engagement (POS-CE) — forager + harness       ║"
@@ -24,7 +24,7 @@ if ! docker ps --format '{{.Names}}' | grep -qx "$BACKEND"; then
 fi
 
 SCRAPE_FLAG=""
-if [[ "${SCAPE}" == "1" ]]; then
+if [[ "${SCRAPE}" == "1" ]]; then
   SCRAPE_FLAG="--scrape"
 fi
 

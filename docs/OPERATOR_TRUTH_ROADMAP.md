@@ -82,6 +82,17 @@ Setup guides: [`JARVIS_PERSONAL_ADVISOR_SETUP.md`](JARVIS_PERSONAL_ADVISOR_SETUP
 
 **Merges:** HN1 · HN2 · HN3 · MM7 · CE5 · JA3 · JA4
 
+**Procedure map** (`procedures/` registry):
+
+| Slash | File | Purpose |
+|-------|------|---------|
+| `/advisor` | `procedures/advisor.md` | Jarvis 3-step loop · personal-advisor-playbook |
+| `/advisor-eval` | `procedures/advisor-eval.md` | H6 scorecard checklist |
+| `/community-engage` | `procedures/community-engage.md` | CE playbook · marketing lane drafts |
+| `/memory-review` | `procedures/memory-review.md` | Curated INSTRUCTIONS editor |
+| `/triage-digest` | `procedures/triage-digest.md` | Four-lane digest inbox → promote |
+| `/coach-compound` | `procedures/coach-compound.md` | Weekly eval + compound ritual (ST7) |
+
 **Exit:** `./scripts/audit-personal-os-procedures-gate.sh` → **PASS**
 
 ---
