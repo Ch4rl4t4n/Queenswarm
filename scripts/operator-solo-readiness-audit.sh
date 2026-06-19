@@ -69,6 +69,23 @@ check_key_set GROK_API_KEY && llm_grok=true
 check_key_set ANTHROPIC_API_KEY && llm_anthropic=true
 check_key_set OPENAI_API_KEY && llm_openai=true
 llm_any=$([[ "$llm_grok" == true || "$llm_anthropic" == true || "$llm_openai" == true ]] && echo true || echo false)
+llm_tenant_build_allowed=false
+llm_tenant_source="none"
+BACKEND_CONTAINER="${BACKEND_CONTAINER:-queenswarm_prod-backend-1}"
+if [[ "$llm_any" != true ]] && docker ps --format '{{.Names}}' | grep -qx "$BACKEND_CONTAINER"; then
+  TENANT_LLM_TOKEN="$(docker exec "$BACKEND_CONTAINER" python scripts/issue_operator_user_jwt.py 2>/dev/null | tr -d '\r\n' || true)"
+  if [[ -n "${TENANT_LLM_TOKEN// }" ]]; then
+    TENANT_LLM_JSON="$(curl -sS -H "Authorization: Bearer ${TENANT_LLM_TOKEN}" \
+      "${HIVE_BASE}/api/v1/factory-readiness/llm" 2>/dev/null || true)"
+    if [[ -n "${TENANT_LLM_JSON// }" ]]; then
+      llm_tenant_build_allowed="$(python3 -c "import json,sys; d=json.loads(sys.argv[1]); print('true' if d.get('build_allowed') else 'false')" "$TENANT_LLM_JSON" 2>/dev/null || echo false)"
+      if [[ "$llm_tenant_build_allowed" == "true" ]]; then
+        llm_any=true
+        llm_tenant_source="tenant_factory_readiness"
+      fi
+    fi
+  fi
+fi
 
 # Optional module env flags
 env_forager=false
@@ -174,7 +191,9 @@ cat >"$JSON_OUT" <<EOF
     "any_configured": ${llm_any},
     "grok": ${llm_grok},
     "anthropic": ${llm_anthropic},
-    "openai": ${llm_openai}
+    "openai": ${llm_openai},
+    "tenant_build_allowed": ${llm_tenant_build_allowed},
+    "tenant_source": "${llm_tenant_source}"
   },
   "optional_modules": {
     "matrix_enabled_count": ${enabled_count},
