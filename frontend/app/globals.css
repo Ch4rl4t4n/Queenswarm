@@ -13,7 +13,7 @@
   --color-success: #5be3b2;
   --color-danger: #ff6b8a;
   --color-muted-foreground: #877ba8;
-  --font-hive-display: var(--font-space-grotesk), "Space Grotesk", var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  --font-hive-display: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
   --font-hive-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
   --font-hive-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
 }
@@ -1144,14 +1144,11 @@
 
   .qs-page-header h1,
   .page-title h1 {
-    font-size: 38px;
-    font-weight: 700;
-    line-height: 1.18;
-    letter-spacing: -0.035em;
-    background: linear-gradient(100deg, #ffffff 0%, #f5f1ff 38%, var(--qs-amber) 130%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    font-size: 34px;
+    font-weight: 600;
+    line-height: 1.28;
+    letter-spacing: -0.02em;
+    color: var(--qs-text);
     font-family: var(--font-hive-display), ui-sans-serif, system-ui, sans-serif;
     margin-bottom: 0;
     overflow: visible;
@@ -1342,26 +1339,11 @@
      ═══════════════════════════════════════ */
 
   .v4-label-kicker {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    font-family: var(--font-space-grotesk), "Space Grotesk", var(--font-poppins), system-ui, sans-serif;
     font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.16em;
+    font-weight: 600;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--qs-amber);
-  }
-
-  /* Small honeycomb tick before every section eyebrow. */
-  .v4-label-kicker::before {
-    content: "";
-    width: 9px;
-    height: 10px;
-    flex-shrink: 0;
-    background: linear-gradient(135deg, var(--qs-amber), var(--qs-magenta));
-    clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
-    box-shadow: 0 0 8px rgba(253, 185, 39, 0.55);
+    color: var(--qs-text-3);
   }
 
   .v4-status-pill {
@@ -2058,32 +2040,16 @@
   }
 
   .v4-card {
-    position: relative;
     background:
-      radial-gradient(120% 80% at 0% 0%, rgba(126, 63, 190, 0.22) 0%, rgba(126, 63, 190, 0) 52%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0) 30%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 38%),
       var(--qs-surface);
     border: var(--qs-bubble-border-width) solid var(--qs-border);
-    border-radius: var(--qs-radius-xl);
+    border-radius: var(--qs-radius-lg);
     padding: 24px;
-    backdrop-filter: blur(18px);
+    backdrop-filter: blur(16px);
     box-shadow: var(--qs-shadow-card);
     transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
     min-width: 0;
-  }
-
-  /* Neon top accent rail — Bee-Hive identity on every card.
-     Rounded to follow the card corners so the card keeps overflow:visible
-     (dropdowns / popovers inside cards must not be clipped). */
-  .v4-card::before {
-    content: "";
-    position: absolute;
-    inset: 0 0 auto 0;
-    height: 3px;
-    border-radius: var(--qs-radius-xl) var(--qs-radius-xl) 0 0;
-    background: linear-gradient(90deg, var(--qs-amber) 0%, var(--qs-magenta) 42%, var(--qs-cyan) 100%);
-    opacity: 0.85;
-    pointer-events: none;
   }
 
   .v4-card > * {
@@ -2093,20 +2059,7 @@
 
   .v4-card:hover {
     border-color: var(--qs-border-2);
-    transform: translateY(-1px);
-    box-shadow: var(--qs-shadow-card), 0 0 0 1px rgba(253, 185, 39, 0.22),
-      0 18px 50px rgba(126, 63, 190, 0.28);
-  }
-
-  /* Tone variants recolor the accent rail to match the card's intent. */
-  .v4-card.border-cyan\/30::before,
-  .v4-card.border-cyan\/35::before {
-    background: linear-gradient(90deg, var(--qs-cyan) 0%, var(--qs-scout) 60%, rgba(111, 214, 255, 0.4) 100%);
-  }
-
-  .v4-card.border-pollen\/35::before,
-  .v4-card.border-pollen\/30::before {
-    background: linear-gradient(90deg, var(--qs-amber) 0%, var(--qs-gold-bright) 70%, rgba(253, 185, 39, 0.4) 100%);
+    box-shadow: var(--qs-shadow-card), 0 0 0 1px rgba(253, 185, 39, 0.12);
   }
 
   .v4-card-glow {
