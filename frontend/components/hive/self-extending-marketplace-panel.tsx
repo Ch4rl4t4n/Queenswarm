@@ -97,7 +97,7 @@ export function SelfExtendingMarketplacePanel({ snapshot }: SelfExtendingMarketp
           {scanBusy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <RefreshCw className="size-4" aria-hidden />}
           Rescan
         </button>
-        <Link href="/integrations#tools" className="qs-btn qs-btn--ghost qs-btn--sm">
+        <Link href="/integrations?tab=hub&hubSection=tools#hub-tools" className="qs-btn qs-btn--ghost qs-btn--sm">
           Open Tool Hub
         </Link>
       </div>

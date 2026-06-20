@@ -20,9 +20,13 @@ const HASH_TO_SECTION: Record<string, AgentsEcosystemSection> = {
   context: "context",
   "context-graph": "context",
   learning: "learning",
+  /** First-run wizard panel mounts on the Supervisor (sessions) sub-section. */
+  "first-run-wizard": "sessions",
   sessions: "sessions",
   roster: "roster",
   hierarchy: "hierarchy",
+  /** Agent suggestions card lives inside the Learning loop sub-section. */
+  "agent-suggestions": "learning",
 };
 
 export const AGENTS_ECOSYSTEM_SECTIONS: {

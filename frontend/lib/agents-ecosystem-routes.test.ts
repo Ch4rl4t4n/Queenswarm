@@ -15,6 +15,11 @@ describe("agentsEcosystemSectionFromHash", () => {
   it("returns null for unknown hash", () => {
     expect(agentsEcosystemSectionFromHash("#unknown")).toBeNull();
   });
+
+  it("maps deep-link anchors to the tab that mounts them", () => {
+    expect(agentsEcosystemSectionFromHash("#first-run-wizard")).toBe("sessions");
+    expect(agentsEcosystemSectionFromHash("#agent-suggestions")).toBe("learning");
+  });
 });
 
 describe("agentsEcosystemSectionHref", () => {

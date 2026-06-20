@@ -38,7 +38,9 @@ else
   fail "tab filter missing"
 fi
 
-if ! grep -q '"launch"' frontend/lib/apps-tools-routes.ts; then
+# Launch must not be a real Skill Factory tab id. A legacy `#launch` deep-link
+# alias that redirects to Library is allowed (and tested in apps-tools-routes.test.ts).
+if ! grep -qE 'id:[[:space:]]*"launch"' frontend/lib/apps-tools-routes.ts; then
   pass "launch tab removed from Skill Factory"
 else
   fail "launch tab still in routes"

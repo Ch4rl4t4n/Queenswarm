@@ -30,6 +30,9 @@ const HASH_TO_SECTION: Record<string, CockpitSection> = {
   business: "business",
   "business-operator": "business",
   "chief-business-operator": "business",
+  /** Approval inbox lives in the Chief Business Operator (business) section. */
+  approvals: "business",
+  "business-approval-inbox": "business",
   lanes: "lanes",
   "four-lanes": "lanes",
   grok: "grok",

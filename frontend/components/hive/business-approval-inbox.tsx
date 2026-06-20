@@ -208,7 +208,9 @@ function BusinessApprovalInboxInner(): JSX.Element | null {
   );
 
   return (
-    <div id="business-approval-inbox">
+    <div id="business-approval-inbox" className="scroll-mt-28">
+      {/* Legacy deep-link anchor: `/cockpit#approvals` → `/agentic-os#approvals`. */}
+      <span id="approvals" aria-hidden className="block scroll-mt-28" />
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-cyan">Approval inbox</p>

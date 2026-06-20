@@ -71,8 +71,8 @@ export function ContentFactoryPageClient(): JSX.Element {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href="/apps-tools/skill-factory#launch" className="qs-btn qs-btn--ghost qs-btn--sm">
-            Skill Factory Launch
+          <Link href="/apps-tools/skill-factory#library" className="qs-btn qs-btn--ghost qs-btn--sm">
+            Skill Factory Library
           </Link>
           <Link href={FACTORY_BLUEPRINT_PATH} className="qs-btn qs-btn--ghost qs-btn--sm">
             {FACTORY_CROSS_LINK_LABELS.toBlueprint}

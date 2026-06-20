@@ -165,10 +165,10 @@ export const SKILL_FACTORY_STEPS: SkillFactoryManualStep[] = [
     hint: "LISTING.md is Gumroad-ready copy. Harness pack name = sellable niche workflow, not generic GitHub dump.",
     actions: [
       "Library tab → Harness pack",
-      "Launch tab → Prepare launch batch + checklist",
-      "Upload LISTING.md to Gumroad (manual or API draft)",
+      "Library tab → Prepare launch batch + checklist",
+      "Export LISTING.md (manual or API draft)",
     ],
-    link: { href: "/apps-tools/skill-factory#launch", label: "Launch tab" },
+    link: { href: "/apps-tools/skill-factory#library", label: "Library tab" },
   },
   {
     id: "use-runtime",

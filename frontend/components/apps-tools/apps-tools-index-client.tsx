@@ -934,8 +934,8 @@ export function AppsToolsIndexClient() {
           marketplace.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Link href="/apps-tools/skill-factory#launch" className="qs-btn qs-btn--primary qs-btn--sm">
-            Skill Factory → Launch
+          <Link href="/apps-tools/skill-factory#library" className="qs-btn qs-btn--primary qs-btn--sm">
+            Skill Factory → Library
           </Link>
           <Link href="/apps-tools/content-factory#research" className="qs-btn qs-btn--ghost qs-btn--sm">
             Content Pack Factory

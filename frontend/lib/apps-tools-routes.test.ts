@@ -37,6 +37,8 @@ describe("apps-tools-routes", () => {
     expect(resolveSkillFactoryTab({ hash: "#library" })).toBe("library");
     expect(resolveSkillFactoryTab({ hash: "" })).toBe("research");
     expect(resolveSkillFactoryTab({ hash: "#skill-factory-library" })).toBe("library");
+    // Legacy `#launch` (removed Launch tab) → Library, never a dead link.
+    expect(resolveSkillFactoryTab({ hash: "#launch" })).toBe("library");
     expect(skillFactoryTabHref("settings")).toBe("/apps-tools/skill-factory#settings");
   });
 

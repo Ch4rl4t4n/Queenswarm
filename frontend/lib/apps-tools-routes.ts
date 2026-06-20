@@ -97,6 +97,10 @@ export function resolveSkillFactoryTab(options: {
   if (SKILL_FACTORY_LIBRARY_ANCHOR_HASHES.has(key)) {
     return "library";
   }
+  /** Legacy `#launch` (removed Launch tab) — land on Library where verified skills ship. */
+  if (key === "launch") {
+    return "library";
+  }
   const fromHash = skillFactoryTabFromHash(options.hash ?? "");
   if (fromHash) {
     return fromHash;
