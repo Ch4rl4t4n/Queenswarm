@@ -469,6 +469,15 @@ function MissionHomePanelInner(): JSX.Element | null {
         onSelectStep={handleSelectStep}
       />
 
+      {missionHomeLite ? (
+        <MissionHomeDailyStartCard
+          id="mission-step-setup"
+          jarvisStepCount={jarvis?.steps.length ?? 0}
+          approvalCount={visibleApprovals.length}
+          manualHref={snapshot.links.manual ?? "/manual#tasks"}
+        />
+      ) : null}
+
       {jarvis?.enabled && jarvis.steps.length > 0 ? (
         <V4Card
           id="mission-step-plan"
@@ -523,15 +532,6 @@ function MissionHomePanelInner(): JSX.Element | null {
             ))}
           </ol>
         </V4Card>
-      ) : null}
-
-      {missionHomeLite ? (
-        <MissionHomeDailyStartCard
-          id="mission-step-setup"
-          jarvisStepCount={jarvis?.steps.length ?? 0}
-          approvalCount={visibleApprovals.length}
-          manualHref={snapshot.links.manual ?? "/manual#tasks"}
-        />
       ) : null}
 
       {!hideAdvanced && weeklyReflection?.enabled && weeklyReflection.highlights.length > 0 ? (
