@@ -23,6 +23,7 @@ import { HiveSidebar } from "@/components/hive/hive-sidebar";
 import { PlatformProvider } from "@/components/hive/platform-context";
 import { PlatformRouteGuard } from "@/components/hive/platform-route-guard";
 import { useDashboardSessionRefresh } from "@/lib/hooks/use-dashboard-session-refresh";
+import { useRouteHashScroll } from "@/lib/hooks/use-route-hash-scroll";
 import { hiveGet } from "@/lib/api";
 import { DASHBOARD_BOOT_STAGGER_MS } from "@/lib/dashboard-boot-stagger";
 import { cn } from "@/lib/utils";
@@ -50,6 +51,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   useDashboardSessionRefresh();
+  useRouteHashScroll();
 
   const closeDrawer = useCallback(() => setMobileDrawerOpen(false), []);
 

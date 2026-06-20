@@ -42,7 +42,6 @@ import {
 } from "@/lib/apps-tools-routes";
 import { cn } from "@/lib/utils";
 import { useRouteHash } from "@/lib/hooks/use-route-hash";
-import { useRouteHashScroll } from "@/lib/hooks/use-route-hash-scroll";
 import { downloadSkillExportBundle, downloadTextFile } from "@/lib/skill-export-utils";
 import type { FactoryProductPreset, HarnessEvalResult, SkillExportResponse } from "@/lib/hive-types";
 
@@ -174,7 +173,6 @@ function isLibrarySmartRebuildEligible(row: TenantSkillRow): boolean {
 
 export function SkillFactoryPageClient(): JSX.Element {
   const routeHash = useRouteHash();
-  useRouteHashScroll();
   const { personalOsMode } = usePlatform();
   const { setQueueBadge } = useSkillFactoryNav();
   const tab = useMemo(
