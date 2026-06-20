@@ -1,5 +1,5 @@
 /** Queenswarm PWA shell — mobile/tablet offline fallback (no API cache). */
-const CACHE = "queenswarm-shell-v75";
+const CACHE = "queenswarm-shell-v76";
 const PRECACHE = ["/offline", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {

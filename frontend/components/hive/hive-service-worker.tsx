@@ -24,11 +24,31 @@ export function HiveServiceWorker(): null {
       return undefined;
     }
 
-    void navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {
-      /* registration optional — never block UI */
-    });
+    // Reload once when a newly deployed worker takes control so the shell never
+    // gets stuck on a stale cached build (guarded against reload loops).
+    let reloading = false;
+    const onControllerChange = (): void => {
+      if (reloading) {
+        return;
+      }
+      reloading = true;
+      window.location.reload();
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
 
-    return undefined;
+    void navigator.serviceWorker
+      .register("/sw.js", { scope: "/" })
+      .then((registration) => {
+        // Force an update check on every load so version bumps activate promptly.
+        void registration.update().catch(() => undefined);
+      })
+      .catch(() => {
+        /* registration optional — never block UI */
+      });
+
+    return () => {
+      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+    };
   }, []);
 
   return null;
