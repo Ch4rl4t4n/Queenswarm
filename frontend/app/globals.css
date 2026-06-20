@@ -36,11 +36,11 @@
        QUEENSWARM DESIGN SYSTEM — Hive Control V4
        ═══════════════════════════════════════ */
     --qs-bg: #07030f;
-    --qs-surface: rgba(30, 17, 64, 0.55);
-    --qs-surface-2: rgba(40, 22, 84, 0.75);
+    --qs-surface: rgba(36, 21, 78, 0.72);
+    --qs-surface-2: rgba(48, 27, 100, 0.86);
     --qs-surface-3: #1d1140;
-    --qs-border: rgba(255, 255, 255, 0.10);
-    --qs-border-2: rgba(253, 185, 39, 0.18);
+    --qs-border: rgba(160, 130, 230, 0.20);
+    --qs-border-2: rgba(253, 185, 39, 0.34);
     --qs-bubble-border-width: 1px;
     --qs-amber: #fdb927;
     --qs-gold: #fdb927;
@@ -66,8 +66,9 @@
     --qs-radius-xl: 24px;
     --qs-radius-pill: 999px;
     --qs-grad-primary: linear-gradient(135deg, #fdb927 0%, #ffd24d 50%, #c98e0a 100%);
-    --qs-shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 8px 24px rgba(0, 0, 0, 0.35);
-    --qs-glow-gold: 0 0 0 1px rgba(253, 185, 39, 0.35), 0 10px 40px rgba(253, 185, 39, 0.18);
+    --qs-shadow-card: 0 1px 0 rgba(255, 255, 255, 0.07) inset, 0 1px 24px rgba(124, 70, 200, 0.10),
+      0 14px 40px rgba(0, 0, 0, 0.45);
+    --qs-glow-gold: 0 0 0 1px rgba(253, 185, 39, 0.45), 0 12px 48px rgba(253, 185, 39, 0.22);
     --qs-grad-mix: linear-gradient(135deg, #7e3fbe 0%, #fdb927 100%);
     --qs-grad-slider: linear-gradient(90deg, #7e3fbe 0%, #e879f9 35%, #fdb927 70%, #ffd24d 100%);
     --qs-grad-purple: linear-gradient(135deg, #7e3fbe 0%, #552583 60%, #2f0f4f 100%);
@@ -103,7 +104,10 @@
     @apply bg-hive-bg antialiased min-h-screen;
     color: var(--qs-text);
     font-feature-settings: "ss01";
-    font-family: var(--font-poppins), system-ui, sans-serif;
+    font-family: var(--font-poppins), "Poppins", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.005em;
     position: relative;
   }
 
@@ -112,9 +116,10 @@
     position: fixed;
     inset: 0;
     background:
-      radial-gradient(900px 600px at 12% 10%, rgba(85, 37, 131, 0.35), transparent 60%),
-      radial-gradient(700px 500px at 95% 90%, rgba(253, 185, 39, 0.1), transparent 60%),
-      radial-gradient(500px 400px at 50% 50%, rgba(126, 63, 190, 0.12), transparent 60%);
+      radial-gradient(900px 620px at 10% 6%, rgba(126, 63, 190, 0.42), transparent 62%),
+      radial-gradient(760px 520px at 96% 92%, rgba(253, 185, 39, 0.14), transparent 60%),
+      radial-gradient(620px 460px at 88% 8%, rgba(111, 214, 255, 0.10), transparent 62%),
+      radial-gradient(560px 440px at 46% 54%, rgba(232, 121, 249, 0.08), transparent 64%);
     pointer-events: none;
     z-index: 0;
   }
@@ -123,10 +128,10 @@
     content: "";
     position: fixed;
     inset: 0;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='56' height='64' viewBox='0 0 56 64'><path d='M28 1.15L54.85 16.5v31L28 62.85 1.15 47.5v-31z' fill='none' stroke='rgba(253,185,39,0.05)' stroke-width='1'/></svg>");
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='56' height='64' viewBox='0 0 56 64'><path d='M28 1.15L54.85 16.5v31L28 62.85 1.15 47.5v-31z' fill='none' stroke='rgba(253,185,39,0.10)' stroke-width='1'/></svg>");
     background-size: 56px 64px;
     pointer-events: none;
-    opacity: 0.5;
+    opacity: 0.6;
     z-index: 0;
   }
 
@@ -136,7 +141,14 @@
   h4,
   h5,
   h6 {
-    font-family: var(--font-poppins), system-ui, sans-serif;
+    font-family: var(--font-space-grotesk), "Space Grotesk", var(--font-poppins), system-ui, sans-serif;
+    letter-spacing: -0.02em;
+    font-weight: 600;
+  }
+
+  h1 {
+    font-weight: 700;
+    letter-spacing: -0.03em;
   }
 
   h2 {
@@ -2028,13 +2040,15 @@
   }
 
   .v4-card {
-    background: var(--qs-surface);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 38%),
+      var(--qs-surface);
     border: var(--qs-bubble-border-width) solid var(--qs-border);
     border-radius: var(--qs-radius-lg);
     padding: 24px;
-    backdrop-filter: blur(14px);
+    backdrop-filter: blur(16px);
     box-shadow: var(--qs-shadow-card);
-    transition: border-color 0.2s ease, transform 0.2s ease;
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
     min-width: 0;
   }
 
@@ -2044,7 +2058,8 @@
   }
 
   .v4-card:hover {
-    border-color: rgba(255, 255, 255, 0.14);
+    border-color: var(--qs-border-2);
+    box-shadow: var(--qs-shadow-card), 0 0 0 1px rgba(253, 185, 39, 0.12);
   }
 
   .v4-card-glow {
