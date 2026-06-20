@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.business_operator import compose_revenue_summary
 from app.application.services.marketing_product_catalog import build_catalog
+from app.application.services.personal_os_mode import personal_os_revenue_approvals_enabled
 from app.application.services.publish_queue import build_publish_queue_snapshot
 from app.application.services.solo_operator_digest_inbox import compose_four_lane_digest_inbox
 from app.application.services.supervisor.initiative import list_agent_suggestions
@@ -316,7 +317,12 @@ async def compose_approval_inbox_snapshot(
     catalog = build_catalog()
     revenue = compose_revenue_summary()
     gumroad_linked = sum(1 for product in catalog.products if product.gumroad_url)
-    if catalog.product_count > 0 and gumroad_linked == 0 and not revenue.missing_reports:
+    if (
+        personal_os_revenue_approvals_enabled()
+        and catalog.product_count > 0
+        and gumroad_linked == 0
+        and not revenue.missing_reports
+    ):
         counts.gumroad_manual = 1
         items.append(
             ApprovalInboxItemOut(
@@ -326,7 +332,7 @@ async def compose_approval_inbox_snapshot(
                 title="First Gumroad upload pending",
                 detail=revenue.next_operator_action or "Upload from exports/gumroad-ready/UPLOAD_QUEUE.md",
                 created_at=None,
-                href="/factory",
+                href="/apps-tools/content-factory?section=pack-factory#pack-factory",
                 source_id="gumroad_manual",
                 reject_supported=False,
             ),

@@ -10,12 +10,18 @@ interface V4CardProps {
   tight?: boolean;
   glow?: boolean;
   id?: string;
+  /** Test hook — forwarded to the rendered section so e2e getByTestId works. */
+  "data-testid"?: string;
 }
 
 /** Glass section container — Hive Control V4. */
-export function V4Card({ children, className, tight, glow, id }: V4CardProps) {
+export function V4Card({ children, className, tight, glow, id, ...rest }: V4CardProps) {
   return (
-    <section id={id} className={cn("v4-card", tight && "v4-card-tight", glow && "v4-card-glow", className)}>
+    <section
+      id={id}
+      data-testid={rest["data-testid"]}
+      className={cn("v4-card", tight && "v4-card-tight", glow && "v4-card-glow", className)}
+    >
       {children}
     </section>
   );

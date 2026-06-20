@@ -16,9 +16,11 @@ interface ProcessRailProps {
   steps: ProcessStep[];
   currentStep: ProcessStepId;
   compact?: boolean;
+  /** When provided, each step becomes a button that scrolls to its panel anchor. */
+  onSelectStep?: (id: ProcessStepId) => void;
 }
 
-function ProcessRailInner({ steps, currentStep, compact = false }: ProcessRailProps): JSX.Element {
+function ProcessRailInner({ steps, currentStep, compact = false, onSelectStep }: ProcessRailProps): JSX.Element {
   const currentIndex = steps.findIndex((step) => step.id === currentStep);
 
   return (
@@ -36,37 +38,70 @@ function ProcessRailInner({ steps, currentStep, compact = false }: ProcessRailPr
         <p className="mt-0.5 text-sm font-semibold text-pollen">
           {steps.find((step) => step.id === currentStep)?.label ?? "Work"}
         </p>
-        <div className="mt-2 flex gap-1" aria-hidden>
-          {steps.map((step, index) => (
-            <span
-              key={step.id}
-              className={cn(
-                "h-1.5 flex-1 rounded-full",
-                index <= currentIndex ? "bg-pollen" : "bg-(--qs-border)/50",
-              )}
-            />
-          ))}
-        </div>
+        {onSelectStep ? (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {steps.map((step, index) => (
+              <button
+                key={step.id}
+                type="button"
+                onClick={() => onSelectStep(step.id)}
+                className={cn(
+                  "min-h-[36px] rounded-lg px-2.5 text-[11px] font-semibold",
+                  index <= currentIndex
+                    ? "bg-pollen/15 text-pollen"
+                    : "border border-(--qs-border)/50 text-(--qs-text-3)",
+                )}
+                aria-current={step.id === currentStep ? "step" : undefined}
+              >
+                <span className="font-mono text-[10px] opacity-70">{index + 1}</span>
+                <span className="ml-1">{step.short_label}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-2 flex gap-1" aria-hidden>
+            {steps.map((step, index) => (
+              <span
+                key={step.id}
+                className={cn(
+                  "h-1.5 flex-1 rounded-full",
+                  index <= currentIndex ? "bg-pollen" : "bg-(--qs-border)/50",
+                )}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <ol className="hidden flex-wrap items-center gap-1 lg:flex">
         {steps.map((step, index) => {
           const isCurrent = step.id === currentStep;
           const isPast = currentIndex >= 0 && index < currentIndex;
+          const stepClass = cn(
+            "inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg px-2 text-xs font-semibold",
+            isCurrent && "bg-pollen/15 text-pollen ring-1 ring-pollen/40",
+            isPast && !isCurrent && "text-[#00FF88]",
+            !isCurrent && !isPast && "text-(--qs-text-3)",
+            onSelectStep && "transition hover:bg-pollen/10 hover:text-pollen",
+          );
           return (
             <li key={step.id} className="flex items-center gap-1">
-              <span
-                className={cn(
-                  "inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg px-2 text-xs font-semibold",
-                  isCurrent && "bg-pollen/15 text-pollen ring-1 ring-pollen/40",
-                  isPast && !isCurrent && "text-[#00FF88]",
-                  !isCurrent && !isPast && "text-(--qs-text-3)",
-                )}
-                aria-current={isCurrent ? "step" : undefined}
-              >
-                <span className="font-mono text-[10px] opacity-70">{index + 1}</span>
-                <span className="ml-1">{step.short_label}</span>
-              </span>
+              {onSelectStep ? (
+                <button
+                  type="button"
+                  onClick={() => onSelectStep(step.id)}
+                  className={stepClass}
+                  aria-current={isCurrent ? "step" : undefined}
+                >
+                  <span className="font-mono text-[10px] opacity-70">{index + 1}</span>
+                  <span className="ml-1">{step.short_label}</span>
+                </button>
+              ) : (
+                <span className={stepClass} aria-current={isCurrent ? "step" : undefined}>
+                  <span className="font-mono text-[10px] opacity-70">{index + 1}</span>
+                  <span className="ml-1">{step.short_label}</span>
+                </span>
+              )}
               {index < steps.length - 1 ? (
                 <span className="text-(--qs-text-3)" aria-hidden>
                   →

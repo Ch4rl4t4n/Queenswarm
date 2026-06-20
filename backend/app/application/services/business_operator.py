@@ -15,6 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.marketing_product_catalog import build_catalog
+from app.application.services.personal_os_mode import personal_os_revenue_approvals_enabled
 
 if TYPE_CHECKING:
     from app.application.services.background_business_team import BackgroundBusinessTeamOut
@@ -341,49 +342,50 @@ def _derive_top_actions(
             ),
         )
 
-    if revenue.missing_reports:
-        candidates.append(
-            (
-                1,
-                BusinessOperatorActionOut(
-                    id="regenerate_reports",
-                    lane="revenue",
-                    title="Regenerate revenue reports",
-                    detail=f"Missing: {', '.join(revenue.missing_reports[:4])}",
-                    priority="high",
-                    href="/factory",
+    if personal_os_revenue_approvals_enabled():
+        if revenue.missing_reports:
+            candidates.append(
+                (
+                    1,
+                    BusinessOperatorActionOut(
+                        id="regenerate_reports",
+                        lane="revenue",
+                        title="Regenerate revenue reports",
+                        detail=f"Missing: {', '.join(revenue.missing_reports[:4])}",
+                        priority="high",
+                        href="/factory",
+                    ),
                 ),
-            ),
-        )
-    elif catalog.gumroad_linked_count == 0 and revenue.first_upload_candidate:
-        candidates.append(
-            (
-                1,
-                BusinessOperatorActionOut(
-                    id="gumroad_first_upload",
-                    lane="revenue",
-                    title="First Gumroad upload",
-                    detail=revenue.next_operator_action,
-                    priority="high",
-                    href="/factory",
+            )
+        elif catalog.gumroad_linked_count == 0 and revenue.first_upload_candidate:
+            candidates.append(
+                (
+                    1,
+                    BusinessOperatorActionOut(
+                        id="gumroad_first_upload",
+                        lane="revenue",
+                        title="First Gumroad upload",
+                        detail=revenue.next_operator_action,
+                        priority="high",
+                        href="/apps-tools/content-factory?section=pack-factory#pack-factory",
+                    ),
                 ),
-            ),
-        )
-    elif catalog.gumroad_linked_count < catalog.product_count:
-        gap = catalog.product_count - catalog.gumroad_linked_count
-        candidates.append(
-            (
-                1,
-                BusinessOperatorActionOut(
-                    id="gumroad_continue_upload",
-                    lane="revenue",
-                    title="Continue Gumroad catalog upload",
-                    detail=f"{gap} listing(s) without Gumroad URL — {revenue.next_operator_action}",
-                    priority="high",
-                    href="/factory",
+            )
+        elif catalog.gumroad_linked_count < catalog.product_count:
+            gap = catalog.product_count - catalog.gumroad_linked_count
+            candidates.append(
+                (
+                    1,
+                    BusinessOperatorActionOut(
+                        id="gumroad_continue_upload",
+                        lane="revenue",
+                        title="Continue Gumroad catalog upload",
+                        detail=f"{gap} listing(s) without Gumroad URL — {revenue.next_operator_action}",
+                        priority="high",
+                        href="/factory",
+                    ),
                 ),
-            ),
-        )
+            )
 
     if missions.triage_count > 0:
         candidates.append(

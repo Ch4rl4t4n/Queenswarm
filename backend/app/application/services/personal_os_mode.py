@@ -123,6 +123,22 @@ def personal_os_mission_home_revenue_widgets_enabled() -> bool:
     return False
 
 
+def personal_os_revenue_approvals_enabled() -> bool:
+    """Return False when Gumroad/revenue items must not appear in approval inbox or Jarvis."""
+
+    return personal_os_mission_home_revenue_widgets_enabled()
+
+
+def personal_os_mission_home_advanced_strips_enabled() -> bool:
+    """Return False when Mission Home should default to lite (Jarvis + Kanban only)."""
+
+    from app.core.config import settings
+
+    if not settings.personal_os_mode_enabled:
+        return True
+    return False
+
+
 def personal_os_skill_factory_commercial_enabled() -> bool:
     """Return False when Personal OS hides Gumroad launch/commercial Skill Factory tabs."""
 
@@ -147,6 +163,8 @@ __all__ = [
     "PERSONAL_OS_OPTIONAL_FEATURES",
     "apply_personal_os_overrides",
     "personal_os_commercial_api_enabled",
+    "personal_os_mission_home_advanced_strips_enabled",
     "personal_os_mission_home_revenue_widgets_enabled",
+    "personal_os_revenue_approvals_enabled",
     "personal_os_skill_factory_commercial_enabled",
 ]

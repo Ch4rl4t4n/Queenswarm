@@ -945,7 +945,7 @@ const STUB_ENTERPRISE_CONFIG = {
   custom_branding_allowed: true,
 };
 
-const STUB_OPERATOR_ME = {
+export const STUB_OPERATOR_ME = {
   id: "dash:00000000-0000-4000-8000-000000000001",
   email: "operator@queenswarm.love",
   display_name: "Playwright Operator",

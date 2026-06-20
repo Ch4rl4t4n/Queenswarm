@@ -10,6 +10,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.approval_inbox import compose_approval_inbox_snapshot
+from app.application.services.personal_os_mode import (
+    personal_os_mission_home_advanced_strips_enabled,
+    personal_os_revenue_approvals_enabled,
+)
 from app.application.services.agent_quality_scorecard_service import (
     MissionAgentQualityStripOut,
     compose_agent_quality_strip,
@@ -419,6 +423,7 @@ class MissionHomeSnapshotOut(BaseModel):
     links: dict[str, str] = Field(default_factory=dict)
     rapid_loop_widget_enabled: bool = False
     sub_swarm_fleet_widget_enabled: bool = False
+    mission_home_lite: bool = False
 
 
 PROCESS_STEPS: list[ProcessStepOut] = [
@@ -1378,6 +1383,8 @@ async def compose_mission_home_snapshot(
     approvals: list[MissionApprovalOut] = []
     if inbox.enabled:
         for item in inbox.items[:5]:
+            if not personal_os_revenue_approvals_enabled() and item.kind == "gumroad_manual":
+                continue
             approvals.append(
                 MissionApprovalOut(
                     id=item.id,
@@ -1578,8 +1585,15 @@ async def compose_mission_home_snapshot(
             "skill_factory_agents": "/agents#sessions",
             "loop_presets": "/settings/harness#harness-closed-loop-presets",
         },
-        rapid_loop_widget_enabled=settings.rapid_loop_mission_home_enabled,
-        sub_swarm_fleet_widget_enabled=settings.sub_swarm_fleet_mission_home_enabled,
+        rapid_loop_widget_enabled=(
+            settings.rapid_loop_mission_home_enabled
+            and personal_os_mission_home_advanced_strips_enabled()
+        ),
+        sub_swarm_fleet_widget_enabled=(
+            settings.sub_swarm_fleet_mission_home_enabled
+            and personal_os_mission_home_advanced_strips_enabled()
+        ),
+        mission_home_lite=not personal_os_mission_home_advanced_strips_enabled(),
     )
 
 

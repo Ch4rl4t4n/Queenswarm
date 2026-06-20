@@ -16,6 +16,7 @@ import { useCallback, useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useSearchParams } from "next/navigation";
 
+import { usePlatform } from "@/components/hive/platform-context";
 import { HivePageShell } from "@/components/hive/hive-page-shell";
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
 import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
@@ -30,7 +31,6 @@ import {
   V4Chip,
   type V4BadgeTone,
 } from "@/components/ui/v4";
-import { usePlatform } from "@/components/hive/platform-context";
 import { HiveApiError, hiveGet } from "@/lib/api";
 import { hivePageShellError } from "@/lib/hive-page-error";
 import { hiveMissionControlPageTitle } from "@/lib/hive-home-route";
@@ -171,7 +171,7 @@ function buildTierRows(summary: DashboardSummaryPayload | null): { label: string
 }
 
 export function TasksPageClient() {
-  const { soloMode } = usePlatform();
+  const { soloMode, personalOsMode } = usePlatform();
   const pageTitle = hiveMissionControlPageTitle({ soloMode });
   const [queue, setQueue] = useState<TaskQueueResponse | null>(null);
   const [summary, setSummary] = useState<DashboardSummaryPayload | null>(null);
@@ -304,7 +304,7 @@ export function TasksPageClient() {
         </div>
       }
     >
-      <HubEcosystemStrip preset="tasks" />
+      {!personalOsMode ? <HubEcosystemStrip preset="tasks" /> : null}
 
       {soloMode && viewMode === "board" ? <MissionHomePanel /> : null}
 

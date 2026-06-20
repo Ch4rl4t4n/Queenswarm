@@ -130,7 +130,9 @@ test.describe("First-run journey — Track Q UX9", () => {
       await page.goto("/tasks", { waitUntil: "load", timeout: 60_000 });
       await expect(page.getByRole("heading", { name: e2eTasksHubHeading() })).toBeVisible({ timeout: 30_000 });
       await expect(page.locator("#mission-home")).toBeVisible({ timeout: 20_000 });
-      await expect(page.getByTestId("rapid-loop-widget")).toBeVisible({ timeout: 20_000 });
+      // Personal OS lite first-run: daily-start guide is the focal point; telemetry (rapid loop)
+      // lives under "Zobraziť pokročilé". Setup steps (LLM keys) stay visible during first-run.
+      await expect(page.getByTestId("mission-home-daily-start")).toBeVisible({ timeout: 20_000 });
       await expect(page.getByRole("navigation", { name: "Operator process" })).toBeVisible();
       await expect(page.getByRole("link", { name: /LLM keys/i })).toBeVisible();
       if (viewport.name !== "desktop") {

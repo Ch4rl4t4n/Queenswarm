@@ -21,6 +21,37 @@ from app.application.services.jarvis_advisor_service import (
 from app.application.services.weak_signal_bee_service import compose_weak_signal_preview
 
 
+def test_jarvis_filters_gumroad_approvals_in_personal_os(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("app.core.config.settings.personal_os_mode_enabled", True)
+    with patch("app.application.services.jarvis_advisor_service.settings") as mock_settings:
+        mock_settings.jarvis_advisor_mission_home_enabled = True
+        mock_settings.analytics_workspace_enabled = False
+        mock_settings.research_bee_enabled = False
+        mock_settings.closed_loop_presets_enabled = False
+
+        strip = _compose_jarvis_advisor_strip(
+            first_run_complete=True,
+            approvals=[
+                JarvisApprovalIn(
+                    id="gumroad:manual_upload",
+                    title="First Gumroad upload pending",
+                    detail="Upload first listing manually: pack-a",
+                    href="/factory",
+                    kind="gumroad_manual",
+                ),
+            ],
+            active_sessions=[],
+            next_actions=[],
+            life_os=JarvisLifeOsIn(enabled=False),
+            autopilot=JarvisAutopilotIn(enabled=False),
+            memory_strip=JarvisMemoryIn(usage_pct=50),
+            weak_signal_hint=None,
+        )
+
+    assert all("gumroad" not in step.title.lower() for step in strip.steps)
+    assert all("upload first listing" not in step.detail.lower() for step in strip.steps)
+
+
 def test_jarvis_prioritizes_approvals_over_work() -> None:
     with patch("app.application.services.jarvis_advisor_service.settings") as mock_settings:
         mock_settings.jarvis_advisor_mission_home_enabled = True

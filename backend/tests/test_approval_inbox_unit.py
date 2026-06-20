@@ -316,3 +316,62 @@ async def test_compose_approval_inbox_includes_journal_drafts() -> None:
     assert snapshot.counts.journal_drafts == 1
     draft = next(item for item in snapshot.items if item.kind == "journal_draft")
     assert draft.source_id == "draft-1"
+
+
+@pytest.mark.asyncio
+async def test_compose_approval_inbox_skips_gumroad_in_personal_os(monkeypatch: pytest.MonkeyPatch) -> None:
+    session = AsyncMock()
+    tenant_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+
+    monkeypatch.setattr("app.core.config.settings.personal_os_mode_enabled", True)
+
+    with patch("app.application.services.approval_inbox.settings") as mock_settings:
+        mock_settings.operator_control_plane_enabled = True
+        mock_settings.publish_queue_enabled = False
+        mock_settings.hive_innovation_lab_enabled = False
+        mock_settings.broker_order_queue_enabled = False
+        mock_settings.journal_studio_enabled = False
+        mock_settings.journal_studio_gardener_enabled = False
+        mock_settings.weekly_compound_gardener_enabled = False
+        mock_settings.email_draft_outer_loop_enabled = False
+        with patch(
+            "app.application.services.approval_inbox.list_agent_suggestions",
+            new_callable=AsyncMock,
+            return_value=[],
+        ):
+            with patch(
+                "app.application.services.approval_inbox.compose_four_lane_digest_inbox",
+                new_callable=AsyncMock,
+            ) as mock_digest:
+                from app.application.services.solo_operator_digest_inbox import DigestInboxOut
+
+                mock_digest.return_value = DigestInboxOut(
+                    generated_at=datetime.now(tz=UTC),
+                    pending_count=0,
+                    items=[],
+                )
+                with patch(
+                    "app.application.services.forager_goldmine_dispatch_service.compose_goldmine_alert_inbox_items",
+                    new_callable=AsyncMock,
+                    return_value=[],
+                ):
+                    with patch("app.application.services.approval_inbox.build_catalog") as mock_catalog:
+                        mock_catalog.return_value = MagicMock(
+                            product_count=3,
+                            products=[MagicMock(gumroad_url=None) for _ in range(3)],
+                        )
+                        with patch("app.application.services.approval_inbox.compose_revenue_summary") as mock_rev:
+                            mock_rev.return_value = MagicMock(
+                                missing_reports=[],
+                                next_operator_action="Upload first listing manually: pack-a",
+                            )
+                            snapshot = await compose_approval_inbox_snapshot(
+                                session,
+                                tenant_id=tenant_id,
+                                dashboard_user_id=user_id,
+                                tenant=MagicMock(),
+                            )
+
+    assert snapshot.counts.gumroad_manual == 0
+    assert "gumroad_manual" not in {item.kind for item in snapshot.items}

@@ -7,6 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.application.services.personal_os_mode import personal_os_revenue_approvals_enabled
 from app.core.config import settings
 
 JarvisStepKind = Literal[
@@ -175,6 +176,9 @@ def _compose_jarvis_advisor_strip(
     factory_attach_ready: bool = False,
 ) -> MissionJarvisAdvisorStripOut:
     """Build up to three prioritized steps — verify blockers before new work."""
+
+    if not personal_os_revenue_approvals_enabled():
+        approvals = [row for row in approvals if row.kind != "gumroad_manual"]
 
     if not settings.jarvis_advisor_mission_home_enabled:
         return MissionJarvisAdvisorStripOut(

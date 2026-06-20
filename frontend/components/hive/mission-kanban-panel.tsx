@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { TasksKanbanBoard } from "@/components/hive/tasks-kanban-board";
 import { StakeholderGrillWizardPanel } from "@/components/hive/stakeholder-grill-wizard-panel";
 import { VideoUrlBatchWizardPanel } from "@/components/hive/video-url-batch-wizard-panel";
+import { usePlatform } from "@/components/hive/platform-context";
 import { SkillPickerChips } from "@/components/hive/skill-picker-chips";
 import { MissionKanbanRecipeMatchPanel } from "@/components/hive/mission-kanban-recipe-match-panel";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
@@ -46,6 +47,7 @@ interface MissionKanbanPanelProps {
 }
 
 export function MissionKanbanPanel({ onOpenTask, refreshSignal = 0 }: MissionKanbanPanelProps): JSX.Element {
+  const { personalOsMode } = usePlatform();
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -292,9 +294,13 @@ export function MissionKanbanPanel({ onOpenTask, refreshSignal = 0 }: MissionKan
   }
 
   return (
-    <div className="space-y-4">
-      <StakeholderGrillWizardPanel onSubmitted={() => void reload()} />
-      <VideoUrlBatchWizardPanel onSubmitted={() => void reload()} />
+    <div id="mission-kanban" className="space-y-4 scroll-mt-4">
+      {!personalOsMode ? (
+        <>
+          <StakeholderGrillWizardPanel onSubmitted={() => void reload()} />
+          <VideoUrlBatchWizardPanel onSubmitted={() => void reload()} />
+        </>
+      ) : null}
       <div className="rounded-2xl border border-[color:var(--qs-border)] bg-hive-card/60 p-4">
         <p className="font-[family-name:var(--font-poppins)] text-sm text-(--qs-text-2)">
           Mission Kanban — drop a big prompt into Triage, dispatch to decompose into child tasks, and

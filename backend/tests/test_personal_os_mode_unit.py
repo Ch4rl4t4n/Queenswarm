@@ -10,6 +10,8 @@ from app.application.services.personal_os_mode import (
     PERSONAL_OS_HIDDEN_FEATURES,
     apply_personal_os_overrides,
     personal_os_mission_home_revenue_widgets_enabled,
+    personal_os_mission_home_advanced_strips_enabled,
+    personal_os_revenue_approvals_enabled,
     personal_os_skill_factory_commercial_enabled,
 )
 from app.application.services.platform_features import resolve_platform_features
@@ -30,6 +32,15 @@ def test_apply_personal_os_hides_revenue_and_beta() -> None:
 def test_personal_os_mission_home_revenue_widgets_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "personal_os_mode_enabled", True)
     assert personal_os_mission_home_revenue_widgets_enabled() is False
+    assert personal_os_revenue_approvals_enabled() is False
+    assert personal_os_mission_home_advanced_strips_enabled() is False
+
+
+def test_personal_os_revenue_approvals_enabled_when_not_personal_os(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "personal_os_mode_enabled", False)
+    assert personal_os_revenue_approvals_enabled() is True
 
 
 def test_personal_os_skill_factory_commercial_disabled(monkeypatch: pytest.MonkeyPatch) -> None:

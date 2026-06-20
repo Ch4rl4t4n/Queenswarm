@@ -6,6 +6,7 @@ import { memo, useCallback, useEffect, useState } from "react";
 
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
 import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
+import { MissionHomeDailyStartCard } from "@/components/hive/mission-home-daily-start-card";
 import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { ProcessRail, type ProcessStep, type ProcessStepId } from "@/components/hive/process-rail";
 import { RapidLoopWidget } from "@/components/hive/rapid-loop-widget";
@@ -340,6 +341,7 @@ interface MissionHomeSnapshot {
   links: Record<string, string>;
   rapid_loop_widget_enabled?: boolean;
   sub_swarm_fleet_widget_enabled?: boolean;
+  mission_home_lite?: boolean;
 }
 
 function MissionHomePanelInner(): JSX.Element | null {
@@ -347,6 +349,7 @@ function MissionHomePanelInner(): JSX.Element | null {
   const [snapshot, setSnapshot] = useState<MissionHomeSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const reload = useCallback(async () => {
     if (!soloMode) {
@@ -407,6 +410,11 @@ function MissionHomePanelInner(): JSX.Element | null {
     strategicStrip?.enabled === true ? strategicStrip.items : snapshot.next_actions.slice(0, 3);
   const afkSessions =
     afkStrip?.enabled === true ? afkStrip.sessions : snapshot.active_sessions;
+  const missionHomeLite = personalOsMode || snapshot.mission_home_lite === true;
+  const hideAdvanced = missionHomeLite && !advancedOpen;
+  const visibleApprovals = snapshot.approvals.filter(
+    (row) => !(missionHomeLite && row.kind === "gumroad_manual"),
+  );
 
   function qualityTone(status: MissionAgentQualityStrip["status"]): "ok" | "warn" | "err" | "info" {
     if (status === "healthy") return "ok";
@@ -426,6 +434,24 @@ function MissionHomePanelInner(): JSX.Element | null {
     return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
   }
 
+  function handleSelectStep(stepId: ProcessStepId): void {
+    const anchorByStep: Record<ProcessStepId, string> = {
+      setup: "mission-step-setup",
+      plan: "mission-step-plan",
+      work: "mission-kanban",
+      verify: "mission-step-verify",
+      learn: "mission-step-learn",
+      done: "mission-step-done",
+    };
+    if (typeof document === "undefined") {
+      return;
+    }
+    const target = document.getElementById(anchorByStep[stepId]);
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
   return (
     <section
       id="mission-home"
@@ -440,11 +466,13 @@ function MissionHomePanelInner(): JSX.Element | null {
         steps={snapshot.process_steps}
         currentStep={snapshot.current_step}
         compact
+        onSelectStep={handleSelectStep}
       />
 
       {jarvis?.enabled && jarvis.steps.length > 0 ? (
         <V4Card
-          className="md:max-lg:col-span-2 border-pollen/40 shadow-[0_0_24px_rgba(255,184,0,0.12)]"
+          id="mission-step-plan"
+          className="scroll-mt-24 md:max-lg:col-span-2 border-pollen/40 shadow-[0_0_24px_rgba(255,184,0,0.12)]"
           data-testid="mission-home-jarvis-advisor"
         >
           <V4CardHeader
@@ -497,7 +525,16 @@ function MissionHomePanelInner(): JSX.Element | null {
         </V4Card>
       ) : null}
 
-      {weeklyReflection?.enabled && weeklyReflection.highlights.length > 0 ? (
+      {missionHomeLite ? (
+        <MissionHomeDailyStartCard
+          id="mission-step-setup"
+          jarvisStepCount={jarvis?.steps.length ?? 0}
+          approvalCount={visibleApprovals.length}
+          manualHref={snapshot.links.manual ?? "/manual#tasks"}
+        />
+      ) : null}
+
+      {!hideAdvanced && weeklyReflection?.enabled && weeklyReflection.highlights.length > 0 ? (
         <V4Card
           className="md:max-lg:col-span-2 border-cyan/30 shadow-[0_0_20px_rgba(0,255,255,0.08)]"
           data-testid="mission-home-jarvis-weekly-reflection"
@@ -559,7 +596,7 @@ function MissionHomePanelInner(): JSX.Element | null {
         </V4Card>
       ) : null}
 
-      {weeklyCompound?.enabled ? (
+      {!hideAdvanced && weeklyCompound?.enabled ? (
         <V4Card className="md:max-lg:col-span-2" data-testid="mission-home-weekly-compound">
           <V4CardHeader
             kicker="Compound"
@@ -604,7 +641,7 @@ function MissionHomePanelInner(): JSX.Element | null {
         </V4Card>
       ) : null}
 
-      {agentQuality?.enabled ? (
+      {!hideAdvanced && agentQuality?.enabled ? (
         <V4Card className="md:max-lg:col-span-2" data-testid="mission-home-agent-quality">
           <V4CardHeader
             kicker="Quality"
@@ -632,20 +669,22 @@ function MissionHomePanelInner(): JSX.Element | null {
         </V4Card>
       ) : null}
 
-      {snapshot.rapid_loop_widget_enabled ? (
+      {!hideAdvanced && snapshot.rapid_loop_widget_enabled ? (
         <div className="md:max-lg:col-span-2" data-testid="mission-home-rapid-loop">
           <RapidLoopWidget eager />
         </div>
       ) : null}
 
-      {snapshot.sub_swarm_fleet_widget_enabled ? (
+      {!hideAdvanced && snapshot.sub_swarm_fleet_widget_enabled ? (
         <div className="md:max-lg:col-span-2" data-testid="mission-home-sub-swarm-fleet">
           <SubSwarmFleetWidget eager />
         </div>
       ) : null}
 
 
-      {snapshot.step_studios && snapshot.step_studios.length > 0 ? (
+      {(!hideAdvanced || !snapshot.first_run_complete) &&
+      snapshot.step_studios &&
+      snapshot.step_studios.length > 0 ? (
         <div className="flex flex-wrap gap-2 max-lg:px-0">
           {snapshot.step_studios.map((studio) => (
             <Link
@@ -667,7 +706,7 @@ function MissionHomePanelInner(): JSX.Element | null {
         </p>
       ) : null}
 
-      {autopilot?.enabled ? (
+      {!hideAdvanced && autopilot?.enabled ? (
         <V4Card className="md:max-lg:col-span-2" data-testid="mission-home-autopilot">
           <V4CardHeader
             kicker="Background"
@@ -738,7 +777,7 @@ function MissionHomePanelInner(): JSX.Element | null {
             ))}
           </ul>
         </V4Card>
-      ) : autopilot && !autopilot.routines_enabled ? (
+      ) : !hideAdvanced && autopilot && !autopilot.routines_enabled ? (
         <V4Card className="md:max-lg:col-span-2" data-testid="mission-home-autopilot">
           <V4CardHeader kicker="Background" title="Autopilot" description="Routines disabled." />
           <p className="px-4 pb-4 text-sm text-(--qs-muted)">{autopilot.message}</p>
@@ -746,7 +785,8 @@ function MissionHomePanelInner(): JSX.Element | null {
       ) : null}
 
       <div className="flex flex-col gap-3 md:max-lg:contents">
-        <V4Card className="md:max-lg:col-span-1">
+        {!hideAdvanced ? (
+        <V4Card id="mission-step-setup" className="scroll-mt-24 md:max-lg:col-span-1">
           <V4CardHeader
             kicker="Today"
             title="Brief"
@@ -763,8 +803,9 @@ function MissionHomePanelInner(): JSX.Element | null {
             ))}
           </ul>
         </V4Card>
+        ) : null}
 
-        {lifeOs?.enabled ? (
+        {!hideAdvanced && lifeOs?.enabled ? (
           <V4Card className="md:max-lg:col-span-1" data-testid="mission-home-life-os">
             <V4CardHeader
               kicker="Life OS"
@@ -813,7 +854,7 @@ function MissionHomePanelInner(): JSX.Element | null {
           </V4Card>
         ) : null}
 
-        <V4Card className="md:max-lg:col-span-1" data-testid="mission-home-strategic-today">
+        <V4Card id="mission-step-learn" className="scroll-mt-24 md:max-lg:col-span-1" data-testid="mission-home-strategic-today">
           <V4CardHeader
             kicker="Next"
             title={strategicStrip?.enabled ? strategicStrip.headline : "Actions"}
@@ -862,6 +903,7 @@ function MissionHomePanelInner(): JSX.Element | null {
         </V4Card>
       </div>
 
+      {!hideAdvanced ? (
       <V4Card className="md:max-lg:col-span-2">
         <V4CardHeader
           kicker="Memory"
@@ -916,8 +958,9 @@ function MissionHomePanelInner(): JSX.Element | null {
           ))}
         </div>
       </V4Card>
+      ) : null}
 
-      {secondBrain?.enabled ? (
+      {!hideAdvanced && secondBrain?.enabled ? (
         <V4Card className="md:max-lg:col-span-2" data-testid="mission-home-second-brain">
           <V4CardHeader
             kicker="Learn"
@@ -959,7 +1002,7 @@ function MissionHomePanelInner(): JSX.Element | null {
         </V4Card>
       ) : null}
 
-      {agentLoop?.enabled ? (
+      {!hideAdvanced && agentLoop?.enabled ? (
         <V4Card
           className="md:max-lg:col-span-2 border-cyan/30 shadow-[0_0_20px_rgba(0,255,255,0.08)]"
           data-testid="mission-home-agent-loop"
@@ -989,7 +1032,7 @@ function MissionHomePanelInner(): JSX.Element | null {
         </V4Card>
       ) : null}
 
-      {toolOutcome?.enabled ? (
+      {!hideAdvanced && toolOutcome?.enabled ? (
         <V4Card
           className="md:max-lg:col-span-2 border-[#FF00AA]/35 shadow-[0_0_20px_rgba(255,0,170,0.12)]"
           data-testid="mission-home-tool-outcome"
@@ -1015,7 +1058,7 @@ function MissionHomePanelInner(): JSX.Element | null {
         </V4Card>
       ) : null}
 
-      {loopGuardrails?.enabled ? (
+      {!hideAdvanced && loopGuardrails?.enabled ? (
         <V4Card
           className="md:max-lg:col-span-2 border-pollen/30 shadow-[0_0_20px_rgba(255,184,0,0.08)]"
           data-testid="mission-home-loop-guardrails"
@@ -1049,7 +1092,7 @@ function MissionHomePanelInner(): JSX.Element | null {
         </V4Card>
       ) : null}
 
-      {dataMonitor?.enabled ? (
+      {!hideAdvanced && dataMonitor?.enabled ? (
         <V4Card
           className="md:max-lg:col-span-2 border-cyan/30 shadow-[0_0_20px_rgba(0,255,255,0.08)]"
           data-testid="mission-home-data-monitor"
@@ -1085,7 +1128,7 @@ function MissionHomePanelInner(): JSX.Element | null {
         </V4Card>
       ) : null}
 
-      {discovery?.enabled ? (
+      {!hideAdvanced && discovery?.enabled ? (
         <V4Card
           className="md:max-lg:col-span-2 border-magenta/30 shadow-[0_0_20px_rgba(255,0,170,0.08)]"
           data-testid="mission-home-discovery"
@@ -1125,7 +1168,7 @@ function MissionHomePanelInner(): JSX.Element | null {
         </V4Card>
       ) : null}
 
-      {skillFactoryHarness?.enabled ? (
+      {!hideAdvanced && skillFactoryHarness?.enabled ? (
         <V4Card
           className="md:max-lg:col-span-2 border-pollen/35 shadow-[0_0_20px_rgba(255,184,0,0.1)]"
           data-testid="mission-home-skill-factory-harness"
@@ -1193,7 +1236,7 @@ function MissionHomePanelInner(): JSX.Element | null {
         </V4Card>
       ) : null}
 
-      {goldmine?.enabled ? (
+      {!hideAdvanced && goldmine?.enabled ? (
         <V4Card
           className="md:max-lg:col-span-2 border-pollen/35 shadow-[0_0_20px_rgba(255,184,0,0.12)]"
           data-testid="mission-home-goldmine"
@@ -1228,7 +1271,7 @@ function MissionHomePanelInner(): JSX.Element | null {
         </V4Card>
       ) : null}
 
-      {socialIntel?.enabled ? (
+      {!hideAdvanced && socialIntel?.enabled ? (
         <V4Card
           className="md:max-lg:col-span-2 border-cyan/25 shadow-[0_0_20px_rgba(0,255,255,0.08)]"
           data-testid="mission-home-social-intel"
@@ -1273,13 +1316,13 @@ function MissionHomePanelInner(): JSX.Element | null {
       ) : null}
 
       <div className="flex flex-col gap-3 md:max-lg:contents">
-        <V4Card className="md:max-lg:col-span-1">
+        <V4Card id="mission-step-verify" className="scroll-mt-24 md:max-lg:col-span-1">
           <V4CardHeader
             kicker="Verify"
             title="Approvals"
             description="Simulate-first gates — nothing live without you."
             actions={
-              snapshot.approvals.length > 0 ? (
+              visibleApprovals.length > 0 ? (
                 <Link
                   href={snapshot.links.approvals ?? "/cockpit#approvals"}
                   className="qs-btn qs-btn--ghost qs-btn--sm"
@@ -1289,14 +1332,14 @@ function MissionHomePanelInner(): JSX.Element | null {
               ) : null
             }
           />
-          {snapshot.approvals.length === 0 ? (
+          {visibleApprovals.length === 0 ? (
             <p className="flex items-center gap-2 px-4 pb-4 text-sm text-(--qs-muted)">
               <Shield className="size-4 text-[#00FF88]" aria-hidden />
               Inbox clear — verified path only.
             </p>
           ) : (
             <ul className="space-y-2 px-4 pb-4">
-              {snapshot.approvals.slice(0, 5).map((row) => (
+              {visibleApprovals.slice(0, 5).map((row) => (
                 <li key={row.id}>
                   <Link
                     href={row.href}
@@ -1311,7 +1354,8 @@ function MissionHomePanelInner(): JSX.Element | null {
           )}
         </V4Card>
 
-        <V4Card className="md:max-lg:col-span-1" data-testid="mission-home-afk-running">
+        {!hideAdvanced ? (
+        <V4Card id="mission-step-done" className="scroll-mt-24 md:max-lg:col-span-1" data-testid="mission-home-afk-running">
           <V4CardHeader
             kicker="Work"
             title={afkStrip?.enabled ? afkStrip.headline : "Active sessions"}
@@ -1380,7 +1424,33 @@ function MissionHomePanelInner(): JSX.Element | null {
             </ul>
           )}
         </V4Card>
+        ) : null}
       </div>
+
+      {missionHomeLite && hideAdvanced ? (
+        <div className="md:max-lg:col-span-2">
+          <button
+            type="button"
+            className="qs-btn qs-btn--ghost qs-btn--sm w-full justify-center border border-dashed border-(--qs-border)/60 text-(--qs-muted)"
+            onClick={() => setAdvancedOpen(true)}
+            data-testid="mission-home-show-advanced"
+          >
+            Zobraziť pokročilé (Autopilot, Brain Pack, Foragers, telemetry…)
+          </button>
+        </div>
+      ) : null}
+
+      {missionHomeLite && !hideAdvanced ? (
+        <div className="md:max-lg:col-span-2 flex justify-end">
+          <button
+            type="button"
+            className="qs-btn qs-btn--ghost qs-btn--sm text-(--qs-muted)"
+            onClick={() => setAdvancedOpen(false)}
+          >
+            Skryť pokročilé panely
+          </button>
+        </div>
+      ) : null}
 
       {!snapshot.first_run_complete ? (
         <p className="text-center text-xs text-pollen lg:hidden">

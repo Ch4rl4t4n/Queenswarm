@@ -29,10 +29,28 @@ else
   fail "Jarvis attach nudge missing"
 fi
 
+if grep -q 'mission_home_lite' backend/app/application/services/mission_home_service.py; then
+  pass "Mission Home lite flag for Personal OS"
+else
+  fail "mission_home_lite missing"
+fi
+
+if grep -q 'MissionHomeDailyStartCard' frontend/components/hive/mission-home-panel.tsx; then
+  pass "Mission Home daily start guide"
+else
+  fail "Mission Home daily start guide missing"
+fi
+
 if ! grep -q 'Gumroad' backend/app/application/services/jarvis_advisor_service.py; then
   pass "Jarvis has no Gumroad nudges"
 else
   fail "Jarvis still mentions Gumroad"
+fi
+
+if grep -q 'personal_os_revenue_approvals_enabled' backend/app/application/services/approval_inbox.py; then
+  pass "approval inbox gates Gumroad in Personal OS"
+else
+  fail "approval inbox missing Personal OS Gumroad gate"
 fi
 
 if grep -q 'In-app agent skills' frontend/components/apps-tools/skill-factory-page-client.tsx; then
