@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowRight, BookMarked, CalendarClock, CheckCircle2, Loader2, Radar, Repeat, Search, Shield, Sparkles, Wrench, Zap, Brain, ScanSearch } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { BusinessApprovalInbox } from "@/components/hive/business-approval-inbox";
 import { MissionFactoryQueuePanel } from "@/components/hive/mission-factory-queue-panel";
@@ -351,6 +352,13 @@ export interface MissionHomePanelProps {
   onNavigateSubsection?: (tab: "board" | "approvals" | "results") => void;
 }
 
+/** Panel anchors that live behind „Zobraziť pokročilé" in lite mode — Jarvis must expand before scroll. */
+const MISSION_ADVANCED_ONLY_ANCHORS = new Set([
+  "mission-weekly-reflection",
+  "mission-skill-factory-harness",
+  "mission-step-done",
+]);
+
 function MissionHomePanelInner({ onNavigateSubsection }: MissionHomePanelProps = {}): JSX.Element | null {
   const { soloMode, personalOsMode } = usePlatform();
   const [snapshot, setSnapshot] = useState<MissionHomeSnapshot | null>(null);
@@ -441,14 +449,53 @@ function MissionHomePanelInner({ onNavigateSubsection }: MissionHomePanelProps =
     return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
   }
 
-  function scrollToMissionAnchor(anchorId: string): void {
+  function scrollToMissionAnchor(anchorId: string, opts?: { expandAdvanced?: boolean }): void {
     if (typeof document === "undefined") {
+      return;
+    }
+    const needsExpand =
+      opts?.expandAdvanced
+      ?? (missionHomeLite && hideAdvanced && MISSION_ADVANCED_ONLY_ANCHORS.has(anchorId));
+    if (needsExpand) {
+      setAdvancedOpen(true);
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          const target = document.getElementById(anchorId);
+          if (target) {
+            target.scrollIntoView({ behavior: "smooth", block: "start" });
+            return;
+          }
+          toast.message("Panel sa načítava… skús Do this znova o sekundu.");
+        });
+      });
       return;
     }
     const target = document.getElementById(anchorId);
     if (target) {
       target.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
     }
+    toast.warning("Tento krok ešte nemá panel na stránke — otvor Zobraziť pokročilé alebo kontaktuj support.", {
+      description: `Chýbajúci blok: ${anchorId}`,
+    });
+  }
+
+  function handleJarvisDoThis(step: MissionJarvisStep): void {
+    const inlineAnchor = jarvisInlineAnchor(step.href);
+    if (inlineAnchor) {
+      scrollToMissionAnchor(inlineAnchor);
+      return;
+    }
+    if (step.kind === "verify") {
+      scrollToMissionAnchor("mission-step-verify");
+      return;
+    }
+    if (onNavigateSubsection && step.href.includes("tab=approvals")) {
+      onNavigateSubsection("approvals");
+      return;
+    }
+    // Off-section href — full navigation (honest fallback).
+    window.location.assign(step.href);
   }
 
   /** Jarvis steps that stay inside Mission Control use `/tasks#anchor` — never another section. */
@@ -489,35 +536,19 @@ function MissionHomePanelInner({ onNavigateSubsection }: MissionHomePanelProps =
     }
   }
 
-  /**
-   * "Do this" affordance: verify + all `/tasks#…` Jarvis targets act in place (scroll).
-   * Only off-section hrefs show honest "Otvoriť" navigation.
-   */
   function renderDoThis(step: MissionJarvisStep): JSX.Element {
     const inlineAnchor = jarvisInlineAnchor(step.href);
-    if (step.kind === "verify" || inlineAnchor) {
-      const anchor = inlineAnchor ?? "mission-step-verify";
-      return (
-        <button
-          type="button"
-          onClick={() => scrollToMissionAnchor(anchor)}
-          className="qs-btn qs-btn--primary qs-btn--sm mt-2 inline-flex gap-1"
-          data-testid="mission-home-jarvis-do-this"
-        >
-          Do this
-          <ArrowRight className="size-3.5" aria-hidden />
-        </button>
-      );
-    }
+    const actsInline = step.kind === "verify" || inlineAnchor !== null;
     return (
-      <Link
-        href={step.href}
+      <button
+        type="button"
+        onClick={() => handleJarvisDoThis(step)}
         className="qs-btn qs-btn--primary qs-btn--sm mt-2 inline-flex gap-1"
         data-testid="mission-home-jarvis-do-this"
       >
-        Otvoriť
+        {actsInline ? "Do this" : "Otvoriť"}
         <ArrowRight className="size-3.5" aria-hidden />
-      </Link>
+      </button>
     );
   }
 
@@ -598,8 +629,11 @@ function MissionHomePanelInner({ onNavigateSubsection }: MissionHomePanelProps =
         </V4Card>
       ) : null}
 
-      {!hideAdvanced && skillFactoryHarness?.enabled ? (
-        <MissionFactoryQueuePanel onActioned={() => void reload()} />
+      {skillFactoryHarness?.enabled ? (
+        <MissionFactoryQueuePanel
+          onActioned={() => void reload()}
+          queueActionableHint={skillFactoryHarness.queue_actionable}
+        />
       ) : null}
 
       {!hideAdvanced && weeklyReflection?.enabled && weeklyReflection.highlights.length > 0 ? (

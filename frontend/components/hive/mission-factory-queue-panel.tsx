@@ -50,12 +50,17 @@ interface SkillFactorySnapshot {
 interface MissionFactoryQueuePanelProps {
   /** Fired after queue actions so Mission Home can refresh counts / process rail. */
   onActioned?: () => void;
+  /** From mission-home harness strip — show empty shell when API list is empty but DB says actionable. */
+  queueActionableHint?: number;
 }
 
 /**
  * Inline Skill Factory build queue — Run / Rebuild / Approve forge without leaving Mission Control.
  */
-export function MissionFactoryQueuePanel({ onActioned }: MissionFactoryQueuePanelProps): JSX.Element | null {
+export function MissionFactoryQueuePanel({
+  onActioned,
+  queueActionableHint = 0,
+}: MissionFactoryQueuePanelProps): JSX.Element | null {
   const [snapshot, setSnapshot] = useState<SkillFactorySnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -217,7 +222,25 @@ export function MissionFactoryQueuePanel({ onActioned }: MissionFactoryQueuePane
   }
 
   if (!snapshot || queueRows.length === 0) {
-    return null;
+    if (queueActionableHint <= 0) {
+      return null;
+    }
+    return (
+      <V4Card
+        id="mission-factory-queue"
+        className="scroll-mt-24 md:max-lg:col-span-2 border-pollen/35"
+        data-testid="mission-factory-queue-panel"
+      >
+        <V4CardHeader
+          title="Factory queue"
+          description={`${queueActionableHint} položiek v pipeline — načítavam alebo otvor Apps & Tools ak sa nezobrazia.`}
+          hint={sectionHintNode("skillFactoryQueue")}
+        />
+        <p className="px-4 pb-4 text-sm text-(--qs-muted)">
+          Queue sa synchronizuje… ak tlačidlá v Jarvis stále nič nerobia, refresh stránky.
+        </p>
+      </V4Card>
+    );
   }
 
   const buildBlocked = factoryBuildDisabled(snapshot.llm);
