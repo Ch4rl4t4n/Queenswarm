@@ -34,6 +34,18 @@
 | `social_intel_roadmap_refresh_service.py` / mission strip fallbacks | `/innovation-lab → /agentic-os#innovation-lab`. |
 | `/tasks` IA | Podsekčný bar Dnes \| Board \| Schválenia \| Výsledky (`section-workspace` primitív). |
 
+## A0b. Remediation landed (Knowledge + Agents deep-link hardening — 2026-06-21)
+
+| Item | Fix |
+|------|-----|
+| `knowledge-page-client.tsx` — `?tab=` deep links | Sync efekt teraz číta `?tab=` (parita s Mission Control). Producer odkazy `/knowledge?tab=memory#cited-recall`, `?tab=wiki`, `?tab=outputs`, `?tab=hivemind#evolution` fungujú (predtým padali na default tab). |
+| `agents-page-client.tsx` — `?session=` / `?preset=` / `?tab=` | Deep link na session/preset (napr. `/agents?preset=…`) teraz automaticky otvorí **Supervisor** podsekciu (panel číta `?session`/`?preset` až po mountnutí). |
+| `swarms-page-client.tsx` — "Curated memory (Mission / Instructions)" | `/settings/harness#curated-memory` (neexistujúca kotva) → `/settings/harness#rules-skills` (Skills & memory tab). |
+| `swarms-page-client.tsx` — "Edit Orchestrator prompt" | Disabled stav (`aria-disabled` + `pointer-events-none`) doplnený o `title` s dôvodom (žiadny mŕtvy `href="#"` bez vysvetlenia). |
+| `agents-sessions-panel.tsx` — Supervisor sessions | Pripojený existujúci `agentsSessions` hint (predtým definovaný, ale nezapojený). |
+| Knowledge panely bez hintu | Doplnené hinty: Auto graphify, Weekly compound, Memory evolution, Dreaming, Second Brain Pack, Episodic daily/memory, Session search, Goals (nové kľúče v `section-hints.ts`). |
+| `knowledge-page-client.tsx` — duplicitný `EpisodicMemoryPanel` | Odstránená duplicita v memory tabe. |
+
 ## A. DEAD / BROKEN BUTTONS
 
 | Source (file + label) | Target href | Why broken |
@@ -46,12 +58,12 @@
 | `lib/skill-factory-manual.ts` — "Launch tab" | `/apps-tools/skill-factory#launch` | Same |
 | `first-run-setup-banner.tsx` / `mission-home-panel.tsx` | `/agents#first-run-wizard` | Hash not in `agents-ecosystem-routes.ts`; wizard only on `sessions` tab |
 | `execution-studio-skill-forge-panel.tsx` | `/agents#agent-suggestions` | Hash unmapped; `id` under `learning` tab |
-| `swarms-page-client.tsx` — "Curated memory" | `/settings/harness#curated-memory` | No `id="curated-memory"` in harness panels |
+| ~~`swarms-page-client.tsx` — "Curated memory"~~ | ~~`/settings/harness#curated-memory`~~ | **FIXED 2026-06-21** → `/settings/harness#rules-skills` |
 | `self-extending-marketplace-panel.tsx` | `/integrations#tools` | Tab not in `HASH_TO_TAB`; scroll id `tools` vs DOM `hub-tools` |
 | `oracle/page.tsx` | `/oracle#*` | Server redirect drops hash |
 | `middleware.ts` + More menu "Advanced dashboard" | `/dashboard#*` | Redirect drops hash |
 | `marketing-team-calendar-panel.tsx` — "Review queue" / "Social publish" | `href="#"` when links null | Dead anchor |
-| `swarms-page-client.tsx` — "Edit Orchestrator prompt" | `href="#"` when no orchestrator | Dead anchor |
+| ~~`swarms-page-client.tsx` — "Edit Orchestrator prompt"~~ | ~~`href="#"` when no orchestrator~~ | **FIXED 2026-06-21** → disabled + `title` hint (already `pointer-events-none`) |
 | `platform-capabilities-catalog.ts` | `/cockpit#link-drop`, `/cockpit#dialogue-extract` | Work only after redirect + ICM visible |
 | `hive-ia-canonical.ts` More menu | `/agents#hierarchy` | Works only if hierarchy tab selected |
 
@@ -98,8 +110,8 @@
 ## Remediation status
 
 - [x] Global robust hash-scroll + flash (`use-route-hash-scroll.ts`, mounted in shell) — 2026-06-20
-- [ ] Hash activates the correct tab on tabbed pages (agents, integrations, agentic-os, knowledge)
-- [ ] Fix dead targets: `#launch`, `#approvals`, `#first-run-wizard`, `#agent-suggestions`, `#curated-memory`, `#tools`
+- [~] Hash activates the correct tab on tabbed pages — knowledge + agents also read `?tab=`/`?session=`/`?preset=` (2026-06-21); integrations/agentic-os pending
+- [~] Fix dead targets: `#approvals` (done), `#curated-memory` → `#rules-skills` (done 2026-06-21); `#launch`, `#tools` pending. `#first-run-wizard`/`#agent-suggestions` already mapped via alias.
 - [ ] `/oracle` + `/dashboard` hash-preserving client redirects
 - [ ] `href="#"` fallbacks → disabled buttons with hint, never dead links
 - [ ] Inline hints on Foragers, Monitoring, all Apps & Tools modules

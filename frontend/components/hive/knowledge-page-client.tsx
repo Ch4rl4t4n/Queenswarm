@@ -141,6 +141,14 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
         setTab(fromHash);
         return;
       }
+      // `?tab=` deep links (parity with Mission Control + producer hrefs like
+      // `/knowledge?tab=memory#cited-recall`). The hash (#cited-recall) is then
+      // handled by the global hash-scroll once the tab content mounts.
+      const fromQuery = knowledgeTabFromHash(searchParams.get("tab") ?? "");
+      if (fromQuery) {
+        setTab(fromQuery);
+        return;
+      }
       const next = resolveKnowledgeTab({ visibleTabIds: tabIds });
       setTab(next);
       if (next === "hivemind") {
@@ -154,7 +162,7 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
     syncFromHash();
     window.addEventListener("hashchange", syncFromHash);
     return () => window.removeEventListener("hashchange", syncFromHash);
-  }, [tabIds]);
+  }, [tabIds, searchParams]);
 
   return (
     <HivePageShell
@@ -311,7 +319,6 @@ export function KnowledgePageClient({ initialOutputs, archiveSyncPending = false
           <EpisodicDailyLogPanel />
           <EpisodicMemoryPanel />
           <HiveSessionSearchPanel />
-          <EpisodicMemoryPanel />
         </div>
       ) : null}
 

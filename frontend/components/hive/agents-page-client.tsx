@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 
@@ -51,6 +52,7 @@ function readEcosystemSectionFromLocation(): AgentsEcosystemSection {
 
 export function AgentsPageClient({ initialAgents, rosterSyncPending = false }: AgentsPageClientProps) {
   const { soloMode } = usePlatform();
+  const searchParams = useSearchParams();
   const [section, setSection] = useState<AgentsEcosystemSection>(readEcosystemSectionFromLocation);
 
   const pollOptions = useRouteScopedPollOptions(COCKPIT_POLL_BOARD_MS, "/agents");
@@ -95,6 +97,19 @@ export function AgentsPageClient({ initialAgents, rosterSyncPending = false }: A
         setSection(fromHash);
         return;
       }
+      // Deep links that target a supervisor session/preset must mount the
+      // Supervisor sub-section (the panel reads `?session=` / `?preset=` once
+      // visible). Without this, `/agents?session=…` lands on the default tab.
+      if (searchParams.get("session") || searchParams.get("preset")) {
+        setSection("sessions");
+        return;
+      }
+      // `?tab=` deep links (parity with Mission Control / Knowledge).
+      const fromQuery = agentsEcosystemSectionFromHash(searchParams.get("tab") ?? "");
+      if (fromQuery) {
+        setSection(fromQuery);
+        return;
+      }
       const next = resolveAgentsEcosystemSection({});
       setSection(next);
       window.history.replaceState(null, "", agentsEcosystemSectionHref(next));
@@ -102,7 +117,7 @@ export function AgentsPageClient({ initialAgents, rosterSyncPending = false }: A
     syncFromHash();
     window.addEventListener("hashchange", syncFromHash);
     return () => window.removeEventListener("hashchange", syncFromHash);
-  }, []);
+  }, [searchParams]);
 
   const retryAgentsSync = useCallback(async (): Promise<void> => {
     await Promise.all([mutateAgents(), mutateSwarms()]);

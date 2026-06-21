@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { V4Card, V4CardHeader } from "@/components/ui/v4";
 import { useMissionSearch } from "@/lib/use-mission-search";
 
@@ -15,6 +16,7 @@ export function HiveSessionSearchPanel() {
         kicker="Session memory"
         title="Hive mission search"
         description="Live search across supervisor goals, sub-agent summaries, and kanban tasks."
+        hint={sectionHintNode("knowledgeSessionSearch")}
       />
       <input
         value={query}

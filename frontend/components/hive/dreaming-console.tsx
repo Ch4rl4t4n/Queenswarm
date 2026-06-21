@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { InfoHint } from "@/components/hive/info-hint";
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { DreamReportsGrid, DreamReportsGridSkeleton } from "@/components/hive/dream-reports-grid";
 import type { DreamCycleRow } from "@/components/hive/dream-report-info-dialog";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
@@ -128,6 +129,7 @@ export function DreamingConsole(): JSX.Element {
         <V4CardHeader
           title="Dreaming · nightly memory cycles"
           description="Tenant-scoped consolidation of supervisor history into HiveMind knowledge and Dream Reports."
+          hint={sectionHintNode("knowledgeDreaming")}
           actions={
             <div className="flex flex-wrap items-center gap-2">
               <button

@@ -80,8 +80,15 @@ Globálny prístup ku všetkému cez **⌘K** (command palette) — nič sa nest
   priamo na mieste → po akcii `reload()` → process rail sa posunie. Nový blok **Výsledky dnes**
   (`MissionResultsPanel`). Mŕtve ciele opravené: `/innovation-lab → /agentic-os#innovation-lab`,
   `/cockpit#approvals → /tasks?tab=approvals`.
-- **P3 (next):** Rovnaký `SectionWorkspace` vzor pre Build (Factory), Knowledge, Integrations.
-- **P4 (later):** Konsolidácia navigácie na 7 sekcií + ⌘K coverage audit.
+- **P3 — Knowledge + Agents deep-link hardening (done 2026-06-21):** existujúce hash subnavy
+  (`HiveSectionSubnav` / `HiveSubnavRow`) sú funkčné, takže namiesto re-skinningu (riziko e2e +
+  zákaz grafických zmien) sme ich **funkčne spevnili**: Knowledge číta aj `?tab=` (producer odkazy
+  `/knowledge?tab=memory#cited-recall`, `?tab=wiki`, `?tab=outputs` fungujú), Agents otvorí
+  **Supervisor** pri `?session=`/`?preset=`/`?tab=`. Opravený mŕtvy `#curated-memory →
+  #rules-skills`, zapojený `agentsSessions` hint, doplnené hinty na 9 Knowledge panelov, odstránená
+  duplicita `EpisodicMemoryPanel`.
+- **P4 (next):** Build (Factory) + Integrations rovnaká funkčná deep-link/hint pasáž; potom
+  konsolidácia navigácie + ⌘K coverage audit.
 
 ### Znovupoužiteľný primitív (P2)
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CalendarDays, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
 
@@ -74,6 +75,7 @@ export function EpisodicDailyLogPanel(): JSX.Element | null {
         leadingIconTone="purple"
         title="Daily episodic log"
         description="MEM1 — completed sessions auto-capture into a MemSearch-style daily summary."
+        hint={sectionHintNode("knowledgeEpisodicDaily")}
         actions={
           <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm" onClick={() => void load()}>
             Refresh

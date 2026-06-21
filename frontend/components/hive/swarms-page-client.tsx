@@ -216,6 +216,11 @@ export function SwarmsPageClient() {
                   : "#"
               }
               aria-disabled={!data?.orchestrator_agent_id}
+              title={
+                data?.orchestrator_agent_id
+                  ? undefined
+                  : "No orchestrator agent yet — create a swarm with a Queen to edit its prompt."
+              }
               className={cn(
                 "qs-btn qs-btn--cyan qs-btn--sm gap-1.5",
                 !data?.orchestrator_agent_id && "pointer-events-none opacity-40",
@@ -225,7 +230,7 @@ export function SwarmsPageClient() {
               Edit Orchestrator prompt
             </Link>
             <Link
-              href="/settings/harness#curated-memory"
+              href="/settings/harness#rules-skills"
               className="qs-btn qs-btn--ghost qs-btn--sm gap-1.5"
             >
               <Pencil className="h-3.5 w-3.5" aria-hidden />

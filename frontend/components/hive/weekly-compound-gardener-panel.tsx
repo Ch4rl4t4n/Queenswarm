@@ -5,6 +5,7 @@ import { memo, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 
@@ -99,6 +100,7 @@ function WeeklyCompoundGardenerPanelInner(): JSX.Element | null {
           kicker="POS-J1"
           title="Weekly compound gardener"
           description="Ballroom + episodic → memory evolution proposal — approve before Hive Mind apply."
+          hint={sectionHintNode("knowledgeWeeklyCompound")}
           actions={<HiveRefreshButton onClick={() => void load()} aria-label="Refresh compound gardener" />}
         />
         <div className="mt-3 flex flex-wrap gap-2 px-4 pb-2">

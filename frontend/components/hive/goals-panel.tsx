@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 
@@ -76,7 +77,11 @@ export function GoalsPanel() {
   return (
     <div className="space-y-6">
       <V4Card>
-        <V4CardHeader title="New goal" description="Queen orchestrator — decomposes into tasks and audits until done." />
+        <V4CardHeader
+          title="New goal"
+          description="Queen orchestrator — decomposes into tasks and audits until done."
+          hint={sectionHintNode("knowledgeGoals")}
+        />
         <div className="grid gap-3 md:grid-cols-2">
           <input
             value={title}

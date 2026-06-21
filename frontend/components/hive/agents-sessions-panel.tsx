@@ -16,6 +16,7 @@ import { CheckpointResumeCtaStrip } from "@/components/hive/checkpoint-resume-ct
 import { MidFlightCheckpointPanel } from "@/components/hive/mid-flight-checkpoint-panel";
 import { AutomationLadderPanel } from "@/components/hive/automation-ladder-panel";
 import { InfoHint } from "@/components/hive/info-hint";
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { SessionPatternSkillsPanel } from "@/components/hive/session-pattern-skills-panel";
 import { SkillPickerChips } from "@/components/hive/skill-picker-chips";
 import { SupervisorSessionsListPanel } from "@/components/hive/supervisor-sessions-list-panel";
@@ -557,6 +558,7 @@ export function AgentsSessionsPanel({ variant = "default" }: AgentsSessionsPanel
         <V4CardHeader
           title="Supervisor sessions"
           description="Goals · sub-agents · runtime · auto-approve rules."
+          hint={sectionHintNode("agentsSessions")}
           actions={
             <Link href={integrationsTabHref("active", "ecosystem")} className="qs-btn qs-btn--ghost qs-btn--sm">
               Tool hub

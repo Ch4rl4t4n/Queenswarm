@@ -3,6 +3,7 @@
 import { GitBranch, Loader2Icon, Upload } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { usePlatform } from "@/components/hive/platform-context";
 import { V4Badge, V4Card, V4CardHeader, V4FormField, V4FormStack } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
@@ -117,6 +118,7 @@ export function AutoGraphifyPanel(): JSX.Element | null {
         leadingIconTone="cyan"
         title="Auto-Graphify"
         description="Upload a project folder — mirror to vault, embed vectors, and create Neo4j document nodes."
+        hint={sectionHintNode("knowledgeAutoGraphify")}
       />
 
       <V4FormStack className="auto-graphify-panel__form">

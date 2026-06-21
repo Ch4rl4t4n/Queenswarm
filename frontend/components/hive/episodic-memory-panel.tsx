@@ -10,6 +10,7 @@ import {
   type CollectorTab,
 } from "@/components/hive/dynamic-collector-deck";
 import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet } from "@/lib/api";
 import type { EpisodicMemoryItemRow, EpisodicMemoryPayload, EpisodicSummaryPayload } from "@/lib/hive-types";
@@ -125,6 +126,7 @@ export function EpisodicMemoryPanel(): JSX.Element {
         kicker="Episodic memory"
         title="Session timeline"
         description="Supervisor events, dream insights, and overnight ingest — flip through the collector deck."
+        hint={sectionHintNode("knowledgeEpisodicMemory")}
         actions={
           <div className="flex items-center gap-2">
             <HiveRefreshButton

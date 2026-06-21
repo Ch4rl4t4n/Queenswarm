@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { MemoryEvolutionProposalsPanel } from "@/components/hive/memory-evolution-proposals-panel";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
@@ -104,6 +105,7 @@ export function MemoryEvolutionPanel() {
       <V4CardHeader
         title="Memory evolution proposals"
         description="Suggested graph edits from reflection cycles — approve to commit, reject to discard."
+        hint={sectionHintNode("knowledgeMemoryEvolution")}
         actions={<V4Badge tone="purple">{pendingCount} pending</V4Badge>}
       />
       {err ? <p className="mb-3 text-sm text-(--qs-red)">{err}</p> : null}

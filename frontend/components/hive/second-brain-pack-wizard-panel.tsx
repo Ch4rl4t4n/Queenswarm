@@ -6,6 +6,7 @@ import { memo, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { usePlatform } from "@/components/hive/platform-context";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError } from "@/lib/api";
@@ -69,6 +70,7 @@ function SecondBrainPackWizardPanelInner(): JSX.Element | null {
         kicker="Hermes-style · verify-first"
         title="Second Brain Pack"
         description="Three steps — memory, specialist bees, Obsidian or first cycle. System runs; you approve outcomes."
+        hint={sectionHintNode("knowledgeBrainPackWizard")}
         actions={
           <div className="flex gap-2">
             <HiveRefreshButton busy={loading} onClick={() => void reload()} />

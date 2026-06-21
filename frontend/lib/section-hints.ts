@@ -769,6 +769,97 @@ export const SECTION_HINTS = {
     ],
     manualHref: "/manual#skill-hot-tier",
   },
+  knowledgeAutoGraphify: {
+    title: "Auto graphify",
+    description:
+      "Drop a folder of notes/docs — the swarm parses files into HiveMind vault entries and a Neo4j graph so retrieval can cite them.",
+    options: [
+      "Upload a folder — markdown, text, PDF, and code files are parsed.",
+      "Result: vault entries + graph nodes you can explore in Graph + search.",
+      "Re-run after adding files to keep the graph fresh.",
+    ],
+  },
+  knowledgeProjectShape: {
+    title: "Project shape",
+    description:
+      "Visual hierarchy map built from the last graphify run — see how folders and topics connect at a glance.",
+    options: [
+      "Needs a completed Auto graphify run first.",
+      "Click nodes to inspect related memory and sources.",
+    ],
+  },
+  knowledgeWeeklyCompound: {
+    title: "Weekly compound gardener",
+    description:
+      "Weekly review that compiles the best verified memory into the wiki layer and proposes what to keep, merge, or drop.",
+    options: [
+      "Run weekly — produces approve/reject proposals.",
+      "Approve to compound into wiki; reject to discard.",
+    ],
+  },
+  knowledgeMemoryEvolution: {
+    title: "Memory evolution",
+    description:
+      "Proposes edits to curated memory based on what actually worked — accept to improve future retrieval quality.",
+    options: [
+      "Review proposals — each shows the before/after and why.",
+      "Accept or skip; accepted edits apply to curated memory.",
+    ],
+  },
+  knowledgeDreaming: {
+    title: "Dreaming console",
+    description:
+      "Nightly consolidation — the swarm reflects on the day, merges related memory, and writes a dream report you can read each morning.",
+    options: [
+      "Runs automatically overnight; trigger manually to test.",
+      "Dream reports summarize what was learned and consolidated.",
+    ],
+  },
+  knowledgeBrainPackWizard: {
+    title: "Second brain pack wizard",
+    description:
+      "Guided setup that turns your notes, links, and context into a curated brain pack the swarm uses on every task.",
+    options: [
+      "Follow the steps — paste context, pick sources, name the pack.",
+      "The finished pack feeds curated memory and retrieval.",
+    ],
+  },
+  knowledgeEpisodicDaily: {
+    title: "Episodic daily log",
+    description:
+      "A running journal of what the swarm did each day — useful to retrace decisions and feed weekly review.",
+    options: [
+      "Auto-populated as tasks complete.",
+      "Search by day to see what happened and why.",
+    ],
+  },
+  knowledgeEpisodicMemory: {
+    title: "Episodic memory",
+    description:
+      "Searchable store of specific past events and outcomes the swarm can recall when a new task resembles an old one.",
+    options: [
+      "Search by keyword or session.",
+      "Entries link back to the task and result that created them.",
+    ],
+  },
+  knowledgeSessionSearch: {
+    title: "Session search",
+    description:
+      "Find any past supervisor session by goal, agent, or keyword — reopen the transcript and reuse what worked.",
+    options: [
+      "Search across all sessions, not just today.",
+      "Open a result to view its full event log.",
+    ],
+  },
+  knowledgeGoals: {
+    title: "Goals",
+    description:
+      "Set and track the Queen's standing goals — the swarm keeps these in context so daily work stays aligned.",
+    options: [
+      "Create a goal — short, outcome-focused statement.",
+      "Active goals are injected into Queen planning.",
+    ],
+  },
 
   // —— Integrations ——
   integrationsActive: {
