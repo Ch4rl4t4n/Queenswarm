@@ -115,6 +115,26 @@ export const SECTION_HINTS = {
     ],
     manualHref: "/manual#skill-factory",
   },
+  skillFactoryQueueSlo: {
+    title: "Queue SLO",
+    description:
+      "Health of the build queue at a glance — how many builds wait on forge, how often the critic approves, and how much of the weekly build cap is used.",
+    options: [
+      "Awaiting forge — builds finished by the agent, waiting for your approve.",
+      "Critic rate — share of builds the critic passed; low rate = tighten brief.",
+      "Weekly cap — keep builds under the cap to protect cost + quality.",
+    ],
+    manualHref: "/manual#skill-factory",
+  },
+  appsToolsModuleIndex: {
+    title: "Module index",
+    description:
+      "One launcher for every tool and automation module — open a module to configure and run it; existing flows stay unchanged.",
+    options: [
+      "Click a module card → Configure to set it up in place.",
+      "Skill Factory, Marketing, Trading, Browser, MCP Ops and more live here.",
+    ],
+  },
   skillFactoryLaunch: {
     title: "Launch queue",
     description:
@@ -869,6 +889,36 @@ export const SECTION_HINTS = {
       "Healthy count badge — probes last 24h success rate.",
       "Retry — re-runs connection test for error cards.",
       "Open — jumps to hub, studio, or marketplace tab.",
+    ],
+    manualHref: "/manual#integrations",
+  },
+  integrationsToolGaps: {
+    title: "Actionable tool gaps",
+    description:
+      "Connectors your agent sessions actually needed but were missing — install the suggested template so the next run doesn't fail.",
+    options: [
+      "Each row = a real failure caused by a missing MCP connector.",
+      "Install template here or in the Tools marketplace.",
+    ],
+    manualHref: "/manual#integrations",
+  },
+  integrationsEcosystemLane: {
+    title: "Ecosystem orchestration",
+    description:
+      "Shortcuts to install tools, supervise browser agents, and run voice-driven swarm loops — all from the integrations overview.",
+    options: [
+      "Cards jump to the right tab or supervisor lane.",
+      "One surface for tool install + agent supervision.",
+    ],
+    manualHref: "/manual#integrations",
+  },
+  integrationsSelfExtending: {
+    title: "Self-extending tool marketplace",
+    description:
+      "A read-only Forager scan suggests verified MCP connectors to install with one click — no raw secrets, only vetted connector rows.",
+    options: [
+      "Installable count = ready-to-add Phase 3 MCP presets.",
+      "Open Tool Hub to review and install proposals.",
     ],
     manualHref: "/manual#integrations",
   },

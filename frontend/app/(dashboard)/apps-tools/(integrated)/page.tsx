@@ -1,5 +1,6 @@
 import nextDynamic from "next/dynamic";
 
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { V4Card, V4CardHeader } from "@/components/ui/v4";
 
 const AppsToolsIndexClient = nextDynamic(
@@ -24,6 +25,7 @@ export default function AppsToolsPage() {
       <V4CardHeader
         title="Module index"
         description="Compose-only route layer for the Agentic OS split. Existing execution flows stay unchanged and are opened through stable stubs."
+        hint={sectionHintNode("appsToolsModuleIndex")}
       />
       <AppsToolsIndexClient />
     </V4Card>

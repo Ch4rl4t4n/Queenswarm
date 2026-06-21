@@ -46,6 +46,16 @@
 | Knowledge panely bez hintu | Doplnené hinty: Auto graphify, Weekly compound, Memory evolution, Dreaming, Second Brain Pack, Episodic daily/memory, Session search, Goals (nové kľúče v `section-hints.ts`). |
 | `knowledge-page-client.tsx` — duplicitný `EpisodicMemoryPanel` | Odstránená duplicita v memory tabe. |
 
+## A0c. Remediation landed (Build/Factory + Integrations deep-link hardening — 2026-06-21)
+
+| Item | Fix |
+|------|-----|
+| `skill-factory-page-client.tsx` mount effect | Read **live** `window.location.hash` before defaulting → no longer clobbers deep-link tabs (`#queue`, `#library`, legacy `#launch`) to Research on mount. Legacy `#launch` normalizes to canonical `#library`. (Top-10 #2) |
+| `integrations-routes.ts` `HASH_TO_TAB` | Added `tools`/`tool-hub`/`oauth`/`oauth-consent`/`vault`/`templates`/`phase3-templates`/`roster`/`obsidian` → **hub** (previously fell through to Active). (Top-10 #6) |
+| `integrations-routes.ts` `integrationsScrollTargetFromHash` | `tools`/`tool-hub`→`hub-tools`, `templates`→`hub-templates` (real DOM ids); `vault`/`roster`/`obsidian`→null (hub sub-section state renders them). |
+| `integrations-routes.test.ts` | Added `#tools` tab + scroll-target unit cases. |
+| Hints | Added: Skill Factory **Queue SLO**, Apps & Tools **Module index**, Integrations **Tool gaps**, **Ecosystem orchestration**, **Self-extending marketplace** (new keys in `section-hints.ts`). |
+
 ## A. DEAD / BROKEN BUTTONS
 
 | Source (file + label) | Target href | Why broken |
@@ -53,13 +63,13 @@
 | ~~`mission-home-panel.tsx` — "Cockpit" (weekly compound)~~ | ~~`/cockpit#approvals`~~ | **FIXED 2026-06-21** → `/tasks?tab=approvals` |
 | ~~`mission-home-panel.tsx` — approvals link (~L1327)~~ | ~~`snapshot.links.approvals ?? "/cockpit#approvals"`~~ | **FIXED 2026-06-21** → inline inbox + `/tasks?tab=approvals` |
 | `e2e/fixtures/shell-api-mocks.ts` | `/cockpit#approvals` | Stub propagates legacy target (redirects to `/agentic-os#approvals` anchor; harmless in tests) |
-| `apps-tools-index-client.tsx` — primary CTA | `/apps-tools/skill-factory#launch` | `launch` not in `SKILL_FACTORY_TABS`; lands Research tab |
-| `content-factory-page-client.tsx` — Skill Factory link | `/apps-tools/skill-factory#launch` | Same |
-| `lib/skill-factory-manual.ts` — "Launch tab" | `/apps-tools/skill-factory#launch` | Same |
+| ~~`apps-tools-index-client.tsx` — primary CTA~~ | ~~`/apps-tools/skill-factory#launch`~~ | **FIXED 2026-06-21** → producers already `#library`; mount-effect no longer clobbers hash, `#launch`→Library |
+| ~~`content-factory-page-client.tsx` — Skill Factory link~~ | ~~`/apps-tools/skill-factory#launch`~~ | **FIXED** → `#library` |
+| ~~`lib/skill-factory-manual.ts` — "Launch tab"~~ | ~~`/apps-tools/skill-factory#launch`~~ | **FIXED** → `#library` |
 | `first-run-setup-banner.tsx` / `mission-home-panel.tsx` | `/agents#first-run-wizard` | Hash not in `agents-ecosystem-routes.ts`; wizard only on `sessions` tab |
 | `execution-studio-skill-forge-panel.tsx` | `/agents#agent-suggestions` | Hash unmapped; `id` under `learning` tab |
 | ~~`swarms-page-client.tsx` — "Curated memory"~~ | ~~`/settings/harness#curated-memory`~~ | **FIXED 2026-06-21** → `/settings/harness#rules-skills` |
-| `self-extending-marketplace-panel.tsx` | `/integrations#tools` | Tab not in `HASH_TO_TAB`; scroll id `tools` vs DOM `hub-tools` |
+| ~~`self-extending-marketplace-panel.tsx`~~ | ~~`/integrations#tools`~~ | **FIXED 2026-06-21** → producer uses canonical `?tab=hub&hubSection=tools#hub-tools`; `HASH_TO_TAB` now maps `tools`/`vault`/… → hub; scroll target `tools`→`hub-tools` |
 | `oracle/page.tsx` | `/oracle#*` | Server redirect drops hash |
 | `middleware.ts` + More menu "Advanced dashboard" | `/dashboard#*` | Redirect drops hash |
 | `marketing-team-calendar-panel.tsx` — "Review queue" / "Social publish" | `href="#"` when links null | Dead anchor |
@@ -87,11 +97,11 @@
 ## Top 10 most broken things
 
 1. `/cockpit#approvals` / Mission Home "Cockpit" — CTA to nonexistent section after redirect.
-2. `/apps-tools/skill-factory#launch` — Launch tab removed; multiple CTAs still point here.
+2. ~~`/apps-tools/skill-factory#launch`~~ — **FIXED 2026-06-21** (mount-effect hash clobber + `#launch`→Library).
 3. `/agents#first-run-wizard` — onboarding links open wrong sub-tab; wizard not visible.
 4. `/agents#agent-suggestions` — deep link does not open Learning / suggestions panel.
 5. `/settings/harness#curated-memory` — Swarms Queen policy link; anchor missing.
-6. `/integrations#tools` — wrong tab + wrong scroll id (`tools` vs `hub-tools`).
+6. ~~`/integrations#tools`~~ — **FIXED 2026-06-21** (`HASH_TO_TAB`→hub + scroll `hub-tools`).
 7. `/oracle` server redirect — drops all deep-link hashes.
 8. `/dashboard` middleware redirect — "Advanced dashboard" useless under CP; hashes lost.
 9. Marketing Team calendar `href="#"` fallbacks — primary actions dead when API omits links.
@@ -111,7 +121,7 @@
 
 - [x] Global robust hash-scroll + flash (`use-route-hash-scroll.ts`, mounted in shell) — 2026-06-20
 - [~] Hash activates the correct tab on tabbed pages — knowledge + agents also read `?tab=`/`?session=`/`?preset=` (2026-06-21); integrations/agentic-os pending
-- [~] Fix dead targets: `#approvals` (done), `#curated-memory` → `#rules-skills` (done 2026-06-21); `#launch`, `#tools` pending. `#first-run-wizard`/`#agent-suggestions` already mapped via alias.
+- [x] Fix dead targets: `#approvals`, `#curated-memory`→`#rules-skills`, `#launch`→Library, `#tools`→hub (all done 2026-06-21). `#first-run-wizard`/`#agent-suggestions` already mapped via alias.
 - [ ] `/oracle` + `/dashboard` hash-preserving client redirects
 - [ ] `href="#"` fallbacks → disabled buttons with hint, never dead links
 - [ ] Inline hints on Foragers, Monitoring, all Apps & Tools modules

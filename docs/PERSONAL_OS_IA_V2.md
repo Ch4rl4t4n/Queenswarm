@@ -87,8 +87,13 @@ Globálny prístup ku všetkému cez **⌘K** (command palette) — nič sa nest
   **Supervisor** pri `?session=`/`?preset=`/`?tab=`. Opravený mŕtvy `#curated-memory →
   #rules-skills`, zapojený `agentsSessions` hint, doplnené hinty na 9 Knowledge panelov, odstránená
   duplicita `EpisodicMemoryPanel`.
-- **P4 (next):** Build (Factory) + Integrations rovnaká funkčná deep-link/hint pasáž; potom
-  konsolidácia navigácie + ⌘K coverage audit.
+- **P4 — Build (Factory) + Integrations deep-link hardening (done 2026-06-21):** opravený
+  **`#launch`** (mount efekt v Skill Factory čítal stale hash a prepol každý deep-link tab na
+  Research; teraz číta živý hash, `#launch`→Library) a **`#tools`** (Integrations `HASH_TO_TAB`
+  teraz mapuje hub pod-sekčné hashe na hub tab, scroll target `tools`→`hub-tools`). Doplnené hinty
+  (Queue SLO, Module index, Tool gaps, Ecosystem, Self-extending marketplace) + unit testy.
+- **P5 (next):** konsolidácia navigácie na 7 sekcií + ⌘K coverage audit; zvyšné chýbajúce hinty
+  (Foragers, Monitoring, ConnectorsConsole pod-sekcie).
 
 ### Znovupoužiteľný primitív (P2)
 

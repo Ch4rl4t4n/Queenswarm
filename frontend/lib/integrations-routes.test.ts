@@ -26,6 +26,14 @@ describe("integrationsTabFromHash", () => {
     expect(integrationsTabFromHash("#ecosystem")).toBe("active");
     expect(integrationsTabFromHash("#marketplace")).toBe("marketplace");
   });
+
+  it("routes legacy hub sub-section hashes to the hub tab", () => {
+    expect(integrationsTabFromHash("#tools")).toBe("hub");
+    expect(integrationsTabFromHash("#tool-hub")).toBe("hub");
+    expect(integrationsTabFromHash("#vault")).toBe("hub");
+    expect(integrationsTabFromHash("#oauth-consent")).toBe("hub");
+    expect(integrationsTabFromHash("#templates")).toBe("hub");
+  });
 });
 
 describe("integrationsScrollTargetFromHash", () => {
@@ -41,6 +49,15 @@ describe("integrationsScrollTargetFromHash", () => {
     expect(integrationsScrollTargetFromHash("#media-agency")).toBe("media-agency");
     expect(integrationsScrollTargetFromHash("#micro-saas-factory")).toBe("micro-saas-factory");
     expect(integrationsScrollTargetFromHash("#hub")).toBeNull();
+  });
+
+  it("maps Tool Hub + templates short hashes to their real DOM ids", () => {
+    expect(integrationsScrollTargetFromHash("#tools")).toBe("hub-tools");
+    expect(integrationsScrollTargetFromHash("#tool-hub")).toBe("hub-tools");
+    expect(integrationsScrollTargetFromHash("#templates")).toBe("hub-templates");
+    expect(integrationsScrollTargetFromHash("#phase3-templates")).toBe("hub-templates");
+    // vault / roster / obsidian have no in-page anchor — hub sub-section state renders them.
+    expect(integrationsScrollTargetFromHash("#vault")).toBeNull();
   });
 });
 

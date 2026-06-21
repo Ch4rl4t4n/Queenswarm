@@ -29,6 +29,18 @@ const HASH_TO_TAB: Record<string, IntegrationsTab> = {
   plugins: "plugins",
   active: "active",
   ecosystem: "active",
+  // Legacy hub sub-section hashes land on the Connector hub tab (the page then
+  // resolves the hub sub-section from the same hash). Previously these fell
+  // through to Active, so `/integrations#tools` opened the wrong tab.
+  tools: "hub",
+  "tool-hub": "hub",
+  oauth: "hub",
+  "oauth-consent": "hub",
+  vault: "hub",
+  templates: "hub",
+  "phase3-templates": "hub",
+  roster: "hub",
+  obsidian: "hub",
 };
 
 /** Canonical href for an integrations hub tab. */
@@ -58,8 +70,19 @@ export function integrationsScrollTargetFromHash(hash: string): string | null {
   if (key === "oauth-consent") {
     return "oauth-consent";
   }
-  if (key === "tools" || key === "tool-hub" || key === "vault" || key === "templates" || key === "roster" || key === "obsidian") {
-    return key;
+  // Tool registry + Phase 3 templates have in-page anchors (`#hub-tools`,
+  // `#hub-templates`); map the legacy short hashes to the real DOM ids so the
+  // global hash-scroll actually finds them.
+  if (key === "tools" || key === "tool-hub") {
+    return "hub-tools";
+  }
+  if (key === "templates" || key === "phase3-templates") {
+    return "hub-templates";
+  }
+  // vault / roster / obsidian / oauth render via the hub sub-section state and
+  // have no in-page scroll anchor — landing on the hub tab is enough.
+  if (key === "vault" || key === "roster" || key === "obsidian") {
+    return null;
   }
     if (
     key === "social-publish"

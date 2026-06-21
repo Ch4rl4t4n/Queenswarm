@@ -5,6 +5,7 @@ import { Loader2, PlugIcon, RefreshCw, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { usePlatform } from "@/components/hive/platform-context";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hivePostJson } from "@/lib/api";
@@ -80,6 +81,7 @@ export function SelfExtendingMarketplacePanel({ snapshot }: SelfExtendingMarketp
         kicker="Self-extending hive"
         title="Tool marketplace from Forager scan"
         description="Read-only intelligence scan → one-click Phase3 MCP preset install. Verified connector rows only — no raw secrets."
+        hint={sectionHintNode("integrationsSelfExtending")}
       />
       <div className="mt-3 flex flex-wrap gap-2">
         <V4Badge tone="ok">Enabled</V4Badge>

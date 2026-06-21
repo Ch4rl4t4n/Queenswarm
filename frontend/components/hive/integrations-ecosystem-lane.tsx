@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Globe, Mic, Monitor, Plug, Sparkles } from "lucide-react";
 import type { JSX } from "react";
 
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { V4Card, V4CardHeader } from "@/components/ui/v4";
 import { integrationsHubSectionHref } from "@/lib/integrations-hub-routes";
 import { integrationsTabHref, type IntegrationsTab } from "@/lib/integrations-routes";
@@ -51,6 +52,7 @@ export function IntegrationsEcosystemLane({ onSelectTab }: IntegrationsEcosystem
         kicker="Phase 12 · Ecosystem"
         title="Ecosystem Orchestration"
         description="Install tools, supervise browser agents, and run voice-driven swarm loops from one operator surface."
+        hint={sectionHintNode("integrationsEcosystemLane")}
         actions={
           <Link href="/agents#sessions" className="qs-btn qs-btn--ghost qs-btn--sm gap-2">
             <Sparkles className="h-3.5 w-3.5" aria-hidden />

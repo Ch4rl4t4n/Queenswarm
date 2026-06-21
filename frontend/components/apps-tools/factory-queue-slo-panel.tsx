@@ -5,6 +5,7 @@
 import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import Link from "next/link";
 
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { V4Badge, V4Card, V4CardHeader } from "@/components/ui/v4";
 import { cn } from "@/lib/utils";
 
@@ -68,6 +69,7 @@ export function FactoryQueueSloPanel({ slo }: FactoryQueueSloPanelProps): JSX.El
       <V4CardHeader
         title="Queue SLO"
         description="TR4 — awaiting forge · critic rate · weekly cap"
+        hint={sectionHintNode("skillFactoryQueueSlo")}
         actions={statusBadge(slo.status)}
       />
       <div className="grid gap-3 px-4 pb-4 sm:grid-cols-3">

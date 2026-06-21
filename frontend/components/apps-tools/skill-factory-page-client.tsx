@@ -251,8 +251,21 @@ export function SkillFactoryPageClient(): JSX.Element {
   }, []);
 
   useEffect(() => {
-    if (!routeHash && typeof window !== "undefined") {
+    if (typeof window === "undefined") {
+      return;
+    }
+    // `useRouteHash` starts empty and hydrates on mount, so we must read the
+    // live URL hash here — otherwise we clobber any deep-link tab (e.g. #queue,
+    // #library, legacy #launch) back to Research before the hash is read.
+    const liveHash = window.location.hash;
+    if (!liveHash) {
       navigateSkillFactoryTab("research");
+      return;
+    }
+    // Legacy `#launch` (Launch tab removed) → canonical Library anchor so the
+    // URL is clean and the hash-scroll target (#skill-factory-library) resolves.
+    if (liveHash.replace(/^#/, "").trim().toLowerCase() === "launch") {
+      navigateSkillFactoryTab("library");
     }
   }, [routeHash]);
 

@@ -5,6 +5,7 @@ import { AlertTriangle, Loader2, PlugIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { V4Card, V4CardHeader } from "@/components/ui/v4";
 import { HiveApiError, hiveGet, hivePostJson } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -134,6 +135,7 @@ export function ToolGapsPanel({ embedded = false, className, onInstalled }: Tool
       <V4CardHeader
         title="Actionable tool gaps"
         description="Agent sessions failed on missing MCP connectors — install templates below or in marketplace."
+        hint={sectionHintNode("integrationsToolGaps")}
       />
       {body}
     </V4Card>
