@@ -1206,6 +1206,47 @@ export const SECTION_HINTS = {
     options: ["Bar rows — relative share per tier.", "Pair with queue for live task depth.", "Refreshes on Tasks page load."],
     manualHref: "/manual#tasks",
   },
+  missionToday: {
+    title: "Dnes — denný workflow",
+    description:
+      "Celý denný loop na jednom mieste: Štart → Jarvis (Do this rovno tu) → Board → Schválenia → Výsledok. Process rail ukazuje, v ktorom kroku si.",
+    options: [
+      "Jarvis „Do this“ — akcie sa vykonajú priamo tu, nie odskakovaním inam.",
+      "Process rail — klik posunie na daný krok; po akcii sa krok označí hotový.",
+      "Pokročilé panely sú schované dole pod „Zobraziť pokročilé“.",
+    ],
+    manualHref: "/manual#tasks",
+  },
+  missionBoard: {
+    title: "Board — reálne úlohy",
+    description: "Mission Kanban: tvoje úlohy v stĺpcoch. Presúvaj alebo dispatchni na rozpad. Board/Table prepínač vpravo hore.",
+    options: [
+      "Dispatch — rozloží úlohu na podúlohy pre roj.",
+      "Table view — hustý zoznam so stavom a progresom.",
+      "Klik na úlohu otvorí detail s výsledkom na stiahnutie.",
+    ],
+    manualHref: "/manual#tasks",
+  },
+  missionApprovals: {
+    title: "Schválenia — simulate-first brána",
+    description: "Inbox vecí čakajúcich na tvoj súhlas. Schváľ/zamietni priamo tu — nič nejde naživo bez teba.",
+    options: [
+      "Approve — vykoná akciu cez backend a položka zmizne.",
+      "Publish · compound · email · broker · journal · goldmine · suggestions.",
+      "Po schválení sa process rail posunie na ďalší krok.",
+    ],
+    manualHref: "/manual#tasks",
+  },
+  missionResults: {
+    title: "Výsledky — výstup dňa",
+    description: "Dnes dokončené úlohy a výstupy na stiahnutie alebo analýzu Jarvisom / v Ballroome.",
+    options: [
+      "Stiahni — otvorí detail úlohy s výsledkom a exportom.",
+      "Analyzuj Jarvisom — pošli do Analytics workspace.",
+      "Pošli do Ballroom — debrief & dump na konci dňa.",
+    ],
+    manualHref: "/manual#tasks",
+  },
 } as const satisfies Record<string, SectionHint>;
 
 export type SectionHintKey = keyof typeof SECTION_HINTS;

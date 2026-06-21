@@ -359,7 +359,8 @@ def test_jarvis_suggests_weekly_compound_when_pending() -> None:
     titles = [step.title.lower() for step in strip.steps]
     hrefs = [step.href for step in strip.steps]
     assert any("review weekly compound" in title for title in titles)
-    assert any(href.endswith("#approvals") for href in hrefs)
+    # Weekly compound review is now an inline verify gate in Mission Control.
+    assert any("tab=approvals" in href for href in hrefs)
 
 
 def test_jarvis_suggests_ballroom_reflection_when_active() -> None:

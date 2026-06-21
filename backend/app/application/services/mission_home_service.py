@@ -198,7 +198,7 @@ class MissionGoldmineStripOut(BaseModel):
     primary_forager_name: str = ""
     primary_forager_id: str = ""
     foragers_href: str = "/foragers#goldmine-alerts"
-    cockpit_href: str = "/cockpit#approvals"
+    cockpit_href: str = "/tasks?tab=approvals"
 
 
 class MissionSocialIntelStripOut(BaseModel):
@@ -215,7 +215,7 @@ class MissionSocialIntelStripOut(BaseModel):
     loop5_preset_active: bool = False
     research_href: str = "/knowledge#research-bee"
     loop5_href: str = "/settings/harness#harness-closed-loop-presets"
-    refresh_href: str = "/innovation-lab"
+    refresh_href: str = "/agentic-os#innovation-lab"
 
 
 class MissionDataMonitorStripOut(BaseModel):
@@ -539,7 +539,7 @@ STEP_STUDIOS: dict[ProcessStepId, list[MissionStudioEntryOut]] = {
             id="approvals",
             title="Approval inbox",
             detail="Simulate-first gates — publish, suggestions, digests.",
-            href="/cockpit#approvals",
+            href="/tasks?tab=approvals",
         ),
         MissionStudioEntryOut(
             id="publish_studio",
@@ -865,7 +865,7 @@ async def _compose_goldmine_strip(
         primary_forager_name=forager_name,
         primary_forager_id=forager_id,
         foragers_href="/foragers#goldmine-alerts",
-        cockpit_href="/cockpit#approvals",
+        cockpit_href="/tasks?tab=approvals",
     )
 
 
@@ -917,7 +917,7 @@ async def _compose_social_intel_strip(
         loop5_preset_active=loop5_active,
         research_href="/knowledge#research-bee",
         loop5_href="/settings/harness#harness-closed-loop-presets",
-        refresh_href=roadmap.innovation_lab_href if roadmap.enabled else "/innovation-lab",
+        refresh_href=roadmap.innovation_lab_href if roadmap.enabled else "/agentic-os#innovation-lab",
     )
 
 
@@ -1558,7 +1558,7 @@ async def compose_mission_home_snapshot(
         first_run_complete=first_run.complete,
         links={
             "new_session": "/agents?preset=web-redesign-discovery#sessions",
-            "approvals": "/cockpit#approvals",
+            "approvals": "/tasks?tab=approvals",
             "knowledge": "/knowledge#memory",
             "kanban": "/tasks",
             "calendar_connect": life_os_strip.connect_href,

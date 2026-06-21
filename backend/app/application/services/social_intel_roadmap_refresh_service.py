@@ -53,7 +53,7 @@ class SocialIntelRoadmapRefreshKpiOut(BaseModel):
     last_task_id: str | None = None
     preview_signals: list[SocialIntelSignalPreviewOut] = Field(default_factory=list)
     operator_hint: str = ""
-    innovation_lab_href: str = "/innovation-lab"
+    innovation_lab_href: str = "/agentic-os#innovation-lab"
     four_lane_href: str = "/cockpit#four-lanes"
 
 

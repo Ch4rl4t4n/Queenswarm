@@ -56,7 +56,14 @@ function kindBadgeTone(kind: string): "gold" | "purple" | "info" | "warn" | "ok"
   return "warn";
 }
 
-function BusinessApprovalInboxInner(): JSX.Element | null {
+export interface BusinessApprovalInboxProps {
+  /** Hide the internal header strip when embedded under another section title. */
+  compact?: boolean;
+  /** Fired after a successful approve/reject so the host can refresh (e.g. advance the process rail). */
+  onActioned?: () => void;
+}
+
+function BusinessApprovalInboxInner({ compact = false, onActioned }: BusinessApprovalInboxProps = {}): JSX.Element | null {
   const [snapshot, setSnapshot] = useState<ApprovalInboxSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -142,6 +149,7 @@ function BusinessApprovalInboxInner(): JSX.Element | null {
         }
         toast.success("Approved");
         await load();
+        onActioned?.();
       } catch (e) {
         const msg = e instanceof HiveApiError ? e.message : "Approval failed";
         toast.error(msg);
@@ -149,7 +157,7 @@ function BusinessApprovalInboxInner(): JSX.Element | null {
         setBusyId(null);
       }
     },
-    [load, snapshot?.items],
+    [load, onActioned, snapshot?.items],
   );
 
   const handleReject = useCallback(
@@ -189,6 +197,7 @@ function BusinessApprovalInboxInner(): JSX.Element | null {
         }
         toast.success("Rejected");
         await load();
+        onActioned?.();
       } catch (e) {
         const msg = e instanceof HiveApiError ? e.message : "Reject failed";
         toast.error(msg);
@@ -196,7 +205,7 @@ function BusinessApprovalInboxInner(): JSX.Element | null {
         setBusyId(null);
       }
     },
-    [load, snapshot?.items],
+    [load, onActioned, snapshot?.items],
   );
 
   if (!snapshot?.enabled) {
@@ -211,27 +220,29 @@ function BusinessApprovalInboxInner(): JSX.Element | null {
     <div id="business-approval-inbox" className="scroll-mt-28">
       {/* Legacy deep-link anchor: `/cockpit#approvals` → `/agentic-os#approvals`. */}
       <span id="approvals" aria-hidden className="block scroll-mt-28" />
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-cyan">Approval inbox</p>
-          <p className="mt-0.5 text-xs text-(--qs-text-2)">
-            Publish · compound · email drafts · broker orders · journal drafts · goldmine deltas · suggestions
-          </p>
+      {!compact ? (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-cyan">Approval inbox</p>
+            <p className="mt-0.5 text-xs text-(--qs-text-2)">
+              Publish · compound · email drafts · broker orders · journal drafts · goldmine deltas · suggestions
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {snapshot.counts.compound_drafts > 0 ? (
+              <V4Badge tone="purple">{snapshot.counts.compound_drafts} compound</V4Badge>
+            ) : null}
+            {snapshot.counts.email_drafts > 0 ? (
+              <V4Badge tone="info">{snapshot.counts.email_drafts} email</V4Badge>
+            ) : null}
+            {snapshot.counts.goldmine_alerts > 0 ? (
+              <V4Badge tone="warn">{snapshot.counts.goldmine_alerts} goldmine</V4Badge>
+            ) : null}
+            <V4Badge tone="info">{snapshot.counts.total} pending</V4Badge>
+            <HiveRefreshButton busy={loading} onClick={() => void load()} />
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {snapshot.counts.compound_drafts > 0 ? (
-            <V4Badge tone="purple">{snapshot.counts.compound_drafts} compound</V4Badge>
-          ) : null}
-          {snapshot.counts.email_drafts > 0 ? (
-            <V4Badge tone="info">{snapshot.counts.email_drafts} email</V4Badge>
-          ) : null}
-          {snapshot.counts.goldmine_alerts > 0 ? (
-            <V4Badge tone="warn">{snapshot.counts.goldmine_alerts} goldmine</V4Badge>
-          ) : null}
-          <V4Badge tone="info">{snapshot.counts.total} pending</V4Badge>
-          <HiveRefreshButton busy={loading} onClick={() => void load()} />
-        </div>
-      </div>
+      ) : null}
 
       {snapshot.counts.goldmine_alerts > 0 ? (
         <div

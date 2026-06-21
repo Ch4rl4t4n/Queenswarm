@@ -23,13 +23,24 @@
 (`operator-cockpit-panel.tsx` `id="innovation-lab"`) and
 `/integrations?tab=studio&section=innovation#innovation-lab`.
 
+## A0. Remediation landed (Mission Control gold standard — 2026-06-21)
+
+| Item | Fix |
+|------|-----|
+| `mission-home-panel.tsx` — Jarvis "Do this" (verify) | Inline akcia: scroll na inline `BusinessApprovalInbox` v Mission Control (žiadna navigácia na `/cockpit`). Ostatné kroky = čestný label "Otvoriť". |
+| `mission-home-panel.tsx` — Verify card | Nahradený statický zoznam reálnym `BusinessApprovalInbox` (compact) → approve/reject na mieste + `onActioned` reload (rail auto-advance). |
+| `mission_home_service.py` `links.approvals` + strip defaults | `/cockpit#approvals → /tasks?tab=approvals` (goldmine `cockpit_href`, weekly compound `approvals_href`, studio approvals href). |
+| `jarvis_advisor_service.py` | `/innovation-lab → /agentic-os#innovation-lab`; weekly compound krok `/cockpit#approvals → /tasks?tab=approvals` (kind `verify`). |
+| `social_intel_roadmap_refresh_service.py` / mission strip fallbacks | `/innovation-lab → /agentic-os#innovation-lab`. |
+| `/tasks` IA | Podsekčný bar Dnes \| Board \| Schválenia \| Výsledky (`section-workspace` primitív). |
+
 ## A. DEAD / BROKEN BUTTONS
 
 | Source (file + label) | Target href | Why broken |
 |-------------------------|-------------|------------|
-| `mission-home-panel.tsx` — "Cockpit" (weekly compound) | `/cockpit#approvals` | Redirects to `/agentic-os#approvals`; no `approvals` section/id |
-| `mission-home-panel.tsx` — approvals link (~L1327) | `snapshot.links.approvals ?? "/cockpit#approvals"` | Same |
-| `e2e/fixtures/shell-api-mocks.ts` | `/cockpit#approvals` | Propagates broken target |
+| ~~`mission-home-panel.tsx` — "Cockpit" (weekly compound)~~ | ~~`/cockpit#approvals`~~ | **FIXED 2026-06-21** → `/tasks?tab=approvals` |
+| ~~`mission-home-panel.tsx` — approvals link (~L1327)~~ | ~~`snapshot.links.approvals ?? "/cockpit#approvals"`~~ | **FIXED 2026-06-21** → inline inbox + `/tasks?tab=approvals` |
+| `e2e/fixtures/shell-api-mocks.ts` | `/cockpit#approvals` | Stub propagates legacy target (redirects to `/agentic-os#approvals` anchor; harmless in tests) |
 | `apps-tools-index-client.tsx` — primary CTA | `/apps-tools/skill-factory#launch` | `launch` not in `SKILL_FACTORY_TABS`; lands Research tab |
 | `content-factory-page-client.tsx` — Skill Factory link | `/apps-tools/skill-factory#launch` | Same |
 | `lib/skill-factory-manual.ts` — "Launch tab" | `/apps-tools/skill-factory#launch` | Same |

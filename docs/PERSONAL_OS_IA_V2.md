@@ -73,9 +73,26 @@ Globálny prístup ku všetkému cez **⌘K** (command palette) — nič sa nest
 - **P0 (done):** Lite Mission Home + Gumroad off (`personal_os_revenue_approvals_enabled`,
   `mission_home_lite`, `MissionHomeDailyStartCard`).
 - **P1 (done):** Process rail scroll-to-step + anchory na 6 krokov + lite Kanban.
-- **P2 (next):** Per-sekcia stepper pre Build (Factory) podľa rovnakého vzoru.
-- **P3 (next):** Knowledge + Integrations stepper.
+- **P2 — Mission Control gold standard (done):** podsekčný menu bar **Dnes | Board | Schválenia |
+  Výsledky** + znovupoužiteľný primitív `SectionWorkspace`. „Do this" v Jarvisovi pre **verify** kroky
+  je teraz **inline akcia** (scroll na inline approval inbox v Mission Control), nie navigácia na mŕtvy
+  odkaz; ostatné kroky majú čestný label **„Otvoriť"**. Inline `BusinessApprovalInbox` (reuse) schvaľuje
+  priamo na mieste → po akcii `reload()` → process rail sa posunie. Nový blok **Výsledky dnes**
+  (`MissionResultsPanel`). Mŕtve ciele opravené: `/innovation-lab → /agentic-os#innovation-lab`,
+  `/cockpit#approvals → /tasks?tab=approvals`.
+- **P3 (next):** Rovnaký `SectionWorkspace` vzor pre Build (Factory), Knowledge, Integrations.
 - **P4 (later):** Konsolidácia navigácie na 7 sekcií + ⌘K coverage audit.
+
+### Znovupoužiteľný primitív (P2)
+
+`frontend/components/hive/section-workspace/`:
+
+- `useSectionTab` — podsekcia synced do `?tab=` cez `router.replace({ scroll: false })` (bez route change).
+- `SectionTabBar` — horizontálny menu bar v canvase (nie globálny top bar); hint `(i)` ako **sibling**
+  tlačidiel (nikdy vnorený `<button>` v `<button>`).
+- `SectionWorkspace` — shell: tab bar + process-rail slot + bloky + result slot.
+
+Mission Control je prvý konzument; ďalšie sekcie ho len naplnia (`tasks-page-client.tsx` ako vzor).
 
 ## 7. Súvisiace súbory
 

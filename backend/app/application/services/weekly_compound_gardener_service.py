@@ -70,7 +70,7 @@ class MissionWeeklyCompoundStripOut(BaseModel):
     last_run_at: datetime | None = None
     hive_mind_href: str = "/knowledge#hivemind"
     evolution_href: str = "/knowledge?tab=hivemind#evolution"
-    approvals_href: str = "/cockpit#approvals"
+    approvals_href: str = "/tasks?tab=approvals"
 
 
 class WeeklyCompoundGardenerSnapshotOut(BaseModel):

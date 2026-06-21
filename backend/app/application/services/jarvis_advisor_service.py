@@ -248,7 +248,7 @@ def _compose_jarvis_advisor_strip(
                 _JarvisCandidate(
                     title="Run quarterly intel refresh",
                     detail="SIG2 roadmap refresh due — Tech SCV triage from 90d social intel rollup.",
-                    href="/innovation-lab",
+                    href="/agentic-os#innovation-lab",
                     kind="learn",
                 ),
             ),
@@ -299,9 +299,9 @@ def _compose_jarvis_advisor_strip(
                 3,
                 _JarvisCandidate(
                     title="Review weekly compound",
-                    detail="Gardener draft(s) waiting — approve in Cockpit before Hive Mind apply.",
-                    href="/cockpit#approvals",
-                    kind="learn",
+                    detail="Gardener draft(s) waiting — approve in Schválenia before Hive Mind apply.",
+                    href="/tasks?tab=approvals",
+                    kind="verify",
                 ),
             ),
         )

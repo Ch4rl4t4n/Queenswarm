@@ -22,6 +22,7 @@ import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-s
 import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { HubEcosystemStrip } from "@/components/hive/hub-ecosystem-strip";
+import { SectionTabBar, useSectionTab, type SectionTab } from "@/components/hive/section-workspace";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
 import {
   V4Badge,
@@ -38,7 +39,6 @@ import {
   AGENTS_HUB_PATH,
   EXECUTION_LANE_CROSS_LINK_LABELS,
   JOBS_PATH,
-  TASKS_HUB_PATH,
   WORKFLOWS_PATH,
 } from "@/lib/execution-lane-routes";
 import { useCenterActiveInScrollRow } from "@/lib/hooks/use-center-active-in-scroll-row";
@@ -76,6 +76,28 @@ const MissionHomePanel = dynamic(
     ),
   },
 );
+
+const BusinessApprovalInbox = dynamic(
+  () => import("@/components/hive/business-approval-inbox").then((mod) => mod.BusinessApprovalInbox),
+  {
+    ssr: false,
+    loading: () => (
+      <HivePanelSectionSkeleton label="Loading approvals" minHeightClass="min-h-[12rem]" />
+    ),
+  },
+);
+
+const MissionResultsPanel = dynamic(
+  () => import("@/components/hive/mission-results-panel").then((mod) => mod.MissionResultsPanel),
+  {
+    ssr: false,
+    loading: () => (
+      <HivePanelSectionSkeleton label="Loading results" minHeightClass="min-h-[12rem]" />
+    ),
+  },
+);
+
+type MissionTab = "today" | "board" | "approvals" | "results";
 
 const LANE_CARDS = [
   {
@@ -184,6 +206,16 @@ export function TasksPageClient() {
   const [drawerEdit, setDrawerEdit] = useState(false);
   const [kanbanRefresh, setKanbanRefresh] = useState(0);
   const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useSectionTab<MissionTab>({
+    tabs: soloMode ? ["today", "board", "approvals", "results"] : ["board", "approvals", "results"],
+    defaultTab: soloMode ? "today" : "board",
+  });
+  const subTabs: SectionTab[] = [
+    ...(soloMode ? [{ id: "today", label: "Dnes", hint: sectionHintNode("missionToday") }] : []),
+    { id: "board", label: "Board", hint: sectionHintNode("missionBoard") },
+    { id: "approvals", label: "Schválenia", hint: sectionHintNode("missionApprovals") },
+    { id: "results", label: "Výsledky", hint: sectionHintNode("missionResults") },
+  ];
 
   const openTask = useCallback((taskId: string, opts?: { edit?: boolean }) => {
     setSelectedTaskId(taskId);
@@ -282,37 +314,54 @@ export function TasksPageClient() {
             <Plus className="h-3.5 w-3.5" aria-hidden />
             New task
           </Link>
-          <div className="hidden gap-1 lg:flex">
-            <button
-              type="button"
-              className={cn("qs-btn qs-btn--ghost qs-btn--sm gap-1.5", viewMode === "board" && "border-pollen/40 text-pollen")}
-              onClick={() => setViewMode("board")}
-            >
-              <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
-              Board
-            </button>
-            <button
-              type="button"
-              className={cn("qs-btn qs-btn--ghost qs-btn--sm gap-1.5", viewMode === "table" && "border-pollen/40 text-pollen")}
-              onClick={() => setViewMode("table")}
-            >
-              <List className="h-3.5 w-3.5" aria-hidden />
-              Table
-            </button>
-          </div>
+          {activeTab === "board" ? (
+            <div className="hidden gap-1 lg:flex">
+              <button
+                type="button"
+                className={cn("qs-btn qs-btn--ghost qs-btn--sm gap-1.5", viewMode === "board" && "border-pollen/40 text-pollen")}
+                onClick={() => setViewMode("board")}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
+                Board
+              </button>
+              <button
+                type="button"
+                className={cn("qs-btn qs-btn--ghost qs-btn--sm gap-1.5", viewMode === "table" && "border-pollen/40 text-pollen")}
+                onClick={() => setViewMode("table")}
+              >
+                <List className="h-3.5 w-3.5" aria-hidden />
+                Table
+              </button>
+            </div>
+          ) : null}
           <HiveRefreshButton busy={busy} label="Sync" onClick={() => void syncNow()} />
         </div>
       }
     >
       {!personalOsMode ? <HubEcosystemStrip preset="tasks" /> : null}
 
-      {soloMode && viewMode === "board" ? <MissionHomePanel /> : null}
+      <SectionTabBar
+        tabs={subTabs}
+        active={activeTab}
+        onSelect={(id) => setActiveTab(id as MissionTab)}
+        ariaLabel="Mission Control podsekcie"
+      />
 
-      {viewMode === "board" ? (
+      {activeTab === "today" && soloMode ? (
+        <MissionHomePanel onNavigateSubsection={(tab) => setActiveTab(tab)} />
+      ) : null}
+
+      {activeTab === "board" && viewMode === "board" ? (
         <MissionKanbanPanel onOpenTask={openTask} refreshSignal={kanbanRefresh} />
       ) : null}
 
-      {viewMode === "table" ? (
+      {activeTab === "approvals" ? <BusinessApprovalInbox /> : null}
+
+      {activeTab === "results" ? (
+        <MissionResultsPanel onOpenTask={(taskId) => openTask(taskId)} />
+      ) : null}
+
+      {activeTab === "board" && viewMode === "table" ? (
         <>
 
       <div className="v4-mobile-card-slider v4-mobile-card-slider--cols-3">

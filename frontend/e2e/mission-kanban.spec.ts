@@ -21,7 +21,7 @@ test.describe("mission kanban", () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await seedDashboardSessionCookie(context, baseURL ?? "http://localhost:4310");
 
-    await page.goto("/tasks", { waitUntil: "load", timeout: 60_000 });
+    await page.goto("/tasks?tab=board", { waitUntil: "load", timeout: 60_000 });
     await expect(page.getByRole("heading", { name: e2eTasksHubHeading() })).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText("Content week")).toBeVisible({ timeout: 30_000 });
 

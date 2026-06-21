@@ -71,6 +71,32 @@ else
   fail "operator-gumroad-launch-batch.sh still present"
 fi
 
+# --- Mission Control gold standard (P2) ---
+
+if grep -q 'SectionTabBar' frontend/components/hive/tasks-page-client.tsx; then
+  pass "Mission Control sub-section menu bar (SectionWorkspace primitive)"
+else
+  fail "Mission Control sub-section bar missing (SectionTabBar)"
+fi
+
+if grep -q 'BusinessApprovalInbox' frontend/components/hive/mission-home-panel.tsx; then
+  pass "Mission Home Verify uses inline actionable approval inbox"
+else
+  fail "Mission Home Verify still static (no inline BusinessApprovalInbox)"
+fi
+
+if ! grep -q '/cockpit#approvals' backend/app/application/services/jarvis_advisor_service.py; then
+  pass "Jarvis advisor has no dead /cockpit#approvals targets"
+else
+  fail "Jarvis advisor still points at /cockpit#approvals"
+fi
+
+if ! grep -q '/innovation-lab"' backend/app/application/services/jarvis_advisor_service.py; then
+  pass "Jarvis advisor has no dead /innovation-lab targets"
+else
+  fail "Jarvis advisor still points at /innovation-lab"
+fi
+
 if grep -q 'audit-personal-os-in-app-skills-gate.sh' scripts/operator-personal-os-verify.sh; then
   pass "in-app skills gate in operator verify"
 else

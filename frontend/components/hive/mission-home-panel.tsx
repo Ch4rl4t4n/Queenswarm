@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRight, BookMarked, CalendarClock, CheckCircle2, Loader2, Radar, Repeat, Search, Shield, Sparkles, Wrench, Zap, Brain, ScanSearch } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 
+import { BusinessApprovalInbox } from "@/components/hive/business-approval-inbox";
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
 import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { MissionHomeDailyStartCard } from "@/components/hive/mission-home-daily-start-card";
@@ -344,7 +345,12 @@ interface MissionHomeSnapshot {
   mission_home_lite?: boolean;
 }
 
-function MissionHomePanelInner(): JSX.Element | null {
+export interface MissionHomePanelProps {
+  /** Switch the host page sub-section (e.g. rail "work" -> Board). */
+  onNavigateSubsection?: (tab: "board" | "approvals" | "results") => void;
+}
+
+function MissionHomePanelInner({ onNavigateSubsection }: MissionHomePanelProps = {}): JSX.Element | null {
   const { soloMode, personalOsMode } = usePlatform();
   const [snapshot, setSnapshot] = useState<MissionHomeSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
@@ -435,6 +441,11 @@ function MissionHomePanelInner(): JSX.Element | null {
   }
 
   function handleSelectStep(stepId: ProcessStepId): void {
+    // "Work" lives on the Board sub-section — switch tab instead of scrolling.
+    if (stepId === "work" && onNavigateSubsection) {
+      onNavigateSubsection("board");
+      return;
+    }
     const anchorByStep: Record<ProcessStepId, string> = {
       setup: "mission-step-setup",
       plan: "mission-step-plan",
@@ -450,6 +461,36 @@ function MissionHomePanelInner(): JSX.Element | null {
     if (target) {
       target.scrollIntoView({ behavior: "smooth", block: "start" });
     }
+  }
+
+  /**
+   * "Do this" affordance: verify steps act in place (scroll to the inline
+   * approval inbox below); everything else opens the relevant surface honestly.
+   */
+  function renderDoThis(step: MissionJarvisStep): JSX.Element {
+    if (step.kind === "verify") {
+      return (
+        <button
+          type="button"
+          onClick={() => handleSelectStep("verify")}
+          className="qs-btn qs-btn--primary qs-btn--sm mt-2 inline-flex gap-1"
+          data-testid="mission-home-jarvis-do-this"
+        >
+          Do this
+          <ArrowRight className="size-3.5" aria-hidden />
+        </button>
+      );
+    }
+    return (
+      <Link
+        href={step.href}
+        className="qs-btn qs-btn--primary qs-btn--sm mt-2 inline-flex gap-1"
+        data-testid="mission-home-jarvis-do-this"
+      >
+        Otvoriť
+        <ArrowRight className="size-3.5" aria-hidden />
+      </Link>
+    );
   }
 
   return (
@@ -488,6 +529,7 @@ function MissionHomePanelInner(): JSX.Element | null {
             kicker="Advisor"
             title={jarvis.headline}
             description={jarvis.message}
+            hint={sectionHintNode("missionToday")}
             actions={
               <div className="flex flex-wrap gap-2">
                 <Link
@@ -519,13 +561,7 @@ function MissionHomePanelInner(): JSX.Element | null {
                       <V4Badge tone="info">{step.kind}</V4Badge>
                     </div>
                     <p className="mt-1 text-xs text-(--qs-muted)">{step.detail}</p>
-                    <Link
-                      href={step.href}
-                      className="qs-btn qs-btn--primary qs-btn--sm mt-2 inline-flex gap-1"
-                    >
-                      Do this
-                      <ArrowRight className="size-3.5" aria-hidden />
-                    </Link>
+                    {renderDoThis(step)}
                   </div>
                 </div>
               </li>
@@ -606,12 +642,12 @@ function MissionHomePanelInner(): JSX.Element | null {
               <div className="flex flex-wrap gap-2">
                 {weeklyCompound.pending_drafts > 0 ? (
                   <Link
-                    href={weeklyCompound.approvals_href ?? "/cockpit#approvals"}
+                    href={weeklyCompound.approvals_href ?? "/tasks?tab=approvals"}
                     className="qs-btn qs-btn--primary qs-btn--sm inline-flex gap-1"
                     data-testid="mission-home-weekly-compound-cockpit"
                   >
                     <Shield className="size-3.5" aria-hidden />
-                    Cockpit
+                    Schválenia
                   </Link>
                 ) : null}
                 <Link
@@ -1319,39 +1355,28 @@ function MissionHomePanelInner(): JSX.Element | null {
         <V4Card id="mission-step-verify" className="scroll-mt-24 md:max-lg:col-span-1">
           <V4CardHeader
             kicker="Verify"
-            title="Approvals"
-            description="Simulate-first gates — nothing live without you."
+            title="Schválenia"
+            description="Simulate-first brána — schváľ priamo tu, nič nejde naživo bez teba."
+            hint={sectionHintNode("missionApprovals")}
             actions={
-              visibleApprovals.length > 0 ? (
-                <Link
-                  href={snapshot.links.approvals ?? "/cockpit#approvals"}
+              onNavigateSubsection ? (
+                <button
+                  type="button"
+                  onClick={() => onNavigateSubsection("approvals")}
                   className="qs-btn qs-btn--ghost qs-btn--sm"
                 >
-                  View all
+                  Celý inbox
+                </button>
+              ) : (
+                <Link href={snapshot.links.approvals ?? "/tasks?tab=approvals"} className="qs-btn qs-btn--ghost qs-btn--sm">
+                  Celý inbox
                 </Link>
-              ) : null
+              )
             }
           />
-          {visibleApprovals.length === 0 ? (
-            <p className="flex items-center gap-2 px-4 pb-4 text-sm text-(--qs-muted)">
-              <Shield className="size-4 text-[#00FF88]" aria-hidden />
-              Inbox clear — verified path only.
-            </p>
-          ) : (
-            <ul className="space-y-2 px-4 pb-4">
-              {visibleApprovals.slice(0, 5).map((row) => (
-                <li key={row.id}>
-                  <Link
-                    href={row.href}
-                    className="block rounded-lg border border-(--qs-border)/50 bg-black/20 p-3 transition hover:border-pollen/40"
-                  >
-                    <span className="text-sm font-semibold text-(--qs-text)">{row.title}</span>
-                    <p className="mt-1 text-xs text-(--qs-muted)">{row.detail}</p>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
+          <div className="px-4 pb-4">
+            <BusinessApprovalInbox compact onActioned={() => void reload()} />
+          </div>
         </V4Card>
 
         {!hideAdvanced ? (
