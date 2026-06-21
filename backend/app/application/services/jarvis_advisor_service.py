@@ -313,7 +313,7 @@ def _compose_jarvis_advisor_strip(
                 _JarvisCandidate(
                     title="Review Ballroom reflection",
                     detail="Post-mortems and episodic captures this week — route insights to Hive Mind.",
-                    href="/ballroom#ballroom-learn-rail",
+                    href="/tasks#mission-weekly-reflection",
                     kind="learn",
                 ),
             ),
@@ -326,7 +326,7 @@ def _compose_jarvis_advisor_strip(
                 _JarvisCandidate(
                     title="Run factory LLM smoke",
                     detail="Skill Factory builds blocked until decomposition chain passes smoke test.",
-                    href="/apps-tools/skill-factory#research",
+                    href="/tasks#mission-factory-queue",
                     kind="setup",
                 ),
             ),
@@ -338,8 +338,8 @@ def _compose_jarvis_advisor_strip(
                 3,
                 _JarvisCandidate(
                     title="Review factory queue",
-                    detail="Builds awaiting forge approve or failed rebuild — drain queue in Skill Factory.",
-                    href="/apps-tools/skill-factory#queue",
+                    detail="Builds awaiting forge approve or failed rebuild — drain queue inline below.",
+                    href="/tasks#mission-factory-queue",
                     kind="work",
                 ),
             ),
@@ -352,7 +352,7 @@ def _compose_jarvis_advisor_strip(
                 _JarvisCandidate(
                     title="Attach verified skills",
                     detail="Open Library or Sessions skill picker — use tenant skills directly in agent runs.",
-                    href="/apps-tools/skill-factory#skill-factory-library",
+                    href="/tasks#mission-skill-factory-harness",
                     kind="work",
                 ),
             ),
@@ -378,7 +378,7 @@ def _compose_jarvis_advisor_strip(
                 _JarvisCandidate(
                     title="Smart rebuild near-miss",
                     detail="Draft-tier library skills with fixable issues — learnings injected into factory goal.",
-                    href="/apps-tools/skill-factory#skill-factory-library",
+                    href="/tasks#mission-skill-factory-harness",
                     kind="work",
                 ),
             ),

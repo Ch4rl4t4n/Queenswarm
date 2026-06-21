@@ -385,7 +385,7 @@ def test_jarvis_suggests_ballroom_reflection_when_active() -> None:
     titles = [step.title.lower() for step in strip.steps]
     hrefs = [step.href for step in strip.steps]
     assert any("review ballroom reflection" in title for title in titles)
-    assert any(href.endswith("#ballroom-learn-rail") for href in hrefs)
+    assert any(href.endswith("#mission-weekly-reflection") for href in hrefs)
 
 
 def test_jarvis_suggests_factory_llm_smoke_when_not_ready() -> None:
@@ -410,7 +410,7 @@ def test_jarvis_suggests_factory_llm_smoke_when_not_ready() -> None:
     titles = [step.title.lower() for step in strip.steps]
     hrefs = [step.href for step in strip.steps]
     assert any("factory llm smoke" in title for title in titles)
-    assert any(href.endswith("#research") for href in hrefs)
+    assert any(href.endswith("#mission-factory-queue") for href in hrefs)
 
 
 def test_jarvis_suggests_factory_queue_when_actionable() -> None:
@@ -436,7 +436,7 @@ def test_jarvis_suggests_factory_queue_when_actionable() -> None:
     titles = [step.title.lower() for step in strip.steps]
     hrefs = [step.href for step in strip.steps]
     assert any("review factory queue" in title for title in titles)
-    assert any(href.endswith("#queue") for href in hrefs)
+    assert any(href.endswith("#mission-factory-queue") for href in hrefs)
 
 
 def test_jarvis_suggests_attach_skills_when_verified() -> None:
@@ -462,7 +462,7 @@ def test_jarvis_suggests_attach_skills_when_verified() -> None:
     titles = [step.title.lower() for step in strip.steps]
     hrefs = [step.href for step in strip.steps]
     assert any("attach verified skills" in title for title in titles)
-    assert any(href.endswith("#skill-factory-library") for href in hrefs)
+    assert any(href.endswith("#mission-skill-factory-harness") for href in hrefs)
 
 
 def test_jarvis_suggests_sessions_when_attach_ready() -> None:
@@ -515,7 +515,7 @@ def test_jarvis_suggests_smart_rebuild_when_near_miss_eligible() -> None:
     titles = [step.title.lower() for step in strip.steps]
     hrefs = [step.href for step in strip.steps]
     assert any("smart rebuild near-miss" in title for title in titles)
-    assert any(href.endswith("#skill-factory-library") for href in hrefs)
+    assert any(href.endswith("#mission-skill-factory-harness") for href in hrefs)
 
 
 @pytest.mark.asyncio

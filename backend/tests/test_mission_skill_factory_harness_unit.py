@@ -132,7 +132,7 @@ async def test_compose_harness_strip_when_verified_in_library() -> None:
     assert strip.verified_count == 1
     assert strip.attach_ready is True
     assert "skill picker" in strip.message.lower()
-    assert strip.library_href.endswith("#skill-factory-library")
+    assert strip.library_href.endswith("#mission-skill-factory-harness")
 
 
 @pytest.mark.asyncio

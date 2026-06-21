@@ -39,9 +39,9 @@ class MissionSkillFactoryHarnessStripOut(BaseModel):
     rebuild_eligible_count: int = 0
     library_count: int = 0
     attach_ready: bool = False
-    research_href: str = "/apps-tools/skill-factory#research"
-    queue_href: str = "/apps-tools/skill-factory#queue"
-    library_href: str = "/apps-tools/skill-factory#skill-factory-library"
+    research_href: str = "/tasks#mission-factory-queue"
+    queue_href: str = "/tasks#mission-factory-queue"
+    library_href: str = "/tasks#mission-skill-factory-harness"
     agents_href: str = "/agents#sessions"
     guide_href: str = "/apps-tools/skill-factory#guide"
 

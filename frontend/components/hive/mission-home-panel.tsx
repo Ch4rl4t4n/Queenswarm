@@ -5,6 +5,7 @@ import { ArrowRight, BookMarked, CalendarClock, CheckCircle2, Loader2, Radar, Re
 import { memo, useCallback, useEffect, useState } from "react";
 
 import { BusinessApprovalInbox } from "@/components/hive/business-approval-inbox";
+import { MissionFactoryQueuePanel } from "@/components/hive/mission-factory-queue-panel";
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
 import { HiveRefreshButton } from "@/components/hive/hive-refresh-button";
 import { MissionHomeDailyStartCard } from "@/components/hive/mission-home-daily-start-card";
@@ -440,6 +441,31 @@ function MissionHomePanelInner({ onNavigateSubsection }: MissionHomePanelProps =
     return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
   }
 
+  function scrollToMissionAnchor(anchorId: string): void {
+    if (typeof document === "undefined") {
+      return;
+    }
+    const target = document.getElementById(anchorId);
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
+  /** Jarvis steps that stay inside Mission Control use `/tasks#anchor` — never another section. */
+  function jarvisInlineAnchor(href: string): string | null {
+    if (!href.startsWith("/tasks")) {
+      return null;
+    }
+    const hashIdx = href.indexOf("#");
+    if (hashIdx >= 0) {
+      return href.slice(hashIdx + 1);
+    }
+    if (href.includes("tab=approvals")) {
+      return "mission-step-verify";
+    }
+    return null;
+  }
+
   function handleSelectStep(stepId: ProcessStepId): void {
     // "Work" lives on the Board sub-section — switch tab instead of scrolling.
     if (stepId === "work" && onNavigateSubsection) {
@@ -464,15 +490,17 @@ function MissionHomePanelInner({ onNavigateSubsection }: MissionHomePanelProps =
   }
 
   /**
-   * "Do this" affordance: verify steps act in place (scroll to the inline
-   * approval inbox below); everything else opens the relevant surface honestly.
+   * "Do this" affordance: verify + all `/tasks#…` Jarvis targets act in place (scroll).
+   * Only off-section hrefs show honest "Otvoriť" navigation.
    */
   function renderDoThis(step: MissionJarvisStep): JSX.Element {
-    if (step.kind === "verify") {
+    const inlineAnchor = jarvisInlineAnchor(step.href);
+    if (step.kind === "verify" || inlineAnchor) {
+      const anchor = inlineAnchor ?? "mission-step-verify";
       return (
         <button
           type="button"
-          onClick={() => handleSelectStep("verify")}
+          onClick={() => scrollToMissionAnchor(anchor)}
           className="qs-btn qs-btn--primary qs-btn--sm mt-2 inline-flex gap-1"
           data-testid="mission-home-jarvis-do-this"
         >
@@ -570,9 +598,14 @@ function MissionHomePanelInner({ onNavigateSubsection }: MissionHomePanelProps =
         </V4Card>
       ) : null}
 
+      {!hideAdvanced && skillFactoryHarness?.enabled ? (
+        <MissionFactoryQueuePanel onActioned={() => void reload()} />
+      ) : null}
+
       {!hideAdvanced && weeklyReflection?.enabled && weeklyReflection.highlights.length > 0 ? (
         <V4Card
-          className="md:max-lg:col-span-2 border-cyan/30 shadow-[0_0_20px_rgba(0,255,255,0.08)]"
+          id="mission-weekly-reflection"
+          className="md:max-lg:col-span-2 border-cyan/30 shadow-[0_0_20px_rgba(0,255,255,0.08)] scroll-mt-24"
           data-testid="mission-home-jarvis-weekly-reflection"
         >
           <V4CardHeader
@@ -1206,7 +1239,8 @@ function MissionHomePanelInner({ onNavigateSubsection }: MissionHomePanelProps =
 
       {!hideAdvanced && skillFactoryHarness?.enabled ? (
         <V4Card
-          className="md:max-lg:col-span-2 border-pollen/35 shadow-[0_0_20px_rgba(255,184,0,0.1)]"
+          id="mission-skill-factory-harness"
+          className="md:max-lg:col-span-2 border-pollen/35 shadow-[0_0_20px_rgba(255,184,0,0.1)] scroll-mt-24"
           data-testid="mission-home-skill-factory-harness"
         >
           <V4CardHeader
@@ -1216,23 +1250,25 @@ function MissionHomePanelInner({ onNavigateSubsection }: MissionHomePanelProps =
             actions={
               <div className="flex flex-wrap gap-2">
                 {!skillFactoryHarness.llm_ready || skillFactoryHarness.llm_smoke_ok === false ? (
-                  <Link
-                    href={skillFactoryHarness.research_href}
+                  <button
+                    type="button"
                     className="qs-btn qs-btn--primary qs-btn--sm inline-flex gap-1"
                     data-testid="mission-home-skill-factory-smoke"
+                    onClick={() => scrollToMissionAnchor("mission-factory-queue")}
                   >
                     <Sparkles className="size-3.5" aria-hidden />
                     LLM smoke
-                  </Link>
+                  </button>
                 ) : (
-                  <Link
-                    href={skillFactoryHarness.queue_href}
+                  <button
+                    type="button"
                     className="qs-btn qs-btn--primary qs-btn--sm inline-flex gap-1"
                     data-testid="mission-home-skill-factory-queue"
+                    onClick={() => scrollToMissionAnchor("mission-factory-queue")}
                   >
                     <Wrench className="size-3.5" aria-hidden />
                     Open queue
-                  </Link>
+                  </button>
                 )}
                 {skillFactoryHarness.attach_ready ? (
                   <Link href={skillFactoryHarness.agents_href} className="qs-btn qs-btn--ghost qs-btn--sm">
