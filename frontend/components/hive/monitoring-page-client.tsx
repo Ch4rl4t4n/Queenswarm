@@ -20,7 +20,7 @@ const MONITORING_SUBTITLE =
 export function MonitoringPageClient(): JSX.Element {
   if (!ADVANCED_MONITORING_ENABLED) {
     return (
-      <HivePageShell title="Monitoring" subtitle={MONITORING_SUBTITLE}>
+      <HivePageShell title="Monitoring" subtitle={MONITORING_SUBTITLE} hintKey="monitoring">
         <div className="rounded-2xl border border-cyan/20 bg-black/30 p-5">
           <p className="font-[family-name:var(--font-poppins)] text-sm text-zinc-300">
             Advanced monitoring mode is disabled. Enable{" "}
@@ -36,6 +36,7 @@ export function MonitoringPageClient(): JSX.Element {
     <HivePageShell
       title="Monitoring"
       subtitle={MONITORING_SUBTITLE}
+      hintKey="monitoring"
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <Link href="/agentic-os" className="qs-btn qs-btn--ghost qs-btn--sm">

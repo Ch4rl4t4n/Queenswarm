@@ -46,6 +46,16 @@ test.describe("Whole-App dead-button audit — legacy routes", () => {
     await expect(page.getByTestId("hive-page-shell")).toBeVisible();
   });
 
+  test("legacy /oracle preserves hash on redirect to agentic-os", async ({ page }) => {
+    test.skip(!OPERATOR_CONTROL_PLANE_ENABLED, "Requires operator control plane");
+
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto("/oracle#priorities", { waitUntil: "domcontentloaded", timeout: 60_000 });
+
+    await expect(page).toHaveURL(/\/agentic-os#priorities/, { timeout: 45_000 });
+    await expect(page.getByTestId("hive-page-shell")).toBeVisible();
+  });
+
   for (const [legacy, target] of Object.entries(LEGACY_ROUTE_REDIRECTS)) {
     test(`${legacy} resolves to ${target}`, async ({ page }) => {
       test.skip(!OPERATOR_CONTROL_PLANE_ENABLED && !CP_OPTIONAL_LEGACY.has(legacy), "CP routes only");

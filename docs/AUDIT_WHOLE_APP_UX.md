@@ -14,7 +14,7 @@
 | Legacy path map | `frontend/lib/dead-button-audit.ts` (`LEGACY_ROUTE_REDIRECTS`) | Documents `/cockpit`, `/oracle`, `/dashboard` → `/agentic-os` |
 | Client legacy redirect | `frontend/components/hive/legacy-route-redirect.tsx` | Preserves `#hash` + `?query` via `window.location.replace` |
 | Cockpit bookmark | `frontend/components/hive/cockpit-legacy-redirect.tsx` | `/cockpit` → `/agentic-os` **with hash** (`router.replace`) |
-| Oracle | `frontend/app/(dashboard)/oracle/page.tsx` | Server `redirect("/agentic-os")` — **hash dropped** |
+| Oracle | `frontend/app/(dashboard)/oracle/page.tsx` | ~~Server `redirect` drops hash~~ → **FIXED 2026-06-21** client `LegacyRouteRedirect preserveIncomingHash` |
 | Dashboard | `frontend/middleware.ts` L112–116 + `dashboard/page.tsx` | When CP enabled, redirect to `hiveOverviewHref()` — **hash never sent to server, lost** |
 | Global hash scroll | `frontend/lib/hooks/use-route-hash-scroll.ts` (mounted in `dashboard-shell.tsx`) | Polls 3s for target, scrolls + cyan flash (FIXED 2026-06-20) |
 | next.config | `frontend/next.config.ts` | No redirects |
@@ -56,6 +56,18 @@
 | `integrations-routes.test.ts` | Added `#tools` tab + scroll-target unit cases. |
 | Hints | Added: Skill Factory **Queue SLO**, Apps & Tools **Module index**, Integrations **Tool gaps**, **Ecosystem orchestration**, **Self-extending marketplace** (new keys in `section-hints.ts`). |
 
+## A0d. Remediation landed (Foragers + Monitoring hints, legacy hash redirects — 2026-06-21)
+
+| Item | Fix |
+|------|-----|
+| `oracle/page.tsx` | Server `redirect("/agentic-os")` (drops `#hash`) → `LegacyRouteRedirect target="/agentic-os" preserveIncomingHash` client redirect. External bookmarks like `/oracle#priorities` now land on `/agentic-os#priorities`. (Top-10 #7) |
+| `/dashboard` hash loss (Top-10 #8) | **No-op by design** — repo grep finds zero `/dashboard#…` producers, so middleware server-redirect loses nothing real. Left middleware untouched (auth-path change = high risk, zero benefit). Documented instead of changed. |
+| `foragers-page-client.tsx` | Page `hintKey="foragers"` + block hints on **Forager configurations** and **Auto-spawn rules** (new keys `foragers`/`foragersConfigurations`/`foragersAutoSpawn`). |
+| `monitoring-page-client.tsx` | Page `hintKey="monitoring"` on both enabled + disabled-mode shells (new key `monitoring`). |
+| `connectors-console.tsx` | Sub-section hints wired: **Obsidian vault → HiveMind** (`integrationsHubObsidian`), **Combined roster** (`integrationsHubRoster`). |
+| `hive-page-hints.ts` | Registered `foragers`/`monitoring` in `HivePageHintKey` + `HIVE_PAGE_HINTS`. |
+| `whole-app-dead-buttons.spec.ts` | Added `/oracle#priorities` → `/agentic-os#priorities` hash-preservation test. |
+
 ## A. DEAD / BROKEN BUTTONS
 
 | Source (file + label) | Target href | Why broken |
@@ -70,8 +82,8 @@
 | `execution-studio-skill-forge-panel.tsx` | `/agents#agent-suggestions` | Hash unmapped; `id` under `learning` tab |
 | ~~`swarms-page-client.tsx` — "Curated memory"~~ | ~~`/settings/harness#curated-memory`~~ | **FIXED 2026-06-21** → `/settings/harness#rules-skills` |
 | ~~`self-extending-marketplace-panel.tsx`~~ | ~~`/integrations#tools`~~ | **FIXED 2026-06-21** → producer uses canonical `?tab=hub&hubSection=tools#hub-tools`; `HASH_TO_TAB` now maps `tools`/`vault`/… → hub; scroll target `tools`→`hub-tools` |
-| `oracle/page.tsx` | `/oracle#*` | Server redirect drops hash |
-| `middleware.ts` + More menu "Advanced dashboard" | `/dashboard#*` | Redirect drops hash |
+| ~~`oracle/page.tsx`~~ | ~~`/oracle#*`~~ | **FIXED 2026-06-21** → `LegacyRouteRedirect preserveIncomingHash` (client) keeps `#hash` |
+| ~~`middleware.ts` + More menu "Advanced dashboard"~~ | ~~`/dashboard#*`~~ | **N/A 2026-06-21** → zero `/dashboard#…` producers in repo; nothing to preserve |
 | `marketing-team-calendar-panel.tsx` — "Review queue" / "Social publish" | `href="#"` when links null | Dead anchor |
 | ~~`swarms-page-client.tsx` — "Edit Orchestrator prompt"~~ | ~~`href="#"` when no orchestrator~~ | **FIXED 2026-06-21** → disabled + `title` hint (already `pointer-events-none`) |
 | `platform-capabilities-catalog.ts` | `/cockpit#link-drop`, `/cockpit#dialogue-extract` | Work only after redirect + ICM visible |
@@ -102,8 +114,8 @@
 4. `/agents#agent-suggestions` — deep link does not open Learning / suggestions panel.
 5. `/settings/harness#curated-memory` — Swarms Queen policy link; anchor missing.
 6. ~~`/integrations#tools`~~ — **FIXED 2026-06-21** (`HASH_TO_TAB`→hub + scroll `hub-tools`).
-7. `/oracle` server redirect — drops all deep-link hashes.
-8. `/dashboard` middleware redirect — "Advanced dashboard" useless under CP; hashes lost.
+7. ~~`/oracle` server redirect — drops all deep-link hashes.~~ — **FIXED 2026-06-21** (client redirect preserves hash).
+8. ~~`/dashboard` middleware redirect — hashes lost.~~ — **N/A 2026-06-21** (no `/dashboard#…` producers exist).
 9. Marketing Team calendar `href="#"` fallbacks — primary actions dead when API omits links.
 10. Duplicate publish/marketing surfaces — operators cannot tell canonical path.
 
@@ -113,7 +125,7 @@
 2. Settings vs in-context config — modules send users elsewhere for keys, OAuth, memory.
 3. Hash-first routing without SSOT — unmigrated hashes silently fail.
 4. Innovation Lab duplicated — two entry points, different shells.
-5. Inline hints inconsistent — missing on Foragers, Monitoring, most Apps & Tools modules.
+5. ~~Inline hints inconsistent — missing on Foragers, Monitoring~~ — **FIXED 2026-06-21** (Foragers + Monitoring page + block hints landed); most Apps & Tools modules still pending.
 6. More menu vs primary rail drift — Factory/Workflows/Jobs/Dashboard hidden but essential.
 7. Legacy URL debt — `/cockpit`, `/oracle`, `/dashboard` still in mocks, catalog, Mission Home defaults.
 
@@ -122,7 +134,7 @@
 - [x] Global robust hash-scroll + flash (`use-route-hash-scroll.ts`, mounted in shell) — 2026-06-20
 - [~] Hash activates the correct tab on tabbed pages — knowledge + agents also read `?tab=`/`?session=`/`?preset=` (2026-06-21); integrations/agentic-os pending
 - [x] Fix dead targets: `#approvals`, `#curated-memory`→`#rules-skills`, `#launch`→Library, `#tools`→hub (all done 2026-06-21). `#first-run-wizard`/`#agent-suggestions` already mapped via alias.
-- [ ] `/oracle` + `/dashboard` hash-preserving client redirects
-- [ ] `href="#"` fallbacks → disabled buttons with hint, never dead links
-- [ ] Inline hints on Foragers, Monitoring, all Apps & Tools modules
+- [x] `/oracle` hash-preserving client redirect (2026-06-21); `/dashboard` N/A (no `#` producers)
+- [~] `href="#"` fallbacks → disabled buttons with hint — Swarms Orchestrator done (2026-06-21); Marketing calendar pending
+- [~] Inline hints on Foragers, Monitoring (done 2026-06-21), all Apps & Tools modules (pending)
 - [ ] Consolidate duplicate publish/innovation surfaces

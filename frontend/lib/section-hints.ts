@@ -630,6 +630,49 @@ export const SECTION_HINTS = {
     ],
     manualHref: "/manual#hierarchy",
   },
+  foragers: {
+    title: "Foragers",
+    description:
+      "Data-collector bees that feed HiveMind — schedule them on YouTube/RSS/API sources, watch them ingest, then auto-spawn agents from what they harvest.",
+    options: [
+      "New forager — pick a source, cadence, and ingest rules.",
+      "Run all now — trigger every active forager immediately.",
+      "Goldmine alerts — high-signal finds you can promote to a task.",
+    ],
+    manualHref: "/manual#foragers",
+  },
+  foragersConfigurations: {
+    title: "Forager configurations",
+    description:
+      "Each forager's source, how often it runs, where it ingests, and the rule that auto-spawns an agent when it finds enough matching items.",
+    options: [
+      "Edit — change source, cadence, or HiveMind ingest target.",
+      "Run / Pause — control a single forager without deleting it.",
+      "Promote to task — turn a find into actionable work.",
+    ],
+    manualHref: "/manual#foragers",
+  },
+  foragersAutoSpawn: {
+    title: "Auto-spawn rules",
+    description:
+      "When a forager finds X items matching a query, automatically spawn a ScoutBee in the target swarm — hands-off harvesting into action.",
+    options: [
+      "Add rule — set match threshold, query, and target swarm.",
+      "Keeps the hive working while you're away.",
+    ],
+    manualHref: "/manual#foragers",
+  },
+  monitoring: {
+    title: "Monitoring",
+    description:
+      "Observability cockpit — scaling pressure, costs, alerts, and tenant-aware health for the whole swarm at a glance.",
+    options: [
+      "Watch cost + scaling pressure trends over time.",
+      "Alerts surface here before they become incidents.",
+      "Needs NEXT_PUBLIC_ADVANCED_MONITORING_ENABLED for the full cockpit.",
+    ],
+    manualHref: "/manual#monitoring",
+  },
 
   // —— Knowledge ——
   knowledgeRetrievalContract: {

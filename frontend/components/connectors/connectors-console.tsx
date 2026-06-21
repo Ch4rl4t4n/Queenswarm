@@ -17,6 +17,7 @@ import { ConnectorsVaultPanel } from '@/components/connectors/connectors-vault-p
 import { Phase3TemplatesPanel } from '@/components/connectors/phase3-templates-panel'
 import type { Phase3TemplateConfig } from '@/components/connectors/phase3-templates-grid'
 import { InfoHint } from '@/components/hive/info-hint'
+import { sectionHintNode } from '@/components/hive/inline-section-hint'
 import { ListPaginator, ViewportBoundedPanel } from '@/components/ui/list-paginator'
 import { V4Badge, V4Card, V4CardHeader } from '@/components/ui/v4'
 import { HiveApiError, hiveDelete, hiveGet, hivePatchJson, hivePostJson } from '@/lib/api'
@@ -411,6 +412,7 @@ export function ConnectorsConsole({ embedded = false, hubSection }: ConnectorsCo
       <V4Card>
         <V4CardHeader
           title="Obsidian vault → HiveMind"
+          hint={sectionHintNode('integrationsHubObsidian')}
           description={
             <>
               Markdown mirror under <span className="font-mono text-pollen">HIVE_MIND_VAULT_ROOT</span> (Compose:{' '}
@@ -576,7 +578,11 @@ export function ConnectorsConsole({ embedded = false, hubSection }: ConnectorsCo
       </V4Card>
 
       <V4Card>
-        <V4CardHeader title="Combined roster" description="Dynamic hub rows synced from the hive API." />
+        <V4CardHeader
+          title="Combined roster"
+          description="Dynamic hub rows synced from the hive API."
+          hint={sectionHintNode('integrationsHubRoster')}
+        />
 
         {!loadErr && !rows.length ? (
           <div className="v4-dream-empty text-center md:text-left" role="status">

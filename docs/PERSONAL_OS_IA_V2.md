@@ -92,8 +92,14 @@ Globálny prístup ku všetkému cez **⌘K** (command palette) — nič sa nest
   Research; teraz číta živý hash, `#launch`→Library) a **`#tools`** (Integrations `HASH_TO_TAB`
   teraz mapuje hub pod-sekčné hashe na hub tab, scroll target `tools`→`hub-tools`). Doplnené hinty
   (Queue SLO, Module index, Tool gaps, Ecosystem, Self-extending marketplace) + unit testy.
-- **P5 (next):** konsolidácia navigácie na 7 sekcií + ⌘K coverage audit; zvyšné chýbajúce hinty
-  (Foragers, Monitoring, ConnectorsConsole pod-sekcie).
+- **P5 — Foragers + Monitoring hinty + legacy hash redirecty (done 2026-06-21):** `/oracle`
+  prerobený zo server `redirect` na klientsky `LegacyRouteRedirect preserveIncomingHash` (zachová
+  `#hash` z bookmarkov); `/dashboard` ponechaný (nula `/dashboard#…` producentov v repe → nič sa
+  nestráca, zmena middleware = riziko bez prínosu). Doplnené page hinty **Foragers** + **Monitoring**
+  (oba shelly), blokové hinty Forager configurations / Auto-spawn rules a ConnectorsConsole
+  pod-sekcie (Obsidian vault, Combined roster). E2E `/oracle#priorities`→`/agentic-os#priorities`.
+- **P6 (next):** konsolidácia navigácie na 7 sekcií + ⌘K coverage audit; zvyšné chýbajúce hinty
+  (Apps & Tools moduly, Marketing calendar `href="#"` → disabled+hint).
 
 ### Znovupoužiteľný primitív (P2)
 

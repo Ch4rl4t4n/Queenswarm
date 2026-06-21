@@ -12,6 +12,7 @@ import { ForagerFormDialog } from "@/components/hive/forager-form-dialog";
 import { ForagerGoldmineAlertsPanel } from "@/components/hive/forager-goldmine-alerts-panel";
 import { ForagerSpawnRuleDialog } from "@/components/hive/forager-spawn-rule-dialog";
 import { HivePageShell } from "@/components/hive/hive-page-shell";
+import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import {
@@ -280,6 +281,7 @@ export function ForagersPageClient() {
     <HivePageShell
       title="Foragers"
       subtitle="Data-collectors that feed HiveMind — schedule them, watch them ingest, then auto-spawn agents from harvested context."
+      hintKey="foragers"
       error={hivePageShellError(err, () => setErr(null))}
       actions={
         <>
@@ -363,6 +365,7 @@ export function ForagersPageClient() {
         <V4CardHeader
           title="Forager configurations"
           description="YouTube / RSS / API · periodicity · HiveMind ingest · auto-spawn rules."
+          hint={sectionHintNode("foragersConfigurations")}
         />
         <ForagerConfigurationsPanel
           configurations={configurations}
@@ -384,6 +387,7 @@ export function ForagersPageClient() {
         <V4CardHeader
           title="Auto-spawn rules"
           description="When a forager finds X items matching a query, spawn a ScoutBee in target swarm."
+          hint={sectionHintNode("foragersAutoSpawn")}
           actions={
             <button type="button" className="qs-btn qs-btn--ghost qs-btn--sm gap-2" disabled={!canManage} onClick={() => setSpawnRuleOpen(true)}>
               <Plus className="h-4 w-4" aria-hidden />

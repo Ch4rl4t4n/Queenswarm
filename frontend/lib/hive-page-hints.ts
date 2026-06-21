@@ -21,6 +21,8 @@ export type HivePageHintKey =
       | "routines"
       | "dashboard"
       | "manual"
+      | "foragers"
+      | "monitoring"
     >
   | "workflows";
 
@@ -40,6 +42,8 @@ export const HIVE_PAGE_HINTS = {
   workflows: sectionHintProps("agentsWorkflows"),
   dashboard: sectionHintProps("dashboard"),
   manual: sectionHintProps("manual"),
+  foragers: sectionHintProps("foragers"),
+  monitoring: sectionHintProps("monitoring"),
 } as const;
 
 export function hivePageHintProps(key: HivePageHintKey): HivePageHint {
