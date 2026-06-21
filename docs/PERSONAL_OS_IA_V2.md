@@ -98,8 +98,21 @@ Globálny prístup ku všetkému cez **⌘K** (command palette) — nič sa nest
   nestráca, zmena middleware = riziko bez prínosu). Doplnené page hinty **Foragers** + **Monitoring**
   (oba shelly), blokové hinty Forager configurations / Auto-spawn rules a ConnectorsConsole
   pod-sekcie (Obsidian vault, Combined roster). E2E `/oracle#priorities`→`/agentic-os#priorities`.
-- **P6 (next):** konsolidácia navigácie na 7 sekcií + ⌘K coverage audit; zvyšné chýbajúce hinty
-  (Apps & Tools moduly, Marketing calendar `href="#"` → disabled+hint).
+- **P6 — Workflow model rollout #2 (Foragers + Factory) (done 2026-06-21):** prv\u00fd raz sa **vzor
+  z Mission Control** (pod-sekcie + ProcessRail kompas + v\u00fdsledok) roz\u0161\u00edril mimo `/tasks`. Toto je
+  re\u00e1lny redizajn, nie hinty/linky:
+  - `ProcessRail` zov\u0161eobecnen\u00fd na generick\u00fd step-id (`ProcessStep<Id>`), aby ho mohla pou\u017e\u00edva\u0165
+    ka\u017ed\u00e1 sekcia s vlastn\u00fdmi krokmi (Mission Control ostal kompatibiln\u00fd cez default `ProcessStepId`).
+  - **Foragers**: ploch\u00e1 kopa kariet \u2192 pod-sekcie **Nastav | Auto-spawn | V\u00fdsledky** (`useSectionTab`,
+    `?tab=`) + ProcessRail (Zdroj \u2192 Auto-spawn \u2192 V\u00fdsledok). Goldmine alerts ostali ako always-on
+    actionable strip nad tabmi (self-hide ke\u010f pr\u00e1zdne). V\u00fdsledky tab = harvest handoff (HiveMind / Agents).
+  - **Build/Skill Factory**: prid\u00e1 ProcessRail kompas **V\u00fdskum \u2192 Build & overenie \u2192 Kni\u017enica** nad
+    existuj\u00face taby (klik = navig\u00e1cia na tab).
+  - Overenie: `mission-control-subsections`, `phase-foragers`, `forager-discovery` zelen\u00e9. Pozn.:
+    `forager-goldmine-*` a `forager-hit-feedback` padaj\u00fa **aj na baseline** v lok\u00e1lnom dev (502 bez
+    backendu) \u2014 pre-existing env flake, autoritat\u00edvny gate je `ci-local.sh all`.
+- **P7 (next):** rovnak\u00fd vzor na Agents, Knowledge, Integrations, Swarms, Monitoring (po jednej za turn,
+  ka\u017ed\u00e1 plne funk\u010dn\u00e1 a odnasaden\u00e1).
 
 ### Znovupoužiteľný primitív (P2)
 

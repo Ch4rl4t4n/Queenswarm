@@ -14,6 +14,8 @@ import { ForagerSpawnRuleDialog } from "@/components/hive/forager-spawn-rule-dia
 import { HivePageShell } from "@/components/hive/hive-page-shell";
 import { sectionHintNode } from "@/components/hive/inline-section-hint";
 import { HivePanelSectionSkeleton } from "@/components/hive/hive-panel-section-skeleton";
+import { ProcessRail, type ProcessStep } from "@/components/hive/process-rail";
+import { SectionTabBar, useSectionTab, type SectionTab } from "@/components/hive/section-workspace";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import {
   V4Badge,
@@ -52,6 +54,9 @@ interface AgentTemplateLite {
 interface TeamOverviewResponse {
   tenant_role: string;
 }
+
+/** Foragers workflow sub-sections (section -> sub-sections -> result model). */
+type ForagerTab = "setup" | "automate" | "results";
 
 function formatCount(n: number): string {
   if (n >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
@@ -102,6 +107,21 @@ export function ForagersPageClient() {
   });
 
   const canManage = tenantRole === "owner" || tenantRole === "admin";
+
+  const [activeTab, setActiveTab] = useSectionTab<ForagerTab>({
+    tabs: ["setup", "automate", "results"],
+    defaultTab: "setup",
+  });
+  const subTabs: SectionTab[] = [
+    { id: "setup", label: "Nastav", hint: sectionHintNode("foragersConfigurations") },
+    { id: "automate", label: "Auto-spawn", hint: sectionHintNode("foragersAutoSpawn") },
+    { id: "results", label: "Výsledky", hint: sectionHintNode("foragersResults") },
+  ];
+  const railSteps: ProcessStep<ForagerTab>[] = [
+    { id: "setup", label: "Nastav zdroj", short_label: "Zdroj" },
+    { id: "automate", label: "Auto-spawn", short_label: "Auto-spawn" },
+    { id: "results", label: "Výsledok", short_label: "Výsledok" },
+  ];
 
   const reload = useCallback(async () => {
     try {
@@ -355,11 +375,21 @@ export function ForagersPageClient() {
         )}
       </div>
 
+      <ForagerGoldmineAlertsPanel canManage={canManage} busy={busy} onDispatched={reload} />
+
+      <SectionTabBar
+        tabs={subTabs}
+        active={activeTab}
+        onSelect={(id) => setActiveTab(id as ForagerTab)}
+        ariaLabel="Foragers podsekcie"
+      />
+      <ProcessRail steps={railSteps} currentStep={activeTab} onSelectStep={(id) => setActiveTab(id)} />
+
+      {activeTab === "setup" ? (
+        <>
       <DataMonitorWizardPanel canManage={canManage} onCreated={reload} />
 
       <ForagerDiscoveryPanel canManage={canManage} foragers={foragers} onBound={reload} />
-
-      <ForagerGoldmineAlertsPanel canManage={canManage} busy={busy} onDispatched={reload} />
 
       <V4Card>
         <V4CardHeader
@@ -382,7 +412,10 @@ export function ForagersPageClient() {
           onToggleActive={toggleForagerActive}
         />
       </V4Card>
+        </>
+      ) : null}
 
+      {activeTab === "automate" ? (
       <V4Card>
         <V4CardHeader
           title="Auto-spawn rules"
@@ -422,6 +455,27 @@ export function ForagersPageClient() {
           )}
         </div>
       </V4Card>
+      ) : null}
+
+      {activeTab === "results" ? (
+        <>
+          <V4Card>
+            <V4CardHeader
+              title="Harvest → kam ďalej"
+              description="Ingestnutý kontext žije v HiveMind; auto-spawnuté bees nájdeš v Agents."
+              hint={sectionHintNode("foragersResults")}
+            />
+            <div className="flex flex-wrap gap-2">
+              <Link href={KNOWLEDGE_HIVEMIND_HREF} className="qs-btn qs-btn--ghost qs-btn--sm">
+                Otvoriť HiveMind
+              </Link>
+              <Link href={AGENTS_HUB_PATH} className="qs-btn qs-btn--ghost qs-btn--sm">
+                Otvoriť Agents
+              </Link>
+            </div>
+          </V4Card>
+        </>
+      ) : null}
 
       <ForagerSpawnRuleDialog
         open={spawnRuleOpen}

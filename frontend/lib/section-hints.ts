@@ -662,6 +662,17 @@ export const SECTION_HINTS = {
     ],
     manualHref: "/manual#foragers",
   },
+  foragersResults: {
+    title: "Výsledky harvestu",
+    description:
+      "Čo foragery reálne priniesli — goldmine nálezy (vysoký signál), ingesty do HiveMind a auto-spawnuté bees. Odtiaľto pošli nález do tasku alebo otvor v HiveMind.",
+    options: [
+      "Goldmine alert — povýš na task jedným klikom.",
+      "Otvor v HiveMind — pozri ingestnutý kontext.",
+      "Spawnuté bees — kam zmizli nálezy v swarme.",
+    ],
+    manualHref: "/manual#foragers",
+  },
   monitoring: {
     title: "Monitoring",
     description:

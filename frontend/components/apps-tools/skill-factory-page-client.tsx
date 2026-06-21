@@ -25,6 +25,7 @@ import {
 } from "@/components/apps-tools/factory-queue-task-card";
 import { AgentSessionReportDialog } from "@/components/hive/agent-session-report-dialog";
 import { sectionHintNode } from "@/components/hive/inline-section-hint";
+import { ProcessRail, type ProcessStep } from "@/components/hive/process-rail";
 import { SkillFactoryManualPanel } from "@/components/apps-tools/skill-factory-manual-panel";
 import { HiveSwitch } from "@/components/ui/hive-switch";
 import { QsSelect } from "@/components/ui/qs-select";
@@ -163,6 +164,15 @@ function priceEur(cents: number): string {
 }
 
 const LIBRARY_PREVIEW_LIMIT = 5;
+
+/** Linear factory workflow shown as a process-rail compass over the tabs. */
+type FactoryFlowStep = "research" | "queue" | "library";
+
+const FACTORY_FLOW_STEPS: ProcessStep<FactoryFlowStep>[] = [
+  { id: "research", label: "Výskum trhu", short_label: "Research" },
+  { id: "queue", label: "Build & overenie", short_label: "Queue" },
+  { id: "library", label: "Knižnica · export", short_label: "Library" },
+];
 
 function isLibrarySmartRebuildEligible(row: TenantSkillRow): boolean {
   return (
@@ -925,6 +935,14 @@ export function SkillFactoryPageClient(): JSX.Element {
         </V4Card>
       ) : (
         <>
+          {tab === "research" || tab === "queue" || tab === "library" ? (
+            <ProcessRail
+              steps={FACTORY_FLOW_STEPS}
+              currentStep={tab as FactoryFlowStep}
+              onSelectStep={(id) => navigateSkillFactoryTab(id)}
+            />
+          ) : null}
+
           {tab === "guide" ? (
             <div className="space-y-4">
               <SkillFactoryManualPanel personalOsLite />

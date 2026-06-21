@@ -4,23 +4,29 @@ import { memo } from "react";
 
 import { cn } from "@/lib/utils";
 
+/** Mission Control's canonical step ids. Other sections pass their own ids. */
 export type ProcessStepId = "setup" | "plan" | "work" | "verify" | "learn" | "done";
 
-export interface ProcessStep {
-  id: ProcessStepId;
+export interface ProcessStep<Id extends string = ProcessStepId> {
+  id: Id;
   label: string;
   short_label: string;
 }
 
-interface ProcessRailProps {
-  steps: ProcessStep[];
-  currentStep: ProcessStepId;
+interface ProcessRailProps<Id extends string = ProcessStepId> {
+  steps: ProcessStep<Id>[];
+  currentStep: Id;
   compact?: boolean;
   /** When provided, each step becomes a button that scrolls to its panel anchor. */
-  onSelectStep?: (id: ProcessStepId) => void;
+  onSelectStep?: (id: Id) => void;
 }
 
-function ProcessRailInner({ steps, currentStep, compact = false, onSelectStep }: ProcessRailProps): JSX.Element {
+function ProcessRailInner<Id extends string = ProcessStepId>({
+  steps,
+  currentStep,
+  compact = false,
+  onSelectStep,
+}: ProcessRailProps<Id>): JSX.Element {
   const currentIndex = steps.findIndex((step) => step.id === currentStep);
 
   return (
@@ -115,4 +121,4 @@ function ProcessRailInner({ steps, currentStep, compact = false, onSelectStep }:
   );
 }
 
-export const ProcessRail = memo(ProcessRailInner);
+export const ProcessRail = memo(ProcessRailInner) as typeof ProcessRailInner;
